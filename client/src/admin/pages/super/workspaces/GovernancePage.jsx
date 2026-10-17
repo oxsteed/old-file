@@ -39,14 +39,14 @@ function toLocalDatetimeInput(d) {
 function Field({ label, children }) {
   return (
     <label className="block text-sm">
-      <span className="text-gray-400">{label}</span>
+      <span className="text-gray-600 dark:text-gray-400">{label}</span>
       <div className="mt-1">{children}</div>
     </label>
   );
 }
 
 const inputCls =
-  'w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none';
+  'w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none';
 const btnCls =
   'inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50';
 const dangerBtnCls =
@@ -55,7 +55,7 @@ const ghostBtnCls =
   'inline-flex items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-xs font-medium text-gray-300 hover:bg-neutral-700 disabled:opacity-50';
 const tabCls = (active) =>
   `flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium ${
-    active ? 'bg-blue-600 text-white' : 'bg-neutral-800 text-gray-300 hover:bg-neutral-700'
+    active ? 'bg-blue-600 text-white' : 'bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-neutral-700'
   }`;
 
 function useStatusLabel() {
@@ -76,9 +76,9 @@ function useStatusLabel() {
 function StatusBadge({ status }) {
   const statusLabel = useStatusLabel();
   const colors = {
-    draft: 'bg-neutral-700 text-gray-300',
+    draft: 'bg-neutral-700 text-gray-700 dark:text-gray-300',
     active: 'bg-green-900 text-green-300',
-    retired: 'bg-gray-700 text-gray-300',
+    retired: 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
     expired: 'bg-yellow-900 text-yellow-300',
     terminated: 'bg-red-900 text-red-300',
     pending: 'bg-yellow-900 text-yellow-300',
@@ -93,13 +93,13 @@ function StatusBadge({ status }) {
 function Modal({ title, icon: Icon, onClose, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
-      <div className="w-full max-w-lg bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
-          <h2 className="font-semibold text-white flex items-center gap-2">
+      <div className="w-full max-w-lg bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800">
+          <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             {Icon && <Icon size={16} className="text-blue-400" />}
             {title}
           </h2>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-white" aria-label="Close">
+          <button type="button" onClick={onClose} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white" aria-label="Close">
             <X size={18} />
           </button>
         </div>
@@ -162,7 +162,7 @@ function PoliciesTab() {
     <div className="grid gap-6 lg:grid-cols-5">
       {dialog}
       <div className="lg:col-span-2 rounded-xl border border-neutral-800 bg-neutral-900/60 p-5 h-fit">
-        <h2 className="text-base font-semibold text-white">{t(tKey('newPolicy'), 'New policy')}</h2>
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">{t(tKey('newPolicy'), 'New policy')}</h2>
         <form onSubmit={submit} className="mt-4 space-y-3">
           <Field label={t(tKey('code'), 'Code (lowercase slug)')}>
             <input className={inputCls} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toLowerCase().replace(/\s+/g, '-') })} placeholder="fraud-zero-tolerance" required />
@@ -188,11 +188,11 @@ function PoliciesTab() {
       </div>
 
       <div className="lg:col-span-3 rounded-xl border border-neutral-800 bg-neutral-900/60 p-5">
-        <h2 className="text-base font-semibold text-white">{t(tKey('policiesTitle'), 'Policy registry')}</h2>
-        {loading && <p className="mt-4 text-sm text-gray-400 flex items-center gap-2"><Loader2 size={16} className="animate-spin" /></p>}
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">{t(tKey('policiesTitle'), 'Policy registry')}</h2>
+        {loading && <p className="mt-4 text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2"><Loader2 size={16} className="animate-spin" /></p>}
         {error && <div className="mt-4"><AdminErrorState message={t(tKey('loadFailed'), 'Failed to load the policy registry.')} onRetry={reload} /></div>}
         {!loading && !error && policies.length === 0 && (
-          <p className="mt-4 text-sm text-gray-400">{t(tKey('noPolicies'), 'No policies recorded yet.')}</p>
+          <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">{t(tKey('noPolicies'), 'No policies recorded yet.')}</p>
         )}
         {!loading && !error && policies.length > 0 && (
           <div className="mt-4 space-y-3">
@@ -201,11 +201,11 @@ function PoliciesTab() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono text-sm text-white">{p.code}</span>
-                      <span className="text-xs text-gray-400">v{p.version}</span>
+                      <span className="font-mono text-sm text-gray-900 dark:text-white">{p.code}</span>
+                      <span className="text-xs text-gray-600 dark:text-gray-400">v{p.version}</span>
                       <StatusBadge status={p.status} />
                     </div>
-                    <p className="mt-1 text-sm font-medium text-gray-200">{p.title}</p>
+                    <p className="mt-1 text-sm font-medium text-gray-700 dark:text-gray-200">{p.title}</p>
                     <p className="text-xs text-gray-500">{p.category}{p.effective_from ? `, effective ${dateOnly(p.effective_from)}` : ''}</p>
                   </div>
                   <div className="flex gap-2 shrink-0">
@@ -219,7 +219,7 @@ function PoliciesTab() {
                     )}
                   </div>
                 </div>
-                <p className="mt-2 text-sm text-gray-400 line-clamp-3">{p.body}</p>
+                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 line-clamp-3">{p.body}</p>
                 <p className="mt-2 text-xs text-gray-600">{t(tKey('updatedAt'), 'Updated')}: {ts(p.updated_at)}</p>
               </div>
             ))}
@@ -375,7 +375,7 @@ function ContractsTab() {
     <div className="grid gap-6 lg:grid-cols-5">
       {dialog}
       <div className="lg:col-span-2 rounded-xl border border-neutral-800 bg-neutral-900/60 p-5 h-fit">
-        <h2 className="text-base font-semibold text-white">{t(tKey('newContract'), 'Record a contract')}</h2>
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">{t(tKey('newContract'), 'Record a contract')}</h2>
         <p className="mt-1 text-xs text-gray-500">{t(tKey('contractsNote'), 'Records only: legal execution and signatures stay outside this registry.')}</p>
         <form onSubmit={submit} className="mt-4 space-y-3">
           <Field label={t(tKey('counterparty'), 'Counterparty')}>
@@ -414,11 +414,11 @@ function ContractsTab() {
       </div>
 
       <div className="lg:col-span-3 rounded-xl border border-neutral-800 bg-neutral-900/60 p-5">
-        <h2 className="text-base font-semibold text-white">{t(tKey('contractsTitle'), 'Contract records')}</h2>
-        {loading && <p className="mt-4 text-sm text-gray-400 flex items-center gap-2"><Loader2 size={16} className="animate-spin" /></p>}
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">{t(tKey('contractsTitle'), 'Contract records')}</h2>
+        {loading && <p className="mt-4 text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2"><Loader2 size={16} className="animate-spin" /></p>}
         {error && <div className="mt-4"><AdminErrorState message={t(tKey('loadFailed'), 'Failed to load the policy registry.')} onRetry={reload} /></div>}
         {!loading && !error && contracts.length === 0 && (
-          <p className="mt-4 text-sm text-gray-400">{t(tKey('noContracts'), 'No contracts recorded yet.')}</p>
+          <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">{t(tKey('noContracts'), 'No contracts recorded yet.')}</p>
         )}
         {!loading && !error && contracts.length > 0 && (
           <div className="mt-4 space-y-3">
@@ -427,10 +427,10 @@ function ContractsTab() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-white">{c.title}</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">{c.title}</span>
                       <StatusBadge status={c.status} />
                     </div>
-                    <p className="mt-1 text-sm text-gray-300">{c.counterparty}</p>
+                    <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">{c.counterparty}</p>
                     <p className="text-xs text-gray-500">
                       {contractTypeLabel(c.contract_type)}
                       {c.signed_at ? `, ${t(tKey('signedAt'), 'Signed on')} ${dateOnly(c.signed_at)}` : ''}
@@ -449,7 +449,7 @@ function ContractsTab() {
                     )}
                   </div>
                 </div>
-                {c.notes && <p className="mt-2 text-sm text-gray-400 whitespace-pre-line">{c.notes}</p>}
+                {c.notes && <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 whitespace-pre-line">{c.notes}</p>}
                 {terminatingId === c.id && (
                   <div className="mt-3 rounded-lg border border-red-900/60 bg-red-950/20 p-3">
                     <Field label={t(tKey('terminationReason'), 'Termination reason (optional)')}>
@@ -576,11 +576,11 @@ function PrivacyTab() {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-5">
-        <h2 className="text-base font-semibold text-white flex items-center gap-2">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
           <ShieldCheck size={16} className="text-green-400" />
           {t(tKey('privacyTitle'), 'Privacy requests (CCPA / DSR)')}
         </h2>
-        <p className="mt-2 text-sm text-gray-400">
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
           {t(tKey('privacyDesc'), 'Data subject requests are handled in the dedicated privacy queue: access, deletion, and correction requests with their deadlines and notification status.')}
         </p>
         <p className="mt-2 text-xs text-gray-500">
@@ -706,11 +706,11 @@ function AccessTab() {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono text-sm text-white">#{g.id}</span>
+            <span className="font-mono text-sm text-gray-900 dark:text-white">#{g.id}</span>
             <StatusBadge status={g.status} />
             {g.investigation_ref && <span className="text-xs text-gray-500">{g.investigation_ref}</span>}
           </div>
-          <p className="mt-1 text-sm text-gray-300">{g.purpose}</p>
+          <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">{g.purpose}</p>
           <p className="mt-1 text-xs text-gray-500">
             {t(tKey('requester'), 'Requester')}: {adminName[g.requester_admin_id] || String(g.requester_admin_id).slice(0, 8)}
             {' | '}{t(tKey('approverCol'), 'Approver')}: {adminName[g.approver_admin_id] || String(g.approver_admin_id).slice(0, 8)}
@@ -759,7 +759,7 @@ function AccessTab() {
       {dialog}
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="lg:col-span-2 rounded-xl border border-neutral-800 bg-neutral-900/60 p-5 h-fit">
-          <h2 className="text-base font-semibold text-white flex items-center gap-2">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <KeyRound size={16} className="text-amber-400" />
             {t(tKey('requestAccess'), 'Request investigation access')}
           </h2>
@@ -801,8 +801,8 @@ function AccessTab() {
 
         <div className="lg:col-span-3 rounded-xl border border-neutral-800 bg-neutral-900/60 p-5">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h2 className="text-base font-semibold text-white">{t(tKey('grantsTitle'), 'Access grants')}</h2>
-            <select className="rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs text-white" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white">{t(tKey('grantsTitle'), 'Access grants')}</h2>
+            <select className="rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs text-gray-900 dark:text-white" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="all">{t(tKey('filterAll'), 'All')}</option>
               <option value="pending">{t(tKey('statusPending'), 'Pending')}</option>
               <option value="active">{t(tKey('statusActive'), 'Active')}</option>
@@ -810,7 +810,7 @@ function AccessTab() {
               <option value="expired">{t(tKey('statusExpired'), 'Expired')}</option>
             </select>
           </div>
-          {grantsLoading && <p className="mt-4 text-sm text-gray-400 flex items-center gap-2"><Loader2 size={16} className="animate-spin" /></p>}
+          {grantsLoading && <p className="mt-4 text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2"><Loader2 size={16} className="animate-spin" /></p>}
           {grantsError && <div className="mt-4"><AdminErrorState message={t(tKey('loadFailed'), 'Failed to load the policy registry.')} onRetry={reloadGrants} /></div>}
           {!grantsLoading && !grantsError && (
             <div className="mt-4 space-y-4">
@@ -828,12 +828,12 @@ function AccessTab() {
               )}
               {history.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-medium text-gray-400">{t(tKey('grantHistory'), 'History')}</h3>
+                  <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">{t(tKey('grantHistory'), 'History')}</h3>
                   <div className="mt-2 space-y-3">{history.map(grantCard)}</div>
                 </div>
               )}
               {grants.length === 0 && (
-                <p className="text-sm text-gray-400">{t(tKey('noGrants'), 'No grants match this filter.')}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{t(tKey('noGrants'), 'No grants match this filter.')}</p>
               )}
             </div>
           )}
@@ -841,14 +841,14 @@ function AccessTab() {
       </div>
 
       <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-5">
-        <h2 className="text-base font-semibold text-white">{t(tKey('readsAudit'), 'Reads audit (investigation_read)')}</h2>
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">{t(tKey('readsAudit'), 'Reads audit (investigation_read)')}</h2>
         <p className="mt-1 text-xs text-gray-500">
           {t(tKey('readsAuditNote'), 'Every elevated investigation read is written to the admin audit log with purpose and approver.')}
         </p>
-        {readsLoading && <p className="mt-4 text-sm text-gray-400 flex items-center gap-2"><Loader2 size={16} className="animate-spin" /></p>}
+        {readsLoading && <p className="mt-4 text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2"><Loader2 size={16} className="animate-spin" /></p>}
         {readsError && <div className="mt-4"><AdminErrorState message={t(tKey('loadFailed'), 'Failed to load the policy registry.')} onRetry={reloadReads} /></div>}
         {!readsLoading && !readsError && reads.length === 0 && (
-          <p className="mt-4 text-sm text-gray-400">{t(tKey('noReads'), 'No investigation reads recorded yet.')}</p>
+          <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">{t(tKey('noReads'), 'No investigation reads recorded yet.')}</p>
         )}
         {!readsLoading && !readsError && reads.length > 0 && (
           <div className="mt-4 overflow-x-auto">
@@ -863,11 +863,11 @@ function AccessTab() {
               </thead>
               <tbody>
                 {reads.map((r) => (
-                  <tr key={r.id} className="border-b border-neutral-800/60 text-gray-300">
+                  <tr key={r.id} className="border-b border-neutral-800/60 text-gray-700 dark:text-gray-300">
                     <td className="py-2 pr-4 whitespace-nowrap text-xs">{ts(r.created_at)}</td>
                     <td className="py-2 pr-4 whitespace-nowrap">{r.admin_name || r.admin_email || String(r.admin_id).slice(0, 8)}</td>
                     <td className="py-2 pr-4 font-mono text-xs">{r.target_key || (r.target_id ? String(r.target_id).slice(0, 8) : '-')}</td>
-                    <td className="py-2 text-xs text-gray-400 max-w-md truncate" title={r.description}>{r.description}</td>
+                    <td className="py-2 text-xs text-gray-600 dark:text-gray-400 max-w-md truncate" title={r.description}>{r.description}</td>
                   </tr>
                 ))}
               </tbody>
@@ -895,8 +895,8 @@ export default function GovernancePage() {
   return (
     <div className="p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">{t(tKey('title'), 'Market Governance')}</h1>
-        <p className="mt-1 text-sm text-gray-400">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t(tKey('title'), 'Market Governance')}</h1>
+        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
           {t(tKey('subtitle'), 'Policy registry, contract records, privacy queue, and controlled investigation access.')}
         </p>
       </div>

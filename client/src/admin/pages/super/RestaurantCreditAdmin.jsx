@@ -67,9 +67,9 @@ function statusTone(status) {
       return 'border-red-500/30 bg-red-500/10 text-red-300';
     case 'cancelled':
     case 'expired':
-      return 'border-gray-700 bg-gray-800/70 text-gray-400';
+      return 'border-gray-300 dark:border-gray-700 bg-gray-100/70 dark:bg-gray-800/70 text-gray-600 dark:text-gray-400';
     default:
-      return 'border-gray-700 bg-gray-900/70 text-gray-400';
+      return 'border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-900/70 text-gray-600 dark:text-gray-400';
   }
 }
 
@@ -97,14 +97,14 @@ function StatusBadge({ status }) {
 
 function MetricCard({ icon: Icon, label, value, hint, tone = 'text-white' }) {
   return (
-    <div className="rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5">
+    <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">{label}</p>
           <p className={`mt-2 text-2xl font-semibold sm:text-3xl ${tone}`}>{value}</p>
         </div>
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-800 bg-gray-900/80">
-          <Icon className="h-4 w-4 text-gray-300" />
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80">
+          <Icon className="h-4 w-4 text-gray-700 dark:text-gray-300" />
         </div>
       </div>
       <p className="mt-3 text-xs leading-5 text-gray-500">{hint}</p>
@@ -114,9 +114,9 @@ function MetricCard({ icon: Icon, label, value, hint, tone = 'text-white' }) {
 
 function EmptyState({ title, detail }) {
   return (
-    <div className="rounded-2xl border border-dashed border-gray-800 bg-gray-950/30 px-5 py-10 text-center">
+    <div className="rounded-2xl border border-dashed border-gray-200 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-950/30 px-5 py-10 text-center">
       <Wallet className="mx-auto h-8 w-8 text-gray-700" />
-      <p className="mt-3 text-sm font-semibold text-gray-300">{title}</p>
+      <p className="mt-3 text-sm font-semibold text-gray-700 dark:text-gray-300">{title}</p>
       {detail && <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-gray-500">{detail}</p>}
     </div>
   );
@@ -127,7 +127,7 @@ function SectionHeader({ eyebrow, title, detail, action }) {
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         {eyebrow && <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-300">{eyebrow}</p>}
-        <h2 className="mt-1 text-lg font-semibold text-white">{title}</h2>
+        <h2 className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
         {detail && <p className="mt-1 text-sm leading-6 text-gray-500">{detail}</p>}
       </div>
       {action}
@@ -146,25 +146,25 @@ function ConfirmDialog({ modal, busy, error, onChange, onClose, onConfirm }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="restaurant-credit-dialog-title">
-      <div className="w-full max-w-lg rounded-2xl border border-gray-700 bg-[#111318] p-5 shadow-2xl sm:p-6">
+      <div className="w-full max-w-lg rounded-2xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#111318] p-5 shadow-2xl sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-orange-300">{t('adminRestaurantCreditConfirmAction')}</p>
-            <h2 id="restaurant-credit-dialog-title" className="mt-2 text-xl font-semibold text-white">{modal.title}</h2>
+            <h2 id="restaurant-credit-dialog-title" className="mt-2 text-xl font-semibold text-gray-900 dark:text-white">{modal.title}</h2>
           </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-2 text-gray-500 hover:bg-gray-800 hover:text-white" aria-label={t('adminRestaurantCreditCloseDialog')}>
+          <button type="button" onClick={onClose} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white" aria-label={t('adminRestaurantCreditCloseDialog')}>
             <XCircle className="h-5 w-5" />
           </button>
         </div>
-        <p className="mt-3 text-sm leading-6 text-gray-400">{t('adminRestaurantCreditConfirmText')}</p>
+        <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400">{t('adminRestaurantCreditConfirmText')}</p>
 
         {isStatus && (
-          <label className="mt-5 block text-sm font-medium text-gray-300">
+          <label className="mt-5 block text-sm font-medium text-gray-700 dark:text-gray-300">
             {t('adminRestaurantCreditNewStatus')}
             <select
               value={modal.status || 'suspended'}
               onChange={(event) => onChange({ status: event.target.value })}
-              className="mt-2 w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-white outline-none focus:border-orange-400"
+              className="mt-2 w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-gray-900 dark:text-white outline-none focus:border-orange-400"
             >
               <option value="suspended">{t('adminRestaurantCreditStatusSuspended')}</option>
               <option value="active">{t('adminRestaurantCreditStatusActive')}</option>
@@ -173,7 +173,7 @@ function ConfirmDialog({ modal, busy, error, onChange, onClose, onConfirm }) {
         )}
 
         {isApproval ? (
-          <label className="mt-5 block text-sm font-medium text-gray-300">
+          <label className="mt-5 block text-sm font-medium text-gray-700 dark:text-gray-300">
             {t('adminRestaurantCreditApprovalNote')} <span className="font-normal text-gray-500">({t('adminRestaurantCreditOptional')})</span>
             <textarea
               value={modal.approvalNote || ''}
@@ -181,11 +181,11 @@ function ConfirmDialog({ modal, busy, error, onChange, onClose, onConfirm }) {
               rows={3}
               maxLength={500}
               placeholder={t('adminRestaurantCreditApprovalNotePlaceholder')}
-              className="mt-2 w-full resize-y rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-white placeholder:text-gray-600 outline-none focus:border-orange-400"
+              className="mt-2 w-full resize-y rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-gray-900 dark:text-white placeholder:text-gray-600 outline-none focus:border-orange-400"
             />
           </label>
         ) : needsReason ? (
-          <label className="mt-5 block text-sm font-medium text-gray-300">
+          <label className="mt-5 block text-sm font-medium text-gray-700 dark:text-gray-300">
             {t('adminRestaurantCreditReason')} {requiresReason ? <span className="text-orange-300">*</span> : <span className="font-normal text-gray-500">({t('adminRestaurantCreditOptional')})</span>}
             <textarea
               value={modal.reason || ''}
@@ -193,14 +193,14 @@ function ConfirmDialog({ modal, busy, error, onChange, onClose, onConfirm }) {
               rows={3}
               maxLength={500}
               placeholder={t('adminRestaurantCreditReasonPlaceholder')}
-              className="mt-2 w-full resize-y rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-white placeholder:text-gray-600 outline-none focus:border-orange-400"
+              className="mt-2 w-full resize-y rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-gray-900 dark:text-white placeholder:text-gray-600 outline-none focus:border-orange-400"
             />
           </label>
         ) : null}
 
         {error && <p className="mt-4 rounded-xl border border-red-500/30 bg-red-950/30 px-3 py-2 text-sm text-red-300">{error}</p>}
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <button type="button" onClick={onClose} disabled={busy} className="rounded-xl border border-gray-700 px-4 py-3 text-sm font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">{t('common.cancel')}</button>
+          <button type="button" onClick={onClose} disabled={busy} className="rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">{t('common.cancel')}</button>
           <button type="button" onClick={onConfirm} disabled={!canConfirm} className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-50">
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             {t('adminRestaurantCreditConfirmActionBtn')}
@@ -266,9 +266,9 @@ function CreditApprovalPanel({ restaurantId, restaurantName }) {
   };
 
   return (
-    <section className="rounded-xl border border-gray-800 bg-gray-950/30 p-4">
+    <section className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-950/30 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-white">{t('adminCreditApprovalTitle')}</h3>
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t('adminCreditApprovalTitle')}</h3>
         {!loading && !loadError && approval && <StatusBadge status={approval.status} />}
       </div>
       <p className="mt-2 text-xs leading-5 text-gray-500">{t('adminCreditApprovalDetail')}</p>
@@ -278,27 +278,27 @@ function CreditApprovalPanel({ restaurantId, restaurantName }) {
         <p className="mt-3 text-sm text-red-300">{loadError}</p>
       ) : approval && (
         <dl className="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
-          <div><dt className="text-gray-500">{t('adminCreditApprovalStatusLabel')}</dt><dd className="mt-0.5 font-semibold text-gray-200">{approval.grandfathered ? t('adminCreditApprovalGrandfathered') : approval.status}</dd></div>
-          {approval.revocationReason && <div className="sm:col-span-2"><dt className="text-gray-500">{t('adminRestaurantCreditReason')}</dt><dd className="mt-0.5 text-gray-200">{approval.revocationReason}</dd></div>}
-          {approval.revokedAt && <div><dt className="text-gray-500">{t('adminCreditApprovalRevokedAt')}</dt><dd className="mt-0.5 text-gray-200">{dateTime(approval.revokedAt, t)}</dd></div>}
+          <div><dt className="text-gray-500">{t('adminCreditApprovalStatusLabel')}</dt><dd className="mt-0.5 font-semibold text-gray-700 dark:text-gray-200">{approval.grandfathered ? t('adminCreditApprovalGrandfathered') : approval.status}</dd></div>
+          {approval.revocationReason && <div className="sm:col-span-2"><dt className="text-gray-500">{t('adminRestaurantCreditReason')}</dt><dd className="mt-0.5 text-gray-700 dark:text-gray-200">{approval.revocationReason}</dd></div>}
+          {approval.revokedAt && <div><dt className="text-gray-500">{t('adminCreditApprovalRevokedAt')}</dt><dd className="mt-0.5 text-gray-700 dark:text-gray-200">{dateTime(approval.revokedAt, t)}</dd></div>}
           {approval.gracePeriodEndsAt && <div><dt className="text-gray-500">{t('adminCreditApprovalGraceEnds')}</dt><dd className="mt-0.5 font-semibold text-amber-300">{dateTime(approval.gracePeriodEndsAt, t)}</dd></div>}
-          {approval.migratedAt && <div><dt className="text-gray-500">{t('adminCreditApprovalMigratedAt')}</dt><dd className="mt-0.5 text-gray-200">{dateTime(approval.migratedAt, t)}</dd></div>}
+          {approval.migratedAt && <div><dt className="text-gray-500">{t('adminCreditApprovalMigratedAt')}</dt><dd className="mt-0.5 text-gray-700 dark:text-gray-200">{dateTime(approval.migratedAt, t)}</dd></div>}
         </dl>
       )}
-      <div className="mt-4 grid grid-cols-1 gap-3 border-t border-gray-800 pt-4 sm:grid-cols-[180px_minmax(0,1fr)]">
-        <label className="block text-xs font-medium text-gray-300">
+      <div className="mt-4 grid grid-cols-1 gap-3 border-t border-gray-200 dark:border-gray-800 pt-4 sm:grid-cols-[180px_minmax(0,1fr)]">
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
           {t('adminCreditApprovalNewStatus')}
           <select
             value={newStatus}
             onChange={(event) => setNewStatus(event.target.value)}
-            className="mt-2 w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-2.5 text-sm text-white outline-none focus:border-orange-400"
+            className="mt-2 w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-orange-400"
           >
             <option value="approved">{t('adminRestaurantCreditStatusApproved')}</option>
             <option value="suspended">{t('adminRestaurantCreditStatusSuspended')}</option>
             <option value="revoked">{t('adminCreditApprovalStatusRevoked')}</option>
           </select>
         </label>
-        <label className="block text-xs font-medium text-gray-300">
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
           {t('adminCreditApprovalReason')} {needsReason && <span className="text-orange-300">*</span>}
           <textarea
             value={reason}
@@ -306,7 +306,7 @@ function CreditApprovalPanel({ restaurantId, restaurantName }) {
             rows={2}
             maxLength={500}
             placeholder={t('adminCreditApprovalReasonPlaceholder')}
-            className="mt-2 w-full resize-y rounded-xl border border-gray-700 bg-gray-950 px-3 py-2.5 text-sm text-white placeholder:text-gray-600 outline-none focus:border-orange-400"
+            className="mt-2 w-full resize-y rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2.5 text-sm text-gray-900 dark:text-white placeholder:text-gray-600 outline-none focus:border-orange-400"
           />
         </label>
       </div>
@@ -333,12 +333,12 @@ function WalletDetail({ detail, onStatus, onRelease }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-orange-300">{t('adminRestaurantCreditWalletDetail')}</p>
-          <h2 className="mt-1 truncate text-xl font-semibold text-white">{wallet.customerName || wallet.customerEmail || shortId(wallet.customerId)}</h2>
+          <h2 className="mt-1 truncate text-xl font-semibold text-gray-900 dark:text-white">{wallet.customerName || wallet.customerEmail || shortId(wallet.customerId)}</h2>
           <p className="mt-1 break-all text-xs text-gray-500">{wallet.customerEmail || wallet.customerId} · {wallet.restaurantName || shortId(wallet.restaurantId)}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={wallet.status} />
-          <button type="button" onClick={() => onStatus(wallet)} disabled={!canChangeStatus} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40">
+          <button type="button" onClick={() => onStatus(wallet)} disabled={!canChangeStatus} className="rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40">
             {wallet.status === 'closed' ? t('adminRestaurantCreditWalletClosed') : canSuspend ? t('adminRestaurantCreditSuspendWallet') : t('adminRestaurantCreditReactivateWallet')}
           </button>
         </div>
@@ -347,21 +347,21 @@ function WalletDetail({ detail, onStatus, onRelease }) {
       <CreditApprovalPanel restaurantId={wallet.restaurantId} restaurantName={wallet.restaurantName} />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-3"><p className="text-xs text-gray-500">{t('adminRestaurantCreditLedgerBalance')}</p><p className="mt-1 text-lg font-semibold text-white">{money(wallet.balanceCents, wallet.currencyCode)}</p></div>
-        <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-3"><p className="text-xs text-gray-500">{t('adminRestaurantCreditReserved')}</p><p className="mt-1 text-lg font-semibold text-amber-300">{money(wallet.reservedCents, wallet.currencyCode)}</p></div>
-        <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-3"><p className="text-xs text-gray-500">{t('adminRestaurantCreditAvailable')}</p><p className="mt-1 text-lg font-semibold text-emerald-300">{money(wallet.availableBalanceCents, wallet.currencyCode)}</p></div>
+        <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/40 dark:bg-gray-950/40 p-3"><p className="text-xs text-gray-500">{t('adminRestaurantCreditLedgerBalance')}</p><p className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{money(wallet.balanceCents, wallet.currencyCode)}</p></div>
+        <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/40 dark:bg-gray-950/40 p-3"><p className="text-xs text-gray-500">{t('adminRestaurantCreditReserved')}</p><p className="mt-1 text-lg font-semibold text-amber-300">{money(wallet.reservedCents, wallet.currencyCode)}</p></div>
+        <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/40 dark:bg-gray-950/40 p-3"><p className="text-xs text-gray-500">{t('adminRestaurantCreditAvailable')}</p><p className="mt-1 text-lg font-semibold text-emerald-300">{money(wallet.availableBalanceCents, wallet.currencyCode)}</p></div>
       </div>
 
-      <div className="rounded-xl border border-gray-800 bg-gray-950/30 p-3 text-xs text-gray-500">
-        <span className="font-semibold text-gray-300">{t('adminRestaurantCreditAccount')}:</span> {wallet.accountId} · <span className="font-semibold text-gray-300">{t('adminRestaurantCreditLedgerVersion')}:</span> {wallet.ledgerVersion} · <span className="font-semibold text-gray-300">{t('adminRestaurantCreditUpdated')}:</span> {dateTime(wallet.updatedAt, t)}
+      <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-950/30 p-3 text-xs text-gray-500">
+        <span className="font-semibold text-gray-700 dark:text-gray-300">{t('adminRestaurantCreditAccount')}:</span> {wallet.accountId} · <span className="font-semibold text-gray-700 dark:text-gray-300">{t('adminRestaurantCreditLedgerVersion')}:</span> {wallet.ledgerVersion} · <span className="font-semibold text-gray-700 dark:text-gray-300">{t('adminRestaurantCreditUpdated')}:</span> {dateTime(wallet.updatedAt, t)}
       </div>
 
       <HistorySection title={t('adminRestaurantCreditLoadRequests')} count={detail.loadRequests?.length}>
         {!detail.loadRequests?.length ? <p className="text-sm text-gray-500">{t('adminRestaurantCreditNoLoadRequests')}</p> : (
           <div className="space-y-2">
             {detail.loadRequests.slice(0, 8).map((item) => (
-              <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-800 bg-gray-950/35 p-3">
-                <div><div className="flex flex-wrap items-center gap-2"><StatusBadge status={item.status} /><span className="text-sm font-semibold text-white">{money(item.amountCents, item.currencyCode)}</span></div><p className="mt-1 text-xs text-gray-500">{item.note || t('adminRestaurantCreditNoNote')} · {dateTime(item.createdAt, t)}</p></div>
+              <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/35 dark:bg-gray-950/35 p-3">
+                <div><div className="flex flex-wrap items-center gap-2"><StatusBadge status={item.status} /><span className="text-sm font-semibold text-gray-900 dark:text-white">{money(item.amountCents, item.currencyCode)}</span></div><p className="mt-1 text-xs text-gray-500">{item.note || t('adminRestaurantCreditNoNote')} · {dateTime(item.createdAt, t)}</p></div>
                 <span className="text-xs text-gray-600">#{item.id}</span>
               </div>
             ))}
@@ -373,8 +373,8 @@ function WalletDetail({ detail, onStatus, onRelease }) {
         {!detail.holds?.length ? <p className="text-sm text-gray-500">{t('adminRestaurantCreditNoHolds')}</p> : (
           <div className="space-y-2">
             {detail.holds.slice(0, 8).map((hold) => (
-              <div key={hold.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-800 bg-gray-950/35 p-3">
-                <div><div className="flex flex-wrap items-center gap-2"><StatusBadge status={hold.status} /><span className="text-sm font-semibold text-white">{money(hold.amountCents, hold.currencyCode)}</span></div><p className="mt-1 text-xs text-gray-500">{hold.purpose || t('adminRestaurantCreditHoldPurpose')} · {dateTime(hold.createdAt, t)}</p></div>
+              <div key={hold.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/35 dark:bg-gray-950/35 p-3">
+                <div><div className="flex flex-wrap items-center gap-2"><StatusBadge status={hold.status} /><span className="text-sm font-semibold text-gray-900 dark:text-white">{money(hold.amountCents, hold.currencyCode)}</span></div><p className="mt-1 text-xs text-gray-500">{hold.purpose || t('adminRestaurantCreditHoldPurpose')} · {dateTime(hold.createdAt, t)}</p></div>
                 {hold.status === 'active' && <button type="button" onClick={() => onRelease(hold)} className="rounded-lg border border-amber-500/40 px-3 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-500/10">{t('adminRestaurantCreditReleaseHoldBtn')}</button>}
               </div>
             ))}
@@ -387,7 +387,7 @@ function WalletDetail({ detail, onStatus, onRelease }) {
           <div className="space-y-2">
             {detail.transfers.slice(0, 12).map((transfer) => {
               const outgoing = String(transfer.senderAccountId) === String(wallet.accountId);
-              return <div key={transfer.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-800 bg-gray-950/35 p-3"><div><div className="flex flex-wrap items-center gap-2"><StatusBadge status={transfer.status} /><span className={`text-sm font-semibold ${outgoing ? 'text-red-300' : 'text-emerald-300'}`}>{outgoing ? '-' : '+'}{money(transfer.amountCents, transfer.currencyCode)}</span></div><p className="mt-1 text-xs text-gray-500">{outgoing ? t('adminRestaurantCreditTo') : t('adminRestaurantCreditFrom')} {t('adminRestaurantCreditWalletWord')} {shortId(outgoing ? transfer.recipientAccountId : transfer.senderAccountId)}{transfer.memo ? ` · ${transfer.memo}` : ''}</p></div><span className="text-xs text-gray-600">{dateTime(transfer.createdAt, t)}</span></div>;
+              return <div key={transfer.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/35 dark:bg-gray-950/35 p-3"><div><div className="flex flex-wrap items-center gap-2"><StatusBadge status={transfer.status} /><span className={`text-sm font-semibold ${outgoing ? 'text-red-300' : 'text-emerald-300'}`}>{outgoing ? '-' : '+'}{money(transfer.amountCents, transfer.currencyCode)}</span></div><p className="mt-1 text-xs text-gray-500">{outgoing ? t('adminRestaurantCreditTo') : t('adminRestaurantCreditFrom')} {t('adminRestaurantCreditWalletWord')} {shortId(outgoing ? transfer.recipientAccountId : transfer.senderAccountId)}{transfer.memo ? ` · ${transfer.memo}` : ''}</p></div><span className="text-xs text-gray-600">{dateTime(transfer.createdAt, t)}</span></div>;
             })}
           </div>
         )}
@@ -395,9 +395,9 @@ function WalletDetail({ detail, onStatus, onRelease }) {
 
       <HistorySection title={t('adminRestaurantCreditLedgerActivity')} count={detail.ledger?.length}>
         {!detail.ledger?.length ? <p className="text-sm text-gray-500">{t('adminRestaurantCreditNoLedger')}</p> : (
-          <div className="overflow-x-auto rounded-xl border border-gray-800">
-            <table className="min-w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColEntry')}</th><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColAmount')}</th><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColBalanceAfter')}</th><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColPosted')}</th></tr></thead><tbody className="divide-y divide-gray-800">
-              {detail.ledger.slice(0, 20).map((entry) => <tr key={entry.id} className="text-gray-300"><td className="px-3 py-2"><span className="font-semibold text-white">{entry.entryType}</span><span className="ml-2 text-gray-600">#{entry.id}</span><p className="mt-1 max-w-[220px] truncate text-gray-500">{entry.description || t('adminRestaurantCreditNoDescription')}</p></td><td className="whitespace-nowrap px-3 py-2">{money(entry.amountCents, entry.currencyCode)}</td><td className="whitespace-nowrap px-3 py-2">{money(entry.balanceAfterCents, entry.currencyCode)}</td><td className="whitespace-nowrap px-3 py-2 text-gray-500">{dateTime(entry.createdAt, t)}</td></tr>)}
+          <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
+            <table className="min-w-full text-left text-xs"><thead className="bg-gray-50/70 dark:bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColEntry')}</th><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColAmount')}</th><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColBalanceAfter')}</th><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColPosted')}</th></tr></thead><tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+              {detail.ledger.slice(0, 20).map((entry) => <tr key={entry.id} className="text-gray-700 dark:text-gray-300"><td className="px-3 py-2"><span className="font-semibold text-gray-900 dark:text-white">{entry.entryType}</span><span className="ml-2 text-gray-600">#{entry.id}</span><p className="mt-1 max-w-[220px] truncate text-gray-500">{entry.description || t('adminRestaurantCreditNoDescription')}</p></td><td className="whitespace-nowrap px-3 py-2">{money(entry.amountCents, entry.currencyCode)}</td><td className="whitespace-nowrap px-3 py-2">{money(entry.balanceAfterCents, entry.currencyCode)}</td><td className="whitespace-nowrap px-3 py-2 text-gray-500">{dateTime(entry.createdAt, t)}</td></tr>)}
             </tbody></table>
           </div>
         )}
@@ -405,13 +405,13 @@ function WalletDetail({ detail, onStatus, onRelease }) {
 
       <HistorySection title={t('adminRestaurantCreditOperatorAudit')} count={detail.operatorAudit?.length}>
         {!detail.operatorAudit?.length ? <p className="text-sm text-gray-500">{t('adminRestaurantCreditNoOperatorActions')}</p> : (
-          <div className="space-y-2">{detail.operatorAudit.slice(0, 12).map((event) => <div key={event.id} className="rounded-xl border border-gray-800 bg-gray-950/35 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm font-semibold text-white">{String(event.actionType || t('adminRestaurantCreditOperatorAction')).replace(/_/g, ' ')}</span><span className="text-xs text-gray-600">{dateTime(event.createdAt, t)}</span></div><p className="mt-1 text-xs text-gray-500">{event.operatorName || event.operatorEmail || t('adminRestaurantCreditSystemOperator')} · correlation {shortId(event.correlationId)}</p></div>)}</div>
+          <div className="space-y-2">{detail.operatorAudit.slice(0, 12).map((event) => <div key={event.id} className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/35 dark:bg-gray-950/35 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm font-semibold text-gray-900 dark:text-white">{String(event.actionType || t('adminRestaurantCreditOperatorAction')).replace(/_/g, ' ')}</span><span className="text-xs text-gray-600">{dateTime(event.createdAt, t)}</span></div><p className="mt-1 text-xs text-gray-500">{event.operatorName || event.operatorEmail || t('adminRestaurantCreditSystemOperator')} · correlation {shortId(event.correlationId)}</p></div>)}</div>
         )}
       </HistorySection>
 
       <HistorySection title={t('adminRestaurantCreditLinkedPayments')} count={detail.payments?.length}>
         {!detail.payments?.length ? <p className="text-sm text-gray-500">{t('adminRestaurantCreditNoPayments')}</p> : (
-          <div className="overflow-x-auto rounded-xl border border-gray-800"><table className="min-w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColPayment')}</th><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColAmount')}</th><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColStatus')}</th><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColCreated')}</th></tr></thead><tbody className="divide-y divide-gray-800">{detail.payments.slice(0, 12).map((payment) => <tr key={payment.id} className="text-gray-300"><td className="px-3 py-2"><span className="font-semibold text-white">{payment.paymentType || t('adminRestaurantCreditPayment')}</span><p className="mt-1 text-gray-500">{payment.reference || payment.foodOrderId || `#${payment.id}`}</p></td><td className="whitespace-nowrap px-3 py-2">{money(payment.amountCents, payment.currencyCode || wallet.currencyCode)}</td><td className="px-3 py-2"><StatusBadge status={payment.status} /></td><td className="whitespace-nowrap px-3 py-2 text-gray-500">{dateTime(payment.createdAt, t)}</td></tr>)}</tbody></table></div>
+          <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800"><table className="min-w-full text-left text-xs"><thead className="bg-gray-50/70 dark:bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColPayment')}</th><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColAmount')}</th><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColStatus')}</th><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColCreated')}</th></tr></thead><tbody className="divide-y divide-gray-200 dark:divide-gray-800">{detail.payments.slice(0, 12).map((payment) => <tr key={payment.id} className="text-gray-700 dark:text-gray-300"><td className="px-3 py-2"><span className="font-semibold text-gray-900 dark:text-white">{payment.paymentType || t('adminRestaurantCreditPayment')}</span><p className="mt-1 text-gray-500">{payment.reference || payment.foodOrderId || `#${payment.id}`}</p></td><td className="whitespace-nowrap px-3 py-2">{money(payment.amountCents, payment.currencyCode || wallet.currencyCode)}</td><td className="px-3 py-2"><StatusBadge status={payment.status} /></td><td className="whitespace-nowrap px-3 py-2 text-gray-500">{dateTime(payment.createdAt, t)}</td></tr>)}</tbody></table></div>
         )}
       </HistorySection>
     </div>
@@ -419,7 +419,7 @@ function WalletDetail({ detail, onStatus, onRelease }) {
 }
 
 function HistorySection({ title, count, children }) {
-  return <section className="rounded-2xl border border-gray-800 bg-gray-950/20 p-4"><div className="mb-3 flex items-center justify-between gap-3"><h3 className="text-sm font-semibold text-white">{title}</h3><span className="text-xs text-gray-600">{count || 0}</span></div>{children}</section>;
+  return <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/20 dark:bg-gray-950/20 p-4"><div className="mb-3 flex items-center justify-between gap-3"><h3 className="text-sm font-semibold text-gray-900 dark:text-white">{title}</h3><span className="text-xs text-gray-600">{count || 0}</span></div>{children}</section>;
 }
 
 function ConversionPolicySection({ restaurants }) {
@@ -473,13 +473,13 @@ function ConversionPolicySection({ restaurants }) {
   };
 
   return (
-    <section className="rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5">
+    <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4 sm:p-5">
       <SectionHeader
         eyebrow={t('adminConversionPolicyEyebrow')}
         title={t('adminConversionPolicyTitle')}
         detail={t('adminConversionPolicyDetail')}
         action={
-          <button type="button" onClick={loadPolicies} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-900/70 px-4 py-3 text-sm font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-50">
+          <button type="button" onClick={loadPolicies} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-900/70 px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">
             <RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} /> {t('common.refresh')}
           </button>
         }
@@ -492,24 +492,24 @@ function ConversionPolicySection({ restaurants }) {
         ) : !restaurants.length ? (
           <EmptyState title={t('adminConversionPolicyEmpty')} />
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-gray-800">
+          <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
             <table className="min-w-[560px] w-full text-left text-xs">
-              <thead className="bg-gray-950/70 text-gray-500">
+              <thead className="bg-gray-50/70 dark:bg-gray-950/70 text-gray-500">
                 <tr>
                   <th className="px-3 py-3 font-medium">{t('adminConversionPolicyColRestaurant')}</th>
                   <th className="px-3 py-3 font-medium">{t('adminConversionPolicyColStatus')}</th>
                   <th className="px-3 py-3 font-medium">{t('adminConversionPolicyColAction')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-800">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                 {restaurants.map((restaurant) => {
                   const policy = policyByRestaurantId.get(String(restaurant.id));
                   const enabled = policy?.allowRestaurantToOxsteed === true;
                   return (
-                    <tr key={restaurant.id} className="text-gray-300">
-                      <td className="max-w-[260px] truncate px-3 py-3 font-semibold text-white">{restaurant.name || restaurant.id}</td>
+                    <tr key={restaurant.id} className="text-gray-700 dark:text-gray-300">
+                      <td className="max-w-[260px] truncate px-3 py-3 font-semibold text-gray-900 dark:text-white">{restaurant.name || restaurant.id}</td>
                       <td className="px-3 py-3">
-                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${enabled ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-gray-700 bg-gray-800/70 text-gray-400'}`}>
+                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${enabled ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-gray-300 dark:border-gray-700 bg-gray-100/70 dark:bg-gray-800/70 text-gray-600 dark:text-gray-400'}`}>
                           {enabled ? t('adminConversionPolicyEnabled') : t('adminConversionPolicyDisabled')}
                         </span>
                       </td>
@@ -663,14 +663,14 @@ export default function RestaurantCreditAdmin() {
 
   return (
     <main className="mx-auto w-full max-w-[1600px] space-y-6 pb-10">
-      <header className="rounded-3xl border border-gray-800 bg-gradient-to-br from-[#17131d] via-[#111318] to-[#101923] p-5 sm:p-7">
+      <header className="rounded-3xl border border-gray-200 dark:border-gray-800 bg-gradient-to-br from-[#17131d] via-[#111318] to-[#101923] p-5 sm:p-7">
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div className="max-w-3xl">
             <div className="flex flex-wrap items-center gap-2"><span className="rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-orange-300">{t('adminOneTruthSuperAdmin')}</span><span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-300"><ShieldCheck className="h-3.5 w-3.5" /> {t('adminRestaurantCreditAuditProtected')}</span></div>
-            <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">{t('adminRestaurantCreditTitle')}</h1>
-            <p className="mt-3 text-sm leading-6 text-gray-400 sm:text-base">{t('adminRestaurantCreditSubtitle')}</p>
+            <h1 className="mt-4 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white sm:text-4xl">{t('adminRestaurantCreditTitle')}</h1>
+            <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400 sm:text-base">{t('adminRestaurantCreditSubtitle')}</p>
           </div>
-          <button type="button" onClick={refresh} disabled={loading || detailLoading} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-900/70 px-4 py-3 text-sm font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-50"><RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} /> {t('adminRestaurantCreditRefreshData')}</button>
+          <button type="button" onClick={refresh} disabled={loading || detailLoading} className="inline-flex items-center gap-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-900/70 px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50"><RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} /> {t('adminRestaurantCreditRefreshData')}</button>
         </div>
       </header>
 
@@ -684,7 +684,7 @@ export default function RestaurantCreditAdmin() {
         <MetricCard icon={AlertTriangle} label={t('adminRestaurantCreditActiveHoldsLabel')} value={summary.activeHolds ?? '...'} hint={summaryMoney(summary.activeHoldAmountCents)} tone="text-amber-300" />
       </section>
 
-      <section className="rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5">
+      <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4 sm:p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
           <form className="min-w-0 flex-1" onSubmit={(event) => { event.preventDefault(); setPage(1); setFilters((current) => ({ ...current, q: searchInput.trim() })); }}>
             <label className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{t('adminRestaurantCreditSearchLabel')}</label>
@@ -700,31 +700,31 @@ export default function RestaurantCreditAdmin() {
               className="sd-admin-dark min-w-0 flex-1"
             /><button type="submit" className="rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-400">{t('common.search')}</button></div>
           </form>
-          <label className="w-full lg:max-w-[220px]"><span className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{t('adminRestaurantCreditWalletStatus')}</span><select value={filters.status} onChange={(event) => { setPage(1); setFilters((current) => ({ ...current, status: event.target.value })); }} className="mt-2 w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400"><option value="">{t('adminFranchiseAllStatuses')}</option><option value="active">{t('adminRestaurantCreditStatusActive')}</option><option value="suspended">{t('adminRestaurantCreditStatusSuspended')}</option><option value="closed">{t('adminRestaurantCreditStatusClosed')}</option></select></label>
-          <label className="w-full lg:max-w-[260px]"><span className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{t('adminRestaurantCreditRestaurant')}</span><select value={filters.restaurantId} onChange={(event) => { setPage(1); setFilters((current) => ({ ...current, restaurantId: event.target.value })); }} className="mt-2 w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400"><option value="">{t('adminRestaurantCreditAllRestaurants')}</option>{(data?.restaurants || []).map((restaurant) => <option key={restaurant.id} value={restaurant.id}>{restaurant.name}</option>)}</select></label>
+          <label className="w-full lg:max-w-[220px]"><span className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{t('adminRestaurantCreditWalletStatus')}</span><select value={filters.status} onChange={(event) => { setPage(1); setFilters((current) => ({ ...current, status: event.target.value })); }} className="mt-2 w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-orange-400"><option value="">{t('adminFranchiseAllStatuses')}</option><option value="active">{t('adminRestaurantCreditStatusActive')}</option><option value="suspended">{t('adminRestaurantCreditStatusSuspended')}</option><option value="closed">{t('adminRestaurantCreditStatusClosed')}</option></select></label>
+          <label className="w-full lg:max-w-[260px]"><span className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{t('adminRestaurantCreditRestaurant')}</span><select value={filters.restaurantId} onChange={(event) => { setPage(1); setFilters((current) => ({ ...current, restaurantId: event.target.value })); }} className="mt-2 w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-orange-400"><option value="">{t('adminRestaurantCreditAllRestaurants')}</option>{(data?.restaurants || []).map((restaurant) => <option key={restaurant.id} value={restaurant.id}>{restaurant.name}</option>)}</select></label>
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500"><span>{t('adminRestaurantCreditResultsNote', { count: pagination.total || 0 })}</span>{(filters.q || filters.status || filters.restaurantId) && <button type="button" onClick={() => { setSearchInput(''); setPage(1); setFilters({ q: '', status: '', restaurantId: '' }); }} className="font-semibold text-orange-300 hover:text-orange-200">{t('adminRestaurantCreditClearFilters')}</button>}</div>
       </section>
 
       <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[minmax(0,1.15fr)_minmax(420px,0.85fr)]">
-        <section className="min-w-0 rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5">
+        <section className="min-w-0 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4 sm:p-5">
           <SectionHeader eyebrow={t('adminRestaurantCreditWalletDirectory')} title={t('adminRestaurantCreditWalletDirectoryTitle')} detail={t('adminRestaurantCreditWalletDirectoryText')} />
           <div className="mt-5">
-            {loading && !data ? <div className="flex items-center justify-center py-16 text-gray-500"><Loader2 className="h-6 w-6 animate-spin text-orange-400" /></div> : !wallets.length ? <EmptyState title={t('adminRestaurantCreditNoWallets')} detail={t('adminRestaurantCreditNoWalletsText')} /> : <div className="overflow-x-auto rounded-xl border border-gray-800"><table className="min-w-[720px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminRestaurantCreditColCustomer')}</th><th className="px-3 py-3 font-medium">{t('adminRestaurantCreditColRestaurant')}</th><th className="px-3 py-3 font-medium">{t('adminRestaurantCreditColBalance')}</th><th className="px-3 py-3 font-medium">{t('adminRestaurantCreditColAvailable')}</th><th className="px-3 py-3 font-medium">{t('adminRestaurantCreditColStatus')}</th><th className="px-3 py-3 font-medium">{t('adminRestaurantCreditColActivity')}</th></tr></thead><tbody className="divide-y divide-gray-800">{wallets.map((wallet) => <tr key={wallet.accountId} onClick={() => selectWallet(wallet.accountId)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') selectWallet(wallet.accountId); }} tabIndex={0} className={`cursor-pointer text-gray-300 transition hover:bg-gray-900/70 focus:bg-gray-900/70 focus:outline-none ${String(selectedAccountId) === String(wallet.accountId) ? 'bg-orange-500/10' : ''}`}><td className="max-w-[220px] px-3 py-3"><p className="truncate font-semibold text-white">{wallet.customerName || wallet.customerEmail || shortId(wallet.customerId)}</p><p className="mt-1 truncate text-gray-600">{wallet.customerEmail || shortId(wallet.customerId)}</p></td><td className="max-w-[170px] truncate px-3 py-3 text-gray-400">{wallet.restaurantName || shortId(wallet.restaurantId)}</td><td className="whitespace-nowrap px-3 py-3 font-semibold text-white">{money(wallet.balanceCents, wallet.currencyCode)}</td><td className="whitespace-nowrap px-3 py-3 text-emerald-300">{money(wallet.availableBalanceCents, wallet.currencyCode)}</td><td className="px-3 py-3"><StatusBadge status={wallet.status} /></td><td className="whitespace-nowrap px-3 py-3 text-gray-500">{dateTime(wallet.lastActivityAt, t)}</td></tr>)}</tbody></table></div>}
+            {loading && !data ? <div className="flex items-center justify-center py-16 text-gray-500"><Loader2 className="h-6 w-6 animate-spin text-orange-400" /></div> : !wallets.length ? <EmptyState title={t('adminRestaurantCreditNoWallets')} detail={t('adminRestaurantCreditNoWalletsText')} /> : <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800"><table className="min-w-[720px] w-full text-left text-xs"><thead className="bg-gray-50/70 dark:bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminRestaurantCreditColCustomer')}</th><th className="px-3 py-3 font-medium">{t('adminRestaurantCreditColRestaurant')}</th><th className="px-3 py-3 font-medium">{t('adminRestaurantCreditColBalance')}</th><th className="px-3 py-3 font-medium">{t('adminRestaurantCreditColAvailable')}</th><th className="px-3 py-3 font-medium">{t('adminRestaurantCreditColStatus')}</th><th className="px-3 py-3 font-medium">{t('adminRestaurantCreditColActivity')}</th></tr></thead><tbody className="divide-y divide-gray-200 dark:divide-gray-800">{wallets.map((wallet) => <tr key={wallet.accountId} onClick={() => selectWallet(wallet.accountId)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') selectWallet(wallet.accountId); }} tabIndex={0} className={`cursor-pointer text-gray-700 dark:text-gray-300 transition hover:bg-white/70 dark:hover:bg-gray-900/70 focus:bg-white/70 dark:focus:bg-gray-900/70 focus:outline-none ${String(selectedAccountId) === String(wallet.accountId) ? 'bg-orange-500/10' : ''}`}><td className="max-w-[220px] px-3 py-3"><p className="truncate font-semibold text-gray-900 dark:text-white">{wallet.customerName || wallet.customerEmail || shortId(wallet.customerId)}</p><p className="mt-1 truncate text-gray-600">{wallet.customerEmail || shortId(wallet.customerId)}</p></td><td className="max-w-[170px] truncate px-3 py-3 text-gray-600 dark:text-gray-400">{wallet.restaurantName || shortId(wallet.restaurantId)}</td><td className="whitespace-nowrap px-3 py-3 font-semibold text-gray-900 dark:text-white">{money(wallet.balanceCents, wallet.currencyCode)}</td><td className="whitespace-nowrap px-3 py-3 text-emerald-300">{money(wallet.availableBalanceCents, wallet.currencyCode)}</td><td className="px-3 py-3"><StatusBadge status={wallet.status} /></td><td className="whitespace-nowrap px-3 py-3 text-gray-500">{dateTime(wallet.lastActivityAt, t)}</td></tr>)}</tbody></table></div>}
           </div>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-800 pt-4 text-xs text-gray-500"><span>{t('adminRestaurantCreditPage', { page: pagination.page || page, totalPages: pagination.totalPages || 1 })}</span><div className="flex gap-2"><button type="button" disabled={(pagination.page || page) <= 1 || loading} onClick={() => setPage((current) => Math.max(1, current - 1))} className="inline-flex items-center gap-1 rounded-lg border border-gray-700 px-3 py-2 font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-40"><ChevronLeft className="h-4 w-4" /> {t('common.previous')}</button><button type="button" disabled={(pagination.page || page) >= (pagination.totalPages || 1) || loading} onClick={() => setPage((current) => current + 1)} className="inline-flex items-center gap-1 rounded-lg border border-gray-700 px-3 py-2 font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-40">{t('common.next')} <ChevronRight className="h-4 w-4" /></button></div></div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 dark:border-gray-800 pt-4 text-xs text-gray-500"><span>{t('adminRestaurantCreditPage', { page: pagination.page || page, totalPages: pagination.totalPages || 1 })}</span><div className="flex gap-2"><button type="button" disabled={(pagination.page || page) <= 1 || loading} onClick={() => setPage((current) => Math.max(1, current - 1))} className="inline-flex items-center gap-1 rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40"><ChevronLeft className="h-4 w-4" /> {t('common.previous')}</button><button type="button" disabled={(pagination.page || page) >= (pagination.totalPages || 1) || loading} onClick={() => setPage((current) => current + 1)} className="inline-flex items-center gap-1 rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40">{t('common.next')} <ChevronRight className="h-4 w-4" /></button></div></div>
         </section>
 
-        <aside className="min-w-0 rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5">
-          {detailLoading ? <div className="flex items-center justify-center py-24 text-gray-500"><Loader2 className="h-6 w-6 animate-spin text-orange-400" /></div> : detailError ? <div className="space-y-3 py-16 text-center"><AlertTriangle className="mx-auto h-8 w-8 text-red-400" /><p className="text-sm text-red-300">{detailError}</p><button type="button" onClick={() => loadDetail(selectedAccountId)} className="rounded-lg border border-gray-700 px-3 py-2 text-sm font-semibold text-gray-300 hover:bg-gray-800">{t('common.retry')}</button></div> : detail ? <WalletDetail detail={detail} onStatus={(wallet) => openModal({ kind: 'status', title: wallet.status === 'active' ? t('adminRestaurantCreditSuspendWallet') : t('adminRestaurantCreditReactivateWallet'), wallet, status: wallet.status === 'active' ? 'suspended' : 'active', reason: '' })} onRelease={(hold) => openModal({ kind: 'release', title: t('adminRestaurantCreditReleaseHold'), hold, reason: '' })} /> : <div className="flex min-h-[360px] flex-col items-center justify-center text-center"><FileText className="h-9 w-9 text-gray-700" /><h2 className="mt-4 text-lg font-semibold text-white">{t('adminRestaurantCreditSelectWallet')}</h2><p className="mt-2 max-w-sm text-sm leading-6 text-gray-500">{t('adminRestaurantCreditSelectWalletText')}</p></div>}
+        <aside className="min-w-0 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4 sm:p-5">
+          {detailLoading ? <div className="flex items-center justify-center py-24 text-gray-500"><Loader2 className="h-6 w-6 animate-spin text-orange-400" /></div> : detailError ? <div className="space-y-3 py-16 text-center"><AlertTriangle className="mx-auto h-8 w-8 text-red-400" /><p className="text-sm text-red-300">{detailError}</p><button type="button" onClick={() => loadDetail(selectedAccountId)} className="rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">{t('common.retry')}</button></div> : detail ? <WalletDetail detail={detail} onStatus={(wallet) => openModal({ kind: 'status', title: wallet.status === 'active' ? t('adminRestaurantCreditSuspendWallet') : t('adminRestaurantCreditReactivateWallet'), wallet, status: wallet.status === 'active' ? 'suspended' : 'active', reason: '' })} onRelease={(hold) => openModal({ kind: 'release', title: t('adminRestaurantCreditReleaseHold'), hold, reason: '' })} /> : <div className="flex min-h-[360px] flex-col items-center justify-center text-center"><FileText className="h-9 w-9 text-gray-700" /><h2 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">{t('adminRestaurantCreditSelectWallet')}</h2><p className="mt-2 max-w-sm text-sm leading-6 text-gray-500">{t('adminRestaurantCreditSelectWalletText')}</p></div>}
         </aside>
       </div>
 
       <ConversionPolicySection restaurants={data?.restaurants || []} />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <section className="rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5"><SectionHeader eyebrow={t('adminRestaurantCreditMakerChecker')} title={t('adminRestaurantCreditPendingRequests')} detail={t('adminRestaurantCreditPendingRequestsText')} />{!pendingRequests.length ? <div className="mt-5"><EmptyState title={t('adminRestaurantCreditNoPendingRequests')} detail={t('adminRestaurantCreditNoPendingRequestsText')} /></div> : <div className="mt-5 space-y-3">{pendingRequests.slice(0, 8).map((request) => <div key={request.id} className="rounded-xl border border-gray-800 bg-gray-950/35 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><StatusBadge status={request.status} /><span className="text-base font-semibold text-white">{money(request.amountCents, request.currencyCode)}</span></div><p className="mt-2 text-sm text-gray-300">{request.customerName || request.customerEmail || shortId(request.customerId)}</p><p className="mt-1 text-xs text-gray-500">{request.restaurantName || shortId(request.restaurantId)} · requested by {request.requestedByName || shortId(request.requestedByUserId)} · {dateTime(request.createdAt, t)}</p>{request.note && <p className="mt-2 text-xs leading-5 text-gray-500">{request.note}</p>}</div><div className="flex shrink-0 gap-2"><button type="button" onClick={() => openModal({ kind: 'decline', title: t('adminRestaurantCreditDeclineLoad'), request, reason: '' })} className="rounded-lg border border-red-500/30 px-3 py-2 text-xs font-semibold text-red-300 hover:bg-red-500/10">{t('adminRestaurantCreditDecline')}</button><button type="button" onClick={() => openModal({ kind: 'approve', title: t('adminRestaurantCreditApproveLoad'), request, approvalNote: '' })} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500">{t('common.approve')}</button></div></div></div>)}</div>}</section>
-        <section className="rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5"><SectionHeader eyebrow={t('adminRestaurantCreditAuditStream')} title={t('adminRestaurantCreditRecentActivity')} detail={t('adminRestaurantCreditRecentActivityText')} />{!data?.recentActivity?.length ? <div className="mt-5"><EmptyState title={t('adminRestaurantCreditNoActivityYet')} detail={t('adminRestaurantCreditNoActivityYetText')} /></div> : <div className="mt-5 space-y-2">{data.recentActivity.slice(0, 10).map((entry) => <div key={entry.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-800 bg-gray-950/35 p-3"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold text-white">{entry.entryType}</span><span className="text-xs text-gray-600">{entry.customerName || shortId(entry.customerId)} · {entry.restaurantName || shortId(entry.restaurantId)}</span></div><p className="mt-1 truncate text-xs text-gray-500">{entry.description || t('adminRestaurantCreditNoDescription')} · {dateTime(entry.createdAt, t)}</p></div><span className="whitespace-nowrap text-sm font-semibold text-gray-200">{money(entry.amountCents, entry.currencyCode)}</span></div>)}</div>}</section>
+        <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4 sm:p-5"><SectionHeader eyebrow={t('adminRestaurantCreditMakerChecker')} title={t('adminRestaurantCreditPendingRequests')} detail={t('adminRestaurantCreditPendingRequestsText')} />{!pendingRequests.length ? <div className="mt-5"><EmptyState title={t('adminRestaurantCreditNoPendingRequests')} detail={t('adminRestaurantCreditNoPendingRequestsText')} /></div> : <div className="mt-5 space-y-3">{pendingRequests.slice(0, 8).map((request) => <div key={request.id} className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/35 dark:bg-gray-950/35 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><StatusBadge status={request.status} /><span className="text-base font-semibold text-gray-900 dark:text-white">{money(request.amountCents, request.currencyCode)}</span></div><p className="mt-2 text-sm text-gray-700 dark:text-gray-300">{request.customerName || request.customerEmail || shortId(request.customerId)}</p><p className="mt-1 text-xs text-gray-500">{request.restaurantName || shortId(request.restaurantId)} · requested by {request.requestedByName || shortId(request.requestedByUserId)} · {dateTime(request.createdAt, t)}</p>{request.note && <p className="mt-2 text-xs leading-5 text-gray-500">{request.note}</p>}</div><div className="flex shrink-0 gap-2"><button type="button" onClick={() => openModal({ kind: 'decline', title: t('adminRestaurantCreditDeclineLoad'), request, reason: '' })} className="rounded-lg border border-red-500/30 px-3 py-2 text-xs font-semibold text-red-300 hover:bg-red-500/10">{t('adminRestaurantCreditDecline')}</button><button type="button" onClick={() => openModal({ kind: 'approve', title: t('adminRestaurantCreditApproveLoad'), request, approvalNote: '' })} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500">{t('common.approve')}</button></div></div></div>)}</div>}</section>
+        <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4 sm:p-5"><SectionHeader eyebrow={t('adminRestaurantCreditAuditStream')} title={t('adminRestaurantCreditRecentActivity')} detail={t('adminRestaurantCreditRecentActivityText')} />{!data?.recentActivity?.length ? <div className="mt-5"><EmptyState title={t('adminRestaurantCreditNoActivityYet')} detail={t('adminRestaurantCreditNoActivityYetText')} /></div> : <div className="mt-5 space-y-2">{data.recentActivity.slice(0, 10).map((entry) => <div key={entry.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/35 dark:bg-gray-950/35 p-3"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold text-gray-900 dark:text-white">{entry.entryType}</span><span className="text-xs text-gray-600">{entry.customerName || shortId(entry.customerId)} · {entry.restaurantName || shortId(entry.restaurantId)}</span></div><p className="mt-1 truncate text-xs text-gray-500">{entry.description || t('adminRestaurantCreditNoDescription')} · {dateTime(entry.createdAt, t)}</p></div><span className="whitespace-nowrap text-sm font-semibold text-gray-700 dark:text-gray-200">{money(entry.amountCents, entry.currencyCode)}</span></div>)}</div>}</section>
       </div>
 
       <div className="flex items-start gap-3 rounded-2xl border border-sky-500/20 bg-sky-950/20 p-4 text-sm leading-6 text-sky-200"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-sky-300" /><p><span className="font-semibold">{t('adminRestaurantCreditControlBoundary')}:</span> {t('adminRestaurantCreditControlBoundaryText')}</p></div>

@@ -73,21 +73,21 @@ function StatusBadge({ value, label }) {
     banned:       'bg-red-500/15 text-red-400 ring-1 ring-red-500/30',
     passed:       'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30',
     failed:       'bg-red-500/15 text-red-400 ring-1 ring-red-500/30',
-    not_submitted:'bg-gray-500/15 text-gray-400 ring-1 ring-gray-500/30',
+    not_submitted:'bg-gray-500/15 text-gray-600 dark:text-gray-400 ring-1 ring-gray-500/30',
     pending:      'bg-blue-500/15 text-blue-400 ring-1 ring-blue-500/30',
     verified:     'bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/30',
-    skipped:      'bg-gray-500/15 text-gray-400 ring-1 ring-gray-500/30',
+    skipped:      'bg-gray-500/15 text-gray-600 dark:text-gray-400 ring-1 ring-gray-500/30',
     none:         'bg-gray-500/15 text-gray-500 ring-1 ring-gray-500/20',
     open:         'bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/30',
     in_progress:  'bg-orange-500/15 text-orange-300 ring-1 ring-orange-500/30',
     resolved:     'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30',
-    closed:       'bg-gray-500/15 text-gray-400 ring-1 ring-gray-500/30',
+    closed:       'bg-gray-500/15 text-gray-600 dark:text-gray-400 ring-1 ring-gray-500/30',
     high:         'bg-red-500/15 text-red-400 ring-1 ring-red-500/30',
     medium:       'bg-yellow-500/15 text-yellow-300 ring-1 ring-yellow-500/30',
-    low:          'bg-gray-500/15 text-gray-400 ring-1 ring-gray-500/30',
+    low:          'bg-gray-500/15 text-gray-600 dark:text-gray-400 ring-1 ring-gray-500/30',
     critical:     'bg-red-600/20 text-red-300 ring-1 ring-red-600/40',
   };
-  const color = colorMap[key] || 'bg-gray-500/15 text-gray-400 ring-1 ring-gray-500/30';
+  const color = colorMap[key] || 'bg-gray-500/15 text-gray-600 dark:text-gray-400 ring-1 ring-gray-500/30';
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${color}`}>
       {display}
@@ -125,27 +125,27 @@ function roleRingColor(role) {
 function SectionCard({ icon: Icon, title, subtitle, children, collapsible = false, defaultOpen = false, className = '' }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className={`bg-[#111318] border border-gray-800 rounded-2xl overflow-hidden ${className}`}>
+    <div className={`bg-white dark:bg-[#111318] border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden ${className}`}>
       {collapsible ? (
         <button
           onClick={() => setOpen(v => !v)}
           className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-white/[0.02] transition-colors"
         >
           <div className="flex items-center gap-3">
-            {Icon && <Icon size={16} className="text-gray-400 shrink-0" />}
+            {Icon && <Icon size={16} className="text-gray-600 dark:text-gray-400 shrink-0" />}
             <div>
-              <span className="text-sm font-semibold text-white">{title}</span>
+              <span className="text-sm font-semibold text-gray-900 dark:text-white">{title}</span>
               {subtitle && <span className="text-xs text-gray-500 ml-2">{subtitle}</span>}
             </div>
           </div>
           <ChevronDown size={15} className={`text-gray-500 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
         </button>
       ) : (
-        <div className="px-5 py-4 border-b border-gray-800">
+        <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-800">
           <div className="flex items-center gap-3">
-            {Icon && <Icon size={16} className="text-gray-400 shrink-0" />}
+            {Icon && <Icon size={16} className="text-gray-600 dark:text-gray-400 shrink-0" />}
             <div>
-              <span className="text-sm font-semibold text-white">{title}</span>
+              <span className="text-sm font-semibold text-gray-900 dark:text-white">{title}</span>
               {subtitle && <span className="text-xs text-gray-500 ml-2">{subtitle}</span>}
             </div>
           </div>
@@ -179,13 +179,13 @@ function ActionsDropdown({ children, disabled }) {
       <button
         onClick={() => setOpen(v => !v)}
         disabled={disabled}
-        className="flex items-center gap-1.5 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg text-xs font-semibold transition disabled:opacity-50 border border-gray-600"
+        className="flex items-center gap-1.5 px-3 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold transition disabled:opacity-50 border border-gray-300 dark:border-gray-600"
       >
         <MoreVertical size={13} />{t('adminUserDetail.actions.title')}
         <ChevronDown size={11} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1.5 w-44 bg-[#1a1d24] border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden py-1">
+        <div className="absolute right-0 top-full mt-1.5 w-44 bg-[#1a1d24] border border-gray-300 dark:border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden py-1">
           {children}
         </div>
       )}
@@ -201,7 +201,7 @@ function DropdownItem({ icon: Icon, label, onClick, danger = false, disabled = f
       className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium transition disabled:opacity-40 disabled:cursor-not-allowed
         ${danger
           ? 'text-red-400 hover:bg-red-500/10'
-          : 'text-gray-300 hover:bg-white/5'
+          : 'text-gray-700 dark:text-gray-300 hover:bg-white/5'
         }`}
     >
       {Icon && <Icon size={13} className="shrink-0" />}
@@ -708,12 +708,12 @@ export default function UserDetail() {
       {confirmDialog}
 
       {/* Back link */}
-      <Link to="/admin/users" className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-300 transition">
+      <Link to="/admin/users" className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition">
         <ChevronLeft size={14} />{t('adminUserDetail.backToUsers')}
       </Link>
 
       {/* ── PROFILE HEADER CARD ─────────────────────────────────────────── */}
-      <div className="bg-[#111318] border border-gray-800 rounded-2xl p-5 sm:p-6">
+      <div className="bg-white dark:bg-[#111318] border border-gray-200 dark:border-gray-800 rounded-2xl p-5 sm:p-6">
 
         {/* Top row: avatar + info + actions */}
         <div className="flex flex-col sm:flex-row sm:items-start gap-5">
@@ -732,13 +732,13 @@ export default function UserDetail() {
 
             {/* Name row with pencil-icon inline edit */}
             <div className="flex flex-wrap items-center gap-2 mb-1">
-              <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white leading-tight">
                 {user.first_name} {user.last_name}
               </h1>
               {isAdmin && !showNameEdit && (
                 <button
                   onClick={() => { setShowNameEdit(true); setNameForm({ first_name: user.first_name || '', last_name: user.last_name || '' }); }}
-                  className="p-1 rounded text-gray-600 hover:text-gray-400 transition"
+                  className="p-1 rounded text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition"
                   title={t('adminUserDetail.name.editTitle')}
                 >
                   <Pencil size={14} />
@@ -754,25 +754,25 @@ export default function UserDetail() {
                   onChange={e => setNameForm(f => ({ ...f, first_name: e.target.value }))}
                   placeholder={t('adminUserDetail.name.firstNamePlaceholder')}
                   required
-                  className="px-2.5 py-1.5 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm w-32 focus:outline-none focus:border-orange-500"
+                  className="px-2.5 py-1.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm w-32 focus:outline-none focus:border-orange-500"
                 />
                 <input
                   value={nameForm.last_name}
                   onChange={e => setNameForm(f => ({ ...f, last_name: e.target.value }))}
                   placeholder={t('adminUserDetail.name.lastNamePlaceholder')}
                   required
-                  className="px-2.5 py-1.5 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm w-32 focus:outline-none focus:border-orange-500"
+                  className="px-2.5 py-1.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm w-32 focus:outline-none focus:border-orange-500"
                 />
                 <button type="submit" disabled={nameSaving} className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-xs rounded-lg font-semibold transition disabled:opacity-50">
                   {nameSaving ? t('adminUserDetail.common.saving') : t('adminUserDetail.common.save')}
                 </button>
-                <button type="button" onClick={() => setShowNameEdit(false)} className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded-lg transition">
+                <button type="button" onClick={() => setShowNameEdit(false)} className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs rounded-lg transition">
                   {t('adminUserDetail.common.cancel')}
                 </button>
               </form>
             )}
 
-            <p className="text-gray-400 text-sm">{user.email}</p>
+            <p className="text-gray-600 dark:text-gray-400 text-sm">{user.email}</p>
 
             {/* Contact + metadata row */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 text-xs text-gray-500">
@@ -803,7 +803,7 @@ export default function UserDetail() {
                 <span className="text-xs text-gray-500 flex items-center gap-1"><Eye size={11} />{t('adminUserDetail.profile.completion')}</span>
                 <span className={`text-xs font-semibold ${profilePct < 60 ? 'text-yellow-400' : 'text-emerald-400'}`}>{profilePct}%</span>
               </div>
-              <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all ${profilePct < 60 ? 'bg-yellow-500' : 'bg-emerald-500'}`}
                   style={{ width: `${profilePct}%` }}
@@ -886,7 +886,7 @@ export default function UserDetail() {
               <button
                 onClick={() => setShowMsgModal(true)}
                 disabled={['admin', 'super_admin'].includes(user.role)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-transparent border border-gray-600 text-gray-300 hover:border-gray-400 hover:text-white rounded-lg text-xs font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex items-center gap-1.5 px-4 py-2 bg-transparent border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400 hover:text-gray-900 dark:hover:text-white rounded-lg text-xs font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <MessageSquare size={13} />{t('adminUserDetail.actions.message')}
               </button>
@@ -995,7 +995,7 @@ export default function UserDetail() {
                 onChange={e => e.target.value && changeRole(e.target.value)}
                 defaultValue=""
                 disabled={working}
-                className="px-3 py-2 bg-gray-800 border border-gray-700 text-gray-300 text-xs rounded-lg focus:outline-none focus:border-orange-500"
+                className="px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-lg focus:outline-none focus:border-orange-500"
               >
                 <option value="">{t('adminUserDetail.role.changeRole')}</option>
                 {['customer', 'helper', 'helper_pro', 'broker', 'admin'].map(r => (
@@ -1008,7 +1008,7 @@ export default function UserDetail() {
 
         {/* Deletion status banner */}
         {user.deletion_scheduled_at && (
-          <div className="mt-5 pt-5 border-t border-gray-800">
+          <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-800">
             {(() => {
               const scheduledFor = new Date(user.deletion_scheduled_at);
               const now = new Date();
@@ -1027,7 +1027,7 @@ export default function UserDetail() {
                         {expired ? t('adminUserDetail.delete.overdue') : t('adminUserDetail.delete.scheduledFor', { count: daysLeft })}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-400 ml-6">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 ml-6">
                       {expired
                         ? t('adminUserDetail.delete.overdueDetail', { date: formatDate(user.deletion_scheduled_at) })
                         : t('adminUserDetail.delete.scheduledDetail', { lockedDate: formatDate(user.deleted_at), deleteDate: formatDate(user.deletion_scheduled_at) })
@@ -1066,7 +1066,7 @@ export default function UserDetail() {
 
         {/* ID Verification enforcement — status + toggle (not two competing buttons) */}
         {isAdmin && !['admin', 'super_admin'].includes(user.role) && (
-          <div className="mt-5 pt-5 border-t border-gray-800 flex flex-wrap items-center justify-between gap-3">
+          <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-800 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <span className="text-xs text-gray-500">{t('adminUserDetail.didit.enforcementTitle')}</span>
               <StatusBadge
@@ -1087,7 +1087,7 @@ export default function UserDetail() {
                 type="button"
                 disabled={diditSaving || !user.didit_enforcement_required}
                 onClick={() => setDiditEnforcement(false)}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-700/50 text-gray-400 hover:bg-gray-700 border border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-200/50 dark:bg-gray-700/50 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition"
               >
                 {t('adminUserDetail.didit.makeOptional')}
               </button>
@@ -1128,12 +1128,12 @@ export default function UserDetail() {
           { label: t('adminUserDetail.stats.totalEarnings'), value: user.earnings_total ? `$${parseFloat(user.earnings_total).toFixed(2)}` : null, badge: null },
           { label: t('adminUserDetail.stats.backgroundCheck'), value: null, badge: user.background_check_status || 'not_submitted' },
         ].map(({ label, value, badge }) => (
-          <div key={label} className="bg-[#111318] border border-gray-800 rounded-xl p-4">
+          <div key={label} className="bg-white dark:bg-[#111318] border border-gray-200 dark:border-gray-800 rounded-xl p-4">
             <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">{label}</p>
             {badge ? (
               <StatusBadge value={badge} />
             ) : (
-              <p className={`font-bold text-white ${value === null || value === '—' ? 'text-sm text-gray-500' : 'text-xl sm:text-2xl'}`}>
+              <p className={`font-bold text-gray-900 dark:text-white ${value === null || value === '—' ? 'text-sm text-gray-500' : 'text-xl sm:text-2xl'}`}>
                 {value ?? '—'}
               </p>
             )}
@@ -1143,11 +1143,11 @@ export default function UserDetail() {
 
       {/* ── PASSWORD RESET — compact row, not full card ─────────────────── */}
       {isSuper && (
-        <div className="bg-[#111318] border border-gray-800 rounded-2xl">
+        <div className="bg-white dark:bg-[#111318] border border-gray-200 dark:border-gray-800 rounded-2xl">
           <div className="flex items-center justify-between px-5 py-3.5">
             <div className="flex items-center gap-2.5">
-              <KeyRound size={15} className="text-gray-400" />
-              <span className="text-sm font-semibold text-white">{t('admin.setPasswordSectionTitle')}</span>
+              <KeyRound size={15} className="text-gray-600 dark:text-gray-400" />
+              <span className="text-sm font-semibold text-gray-900 dark:text-white">{t('admin.setPasswordSectionTitle')}</span>
               <span className="text-xs text-gray-500 hidden sm:inline">{t('admin.setPasswordSectionHint')}</span>
             </div>
             {!showPwReset && (
@@ -1161,7 +1161,7 @@ export default function UserDetail() {
             )}
           </div>
           {showPwReset && (
-            <div className="px-5 pb-5 border-t border-gray-800 pt-4">
+            <div className="px-5 pb-5 border-t border-gray-200 dark:border-gray-800 pt-4">
               <form onSubmit={submitSuperAdminPassword} className="space-y-3 max-w-md">
                 <input
                   type="password"
@@ -1171,7 +1171,7 @@ export default function UserDetail() {
                   placeholder={t('admin.setPasswordNew')}
                   required
                   minLength={8}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500"
+                  className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:border-orange-500"
                 />
                 <input
                   type="password"
@@ -1181,7 +1181,7 @@ export default function UserDetail() {
                   placeholder={t('admin.setPasswordRepeat')}
                   required
                   minLength={8}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500"
+                  className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:border-orange-500"
                 />
                 {['admin', 'super_admin'].includes(data?.user?.role) && (
                   <textarea
@@ -1191,7 +1191,7 @@ export default function UserDetail() {
                     required
                     rows={2}
                     maxLength={500}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500"
+                    className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:border-orange-500"
                   />
                 )}
                 <div className="flex flex-wrap gap-2">
@@ -1205,7 +1205,7 @@ export default function UserDetail() {
                   <button
                     type="button"
                     onClick={() => { setShowPwReset(false); setNewPw(''); setConfirmPw(''); setPwReason(''); }}
-                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm transition"
+                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm transition"
                   >
                     {t('admin.setPasswordCancel')}
                   </button>
@@ -1224,11 +1224,11 @@ export default function UserDetail() {
               { type: 'license',   label: t('adminUserDetail.credentials.license'), claimed: user.is_licensed, cls: 'text-sky-400'   },
               { type: 'insurance', label: t('adminUserDetail.credentials.insurance'), claimed: user.is_insured,  cls: 'text-amber-400' },
             ].map(({ type, label, claimed, cls }) => (
-              <div key={type} className="flex items-center justify-between p-3 bg-gray-700/20 rounded-xl border border-gray-700/60">
+              <div key={type} className="flex items-center justify-between p-3 bg-gray-200/20 dark:bg-gray-700/20 rounded-xl border border-gray-700/60">
                 <div className="flex items-center gap-3">
                   <FileCheck size={15} className={claimed ? cls : 'text-gray-600'} />
                   <div>
-                    <p className="text-sm text-white font-medium">{label}</p>
+                    <p className="text-sm text-gray-900 dark:text-white font-medium">{label}</p>
                     <p className={`text-xs mt-0.5 ${claimed ? cls : 'text-gray-500'}`}>{claimed ? t('adminUserDetail.credentials.claimed') : t('adminUserDetail.credentials.notClaimed')}</p>
                   </div>
                 </div>
@@ -1259,22 +1259,22 @@ export default function UserDetail() {
               { field: 'country', label: t('adminUserDetail.profile.fieldCountry'), type: 'text'  },
             ].map(({ field, label, type }) => (
               <div key={field}>
-                <label className="block text-xs text-gray-400 mb-1">{label}</label>
+                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">{label}</label>
                 <input
                   type={type}
                   value={profileForm[field]}
                   onChange={e => setProfileForm(f => ({ ...f, [field]: e.target.value }))}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500"
+                  className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:border-orange-500"
                 />
               </div>
             ))}
             <div className="sm:col-span-2">
-              <label className="block text-xs text-gray-400 mb-1">{t('adminUserDetail.profile.bio')}</label>
+              <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">{t('adminUserDetail.profile.bio')}</label>
               <textarea
                 rows={3}
                 value={profileForm.bio}
                 onChange={e => setProfileForm(f => ({ ...f, bio: e.target.value }))}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500 resize-none"
+                className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:border-orange-500 resize-none"
               />
             </div>
             <div className="sm:col-span-2 flex gap-2">
@@ -1288,7 +1288,7 @@ export default function UserDetail() {
               <button
                 type="button"
                 onClick={() => setShowProfileEdit(false)}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm transition"
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm transition"
               >
                 {t('adminUserDetail.common.cancel')}
               </button>
@@ -1326,9 +1326,9 @@ export default function UserDetail() {
             return (
               <div className="space-y-2">
                 {tickets.map(ticket => (
-                  <div key={ticket.id} className="flex items-center justify-between gap-3 p-3 bg-gray-700/20 rounded-xl border border-gray-700/60">
+                  <div key={ticket.id} className="flex items-center justify-between gap-3 p-3 bg-gray-200/20 dark:bg-gray-700/20 rounded-xl border border-gray-700/60">
                     <div className="min-w-0">
-                      <p className="text-sm text-white truncate font-medium">{ticket.title || t('adminUserDetail.tickets.fallbackTitle', { number: ticket.ticket_number })}</p>
+                      <p className="text-sm text-gray-900 dark:text-white truncate font-medium">{ticket.title || t('adminUserDetail.tickets.fallbackTitle', { number: ticket.ticket_number })}</p>
                       <p className="text-xs text-gray-500 mt-0.5">{formatDateShort(ticket.created_at)}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -1357,7 +1357,7 @@ export default function UserDetail() {
                 onChange={e => setNewNote(e.target.value)}
                 placeholder={t('adminUserDetail.notes.addPlaceholder')}
                 maxLength={4000}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500 resize-none"
+                className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:border-orange-500 resize-none"
               />
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-600">{newNote.length}/4000</span>
@@ -1377,7 +1377,7 @@ export default function UserDetail() {
             ) : (
               <div className="space-y-3">
                 {notes.map(note => (
-                  <div key={note.id} className="p-3 bg-gray-700/20 rounded-xl border border-gray-700/60">
+                  <div key={note.id} className="p-3 bg-gray-200/20 dark:bg-gray-700/20 rounded-xl border border-gray-700/60">
                     {editNote?.id === note.id ? (
                       <form onSubmit={saveEditNote} className="flex flex-col gap-2">
                         <textarea
@@ -1385,23 +1385,23 @@ export default function UserDetail() {
                           value={editNote.text}
                           onChange={e => setEditNote(n => ({ ...n, text: e.target.value }))}
                           maxLength={4000}
-                          className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500 resize-none"
+                          className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:border-orange-500 resize-none"
                         />
                         <div className="flex gap-2">
                           <button type="submit" className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white text-xs rounded-lg font-semibold transition">{t('adminUserDetail.common.save')}</button>
-                          <button type="button" onClick={() => setEditNote(null)} className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded-lg transition">{t('adminUserDetail.common.cancel')}</button>
+                          <button type="button" onClick={() => setEditNote(null)} className="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs rounded-lg transition">{t('adminUserDetail.common.cancel')}</button>
                         </div>
                       </form>
                     ) : (
                       <>
-                        <p className="text-sm text-gray-200 whitespace-pre-wrap mb-2">{note.note_text}</p>
+                        <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap mb-2">{note.note_text}</p>
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-xs text-gray-500">{note.author_name || note.author_email} · {formatDate(note.created_at)}{note.updated_at !== note.created_at ? t('adminUserDetail.notes.edited') : ''}</p>
                           <div className="flex gap-1.5">
                             {(isSuper || note.author_email === me?.email) && (
                               <>
-                                <button onClick={() => setEditNote({ id: note.id, text: note.note_text })} className="text-xs text-gray-500 hover:text-gray-300 px-2 py-0.5 bg-gray-700/60 rounded transition">{t('adminUserDetail.notes.edit')}</button>
-                                <button onClick={() => deleteNote(note.id)} className="text-xs text-red-500 hover:text-red-400 px-2 py-0.5 bg-gray-700/60 rounded transition">{t('adminUserDetail.notes.delete')}</button>
+                                <button onClick={() => setEditNote({ id: note.id, text: note.note_text })} className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-2 py-0.5 bg-gray-200/60 dark:bg-gray-700/60 rounded transition">{t('adminUserDetail.notes.edit')}</button>
+                                <button onClick={() => deleteNote(note.id)} className="text-xs text-red-500 hover:text-red-400 px-2 py-0.5 bg-gray-200/60 dark:bg-gray-700/60 rounded transition">{t('adminUserDetail.notes.delete')}</button>
                               </>
                             )}
                           </div>
@@ -1439,17 +1439,17 @@ export default function UserDetail() {
               {activity.map((evt, i) => {
                 const meta = SOURCE_META[evt.source] || { i18nKey: null, color: 'text-gray-400' };
                 return (
-                  <div key={evt.id || i} className="flex items-start gap-3 p-3 bg-gray-700/20 rounded-xl border border-gray-700/50">
+                  <div key={evt.id || i} className="flex items-start gap-3 p-3 bg-gray-200/20 dark:bg-gray-700/20 rounded-xl border border-gray-700/50">
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2 mb-0.5">
                         <span className={`text-xs font-semibold uppercase tracking-wide ${meta.color}`}>{meta.i18nKey ? t(`adminUserDetail.${meta.i18nKey}`) : evt.source}</span>
-                        <span className="text-xs text-gray-300 font-medium">{humanize(evt.event_type)}</span>
-                        {evt.field_name && <span className="text-xs text-gray-500">{t('adminUserDetail.activity.field')} <code className="text-gray-400">{evt.field_name}</code></span>}
+                        <span className="text-xs text-gray-700 dark:text-gray-300 font-medium">{humanize(evt.event_type)}</span>
+                        {evt.field_name && <span className="text-xs text-gray-500">{t('adminUserDetail.activity.field')} <code className="text-gray-600 dark:text-gray-400">{evt.field_name}</code></span>}
                       </div>
                       {(evt.old_value || evt.new_value) && (
                         <p className="text-xs text-gray-500 mb-0.5">
-                          {evt.old_value && <span>{t('adminUserDetail.activity.from')} <em className="text-gray-400">{evt.old_value}</em> </span>}
-                          {evt.new_value && <span>{t('adminUserDetail.activity.to')} <em className="text-gray-300">{evt.new_value}</em></span>}
+                          {evt.old_value && <span>{t('adminUserDetail.activity.from')} <em className="text-gray-600 dark:text-gray-400">{evt.old_value}</em> </span>}
+                          {evt.new_value && <span>{t('adminUserDetail.activity.to')} <em className="text-gray-700 dark:text-gray-300">{evt.new_value}</em></span>}
                         </p>
                       )}
                       {evt.notes && <p className="text-xs text-gray-500 italic">{evt.notes}</p>}
@@ -1478,11 +1478,11 @@ export default function UserDetail() {
               {recentJobs.map(job => (
                 <div key={job.id} className="flex items-center justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white truncate">{job.title}</p>
+                    <p className="text-sm text-gray-900 dark:text-white truncate">{job.title}</p>
                     <p className="text-xs text-gray-500 mt-0.5">{formatDateShort(job.created_at)}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    {job.final_price && <span className="text-xs text-gray-400">${parseFloat(job.final_price).toFixed(2)}</span>}
+                    {job.final_price && <span className="text-xs text-gray-600 dark:text-gray-400">${parseFloat(job.final_price).toFixed(2)}</span>}
                     <StatusBadge value={job.status} />
                   </div>
                 </div>
@@ -1499,14 +1499,14 @@ export default function UserDetail() {
               {billing.map((item, i) => (
                 <div key={i} className="flex items-center justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white capitalize">{humanize((item.event_type || '').replace('invoice.', ''))}</p>
+                    <p className="text-sm text-gray-900 dark:text-white capitalize">{humanize((item.event_type || '').replace('invoice.', ''))}</p>
                     <p className="text-xs text-gray-500 mt-0.5">{item.period_start ? adminDate(item.period_start, { month: 'short', day: 'numeric' }) : '—'}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-sm font-semibold text-white">${((item.amount_cents || 0) / 100).toFixed(2)}</span>
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">${((item.amount_cents || 0) / 100).toFixed(2)}</span>
                     <StatusBadge value={item.status} />
                     {item.invoice_url && (
-                      <a href={item.invoice_url} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-300 transition">
+                      <a href={item.invoice_url} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition">
                         <ExternalLink size={12} />
                       </a>
                     )}
@@ -1523,7 +1523,7 @@ export default function UserDetail() {
               {recentPayouts.map((p, i) => (
                 <div key={i} className="flex items-center justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white truncate">{p.job_title}</p>
+                    <p className="text-sm text-gray-900 dark:text-white truncate">{p.job_title}</p>
                     <p className="text-xs text-gray-500 mt-0.5">{p.completed_at ? formatDateShort(p.completed_at) : t('adminUserDetail.payouts.pending')}</p>
                   </div>
                   <span className="text-sm font-bold text-emerald-400 shrink-0">+${(p.net_to_helper_cents / 100).toFixed(2)}</span>
@@ -1545,8 +1545,8 @@ export default function UserDetail() {
                 { label: t('adminUserDetail.stripe.subStatus'),      value: humanize(user.sub_status || user.subscription_status || 'none') },
               ].map(({ label, value }) => (
                 <div key={label} className="flex items-center justify-between border-b border-gray-700/40 pb-2.5 last:border-0 last:pb-0">
-                  <span className="text-gray-400 shrink-0">{label}</span>
-                  <span className="text-white font-mono text-xs truncate max-w-[9rem] sm:max-w-40 text-right ml-2">{value}</span>
+                  <span className="text-gray-600 dark:text-gray-400 shrink-0">{label}</span>
+                  <span className="text-gray-900 dark:text-white font-mono text-xs truncate max-w-[9rem] sm:max-w-40 text-right ml-2">{value}</span>
                 </div>
               ))}
             </div>
@@ -1559,10 +1559,10 @@ export default function UserDetail() {
       {/* Message modal */}
       {showMsgModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-[#1a1d24] border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
-              <h2 className="font-semibold text-white flex items-center gap-2 text-sm"><MessageSquare size={15} className="text-indigo-400" />{t('adminUserDetail.message.title', { name: user.first_name })}</h2>
-              <button onClick={() => { setShowMsgModal(false); setMsgText(''); }} className="text-gray-500 hover:text-white transition p-1 rounded"><X size={15} /></button>
+          <div className="w-full max-w-md bg-[#1a1d24] border border-gray-300 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800">
+              <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2 text-sm"><MessageSquare size={15} className="text-indigo-400" />{t('adminUserDetail.message.title', { name: user.first_name })}</h2>
+              <button onClick={() => { setShowMsgModal(false); setMsgText(''); }} className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition p-1 rounded"><X size={15} /></button>
             </div>
             <form onSubmit={async (e) => {
               e.preventDefault(); if (!msgText.trim()) return;
@@ -1574,18 +1574,18 @@ export default function UserDetail() {
               } catch (err) { flash('error', err.response?.data?.error || t('adminUserDetail.message.sendFailed')); }
               finally { setMsgSending(false); }
             }} className="p-5">
-              <p className="text-xs text-gray-400 mb-3">{t('adminUserDetail.message.hint', { name: user.first_name })}</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">{t('adminUserDetail.message.hint', { name: user.first_name })}</p>
               <textarea
                 autoFocus required rows={5} maxLength={4000} value={msgText}
                 onChange={e => setMsgText(e.target.value)}
                 placeholder={t('adminUserDetail.message.placeholder', { name: user.first_name })}
-                className="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 resize-none"
+                className="w-full px-3 py-2.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 resize-none"
               />
               <div className="flex items-center justify-between mt-1 mb-4">
                 <span className="text-xs text-gray-600">{msgText.length}/4000</span>
               </div>
               <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => { setShowMsgModal(false); setMsgText(''); }} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm rounded-lg transition">{t('adminUserDetail.common.cancel')}</button>
+                <button type="button" onClick={() => { setShowMsgModal(false); setMsgText(''); }} className="px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm rounded-lg transition">{t('adminUserDetail.common.cancel')}</button>
                 <button type="submit" disabled={msgSending || !msgText.trim()} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition disabled:opacity-40">
                   {msgSending ? <Loader2 size={13} className="animate-spin" /> : <MessageSquare size={13} />}{t('adminUserDetail.message.send')}
                 </button>
@@ -1598,15 +1598,15 @@ export default function UserDetail() {
       {/* Credential removal modal */}
       {credentialModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#1a1d24] border border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+          <div className="bg-[#1a1d24] border border-gray-300 dark:border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
               <AlertTriangle className="text-red-400 shrink-0" size={20} />
-              <h2 className="text-white font-semibold text-base">{t('adminUserDetail.credentials.modalTitle', { type: t(credentialModal.type === 'license' ? 'adminUserDetail.credentials.license' : 'adminUserDetail.credentials.insurance') })}</h2>
+              <h2 className="text-gray-900 dark:text-white font-semibold text-base">{t('adminUserDetail.credentials.modalTitle', { type: t(credentialModal.type === 'license' ? 'adminUserDetail.credentials.license' : 'adminUserDetail.credentials.insurance') })}</h2>
             </div>
             <form onSubmit={removeCredential}>
-              <label className="block text-sm text-gray-400 mb-2">{t('adminUserDetail.credentials.reasonLabel')} <span className="text-red-400">*</span></label>
+              <label className="block text-sm text-gray-600 dark:text-gray-400 mb-2">{t('adminUserDetail.credentials.reasonLabel')} <span className="text-red-400">*</span></label>
               <select value={credentialReason} onChange={e => setCredentialReason(e.target.value)} required
-                className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 mb-4 text-sm focus:border-orange-500 focus:outline-none">
+                className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 mb-4 text-sm focus:border-orange-500 focus:outline-none">
                 <option value="">{t('adminUserDetail.credentials.selectReason')}</option>
                 <option value="unverified">{t('adminUserDetail.credentials.reason.unverified')}</option>
                 <option value="expired">{t('adminUserDetail.credentials.reason.expired')}</option>
@@ -1614,9 +1614,9 @@ export default function UserDetail() {
                 <option value="user_report">{t('adminUserDetail.credentials.reason.selfReported')}</option>
                 <option value="other">{t('adminUserDetail.credentials.reason.other')}</option>
               </select>
-              <label className="block text-sm text-gray-400 mb-2">{t('adminUserDetail.credentials.notesLabel')} <span className="text-gray-600">{t('adminUserDetail.common.optional')}</span></label>
+              <label className="block text-sm text-gray-600 dark:text-gray-400 mb-2">{t('adminUserDetail.credentials.notesLabel')} <span className="text-gray-600">{t('adminUserDetail.common.optional')}</span></label>
               <textarea value={credentialNotes} onChange={e => setCredentialNotes(e.target.value)} rows={2} maxLength={255}
-                className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 mb-1 text-sm focus:border-orange-500 focus:outline-none resize-none" />
+                className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 mb-1 text-sm focus:border-orange-500 focus:outline-none resize-none" />
               <p className="text-xs text-gray-600 mb-4">{credentialNotes.length}/255</p>
               <div className="flex gap-3">
                 <button type="submit" disabled={credentialSaving || !credentialReason}
@@ -1624,7 +1624,7 @@ export default function UserDetail() {
                   {credentialSaving ? t('adminUserDetail.credentials.removing') : t('adminUserDetail.credentials.removeCredential')}
                 </button>
                 <button type="button" onClick={() => { setCredentialModal(null); setCredentialReason(''); setCredentialNotes(''); }}
-                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg text-sm font-medium transition">
+                  className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-600 text-gray-900 dark:text-white py-2 rounded-lg text-sm font-medium transition">
                   {t('adminUserDetail.common.cancel')}
                 </button>
               </div>
@@ -1636,12 +1636,12 @@ export default function UserDetail() {
       {/* Status action modal (Suspend / Restrict / Warn / Reactivate) */}
       {statusModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#1a1d24] border border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+          <div className="bg-[#1a1d24] border border-gray-300 dark:border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <div className="flex items-center gap-3 mb-3">
               {{ suspend: <Clock className="text-yellow-400" size={20} />, restrict: <Lock className="text-orange-400" size={20} />, warn: <AlertTriangle className="text-amber-400" size={20} />, reactivate: <RotateCcw className="text-emerald-400" size={20} /> }[statusModal.action]}
-              <h2 className="text-white font-semibold text-base capitalize">{t('adminUserDetail.statusModal.title', { action: t(`adminUserDetail.statusAction.${statusModal.action}`) })}</h2>
+              <h2 className="text-gray-900 dark:text-white font-semibold text-base capitalize">{t('adminUserDetail.statusModal.title', { action: t(`adminUserDetail.statusAction.${statusModal.action}`) })}</h2>
             </div>
-            <p className="text-sm text-gray-400 mb-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               {{
                 suspend: t('adminUserDetail.statusModal.desc.suspend'),
                 restrict: t('adminUserDetail.statusModal.desc.restrict'),
@@ -1652,14 +1652,14 @@ export default function UserDetail() {
             <form onSubmit={submitStatusAction}>
               {statusModal.action === 'suspend' && (
                 <div className="mb-3">
-                  <label className="block text-sm text-gray-400 mb-1">{t('adminUserDetail.statusModal.duration')}</label>
-                  <select value={suspendDays} onChange={e => setSuspendDays(Number(e.target.value))} className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none">
+                  <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">{t('adminUserDetail.statusModal.duration')}</label>
+                  <select value={suspendDays} onChange={e => setSuspendDays(Number(e.target.value))} className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:outline-none">
                     {[1, 3, 7, 14, 30].map(d => <option key={d} value={d}>{t('adminUserDetail.statusModal.days', { count: d })}</option>)}
                     <option value={0}>{t('adminUserDetail.statusModal.indefinite')}</option>
                   </select>
                 </div>
               )}
-              <label className="block text-sm text-gray-400 mb-2">
+              <label className="block text-sm text-gray-600 dark:text-gray-400 mb-2">
                 {statusModal.action === 'reactivate' ? t('adminUserDetail.statusModal.notesOptional') : <>{t('adminUserDetail.statusModal.reasonRequired')} <span className="text-red-400">*</span></>}
               </label>
               <textarea
@@ -1669,19 +1669,19 @@ export default function UserDetail() {
                 maxLength={500}
                 required={statusModal.action !== 'reactivate'}
                 placeholder={statusModal.action === 'reactivate' ? t('adminUserDetail.statusModal.reactivatePlaceholder') : t('adminUserDetail.statusModal.reasonPlaceholder', { action: t(`adminUserDetail.statusAction.${statusModal.action}`) })}
-                className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 mb-1 text-sm focus:border-orange-500 focus:outline-none resize-none"
+                className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 mb-1 text-sm focus:border-orange-500 focus:outline-none resize-none"
               />
               <p className="text-xs text-gray-600 mb-4">{statusReason.length}/500</p>
               <div className="flex gap-3">
                 <button
                   type="submit"
                   disabled={statusSaving || (statusModal.action !== 'reactivate' && !statusReason.trim())}
-                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50 text-white ${{ suspend: 'bg-yellow-700 hover:bg-yellow-600', restrict: 'bg-orange-700 hover:bg-orange-600', warn: 'bg-amber-700 hover:bg-amber-600', reactivate: 'bg-emerald-700 hover:bg-emerald-600' }[statusModal.action]}`}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50 text-gray-900 dark:text-white ${{ suspend: 'bg-yellow-700 hover:bg-yellow-600', restrict: 'bg-orange-700 hover:bg-orange-600', warn: 'bg-amber-700 hover:bg-amber-600', reactivate: 'bg-emerald-700 hover:bg-emerald-600' }[statusModal.action]}`}
                 >
                   {statusSaving ? t('adminUserDetail.statusModal.processing') : t('adminUserDetail.statusModal.confirm', { action: t(`adminUserDetail.statusAction.${statusModal.action}`) })}
                 </button>
                 <button type="button" onClick={() => { setStatusModal(null); setStatusReason(''); }}
-                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg text-sm font-medium transition">
+                  className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-600 text-gray-900 dark:text-white py-2 rounded-lg text-sm font-medium transition">
                   {t('adminUserDetail.common.cancel')}
                 </button>
               </div>

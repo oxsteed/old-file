@@ -19,8 +19,8 @@ function convStatusBadge(status) {
   switch (status) {
     case 'active':   return 'bg-green-500/20 text-green-400';
     case 'blocked':  return 'bg-red-500/20 text-red-400';
-    case 'archived': return 'bg-gray-500/20 text-gray-400';
-    default:         return 'bg-gray-500/20 text-gray-400';
+    case 'archived': return 'bg-gray-500/20 text-gray-600 dark:text-gray-400';
+    default:         return 'bg-gray-500/20 text-gray-600 dark:text-gray-400';
   }
 }
 
@@ -94,7 +94,7 @@ function ThreadDetail({ conv, onStatusChange, actionBusy, breakGlassReason }) {
         <button
           type="button"
           onClick={reloadThread}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-gray-200 hover:bg-gray-700 transition"
+          className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
         >
           <RefreshCw size={14} /> {t('superConversations.tryAgain')}
         </button>
@@ -116,13 +116,13 @@ function ThreadDetail({ conv, onStatusChange, actionBusy, breakGlassReason }) {
       </div>
 
       {/* Header */}
-      <div className="px-5 py-4 border-b border-gray-800 bg-gray-900">
+      <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
         <div className="flex items-start justify-between gap-3 flex-wrap mb-2">
           <div className="min-w-0">
-            <h2 className="text-white font-semibold text-base">
+            <h2 className="text-gray-900 dark:text-white font-semibold text-base">
               {conv.customer_name} ↔ {conv.helper_name}
             </h2>
-            <p className="text-gray-400 text-xs mt-0.5">
+            <p className="text-gray-600 dark:text-gray-400 text-xs mt-0.5">
               {conv.customer_email} / {conv.helper_email}
               {conv.job_title && (
                 <span className="ml-2 text-gray-500">· Job: {conv.job_title}</span>
@@ -146,14 +146,13 @@ function ThreadDetail({ conv, onStatusChange, actionBusy, breakGlassReason }) {
               key={s.key}
               disabled={actionBusy || currentStatus === s.key}
               onClick={() => { setPendingStatus(s.key); setReason(''); }}
-              className={`px-2.5 py-1 text-xs rounded-lg transition capitalize
-                disabled:opacity-40 ${
+              className={`px-2.5 py-1 text-xs rounded-lg transition capitalize disabled:opacity-40 ${
                   currentStatus === s.key
-                    ? 'bg-gray-700 text-gray-300 cursor-default'
+                    ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-default'
                     : s.key === 'blocked'
                       ? 'bg-red-900/40 text-red-400 hover:bg-red-900/70'
                       : s.key === 'archived'
-                        ? 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                        ? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                         : 'bg-green-900/40 text-green-400 hover:bg-green-900/70'
                 }`}
             >
@@ -162,7 +161,7 @@ function ThreadDetail({ conv, onStatusChange, actionBusy, breakGlassReason }) {
           ))}
           <button
             onClick={reloadThread}
-            className="p-1.5 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition ml-auto"
+            className="p-1.5 text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition ml-auto"
           >
             <RefreshCw size={13} />
           </button>
@@ -176,22 +175,20 @@ function ThreadDetail({ conv, onStatusChange, actionBusy, breakGlassReason }) {
               value={reason}
               onChange={e => setReason(e.target.value)}
               placeholder={t('superConversations.reasonPlaceholder', { status: t('superConversations.status' + pendingStatus[0].toUpperCase() + pendingStatus.slice(1)) })}
-              className="flex-1 bg-gray-800 border border-gray-700 rounded-lg text-white text-xs
-                         px-3 py-2 placeholder-gray-500 focus:border-orange-500 focus:outline-none"
+              className="flex-1 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white text-xs px-3 py-2 placeholder-gray-500 focus:border-orange-500 focus:outline-none"
               onKeyDown={e => { if (e.key === 'Enter') handleStatusConfirm(); if (e.key === 'Escape') { setPendingStatus(null); setReason(''); } }}
               autoFocus
             />
             <button
               onClick={handleStatusConfirm}
               disabled={!reason.trim() || actionBusy}
-              className="px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium
-                         rounded-lg transition disabled:opacity-50"
+              className="px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium rounded-lg transition disabled:opacity-50"
             >
               {actionBusy ? '…' : t('superConversations.confirm')}
             </button>
             <button
               onClick={() => { setPendingStatus(null); setReason(''); }}
-              className="px-3 py-2 bg-gray-800 text-gray-400 hover:text-white text-xs rounded-lg transition"
+              className="px-3 py-2 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs rounded-lg transition"
             >
               {t('superConversations.cancel')}
             </button>
@@ -205,23 +202,21 @@ function ThreadDetail({ conv, onStatusChange, actionBusy, breakGlassReason }) {
           <p className="text-gray-500 text-sm text-center py-8">{t('superConversations.noMessages')}</p>
         ) : (messages || []).map(msg => (
           <div key={msg.id} className="flex gap-3">
-            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center
-                            text-xs font-bold text-gray-300 shrink-0">
+            <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-700 dark:text-gray-300 shrink-0">
               {(msg.sender_name || '?')[0].toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <span className="text-white text-xs font-medium">{msg.sender_name || t('superConversations.unknownSender')}</span>
+                <span className="text-gray-900 dark:text-white text-xs font-medium">{msg.sender_name || t('superConversations.unknownSender')}</span>
                 <span className="text-gray-500 text-xs">{msg.sender_email || ''}</span>
                 {msg.message_type && msg.message_type !== 'text' && (
-                  <span className="text-xs bg-gray-700 text-gray-400 px-1.5 py-0.5 rounded capitalize">
+                  <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-1.5 py-0.5 rounded capitalize">
                     {msg.message_type}
                   </span>
                 )}
                 <span className="text-gray-600 text-xs ml-auto">{timeAgo(msg.created_at, t)}</span>
               </div>
-              <div className="bg-gray-800 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm text-gray-200
-                              leading-relaxed whitespace-pre-wrap break-words">
+              <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 leading-relaxed whitespace-pre-wrap break-words">
                 {msg.content}
               </div>
             </div>
@@ -241,11 +236,10 @@ function ConvRow({ conv, selected, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left px-4 py-3 border-b border-gray-800 transition-all
-        hover:bg-gray-800/60 ${selected ? 'bg-gray-800/80 border-l-2 border-l-orange-500' : ''}`}
+      className={`w-full text-left px-4 py-3 border-b border-gray-200 dark:border-gray-800 transition-all hover:bg-gray-100/60 dark:hover:bg-gray-800/60 ${selected ? 'bg-gray-100/80 dark:bg-gray-800/80 border-l-2 border-l-orange-500' : ''}`}
     >
       <div className="flex items-start justify-between gap-2 mb-1">
-        <span className="text-white text-sm font-medium truncate">
+        <span className="text-gray-900 dark:text-white text-sm font-medium truncate">
           {conv.customer_name} ↔ {conv.helper_name}
         </span>
         <span className="text-gray-500 text-xs shrink-0">{timeAgo(conv.last_message_at, t)}</span>
@@ -277,8 +271,8 @@ function LinkedArtifacts({ thread }) {
   const bookings = thread.bookings || [];
   if (!pops.length && !agreements.length && !quotes.length && !bookings.length) return null;
   return (
-    <div className="px-5 py-3 border-t border-gray-800 bg-gray-950/60 text-xs text-gray-300 space-y-2">
-      <p className="text-gray-400 font-semibold uppercase tracking-wide">{t('superConversations.linkedArtifacts')}</p>
+    <div className="px-5 py-3 border-t border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-950/60 text-xs text-gray-700 dark:text-gray-300 space-y-2">
+      <p className="text-gray-600 dark:text-gray-400 font-semibold uppercase tracking-wide">{t('superConversations.linkedArtifacts')}</p>
       {quotes.length > 0 && (
         <div>
           <span className="text-orange-300">{t('superConversations.quotesCount', { count: quotes.length })}</span>
@@ -401,13 +395,13 @@ export default function ConversationsAdmin() {
   return (
     <div className="flex h-full">
       {/* ── Left panel ── */}
-      <div className={`flex flex-col border-r border-gray-800 bg-gray-950
+      <div className={`flex flex-col border-r border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950
         ${showDetail ? 'hidden md:flex md:w-[360px] lg:w-[400px]' : 'flex-1 md:w-[360px] lg:w-[400px]'}`}>
 
         {/* Header */}
-        <div className="px-5 py-4 border-b border-gray-800">
+        <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-800">
           <div className="flex items-center justify-between mb-3">
-            <h1 className="text-white font-bold text-lg flex items-center gap-2">
+            <h1 className="text-gray-900 dark:text-white font-bold text-lg flex items-center gap-2">
               <MessageSquare size={20} className="text-orange-500" />
               {t('superConversations.title')}
             </h1>
@@ -422,7 +416,7 @@ export default function ConversationsAdmin() {
               onClick={reload}
                 aria-label={loading ? t('superConversations.refreshing') : t('superConversations.refresh')}
                 title={loading ? t('superConversations.refreshing') : t('superConversations.refresh')}
-                className="p-1.5 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition disabled:opacity-50"
+                className="p-1.5 text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition disabled:opacity-50"
                 disabled={loading}
               >
                 <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
@@ -455,7 +449,7 @@ export default function ConversationsAdmin() {
                 className={`px-3 py-1 rounded-full text-xs font-semibold capitalize transition ${
                   statusTab === tab.key
                     ? 'bg-orange-500 text-white'
-                    : 'bg-gray-800 text-gray-400 hover:text-white'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
                 {t(tab.labelKey)}
@@ -469,7 +463,7 @@ export default function ConversationsAdmin() {
           {error && (
             <div className="m-3 flex items-center justify-between gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200" role="alert">
               <span>{error}</span>
-              <button type="button" onClick={reload} className="font-semibold underline underline-offset-2 hover:text-white">
+              <button type="button" onClick={reload} className="font-semibold underline underline-offset-2 hover:text-gray-900 dark:hover:text-white">
                 {t('superConversations.tryAgain')}
               </button>
             </div>
@@ -507,10 +501,10 @@ export default function ConversationsAdmin() {
         {selected ? (
           <>
             {/* Mobile back */}
-            <div className="md:hidden px-4 py-2 border-b border-gray-800 bg-gray-900">
+            <div className="md:hidden px-4 py-2 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
               <button
                 onClick={() => setShowDetail(false)}
-                className="flex items-center gap-1 text-sm text-gray-400 hover:text-white transition"
+                className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition"
               >
                 {t('superConversations.backToList')}
               </button>
@@ -533,19 +527,19 @@ export default function ConversationsAdmin() {
 
       {pendingConv && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md rounded-xl border border-yellow-700/40 bg-gray-900 p-5 shadow-xl">
+          <div className="w-full max-w-md rounded-xl border border-yellow-700/40 bg-white dark:bg-gray-900 p-5 shadow-xl">
             <div className="mb-3 flex items-center gap-2 text-yellow-300">
               <AlertTriangle size={16} />
-              <h2 className="font-semibold text-white">{t('superConversations.breakGlassTitle')}</h2>
+              <h2 className="font-semibold text-gray-900 dark:text-white">{t('superConversations.breakGlassTitle')}</h2>
             </div>
-            <p className="mb-3 text-sm text-gray-400">
+            <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">
               {t('superConversations.breakGlassBody')}
             </p>
             <p className="mb-2 text-xs text-gray-500">
               {pendingConv.customer_name} ↔ {pendingConv.helper_name}
             </p>
             <textarea
-              className="mb-3 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white"
+              className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2 text-sm text-gray-900 dark:text-white"
               rows={3}
               value={reasonDraft}
               onChange={(e) => setReasonDraft(e.target.value)}
@@ -554,7 +548,7 @@ export default function ConversationsAdmin() {
             <div className="flex justify-end gap-2">
               <button
                 type="button"
-                className="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300"
+                className="rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm text-gray-700 dark:text-gray-300"
                 onClick={() => setPendingConv(null)}
               >
                 {t('superConversations.cancel')}

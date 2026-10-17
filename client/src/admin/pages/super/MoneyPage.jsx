@@ -87,18 +87,18 @@ function formatPercent(value) {
 
 function SummaryCard({ icon: Icon, label, value, hint, tone = 'text-white', trend = null }) {
   return (
-    <div className="rounded-[26px] border border-gray-800 bg-[#111318] p-5">
+    <div className="rounded-[26px] border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-5">
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500">{label}</p>
           <p className={`mt-3 text-3xl font-semibold ${tone}`}>{value}</p>
         </div>
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-800 bg-gray-900/75">
-          <Icon className="h-5 w-5 text-gray-300" />
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/75 dark:bg-gray-900/75">
+          <Icon className="h-5 w-5 text-gray-700 dark:text-gray-300" />
         </div>
       </div>
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm leading-6 text-gray-400">{hint}</p>
+        <p className="text-sm leading-6 text-gray-600 dark:text-gray-400">{hint}</p>
         {trend ? (
           <div className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${
             trend >= 0
@@ -119,7 +119,7 @@ function ChannelCard({ channel }) {
   const statusMeta = STATUS_META[channel.trackingStatus] || STATUS_META.volume_only;
 
   return (
-    <article className="rounded-[26px] border border-gray-800 bg-[#111318] p-5">
+    <article className="rounded-[26px] border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-5">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -127,30 +127,30 @@ function ChannelCard({ channel }) {
               {t(statusMeta.labelKey)}
             </span>
             {!!channel.count && (
-              <span className="rounded-full border border-gray-700 bg-gray-900/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">
+              <span className="rounded-full border border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-900/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-600 dark:text-gray-400">
                 {t('superMoney.trackedCount', { count: formatCompactNumber(channel.count) })}
               </span>
             )}
           </div>
-          <h3 className="text-lg font-semibold text-white">{channel.label}</h3>
-          <p className="mt-2 text-sm leading-6 text-gray-400">{channel.note}</p>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{channel.label}</h3>
+          <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">{channel.note}</p>
         </div>
-        <div className="rounded-2xl border border-gray-800 bg-gray-900/75 px-3 py-2 text-right">
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/75 dark:bg-gray-900/75 px-3 py-2 text-right">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">{t('superMoney.colPeriod')}</p>
-          <p className="mt-1 text-lg font-semibold text-white">{formatMoneyFromCents(channel.periodCents)}</p>
+          <p className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{formatMoneyFromCents(channel.periodCents)}</p>
         </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-gray-800 bg-gray-900/55 p-3">
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/55 dark:bg-gray-900/55 p-3">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">{t('superMoney.colLifetime')}</p>
-          <p className="mt-2 text-lg font-semibold text-white">{formatMoneyFromCents(channel.lifetimeCents)}</p>
+          <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{formatMoneyFromCents(channel.lifetimeCents)}</p>
         </div>
-        <div className="rounded-2xl border border-gray-800 bg-gray-900/55 p-3">
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/55 dark:bg-gray-900/55 p-3">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">{t('superMoney.colPipeline')}</p>
           <p className="mt-2 text-lg font-semibold text-amber-300">{formatMoneyFromCents(channel.pendingCents)}</p>
         </div>
-        <div className="rounded-2xl border border-gray-800 bg-gray-900/55 p-3">
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/55 dark:bg-gray-900/55 p-3">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">{t('superMoney.colRefunds')}</p>
           <p className="mt-2 text-lg font-semibold text-red-300">{formatMoneyFromCents(channel.refundsCents)}</p>
         </div>
@@ -160,7 +160,7 @@ function ChannelCard({ channel }) {
         {(channel.sources || []).map((source) => (
           <span
             key={source}
-            className="rounded-full border border-gray-700 bg-black/20 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400"
+            className="rounded-full border border-gray-300 dark:border-gray-700 bg-black/20 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-gray-600 dark:text-gray-400"
           >
             {source.replace(/_/g, ' ')}
           </span>
@@ -172,14 +172,14 @@ function ChannelCard({ channel }) {
 
 function ControlCard({ title, value, hint, icon: Icon }) {
   return (
-    <div className="rounded-[24px] border border-gray-800 bg-[#111318] p-4">
+    <div className="rounded-[24px] border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold text-white">{title}</p>
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-800 bg-gray-900/75">
-          <Icon className="h-4 w-4 text-gray-400" />
+        <p className="text-sm font-semibold text-gray-900 dark:text-white">{title}</p>
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 dark:border-gray-800 bg-white/75 dark:bg-gray-900/75">
+          <Icon className="h-4 w-4 text-gray-600 dark:text-gray-400" />
         </div>
       </div>
-      <p className="text-2xl font-semibold text-white">{value}</p>
+      <p className="text-2xl font-semibold text-gray-900 dark:text-white">{value}</p>
       <p className="mt-2 text-xs leading-5 text-gray-500">{hint}</p>
     </div>
   );
@@ -252,17 +252,17 @@ export default function MoneyPage() {
   return (
     <div className="min-h-full bg-[#07090d] px-4 py-6 text-gray-100 sm:px-6 lg:px-8">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <section className="overflow-hidden rounded-[34px] border border-gray-800 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.22),_transparent_32%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.16),_transparent_28%),#0d1016] p-6 lg:p-8">
+        <section className="overflow-hidden rounded-[34px] border border-gray-200 dark:border-gray-800 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.22),_transparent_32%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.16),_transparent_28%),#0d1016] p-6 lg:p-8">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
             <div className="max-w-3xl">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-orange-500/25 bg-orange-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-orange-200">
                 <Sparkles className="h-3.5 w-3.5" />
                 {t('superMoney.badge')}
               </div>
-              <h1 className="text-3xl font-semibold tracking-tight text-white lg:text-4xl">
+              <h1 className="text-3xl font-semibold tracking-tight text-gray-900 dark:text-white lg:text-4xl">
                 {t('superMoney.title')}
               </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-gray-300 lg:text-base">
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-gray-700 dark:text-gray-300 lg:text-base">
                 {t('superMoney.intro')}
               </p>
             </div>
@@ -275,7 +275,7 @@ export default function MoneyPage() {
                   className={`rounded-full px-3.5 py-2 text-sm font-semibold transition ${
                     period === option
                       ? 'bg-orange-500 text-white'
-                      : 'border border-gray-700 bg-gray-900/70 text-gray-300 hover:border-gray-500 hover:text-white'
+                      : 'border border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-900/70 text-gray-700 dark:text-gray-300 hover:border-gray-500 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
                   {t('superDashboard.period' + option)}
@@ -283,7 +283,7 @@ export default function MoneyPage() {
               ))}
               <button
                 onClick={() => setReloadNonce((current) => current + 1)}
-                className="inline-flex items-center gap-2 rounded-full border border-gray-700 bg-gray-900/70 px-3.5 py-2 text-sm font-semibold text-gray-300 transition hover:border-gray-500 hover:text-white"
+                className="inline-flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-900/70 px-3.5 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 transition hover:border-gray-500 hover:text-gray-900 dark:hover:text-white"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                 {t('superDashboard.refresh')}
@@ -331,15 +331,15 @@ export default function MoneyPage() {
         </section>
 
         <section className="grid gap-4 xl:grid-cols-[1.8fr_1fr]">
-          <div className="rounded-[30px] border border-gray-800 bg-[#0d1016] p-5 lg:p-6">
+          <div className="rounded-[30px] border border-gray-200 dark:border-gray-800 bg-[#0d1016] p-5 lg:p-6">
             <div className="mb-6 flex items-center justify-between gap-4">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500">{t('superMoney.revenueArchitecture')}</p>
-                <h2 className="mt-2 text-2xl font-semibold text-white">{t('superMoney.howMakesMoney')}</h2>
+                <h2 className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{t('superMoney.howMakesMoney')}</h2>
               </div>
-              <div className="rounded-2xl border border-gray-800 bg-gray-900/75 px-4 py-3 text-right">
+              <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/75 dark:bg-gray-900/75 px-4 py-3 text-right">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">{t('superMoney.lifetimeTracked')}</p>
-                <p className="mt-1 text-xl font-semibold text-white">
+                <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">
                   {loading ? '...' : formatMoneyFromCents(summary.trackedRevenueLifetimeCents)}
                 </p>
               </div>
@@ -354,11 +354,11 @@ export default function MoneyPage() {
                   <div key={key} className={`rounded-[26px] border p-4 lg:p-5 ${meta.tone}`}>
                     <div className="mb-4 flex items-start gap-3">
                       <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-black/20">
-                        <Icon className="h-5 w-5 text-white" />
+                        <Icon className="h-5 w-5 text-gray-900 dark:text-white" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-white">{t(meta.titleKey)}</h3>
-                        <p className="mt-1 text-sm leading-6 text-gray-300">{t(meta.descriptionKey)}</p>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t(meta.titleKey)}</h3>
+                        <p className="mt-1 text-sm leading-6 text-gray-700 dark:text-gray-300">{t(meta.descriptionKey)}</p>
                       </div>
                     </div>
 
@@ -367,7 +367,7 @@ export default function MoneyPage() {
                         {items.map((channel) => <ChannelCard key={channel.key} channel={channel} />)}
                       </div>
                     ) : (
-                      <div className="rounded-2xl border border-dashed border-gray-700 bg-black/15 px-4 py-5 text-sm text-gray-400">
+                      <div className="rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 bg-black/15 px-4 py-5 text-sm text-gray-600 dark:text-gray-400">
                         {t('superMoney.noChannelData')}
                       </div>
                     )}
@@ -378,14 +378,14 @@ export default function MoneyPage() {
           </div>
 
           <div className="space-y-4">
-            <section className="rounded-[30px] border border-gray-800 bg-[#0d1016] p-5">
+            <section className="rounded-[30px] border border-gray-200 dark:border-gray-800 bg-[#0d1016] p-5">
               <div className="mb-5 flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-800 bg-gray-900/80">
-                  <Globe className="h-5 w-5 text-gray-300" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80">
+                  <Globe className="h-5 w-5 text-gray-700 dark:text-gray-300" />
                 </div>
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500">{t('superMoney.controlLevers')}</p>
-                  <h2 className="text-xl font-semibold text-white">{t('superMoney.pricingTakeRate')}</h2>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{t('superMoney.pricingTakeRate')}</h2>
                 </div>
               </div>
 
@@ -410,32 +410,32 @@ export default function MoneyPage() {
                 />
               </div>
 
-              <div className="mt-5 rounded-[24px] border border-gray-800 bg-[#111318] p-4">
+              <div className="mt-5 rounded-[24px] border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4">
                 <div className="mb-3 flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-semibold text-white">{t('superMoney.feeSettingsTitle')}</h3>
-                  <span className="rounded-full border border-gray-700 bg-gray-900/80 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t('superMoney.feeSettingsTitle')}</h3>
+                  <span className="rounded-full border border-gray-300 dark:border-gray-700 bg-white/80 dark:bg-gray-900/80 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-600 dark:text-gray-400">
                     {t('superMoney.liveKeys', { count: feeSettingRows.length })}
                   </span>
                 </div>
                 <div className="space-y-2">
                   {feeSettingRows.map(([id, labelKey, value]) => (
-                    <div key={id} className="flex items-center justify-between gap-4 rounded-2xl border border-gray-800 bg-black/15 px-3 py-2.5 text-sm">
-                      <span className="text-gray-400">{t(labelKey)}</span>
-                      <span className="font-semibold text-white">{String(value)}</span>
+                    <div key={id} className="flex items-center justify-between gap-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-black/15 px-3 py-2.5 text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">{t(labelKey)}</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{String(value)}</span>
                     </div>
                   ))}
                 </div>
               </div>
             </section>
 
-            <section className="rounded-[30px] border border-gray-800 bg-[#0d1016] p-5">
+            <section className="rounded-[30px] border border-gray-200 dark:border-gray-800 bg-[#0d1016] p-5">
               <div className="mb-5 flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-800 bg-gray-900/80">
-                  <CheckCircle2 className="h-5 w-5 text-gray-300" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80">
+                  <CheckCircle2 className="h-5 w-5 text-gray-700 dark:text-gray-300" />
                 </div>
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500">{t('superMoney.diagnostics')}</p>
-                  <h2 className="text-xl font-semibold text-white">{t('superMoney.operationalChecks')}</h2>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{t('superMoney.operationalChecks')}</h2>
                 </div>
               </div>
 
@@ -446,9 +446,9 @@ export default function MoneyPage() {
                   ['recurring', 'superMoney.diagRecurringApi', payload?.diagnostics?.recurringApiProducts || 0],
                   ['franchise', 'superMoney.diagFranchiseStores', payload?.diagnostics?.launchedFranchiseStores || 0],
                 ].map(([id, labelKey, value]) => (
-                  <div key={id} className="rounded-2xl border border-gray-800 bg-[#111318] px-4 py-3">
+                  <div key={id} className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] px-4 py-3">
                     <p className="text-xs uppercase tracking-[0.18em] text-gray-500">{t(labelKey)}</p>
-                    <p className="mt-2 text-2xl font-semibold text-white">{loading ? '...' : formatCompactNumber(value)}</p>
+                    <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{loading ? '...' : formatCompactNumber(value)}</p>
                   </div>
                 ))}
               </div>
@@ -456,38 +456,38 @@ export default function MoneyPage() {
           </div>
         </section>
 
-        <section className="rounded-[30px] border border-gray-800 bg-[#0d1016] p-5 lg:p-6">
+        <section className="rounded-[30px] border border-gray-200 dark:border-gray-800 bg-[#0d1016] p-5 lg:p-6">
           <div className="mb-5 flex items-center justify-between gap-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500">{t('superMoney.recentMovement')}</p>
-              <h2 className="mt-2 text-2xl font-semibold text-white">{t('superMoney.latestSignals')}</h2>
+              <h2 className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{t('superMoney.latestSignals')}</h2>
             </div>
-            <div className="rounded-2xl border border-gray-800 bg-gray-900/80 px-3 py-2 text-sm text-gray-300">
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
               {t('superMoney.latestEntries', { count: recentMovements.length })}
             </div>
           </div>
 
           <div className="grid gap-3">
             {loading ? (
-              <div className="rounded-2xl border border-dashed border-gray-700 bg-[#111318] px-4 py-8 text-center text-sm text-gray-400">
+              <div className="rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 bg-white dark:bg-[#111318] px-4 py-8 text-center text-sm text-gray-600 dark:text-gray-400">
                 {t('superMoney.loadingActivity')}
               </div>
             ) : recentMovements.length ? (
               recentMovements.map((item) => {
                 const positive = Number(item.amount_cents) >= 0;
                 return (
-                  <div key={`${item.source}-${item.id}`} className="rounded-[24px] border border-gray-800 bg-[#111318] px-4 py-4">
+                  <div key={`${item.source}-${item.id}`} className="rounded-[24px] border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] px-4 py-4">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                       <div className="min-w-0">
                         <div className="mb-2 flex flex-wrap items-center gap-2">
-                          <span className="rounded-full border border-gray-700 bg-gray-900/80 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+                          <span className="rounded-full border border-gray-300 dark:border-gray-700 bg-white/80 dark:bg-gray-900/80 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-600 dark:text-gray-400">
                             {item.source}
                           </span>
-                          <span className="rounded-full border border-gray-700 bg-black/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-300">
+                          <span className="rounded-full border border-gray-300 dark:border-gray-700 bg-black/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-700 dark:text-gray-300">
                             {String(item.label || t('superMoney.movementFallback')).replace(/_/g, ' ')}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-300">
+                        <p className="text-sm text-gray-700 dark:text-gray-300">
                           {item.description || t('superMoney.movementFallback')}
                         </p>
                         <p className="mt-2 text-xs text-gray-500">
@@ -504,7 +504,7 @@ export default function MoneyPage() {
                 );
               })
             ) : (
-              <div className="rounded-2xl border border-dashed border-gray-700 bg-[#111318] px-4 py-8 text-center text-sm text-gray-400">
+              <div className="rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 bg-white dark:bg-[#111318] px-4 py-8 text-center text-sm text-gray-600 dark:text-gray-400">
                 {t('superMoney.noMovement')}
               </div>
             )}

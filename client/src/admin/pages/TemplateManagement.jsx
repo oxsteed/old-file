@@ -12,7 +12,7 @@ import { SuggestDropdown } from '../../components/SuggestDropdown';
 import '../lib/suggestDropdownAdmin.css';
 
 // ── Icons ──────────────────────────────────────────────────────────────────
-const Ico = ({ children, size = 18, cls = 'text-gray-400', ...rest }) => (
+const Ico = ({ children, size = 18, cls = 'text-gray-600 dark:text-gray-400', ...rest }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
     strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
     className={`flex-shrink-0 ${cls}`} {...rest}>{children}</svg>
@@ -51,7 +51,7 @@ const Badge = ({ type, t }) => {
     admin_grant: 'bg-indigo-500/15 text-indigo-400',
   };
   return (
-    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${m[type] || 'bg-gray-700 text-gray-400'}`}>
+    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${m[type] || 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
       {t ? t(`adminTemplates.badge${type?.split('_').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('')}`, { defaultValue: type?.replace(/_/g, ' ') }) : type?.replace(/_/g, ' ')}
     </span>
   );
@@ -69,21 +69,21 @@ function TemplatePreviewModal({ slug, name, category, onClose, t }) {
       aria-labelledby="tm-preview-title"
     >
       <div
-        className="flex flex-col flex-1 min-h-0 max-w-6xl mx-auto w-full bg-gray-900 border border-gray-700 rounded-2xl overflow-hidden shadow-2xl"
+        className="flex flex-col flex-1 min-h-0 max-w-6xl mx-auto w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl overflow-hidden shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-gray-800 shrink-0">
+        <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-800 shrink-0">
           <div>
-            <p id="tm-preview-title" className="text-white font-bold text-lg">{name}</p>
+            <p id="tm-preview-title" className="text-gray-900 dark:text-white font-bold text-lg">{name}</p>
             <p className="text-gray-500 text-xs font-mono mt-0.5">{slug}</p>
-            <p className="text-gray-400 text-xs capitalize mt-1">{category}</p>
+            <p className="text-gray-600 dark:text-gray-400 text-xs capitalize mt-1">{category}</p>
             <p className="text-amber-400/90 text-xs mt-2">{t('adminTemplates.previewDisclaimer')}</p>
           </div>
-          <button type="button" onClick={onClose} className="p-2 rounded-lg hover:bg-gray-800 transition" aria-label={t('adminTemplates.closePreview')}>
-            <IcoX size={20} cls="text-gray-400" />
+          <button type="button" onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition" aria-label={t('adminTemplates.closePreview')}>
+            <IcoX size={20} cls="text-gray-600 dark:text-gray-400" />
           </button>
         </div>
-        <div className="flex-1 min-h-0 overflow-auto p-3 md:p-4 bg-gray-950">
+        <div className="flex-1 min-h-0 overflow-auto p-3 md:p-4 bg-gray-50 dark:bg-gray-950">
           <TemplatePreviewPanel slug={slug} scale={0.42} maxHeight="none" />
         </div>
       </div>
@@ -118,24 +118,24 @@ function EditPricingModal({ row, onClose, onSave, saving, t }) {
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-5xl max-h-[92vh] overflow-hidden flex flex-col shadow-2xl"
+        className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl w-full max-w-5xl max-h-[92vh] overflow-hidden flex flex-col shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800 shrink-0">
           <div>
-            <h2 className="text-white font-bold text-lg">{t('adminTemplates.editPricingTitle')}</h2>
+            <h2 className="text-gray-900 dark:text-white font-bold text-lg">{t('adminTemplates.editPricingTitle')}</h2>
             <p className="text-gray-500 text-xs font-mono">{row.slug}</p>
           </div>
-          <button type="button" onClick={onClose} className="p-2 rounded-lg hover:bg-gray-800" aria-label={t('adminTemplates.closePreview')}>
-            <IcoX size={18} cls="text-gray-400" aria-hidden="true" />
+          <button type="button" onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" aria-label={t('adminTemplates.closePreview')}>
+            <IcoX size={18} cls="text-gray-600 dark:text-gray-400" aria-hidden="true" />
           </button>
         </div>
-        <div className="flex-1 min-h-0 overflow-y-auto grid md:grid-cols-2 gap-0 md:divide-x divide-gray-800">
+        <div className="flex-1 min-h-0 overflow-y-auto grid md:grid-cols-2 gap-0 md:divide-x divide-gray-200 dark:divide-gray-800">
           <div className="p-4 md:p-5 space-y-4">
-            <div className="flex items-center gap-3 pb-3 border-b border-gray-800">
+            <div className="flex items-center gap-3 pb-3 border-b border-gray-200 dark:border-gray-800">
               <TemplatePreviewThumb slug={row.slug} width={88} height={64} />
               <div>
-                <p className="text-white font-semibold">{displayName}</p>
+                <p className="text-gray-900 dark:text-white font-semibold">{displayName}</p>
                 <p className="text-gray-500 text-xs capitalize">{row.category}</p>
               </div>
             </div>
@@ -144,30 +144,30 @@ function EditPricingModal({ row, onClose, onSave, saving, t }) {
             ) : (
               <>
                 <div>
-                  <label className="block text-gray-400 text-xs font-medium mb-1">{t('adminTemplates.monthlyUsd')}</label>
+                  <label className="block text-gray-600 dark:text-gray-400 text-xs font-medium mb-1">{t('adminTemplates.monthlyUsd')}</label>
                   <input
                     type="number"
                     min="0"
                     step="0.01"
                     value={monthly}
                     onChange={e => setMonthly(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-400 text-xs font-medium mb-1">{t('adminTemplates.lifetimeUsd')}</label>
+                  <label className="block text-gray-600 dark:text-gray-400 text-xs font-medium mb-1">{t('adminTemplates.lifetimeUsd')}</label>
                   <input
                     type="number"
                     min="0"
                     step="0.01"
                     value={lifetime}
                     onChange={e => setLifetime(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={active} onChange={() => setActive(!active)} className="rounded border-gray-600" />
-                  <span className="text-sm text-gray-300">{t('adminTemplates.activeListing')}</span>
+                  <input type="checkbox" checked={active} onChange={() => setActive(!active)} className="rounded border-gray-300 dark:border-gray-600" />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{t('adminTemplates.activeListing')}</span>
                 </label>
               </>
             )}
@@ -181,16 +181,16 @@ function EditPricingModal({ row, onClose, onSave, saving, t }) {
                 disabled={saving || row.is_free}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold disabled:opacity-50"
               >
-                {saving ? <IcoRefresh size={14} cls="text-white animate-spin" /> : <IcoSave size={14} cls="text-white" />}
+                {saving ? <IcoRefresh size={14} cls="text-gray-900 dark:text-white animate-spin" /> : <IcoSave size={14} cls="text-white" />}
                 {t('adminTemplates.save')}
               </button>
-              <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm">
+              <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm">
                 {t('adminTemplates.cancel')}
               </button>
             </div>
           </div>
-          <div className="p-4 md:p-5 bg-gray-950 min-h-[200px] md:min-h-0">
-            <p className="text-gray-400 text-xs font-medium uppercase tracking-wide mb-2">{t('adminTemplates.previewPaneTitle')}</p>
+          <div className="p-4 md:p-5 bg-gray-50 dark:bg-gray-950 min-h-[200px] md:min-h-0">
+            <p className="text-gray-600 dark:text-gray-400 text-xs font-medium uppercase tracking-wide mb-2">{t('adminTemplates.previewPaneTitle')}</p>
             <TemplatePreviewPanel slug={row.slug} scale={0.34} maxHeight="min(55vh, 480px)" />
           </div>
         </div>
@@ -205,29 +205,29 @@ const PricingRow = ({ row, onSave, saving, onPreview, onEdit, t }) => {
   const previewPath = `/admin/template-preview?slug=${encodeURIComponent(row.slug)}`;
 
   return (
-    <tr className="border-b border-gray-800 hover:bg-gray-800/30 transition">
+    <tr className="border-b border-gray-200 dark:border-gray-800 hover:bg-gray-100/30 dark:hover:bg-gray-800/30 transition">
       <td className="py-3 px-4">
         <div className="flex items-center gap-3">
           <TemplatePreviewThumb slug={row.slug} />
           <div className="min-w-0">
-            <div className="text-white text-sm font-medium truncate">{row.name || templateMeta.name}</div>
+            <div className="text-gray-900 dark:text-white text-sm font-medium truncate">{row.name || templateMeta.name}</div>
             <div className="text-gray-500 text-xs font-mono truncate">{row.slug}</div>
           </div>
         </div>
       </td>
       <td className="py-3 px-4">
-        <span className="text-xs text-gray-400 capitalize">{row.category}</span>
+        <span className="text-xs text-gray-600 dark:text-gray-400 capitalize">{row.category}</span>
       </td>
       <td className="py-3 px-4">
         {row.is_free
           ? <span className="text-emerald-400 text-xs font-semibold">{t('adminTemplates.free')}</span>
-          : <span className="text-white text-sm">${dollars(row.monthly_price_cents || 999)}</span>
+          : <span className="text-gray-900 dark:text-white text-sm">${dollars(row.monthly_price_cents || 999)}</span>
         }
       </td>
       <td className="py-3 px-4">
         {row.is_free
           ? <span className="text-gray-500 text-xs">-</span>
-          : <span className="text-white text-sm">${dollars(row.lifetime_price_cents || 4999)}</span>
+          : <span className="text-gray-900 dark:text-white text-sm">${dollars(row.lifetime_price_cents || 4999)}</span>
         }
       </td>
       <td className="py-3 px-4">
@@ -240,17 +240,17 @@ const PricingRow = ({ row, onSave, saving, onPreview, onEdit, t }) => {
           <button
             type="button"
             onClick={() => onPreview(row.slug)}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs transition"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs transition"
             title={t('adminTemplates.previewTooltip')}
           >
-            <IcoEye size={13} cls="text-gray-400" />
+            <IcoEye size={13} cls="text-gray-600 dark:text-gray-400" />
             {t('adminTemplates.preview')}
           </button>
           <a
             href={previewPath}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-800/80 hover:bg-gray-700 text-blue-300 text-xs transition"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-100/80 dark:bg-gray-800/80 hover:bg-gray-200 dark:hover:bg-gray-700 text-blue-300 text-xs transition"
             title={t('adminTemplates.viewAsUserTooltip')}
           >
             <IcoExternal size={13} cls="text-blue-400" />
@@ -297,33 +297,33 @@ const GrantModal = ({ open, onClose, onGrant, granting }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
       onClick={onClose}>
-      <div className="bg-gray-900 border border-gray-700/60 rounded-2xl w-full max-w-md shadow-2xl p-6"
+      <div className="bg-white dark:bg-gray-900 border border-gray-700/60 rounded-2xl w-full max-w-md shadow-2xl p-6"
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-white font-bold text-lg">{t('adminTemplates.grantTitle')}</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-800 transition" aria-label={t('adminTemplates.closePreview')}>
-            <IcoX size={16} cls="text-gray-400" aria-hidden="true" />
+          <h2 className="text-gray-900 dark:text-white font-bold text-lg">{t('adminTemplates.grantTitle')}</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition" aria-label={t('adminTemplates.closePreview')}>
+            <IcoX size={16} cls="text-gray-600 dark:text-gray-400" aria-hidden="true" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-gray-400 text-xs font-medium mb-1.5">{t('adminTemplates.userIdOrEmail')}</label>
+            <label className="block text-gray-600 dark:text-gray-400 text-xs font-medium mb-1.5">{t('adminTemplates.userIdOrEmail')}</label>
             <input
               value={form.user_id}
               onChange={e => set('user_id', e.target.value)}
               placeholder={t('adminTemplates.uuidOrEmailPlaceholder')}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700/50 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-700/50 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
             />
             <p className="text-gray-600 text-xs mt-1">{t('adminTemplates.userIdHelp')}</p>
           </div>
 
           <div>
-            <label className="block text-gray-400 text-xs font-medium mb-1.5">{t('adminTemplates.templateRequired')}</label>
+            <label className="block text-gray-600 dark:text-gray-400 text-xs font-medium mb-1.5">{t('adminTemplates.templateRequired')}</label>
             <select
               value={form.template_slug}
               onChange={e => set('template_slug', e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700/50 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-700/50 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
             >
               <option value="">{t('adminTemplates.selectTemplateOption')}</option>
               {Object.entries(TEMPLATE_REGISTRY)
@@ -336,17 +336,17 @@ const GrantModal = ({ open, onClose, onGrant, granting }) => {
           </div>
 
           <div>
-            <label className="block text-gray-400 text-xs font-medium mb-1.5">{t('adminTemplates.grantTypeRequired')}</label>
+            <label className="block text-gray-600 dark:text-gray-400 text-xs font-medium mb-1.5">{t('adminTemplates.grantTypeRequired')}</label>
             <div className="flex gap-3">
               {[
                 { val: 'permanent', label: t('adminTemplates.permanent'), icon: IcoShield },
                 { val: 'timed',     label: t('adminTemplates.timed'),     icon: IcoClock },
               ].map(({ val, label, icon: Icon }) => (
-                <label key={val} className={`flex-1 flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition ${form.grant_type === val ? 'border-blue-500 bg-blue-500/10' : 'border-gray-700 hover:border-gray-600'}`}>
+                <label key={val} className={`flex-1 flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition ${form.grant_type === val ? 'border-blue-500 bg-blue-500/10' : 'border-gray-300 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}>
                   <input type="radio" name="grant_type" value={val} checked={form.grant_type === val}
                     onChange={() => set('grant_type', val)} className="sr-only" />
                   <Icon size={14} cls={form.grant_type === val ? 'text-blue-400' : 'text-gray-500'} />
-                  <span className={`text-sm font-medium ${form.grant_type === val ? 'text-white' : 'text-gray-400'}`}>{label}</span>
+                  <span className={`text-sm font-medium ${form.grant_type === val ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400'}`}>{label}</span>
                 </label>
               ))}
             </div>
@@ -354,25 +354,25 @@ const GrantModal = ({ open, onClose, onGrant, granting }) => {
 
           {form.grant_type === 'timed' && (
             <div>
-              <label className="block text-gray-400 text-xs font-medium mb-1.5">{t('adminTemplates.expiryDateRequired')}</label>
+              <label className="block text-gray-600 dark:text-gray-400 text-xs font-medium mb-1.5">{t('adminTemplates.expiryDateRequired')}</label>
               <input
                 type="date"
                 value={form.expiry_date}
                 min={todayLocal()}
                 onChange={e => set('expiry_date', e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700/50 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-700/50 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
               />
             </div>
           )}
 
           <div>
-            <label className="block text-gray-400 text-xs font-medium mb-1.5">{t('adminTemplates.internalNote')}</label>
+            <label className="block text-gray-600 dark:text-gray-400 text-xs font-medium mb-1.5">{t('adminTemplates.internalNote')}</label>
             <textarea
               value={form.internal_note}
               onChange={e => set('internal_note', e.target.value)}
               rows={2}
               placeholder={t('adminTemplates.internalNotePlaceholder')}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700/50 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"
+              className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-700/50 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"
             />
           </div>
 
@@ -382,11 +382,11 @@ const GrantModal = ({ open, onClose, onGrant, granting }) => {
               disabled={granting}
               className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition disabled:opacity-60 flex items-center justify-center gap-2"
             >
-              {granting ? <IcoRefresh size={15} cls="text-white animate-spin" /> : <IcoPlus size={15} cls="text-white" />}
+              {granting ? <IcoRefresh size={15} cls="text-gray-900 dark:text-white animate-spin" /> : <IcoPlus size={15} cls="text-white" />}
               {granting ? t('adminTemplates.granting') : t('adminTemplates.grantAccess')}
             </button>
             <button type="button" onClick={onClose}
-              className="px-4 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm transition">
+              className="px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm transition">
               {t('adminTemplates.cancel')}
             </button>
           </div>
@@ -402,19 +402,19 @@ const RevokeConfirm = ({ grant, onConfirm, onCancel, revoking }) => {
   if (!grant) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onCancel}>
-      <div className="bg-gray-900 border border-red-500/40 rounded-2xl w-full max-w-sm p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-        <h3 className="text-white font-bold mb-2">{t('adminTemplates.revokeTitle')}</h3>
-        <p className="text-gray-400 text-sm mb-4">
+      <div className="bg-white dark:bg-gray-900 border border-red-500/40 rounded-2xl w-full max-w-sm p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <h3 className="text-gray-900 dark:text-white font-bold mb-2">{t('adminTemplates.revokeTitle')}</h3>
+        <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
           {t('adminTemplates.revokeDescription', { template: TEMPLATE_REGISTRY[grant.template_slug]?.name || grant.template_slug, userId: grant.user_id })}
         </p>
         <div className="flex gap-3">
           <button onClick={onConfirm} disabled={revoking}
             className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold text-sm transition disabled:opacity-60 flex items-center justify-center gap-2">
-            {revoking ? <IcoRefresh size={14} cls="text-white animate-spin" /> : <IcoTrash size={14} cls="text-white" />}
+            {revoking ? <IcoRefresh size={14} cls="text-gray-900 dark:text-white animate-spin" /> : <IcoTrash size={14} cls="text-white" />}
             {revoking ? t('adminTemplates.revoking') : t('adminTemplates.confirmRevoke')}
           </button>
           <button onClick={onCancel}
-            className="px-4 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm transition">
+            className="px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm transition">
             {t('adminTemplates.cancel')}
           </button>
         </div>
@@ -561,14 +561,14 @@ export default function TemplateManagement() {
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
-    <div className="p-6 min-h-screen bg-gray-950">
+    <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-950">
       <PageMeta title={t('adminTemplates.pageTitle')} />
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">{t('adminTemplates.heading')}</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{t('adminTemplates.subheading')}</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('adminTemplates.heading')}</h1>
+          <p className="text-gray-600 dark:text-gray-400 text-sm mt-0.5">{t('adminTemplates.subheading')}</p>
         </div>
         <button
           onClick={() => setShowGrantModal(true)}
@@ -587,20 +587,20 @@ export default function TemplateManagement() {
           { label: t('adminTemplates.statActiveGrants'), value: grants.filter(g => g.status === 'active').length },
           { label: t('adminTemplates.statGrantRecords'), value: grants.length },
         ].map(({ label, value }) => (
-          <div key={label} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-            <div className="text-2xl font-bold text-white">{loading ? '-' : value}</div>
-            <div className="text-gray-400 text-xs mt-0.5">{label}</div>
+          <div key={label} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">{loading ? '-' : value}</div>
+            <div className="text-gray-600 dark:text-gray-400 text-xs mt-0.5">{label}</div>
           </div>
         ))}
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-gray-900 border border-gray-800 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 mb-6 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-1 w-fit">
         {TABS.map(tb => (
           <button
             key={tb}
             onClick={() => setTab(tb)}
-            className={`px-5 py-2 rounded-lg text-sm font-medium transition ${tab === tb ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}
+            className={`px-5 py-2 rounded-lg text-sm font-medium transition ${tab === tb ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
           >
             {tb === 'pricing' ? t('adminTemplates.tabPricing') : tb === 'grants' ? t('adminTemplates.tabGrants') : t('adminTemplates.tabStats')}
           </button>
@@ -609,9 +609,9 @@ export default function TemplateManagement() {
 
       {/* ── Pricing tab ─────────────────────────────────────────────────── */}
       {tab === 'pricing' && (
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-          <div className="p-4 border-b border-gray-800 flex items-center justify-between gap-3 flex-wrap">
-            <h2 className="text-white font-semibold">{t('adminTemplates.pricingTableTitle')}</h2>
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-3 flex-wrap">
+            <h2 className="text-gray-900 dark:text-white font-semibold">{t('adminTemplates.pricingTableTitle')}</h2>
             <span className="text-gray-500 text-xs max-w-xl">{t('adminTemplates.pricingTableHint')}</span>
           </div>
           {loading ? (
@@ -620,7 +620,7 @@ export default function TemplateManagement() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-800 text-gray-400 text-xs uppercase tracking-wider">
+                  <tr className="border-b border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider">
                     <th className="text-left py-3 px-4 font-medium">{t('adminTemplates.colTemplate')}</th>
                     <th className="text-left py-3 px-4 font-medium">{t('adminTemplates.colCategory')}</th>
                     <th className="text-left py-3 px-4 font-medium">{t('adminTemplates.colMonthly')}</th>
@@ -664,26 +664,26 @@ export default function TemplateManagement() {
               ariaLabel={t('adminTemplates.searchUserPlaceholder')}
               className="sd-admin-dark flex-1 min-w-[200px]"
             />
-            <div className="flex rounded-lg overflow-hidden border border-gray-700">
+            <div className="flex rounded-lg overflow-hidden border border-gray-300 dark:border-gray-700">
               {['all', 'active', 'expired', 'revoked'].map(s => (
                 <button
                   key={s}
                   onClick={() => { setGrantStatusFilter(s); setGrantsPage(0); }}
-                  className={`px-3 py-2 text-xs font-medium transition ${grantStatusFilter === s ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
+                  className={`px-3 py-2 text-xs font-medium transition ${grantStatusFilter === s ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
                 >
                   {s.charAt(0).toUpperCase() + s.slice(1)}
                 </button>
               ))}
             </div>
-            <button onClick={loadGrants} className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition" title={t('common.refresh')} aria-label={t('common.refresh')}>
-              <IcoRefresh size={15} cls="text-gray-400" aria-hidden="true" />
+            <button onClick={loadGrants} className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition" title={t('common.refresh')} aria-label={t('common.refresh')}>
+              <IcoRefresh size={15} cls="text-gray-600 dark:text-gray-400" aria-hidden="true" />
             </button>
           </div>
 
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-800 text-gray-400 text-xs uppercase tracking-wider">
+                <tr className="border-b border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider">
                   <th className="text-left py-3 px-4 font-medium">{t('adminTemplates.colUserId')}</th>
                   <th className="text-left py-3 px-4 font-medium">{t('adminTemplates.colTemplate')}</th>
                   <th className="text-left py-3 px-4 font-medium">{t('adminTemplates.colType')}</th>
@@ -700,18 +700,18 @@ export default function TemplateManagement() {
                 ) : grants.length === 0 ? (
                   <tr><td colSpan={8} className="py-10 text-center text-gray-500">{t('adminTemplates.noGrants')}</td></tr>
                 ) : grants.map(g => (
-                  <tr key={g.id} className="border-b border-gray-800 hover:bg-gray-800/30 transition">
+                  <tr key={g.id} className="border-b border-gray-200 dark:border-gray-800 hover:bg-gray-100/30 dark:hover:bg-gray-800/30 transition">
                     <td className="py-3 px-4">
                       <span className="font-mono text-blue-300 text-xs">{g.user_id?.slice(0, 12)}…</span>
                     </td>
                     <td className="py-3 px-4">
-                      <div className="text-white text-sm">{TEMPLATE_REGISTRY[g.template_slug]?.name || g.template_slug}</div>
+                      <div className="text-gray-900 dark:text-white text-sm">{TEMPLATE_REGISTRY[g.template_slug]?.name || g.template_slug}</div>
                       <div className="text-gray-600 text-xs font-mono">{g.template_slug}</div>
                     </td>
                     <td className="py-3 px-4"><Badge type={g.access_type} t={t} /></td>
                     <td className="py-3 px-4"><Badge type={g.status} t={t} /></td>
-                    <td className="py-3 px-4 text-gray-400 text-xs">{formatDate(g.start_date || g.created_at)}</td>
-                    <td className="py-3 px-4 text-gray-400 text-xs">
+                    <td className="py-3 px-4 text-gray-600 dark:text-gray-400 text-xs">{formatDate(g.start_date || g.created_at)}</td>
+                    <td className="py-3 px-4 text-gray-600 dark:text-gray-400 text-xs">
                       {g.grant_type === 'permanent' ? (
                         <span className="text-blue-400">{t('adminTemplates.permanent')}</span>
                       ) : formatDate(g.expiry_date)}
@@ -739,15 +739,15 @@ export default function TemplateManagement() {
             {/* Pagination: always render Previous when past page 1 so the user
                 can get back from a full final page that led to an empty page. */}
             {(grantsPage > 0 || grantsHasNext) && (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-800">
+              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-800">
                 <button disabled={grantsPage === 0}
                   onClick={() => setGrantsPage(p => p - 1)}
-                  className="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs disabled:opacity-40 transition">
+                  className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs disabled:opacity-40 transition">
                   Previous
                 </button>
                 <span className="text-gray-500 text-xs">{t('adminTemplates.pageNumber', { page: grantsPage + 1 })}</span>
                 <button onClick={() => setGrantsPage(p => p + 1)} disabled={!grantsHasNext}
-                  className="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs transition disabled:opacity-40">
+                  className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs transition disabled:opacity-40">
                   Next
                 </button>
               </div>
@@ -758,9 +758,9 @@ export default function TemplateManagement() {
 
       {/* ── Stats tab ───────────────────────────────────────────────────── */}
       {tab === 'stats' && (
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-          <div className="p-4 border-b border-gray-800">
-            <h2 className="text-white font-semibold">{t('adminTemplates.statsTitle')}</h2>
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-800">
+            <h2 className="text-gray-900 dark:text-white font-semibold">{t('adminTemplates.statsTitle')}</h2>
             <p className="text-gray-500 text-xs mt-0.5">{t('adminTemplates.statsDescription')}</p>
           </div>
           {loading ? (
@@ -770,7 +770,7 @@ export default function TemplateManagement() {
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-800 text-gray-400 text-xs uppercase tracking-wider">
+                <tr className="border-b border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider">
                   <th className="text-left py-3 px-4 font-medium">{t('adminTemplates.colTemplate')}</th>
                   <th className="text-left py-3 px-4 font-medium">{t('adminTemplates.colCategory')}</th>
                   <th className="text-right py-3 px-4 font-medium">{t('adminTemplates.colHelperProfiles')}</th>
@@ -781,20 +781,20 @@ export default function TemplateManagement() {
               </thead>
               <tbody>
                 {stats.map(row => (
-                  <tr key={row.slug} className="border-b border-gray-800 hover:bg-gray-800/30 transition">
+                  <tr key={row.slug} className="border-b border-gray-200 dark:border-gray-800 hover:bg-gray-100/30 dark:hover:bg-gray-800/30 transition">
                     <td className="py-3 px-4">
-                      <div className="text-white text-sm font-medium">{row.name}</div>
+                      <div className="text-gray-900 dark:text-white text-sm font-medium">{row.name}</div>
                       <div className="text-gray-600 text-xs font-mono">{row.slug}</div>
                     </td>
-                    <td className="py-3 px-4 text-gray-400 text-xs capitalize">{row.category}</td>
+                    <td className="py-3 px-4 text-gray-600 dark:text-gray-400 text-xs capitalize">{row.category}</td>
                     <td className="py-3 px-4 text-right">
-                      <span className="text-white font-semibold">{row.helper_count || 0}</span>
+                      <span className="text-gray-900 dark:text-white font-semibold">{row.helper_count || 0}</span>
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <span className="text-white font-semibold">{row.business_count || 0}</span>
+                      <span className="text-gray-900 dark:text-white font-semibold">{row.business_count || 0}</span>
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <span className="text-gray-300">{row.total_access || 0}</span>
+                      <span className="text-gray-700 dark:text-gray-300">{row.total_access || 0}</span>
                     </td>
                     <td className="py-3 px-4 text-right">
                       <span className={`font-semibold ${row.active_grants > 0 ? 'text-emerald-400' : 'text-gray-500'}`}>

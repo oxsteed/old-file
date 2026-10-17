@@ -28,8 +28,8 @@ function StatsBar({ stats }) {
     <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
       {items.map(({ label, value }) => (
         <div key={label}
-          className="bg-gray-900 border border-gray-800 rounded-xl p-3 text-center">
-          <p className="text-xl font-bold text-white">{value ?? '-'}</p>
+          className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3 text-center">
+          <p className="text-xl font-bold text-gray-900 dark:text-white">{value ?? '-'}</p>
           <p className="text-xs text-gray-500 mt-0.5">{label}</p>
         </div>
       ))}
@@ -94,18 +94,17 @@ export default function SearchLogs() {
     <div className="p-4 sm:p-8 max-w-6xl">
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Search size={20} className="text-orange-400" />
             {t('adminSearchLogsTitle')}
           </h1>
-          <p className="text-gray-400 text-sm mt-1">
+          <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
             {t('adminSearchLogsSubtitle')}
           </p>
         </div>
         <button
           onClick={reloadStats}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800
-                     hover:bg-gray-700 text-gray-300 text-xs rounded-lg transition"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-lg transition"
         >
           <BarChart2 size={12} />
           {t('adminSearchLogsRefreshStats')}
@@ -130,8 +129,8 @@ export default function SearchLogs() {
 
       {/* Top lists */}
       {statsData && (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl mb-6 overflow-hidden">
-          <div className="flex border-b border-gray-800">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl mb-6 overflow-hidden">
+          <div className="flex border-b border-gray-200 dark:border-gray-800">
             {['queries', 'admins'].map(tab => (
               <button
                 key={tab}
@@ -139,7 +138,7 @@ export default function SearchLogs() {
                 className={`px-4 py-2.5 text-xs font-semibold capitalize transition ${
                   topTab === tab
                     ? 'text-orange-400 border-b-2 border-orange-400'
-                    : 'text-gray-500 hover:text-gray-300'
+                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
               >
                 {t(tab === 'queries' ? 'adminSearchLogsTopQueries' : 'adminSearchLogsTopSearchers')}
@@ -147,7 +146,7 @@ export default function SearchLogs() {
             ))}
           </div>
           {topTab === 'queries' && (
-            <div className="divide-y divide-gray-800">
+            <div className="divide-y divide-gray-200 dark:divide-gray-800">
               {(statsData.top_queries || []).map((q, i) => (
                 <div key={i}
                   className="flex items-center justify-between px-4 py-2.5">
@@ -155,7 +154,7 @@ export default function SearchLogs() {
                     <span className="text-xs text-gray-600 w-5 text-right shrink-0">
                       {i + 1}
                     </span>
-                    <p className="text-sm text-white font-mono truncate">{q.query}</p>
+                    <p className="text-sm text-gray-900 dark:text-white font-mono truncate">{q.query}</p>
                   </div>
                   <div className="flex items-center gap-3 shrink-0 ml-3">
                     <span className="text-xs text-orange-400 font-semibold">
@@ -173,7 +172,7 @@ export default function SearchLogs() {
             </div>
           )}
           {topTab === 'admins' && (
-            <div className="divide-y divide-gray-800">
+            <div className="divide-y divide-gray-200 dark:divide-gray-800">
               {(statsData.top_admins || []).map((a, i) => (
                 <div key={i}
                   className="flex items-center justify-between px-4 py-2.5">
@@ -182,7 +181,7 @@ export default function SearchLogs() {
                       {i + 1}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-sm text-white truncate">{a.admin_name}</p>
+                      <p className="text-sm text-gray-900 dark:text-white truncate">{a.admin_name}</p>
                       <p className="text-xs text-gray-500 truncate">{a.admin_email}</p>
                     </div>
                   </div>
@@ -211,36 +210,32 @@ export default function SearchLogs() {
           placeholder={t('adminSearchLogsFilterQueryPlaceholder')}
           value={inputFilters.q}
           onChange={e => handleFilterChange('q', e.target.value)}
-          className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg
-                     text-sm text-white placeholder-gray-500
-                     focus:outline-none focus:border-orange-500 w-52"
+          className="px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 w-52"
         />
         <input
           type="text"
           placeholder={t('adminSearchLogsFilterAdminPlaceholder')}
           value={inputFilters.admin_id}
           onChange={e => handleFilterChange('admin_id', e.target.value)}
-          className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg
-                     text-sm text-white placeholder-gray-500
-                     focus:outline-none focus:border-orange-500 w-64"
+          className="px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 w-64"
         />
       </div>
 
       {/* Log table */}
       {!logsError && (
-      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-800 text-left">
-                <th className="px-4 py-3 text-xs font-semibold text-gray-400">{t('adminSearchLogsColAdmin')}</th>
-                <th className="px-4 py-3 text-xs font-semibold text-gray-400">{t('adminSearchLogsColQuery')}</th>
-                <th className="px-4 py-3 text-xs font-semibold text-gray-400">{t('adminSearchLogsColTypes')}</th>
-                <th className="px-4 py-3 text-xs font-semibold text-gray-400 text-right">{t('adminSearchLogsColResults')}</th>
-                <th className="px-4 py-3 text-xs font-semibold text-gray-400 text-right">{t('adminSearchLogsColTime')}</th>
+              <tr className="border-b border-gray-200 dark:border-gray-800 text-left">
+                <th className="px-4 py-3 text-xs font-semibold text-gray-600 dark:text-gray-400">{t('adminSearchLogsColAdmin')}</th>
+                <th className="px-4 py-3 text-xs font-semibold text-gray-600 dark:text-gray-400">{t('adminSearchLogsColQuery')}</th>
+                <th className="px-4 py-3 text-xs font-semibold text-gray-600 dark:text-gray-400">{t('adminSearchLogsColTypes')}</th>
+                <th className="px-4 py-3 text-xs font-semibold text-gray-600 dark:text-gray-400 text-right">{t('adminSearchLogsColResults')}</th>
+                <th className="px-4 py-3 text-xs font-semibold text-gray-600 dark:text-gray-400 text-right">{t('adminSearchLogsColTime')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-800">
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
               {loading ? (
                 <tr>
                   <td colSpan={5} className="py-10 text-center">
@@ -255,9 +250,9 @@ export default function SearchLogs() {
                 </tr>
               ) : (
                 logs.map(log => (
-                  <tr key={log.id} className="hover:bg-gray-800/40 transition">
+                  <tr key={log.id} className="hover:bg-gray-100/40 dark:hover:bg-gray-800/40 transition">
                     <td className="px-4 py-3">
-                      <p className="text-white text-xs font-medium">{log.admin_name}</p>
+                      <p className="text-gray-900 dark:text-white text-xs font-medium">{log.admin_name}</p>
                       <p className="text-gray-500 text-xs">{log.admin_email}</p>
                     </td>
                     <td className="px-4 py-3">
@@ -267,17 +262,16 @@ export default function SearchLogs() {
                       <div className="flex gap-1 flex-wrap">
                         {(log.entity_types || []).map(et => (
                           <span key={et}
-                            className="px-1.5 py-0.5 bg-gray-700 text-gray-300
-                                       text-xs rounded capitalize">
+                            className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded capitalize">
                             {et}
                           </span>
                         ))}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right text-white text-xs">
+                    <td className="px-4 py-3 text-right text-gray-900 dark:text-white text-xs">
                       {log.result_count}
                     </td>
-                    <td className="px-4 py-3 text-right text-gray-400 text-xs whitespace-nowrap">
+                    <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400 text-xs whitespace-nowrap">
                       {ts(log.created_at)}
                     </td>
                   </tr>
@@ -289,8 +283,7 @@ export default function SearchLogs() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="px-4 py-3 border-t border-gray-800 flex items-center
-                          justify-between">
+          <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between">
             <p className="text-xs text-gray-500">
               {t('adminSearchLogsPagination', { page: currentPage, totalPages, total })}
             </p>
@@ -298,16 +291,14 @@ export default function SearchLogs() {
               <button
                 disabled={offset === 0}
                 onClick={() => setOffset(o => Math.max(0, o - LIMIT))}
-                className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs
-                           text-gray-300 rounded-lg transition disabled:opacity-40"
+                className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-xs text-gray-700 dark:text-gray-300 rounded-lg transition disabled:opacity-40"
               >
                 {t('common.previous')}
               </button>
               <button
                 disabled={offset + LIMIT >= total}
                 onClick={() => setOffset(o => o + LIMIT)}
-                className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs
-                           text-gray-300 rounded-lg transition disabled:opacity-40"
+                className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-xs text-gray-700 dark:text-gray-300 rounded-lg transition disabled:opacity-40"
               >
                 {t('common.next')}
               </button>

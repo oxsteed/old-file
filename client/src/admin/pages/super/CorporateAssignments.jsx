@@ -55,7 +55,7 @@ function StatusPill({ assignment }) {
     );
   }
   return (
-    <span className="px-2 py-0.5 text-xs rounded-full bg-gray-700 text-gray-300 font-medium">
+    <span className="px-2 py-0.5 text-xs rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium">
       {t('adminCorporateAssignments.statusEnded')}
     </span>
   );
@@ -152,12 +152,12 @@ function AssignModal({ catalog, regions, initial, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl p-6 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-white font-semibold text-lg">
+          <h2 className="text-gray-900 dark:text-white font-semibold text-lg">
             {isEdit ? t('adminCorporateAssignments.modalEditTitle') : t('adminCorporateAssignments.modalCreateTitle')}
           </h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-300">
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
             <X size={18} />
           </button>
         </div>
@@ -165,12 +165,12 @@ function AssignModal({ catalog, regions, initial, onClose, onSaved }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* user */}
           <div>
-            <label className="block text-sm text-gray-400 mb-1">{t('adminCorporateAssignments.fieldInternalUser')}</label>
+            <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">{t('adminCorporateAssignments.fieldInternalUser')}</label>
             <select
               value={form.user_id}
               onChange={(e) => setF('user_id', e.target.value)}
               disabled={isEdit}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white"
+              className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
             >
               <option value="">{t('adminCorporateAssignments.selectStaffOption')}</option>
               {admins.map(a => (
@@ -186,12 +186,12 @@ function AssignModal({ catalog, regions, initial, onClose, onSaved }) {
 
           {/* department */}
           <div>
-            <label className="block text-sm text-gray-400 mb-1">{t('adminCorporateAssignments.fieldDepartment')}</label>
+            <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">{t('adminCorporateAssignments.fieldDepartment')}</label>
             <select
               value={form.department_id}
               onChange={(e) => { setF('department_id', e.target.value); setF('title_id', ''); }}
               disabled={isEdit}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white"
+              className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
             >
               <option value="">{t('adminCorporateAssignments.selectDepartmentOption')}</option>
               {(catalog?.departments || []).map(d => (
@@ -202,12 +202,12 @@ function AssignModal({ catalog, regions, initial, onClose, onSaved }) {
 
           {/* title */}
           <div>
-            <label className="block text-sm text-gray-400 mb-1">{t('adminCorporateAssignments.fieldTitle')}</label>
+            <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">{t('adminCorporateAssignments.fieldTitle')}</label>
             <select
               value={form.title_id}
               onChange={(e) => setF('title_id', e.target.value)}
               disabled={!form.department_id || isEdit}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white"
+              className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
             >
               <option value="">{t('adminCorporateAssignments.selectTitleOption')}</option>
               {titlesForDept.map(title => (
@@ -228,22 +228,22 @@ function AssignModal({ catalog, regions, initial, onClose, onSaved }) {
           {/* country + region */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm text-gray-400 mb-1">{t('adminCorporateAssignments.fieldCountry')}</label>
+              <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">{t('adminCorporateAssignments.fieldCountry')}</label>
               <CountrySelect
                 value={form.country_code}
                 onChange={handleCountryChange}
                 placeholder={t('adminCorporateAssignments.globalCountryOption')}
                 includeBlank
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white"
+                className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
               />
               <p className="text-xs text-gray-500 mt-1">{t('adminCorporateAssignments.countryHint')}</p>
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">{t('adminCorporateAssignments.fieldRegion')}</label>
+              <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">{t('adminCorporateAssignments.fieldRegion')}</label>
               <select
                 value={form.region_id}
                 onChange={(e) => setF('region_id', e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white"
+                className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
               >
                 <option value="">{t('adminCorporateAssignments.selectNoneOption')}</option>
                 {regionsForCountry.map(r => (
@@ -258,11 +258,11 @@ function AssignModal({ catalog, regions, initial, onClose, onSaved }) {
 
           {/* reports to */}
           <div>
-            <label className="block text-sm text-gray-400 mb-1">{t('adminCorporateAssignments.fieldReportsTo')}</label>
+            <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">{t('adminCorporateAssignments.fieldReportsTo')}</label>
             <select
               value={form.reports_to_user_id}
               onChange={(e) => setF('reports_to_user_id', e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white"
+              className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
             >
               <option value="">{t('adminCorporateAssignments.selectNoneOption')}</option>
               {admins.map(a => (
@@ -275,13 +275,13 @@ function AssignModal({ catalog, regions, initial, onClose, onSaved }) {
 
           {/* notes */}
           <div>
-            <label className="block text-sm text-gray-400 mb-1">{t('adminCorporateAssignments.fieldNotes')}</label>
+            <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">{t('adminCorporateAssignments.fieldNotes')}</label>
             <textarea
               value={form.notes}
               onChange={(e) => setF('notes', e.target.value)}
               rows={3}
               maxLength={1000}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white"
+              className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
             />
           </div>
 
@@ -296,7 +296,7 @@ function AssignModal({ catalog, regions, initial, onClose, onSaved }) {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm text-gray-400 hover:text-white"
+              className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
             >
               {t('adminCorporateAssignments.cancelButton')}
             </button>
@@ -373,11 +373,11 @@ export default function CorporateAssignments() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-white flex items-center gap-2">
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <Building2 size={22} />
             {t('adminCorporateAssignments.title')}
           </h1>
-          <p className="text-gray-400 text-sm mt-1">
+          <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
             {t('adminCorporateAssignments.subtitle')}
           </p>
         </div>
@@ -390,11 +390,11 @@ export default function CorporateAssignments() {
       </div>
 
       {/* filters */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-5 grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 mb-5 grid grid-cols-2 md:grid-cols-4 gap-3">
         <select
           value={filters.department_id}
           onChange={(e) => setFilter('department_id', e.target.value)}
-          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm"
+          className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white text-sm"
         >
           <option value="">{t('adminCorporateAssignments.filterAllDepartments')}</option>
           {(catalog?.departments || []).map(d => (
@@ -404,7 +404,7 @@ export default function CorporateAssignments() {
         <select
           value={filters.title_id}
           onChange={(e) => setFilter('title_id', e.target.value)}
-          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm"
+          className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white text-sm"
         >
           <option value="">{t('adminCorporateAssignments.filterAllTitles')}</option>
           {titlesForFilterDept.map(t => (
@@ -416,12 +416,12 @@ export default function CorporateAssignments() {
           placeholder={t('adminCorporateAssignments.filterCountryPlaceholder')}
           value={filters.country}
           onChange={(e) => setFilter('country', e.target.value.toUpperCase().slice(0, 2))}
-          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm"
+          className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white text-sm"
         />
         <select
           value={filters.active}
           onChange={(e) => setFilter('active', e.target.value)}
-          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm"
+          className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white text-sm"
         >
           <option value="true">{t('adminCorporateAssignments.filterActiveOnly')}</option>
           <option value="false">{t('adminCorporateAssignments.filterEndedOnly')}</option>
@@ -431,15 +431,15 @@ export default function CorporateAssignments() {
       {error && (
         <div className="bg-red-900/30 border border-red-900 rounded-lg px-4 py-3 mb-4 text-red-300 text-sm flex items-center justify-between gap-3">
           <span>{error}</span>
-          <button type="button" onClick={reload} className="font-semibold underline underline-offset-2 hover:text-white shrink-0">
+          <button type="button" onClick={reload} className="font-semibold underline underline-offset-2 hover:text-gray-900 dark:hover:text-white shrink-0">
             {t('adminCorporateAssignments.tryAgainButton')}
           </button>
         </div>
       )}
 
-      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
         {loading ? (
-          <div className="p-10 text-center text-gray-400">
+          <div className="p-10 text-center text-gray-600 dark:text-gray-400">
             <Loader2 className="inline animate-spin mr-2" size={18} /> {t('adminCorporateAssignments.loadingText')}
           </div>
         ) : assignments.length === 0 ? (
@@ -448,7 +448,7 @@ export default function CorporateAssignments() {
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-gray-950 text-gray-400 text-xs uppercase">
+            <thead className="bg-gray-50 dark:bg-gray-950 text-gray-600 dark:text-gray-400 text-xs uppercase">
               <tr>
                 <th className="text-left px-4 py-3">{t('adminCorporateAssignments.tableUser')}</th>
                 <th className="text-left px-4 py-3">{t('adminCorporateAssignments.tableTitle')}</th>
@@ -461,32 +461,32 @@ export default function CorporateAssignments() {
             </thead>
             <tbody>
               {assignments.map(row => (
-                <tr key={row.id} className="border-t border-gray-800 hover:bg-gray-950">
+                <tr key={row.id} className="border-t border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950">
                   <td className="px-4 py-3">
-                    <div className="text-white">{userName(row)}</div>
+                    <div className="text-gray-900 dark:text-white">{userName(row)}</div>
                     <div className="text-xs text-gray-500">{row.user_email}</div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="text-white flex items-center gap-2">
+                    <div className="text-gray-900 dark:text-white flex items-center gap-2">
                       {row.is_csuite && <Crown size={14} className="text-yellow-400" />}
                       {row.title_name}
                     </div>
                     <div className="text-xs text-gray-500">L{row.seniority_level}</div>
                   </td>
-                  <td className="px-4 py-3 text-gray-300">{row.department_name}</td>
-                  <td className="px-4 py-3 text-gray-300">
+                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{row.department_name}</td>
+                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
                     <div className="flex items-center gap-1 text-xs">
                       <MapPin size={12} />
                       {row.country_code || t('adminCorporateAssignments.scopeGlobal')}
                       {row.region_name ? ` / ${row.region_name}` : ''}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-gray-400 text-xs">{fmtDate(row.started_at)}</td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400 text-xs">{fmtDate(row.started_at)}</td>
                   <td className="px-4 py-3"><StatusPill assignment={row} /></td>
                   <td className="px-4 py-3 text-right">
                     <button
                       onClick={() => setModalState({ initial: row })}
-                      className="text-gray-400 hover:text-white p-1"
+                      className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white p-1"
                       title={t('adminCorporateAssignments.editTitleAttr')}
                     >
                       <Edit3 size={15} />
@@ -494,7 +494,7 @@ export default function CorporateAssignments() {
                     {row.is_active && user?.role === 'super_admin' && (
                       <button
                         onClick={() => setEndTarget(row.id)}
-                        className="text-gray-400 hover:text-red-400 p-1 ml-1"
+                        className="text-gray-600 dark:text-gray-400 hover:text-red-400 p-1 ml-1"
                         title={t('adminCorporateAssignments.endAssignmentTitle')}
                       >
                         <Trash2 size={15} />

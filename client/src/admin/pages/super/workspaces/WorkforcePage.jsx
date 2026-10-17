@@ -76,15 +76,13 @@ function StaffTab() {
       <div className="flex items-center gap-3 mb-5 flex-wrap">
         <a
           href="/admin/super/admin-accounts"
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium
-                     text-gray-300 bg-gray-800 hover:bg-gray-700 rounded-lg transition"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition"
         >
           <Users size={12} /> {t('wsWorkforce.manageAccountsLink')} <ExternalLink size={11} />
         </a>
         <a
           href="/admin/super/permissions"
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium
-                     text-gray-300 bg-gray-800 hover:bg-gray-700 rounded-lg transition"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition"
         >
           <Key size={12} /> {t('wsWorkforce.manageGrantsLink')} <ExternalLink size={11} />
         </a>
@@ -99,11 +97,11 @@ function StaffTab() {
       ) : staff.length === 0 ? (
         <p className="text-gray-500 text-sm text-center py-12">{t('wsWorkforce.noStaff')}</p>
       ) : (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[820px]">
               <thead>
-                <tr className="text-left text-xs text-gray-500 border-b border-gray-800">
+                <tr className="text-left text-xs text-gray-500 border-b border-gray-200 dark:border-gray-800">
                   <th className="px-4 py-3 font-semibold">{t('wsWorkforce.colName')}</th>
                   <th className="px-4 py-3 font-semibold">{t('wsWorkforce.colRole')}</th>
                   <th className="px-4 py-3 font-semibold">{t('wsWorkforce.colStatus')}</th>
@@ -113,11 +111,11 @@ function StaffTab() {
                   <th className="px-4 py-3 font-semibold">{t('wsWorkforce.colLastLogin')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-800">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                 {staff.map((s) => (
-                  <tr key={s.id} className="hover:bg-gray-800/40">
+                  <tr key={s.id} className="hover:bg-gray-100/40 dark:hover:bg-gray-800/40">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-white">{s.name}</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{s.name}</p>
                       <p className="text-xs text-gray-500">{s.email}</p>
                     </td>
                     <td className="px-4 py-3">
@@ -135,7 +133,7 @@ function StaffTab() {
                           {t('wsWorkforce.activeYes')}
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 text-xs rounded-full bg-gray-700 text-gray-400 font-medium">
+                        <span className="px-2 py-0.5 text-xs rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 font-medium">
                           {t('wsWorkforce.activeNo')}
                         </span>
                       )}
@@ -152,7 +150,7 @@ function StaffTab() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1 text-xs text-gray-300">
+                      <span className="inline-flex items-center gap-1 text-xs text-gray-700 dark:text-gray-300">
                         <Fingerprint size={12} className="text-gray-500" />
                         {Number(s.passkey_count) || 0}
                       </span>
@@ -175,7 +173,7 @@ function StaffTab() {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                    <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">
                       {ts(s.last_login_at)}
                     </td>
                   </tr>
@@ -231,23 +229,22 @@ function CreateDelegationForm({ staff, scopes, onCreated }) {
   const maxDate = toLocalDatetimeInput(new Date(now.getTime() + 30 * 24 * 3600_000));
 
   return (
-    <form onSubmit={handleSubmit} className="bg-gray-900 border border-gray-800 rounded-xl p-5 mb-5">
-      <h2 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
+    <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 mb-5">
+      <h2 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-4">
         <Plus size={14} className="text-purple-400" />
         {t('wsWorkforce.createTitle')}
       </h2>
 
       <div className="grid sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-semibold text-gray-400 mb-1.5">
+          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">
             {t('wsWorkforce.granteeLabel')}
           </label>
           <select
             required
             value={form.grantee_id}
             onChange={(e) => setForm((f) => ({ ...f, grantee_id: e.target.value }))}
-            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg
-                       text-sm text-white focus:outline-none focus:border-purple-500"
+            className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:border-purple-500"
           >
             <option value="">{t('wsWorkforce.granteePlaceholder')}</option>
             {staff.filter((s) => s.is_active).map((s) => (
@@ -259,7 +256,7 @@ function CreateDelegationForm({ staff, scopes, onCreated }) {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-400 mb-1.5">
+          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">
             {t('wsWorkforce.expiresLabel')}
           </label>
           <input
@@ -269,18 +266,17 @@ function CreateDelegationForm({ staff, scopes, onCreated }) {
             max={maxDate}
             value={form.expires_at}
             onChange={(e) => setForm((f) => ({ ...f, expires_at: e.target.value }))}
-            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg
-                       text-sm text-white focus:outline-none focus:border-purple-500"
+            className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:border-purple-500"
           />
           <p className="text-[11px] text-gray-600 mt-1">{t('wsWorkforce.maxDaysHint')}</p>
         </div>
       </div>
 
       <div className="mt-4">
-        <label className="block text-xs font-semibold text-gray-400 mb-1.5">
+        <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">
           {t('wsWorkforce.scopesLabel')}
         </label>
-        <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-gray-800/50 rounded-lg">
+        <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-gray-100/50 dark:bg-gray-800/50 rounded-lg">
           {scopes.map((sc) => (
             <button
               key={sc.key}
@@ -290,7 +286,7 @@ function CreateDelegationForm({ staff, scopes, onCreated }) {
               className={`px-2 py-1 text-xs rounded font-mono transition ${
                 form.scopes.includes(sc.key)
                   ? 'bg-purple-600 text-white'
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
             >
               {sc.key}
@@ -300,7 +296,7 @@ function CreateDelegationForm({ staff, scopes, onCreated }) {
       </div>
 
       <div className="mt-4">
-        <label className="block text-xs font-semibold text-gray-400 mb-1.5">
+        <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">
           {t('wsWorkforce.reasonLabel')}{' '}
           <span className="text-gray-600">({t('wsWorkforce.optional')})</span>
         </label>
@@ -309,14 +305,12 @@ function CreateDelegationForm({ staff, scopes, onCreated }) {
           placeholder={t('wsWorkforce.reasonPlaceholder')}
           value={form.reason}
           onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
-          className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg
-                     text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+          className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
         />
       </div>
 
       {error && (
-        <div className="flex items-start gap-2 p-3 mt-4 bg-red-950 border border-red-800
-                        rounded-lg text-red-300 text-xs">
+        <div className="flex items-start gap-2 p-3 mt-4 bg-red-950 border border-red-800 rounded-lg text-red-300 text-xs">
           <AlertCircle size={13} className="shrink-0 mt-0.5" />
           {error}
         </div>
@@ -326,9 +320,7 @@ function CreateDelegationForm({ staff, scopes, onCreated }) {
         <button
           type="submit"
           disabled={saving || !form.grantee_id || form.scopes.length === 0 || !form.expires_at}
-          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm
-                     font-semibold rounded-lg transition disabled:opacity-40
-                     disabled:cursor-not-allowed flex items-center gap-2"
+          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
         >
           {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
           {saving ? t('wsWorkforce.creating') : t('wsWorkforce.createButton')}
@@ -416,14 +408,13 @@ function DelegationsTab() {
       )}
 
       <div className="flex items-center gap-3 mb-5">
-        <label className="text-xs font-semibold text-gray-400">
+        <label className="text-xs font-semibold text-gray-600 dark:text-gray-400">
           {t('wsWorkforce.statusFilterLabel')}
         </label>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg
-                     text-sm text-white focus:outline-none focus:border-purple-500"
+          className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:border-purple-500"
         >
           <option value="all">{t('wsWorkforce.statusAll')}</option>
           <option value="active">{t('wsWorkforce.statusActive')}</option>
@@ -446,8 +437,8 @@ function DelegationsTab() {
       ) : delegations.length === 0 ? (
         <p className="text-gray-500 text-sm text-center py-12">{t('wsWorkforce.noDelegations')}</p>
       ) : (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-          <div className="divide-y divide-gray-800">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
+          <div className="divide-y divide-gray-200 dark:divide-gray-800">
             {delegations.map((d) => {
               const inactive = d.effective_status !== 'active';
               return (
@@ -455,7 +446,7 @@ function DelegationsTab() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-medium text-white">{d.grantee_name}</p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{d.grantee_name}</p>
                         <span className="text-xs text-gray-500">{d.grantee_email}</span>
                         <StatusBadge status={d.effective_status} />
                       </div>
@@ -489,9 +480,7 @@ function DelegationsTab() {
                       <button
                         onClick={() => handleRevoke(d.id)}
                         disabled={revoking === d.id}
-                        className="px-3 py-1.5 bg-red-900/50 hover:bg-red-900 text-red-400
-                                   hover:text-red-300 text-xs font-medium rounded-lg transition
-                                   shrink-0 disabled:opacity-40 flex items-center gap-1.5"
+                        className="px-3 py-1.5 bg-red-900/50 hover:bg-red-900 text-red-400 hover:text-red-300 text-xs font-medium rounded-lg transition shrink-0 disabled:opacity-40 flex items-center gap-1.5"
                       >
                         {revoking === d.id ? <Loader2 size={11} className="animate-spin" /> : <X size={11} />}
                         {t('wsWorkforce.revoke')}
@@ -548,24 +537,24 @@ function LifecycleTab() {
       ) : events.length === 0 ? (
         <p className="text-gray-500 text-sm text-center py-12">{t('wsWorkforce.noEvents')}</p>
       ) : (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[680px]">
               <thead>
-                <tr className="text-left text-xs text-gray-500 border-b border-gray-800">
+                <tr className="text-left text-xs text-gray-500 border-b border-gray-200 dark:border-gray-800">
                   <th className="px-4 py-3 font-semibold">{t('wsWorkforce.colAction')}</th>
                   <th className="px-4 py-3 font-semibold">{t('wsWorkforce.colActor')}</th>
                   <th className="px-4 py-3 font-semibold">{t('wsWorkforce.colTarget')}</th>
                   <th className="px-4 py-3 font-semibold">{t('wsWorkforce.colAt')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-800">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                 {events.map((ev) => {
                   const Icon = ACTION_ICONS[ev.action] || ScrollText;
                   return (
-                    <tr key={ev.id} className="hover:bg-gray-800/40">
+                    <tr key={ev.id} className="hover:bg-gray-100/40 dark:hover:bg-gray-800/40">
                       <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1.5 text-white text-sm">
+                        <span className="inline-flex items-center gap-1.5 text-gray-900 dark:text-white text-sm">
                           <Icon size={13} className="text-purple-400 shrink-0" />
                           {actionLabel(ev.action)}
                         </span>
@@ -573,11 +562,11 @@ function LifecycleTab() {
                           <p className="text-xs text-gray-500 mt-0.5 ml-5">{ev.description}</p>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-300">{ev.actor_name}</td>
+                      <td className="px-4 py-3 text-xs text-gray-700 dark:text-gray-300">{ev.actor_name}</td>
                       <td className="px-4 py-3 text-xs text-gray-500 font-mono">
                         {ev.target_key || ev.target_id || '-'}
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                      <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">
                         {ts(ev.created_at)}
                       </td>
                     </tr>
@@ -606,16 +595,16 @@ export default function WorkforcePage() {
   return (
     <div className="p-4 sm:p-8 max-w-5xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
           <Users size={20} className="text-purple-400" />
           {t('wsWorkforce.title')}
         </h1>
-        <p className="text-gray-400 text-sm mt-1">
+        <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
           {t('wsWorkforce.subtitle')}
         </p>
       </div>
 
-      <div className="flex gap-1 mb-6 bg-gray-900 border border-gray-800 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 mb-6 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-1 w-fit">
         {TABS.map(({ id, icon: Icon }) => (
           <button
             key={id}
@@ -623,7 +612,7 @@ export default function WorkforcePage() {
             className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition ${
               tab === id
                 ? 'bg-purple-600 text-white'
-                : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
             }`}
           >
             <Icon size={14} />

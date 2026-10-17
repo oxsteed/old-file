@@ -15,8 +15,8 @@ import { installGlobalChunkReload } from '../utils/lazyWithRetry';
 
 function sentryAdminFallback({ error, resetError }) {
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-200 flex flex-col items-center justify-center px-6 py-16">
-      <p className="text-lg font-semibold text-white mb-2">{i18next.t('errorBoundary.title', 'Admin - something went wrong')}</p>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-700 dark:text-gray-200 flex flex-col items-center justify-center px-6 py-16">
+      <p className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{i18next.t('errorBoundary.title', 'Admin - something went wrong')}</p>
       <p className="text-sm text-gray-500 text-center max-w-md mb-6">
         {error instanceof Error ? error.message : i18next.t('errorBoundary.message', 'An unexpected error occurred.')}
       </p>

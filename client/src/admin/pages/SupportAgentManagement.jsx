@@ -141,7 +141,7 @@ export default function SupportAgentManagement() {
               aria-label={t('adminSupportAgents.searchPlaceholder')}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              className="w-full rounded-2xl border border-gray-700 bg-gray-900 py-3 pl-11 pr-4 text-white focus:border-orange-500 focus:outline-none"
+              className="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 py-3 pl-11 pr-4 text-gray-900 dark:text-white focus:border-orange-500 focus:outline-none"
             />
           </div>
         </div>
@@ -159,10 +159,10 @@ export default function SupportAgentManagement() {
         ) : (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {agents.map((agent) => (
-              <div key={agent.id} className="rounded-[24px] border border-gray-800 bg-gray-900/70 p-5">
+              <div key={agent.id} className="rounded-[24px] border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-lg font-semibold text-white">{agent.name}</div>
+                    <div className="text-lg font-semibold text-gray-900 dark:text-white">{agent.name}</div>
                     <div className="mt-1 text-sm text-gray-500">{agent.email}</div>
                   </div>
                   <SupportTag tone={agent.is_active ? 'green' : 'default'}>
@@ -180,16 +180,16 @@ export default function SupportAgentManagement() {
                   )}
                 </div>
 
-                <div className="mt-5 flex items-center justify-between border-t border-gray-800 pt-4">
+                <div className="mt-5 flex items-center justify-between border-t border-gray-200 dark:border-gray-800 pt-4">
                   <div className="text-xs text-gray-500">
-                    {t('adminSupportAgents.chatsToday')}: <span className="text-gray-300">{agent.chats_today || 0}</span>
+                    {t('adminSupportAgents.chatsToday')}: <span className="text-gray-700 dark:text-gray-300">{agent.chats_today || 0}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setSelectedAgent(agent)}
                       aria-label={t('adminSupportAgents.viewAgent', { name: agent.name })}
                       title={t('adminSupportAgents.viewAgent', { name: agent.name })}
-                      className="rounded-xl border border-gray-700 bg-gray-900 p-2 text-gray-400 transition hover:text-white"
+                      className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-gray-600 dark:text-gray-400 transition hover:text-gray-900 dark:hover:text-white"
                     >
                       <Eye size={15} />
                     </button>
@@ -197,7 +197,7 @@ export default function SupportAgentManagement() {
                       onClick={() => handleToggleStatus(agent.id)}
                       aria-label={t('adminSupportAgents.toggleStatus', { name: agent.name })}
                       title={t('adminSupportAgents.toggleStatus', { name: agent.name })}
-                      className="rounded-xl border border-gray-700 bg-gray-900 p-2 text-gray-400 transition hover:text-white"
+                      className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-gray-600 dark:text-gray-400 transition hover:text-gray-900 dark:hover:text-white"
                     >
                       {agent.is_active ? (
                         <ToggleRight size={16} className="text-green-400" />
@@ -223,33 +223,33 @@ export default function SupportAgentManagement() {
 
       {selectedAgent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-xl rounded-[28px] border border-gray-700 bg-gray-900 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-800 px-6 py-5">
+          <div className="w-full max-w-xl rounded-[28px] border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 px-6 py-5">
               <div>
-                <div className="text-xl font-semibold text-white">{t('adminSupportAgents.profileTitle')}</div>
+                <div className="text-xl font-semibold text-gray-900 dark:text-white">{t('adminSupportAgents.profileTitle')}</div>
                 <div className="mt-1 text-sm text-gray-500">{t('adminSupportAgents.profileDescription')}</div>
               </div>
-              <button onClick={() => setSelectedAgent(null)} aria-label={t('adminSupportAgents.close')} className="text-2xl text-gray-500 hover:text-white">x</button>
+              <button onClick={() => setSelectedAgent(null)} aria-label={t('adminSupportAgents.close')} className="text-2xl text-gray-500 hover:text-gray-900 dark:hover:text-white">x</button>
             </div>
             <div className="space-y-5 px-6 py-6">
               <div>
-                <div className="text-sm font-medium text-white">{selectedAgent.name}</div>
+                <div className="text-sm font-medium text-gray-900 dark:text-white">{selectedAgent.name}</div>
                 <div className="mt-1 text-sm text-gray-500">{selectedAgent.email}</div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="rounded-2xl border border-gray-800 bg-gray-950/70 p-4">
+                <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 p-4">
                   <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminSupportAgents.chatsToday')}</div>
-                  <div className="mt-2 text-2xl font-semibold text-white">{selectedAgent.chats_today || 0}</div>
+                  <div className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{selectedAgent.chats_today || 0}</div>
                 </div>
-                <div className="rounded-2xl border border-gray-800 bg-gray-950/70 p-4">
+                <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 p-4">
                   <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminSupportAgents.avgRating')}</div>
-                  <div className="mt-2 text-2xl font-semibold text-white">{selectedAgent.avg_rating || '-'}</div>
+                  <div className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{selectedAgent.avg_rating || '-'}</div>
                 </div>
               </div>
 
               <div>
-                <div className="mb-2 text-sm font-medium text-gray-300">{t('adminSupportAgents.skillCoverage')}</div>
+                <div className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">{t('adminSupportAgents.skillCoverage')}</div>
                 <div className="flex flex-wrap gap-2">
                   {(selectedAgent.skills || []).map((skill) => (
                     <SupportTag key={skill} tone="orange">{skill}</SupportTag>

@@ -44,12 +44,12 @@ export default function AuditLog() {
     user_role_changed:    'text-purple-400',
     job_cancel:           'text-red-400',
     job_flag:             'text-yellow-400',
-    job_unflag:           'text-gray-400',
+    job_unflag:           'text-gray-600 dark:text-gray-400',
     manual_refund_issued: 'text-orange-400',
     setting_updated:      'text-cyan-400',
     feature_flag_toggled: 'text-indigo-400',
     data_exported:        'text-pink-400',
-    report_dismiss:       'text-gray-400',
+    report_dismiss:       'text-gray-600 dark:text-gray-400',
     report_warn_user:     'text-yellow-400',
     report_remove_content:'text-red-400',
     report_escalate:      'text-orange-400',
@@ -63,9 +63,9 @@ export default function AuditLog() {
             <div className="rounded-xl border border-orange-500/20 bg-orange-500/10 p-2">
               <ScrollText size={19} className="text-orange-400" />
             </div>
-            <h1 className="text-2xl font-bold text-white">{t('superAuditLog.title')}</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('superAuditLog.title')}</h1>
           </div>
-          <p className="text-gray-400 text-sm mt-1">
+          <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
             {t('superAuditLog.subtitle')}
           </p>
         </div>
@@ -74,7 +74,7 @@ export default function AuditLog() {
             type="button"
             onClick={() => setRetry(value => value + 1)}
             disabled={loading}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-700 bg-gray-800 text-sm text-gray-200 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 transition"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 transition"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             {t('common.refresh')}
@@ -94,16 +94,12 @@ export default function AuditLog() {
           placeholder={t('superAuditLog.filterAction')}
           value={filters.action}
           onChange={e => { setPage(1); setFilters(f => ({ ...f, action: e.target.value })); }}
-          className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg
-                     text-sm text-white placeholder-gray-500
-                     focus:outline-none focus:border-orange-500 w-52"
+          className="px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 w-52"
         />
         <select
           value={filters.target_type}
           onChange={e => { setPage(1); setFilters(f => ({ ...f, target_type: e.target.value })); }}
-          className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg
-                     text-sm text-gray-300 focus:outline-none
-                     focus:border-orange-500"
+          className="px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:border-orange-500"
         >
           <option value="">{t('superAuditLog.allTypes')}</option>
           {[
@@ -120,7 +116,7 @@ export default function AuditLog() {
           <button
             type="button"
             onClick={() => { setPage(1); setFilters({ action: '', target_type: '' }); }}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-sm text-gray-400 hover:text-white hover:border-gray-500 transition"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-500 transition"
           >
             <RotateCcw size={14} />
             {t('superAuditLog.clearFilters')}
@@ -138,12 +134,11 @@ export default function AuditLog() {
       )}
 
       {/* Log table */}
-      <div className="bg-gray-800 border border-gray-700 rounded-2xl overflow-hidden">
+      <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-700 text-gray-400
-                             text-xs uppercase tracking-wider">
+              <tr className="border-b border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider">
                 <th className="px-4 py-3 text-left">{t('superAuditLog.colTimestamp')}</th>
                 <th className="px-4 py-3 text-left">{t('superAuditLog.colAdmin')}</th>
                 <th className="px-4 py-3 text-left">{t('superAuditLog.colAction')}</th>
@@ -155,23 +150,20 @@ export default function AuditLog() {
             <tbody className="divide-y divide-gray-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center
-                                             text-gray-500">
+                  <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
                     {t('common.loading')}
                   </td>
                 </tr>
               ) : log.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center
-                                             text-gray-500">
+                  <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
                     {t('superAuditLog.empty')}
                   </td>
                 </tr>
               ) : log.map(entry => (
                 <tr key={entry.id}
-                    className="hover:bg-gray-800/40 transition-colors group">
-                  <td className="px-4 py-3 text-gray-400 text-xs
-                                 whitespace-nowrap font-mono">
+                    className="hover:bg-gray-100/40 dark:hover:bg-gray-800/40 transition-colors group">
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400 text-xs whitespace-nowrap font-mono">
                     {adminDate(entry.created_at, {
                       month:  'short', day:    'numeric',
                       hour:   '2-digit', minute: '2-digit',
@@ -180,7 +172,7 @@ export default function AuditLog() {
                   </td>
                   <td className="px-4 py-3">
                     <div>
-                      <p className="text-white text-xs font-medium">
+                      <p className="text-gray-900 dark:text-white text-xs font-medium">
                         {entry.admin_name || t('superAuditLog.systemActor')}
                       </p>
                       <p className="text-gray-500 text-xs">
@@ -190,24 +182,22 @@ export default function AuditLog() {
                   </td>
                   <td className="px-4 py-3">
                     <span className={`text-xs font-mono font-semibold ${
-                      ACTION_COLORS[entry.action] || 'text-gray-300'
+                      ACTION_COLORS[entry.action] || 'text-gray-700 dark:text-gray-300'
                     }`}>
                       {entry.action}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-400">
+                  <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-400">
                     {entry.target_type && (
                       <span className="capitalize">{entry.target_type}</span>
                     )}
                     {(entry.target_id || entry.target_key) && (
-                      <p className="font-mono text-gray-600 text-xs
-                                    truncate max-w-24">
+                      <p className="font-mono text-gray-600 text-xs truncate max-w-24">
                         {entry.target_key || `${String(entry.target_id).split('-')[0]}...`}
                       </p>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gray-400 text-xs
-                                 max-w-xs truncate">
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400 text-xs max-w-xs truncate">
                     {entry.description || '-'}
                   </td>
                   <td className="px-4 py-3 text-gray-600 text-xs font-mono">
@@ -220,25 +210,20 @@ export default function AuditLog() {
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between px-4 py-3
-                        border-t border-gray-700">
+        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-300 dark:border-gray-700">
           <p className="text-xs text-gray-500">{t('superAuditLog.page', { page })}</p>
           <div className="flex gap-2">
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page <= 1}
-              className="px-3 py-1.5 bg-gray-700 text-gray-300 text-xs
-                         rounded-lg disabled:opacity-40 hover:bg-gray-600
-                         transition"
+              className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-lg disabled:opacity-40 hover:bg-gray-600 transition"
             >
               {t('superAuditLog.prev')}
             </button>
             <button
               onClick={() => setPage(p => p + 1)}
               disabled={log.length < 50}
-              className="px-3 py-1.5 bg-gray-700 text-gray-300 text-xs
-                         rounded-lg disabled:opacity-40 hover:bg-gray-600
-                         transition"
+              className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-lg disabled:opacity-40 hover:bg-gray-600 transition"
             >
               {t('superAuditLog.next')}
             </button>

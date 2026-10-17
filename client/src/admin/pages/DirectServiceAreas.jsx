@@ -35,7 +35,7 @@ function formFromArea(area) {
 function Field({ label, children, hint }) {
   return (
     <label className="grid gap-1.5">
-      <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">{label}</span>
+      <span className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">{label}</span>
       {children}
       {hint && <span className="text-xs text-gray-500">{hint}</span>}
     </label>
@@ -46,7 +46,7 @@ function Input({ className = '', ...props }) {
   return (
     <input
       {...props}
-      className={`w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white outline-none placeholder:text-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 ${className}`}
+      className={`w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none placeholder:text-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 ${className}`}
     />
   );
 }
@@ -163,26 +163,26 @@ export default function DirectServiceAreas() {
         <div className="flex items-start gap-3">
           <div className="rounded-xl bg-orange-500/10 p-2 text-orange-400"><MapPinned size={22} /></div>
           <div>
-            <h1 className="text-2xl font-bold text-white">{t('directCatalogAdmin.serviceAreasTitle', { defaultValue: 'Direct service areas' })}</h1>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-400">{t('directCatalogAdmin.serviceAreasSubtitle', { defaultValue: 'Manage the active locations and radius used by the public Direct coverage checker and quote intake.' })}</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('directCatalogAdmin.serviceAreasTitle', { defaultValue: 'Direct service areas' })}</h1>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">{t('directCatalogAdmin.serviceAreasSubtitle', { defaultValue: 'Manage the active locations and radius used by the public Direct coverage checker and quote intake.' })}</p>
             <Link to={adminRoute('markets').path} className="mt-2 inline-block text-sm font-medium text-orange-300 hover:text-orange-200">{t('directCatalogAdmin.marketsLink', { defaultValue: 'Manage market ZIP codes' })}</Link>
           </div>
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={loadAreas} disabled={loading} aria-label={t('common.refresh')} className="inline-flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:border-gray-500 hover:text-white disabled:opacity-50">
+          <button type="button" onClick={loadAreas} disabled={loading} aria-label={t('common.refresh')} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:border-gray-500 hover:text-gray-900 dark:hover:text-white disabled:opacity-50">
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> {t('directCatalogAdmin.refresh', { defaultValue: 'Refresh' })}
           </button>
         </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
-        <form onSubmit={saveArea} className="rounded-xl border border-gray-800 bg-gray-900 p-6">
+        <form onSubmit={saveArea} className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-white">{editingId ? t('directCatalogAdmin.editServiceArea', { defaultValue: 'Edit service area' }) : t('directCatalogAdmin.addServiceArea', { defaultValue: 'Add service area' })}</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{editingId ? t('directCatalogAdmin.editServiceArea', { defaultValue: 'Edit service area' }) : t('directCatalogAdmin.addServiceArea', { defaultValue: 'Add service area' })}</h2>
               <p className="mt-1 text-sm text-gray-500">{t('directCatalogAdmin.zipLookupHint', { defaultValue: 'A ZIP lookup fills the map coordinates for you.' })}</p>
             </div>
-            {editingId && <button type="button" onClick={resetForm} className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-white"><X size={15} /> {t('directCatalogAdmin.cancel', { defaultValue: 'Cancel' })}</button>}
+            {editingId && <button type="button" onClick={resetForm} className="inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"><X size={15} /> {t('directCatalogAdmin.cancel', { defaultValue: 'Cancel' })}</button>}
           </div>
           <div className="space-y-4">
             <Field label={t('directCatalogAdmin.areaNameLabel', { defaultValue: 'Area name' })} hint={t('directCatalogAdmin.areaNameHint', { defaultValue: 'Example: Dayton, OH' })}>
@@ -191,7 +191,7 @@ export default function DirectServiceAreas() {
             <Field label={t('directCatalogAdmin.anchorZipLabel', { defaultValue: 'Anchor ZIP code' })} hint={t('directCatalogAdmin.anchorZipHint', { defaultValue: 'The center point used for distance checks.' })}>
               <div className="flex gap-2">
                 <Input value={form.anchorZip} onChange={(event) => updateForm('anchorZip', event.target.value.replace(/\D/g, '').slice(0, 5))} inputMode="numeric" placeholder={t('directCatalogAdmin.anchorZipPlaceholder', { defaultValue: '45402' })} required />
-                <button type="button" onClick={findZipCoordinates} disabled={locating} className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-gray-700 px-3 text-sm font-semibold text-white hover:bg-gray-600 disabled:opacity-50">
+                <button type="button" onClick={findZipCoordinates} disabled={locating} className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-gray-200 dark:bg-gray-700 px-3 text-sm font-semibold text-gray-900 dark:text-white hover:bg-gray-600 disabled:opacity-50">
                   {locating ? <Loader2 size={15} className="animate-spin" /> : <MapPinned size={15} />} {t('directCatalogAdmin.findZip', { defaultValue: 'Find ZIP' })}
                 </button>
               </div>
@@ -203,8 +203,8 @@ export default function DirectServiceAreas() {
             <Field label={t('directCatalogAdmin.radiusMilesLabel', { defaultValue: 'Radius in miles' })} hint={t('directCatalogAdmin.radiusMilesHint', { defaultValue: 'Only locations inside this radius are considered available.' })}>
               <Input value={form.radiusMiles} onChange={(event) => updateForm('radiusMiles', event.target.value)} type="number" min="1" step="0.1" required />
             </Field>
-            <Field label={t('directCatalogAdmin.internalNotesLabel', { defaultValue: 'Internal notes' })}><textarea value={form.notes} onChange={(event) => updateForm('notes', event.target.value)} rows={3} className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white outline-none placeholder:text-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder={t('directCatalogAdmin.notesPlaceholder', { defaultValue: 'Dispatch notes or launch context' })} /></Field>
-            <label className="flex items-center gap-3 rounded-lg border border-gray-800 bg-gray-950/50 p-3 text-sm text-gray-300">
+            <Field label={t('directCatalogAdmin.internalNotesLabel', { defaultValue: 'Internal notes' })}><textarea value={form.notes} onChange={(event) => updateForm('notes', event.target.value)} rows={3} className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none placeholder:text-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder={t('directCatalogAdmin.notesPlaceholder', { defaultValue: 'Dispatch notes or launch context' })} /></Field>
+            <label className="flex items-center gap-3 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/50 p-3 text-sm text-gray-700 dark:text-gray-300">
               <input type="checkbox" checked={form.active} onChange={(event) => updateForm('active', event.target.checked)} className="h-4 w-4 accent-orange-500" />
               {t('directCatalogAdmin.activeOnPublicChecker', { defaultValue: 'Active on the public coverage checker' })}
             </label>
@@ -215,13 +215,13 @@ export default function DirectServiceAreas() {
           </div>
         </form>
 
-        <section className="rounded-xl border border-gray-800 bg-gray-900 p-6">
+        <section className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-white">{t('directCatalogAdmin.configuredCoverage', { defaultValue: 'Configured coverage' })}</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('directCatalogAdmin.configuredCoverage', { defaultValue: 'Configured coverage' })}</h2>
               <p className="mt-1 text-sm text-gray-500">{t('directCatalogAdmin.configuredCoverageSub', { defaultValue: 'Inactive areas stay available for future relaunches but do not affect customers.' })}</p>
             </div>
-            <span className="rounded-full border border-gray-700 px-3 py-1 text-xs font-semibold text-gray-300">{t('directCatalogAdmin.activeCount', { defaultValue: '{{count}} active', count: areas.filter((area) => area.active).length })}</span>
+            <span className="rounded-full border border-gray-300 dark:border-gray-700 px-3 py-1 text-xs font-semibold text-gray-700 dark:text-gray-300">{t('directCatalogAdmin.activeCount', { defaultValue: '{{count}} active', count: areas.filter((area) => area.active).length })}</span>
           </div>
           <div className="mb-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
             <SuggestDropdown
@@ -235,7 +235,7 @@ export default function DirectServiceAreas() {
               ariaLabel={t('directCatalogAdmin.searchAreasAria', { defaultValue: 'Search configured service areas' })}
               className="sd-admin-dark"
             />
-            <select value={activeFilter} onChange={(event) => setActiveFilter(event.target.value)} className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-gray-300 outline-none focus:border-orange-500" aria-label={t('directCatalogAdmin.filterAreasAria', { defaultValue: 'Filter service areas' })}>
+            <select value={activeFilter} onChange={(event) => setActiveFilter(event.target.value)} className="rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 outline-none focus:border-orange-500" aria-label={t('directCatalogAdmin.filterAreasAria', { defaultValue: 'Filter service areas' })}>
               <option value="all">{t('directCatalogAdmin.allAreas', { defaultValue: 'All areas' })}</option>
               <option value="active">{t('directCatalogAdmin.activeOnly', { defaultValue: 'Active only' })}</option>
               <option value="inactive">{t('directCatalogAdmin.inactiveOnly', { defaultValue: 'Inactive only' })}</option>
@@ -246,25 +246,25 @@ export default function DirectServiceAreas() {
           ) : error ? (
             <AdminErrorState onRetry={reload} />
           ) : areas.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-gray-700 p-8 text-center text-sm text-gray-500">{t('directCatalogAdmin.noServiceAreas', { defaultValue: 'No service areas configured.' })}</div>
+            <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 p-8 text-center text-sm text-gray-500">{t('directCatalogAdmin.noServiceAreas', { defaultValue: 'No service areas configured.' })}</div>
           ) : visibleAreas.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-gray-700 p-8 text-center text-sm text-gray-500">{t('directCatalogAdmin.noAreasMatchView', { defaultValue: 'No service areas match this view.' })}</div>
+            <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 p-8 text-center text-sm text-gray-500">{t('directCatalogAdmin.noAreasMatchView', { defaultValue: 'No service areas match this view.' })}</div>
           ) : (
             <div className="space-y-3">
               {visibleAreas.map((area) => (
-                <article key={area.id} className="rounded-lg border border-gray-800 bg-gray-950/60 p-4">
+                <article key={area.id} className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-950/60 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <div className="flex items-center gap-2 text-base font-semibold text-white">
+                      <div className="flex items-center gap-2 text-base font-semibold text-gray-900 dark:text-white">
                         <span className={`h-2.5 w-2.5 rounded-full ${area.active ? 'bg-emerald-400' : 'bg-gray-600'}`} />
                         {area.label}
                       </div>
-                      <p className="mt-1 text-sm text-gray-400">{t('directCatalogAdmin.areaZipRadius', { defaultValue: 'ZIP {{zip}}, {{radius}} mile radius', zip: area.anchorZip, radius: String(area.radiusMiles) })}</p>
+                      <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{t('directCatalogAdmin.areaZipRadius', { defaultValue: 'ZIP {{zip}}, {{radius}} mile radius', zip: area.anchorZip, radius: String(area.radiusMiles) })}</p>
                       <p className="mt-1 text-xs text-gray-600">{t('directCatalogAdmin.centerCoords', { defaultValue: 'Center: {{lat}}, {{lng}}', lat: String(area.lat ?? ''), lng: String(area.lng ?? '') })}</p>
                     </div>
-                    <button type="button" onClick={() => { setEditingId(area.id); setForm(formFromArea(area)); }} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:border-orange-500/50 hover:text-white"><Pencil size={14} /> {t('directCatalogAdmin.editWord', { defaultValue: 'Edit' })}</button>
+                    <button type="button" onClick={() => { setEditingId(area.id); setForm(formFromArea(area)); }} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:border-orange-500/50 hover:text-gray-900 dark:hover:text-white"><Pencil size={14} /> {t('directCatalogAdmin.editWord', { defaultValue: 'Edit' })}</button>
                   </div>
-                  {area.notes && <p className="mt-3 border-t border-gray-800 pt-3 text-sm leading-5 text-gray-500">{area.notes}</p>}
+                  {area.notes && <p className="mt-3 border-t border-gray-200 dark:border-gray-800 pt-3 text-sm leading-5 text-gray-500">{area.notes}</p>}
                 </article>
               ))}
             </div>

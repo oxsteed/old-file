@@ -11,7 +11,7 @@ export default function CreateUser() {
     <div className="max-w-4xl mx-auto px-4 py-6">
       <button
         onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-200 mb-4"
+        className="inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mb-4"
       >
         <ArrowLeft size={14} />
         {t('common.back')}
@@ -23,13 +23,13 @@ export default function CreateUser() {
         </div>
         <div>
           <h1 className="text-xl font-semibold text-gray-100">{t('adminCreateUserTitle')}</h1>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             {t('adminCreateUserDescription')}
           </p>
         </div>
       </div>
 
-      <div className="rounded-lg border border-gray-800 bg-gray-950 p-6">
+      <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 p-6">
         <CreateUserForm
           onCreated={(user) => {
             if (user?.id) {

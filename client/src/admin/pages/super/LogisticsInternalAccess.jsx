@@ -58,7 +58,7 @@ function routePath(route) {
 }
 
 function routeChipClass(route, enabled = true) {
-  if (!enabled) return 'border-gray-700 text-gray-500 bg-gray-950/40';
+  if (!enabled) return 'border-gray-300 dark:border-gray-700 text-gray-500 bg-gray-50/40 dark:bg-gray-950/40';
   if (route === 'admin_portal') return 'border-amber-500/40 text-amber-200 bg-amber-500/10';
   if (route === 'operations') return 'border-sky-500/40 text-sky-200 bg-sky-500/10';
   if (route === 'compliance') return 'border-violet-500/40 text-violet-200 bg-violet-500/10';
@@ -235,45 +235,45 @@ export default function LogisticsInternalAccess() {
   return (
     <div className="space-y-6">
       <header className="space-y-3">
-        <h1 className="text-2xl font-bold tracking-tight text-white">{t('adminLogisticsAccessTitle')}</h1>
-        <p className="max-w-5xl text-sm text-gray-400">
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{t('adminLogisticsAccessTitle')}</h1>
+        <p className="max-w-5xl text-sm text-gray-600 dark:text-gray-400">
           {t('adminLogisticsAccessSubtitle')}
         </p>
       </header>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-4">
-        <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-5">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-900/50 p-5">
           <div className="text-xs uppercase tracking-[0.22em] text-gray-500">{t('adminLogisticsAccessStaff')}</div>
-          <div className="mt-3 text-3xl font-semibold text-white">{summary.total}</div>
-          <div className="mt-2 text-sm text-gray-400">{t('adminLogisticsAccessStaffHint')}</div>
+          <div className="mt-3 text-3xl font-semibold text-gray-900 dark:text-white">{summary.total}</div>
+          <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">{t('adminLogisticsAccessStaffHint')}</div>
         </div>
         <div className="rounded-xl border border-emerald-900/50 bg-emerald-950/20 p-5">
           <div className="text-xs uppercase tracking-[0.22em] text-emerald-300/70">{t('adminLogisticsAccessActiveRecords')}</div>
-          <div className="mt-3 text-3xl font-semibold text-white">{summary.active}</div>
+          <div className="mt-3 text-3xl font-semibold text-gray-900 dark:text-white">{summary.active}</div>
           <div className="mt-2 text-sm text-emerald-100/80">{t('adminLogisticsAccessActiveRecordsHint')}</div>
         </div>
         <div className="rounded-xl border border-amber-900/50 bg-amber-950/20 p-5">
           <div className="text-xs uppercase tracking-[0.22em] text-amber-300/70">{t('adminLogisticsAccessNeedsSetup')}</div>
-          <div className="mt-3 text-3xl font-semibold text-white">{summary.needsSetup}</div>
+          <div className="mt-3 text-3xl font-semibold text-gray-900 dark:text-white">{summary.needsSetup}</div>
           <div className="mt-2 text-sm text-amber-100/80">{t('adminLogisticsAccessNeedsSetupHint')}</div>
         </div>
         <div className="rounded-xl border border-sky-900/50 bg-sky-950/20 p-5">
           <div className="text-xs uppercase tracking-[0.22em] text-sky-300/70">{t('adminLogisticsAccessDeptUsers')}</div>
-          <div className="mt-3 text-3xl font-semibold text-white">{summary.internalDepartmentUsers}</div>
+          <div className="mt-3 text-3xl font-semibold text-gray-900 dark:text-white">{summary.internalDepartmentUsers}</div>
           <div className="mt-2 text-sm text-sky-100/80">{t('adminLogisticsAccessDeptUsersHint')}</div>
         </div>
       </section>
 
-      <section className="rounded-xl border border-gray-800 bg-gray-900/40 p-5">
+      <section className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/40 dark:bg-gray-900/40 p-5">
         {loading ? (
-          <div className="text-sm text-gray-400">{t('adminLogisticsAccessLoading')}</div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">{t('adminLogisticsAccessLoading')}</div>
         ) : loadError ? (
           <div className="flex flex-col items-start gap-3">
             <p className="text-sm text-red-300">{t('adminLogisticsAccessLoadFailed')}</p>
             <button
               type="button"
               onClick={() => setRetryKey((key) => key + 1)}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-xs font-semibold text-gray-300 transition hover:border-gray-500 hover:text-white"
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 transition hover:border-gray-500 hover:text-gray-900 dark:hover:text-white"
             >
               {t('common.retry')}
             </button>
@@ -281,10 +281,10 @@ export default function LogisticsInternalAccess() {
         ) : (
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(380px,460px)_1fr]">
             <div className="space-y-5">
-              <div className="rounded-xl border border-gray-800 bg-gray-950/50 p-4">
+              <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/50 p-4">
                 <div className="flex flex-col gap-4">
                   <div>
-                    <h2 className="text-sm font-semibold text-white">{t('adminLogisticsAccessConsole')}</h2>
+                    <h2 className="text-sm font-semibold text-gray-900 dark:text-white">{t('adminLogisticsAccessConsole')}</h2>
                     <p className="mt-1 text-xs text-gray-500">
                       {t('adminLogisticsAccessConsoleHint')}
                     </p>
@@ -316,7 +316,7 @@ export default function LogisticsInternalAccess() {
                         className={`rounded-full border px-3 py-1.5 text-xs transition ${
                           filter === value
                             ? 'border-orange-500/50 bg-orange-500/10 text-orange-200'
-                            : 'border-gray-700 text-gray-400 hover:text-white'
+                            : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                         }`}
                       >
                         {label}
@@ -326,10 +326,10 @@ export default function LogisticsInternalAccess() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-gray-800 bg-gray-950/50 p-4">
+              <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/50 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-sm font-semibold text-white">{t('adminLogisticsAccessQueue')}</h3>
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t('adminLogisticsAccessQueue')}</h3>
                     <p className="mt-1 text-xs text-gray-500">{t('adminLogisticsAccessQueueHint')}</p>
                   </div>
                   <div className="text-xs text-amber-300">{t('adminLogisticsAccessQueued', { count: provisioningQueue.length })}</div>
@@ -340,32 +340,32 @@ export default function LogisticsInternalAccess() {
                       key={`queue-${record.user_id}`}
                       type="button"
                       onClick={() => setSelectedUserId(record.user_id)}
-                      className="w-full rounded-lg border border-gray-800 bg-gray-900/60 px-3 py-3 text-left transition hover:border-amber-500/40 hover:bg-amber-500/5"
+                      className="w-full rounded-lg border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-900/60 px-3 py-3 text-left transition hover:border-amber-500/40 hover:bg-amber-500/5"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <div className="text-sm font-medium text-white">{record.first_name} {record.last_name}</div>
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">{record.first_name} {record.last_name}</div>
                           <div className="mt-1 text-xs text-gray-500">{roleLabel(record.role, t)}{record.department_names?.length ? ` · ${record.department_names.join(', ')}` : ''}</div>
                         </div>
                         <div className="rounded-full border border-amber-500/30 px-2 py-1 text-[11px] text-amber-200">{t('adminLogisticsAccessNeedsSetup')}</div>
                       </div>
                     </button>
                   )) : (
-                    <div className="rounded-lg border border-dashed border-gray-800 bg-gray-900/40 px-3 py-4 text-sm text-gray-500">
+                    <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-800 bg-white/40 dark:bg-gray-900/40 px-3 py-4 text-sm text-gray-500">
                       {t('adminLogisticsAccessQueueEmpty')}
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="rounded-xl border border-gray-800 bg-gray-950/40 overflow-hidden">
-                <div className="border-b border-gray-800 px-4 py-3">
-                  <h2 className="text-sm font-semibold text-white">{t('adminLogisticsAccessAccounts')}</h2>
+              <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/40 dark:bg-gray-950/40 overflow-hidden">
+                <div className="border-b border-gray-200 dark:border-gray-800 px-4 py-3">
+                  <h2 className="text-sm font-semibold text-gray-900 dark:text-white">{t('adminLogisticsAccessAccounts')}</h2>
                   <p className="mt-1 text-xs text-gray-500">
                     {t('adminLogisticsAccessAccountsHint')}
                   </p>
                 </div>
-                <div className="max-h-[780px] divide-y divide-gray-800 overflow-y-auto">
+                <div className="max-h-[780px] divide-y divide-gray-200 dark:divide-gray-800 overflow-y-auto">
                   {filteredRecords.length ? filteredRecords.map((record) => {
                     const isSelected = record.user_id === selectedUserId;
                     const isSelf = record.user_id === me?.id;
@@ -376,12 +376,12 @@ export default function LogisticsInternalAccess() {
                         type="button"
                         onClick={() => setSelectedUserId(record.user_id)}
                         className={`w-full px-4 py-4 text-left transition ${
-                          isSelected ? 'bg-orange-500/10' : 'hover:bg-gray-900/60'
+                          isSelected ? 'bg-orange-500/10' : 'hover:bg-white/60 dark:hover:bg-gray-900/60'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <div className="text-sm font-medium text-white">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">
                               {record.first_name} {record.last_name}
                               {isSelf && <span className="ml-2 text-xs text-orange-400">{t('adminLogisticsAccessYou')}</span>}
                             </div>
@@ -396,7 +396,7 @@ export default function LogisticsInternalAccess() {
                               tone === 'ready'
                                 ? 'border-emerald-500/40 text-emerald-200'
                                 : tone === 'inactive'
-                                  ? 'border-gray-700 text-gray-400'
+                                  ? 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400'
                                   : 'border-amber-500/40 text-amber-200'
                             }`}>
                               {tone === 'ready' ? t('adminLogisticsAccessReady') : tone === 'inactive' ? t('adminLogisticsAccessInactive') : t('adminLogisticsAccessNeedsSetup')}
@@ -404,7 +404,7 @@ export default function LogisticsInternalAccess() {
                           </div>
                         </div>
                         <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-                          <span className={`rounded-full border px-2 py-1 ${record.has_record ? 'border-emerald-500/40 text-emerald-300' : 'border-gray-700 text-gray-500'}`}>
+                          <span className={`rounded-full border px-2 py-1 ${record.has_record ? 'border-emerald-500/40 text-emerald-300' : 'border-gray-300 dark:border-gray-700 text-gray-500'}`}>
                             {record.has_record ? t('adminLogisticsAccessInternalNameValue', { name: record.internal_name }) : t('adminLogisticsAccessNoRecord')}
                           </span>
                           {(record.department_names || []).slice(0, 2).map((name) => (
@@ -427,21 +427,21 @@ export default function LogisticsInternalAccess() {
               </div>
             </div>
 
-            <section className="rounded-xl border border-gray-800 bg-gray-950/40 p-5">
+            <section className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/40 dark:bg-gray-950/40 p-5">
               {!selectedRecord ? (
-                <div className="text-sm text-gray-400">{t('adminLogisticsAccessSelectAccount')}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">{t('adminLogisticsAccessSelectAccount')}</div>
               ) : (
                 <form className="space-y-6" onSubmit={handleSubmit}>
                   <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-                    <div className="rounded-xl border border-gray-800 bg-gray-950/60 p-4">
+                    <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-950/60 p-4">
                       <div className="flex items-start justify-between gap-4">
                         <div>
-                          <div className="text-lg font-semibold text-white">{selectedRecord.first_name} {selectedRecord.last_name}</div>
-                          <div className="mt-1 text-sm text-gray-400">{selectedRecord.email}</div>
+                          <div className="text-lg font-semibold text-gray-900 dark:text-white">{selectedRecord.first_name} {selectedRecord.last_name}</div>
+                          <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">{selectedRecord.email}</div>
                           <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                            <span className="rounded-full border border-gray-700 px-2 py-1 text-gray-300">{roleLabel(selectedRecord.role, t)}</span>
+                            <span className="rounded-full border border-gray-300 dark:border-gray-700 px-2 py-1 text-gray-700 dark:text-gray-300">{roleLabel(selectedRecord.role, t)}</span>
                             {selectedRecord.logistics_role && (
-                              <span className="rounded-full border border-gray-700 px-2 py-1 text-gray-300">{logisticsRoleLabel(selectedRecord.logistics_role)}</span>
+                              <span className="rounded-full border border-gray-300 dark:border-gray-700 px-2 py-1 text-gray-700 dark:text-gray-300">{logisticsRoleLabel(selectedRecord.logistics_role)}</span>
                             )}
                             {(selectedRecord.department_names || []).map((name) => (
                               <span key={`dept-${name}`} className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-emerald-200">
@@ -454,7 +454,7 @@ export default function LogisticsInternalAccess() {
                           statusTone(selectedRecord) === 'ready'
                             ? 'border-emerald-500/40 text-emerald-200'
                             : statusTone(selectedRecord) === 'inactive'
-                              ? 'border-gray-700 text-gray-400'
+                              ? 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400'
                               : 'border-amber-500/40 text-amber-200'
                         }`}>
                           {statusTone(selectedRecord) === 'ready' ? t('adminLogisticsAccessReady') : statusTone(selectedRecord) === 'inactive' ? t('adminLogisticsAccessInactive') : t('adminLogisticsAccessNeedsSetup')}
@@ -462,7 +462,7 @@ export default function LogisticsInternalAccess() {
                       </div>
                     </div>
 
-                    <div className="rounded-xl border border-gray-800 bg-gray-950/60 p-4">
+                    <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-950/60 p-4">
                       <div className="text-xs uppercase tracking-[0.22em] text-gray-500">{t('adminLogisticsAccessRoutesUnlocked')}</div>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {selectedEnabledRoutes.length ? selectedEnabledRoutes.map((route) => (
@@ -470,7 +470,7 @@ export default function LogisticsInternalAccess() {
                             {routeLabel(route, t)}
                           </span>
                         )) : (
-                          <span className="rounded-full border border-gray-700 px-2 py-1 text-xs text-gray-500">{t('adminLogisticsAccessNoRoutes')}</span>
+                          <span className="rounded-full border border-gray-300 dark:border-gray-700 px-2 py-1 text-xs text-gray-500">{t('adminLogisticsAccessNoRoutes')}</span>
                         )}
                       </div>
                     </div>
@@ -478,7 +478,7 @@ export default function LogisticsInternalAccess() {
 
                   <div className="grid gap-4 lg:grid-cols-2">
                     <div>
-                      <label htmlFor="internal_name" className="mb-2 block text-sm font-medium text-gray-200">
+                      <label htmlFor="internal_name" className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200">
                         {t('adminLogisticsAccessInternalNameLabel')}
                       </label>
                       <input
@@ -486,7 +486,7 @@ export default function LogisticsInternalAccess() {
                         type="text"
                         value={form.internal_name}
                         onChange={(event) => updateField('internal_name', event.target.value)}
-                        className="w-full rounded-lg border border-gray-700 bg-gray-950 px-4 py-3 text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
+                        className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
                         placeholder={t('adminLogisticsAccessInternalNamePlaceholder')}
                         required
                       />
@@ -496,7 +496,7 @@ export default function LogisticsInternalAccess() {
                     </div>
 
                     <div>
-                      <label htmlFor="security_key" className="mb-2 block text-sm font-medium text-gray-200">
+                      <label htmlFor="security_key" className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200">
                         {selectedRecord.has_record ? t('adminLogisticsAccessReplaceSecurityKey') : t('adminLogisticsAccessSecurityKey')}
                       </label>
                       <input
@@ -504,7 +504,7 @@ export default function LogisticsInternalAccess() {
                         type="password"
                         value={form.security_key}
                         onChange={(event) => updateField('security_key', event.target.value)}
-                        className="w-full rounded-lg border border-gray-700 bg-gray-950 px-4 py-3 text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
+                        className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
                         placeholder={selectedRecord.has_record ? t('adminLogisticsAccessSecurityKeyPlaceholderKeep') : t('adminLogisticsAccessSecurityKeyPlaceholderNew')}
                       />
                       <p className="mt-2 text-xs text-gray-500">
@@ -514,7 +514,7 @@ export default function LogisticsInternalAccess() {
                   </div>
 
                   <div className="grid gap-4 lg:grid-cols-2">
-                    <label className="rounded-lg border border-gray-800 bg-gray-950/60 px-4 py-4 flex items-start gap-3 cursor-pointer">
+                    <label className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-950/60 px-4 py-4 flex items-start gap-3 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={form.admin_portal_enabled}
@@ -523,7 +523,7 @@ export default function LogisticsInternalAccess() {
                         className="mt-1"
                       />
                       <div>
-                        <div className="text-sm font-medium text-white">{t('adminLogisticsAccessEnableAdminPortal')}</div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">{t('adminLogisticsAccessEnableAdminPortal')}</div>
                         <div className="mt-1 text-xs text-gray-500">
                           {t('adminLogisticsAccessEnableAdminPortalHint')}
                         </div>
@@ -535,7 +535,7 @@ export default function LogisticsInternalAccess() {
                       </div>
                     </label>
 
-                    <label className="rounded-lg border border-gray-800 bg-gray-950/60 px-4 py-4 flex items-start gap-3 cursor-pointer">
+                    <label className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-950/60 px-4 py-4 flex items-start gap-3 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={form.is_active}
@@ -543,7 +543,7 @@ export default function LogisticsInternalAccess() {
                         className="mt-1"
                       />
                       <div>
-                        <div className="text-sm font-medium text-white">{t('adminLogisticsAccessRecordActive')}</div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">{t('adminLogisticsAccessRecordActive')}</div>
                         <div className="mt-1 text-xs text-gray-500">
                           {t('adminLogisticsAccessRecordActiveHint')}
                         </div>
@@ -552,7 +552,7 @@ export default function LogisticsInternalAccess() {
                   </div>
 
                   <div className="grid gap-4 lg:grid-cols-2">
-                    <label className="rounded-lg border border-gray-800 bg-gray-950/60 px-4 py-4 flex items-start gap-3 cursor-pointer">
+                    <label className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-950/60 px-4 py-4 flex items-start gap-3 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={form.operations_enabled}
@@ -560,14 +560,14 @@ export default function LogisticsInternalAccess() {
                         className="mt-1"
                       />
                       <div>
-                        <div className="text-sm font-medium text-white">{t('adminLogisticsAccessEnableOperations')}</div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">{t('adminLogisticsAccessEnableOperations')}</div>
                         <div className="mt-1 text-xs text-gray-500">
                           {t('adminLogisticsAccessEnableOperationsHint')}
                         </div>
                       </div>
                     </label>
 
-                    <label className="rounded-lg border border-gray-800 bg-gray-950/60 px-4 py-4 flex items-start gap-3 cursor-pointer">
+                    <label className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-950/60 px-4 py-4 flex items-start gap-3 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={form.compliance_enabled}
@@ -575,7 +575,7 @@ export default function LogisticsInternalAccess() {
                         className="mt-1"
                       />
                       <div>
-                        <div className="text-sm font-medium text-white">{t('adminLogisticsAccessEnableCompliance')}</div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">{t('adminLogisticsAccessEnableCompliance')}</div>
                         <div className="mt-1 text-xs text-gray-500">
                           {t('adminLogisticsAccessEnableComplianceHint')}
                         </div>
@@ -584,7 +584,7 @@ export default function LogisticsInternalAccess() {
                   </div>
 
                   <div className="rounded-xl border border-blue-900/40 bg-blue-950/20 p-4">
-                    <div className="text-sm font-medium text-white">{t('adminLogisticsAccessDeptDriven')}</div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">{t('adminLogisticsAccessDeptDriven')}</div>
                     <p className="mt-2 text-sm text-blue-100">
                       {t('adminLogisticsAccessDeptDrivenText')}
                     </p>
@@ -594,7 +594,7 @@ export default function LogisticsInternalAccess() {
                           {routeLabel(route, t)} · {routePath(route)}
                         </span>
                       )) : (
-                        <span className="rounded-full border border-gray-700 px-2 py-1 text-gray-400">
+                        <span className="rounded-full border border-gray-300 dark:border-gray-700 px-2 py-1 text-gray-600 dark:text-gray-400">
                           {t('adminLogisticsAccessNoDeptAssignment')}
                         </span>
                       )}
@@ -602,20 +602,20 @@ export default function LogisticsInternalAccess() {
                   </div>
 
                   {selectedRecord.has_record && (
-                    <div className="rounded-xl border border-gray-800 bg-gray-950/60 p-4 text-sm text-gray-400">
+                    <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-950/60 p-4 text-sm text-gray-600 dark:text-gray-400">
                       <div>
                         {t('adminLogisticsAccessInternalIdentity')}
-                        <span className="ml-2 font-medium text-white">{selectedRecord.internal_name}</span>
+                        <span className="ml-2 font-medium text-gray-900 dark:text-white">{selectedRecord.internal_name}</span>
                       </div>
                       <div className="mt-2">
                         {t('adminLogisticsAccessLastCheck')}
-                        <span className="ml-2 text-gray-300">
+                        <span className="ml-2 text-gray-700 dark:text-gray-300">
                           {selectedRecord.last_verified_at ? new Date(selectedRecord.last_verified_at).toLocaleString() : t('adminLogisticsAccessNever')}
                         </span>
                       </div>
                       <div className="mt-2">
                         {t('adminLogisticsAccessLastRoute')}
-                        <span className="ml-2 text-gray-300">{selectedRecord.last_verified_route ? routeLabel(selectedRecord.last_verified_route, t) : t('adminLogisticsAccessNotApplicable')}</span>
+                        <span className="ml-2 text-gray-700 dark:text-gray-300">{selectedRecord.last_verified_route ? routeLabel(selectedRecord.last_verified_route, t) : t('adminLogisticsAccessNotApplicable')}</span>
                       </div>
                     </div>
                   )}

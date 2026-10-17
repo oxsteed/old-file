@@ -112,18 +112,16 @@ function CreateGrantModal({ scopes, onClose, onCreated }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
-      <div className="w-full max-w-lg bg-gray-900 border border-gray-700
-                      rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 py-4
-                        border-b border-gray-800">
-          <h2 className="font-semibold text-white flex items-center gap-2">
+      <div className="w-full max-w-lg bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800">
+          <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <Shield size={16} className="text-purple-400" />
             {t('adminPermissionGrantsModalTitle')}
           </h2>
           <button
             onClick={onClose}
             aria-label={t('common.close')}
-            className="text-gray-500 hover:text-white transition p-1"
+            className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition p-1"
           >
             <X size={16} />
           </button>
@@ -132,7 +130,7 @@ function CreateGrantModal({ scopes, onClose, onCreated }) {
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {/* Grantee */}
           <div>
-            <label className="block text-xs font-semibold text-gray-400 mb-1.5">
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">
               {t('adminPermissionGrantsGranteeLabel')}
             </label>
             {admins.length === 0 ? (
@@ -142,9 +140,7 @@ function CreateGrantModal({ scopes, onClose, onCreated }) {
                 required
                 value={form.grantee_id}
                 onChange={e => setForm(f => ({ ...f, grantee_id: e.target.value }))}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700
-                           rounded-lg text-sm text-white focus:outline-none
-                           focus:border-purple-500"
+                className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:border-purple-500"
               >
                 <option value="">{t('adminPermissionGrantsSelectAdmin')}</option>
                 {admins.map(a => (
@@ -158,7 +154,7 @@ function CreateGrantModal({ scopes, onClose, onCreated }) {
 
           {/* Permissions */}
           <div>
-            <label className="block text-xs font-semibold text-gray-400 mb-1.5">
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">
               {t('adminPermissionGrantsPermissionsLabel')} <span className="text-gray-600">{t('adminPermissionGrantsPermissionsHint')}</span>
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-52 overflow-y-auto
@@ -168,11 +164,10 @@ function CreateGrantModal({ scopes, onClose, onCreated }) {
                 return (
                   <label
                     key={s.key}
-                    className={`flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer
-                                transition text-xs ${
+                    className={`flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer transition text-xs ${
                       checked
                         ? 'bg-purple-900/40 border-purple-700 text-purple-200'
-                        : 'bg-gray-800/50 border-gray-700 text-gray-400 hover:border-gray-600'
+                        : 'bg-gray-100/50 dark:bg-gray-800/50 border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
                     }`}
                   >
                     <input
@@ -193,7 +188,7 @@ function CreateGrantModal({ scopes, onClose, onCreated }) {
 
           {/* Expiry */}
           <div>
-            <label className="block text-xs font-semibold text-gray-400 mb-1.5">
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">
               {t('adminPermissionGrantsExpiresAt')} <span className="text-gray-600">{t('adminPermissionGrantsExpiresAtHint')}</span>
             </label>
             <input
@@ -203,15 +198,13 @@ function CreateGrantModal({ scopes, onClose, onCreated }) {
               max={maxDateStr}
               value={form.expires_at}
               onChange={e => setForm(f => ({ ...f, expires_at: e.target.value }))}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700
-                         rounded-lg text-sm text-white focus:outline-none
-                         focus:border-purple-500"
+              className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:border-purple-500"
             />
           </div>
 
           {/* Notes */}
           <div>
-            <label className="block text-xs font-semibold text-gray-400 mb-1.5">
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">
               {t('adminPermissionGrantsNotesLabel')} <span className="text-gray-600">({t('common.optional')})</span>
             </label>
             <input
@@ -219,15 +212,12 @@ function CreateGrantModal({ scopes, onClose, onCreated }) {
               placeholder={t('adminPermissionGrantsNotesPlaceholder')}
               value={form.notes}
               onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700
-                         rounded-lg text-sm text-white placeholder-gray-500
-                         focus:outline-none focus:border-purple-500"
+              className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
             />
           </div>
 
           {error && (
-            <div className="flex items-start gap-2 p-3 bg-red-950 border border-red-800
-                            rounded-lg text-red-300 text-xs">
+            <div className="flex items-start gap-2 p-3 bg-red-950 border border-red-800 rounded-lg text-red-300 text-xs">
               <AlertCircle size={13} className="shrink-0 mt-0.5" />
               {error}
             </div>
@@ -237,18 +227,14 @@ function CreateGrantModal({ scopes, onClose, onCreated }) {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300
-                         text-sm rounded-lg transition"
+              className="px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm rounded-lg transition"
             >
               {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={saving || !form.grantee_id || form.permissions.length === 0}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white
-                         text-sm font-semibold rounded-lg transition
-                         disabled:opacity-40 disabled:cursor-not-allowed
-                         flex items-center gap-2"
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
               {t('adminPermissionGrantsGrantAccess')}
@@ -320,18 +306,17 @@ export default function PermissionGrants() {
       {confirmDialog}
       <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Shield size={20} className="text-purple-400" />
             {t('adminPermissionGrantsTitle')}
           </h1>
-          <p className="text-gray-400 text-sm mt-1">
+          <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
             {t('adminPermissionGrantsSubtitle')}
           </p>
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700
-                     text-white text-sm font-semibold rounded-lg transition shrink-0"
+          className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg transition shrink-0"
         >
           <Plus size={14} />
           {t('adminPermissionGrantsGrantAccess')}
@@ -352,7 +337,7 @@ export default function PermissionGrants() {
 
       {/* Filters */}
       <div className="flex items-center gap-3 mb-5">
-        <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+        <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
           <input
             type="checkbox"
             checked={showExpired}
@@ -372,11 +357,9 @@ export default function PermissionGrants() {
       ) : (
         <>
           {/* Active grants */}
-          <div className="bg-gray-900 border border-gray-800 rounded-xl
-                          overflow-hidden mb-4">
-            <div className="px-4 py-3 border-b border-gray-800 flex items-center
-                            justify-between">
-              <h2 className="text-sm font-semibold text-white">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden mb-4">
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
                 {t('adminPermissionGrantsActiveGrants')}
                 <span className="ml-2 text-xs text-gray-500 font-normal">
                   ({activeGrants.length})
@@ -389,7 +372,7 @@ export default function PermissionGrants() {
                 {t('adminPermissionGrantsNoActive')}
               </p>
             ) : (
-              <div className="divide-y divide-gray-800">
+              <div className="divide-y divide-gray-200 dark:divide-gray-800">
                 {activeGrants.map(g => (
                   <GrantRow
                     key={g.id}
@@ -404,15 +387,14 @@ export default function PermissionGrants() {
 
           {/* Expired / revoked */}
           {showExpired && inactiveGrants.length > 0 && (
-            <div className="bg-gray-900 border border-gray-800 rounded-xl
-                            overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-800">
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800">
                 <h2 className="text-sm font-semibold text-gray-500">
                   {t('adminPermissionGrantsExpiredRevoked')}
                   <span className="ml-2 text-xs font-normal">({inactiveGrants.length})</span>
                 </h2>
               </div>
-              <div className="divide-y divide-gray-800">
+              <div className="divide-y divide-gray-200 dark:divide-gray-800">
                 {inactiveGrants.map(g => (
                   <GrantRow key={g.id} grant={g} onRevoke={null} revoking={false} />
                 ))}
@@ -451,23 +433,21 @@ function GrantRow({ grant, onRevoke, revoking }) {
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-medium text-white">{grant.grantee_name}</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-white">{grant.grantee_name}</p>
             <span className="text-xs text-gray-500">{grant.grantee_email}</span>
             <GrantStatusBadge grant={grant} />
           </div>
           <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
             {perms.slice(0, expanded ? perms.length : 3).map(p => (
               <span key={p}
-                className="px-1.5 py-0.5 bg-purple-900/50 text-purple-300
-                           text-xs rounded font-mono">
+                className="px-1.5 py-0.5 bg-purple-900/50 text-purple-300 text-xs rounded font-mono">
                 {p}
               </span>
             ))}
             {!expanded && perms.length > 3 && (
               <button
                 onClick={() => setExpanded(true)}
-                className="text-xs text-gray-500 hover:text-gray-300 flex items-center
-                           gap-0.5 transition"
+                className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 flex items-center gap-0.5 transition"
               >
 {t('adminPermissionGrantsMorePerms', { count: perms.length - 3 })} <ChevronDown size={10} />
               </button>
@@ -494,9 +474,7 @@ function GrantRow({ grant, onRevoke, revoking }) {
           <button
             onClick={() => onRevoke(grant.id)}
             disabled={revoking}
-            className="px-3 py-1.5 bg-red-900/50 hover:bg-red-900 text-red-400
-                       hover:text-red-300 text-xs font-medium rounded-lg transition
-                       shrink-0 disabled:opacity-40 flex items-center gap-1.5"
+            className="px-3 py-1.5 bg-red-900/50 hover:bg-red-900 text-red-400 hover:text-red-300 text-xs font-medium rounded-lg transition shrink-0 disabled:opacity-40 flex items-center gap-1.5"
           >
             {revoking ? <Loader2 size={11} className="animate-spin" /> : <X size={11} />}
             {t('adminPermissionGrantsRevoke')}

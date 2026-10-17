@@ -48,15 +48,15 @@ function Pager({ page, total, limit, onPage, t }) {
   const pages = Math.max(1, Math.ceil((total || 0) / limit));
   if (pages <= 1) return null;
   return (
-    <div className="mt-4 flex items-center justify-between text-sm text-gray-400">
+    <div className="mt-4 flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
       <span>{t('statementOps.pageOf', { page, pages })}</span>
       <div className="flex gap-2">
         <button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)}
-          className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-gray-200 disabled:opacity-40 hover:bg-gray-700">
+          className="rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-1.5 text-gray-700 dark:text-gray-200 disabled:opacity-40 hover:bg-gray-200 dark:hover:bg-gray-700">
           {t('statementOps.prev')}
         </button>
         <button type="button" disabled={page >= pages} onClick={() => onPage(page + 1)}
-          className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-gray-200 disabled:opacity-40 hover:bg-gray-700">
+          className="rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-1.5 text-gray-700 dark:text-gray-200 disabled:opacity-40 hover:bg-gray-200 dark:hover:bg-gray-700">
           {t('statementOps.next')}
         </button>
       </div>
@@ -82,9 +82,9 @@ export default function StatementOperations() {
             <div className="rounded-xl border border-orange-500/20 bg-orange-500/10 p-2">
               <Layers size={19} className="text-orange-400" />
             </div>
-            <h1 className="text-2xl font-bold text-white">{t('statementOps.title')}</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('statementOps.title')}</h1>
           </div>
-          <p className="text-gray-400 text-sm mt-1">{t('statementOps.subtitle')}</p>
+          <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">{t('statementOps.subtitle')}</p>
           {lastLoadedAt && (
             <p className="text-gray-500 text-xs mt-1">
               {t('statementOps.lastLoaded', { when: adminDate(lastLoadedAt) })}
@@ -92,7 +92,7 @@ export default function StatementOperations() {
           )}
         </div>
         <button type="button" onClick={refresh}
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-700 bg-gray-800 text-sm text-gray-200 hover:bg-gray-700 transition">
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition">
           <RefreshCw size={14} />
           {t('statementOps.refresh')}
         </button>
@@ -163,14 +163,14 @@ function RunsTab({ t, canOperate, onLoaded }) {
     <div>
       <ErrorNote message={error} />
       {loading ? (
-        <p className="text-gray-400 text-sm">{t('statementOps.loading')}</p>
+        <p className="text-gray-600 dark:text-gray-400 text-sm">{t('statementOps.loading')}</p>
       ) : runs.length === 0 ? (
-        <p className="text-gray-400 text-sm">{t('statementOps.runsEmpty')}</p>
+        <p className="text-gray-600 dark:text-gray-400 text-sm">{t('statementOps.runsEmpty')}</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-800">
+        <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="bg-gray-900 text-left text-gray-400">
+              <tr className="bg-white dark:bg-gray-900 text-left text-gray-600 dark:text-gray-400">
                 <th className="px-4 py-3 font-medium">{t('statementOps.colRun')}</th>
                 <th className="px-4 py-3 font-medium">{t('statementOps.colProduct')}</th>
                 <th className="px-4 py-3 font-medium">{t('statementOps.colPeriod')}</th>
@@ -185,20 +185,20 @@ function RunsTab({ t, canOperate, onLoaded }) {
             <tbody>
               {runs.map((run) => (
                 <Fragment key={run.runId}>
-                  <tr className="border-t border-gray-800 hover:bg-gray-900/50">
+                  <tr className="border-t border-gray-200 dark:border-gray-800 hover:bg-white/50 dark:hover:bg-gray-900/50">
                     <td className="px-4 py-3">
                       <button type="button" onClick={() => setExpandedId(expandedId === run.runId ? null : run.runId)}
                         className="font-mono text-orange-300 hover:text-orange-200" title={run.runId}>
                         {shortId(run.runId)}
                       </button>
                     </td>
-                    <td className="px-4 py-3 text-gray-300">{run.product}</td>
-                    <td className="px-4 py-3 text-gray-300 whitespace-nowrap">{run.period?.from} / {run.period?.to}</td>
+                    <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{run.product}</td>
+                    <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">{run.period?.from} / {run.period?.to}</td>
                     <td className="px-4 py-3"><StatePill value={run.state} t={t} /></td>
-                    <td className="px-4 py-3 text-right text-gray-200">{run.expected}</td>
-                    <td className="px-4 py-3 text-right text-gray-200">{run.issued}</td>
-                    <td className="px-4 py-3 text-right text-gray-200">{run.failed}</td>
-                    <td className="px-4 py-3 text-right text-gray-200">
+                    <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{run.expected}</td>
+                    <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{run.issued}</td>
+                    <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{run.failed}</td>
+                    <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">
                       {run.oldestQueueAgeSec == null ? '-' : t('statementOps.secondsAgo', { n: run.oldestQueueAgeSec })}
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
@@ -219,7 +219,7 @@ function RunsTab({ t, canOperate, onLoaded }) {
                     </td>
                   </tr>
                   {expandedId === run.runId && (
-                    <tr className="border-t border-gray-800 bg-gray-900/30">
+                    <tr className="border-t border-gray-200 dark:border-gray-800 bg-white/30 dark:bg-gray-900/30">
                       <td colSpan={9} className="px-4 py-4">
                         <RunDetail runId={run.runId} t={t} canOperate={canOperate} onChanged={load} />
                       </td>
@@ -292,7 +292,7 @@ function RunDetail({ runId, t, canOperate, onChanged }) {
     }
   };
 
-  if (loading) return <p className="text-gray-400 text-sm">{t('statementOps.loading')}</p>;
+  if (loading) return <p className="text-gray-600 dark:text-gray-400 text-sm">{t('statementOps.loading')}</p>;
   if (error) return <ErrorNote message={error} />;
   if (!detail) return null;
 
@@ -301,20 +301,20 @@ function RunDetail({ runId, t, canOperate, onChanged }) {
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
         {counts.map(([state, n]) => (
-          <span key={state} className="inline-flex items-center gap-2 rounded-lg bg-gray-800 px-3 py-1.5 text-xs text-gray-300">
+          <span key={state} className="inline-flex items-center gap-2 rounded-lg bg-gray-100 dark:bg-gray-800 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300">
             <StatePill value={state} t={t} /><span className="font-semibold">{n}</span>
           </span>
         ))}
-        <span className="inline-flex items-center gap-2 rounded-lg bg-gray-800 px-3 py-1.5 text-xs text-gray-400">
+        <span className="inline-flex items-center gap-2 rounded-lg bg-gray-100 dark:bg-gray-800 px-3 py-1.5 text-xs text-gray-600 dark:text-gray-400">
           {t('statementOps.detailAsOf', { when: adminDate(detail.meta?.asOf) })}
         </span>
       </div>
 
       {detail.failures && detail.failures.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border border-gray-800">
+        <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
           <table className="min-w-full text-xs">
             <thead>
-              <tr className="bg-gray-900 text-left text-gray-400">
+              <tr className="bg-white dark:bg-gray-900 text-left text-gray-600 dark:text-gray-400">
                 <th className="px-3 py-2 font-medium">{t('statementOps.colJob')}</th>
                 <th className="px-3 py-2 font-medium">{t('statementOps.colOwner')}</th>
                 <th className="px-3 py-2 font-medium">{t('statementOps.colReason')}</th>
@@ -327,14 +327,14 @@ function RunDetail({ runId, t, canOperate, onChanged }) {
             </thead>
             <tbody>
               {detail.failures.map((f) => (
-                <tr key={f.jobId} className="border-t border-gray-800">
+                <tr key={f.jobId} className="border-t border-gray-200 dark:border-gray-800">
                   <td className="px-3 py-2 font-mono text-orange-300" title={f.jobId}>{shortId(f.jobId)}</td>
-                  <td className="px-3 py-2 text-gray-300">{f.leaseOwner || '-'}</td>
-                  <td className="px-3 py-2 text-gray-300 max-w-xs truncate" title={f.lastError || ''}>{f.lastError || '-'}</td>
-                  <td className="px-3 py-2 font-mono text-gray-400 max-w-xs truncate" title={f.correlationId || ''}>{f.correlationId || '-'}</td>
-                  <td className="px-3 py-2 text-right text-gray-200">{f.attempts}/{f.maxAttempts}</td>
-                  <td className="px-3 py-2 text-gray-300 whitespace-nowrap">{f.nextRetryAt ? adminDate(f.nextRetryAt) : '-'}</td>
-                  <td className="px-3 py-2 text-gray-300">{f.recommendedAction || '-'}</td>
+                  <td className="px-3 py-2 text-gray-700 dark:text-gray-300">{f.leaseOwner || '-'}</td>
+                  <td className="px-3 py-2 text-gray-700 dark:text-gray-300 max-w-xs truncate" title={f.lastError || ''}>{f.lastError || '-'}</td>
+                  <td className="px-3 py-2 font-mono text-gray-600 dark:text-gray-400 max-w-xs truncate" title={f.correlationId || ''}>{f.correlationId || '-'}</td>
+                  <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-200">{f.attempts}/{f.maxAttempts}</td>
+                  <td className="px-3 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{f.nextRetryAt ? adminDate(f.nextRetryAt) : '-'}</td>
+                  <td className="px-3 py-2 text-gray-700 dark:text-gray-300">{f.recommendedAction || '-'}</td>
                   <td className="px-3 py-2 text-right">
                     {canOperate && (f.state === 'failed' || f.state === 'dead_letter') && (
                       <button type="button" onClick={() => setConfirmRetry(f.jobId)}
@@ -353,12 +353,12 @@ function RunDetail({ runId, t, canOperate, onChanged }) {
       {canOperate && (
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" disabled={reconciling} onClick={() => setConfirmReconcile(true)}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-xs text-gray-200 hover:bg-gray-700 disabled:opacity-50">
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50">
             <ShieldCheck size={13} />
             {reconciling ? t('statementOps.reconciling') : t('statementOps.reconcileArtifacts')}
           </button>
           {reconcileResult && (
-            <span className="text-xs text-gray-300">
+            <span className="text-xs text-gray-700 dark:text-gray-300">
               {t('statementOps.reconcileSummary', {
                 checked: reconcileResult.checked, missing: reconcileResult.missing, corrupt: reconcileResult.corrupt,
               })}
@@ -409,13 +409,13 @@ function FailureRow({ f, t, canOperate, onRetry }) {
   const when = f.type === 'generation' ? f.nextRetryAt : f.createdAt;
   const retryable = canOperate && f.type === 'generation' && (f.state === 'failed' || f.state === 'dead_letter');
   return (
-    <tr className="border-t border-gray-800 hover:bg-gray-900/50">
+    <tr className="border-t border-gray-200 dark:border-gray-800 hover:bg-white/50 dark:hover:bg-gray-900/50">
       <td className="px-4 py-3 font-mono text-orange-300" title={ref}>{shortId(ref)}</td>
-      <td className="px-4 py-3 text-gray-300">{t(`statementOps.failureType_${f.type}`, { defaultValue: f.type })}</td>
-      <td className="px-4 py-3 text-gray-300 max-w-xs truncate" title={detail || ''}>{detail || '-'}</td>
+      <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{t(`statementOps.failureType_${f.type}`, { defaultValue: f.type })}</td>
+      <td className="px-4 py-3 text-gray-700 dark:text-gray-300 max-w-xs truncate" title={detail || ''}>{detail || '-'}</td>
       <td className="px-4 py-3">{state ? <StatePill value={state} t={t} /> : <span className="text-gray-500">-</span>}</td>
-      <td className="px-4 py-3 text-right text-gray-200">{attempts}</td>
-      <td className="px-4 py-3 text-gray-300 whitespace-nowrap">{when ? adminDate(when) : '-'}</td>
+      <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{attempts}</td>
+      <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">{when ? adminDate(when) : '-'}</td>
       <td className="px-4 py-3 text-right">
         {retryable && (
           <button type="button" onClick={() => onRetry(f.jobId)}
@@ -465,44 +465,44 @@ function FailuresTab({ t, canOperate, onLoaded }) {
   return (
     <div>
       <div className="mb-4 flex flex-wrap gap-3">
-        <label className="flex items-center gap-2 text-sm text-gray-300">
+        <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
           {t('statementOps.filterType')}
           <select value={filters.type} onChange={(e) => { setPage(1); setFilters({ ...filters, type: e.target.value }); }}
-            className="rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-gray-200">
+            className="rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-2 py-1.5 text-sm text-gray-700 dark:text-gray-200">
             <option value="">{t('statementOps.all')}</option>
             {['generation', 'storage', 'reconciliation', 'notification'].map((v) => (
               <option key={v} value={v}>{t(`statementOps.failureType_${v}`)}</option>
             ))}
           </select>
         </label>
-        <label className="flex items-center gap-2 text-sm text-gray-300">
+        <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
           {t('statementOps.filterProduct')}
           <select value={filters.product} onChange={(e) => { setPage(1); setFilters({ ...filters, product: e.target.value }); }}
-            className="rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-gray-200">
+            className="rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-2 py-1.5 text-sm text-gray-700 dark:text-gray-200">
             <option value="">{t('statementOps.all')}</option>
             <option value="oxsteed">oxsteed</option>
             <option value="restaurant">restaurant</option>
           </select>
         </label>
-        <label className="flex items-center gap-2 text-sm text-gray-300">
+        <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
           {t('statementOps.filterCurrency')}
           <input value={filters.currency} maxLength={3}
             onChange={(e) => { setPage(1); setFilters({ ...filters, currency: e.target.value.toUpperCase() }); }}
             placeholder="USD"
-            className="w-20 rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-gray-200" />
+            className="w-20 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-2 py-1.5 text-sm text-gray-700 dark:text-gray-200" />
         </label>
       </div>
 
       <ErrorNote message={error} />
       {loading ? (
-        <p className="text-gray-400 text-sm">{t('statementOps.loading')}</p>
+        <p className="text-gray-600 dark:text-gray-400 text-sm">{t('statementOps.loading')}</p>
       ) : items.length === 0 ? (
-        <p className="text-gray-400 text-sm">{t('statementOps.failuresEmpty')}</p>
+        <p className="text-gray-600 dark:text-gray-400 text-sm">{t('statementOps.failuresEmpty')}</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-800">
+        <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="bg-gray-900 text-left text-gray-400">
+              <tr className="bg-white dark:bg-gray-900 text-left text-gray-600 dark:text-gray-400">
                 <th className="px-4 py-3 font-medium">{t('statementOps.colReference')}</th>
                 <th className="px-4 py-3 font-medium">{t('statementOps.colType')}</th>
                 <th className="px-4 py-3 font-medium">{t('statementOps.colDetail')}</th>
@@ -580,7 +580,7 @@ function AmendmentsTab({ t, canDecide, onLoaded }) {
         {['proposed', 'approved', 'rejected', ''].map((s) => (
           <button key={s || 'all'} type="button"
             onClick={() => { setPage(1); setStatus(s); }}
-            className={`rounded-lg px-3 py-1.5 text-xs border ${status === s ? 'border-orange-500/50 bg-orange-500/10 text-orange-300' : 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700'}`}>
+            className={`rounded-lg px-3 py-1.5 text-xs border ${status === s ? 'border-orange-500/50 bg-orange-500/10 text-orange-300' : 'border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
             {s === '' ? t('statementOps.all') : t(`statementOps.amendmentStatus_${s}`, { defaultValue: s })}
           </button>
         ))}
@@ -588,14 +588,14 @@ function AmendmentsTab({ t, canDecide, onLoaded }) {
 
       <ErrorNote message={error} />
       {loading ? (
-        <p className="text-gray-400 text-sm">{t('statementOps.loading')}</p>
+        <p className="text-gray-600 dark:text-gray-400 text-sm">{t('statementOps.loading')}</p>
       ) : items.length === 0 ? (
-        <p className="text-gray-400 text-sm">{t('statementOps.amendmentsEmpty')}</p>
+        <p className="text-gray-600 dark:text-gray-400 text-sm">{t('statementOps.amendmentsEmpty')}</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-800">
+        <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="bg-gray-900 text-left text-gray-400">
+              <tr className="bg-white dark:bg-gray-900 text-left text-gray-600 dark:text-gray-400">
                 <th className="px-4 py-3 font-medium">{t('statementOps.colProposal')}</th>
                 <th className="px-4 py-3 font-medium">{t('statementOps.colDocument')}</th>
                 <th className="px-4 py-3 font-medium">{t('statementOps.colReason')}</th>
@@ -607,12 +607,12 @@ function AmendmentsTab({ t, canDecide, onLoaded }) {
             </thead>
             <tbody>
               {items.map((p) => (
-                <tr key={p.id} className="border-t border-gray-800 hover:bg-gray-900/50">
+                <tr key={p.id} className="border-t border-gray-200 dark:border-gray-800 hover:bg-white/50 dark:hover:bg-gray-900/50">
                   <td className="px-4 py-3 font-mono text-orange-300" title={p.id}>{shortId(p.id)}</td>
-                  <td className="px-4 py-3 font-mono text-gray-400 max-w-xs truncate" title={p.issuanceKey}>{p.issuanceKey}</td>
-                  <td className="px-4 py-3 text-gray-300 max-w-xs truncate" title={p.reason}>{p.reason}</td>
-                  <td className="px-4 py-3 font-mono text-gray-400" title={p.proposedBy}>{shortId(p.proposedBy)}</td>
-                  <td className="px-4 py-3 text-gray-300 whitespace-nowrap">{p.proposedAt ? adminDate(p.proposedAt) : '-'}</td>
+                  <td className="px-4 py-3 font-mono text-gray-600 dark:text-gray-400 max-w-xs truncate" title={p.issuanceKey}>{p.issuanceKey}</td>
+                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300 max-w-xs truncate" title={p.reason}>{p.reason}</td>
+                  <td className="px-4 py-3 font-mono text-gray-600 dark:text-gray-400" title={p.proposedBy}>{shortId(p.proposedBy)}</td>
+                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">{p.proposedAt ? adminDate(p.proposedAt) : '-'}</td>
                   <td className="px-4 py-3"><StatePill value={p.status} t={t} /></td>
                   <td className="px-4 py-3 text-right whitespace-nowrap">
                     {canDecide && p.status === 'proposed' && (
@@ -683,25 +683,25 @@ function AuditTab({ t, onLoaded }) {
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-2 text-sm text-gray-300">
+        <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
           {t('statementOps.filterAction')}
           <input value={actionFilter} onChange={(e) => { setPage(1); setActionFilter(e.target.value); }}
             placeholder={t('statementOps.filterActionPlaceholder')}
-            className="rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-gray-200" />
+            className="rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-2 py-1.5 text-sm text-gray-700 dark:text-gray-200" />
         </label>
         <span className="text-xs text-gray-500">{t('statementOps.auditImmutableNote')}</span>
       </div>
 
       <ErrorNote message={error} />
       {loading ? (
-        <p className="text-gray-400 text-sm">{t('statementOps.loading')}</p>
+        <p className="text-gray-600 dark:text-gray-400 text-sm">{t('statementOps.loading')}</p>
       ) : items.length === 0 ? (
-        <p className="text-gray-400 text-sm">{t('statementOps.auditEmpty')}</p>
+        <p className="text-gray-600 dark:text-gray-400 text-sm">{t('statementOps.auditEmpty')}</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-800">
+        <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="bg-gray-900 text-left text-gray-400">
+              <tr className="bg-white dark:bg-gray-900 text-left text-gray-600 dark:text-gray-400">
                 <th className="px-4 py-3 font-medium">{t('statementOps.colTime')}</th>
                 <th className="px-4 py-3 font-medium">{t('statementOps.colActor')}</th>
                 <th className="px-4 py-3 font-medium">{t('statementOps.colAction')}</th>
@@ -713,18 +713,18 @@ function AuditTab({ t, onLoaded }) {
             </thead>
             <tbody>
               {items.map((e) => (
-                <tr key={e.eventId} className="border-t border-gray-800 hover:bg-gray-900/50">
-                  <td className="px-4 py-3 text-gray-300 whitespace-nowrap">{e.occurredAt ? adminDate(e.occurredAt) : '-'}</td>
-                  <td className="px-4 py-3 text-gray-300 max-w-xs truncate" title={e.actorEmail || e.actorId || ''}>
+                <tr key={e.eventId} className="border-t border-gray-200 dark:border-gray-800 hover:bg-white/50 dark:hover:bg-gray-900/50">
+                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">{e.occurredAt ? adminDate(e.occurredAt) : '-'}</td>
+                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300 max-w-xs truncate" title={e.actorEmail || e.actorId || ''}>
                     {e.actorName || (e.actorId ? shortId(e.actorId) : '-')}
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs text-gray-200">{e.action}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-gray-400 max-w-xs truncate" title={e.targetKey || e.targetId || ''}>
+                  <td className="px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-200">{e.action}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-gray-600 dark:text-gray-400 max-w-xs truncate" title={e.targetKey || e.targetId || ''}>
                     {e.targetKey || (e.targetId ? shortId(String(e.targetId)) : '-')}
                   </td>
-                  <td className="px-4 py-3 text-gray-300">{e.outcome || '-'}</td>
-                  <td className="px-4 py-3 text-gray-300 max-w-xs truncate" title={e.reason || ''}>{e.reason || '-'}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-gray-400 max-w-xs truncate" title={e.correlationId || ''}>
+                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{e.outcome || '-'}</td>
+                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300 max-w-xs truncate" title={e.reason || ''}>{e.reason || '-'}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-gray-600 dark:text-gray-400 max-w-xs truncate" title={e.correlationId || ''}>
                     {e.correlationId ? shortId(e.correlationId) : '-'}
                   </td>
                 </tr>
@@ -772,7 +772,7 @@ function AlertsTab({ t, onLoaded }) {
         </p>
       )}
       {loading ? (
-        <p className="text-gray-400 text-sm">{t('statementOps.loading')}</p>
+        <p className="text-gray-600 dark:text-gray-400 text-sm">{t('statementOps.loading')}</p>
       ) : alerts.length === 0 ? (
         <div className="rounded-xl border border-green-600/30 bg-green-600/10 px-4 py-6 text-center">
           <CheckCircle2 size={22} className="mx-auto mb-2 text-green-400" />
@@ -781,7 +781,7 @@ function AlertsTab({ t, onLoaded }) {
       ) : (
         <div className="space-y-3">
           {alerts.map((a, i) => (
-            <div key={`${a.code}-${i}`} className="rounded-xl border border-gray-800 bg-gray-900/40 px-4 py-3">
+            <div key={`${a.code}-${i}`} className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/40 dark:bg-gray-900/40 px-4 py-3">
               <div className="flex flex-wrap items-center gap-2 mb-1">
                 <span className={sevClass[a.severity] || 'stmtops-pill stmtops-pill-gray'}>
                   {t(`statementOps.severity_${a.severity}`, { defaultValue: a.severity })}
@@ -789,7 +789,7 @@ function AlertsTab({ t, onLoaded }) {
                 <span className="font-mono text-xs text-gray-500">{a.code}</span>
                 <span className="text-sm font-semibold text-gray-100">{a.title}</span>
               </div>
-              <p className="text-sm text-gray-300">{a.detail}</p>
+              <p className="text-sm text-gray-700 dark:text-gray-300">{a.detail}</p>
               {a.recommendedAction && (
                 <p className="mt-1 text-xs text-gray-500">
                   <FileWarning size={11} className="mr-1 inline" />

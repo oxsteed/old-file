@@ -310,25 +310,25 @@ export default function AdminLogin() {
 
   if (!gateReady || authLoading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-4">
         <div className="animate-spin w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-orange-500">OxSteed</h1>
-          <p className="text-gray-400 mt-2">{t('adminLogin.portalTitle')}</p>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">{t('adminLogin.portalTitle')}</p>
         </div>
 
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8">
-          <h2 className="text-xl font-semibold text-white mb-2">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-8">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
             {requires2FA ? t('adminLogin.twoFactor') : t('adminLogin.signIn')}
           </h2>
-          <p className="text-sm text-gray-400 mb-6">
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
             {gateEnforced ? t('adminLogin.gateEnforcedDesc') : t('adminLogin.gateOpenDesc')}
           </p>
 
@@ -340,16 +340,16 @@ export default function AdminLogin() {
 
           {requires2FA ? (
             <form onSubmit={handle2FASubmit} className="space-y-4">
-              <p className="text-sm text-gray-400 mb-2">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                 {t('adminLogin.twoFactorHelp')}
               </p>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">{t('adminLogin.twoFactorLabel')}</label>
+                <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">{t('adminLogin.twoFactorLabel')}</label>
                 <input
                   type="text"
                   value={twoFACode}
                   onChange={(e) => setTwoFACode(e.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition text-center tracking-widest text-lg"
+                  className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition text-center tracking-widest text-lg"
                   placeholder="000000"
                   maxLength={20}
                   autoComplete="one-time-code"
@@ -377,7 +377,7 @@ export default function AdminLogin() {
               <button
                 type="button"
                 onClick={() => { setRequires2FA(false); setTwoFACode(''); setMfaToken(null); setError(''); }}
-                className="w-full text-gray-400 hover:text-white text-sm py-2 transition"
+                className="w-full text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-sm py-2 transition"
               >
                 {t('adminLogin.backToLogin')}
               </button>
@@ -385,12 +385,12 @@ export default function AdminLogin() {
           ) : gateEnforced && !approvedIdentity ? (
             <form onSubmit={handleInternalAccessSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">{t('adminLogin.internalNameLabel')}</label>
+                <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">{t('adminLogin.internalNameLabel')}</label>
                 <input
                   type="text"
                   value={internalName}
                   onChange={(e) => setInternalName(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition"
+                  className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition"
                   placeholder={t('adminLogin.internalNamePlaceholder')}
                   autoComplete="username"
                   disabled={loading || isLocked}
@@ -398,12 +398,12 @@ export default function AdminLogin() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">{t('adminLogin.securityKeyLabel')}</label>
+                <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">{t('adminLogin.securityKeyLabel')}</label>
                 <input
                   type="password"
                   value={securityKey}
                   onChange={(e) => setSecurityKey(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition"
+                  className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition"
                   placeholder={t('adminLogin.securityKeyPlaceholder')}
                   autoComplete="one-time-code"
                   disabled={loading || isLocked}
@@ -430,21 +430,21 @@ export default function AdminLogin() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               {gateEnforced ? (
-                <div className="bg-gray-800/60 border border-gray-700 rounded-lg px-4 py-3">
+                <div className="bg-gray-100/60 dark:bg-gray-800/60 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3">
                   <div className="text-xs uppercase tracking-wide text-gray-500 mb-1">{t('adminLogin.approvedAccount')}</div>
-                  <div className="text-white font-medium">{approvedIdentity?.email_masked || approvedIdentity?.email}</div>
-                  <div className="text-xs text-gray-400 mt-1">
+                  <div className="text-gray-900 dark:text-white font-medium">{approvedIdentity?.email_masked || approvedIdentity?.email}</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                     {t('adminLogin.linkedAccountNote', { name: approvedIdentity?.internal_name })}
                   </div>
                 </div>
               ) : (
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">{t('adminLogin.emailLabel')}</label>
+                  <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">{t('adminLogin.emailLabel')}</label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition"
+                    className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition"
                     placeholder="admin@oxsteed.com"
                     autoComplete="email"
                     disabled={loading || isLocked}
@@ -453,12 +453,12 @@ export default function AdminLogin() {
                 </div>
               )}
               <div>
-                <label className="block text-sm text-gray-400 mb-1">{t('adminLogin.passwordLabel')}</label>
+                <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">{t('adminLogin.passwordLabel')}</label>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition"
+                  className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition"
                   placeholder={t('adminLogin.passwordPlaceholder')}
                   autoComplete="current-password"
                   disabled={loading || isLocked}
@@ -476,7 +476,7 @@ export default function AdminLogin() {
                 <button
                   type="button"
                   onClick={resetToFirstStep}
-                  className="w-full text-gray-400 hover:text-white text-sm py-2 transition"
+                  className="w-full text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-sm py-2 transition"
                 >
                   {t('adminLogin.useDifferentIdentity')}
                 </button>

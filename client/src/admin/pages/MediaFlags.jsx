@@ -362,7 +362,7 @@ export default function MediaFlagsPage() {
           message={
             <>
               <p>@{reviewDialog.flag.actor_handle}: {reviewDialog.flag.post_body?.slice(0, 140)}{reviewDialog.flag.post_body?.length > 140 ? '…' : ''}</p>
-              <p className="mt-1 text-gray-400">Reason reported: {reviewDialog.flag.reason}</p>
+              <p className="mt-1 text-gray-600 dark:text-gray-400">Reason reported: {reviewDialog.flag.reason}</p>
             </>
           }
           confirmLabel={REVIEW_DIALOG_CONFIG[reviewDialog.action].confirm}
@@ -385,17 +385,17 @@ export default function MediaFlagsPage() {
           onClick={() => { if (!restorePending) setRestoreDialog(null); }}
         >
           <div
-            className="w-full max-w-md rounded-lg bg-gray-900 border border-gray-700 p-6 shadow-xl"
+            className="w-full max-w-md rounded-lg bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-lg font-semibold text-white">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               {restoreDialog.flag.status === 'dmca' ? 'Restore DMCA-taken-down post' : 'Restore removed post'}
             </h2>
-            <p className="mt-2 text-sm text-gray-300">
+            <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
               @{restoreDialog.flag.actor_handle}: {restoreDialog.flag.post_body?.slice(0, 140)}{restoreDialog.flag.post_body?.length > 140 ? '…' : ''}
             </p>
             <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Restore reason <span className="text-red-400">*</span>
               </label>
               <textarea
@@ -403,12 +403,12 @@ export default function MediaFlagsPage() {
                 onChange={(e) => setRestoreReason(e.target.value)}
                 rows={3}
                 placeholder="Why is this post being restored?"
-                className="w-full rounded-md bg-gray-800 border border-gray-700 text-white text-sm p-2 focus:outline-none focus:border-blue-500"
+                className="w-full rounded-md bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white text-sm p-2 focus:outline-none focus:border-blue-500"
               />
             </div>
             {restoreDialog.flag.status === 'dmca' && (
               <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   DMCA counter-notice reference <span className="text-red-400">*</span>
                 </label>
                 <input
@@ -416,9 +416,9 @@ export default function MediaFlagsPage() {
                   value={restoreCounterNotice}
                   onChange={(e) => setRestoreCounterNotice(e.target.value)}
                   placeholder="Reference to the counter-notice or release authorization"
-                  className="w-full rounded-md bg-gray-800 border border-gray-700 text-white text-sm p-2 focus:outline-none focus:border-blue-500"
+                  className="w-full rounded-md bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white text-sm p-2 focus:outline-none focus:border-blue-500"
                 />
-                <p className="mt-1 text-xs text-gray-400">
+                <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
                   Lifting a DMCA takedown requires a recorded counter-notice. This is stored in the audit log.
                 </p>
               </div>
@@ -431,7 +431,7 @@ export default function MediaFlagsPage() {
                 type="button"
                 onClick={() => setRestoreDialog(null)}
                 disabled={restorePending}
-                className="px-4 py-2 rounded-md text-sm font-medium text-gray-300 bg-gray-800 border border-gray-700 hover:bg-gray-700 disabled:opacity-50"
+                className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
               >
                 Cancel
               </button>

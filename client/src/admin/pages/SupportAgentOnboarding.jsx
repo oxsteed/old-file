@@ -60,7 +60,7 @@ function StepPill({ stepNumber, title, active, complete, onClick }) {
           ? 'border-orange-500/40 bg-orange-500/10 text-white'
           : complete
             ? 'border-green-500/25 bg-green-500/10 text-green-200'
-            : 'border-gray-800 bg-gray-900/70 text-gray-400'
+            : 'border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 text-gray-600 dark:text-gray-400'
       }`}
     >
       <div className="text-xs uppercase tracking-[0.18em]">{complete ? t('adminSupportOnboarding.stepDone') : t('adminSupportOnboarding.stepLabel', { stepNumber })}</div>
@@ -230,13 +230,13 @@ export default function SupportAgentOnboarding() {
           title={t('adminSupportOnboarding.businessScopeTitle')}
           subtitle={t('adminSupportOnboarding.businessScopeSubtitle')}
         >
-          <label className="mb-2 block text-sm font-medium text-gray-300">{t('adminSupportOnboarding.businessIdLabel')}</label>
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{t('adminSupportOnboarding.businessIdLabel')}</label>
           <input
             type="text"
             value={businessIdManual}
             onChange={(event) => setBusinessIdManual(event.target.value)}
             placeholder={t('adminSupportOnboarding.businessIdPlaceholder')}
-            className="w-full rounded-2xl border border-gray-700 bg-gray-900 px-4 py-3 font-mono text-sm text-white focus:border-orange-500 focus:outline-none"
+            className="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 font-mono text-sm text-gray-900 dark:text-white focus:border-orange-500 focus:outline-none"
           />
           <div className="mt-2 text-xs leading-6 text-gray-500">
             {t('adminSupportOnboarding.businessIdHint')}
@@ -274,49 +274,49 @@ export default function SupportAgentOnboarding() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-[24px] border border-gray-800 bg-gray-900/70 p-6">
+          <div className="rounded-[24px] border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 p-6">
             {step === 1 && (
               <div className="space-y-6">
                 <div>
-                  <div className="text-xl font-semibold text-white">{t('adminSupportOnboarding.sectionBasicInfo')}</div>
+                  <div className="text-xl font-semibold text-gray-900 dark:text-white">{t('adminSupportOnboarding.sectionBasicInfo')}</div>
                   <div className="mt-2 text-sm text-gray-500">{t('adminSupportOnboarding.sectionBasicInfoDesc')}</div>
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
-                    <label className="mb-2 block text-sm text-gray-400">{t('adminSupportOnboarding.firstName')}</label>
+                    <label className="mb-2 block text-sm text-gray-600 dark:text-gray-400">{t('adminSupportOnboarding.firstName')}</label>
                     <input
                       type="text"
                       value={formData.first_name}
                       onChange={(event) => setFormData({ ...formData, first_name: event.target.value })}
-                      className="w-full rounded-2xl border border-gray-700 bg-gray-950 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
+                      className="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-4 py-3 text-gray-900 dark:text-white focus:border-orange-500 focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="mb-2 block text-sm text-gray-400">{t('adminSupportOnboarding.lastName')}</label>
+                    <label className="mb-2 block text-sm text-gray-600 dark:text-gray-400">{t('adminSupportOnboarding.lastName')}</label>
                     <input
                       type="text"
                       value={formData.last_name}
                       onChange={(event) => setFormData({ ...formData, last_name: event.target.value })}
-                      className="w-full rounded-2xl border border-gray-700 bg-gray-950 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
+                      className="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-4 py-3 text-gray-900 dark:text-white focus:border-orange-500 focus:outline-none"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm text-gray-400">{t('adminSupportOnboarding.email')}</label>
+                  <label className="mb-2 block text-sm text-gray-600 dark:text-gray-400">{t('adminSupportOnboarding.email')}</label>
                   <input
                     type="email"
                     value={formData.email}
                     onChange={(event) => setFormData({ ...formData, email: event.target.value })}
-                    className="w-full rounded-2xl border border-gray-700 bg-gray-950 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
+                    className="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-4 py-3 text-gray-900 dark:text-white focus:border-orange-500 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm text-gray-400">{t('adminSupportOnboarding.phone')}</label>
+                  <label className="mb-2 block text-sm text-gray-600 dark:text-gray-400">{t('adminSupportOnboarding.phone')}</label>
                   <input
                     type="tel"
                     value={formData.phone}
                     onChange={(event) => setFormData({ ...formData, phone: event.target.value })}
-                    className="w-full rounded-2xl border border-gray-700 bg-gray-950 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
+                    className="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-4 py-3 text-gray-900 dark:text-white focus:border-orange-500 focus:outline-none"
                   />
                 </div>
                 <SupportActionButton icon={ChevronRight} tone="primary" onClick={() => setStep(2)}>
@@ -328,15 +328,15 @@ export default function SupportAgentOnboarding() {
             {step === 2 && (
               <div className="space-y-6">
                 <div>
-                  <div className="text-xl font-semibold text-white">{t('adminSupportOnboarding.sectionAvailability')}</div>
+                  <div className="text-xl font-semibold text-gray-900 dark:text-white">{t('adminSupportOnboarding.sectionAvailability')}</div>
                   <div className="mt-2 text-sm text-gray-500">{t('adminSupportOnboarding.sectionAvailabilityDesc')}</div>
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm text-gray-400">{t('adminSupportOnboarding.timezoneLabel')}</label>
+                  <label className="mb-2 block text-sm text-gray-600 dark:text-gray-400">{t('adminSupportOnboarding.timezoneLabel')}</label>
                   <select
                     value={formData.timezone}
                     onChange={(event) => setFormData({ ...formData, timezone: event.target.value })}
-                    className="w-full rounded-2xl border border-gray-700 bg-gray-950 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
+                    className="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-4 py-3 text-gray-900 dark:text-white focus:border-orange-500 focus:outline-none"
                   >
                     <option value="UTC">UTC</option>
                     <option value="EST">{t('adminSupportOnboarding.timezoneEastern')}</option>
@@ -346,21 +346,21 @@ export default function SupportAgentOnboarding() {
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
-                    <label className="mb-2 block text-sm text-gray-400">{t('adminSupportOnboarding.availabilityStart')}</label>
+                    <label className="mb-2 block text-sm text-gray-600 dark:text-gray-400">{t('adminSupportOnboarding.availabilityStart')}</label>
                     <input
                       type="time"
                       value={formData.availability_start}
                       onChange={(event) => setFormData({ ...formData, availability_start: event.target.value })}
-                      className="w-full rounded-2xl border border-gray-700 bg-gray-950 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
+                      className="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-4 py-3 text-gray-900 dark:text-white focus:border-orange-500 focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="mb-2 block text-sm text-gray-400">{t('adminSupportOnboarding.availabilityEnd')}</label>
+                    <label className="mb-2 block text-sm text-gray-600 dark:text-gray-400">{t('adminSupportOnboarding.availabilityEnd')}</label>
                     <input
                       type="time"
                       value={formData.availability_end}
                       onChange={(event) => setFormData({ ...formData, availability_end: event.target.value })}
-                      className="w-full rounded-2xl border border-gray-700 bg-gray-950 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
+                      className="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-4 py-3 text-gray-900 dark:text-white focus:border-orange-500 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -376,11 +376,11 @@ export default function SupportAgentOnboarding() {
             {step === 3 && (
               <div className="space-y-6">
                 <div>
-                  <div className="text-xl font-semibold text-white">{t('adminSupportOnboarding.sectionSkills')}</div>
+                  <div className="text-xl font-semibold text-gray-900 dark:text-white">{t('adminSupportOnboarding.sectionSkills')}</div>
                   <div className="mt-2 text-sm text-gray-500">{t('adminSupportOnboarding.sectionSkillsDesc')}</div>
                 </div>
                 <div>
-                  <div className="mb-3 text-sm text-gray-400">{t('adminSupportOnboarding.supportSkillsLabel')}</div>
+                  <div className="mb-3 text-sm text-gray-600 dark:text-gray-400">{t('adminSupportOnboarding.supportSkillsLabel')}</div>
                   <div className="flex flex-wrap gap-2">
                     {skills.map((skill) => (
                       <button
@@ -389,7 +389,7 @@ export default function SupportAgentOnboarding() {
                         className={`rounded-full border px-3 py-2 text-sm capitalize transition ${
                           formData.skills.includes(skill)
                             ? 'border-orange-500/30 bg-orange-500/10 text-orange-300'
-                            : 'border-gray-700 bg-gray-950 text-gray-400 hover:border-gray-600'
+                            : 'border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
                         }`}
                       >
                         {t(SKILL_LABEL_KEYS[skill])}
@@ -398,7 +398,7 @@ export default function SupportAgentOnboarding() {
                   </div>
                 </div>
                 <div>
-                  <div className="mb-3 text-sm text-gray-400">{t('adminSupportOnboarding.languagesLabel')}</div>
+                  <div className="mb-3 text-sm text-gray-600 dark:text-gray-400">{t('adminSupportOnboarding.languagesLabel')}</div>
                   <div className="flex flex-wrap gap-2">
                     {languages.map((lang) => (
                       <button
@@ -407,7 +407,7 @@ export default function SupportAgentOnboarding() {
                         className={`rounded-full border px-3 py-2 text-sm transition ${
                           formData.languages.includes(lang)
                             ? 'border-blue-500/30 bg-blue-500/10 text-blue-300'
-                            : 'border-gray-700 bg-gray-950 text-gray-400 hover:border-gray-600'
+                            : 'border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
                         }`}
                       >
                         {t(LANGUAGE_LABEL_KEYS[lang])}
@@ -427,26 +427,26 @@ export default function SupportAgentOnboarding() {
             {step === 4 && (
               <div className="space-y-6">
                 <div>
-                  <div className="text-xl font-semibold text-white">{t('adminSupportOnboarding.sectionReview')}</div>
+                  <div className="text-xl font-semibold text-gray-900 dark:text-white">{t('adminSupportOnboarding.sectionReview')}</div>
                   <div className="mt-2 text-sm text-gray-500">{t('adminSupportOnboarding.sectionReviewDesc')}</div>
                 </div>
-                <div className="rounded-[24px] border border-gray-800 bg-gray-950/70 p-5">
+                <div className="rounded-[24px] border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 p-5">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
                       <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminSupportOnboarding.reviewName')}</div>
-                      <div className="mt-1 text-white">{formData.first_name} {formData.last_name}</div>
+                      <div className="mt-1 text-gray-900 dark:text-white">{formData.first_name} {formData.last_name}</div>
                     </div>
                     <div>
                       <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminSupportOnboarding.reviewEmail')}</div>
-                      <div className="mt-1 text-white">{formData.email}</div>
+                      <div className="mt-1 text-gray-900 dark:text-white">{formData.email}</div>
                     </div>
                     <div>
                       <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminSupportOnboarding.reviewAvailability')}</div>
-                      <div className="mt-1 text-white">{formData.availability_start} - {formData.availability_end}</div>
+                      <div className="mt-1 text-gray-900 dark:text-white">{formData.availability_start} - {formData.availability_end}</div>
                     </div>
                     <div>
                       <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminSupportOnboarding.reviewTimezone')}</div>
-                      <div className="mt-1 text-white">{formData.timezone}</div>
+                      <div className="mt-1 text-gray-900 dark:text-white">{formData.timezone}</div>
                     </div>
                   </div>
                   <div className="mt-5">
@@ -476,18 +476,18 @@ export default function SupportAgentOnboarding() {
             )}
           </div>
 
-          <div className="rounded-[24px] border border-gray-800 bg-gray-900/70 p-6">
-            <div className="text-lg font-semibold text-white">{t('adminSupportOnboarding.snapshotTitle')}</div>
+          <div className="rounded-[24px] border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 p-6">
+            <div className="text-lg font-semibold text-gray-900 dark:text-white">{t('adminSupportOnboarding.snapshotTitle')}</div>
             <div className="mt-2 text-sm leading-6 text-gray-500">
               {t('adminSupportOnboarding.snapshotDesc')}
             </div>
 
             <div className="mt-5 space-y-4">
-              <div className="rounded-2xl border border-gray-800 bg-gray-950/70 p-4">
+              <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 p-4">
                 <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminSupportOnboarding.snapshotBusinessScope')}</div>
-                <div className="mt-2 break-all text-sm text-white">{businessId || t('adminSupportOnboarding.notSetYet')}</div>
+                <div className="mt-2 break-all text-sm text-gray-900 dark:text-white">{businessId || t('adminSupportOnboarding.notSetYet')}</div>
               </div>
-              <div className="rounded-2xl border border-gray-800 bg-gray-950/70 p-4">
+              <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 p-4">
                 <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminSupportOnboarding.selectedSkills')}</div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {formData.skills.length
@@ -495,7 +495,7 @@ export default function SupportAgentOnboarding() {
                     : <span className="text-sm text-gray-500">{t('adminSupportOnboarding.noSkillsSelected')}</span>}
                 </div>
               </div>
-              <div className="rounded-2xl border border-gray-800 bg-gray-950/70 p-4">
+              <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 p-4">
                 <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminSupportOnboarding.selectedLanguages')}</div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {formData.languages.length
@@ -503,7 +503,7 @@ export default function SupportAgentOnboarding() {
                     : <span className="text-sm text-gray-500">{t('adminSupportOnboarding.noLanguagesSelected')}</span>}
                 </div>
               </div>
-              <div className="rounded-2xl border border-gray-800 bg-gray-950/70 p-4">
+              <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 p-4">
                 <div className="flex items-start gap-3">
                   <CheckCircle size={18} className="mt-0.5 text-green-300" />
                   <div className="text-sm leading-6 text-gray-500">

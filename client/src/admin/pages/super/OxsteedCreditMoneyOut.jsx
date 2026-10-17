@@ -15,7 +15,7 @@ function statusClass(status) {
   if (['approved', 'processing'].includes(status)) return 'border-sky-500/30 bg-sky-500/10 text-sky-300';
   if (status === 'requested') return 'border-amber-500/30 bg-amber-500/10 text-amber-300';
   if (['failed', 'rejected', 'requires_attention'].includes(status)) return 'border-red-500/30 bg-red-500/10 text-red-300';
-  return 'border-gray-700 bg-gray-900 text-gray-400';
+  return 'border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400';
 }
 
 function Badge({ status, t }) {
@@ -31,11 +31,11 @@ function dateTime(value, t) {
 }
 
 function SectionShell({ icon: Icon, eyebrow, title, detail, action, children }) {
-  return <section className="rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5">
+  return <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4 sm:p-5">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400"><Icon className="h-3.5 w-3.5" />{eyebrow}</p>
-        <h2 className="mt-1 text-lg font-semibold text-white">{title}</h2>
+        <h2 className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
         {detail && <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-500">{detail}</p>}
       </div>
       {action}
@@ -49,9 +49,9 @@ function StepupPrompt({ t, pending, code, setCode, onConfirm, onCancel, busy }) 
     <p className="text-xs text-amber-200">{t('moneyOut.stepupPrompt', { defaultValue: 'A verification code was emailed to you. Enter it to confirm this money movement.' })}</p>
     <p className="mt-1 font-mono text-[10px] text-gray-500">{t('moneyOut.challengeExpires', { defaultValue: 'Challenge expires' })}: {dateTime(pending.expiresAt, t)}</p>
     <div className="mt-2 flex flex-wrap items-center gap-2">
-      <input value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 12))} inputMode="numeric" placeholder={t('moneyOut.stepupCodePlaceholder', { defaultValue: 'Verification code' })} className="w-44 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 font-mono text-sm text-white outline-none placeholder:text-gray-600 focus:border-amber-400" />
+      <input value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 12))} inputMode="numeric" placeholder={t('moneyOut.stepupCodePlaceholder', { defaultValue: 'Verification code' })} className="w-44 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2 font-mono text-sm text-gray-900 dark:text-white outline-none placeholder:text-gray-600 focus:border-amber-400" />
       <button type="button" onClick={onConfirm} disabled={busy || code.length < 4} className="rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-50">{t('moneyOut.confirmApprove', { defaultValue: 'Confirm approval' })}</button>
-      <button type="button" onClick={onCancel} disabled={busy} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-400 hover:bg-gray-800 disabled:opacity-50">{t('moneyOut.cancel', { defaultValue: 'Cancel' })}</button>
+      <button type="button" onClick={onCancel} disabled={busy} className="rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">{t('moneyOut.cancel', { defaultValue: 'Cancel' })}</button>
     </div>
   </div>;
 }
@@ -242,17 +242,17 @@ export default function OxsteedCreditMoneyOut({ busy = false }) {
       title={t('moneyOut.withdrawalTitle', { defaultValue: 'Withdrawal queue' })}
       detail={t('moneyOut.withdrawalDetail', { defaultValue: 'Customer withdrawals to their connected bank account. Approval locks the amount plus the quoted fee in the journal and initiates the Stripe payout; the withdrawal is marked paid only when Stripe confirms the transfer.' })}
       action={<div className="flex items-center gap-2">
-        <select aria-label={t('moneyOut.statusFilter', { defaultValue: 'Status filter' })} value={withdrawalStatus} onChange={(event) => setWithdrawalStatus(event.target.value)} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400">
+        <select aria-label={t('moneyOut.statusFilter', { defaultValue: 'Status filter' })} value={withdrawalStatus} onChange={(event) => setWithdrawalStatus(event.target.value)} className="rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-200 outline-none focus:border-orange-400">
           <option value="all">{t('moneyOut.allStatuses', { defaultValue: 'All statuses' })}</option>
           {WITHDRAWAL_STATUSES.map((status) => <option key={status} value={status}>{t(`moneyOut.status.${status}`, { defaultValue: status.replace(/_/g, ' ') })}</option>)}
         </select>
-        <button type="button" onClick={loadWithdrawals} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50"><RefreshCw className="h-3.5 w-3.5" />{t('moneyOut.refresh', { defaultValue: 'Refresh' })}</button>
+        <button type="button" onClick={loadWithdrawals} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50"><RefreshCw className="h-3.5 w-3.5" />{t('moneyOut.refresh', { defaultValue: 'Refresh' })}</button>
       </div>}
     >
-      <div className="mt-5 overflow-x-auto rounded-xl border border-gray-800">
+      <div className="mt-5 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
         {loading ? <div className="py-14 text-center text-sm text-gray-500">{t('moneyOut.loading', { defaultValue: 'Loading...' })}</div> : (
           <table className="min-w-[1080px] w-full text-left text-xs">
-            <thead className="bg-gray-950/70 text-gray-500">
+            <thead className="bg-gray-50/70 dark:bg-gray-950/70 text-gray-500">
               <tr>
                 <th className="px-3 py-3 font-medium">{t('moneyOut.customer', { defaultValue: 'Customer' })}</th>
                 <th className="px-3 py-3 font-medium">{t('moneyOut.amount', { defaultValue: 'Amount' })}</th>
@@ -263,12 +263,12 @@ export default function OxsteedCreditMoneyOut({ busy = false }) {
                 <th className="px-3 py-3 font-medium">{t('moneyOut.controls', { defaultValue: 'Controls' })}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-800">
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
               {!withdrawals.length ? <tr><td colSpan="7" className="px-3 py-10 text-center text-gray-500">{t('moneyOut.noWithdrawals', { defaultValue: 'No withdrawals in this state.' })}</td></tr> :
                 withdrawals.map((w) => <tr key={w.id}>
-                  <td className="px-3 py-3 text-gray-300">{w.customerEmail || <span className="font-mono text-[10px] text-gray-500">{String(w.customerId).slice(0, 8)}</span>}<p className="mt-1 font-mono text-[10px] text-gray-700">{w.id}</p></td>
-                  <td className="px-3 py-3 font-semibold text-white">{money(w.amountCents, w.currencyCode)}</td>
-                  <td className="px-3 py-3 text-gray-400">{money(w.feeCents, w.currencyCode)}</td>
+                  <td className="px-3 py-3 text-gray-700 dark:text-gray-300">{w.customerEmail || <span className="font-mono text-[10px] text-gray-500">{String(w.customerId).slice(0, 8)}</span>}<p className="mt-1 font-mono text-[10px] text-gray-700">{w.id}</p></td>
+                  <td className="px-3 py-3 font-semibold text-gray-900 dark:text-white">{money(w.amountCents, w.currencyCode)}</td>
+                  <td className="px-3 py-3 text-gray-600 dark:text-gray-400">{money(w.feeCents, w.currencyCode)}</td>
                   <td className="px-3 py-3 font-semibold text-emerald-300">{money(w.netAmountCents, w.currencyCode)}</td>
                   <td className="px-3 py-3"><Badge status={w.status} t={t} />{w.statusReasonCode && <p className="mt-1 font-mono text-[10px] text-gray-600">{w.statusReasonCode}</p>}</td>
                   <td className="px-3 py-3 text-gray-500">{dateTime(w.createdAt, t)}</td>
@@ -287,9 +287,9 @@ export default function OxsteedCreditMoneyOut({ busy = false }) {
       {rejectTarget && <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/5 p-3">
         <p className="text-xs text-red-200">{t('moneyOut.rejectPrompt', { defaultValue: 'Reject this withdrawal? The customer keeps their full balance; nothing moves.' })}</p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <input value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder={t('moneyOut.rejectReasonPlaceholder', { defaultValue: 'Reason (shown in the audit log)' })} className="w-72 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none placeholder:text-gray-600 focus:border-red-400" />
+          <input value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder={t('moneyOut.rejectReasonPlaceholder', { defaultValue: 'Reason (shown in the audit log)' })} className="w-72 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2 text-sm text-gray-900 dark:text-white outline-none placeholder:text-gray-600 focus:border-red-400" />
           <button type="button" onClick={rejectWithdrawal} disabled={busy || saving} className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-500 disabled:opacity-50">{t('moneyOut.confirmReject', { defaultValue: 'Confirm rejection' })}</button>
-          <button type="button" onClick={() => { setRejectTarget(null); setRejectReason(''); }} disabled={busy || saving} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-400 hover:bg-gray-800 disabled:opacity-50">{t('moneyOut.cancel', { defaultValue: 'Cancel' })}</button>
+          <button type="button" onClick={() => { setRejectTarget(null); setRejectReason(''); }} disabled={busy || saving} className="rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">{t('moneyOut.cancel', { defaultValue: 'Cancel' })}</button>
         </div>
       </div>}
     </SectionShell>
@@ -300,9 +300,9 @@ export default function OxsteedCreditMoneyOut({ busy = false }) {
       title={t('moneyOut.feeTitle', { defaultValue: 'Money-out fees' })}
       detail={t('moneyOut.feeDetail', { defaultValue: 'Fee = fixed + amount x bps / 10000, clamped between min and max. The fee quoted to the customer at request time is stored and the posted fee leg must match it exactly. Deploy-time environment overrides take precedence over these rows when set.' })}
     >
-      <div className="mt-5 overflow-x-auto rounded-xl border border-gray-800">
+      <div className="mt-5 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
         <table className="min-w-[860px] w-full text-left text-xs">
-          <thead className="bg-gray-950/70 text-gray-500">
+          <thead className="bg-gray-50/70 dark:bg-gray-950/70 text-gray-500">
             <tr>
               <th className="px-3 py-3 font-medium">{t('moneyOut.operation', { defaultValue: 'Operation' })}</th>
               <th className="px-3 py-3 font-medium">{t('moneyOut.currency', { defaultValue: 'Currency' })}</th>
@@ -313,16 +313,16 @@ export default function OxsteedCreditMoneyOut({ busy = false }) {
               <th className="px-3 py-3 font-medium">{t('moneyOut.controls', { defaultValue: 'Controls' })}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-800">
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
             {!feeRows.length ? <tr><td colSpan="7" className="px-3 py-10 text-center text-gray-500">{t('moneyOut.noFees', { defaultValue: 'No fee rows configured.' })}</td></tr> :
               feeRows.map((row) => {
                 const draft = feeDrafts[row.id] || {};
                 const setDraft = (field, value) => setFeeDrafts((prev) => ({ ...prev, [row.id]: { ...prev[row.id], [field]: value } }));
                 return <tr key={row.id}>
-                  <td className="px-3 py-3 font-semibold text-white">{t(`moneyOut.operation.${row.operation_type}`, { defaultValue: row.operation_type })}</td>
+                  <td className="px-3 py-3 font-semibold text-gray-900 dark:text-white">{t(`moneyOut.operation.${row.operation_type}`, { defaultValue: row.operation_type })}</td>
                   <td className="px-3 py-3 text-sky-300">{row.currency_code}</td>
                   {[['fixedCents', draft.fixedCents], ['percentageBps', draft.percentageBps], ['minFeeCents', draft.minFeeCents], ['maxFeeCents', draft.maxFeeCents]].map(([field, value]) => (
-                    <td key={field} className="px-3 py-3"><input value={value ?? ''} onChange={(event) => setDraft(field, event.target.value.replace(/[^0-9]/g, ''))} inputMode="numeric" className="w-24 rounded-lg border border-gray-700 bg-gray-950 px-2 py-1.5 font-mono text-xs text-white outline-none focus:border-orange-400" /></td>
+                    <td key={field} className="px-3 py-3"><input value={value ?? ''} onChange={(event) => setDraft(field, event.target.value.replace(/[^0-9]/g, ''))} inputMode="numeric" className="w-24 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-2 py-1.5 font-mono text-xs text-gray-900 dark:text-white outline-none focus:border-orange-400" /></td>
                   ))}
                   <td className="px-3 py-3"><button disabled={busy || saving} onClick={() => saveFeeRow(row)} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{t('moneyOut.save', { defaultValue: 'Save' })}</button></td>
                 </tr>;
@@ -337,11 +337,11 @@ export default function OxsteedCreditMoneyOut({ busy = false }) {
       eyebrow={t('moneyOut.conversionEyebrow', { defaultValue: 'Conversions' })}
       title={t('moneyOut.conversionTitle', { defaultValue: 'Restaurant credit conversions' })}
       detail={t('moneyOut.conversionDetail', { defaultValue: 'Conversions between OxSteed Credit and restaurant food-wallet credit. Both directions post atomically; the rate residual is an explicit fee leg, never silent value loss.' })}
-      action={<button type="button" onClick={loadConversions} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50"><RefreshCw className="h-3.5 w-3.5" />{t('moneyOut.refresh', { defaultValue: 'Refresh' })}</button>}
+      action={<button type="button" onClick={loadConversions} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50"><RefreshCw className="h-3.5 w-3.5" />{t('moneyOut.refresh', { defaultValue: 'Refresh' })}</button>}
     >
-      <div className="mt-5 overflow-x-auto rounded-xl border border-gray-800">
+      <div className="mt-5 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
         <table className="min-w-[860px] w-full text-left text-xs">
-          <thead className="bg-gray-950/70 text-gray-500">
+          <thead className="bg-gray-50/70 dark:bg-gray-950/70 text-gray-500">
             <tr>
               <th className="px-3 py-3 font-medium">{t('moneyOut.direction', { defaultValue: 'Direction' })}</th>
               <th className="px-3 py-3 font-medium">{t('moneyOut.sourceAmount', { defaultValue: 'Source' })}</th>
@@ -351,14 +351,14 @@ export default function OxsteedCreditMoneyOut({ busy = false }) {
               <th className="px-3 py-3 font-medium">{t('moneyOut.created', { defaultValue: 'Created' })}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-800">
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
             {!conversions.length ? <tr><td colSpan="6" className="px-3 py-10 text-center text-gray-500">{t('moneyOut.noConversions', { defaultValue: 'No conversions yet.' })}</td></tr> :
               conversions.map((c) => <tr key={c.id}>
-                <td className="px-3 py-3 text-gray-300">{t(`moneyOut.direction.${c.direction}`, { defaultValue: c.direction.replace(/_/g, ' ') })}</td>
-                <td className="px-3 py-3 font-semibold text-white">{money(c.sourceAmountCents, c.currencyCode)}</td>
+                <td className="px-3 py-3 text-gray-700 dark:text-gray-300">{t(`moneyOut.direction.${c.direction}`, { defaultValue: c.direction.replace(/_/g, ' ') })}</td>
+                <td className="px-3 py-3 font-semibold text-gray-900 dark:text-white">{money(c.sourceAmountCents, c.currencyCode)}</td>
                 <td className="px-3 py-3 font-semibold text-emerald-300">{money(c.convertedAmountCents, c.currencyCode)}</td>
-                <td className="px-3 py-3 text-gray-400">{money(c.feeCents, c.currencyCode)}</td>
-                <td className="px-3 py-3 font-mono text-gray-400">{c.rate}</td>
+                <td className="px-3 py-3 text-gray-600 dark:text-gray-400">{money(c.feeCents, c.currencyCode)}</td>
+                <td className="px-3 py-3 font-mono text-gray-600 dark:text-gray-400">{c.rate}</td>
                 <td className="px-3 py-3 text-gray-500">{dateTime(c.createdAt, t)}</td>
               </tr>)}
           </tbody>

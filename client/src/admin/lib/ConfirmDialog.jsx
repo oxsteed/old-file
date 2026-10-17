@@ -126,20 +126,20 @@ export default function ConfirmDialog({
       <div
         ref={dialogRef}
         tabIndex="-1"
-        className="w-full max-w-md rounded-lg bg-gray-900 border border-gray-700 p-6 shadow-xl"
+        className="w-full max-w-md rounded-lg bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start gap-3">
           {danger && <AlertTriangle size={22} className="text-red-400 shrink-0 mt-0.5" />}
           <div>
-            <h2 id={titleId} className="text-lg font-semibold text-white">{title}</h2>
-            {message && <div className="mt-2 text-sm text-gray-300">{message}</div>}
+            <h2 id={titleId} className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
+            {message && <div className="mt-2 text-sm text-gray-700 dark:text-gray-300">{message}</div>}
           </div>
         </div>
 
         {requireReason && (
           <div className="mt-4">
-            <label htmlFor={reasonId} className="block text-sm font-medium text-gray-300 mb-1">
+            <label htmlFor={reasonId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               {resolvedReasonLabel} <span className="text-red-400">*</span>
             </label>
             <textarea
@@ -148,7 +148,7 @@ export default function ConfirmDialog({
               onChange={(e) => setReason(e.target.value)}
               placeholder={reasonPlaceholder}
               rows={3}
-              className="w-full rounded-md bg-gray-800 border border-gray-700 text-white text-sm p-2 focus:outline-none focus:border-blue-500"
+              className="w-full rounded-md bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white text-sm p-2 focus:outline-none focus:border-blue-500"
             />
           </div>
         )}
@@ -164,7 +164,7 @@ export default function ConfirmDialog({
             type="button"
             onClick={handleClose}
             disabled={busy}
-            className="px-4 py-2 rounded-md text-sm font-medium text-gray-300 bg-gray-800 border border-gray-700 hover:bg-gray-700 disabled:opacity-50"
+            className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
           >
             {resolvedCancelLabel}
           </button>
@@ -172,7 +172,7 @@ export default function ConfirmDialog({
             type="button"
             onClick={handleConfirm}
             disabled={busy || !reasonOk}
-            className={`px-4 py-2 rounded-md text-sm font-medium text-white disabled:opacity-50 ${
+            className={`px-4 py-2 rounded-md text-sm font-medium text-gray-900 dark:text-white disabled:opacity-50 ${
               danger ? 'bg-red-600 hover:bg-red-500' : 'bg-blue-600 hover:bg-blue-500'
             }`}
           >

@@ -39,24 +39,24 @@ function UserResults({ users }) {
   const { t } = useTranslation();
   if (!users?.length) return <Empty />;
   return (
-    <div className="divide-y divide-gray-800">
+    <div className="divide-y divide-gray-200 dark:divide-gray-800">
       {users.map(u => (
         <Link
           key={u.id}
           to={`/admin/users/${u.id}`}
-          className="flex items-center gap-3 py-3 px-4 hover:bg-gray-800/50 transition group"
+          className="flex items-center gap-3 py-3 px-4 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition group"
         >
-          <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-300 shrink-0">
+          <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-700 dark:text-gray-300 shrink-0">
             {(u.first_name?.[0] || '?').toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate group-hover:text-orange-300 transition">
+            <p className="text-sm font-medium text-gray-900 dark:text-white truncate group-hover:text-orange-300 transition">
               {u.first_name} {u.last_name}
             </p>
-            <p className="text-xs text-gray-400 truncate">{u.email}</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400 truncate">{u.email}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Badge text={u.role} colorClass="bg-gray-700 text-gray-300" />
+            <Badge text={u.role} colorClass="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300" />
             {u.is_banned  && <Badge text={t('adminSearch.badgeBanned')}   colorClass="bg-red-900 text-red-300" />}
             {!u.is_active && <Badge text={t('adminSearch.badgeInactive')} colorClass="bg-yellow-900 text-yellow-300" />}
             <span className="text-xs text-gray-500">{ts(u.created_at)}</span>
@@ -73,26 +73,26 @@ function JobResults({ jobs }) {
   const STATUS_COLOR = {
     published:   'bg-green-900 text-green-300',
     in_progress: 'bg-blue-900 text-blue-300',
-    completed:   'bg-gray-700 text-gray-300',
+    completed:   'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
     cancelled:   'bg-red-900 text-red-300',
   };
   return (
-    <div className="divide-y divide-gray-800">
+    <div className="divide-y divide-gray-200 dark:divide-gray-800">
       {jobs.map(j => (
         <Link
           key={j.id}
           to={`/admin/jobs/${j.id}`}
-          className="block py-3 px-4 hover:bg-gray-800/50 transition group"
+          className="block py-3 px-4 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition group"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate group-hover:text-orange-300 transition">{j.title}</p>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-sm font-medium text-gray-900 dark:text-white truncate group-hover:text-orange-300 transition">{j.title}</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
                 {j.client_name} · {j.location_city}{j.location_state ? `, ${j.location_state}` : ''}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <Badge text={t(`adminJobs.status.${j.status || 'unknown'}`, { defaultValue: (j.status || 'unknown').replace(/_/g, ' ') })} colorClass={STATUS_COLOR[j.status] || 'bg-gray-700 text-gray-300'} />
+              <Badge text={t(`adminJobs.status.${j.status || 'unknown'}`, { defaultValue: (j.status || 'unknown').replace(/_/g, ' ') })} colorClass={STATUS_COLOR[j.status] || 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'} />
               <span className="text-xs text-gray-500">{ts(j.created_at)}</span>
             </div>
           </div>
@@ -109,17 +109,17 @@ function JobResults({ jobs }) {
 function MessageResults({ messages }) {
   if (!messages?.length) return <Empty />;
   return (
-    <div className="divide-y divide-gray-800">
+    <div className="divide-y divide-gray-200 dark:divide-gray-800">
       {messages.map(m => (
         <div key={m.id} className="py-3 px-4">
           <div className="flex items-start justify-between gap-3 mb-1">
-            <p className="text-xs font-medium text-gray-300">
+            <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
               {m.sender_name}
               <span className="text-gray-500 ml-1">({m.sender_email})</span>
             </p>
             <span className="text-xs text-gray-500 shrink-0">{ts(m.created_at)}</span>
           </div>
-          <p className="text-sm text-gray-300 line-clamp-2">{m.content}</p>
+          <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">{m.content}</p>
         </div>
       ))}
     </div>
@@ -135,27 +135,27 @@ function DisputeResults({ disputes }) {
     escalated:    'bg-orange-900 text-orange-300',
     resolved_poster: 'bg-green-900 text-green-300',
     resolved_helper: 'bg-green-900 text-green-300',
-    closed:       'bg-gray-700 text-gray-400',
+    closed:       'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400',
   };
   return (
-    <div className="divide-y divide-gray-800">
+    <div className="divide-y divide-gray-200 dark:divide-gray-800">
       {disputes.map(d => (
         <Link
           key={d.id}
           to={`/admin/disputes/${d.id}`}
-          className="block py-3 px-4 hover:bg-gray-800/50 transition group"
+          className="block py-3 px-4 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition group"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate group-hover:text-orange-300 transition">
+              <p className="text-sm font-medium text-gray-900 dark:text-white truncate group-hover:text-orange-300 transition">
                 {d.job_title}
               </p>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
                 {d.raised_by_name} vs {d.against_name}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <Badge text={d.status} colorClass={STATUS_COLOR[d.status] || 'bg-gray-700 text-gray-300'} />
+              <Badge text={d.status} colorClass={STATUS_COLOR[d.status] || 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'} />
               <span className="text-xs text-gray-500">{ts(d.created_at)}</span>
             </div>
           </div>
@@ -184,19 +184,19 @@ function PaymentResults({ payments }) {
     failed:     'bg-red-900 text-red-400',
   };
   return (
-    <div className="divide-y divide-gray-800">
+    <div className="divide-y divide-gray-200 dark:divide-gray-800">
       {payments.map(p => (
         <div key={p.id} className="py-3 px-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{p.job_title}</p>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{p.job_title}</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
                 {p.payer_name} → {p.payee_name}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <span className="text-sm font-semibold text-white">{money(p.amount)}</span>
-              <Badge text={p.status} colorClass={STATUS_COLOR[p.status] || 'bg-gray-700 text-gray-300'} />
+              <span className="text-sm font-semibold text-gray-900 dark:text-white">{money(p.amount)}</span>
+              <Badge text={p.status} colorClass={STATUS_COLOR[p.status] || 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'} />
               <span className="text-xs text-gray-500">{ts(p.created_at)}</span>
             </div>
           </div>
@@ -225,7 +225,7 @@ function SupportResults({ tickets }) {
     waiting_user: 'status.waitingUser', resolved: 'status.resolved', closed: 'status.closed',
   };
   const PRIORITY_COLOR = {
-    low:    'bg-gray-700 text-gray-400',
+    low:    'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400',
     normal: 'bg-blue-900 text-blue-300',
     high:   'bg-orange-900 text-orange-300',
     urgent: 'bg-red-900 text-red-300',
@@ -236,28 +236,28 @@ function SupportResults({ tickets }) {
     in_progress:  'bg-blue-900 text-blue-300',
     waiting_user: 'bg-purple-900 text-purple-300',
     resolved:     'bg-green-900 text-green-300',
-    closed:       'bg-gray-700 text-gray-400',
+    closed:       'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400',
   };
   return (
-    <div className="divide-y divide-gray-800">
+    <div className="divide-y divide-gray-200 dark:divide-gray-800">
       {tickets.map(t => (
         <Link
           key={t.id}
           to={`/admin/support?ticket=${encodeURIComponent(t.id)}`}
-          className="block py-3 px-4 hover:bg-gray-800/50 transition group"
+          className="block py-3 px-4 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition group"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate group-hover:text-orange-300 transition">
+              <p className="text-sm font-medium text-gray-900 dark:text-white truncate group-hover:text-orange-300 transition">
                 #{t.ticket_number} · {t.subject}
               </p>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
                 {t.name} ({t.email})
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <Badge text={tt(`adminSupportTickets.${PRIORITY_KEY[t.priority] || 'priority.normal'}`, { defaultValue: t.priority })} colorClass={PRIORITY_COLOR[t.priority] || 'bg-gray-700 text-gray-300'} />
-              <Badge text={tt(`adminSupportTickets.${STATUS_KEY[t.status] || 'status.open'}`, { defaultValue: t.status })} colorClass={STATUS_COLOR[t.status]     || 'bg-gray-700 text-gray-300'} />
+              <Badge text={tt(`adminSupportTickets.${PRIORITY_KEY[t.priority] || 'priority.normal'}`, { defaultValue: t.priority })} colorClass={PRIORITY_COLOR[t.priority] || 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'} />
+              <Badge text={tt(`adminSupportTickets.${STATUS_KEY[t.status] || 'status.open'}`, { defaultValue: t.status })} colorClass={STATUS_COLOR[t.status]     || 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'} />
               <span className="text-xs text-gray-500">{ts(t.created_at)}</span>
             </div>
           </div>
@@ -272,24 +272,24 @@ function ReviewResults({ reviews }) {
   const { t } = useTranslation();
   if (!reviews?.length) return <Empty />;
   return (
-    <div className="divide-y divide-gray-800">
+    <div className="divide-y divide-gray-200 dark:divide-gray-800">
       {reviews.map(r => (
         <div key={r.id} className="py-3 px-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{r.job_title}</p>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{r.job_title}</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
                 {r.reviewer_name} → {r.reviewee_name}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-yellow-400 text-xs font-semibold">{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</span>
-              {!r.is_public && <Badge text={t('adminSearch.badgeHidden')} colorClass="bg-gray-700 text-gray-400" />}
+              {!r.is_public && <Badge text={t('adminSearch.badgeHidden')} colorClass="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400" />}
               <span className="text-xs text-gray-500">{ts(r.created_at)}</span>
             </div>
           </div>
           {r.comment && (
-            <p className="text-xs text-gray-400 mt-1 line-clamp-2">{r.comment}</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">{r.comment}</p>
           )}
         </div>
       ))}
@@ -303,21 +303,21 @@ function BidResults({ bids }) {
     pending:   'bg-yellow-900 text-yellow-300',
     accepted:  'bg-green-900 text-green-300',
     rejected:  'bg-red-900 text-red-300',
-    withdrawn: 'bg-gray-700 text-gray-400',
-    expired:   'bg-gray-700 text-gray-500',
+    withdrawn: 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400',
+    expired:   'bg-gray-200 dark:bg-gray-700 text-gray-500',
   };
   return (
-    <div className="divide-y divide-gray-800">
+    <div className="divide-y divide-gray-200 dark:divide-gray-800">
       {bids.map(b => (
         <div key={b.id} className="py-3 px-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{b.job_title}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{b.helper_name} ({b.helper_email})</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{b.job_title}</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{b.helper_name} ({b.helper_email})</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <span className="text-sm font-semibold text-white">{money(b.amount)}</span>
-              <Badge text={b.status} colorClass={STATUS_COLOR[b.status] || 'bg-gray-700 text-gray-300'} />
+              <span className="text-sm font-semibold text-gray-900 dark:text-white">{money(b.amount)}</span>
+              <Badge text={b.status} colorClass={STATUS_COLOR[b.status] || 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'} />
               <span className="text-xs text-gray-500">{ts(b.created_at)}</span>
             </div>
           </div>
@@ -342,7 +342,7 @@ function Pagination({ type, page, total, limit, onPage }) {
   const pages = Math.ceil(total / limit);
   if (pages <= 1) return null;
   return (
-    <div className="flex items-center justify-between px-4 py-2 border-t border-gray-800 text-xs text-gray-500">
+    <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 dark:border-gray-800 text-xs text-gray-500">
       <span>
         {t('adminSearch.pagination', { page, pages, total })}
       </span>
@@ -350,14 +350,14 @@ function Pagination({ type, page, total, limit, onPage }) {
         <button
           onClick={() => onPage(type, page - 1)}
           disabled={page <= 1}
-          className="p-1 rounded hover:bg-gray-700 disabled:opacity-30 transition"
+          className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-30 transition"
         >
           <ChevronLeft size={14} />
         </button>
         <button
           onClick={() => onPage(type, page + 1)}
           disabled={page >= pages}
-          className="p-1 rounded hover:bg-gray-700 disabled:opacity-30 transition"
+          className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-30 transition"
         >
           <ChevronRight size={14} />
         </button>
@@ -652,8 +652,8 @@ export default function AdminSearch() {
   return (
     <div className="p-4 sm:p-8 max-w-4xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">{t('adminSearch.title')}</h1>
-        <p className="text-gray-400 text-sm mt-1">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('adminSearch.title')}</h1>
+        <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
           {t('adminSearch.description')}
         </p>
       </div>
@@ -676,8 +676,7 @@ export default function AdminSearch() {
         <button
           type="submit"
           disabled={loading || input.trim().length < 2}
-          className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm
-                     font-semibold rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed"
+          className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {t('adminSearch.submit')}
         </button>
@@ -692,17 +691,16 @@ export default function AdminSearch() {
             <button
               key={t}
               onClick={() => toggleType(t)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
-                          font-medium border transition ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition ${
                 active
-                  ? 'bg-gray-700 border-gray-600 text-white'
-                  : 'bg-transparent border-gray-700 text-gray-500 hover:border-gray-500'
+                  ? 'bg-gray-200 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white'
+                  : 'bg-transparent border-gray-300 dark:border-gray-700 text-gray-500 hover:border-gray-500'
               }`}
             >
               <Icon size={12} />
               {label}
               {results?.totals?.[t] > 0 && active && (
-                <span className="ml-1 bg-gray-600 text-gray-300 rounded-full px-1.5 py-0.5 text-[10px] font-semibold">
+                <span className="ml-1 bg-gray-600 text-gray-700 dark:text-gray-300 rounded-full px-1.5 py-0.5 text-[10px] font-semibold">
                   {results.totals[t]}
                 </span>
               )}
@@ -739,10 +737,10 @@ export default function AdminSearch() {
             const total = results.totals?.[t]  || rows.length;
             if (!rows.length) return null;
             return (
-              <div key={t} className="mb-6 bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-800">
+              <div key={t} className="mb-6 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-gray-800">
                   <Icon size={14} className={color} />
-                  <h2 className="text-sm font-semibold text-white">{label}</h2>
+                  <h2 className="text-sm font-semibold text-gray-900 dark:text-white">{label}</h2>
                   <span className="ml-auto text-xs text-gray-500">
                     {t('adminSearch.rowsOf', { shown: rows.length, total })}
                   </span>

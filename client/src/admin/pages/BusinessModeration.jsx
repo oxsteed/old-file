@@ -82,7 +82,7 @@ function BusinessAvatar({ business }) {
     .toUpperCase();
 
   return (
-    <div className={`w-10 h-10 rounded-lg ${bg} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
+    <div className={`w-10 h-10 rounded-lg ${bg} flex items-center justify-center text-gray-900 dark:text-white text-xs font-bold flex-shrink-0`}>
       {initials || 'B'}
     </div>
   );
@@ -117,15 +117,15 @@ function ReasonModal({ business, actionType, onConfirm, onClose, loading }) {
       onClick={() => !loading && onClose()}
     >
       <div
-        className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl"
+        className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h3 className="font-bold text-white text-base">
+            <h3 className="font-bold text-gray-900 dark:text-white text-base">
               {t('adminBusinessModeration.modalTitle', { defaultValue: '{{action}} business', action: actionLabels[actionType] })}
             </h3>
-            <p className="text-gray-400 text-sm mt-0.5 truncate max-w-xs">
+            <p className="text-gray-600 dark:text-gray-400 text-sm mt-0.5 truncate max-w-xs">
               {business.business_name}
             </p>
           </div>
@@ -133,7 +133,7 @@ function ReasonModal({ business, actionType, onConfirm, onClose, loading }) {
             onClick={onClose}
             disabled={loading}
             aria-label={t('common.aria.closeButton')}
-            className="text-gray-500 hover:text-white transition p-1"
+            className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition p-1"
           >
             <X size={16} />
           </button>
@@ -141,12 +141,12 @@ function ReasonModal({ business, actionType, onConfirm, onClose, loading }) {
 
         <div className="mb-4">
           {actionType === 'unflag' ? (
-            <p className="text-sm text-gray-300">
+            <p className="text-sm text-gray-700 dark:text-gray-300">
               {t('adminBusinessModeration.unflagConfirm')}
             </p>
           ) : (
           <>
-          <label className="block text-sm font-medium text-gray-300 mb-1.5">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
             {t('adminBusinessModeration.reasonLabel', { defaultValue: 'Reason' })} <span className="text-red-400">*</span>
           </label>
           <textarea
@@ -154,8 +154,7 @@ function ReasonModal({ business, actionType, onConfirm, onClose, loading }) {
             value={reason}
             onChange={e => { setReason(e.target.value); setError(''); }}
             placeholder={t('adminBusinessModeration.reasonPlaceholder', { defaultValue: 'Explain why you are taking this action…' })}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-sm
-                       p-2.5 placeholder-gray-500 focus:border-orange-500 focus:outline-none resize-none"
+            className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white text-sm p-2.5 placeholder-gray-500 focus:border-orange-500 focus:outline-none resize-none"
           />
           {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
           </>
@@ -166,16 +165,14 @@ function ReasonModal({ business, actionType, onConfirm, onClose, loading }) {
           <button
             onClick={onClose}
             disabled={loading}
-            className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 text-gray-300
-                       rounded-lg text-sm font-medium hover:bg-gray-700 transition disabled:opacity-50"
+            className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition disabled:opacity-50"
           >
             {t('common.cancel')}
           </button>
           <button
             onClick={handle}
             disabled={loading || (actionType !== 'unflag' && !reason.trim())}
-            className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold transition
-                        disabled:opacity-50 disabled:cursor-not-allowed text-white
+            className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed text-gray-900 dark:text-white
                         ${actionType === 'delete'
                           ? 'bg-red-600 hover:bg-red-700'
                           : actionType === 'toggle' && business.is_active
@@ -200,7 +197,7 @@ function ActionMenu({ business, onToggle, onSuspend, onDelete, onFlag, onUnflag,
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="px-2 py-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition text-xl"
+        className="px-2 py-1 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition text-xl"
         title={t('adminBusinessModeration.moreActions', { defaultValue: 'More actions' })}
         aria-label={t('adminBusinessModeration.moreActions', { defaultValue: 'More actions' })}
       >
@@ -208,37 +205,37 @@ function ActionMenu({ business, onToggle, onSuspend, onDelete, onFlag, onUnflag,
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-40 w-48">
+        <div className="absolute right-0 top-full mt-1 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-lg z-40 w-48">
           <button
             onClick={() => { onViewProfile(); setOpen(false); }}
-            className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700 flex items-center gap-2 border-b border-gray-700"
+            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center gap-2 border-b border-gray-300 dark:border-gray-700"
           >
             <Eye size={14} /> {t('adminBusinessModeration.viewProfile', { defaultValue: 'View Profile' })}
           </button>
           <button
             onClick={() => { onToggle(); setOpen(false); }}
-            className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700 flex items-center gap-2 border-b border-gray-700"
+            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center gap-2 border-b border-gray-300 dark:border-gray-700"
           >
             {business.is_active ? <ToggleLeft size={14} /> : <ToggleRight size={14} />}
             {business.is_active ? t('adminBusinessModeration.actionDeactivate', { defaultValue: 'Deactivate' }) : t('adminBusinessModeration.actionReactivate', { defaultValue: 'Reactivate' })}
           </button>
           <button
             onClick={() => { onFlag(); setOpen(false); }}
-            className="w-full text-left px-4 py-2.5 text-sm text-yellow-400 hover:bg-gray-700 flex items-center gap-2 border-b border-gray-700"
+            className="w-full text-left px-4 py-2.5 text-sm text-yellow-400 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center gap-2 border-b border-gray-300 dark:border-gray-700"
           >
             <Flag size={14} /> {t('adminBusinessModeration.actionFlag', { defaultValue: 'Flag for Review' })}
           </button>
           {business.admin_review_reason && (
             <button
               onClick={() => { onUnflag(); setOpen(false); }}
-              className="w-full text-left px-4 py-2.5 text-sm text-emerald-400 hover:bg-gray-700 flex items-center gap-2 border-b border-gray-700"
+              className="w-full text-left px-4 py-2.5 text-sm text-emerald-400 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center gap-2 border-b border-gray-300 dark:border-gray-700"
             >
               <FlagOff size={14} /> {t('adminBusinessModeration.actionUnflag')}
             </button>
           )}
           <button
             onClick={() => { onDelete(); setOpen(false); }}
-            className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-gray-700 flex items-center gap-2"
+            className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center gap-2"
           >
             <Trash2 size={14} /> {t('adminBusinessModeration.actionDelete', { defaultValue: 'Delete' })}
           </button>
@@ -338,31 +335,31 @@ export default function BusinessModeration() {
       <div className="flex items-center gap-3 mb-6">
         <Building2 size={24} className="text-orange-400" />
         <div>
-          <h1 className="text-2xl font-bold text-white">{t('adminBusinessModeration.title', { defaultValue: 'Business Moderation' })}</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{t('adminBusinessModeration.subtitle', { defaultValue: 'Manage and monitor all businesses on the platform' })}</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('adminBusinessModeration.title', { defaultValue: 'Business Moderation' })}</h1>
+          <p className="text-gray-600 dark:text-gray-400 text-sm mt-0.5">{t('adminBusinessModeration.subtitle', { defaultValue: 'Manage and monitor all businesses on the platform' })}</p>
         </div>
       </div>
 
       {/* Stats Bar */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
-          <p className="text-gray-400 text-xs font-medium mb-1">{t('adminBusinessModeration.statTotal', { defaultValue: 'TOTAL' })}</p>
-          <p className="text-white text-2xl font-bold">{stats.total}</p>
+        <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-4">
+          <p className="text-gray-600 dark:text-gray-400 text-xs font-medium mb-1">{t('adminBusinessModeration.statTotal', { defaultValue: 'TOTAL' })}</p>
+          <p className="text-gray-900 dark:text-white text-2xl font-bold">{stats.total}</p>
         </div>
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
-          <p className="text-gray-400 text-xs font-medium mb-1">{t('adminBusinessModeration.statActive', { defaultValue: 'ACTIVE' })}</p>
+        <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-4">
+          <p className="text-gray-600 dark:text-gray-400 text-xs font-medium mb-1">{t('adminBusinessModeration.statActive', { defaultValue: 'ACTIVE' })}</p>
           <p className="text-green-400 text-2xl font-bold">{stats.active}</p>
         </div>
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
-          <p className="text-gray-400 text-xs font-medium mb-1">{t('adminBusinessModeration.statInactive', { defaultValue: 'INACTIVE' })}</p>
+        <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-4">
+          <p className="text-gray-600 dark:text-gray-400 text-xs font-medium mb-1">{t('adminBusinessModeration.statInactive', { defaultValue: 'INACTIVE' })}</p>
           <p className="text-red-400 text-2xl font-bold">{stats.inactive}</p>
         </div>
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
-          <p className="text-gray-400 text-xs font-medium mb-1">{t('adminBusinessModeration.statNewThisMonth', { defaultValue: 'NEW THIS MONTH' })}</p>
+        <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-4">
+          <p className="text-gray-600 dark:text-gray-400 text-xs font-medium mb-1">{t('adminBusinessModeration.statNewThisMonth', { defaultValue: 'NEW THIS MONTH' })}</p>
           <p className="text-blue-400 text-2xl font-bold">{stats.newThisMonth}</p>
         </div>
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
-          <p className="text-gray-400 text-xs font-medium mb-1">{t('adminBusinessModeration.statDormant', { defaultValue: 'DORMANT' })}</p>
+        <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-4">
+          <p className="text-gray-600 dark:text-gray-400 text-xs font-medium mb-1">{t('adminBusinessModeration.statDormant', { defaultValue: 'DORMANT' })}</p>
           <p className="text-yellow-400 text-2xl font-bold">{stats.dormant}</p>
         </div>
       </div>
@@ -390,7 +387,7 @@ export default function BusinessModeration() {
                 className={`px-4 py-2 rounded-lg text-xs font-semibold transition whitespace-nowrap ${
                   statusFilter === f.value
                     ? 'bg-orange-500 text-white'
-                    : 'bg-gray-800 text-gray-400 hover:text-white border border-gray-700'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-300 dark:border-gray-700'
                 }`}
               >
                 {optionLabel(t, f.labelKey)}
@@ -404,8 +401,7 @@ export default function BusinessModeration() {
           <select
             value={activityFilter}
             onChange={e => resetPage(setActivityFilter)(e.target.value)}
-            className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm
-                       focus:border-orange-500 focus:outline-none"
+            className="px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white text-sm focus:border-orange-500 focus:outline-none"
           >
             {ACTIVITY_FILTERS.map(f => (
               <option key={f.value} value={f.value}>{optionLabel(t, f.labelKey)}</option>
@@ -415,8 +411,7 @@ export default function BusinessModeration() {
           <select
             value={sortBy}
             onChange={e => resetPage(setSortBy)(e.target.value)}
-            className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm
-                       focus:border-orange-500 focus:outline-none"
+            className="px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white text-sm focus:border-orange-500 focus:outline-none"
           >
             {SORT_OPTIONS.map(s => (
               <option key={s.value} value={s.value}>{optionLabel(t, s.labelKey)}</option>
@@ -426,26 +421,26 @@ export default function BusinessModeration() {
       </div>
 
       {/* Table */}
-      <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
+      <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[1200px]">
             <thead>
-              <tr className="border-b border-gray-700">
-                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminBusinessModeration.colBusiness', { defaultValue: 'BUSINESS' })}</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminBusinessModeration.colOwner', { defaultValue: 'OWNER' })}</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminBusinessModeration.colLocation', { defaultValue: 'LOCATION' })}</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminBusinessModeration.colCategory', { defaultValue: 'CATEGORY' })}</th>
-                <th className="text-center text-gray-400 font-medium px-4 py-3">{t('adminBusinessModeration.colJobs', { defaultValue: 'JOBS' })}</th>
-                <th className="text-center text-gray-400 font-medium px-4 py-3">{t('adminBusinessModeration.colMembers', { defaultValue: 'MEMBERS' })}</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminBusinessModeration.colStatus', { defaultValue: 'STATUS' })}</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminBusinessModeration.colCreated', { defaultValue: 'CREATED' })}</th>
-                <th className="text-center text-gray-400 font-medium px-4 py-3">{t('adminBusinessModeration.colActions', { defaultValue: 'ACTIONS' })}</th>
+              <tr className="border-b border-gray-300 dark:border-gray-700">
+                <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminBusinessModeration.colBusiness', { defaultValue: 'BUSINESS' })}</th>
+                <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminBusinessModeration.colOwner', { defaultValue: 'OWNER' })}</th>
+                <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminBusinessModeration.colLocation', { defaultValue: 'LOCATION' })}</th>
+                <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminBusinessModeration.colCategory', { defaultValue: 'CATEGORY' })}</th>
+                <th className="text-center text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminBusinessModeration.colJobs', { defaultValue: 'JOBS' })}</th>
+                <th className="text-center text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminBusinessModeration.colMembers', { defaultValue: 'MEMBERS' })}</th>
+                <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminBusinessModeration.colStatus', { defaultValue: 'STATUS' })}</th>
+                <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminBusinessModeration.colCreated', { defaultValue: 'CREATED' })}</th>
+                <th className="text-center text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminBusinessModeration.colActions', { defaultValue: 'ACTIONS' })}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="text-center text-gray-400 py-12">{t('adminBusinessModeration.loading', { defaultValue: 'Loading…' })}</td>
+                  <td colSpan={9} className="text-center text-gray-600 dark:text-gray-400 py-12">{t('adminBusinessModeration.loading', { defaultValue: 'Loading…' })}</td>
                 </tr>
               ) : error ? (
                 <tr>
@@ -455,35 +450,35 @@ export default function BusinessModeration() {
                 </tr>
               ) : businesses.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center text-gray-400 py-12">{t('adminBusinessModeration.noBusinesses', { defaultValue: 'No businesses found.' })}</td>
+                  <td colSpan={9} className="text-center text-gray-600 dark:text-gray-400 py-12">{t('adminBusinessModeration.noBusinesses', { defaultValue: 'No businesses found.' })}</td>
                 </tr>
               ) : businesses.map(b => (
-                <tr key={b.id} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
+                <tr key={b.id} className="border-b border-gray-700/50 hover:bg-gray-200/30 dark:hover:bg-gray-700/30 transition-colors">
                   <td className={`${col}`}>
                     <div className="flex items-center gap-3">
                       <BusinessAvatar business={b} />
                       <div>
-                        <p className="text-white font-medium">{b.business_name}</p>
+                        <p className="text-gray-900 dark:text-white font-medium">{b.business_name}</p>
                         <p className="text-gray-500 text-xs">{b.business_type || t('adminBusinessModeration.unknownType', { defaultValue: 'Unknown' })}</p>
                       </div>
                     </div>
                   </td>
                   <td className={col}>
-                    <p className="text-gray-300">{b.owner_name || '-'}</p>
+                    <p className="text-gray-700 dark:text-gray-300">{b.owner_name || '-'}</p>
                     <p className="text-gray-500 text-xs">{b.owner_email || '-'}</p>
                   </td>
-                  <td className={`${col} text-gray-400`}>
+                  <td className={`${col} text-gray-600 dark:text-gray-400`}>
                     {b.address_city && b.address_state
                       ? `${b.address_city}, ${b.address_state}`
                       : b.address_city || b.address_state || '-'}
                   </td>
-                  <td className={`${col} text-gray-400 capitalize`}>
+                  <td className={`${col} text-gray-600 dark:text-gray-400 capitalize`}>
                     {b.category || '-'}
                   </td>
-                  <td className={`${col} text-center text-gray-300 font-medium`}>
+                  <td className={`${col} text-center text-gray-700 dark:text-gray-300 font-medium`}>
                     {b.job_count ?? 0}
                   </td>
-                  <td className={`${col} text-center text-gray-300 font-medium`}>
+                  <td className={`${col} text-center text-gray-700 dark:text-gray-300 font-medium`}>
                     {b.member_count ?? 0}
                   </td>
                   <td className={col}>
@@ -499,7 +494,7 @@ export default function BusinessModeration() {
                       </span>
                     ) : null}
                   </td>
-                  <td className={`${col} text-gray-400`}>
+                  <td className={`${col} text-gray-600 dark:text-gray-400`}>
                     {b.created_at ? new Date(b.created_at).toLocaleDateString() : '-'}
                   </td>
                   <td className={`${col} text-center`}>
@@ -522,22 +517,20 @@ export default function BusinessModeration() {
 
       {/* Pagination */}
       {stats.total > 25 && (
-        <div className="flex items-center justify-between mt-4 text-sm text-gray-400">
+        <div className="flex items-center justify-between mt-4 text-sm text-gray-600 dark:text-gray-400">
           <span>{t('adminBusinessModeration.pageSummary', { defaultValue: 'Page {{page}} · {{total}} total', page, total: stats.total })}</span>
           <div className="flex gap-2">
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page <= 1}
-              className="px-3 py-1 bg-gray-800 border border-gray-700 rounded-lg
-                         disabled:opacity-40 hover:bg-gray-700 transition-colors"
+              className="px-3 py-1 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg disabled:opacity-40 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
             >
               {t('adminBusinessModeration.previous', { defaultValue: '← Prev' })}
             </button>
             <button
               onClick={() => setPage(p => p + 1)}
               disabled={businesses.length < 25}
-              className="px-3 py-1 bg-gray-800 border border-gray-700 rounded-lg
-                         disabled:opacity-40 hover:bg-gray-700 transition-colors"
+              className="px-3 py-1 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg disabled:opacity-40 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
             >
               {t('adminBusinessModeration.next', { defaultValue: 'Next →' })}
             </button>

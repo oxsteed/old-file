@@ -43,7 +43,7 @@ function statusTone(status) {
     case 'suspended':
       return 'border-amber-500/30 bg-amber-500/10 text-amber-300';
     default:
-      return 'border-gray-700 bg-gray-900/70 text-gray-400';
+      return 'border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-900/70 text-gray-600 dark:text-gray-400';
   }
 }
 
@@ -67,7 +67,7 @@ function SectionHeader({ eyebrow, title, detail, action }) {
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         {eyebrow && <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-300">{eyebrow}</p>}
-        <h2 className="mt-1 text-lg font-semibold text-white">{title}</h2>
+        <h2 className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
         {detail && <p className="mt-1 text-sm leading-6 text-gray-500">{detail}</p>}
       </div>
       {action}
@@ -82,19 +82,19 @@ function DecisionDialog({ modal, busy, onChange, onClose, onConfirm }) {
   const canConfirm = !busy && (!needsReason || modal.reason?.trim());
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="topup-decision-dialog-title">
-      <div className="w-full max-w-lg rounded-2xl border border-gray-700 bg-[#111318] p-5 shadow-2xl sm:p-6">
+      <div className="w-full max-w-lg rounded-2xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#111318] p-5 shadow-2xl sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-orange-300">{t('restaurantTopups.admin.confirmAction')}</p>
-            <h2 id="topup-decision-dialog-title" className="mt-2 text-xl font-semibold text-white">{modal.title}</h2>
+            <h2 id="topup-decision-dialog-title" className="mt-2 text-xl font-semibold text-gray-900 dark:text-white">{modal.title}</h2>
           </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-2 text-gray-500 hover:bg-gray-800 hover:text-white" aria-label={t('restaurantTopups.admin.closeDialog')}>
+          <button type="button" onClick={onClose} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white" aria-label={t('restaurantTopups.admin.closeDialog')}>
             <XCircle className="h-5 w-5" />
           </button>
         </div>
-        <p className="mt-3 text-sm leading-6 text-gray-400">{modal.description}</p>
+        <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400">{modal.description}</p>
         {needsReason && (
-          <label className="mt-5 block text-sm font-medium text-gray-300">
+          <label className="mt-5 block text-sm font-medium text-gray-700 dark:text-gray-300">
             {t('restaurantTopups.admin.decisionReasonLabel')} <span className="text-orange-300">*</span>
             <textarea
               value={modal.reason || ''}
@@ -102,12 +102,12 @@ function DecisionDialog({ modal, busy, onChange, onClose, onConfirm }) {
               rows={3}
               maxLength={500}
               placeholder={t('restaurantTopups.admin.decisionReasonPlaceholder')}
-              className="mt-2 w-full resize-y rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-white placeholder:text-gray-600 outline-none focus:border-orange-400"
+              className="mt-2 w-full resize-y rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-gray-900 dark:text-white placeholder:text-gray-600 outline-none focus:border-orange-400"
             />
           </label>
         )}
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <button type="button" onClick={onClose} disabled={busy} className="rounded-xl border border-gray-700 px-4 py-3 text-sm font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">{t('common.cancel')}</button>
+          <button type="button" onClick={onClose} disabled={busy} className="rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">{t('common.cancel')}</button>
           <button type="button" onClick={onConfirm} disabled={!canConfirm} className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-50">
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             {modal.confirmLabel}
@@ -240,15 +240,15 @@ export default function RestaurantTopupApprovals() {
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <div className="min-h-screen bg-gray-950 p-4 text-gray-200 sm:p-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-4 text-gray-700 dark:text-gray-200 sm:p-6">
       <div className="mx-auto max-w-6xl space-y-5">
-        <section className="rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5">
+        <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4 sm:p-5">
           <SectionHeader
             eyebrow={t('restaurantTopups.admin.eyebrow')}
             title={t('restaurantTopups.admin.title')}
             detail={t('restaurantTopups.admin.subtitle')}
             action={(
-              <button type="button" onClick={() => load()} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">
+              <button type="button" onClick={() => load()} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 {t('restaurantTopups.admin.refresh')}
               </button>
@@ -263,7 +263,7 @@ export default function RestaurantTopupApprovals() {
                 role="tab"
                 aria-selected={status === value}
                 onClick={() => changeStatus(value)}
-                className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${status === value ? 'border-orange-500/60 bg-orange-500/10 text-orange-200' : 'border-gray-700 text-gray-400 hover:bg-gray-800'}`}
+                className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${status === value ? 'border-orange-500/60 bg-orange-500/10 text-orange-200' : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
               >
                 {t(`restaurantTopups.admin.filter${value[0].toUpperCase()}${value.slice(1)}`)}
               </button>
@@ -290,19 +290,19 @@ export default function RestaurantTopupApprovals() {
                 {t('restaurantTopups.admin.loading')}
               </div>
             ) : !applications.length ? (
-              <div className="rounded-xl border border-gray-800 bg-gray-950/35 p-6 text-center">
-                <p className="text-sm font-semibold text-white">{t('restaurantTopups.admin.emptyTitle')}</p>
+              <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/35 dark:bg-gray-950/35 p-6 text-center">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">{t('restaurantTopups.admin.emptyTitle')}</p>
                 <p className="mt-1 text-xs text-gray-500">{t('restaurantTopups.admin.emptyDetail')}</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {applications.map((application) => (
-                  <div key={application.restaurantId} className="rounded-xl border border-gray-800 bg-gray-950/35 p-4">
+                  <div key={application.restaurantId} className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/35 dark:bg-gray-950/35 p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <StatusBadge status={application.status} />
-                          <span className="text-base font-semibold text-white">{application.restaurantName || t('restaurantTopups.admin.unknownRestaurant')}</span>
+                          <span className="text-base font-semibold text-gray-900 dark:text-white">{application.restaurantName || t('restaurantTopups.admin.unknownRestaurant')}</span>
                         </div>
                         <p className="mt-2 text-xs text-gray-500">
                           {t('restaurantTopups.admin.appliedAt', { date: dateTime(application.appliedAt, t) })}
@@ -315,8 +315,8 @@ export default function RestaurantTopupApprovals() {
                           </p>
                         )}
                         {application.decisionReason && (
-                          <p className="mt-2 text-xs leading-5 text-gray-400">
-                            <span className="font-semibold text-gray-300">{t('restaurantTopups.admin.reasonLabel')}</span>{' '}
+                          <p className="mt-2 text-xs leading-5 text-gray-600 dark:text-gray-400">
+                            <span className="font-semibold text-gray-700 dark:text-gray-300">{t('restaurantTopups.admin.reasonLabel')}</span>{' '}
                             {application.decisionReason}
                           </p>
                         )}
@@ -345,10 +345,10 @@ export default function RestaurantTopupApprovals() {
             <div className="mt-5 flex items-center justify-between gap-3">
               <p className="text-xs text-gray-500">{t('restaurantTopups.admin.pageOf', { page, pages: pageCount })}</p>
               <div className="flex gap-2">
-                <button type="button" onClick={() => changePage(page - 1)} disabled={page <= 1} className="rounded-lg border border-gray-700 p-2 text-gray-300 hover:bg-gray-800 disabled:opacity-50" aria-label={t('restaurantTopups.admin.previousPage')}>
+                <button type="button" onClick={() => changePage(page - 1)} disabled={page <= 1} className="rounded-lg border border-gray-300 dark:border-gray-700 p-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50" aria-label={t('restaurantTopups.admin.previousPage')}>
                   <ChevronLeft className="h-4 w-4" />
                 </button>
-                <button type="button" onClick={() => changePage(page + 1)} disabled={page >= pageCount} className="rounded-lg border border-gray-700 p-2 text-gray-300 hover:bg-gray-800 disabled:opacity-50" aria-label={t('restaurantTopups.admin.nextPage')}>
+                <button type="button" onClick={() => changePage(page + 1)} disabled={page >= pageCount} className="rounded-lg border border-gray-300 dark:border-gray-700 p-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50" aria-label={t('restaurantTopups.admin.nextPage')}>
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>

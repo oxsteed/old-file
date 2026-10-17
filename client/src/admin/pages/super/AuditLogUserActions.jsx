@@ -106,7 +106,7 @@ export default function AuditLogUserActions() {
           </div>
           <div>
             <h1 className="text-xl font-semibold text-gray-100">{t('adminUserActionsAuditTitle')}</h1>
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               {t('adminUserActionsAuditSubtitle')}
             </p>
           </div>
@@ -114,7 +114,7 @@ export default function AuditLogUserActions() {
         <button
           onClick={handleExport}
           disabled={exporting || logs.length === 0}
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium bg-gray-800 hover:bg-gray-700 text-gray-100 disabled:opacity-50"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-100 disabled:opacity-50"
         >
           {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
           {t('adminLegal.audit.exportCsv')}
@@ -132,19 +132,19 @@ export default function AuditLogUserActions() {
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center py-12 text-gray-400">
+        <div className="flex items-center justify-center py-12 text-gray-600 dark:text-gray-400">
           <Loader2 size={20} className="animate-spin mr-2" />
           {t('common.loading')}
         </div>
       ) : error ? null : logs.length === 0 ? (
-        <div className="text-center py-12 rounded-lg border border-dashed border-gray-800 text-gray-500">
+        <div className="text-center py-12 rounded-lg border border-dashed border-gray-200 dark:border-gray-800 text-gray-500">
           {t('adminUserActionsAuditEmpty')}
         </div>
       ) : (
-        <div className="rounded-lg border border-gray-800 bg-gray-950 overflow-hidden">
+        <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-900 text-xs uppercase text-gray-400">
+              <thead className="bg-white dark:bg-gray-900 text-xs uppercase text-gray-600 dark:text-gray-400">
                 <tr>
                   <th className="text-left px-4 py-3">{t('adminUserActionsAuditColWhen')}</th>
                   <th className="text-left px-4 py-3">{t('adminUserActionsAuditColAdmin')}</th>
@@ -156,10 +156,10 @@ export default function AuditLogUserActions() {
                   <th className="text-left px-4 py-3">{t('adminUserActionsAuditColNotified')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-800">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                 {logs.map(l => (
-                  <tr key={l.id} className="hover:bg-gray-900/40 align-top">
-                    <td className="px-4 py-3 whitespace-nowrap text-gray-300">
+                  <tr key={l.id} className="hover:bg-white/40 dark:hover:bg-gray-900/40 align-top">
+                    <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300">
                       {ts(l.created_at)}
                     </td>
                     <td className="px-4 py-3">
@@ -171,11 +171,11 @@ export default function AuditLogUserActions() {
                       <div className="text-xs text-gray-500">{l.target_email}</div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="px-2 py-0.5 text-xs rounded-full bg-gray-800 text-gray-300 font-mono">
+                      <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-mono">
                         {l.action_type}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-300 font-mono text-xs">
+                    <td className="px-4 py-3 text-gray-700 dark:text-gray-300 font-mono text-xs">
                       {l.field_name || '-'}
                     </td>
                     <td className="px-4 py-3 text-xs">
@@ -186,7 +186,7 @@ export default function AuditLogUserActions() {
                         {l.new_value ?? '-'}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-gray-400">
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
                       {l.region_name || (l.region_id ? `#${l.region_id}` : '-')}
                     </td>
                     <td className="px-4 py-3">
@@ -205,7 +205,7 @@ export default function AuditLogUserActions() {
           </div>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-800 text-xs text-gray-400">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-800 text-xs text-gray-600 dark:text-gray-400">
             <span>
               {t('adminUserActionsAuditShowing', { from: page * PAGE_SIZE + 1, to: Math.min((page + 1) * PAGE_SIZE, total), total })}
             </span>
@@ -214,7 +214,7 @@ export default function AuditLogUserActions() {
                 onClick={() => setPage(p => Math.max(0, p - 1))}
                 disabled={page === 0}
                 aria-label={t('common.previous')}
-                className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-30"
+                className="p-1.5 rounded text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30"
               >
                 <ChevronLeft size={14} />
               </button>
@@ -225,7 +225,7 @@ export default function AuditLogUserActions() {
                 onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                 disabled={page >= totalPages - 1}
                 aria-label={t('common.next')}
-                className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-30"
+                className="p-1.5 rounded text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30"
               >
                 <ChevronRight size={14} />
               </button>

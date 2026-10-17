@@ -49,7 +49,7 @@ const BID_COLOR = {
   pending:   'bg-blue-900 text-blue-300',
   accepted:  'bg-green-900 text-green-300',
   rejected:  'bg-red-900 text-red-300',
-  withdrawn: 'bg-gray-700 text-gray-400',
+  withdrawn: 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400',
   removed:   'bg-red-900 text-red-400',
 };
 
@@ -63,9 +63,9 @@ function Badge({ text, colorClass }) {
 
 function Section({ title, children }) {
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-800">
-        <h2 className="text-sm font-semibold text-white">{title}</h2>
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">{title}</h2>
       </div>
       <div className="p-4">{children}</div>
     </div>
@@ -79,15 +79,15 @@ function ActionModal({ title, description, danger = false, confirmLabel, onConfi
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       onClick={() => !loading && onClose()}>
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl"
+      <div className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl"
         onClick={e => e.stopPropagation()}>
-        <h3 className="font-bold text-white text-base mb-1">{title}</h3>
-        {description && <p className="text-gray-400 text-sm mb-4">{description}</p>}
+        <h3 className="font-bold text-gray-900 dark:text-white text-base mb-1">{title}</h3>
+        {description && <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">{description}</p>}
         {children}
         {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
         <div className="flex gap-3 mt-4">
           <button onClick={onClose} disabled={loading}
-            className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-700 transition disabled:opacity-50">
+            className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition disabled:opacity-50">
             {t('common.cancel')}
           </button>
           <button onClick={onConfirm} disabled={loading}
@@ -228,7 +228,7 @@ export default function JobDetail() {
 
       {/* Back link */}
       <Link to="/admin/jobs"
-        className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-white mb-6 transition">
+        className="inline-flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 transition">
         <ArrowLeft size={14} /> {t('adminJobDetail.backToJobs')}
       </Link>
 
@@ -243,10 +243,10 @@ export default function JobDetail() {
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-white">{job.title}</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{job.title}</h1>
             <Badge
               text={jobStatusLabel(job.status, t)}
-              colorClass={STATUS_COLOR[job.status] || 'bg-gray-700 text-gray-300'}
+              colorClass={STATUS_COLOR[job.status] || 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}
             />
             {isFlagged && <Badge text={t('adminJobDetail.flagged')} colorClass="bg-yellow-900 text-yellow-300" />}
             {job.dispute_status === 'open' && <Badge text={t('adminJobDetail.disputed')} colorClass="bg-purple-900 text-purple-300" />}
@@ -260,23 +260,20 @@ export default function JobDetail() {
               button is hidden for them instead of failing on click. */}
           {canModerateJob && job.status !== 'cancelled' && job.status !== 'completed' && job.status !== 'disputed' && (
             <button onClick={() => openModal('cancel')}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 border border-gray-700
-                         text-gray-300 hover:border-red-600 hover:text-red-400 rounded-lg text-xs font-medium transition">
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-red-600 hover:text-red-400 rounded-lg text-xs font-medium transition">
               <AlertTriangle size={13} /> {t('adminJobDetail.cancelJob')}
             </button>
           )}
           {canModerateJob && (
           <button onClick={() => openModal(isFlagged ? 'unflag' : 'flag')}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 border border-gray-700
-                       text-gray-300 hover:border-yellow-600 hover:text-yellow-400 rounded-lg text-xs font-medium transition">
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-yellow-600 hover:text-yellow-400 rounded-lg text-xs font-medium transition">
             {isFlagged ? <RotateCcw size={13} /> : <AlertTriangle size={13} />}
             {isFlagged ? t('adminJobDetail.unflag') : t('adminJobDetail.flag')}
           </button>
           )}
           {(isSuper || canRefund) && payment?.status === 'captured' && (
             <button onClick={() => openModal('refund')}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 border border-gray-700
-                         text-gray-300 hover:border-orange-500 hover:text-orange-400 rounded-lg text-xs font-medium transition">
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-orange-500 hover:text-orange-400 rounded-lg text-xs font-medium transition">
               <DollarSign size={13} /> {t('adminJobDetail.refund')}
             </button>
           )}
@@ -284,8 +281,7 @@ export default function JobDetail() {
               hide the button for other statuses instead of 400ing on click. */}
           {(isSuper || canDelete) && ['published', 'cancelled', 'closed'].includes(job.status) && (
             <button onClick={() => openModal('delete')}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-950 border border-red-900
-                         text-red-400 hover:bg-red-900 rounded-lg text-xs font-medium transition">
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-950 border border-red-900 text-red-400 hover:bg-red-900 rounded-lg text-xs font-medium transition">
               <Trash2 size={13} /> {t('adminJobDetail.delete')}
             </button>
           )}
@@ -301,7 +297,7 @@ export default function JobDetail() {
           {/* Description */}
           {job.description && (
             <Section title={t('adminJobDetail.sections.description')}>
-              <p className="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed">
+              <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
                 {job.description}
               </p>
             </Section>
@@ -315,27 +311,27 @@ export default function JobDetail() {
             {bids.length === 0 ? (
               <p className="text-sm text-gray-500 text-center py-4">{t('adminJobDetail.noBids')}</p>
             ) : (
-              <div className="divide-y divide-gray-800 -m-4">
+              <div className="divide-y divide-gray-200 dark:divide-gray-800 -m-4">
                 {bids.map(b => (
                   <div key={b.id} className="px-4 py-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <Link to={`/admin/users/${b.helper_id}`}
-                            className="text-sm font-medium text-white hover:text-orange-300 transition truncate">
+                            className="text-sm font-medium text-gray-900 dark:text-white hover:text-orange-300 transition truncate">
                             {b.helper_name}
                           </Link>
                           <span className="text-xs text-gray-500 truncate">{b.helper_email}</span>
                         </div>
                         {b.message && (
-                          <p className="text-xs text-gray-400 mt-1 line-clamp-2">{b.message}</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">{b.message}</p>
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-sm font-semibold text-white">{money(b.amount, locale)}</span>
+                        <span className="text-sm font-semibold text-gray-900 dark:text-white">{money(b.amount, locale)}</span>
                         <Badge
                           text={jobStatusLabel(b.status, t)}
-                          colorClass={BID_COLOR[b.status] || 'bg-gray-700 text-gray-300'}
+                          colorClass={BID_COLOR[b.status] || 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}
                         />
                       </div>
                     </div>
@@ -351,18 +347,18 @@ export default function JobDetail() {
             <Section title={t('adminJobDetail.sections.payment')}>
               <dl className="grid grid-cols-2 gap-3 text-sm">
                 {[
-                  [t('adminJobDetail.paymentFields.status'), <Badge key="s" text={payment.status} colorClass={STATUS_COLOR[payment.status] || 'bg-gray-700 text-gray-300'} />],
+                  [t('adminJobDetail.paymentFields.status'), <Badge key="s" text={payment.status} colorClass={STATUS_COLOR[payment.status] || 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'} />],
                   [t('adminJobDetail.paymentFields.totalAmount'), money(payment.amount, locale)],
                   [t('adminJobDetail.paymentFields.helperPayout'), money(payment.helper_payout, locale)],
                   [t('adminJobDetail.paymentFields.platformFee'), payment.platform_fee != null ? money(payment.platform_fee, locale) : '-'],
                   [t('adminJobDetail.paymentFields.date'), ts(payment.created_at, locale)],
                   [t('adminJobDetail.paymentFields.stripePI'), payment.stripe_payment_intent_id
-                    ? <span key="pi" className="font-mono text-xs text-gray-400 truncate">{payment.stripe_payment_intent_id}</span>
+                    ? <span key="pi" className="font-mono text-xs text-gray-600 dark:text-gray-400 truncate">{payment.stripe_payment_intent_id}</span>
                     : '-'],
                 ].map(([label, val]) => (
                   <div key={label}>
                     <dt className="text-gray-500 text-xs">{label}</dt>
-                    <dd className="text-white mt-0.5">{val}</dd>
+                    <dd className="text-gray-900 dark:text-white mt-0.5">{val}</dd>
                   </div>
                 ))}
               </dl>
@@ -393,7 +389,7 @@ export default function JobDetail() {
                   <span className="mt-0.5 shrink-0">{icon}</span>
                   <div className="flex-1 min-w-0">
                     <dt className="text-gray-500 text-xs">{label}</dt>
-                    <dd className="text-white">{val}</dd>
+                    <dd className="text-gray-900 dark:text-white">{val}</dd>
                   </div>
                 </div>
               ))}
@@ -403,15 +399,15 @@ export default function JobDetail() {
           {/* Client */}
           <Section title={t('adminJobDetail.sections.client')}>
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center shrink-0">
-                <User size={16} className="text-gray-400" />
+              <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0">
+                <User size={16} className="text-gray-600 dark:text-gray-400" />
               </div>
               <div className="min-w-0">
                 <Link to={`/admin/users/${job.client_id}`}
-                  className="text-sm font-medium text-white hover:text-orange-300 transition block truncate">
+                  className="text-sm font-medium text-gray-900 dark:text-white hover:text-orange-300 transition block truncate">
                   {job.client_name}
                 </Link>
-                <p className="text-xs text-gray-400 truncate">{job.client_email}</p>
+                <p className="text-xs text-gray-600 dark:text-gray-400 truncate">{job.client_email}</p>
               </div>
             </div>
           </Section>
@@ -420,15 +416,15 @@ export default function JobDetail() {
           <Section title={t('adminJobDetail.sections.helper')}>
             {job.helper_user_id ? (
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center shrink-0">
-                  <User size={16} className="text-gray-400" />
+                <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0">
+                  <User size={16} className="text-gray-600 dark:text-gray-400" />
                 </div>
                 <div className="min-w-0">
                   <Link to={`/admin/users/${job.helper_user_id}`}
-                    className="text-sm font-medium text-white hover:text-orange-300 transition block truncate">
+                    className="text-sm font-medium text-gray-900 dark:text-white hover:text-orange-300 transition block truncate">
                     {job.helper_name}
                   </Link>
-                  <p className="text-xs text-gray-400 truncate">{job.helper_email}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 truncate">{job.helper_email}</p>
                 </div>
               </div>
             ) : (
@@ -453,8 +449,7 @@ export default function JobDetail() {
         >
           <textarea rows={3} value={modalReason} onChange={e => setModalReason(e.target.value)}
             placeholder={t('adminJobDetail.modals.reasonOptional')}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-sm p-2.5
-                       placeholder-gray-500 focus:border-orange-500 focus:outline-none resize-none" />
+            className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white text-sm p-2.5 placeholder-gray-500 focus:border-orange-500 focus:outline-none resize-none" />
         </ActionModal>
       )}
 
@@ -470,8 +465,7 @@ export default function JobDetail() {
         >
           <textarea rows={3} value={modalReason} onChange={e => setModalReason(e.target.value)}
             placeholder={t('adminJobDetail.modals.reasonOptional')}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-sm p-2.5
-                       placeholder-gray-500 focus:border-orange-500 focus:outline-none resize-none" />
+            className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white text-sm p-2.5 placeholder-gray-500 focus:border-orange-500 focus:outline-none resize-none" />
         </ActionModal>
       )}
 
@@ -502,8 +496,7 @@ export default function JobDetail() {
         >
           <textarea rows={3} value={modalReason} onChange={e => { setModalReason(e.target.value); setModalErr(''); }}
             placeholder={t('adminJobDetail.modals.delete.reasonPlaceholder')}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-sm p-2.5
-                       placeholder-gray-500 focus:border-red-500 focus:outline-none resize-none" />
+            className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white text-sm p-2.5 placeholder-gray-500 focus:border-red-500 focus:outline-none resize-none" />
         </ActionModal>
       )}
     </div>

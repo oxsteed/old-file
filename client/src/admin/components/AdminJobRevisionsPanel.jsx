@@ -36,7 +36,7 @@ export default function AdminJobRevisionsPanel({ job, onChanged }) {
   };
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden text-gray-200 p-4">
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden text-gray-700 dark:text-gray-200 p-4">
       <JobRevisionHistory key={refreshKey} jobId={job.id} revision={job.revision} version={job.version}
         load={load} onRollback={(item) => setTarget(item)} defaultOpen />
       {target && (

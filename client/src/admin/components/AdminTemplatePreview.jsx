@@ -5,7 +5,7 @@ import { DEMO_TEMPLATE_PROFILE_DATA } from '../utils/templatePreviewData';
 export function TemplatePreviewThumb({ slug, className = '', width = 72, height = 52 }) {
   return (
     <div
-      className={`relative rounded-lg overflow-hidden border border-gray-700 bg-gray-950 shrink-0 ${className}`}
+      className={`relative rounded-lg overflow-hidden border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 shrink-0 ${className}`}
       style={{ width, height }}
       aria-hidden
     >
@@ -24,7 +24,7 @@ export function TemplatePreviewPanel({ slug, scale = 0.38, maxHeight = 'min(70vh
   const mh = maxHeight === 'none' ? undefined : maxHeight;
   return (
     <div
-      className="rounded-xl border border-gray-700 bg-gray-950 overflow-auto overscroll-contain"
+      className="rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 overflow-auto overscroll-contain"
       style={mh ? { maxHeight: mh } : {}}
     >
       <div

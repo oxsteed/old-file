@@ -51,23 +51,23 @@ function AcceptanceCard({ title, percentage, accepted, total, acceptedDate }) {
   return (
     <div className={`rounded-xl border p-6 ${status.color}`}>
       <div className="flex items-start justify-between mb-4">
-        <h3 className="text-gray-300 font-semibold">{title}</h3>
+        <h3 className="text-gray-700 dark:text-gray-300 font-semibold">{title}</h3>
         <span className={`text-2xl font-bold ${status.textColor}`}>{status.icon}</span>
       </div>
 
       <div className="flex items-baseline gap-2 mb-2">
         <p className={`text-3xl font-bold ${status.textColor}`}>{percentage}%</p>
-        <p className="text-gray-400 text-sm">{t('adminComplianceMetricsPage.cardAccepted', { defaultValue: 'Accepted' })}</p>
+        <p className="text-gray-600 dark:text-gray-400 text-sm">{t('adminComplianceMetricsPage.cardAccepted', { defaultValue: 'Accepted' })}</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 text-xs text-gray-400 mb-3">
+      <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-400 mb-3">
         <div>
           <p className="text-gray-500">{t('adminComplianceMetricsPage.cardSigned', { defaultValue: 'Signed' })}</p>
           <p className={`text-lg font-semibold ${status.textColor}`}>{accepted}</p>
         </div>
         <div>
           <p className="text-gray-500">{t('adminComplianceMetricsPage.cardPending', { defaultValue: 'Pending' })}</p>
-          <p className="text-lg font-semibold text-gray-300">{notAccepted}</p>
+          <p className="text-lg font-semibold text-gray-700 dark:text-gray-300">{notAccepted}</p>
         </div>
       </div>
 
@@ -96,12 +96,12 @@ function DocumentStatusColumn({ title, count, docs, status }) {
     inReview: 'text-yellow-400',
     approved: 'text-purple-400',
     published: 'text-green-400',
-  }[status] || 'text-gray-400';
+  }[status] || 'text-gray-600 dark:text-gray-400';
 
   return (
     <div className={`rounded-xl border ${bgColor} p-4`}>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-gray-300 font-semibold text-sm">{title}</h3>
+        <h3 className="text-gray-700 dark:text-gray-300 font-semibold text-sm">{title}</h3>
         <span className={`text-2xl font-bold ${textColor}`}>{count}</span>
       </div>
 
@@ -110,8 +110,8 @@ function DocumentStatusColumn({ title, count, docs, status }) {
           <p className="text-gray-500 text-xs py-4 text-center">{t('adminComplianceMetricsPage.noDocuments', { defaultValue: 'No documents' })}</p>
         ) : (
           (docs || []).map((doc, idx) => (
-            <div key={idx} className="bg-gray-900/50 rounded p-2 text-xs">
-              <p className="text-gray-300 font-medium truncate">{doc.name || doc.document_name || doc.package_name || doc.type || doc.id}</p>
+            <div key={idx} className="bg-white/50 dark:bg-gray-900/50 rounded p-2 text-xs">
+              <p className="text-gray-700 dark:text-gray-300 font-medium truncate">{doc.name || doc.document_name || doc.package_name || doc.type || doc.id}</p>
               <p className="text-gray-500 text-xs">v{doc.version || doc.document_version || 1}</p>
             </div>
           ))
@@ -163,7 +163,7 @@ function AlertBox({ type, title, message, action }) {
         <button
           type="button"
           onClick={handleAction}
-          className="flex-shrink-0 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs transition whitespace-nowrap ml-2"
+          className="flex-shrink-0 px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-600 text-gray-900 dark:text-white rounded text-xs transition whitespace-nowrap ml-2"
         >
           {action.label}
         </button>
@@ -267,14 +267,14 @@ export default function AdminComplianceMetricsPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-white font-bold text-3xl mb-2">{t('adminComplianceMetricsPage.title', { defaultValue: 'Compliance Metrics' })}</h1>
-          <p className="text-gray-400 text-sm">{t('adminComplianceMetricsPage.subtitle', { defaultValue: 'Legal document adoption rates, compliance risks, and trends.' })}</p>
+          <h1 className="text-gray-900 dark:text-white font-bold text-3xl mb-2">{t('adminComplianceMetricsPage.title', { defaultValue: 'Compliance Metrics' })}</h1>
+          <p className="text-gray-600 dark:text-gray-400 text-sm">{t('adminComplianceMetricsPage.subtitle', { defaultValue: 'Legal document adoption rates, compliance risks, and trends.' })}</p>
         </div>
         <button
           onClick={reload}
           disabled={loading}
           aria-label={t('common.refresh')}
-          className="p-2.5 bg-gray-700 border border-gray-600 text-gray-400 rounded-lg hover:text-white transition disabled:opacity-50"
+          className="p-2.5 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:text-gray-900 dark:hover:text-white transition disabled:opacity-50"
         >
           <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
         </button>
@@ -288,7 +288,7 @@ export default function AdminComplianceMetricsPage() {
 
       {/* Acceptance Rates Grid */}
       <div>
-        <h2 className="text-white font-bold text-lg mb-4">{t('adminComplianceMetricsPage.acceptanceRatesTitle', { defaultValue: 'Acceptance Rates by Document Type' })}</h2>
+        <h2 className="text-gray-900 dark:text-white font-bold text-lg mb-4">{t('adminComplianceMetricsPage.acceptanceRatesTitle', { defaultValue: 'Acceptance Rates by Document Type' })}</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Object.entries(acceptanceRates).map(([key, rate]) => {
             const normalizedRate = normalizeAcceptanceRate(rate, totalActiveUsers);
@@ -309,23 +309,23 @@ export default function AdminComplianceMetricsPage() {
       {/* CCPA/GDPR Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* CCPA Card */}
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-          <h3 className="text-white font-bold text-lg mb-4">CCPA Compliance</h3>
+        <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-6">
+          <h3 className="text-gray-900 dark:text-white font-bold text-lg mb-4">CCPA Compliance</h3>
           <div className="space-y-3">
             <div className="flex items-start justify-between">
               <div>
-                  <p className="text-gray-400 text-sm">Requests This Month</p>
-                <p className="text-white text-3xl font-bold">{ccpaRequestTotal || 0}</p>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm">Requests This Month</p>
+                <p className="text-gray-900 dark:text-white text-3xl font-bold">{ccpaRequestTotal || 0}</p>
               </div>
               <div className="text-right">
-                <p className="text-gray-400 text-sm">Pending</p>
+                <p className="text-gray-600 dark:text-gray-400 text-sm">Pending</p>
                 <p className="text-yellow-400 text-2xl font-bold">{ccpaPendingCount || 0}</p>
               </div>
             </div>
-            <div className="border-t border-gray-700 pt-3">
-              <p className="text-gray-400 text-sm mb-1">Avg Response Time</p>
+            <div className="border-t border-gray-300 dark:border-gray-700 pt-3">
+              <p className="text-gray-600 dark:text-gray-400 text-sm mb-1">Avg Response Time</p>
               <div className="flex items-baseline gap-2">
-                <p className="text-white text-2xl font-bold">{ccpaResponseTime || 0}</p>
+                <p className="text-gray-900 dark:text-white text-2xl font-bold">{ccpaResponseTime || 0}</p>
                 <p className="text-gray-500 text-sm">days (goal: 45)</p>
               </div>
             </div>
@@ -333,23 +333,23 @@ export default function AdminComplianceMetricsPage() {
         </div>
 
         {/* GDPR Card */}
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-          <h3 className="text-white font-bold text-lg mb-4">GDPR Compliance</h3>
+        <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-6">
+          <h3 className="text-gray-900 dark:text-white font-bold text-lg mb-4">GDPR Compliance</h3>
           <div className="space-y-3">
               <div className="flex items-start justify-between">
               <div>
-                <p className="text-gray-400 text-sm">Access Requests</p>
-                <p className="text-white text-3xl font-bold">{ccpaRequestTotal || 0}</p>
+                <p className="text-gray-600 dark:text-gray-400 text-sm">Access Requests</p>
+                <p className="text-gray-900 dark:text-white text-3xl font-bold">{ccpaRequestTotal || 0}</p>
               </div>
               <div className="text-right">
-                <p className="text-gray-400 text-sm">Deletions</p>
-                <p className="text-white text-2xl font-bold">{gdprRequestTotal || 0}</p>
+                <p className="text-gray-600 dark:text-gray-400 text-sm">Deletions</p>
+                <p className="text-gray-900 dark:text-white text-2xl font-bold">{gdprRequestTotal || 0}</p>
               </div>
             </div>
-            <div className="border-t border-gray-700 pt-3">
-              <p className="text-gray-400 text-sm mb-1">Avg Response Time</p>
+            <div className="border-t border-gray-300 dark:border-gray-700 pt-3">
+              <p className="text-gray-600 dark:text-gray-400 text-sm mb-1">Avg Response Time</p>
               <div className="flex items-baseline gap-2">
-                <p className="text-white text-2xl font-bold">{ccpaResponseTime || 0}</p>
+                <p className="text-gray-900 dark:text-white text-2xl font-bold">{ccpaResponseTime || 0}</p>
                 <p className="text-gray-500 text-sm">days (goal: 30)</p>
               </div>
             </div>
@@ -359,7 +359,7 @@ export default function AdminComplianceMetricsPage() {
 
       {/* Document Status Timeline */}
       <div>
-        <h2 className="text-white font-bold text-lg mb-4">Document Workflow Status</h2>
+        <h2 className="text-gray-900 dark:text-white font-bold text-lg mb-4">Document Workflow Status</h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <DocumentStatusColumn
             title="Created"
@@ -392,8 +392,8 @@ export default function AdminComplianceMetricsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Acceptance Trend */}
         {trendData.length > 0 && (
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <h3 className="text-white font-semibold mb-4">Acceptance Rate Trend (90 Days)</h3>
+          <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-6">
+            <h3 className="text-gray-900 dark:text-white font-semibold mb-4">Acceptance Rate Trend (90 Days)</h3>
             <ResponsiveContainer width="100%" height={250}>
               <LineChart data={trendData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -409,8 +409,8 @@ export default function AdminComplianceMetricsPage() {
 
         {/* CCPA Requests */}
         {ccpaData.length > 0 && (
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <h3 className="text-white font-semibold mb-4">CCPA Requests by Type</h3>
+          <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-6">
+            <h3 className="text-gray-900 dark:text-white font-semibold mb-4">CCPA Requests by Type</h3>
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={ccpaData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -428,7 +428,7 @@ export default function AdminComplianceMetricsPage() {
       {/* Alerts Section */}
       {alerts.length > 0 && (
         <div>
-          <h2 className="text-white font-bold text-lg mb-4">Active Alerts</h2>
+          <h2 className="text-gray-900 dark:text-white font-bold text-lg mb-4">Active Alerts</h2>
           <div className="space-y-3">
             {alerts.map((alert, idx) => (
               <AlertBox
@@ -445,8 +445,8 @@ export default function AdminComplianceMetricsPage() {
 
       {/* Document Versions Chart */}
       {Array.isArray(trends.versions) && trends.versions.length > 0 && (
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-          <h3 className="text-white font-semibold mb-4">Document Version Adoption</h3>
+        <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-6">
+          <h3 className="text-gray-900 dark:text-white font-semibold mb-4">Document Version Adoption</h3>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart
               data={trends.versions}

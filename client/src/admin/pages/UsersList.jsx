@@ -122,40 +122,36 @@ function CreateUserModal({ onClose, onCreated }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       onClick={() => !busy && onClose()}>
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl"
+      <div className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl"
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
-          <h3 className="font-bold text-white text-base">{t('adminUsers.list.createTitle')}</h3>
-          <button onClick={onClose} disabled={busy} aria-label={t('common.close', { defaultValue: 'Close' })} className="text-gray-500 hover:text-white transition"><X size={18} aria-hidden="true" /></button>
+          <h3 className="font-bold text-gray-900 dark:text-white text-base">{t('adminUsers.list.createTitle')}</h3>
+          <button onClick={onClose} disabled={busy} aria-label={t('common.close', { defaultValue: 'Close' })} className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition"><X size={18} aria-hidden="true" /></button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             {[['first_name', t('adminUsers.list.firstName')], ['last_name', t('adminUsers.list.lastName')]].map(([k, label]) => (
               <div key={k}>
-                <label className="block text-xs font-medium text-gray-400 mb-1">{label}</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{label}</label>
                 <input required value={form[k]} onChange={e => set(k, e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
-                             text-white placeholder-gray-500 focus:outline-none focus:border-orange-500" />
+                  className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-orange-500" />
               </div>
             ))}
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">{t('adminUsers.list.email')}</label>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('adminUsers.list.email')}</label>
             <input type="email" required value={form.email} onChange={e => set('email', e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
-                         text-white placeholder-gray-500 focus:outline-none focus:border-orange-500" />
+              className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-orange-500" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">{t('adminUsers.list.password')} <span className="text-gray-600">{t('adminUsers.list.minChars')}</span></label>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('adminUsers.list.password')} <span className="text-gray-600">{t('adminUsers.list.minChars')}</span></label>
             <input type="password" required minLength={8} value={form.password} onChange={e => set('password', e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
-                         text-white placeholder-gray-500 focus:outline-none focus:border-orange-500" />
+              className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-orange-500" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">{t('adminUsers.list.accountType')}</label>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('adminUsers.list.accountType')}</label>
             <select value={form.account_type} onChange={e => set('account_type', e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
-                         text-gray-300 focus:outline-none focus:border-orange-500">
+              className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:border-orange-500">
               {QUICK_CREATE_ACCOUNT_TYPES.map((accountType) => (
                 <option key={accountType.value} value={accountType.value}>
                   {t(`adminUsers.list.accountTypes.${accountType.value}`, { defaultValue: accountType.label })}
@@ -166,13 +162,11 @@ function CreateUserModal({ onClose, onCreated }) {
           {error && <p className="text-red-400 text-xs">{error}</p>}
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose} disabled={busy}
-              className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 text-gray-300
-                         rounded-lg text-sm font-medium hover:bg-gray-700 transition disabled:opacity-50">
+              className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition disabled:opacity-50">
               {t('adminUsers.list.cancel')}
             </button>
             <button type="submit" disabled={busy}
-              className="flex-1 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white
-                         rounded-lg text-sm font-semibold transition disabled:opacity-50">
+              className="flex-1 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold transition disabled:opacity-50">
               {busy ? t('adminUsers.list.creating') : t('adminUsers.list.createUser')}
             </button>
           </div>
@@ -205,34 +199,33 @@ function ResetPasswordModal({ user, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       onClick={() => !busy && onClose()}>
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+      <div className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl"
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-white text-sm flex items-center gap-2">
+          <h3 className="font-bold text-gray-900 dark:text-white text-sm flex items-center gap-2">
             <Key size={15} className="text-orange-400" /> {t('adminUsers.list.resetPassword')}
           </h3>
-          <button onClick={onClose} aria-label={t('common.close', { defaultValue: 'Close' })} className="text-gray-500 hover:text-white transition"><X size={16} aria-hidden="true" /></button>
+          <button onClick={onClose} aria-label={t('common.close', { defaultValue: 'Close' })} className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition"><X size={16} aria-hidden="true" /></button>
         </div>
         {done ? (
           <div className="text-center py-4">
             <CheckCircle size={32} className="text-green-400 mx-auto mb-2" aria-hidden="true" />
-            <p className="text-white text-sm font-medium">{t('adminUsers.list.resetSuccess')}</p>
-            <p className="text-gray-400 text-xs mt-1">{t('adminUsers.list.sessionsInvalidated', { name: user.first_name })}</p>
-            <button onClick={onClose} className="mt-4 px-4 py-2 bg-gray-700 text-gray-200 rounded-lg text-sm hover:bg-gray-600 transition">{t('common.close', { defaultValue: 'Close' })}</button>
+            <p className="text-gray-900 dark:text-white text-sm font-medium">{t('adminUsers.list.resetSuccess')}</p>
+            <p className="text-gray-600 dark:text-gray-400 text-xs mt-1">{t('adminUsers.list.sessionsInvalidated', { name: user.first_name })}</p>
+            <button onClick={onClose} className="mt-4 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-sm hover:bg-gray-600 transition">{t('common.close', { defaultValue: 'Close' })}</button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <p className="text-gray-400 text-xs">{t('adminUsers.list.settingPassword', { name: `${user.first_name} ${user.last_name}` })}</p>
+            <p className="text-gray-600 dark:text-gray-400 text-xs">{t('adminUsers.list.settingPassword', { name: `${user.first_name} ${user.last_name}` })}</p>
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1">{t('adminUsers.list.newPassword')} <span className="text-gray-600">{t('adminUsers.list.minChars')}</span></label>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('adminUsers.list.newPassword')} <span className="text-gray-600">{t('adminUsers.list.minChars')}</span></label>
               <input type="password" required minLength={8} value={pw} onChange={e => setPw(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
-                           text-white focus:outline-none focus:border-orange-500" />
+                className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:border-orange-500" />
             </div>
             {err && <p className="text-red-400 text-xs">{err}</p>}
             <div className="flex gap-3">
               <button type="button" onClick={onClose} disabled={busy}
-                className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-300 rounded-lg text-sm hover:bg-gray-700 transition disabled:opacity-50">
+                className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-200 dark:hover:bg-gray-700 transition disabled:opacity-50">
                 {t('adminUsers.list.cancel')}
               </button>
               <button type="submit" disabled={busy || pw.length < 8}
@@ -269,24 +262,22 @@ function QuickActionsMenu({ user, isSuper, canMessage, onMessage, onToggleBan, o
       {confirmDialog}
       <button onClick={() => setOpen(o => !o)} disabled={busy}
         aria-label={t('common.moreActions', { defaultValue: 'More actions' })}
-        className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-700 transition disabled:opacity-40">
+        className="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition disabled:opacity-40">
         <MoreHorizontal size={15} aria-hidden="true" />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-40 w-48 bg-gray-900 border border-gray-700
-                        rounded-xl shadow-2xl overflow-hidden py-1">
+        <div className="absolute right-0 top-full mt-1 z-40 w-48 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl shadow-2xl overflow-hidden py-1">
           <Link to={`/admin/users/${user.id}`} onClick={() => setOpen(false)}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left rounded-lg
-                       text-gray-300 hover:bg-gray-700 transition">
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition">
             <Eye size={13} /> {t('adminUsers.list.viewProfile')}
           </Link>
           {canMessage && (
             <button onClick={() => { setOpen(false); onMessage(user); }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left rounded-lg text-gray-300 hover:bg-gray-700 transition">
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition">
               <MessageSquare size={13} /> {t('adminUsers.list.sendMessage')}
             </button>
           )}
-          <div className="border-t border-gray-800 my-1" />
+          <div className="border-t border-gray-200 dark:border-gray-800 my-1" />
           {isSuper && user.deletion_scheduled_at && user.deletion_type !== 'self' && (
             <button
               type="button"
@@ -342,7 +333,7 @@ function StatsBar({ summary, t }) {
   return (
     <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-6">
       {stats.map(({ label, value, color }) => (
-        <div key={label} className="bg-gray-800 border border-gray-700 rounded-xl px-3 py-3 text-center">
+        <div key={label} className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-3 text-center">
           <p className={`text-lg font-bold ${color}`}>{value}</p>
           <p className="text-gray-500 text-xs mt-0.5">{label}</p>
         </div>
@@ -360,7 +351,7 @@ function SortHeader({ col, label, currentSort, currentOrder, onSort }) {
     <th className="px-4 py-3 text-left">
       <button onClick={() => onSort(col)}
         className={`flex items-center gap-1 text-xs uppercase tracking-wider font-semibold transition
-          ${active ? 'text-orange-400' : 'text-gray-400 hover:text-gray-200'}`}>
+          ${active ? 'text-orange-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
         {label}
         <span className="ml-0.5">
           {active
@@ -604,13 +595,13 @@ export default function UsersList() {
       {/* ── Header ── */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <div>
-          <h1 className="text-2xl font-bold text-white">{t('adminUsers.list.title')}</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{t('adminUsers.list.matchingFilters', { count: total.toLocaleString() })}</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('adminUsers.list.title')}</h1>
+          <p className="text-gray-600 dark:text-gray-400 text-sm mt-0.5">{t('adminUsers.list.matchingFilters', { count: total.toLocaleString() })}</p>
           {lastUpdated && <p className="mt-1 text-xs text-gray-600">{t('adminUsers.list.updated', { time: lastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) })}</p>}
         </div>
         <div className="flex items-center gap-2">
           <button type="button" onClick={fetchUsers} disabled={loading}
-            className="flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-700 transition disabled:opacity-50"
+            className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition disabled:opacity-50"
             title={t('common.refresh', { defaultValue: 'Refresh' })}
             aria-label={t('common.refresh', { defaultValue: 'Refresh' })}>
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} aria-hidden="true" /> {t('adminUsers.list.refresh')}
@@ -623,7 +614,7 @@ export default function UsersList() {
           )}
           {(isSuper || canExport) && (
             <button onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-gray-200 text-sm font-medium rounded-lg hover:bg-gray-600 transition">
+              className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg hover:bg-gray-600 transition">
               <Download size={15} /> {t('adminUsers.list.exportCsv')}
             </button>
           )}
@@ -660,8 +651,7 @@ export default function UsersList() {
           <MapPin size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
           <input type="text" placeholder={t('adminUsers.list.locationPlaceholder')}
             value={filters.location} onChange={e => update('location', e.target.value)}
-            className="w-full pl-8 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
-                       text-white placeholder-gray-500 focus:outline-none focus:border-orange-500" />
+            className="w-full pl-8 pr-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-orange-500" />
         </div>
 
         {/* Role / Status / Plan dropdowns */}
@@ -671,8 +661,7 @@ export default function UsersList() {
           { key: 'plan', options: PLANS, label: t('adminUsers.list.allPlans') },
         ].map(({ key, options, label }) => (
           <select key={key} value={filters[key]} onChange={e => update(key, e.target.value)}
-            className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
-                       text-gray-300 focus:outline-none focus:border-orange-500">
+            className="px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:border-orange-500">
             <option value="">{label}</option>
             {options.filter(Boolean).map(o => <option key={o} value={o} className="capitalize">{o}</option>)}
           </select>
@@ -680,15 +669,13 @@ export default function UsersList() {
 
         {/* Sort by */}
         <select value={filters.sort} onChange={e => onSort(e.target.value)}
-          className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
-                     text-gray-300 focus:outline-none focus:border-orange-500">
+          className="px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:border-orange-500">
           {SORT_COLS.map(c => <option key={c.key} value={c.key}>{t('adminUsers.list.sortBy', { label: t(`adminUsers.list.sort.${c.key}`) })}</option>)}
         </select>
 
         {/* Page size */}
         <select value={filters.limit} onChange={e => update('limit', Number(e.target.value))}
-          className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
-                     text-gray-300 focus:outline-none focus:border-orange-500">
+          className="px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:border-orange-500">
           {PAGE_SIZES.map(n => <option key={n} value={n}>{t('adminUsers.list.perPage', { count: n })}</option>)}
         </select>
       </div>
@@ -706,36 +693,36 @@ export default function UsersList() {
             <CheckCircle size={12} /> {t('adminUsers.list.reactivateSelected')}
           </button>
           <button onClick={() => setSelected(new Set())}
-            className="ml-auto text-gray-500 hover:text-gray-300 transition">
+            className="ml-auto text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition">
             <X size={14} />
           </button>
         </div>
       )}
 
       {/* ── Table ── */}
-      <div className="bg-gray-800 border border-gray-700 rounded-2xl overflow-hidden">
+      <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-700">
+              <tr className="border-b border-gray-300 dark:border-gray-700">
                 {/* Checkbox all */}
                 <th className="px-4 py-3 w-8">
                   <button onClick={toggleAll}
                     aria-label={allSelected ? t('common.clearSelection', { defaultValue: 'Clear selection' }) : t('common.selectAll', { defaultValue: 'Select all users on this page' })}
-                    className="text-gray-400 hover:text-white transition">
+                    className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition">
                     {allSelected
                       ? <div className="w-4 h-4 rounded bg-orange-500 flex items-center justify-center"><div className="w-2.5 h-0.5 bg-white rounded" /></div>
-                      : <div className="w-4 h-4 rounded border border-gray-600" />}
+                      : <div className="w-4 h-4 rounded border border-gray-300 dark:border-gray-600" />}
                   </button>
                 </th>
                 <SortHeader col="first_name" label={t('adminUsers.list.user')} currentSort={filters.sort} currentOrder={filters.order} onSort={onSort} />
-                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-400">{t('adminUsers.list.location')}</th>
-                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-400">{t('adminUsers.list.role')}</th>
-                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-400">{t('adminUsers.list.plan')}</th>
+                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-600 dark:text-gray-400">{t('adminUsers.list.location')}</th>
+                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-600 dark:text-gray-400">{t('adminUsers.list.role')}</th>
+                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-600 dark:text-gray-400">{t('adminUsers.list.plan')}</th>
                 <SortHeader col="avg_rating" label={t('adminUsers.list.rating')} currentSort={filters.sort} currentOrder={filters.order} onSort={onSort} />
-                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-400">{t('adminUsers.list.jobs')}</th>
-                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-400">{t('adminUsers.list.verified')}</th>
-                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-400">{t('adminUsers.list.status')}</th>
+                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-600 dark:text-gray-400">{t('adminUsers.list.jobs')}</th>
+                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-600 dark:text-gray-400">{t('adminUsers.list.verified')}</th>
+                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-600 dark:text-gray-400">{t('adminUsers.list.status')}</th>
                 <SortHeader col="created_at" label={t('adminUsers.list.joined')} currentSort={filters.sort} currentOrder={filters.order} onSort={onSort} />
                 <SortHeader col="last_login_at" label={t('adminUsers.list.lastActive')} currentSort={filters.sort} currentOrder={filters.order} onSort={onSort} />
                 <th className="px-4 py-3 w-10" />
@@ -751,14 +738,14 @@ export default function UsersList() {
                 const isSelected = selected.has(user.id);
                 return (
                   <tr key={user.id}
-                    className={`transition-colors ${isSelected ? 'bg-orange-500/5' : 'hover:bg-gray-700/40'}`}>
+                    className={`transition-colors ${isSelected ? 'bg-orange-500/5' : 'hover:bg-gray-200/40 dark:hover:bg-gray-700/40'}`}>
 
                     {/* Checkbox */}
                     <td className="px-4 py-3">
-                      <button onClick={() => toggleOne(user.id)} aria-label={isSelected ? `Deselect ${user.first_name} ${user.last_name}` : `Select ${user.first_name} ${user.last_name}`} className="text-gray-400 hover:text-orange-400 transition">
+                      <button onClick={() => toggleOne(user.id)} aria-label={isSelected ? `Deselect ${user.first_name} ${user.last_name}` : `Select ${user.first_name} ${user.last_name}`} className="text-gray-600 dark:text-gray-400 hover:text-orange-400 transition">
                         {isSelected
                           ? <div className="w-4 h-4 rounded bg-orange-500 flex items-center justify-center"><div className="w-2.5 h-0.5 bg-white rounded" /></div>
-                          : <div className="w-4 h-4 rounded border border-gray-600" />}
+                          : <div className="w-4 h-4 rounded border border-gray-300 dark:border-gray-600" />}
                       </button>
                     </td>
 
@@ -767,16 +754,16 @@ export default function UsersList() {
                       <div className="flex items-center gap-3">
                         <div className="relative flex-shrink-0">
                           <img src={user.avatar_url || '/default-avatar.png'} alt=""
-                            className="w-8 h-8 rounded-full object-cover border border-gray-600" />
+                            className="w-8 h-8 rounded-full object-cover border border-gray-300 dark:border-gray-600" />
                           <span title={activity.label}
-                            className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-gray-800 ${activity.color}`} />
+                            className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-gray-200 dark:border-gray-800 ${activity.color}`} />
                         </div>
                         <div className="min-w-0">
                           <Link to={`/admin/users/${user.id}`}
-                            className="font-medium text-white text-sm hover:text-orange-300 transition truncate block">
+                            className="font-medium text-gray-900 dark:text-white text-sm hover:text-orange-300 transition truncate block">
                             {user.first_name} {user.last_name}
                           </Link>
-                          <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 truncate">{user.email}</p>
                         </div>
                       </div>
                     </td>
@@ -784,7 +771,7 @@ export default function UsersList() {
                     {/* Location */}
                     <td className="px-4 py-3">
                       {user.city || user.state ? (
-                        <div className="flex items-center gap-1 text-gray-300 text-xs">
+                        <div className="flex items-center gap-1 text-gray-700 dark:text-gray-300 text-xs">
                           <MapPin size={11} className="text-gray-500 flex-shrink-0" />
                           <span className="truncate max-w-28">
                             {[user.city, user.state].filter(Boolean).join(', ')}
@@ -797,7 +784,7 @@ export default function UsersList() {
 
                     {/* Role */}
                     <td className="px-4 py-3">
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium capitalize bg-gray-700 text-gray-300">
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium capitalize bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
                         {user.role?.replace('_', ' ')}
                       </span>
                     </td>
@@ -807,9 +794,9 @@ export default function UsersList() {
                       {user.plan_slug ? (
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
                           user.plan_slug === 'elite'  ? 'bg-purple-900 text-purple-300' :
-                          user.plan_slug === 'pro'    ? 'bg-blue-900   text-blue-300'   :
+                          user.plan_slug === 'pro'    ? 'bg-blue-900 text-blue-300'   :
                           user.plan_slug === 'broker' ? 'bg-indigo-900 text-indigo-300' :
-                                                        'bg-gray-700   text-gray-400'
+                                                        'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                         }`}>{user.plan_slug}</span>
                       ) : <span className="text-gray-600 text-xs">{t('adminUsers.list.free')}</span>}
                     </td>
@@ -819,7 +806,7 @@ export default function UsersList() {
                       {user.avg_rating ? (
                         <div className="flex items-center gap-1">
                           <Star size={11} className="text-yellow-400 fill-yellow-400" />
-                          <span className="text-gray-300 text-xs">{parseFloat(user.avg_rating).toFixed(1)}</span>
+                          <span className="text-gray-700 dark:text-gray-300 text-xs">{parseFloat(user.avg_rating).toFixed(1)}</span>
                           {user.total_reviews > 0 && (
                             <span className="text-gray-600 text-xs">({user.total_reviews})</span>
                           )}
@@ -828,7 +815,7 @@ export default function UsersList() {
                     </td>
 
                     {/* Jobs */}
-                    <td className="px-4 py-3 text-gray-300 text-xs whitespace-nowrap">
+                    <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-xs whitespace-nowrap">
                       <span title={t('adminUsers.list.posted')}>{user.jobs_posted ?? 0}</span>
                       <span className="text-gray-600 mx-1">/</span>
                       <span title={t('adminUsers.list.completedAsHelper')}>{user.jobs_completed_as_helper ?? 0}</span>
@@ -874,12 +861,12 @@ export default function UsersList() {
                     </td>
 
                     {/* Joined */}
-                    <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400 text-xs whitespace-nowrap">
                       {fmtDate(user.created_at)}
                     </td>
 
                     {/* Last Active */}
-                    <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400 text-xs whitespace-nowrap">
                       <span title={user.last_login_at ? new Date(user.last_login_at).toLocaleString() : 'Never'}>
                         {user.last_login_at ? fmtRelative(user.last_login_at, t) : <span className="text-gray-600">{t('adminUsers.list.never')}</span>}
                       </span>
@@ -907,17 +894,17 @@ export default function UsersList() {
 
         {/* ── Pagination ── */}
         {pages > 0 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-700">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-300 dark:border-gray-700">
             <p className="text-xs text-gray-500">
               {t('adminUsers.list.pageSummary', { page: filters.page, pages, count: total.toLocaleString() })}
             </p>
             <div className="flex items-center gap-1">
               <button onClick={() => setPage(1)} disabled={filters.page <= 1}
                 aria-label={t('common.firstPage', { defaultValue: 'First page' })}
-                className="px-2 py-1.5 bg-gray-700 text-gray-300 text-xs rounded-lg disabled:opacity-40 hover:bg-gray-600 transition">«</button>
+                className="px-2 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-lg disabled:opacity-40 hover:bg-gray-600 transition">«</button>
               <button onClick={() => setPage(Math.max(1, filters.page - 1))} disabled={filters.page <= 1}
                 aria-label={t('common.previous', { defaultValue: 'Previous page' })}
-                className="px-3 py-1.5 bg-gray-700 text-gray-300 text-xs rounded-lg disabled:opacity-40 hover:bg-gray-600 transition">{t('adminUsers.list.previous')}</button>
+                className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-lg disabled:opacity-40 hover:bg-gray-600 transition">{t('adminUsers.list.previous')}</button>
 
               {/* Page number pills */}
               {Array.from({ length: Math.min(5, pages) }, (_, i) => {
@@ -933,17 +920,17 @@ export default function UsersList() {
                     className={`px-3 py-1.5 text-xs rounded-lg transition ${
                       p === filters.page
                         ? 'bg-orange-500 text-white font-semibold'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-600'
                     }`}>{p}</button>
                 );
               })}
 
               <button onClick={() => setPage(Math.min(pages, filters.page + 1))} disabled={filters.page >= pages}
                 aria-label={t('common.next', { defaultValue: 'Next page' })}
-                className="px-3 py-1.5 bg-gray-700 text-gray-300 text-xs rounded-lg disabled:opacity-40 hover:bg-gray-600 transition">{t('adminUsers.list.next')}</button>
+                className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-lg disabled:opacity-40 hover:bg-gray-600 transition">{t('adminUsers.list.next')}</button>
               <button onClick={() => setPage(pages)} disabled={filters.page >= pages}
                 aria-label={t('common.lastPage', { defaultValue: 'Last page' })}
-                className="px-2 py-1.5 bg-gray-700 text-gray-300 text-xs rounded-lg disabled:opacity-40 hover:bg-gray-600 transition">»</button>
+                className="px-2 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-lg disabled:opacity-40 hover:bg-gray-600 transition">»</button>
             </div>
           </div>
         )}
@@ -952,27 +939,26 @@ export default function UsersList() {
       {/* ── Message modal ── */}
       {msgTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
-          <div className="w-full max-w-md bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
-              <h2 className="font-semibold text-white flex items-center gap-2 text-sm">
+          <div className="w-full max-w-md bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800">
+              <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2 text-sm">
                 <MessageSquare size={15} className="text-blue-400" /> {t('adminUsers.list.messageTitle', { name: msgTarget.first_name })}
               </h2>
-              <button onClick={closeMessage} aria-label={t('common.close', { defaultValue: 'Close' })} className="text-gray-500 hover:text-white transition p-1"><X size={15} aria-hidden="true" /></button>
+              <button onClick={closeMessage} aria-label={t('common.close', { defaultValue: 'Close' })} className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition p-1"><X size={15} aria-hidden="true" /></button>
             </div>
             <form onSubmit={handleSendMessage} className="p-5">
-              <p className="text-xs text-gray-400 mb-3">
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
                 {t('adminUsers.list.messageAudit', { name: msgTarget.first_name })}
               </p>
               <textarea autoFocus required rows={5} maxLength={4000} value={msgText}
                 onChange={e => setMsgText(e.target.value)}
                 placeholder={t('adminUsers.list.messagePlaceholder', { name: msgTarget.first_name })}
-                className="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-sm
-                           text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none" />
+                className="w-full px-3 py-2.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none" />
               <div className="flex justify-between items-center mt-4">
                 <span className="text-xs text-gray-500">{msgText.length} / 4000</span>
                 <div className="flex gap-2">
                   <button type="button" onClick={closeMessage} disabled={msgSending}
-                    className="px-4 py-2 text-sm rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:opacity-50 transition">
+                    className="px-4 py-2 text-sm rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-600 disabled:opacity-50 transition">
                     {t('adminUsers.list.cancel')}
                   </button>
                   <button type="submit" disabled={msgSending || !msgText.trim()}

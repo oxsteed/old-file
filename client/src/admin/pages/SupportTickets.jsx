@@ -40,13 +40,13 @@ const STATUS_META = {
   in_progress: { i18nKey: 'status.inProgress', color: 'bg-orange-500/15 text-orange-300 border-orange-500/25' },
   waiting_user: { i18nKey: 'status.waitingUser', color: 'bg-purple-500/15 text-purple-300 border-purple-500/25' },
   resolved: { i18nKey: 'status.resolved', color: 'bg-green-500/15 text-green-300 border-green-500/25' },
-  closed: { i18nKey: 'status.closed', color: 'bg-gray-500/15 text-gray-400 border-gray-500/20' },
+  closed: { i18nKey: 'status.closed', color: 'bg-gray-500/15 text-gray-600 dark:text-gray-400 border-gray-500/20' },
 };
 
 const PRIORITY_META = {
   urgent: { i18nKey: 'priority.urgent', color: 'bg-red-500/15 text-red-300 border-red-500/25' },
   high: { i18nKey: 'priority.high', color: 'bg-orange-500/15 text-orange-300 border-orange-500/25' },
-  normal: { i18nKey: 'priority.normal', color: 'bg-gray-500/15 text-gray-300 border-gray-500/20' },
+  normal: { i18nKey: 'priority.normal', color: 'bg-gray-500/15 text-gray-700 dark:text-gray-300 border-gray-500/20' },
   low: { i18nKey: 'priority.low', color: 'bg-slate-500/15 text-slate-400 border-slate-500/20' },
 };
 
@@ -71,7 +71,7 @@ const SUPPORT_TOOLS = [
 
 function Badge({ map, value }) {
   const { t } = useTranslation();
-  const cfg = map[value] || { i18nKey: null, color: 'bg-gray-500/15 text-gray-400 border-gray-500/20' };
+  const cfg = map[value] || { i18nKey: null, color: 'bg-gray-500/15 text-gray-600 dark:text-gray-400 border-gray-500/20' };
   return (
     <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${cfg.color}`}>
       {cfg.i18nKey ? t(`adminSupportTickets.${cfg.i18nKey}`) : value}
@@ -89,12 +89,12 @@ function timeAgo(iso, t) {
   return t('adminSupportTickets.time.daysAgo', { count: Math.floor(h / 24) });
 }
 
-function StatCard({ icon: Icon, label, value, tone = 'text-gray-300', detail }) {
+function StatCard({ icon: Icon, label, value, tone = 'text-gray-700 dark:text-gray-300', detail }) {
   return (
-    <div className="rounded-2xl border border-gray-800 bg-gray-900/85 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.01)]">
+    <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/85 dark:bg-gray-900/85 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.01)]">
       <div className="mb-3 flex items-center justify-between">
         <div className="text-[11px] uppercase tracking-[0.2em] text-gray-500">{label}</div>
-        <div className={`rounded-xl bg-gray-800 p-2 ${tone}`}>
+        <div className={`rounded-xl bg-gray-100 dark:bg-gray-800 p-2 ${tone}`}>
           <Icon size={16} />
         </div>
       </div>
@@ -106,7 +106,7 @@ function StatCard({ icon: Icon, label, value, tone = 'text-gray-300', detail }) 
 
 function MiniStat({ label, value, tone = 'text-white' }) {
   return (
-    <div className="rounded-2xl border border-gray-800 bg-gray-900/70 px-4 py-3">
+    <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 px-4 py-3">
       <div className={`text-lg font-semibold ${tone}`}>{value ?? '–'}</div>
       <div className="mt-1 text-xs uppercase tracking-[0.16em] text-gray-500">{label}</div>
     </div>
@@ -116,10 +116,10 @@ function MiniStat({ label, value, tone = 'text-white' }) {
 function EmptyState({ title, body, icon: Icon = Inbox }) {
   return (
     <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-      <div className="mb-4 rounded-2xl border border-gray-800 bg-gray-900 p-4 text-gray-500">
+      <div className="mb-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 text-gray-500">
         <Icon size={28} />
       </div>
-      <div className="text-base font-medium text-gray-200">{title}</div>
+      <div className="text-base font-medium text-gray-700 dark:text-gray-200">{title}</div>
       <div className="mt-2 max-w-md text-sm leading-6 text-gray-500">{body}</div>
     </div>
   );
@@ -128,15 +128,15 @@ function EmptyState({ title, body, icon: Icon = Inbox }) {
 function DetailPlaceholder({ total, unassigned, mine, onNavigate }) {
   const { t } = useTranslation();
   return (
-    <div className="flex min-h-0 flex-1 flex-col rounded-[28px] border border-gray-800 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-6">
+    <div className="flex min-h-0 flex-1 flex-col rounded-[28px] border border-gray-200 dark:border-gray-800 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-2xl">
           <div className="flex items-center gap-2 text-sm font-medium text-orange-300">
             <MessageSquare size={15} />
             {t('adminSupportTickets.placeholder.eyebrow')}
           </div>
-          <h2 className="mt-2 text-2xl font-semibold text-white">{t('adminSupportTickets.placeholder.title')}</h2>
-          <p className="mt-3 text-sm leading-6 text-gray-400">
+          <h2 className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{t('adminSupportTickets.placeholder.title')}</h2>
+          <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400">
             {t('adminSupportTickets.placeholder.body')}
           </p>
         </div>
@@ -149,22 +149,22 @@ function DetailPlaceholder({ total, unassigned, mine, onNavigate }) {
       </div>
 
       <div className="mt-6 grid flex-1 min-h-0 grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-        <div className="rounded-[24px] border border-gray-800 bg-gray-950/70 p-5">
-          <div className="text-sm font-medium text-white">{t('adminSupportTickets.placeholder.stepsTitle')}</div>
+        <div className="rounded-[24px] border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 p-5">
+          <div className="text-sm font-medium text-gray-900 dark:text-white">{t('adminSupportTickets.placeholder.stepsTitle')}</div>
           <div className="mt-4 space-y-3">
             {['placeholder.step1', 'placeholder.step2', 'placeholder.step3'].map((key, index) => (
-              <div key={key} className="flex gap-3 rounded-2xl border border-gray-800 bg-gray-900/70 p-4">
+              <div key={key} className="flex gap-3 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 p-4">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-orange-500/15 text-sm font-semibold text-orange-300">
                   {index + 1}
                 </div>
-                <div className="text-sm leading-6 text-gray-400">{t(`adminSupportTickets.${key}`)}</div>
+                <div className="text-sm leading-6 text-gray-600 dark:text-gray-400">{t(`adminSupportTickets.${key}`)}</div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="rounded-[24px] border border-gray-800 bg-gray-950/70 p-5">
-          <div className="text-sm font-medium text-white">{t('adminSupportTickets.placeholder.routesTitle')}</div>
+        <div className="rounded-[24px] border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 p-5">
+          <div className="text-sm font-medium text-gray-900 dark:text-white">{t('adminSupportTickets.placeholder.routesTitle')}</div>
           <div className="mt-1 text-xs text-gray-500">{t('adminSupportTickets.placeholder.routesSubtitle')}</div>
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {SUPPORT_TOOLS.slice(0, 6).map((item) => {
@@ -173,13 +173,13 @@ function DetailPlaceholder({ total, unassigned, mine, onNavigate }) {
                 <button
                   key={item.to}
                   onClick={() => onNavigate(item.to)}
-                  className="flex items-center justify-between rounded-2xl border border-gray-800 bg-gray-900/70 px-4 py-3 text-left transition hover:border-orange-500/40 hover:bg-gray-900"
+                  className="flex items-center justify-between rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 px-4 py-3 text-left transition hover:border-orange-500/40 hover:bg-white dark:hover:bg-gray-900"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="rounded-xl bg-gray-800 p-2 text-gray-300">
+                    <div className="rounded-xl bg-gray-100 dark:bg-gray-800 p-2 text-gray-700 dark:text-gray-300">
                       <Icon size={14} />
                     </div>
-                    <div className="text-sm font-medium text-gray-200">{t(`adminSupportTickets.${item.i18nKey}`)}</div>
+                    <div className="text-sm font-medium text-gray-700 dark:text-gray-200">{t(`adminSupportTickets.${item.i18nKey}`)}</div>
                   </div>
                   <ChevronRight size={14} className="text-gray-600" />
                 </button>
@@ -203,14 +203,14 @@ function TicketRow({ ticket, selected, onClick }) {
       className={`w-full rounded-2xl border p-4 text-left transition ${
         selected
           ? 'border-orange-500/50 bg-orange-500/8 shadow-[0_0_0_1px_rgba(249,115,22,0.15)]'
-          : 'border-gray-800 bg-gray-900/70 hover:border-gray-700 hover:bg-gray-900'
+          : 'border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-white dark:hover:bg-gray-900'
       }`}
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             {hasUnread && <span className="h-2.5 w-2.5 rounded-full bg-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.55)]" />}
-            <span className="truncate text-sm font-semibold text-white">{ticket.subject}</span>
+            <span className="truncate text-sm font-semibold text-gray-900 dark:text-white">{ticket.subject}</span>
           </div>
           <div className="mt-1 text-xs text-gray-500">
             #{ticket.ticket_number} · {ticket.name || ticket.email}
@@ -227,7 +227,7 @@ function TicketRow({ ticket, selected, onClick }) {
       </div>
 
       {preview && (
-        <div className="mb-3 max-h-[3.2rem] overflow-hidden text-sm leading-6 text-gray-400">
+        <div className="mb-3 max-h-[3.2rem] overflow-hidden text-sm leading-6 text-gray-600 dark:text-gray-400">
           {preview}
         </div>
       )}
@@ -236,7 +236,7 @@ function TicketRow({ ticket, selected, onClick }) {
         <Badge map={STATUS_META} value={ticket.status} />
         <Badge map={PRIORITY_META} value={ticket.priority} />
         {ticket.category && (
-          <span className="rounded-full border border-gray-700 bg-gray-800/70 px-2.5 py-1 text-xs text-gray-400">
+          <span className="rounded-full border border-gray-300 dark:border-gray-700 bg-gray-100/70 dark:bg-gray-800/70 px-2.5 py-1 text-xs text-gray-600 dark:text-gray-400">
             {ticket.category}
           </span>
         )}
@@ -332,21 +332,21 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
   const isClosed = ticket && ['resolved', 'closed'].includes(ticket.status);
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden rounded-[28px] border border-gray-800 bg-gray-950/80">
-      <div className="border-b border-gray-800 bg-gradient-to-r from-gray-950 via-gray-900 to-gray-950 px-6 py-5">
+    <div className="flex flex-1 flex-col overflow-hidden rounded-[28px] border border-gray-200 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-950/80">
+      <div className="border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-gray-950 via-gray-900 to-gray-950 px-6 py-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <Badge map={STATUS_META} value={ticket.status} />
               <Badge map={PRIORITY_META} value={ticket.priority} />
               {ticket.category && (
-                <span className="rounded-full border border-gray-700 bg-gray-800/70 px-2.5 py-1 text-xs text-gray-400">
+                <span className="rounded-full border border-gray-300 dark:border-gray-700 bg-gray-100/70 dark:bg-gray-800/70 px-2.5 py-1 text-xs text-gray-600 dark:text-gray-400">
                   {ticket.category}
                 </span>
               )}
             </div>
-            <h2 className="mt-3 text-xl font-semibold text-white">{ticket.subject}</h2>
-            <p className="mt-2 text-sm text-gray-400">
+            <h2 className="mt-3 text-xl font-semibold text-gray-900 dark:text-white">{ticket.subject}</h2>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
               #{ticket.ticket_number} · {ticket.name} &lt;{ticket.email}&gt;
               {ticket.user_first && <> · {t('adminSupportTickets.detail.registeredAs', { first: ticket.user_first, last: ticket.user_last })}</>}
             </p>
@@ -371,7 +371,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
               <button
                 onClick={handleUnclaim}
                 disabled={actionBusy}
-                className="flex items-center gap-1.5 rounded-xl bg-gray-800 px-3 py-2 text-xs font-medium text-gray-200 transition hover:bg-gray-700 disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-xl bg-gray-100 dark:bg-gray-800 px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-200 transition hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
               >
                 <Unlock size={12} /> {t('adminSupportTickets.detail.unclaim')}
               </button>
@@ -387,7 +387,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
             )}
             <button
               onClick={load}
-              className="rounded-xl border border-gray-700 bg-gray-900 p-2 text-gray-400 transition hover:border-gray-600 hover:text-white"
+              className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-gray-600 dark:text-gray-400 transition hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-900 dark:hover:text-white"
             >
               <RefreshCw size={14} />
             </button>
@@ -400,7 +400,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
               <button
                 onClick={() => handleStatus('waiting_user')}
                 disabled={actionBusy || ticket.status === 'waiting_user'}
-                className="rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-xs text-gray-300 transition hover:border-gray-600 hover:bg-gray-800 disabled:opacity-40"
+                className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-xs text-gray-700 dark:text-gray-300 transition hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40"
               >
                 {t('adminSupportTickets.status.waitingUser')}
               </button>
@@ -414,7 +414,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
               <button
                 onClick={() => handleStatus('closed')}
                 disabled={actionBusy}
-                className="flex items-center gap-1 rounded-xl bg-gray-800 px-3 py-2 text-xs text-gray-400 transition hover:bg-gray-700 disabled:opacity-40"
+                className="flex items-center gap-1 rounded-xl bg-gray-100 dark:bg-gray-800 px-3 py-2 text-xs text-gray-600 dark:text-gray-400 transition hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-40"
               >
                 <X size={11} /> {t('adminSupportTickets.detail.close')}
               </button>
@@ -435,7 +435,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
             value={ticket.priority}
             onChange={(event) => handlePriority(event.target.value)}
             disabled={actionBusy}
-            className="rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-xs text-gray-300 focus:border-orange-500 focus:outline-none disabled:opacity-40"
+            className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-xs text-gray-700 dark:text-gray-300 focus:border-orange-500 focus:outline-none disabled:opacity-40"
           >
             <option value="low">{t('adminSupportTickets.detail.priorityLow')}</option>
             <option value="normal">{t('adminSupportTickets.detail.priorityNormal')}</option>
@@ -450,7 +450,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
           {messages.map((msg) => (
             <div key={msg.id} className={`flex gap-3 ${msg.is_from_admin ? 'justify-end' : 'justify-start'}`}>
               {!msg.is_from_admin && (
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-gray-800 text-xs font-bold text-gray-300">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800 text-xs font-bold text-gray-700 dark:text-gray-300">
                   {msg.sender_name?.[0]?.toUpperCase() || '?'}
                 </div>
               )}
@@ -472,7 +472,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
                       ? 'border border-yellow-800/40 bg-yellow-900/20 text-yellow-100'
                       : msg.is_from_admin
                         ? 'rounded-tr-md bg-orange-600 text-white'
-                        : 'rounded-tl-md border border-gray-800 bg-gray-900 text-gray-200'
+                        : 'rounded-tl-md border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200'
                   }`}
                 >
                   {msg.content}
@@ -491,12 +491,12 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
       </div>
 
       {(!isClosed || isSuper) && (
-        <div className="border-t border-gray-800 bg-gray-950 px-6 py-5">
+        <div className="border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 px-6 py-5">
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <button
               onClick={() => setIsInternal(false)}
               className={`rounded-xl px-3 py-2 text-xs font-medium transition ${
-                !isInternal ? 'bg-orange-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                !isInternal ? 'bg-orange-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
             >
               <MessageSquare size={11} className="mr-1 inline" />
@@ -505,7 +505,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
             <button
               onClick={() => setIsInternal(true)}
               className={`rounded-xl px-3 py-2 text-xs font-medium transition ${
-                isInternal ? 'bg-yellow-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                isInternal ? 'bg-yellow-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
             >
               <FileText size={11} className="mr-1 inline" />
@@ -520,8 +520,8 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
               placeholder={isInternal ? t('adminSupportTickets.detail.notePlaceholder') : t('adminSupportTickets.detail.replyPlaceholder')}
               rows={4}
               style={{ resize: 'none' }}
-              className={`flex-1 rounded-2xl border bg-gray-900 px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none ${
-                isInternal ? 'border-yellow-700 focus:border-yellow-500' : 'border-gray-700 focus:border-orange-500'
+              className={`flex-1 rounded-2xl border bg-white dark:bg-gray-900 px-4 py-3 text-sm text-gray-900 dark:text-white placeholder:text-gray-500 focus:outline-none ${
+                isInternal ? 'border-yellow-700 focus:border-yellow-500' : 'border-gray-300 dark:border-gray-700 focus:border-orange-500'
               }`}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) handleSend(event);
@@ -680,15 +680,15 @@ export default function SupportTickets() {
     <div className="min-h-full overflow-visible bg-[radial-gradient(circle_at_top_left,rgba(249,115,22,0.07),transparent_22%),linear-gradient(180deg,#030712_0%,#0b1120_100%)] p-4 md:p-6">
       <div className="flex min-h-full flex-col gap-4">
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.55fr_0.75fr]">
-          <div className="rounded-[28px] border border-gray-800 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-6">
+          <div className="rounded-[28px] border border-gray-200 dark:border-gray-800 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-6">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
               <div className="max-w-3xl">
                 <div className="flex items-center gap-2 text-sm font-medium text-orange-300">
                   <Inbox size={15} />
                   {t('adminSupportTickets.header.eyebrow')}
                 </div>
-                <h1 className="mt-2 text-2xl font-semibold text-white">{t('adminSupportTickets.title')}</h1>
-                <p className="mt-3 text-sm leading-6 text-gray-400">
+                <h1 className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{t('adminSupportTickets.title')}</h1>
+                <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400">
                   {t('adminSupportTickets.subtitle')}
                 </p>
                 <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-blue-500/25 bg-blue-500/5 p-3 sm:flex-row sm:items-center sm:justify-between">
@@ -713,7 +713,7 @@ export default function SupportTickets() {
               <div className="flex items-center gap-2 self-start">
                 <button
                   onClick={loadTickets}
-                  className="flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-300 transition hover:border-gray-600 hover:text-white"
+                  className="flex items-center gap-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 transition hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-900 dark:hover:text-white"
                 >
                   <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
                   {t('adminSupportTickets.refresh')}
@@ -724,7 +724,7 @@ export default function SupportTickets() {
                 className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition disabled:opacity-50 ${
                   availability
                     ? 'border-green-600/40 bg-green-500/15 text-green-300 hover:bg-green-500/20'
-                    : 'border-gray-700 bg-gray-900 text-gray-400 hover:border-gray-600 hover:text-white'
+                    : 'border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
                 <span className={`h-2 w-2 rounded-full ${availability ? 'bg-green-400' : 'bg-gray-600'}`} />
@@ -770,10 +770,10 @@ export default function SupportTickets() {
             </div>
           </div>
 
-          <div className="rounded-[28px] border border-gray-800 bg-gray-950/90 p-5">
+          <div className="rounded-[28px] border border-gray-200 dark:border-gray-800 bg-gray-50/90 dark:bg-gray-950/90 p-5">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <div className="text-sm font-medium text-white">{t('adminSupportTickets.quickRoutes.title')}</div>
+                <div className="text-sm font-medium text-gray-900 dark:text-white">{t('adminSupportTickets.quickRoutes.title')}</div>
                 <div className="mt-1 text-xs text-gray-500">{t('adminSupportTickets.quickRoutes.subtitle')}</div>
               </div>
               <Flag size={15} className="text-gray-600" />
@@ -785,13 +785,13 @@ export default function SupportTickets() {
                 <button
                   key={item.to}
                   onClick={() => navigate(item.to)}
-                  className="flex items-center justify-between rounded-2xl border border-gray-800 bg-gray-900/70 px-4 py-3 text-left transition hover:border-orange-500/40 hover:bg-gray-900"
+                  className="flex items-center justify-between rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 px-4 py-3 text-left transition hover:border-orange-500/40 hover:bg-white dark:hover:bg-gray-900"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="rounded-xl bg-gray-800 p-2 text-gray-300">
+                    <div className="rounded-xl bg-gray-100 dark:bg-gray-800 p-2 text-gray-700 dark:text-gray-300">
                       <Icon size={14} />
                     </div>
-                    <div className="text-sm font-medium text-gray-200">{t(`adminSupportTickets.${item.i18nKey}`)}</div>
+                    <div className="text-sm font-medium text-gray-700 dark:text-gray-200">{t(`adminSupportTickets.${item.i18nKey}`)}</div>
                   </div>
                   <ChevronRight size={14} className="text-gray-600" />
                 </button>
@@ -802,22 +802,22 @@ export default function SupportTickets() {
         </div>
 
         <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-[420px_minmax(0,1fr)]">
-          <div className={`${showDetail ? 'hidden xl:flex' : 'flex'} min-h-0 flex-col rounded-[28px] border border-gray-800 bg-gray-950/90`}>
-            <div className="border-b border-gray-800 px-5 py-5">
+          <div className={`${showDetail ? 'hidden xl:flex' : 'flex'} min-h-0 flex-col rounded-[28px] border border-gray-200 dark:border-gray-800 bg-gray-50/90 dark:bg-gray-950/90`}>
+            <div className="border-b border-gray-200 dark:border-gray-800 px-5 py-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-lg font-semibold text-white">{t('adminSupportTickets.inbox.title')}</div>
+                  <div className="text-lg font-semibold text-gray-900 dark:text-white">{t('adminSupportTickets.inbox.title')}</div>
                   <div className="mt-1 text-sm text-gray-500">
                     {t('adminSupportTickets.inbox.count', { count: total })}
                   </div>
                   {lastUpdated && <div className="mt-1 text-xs text-gray-600">{t('adminSupportTickets.inbox.updated', { time: lastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) })}</div>}
                 </div>
-                <div className="rounded-full border border-gray-700 bg-gray-900 px-3 py-1 text-xs text-gray-400">
+                <div className="rounded-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1 text-xs text-gray-600 dark:text-gray-400">
                   {t('adminSupportTickets.inbox.filters', { count: activeFilterCount })}
                 </div>
               </div>
 
-              <div className="mt-4 rounded-2xl border border-gray-800 bg-gray-900/80 p-3">
+              <div className="mt-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 p-3">
                 <SuggestDropdown
                   id="tickets-search"
                   items={ticketSuggestItems}
@@ -839,7 +839,7 @@ export default function SupportTickets() {
                   <select
                     value={status}
                     onChange={(event) => { setStatus(event.target.value); setPage(1); }}
-                    className="rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-300 focus:border-orange-500 focus:outline-none"
+                    className="rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2 text-xs text-gray-700 dark:text-gray-300 focus:border-orange-500 focus:outline-none"
                   >
                     <option value="">{t('adminSupportTickets.filters.allStatuses')}</option>
                     <option value="open">{t('adminSupportTickets.status.open')}</option>
@@ -852,7 +852,7 @@ export default function SupportTickets() {
                   <select
                     value={priority}
                     onChange={(event) => { setPriority(event.target.value); setPage(1); }}
-                    className="rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-300 focus:border-orange-500 focus:outline-none"
+                    className="rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2 text-xs text-gray-700 dark:text-gray-300 focus:border-orange-500 focus:outline-none"
                   >
                     <option value="">{t('adminSupportTickets.filters.allPriorities')}</option>
                     <option value="urgent">{t('adminSupportTickets.priority.urgent')}</option>
@@ -863,7 +863,7 @@ export default function SupportTickets() {
                   <select
                     value={assigned}
                     onChange={(event) => { setAssigned(event.target.value); setPage(1); }}
-                    className="rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-300 focus:border-orange-500 focus:outline-none"
+                    className="rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2 text-xs text-gray-700 dark:text-gray-300 focus:border-orange-500 focus:outline-none"
                   >
                     <option value="">{t('adminSupportTickets.filters.allAgents')}</option>
                     <option value="me">{t('adminSupportTickets.filters.mine')}</option>
@@ -886,11 +886,11 @@ export default function SupportTickets() {
                   {t('adminSupportTickets.inbox.loading')}
                 </div>
               ) : tickets.length === 0 ? (
-                <div className="flex h-full min-h-[260px] flex-col items-center justify-center rounded-[24px] border border-dashed border-gray-800 bg-gray-900/40 px-6 text-center">
-                  <div className="mb-4 rounded-2xl border border-gray-800 bg-gray-900 p-4 text-gray-500">
+                <div className="flex h-full min-h-[260px] flex-col items-center justify-center rounded-[24px] border border-dashed border-gray-200 dark:border-gray-800 bg-white/40 dark:bg-gray-900/40 px-6 text-center">
+                  <div className="mb-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 text-gray-500">
                     <CheckCircle size={28} />
                   </div>
-                  <div className="text-base font-medium text-gray-200">{loadError ? t('adminSupportTickets.empty.unavailableTitle') : t('adminSupportTickets.empty.noMatchTitle')}</div>
+                  <div className="text-base font-medium text-gray-700 dark:text-gray-200">{loadError ? t('adminSupportTickets.empty.unavailableTitle') : t('adminSupportTickets.empty.noMatchTitle')}</div>
                   <div className="mt-2 max-w-sm text-sm leading-6 text-gray-500">
                     {loadError ? t('adminSupportTickets.detail.unavailableBody') : t('adminSupportTickets.empty.noMatchBody')}
                   </div>
@@ -911,21 +911,21 @@ export default function SupportTickets() {
 
             {/* T10-F02: pagination controls */}
             {total > PAGE_SIZE && (
-              <div className="flex items-center justify-center gap-3 py-3 border-t border-gray-800">
+              <div className="flex items-center justify-center gap-3 py-3 border-t border-gray-200 dark:border-gray-800">
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page <= 1}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-800 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
                 >
                   {t('common.previous', { defaultValue: 'Previous' })}
                 </button>
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-gray-600 dark:text-gray-400">
                   {t('adminSupportTickets.pageOf', { defaultValue: 'Page {{page}} of {{total}}', page, total: Math.ceil(total / PAGE_SIZE) })}
                 </span>
                 <button
                   onClick={() => setPage(p => Math.min(Math.ceil(total / PAGE_SIZE), p + 1))}
                   disabled={page >= Math.ceil(total / PAGE_SIZE)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-800 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
                 >
                   {t('common.next', { defaultValue: 'Next' })}
                 </button>
@@ -939,7 +939,7 @@ export default function SupportTickets() {
                 <div className="mb-3 xl:hidden">
                   <button
                     onClick={closeTicketDetail}
-                    className="rounded-xl border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-gray-400 transition hover:text-white"
+                    className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 transition hover:text-gray-900 dark:hover:text-white"
                   >
                     ← {t('adminSupportTickets.detail.backToInbox')}
                   </button>

@@ -140,8 +140,8 @@ export default function LicensesManager() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-white">{t('adminLicenses.title')}</h1>
-          <p className="text-sm text-gray-400 mt-0.5">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t('adminLicenses.title')}</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
             {t('adminLicenses.subtitle', { total })}
           </p>
         </div>
@@ -169,7 +169,7 @@ export default function LicensesManager() {
         <select
           value={filters.category}
           onChange={e => setFilters(p => ({ ...p, category: e.target.value, offset: 0 }))}
-          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
+          className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:border-orange-500 focus:outline-none"
         >
           <option value="">{t('adminLicenses.filters.allCategories')}</option>
           {categories.map(c => <option key={c} value={c}>{c}</option>)}
@@ -180,28 +180,28 @@ export default function LicensesManager() {
       {error && (
         <div className="mb-4"><AdminErrorState onRetry={reload} /></div>
       )}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-800 text-xs uppercase tracking-wider text-gray-500">
+            <tr className="border-b border-gray-200 dark:border-gray-800 text-xs uppercase tracking-wider text-gray-500">
               <th className="text-left px-4 py-3 font-medium">{t('adminLicenses.table.name')}</th>
               <th className="text-left px-4 py-3 font-medium">{t('adminLicenses.table.category')}</th>
               <th className="text-left px-4 py-3 font-medium">{t('adminLicenses.table.status')}</th>
               <th className="text-right px-4 py-3 font-medium">{t('adminLicenses.table.actions')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-800">
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
             {loading && licenses.length === 0 ? (
               <tr><td colSpan={4} className="text-center py-10 text-gray-500">{t('adminLicenses.table.loading')}</td></tr>
             ) : !error && licenses.length === 0 ? (
               <tr><td colSpan={4} className="text-center py-10 text-gray-500">{t('adminLicenses.table.none')}</td></tr>
             ) : licenses.map(license => (
-              <tr key={license.id} className={`hover:bg-gray-800/50 transition ${!license.is_active ? 'opacity-50' : ''}`}>
-                <td className="px-4 py-3 text-white font-medium">{license.name}</td>
-                <td className="px-4 py-3 text-gray-400">{license.category || <span className="text-gray-600 italic">{t('adminLicenses.table.noneCategory')}</span>}</td>
+              <tr key={license.id} className={`hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition ${!license.is_active ? 'opacity-50' : ''}`}>
+                <td className="px-4 py-3 text-gray-900 dark:text-white font-medium">{license.name}</td>
+                <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{license.category || <span className="text-gray-600 italic">{t('adminLicenses.table.noneCategory')}</span>}</td>
                 <td className="px-4 py-3">
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-                    license.is_active ? 'bg-green-500/10 text-green-400' : 'bg-gray-700 text-gray-500'
+                    license.is_active ? 'bg-green-500/10 text-green-400' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'
                   }`}>
                     {license.is_active ? t('adminLicenses.status.active') : t('adminLicenses.status.hidden')}
                   </span>
@@ -212,7 +212,7 @@ export default function LicensesManager() {
                       onClick={() => handleToggle(license)}
                       title={license.is_active ? t('adminLicenses.actions.hideFromAutocomplete') : t('adminLicenses.actions.restore')}
                       aria-label={license.is_active ? t('adminLicenses.actions.hideFromAutocomplete') : t('adminLicenses.actions.restore')}
-                      className="p-1.5 text-gray-500 hover:text-orange-400 transition rounded hover:bg-gray-800"
+                      className="p-1.5 text-gray-500 hover:text-orange-400 transition rounded hover:bg-gray-100 dark:hover:bg-gray-800"
                     >
                       {license.is_active ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
                     </button>
@@ -220,7 +220,7 @@ export default function LicensesManager() {
                       onClick={() => openEdit(license)}
                       title={t('adminLicenses.actions.edit')}
                       aria-label={t('adminLicenses.actions.edit')}
-                      className="p-1.5 text-gray-500 hover:text-white transition rounded hover:bg-gray-800"
+                      className="p-1.5 text-gray-500 hover:text-gray-900 dark:hover:text-white transition rounded hover:bg-gray-100 dark:hover:bg-gray-800"
                     >
                       <Pencil size={14} />
                     </button>
@@ -228,7 +228,7 @@ export default function LicensesManager() {
                       onClick={() => setDeleting(license)}
                       title={t('adminLicenses.actions.hardDelete')}
                       aria-label={t('adminLicenses.actions.hardDelete')}
-                      className="p-1.5 text-gray-500 hover:text-red-400 transition rounded hover:bg-gray-800"
+                      className="p-1.5 text-gray-500 hover:text-red-400 transition rounded hover:bg-gray-100 dark:hover:bg-gray-800"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -242,7 +242,7 @@ export default function LicensesManager() {
 
       {/* Pagination */}
       {total > filters.limit && (
-        <div className="flex items-center justify-between mt-4 text-sm text-gray-400">
+        <div className="flex items-center justify-between mt-4 text-sm text-gray-600 dark:text-gray-400">
           <span>
             {t('adminLicenses.pagination.showing', {
               start: filters.offset + 1,
@@ -254,12 +254,12 @@ export default function LicensesManager() {
             <button
               disabled={filters.offset === 0}
               onClick={() => setFilters(p => ({ ...p, offset: Math.max(0, p.offset - p.limit) }))}
-              className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 disabled:opacity-40 transition"
+              className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-40 transition"
             >{t('adminLicenses.pagination.previous')}</button>
             <button
               disabled={filters.offset + filters.limit >= total}
               onClick={() => setFilters(p => ({ ...p, offset: p.offset + p.limit }))}
-              className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 disabled:opacity-40 transition"
+              className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-40 transition"
             >{t('adminLicenses.pagination.next')}</button>
           </div>
         </div>
@@ -268,10 +268,10 @@ export default function LicensesManager() {
       {/* Add / Edit Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+          <div className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="font-bold text-white">{editing ? t('adminLicenses.modal.editTitle') : t('adminLicenses.modal.addTitle')}</h3>
-              <button onClick={() => setShowForm(false)} aria-label={t('common.aria.closeButton')} className="text-gray-500 hover:text-white transition">
+              <h3 className="font-bold text-gray-900 dark:text-white">{editing ? t('adminLicenses.modal.editTitle') : t('adminLicenses.modal.addTitle')}</h3>
+              <button onClick={() => setShowForm(false)} aria-label={t('common.aria.closeButton')} className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition">
                 <X size={18} />
               </button>
             </div>
@@ -286,7 +286,7 @@ export default function LicensesManager() {
                   value={form.name}
                   onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
                   placeholder={t('adminLicenses.form.namePlaceholder')}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none"
+                  className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none"
                 />
               </div>
 
@@ -301,14 +301,14 @@ export default function LicensesManager() {
                     setForm(p => ({ ...p, category: e.target.value }));
                   }}
                   placeholder={t('adminLicenses.form.categoryPlaceholder')}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none"
+                  className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none"
                 />
                 {catSugs.length > 0 && (
-                  <div className="absolute z-10 mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg overflow-hidden shadow-lg">
+                  <div className="absolute z-10 mt-1 w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg overflow-hidden shadow-lg">
                     {catSugs.map(c => (
                       <button
                         key={c} type="button"
-                        className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition"
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition"
                         onClick={() => {
                           setCatSearch(c);
                           setForm(p => ({ ...p, category: c }));
@@ -327,14 +327,14 @@ export default function LicensesManager() {
                   onChange={e => setForm(p => ({ ...p, is_active: e.target.checked }))}
                   className="accent-orange-500"
                 />
-                <span className="text-sm text-gray-400">{t('adminLicenses.form.activeLabel')}</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">{t('adminLicenses.form.activeLabel')}</span>
               </label>
 
               <div className="flex gap-3 pt-1">
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="flex-1 py-2.5 border border-gray-700 text-gray-400 hover:text-white rounded-lg text-sm transition"
+                  className="flex-1 py-2.5 border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white rounded-lg text-sm transition"
                 >{t('adminLicenses.actions.cancel')}</button>
                 <button
                   type="submit"

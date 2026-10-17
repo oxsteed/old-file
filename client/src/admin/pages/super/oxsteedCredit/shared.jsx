@@ -110,7 +110,7 @@ export function statusClass(status) {
   if (status === 'difference' || status === 'failed') return 'border-red-500/30 bg-red-500/10 text-red-300';
   if (status === 'suspended') return 'border-amber-500/30 bg-amber-500/10 text-amber-300';
   if (status === 'terminated' || status === 'expired' || status === 'revoked') return 'border-red-500/30 bg-red-500/10 text-red-300';
-  return 'border-gray-700 bg-gray-900 text-gray-400';
+  return 'border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400';
 }
 
 export function Badge({ status }) {
@@ -129,7 +129,7 @@ export function IntegritySummary({ integrity }) {
 }
 
 export function Metric({ icon: Icon, label, value, detail, tone = 'text-white' }) {
-  return <div className="rounded-2xl border border-gray-800 bg-[#111318] p-4"><div className="flex items-center justify-between gap-3"><span className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">{label}</span><Icon className="h-4 w-4 text-orange-400" /></div><strong className={`mt-3 block text-2xl font-semibold ${tone}`}>{value}</strong><span className="mt-1 block text-xs text-gray-600">{detail}</span></div>;
+  return <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4"><div className="flex items-center justify-between gap-3"><span className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">{label}</span><Icon className="h-4 w-4 text-orange-400" /></div><strong className={`mt-3 block text-2xl font-semibold ${tone}`}>{value}</strong><span className="mt-1 block text-xs text-gray-600">{detail}</span></div>;
 }
 
 export function splitList(value) {
@@ -314,7 +314,7 @@ export const ADMIN_SECTION_TRANSLATIONS = {
 export function Section({ eyebrow, title, detail, children, action }) {
   const { t } = useTranslation('credit');
   const translation = ADMIN_SECTION_TRANSLATIONS[eyebrow];
-  return <section className="rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">{translation ? t(translation.eyebrow, { defaultValue: eyebrow }) : eyebrow}</p><h2 className="mt-1 text-lg font-semibold text-white">{translation ? t(translation.title, { defaultValue: title }) : title}</h2>{detail && <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-500">{translation ? t(translation.detail, { defaultValue: detail }) : detail}</p>}</div>{action}</div>{children}</section>;
+  return <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">{translation ? t(translation.eyebrow, { defaultValue: eyebrow }) : eyebrow}</p><h2 className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{translation ? t(translation.title, { defaultValue: title }) : title}</h2>{detail && <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-500">{translation ? t(translation.detail, { defaultValue: detail }) : detail}</p>}</div>{action}</div>{children}</section>;
 }
 
 export const WORKER_TRANSLATION_KEYS = {
@@ -377,11 +377,11 @@ export function AdminActionDialog({ dialog, onResolve }) {
     onResolve(String(value || '').trim());
   };
   return <div ref={dialogRef} tabIndex={-1} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="credit-action-dialog-title" aria-describedby="credit-action-dialog-description">
-    <form onSubmit={submit} className="w-full max-w-lg rounded-2xl border border-gray-700 bg-[#111318] p-5 shadow-2xl sm:p-6">
-      <h2 id="credit-action-dialog-title" className="text-lg font-semibold text-white">{dialog.title}</h2>
-      <p id="credit-action-dialog-description" className="mt-2 text-sm leading-6 text-gray-400">{dialog.description}</p>
-      {!isConfirm && <label className="mt-4 block"><span className="mb-1 block text-xs font-semibold text-gray-500">{dialog.label}</span><input ref={inputRef} required={dialog.required !== false} value={value} onChange={(event) => setValue(event.target.value)} placeholder={dialog.placeholder || ''} maxLength={dialog.maxLength || 1000} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label>}
-      <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => onResolve(null)} className="rounded-lg border border-gray-700 px-3 py-2 text-sm font-semibold text-gray-300 hover:bg-gray-800">{t('cancel')}</button><button type="submit" className="rounded-lg bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-500">{isConfirm ? t('confirmAction') : t('submitAction')}</button></div>
+    <form onSubmit={submit} className="w-full max-w-lg rounded-2xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#111318] p-5 shadow-2xl sm:p-6">
+      <h2 id="credit-action-dialog-title" className="text-lg font-semibold text-gray-900 dark:text-white">{dialog.title}</h2>
+      <p id="credit-action-dialog-description" className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">{dialog.description}</p>
+      {!isConfirm && <label className="mt-4 block"><span className="mb-1 block text-xs font-semibold text-gray-500">{dialog.label}</span><input ref={inputRef} required={dialog.required !== false} value={value} onChange={(event) => setValue(event.target.value)} placeholder={dialog.placeholder || ''} maxLength={dialog.maxLength || 1000} className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-orange-400" /></label>}
+      <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => onResolve(null)} className="rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">{t('cancel')}</button><button type="submit" className="rounded-lg bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-500">{isConfirm ? t('confirmAction') : t('submitAction')}</button></div>
     </form>
   </div>;
 }
@@ -480,7 +480,7 @@ export function CreditSubNav() {
           key={item.routeKey}
           to={adminRoute(item.routeKey).path}
           end={item.routeKey === 'oxsteedCredit'}
-          className={({ isActive }) => `whitespace-nowrap rounded-full border px-3.5 py-2 text-xs font-semibold transition ${isActive ? 'border-orange-500/60 bg-orange-500/15 text-orange-200' : 'border-gray-700 bg-gray-900/60 text-gray-300 hover:border-gray-500 hover:text-white'}`}
+          className={({ isActive }) => `whitespace-nowrap rounded-full border px-3.5 py-2 text-xs font-semibold transition ${isActive ? 'border-orange-500/60 bg-orange-500/15 text-orange-200' : 'border-gray-300 dark:border-gray-700 bg-white/60 dark:bg-gray-900/60 text-gray-700 dark:text-gray-300 hover:border-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
         >
           {t(item.labelKey)}
         </NavLink>

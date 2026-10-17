@@ -42,14 +42,14 @@ function ReviewCard({ review, onSaved }) {
   };
 
   return (
-    <article className="rounded-2xl border border-gray-800 bg-gray-900/70 p-5">
+    <article className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-semibold text-white">{review.subject || t('adminSupportQA.defaultSubject')}</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-white">{review.subject || t('adminSupportQA.defaultSubject')}</h3>
             <SupportTag tone={review.priority === 'urgent' ? 'red' : 'blue'}>{review.priority || t('adminSupportQA.priorityNormal')}</SupportTag>
           </div>
-          <p className="mt-1 text-sm text-gray-400">
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
             {t('adminSupportQA.reviewMeta', {
               customer: review.customer_name,
               agent: review.agent_name,
@@ -70,7 +70,7 @@ function ReviewCard({ review, onSaved }) {
             required
             value={score}
             onChange={(event) => setScore(event.target.value)}
-            className="mt-1 w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-2.5 text-sm text-white focus:border-orange-500 focus:outline-none"
+            className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:border-orange-500 focus:outline-none"
           />
         </label>
         <label className="text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -81,7 +81,7 @@ function ReviewCard({ review, onSaved }) {
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             placeholder={t('adminSupportQA.notesPlaceholder')}
-            className="mt-1 w-full resize-y rounded-xl border border-gray-700 bg-gray-950 px-3 py-2.5 text-sm text-white focus:border-orange-500 focus:outline-none"
+            className="mt-1 w-full resize-y rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:border-orange-500 focus:outline-none"
           />
         </label>
         <button
@@ -149,17 +149,17 @@ export default function SupportQAReviews() {
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
             <div className="flex items-center gap-2 text-sm font-medium text-orange-300"><ClipboardCheck size={16} /> {t('adminSupportQA.eyebrow')}</div>
-            <h1 className="mt-2 text-3xl font-semibold text-white">{t('adminSupportQA.title')}</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-400">{t('adminSupportQA.description')}</p>
+            <h1 className="mt-2 text-3xl font-semibold text-gray-900 dark:text-white">{t('adminSupportQA.title')}</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">{t('adminSupportQA.description')}</p>
           </div>
-          <button type="button" onClick={loadReviews} disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-700 px-4 py-2.5 text-sm font-semibold text-gray-200 hover:border-orange-500 disabled:opacity-50">
+          <button type="button" onClick={loadReviews} disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:border-orange-500 disabled:opacity-50">
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> {t('common.refresh')}
           </button>
         </div>
 
         <SupportPanel title={t('adminSupportQA.panelTitle')} subtitle={t('adminSupportQA.panelSubtitle')}>
           <div className="mb-5 grid gap-3 md:grid-cols-[180px_1fr]">
-            <select value={status} onChange={(event) => setStatus(event.target.value)} className="rounded-xl border border-gray-700 bg-gray-950 px-3 py-2.5 text-sm text-white focus:border-orange-500 focus:outline-none">
+            <select value={status} onChange={(event) => setStatus(event.target.value)} className="rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:border-orange-500 focus:outline-none">
               <option value="pending">{t('adminSupportQA.statusPending')}</option>
               <option value="completed">{t('adminSupportQA.statusCompleted')}</option>
               <option value="all">{t('adminSupportQA.statusAll')}</option>

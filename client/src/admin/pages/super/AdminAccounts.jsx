@@ -41,22 +41,22 @@ function CreateAdminModal({ onCreated, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md shadow-2xl">
+      <div className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl p-6 w-full max-w-md shadow-2xl">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-white font-semibold text-lg">{t('adminAdminAccounts.modalTitle')}</h2>
-          <button onClick={onClose} aria-label={t('adminAdminAccounts.closeAriaLabel')} className="text-gray-500 hover:text-gray-300"><X size={18} /></button>
+          <h2 className="text-gray-900 dark:text-white font-semibold text-lg">{t('adminAdminAccounts.modalTitle')}</h2>
+          <button onClick={onClose} aria-label={t('adminAdminAccounts.closeAriaLabel')} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"><X size={18} /></button>
         </div>
 
         {created ? (
           <div className="text-center py-4">
             <div className="flex justify-center mb-3"><CheckCircle2 size={40} className="text-green-400" /></div>
-            <p className="text-white font-medium mb-1">{t('adminAdminAccounts.accountCreatedTitle')}</p>
-            <p className="text-gray-400 text-sm mb-4">{created.email}</p>
+            <p className="text-gray-900 dark:text-white font-medium mb-1">{t('adminAdminAccounts.accountCreatedTitle')}</p>
+            <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">{created.email}</p>
             <p className="text-yellow-400 text-xs bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-3 py-2">
               {t('adminAdminAccounts.tempPasswordWarning')}
             </p>
             <button onClick={onClose}
-              className="mt-4 w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg text-sm">
+              className="mt-4 w-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-600 text-gray-900 dark:text-white py-2 rounded-lg text-sm">
               {t('adminAdminAccounts.closeButton')}
             </button>
           </div>
@@ -64,25 +64,25 @@ function CreateAdminModal({ onCreated, onClose }) {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-gray-400 mb-1">{t('adminAdminAccounts.fieldFirstName')}</label>
+                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">{t('adminAdminAccounts.fieldFirstName')}</label>
                 <input value={form.first_name} onChange={e => setF('first_name', e.target.value)} required
-                  className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none" />
+                  className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none" />
               </div>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">{t('adminAdminAccounts.fieldLastName')}</label>
+                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">{t('adminAdminAccounts.fieldLastName')}</label>
                 <input value={form.last_name} onChange={e => setF('last_name', e.target.value)} required
-                  className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none" />
+                  className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none" />
               </div>
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1">{t('adminAdminAccounts.fieldEmail')}</label>
+              <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">{t('adminAdminAccounts.fieldEmail')}</label>
               <input type="email" value={form.email} onChange={e => setF('email', e.target.value)} required
-                className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none" />
+                className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none" />
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1">{t('adminAdminAccounts.fieldRole')}</label>
+              <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">{t('adminAdminAccounts.fieldRole')}</label>
               <select value={form.role} onChange={e => setF('role', e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none">
+                className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none">
                 <option value="admin">{t('adminAdminAccounts.roleAdminOption')}</option>
                 {me?.role === 'super_admin' && (
                   <option value="super_admin">{t('adminAdminAccounts.roleSuperAdminOption')}</option>
@@ -90,12 +90,12 @@ function CreateAdminModal({ onCreated, onClose }) {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1">
+              <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
                 {t('adminAdminAccounts.fieldTempPassword')} <span className="text-gray-500">({t('adminAdminAccounts.minCharsHint')})</span>
               </label>
               <input type="password" value={form.temporary_password}
                 onChange={e => setF('temporary_password', e.target.value)} required minLength={12}
-                className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none" />
+                className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none" />
             </div>
             {err && <p className="text-red-400 text-sm">{err}</p>}
             <div className="flex gap-3 pt-1">
@@ -104,7 +104,7 @@ function CreateAdminModal({ onCreated, onClose }) {
                 {saving ? t('adminAdminAccounts.creatingButton') : t('adminAdminAccounts.createAccountButton')}
               </button>
               <button type="button" onClick={onClose}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg text-sm font-medium">
+                className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-600 text-gray-900 dark:text-white py-2 rounded-lg text-sm font-medium">
                 {t('adminAdminAccounts.cancelButton')}
               </button>
             </div>
@@ -143,17 +143,17 @@ function ActivityDrawer({ admin, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/60">
-      <div className="bg-gray-900 border-l border-gray-700 w-full max-w-lg h-full overflow-y-auto flex flex-col shadow-2xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700 sticky top-0 bg-gray-900">
+      <div className="bg-white dark:bg-gray-900 border-l border-gray-300 dark:border-gray-700 w-full max-w-lg h-full overflow-y-auto flex flex-col shadow-2xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-300 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-900">
           <div>
-            <h2 className="text-white font-semibold">{admin.first_name} {admin.last_name}</h2>
-            <p className="text-gray-400 text-xs">{t('adminAdminAccounts.loggedActionsCount', { count: total })}</p>
+            <h2 className="text-gray-900 dark:text-white font-semibold">{admin.first_name} {admin.last_name}</h2>
+            <p className="text-gray-600 dark:text-gray-400 text-xs">{t('adminAdminAccounts.loggedActionsCount', { count: total })}</p>
           </div>
-          <button onClick={onClose} aria-label={t('adminAdminAccounts.closeAriaLabel')} className="text-gray-500 hover:text-gray-300"><X size={18} /></button>
+          <button onClick={onClose} aria-label={t('adminAdminAccounts.closeAriaLabel')} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"><X size={18} /></button>
         </div>
 
         <div className="flex-1 p-5">
-          {loading && <p className="text-gray-400 text-sm">{t('adminAdminAccounts.loadingText')}</p>}
+          {loading && <p className="text-gray-600 dark:text-gray-400 text-sm">{t('adminAdminAccounts.loadingText')}</p>}
           {!loading && error && <AdminErrorState onRetry={reload} />}
           {!loading && !error && log.length === 0 && (
             <p className="text-gray-500 text-sm">{t('adminAdminAccounts.emptyActivity')}</p>
@@ -161,9 +161,9 @@ function ActivityDrawer({ admin, onClose }) {
           {!error && (
           <div className="space-y-2">
             {log.map(entry => (
-              <div key={entry.id} className="bg-gray-800/60 border border-gray-700/50 rounded-lg px-4 py-3">
+              <div key={entry.id} className="bg-gray-100/60 dark:bg-gray-800/60 border border-gray-700/50 rounded-lg px-4 py-3">
                 <div className="flex items-center justify-between mb-1">
-                  <span className={`text-xs font-mono font-medium ${ACTION_COLOR[entry.action] || 'text-gray-300'}`}>
+                  <span className={`text-xs font-mono font-medium ${ACTION_COLOR[entry.action] || 'text-gray-700 dark:text-gray-300'}`}>
                     {entry.action}
                   </span>
                   <span className="text-gray-500 text-xs">
@@ -171,7 +171,7 @@ function ActivityDrawer({ admin, onClose }) {
                   </span>
                 </div>
                 {entry.description && (
-                  <p className="text-gray-400 text-xs">{entry.description}</p>
+                  <p className="text-gray-600 dark:text-gray-400 text-xs">{entry.description}</p>
                 )}
                 {entry.target_type && (
                   <p className="text-gray-600 text-xs mt-0.5">
@@ -247,8 +247,8 @@ export default function AdminAccounts() {
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">{t('adminAdminAccounts.title')}</h1>
-          <p className="text-gray-400 text-sm mt-1">{t('adminAdminAccounts.subtitle')}</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('adminAdminAccounts.title')}</h1>
+          <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">{t('adminAdminAccounts.subtitle')}</p>
         </div>
         <button onClick={() => setShowCreate(true)}
           className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
@@ -256,33 +256,33 @@ export default function AdminAccounts() {
         </button>
       </div>
 
-      <div className="bg-gray-800/50 border border-gray-700 rounded-xl overflow-x-auto">
+      <div className="bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-xl overflow-x-auto">
         {!loading && error && (
           <div className="p-4"><AdminErrorState onRetry={reload} /></div>
         )}
         {!error && (
         <table className="w-full text-sm min-w-[760px]">
           <thead>
-            <tr className="border-b border-gray-700">
-              <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminAdminAccounts.tableAdmin')}</th>
-              <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminAdminAccounts.tableRole')}</th>
-              <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminAdminAccounts.tableStatus')}</th>
-              <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminAdminAccounts.tableActionsLogged')}</th>
-              <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminAdminAccounts.tableLastAction')}</th>
-              <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminAdminAccounts.tableControls')}</th>
+            <tr className="border-b border-gray-300 dark:border-gray-700">
+              <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminAdminAccounts.tableAdmin')}</th>
+              <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminAdminAccounts.tableRole')}</th>
+              <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminAdminAccounts.tableStatus')}</th>
+              <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminAdminAccounts.tableActionsLogged')}</th>
+              <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminAdminAccounts.tableLastAction')}</th>
+              <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminAdminAccounts.tableControls')}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="text-center text-gray-400 py-12">{t('adminAdminAccounts.loadingText')}</td></tr>
+              <tr><td colSpan={6} className="text-center text-gray-600 dark:text-gray-400 py-12">{t('adminAdminAccounts.loadingText')}</td></tr>
             ) : admins.length === 0 ? (
-              <tr><td colSpan={6} className="text-center text-gray-400 py-12">{t('adminAdminAccounts.emptyState')}</td></tr>
+              <tr><td colSpan={6} className="text-center text-gray-600 dark:text-gray-400 py-12">{t('adminAdminAccounts.emptyState')}</td></tr>
             ) : admins.map(admin => {
               const isMe = admin.id === me?.id;
               return (
-                <tr key={admin.id} className="border-b border-gray-700/50 hover:bg-gray-700/20">
+                <tr key={admin.id} className="border-b border-gray-700/50 hover:bg-gray-200/20 dark:hover:bg-gray-700/20">
                   <td className="px-4 py-3">
-                    <p className="text-white font-medium">
+                    <p className="text-gray-900 dark:text-white font-medium">
                       {admin.first_name} {admin.last_name}
                       {isMe && <span className="ml-2 text-xs text-orange-400">{t('adminAdminAccounts.youLabel')}</span>}
                     </p>
@@ -304,8 +304,8 @@ export default function AdminAccounts() {
                       {admin.is_active ? t('adminAdminAccounts.statusActive') : t('adminAdminAccounts.statusDisabled')}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-300">{admin.action_count || 0}</td>
-                  <td className="px-4 py-3 text-gray-400 text-xs">
+                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{admin.action_count || 0}</td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400 text-xs">
                     {admin.last_action_at ? new Date(admin.last_action_at).toLocaleDateString() : '-'}
                   </td>
                   <td className="px-4 py-3">

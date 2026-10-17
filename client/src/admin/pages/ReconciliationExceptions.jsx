@@ -144,14 +144,14 @@ function AssignControl({ exception, admins, adminsUnavailable, busy, onAssign })
           placeholder={t('adminReconciliation.actions.adminIdPlaceholder')}
           aria-label={t('adminReconciliation.actions.assignLabel')}
           disabled={busy}
-          className="w-24 px-2 py-1.5 bg-gray-700 border border-gray-600 text-white rounded text-xs focus:outline-none focus:border-orange-500 disabled:opacity-50"
+          className="w-24 px-2 py-1.5 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded text-xs focus:outline-none focus:border-orange-500 disabled:opacity-50"
         />
         <button
           type="button"
           onClick={() => manualId.trim() && onAssign(exception, manualId.trim())}
           disabled={busy || !manualId.trim()}
           aria-label={t('adminReconciliation.actions.assignLabel')}
-          className="p-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition disabled:opacity-50"
+          className="p-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded transition disabled:opacity-50"
         >
           <UserCheck size={14} />
         </button>
@@ -165,7 +165,7 @@ function AssignControl({ exception, admins, adminsUnavailable, busy, onAssign })
       onChange={(e) => e.target.value && onAssign(exception, e.target.value)}
       disabled={busy}
       aria-label={t('adminReconciliation.actions.assignLabel')}
-      className="max-w-[9rem] px-2 py-1.5 bg-gray-700 border border-gray-600 text-white rounded text-xs focus:outline-none focus:border-orange-500 disabled:opacity-50"
+      className="max-w-[9rem] px-2 py-1.5 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded text-xs focus:outline-none focus:border-orange-500 disabled:opacity-50"
     >
       <option value="">{t('adminReconciliation.actions.assignPlaceholder')}</option>
       {admins.map((admin) => (
@@ -184,7 +184,7 @@ function SkeletonRow({ cols }) {
     <tr>
       {Array.from({ length: cols }, (_, i) => (
         <td key={i} className="px-6 py-4">
-          <div className="h-4 rounded bg-gray-700/60 animate-pulse" />
+          <div className="h-4 rounded bg-gray-200/60 dark:bg-gray-700/60 animate-pulse" />
         </td>
       ))}
     </tr>
@@ -348,14 +348,14 @@ export default function ReconciliationExceptions() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-white font-bold text-3xl mb-2">{t('adminReconciliation.title')}</h1>
-          <p className="text-gray-400 text-sm">{t('adminReconciliation.subtitle')}</p>
+          <h1 className="text-gray-900 dark:text-white font-bold text-3xl mb-2">{t('adminReconciliation.title')}</h1>
+          <p className="text-gray-600 dark:text-gray-400 text-sm">{t('adminReconciliation.subtitle')}</p>
         </div>
         <button
           onClick={reload}
           disabled={loading}
           aria-label={t('common.refresh')}
-          className="p-2.5 bg-gray-700 border border-gray-600 text-gray-400 rounded-lg hover:text-white transition disabled:opacity-50"
+          className="p-2.5 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:text-gray-900 dark:hover:text-white transition disabled:opacity-50"
         >
           <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
         </button>
@@ -367,13 +367,13 @@ export default function ReconciliationExceptions() {
       {/* Live counts */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {statCards.map((card) => (
-          <div key={card.key} className="bg-gray-800 border border-gray-700 rounded-xl p-6">
+          <div key={card.key} className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-6">
             <div className="flex items-center gap-2 mb-2">
               <card.icon size={16} className={card.color} />
-              <p className="text-gray-400 text-sm">{card.label}</p>
+              <p className="text-gray-600 dark:text-gray-400 text-sm">{card.label}</p>
             </div>
             {loading && !data ? (
-              <div className="h-9 w-20 rounded bg-gray-700/60 animate-pulse" />
+              <div className="h-9 w-20 rounded bg-gray-200/60 dark:bg-gray-700/60 animate-pulse" />
             ) : (
               <p className={`text-3xl font-bold ${card.color}`}>{card.value ?? 0}</p>
             )}
@@ -382,20 +382,20 @@ export default function ReconciliationExceptions() {
       </div>
 
       {/* Filters */}
-      <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 space-y-4">
+      <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-4 space-y-4">
         <div className="flex items-center gap-2 mb-3">
-          <Filter size={16} className="text-gray-400" />
-          <span className="text-gray-300 font-semibold">{t('adminReconciliation.filters.title')}</span>
+          <Filter size={16} className="text-gray-600 dark:text-gray-400" />
+          <span className="text-gray-700 dark:text-gray-300 font-semibold">{t('adminReconciliation.filters.title')}</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-gray-400 text-sm mb-2">
+            <label className="block text-gray-600 dark:text-gray-400 text-sm mb-2">
               {t('adminReconciliation.filters.domain')}
             </label>
             <select
               value={domain}
               onChange={resetPage(setDomain)}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:border-orange-500"
+              className="w-full px-3 py-2 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg text-sm focus:outline-none focus:border-orange-500"
             >
               {DOMAIN_OPTIONS.map((opt) => (
                 <option key={opt.value || 'all'} value={opt.value}>
@@ -405,13 +405,13 @@ export default function ReconciliationExceptions() {
             </select>
           </div>
           <div>
-            <label className="block text-gray-400 text-sm mb-2">
+            <label className="block text-gray-600 dark:text-gray-400 text-sm mb-2">
               {t('adminReconciliation.filters.severity')}
             </label>
             <select
               value={severity}
               onChange={resetPage(setSeverity)}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:border-orange-500"
+              className="w-full px-3 py-2 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg text-sm focus:outline-none focus:border-orange-500"
             >
               {SEVERITY_OPTIONS.map((opt) => (
                 <option key={opt.value || 'all'} value={opt.value}>
@@ -421,13 +421,13 @@ export default function ReconciliationExceptions() {
             </select>
           </div>
           <div>
-            <label className="block text-gray-400 text-sm mb-2">
+            <label className="block text-gray-600 dark:text-gray-400 text-sm mb-2">
               {t('adminReconciliation.filters.status')}
             </label>
             <select
               value={status}
               onChange={resetPage(setStatus)}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:border-orange-500"
+              className="w-full px-3 py-2 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg text-sm focus:outline-none focus:border-orange-500"
             >
               {STATUS_OPTIONS.map((opt) => (
                 <option key={opt.value || 'all'} value={opt.value}>
@@ -440,21 +440,21 @@ export default function ReconciliationExceptions() {
       </div>
 
       {/* Table */}
-      <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
+      <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-900 border-b border-gray-700">
+            <thead className="bg-white dark:bg-gray-900 border-b border-gray-300 dark:border-gray-700">
               <tr>
-                <th className="px-6 py-4 text-left text-gray-400 font-semibold">{t('adminReconciliation.table.severity')}</th>
-                <th className="px-6 py-4 text-left text-gray-400 font-semibold">{t('adminReconciliation.table.domain')}</th>
-                <th className="px-6 py-4 text-left text-gray-400 font-semibold">{t('adminReconciliation.table.summary')}</th>
-                <th className="px-6 py-4 text-left text-gray-400 font-semibold">{t('adminReconciliation.table.age')}</th>
-                <th className="px-6 py-4 text-left text-gray-400 font-semibold">{t('adminReconciliation.table.owner')}</th>
-                <th className="px-6 py-4 text-left text-gray-400 font-semibold">{t('adminReconciliation.table.status')}</th>
-                <th className="px-6 py-4 text-center text-gray-400 font-semibold">{t('adminReconciliation.table.actions')}</th>
+                <th className="px-6 py-4 text-left text-gray-600 dark:text-gray-400 font-semibold">{t('adminReconciliation.table.severity')}</th>
+                <th className="px-6 py-4 text-left text-gray-600 dark:text-gray-400 font-semibold">{t('adminReconciliation.table.domain')}</th>
+                <th className="px-6 py-4 text-left text-gray-600 dark:text-gray-400 font-semibold">{t('adminReconciliation.table.summary')}</th>
+                <th className="px-6 py-4 text-left text-gray-600 dark:text-gray-400 font-semibold">{t('adminReconciliation.table.age')}</th>
+                <th className="px-6 py-4 text-left text-gray-600 dark:text-gray-400 font-semibold">{t('adminReconciliation.table.owner')}</th>
+                <th className="px-6 py-4 text-left text-gray-600 dark:text-gray-400 font-semibold">{t('adminReconciliation.table.status')}</th>
+                <th className="px-6 py-4 text-center text-gray-600 dark:text-gray-400 font-semibold">{t('adminReconciliation.table.actions')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-700">
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {loading && !data ? (
                 <>
                   <SkeletonRow cols={7} />
@@ -463,7 +463,7 @@ export default function ReconciliationExceptions() {
                 </>
               ) : exceptions.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan="7" className="px-6 py-12 text-center text-gray-600 dark:text-gray-400">
                     {t('adminReconciliation.table.empty')}
                   </td>
                 </tr>
@@ -472,7 +472,7 @@ export default function ReconciliationExceptions() {
                   const drillDown = DOMAIN_LINKS[exception.domain];
                   const busy = busyKey?.startsWith(`${exception.id}:`);
                   return (
-                    <tr key={exception.id} className="hover:bg-gray-700/50 transition">
+                    <tr key={exception.id} className="hover:bg-gray-200/50 dark:hover:bg-gray-700/50 transition">
                       <td className="px-6 py-4">
                         <SeverityBadge severity={exception.severity} />
                       </td>
@@ -487,21 +487,21 @@ export default function ReconciliationExceptions() {
                             <ExternalLink size={13} />
                           </Link>
                         ) : (
-                          <span className="text-gray-300">{domainLabel(exception.domain)}</span>
+                          <span className="text-gray-700 dark:text-gray-300">{domainLabel(exception.domain)}</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <p className="text-gray-200">{exception.summary}</p>
+                        <p className="text-gray-700 dark:text-gray-200">{exception.summary}</p>
                         {exception.reference_id && (
                           <p className="text-gray-500 text-xs font-mono mt-1">
                             {t('adminReconciliation.table.reference', { id: exception.reference_id })}
                           </p>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-gray-300 whitespace-nowrap">
+                      <td className="px-6 py-4 text-gray-700 dark:text-gray-300 whitespace-nowrap">
                         {formatAge(exception.created_at, t)}
                       </td>
-                      <td className="px-6 py-4 text-gray-300 text-xs">
+                      <td className="px-6 py-4 text-gray-700 dark:text-gray-300 text-xs">
                         {ownerName(exception.owner_admin_id)}
                       </td>
                       <td className="px-6 py-4">
@@ -549,8 +549,8 @@ export default function ReconciliationExceptions() {
         </div>
 
         {/* Pagination */}
-        <div className="bg-gray-900 border-t border-gray-700 px-6 py-4 flex items-center justify-between">
-          <p className="text-gray-400 text-sm">
+        <div className="bg-white dark:bg-gray-900 border-t border-gray-300 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+          <p className="text-gray-600 dark:text-gray-400 text-sm">
             {t('adminReconciliation.pagination.showing', {
               from: pagination.total === 0 ? 0 : (page - 1) * PAGE_LIMIT + 1,
               to: Math.min(page * PAGE_LIMIT, pagination.total),
@@ -561,14 +561,14 @@ export default function ReconciliationExceptions() {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {t('adminReconciliation.pagination.previous')}
             </button>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
-              className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {t('adminReconciliation.pagination.next')}
             </button>

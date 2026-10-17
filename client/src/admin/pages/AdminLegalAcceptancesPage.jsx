@@ -52,75 +52,75 @@ function DetailModal({ acceptance, onClose }) {
   const { t } = useTranslation();
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-auto">
-        <div className="sticky top-0 bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-white font-bold">{t('adminLegalAcceptancesPage.modalTitle')}</h2>
-          <button onClick={onClose} aria-label={t('common.aria.closeButton')} className="text-gray-400 hover:text-white"><X size={16} /></button>
+      <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-auto">
+        <div className="sticky top-0 bg-gray-100 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+          <h2 className="text-gray-900 dark:text-white font-bold">{t('adminLegalAcceptancesPage.modalTitle')}</h2>
+          <button onClick={onClose} aria-label={t('common.aria.closeButton')} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"><X size={16} /></button>
         </div>
 
         <div className="p-6 space-y-6">
           <div>
-            <h3 className="text-gray-300 text-sm font-semibold mb-3">{t('adminLegalAcceptancesPage.userInfoTitle')}</h3>
+            <h3 className="text-gray-700 dark:text-gray-300 text-sm font-semibold mb-3">{t('adminLegalAcceptancesPage.userInfoTitle')}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-gray-500">{t('adminLegalAcceptancesPage.fieldName')}</p>
-                <p className="text-white">{acceptance.user_name}</p>
+                <p className="text-gray-900 dark:text-white">{acceptance.user_name}</p>
               </div>
               <div>
                 <p className="text-gray-500">{t('adminLegalAcceptancesPage.fieldEmail')}</p>
-                <p className="text-white break-all">{acceptance.user_email}</p>
+                <p className="text-gray-900 dark:text-white break-all">{acceptance.user_email}</p>
               </div>
               <div>
                 <p className="text-gray-500">{t('adminLegalAcceptancesPage.fieldUserId')}</p>
-                <p className="text-gray-300 font-mono text-xs">{acceptance.user_id}</p>
+                <p className="text-gray-700 dark:text-gray-300 font-mono text-xs">{acceptance.user_id}</p>
               </div>
             </div>
           </div>
 
-          <div className="border-t border-gray-700 pt-4">
-            <h3 className="text-gray-300 text-sm font-semibold mb-3">{t('adminLegalAcceptancesPage.docInfoTitle')}</h3>
+          <div className="border-t border-gray-300 dark:border-gray-700 pt-4">
+            <h3 className="text-gray-700 dark:text-gray-300 text-sm font-semibold mb-3">{t('adminLegalAcceptancesPage.docInfoTitle')}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-gray-500">{t('adminLegalAcceptancesPage.fieldDocType')}</p>
-                <p className="text-white capitalize">{acceptance.document_type?.replace(/_/g, ' ')}</p>
+                <p className="text-gray-900 dark:text-white capitalize">{acceptance.document_type?.replace(/_/g, ' ')}</p>
               </div>
               <div>
                 <p className="text-gray-500">{t('adminLegalAcceptancesPage.fieldVersion')}</p>
-                <p className="text-white">{acceptance.document_version || t('adminLegalAcceptancesPage.notAvailable')}</p>
+                <p className="text-gray-900 dark:text-white">{acceptance.document_version || t('adminLegalAcceptancesPage.notAvailable')}</p>
               </div>
             </div>
           </div>
 
-          <div className="border-t border-gray-700 pt-4">
-            <h3 className="text-gray-300 text-sm font-semibold mb-3">{t('adminLegalAcceptancesPage.signatureTitle')}</h3>
+          <div className="border-t border-gray-300 dark:border-gray-700 pt-4">
+            <h3 className="text-gray-700 dark:text-gray-300 text-sm font-semibold mb-3">{t('adminLegalAcceptancesPage.signatureTitle')}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-gray-500">{t('adminLegalAcceptancesPage.fieldSignedName')}</p>
-                <p className="text-white">{acceptance.signed_first_name} {acceptance.signed_last_name}</p>
+                <p className="text-gray-900 dark:text-white">{acceptance.signed_first_name} {acceptance.signed_last_name}</p>
               </div>
               <div>
                 <p className="text-gray-500">{t('adminLegalAcceptancesPage.fieldAcceptedDate')}</p>
-                <p className="text-white">{new Date(acceptance.created_at).toLocaleString()}</p>
+                <p className="text-gray-900 dark:text-white">{new Date(acceptance.created_at).toLocaleString()}</p>
               </div>
               <div>
                 <p className="text-gray-500">{t('adminLegalAcceptancesPage.fieldIpAddress')}</p>
-                <p className="text-gray-300 font-mono text-xs">{acceptance.ip_address}</p>
+                <p className="text-gray-700 dark:text-gray-300 font-mono text-xs">{acceptance.ip_address}</p>
               </div>
             </div>
           </div>
 
-          <div className="border-t border-gray-700 pt-4">
-            <h3 className="text-gray-300 text-sm font-semibold mb-3">{t('adminLegalAcceptancesPage.userAgentTitle')}</h3>
-            <p className="text-gray-300 text-xs font-mono bg-gray-900 p-3 rounded border border-gray-700 overflow-auto max-h-24">
+          <div className="border-t border-gray-300 dark:border-gray-700 pt-4">
+            <h3 className="text-gray-700 dark:text-gray-300 text-sm font-semibold mb-3">{t('adminLegalAcceptancesPage.userAgentTitle')}</h3>
+            <p className="text-gray-700 dark:text-gray-300 text-xs font-mono bg-white dark:bg-gray-900 p-3 rounded border border-gray-300 dark:border-gray-700 overflow-auto max-h-24">
               {acceptance.user_agent}
             </p>
           </div>
         </div>
 
-        <div className="sticky bottom-0 bg-gray-800 border-t border-gray-700 px-6 py-4 flex justify-end">
+        <div className="sticky bottom-0 bg-gray-100 dark:bg-gray-800 border-t border-gray-300 dark:border-gray-700 px-6 py-4 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition"
+            className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg transition"
           >
             {t('adminLegalAcceptancesPage.close')}
           </button>
@@ -141,13 +141,13 @@ function ActionMenu({ acceptance, onRevoke, revoking }) {
       <button
         onClick={() => setOpen(!open)}
         aria-label={t('adminA11y.moreActions')}
-        className="p-1.5 hover:bg-gray-700 rounded-lg transition"
+        className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition"
       >
-        <MoreVertical size={16} className="text-gray-400" />
+        <MoreVertical size={16} className="text-gray-600 dark:text-gray-400" />
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-48 bg-gray-700 border border-gray-600 rounded-lg shadow-lg z-40 py-1">
+        <div className="absolute right-0 mt-2 w-48 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-40 py-1">
           <button
             onClick={() => {
               onRevoke(acceptance.id);
@@ -262,14 +262,14 @@ export default function AdminLegalAcceptancesPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-white font-bold text-3xl mb-2">{t('adminLegalAcceptancesPage.pageTitle')}</h1>
-          <p className="text-gray-400 text-sm">{t('adminLegalAcceptancesPage.pageSubtitle')}</p>
+          <h1 className="text-gray-900 dark:text-white font-bold text-3xl mb-2">{t('adminLegalAcceptancesPage.pageTitle')}</h1>
+          <p className="text-gray-600 dark:text-gray-400 text-sm">{t('adminLegalAcceptancesPage.pageSubtitle')}</p>
         </div>
         <button
           onClick={reload}
           disabled={loading}
           aria-label={t('common.refresh')}
-          className="p-2.5 bg-gray-700 border border-gray-600 text-gray-400 rounded-lg hover:text-white transition disabled:opacity-50"
+          className="p-2.5 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:text-gray-900 dark:hover:text-white transition disabled:opacity-50"
         >
           <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
         </button>
@@ -289,27 +289,27 @@ export default function AdminLegalAcceptancesPage() {
       {/* Stats Bar */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <p className="text-gray-400 text-sm mb-2">{t('adminLegalAcceptancesPage.statTotal')}</p>
-            <p className="text-white text-3xl font-bold">{stats.total_acceptances}</p>
+          <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-6">
+            <p className="text-gray-600 dark:text-gray-400 text-sm mb-2">{t('adminLegalAcceptancesPage.statTotal')}</p>
+            <p className="text-gray-900 dark:text-white text-3xl font-bold">{stats.total_acceptances}</p>
             <p className="text-gray-500 text-xs mt-2">{t('adminLegalAcceptancesPage.statTotalHint')}</p>
           </div>
 
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <p className="text-gray-400 text-sm mb-2">{t('adminLegalAcceptancesPage.statUniqueUsers')}</p>
-            <p className="text-white text-3xl font-bold">{stats.unique_users}</p>
+          <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-6">
+            <p className="text-gray-600 dark:text-gray-400 text-sm mb-2">{t('adminLegalAcceptancesPage.statUniqueUsers')}</p>
+            <p className="text-gray-900 dark:text-white text-3xl font-bold">{stats.unique_users}</p>
             <p className="text-gray-500 text-xs mt-2">{t('adminLegalAcceptancesPage.statUniqueUsersHint')}</p>
           </div>
 
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <p className="text-gray-400 text-sm mb-2">{t('adminLegalAcceptancesPage.statThisMonth')}</p>
-            <p className="text-white text-3xl font-bold">{stats.this_month}</p>
+          <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-6">
+            <p className="text-gray-600 dark:text-gray-400 text-sm mb-2">{t('adminLegalAcceptancesPage.statThisMonth')}</p>
+            <p className="text-gray-900 dark:text-white text-3xl font-bold">{stats.this_month}</p>
             <p className="text-gray-500 text-xs mt-2">{t('adminLegalAcceptancesPage.statThisMonthHint')}</p>
           </div>
 
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <p className="text-gray-400 text-sm mb-2">{t('adminLegalAcceptancesPage.statAcceptanceRate')}</p>
-            <p className="text-white text-3xl font-bold">{stats.acceptance_rate}%</p>
+          <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-6">
+            <p className="text-gray-600 dark:text-gray-400 text-sm mb-2">{t('adminLegalAcceptancesPage.statAcceptanceRate')}</p>
+            <p className="text-gray-900 dark:text-white text-3xl font-bold">{stats.acceptance_rate}%</p>
             <p className="text-gray-500 text-xs mt-2">{t('adminLegalAcceptancesPage.statAcceptanceRateHint')}</p>
           </div>
         </div>
@@ -319,8 +319,8 @@ export default function AdminLegalAcceptancesPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Trend Chart */}
         {chartData.length > 0 && (
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <h3 className="text-white font-semibold mb-4">{t('adminLegalAcceptancesPage.trendTitle')}</h3>
+          <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-6">
+            <h3 className="text-gray-900 dark:text-white font-semibold mb-4">{t('adminLegalAcceptancesPage.trendTitle')}</h3>
             <ResponsiveContainer width="100%" height={250}>
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -336,8 +336,8 @@ export default function AdminLegalAcceptancesPage() {
 
         {/* Breakdown Pie Chart */}
         {pieData.length > 0 && (
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <h3 className="text-white font-semibold mb-4">{t('adminLegalAcceptancesPage.breakdownTitle')}</h3>
+          <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-6">
+            <h3 className="text-gray-900 dark:text-white font-semibold mb-4">{t('adminLegalAcceptancesPage.breakdownTitle')}</h3>
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie
@@ -362,23 +362,23 @@ export default function AdminLegalAcceptancesPage() {
       </div>
 
       {/* Filters & Export */}
-      <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 space-y-4">
+      <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-4 space-y-4">
         <div className="flex items-center gap-2 mb-3">
-          <Filter size={16} className="text-gray-400" />
-          <span className="text-gray-300 font-semibold">{t('adminLegalAcceptancesPage.filtersTitle')}</span>
+          <Filter size={16} className="text-gray-600 dark:text-gray-400" />
+          <span className="text-gray-700 dark:text-gray-300 font-semibold">{t('adminLegalAcceptancesPage.filtersTitle')}</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Document Type Filter */}
           <div>
-            <label className="block text-gray-400 text-sm mb-2">{t('adminLegalAcceptancesPage.docTypeLabel')}</label>
+            <label className="block text-gray-600 dark:text-gray-400 text-sm mb-2">{t('adminLegalAcceptancesPage.docTypeLabel')}</label>
             <select
               value={documentType}
               onChange={(e) => {
                 setDocumentType(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:border-orange-500"
+              className="w-full px-3 py-2 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg text-sm focus:outline-none focus:border-orange-500"
             >
               {DOCUMENT_TYPES.map(opt => (
                 <option key={opt.value} value={opt.value}>{t(opt.labelKey)}</option>
@@ -388,7 +388,7 @@ export default function AdminLegalAcceptancesPage() {
 
           {/* Search Input */}
           <div className="md:col-span-2">
-            <label className="block text-gray-400 text-sm mb-2">{t('adminLegalAcceptancesPage.searchLabel')}</label>
+            <label className="block text-gray-600 dark:text-gray-400 text-sm mb-2">{t('adminLegalAcceptancesPage.searchLabel')}</label>
             <SuggestDropdown
               id="legal-acceptances-search"
               items={acceptanceSuggestItems}
@@ -404,14 +404,14 @@ export default function AdminLegalAcceptancesPage() {
 
           {/* Sort */}
           <div>
-            <label className="block text-gray-400 text-sm mb-2">{t('adminLegalAcceptancesPage.sortLabel')}</label>
+            <label className="block text-gray-600 dark:text-gray-400 text-sm mb-2">{t('adminLegalAcceptancesPage.sortLabel')}</label>
             <select
               value={sort}
               onChange={(e) => {
                 setSort(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:border-orange-500"
+              className="w-full px-3 py-2 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg text-sm focus:outline-none focus:border-orange-500"
             >
               {SORT_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>{t(opt.labelKey)}</option>
@@ -432,20 +432,20 @@ export default function AdminLegalAcceptancesPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
+      <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-900 border-b border-gray-700">
+            <thead className="bg-white dark:bg-gray-900 border-b border-gray-300 dark:border-gray-700">
               <tr>
-                <th className="px-6 py-4 text-left text-gray-400 font-semibold">{t('adminLegalAcceptancesPage.thUser')}</th>
-                <th className="px-6 py-4 text-left text-gray-400 font-semibold">{t('adminLegalAcceptancesPage.thDocType')}</th>
-                <th className="px-6 py-4 text-left text-gray-400 font-semibold">{t('adminLegalAcceptancesPage.thVersion')}</th>
-                <th className="px-6 py-4 text-left text-gray-400 font-semibold">{t('adminLegalAcceptancesPage.thAcceptedDate')}</th>
-                <th className="px-6 py-4 text-left text-gray-400 font-semibold">{t('adminLegalAcceptancesPage.thIpAddress')}</th>
-                <th className="px-6 py-4 text-center text-gray-400 font-semibold">{t('adminLegalAcceptancesPage.thActions')}</th>
+                <th className="px-6 py-4 text-left text-gray-600 dark:text-gray-400 font-semibold">{t('adminLegalAcceptancesPage.thUser')}</th>
+                <th className="px-6 py-4 text-left text-gray-600 dark:text-gray-400 font-semibold">{t('adminLegalAcceptancesPage.thDocType')}</th>
+                <th className="px-6 py-4 text-left text-gray-600 dark:text-gray-400 font-semibold">{t('adminLegalAcceptancesPage.thVersion')}</th>
+                <th className="px-6 py-4 text-left text-gray-600 dark:text-gray-400 font-semibold">{t('adminLegalAcceptancesPage.thAcceptedDate')}</th>
+                <th className="px-6 py-4 text-left text-gray-600 dark:text-gray-400 font-semibold">{t('adminLegalAcceptancesPage.thIpAddress')}</th>
+                <th className="px-6 py-4 text-center text-gray-600 dark:text-gray-400 font-semibold">{t('adminLegalAcceptancesPage.thActions')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-700">
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {loading && acceptances.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="px-6 py-12 text-center">
@@ -456,40 +456,40 @@ export default function AdminLegalAcceptancesPage() {
                 </tr>
               ) : error ? null : acceptances.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan="6" className="px-6 py-12 text-center text-gray-600 dark:text-gray-400">
                     {t('adminLegalAcceptancesPage.emptyState')}
                   </td>
                 </tr>
               ) : (
                 acceptances.map(acceptance => (
-                  <tr key={acceptance.id} className="hover:bg-gray-700/50 transition">
+                  <tr key={acceptance.id} className="hover:bg-gray-200/50 dark:hover:bg-gray-700/50 transition">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                           {acceptance.user_name?.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <p className="text-white font-medium">{acceptance.user_name}</p>
-                          <p className="text-gray-400 text-xs">{acceptance.user_email}</p>
+                          <p className="text-gray-900 dark:text-white font-medium">{acceptance.user_name}</p>
+                          <p className="text-gray-600 dark:text-gray-400 text-xs">{acceptance.user_email}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-gray-300 capitalize">
+                    <td className="px-6 py-4 text-gray-700 dark:text-gray-300 capitalize">
                       {acceptance.document_type?.replace(/_/g, ' ')}
                     </td>
-                    <td className="px-6 py-4 text-gray-300">
+                    <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
                       {acceptance.document_version || t('adminLegalAcceptancesPage.notAvailable')}
                     </td>
-                    <td className="px-6 py-4 text-gray-300 text-xs">
+                    <td className="px-6 py-4 text-gray-700 dark:text-gray-300 text-xs">
                       {new Date(acceptance.created_at).toLocaleString()}
                     </td>
-                    <td className="px-6 py-4 text-gray-400 text-xs font-mono">
+                    <td className="px-6 py-4 text-gray-600 dark:text-gray-400 text-xs font-mono">
                       {acceptance.ip_address}
                     </td>
                     <td className="px-6 py-4 text-center space-x-2">
                       <button
                         onClick={() => setSelectedDetail(acceptance)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-xs transition"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded text-xs transition"
                       >
                         <Eye size={14} />
                         {t('adminLegalAcceptancesPage.view')}
@@ -508,8 +508,8 @@ export default function AdminLegalAcceptancesPage() {
         </div>
 
         {/* Pagination */}
-        <div className="bg-gray-900 border-t border-gray-700 px-6 py-4 flex items-center justify-between">
-          <p className="text-gray-400 text-sm">
+        <div className="bg-white dark:bg-gray-900 border-t border-gray-300 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+          <p className="text-gray-600 dark:text-gray-400 text-sm">
             {t('adminLegalAcceptancesPage.pagination', {
               from: (page - 1) * limit + 1,
               to: Math.min(page * limit, totalCount),
@@ -520,7 +520,7 @@ export default function AdminLegalAcceptancesPage() {
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {t('adminLegalAcceptancesPage.previous')}
             </button>
@@ -534,7 +534,7 @@ export default function AdminLegalAcceptancesPage() {
                   className={`w-8 h-8 rounded text-sm transition ${
                     p === page
                       ? 'bg-orange-600 text-white'
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-600'
                   }`}
                 >
                   {p}
@@ -544,7 +544,7 @@ export default function AdminLegalAcceptancesPage() {
             <button
               onClick={() => setPage(p => Math.min(pages, p + 1))}
               disabled={page === pages}
-              className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {t('adminLegalAcceptancesPage.next')}
             </button>

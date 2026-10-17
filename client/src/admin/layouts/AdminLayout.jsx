@@ -139,7 +139,7 @@ const navClass = ({ isActive }) =>
    transition-all ${
     isActive
       ? 'bg-orange-500 text-white'
-      : 'text-gray-400 hover:text-white hover:bg-gray-800'
+      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
   }`;
 
 const superNavClass = ({ isActive }) =>
@@ -147,7 +147,7 @@ const superNavClass = ({ isActive }) =>
    transition-all ${
     isActive
       ? 'bg-purple-600 text-white'
-      : 'text-gray-400 hover:text-white hover:bg-gray-800'
+      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
   }`;
 
 export default function AdminLayout() {
@@ -262,14 +262,13 @@ export default function AdminLayout() {
     return (
       <>
       {/* Logo */}
-      <div className="px-5 py-4 border-b border-gray-800 flex items-center
-                      justify-between">
+      <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <OxSteedIcon size={28} />
           <div>
-            <p className="font-bold text-white text-sm">OxSteed Admin</p>
+            <p className="font-bold text-gray-900 dark:text-white text-sm">OxSteed Admin</p>
             <p className={`text-xs font-medium mt-0.5 ${
-              isSuper ? 'text-orange-400' : 'text-gray-400'
+              isSuper ? 'text-orange-400' : 'text-gray-600 dark:text-gray-400'
             }`}>
               {isSuper ? t('adminNav.roleSuper') : t('adminNav.roleAdmin')}
             </p>
@@ -280,7 +279,7 @@ export default function AdminLayout() {
           type="button"
           onClick={closeSidebar}
           aria-label={t('closeMenu')}
-          className="lg:hidden text-gray-500 hover:text-white transition p-1"
+          className="lg:hidden text-gray-500 hover:text-gray-900 dark:hover:text-white transition p-1"
         >
           <X size={18} />
         </button>
@@ -288,19 +287,19 @@ export default function AdminLayout() {
 
       {/* Nav */}
       <nav aria-label={t('adminNav.sidebarLabel', { defaultValue: 'Admin navigation' })} className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        <div className="sticky top-0 z-10 -mx-3 bg-gray-900 px-3 pb-3">
-          <div className={`rounded-xl border bg-gray-950/50 transition-colors ${tabSettingsOpen ? 'border-gray-700' : 'border-gray-800'}`}>
+        <div className="sticky top-0 z-10 -mx-3 bg-white dark:bg-gray-900 px-3 pb-3">
+          <div className={`rounded-xl border bg-gray-50/50 dark:bg-gray-950/50 transition-colors ${tabSettingsOpen ? 'border-gray-300 dark:border-gray-700' : 'border-gray-200 dark:border-gray-800'}`}>
             <div className="flex items-center justify-between gap-2 px-3 py-2.5">
               <button
                 type="button"
                 onClick={() => setTabSettingsOpen((open) => !open)}
                 aria-expanded={tabSettingsOpen}
                 aria-controls="admin-tab-settings"
-                className="flex min-w-0 items-center gap-2 text-left text-xs font-semibold text-gray-200 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+                className="flex min-w-0 items-center gap-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
               >
                 <Settings2 size={14} className="shrink-0 text-orange-400" />
                 <span className="truncate">{t('adminNav.tabSettings')}</span>
-                <span className="rounded-full bg-gray-800 px-1.5 py-0.5 text-[10px] font-medium text-gray-400">
+                <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:text-gray-400">
                   {simpleMode ? t('adminNav.modeEssential') : t('adminNav.modeAll')}
                 </span>
               </button>
@@ -311,13 +310,13 @@ export default function AdminLayout() {
                 aria-label={simpleMode ? t('adminNav.switchToFullAria') : t('adminNav.switchToSimpleAria')}
                 onClick={toggleSimpleMode}
                 title={simpleMode ? t('adminNav.switchToFullTitle') : t('adminNav.switchToSimpleTitle')}
-                className={`relative h-5 w-9 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${simpleMode ? 'bg-orange-500' : 'bg-gray-700'}`}
+                className={`relative h-5 w-9 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900 ${simpleMode ? 'bg-orange-500' : 'bg-gray-200 dark:bg-gray-700'}`}
               >
                 <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${simpleMode ? 'translate-x-4' : 'translate-x-0.5'}`} />
               </button>
             </div>
             {tabSettingsOpen && (
-              <div id="admin-tab-settings" className="border-t border-gray-800 px-3 pb-3 pt-2">
+              <div id="admin-tab-settings" className="border-t border-gray-200 dark:border-gray-800 px-3 pb-3 pt-2">
                 <p className="mb-2 text-[10px] leading-4 text-gray-500">
                   {t('adminNav.tabSettingsHelp')}
                 </p>
@@ -331,7 +330,7 @@ export default function AdminLayout() {
                       type="button"
                       onClick={() => setAdminNavMode(value)}
                       aria-pressed={simpleMode === value}
-                      className={`rounded-lg border px-2 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 ${simpleMode === value ? 'border-orange-500/70 bg-orange-500/10 text-white' : 'border-gray-800 bg-gray-900/60 text-gray-400 hover:border-gray-700 hover:text-gray-200'}`}
+                      className={`rounded-lg border px-2 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 ${simpleMode === value ? 'border-orange-500/70 bg-orange-500/10 text-white' : 'border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-900/60 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 hover:text-gray-700 dark:hover:text-gray-200'}`}
                     >
                       <span className="flex items-center justify-between gap-1 text-[11px] font-semibold">
                         {t(labelKey)}
@@ -352,14 +351,14 @@ export default function AdminLayout() {
               onChange={(event) => setSidebarNavSearch(event.target.value)}
               placeholder={t('adminNav.findTabPlaceholder')}
               aria-label={t('adminNav.findTabSr')}
-              className="w-full rounded-lg border border-gray-700 bg-gray-800 py-2 pl-9 pr-8 text-xs text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 py-2 pl-9 pr-8 text-xs text-gray-900 dark:text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
             />
             {sidebarNavSearch && (
               <button
                 type="button"
                 onClick={() => setSidebarNavSearch('')}
                 aria-label={t('adminNav.clearTabSearch')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-500 hover:text-white"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-500 hover:text-gray-900 dark:hover:text-white"
               >
                 <X size={13} />
               </button>
@@ -379,8 +378,7 @@ export default function AdminLayout() {
 
         {visibleRegularNav.length > 0 && (
           <>
-            <p className="text-xs font-semibold text-gray-500 uppercase
-                          tracking-wider px-3 mb-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mb-2">
               {t('adminNav.operations')}
             </p>
             {visibleRegularNav.map(({ to, icon: Icon, labelKey, external }) => (
@@ -402,8 +400,7 @@ export default function AdminLayout() {
         {visibleSuperNav.length > 0 && (
           <>
             <div className="pt-4 pb-2">
-              <p className="text-xs font-semibold text-gray-500 uppercase
-                            tracking-wider px-3">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3">
                 {t('adminNav.superAdmin')}
               </p>
             </div>
@@ -426,7 +423,7 @@ export default function AdminLayout() {
       </nav>
 
       {/* Bottom */}
-      <div className="px-3 py-4 border-t border-gray-800">
+      <div className="px-3 py-4 border-t border-gray-200 dark:border-gray-800">
         <button
           type="button"
           onClick={() => setSupportAvailability(!supportAvailable)}
@@ -435,7 +432,7 @@ export default function AdminLayout() {
           className={`mb-3 flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm font-medium transition disabled:opacity-50 ${
             supportLiveReady
               ? 'border-green-700/50 bg-green-500/10 text-green-300 hover:bg-green-500/15'
-              : 'border-gray-700 bg-gray-950/40 text-gray-400 hover:border-gray-600 hover:text-white'
+              : 'border-gray-300 dark:border-gray-700 bg-gray-50/40 dark:bg-gray-950/40 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-900 dark:hover:text-white'
           }`}
         >
           <span className={`h-2.5 w-2.5 rounded-full ${supportLiveReady ? 'bg-green-400 shadow-[0_0_10px_rgba(74,222,128,0.6)]' : supportAvailable ? 'bg-amber-400' : 'bg-gray-600'}`} />
@@ -453,8 +450,7 @@ export default function AdminLayout() {
             onClick={toggleTheme}
             aria-label={isDark ? t('adminNav.lightMode') : t('adminNav.darkMode')}
             title={isDark ? t('adminNav.lightMode') : t('adminNav.darkMode')}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-white
-                       hover:bg-gray-700 transition-all shrink-0 ml-2"
+            className="p-1.5 rounded-lg text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-all shrink-0 ml-2"
           >
             {isDark ? <Sun size={15} /> : <Moon size={15} />}
           </button>
@@ -463,9 +459,7 @@ export default function AdminLayout() {
           type="button"
           onClick={handleLogout}
           aria-label={t('adminNav.signOut')}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg
-                     text-sm font-medium text-red-400 hover:bg-red-950
-                     hover:text-red-300 transition-all"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-950 hover:text-red-300 transition-all"
         >
           <LogOut size={16} />
           {t('adminNav.signOut')}
@@ -476,11 +470,10 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-950 text-gray-100 overflow-hidden">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-950 text-gray-100 overflow-hidden">
 
       {/* ── Desktop sidebar ── */}
-      <aside className="hidden lg:flex w-60 bg-gray-900 border-r border-gray-800
-                        flex-col shrink-0">
+      <aside className="hidden lg:flex w-60 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex-col shrink-0">
         {renderSidebar()}
       </aside>
 
@@ -491,9 +484,7 @@ export default function AdminLayout() {
           onClick={closeSidebar}
         />
       )}
-      <aside id="admin-mobile-sidebar" aria-label={t('adminNav.sidebarLabel', { defaultValue: 'Admin navigation' })} aria-hidden={!sidebarOpen} inert={!sidebarOpen ? '' : undefined} className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-900
-                         border-r border-gray-800 flex flex-col
-                         transition-transform duration-200 lg:hidden ${
+      <aside id="admin-mobile-sidebar" aria-label={t('adminNav.sidebarLabel', { defaultValue: 'Admin navigation' })} aria-hidden={!sidebarOpen} inert={!sidebarOpen ? '' : undefined} className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col transition-transform duration-200 lg:hidden ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         {renderSidebar()}
@@ -503,35 +494,31 @@ export default function AdminLayout() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
         {/* Mobile top bar */}
-        <header className="lg:hidden flex items-center gap-3 px-4 py-3
-                            bg-gray-900 border-b border-gray-800 shrink-0">
+        <header className="lg:hidden flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shrink-0">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
             aria-expanded={sidebarOpen}
             aria-controls="admin-mobile-sidebar"
             aria-label={t('openMenu')}
-            className="text-gray-400 hover:text-white transition"
+            className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition"
           >
             <Menu size={20} />
           </button>
           <div className="flex items-center gap-2">
             <OxSteedIcon size={24} />
-            <span className="font-bold text-white text-sm">OxSteed Admin</span>
+            <span className="font-bold text-gray-900 dark:text-white text-sm">OxSteed Admin</span>
           </div>
           {/* Mobile search bar */}
           <form onSubmit={handleSearchSubmit} className="flex-1 mx-1">
             <div className="relative">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2
-                                           text-gray-500 pointer-events-none" />
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
               <input
                 ref={searchRef}
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
                 placeholder={t('adminNav.searchMobile')}
-                className="w-full pl-8 pr-2 py-1.5 bg-gray-800 border border-gray-700
-                           rounded-lg text-xs text-white placeholder-gray-500
-                           focus:outline-none focus:border-orange-500"
+                className="w-full pl-8 pr-2 py-1.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-xs text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
               />
             </div>
           </form>
@@ -540,33 +527,28 @@ export default function AdminLayout() {
             onClick={toggleTheme}
             aria-label={isDark ? t('adminNav.lightMode') : t('adminNav.darkMode')}
             title={isDark ? t('adminNav.lightMode') : t('adminNav.darkMode')}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-white
-                       hover:bg-gray-700 transition-all"
+            className="p-1.5 rounded-lg text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
           >
             {isDark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
         </header>
 
         {/* Desktop search bar */}
-        <div className="hidden lg:flex items-center px-4 py-2.5 bg-gray-900
-                        border-b border-gray-800 shrink-0">
+        <div className="hidden lg:flex items-center px-4 py-2.5 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shrink-0">
           <form onSubmit={handleSearchSubmit} className="w-full max-w-sm">
             <div className="relative">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2
-                                           text-gray-500 pointer-events-none" />
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
               <input
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
                 placeholder={t('adminNav.searchDesktop')}
-                className="w-full pl-9 pr-3 py-2 bg-gray-800 border border-gray-700
-                           rounded-lg text-xs text-white placeholder-gray-500
-                           focus:outline-none focus:border-orange-500"
+                className="w-full pl-9 pr-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-xs text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
               />
             </div>
           </form>
         </div>
 
-        <main className="flex-1 overflow-y-auto bg-gray-950">
+        <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
           <Outlet />
         </main>
       </div>

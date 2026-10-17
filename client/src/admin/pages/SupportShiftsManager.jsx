@@ -240,10 +240,10 @@ export default function SupportShiftsManager() {
         ) : (
           <div className="grid grid-cols-1 gap-4">
             {shifts.map((shift) => (
-              <div key={shift.id} className="rounded-[24px] border border-gray-800 bg-gray-900/70 p-5">
+              <div key={shift.id} className="rounded-[24px] border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
-                    <div className="text-lg font-semibold text-white">{shift.name}</div>
+                    <div className="text-lg font-semibold text-gray-900 dark:text-white">{shift.name}</div>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <SupportTag tone="blue">
                         {shift.start_time} - {shift.end_time}
@@ -260,7 +260,7 @@ export default function SupportShiftsManager() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleEditShift(shift)}
-                      className="rounded-xl border border-gray-700 bg-gray-900 p-2 text-gray-400 transition hover:text-white"
+                      className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-gray-600 dark:text-gray-400 transition hover:text-gray-900 dark:hover:text-white"
                       aria-label={t('adminSupportShifts.editShiftAria', { name: shift.name })}
                     >
                       <Edit2 size={15} />
@@ -282,61 +282,61 @@ export default function SupportShiftsManager() {
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-xl rounded-[28px] border border-gray-700 bg-gray-900 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-800 px-6 py-5">
+          <div className="w-full max-w-xl rounded-[28px] border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 px-6 py-5">
               <div>
-            <div className="text-xl font-semibold text-white">{editingShiftId ? t('adminSupportShifts.modalEditTitle') : t('adminSupportShifts.modalNewTitle')}</div>
+            <div className="text-xl font-semibold text-gray-900 dark:text-white">{editingShiftId ? t('adminSupportShifts.modalEditTitle') : t('adminSupportShifts.modalNewTitle')}</div>
             <div className="mt-1 text-sm text-gray-500">{editingShiftId ? t('adminSupportShifts.modalEditSubtitle') : t('adminSupportShifts.modalNewSubtitle')}</div>
           </div>
-            <button onClick={handleCancelForm} className="text-2xl text-gray-500 hover:text-white">x</button>
+            <button onClick={handleCancelForm} className="text-2xl text-gray-500 hover:text-gray-900 dark:hover:text-white">x</button>
             </div>
 
             <div className="space-y-5 px-6 py-6">
               <div>
-                <label className="mb-2 block text-sm text-gray-400">{t('adminSupportShifts.labelName')}</label>
+                <label className="mb-2 block text-sm text-gray-600 dark:text-gray-400">{t('adminSupportShifts.labelName')}</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(event) => setFormData({ ...formData, name: event.target.value })}
-                  className="w-full rounded-2xl border border-gray-700 bg-gray-950 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
+                  className="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-4 py-3 text-gray-900 dark:text-white focus:border-orange-500 focus:outline-none"
                   placeholder={t('adminSupportShifts.namePlaceholder')}
                 />
               </div>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-sm text-gray-400">{t('adminSupportShifts.labelStart')}</label>
+                  <label className="mb-2 block text-sm text-gray-600 dark:text-gray-400">{t('adminSupportShifts.labelStart')}</label>
                   <input
                     type="time"
                     value={formData.start_time}
                     onChange={(event) => setFormData({ ...formData, start_time: event.target.value })}
-                    className="w-full rounded-2xl border border-gray-700 bg-gray-950 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
+                    className="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-4 py-3 text-gray-900 dark:text-white focus:border-orange-500 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm text-gray-400">{t('adminSupportShifts.labelEnd')}</label>
+                  <label className="mb-2 block text-sm text-gray-600 dark:text-gray-400">{t('adminSupportShifts.labelEnd')}</label>
                   <input
                     type="time"
                     value={formData.end_time}
                     onChange={(event) => setFormData({ ...formData, end_time: event.target.value })}
-                    className="w-full rounded-2xl border border-gray-700 bg-gray-950 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
+                    className="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-4 py-3 text-gray-900 dark:text-white focus:border-orange-500 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="mb-2 block text-sm text-gray-400">{t('adminSupportShifts.labelMaxAgents')}</label>
+                <label className="mb-2 block text-sm text-gray-600 dark:text-gray-400">{t('adminSupportShifts.labelMaxAgents')}</label>
                 <input
                   type="number"
                   value={formData.max_agents}
                   onChange={(event) => setFormData({ ...formData, max_agents: event.target.value })}
                   min="1"
-                  className="w-full rounded-2xl border border-gray-700 bg-gray-950 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
+                  className="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-4 py-3 text-gray-900 dark:text-white focus:border-orange-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <div className="mb-3 text-sm text-gray-400">{t('adminSupportShifts.labelDays')}</div>
+                <div className="mb-3 text-sm text-gray-600 dark:text-gray-400">{t('adminSupportShifts.labelDays')}</div>
                 <div className="flex flex-wrap gap-2">
                   {DAY_OPTIONS.map((day) => {
                     const selected = formData.days.includes(day);
@@ -350,7 +350,7 @@ export default function SupportShiftsManager() {
                         className={`rounded-full border px-3 py-2 text-sm capitalize transition ${
                           selected
                             ? 'border-orange-500/30 bg-orange-500/10 text-orange-300'
-                            : 'border-gray-700 bg-gray-950 text-gray-400 hover:border-gray-600'
+                            : 'border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
                         }`}
                       >
                         {dayName(day)}
@@ -360,7 +360,7 @@ export default function SupportShiftsManager() {
                 </div>
               </div>
 
-              <div className="flex gap-3 border-t border-gray-800 pt-5">
+              <div className="flex gap-3 border-t border-gray-200 dark:border-gray-800 pt-5">
               <SupportActionButton tone="secondary" onClick={handleCancelForm}>
                 {t('common.cancel')}
               </SupportActionButton>

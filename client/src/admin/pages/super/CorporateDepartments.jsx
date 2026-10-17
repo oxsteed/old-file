@@ -70,12 +70,12 @@ function DepartmentModal({ initial, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-lg rounded-xl border border-gray-700 bg-gray-900 p-6 shadow-2xl">
+      <div className="w-full max-w-lg rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-6 shadow-2xl">
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             {initial ? t('corporateOrg.departments.editDepartment') : t('corporateOrg.departments.newDepartment')}
           </h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-300">
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
             <X size={18} />
           </button>
         </div>
@@ -83,68 +83,68 @@ function DepartmentModal({ initial, onClose, onSaved }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.form.codeLabel')}</label>
+              <label className="mb-1 block text-sm text-gray-600 dark:text-gray-400">{t('corporateOrg.departments.form.codeLabel')}</label>
               <input
                 type="text"
                 value={form.code}
                 onChange={(event) => setF('code', event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_'))}
                 disabled={Boolean(initial)}
-                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.form.nameLabel')}</label>
+              <label className="mb-1 block text-sm text-gray-600 dark:text-gray-400">{t('corporateOrg.departments.form.nameLabel')}</label>
               <input
                 type="text"
                 value={form.name}
                 onChange={(event) => setF('name', event.target.value)}
-                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white"
               />
             </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.form.descriptionLabel')}</label>
+            <label className="mb-1 block text-sm text-gray-600 dark:text-gray-400">{t('corporateOrg.departments.form.descriptionLabel')}</label>
             <textarea
               value={form.description}
               onChange={(event) => setF('description', event.target.value)}
               rows={2}
-              className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white"
             />
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.form.colorLabel')}</label>
+              <label className="mb-1 block text-sm text-gray-600 dark:text-gray-400">{t('corporateOrg.departments.form.colorLabel')}</label>
               <input
                 type="color"
                 value={form.color}
                 onChange={(event) => setF('color', event.target.value)}
-                className="h-10 w-full cursor-pointer rounded-lg border border-gray-700 bg-gray-800"
+                className="h-10 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.form.iconLabel')}</label>
+              <label className="mb-1 block text-sm text-gray-600 dark:text-gray-400">{t('corporateOrg.departments.form.iconLabel')}</label>
               <input
                 type="text"
                 value={form.icon}
                 onChange={(event) => setF('icon', event.target.value)}
                 placeholder={t('adminCorporateDeptsIconPlaceholder')}
-                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.form.sortLabel')}</label>
+              <label className="mb-1 block text-sm text-gray-600 dark:text-gray-400">{t('corporateOrg.departments.form.sortLabel')}</label>
               <input
                 type="number"
                 value={form.sort_order}
                 onChange={(event) => setF('sort_order', Number(event.target.value))}
-                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white"
               />
             </div>
           </div>
 
-          <label className="flex items-center gap-2 text-sm text-gray-300">
+          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
             <input
               type="checkbox"
               checked={form.is_active}
@@ -160,7 +160,7 @@ function DepartmentModal({ initial, onClose, onSaved }) {
           )}
 
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-white">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
               {t('corporateOrg.departments.form.cancel')}
             </button>
             <button
@@ -214,23 +214,23 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-gray-700 bg-gray-900 p-6 shadow-2xl">
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-6 shadow-2xl">
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             {initial ? t('corporateOrg.departments.editTitle') : t('corporateOrg.departments.newTitle')}
           </h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-300">
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
             <X size={18} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.form.departmentLabel')}</label>
+            <label className="mb-1 block text-sm text-gray-600 dark:text-gray-400">{t('corporateOrg.departments.form.departmentLabel')}</label>
             <select
               value={form.department_id}
               onChange={(event) => setF('department_id', Number(event.target.value))}
-              className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white"
             >
               {departments.map((department) => (
                 <option key={department.id} value={department.id}>{department.name}</option>
@@ -240,61 +240,61 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.form.codeLabel')}</label>
+              <label className="mb-1 block text-sm text-gray-600 dark:text-gray-400">{t('corporateOrg.departments.form.codeLabel')}</label>
               <input
                 type="text"
                 value={form.code}
                 onChange={(event) => setF('code', event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_'))}
                 disabled={Boolean(initial)}
-                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.form.nameLabel')}</label>
+              <label className="mb-1 block text-sm text-gray-600 dark:text-gray-400">{t('corporateOrg.departments.form.nameLabel')}</label>
               <input
                 type="text"
                 value={form.name}
                 onChange={(event) => setF('name', event.target.value)}
-                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white"
               />
             </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.form.descriptionLabel')}</label>
+            <label className="mb-1 block text-sm text-gray-600 dark:text-gray-400">{t('corporateOrg.departments.form.descriptionLabel')}</label>
             <textarea
               value={form.description}
               onChange={(event) => setF('description', event.target.value)}
               rows={2}
-              className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.form.seniorityLabel')}</label>
+              <label className="mb-1 block text-sm text-gray-600 dark:text-gray-400">{t('corporateOrg.departments.form.seniorityLabel')}</label>
               <input
                 type="number"
                 min="1"
                 max="10"
                 value={form.seniority_level}
                 onChange={(event) => setF('seniority_level', Number(event.target.value))}
-                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-gray-400">{t('adminCorporateDeptsSortOrder')}</label>
+              <label className="mb-1 block text-sm text-gray-600 dark:text-gray-400">{t('adminCorporateDeptsSortOrder')}</label>
               <input
                 type="number"
                 value={form.sort_order}
                 onChange={(event) => setF('sort_order', Number(event.target.value))}
-                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white"
               />
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 text-sm text-gray-300">
+            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
               <input
                 type="checkbox"
                 checked={form.is_csuite}
@@ -302,7 +302,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
               />
               {t('corporateOrg.departments.form.csuite')}
             </label>
-            <label className="flex items-center gap-2 text-sm text-gray-300">
+            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
               <input
                 type="checkbox"
                 checked={form.is_active}
@@ -319,7 +319,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
           )}
 
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-white">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
               {t('corporateOrg.departments.form.cancel')}
             </button>
             <button
@@ -377,15 +377,15 @@ function PermissionsEditor({ department, catalog, onSaved }) {
   }
 
   return (
-    <div className="mt-4 rounded-lg border border-gray-800 bg-gray-950 p-4">
-      <div className="mb-3 text-sm font-medium text-white">{t('adminCorporateDeptsDefaultPermissions')}</div>
+    <div className="mt-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 p-4">
+      <div className="mb-3 text-sm font-medium text-gray-900 dark:text-white">{t('adminCorporateDeptsDefaultPermissions')}</div>
       <div className="max-h-[400px] space-y-3 overflow-y-auto">
         {Object.entries(grouped).map(([group, permissions]) => (
           <div key={group}>
             <div className="mb-1 text-xs uppercase text-gray-500">{group}</div>
             <div className="space-y-1">
               {permissions.map((permission) => (
-                <label key={permission.code} className="flex items-start gap-2 rounded px-2 py-1 text-sm text-gray-300 hover:bg-gray-900">
+                <label key={permission.code} className="flex items-start gap-2 rounded px-2 py-1 text-sm text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-900">
                   <input
                     type="checkbox"
                     checked={allowed.has(permission.code)}
@@ -421,13 +421,13 @@ function PermissionsEditor({ department, catalog, onSaved }) {
 
 function MetricCard({ icon: Icon, label, value, hint }) {
   return (
-    <div className="rounded-2xl border border-gray-800 bg-gray-900/80 p-4">
+    <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 p-4">
       <div className="mb-3 flex items-center justify-between">
         <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{label}</div>
         <Icon size={16} className="text-gray-500" />
       </div>
-      <div className="text-2xl font-semibold text-white">{value}</div>
-      <div className="mt-1 text-sm text-gray-400">{hint}</div>
+      <div className="text-2xl font-semibold text-gray-900 dark:text-white">{value}</div>
+      <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">{hint}</div>
     </div>
   );
 }
@@ -457,12 +457,12 @@ function CoveragePill({ status }) {
 function PriorityRoleCard({ item, selectedCountry, onEdit }) {
   const { t } = useTranslation();
   return (
-    <div className="rounded-xl border border-gray-800 bg-gray-950 p-4">
+    <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 p-4">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
             {item.title?.is_csuite && <Crown size={13} className="text-yellow-400" />}
-            <div className="font-medium text-white">{item.title?.name || formatCodeLabel(item.code)}</div>
+            <div className="font-medium text-gray-900 dark:text-white">{item.title?.name || formatCodeLabel(item.code)}</div>
           </div>
           <div className="mt-1 text-xs text-gray-500">
             {item.title ? `L${item.title.seniority_level} - ${item.title.code}` : item.code}
@@ -471,12 +471,12 @@ function PriorityRoleCard({ item, selectedCountry, onEdit }) {
         <CoveragePill status={item.status} />
       </div>
 
-      <div className="text-sm leading-6 text-gray-300">
+      <div className="text-sm leading-6 text-gray-700 dark:text-gray-300">
         {ROLE_FOCUS[item.code] || t('adminCorporateDeptsRoleFocusFallback')}
       </div>
 
       {selectedCountry && (
-        <div className="mt-3 text-xs text-gray-400">
+        <div className="mt-3 text-xs text-gray-600 dark:text-gray-400">
           {item.status === 'country' && t('adminCorporateDeptsAssignedInCountry', { country: selectedCountry })}
           {item.status === 'global' && t('adminCorporateDeptsGlobalCoverage', { country: selectedCountry })}
           {item.status === 'open' && t('adminCorporateDeptsNoCoverage', { country: selectedCountry })}
@@ -484,7 +484,7 @@ function PriorityRoleCard({ item, selectedCountry, onEdit }) {
       )}
 
       {!selectedCountry && item.status === 'assigned' && (
-        <div className="mt-3 text-xs text-gray-400">
+        <div className="mt-3 text-xs text-gray-600 dark:text-gray-400">
           {t('adminCorporateDeptsAssignedSomewhere')}
         </div>
       )}
@@ -492,7 +492,7 @@ function PriorityRoleCard({ item, selectedCountry, onEdit }) {
       <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
         <span>{t('adminCorporateDeptsActiveSeats', { count: item.assignmentCount })}</span>
         {item.title && (
-          <button onClick={() => onEdit(item.title)} className="text-gray-400 hover:text-white">
+          <button onClick={() => onEdit(item.title)} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
             {t('corporateOrg.departments.editTitle')}
           </button>
         )}
@@ -636,7 +636,7 @@ export default function CorporateDepartments() {
 
   if (loading) {
     return (
-      <div className="p-10 text-center text-gray-400">
+      <div className="p-10 text-center text-gray-600 dark:text-gray-400">
         <Loader2 className="mr-2 inline animate-spin" size={18} /> {t('common.loading')}
       </div>
     );
@@ -650,17 +650,17 @@ export default function CorporateDepartments() {
     <div className="mx-auto max-w-[96rem] p-6">
       <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold text-white">
+          <h1 className="flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-white">
             <Shield size={22} />
             {t('corporateOrg.departments.pageTitle')}
           </h1>
-          <p className="mt-1 max-w-3xl text-sm text-gray-400">
+          <p className="mt-1 max-w-3xl text-sm text-gray-600 dark:text-gray-400">
             {t('adminCorporateDeptsSubtitle')}
           </p>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <label className="flex items-center gap-2 rounded-xl border border-gray-800 bg-gray-900 px-3 py-2 text-sm text-gray-300">
+          <label className="flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
             <Globe2 size={15} className="text-gray-500" />
             <span>{t('adminCorporateDeptsCountryLaunch')}</span>
             <input
@@ -668,7 +668,7 @@ export default function CorporateDepartments() {
               value={countryCode}
               onChange={(event) => setCountryCode(event.target.value.toUpperCase().slice(0, 2))}
               placeholder="US"
-              className="w-16 border-0 bg-transparent p-0 text-right text-white placeholder:text-gray-500 focus:outline-none"
+              className="w-16 border-0 bg-transparent p-0 text-right text-gray-900 dark:text-white placeholder:text-gray-500 focus:outline-none"
             />
           </label>
 
@@ -709,17 +709,17 @@ export default function CorporateDepartments() {
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr_0.9fr]">
-        <div className="rounded-2xl border border-gray-800 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-900 p-5">
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-900 p-5">
           <div className="mb-4 flex items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 text-sm font-medium text-orange-300">
                 <Sparkles size={15} />
                 {t('adminCorporateDeptsLaunchConsole')}
               </div>
-              <h2 className="mt-2 text-xl font-semibold text-white">
+              <h2 className="mt-2 text-xl font-semibold text-gray-900 dark:text-white">
                 {selectedCountry ? t('adminCorporateDeptsConsoleStaffed', { country: selectedCountry }) : t('adminCorporateDeptsConsoleStructure')}
               </h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-400">
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-400">
                 {t('adminCorporateDeptsConsoleText')}
               </p>
             </div>
@@ -731,43 +731,43 @@ export default function CorporateDepartments() {
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <div className="rounded-xl border border-gray-800 bg-gray-900/70 p-4">
+            <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 p-4">
               <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminCorporateDeptsCountryStaffedDepts')}</div>
-              <div className="mt-2 text-2xl font-semibold text-white">
+              <div className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">
                 {selectedCountry ? dashboard.staffedDepartmentsInCountry : dashboard.activeDepartments}
               </div>
-              <div className="mt-1 text-sm text-gray-400">
+              <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                 {selectedCountry ? t('adminCorporateDeptsDirectOwnership', { country: selectedCountry }) : t('adminCorporateDeptsSomeoneAssigned')}
               </div>
             </div>
-            <div className="rounded-xl border border-gray-800 bg-gray-900/70 p-4">
+            <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 p-4">
               <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminCorporateDeptsPriorityOpen')}</div>
-              <div className="mt-2 text-2xl font-semibold text-white">{dashboard.openLaunchRoles.length}</div>
-              <div className="mt-1 text-sm text-gray-400">
+              <div className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{dashboard.openLaunchRoles.length}</div>
+              <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                 {t('adminCorporateDeptsPriorityOpenHint')}
               </div>
             </div>
-            <div className="rounded-xl border border-gray-800 bg-gray-900/70 p-4">
+            <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 p-4">
               <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminCorporateDeptsGlobalBackstop')}</div>
-              <div className="mt-2 text-2xl font-semibold text-white">
+              <div className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">
                 {dashboard.totalCriticalRoles - dashboard.openLaunchRoles.length}
               </div>
-              <div className="mt-1 text-sm text-gray-400">
+              <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                 {t('adminCorporateDeptsGlobalBackstopHint')}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
-          <div className="mb-3 text-sm font-medium text-white">{t('adminCorporateDeptsHiringView')}</div>
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5">
+          <div className="mb-3 text-sm font-medium text-gray-900 dark:text-white">{t('adminCorporateDeptsHiringView')}</div>
           {dashboard.openLaunchRoles.length ? (
             <div className="space-y-3">
               {dashboard.openLaunchRoles.slice(0, 6).map((role) => (
-                <div key={`${role.departmentName}-${role.code}`} className="rounded-xl border border-gray-800 bg-gray-950 px-4 py-3">
+                <div key={`${role.departmentName}-${role.code}`} className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 px-4 py-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="font-medium text-white">{role.title?.name || formatCodeLabel(role.code)}</div>
+                      <div className="font-medium text-gray-900 dark:text-white">{role.title?.name || formatCodeLabel(role.code)}</div>
                       <div className="mt-1 text-xs text-gray-500">{role.departmentName}</div>
                     </div>
                     <CoveragePill status={role.status} />
@@ -795,9 +795,9 @@ export default function CorporateDepartments() {
           const isOpen = openDept === department.code;
 
           return (
-            <div key={department.code} className="overflow-hidden rounded-2xl border border-gray-800 bg-gray-900">
+            <div key={department.code} className="overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
               <div
-                className="cursor-pointer px-5 py-4 hover:bg-gray-950"
+                className="cursor-pointer px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-950"
                 style={{ borderLeft: `4px solid ${department.color || '#7c3aed'}` }}
                 onClick={() => setOpenDept((current) => (current === department.code ? null : department.code))}
               >
@@ -805,8 +805,8 @@ export default function CorporateDepartments() {
                   <div className="flex items-start gap-3">
                     <Building2 size={18} style={{ color: department.color || '#7c3aed' }} className="mt-1" />
                     <div>
-                      <div className="text-lg font-semibold text-white">{department.name}</div>
-                      <div className="mt-1 text-sm text-gray-400">{playbook.mission}</div>
+                      <div className="text-lg font-semibold text-gray-900 dark:text-white">{department.name}</div>
+                      <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">{playbook.mission}</div>
                       <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
                         <span>{t('corporateOrg.departments.metaTitles', { count: department.titles?.length || 0 })}</span>
                         <span>{t('corporateOrg.departments.metaPermissions', { count: department.permissions?.length || 0 })}</span>
@@ -822,7 +822,7 @@ export default function CorporateDepartments() {
                         <span>{t('adminCorporateDeptsLaunchCoverage')}</span>
                         <span>{item.criticalCovered}/{item.criticalTotal || 0}</span>
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-gray-800">
+                      <div className="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
                         <div
                           className="h-full rounded-full bg-orange-500 transition-all"
                           style={{ width: `${item.readinessPercent}%` }}
@@ -837,7 +837,7 @@ export default function CorporateDepartments() {
                           setShowPerms((current) => (current === department.id ? null : department.id));
                           setOpenDept(department.code);
                         }}
-                        className="rounded-lg border border-gray-700 px-3 py-1 text-xs text-gray-300 hover:border-gray-500 hover:text-white"
+                        className="rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-1 text-xs text-gray-700 dark:text-gray-300 hover:border-gray-500 hover:text-gray-900 dark:hover:text-white"
                       >
                         {t('corporateOrg.departments.permissionsButton')}
                       </button>
@@ -846,7 +846,7 @@ export default function CorporateDepartments() {
                           event.stopPropagation();
                           setDeptModal(department);
                         }}
-                        className="p-1 text-gray-500 hover:text-white"
+                        className="p-1 text-gray-500 hover:text-gray-900 dark:hover:text-white"
                         title={t('corporateOrg.departments.editDepartment')}
                       >
                         <Edit3 size={15} />
@@ -862,25 +862,25 @@ export default function CorporateDepartments() {
               </div>
 
               {isOpen && (
-                <div className="border-t border-gray-800 p-5">
+                <div className="border-t border-gray-200 dark:border-gray-800 p-5">
                   <div className="mb-5 grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.9fr]">
-                    <div className="rounded-2xl border border-gray-800 bg-gray-950 p-4">
-                      <div className="text-sm font-medium text-white">{t('adminCorporateDeptsWhatOwns')}</div>
-                      <p className="mt-2 text-sm leading-6 text-gray-400">{playbook.launchObjective}</p>
+                    <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 p-4">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">{t('adminCorporateDeptsWhatOwns')}</div>
+                      <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">{playbook.launchObjective}</p>
                       <div className="mt-4 flex flex-wrap gap-2">
                         {(playbook.owns || []).map((itemText) => (
-                          <span key={itemText} className="rounded-full border border-gray-700 bg-gray-900 px-3 py-1 text-xs text-gray-300">
+                          <span key={itemText} className="rounded-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1 text-xs text-gray-700 dark:text-gray-300">
                             {itemText}
                           </span>
                         ))}
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-gray-800 bg-gray-950 p-4">
-                      <div className="text-sm font-medium text-white">
+                    <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 p-4">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
                         {selectedCountry ? t('adminCorporateDeptsLaunchNote', { country: selectedCountry }) : t('adminCorporateDeptsFounderNote')}
                       </div>
-                      <p className="mt-2 text-sm leading-6 text-gray-400">
+                      <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
                         {selectedCountry
                           ? t('adminCorporateDeptsLaunchNoteText', { country: selectedCountry })
                           : t('adminCorporateDeptsFounderNoteText')}
@@ -917,7 +917,7 @@ export default function CorporateDepartments() {
 
                   <div className="mb-5 flex items-center justify-between">
                     <div>
-                      <h3 className="text-sm font-medium text-gray-300">{t('adminCorporateDeptsHiringSequence')}</h3>
+                      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('adminCorporateDeptsHiringSequence')}</h3>
                       <p className="mt-1 text-xs text-gray-500">
                         {t('adminCorporateDeptsHiringSequenceHint')}
                       </p>
@@ -940,13 +940,13 @@ export default function CorporateDepartments() {
                       />
                     ))}
                     {!priorityRoles.length && (
-                      <div className="col-span-full rounded-xl border border-dashed border-gray-800 bg-gray-950 p-4 text-sm text-gray-500">
+                      <div className="col-span-full rounded-xl border border-dashed border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 p-4 text-sm text-gray-500">
                         {t('adminCorporateDeptsNoPlaybook')}
                       </div>
                     )}
                   </div>
 
-                  <div className="mb-3 text-sm font-medium text-gray-300">{t('adminCorporateDeptsAllTitles')}</div>
+                  <div className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">{t('adminCorporateDeptsAllTitles')}</div>
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                     {(department.titles || [])
                       .slice()
@@ -957,12 +957,12 @@ export default function CorporateDepartments() {
                         const focus = ROLE_FOCUS[title.code] || title.description || t('adminCorporateDeptsOwnershipRole', { department: department.name });
 
                         return (
-                          <div key={title.id} className="rounded-xl border border-gray-800 bg-gray-950 p-4">
+                          <div key={title.id} className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 p-4">
                             <div className="mb-3 flex items-start justify-between gap-3">
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
                                   {title.is_csuite && <Crown size={13} className="text-yellow-400" />}
-                                  <div className="truncate text-sm font-medium text-white">{title.name}</div>
+                                  <div className="truncate text-sm font-medium text-gray-900 dark:text-white">{title.name}</div>
                                 </div>
                                 <div className="mt-1 text-xs text-gray-500">
                                   L{title.seniority_level} - {title.code}
@@ -970,21 +970,21 @@ export default function CorporateDepartments() {
                               </div>
                               <button
                                 onClick={() => setTitleModal(title)}
-                                className="p-1 text-gray-500 hover:text-white"
+                                className="p-1 text-gray-500 hover:text-gray-900 dark:hover:text-white"
                                 title={t('corporateOrg.departments.editTitle')}
                               >
                                 <Edit3 size={13} />
                               </button>
                             </div>
 
-                            <div className="text-sm leading-6 text-gray-400">{focus}</div>
+                            <div className="text-sm leading-6 text-gray-600 dark:text-gray-400">{focus}</div>
 
                             <div className="mt-4 flex flex-wrap gap-2">
-                              <span className="rounded-full border border-gray-700 bg-gray-900 px-2.5 py-1 text-xs text-gray-300">
+                              <span className="rounded-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-300">
                                 {t('adminCorporateDeptsActiveSeats', { count: totalAssignments })}
                               </span>
                               {selectedCountry && (
-                                <span className="rounded-full border border-gray-700 bg-gray-900 px-2.5 py-1 text-xs text-gray-300">
+                                <span className="rounded-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-300">
                                   {t('adminCorporateDeptsInCountry', { count: inCountry, country: selectedCountry })}
                                 </span>
                               )}

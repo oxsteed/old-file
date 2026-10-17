@@ -26,7 +26,7 @@ function toneClass(tone) {
     case 'amber':   return 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30';
     case 'emerald': return 'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30';
     case 'sky':     return 'bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/30';
-    default:        return 'bg-gray-500/15 text-gray-400 ring-1 ring-gray-500/30';
+    default:        return 'bg-gray-500/15 text-gray-600 dark:text-gray-400 ring-1 ring-gray-500/30';
   }
 }
 
@@ -40,7 +40,7 @@ function ToneBadge({ tone, children }) {
 
 function EmptyState({ message }) {
   return (
-    <p className="rounded-lg border border-dashed border-gray-800 px-3 py-6 text-center text-xs text-gray-600">
+    <p className="rounded-lg border border-dashed border-gray-200 dark:border-gray-800 px-3 py-6 text-center text-xs text-gray-600">
       {message}
     </p>
   );
@@ -64,14 +64,14 @@ function SectionError({ message, retryLabel, onRetry }) {
 function Section({ title, subtitle, count, error, onRetry, children }) {
   const { t } = useTranslation();
   return (
-    <div className="bg-[#111318] border border-gray-800 rounded-2xl overflow-hidden">
-      <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between gap-3">
+    <div className="bg-white dark:bg-[#111318] border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
+      <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-white">{title}</h2>
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white">{title}</h2>
           {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
         </div>
         {typeof count === 'number' && (
-          <span className="rounded-full border border-gray-700 px-2 py-1 text-[10px] font-semibold text-gray-500">
+          <span className="rounded-full border border-gray-300 dark:border-gray-700 px-2 py-1 text-[10px] font-semibold text-gray-500">
             {t(`${NS}.common.records`, { count })}
           </span>
         )}
@@ -93,13 +93,13 @@ function TabButton({ active, onClick, icon: Icon, label, count }) {
       className={`flex shrink-0 items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-semibold transition ${
         active
           ? 'border-orange-500/50 bg-orange-500/10 text-orange-200'
-          : 'border-gray-800 bg-[#111318] text-gray-400 hover:border-gray-600 hover:text-gray-200'
+          : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:hover:text-gray-200'
       }`}
     >
       <Icon size={13} />
       {label}
       {typeof count === 'number' && (
-        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${active ? 'bg-orange-500/20 text-orange-200' : 'bg-gray-800 text-gray-500'}`}>
+        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${active ? 'bg-orange-500/20 text-orange-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>
           {count}
         </span>
       )}
@@ -135,15 +135,15 @@ function FraudCaseCard({ fraudCase }) {
   const status = fraudStatus(t, fraudCase.status);
   const shortId = String(fraudCase.id || '').slice(0, 8);
   return (
-    <div className="rounded-lg border border-gray-800 bg-gray-950/55 p-4">
+    <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/55 dark:bg-gray-950/55 p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold text-white">
-            {t(`${NS}.fraud.caseId`)} <span className="font-mono text-xs text-gray-400">#{shortId || fraudCase.id}</span>
+          <p className="text-sm font-semibold text-gray-900 dark:text-white">
+            {t(`${NS}.fraud.caseId`)} <span className="font-mono text-xs text-gray-600 dark:text-gray-400">#{shortId || fraudCase.id}</span>
           </p>
           <p className="mt-1 text-xs text-gray-500">
-            {t(`${NS}.fraud.category`)}: <span className="text-gray-300">{humanize(fraudCase.category) || t(`${NS}.common.unknown`)}</span>
-            {' · '}{t(`${NS}.fraud.source`)}: <span className="text-gray-300">{humanize(fraudCase.source) || t(`${NS}.common.unknown`)}</span>
+            {t(`${NS}.fraud.category`)}: <span className="text-gray-700 dark:text-gray-300">{humanize(fraudCase.category) || t(`${NS}.common.unknown`)}</span>
+            {' · '}{t(`${NS}.fraud.source`)}: <span className="text-gray-700 dark:text-gray-300">{humanize(fraudCase.source) || t(`${NS}.common.unknown`)}</span>
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -152,7 +152,7 @@ function FraudCaseCard({ fraudCase }) {
         </div>
       </div>
       {fraudCase.summary && (
-        <p className="mt-2 text-xs leading-5 text-gray-400">{fraudCase.summary}</p>
+        <p className="mt-2 text-xs leading-5 text-gray-600 dark:text-gray-400">{fraudCase.summary}</p>
       )}
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-600">
         <span>{t(`${NS}.fraud.openedAt`)}: {adminDateTime(fraudCase.created_at)}</span>
@@ -162,8 +162,8 @@ function FraudCaseCard({ fraudCase }) {
         )}
       </div>
       {fraudCase.evidence && (
-        <details className="mt-2 rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2">
-          <summary className="cursor-pointer text-[11px] font-semibold text-gray-400 hover:text-gray-200">
+        <details className="mt-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/40 dark:bg-gray-950/40 px-3 py-2">
+          <summary className="cursor-pointer text-[11px] font-semibold text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
             {t(`${NS}.fraud.evidence`)}
           </summary>
           <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-all text-[10px] leading-4 text-gray-500">
@@ -288,7 +288,7 @@ export default function Business360() {
   if (profileError || !business) {
     return (
       <div className="p-6 lg:p-8">
-        <Link to="/admin/businesses" className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-300 transition mb-4">
+        <Link to="/admin/businesses" className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition mb-4">
           <ChevronLeft size={14} />{t(`${NS}.backToBusiness`)}
         </Link>
         {profileError ? (
@@ -317,20 +317,20 @@ export default function Business360() {
 
   return (
     <div className="p-4 sm:p-8 max-w-6xl space-y-6">
-      <Link to={`/admin/businesses/${businessId}`} className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-300 transition">
+      <Link to={`/admin/businesses/${businessId}`} className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition">
         <ChevronLeft size={14} />{t(`${NS}.backToBusiness`)}
       </Link>
 
       {/* Header */}
-      <div className="bg-[#111318] border border-gray-800 rounded-2xl p-5 sm:p-6">
+      <div className="bg-white dark:bg-[#111318] border border-gray-200 dark:border-gray-800 rounded-2xl p-5 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-start gap-5">
           <div className="w-16 h-16 rounded-xl bg-blue-500 flex items-center justify-center text-white text-lg font-bold shrink-0">
             {(business.business_name || 'B').slice(0, 2).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-300">{t(`${NS}.title`)}</p>
-            <h1 className="mt-1 text-2xl font-bold text-white leading-tight">{business.business_name}</h1>
-            <p className="mt-1 max-w-3xl text-xs leading-5 text-gray-400">{t(`${NS}.subtitle`)}</p>
+            <h1 className="mt-1 text-2xl font-bold text-gray-900 dark:text-white leading-tight">{business.business_name}</h1>
+            <p className="mt-1 max-w-3xl text-xs leading-5 text-gray-600 dark:text-gray-400">{t(`${NS}.subtitle`)}</p>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 text-xs text-gray-500">
               {business.owner_name && (
                 <Link to={`/admin/users/${ownerId}`} className="flex items-center gap-1.5 text-sky-400 hover:text-sky-300">
@@ -353,7 +353,7 @@ export default function Business360() {
           <button
             type="button"
             onClick={refreshAll}
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-950/60 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800"
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-950/60 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             <RefreshCw size={13} className={profileLoading || auxLoading ? 'animate-spin' : ''} />
             {t(`${NS}.refresh`)}
@@ -386,9 +386,9 @@ export default function Business360() {
               { label: t(`${NS}.overview.statDisputes`), value: disputes.length },
               { label: t(`${NS}.overview.statFraudCases`), value: fraudCases.length },
             ].map(({ label, value }) => (
-              <div key={label} className="bg-[#111318] border border-gray-800 rounded-xl p-4">
+              <div key={label} className="bg-white dark:bg-[#111318] border border-gray-200 dark:border-gray-800 rounded-xl p-4">
                 <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">{label}</p>
-                <p className="font-bold text-white text-xl sm:text-2xl">{value}</p>
+                <p className="font-bold text-gray-900 dark:text-white text-xl sm:text-2xl">{value}</p>
               </div>
             ))}
           </div>
@@ -405,7 +405,7 @@ export default function Business360() {
               ].map(([label, value]) => (
                 <div key={label} className="flex items-start justify-between gap-4 border-b border-gray-800/60 pb-2">
                   <dt className="text-xs text-gray-500">{label}</dt>
-                  <dd className="text-xs text-gray-200 text-right break-all">{value || t(`${NS}.overview.notAvailable`)}</dd>
+                  <dd className="text-xs text-gray-700 dark:text-gray-200 text-right break-all">{value || t(`${NS}.overview.notAvailable`)}</dd>
                 </div>
               ))}
             </dl>
@@ -423,9 +423,9 @@ export default function Business360() {
           {!jobs.length ? <EmptyState message={t(`${NS}.jobs.empty`)} /> : (
             <div className="space-y-2">
               {jobs.map((job) => (
-                <div key={job.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-950/55 px-3 py-3">
+                <div key={job.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/55 dark:bg-gray-950/55 px-3 py-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-white truncate">{job.title || t(`${NS}.jobs.job`)}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{job.title || t(`${NS}.jobs.job`)}</p>
                     <p className="mt-1 text-[11px] text-gray-600">{t(`${NS}.jobs.created`)}: {adminDateTime(job.created_at)}</p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -453,16 +453,16 @@ export default function Business360() {
           {!orders.length ? <EmptyState message={t(`${NS}.orders.empty`)} /> : (
             <div className="space-y-2">
               {orders.map((order) => (
-                <div key={order.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-950/55 px-3 py-3">
+                <div key={order.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/55 dark:bg-gray-950/55 px-3 py-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-white">
-                      {t(`${NS}.orders.order`)} <span className="font-mono text-xs text-gray-400">#{order.id}</span>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      {t(`${NS}.orders.order`)} <span className="font-mono text-xs text-gray-600 dark:text-gray-400">#{order.id}</span>
                     </p>
                     <p className="mt-1 text-[11px] text-gray-600">{t(`${NS}.orders.created`)}: {adminDateTime(order.createdAt)}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <ToneBadge tone="gray">{humanize(order.status)}</ToneBadge>
-                    <strong className="text-sm text-white">{adminMoney(Number(order.totalCents || 0) / 100)}</strong>
+                    <strong className="text-sm text-gray-900 dark:text-white">{adminMoney(Number(order.totalCents || 0) / 100)}</strong>
                   </div>
                 </div>
               ))}
@@ -483,9 +483,9 @@ export default function Business360() {
           {!payouts.length ? <EmptyState message={t(`${NS}.payouts.empty`)} /> : (
             <div className="space-y-2">
               {payouts.map((payout) => (
-                <div key={payout.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-950/55 px-3 py-3">
+                <div key={payout.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/55 dark:bg-gray-950/55 px-3 py-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-white truncate">{payout.job_title || t(`${NS}.payouts.job`)}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{payout.job_title || t(`${NS}.payouts.job`)}</p>
                     <p className="mt-1 text-[11px] text-gray-600">
                       {t(`${NS}.payouts.releasedAt`)}: {adminDateTime(payout.released_at || payout.captured_at || payout.created_at)}
                     </p>
@@ -513,10 +513,10 @@ export default function Business360() {
           {!tickets.length ? <EmptyState message={t(`${NS}.tickets.empty`)} /> : (
             <div className="space-y-2">
               {tickets.map((ticket) => (
-                <div key={ticket.id} className="rounded-lg border border-gray-800 bg-gray-950/55 px-3 py-3">
+                <div key={ticket.id} className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/55 dark:bg-gray-950/55 px-3 py-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-white truncate">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                         <span className="font-mono text-xs text-gray-500">#{ticket.ticket_number || ticket.id}</span>{' '}
                         {ticket.title || t(`${NS}.tickets.subject`)}
                       </p>
@@ -549,10 +549,10 @@ export default function Business360() {
           {!disputes.length ? <EmptyState message={t(`${NS}.disputes.empty`)} /> : (
             <div className="space-y-2">
               {disputes.map((dispute) => (
-                <div key={dispute.id} className="rounded-lg border border-gray-800 bg-gray-950/55 px-3 py-3">
+                <div key={dispute.id} className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/55 dark:bg-gray-950/55 px-3 py-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-white">{humanize(dispute.reason) || t(`${NS}.disputes.reason`)}</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{humanize(dispute.reason) || t(`${NS}.disputes.reason`)}</p>
                       <p className="mt-1 text-[11px] text-gray-600">
                         {t(`${NS}.disputes.openedAt`)}: {adminDateTime(dispute.created_at)}
                         {dispute.resolved_at && <> · {t(`${NS}.disputes.resolvedAt`)}: {adminDateTime(dispute.resolved_at)}</>}
@@ -604,7 +604,7 @@ export default function Business360() {
           {!adminAudit.length ? <EmptyState message={t(`${NS}.audit.empty`)} /> : (
             <div className="space-y-2">
               {adminAudit.slice(0, 50).map((entry) => (
-                <div key={entry.id} className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-gray-800 bg-gray-950/55 px-3 py-2.5">
+                <div key={entry.id} className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/55 dark:bg-gray-950/55 px-3 py-2.5">
                   <div className="min-w-0">
                     <p className="font-mono text-[11px] text-orange-300">{entry.action}</p>
                     <p className="mt-0.5 text-[11px] text-gray-500">

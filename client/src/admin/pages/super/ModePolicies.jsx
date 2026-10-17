@@ -28,14 +28,14 @@ function ToggleRow({ label, checked, onChange, hint, disabled }) {
       aria-pressed={checked}
       onClick={() => !disabled && onChange(!checked)}
       disabled={disabled}
-      className="w-full flex items-start gap-3 p-3 rounded-lg border border-gray-800 hover:border-gray-700 transition text-left"
+      className="w-full flex items-start gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 transition text-left"
     >
       {checked
         ? <ToggleRight size={26} className="text-orange-500 flex-shrink-0 mt-0.5" />
         : <ToggleLeft size={26} className="text-gray-600 flex-shrink-0 mt-0.5" />}
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-semibold text-white">{label}</div>
-        {hint && <div className="text-xs text-gray-400 mt-0.5">{hint}</div>}
+        <div className="text-sm font-semibold text-gray-900 dark:text-white">{label}</div>
+        {hint && <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{hint}</div>}
       </div>
     </button>
   );
@@ -139,14 +139,14 @@ function PolicyCard({ policy, onChange }) {
   };
 
   return (
-    <section className="rounded-xl border border-gray-800 bg-gray-900/40 p-5 flex flex-col gap-4">
+    <section className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/40 dark:bg-gray-900/40 p-5 flex flex-col gap-4">
       <header className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h3 className="text-base font-semibold text-white flex items-center gap-2">
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <ShieldCheck size={16} className="text-orange-500" />
             {policy.mode}
           </h3>
-          <div className="text-xs text-gray-400 mt-0.5">
+          <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
             {t('superModePolicies.updated', { date: policy.updated_at ? new Date(policy.updated_at).toLocaleString() : '—' })}
           </div>
         </div>
@@ -178,18 +178,18 @@ function PolicyCard({ policy, onChange }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{t('superModePolicies.gatedLabel')}</label>
+        <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">{t('superModePolicies.gatedLabel')}</label>
         <input
           type="text"
           value={gatedActions}
           onChange={(e) => setGatedActions(e.target.value)}
           placeholder="e.g. accept_paying_booking, publish_listing"
-          className="w-full py-2 px-3 bg-gray-800/50 border border-gray-700 rounded-md text-white text-sm placeholder-gray-500 focus:outline-none focus:border-orange-500"
+          className="w-full py-2 px-3 bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-md text-gray-900 dark:text-white text-sm placeholder-gray-500 focus:outline-none focus:border-orange-500"
         />
         <p className="text-[11px] text-gray-500">{t('superModePolicies.gatedHint')}</p>
       </div>
 
-      <div className="border-t border-gray-800 pt-3">
+      <div className="border-t border-gray-200 dark:border-gray-800 pt-3">
         <button type="button" className="text-xs font-semibold text-orange-300 hover:text-orange-200" onClick={loadRevisions} disabled={loadingRevisions}>
           {loadingRevisions ? t('superModePolicies.loadingHistory', { defaultValue: 'Loading history...' }) : t('superModePolicies.showHistory', { defaultValue: 'Show immutable revision history' })}
         </button>
@@ -197,12 +197,12 @@ function PolicyCard({ policy, onChange }) {
           <div className="mt-3 space-y-2" aria-live="polite">
             {!revisions.length && <p className="text-xs text-gray-500">{t('superModePolicies.noHistory', { defaultValue: 'No saved revisions yet.' })}</p>}
             {revisions.map((revision) => (
-              <div key={revision.id} className="rounded-md border border-gray-800 bg-gray-950/40 p-2 text-xs text-gray-400">
+              <div key={revision.id} className="rounded-md border border-gray-200 dark:border-gray-800 bg-gray-50/40 dark:bg-gray-950/40 p-2 text-xs text-gray-600 dark:text-gray-400">
                 <div className="flex flex-wrap justify-between gap-2 items-center"><span>{revision.policy_updated_at || revision.created_at}</span><span>{revision.change_reason || t('superModePolicies.noReason', { defaultValue: 'No reason recorded' })}</span><button type="button" className="text-orange-300 hover:text-orange-200" onClick={() => { setRollbackRevision(revision); setRollbackReason(''); }}>{t('superModePolicies.rollback', { defaultValue: 'Rollback' })}</button></div>
                 <div className="mt-1 text-gray-500">{revision.gated_actions?.join(', ') || t('superModePolicies.noGates', { defaultValue: 'No gated actions' })}</div>
                 {rollbackRevision?.id === revision.id && (
                   <div className="mt-2 flex flex-wrap gap-2 items-center">
-                    <input value={rollbackReason} onChange={(e) => setRollbackReason(e.target.value)} maxLength={1000} placeholder={t('superModePolicies.rollbackReason', { defaultValue: 'Why is this rollback needed?' })} aria-label={t('superModePolicies.rollbackReason', { defaultValue: 'Why is this rollback needed?' })} className="flex-1 min-w-[16rem] py-1.5 px-2 bg-gray-800 border border-gray-700 rounded text-white" />
+                    <input value={rollbackReason} onChange={(e) => setRollbackReason(e.target.value)} maxLength={1000} placeholder={t('superModePolicies.rollbackReason', { defaultValue: 'Why is this rollback needed?' })} aria-label={t('superModePolicies.rollbackReason', { defaultValue: 'Why is this rollback needed?' })} className="flex-1 min-w-[16rem] py-1.5 px-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white" />
                     <button type="button" onClick={rollback} disabled={rollingBack || rollbackReason.trim().length < 3} className="px-2 py-1.5 rounded bg-orange-500 text-white disabled:opacity-50">{rollingBack ? t('superModePolicies.rollingBack', { defaultValue: 'Rolling back…' }) : t('superModePolicies.confirmRollback', { defaultValue: 'Confirm rollback' })}</button>
                   </div>
                 )}
@@ -213,16 +213,16 @@ function PolicyCard({ policy, onChange }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{t('superModePolicies.schemaLabel')}</label>
+        <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">{t('superModePolicies.schemaLabel')}</label>
         <textarea
           value={schemaText}
           onChange={(e) => { setSchemaText(e.target.value); setSchemaError(null); }}
           rows={12}
-          className={`w-full py-2 px-3 bg-gray-800/50 border rounded-md text-white text-xs font-mono placeholder-gray-500 focus:outline-none focus:border-orange-500 ${schemaError ? 'border-red-500' : 'border-gray-700'}`}
+          className={`w-full py-2 px-3 bg-gray-100/50 dark:bg-gray-800/50 border rounded-md text-gray-900 dark:text-white text-xs font-mono placeholder-gray-500 focus:outline-none focus:border-orange-500 ${schemaError ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'}`}
         />
         {schemaError && <span className="text-[11px] text-red-400">{schemaError}</span>}
         <p className="text-[11px] text-gray-500">
-          Shape: <code className="px-1 bg-gray-800 rounded">{'{ "fields": [{ "name", "type", "label", "required", "hint?", "minLength?", "maxLength?", "min?", "max?" }] }'}</code>
+          Shape: <code className="px-1 bg-gray-100 dark:bg-gray-800 rounded">{'{ "fields": [{ "name", "type", "label", "required", "hint?", "minLength?", "maxLength?", "min?", "max?" }] }'}</code>
         </p>
       </div>
 
@@ -260,8 +260,8 @@ export default function ModePolicies() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold tracking-tight text-white">{t('superModePolicies.title')}</h1>
-        <p className="text-sm text-gray-400 mt-1">
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{t('superModePolicies.title')}</h1>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
           {t('superModePolicies.subtitle')}
         </p>
       </header>
@@ -274,14 +274,14 @@ export default function ModePolicies() {
         <AdminErrorState onRetry={reload} />
       ) : (
         <>
-          <section className="rounded-xl border border-gray-800 bg-gray-900/40 p-5">
-            <h2 className="text-base font-semibold text-white">{t('superModePolicies.coverageTitle', { defaultValue: 'Enforcement coverage' })}</h2>
-            <p className="text-xs text-gray-400 mt-1">{t('superModePolicies.coverageHint', { defaultValue: 'Every registered gated action must be represented by a persisted policy. Missing or unknown actions are shown before release.' })}</p>
+          <section className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/40 dark:bg-gray-900/40 p-5">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white">{t('superModePolicies.coverageTitle', { defaultValue: 'Enforcement coverage' })}</h2>
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{t('superModePolicies.coverageHint', { defaultValue: 'Every registered gated action must be represented by a persisted policy. Missing or unknown actions are shown before release.' })}</p>
             {coverageLoading ? <p className="text-xs text-gray-500 mt-3">{t('superModePolicies.loadingCoverage', { defaultValue: 'Loading coverage…' })}</p> : (
               <div className="mt-3 grid gap-2">
                 {coverage.map((item) => (
                   <div key={item.mode} className="flex flex-wrap items-center gap-2 text-xs">
-                    <span className="font-semibold text-white min-w-[7rem]">{item.mode}</span>
+                    <span className="font-semibold text-gray-900 dark:text-white min-w-[7rem]">{item.mode}</span>
                     <span className={item.complete ? 'text-green-400' : 'text-red-400'}>{item.complete ? t('superModePolicies.coverageComplete', { defaultValue: 'Complete' }) : t('superModePolicies.coverageIncomplete', { defaultValue: 'Needs review' })}</span>
                     {item.missing_actions?.length > 0 && <span className="text-red-300">{t('superModePolicies.missingActions', { actions: item.missing_actions.join(', '), defaultValue: `Missing: ${item.missing_actions.join(', ')}` })}</span>}
                     {item.unknown_actions?.length > 0 && <span className="text-amber-300">{t('superModePolicies.unknownActions', { actions: item.unknown_actions.join(', '), defaultValue: `Unknown: ${item.unknown_actions.join(', ')}` })}</span>}

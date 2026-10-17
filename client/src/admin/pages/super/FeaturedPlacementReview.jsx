@@ -45,9 +45,9 @@ function statusTone(status) {
     case 'declined':
       return 'border-red-500/30 bg-red-500/10 text-red-300';
     case 'closed':
-      return 'border-gray-600/40 bg-gray-800/40 text-gray-400';
+      return 'border-gray-600/40 bg-gray-100/40 dark:bg-gray-800/40 text-gray-600 dark:text-gray-400';
     default:
-      return 'border-gray-700 bg-gray-900/70 text-gray-400';
+      return 'border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-900/70 text-gray-600 dark:text-gray-400';
   }
 }
 
@@ -72,7 +72,7 @@ function SectionHeader({ eyebrow, title, detail, action }) {
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         {eyebrow && <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-300">{eyebrow}</p>}
-        <h2 className="mt-1 text-lg font-semibold text-white">{title}</h2>
+        <h2 className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
         {detail && <p className="mt-1 text-sm leading-6 text-gray-500">{detail}</p>}
       </div>
       {action}
@@ -94,27 +94,27 @@ function DecisionDialog({ modal, busy, onChange, onClose, onConfirm }) {
     && (!needsPick || (modal.restaurantId && rankOk && daysOk));
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="featured-decision-dialog-title">
-      <div className="w-full max-w-lg rounded-2xl border border-gray-700 bg-[#111318] p-5 shadow-2xl sm:p-6">
+      <div className="w-full max-w-lg rounded-2xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#111318] p-5 shadow-2xl sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-orange-300">{t('featuredPlacements.admin.confirmAction')}</p>
-            <h2 id="featured-decision-dialog-title" className="mt-2 text-xl font-semibold text-white">{modal.title}</h2>
+            <h2 id="featured-decision-dialog-title" className="mt-2 text-xl font-semibold text-gray-900 dark:text-white">{modal.title}</h2>
           </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-2 text-gray-500 hover:bg-gray-800 hover:text-white" aria-label={t('featuredPlacements.admin.closeDialog')}>
+          <button type="button" onClick={onClose} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white" aria-label={t('featuredPlacements.admin.closeDialog')}>
             <XCircle className="h-5 w-5" />
           </button>
         </div>
-        <p className="mt-3 text-sm leading-6 text-gray-400">{modal.description}</p>
+        <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400">{modal.description}</p>
 
         {needsPick && (
           <div className="mt-5 space-y-4">
-            <label className="block text-sm font-medium text-gray-300">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               {t('featuredPlacements.admin.restaurantLabel')} <span className="text-orange-300">*</span>
               <div className="relative mt-2">
                 <select
                   value={modal.restaurantId || ''}
                   onChange={(event) => onChange({ restaurantId: event.target.value })}
-                  className="w-full appearance-none rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 pr-10 text-white outline-none focus:border-orange-400"
+                  className="w-full appearance-none rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 pr-10 text-gray-900 dark:text-white outline-none focus:border-orange-400"
                 >
                   {(modal.restaurants || []).map((r) => (
                     <option key={r.id} value={r.id}>
@@ -132,7 +132,7 @@ function DecisionDialog({ modal, busy, onChange, onClose, onConfirm }) {
               </p>
             )}
             <div className="grid grid-cols-2 gap-4">
-              <label className="block text-sm font-medium text-gray-300">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 {t('featuredPlacements.admin.rankLabel')} <span className="text-orange-300">*</span>
                 <input
                   type="number"
@@ -141,10 +141,10 @@ function DecisionDialog({ modal, busy, onChange, onClose, onConfirm }) {
                   step={1}
                   value={modal.rank}
                   onChange={(event) => onChange({ rank: event.target.value })}
-                  className="mt-2 w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-white outline-none focus:border-orange-400"
+                  className="mt-2 w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-gray-900 dark:text-white outline-none focus:border-orange-400"
                 />
               </label>
-              <label className="block text-sm font-medium text-gray-300">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 {t('featuredPlacements.admin.daysLabel')} <span className="text-orange-300">*</span>
                 <input
                   type="number"
@@ -153,7 +153,7 @@ function DecisionDialog({ modal, busy, onChange, onClose, onConfirm }) {
                   step={1}
                   value={modal.days}
                   onChange={(event) => onChange({ days: event.target.value })}
-                  className="mt-2 w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-white outline-none focus:border-orange-400"
+                  className="mt-2 w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-gray-900 dark:text-white outline-none focus:border-orange-400"
                 />
               </label>
             </div>
@@ -165,7 +165,7 @@ function DecisionDialog({ modal, busy, onChange, onClose, onConfirm }) {
         )}
 
         {needsReason && (
-          <label className="mt-5 block text-sm font-medium text-gray-300">
+          <label className="mt-5 block text-sm font-medium text-gray-700 dark:text-gray-300">
             {t('featuredPlacements.admin.declineReasonLabel')} <span className="text-orange-300">*</span>
             <textarea
               value={modal.reason || ''}
@@ -173,13 +173,13 @@ function DecisionDialog({ modal, busy, onChange, onClose, onConfirm }) {
               rows={3}
               maxLength={500}
               placeholder={t('featuredPlacements.admin.declineReasonPlaceholder')}
-              className="mt-2 w-full resize-y rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-white placeholder:text-gray-600 outline-none focus:border-orange-400"
+              className="mt-2 w-full resize-y rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-gray-900 dark:text-white placeholder:text-gray-600 outline-none focus:border-orange-400"
             />
           </label>
         )}
 
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <button type="button" onClick={onClose} disabled={busy} className="rounded-xl border border-gray-700 px-4 py-3 text-sm font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">{t('common.cancel')}</button>
+          <button type="button" onClick={onClose} disabled={busy} className="rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">{t('common.cancel')}</button>
           <button type="button" onClick={onConfirm} disabled={!canConfirm} className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-50">
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             {modal.confirmLabel}
@@ -376,15 +376,15 @@ export default function FeaturedPlacementReview() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-950 p-4 text-gray-200 sm:p-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-4 text-gray-700 dark:text-gray-200 sm:p-6">
       <div className="mx-auto max-w-6xl space-y-5">
-        <section className="rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5">
+        <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4 sm:p-5">
           <SectionHeader
             eyebrow={t('featuredPlacements.admin.eyebrow')}
             title={t('featuredPlacements.admin.title')}
             detail={t('featuredPlacements.admin.subtitle')}
             action={(
-              <button type="button" onClick={() => load()} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">
+              <button type="button" onClick={() => load()} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 {t('featuredPlacements.admin.refresh')}
               </button>
@@ -405,7 +405,7 @@ export default function FeaturedPlacementReview() {
           )}
 
           <div className="mt-6">
-            <h3 className="flex items-center gap-2 text-sm font-semibold text-white">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
               <Star className="h-4 w-4 text-amber-300" />
               {t('featuredPlacements.admin.featuredNowTitle')}
             </h3>
@@ -415,7 +415,7 @@ export default function FeaturedPlacementReview() {
                 {t('featuredPlacements.admin.loading')}
               </div>
             ) : !featured.length ? (
-              <p className="mt-3 rounded-xl border border-gray-800 bg-gray-950/35 p-4 text-sm text-gray-500">{t('featuredPlacements.admin.featuredNowEmpty')}</p>
+              <p className="mt-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/35 dark:bg-gray-950/35 p-4 text-sm text-gray-500">{t('featuredPlacements.admin.featuredNowEmpty')}</p>
             ) : (
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 {featured.map((restaurant) => {
@@ -424,7 +424,7 @@ export default function FeaturedPlacementReview() {
                   return (
                     <div key={restaurant.id} className="flex items-start justify-between gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-white">{restaurant.name || restaurant.display_name || restaurant.id}</p>
+                        <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">{restaurant.name || restaurant.display_name || restaurant.id}</p>
                         <p className="mt-1 text-xs text-gray-500">
                           {t('featuredPlacements.admin.featuredRank', { rank: restaurant.featured_rank ?? '—' })}
                           {restaurant.featured_until && ` · ${t('featuredPlacements.admin.featuredUntil', { date: dateTime(restaurant.featured_until, t) })}`}
@@ -452,7 +452,7 @@ export default function FeaturedPlacementReview() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5">
+        <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4 sm:p-5">
           <SectionHeader
             title={t('featuredPlacements.admin.requestsTitle')}
             detail={t('featuredPlacements.admin.requestsDetail')}
@@ -466,7 +466,7 @@ export default function FeaturedPlacementReview() {
                 role="tab"
                 aria-selected={status === value}
                 onClick={() => changeStatus(value)}
-                className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${status === value ? 'border-orange-500/60 bg-orange-500/10 text-orange-200' : 'border-gray-700 text-gray-400 hover:bg-gray-800'}`}
+                className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${status === value ? 'border-orange-500/60 bg-orange-500/10 text-orange-200' : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
               >
                 {t(`featuredPlacements.admin.filter${value[0].toUpperCase()}${value.slice(1)}`)}
               </button>
@@ -480,8 +480,8 @@ export default function FeaturedPlacementReview() {
                 {t('featuredPlacements.admin.loading')}
               </div>
             ) : !requests.length ? (
-              <div className="rounded-xl border border-gray-800 bg-gray-950/35 p-6 text-center">
-                <p className="text-sm font-semibold text-white">{t('featuredPlacements.admin.emptyTitle')}</p>
+              <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/35 dark:bg-gray-950/35 p-6 text-center">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">{t('featuredPlacements.admin.emptyTitle')}</p>
                 <p className="mt-1 text-xs text-gray-500">{t('featuredPlacements.admin.emptyDetail')}</p>
               </div>
             ) : (
@@ -490,12 +490,12 @@ export default function FeaturedPlacementReview() {
                   const live = currentlyFeatured(request.restaurants);
                   const actions = actionsFor(request);
                   return (
-                    <div key={request.id} className="rounded-xl border border-gray-800 bg-gray-950/35 p-4">
+                    <div key={request.id} className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/35 dark:bg-gray-950/35 p-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <StatusBadge status={request.status} />
-                            <span className="text-base font-semibold text-white">{request.business_name || t('featuredPlacements.admin.unknownBusiness')}</span>
+                            <span className="text-base font-semibold text-gray-900 dark:text-white">{request.business_name || t('featuredPlacements.admin.unknownBusiness')}</span>
                           </div>
                           <p className="mt-2 text-xs text-gray-500">
                             {t('featuredPlacements.admin.requestedAt', { date: dateTime(request.created_at, t) })}
@@ -504,8 +504,8 @@ export default function FeaturedPlacementReview() {
                             {request.zip && ` · ${request.zip}`}
                           </p>
                           {request.note && (
-                            <p className="mt-2 text-xs leading-5 text-gray-400">
-                              <span className="font-semibold text-gray-300">{t('featuredPlacements.admin.noteLabel')}</span>{' '}
+                            <p className="mt-2 text-xs leading-5 text-gray-600 dark:text-gray-400">
+                              <span className="font-semibold text-gray-700 dark:text-gray-300">{t('featuredPlacements.admin.noteLabel')}</span>{' '}
                               {request.note}
                             </p>
                           )}
@@ -515,13 +515,13 @@ export default function FeaturedPlacementReview() {
                             </p>
                           )}
                           {request.decision_note && (
-                            <p className="mt-1 text-xs leading-5 text-gray-400">
-                              <span className="font-semibold text-gray-300">{t('featuredPlacements.admin.decisionNoteLabel')}</span>{' '}
+                            <p className="mt-1 text-xs leading-5 text-gray-600 dark:text-gray-400">
+                              <span className="font-semibold text-gray-700 dark:text-gray-300">{t('featuredPlacements.admin.decisionNoteLabel')}</span>{' '}
                               {request.decision_note}
                             </p>
                           )}
                           {isExpiredPlacement(request) && (
-                            <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-gray-600 bg-gray-800/60 px-2.5 py-1 text-[11px] font-semibold text-gray-300">
+                            <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-gray-300 dark:border-gray-600 bg-gray-100/60 dark:bg-gray-800/60 px-2.5 py-1 text-[11px] font-semibold text-gray-700 dark:text-gray-300">
                               {t('featuredPlacements.admin.placementExpired')}
                             </p>
                           )}

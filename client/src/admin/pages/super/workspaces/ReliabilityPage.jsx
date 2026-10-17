@@ -26,22 +26,22 @@ function shortSha(sha) {
 
 function Panel({ children, className = '' }) {
   return (
-    <div className={`bg-gray-900 border border-gray-700 rounded-lg ${className}`}>
+    <div className={`bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg ${className}`}>
       {children}
     </div>
   );
 }
 
 function PanelTitle({ children }) {
-  return <h3 className="text-sm font-semibold text-white px-5 pt-4">{children}</h3>;
+  return <h3 className="text-sm font-semibold text-gray-900 dark:text-white px-5 pt-4">{children}</h3>;
 }
 
 function TableHead({ columns }) {
   return (
     <thead>
-      <tr className="border-b border-gray-800">
+      <tr className="border-b border-gray-200 dark:border-gray-800">
         {columns.map((c) => (
-          <th key={c} className="px-5 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">{c}</th>
+          <th key={c} className="px-5 py-2.5 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{c}</th>
         ))}
       </tr>
     </thead>
@@ -57,7 +57,7 @@ function StatusBadge({ status }) {
     applied:    'bg-green-900 text-green-300',
   };
   return (
-    <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${styles[status] || 'bg-gray-800 text-gray-300'}`}>
+    <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${styles[status] || 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'}`}>
       {t(`wsReliability.status.${status}`, { defaultValue: status })}
     </span>
   );
@@ -98,7 +98,7 @@ function ReleasesTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-400">{t('wsReliability.releases.manualNote')}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400">{t('wsReliability.releases.manualNote')}</p>
         <button
           type="button"
           onClick={() => setShowForm((v) => !v)}
@@ -112,29 +112,29 @@ function ReleasesTab() {
         <Panel className="p-5">
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-400 mb-1.5">{t('wsReliability.releases.version')}</label>
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">{t('wsReliability.releases.version')}</label>
               <input
                 value={form.version}
                 onChange={(e) => setForm({ ...form, version: e.target.value })}
                 placeholder="v2.14.0"
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-400 mb-1.5">{t('wsReliability.releases.commitSha')}</label>
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">{t('wsReliability.releases.commitSha')}</label>
               <input
                 value={form.commit_sha}
                 onChange={(e) => setForm({ ...form, commit_sha: e.target.value })}
                 placeholder="a1b2c3d4..."
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-400 mb-1.5">{t('wsReliability.releases.statusLabel')}</label>
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">{t('wsReliability.releases.statusLabel')}</label>
               <select
                 value={form.status}
                 onChange={(e) => setForm({ ...form, status: e.target.value })}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:border-purple-500"
+                className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:border-purple-500"
               >
                 {['deployed', 'rolled_back', 'failed'].map((s) => (
                   <option key={s} value={s}>{t(`wsReliability.status.${s}`)}</option>
@@ -142,13 +142,13 @@ function ReleasesTab() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-400 mb-1.5">
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">
                 {t('wsReliability.releases.notes')} <span className="text-gray-600">({t('common.optional')})</span>
               </label>
               <input
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
               />
             </div>
             {formError && (
@@ -158,7 +158,7 @@ function ReleasesTab() {
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                className="px-4 py-2 rounded-md text-sm text-gray-300 bg-gray-800 border border-gray-700 hover:bg-gray-700"
+                className="px-4 py-2 rounded-md text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700"
               >
                 {t('common.cancel')}
               </button>
@@ -190,12 +190,12 @@ function ReleasesTab() {
               ]} />
               <tbody>
                 {(data || []).map((r) => (
-                  <tr key={r.id} className="border-b border-gray-800 last:border-0">
-                    <td className="px-5 py-3 font-medium text-white">{r.version}</td>
-                    <td className="px-5 py-3 font-mono text-gray-300" title={r.commit_sha}>{shortSha(r.commit_sha)}</td>
+                  <tr key={r.id} className="border-b border-gray-200 dark:border-gray-800 last:border-0">
+                    <td className="px-5 py-3 font-medium text-gray-900 dark:text-white">{r.version}</td>
+                    <td className="px-5 py-3 font-mono text-gray-700 dark:text-gray-300" title={r.commit_sha}>{shortSha(r.commit_sha)}</td>
                     <td className="px-5 py-3"><StatusBadge status={r.status} /></td>
-                    <td className="px-5 py-3 text-gray-400">{ts(r.deployed_at)}</td>
-                    <td className="px-5 py-3 text-gray-400 max-w-xs truncate">{r.notes || '-'}</td>
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-400">{ts(r.deployed_at)}</td>
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-400 max-w-xs truncate">{r.notes || '-'}</td>
                   </tr>
                 ))}
                 {(!data || data.length === 0) && (
@@ -222,11 +222,11 @@ function MigrationsTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-400">{t('wsReliability.migrations.note')}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400">{t('wsReliability.migrations.note')}</p>
         <button
           type="button"
           onClick={reload}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-gray-300 bg-gray-800 border border-gray-700 hover:bg-gray-700"
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700"
         >
           <RefreshCw size={15} /> {t('common.refresh')}
         </button>
@@ -244,10 +244,10 @@ function MigrationsTab() {
               ]} />
               <tbody>
                 {(data || []).map((m) => (
-                  <tr key={m.filename} className="border-b border-gray-800 last:border-0">
-                    <td className="px-5 py-3 font-mono text-gray-200">{m.filename}</td>
+                  <tr key={m.filename} className="border-b border-gray-200 dark:border-gray-800 last:border-0">
+                    <td className="px-5 py-3 font-mono text-gray-700 dark:text-gray-200">{m.filename}</td>
                     <td className="px-5 py-3"><StatusBadge status={m.status} /></td>
-                    <td className="px-5 py-3 text-gray-400">{ts(m.applied_at)}</td>
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-400">{ts(m.applied_at)}</td>
                   </tr>
                 ))}
                 {(!data || data.length === 0) && (
@@ -283,7 +283,7 @@ function HealthSummary() {
           ? <CheckCircle size={22} className="text-green-400" />
           : <AlertTriangle size={22} className="text-yellow-400" />}
         <div>
-          <p className="text-sm font-semibold text-white">
+          <p className="text-sm font-semibold text-gray-900 dark:text-white">
             {t(healthy ? 'wsReliability.integrations.healthy' : 'wsReliability.integrations.degraded')}
           </p>
           <p className="text-xs text-gray-500">{t('wsReliability.integrations.healthCheckedAt', { when: ts(data.timestamp) })}</p>
@@ -294,7 +294,7 @@ function HealthSummary() {
           {(data.alerts || []).map((a, i) => (
             <li key={i} className="flex items-start gap-2 text-sm">
               <ChevronRight size={15} className={a.severity === 'critical' ? 'text-red-400 mt-0.5' : 'text-yellow-400 mt-0.5'} />
-              <span className="text-gray-300">{a.message}</span>
+              <span className="text-gray-700 dark:text-gray-300">{a.message}</span>
             </li>
           ))}
         </ul>
@@ -337,14 +337,14 @@ function DeadLetterPanel() {
         <select
           value={queue}
           onChange={(e) => setQueue(e.target.value)}
-          className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:border-purple-500"
+          className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:border-purple-500"
         >
           {QUEUE_KEYS.map((q) => <option key={q} value={q}>{q}</option>)}
         </select>
         <button
           type="button"
           onClick={reload}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-gray-300 bg-gray-800 border border-gray-700 hover:bg-gray-700"
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700"
         >
           <RefreshCw size={14} /> {t('common.refresh')}
         </button>
@@ -361,9 +361,9 @@ function DeadLetterPanel() {
             ]} />
             <tbody>
               {(data || []).map((job) => (
-                <tr key={job.id || job.jobId} className="border-b border-gray-800 last:border-0">
-                  <td className="px-5 py-3 font-mono text-gray-200 text-xs">{job.id || job.jobId}</td>
-                  <td className="px-5 py-3 text-gray-400 max-w-md truncate">{job.error || job.reason || '-'}</td>
+                <tr key={job.id || job.jobId} className="border-b border-gray-200 dark:border-gray-800 last:border-0">
+                  <td className="px-5 py-3 font-mono text-gray-700 dark:text-gray-200 text-xs">{job.id || job.jobId}</td>
+                  <td className="px-5 py-3 text-gray-600 dark:text-gray-400 max-w-md truncate">{job.error || job.reason || '-'}</td>
                   <td className="px-5 py-3">
                     <button
                       type="button"
@@ -414,13 +414,13 @@ function WebhookRetryPanel() {
   return (
     <Panel className="p-5">
       <PanelTitle>{t('wsReliability.integrations.webhookRetry')}</PanelTitle>
-      <p className="text-sm text-gray-400 mt-1 mb-4">{t('wsReliability.integrations.webhookRetryNote')}</p>
+      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 mb-4">{t('wsReliability.integrations.webhookRetryNote')}</p>
       <form onSubmit={retry} className="flex flex-col sm:flex-row gap-2">
         <input
           value={deliveryId}
           onChange={(e) => setDeliveryId(e.target.value)}
           placeholder="delivery UUID"
-          className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 font-mono focus:outline-none focus:border-purple-500"
+          className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 font-mono focus:outline-none focus:border-purple-500"
         />
         <button
           type="submit"
@@ -460,11 +460,11 @@ function BudgetsTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-400">{t('wsReliability.budgets.note')}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400">{t('wsReliability.budgets.note')}</p>
         <button
           type="button"
           onClick={reload}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-gray-300 bg-gray-800 border border-gray-700 hover:bg-gray-700"
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700"
         >
           <RefreshCw size={15} /> {t('common.refresh')}
         </button>
@@ -485,21 +485,21 @@ function BudgetsTab() {
               ]} />
               <tbody>
                 {(data || []).map((b) => (
-                  <tr key={b.name} className="border-b border-gray-800 last:border-0">
-                    <td className="px-5 py-3 font-medium text-white">{b.name}</td>
-                    <td className="px-5 py-3 text-gray-300">{b.config?.maxConcurrent ?? '-'}</td>
+                  <tr key={b.name} className="border-b border-gray-200 dark:border-gray-800 last:border-0">
+                    <td className="px-5 py-3 font-medium text-gray-900 dark:text-white">{b.name}</td>
+                    <td className="px-5 py-3 text-gray-700 dark:text-gray-300">{b.config?.maxConcurrent ?? '-'}</td>
                     <td className="px-5 py-3">
                       <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
                         (b.state?.active ?? 0) >= (b.config?.maxConcurrent ?? Infinity)
                           ? 'bg-red-900 text-red-300'
-                          : 'bg-gray-800 text-gray-300'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
                       }`}>
                         {b.state?.active ?? '-'}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-gray-300">{b.state?.queued ?? '-'}</td>
-                    <td className="px-5 py-3 text-gray-400">{b.config?.queueTimeoutMs != null ? `${b.config.queueTimeoutMs} ms` : '-'}</td>
-                    <td className="px-5 py-3 text-gray-400">{b.config?.statementTimeoutMs != null ? `${b.config.statementTimeoutMs} ms` : '-'}</td>
+                    <td className="px-5 py-3 text-gray-700 dark:text-gray-300">{b.state?.queued ?? '-'}</td>
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-400">{b.config?.queueTimeoutMs != null ? `${b.config.queueTimeoutMs} ms` : '-'}</td>
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-400">{b.config?.statementTimeoutMs != null ? `${b.config.statementTimeoutMs} ms` : '-'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -527,11 +527,11 @@ export default function ReliabilityPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-white">{t('wsReliability.title')}</h1>
-        <p className="text-sm text-gray-400 mt-1">{t('wsReliability.subtitle')}</p>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t('wsReliability.title')}</h1>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{t('wsReliability.subtitle')}</p>
       </div>
 
-      <div className="flex gap-1 border-b border-gray-800">
+      <div className="flex gap-1 border-b border-gray-200 dark:border-gray-800">
         {TABS.map((key) => {
           const { icon: Icon, labelKey } = TAB_META[key];
           const active = tab === key;
@@ -542,8 +542,8 @@ export default function ReliabilityPage() {
               onClick={() => setTab(key)}
               className={`inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition ${
                 active
-                  ? 'border-purple-500 text-white'
-                  : 'border-transparent text-gray-400 hover:text-gray-200'
+                  ? 'border-purple-500 text-gray-900 dark:text-white'
+                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
               }`}
             >
               <Icon size={16} /> {t(labelKey)}

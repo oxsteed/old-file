@@ -14,7 +14,7 @@ export function SupportPageShell({ children }) {
         {!isInbox ? (
           <Link
             to="/admin/support"
-            className="inline-flex w-fit items-center gap-2 rounded-xl border border-gray-800 bg-gray-950/70 px-3 py-2 text-sm text-gray-400 transition hover:border-orange-500/40 hover:text-white"
+            className="inline-flex w-fit items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 transition hover:border-orange-500/40 hover:text-gray-900 dark:hover:text-white"
           >
             <ArrowLeft size={15} />
             {t('supportPageChrome.backToInbox')}
@@ -29,15 +29,15 @@ export function SupportPageShell({ children }) {
 
 export function SupportHero({ icon: Icon, eyebrow, title, description, actions, stats }) {
   return (
-    <section className="rounded-[28px] border border-gray-800 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
+    <section className="rounded-[28px] border border-gray-200 dark:border-gray-800 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
         <div className="max-w-3xl">
           <div className="flex items-center gap-2 text-sm font-medium text-orange-300">
             {Icon && <Icon size={15} />}
             {eyebrow}
           </div>
-          <h1 className="mt-2 text-2xl font-semibold text-white md:text-3xl">{title}</h1>
-          <p className="mt-3 text-sm leading-6 text-gray-400 md:text-[15px]">{description}</p>
+          <h1 className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white md:text-3xl">{title}</h1>
+          <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400 md:text-[15px]">{description}</p>
         </div>
         {actions ? <div className="flex flex-wrap items-center gap-2 self-start">{actions}</div> : null}
       </div>
@@ -55,11 +55,11 @@ export function SupportHero({ icon: Icon, eyebrow, title, description, actions, 
 
 export function SupportMetricCard({ icon: Icon, label, value, detail, tone = 'text-white' }) {
   return (
-    <div className="rounded-2xl border border-gray-800 bg-gray-900/85 p-4">
+    <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/85 dark:bg-gray-900/85 p-4">
       <div className="mb-3 flex items-center justify-between">
         <div className="text-[11px] uppercase tracking-[0.2em] text-gray-500">{label}</div>
         {Icon ? (
-          <div className={`rounded-xl bg-gray-800 p-2 ${tone}`}>
+          <div className={`rounded-xl bg-gray-100 dark:bg-gray-800 p-2 ${tone}`}>
             <Icon size={16} />
           </div>
         ) : null}
@@ -72,11 +72,11 @@ export function SupportMetricCard({ icon: Icon, label, value, detail, tone = 'te
 
 export function SupportPanel({ title, subtitle, actions, children, className = '' }) {
   return (
-    <section className={`rounded-[28px] border border-gray-800 bg-gray-950/90 ${className}`}>
+    <section className={`rounded-[28px] border border-gray-200 dark:border-gray-800 bg-gray-50/90 dark:bg-gray-950/90 ${className}`}>
       {(title || subtitle || actions) && (
-        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-800 px-5 py-5">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-200 dark:border-gray-800 px-5 py-5">
           <div>
-            {title ? <div className="text-lg font-semibold text-white">{title}</div> : null}
+            {title ? <div className="text-lg font-semibold text-gray-900 dark:text-white">{title}</div> : null}
             {subtitle ? <div className="mt-1 text-sm text-gray-500">{subtitle}</div> : null}
           </div>
           {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
@@ -89,11 +89,11 @@ export function SupportPanel({ title, subtitle, actions, children, className = '
 
 export function SupportEmptyState({ icon: Icon, title, body, action }) {
   return (
-    <div className="flex min-h-[220px] flex-col items-center justify-center rounded-[24px] border border-dashed border-gray-800 bg-gray-900/40 px-6 text-center">
-      <div className="mb-4 rounded-2xl border border-gray-800 bg-gray-900 p-4 text-gray-500">
+    <div className="flex min-h-[220px] flex-col items-center justify-center rounded-[24px] border border-dashed border-gray-200 dark:border-gray-800 bg-white/40 dark:bg-gray-900/40 px-6 text-center">
+      <div className="mb-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 text-gray-500">
         {Icon ? <Icon size={28} /> : null}
       </div>
-      <div className="text-base font-medium text-gray-200">{title}</div>
+      <div className="text-base font-medium text-gray-700 dark:text-gray-200">{title}</div>
       <div className="mt-2 max-w-md text-sm leading-6 text-gray-500">{body}</div>
       {action ? <div className="mt-5">{action}</div> : null}
     </div>
@@ -103,7 +103,7 @@ export function SupportEmptyState({ icon: Icon, title, body, action }) {
 export function SupportActionButton({ icon: Icon, children, tone = 'secondary', type = 'button', ...props }) {
   const tones = {
     primary: 'bg-orange-600 text-white hover:bg-orange-700 border-orange-500/40',
-    secondary: 'bg-gray-900 text-gray-300 hover:text-white hover:border-gray-600 border-gray-700',
+    secondary: 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-gray-600 border-gray-300 dark:border-gray-700',
     success: 'bg-green-600 text-white hover:bg-green-700 border-green-500/40',
   };
 
@@ -123,14 +123,14 @@ export function SupportRouteCard({ icon: Icon, title, subtitle, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="group flex items-center justify-between rounded-2xl border border-gray-800 bg-gray-900/70 px-4 py-3 text-left transition hover:border-orange-500/40 hover:bg-gray-900"
+      className="group flex items-center justify-between rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 px-4 py-3 text-left transition hover:border-orange-500/40 hover:bg-white dark:hover:bg-gray-900"
     >
       <div className="flex items-center gap-3">
-        <div className="rounded-xl bg-gray-800 p-2 text-gray-300 group-hover:text-orange-300">
+        <div className="rounded-xl bg-gray-100 dark:bg-gray-800 p-2 text-gray-700 dark:text-gray-300 group-hover:text-orange-300">
           <Icon size={15} />
         </div>
         <div>
-          <div className="text-sm font-medium text-gray-200">{title}</div>
+          <div className="text-sm font-medium text-gray-700 dark:text-gray-200">{title}</div>
           {subtitle ? <div className="mt-0.5 text-xs text-gray-500">{subtitle}</div> : null}
         </div>
       </div>
@@ -141,7 +141,7 @@ export function SupportRouteCard({ icon: Icon, title, subtitle, onClick }) {
 
 export function SupportTag({ children, tone = 'default' }) {
   const tones = {
-    default: 'border-gray-700 bg-gray-800/70 text-gray-300',
+    default: 'border-gray-300 dark:border-gray-700 bg-gray-100/70 dark:bg-gray-800/70 text-gray-700 dark:text-gray-300',
     orange: 'border-orange-500/25 bg-orange-500/10 text-orange-300',
     blue: 'border-blue-500/25 bg-blue-500/10 text-blue-300',
     green: 'border-green-500/25 bg-green-500/10 text-green-300',

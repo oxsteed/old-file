@@ -39,31 +39,31 @@ function RemoveModal({ item, type, onConfirm, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md shadow-2xl">
+      <div className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl p-6 w-full max-w-md shadow-2xl">
         <div className="flex items-center gap-3 mb-4">
           <AlertCircle className="text-red-400 shrink-0" size={20} />
-          <h2 className="text-white font-semibold text-lg">{title}</h2>
+          <h2 className="text-gray-900 dark:text-white font-semibold text-lg">{title}</h2>
         </div>
 
         {type === 'bids' && (
-          <div className="bg-gray-800 rounded-lg p-3 mb-4 text-sm text-gray-300">
+          <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 mb-4 text-sm text-gray-700 dark:text-gray-300">
             <p><span className="text-gray-500">{t('adminContentRemovals.helperLabel')}</span> {item?.helper_name} ({item?.helper_email})</p>
             <p><span className="text-gray-500">{t('adminContentRemovals.amountLabel')}</span> ${Number(item?.amount ?? 0).toFixed(2)}</p>
-            {item?.message && <p className="mt-1 italic text-gray-400">"{item.message}"</p>}
+            {item?.message && <p className="mt-1 italic text-gray-600 dark:text-gray-400">"{item.message}"</p>}
           </div>
         )}
 
         {type === 'reviews' && (
-          <div className="bg-gray-800 rounded-lg p-3 mb-4 text-sm text-gray-300">
+          <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 mb-4 text-sm text-gray-700 dark:text-gray-300">
             <p><span className="text-gray-500">{t('adminContentRemovals.reviewerLabel')}</span> {item?.reviewer_name}</p>
             <p><span className="text-gray-500">{t('adminContentRemovals.revieweeLabel')}</span> {item?.reviewee_name}</p>
             <p><span className="text-gray-500">{t('adminContentRemovals.ratingLabel')}</span> {'★'.repeat(item?.rating ?? 0)}{'☆'.repeat(Math.max(0, 5 - (item?.rating ?? 0)))}</p>
-            {item?.comment && <p className="mt-1 italic text-gray-400">"{item.comment}"</p>}
+            {item?.comment && <p className="mt-1 italic text-gray-600 dark:text-gray-400">"{item.comment}"</p>}
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
-          <label className="block text-sm text-gray-400 mb-1">
+          <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
             {t('adminContentRemovals.reasonLabel')} <span className="text-red-400">*</span>
             <span className="text-gray-500 font-normal"> {t('adminContentRemovals.reasonAuditNote')}</span>
           </label>
@@ -71,7 +71,7 @@ function RemoveModal({ item, type, onConfirm, onClose }) {
             value={reason}
             onChange={e => setReason(e.target.value)}
             rows={3}
-            className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none resize-none"
+            className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none resize-none"
             placeholder={t('adminContentRemovals.reasonPlaceholder')}
             autoFocus
           />
@@ -82,7 +82,7 @@ function RemoveModal({ item, type, onConfirm, onClose }) {
               {saving ? t('adminContentRemovals.removing') : type === 'reviews' ? t('adminContentRemovals.hideReview') : t('adminContentRemovals.removeBid')}
             </button>
             <button type="button" onClick={onClose}
-              className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg text-sm font-medium">
+              className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-600 text-gray-900 dark:text-white py-2 rounded-lg text-sm font-medium">
               {t('adminContentRemovals.cancel')}
             </button>
           </div>
@@ -189,7 +189,7 @@ export default function ContentRemovals() {
     <div className="p-6">
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-6 right-6 z-50 text-white px-4 py-2 rounded-lg shadow-lg text-sm ${
+        <div className={`fixed top-6 right-6 z-50 text-gray-900 dark:text-white px-4 py-2 rounded-lg shadow-lg text-sm ${
           toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'
         }`}>
           {toast.text}
@@ -198,8 +198,8 @@ export default function ContentRemovals() {
 
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">{t('adminContentRemovals.pageTitle')}</h1>
-        <p className="text-gray-400 text-sm mt-1">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('adminContentRemovals.pageTitle')}</h1>
+        <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
           {t('adminContentRemovals.pageSubtitle')}
         </p>
       </div>
@@ -211,7 +211,7 @@ export default function ContentRemovals() {
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               tab === tabDef.key
                 ? 'bg-orange-500 text-white'
-                : 'bg-gray-800 text-gray-400 hover:text-white'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
             }`}>
             {t(tabDef.labelKey)}
           </button>
@@ -233,7 +233,7 @@ export default function ContentRemovals() {
         />
         {tab === 'bids' && (
           <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-            className="bg-gray-800 border border-gray-700 rounded-lg text-white text-sm px-3 py-2">
+            className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white text-sm px-3 py-2">
             <option value="">{t('adminContentRemovals.statusAll')}</option>
             <option value="pending">{t('adminContentRemovals.statusPending')}</option>
             <option value="accepted">{t('adminContentRemovals.statusAccepted')}</option>
@@ -244,7 +244,7 @@ export default function ContentRemovals() {
         )}
         {tab === 'reviews' && (
           <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-            className="bg-gray-800 border border-gray-700 rounded-lg text-white text-sm px-3 py-2">
+            className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white text-sm px-3 py-2">
             <option value="">{t('adminContentRemovals.reviewsAll')}</option>
             <option value="visible">{t('adminContentRemovals.reviewsVisible')}</option>
             <option value="hidden">{t('adminContentRemovals.reviewsHidden')}</option>
@@ -256,43 +256,43 @@ export default function ContentRemovals() {
       {error ? (
         <AdminErrorState onRetry={reload} />
       ) : (
-      <div className="bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden">
+      <div className="bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-xl overflow-hidden">
         {tab === 'bids' && (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-700">
-                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thJob')}</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thHelper')}</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thAmount')}</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thStatus')}</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thDate')}</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thAction')}</th>
+              <tr className="border-b border-gray-300 dark:border-gray-700">
+                <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thJob')}</th>
+                <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thHelper')}</th>
+                <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thAmount')}</th>
+                <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thStatus')}</th>
+                <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thDate')}</th>
+                <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thAction')}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="text-center text-gray-400 py-12">{t('adminContentRemovals.loading')}</td></tr>
+                <tr><td colSpan={6} className="text-center text-gray-600 dark:text-gray-400 py-12">{t('adminContentRemovals.loading')}</td></tr>
               ) : items.length === 0 ? (
-                <tr><td colSpan={6} className="text-center text-gray-400 py-12">{t('adminContentRemovals.emptyBids')}</td></tr>
+                <tr><td colSpan={6} className="text-center text-gray-600 dark:text-gray-400 py-12">{t('adminContentRemovals.emptyBids')}</td></tr>
               ) : items.map(item => (
-                <tr key={item.id} className="border-b border-gray-700/50 hover:bg-gray-700/20">
-                  <td className="px-4 py-3 text-white max-w-[200px] truncate">{item.job_title}</td>
+                <tr key={item.id} className="border-b border-gray-700/50 hover:bg-gray-200/20 dark:hover:bg-gray-700/20">
+                  <td className="px-4 py-3 text-gray-900 dark:text-white max-w-[200px] truncate">{item.job_title}</td>
                   <td className="px-4 py-3">
-                    <p className="text-gray-300">{item.helper_name}</p>
+                    <p className="text-gray-700 dark:text-gray-300">{item.helper_name}</p>
                     <p className="text-gray-500 text-xs">{item.helper_email}</p>
                   </td>
-                  <td className="px-4 py-3 text-white">${Number(item.amount).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-gray-900 dark:text-white">${Number(item.amount).toFixed(2)}</td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                       item.status === 'removed'  ? 'bg-red-500/20 text-red-400' :
                       item.status === 'accepted' ? 'bg-green-500/20 text-green-400' :
                       item.status === 'pending'  ? 'bg-yellow-500/20 text-yellow-400' :
-                      'bg-gray-500/20 text-gray-400'
+                      'bg-gray-500/20 text-gray-600 dark:text-gray-400'
                     }`}>
                       {t(`adminContentRemovals.status${String(item.status).charAt(0).toUpperCase()}${String(item.status).slice(1)}`, { defaultValue: item.status })}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-400 text-xs">
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400 text-xs">
                     {new Date(item.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-3">
@@ -326,31 +326,31 @@ export default function ContentRemovals() {
         {tab === 'reviews' && (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-700">
-                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thJob')}</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thReviewerReviewee')}</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thRating')}</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thComment')}</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thVisible')}</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thAction')}</th>
+              <tr className="border-b border-gray-300 dark:border-gray-700">
+                <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thJob')}</th>
+                <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thReviewerReviewee')}</th>
+                <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thRating')}</th>
+                <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thComment')}</th>
+                <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thVisible')}</th>
+                <th className="text-left text-gray-600 dark:text-gray-400 font-medium px-4 py-3">{t('adminContentRemovals.thAction')}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="text-center text-gray-400 py-12">{t('adminContentRemovals.loading')}</td></tr>
+                <tr><td colSpan={6} className="text-center text-gray-600 dark:text-gray-400 py-12">{t('adminContentRemovals.loading')}</td></tr>
               ) : items.length === 0 ? (
-                <tr><td colSpan={6} className="text-center text-gray-400 py-12">{t('adminContentRemovals.emptyReviews')}</td></tr>
+                <tr><td colSpan={6} className="text-center text-gray-600 dark:text-gray-400 py-12">{t('adminContentRemovals.emptyReviews')}</td></tr>
               ) : items.map(item => (
-                <tr key={item.id} className="border-b border-gray-700/50 hover:bg-gray-700/20">
-                  <td className="px-4 py-3 text-white max-w-[160px] truncate">{item.job_title}</td>
+                <tr key={item.id} className="border-b border-gray-700/50 hover:bg-gray-200/20 dark:hover:bg-gray-700/20">
+                  <td className="px-4 py-3 text-gray-900 dark:text-white max-w-[160px] truncate">{item.job_title}</td>
                   <td className="px-4 py-3 text-sm">
-                    <p className="text-gray-300">{item.reviewer_name}</p>
+                    <p className="text-gray-700 dark:text-gray-300">{item.reviewer_name}</p>
                     <p className="text-gray-500 text-xs">→ {item.reviewee_name}</p>
                   </td>
                   <td className="px-4 py-3 text-yellow-400 text-sm">
                     {'★'.repeat(item.rating)}{'☆'.repeat(5 - item.rating)}
                   </td>
-                  <td className="px-4 py-3 text-gray-400 max-w-[200px] truncate text-xs italic">
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400 max-w-[200px] truncate text-xs italic">
                     {item.comment || '-'}
                   </td>
                   <td className="px-4 py-3">
@@ -382,14 +382,14 @@ export default function ContentRemovals() {
       {/* Pagination */}
       {pages > 1 && (
         <div className="flex items-center justify-between mt-4">
-          <p className="text-sm text-gray-400">{t('adminContentRemovals.pagination', { total, page, pages })}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">{t('adminContentRemovals.pagination', { total, page, pages })}</p>
           <div className="flex gap-2">
             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-              className="px-3 py-1.5 bg-gray-800 text-gray-300 rounded text-sm disabled:opacity-40 hover:bg-gray-700">
+              className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded text-sm disabled:opacity-40 hover:bg-gray-200 dark:hover:bg-gray-700">
               {t('adminContentRemovals.previous')}
             </button>
             <button onClick={() => setPage(p => Math.min(pages, p + 1))} disabled={page === pages}
-              className="px-3 py-1.5 bg-gray-800 text-gray-300 rounded text-sm disabled:opacity-40 hover:bg-gray-700">
+              className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded text-sm disabled:opacity-40 hover:bg-gray-200 dark:hover:bg-gray-700">
               {t('adminContentRemovals.next')}
             </button>
           </div>

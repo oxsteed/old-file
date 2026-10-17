@@ -19,7 +19,7 @@ function statusClass(status) {
   if (status === 'pending') return 'border-sky-500/30 bg-sky-500/10 text-sky-300';
   if (status === 'frozen') return 'border-amber-500/30 bg-amber-500/10 text-amber-300';
   if (['lost', 'stolen', 'revoked', 'expired'].includes(status)) return 'border-red-500/30 bg-red-500/10 text-red-300';
-  return 'border-gray-700 bg-gray-900 text-gray-400';
+  return 'border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400';
 }
 
 function Badge({ status, t }) {
@@ -195,16 +195,16 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
     }
   };
 
-  return <section className="rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5">
+  return <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4 sm:p-5">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">{t('cards.adminTitle')}</p>
-        <h2 className="mt-1 flex items-center gap-2 text-lg font-semibold text-white"><CreditCard className="h-4 w-4 text-orange-400" /> {t('cards.adminSubtitle')}</h2>
+        <h2 className="mt-1 flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white"><CreditCard className="h-4 w-4 text-orange-400" /> {t('cards.adminSubtitle')}</h2>
         <p className="mt-1 max-w-3xl text-xs leading-5 text-gray-500">
           {t('cards.adminDescription')}
         </p>
       </div>
-      <button type="button" onClick={load} disabled={loading || saving || busy} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-900/70 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">
+      <button type="button" onClick={load} disabled={loading || saving || busy} className="inline-flex items-center gap-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-900/70 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">
         <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> {t('cards.refresh')}
       </button>
     </div>
@@ -221,37 +221,37 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
         <p className="font-bold uppercase tracking-[0.12em] text-orange-300">
           {revealedSecret.type === 'credential' ? t('cards.secretTitle') : t('cards.activationSecretTitle')}
         </p>
-        <p className="mt-2 break-all rounded-lg border border-orange-500/30 bg-black/30 px-3 py-2 font-mono text-sm text-white">{revealedSecret.value}</p>
+        <p className="mt-2 break-all rounded-lg border border-orange-500/30 bg-black/30 px-3 py-2 font-mono text-sm text-gray-900 dark:text-white">{revealedSecret.value}</p>
         <p className="mt-2 text-orange-300/80">
           {revealedSecret.type === 'credential' ? t('cards.adminCredentialDescription') : t('cards.adminActivationDescription')}
         </p>
       </div>
     )}
 
-    <form onSubmit={submitIssue} className="mt-5 grid gap-3 rounded-xl border border-gray-800 bg-gray-950/40 p-4 sm:grid-cols-2 lg:grid-cols-4">
+    <form onSubmit={submitIssue} className="mt-5 grid gap-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/40 dark:bg-gray-950/40 p-4 sm:grid-cols-2 lg:grid-cols-4">
       <label className="lg:col-span-2">
         <span className="mb-1 block text-xs font-semibold text-gray-500">{t('cards.customerUuid')}</span>
-        <input required value={form.customerId} onChange={(event) => setForm({ ...form, customerId: event.target.value })} placeholder={t('cards.customerUuidPlaceholder')} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+        <input required value={form.customerId} onChange={(event) => setForm({ ...form, customerId: event.target.value })} placeholder={t('cards.customerUuidPlaceholder')} className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-orange-400" />
       </label>
       <label>
         <span className="mb-1 block text-xs font-semibold text-gray-500">{t('cards.cardType')}</span>
-        <select value={form.cardType} onChange={(event) => setForm({ ...form, cardType: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400">
+        <select value={form.cardType} onChange={(event) => setForm({ ...form, cardType: event.target.value })} className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-orange-400">
           {CARD_TYPES.map((type) => <option key={type} value={type}>{type === 'virtual' ? t('cards.virtualActiveImmediately') : t('cards.physicalShipsCustomer')}</option>)}
         </select>
       </label>
       <label>
         <span className="mb-1 block text-xs font-semibold text-gray-500">{t('cards.currency')}</span>
-        <select value={form.currencyCode} onChange={(event) => setForm({ ...form, currencyCode: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400">
+        <select value={form.currencyCode} onChange={(event) => setForm({ ...form, currencyCode: event.target.value })} className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-orange-400">
           {currencyOptions.map((code) => <option key={code} value={code}>{code}</option>)}
         </select>
       </label>
       <label>
         <span className="mb-1 block text-xs font-semibold text-gray-500">{t('cards.nicknameOptional')}</span>
-        <input value={form.nickname} onChange={(event) => setForm({ ...form, nickname: event.target.value })} placeholder={t('cards.adminNicknamePlaceholder')} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+        <input value={form.nickname} onChange={(event) => setForm({ ...form, nickname: event.target.value })} placeholder={t('cards.adminNicknamePlaceholder')} className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-orange-400" />
       </label>
       <label className="lg:col-span-3">
         <span className="mb-1 block text-xs font-semibold text-gray-500">{t('cards.reasonAudit')}</span>
-        <input value={form.reason} onChange={(event) => setForm({ ...form, reason: event.target.value })} placeholder={t('cards.reasonPlaceholder')} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+        <input value={form.reason} onChange={(event) => setForm({ ...form, reason: event.target.value })} placeholder={t('cards.reasonPlaceholder')} className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-orange-400" />
       </label>
 
       {form.cardType === 'physical' && <>
@@ -271,25 +271,25 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
             placeholder={t('cards.shippingAddressLine1')}
             ariaLabel={t('cards.shippingAddressLine1')}
             autoComplete="shipping street-address"
-            inputClassName="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400"
+            inputClassName="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-orange-400"
             required
           />
         </label>
         <label>
           <span className="mb-1 block text-xs font-semibold text-gray-500">{t('cards.city')}</span>
-          <input value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+          <input value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-orange-400" />
         </label>
         <label>
           <span className="mb-1 block text-xs font-semibold text-gray-500">{t('cards.stateRegion')}</span>
-          <input value={form.state} onChange={(event) => setForm({ ...form, state: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+          <input value={form.state} onChange={(event) => setForm({ ...form, state: event.target.value })} className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-orange-400" />
         </label>
         <label>
           <span className="mb-1 block text-xs font-semibold text-gray-500">{t('cards.postalCode')}</span>
-          <input value={form.postalCode} onChange={(event) => setForm({ ...form, postalCode: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+          <input value={form.postalCode} onChange={(event) => setForm({ ...form, postalCode: event.target.value })} className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-orange-400" />
         </label>
         <label>
           <span className="mb-1 block text-xs font-semibold text-gray-500">{t('cards.country')}</span>
-          <input value={form.country} onChange={(event) => setForm({ ...form, country: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+          <input value={form.country} onChange={(event) => setForm({ ...form, country: event.target.value })} className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-orange-400" />
         </label>
       </>}
 
@@ -299,26 +299,26 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
     </form>
 
     <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-      <h3 className="text-sm font-semibold text-white">{t('cards.allCards')}</h3>
+      <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t('cards.allCards')}</h3>
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <input value={customerFilter} onChange={(event) => setCustomerFilter(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { setAppliedCustomerFilter(customerFilter.trim()); setOffset(0); } }} placeholder={t('cards.filterCustomer')} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white outline-none focus:border-orange-400" />
+        <input value={customerFilter} onChange={(event) => setCustomerFilter(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { setAppliedCustomerFilter(customerFilter.trim()); setOffset(0); } }} placeholder={t('cards.filterCustomer')} className="rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2 text-xs text-gray-900 dark:text-white outline-none focus:border-orange-400" />
         <button type="button" onClick={() => { setAppliedCustomerFilter(customerFilter.trim()); setOffset(0); }} disabled={loading || saving} className="rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{t('cards.search')}</button>
-        <select value={cardTypeFilter} onChange={(event) => { setCardTypeFilter(event.target.value); setOffset(0); }} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white outline-none focus:border-orange-400">
+        <select value={cardTypeFilter} onChange={(event) => { setCardTypeFilter(event.target.value); setOffset(0); }} className="rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2 text-xs text-gray-900 dark:text-white outline-none focus:border-orange-400">
           <option value="all">{t('cards.allTypes')}</option>
           {CARD_TYPES.map((type) => <option key={type} value={type}>{type === 'virtual' ? t('cards.virtualCard') : t('cards.physicalCard')}</option>)}
         </select>
-        <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setOffset(0); }} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white outline-none focus:border-orange-400">
+        <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setOffset(0); }} className="rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2 text-xs text-gray-900 dark:text-white outline-none focus:border-orange-400">
           <option value="all">{t('cards.allStatuses')}</option>
           {CARD_STATUSES.map((status) => <option key={status} value={status}>{t(`cards.status.${status}`, { defaultValue: status })}</option>)}
         </select>
-        <button type="button" onClick={() => setOffset((current) => Math.max(0, current - CARD_PAGE_SIZE))} disabled={loading || saving || offset === 0} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">{t('cards.previous')}</button>
-        <button type="button" onClick={() => setOffset((current) => current + CARD_PAGE_SIZE)} disabled={loading || saving || cards.length < CARD_PAGE_SIZE} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">{t('cards.next')}</button>
+        <button type="button" onClick={() => setOffset((current) => Math.max(0, current - CARD_PAGE_SIZE))} disabled={loading || saving || offset === 0} className="rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">{t('cards.previous')}</button>
+        <button type="button" onClick={() => setOffset((current) => current + CARD_PAGE_SIZE)} disabled={loading || saving || cards.length < CARD_PAGE_SIZE} className="rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">{t('cards.next')}</button>
       </div>
     </div>
 
-    <div className="mt-3 overflow-x-auto rounded-xl border border-gray-800">
+    <div className="mt-3 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
       <table className="min-w-[900px] w-full text-left text-xs">
-        <thead className="bg-gray-950/70 text-gray-500">
+        <thead className="bg-gray-50/70 dark:bg-gray-950/70 text-gray-500">
           <tr>
             <th className="px-3 py-3 font-medium">{t('cards.customer')}</th>
             <th className="px-3 py-3 font-medium">{t('cards.cardType')}</th>
@@ -329,7 +329,7 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
             <th className="px-3 py-3 font-medium">{t('cards.actions')}</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-800">
+        <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
           {loading ? <tr><td colSpan="7" className="px-3 py-10 text-center text-gray-500">{t('cards.loading')}</td></tr>
             : !cards.length ? <tr><td colSpan="7" className="px-3 py-10 text-center text-gray-500">{t('cards.noMatches')}</td></tr>
             : cards.map((card) => {
@@ -337,10 +337,10 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
               const canRevoke = ['pending', 'active', 'frozen'].includes(card.status);
               return <tr key={card.id}>
                 <td className="px-3 py-3 font-mono text-[10px] text-gray-500">{card.customerId}</td>
-                <td className="px-3 py-3 text-white">{card.cardType === 'virtual' ? t('cards.virtualCard') : t('cards.physicalCard')}{card.nickname ? <p className="mt-1 text-gray-600">{card.nickname}</p> : null}</td>
+                <td className="px-3 py-3 text-gray-900 dark:text-white">{card.cardType === 'virtual' ? t('cards.virtualCard') : t('cards.physicalCard')}{card.nickname ? <p className="mt-1 text-gray-600">{card.nickname}</p> : null}</td>
                 <td className="px-3 py-3"><Badge status={card.status} t={t} /></td>
-                <td className="px-3 py-3 text-gray-400">{card.cardType === 'physical' ? t(`cards.fulfillment.${card.fulfillmentStatus}`, { defaultValue: card.fulfillmentStatus }) : t('cards.notApplicable')}</td>
-                <td className="px-3 py-3 font-mono text-gray-400">{card.credentialLast4 || t('cards.last4Empty')}</td>
+                <td className="px-3 py-3 text-gray-600 dark:text-gray-400">{card.cardType === 'physical' ? t(`cards.fulfillment.${card.fulfillmentStatus}`, { defaultValue: card.fulfillmentStatus }) : t('cards.notApplicable')}</td>
+                <td className="px-3 py-3 font-mono text-gray-600 dark:text-gray-400">{card.credentialLast4 || t('cards.last4Empty')}</td>
                 <td className="px-3 py-3 text-gray-500">{dateTime(card.issuedAt, t)}</td>
                 <td className="px-3 py-3">
                   <div className="flex flex-wrap gap-2">

@@ -53,7 +53,7 @@ export default function PricingConfig() {
 
   if (loadError) {
     return (
-      <div className="p-8 text-center text-gray-300">
+      <div className="p-8 text-center text-gray-700 dark:text-gray-300">
         <p className="text-red-400">{loadError}</p>
         <button
           onClick={() => { setSaveError(''); reload(); }}
@@ -75,19 +75,19 @@ export default function PricingConfig() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white p-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white p-8">
       <div className="max-w-2xl mx-auto">
         <h1 className="text-2xl font-bold mb-6">{t('superPricingConfig.title')}</h1>
-        <p className="text-gray-400 text-sm mb-8">{t('superPricingConfig.subtitle')}</p>
+        <p className="text-gray-600 dark:text-gray-400 text-sm mb-8">{t('superPricingConfig.subtitle')}</p>
         <div className="space-y-4">
           {fields.map(f => (
             <div key={f.key} className="flex items-center gap-4">
-              <label className="w-32 text-sm text-gray-300">{t(f.labelKey)}</label>
+              <label className="w-32 text-sm text-gray-700 dark:text-gray-300">{t(f.labelKey)}</label>
               <input
                 type="text"
                 value={form[f.key] || ''}
                 onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                className="flex-1 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded px-3 py-2 text-gray-900 dark:text-white"
               />
             </div>
           ))}

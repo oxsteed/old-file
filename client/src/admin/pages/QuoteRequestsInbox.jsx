@@ -24,7 +24,7 @@ const STATUS_BADGES = {
   quoted: 'bg-orange-500/15 text-orange-300 border-orange-500/25',
   contacted: 'bg-purple-500/15 text-purple-300 border-purple-500/25',
   closed: 'bg-green-500/15 text-green-300 border-green-500/25',
-  cancelled: 'bg-gray-500/15 text-gray-300 border-gray-500/20',
+  cancelled: 'bg-gray-500/15 text-gray-700 dark:text-gray-300 border-gray-500/20',
 };
 
 function formatDate(value) {
@@ -40,13 +40,13 @@ function formatDate(value) {
 
 function FieldCard({ icon: Icon, label, value, href }) {
   const content = (
-    <div className="flex items-start gap-3 rounded-2xl border border-gray-800 bg-gray-950/60 p-4">
-      <div className="rounded-xl bg-gray-800 p-2 text-gray-300">
+    <div className="flex items-start gap-3 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-950/60 p-4">
+      <div className="rounded-xl bg-gray-100 dark:bg-gray-800 p-2 text-gray-700 dark:text-gray-300">
         <Icon size={15} />
       </div>
       <div className="min-w-0">
         <div className="text-[11px] uppercase tracking-[0.2em] text-gray-500">{label}</div>
-        <div className="mt-1 break-words text-sm text-white">{value || '—'}</div>
+        <div className="mt-1 break-words text-sm text-gray-900 dark:text-white">{value || '—'}</div>
       </div>
     </div>
   );
@@ -197,31 +197,31 @@ export default function QuoteRequestsInbox() {
   const visibleRequest = selectedRequest || detail;
 
   return (
-    <div className="flex min-h-[calc(100vh-64px)] flex-col gap-4 bg-gray-950 p-4 text-white xl:h-[calc(100vh-64px)] xl:overflow-hidden">
-      <div className="flex flex-col gap-4 rounded-[28px] border border-gray-800 bg-gray-900/70 p-5 shadow-2xl xl:flex-row xl:items-end xl:justify-between">
+    <div className="flex min-h-[calc(100vh-64px)] flex-col gap-4 bg-gray-50 dark:bg-gray-950 p-4 text-gray-900 dark:text-white xl:h-[calc(100vh-64px)] xl:overflow-hidden">
+      <div className="flex flex-col gap-4 rounded-[28px] border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 p-5 shadow-2xl xl:flex-row xl:items-end xl:justify-between">
         <div>
           <div className="flex items-center gap-2 text-sm font-medium text-orange-300">
             <FileText size={15} />
             {t('adminQuoteRequests.inboxLabel')}
           </div>
           <h1 className="mt-2 text-3xl font-semibold">{t('adminQuoteRequests.heading')}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-400">
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-400">
             {t('adminQuoteRequests.description')}
           </p>
         </div>
 
         <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
-            <div className="text-2xl font-semibold text-white">{total}</div>
+          <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 px-4 py-3">
+            <div className="text-2xl font-semibold text-gray-900 dark:text-white">{total}</div>
             <div className="mt-1 text-xs uppercase tracking-[0.16em] text-gray-500">{t('adminQuoteRequests.statTotal')}</div>
           </div>
-          <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
+          <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 px-4 py-3">
             <div className="text-2xl font-semibold text-blue-300">
               {requests.filter((item) => item.status === 'new').length}
             </div>
             <div className="mt-1 text-xs uppercase tracking-[0.16em] text-gray-500">{t('adminQuoteRequests.statNew')}</div>
           </div>
-          <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
+          <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 px-4 py-3">
             <div className="text-2xl font-semibold text-orange-300">
               {requests.filter((item) => ['reviewing', 'quoted', 'contacted'].includes(item.status)).length}
             </div>
@@ -231,8 +231,8 @@ export default function QuoteRequestsInbox() {
       </div>
 
       <div className="flex flex-col gap-4 xl:min-h-0 xl:flex-row">
-        <aside className="flex w-full flex-col rounded-[28px] border border-gray-800 bg-gray-900/70 xl:w-[420px] xl:min-h-0">
-          <form onSubmit={handleSearch} className="border-b border-gray-800 p-4">
+        <aside className="flex w-full flex-col rounded-[28px] border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 xl:w-[420px] xl:min-h-0">
+          <form onSubmit={handleSearch} className="border-b border-gray-200 dark:border-gray-800 p-4">
             <div className="flex flex-col gap-3">
               <SuggestDropdown
                 id="quote-requests-search"
@@ -249,14 +249,14 @@ export default function QuoteRequestsInbox() {
                 <select
                   value={statusFilter}
                   onChange={(event) => setStatusFilter(event.target.value)}
-                  className="rounded-xl border border-gray-800 bg-gray-950/70 px-3 py-2 text-sm text-white outline-none"
+                  className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 px-3 py-2 text-sm text-gray-900 dark:text-white outline-none"
                 >
                   <option value="">{t('adminQuoteRequests.allStatuses')}</option>
                   {STATUS_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
-                <button type="submit" className="rounded-xl border border-gray-800 bg-gray-950/70 px-3 py-2 text-sm text-gray-200 transition hover:border-orange-500/40 hover:text-white">
+                <button type="submit" className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 transition hover:border-orange-500/40 hover:text-gray-900 dark:hover:text-white">
                   {t('common.search')}
                 </button>
                 <button
@@ -273,14 +273,14 @@ export default function QuoteRequestsInbox() {
                       loadRequests(1, { search: '' });
                     }
                   }}
-                  className="rounded-xl border border-gray-800 bg-gray-950/70 px-3 py-2 text-sm text-gray-200 transition hover:border-gray-700 hover:text-white"
+                  className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 transition hover:border-gray-300 dark:hover:border-gray-700 hover:text-gray-900 dark:hover:text-white"
                 >
                   {t('adminQuoteRequests.clear')}
                 </button>
                 <button
                   type="button"
                   onClick={handleRefresh}
-                  className="inline-flex items-center gap-2 rounded-xl border border-gray-800 bg-gray-950/70 px-3 py-2 text-sm text-gray-200 transition hover:border-gray-700 hover:text-white"
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 transition hover:border-gray-300 dark:hover:border-gray-700 hover:text-gray-900 dark:hover:text-white"
                 >
                   <RefreshCw size={14} />
                   {t('adminQuoteRequests.refresh')}
@@ -305,13 +305,13 @@ export default function QuoteRequestsInbox() {
                     className={`w-full rounded-2xl border p-4 text-left transition ${
                       String(selectedRequest?.id) === String(request.id)
                         ? 'border-orange-500/50 bg-orange-500/10'
-                        : 'border-gray-800 bg-gray-950/40 hover:border-gray-700 hover:bg-gray-950/70'
+                        : 'border-gray-200 dark:border-gray-800 bg-gray-50/40 dark:bg-gray-950/40 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50/70 dark:hover:bg-gray-950/70'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="truncate text-sm font-semibold text-white">
+                          <span className="truncate text-sm font-semibold text-gray-900 dark:text-white">
                             {request.first_name} {request.last_name}
                           </span>
                           <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${STATUS_BADGES[request.status] || STATUS_BADGES.new}`}>
@@ -332,12 +332,12 @@ export default function QuoteRequestsInbox() {
             )}
           </div>
 
-          <div className="flex items-center justify-between gap-3 border-t border-gray-800 p-4 text-sm text-gray-400">
+          <div className="flex items-center justify-between gap-3 border-t border-gray-200 dark:border-gray-800 p-4 text-sm text-gray-600 dark:text-gray-400">
             <button
               type="button"
               onClick={() => goToPage(page - 1)}
               disabled={page <= 1}
-              className="rounded-xl border border-gray-800 bg-gray-950/70 px-3 py-2 disabled:opacity-40"
+              className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 px-3 py-2 disabled:opacity-40"
             >
               {t('adminQuoteRequests.previous')}
             </button>
@@ -346,14 +346,14 @@ export default function QuoteRequestsInbox() {
               type="button"
               onClick={() => goToPage(page + 1)}
               disabled={page >= totalPages}
-              className="rounded-xl border border-gray-800 bg-gray-950/70 px-3 py-2 disabled:opacity-40"
+              className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 px-3 py-2 disabled:opacity-40"
             >
               {t('adminQuoteRequests.next')}
             </button>
           </div>
         </aside>
 
-        <main className="min-h-0 flex-1 rounded-[28px] border border-gray-800 bg-gray-900/70 p-5">
+        <main className="min-h-0 flex-1 rounded-[28px] border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 p-5">
           {!visibleRequest ? (
             <div className="flex h-full items-center justify-center text-sm text-gray-500">
               {t('adminQuoteRequests.pickRequest')}
@@ -364,16 +364,16 @@ export default function QuoteRequestsInbox() {
             </div>
           ) : (
             <div className="flex h-full min-h-0 flex-col gap-5">
-              <div className="flex flex-col gap-4 border-b border-gray-800 pb-4 xl:flex-row xl:items-start xl:justify-between">
+              <div className="flex flex-col gap-4 border-b border-gray-200 dark:border-gray-800 pb-4 xl:flex-row xl:items-start xl:justify-between">
                 <div>
                   <div className="flex items-center gap-2 text-sm font-medium text-orange-300">
                     <User size={15} />
                     {t('adminQuoteRequests.quoteNumber', { id: selectedRequest.id })}
                   </div>
-                  <h2 className="mt-2 text-2xl font-semibold text-white">
+                  <h2 className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">
                     {selectedRequest.first_name} {selectedRequest.last_name}
                   </h2>
-                  <p className="mt-2 text-sm text-gray-400">
+                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                     {selectedRequest.company_name || t('adminQuoteRequests.noCompany')}
                   </p>
                 </div>
@@ -382,7 +382,7 @@ export default function QuoteRequestsInbox() {
                   <span className={`rounded-full border px-3 py-1.5 text-xs font-medium ${STATUS_BADGES[selectedRequest.status] || STATUS_BADGES.new}`}>
                     {STATUS_KEY_SUFFIX[selectedRequest.status] ? t(`adminQuoteRequests.status${STATUS_KEY_SUFFIX[selectedRequest.status]}`) : selectedRequest.status}
                   </span>
-                  <div className="rounded-full border border-gray-800 bg-gray-950/70 px-3 py-1.5 text-xs text-gray-400">
+                  <div className="rounded-full border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 px-3 py-1.5 text-xs text-gray-600 dark:text-gray-400">
                     {t('adminQuoteRequests.updatedAt', { date: formatDate(selectedRequest.updated_at) })}
                   </div>
                 </div>
@@ -398,22 +398,22 @@ export default function QuoteRequestsInbox() {
               </div>
 
               <div className="grid min-h-0 gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-                <section className="min-h-0 rounded-2xl border border-gray-800 bg-gray-950/60 p-4">
-                  <h3 className="text-sm font-semibold text-white">{t('adminQuoteRequests.requestDetails')}</h3>
-                  <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-gray-300">
+                <section className="min-h-0 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-950/60 p-4">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t('adminQuoteRequests.requestDetails')}</h3>
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-gray-700 dark:text-gray-300">
                     {selectedRequest.details}
                   </p>
                 </section>
 
-                <section className="min-h-0 rounded-2xl border border-gray-800 bg-gray-950/60 p-4">
-                  <h3 className="text-sm font-semibold text-white">{t('adminQuoteRequests.adminActions')}</h3>
+                <section className="min-h-0 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-950/60 p-4">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t('adminQuoteRequests.adminActions')}</h3>
                   <div className="mt-4 grid gap-3">
                     <label className="grid gap-2 text-sm">
-                      <span className="text-gray-400">{t('adminQuoteRequests.statusLabel')}</span>
+                      <span className="text-gray-600 dark:text-gray-400">{t('adminQuoteRequests.statusLabel')}</span>
                       <select
                         value={draft.status}
                         onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value }))}
-                        className="rounded-xl border border-gray-800 bg-gray-950/70 px-3 py-2 text-white outline-none"
+                        className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 px-3 py-2 text-gray-900 dark:text-white outline-none"
                       >
                         {STATUS_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>{option.label}</option>
@@ -422,12 +422,12 @@ export default function QuoteRequestsInbox() {
                     </label>
 
                     <label className="grid gap-2 text-sm">
-                      <span className="text-gray-400">{t('adminQuoteRequests.internalNotes')}</span>
+                      <span className="text-gray-600 dark:text-gray-400">{t('adminQuoteRequests.internalNotes')}</span>
                       <textarea
                         value={draft.admin_notes}
                         onChange={(event) => setDraft((current) => ({ ...current, admin_notes: event.target.value }))}
                         rows={10}
-                        className="rounded-xl border border-gray-800 bg-gray-950/70 px-3 py-2 text-sm text-white outline-none"
+                        className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 px-3 py-2 text-sm text-gray-900 dark:text-white outline-none"
                         placeholder={t('adminQuoteRequests.notesPlaceholder')}
                       />
                     </label>
@@ -443,7 +443,7 @@ export default function QuoteRequestsInbox() {
                       </button>
                       <a
                         href={`mailto:${selectedRequest.email}?subject=Re%3A%20OxSteed%20quote%20request%20%23${selectedRequest.id}`}
-                        className="inline-flex items-center gap-2 rounded-xl border border-gray-800 bg-gray-950/70 px-4 py-2 text-sm text-gray-200 transition hover:border-gray-700 hover:text-white"
+                        className="inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 transition hover:border-gray-300 dark:hover:border-gray-700 hover:text-gray-900 dark:hover:text-white"
                       >
                         <ExternalLink size={14} />
                         {t('adminQuoteRequests.emailRequester')}

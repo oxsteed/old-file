@@ -22,7 +22,7 @@ function BusinessAvatar({ business }) {
     .toUpperCase();
 
   return (
-    <div className={`w-20 h-20 rounded-xl ${bg} flex items-center justify-center text-white text-lg font-bold`}>
+    <div className={`w-20 h-20 rounded-xl ${bg} flex items-center justify-center text-gray-900 dark:text-white text-lg font-bold`}>
       {initials || 'B'}
     </div>
   );
@@ -85,11 +85,11 @@ export default function BusinessDetail() {
       <div className="p-6 lg:p-8">
         <button
           onClick={() => navigate('/admin/businesses')}
-          className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition"
+          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 transition"
         >
           <ArrowLeft size={18} /> {t('adminBusinessDetail.backToBusinesses')}
         </button>
-        <div className="text-center text-gray-400 py-12">{t('adminBusinessDetail.loading')}</div>
+        <div className="text-center text-gray-600 dark:text-gray-400 py-12">{t('adminBusinessDetail.loading')}</div>
       </div>
     );
   }
@@ -99,14 +99,14 @@ export default function BusinessDetail() {
       <div className="p-6 lg:p-8">
         <button
           onClick={() => navigate('/admin/businesses')}
-          className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition"
+          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 transition"
         >
           <ArrowLeft size={18} /> {t('adminBusinessDetail.backToBusinesses')}
         </button>
         {error ? (
           <AdminErrorState onRetry={reload} />
         ) : (
-          <div className="text-center text-gray-400 py-12">{t('adminBusinessDetail.notFound')}</div>
+          <div className="text-center text-gray-600 dark:text-gray-400 py-12">{t('adminBusinessDetail.notFound')}</div>
         )}
       </div>
     );
@@ -117,20 +117,20 @@ export default function BusinessDetail() {
       {/* Back Button */}
       <button
         onClick={() => navigate('/admin/businesses')}
-        className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition"
+        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 transition"
       >
         <ArrowLeft size={18} /> {t('adminBusinessDetail.backToBusinesses')}
       </button>
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-8 bg-gray-800 border border-gray-700 rounded-xl p-6">
+      <div className="flex items-start justify-between mb-8 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-6">
         <div className="flex items-start gap-6">
           <BusinessAvatar business={business} />
           <div>
-            <h1 className="text-3xl font-bold text-white">{business.business_name}</h1>
-            <p className="text-gray-400 text-sm mt-1">{business.category || t('adminBusinessDetail.uncategorized')}</p>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{business.business_name}</h1>
+            <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">{business.category || t('adminBusinessDetail.uncategorized')}</p>
             <p className="text-gray-500 text-sm mt-2">
-              {t('adminBusinessDetail.idLabel')} <code className="bg-gray-900 px-2 py-1 rounded text-xs">{business.id}</code>
+              {t('adminBusinessDetail.idLabel')} <code className="bg-white dark:bg-gray-900 px-2 py-1 rounded text-xs">{business.id}</code>
             </p>
             <div className="flex items-center gap-2 mt-3">
               <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
@@ -171,23 +171,23 @@ export default function BusinessDetail() {
         {/* Left Column: Business Info */}
         <div className="lg:col-span-2 space-y-6">
           {/* Business Information */}
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+          <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-6">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
               <Building2 size={18} /> {t('adminBusinessDetail.businessInfoTitle')}
             </h2>
             <div className="space-y-4">
               <div>
-                <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.descriptionLabel')}</p>
-                <p className="text-gray-200">{business.description || '-'}</p>
+                <p className="text-gray-600 dark:text-gray-400 text-sm mb-1">{t('adminBusinessDetail.descriptionLabel')}</p>
+                <p className="text-gray-700 dark:text-gray-200">{business.description || '-'}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.businessTypeLabel')}</p>
-                  <p className="text-gray-200 capitalize">{business.business_type || '-'}</p>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-1">{t('adminBusinessDetail.businessTypeLabel')}</p>
+                  <p className="text-gray-700 dark:text-gray-200 capitalize">{business.business_type || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.websiteLabel')}</p>
-                  <p className="text-gray-200">
+                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-1">{t('adminBusinessDetail.websiteLabel')}</p>
+                  <p className="text-gray-700 dark:text-gray-200">
                     {business.website ? (
                       <a href={business.website} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
                         {business.website}
@@ -200,44 +200,44 @@ export default function BusinessDetail() {
           </div>
 
           {/* Location Information */}
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+          <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-6">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
               <MapPin size={18} /> {t('adminBusinessDetail.locationTitle')}
             </h2>
             <div className="space-y-3">
               <div>
-                <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.addressLabel')}</p>
-                <p className="text-gray-200">
+                <p className="text-gray-600 dark:text-gray-400 text-sm mb-1">{t('adminBusinessDetail.addressLabel')}</p>
+                <p className="text-gray-700 dark:text-gray-200">
                   {business.address_street || '-'}
                 </p>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.cityLabel')}</p>
-                  <p className="text-gray-200">{business.address_city || '-'}</p>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-1">{t('adminBusinessDetail.cityLabel')}</p>
+                  <p className="text-gray-700 dark:text-gray-200">{business.address_city || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.stateLabel')}</p>
-                  <p className="text-gray-200">{business.address_state || '-'}</p>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-1">{t('adminBusinessDetail.stateLabel')}</p>
+                  <p className="text-gray-700 dark:text-gray-200">{business.address_state || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.zipLabel')}</p>
-                  <p className="text-gray-200">{business.address_zip || '-'}</p>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-1">{t('adminBusinessDetail.zipLabel')}</p>
+                  <p className="text-gray-700 dark:text-gray-200">{business.address_zip || '-'}</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Jobs */}
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <h2 className="text-lg font-bold text-white mb-4">{t('adminBusinessDetail.jobsPosted', { count: business.job_count || 0 })}</h2>
+          <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-6">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">{t('adminBusinessDetail.jobsPosted', { count: business.job_count || 0 })}</h2>
             {business.jobs && business.jobs.length > 0 ? (
               <div className="space-y-2">
                 {business.jobs.map(job => (
-                  <div key={job.id} className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg">
+                  <div key={job.id} className="flex items-center justify-between p-3 bg-gray-200/30 dark:bg-gray-700/30 rounded-lg">
                     <div>
-                      <p className="text-white font-medium">{job.title}</p>
-                      <p className="text-gray-400 text-xs">{new Date(job.created_at).toLocaleDateString()}</p>
+                      <p className="text-gray-900 dark:text-white font-medium">{job.title}</p>
+                      <p className="text-gray-600 dark:text-gray-400 text-xs">{new Date(job.created_at).toLocaleDateString()}</p>
                     </div>
                     <a
                       href={`/admin/jobs/${job.id}`}
@@ -258,24 +258,24 @@ export default function BusinessDetail() {
         {/* Right Column: Owner & Admin Info */}
         <div className="space-y-6">
           {/* Owner Information */}
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+          <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-6">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
               <User size={18} /> {t('adminBusinessDetail.ownerInfoTitle')}
             </h2>
             <div className="space-y-3">
               <div>
-                <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.nameLabel')}</p>
-                <p className="text-gray-200">{business.owner_name || '-'}</p>
+                <p className="text-gray-600 dark:text-gray-400 text-sm mb-1">{t('adminBusinessDetail.nameLabel')}</p>
+                <p className="text-gray-700 dark:text-gray-200">{business.owner_name || '-'}</p>
               </div>
               <div>
-                <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.emailLabel')}</p>
+                <p className="text-gray-600 dark:text-gray-400 text-sm mb-1">{t('adminBusinessDetail.emailLabel')}</p>
                 <p className="text-blue-400 text-sm">
                   <a href={`mailto:${business.owner_email}`}>{business.owner_email}</a>
                 </p>
               </div>
               <div>
-                <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.phoneLabel')}</p>
-                <p className="text-gray-200">{business.owner_phone || '-'}</p>
+                <p className="text-gray-600 dark:text-gray-400 text-sm mb-1">{t('adminBusinessDetail.phoneLabel')}</p>
+                <p className="text-gray-700 dark:text-gray-200">{business.owner_phone || '-'}</p>
               </div>
               <Link
                 to={`/admin/users/${business.owner_id}`}
@@ -287,48 +287,48 @@ export default function BusinessDetail() {
           </div>
 
           {/* Statistics */}
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <h2 className="text-lg font-bold text-white mb-4">{t('adminBusinessDetail.statsTitle')}</h2>
+          <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-6">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">{t('adminBusinessDetail.statsTitle')}</h2>
             <div className="space-y-3">
               <div>
-                <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.membersLabel')}</p>
-                <p className="text-2xl font-bold text-white">{business.member_count || 0}</p>
+                <p className="text-gray-600 dark:text-gray-400 text-sm mb-1">{t('adminBusinessDetail.membersLabel')}</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{business.member_count || 0}</p>
               </div>
               <div>
-                <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.earningsLabel')}</p>
+                <p className="text-gray-600 dark:text-gray-400 text-sm mb-1">{t('adminBusinessDetail.earningsLabel')}</p>
                 <p className="text-2xl font-bold text-green-400">${(business.total_earnings_cents || 0) / 100}</p>
               </div>
               <div>
-                <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.profileCompleteLabel')}</p>
-                <div className="w-full bg-gray-700 rounded-full h-2 mt-2">
+                <p className="text-gray-600 dark:text-gray-400 text-sm mb-1">{t('adminBusinessDetail.profileCompleteLabel')}</p>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2">
                   <div
                     className="bg-blue-500 h-2 rounded-full transition"
                     style={{ width: `${(business.profile_completeness || 0)}%` }}
                   />
                 </div>
-                <p className="text-gray-300 text-xs mt-1">{business.profile_completeness || 0}%</p>
+                <p className="text-gray-700 dark:text-gray-300 text-xs mt-1">{business.profile_completeness || 0}%</p>
               </div>
             </div>
           </div>
 
           {/* Dates */}
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <h2 className="text-lg font-bold text-white mb-4">{t('adminBusinessDetail.timelineTitle')}</h2>
+          <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-6">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">{t('adminBusinessDetail.timelineTitle')}</h2>
             <div className="space-y-3 text-sm">
               <div>
-                <p className="text-gray-400 mb-1">{t('adminBusinessDetail.createdLabel')}</p>
-                <p className="text-gray-300">{new Date(business.created_at).toLocaleString()}</p>
+                <p className="text-gray-600 dark:text-gray-400 mb-1">{t('adminBusinessDetail.createdLabel')}</p>
+                <p className="text-gray-700 dark:text-gray-300">{new Date(business.created_at).toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-gray-400 mb-1">{t('adminBusinessDetail.updatedLabel')}</p>
-                <p className="text-gray-300">{new Date(business.updated_at).toLocaleString()}</p>
+                <p className="text-gray-600 dark:text-gray-400 mb-1">{t('adminBusinessDetail.updatedLabel')}</p>
+                <p className="text-gray-700 dark:text-gray-300">{new Date(business.updated_at).toLocaleString()}</p>
               </div>
             </div>
           </div>
 
           {/* Admin Actions */}
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <h2 className="text-lg font-bold text-white mb-4">{t('adminBusinessDetail.actionsTitle')}</h2>
+          <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-6">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">{t('adminBusinessDetail.actionsTitle')}</h2>
             <div className="space-y-2">
               <button
                 onClick={() => setModal({ type: 'toggle' })}
@@ -359,9 +359,9 @@ export default function BusinessDetail() {
       </div>
 
       {/* Admin Notes */}
-      <div className="mt-6 bg-gray-800 border border-gray-700 rounded-xl p-6">
+      <div className="mt-6 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <AlertCircle size={18} /> {t('adminBusinessDetail.notesTitle')}
           </h2>
           {!editingNotes && (
@@ -379,8 +379,7 @@ export default function BusinessDetail() {
               value={adminNotes}
               onChange={e => setAdminNotes(e.target.value)}
               rows={4}
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg text-white p-3 text-sm
-                         focus:border-orange-500 focus:outline-none resize-none"
+              className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white p-3 text-sm focus:border-orange-500 focus:outline-none resize-none"
               placeholder={t('adminBusinessDetail.notesPlaceholder')}
             />
             <div className="flex gap-2 mt-3">
@@ -395,14 +394,14 @@ export default function BusinessDetail() {
                   setAdminNotes(business.admin_notes || '');
                   setEditingNotes(false);
                 }}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition font-medium text-sm"
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg transition font-medium text-sm"
               >
                 {t('adminBusinessDetail.cancel')}
               </button>
             </div>
           </div>
         ) : (
-          <p className="text-gray-300 text-sm whitespace-pre-wrap">{adminNotes || t('adminBusinessDetail.noNotes')}</p>
+          <p className="text-gray-700 dark:text-gray-300 text-sm whitespace-pre-wrap">{adminNotes || t('adminBusinessDetail.noNotes')}</p>
         )}
       </div>
 
@@ -443,16 +442,16 @@ function ActionModal({ business, actionType, onConfirm, onClose, loading }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => !loading && onClose()}>
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
-        <h3 className="font-bold text-white text-lg mb-4">{t('adminBusinessDetail.actionTitle', { action: labels[actionType] })}</h3>
+      <div className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+        <h3 className="font-bold text-gray-900 dark:text-white text-lg mb-4">{t('adminBusinessDetail.actionTitle', { action: labels[actionType] })}</h3>
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-300 mb-2">{t('adminBusinessDetail.reasonLabel')}</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('adminBusinessDetail.reasonLabel')}</label>
           <textarea
             rows={3}
             value={reason}
             onChange={e => { setReason(e.target.value); setError(''); }}
             placeholder={t('adminBusinessDetail.reasonPlaceholder', { verb: t(verbKeys[actionType]) })}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white p-3 text-sm focus:border-orange-500 focus:outline-none resize-none"
+            className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white p-3 text-sm focus:border-orange-500 focus:outline-none resize-none"
           />
           {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
         </div>
@@ -460,14 +459,14 @@ function ActionModal({ business, actionType, onConfirm, onClose, loading }) {
           <button
             onClick={onClose}
             disabled={loading}
-            className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition disabled:opacity-50"
+            className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg transition disabled:opacity-50"
           >
             {t('adminBusinessDetail.cancel')}
           </button>
           <button
             onClick={handle}
             disabled={loading || !reason.trim()}
-            className={`flex-1 px-4 py-2 rounded-lg text-white font-medium transition disabled:opacity-50 ${
+            className={`flex-1 px-4 py-2 rounded-lg text-gray-900 dark:text-white font-medium transition disabled:opacity-50 ${
               actionType === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
             }`}
           >

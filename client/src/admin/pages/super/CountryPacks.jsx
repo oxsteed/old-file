@@ -11,7 +11,7 @@ import useDestructiveConfirm from '../../hooks/useDestructiveConfirm';
 const STATUS_STYLES = {
   active: 'bg-green-500/10 text-green-400 border-green-500/30',
   coming_soon: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-  disabled: 'bg-gray-500/10 text-gray-400 border-gray-500/30',
+  disabled: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/30',
 };
 
 const STATUS_LABEL_KEYS = {
@@ -80,17 +80,17 @@ export default function CountryPacks() {
           <Globe size={20} className="text-orange-400" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-white">{t('superCountryPacks.title')}</h1>
-          <p className="text-sm text-gray-400">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t('superCountryPacks.title')}</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             {t('superCountryPacks.subtitle')}
           </p>
         </div>
       </div>
 
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs uppercase tracking-wider text-gray-500 border-b border-gray-800">
+            <tr className="text-left text-xs uppercase tracking-wider text-gray-500 border-b border-gray-200 dark:border-gray-800">
               <th className="px-4 py-3">{t('superCountryPacks.colCountry')}</th>
               <th className="px-4 py-3">{t('superCountryPacks.colStatus')}</th>
               <th className="px-4 py-3">{t('superCountryPacks.colCurrency')}</th>
@@ -100,7 +100,7 @@ export default function CountryPacks() {
               <th className="px-4 py-3 text-right">{t('superCountryPacks.colActions')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-800">
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
             {packs.map((p) => {
               const cfg = p.config || {};
               const busy = updating === p.code;
@@ -134,12 +134,12 @@ function FragmentRow({ pack: p, cfg, busy, expanded, onToggleExpand, onSetStatus
   const { t } = useTranslation();
   return (
     <>
-      <tr className="hover:bg-gray-800/40 transition">
+      <tr className="hover:bg-gray-100/40 dark:hover:bg-gray-800/40 transition">
         <td className="px-4 py-3">
           <button type="button" onClick={onToggleExpand} className="flex items-center gap-2.5 text-left">
             <span className="text-xl">{p.flag_emoji || '🌍'}</span>
             <span>
-              <span className="block font-semibold text-white">{p.name}</span>
+              <span className="block font-semibold text-gray-900 dark:text-white">{p.name}</span>
               <span className="block text-[11px] text-gray-500">{p.code}</span>
             </span>
           </button>
@@ -149,12 +149,12 @@ function FragmentRow({ pack: p, cfg, busy, expanded, onToggleExpand, onSetStatus
             {t(STATUS_LABEL_KEYS[p.status] || 'superCountryPacks.statusDisabled')}
           </span>
         </td>
-        <td className="px-4 py-3 text-gray-300">{p.currency_code}</td>
-        <td className="px-4 py-3 text-gray-300">
+        <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{p.currency_code}</td>
+        <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
           {(cfg.locales || [p.default_locale]).map((l) => l.toUpperCase()).join(' · ')}
         </td>
-        <td className="px-4 py-3 text-gray-300">{(cfg.enabled_personas || []).length}</td>
-        <td className="px-4 py-3 text-gray-400 text-xs">{(cfg.payment_methods || []).join(', ') || '—'}</td>
+        <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{(cfg.enabled_personas || []).length}</td>
+        <td className="px-4 py-3 text-gray-600 dark:text-gray-400 text-xs">{(cfg.payment_methods || []).join(', ') || '—'}</td>
         <td className="px-4 py-3">
           <div className="flex justify-end gap-1.5">
             {busy ? (
@@ -172,7 +172,7 @@ function FragmentRow({ pack: p, cfg, busy, expanded, onToggleExpand, onSetStatus
                   </ActionBtn>
                 )}
                 {p.status !== 'disabled' && (
-                  <ActionBtn title={t('superCountryPacks.disable')} color="text-gray-400 hover:bg-gray-500/10" onClick={() => onSetStatus(p, 'disabled')}>
+                  <ActionBtn title={t('superCountryPacks.disable')} color="text-gray-600 dark:text-gray-400 hover:bg-gray-500/10" onClick={() => onSetStatus(p, 'disabled')}>
                     <EyeOff size={14} />
                   </ActionBtn>
                 )}
@@ -182,9 +182,9 @@ function FragmentRow({ pack: p, cfg, busy, expanded, onToggleExpand, onSetStatus
         </td>
       </tr>
       {expanded && (
-        <tr className="bg-gray-950/60">
+        <tr className="bg-gray-50/60 dark:bg-gray-950/60">
           <td colSpan={7} className="px-6 py-4">
-            <pre className="text-[11px] text-gray-400 whitespace-pre-wrap break-all">
+            <pre className="text-[11px] text-gray-600 dark:text-gray-400 whitespace-pre-wrap break-all">
               {JSON.stringify(cfg, null, 2)}
             </pre>
           </td>

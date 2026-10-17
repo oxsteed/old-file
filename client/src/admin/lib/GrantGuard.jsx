@@ -26,8 +26,7 @@ import AdminErrorState from './AdminErrorState';
 function LoadingSpinner() {
   return (
     <div className="h-screen flex items-center justify-center">
-      <div className="animate-spin w-8 h-8 border-4 border-orange-500
-        border-t-transparent rounded-full" />
+      <div className="animate-spin w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full" />
     </div>
   );
 }
@@ -143,7 +142,7 @@ export default function GrantGuard({ grant, grants, children }) {
 
   if (!allowed) {
     return (
-      <div className="min-h-screen bg-gray-950 p-6 flex items-start justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-6 flex items-start justify-center">
         <div className="w-full max-w-xl mt-16">
           <AdminErrorState
             title={t('adminGrantGuard.title')}

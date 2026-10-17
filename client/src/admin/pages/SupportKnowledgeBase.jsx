@@ -195,7 +195,7 @@ export default function SupportKnowledgeBase() {
               aria-label={t(`${NS}.searchPlaceholder`, { defaultValue: 'Search articles...' })}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              className="w-full rounded-2xl border border-gray-700 bg-gray-900 py-3 pl-11 pr-4 text-white focus:border-orange-500 focus:outline-none"
+              className="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 py-3 pl-11 pr-4 text-gray-900 dark:text-white focus:border-orange-500 focus:outline-none"
             />
           </div>
           <div className="flex flex-wrap gap-2">
@@ -207,7 +207,7 @@ export default function SupportKnowledgeBase() {
                 className={`rounded-full border px-3 py-2 text-sm font-medium capitalize transition ${
                   category === cat
                     ? 'border-orange-500/30 bg-orange-500/10 text-orange-300'
-                    : 'border-gray-700 bg-gray-950 text-gray-400 hover:border-gray-600'
+                    : 'border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
                 }`}
               >
                 {t(`${NS}.category.${cat}`, { defaultValue: cat })}
@@ -225,11 +225,11 @@ export default function SupportKnowledgeBase() {
         ) : (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {articles.map((article) => (
-              <div key={article.id} className="rounded-[24px] border border-gray-800 bg-gray-900/70 p-5">
+              <div key={article.id} className="rounded-[24px] border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
-                    <div className="text-lg font-semibold text-white">{article.title}</div>
-                    <div className="mt-3 max-h-[4.2rem] overflow-hidden text-sm leading-6 text-gray-400">
+                    <div className="text-lg font-semibold text-gray-900 dark:text-white">{article.title}</div>
+                    <div className="mt-3 max-h-[4.2rem] overflow-hidden text-sm leading-6 text-gray-600 dark:text-gray-400">
                       {article.content}
                     </div>
                     <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -246,7 +246,7 @@ export default function SupportKnowledgeBase() {
                       onClick={() => handleEdit(article)}
                       aria-label={t(`${NS}.editArticleAria`, { defaultValue: 'Edit article: {{title}}', title: article.title })}
                       title={t(`${NS}.editArticleAria`, { defaultValue: 'Edit article: {{title}}', title: article.title })}
-                      className="rounded-xl border border-gray-700 bg-gray-900 p-2 text-gray-400 transition hover:text-white"
+                      className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-gray-600 dark:text-gray-400 transition hover:text-gray-900 dark:hover:text-white"
                     >
                       <Edit2 size={15} />
                     </button>
@@ -268,35 +268,35 @@ export default function SupportKnowledgeBase() {
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[28px] border border-gray-700 bg-gray-900 shadow-2xl">
-            <div className="sticky top-0 flex items-center justify-between border-b border-gray-800 bg-gray-900 px-6 py-5">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[28px] border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-2xl">
+            <div className="sticky top-0 flex items-center justify-between border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-6 py-5">
               <div>
-                <div className="text-xl font-semibold text-white">
+                <div className="text-xl font-semibold text-gray-900 dark:text-white">
                   {selectedArticle ? t(`${NS}.modalEditTitle`, { defaultValue: 'Edit article' }) : t(`${NS}.modalNewTitle`, { defaultValue: 'New article' })}
                 </div>
                 <div className="mt-1 text-sm text-gray-500">{t(`${NS}.modalSubtitle`, { defaultValue: 'Build reusable answers the whole support team can rely on.' })}</div>
               </div>
-              <button onClick={() => setShowForm(false)} aria-label={t('common.close')} className="text-2xl text-gray-500 hover:text-white">x</button>
+              <button onClick={() => setShowForm(false)} aria-label={t('common.close')} className="text-2xl text-gray-500 hover:text-gray-900 dark:hover:text-white">x</button>
             </div>
 
             <div className="space-y-5 px-6 py-6">
               <div>
-                <label className="mb-2 block text-sm text-gray-400">{t(`${NS}.labelTitle`, { defaultValue: 'Title' })}</label>
+                <label className="mb-2 block text-sm text-gray-600 dark:text-gray-400">{t(`${NS}.labelTitle`, { defaultValue: 'Title' })}</label>
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(event) => setFormData({ ...formData, title: event.target.value })}
-                  className="w-full rounded-2xl border border-gray-700 bg-gray-950 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
+                  className="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-4 py-3 text-gray-900 dark:text-white focus:border-orange-500 focus:outline-none"
                   placeholder={t(`${NS}.titlePlaceholder`, { defaultValue: 'Article title...' })}
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-sm text-gray-400">{t(`${NS}.labelCategory`, { defaultValue: 'Category' })}</label>
+                <label className="mb-2 block text-sm text-gray-600 dark:text-gray-400">{t(`${NS}.labelCategory`, { defaultValue: 'Category' })}</label>
                 <select
                   value={formData.category}
                   onChange={(event) => setFormData({ ...formData, category: event.target.value })}
-                  className="w-full rounded-2xl border border-gray-700 bg-gray-950 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
+                  className="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-4 py-3 text-gray-900 dark:text-white focus:border-orange-500 focus:outline-none"
                 >
                   {categories.map((cat) => (
                     <option key={cat} value={cat}>
@@ -307,27 +307,27 @@ export default function SupportKnowledgeBase() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm text-gray-400">{t(`${NS}.labelTags`, { defaultValue: 'Tags' })}</label>
+                <label className="mb-2 block text-sm text-gray-600 dark:text-gray-400">{t(`${NS}.labelTags`, { defaultValue: 'Tags' })}</label>
                 <input
                   type="text"
                   value={(formData.tags || []).join(', ')}
                   onChange={(event) => setFormData({ ...formData, tags: event.target.value.split(',').map((tag) => tag.trim()).filter(Boolean) })}
-                  className="w-full rounded-2xl border border-gray-700 bg-gray-950 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
+                  className="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-4 py-3 text-gray-900 dark:text-white focus:border-orange-500 focus:outline-none"
                   placeholder={t(`${NS}.tagsPlaceholder`, { defaultValue: 'billing, troubleshooting (comma separated)' })}
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-sm text-gray-400">{t(`${NS}.labelContent`, { defaultValue: 'Content' })}</label>
+                <label className="mb-2 block text-sm text-gray-600 dark:text-gray-400">{t(`${NS}.labelContent`, { defaultValue: 'Content' })}</label>
                 <textarea
                   value={formData.content}
                   onChange={(event) => setFormData({ ...formData, content: event.target.value })}
-                  className="h-56 w-full rounded-2xl border border-gray-700 bg-gray-950 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
+                  className="h-56 w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-4 py-3 text-gray-900 dark:text-white focus:border-orange-500 focus:outline-none"
                   placeholder={t(`${NS}.contentPlaceholder`, { defaultValue: 'Article content...' })}
                 />
               </div>
 
-              <div className="flex gap-3 border-t border-gray-800 pt-5">
+              <div className="flex gap-3 border-t border-gray-200 dark:border-gray-800 pt-5">
                 <SupportActionButton tone="secondary" onClick={() => setShowForm(false)}>
                   {t('common.cancel')}
                 </SupportActionButton>

@@ -220,10 +220,10 @@ export default function AdminMessages() {
   };
 
   return (
-    <div className="h-[calc(100vh-64px)] flex bg-gray-900 text-white overflow-hidden" aria-label={t('adminMessages.title')}>
+    <div className="h-[calc(100vh-64px)] flex bg-white dark:bg-gray-900 text-gray-900 dark:text-white overflow-hidden" aria-label={t('adminMessages.title')}>
       {/* Left pane - conversation list */}
-      <div className={`w-full sm:w-80 flex-shrink-0 border-r border-gray-800 flex flex-col ${selected ? 'hidden sm:flex' : 'flex'}`}>
-        <div className="p-4 border-b border-gray-800 flex items-center gap-2">
+      <div className={`w-full sm:w-80 flex-shrink-0 border-r border-gray-200 dark:border-gray-800 flex flex-col ${selected ? 'hidden sm:flex' : 'flex'}`}>
+        <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center gap-2">
           <h1 className="text-base font-semibold flex-1">{t('adminMessages.title')}</h1>
           <button
             onClick={() => setShowNewModal(true)}
@@ -232,7 +232,7 @@ export default function AdminMessages() {
             + {t('adminMessages.new')}
           </button>
         </div>
-        <div className="px-3 py-2 border-b border-gray-800">
+        <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-800">
           <SuggestDropdown
             id="admin-messages-search"
             items={conversationSuggestItems}
@@ -262,16 +262,16 @@ export default function AdminMessages() {
               key={conv.id ?? conv.user_id}
               onClick={() => openThread(conv)}
               aria-label={t('adminMessages.openConversation', { name: `${conv.user_first_name || ''} ${conv.user_last_name || ''}`.trim() })}
-              className={`w-full text-left px-4 py-3 border-b border-gray-800/50 hover:bg-gray-800 transition flex gap-3 items-start ${
-                selected?.userId === conv.user_id ? 'bg-gray-800' : ''
+              className={`w-full text-left px-4 py-3 border-b border-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition flex gap-3 items-start ${
+                selected?.userId === conv.user_id ? 'bg-gray-100 dark:bg-gray-800' : ''
               }`}
             >
-              <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-300 flex-shrink-0">
+              <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-700 dark:text-gray-300 flex-shrink-0">
                 {(conv.user_first_name || '?').charAt(0).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-1">
-                  <span className="text-sm font-medium text-white truncate">
+                  <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
                     {conv.user_first_name} {conv.user_last_name}
                   </span>
                   {conv.last_message_at && (
@@ -280,7 +280,7 @@ export default function AdminMessages() {
                 </div>
                 <p className="text-xs text-gray-500 truncate">{conv.user_email}</p>
                 {conv.last_message && (
-                  <p className="text-xs text-gray-400 truncate mt-0.5">{conv.last_message}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 truncate mt-0.5">{conv.last_message}</p>
                 )}
               </div>
               {conv.unread_count > 0 && (
@@ -302,24 +302,24 @@ export default function AdminMessages() {
         ) : (
           <>
             {/* Thread header */}
-            <div className="px-4 py-3 border-b border-gray-800 flex items-center gap-3">
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center gap-3">
               <button
                 onClick={() => setSelected(null)}
-                className="sm:hidden p-1 rounded text-gray-400 hover:text-white"
+                className="sm:hidden p-1 rounded text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                 aria-label={t('adminMessages.back')}
               >
                 ←
               </button>
-              <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-300">
+              <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-700 dark:text-gray-300">
                 {(selected.user.user_first_name || '?').charAt(0).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white truncate">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                   {selected.user.user_first_name} {selected.user.user_last_name}
                 </p>
                 <p className="text-xs text-gray-500 truncate">{selected.user.user_email}</p>
               </div>
-              <span className="text-[11px] text-gray-600 bg-gray-800 px-2 py-0.5 rounded uppercase">
+              <span className="text-[11px] text-gray-600 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded uppercase">
                 {selected.user.user_role}
               </span>
             </div>
@@ -347,10 +347,10 @@ export default function AdminMessages() {
                     <div className={`max-w-[75%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
                       isAdmin
                         ? 'bg-orange-600 text-white rounded-br-sm'
-                        : 'bg-gray-700/80 text-gray-100 rounded-bl-sm'
+                        : 'bg-gray-200/80 dark:bg-gray-700/80 text-gray-100 rounded-bl-sm'
                     }`}>
                       {!isAdmin && (
-                        <p className="text-[10px] font-medium text-gray-400 mb-1">
+                        <p className="text-[10px] font-medium text-gray-600 dark:text-gray-400 mb-1">
                           {msg.sender_first_name} {msg.sender_last_name}
                         </p>
                       )}
@@ -371,7 +371,7 @@ export default function AdminMessages() {
             </div>
 
             {/* Compose */}
-            <form onSubmit={handleSend} className="flex gap-2 px-4 py-3 border-t border-gray-800">
+            <form onSubmit={handleSend} className="flex gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-800">
               <textarea
                 ref={inputRef}
                 value={message}
@@ -382,12 +382,12 @@ export default function AdminMessages() {
                 maxLength={4000}
                 disabled={sending}
                 rows={2}
-                className="flex-1 rounded-xl bg-gray-800 border border-gray-700 text-white placeholder-gray-500 text-sm px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:opacity-50"
+                className="flex-1 rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-500 text-sm px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:opacity-50"
               />
               <button
                 type="submit"
                 disabled={!message.trim() || sending}
-                className="flex-shrink-0 px-4 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:bg-gray-700 disabled:text-gray-500 text-white text-sm font-semibold transition self-end pb-2 pt-2"
+                className="flex-shrink-0 px-4 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:bg-gray-200 dark:disabled:bg-gray-700 disabled:text-gray-500 text-white text-sm font-semibold transition self-end pb-2 pt-2"
               >
                 {t('adminMessages.send')}
               </button>
@@ -399,7 +399,7 @@ export default function AdminMessages() {
       {/* New conversation modal */}
       {showNewModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="admin-new-conversation-title">
+          <div className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="admin-new-conversation-title">
             <h2 id="admin-new-conversation-title" className="text-base font-semibold mb-4">{t('adminMessages.newConversation')}</h2>
             <input
               type="text"
@@ -408,7 +408,7 @@ export default function AdminMessages() {
               onChange={e => searchNewUser(e.target.value)}
               placeholder={t('adminMessages.newUserPlaceholder')}
               aria-label={t('adminMessages.newUserPlaceholder')}
-              className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 mb-3"
+              className="w-full rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 mb-3"
             />
             <div className="space-y-1 max-h-48 overflow-y-auto">
               {newUserResults.map(u => (
@@ -416,13 +416,13 @@ export default function AdminMessages() {
                   key={u.id}
                   onClick={() => startConversation(u)}
                   aria-label={t('adminMessages.startConversation', { name: `${u.first_name || ''} ${u.last_name || ''}`.trim() })}
-                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-800 transition flex items-center gap-2.5"
+                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition flex items-center gap-2.5"
                 >
-                  <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-300 flex-shrink-0">
+                  <div className="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-700 dark:text-gray-300 flex-shrink-0">
                     {(u.first_name || '?').charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <p className="text-sm text-white">{u.first_name} {u.last_name}</p>
+                    <p className="text-sm text-gray-900 dark:text-white">{u.first_name} {u.last_name}</p>
                     <p className="text-xs text-gray-500">{u.email} · {u.role}</p>
                   </div>
                 </button>
@@ -433,7 +433,7 @@ export default function AdminMessages() {
             </div>
             <button
               onClick={() => { setShowNewModal(false); setNewUserSearch(''); setNewUserResults([]); }}
-              className="mt-4 w-full py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-sm text-gray-300 transition"
+              className="mt-4 w-full py-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 transition"
             >
               {t('adminMessages.cancel')}
             </button>

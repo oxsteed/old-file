@@ -155,11 +155,11 @@ function formatMoneyAmount(value, currency) {
 }
 
 function CurrencyList({ items, cents = false }) {
-  if (!items?.length) return <span className="text-lg font-semibold text-white">—</span>;
+  if (!items?.length) return <span className="text-lg font-semibold text-gray-900 dark:text-white">—</span>;
   return (
     <div className="space-y-1">
       {items.map((item) => (
-        <p key={item.currency} className="text-lg font-semibold text-white">
+        <p key={item.currency} className="text-lg font-semibold text-gray-900 dark:text-white">
           {formatMoneyAmount(cents ? (Number(item.amountCents) || 0) / 100 : item.amount, item.currency)}
         </p>
       ))}
@@ -170,7 +170,7 @@ function CurrencyList({ items, cents = false }) {
 function renderMetricValue(value, format) {
   if (format === 'moneyByCurrency') return <CurrencyList items={value} />;
   if (format === 'centsByCurrency') return <CurrencyList items={value} cents />;
-  return <p className="mt-2 text-lg font-semibold text-white">{formatValue(value, format)}</p>;
+  return <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{formatValue(value, format)}</p>;
 }
 
 function scoreColor(score) {
@@ -200,11 +200,11 @@ function buildScopeParams({ country, regionId }) {
 
 function StatCard({ icon: Icon, label, value, hint, color = 'text-white' }) {
   return (
-    <div className="rounded-2xl border border-gray-800 bg-[#111318] p-4">
+    <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{label}</span>
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-800 bg-gray-900/70">
-          <Icon className="h-4 w-4 text-gray-400" />
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70">
+          <Icon className="h-4 w-4 text-gray-600 dark:text-gray-400" />
         </div>
       </div>
       <div className={`text-2xl font-semibold ${color}`}>{value}</div>
@@ -221,15 +221,15 @@ function Pagination({ page, totalPages, onPage }) {
       <button
         onClick={() => onPage(page - 1)}
         disabled={page <= 1}
-        className="rounded-lg border border-gray-700 p-1.5 text-gray-400 transition hover:text-white disabled:opacity-30"
+        className="rounded-lg border border-gray-300 dark:border-gray-700 p-1.5 text-gray-600 dark:text-gray-400 transition hover:text-gray-900 dark:hover:text-white disabled:opacity-30"
       >
         <ChevronLeft className="h-4 w-4" />
       </button>
-      <span className="text-sm text-gray-400">{t('adminOneTruthPageOf', { page, totalPages })}</span>
+      <span className="text-sm text-gray-600 dark:text-gray-400">{t('adminOneTruthPageOf', { page, totalPages })}</span>
       <button
         onClick={() => onPage(page + 1)}
         disabled={page >= totalPages}
-        className="rounded-lg border border-gray-700 p-1.5 text-gray-400 transition hover:text-white disabled:opacity-30"
+        className="rounded-lg border border-gray-300 dark:border-gray-700 p-1.5 text-gray-600 dark:text-gray-400 transition hover:text-gray-900 dark:hover:text-white disabled:opacity-30"
       >
         <ChevronRight className="h-4 w-4" />
       </button>
@@ -239,16 +239,16 @@ function Pagination({ page, totalPages, onPage }) {
 
 function ScopeBadge({ icon: Icon, label, value }) {
   return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-gray-700 bg-gray-900/70 px-3 py-1.5 text-xs text-gray-300">
+    <div className="inline-flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-900/70 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300">
       <Icon className="h-3.5 w-3.5 text-gray-500" />
       <span className="text-gray-500">{label}</span>
-      <span className="font-medium text-white">{value}</span>
+      <span className="font-medium text-gray-900 dark:text-white">{value}</span>
     </div>
   );
 }
 
 function SignalBadge({ signal }) {
-  const meta = SIGNAL_META[signal.type] || { icon: AlertTriangle, color: 'text-gray-400', bg: 'bg-gray-800 border-gray-600' };
+  const meta = SIGNAL_META[signal.type] || { icon: AlertTriangle, color: 'text-gray-600 dark:text-gray-400', bg: 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600' };
   const Icon = meta.icon;
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${meta.bg} ${meta.color}`}>
@@ -261,7 +261,7 @@ function SignalBadge({ signal }) {
 
 function OperationChip({ label, value, tone = 'default' }) {
   const tones = {
-    default: 'border-gray-700 bg-gray-900/75 text-gray-300',
+    default: 'border-gray-300 dark:border-gray-700 bg-white/75 dark:bg-gray-900/75 text-gray-700 dark:text-gray-300',
     warm: 'border-orange-500/30 bg-orange-500/10 text-orange-300',
     cool: 'border-sky-500/30 bg-sky-500/10 text-sky-300',
     good: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300',
@@ -271,7 +271,7 @@ function OperationChip({ label, value, tone = 'default' }) {
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${tones[tone] || tones.default}`}>
       <span>{label}</span>
-      <span className="text-white">{value}</span>
+      <span className="text-gray-900 dark:text-white">{value}</span>
     </span>
   );
 }
@@ -290,12 +290,12 @@ function UserMiniCard({ user, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="w-full rounded-2xl border border-gray-700 bg-gray-900/65 p-4 text-left transition hover:border-gray-500"
+      className="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/65 dark:bg-gray-900/65 p-4 text-left transition hover:border-gray-500"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-white">{name}</p>
-          <p className="truncate text-xs text-gray-400">{user.email}</p>
+          <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">{name}</p>
+          <p className="truncate text-xs text-gray-600 dark:text-gray-400">{user.email}</p>
           {(user.city || user.state || user.country) && (
             <p className="mt-1 flex items-center gap-1 text-xs text-gray-500">
               <MapPin className="h-3 w-3" />
@@ -339,7 +339,7 @@ function SuspectPairCard({ pair, onViewUser, onCompare, onReviewSaved }) {
   const reviewBadge = reviewStatus && (
     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
       reviewStatus === 'confirmed' ? 'bg-red-500/15 text-red-300'
-        : reviewStatus === 'dismissed' ? 'bg-gray-700/60 text-gray-400'
+        : reviewStatus === 'dismissed' ? 'bg-gray-200/60 dark:bg-gray-700/60 text-gray-600 dark:text-gray-400'
           : 'bg-sky-500/15 text-sky-300'
     }`}>
       {reviewStatus === 'reviewed' ? t('adminOneTruthFilterReviewedStatus')
@@ -363,11 +363,11 @@ function SuspectPairCard({ pair, onViewUser, onCompare, onReviewSaved }) {
               {riskLabel(pair.score, t)}
               {reviewBadge}
             </p>
-            <p className="text-xs text-gray-400">{t('adminOneTruthCrossSignals', { count: pair.signals.length })}</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400">{t('adminOneTruthCrossSignals', { count: pair.signals.length })}</p>
           </div>
         </div>
         <div className="hidden text-right sm:block">
-          <p className="text-sm text-gray-200">
+          <p className="text-sm text-gray-700 dark:text-gray-200">
             {[pair.userA.first_name, pair.userA.last_name].filter(Boolean).join(' ') || pair.userA.email}
           </p>
           <p className="text-xs text-gray-500">
@@ -409,21 +409,21 @@ function SuspectPairCard({ pair, onViewUser, onCompare, onReviewSaved }) {
                 key={action.status}
                 onClick={() => saveReview(action.status)}
                 disabled={saving !== ''}
-                className="rounded-xl border border-gray-700 px-3 py-2 text-xs font-medium text-gray-300 transition hover:border-gray-500 hover:text-white disabled:opacity-50"
+                className="rounded-xl border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 transition hover:border-gray-500 hover:text-gray-900 dark:hover:text-white disabled:opacity-50"
               >
                 {saving === action.status ? t('common.saving') : t(action.labelKey)}
               </button>
             ))}
             <button
               onClick={() => navigate('/admin/moderation')}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-gray-700 px-3 py-2 text-xs font-medium text-gray-300 transition hover:border-gray-500 hover:text-white"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 transition hover:border-gray-500 hover:text-gray-900 dark:hover:text-white"
             >
               {t('adminOneTruthHandoffModeration')}
               <ExternalLink className="h-3 w-3" />
             </button>
             <button
               onClick={() => navigate('/admin/enforcement')}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-gray-700 px-3 py-2 text-xs font-medium text-gray-300 transition hover:border-gray-500 hover:text-white"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 transition hover:border-gray-500 hover:text-gray-900 dark:hover:text-white"
             >
               {t('adminOneTruthHandoffEnforcement')}
               <ExternalLink className="h-3 w-3" />
@@ -452,12 +452,12 @@ function MetricSectionCard({ sectionKey, stats }) {
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t(meta.labelKey)}</p>
-          <p className="mt-2 text-sm leading-6 text-gray-300">
+          <p className="mt-2 text-sm leading-6 text-gray-700 dark:text-gray-300">
             {t('adminOneTruthMetricSectionDetail')}
           </p>
         </div>
         <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-black/20">
-          <Icon className="h-5 w-5 text-white" />
+          <Icon className="h-5 w-5 text-gray-900 dark:text-white" />
         </div>
       </div>
 
@@ -476,7 +476,7 @@ function MetricSectionCard({ sectionKey, stats }) {
             <button
               key={link.to}
               onClick={() => navigate(link.to)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/20 px-3 py-1.5 text-xs font-medium text-gray-300 transition hover:border-white/30 hover:text-white"
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/20 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 transition hover:border-white/30 hover:text-gray-900 dark:hover:text-white"
             >
               {t(link.labelKey)}
               <ExternalLink className="h-3 w-3" />
@@ -496,11 +496,11 @@ function UserCard({ user, onView }) {
   const isBanned = user.is_banned === true;
 
   return (
-    <div className="rounded-3xl border border-gray-800 bg-[#111318] p-4 transition hover:border-gray-600">
+    <div className="rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4 transition hover:border-gray-300 dark:hover:border-gray-600">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-white">{name}</p>
-          <p className="truncate text-xs text-gray-400">{user.email}</p>
+          <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">{name}</p>
+          <p className="truncate text-xs text-gray-600 dark:text-gray-400">{user.email}</p>
           {(user.city || user.state || user.country) && (
             <p className="mt-1 flex items-center gap-1 text-xs text-gray-500">
               <MapPin className="h-3.5 w-3.5" />
@@ -533,7 +533,7 @@ function UserCard({ user, onView }) {
               className={`max-w-[150px] truncate rounded-full border px-2 py-0.5 text-xs ${
                 business.is_active
                   ? 'border-blue-500/30 bg-blue-500/10 text-blue-300'
-                  : 'border-gray-700 bg-gray-800 text-gray-500 line-through'
+                  : 'border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-500 line-through'
               }`}
               title={business.business_name}
             >
@@ -546,7 +546,7 @@ function UserCard({ user, onView }) {
 
       <button
         onClick={onView}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-700 py-2 text-xs font-semibold text-gray-400 transition hover:border-gray-500 hover:text-white"
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-300 dark:border-gray-700 py-2 text-xs font-semibold text-gray-600 dark:text-gray-400 transition hover:border-gray-500 hover:text-gray-900 dark:hover:text-white"
       >
         <Eye className="h-3.5 w-3.5" />
         {t('adminOneTruthViewProfile')}
@@ -578,14 +578,14 @@ function CoverageCard({ coverage }) {
   };
 
   return (
-    <div className="rounded-3xl border border-gray-800 bg-[#111318] p-5">
+    <div className="rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-5">
       <div className="mb-4">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('adminOneTruthCoverageTitle')}</p>
-        <p className="mt-2 text-sm leading-6 text-gray-400">{t('adminOneTruthCoverageSubtitle')}</p>
+        <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">{t('adminOneTruthCoverageSubtitle')}</p>
       </div>
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {cards.map((card) => (
-          <div key={card.labelKey} className="rounded-2xl border border-gray-800 bg-gray-900/60 px-4 py-3">
+          <div key={card.labelKey} className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-900/60 px-4 py-3">
             <p className="text-[11px] uppercase tracking-[0.16em] text-gray-500">{t(card.labelKey)}</p>
             <p className={`mt-2 text-2xl font-semibold ${card.color}`}>{formatValue(card.value)}</p>
           </div>
@@ -594,8 +594,8 @@ function CoverageCard({ coverage }) {
       <div className="mt-4 space-y-2">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('adminOneTruthCoverageSources')}</p>
         {(coverage.sources || []).map((source) => (
-          <div key={source.key} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-gray-800 bg-gray-900/40 px-4 py-2.5 text-sm">
-            <span className="font-medium text-gray-200">{sourceLabel(source.key)}</span>
+          <div key={source.key} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/40 dark:bg-gray-900/40 px-4 py-2.5 text-sm">
+            <span className="font-medium text-gray-700 dark:text-gray-200">{sourceLabel(source.key)}</span>
             <span className="text-xs text-gray-500">
               {t('adminOneTruthCoverageAsOf')}: {formatAsOf(source.asOf)}
             </span>
@@ -618,11 +618,11 @@ function SuspectFilters({ meta, values, onChange, onClear }) {
     { value: 'confirmed', labelKey: 'adminOneTruthFilterConfirmed' },
     { value: 'dismissed', labelKey: 'adminOneTruthFilterDismissed' },
   ];
-  const selectClass = 'rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-orange-500';
-  const inputClass = 'w-24 rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-orange-500';
+  const selectClass = 'rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-orange-500';
+  const inputClass = 'w-24 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-orange-500';
 
   return (
-    <div className="rounded-3xl border border-gray-800 bg-[#111318] p-4">
+    <div className="rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4">
       <div className="flex flex-wrap items-end gap-3">
         <label className="block">
           <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">{t('adminOneTruthFilterSignal')}</span>
@@ -660,7 +660,7 @@ function SuspectFilters({ meta, values, onChange, onClear }) {
         </label>
         <button
           onClick={onClear}
-          className="rounded-xl border border-gray-700 px-3 py-2 text-sm text-gray-300 transition hover:border-gray-500 hover:text-white"
+          className="rounded-xl border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 transition hover:border-gray-500 hover:text-gray-900 dark:hover:text-white"
         >
           {t('adminOneTruthFilterClear')}
         </button>
@@ -734,38 +734,38 @@ function EvidenceDrawer({ pair, onClose, onReviewSaved }) {
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative flex h-full w-full max-w-2xl flex-col overflow-hidden bg-[#111318] shadow-2xl">
-        <div className="flex items-center justify-between border-b border-gray-800 p-5">
+      <div className="relative flex h-full w-full max-w-2xl flex-col overflow-hidden bg-white dark:bg-[#111318] shadow-2xl">
+        <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 p-5">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('adminOneTruthEvidenceTitle')}</p>
-            <p className="mt-1 text-sm text-gray-300">
+            <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
               {[pair.userA.first_name, pair.userA.last_name].filter(Boolean).join(' ') || pair.userA.email}
               {'  vs  '}
               {[pair.userB.first_name, pair.userB.last_name].filter(Boolean).join(' ') || pair.userB.email}
             </p>
           </div>
-          <button onClick={onClose} className="rounded-xl border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:border-gray-500 hover:text-white">
+          <button onClick={onClose} className="rounded-xl border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:border-gray-500 hover:text-gray-900 dark:hover:text-white">
             {t('adminOneTruthEvidenceClose')}
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5">
-          <div className="overflow-hidden rounded-2xl border border-gray-800">
-            <div className="grid grid-cols-[1fr_1fr_1fr] gap-px bg-gray-800 text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">
-              <div className="bg-[#111318] px-4 py-3">{t('adminOneTruthEvidenceField')}</div>
-              <div className="bg-[#111318] px-4 py-3">{t('adminOneTruthEvidenceSideA')}</div>
-              <div className="bg-[#111318] px-4 py-3">{t('adminOneTruthEvidenceSideB')}</div>
+          <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-800">
+            <div className="grid grid-cols-[1fr_1fr_1fr] gap-px bg-gray-100 dark:bg-gray-800 text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">
+              <div className="bg-white dark:bg-[#111318] px-4 py-3">{t('adminOneTruthEvidenceField')}</div>
+              <div className="bg-white dark:bg-[#111318] px-4 py-3">{t('adminOneTruthEvidenceSideA')}</div>
+              <div className="bg-white dark:bg-[#111318] px-4 py-3">{t('adminOneTruthEvidenceSideB')}</div>
             </div>
             {rows.map((row) => (
-              <div key={row.labelKey} className={`grid grid-cols-[1fr_1fr_1fr] gap-px bg-gray-800 text-sm ${row.match ? 'bg-emerald-500/5' : ''}`}>
-                <div className="bg-[#14171d] px-4 py-2.5 font-medium text-gray-400">
+              <div key={row.labelKey} className={`grid grid-cols-[1fr_1fr_1fr] gap-px bg-gray-100 dark:bg-gray-800 text-sm ${row.match ? 'bg-emerald-500/5' : ''}`}>
+                <div className="bg-[#14171d] px-4 py-2.5 font-medium text-gray-600 dark:text-gray-400">
                   {t(row.labelKey)}
-                  <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${row.match ? 'bg-emerald-500/15 text-emerald-300' : 'bg-gray-700/60 text-gray-400'}`}>
+                  <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${row.match ? 'bg-emerald-500/15 text-emerald-300' : 'bg-gray-200/60 dark:bg-gray-700/60 text-gray-600 dark:text-gray-400'}`}>
                     {row.match ? t('adminOneTruthEvidenceMatch') : t('adminOneTruthEvidenceDiffers')}
                   </span>
                 </div>
-                <div className="break-words bg-[#111318] px-4 py-2.5 text-gray-200">{row.a}</div>
-                <div className="break-words bg-[#111318] px-4 py-2.5 text-gray-200">{row.b}</div>
+                <div className="break-words bg-white dark:bg-[#111318] px-4 py-2.5 text-gray-700 dark:text-gray-200">{row.a}</div>
+                <div className="break-words bg-white dark:bg-[#111318] px-4 py-2.5 text-gray-700 dark:text-gray-200">{row.b}</div>
               </div>
             ))}
           </div>
@@ -799,7 +799,7 @@ function EvidenceDrawer({ pair, onClose, onReviewSaved }) {
                 <button
                   key={handoff.to}
                   onClick={() => navigate(handoff.to)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-gray-700 bg-gray-900/70 px-3 py-1.5 text-xs font-medium text-gray-300 transition hover:border-gray-500 hover:text-white"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-900/70 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 transition hover:border-gray-500 hover:text-gray-900 dark:hover:text-white"
                 >
                   {t(handoff.labelKey)}
                   <ExternalLink className="h-3 w-3" />
@@ -809,7 +809,7 @@ function EvidenceDrawer({ pair, onClose, onReviewSaved }) {
           </div>
         </div>
 
-        <div className="border-t border-gray-800 p-5">
+        <div className="border-t border-gray-200 dark:border-gray-800 p-5">
           {saveError && <p className="mb-3 text-sm text-red-400">{saveError}</p>}
           <div className="flex flex-wrap gap-2">
             {reviewButtons.map((button) => (
@@ -866,8 +866,8 @@ function AccessRequestPanel() {
     return (
       <div className="mx-auto max-w-xl rounded-3xl border border-emerald-500/25 bg-emerald-500/5 p-8 text-center">
         <CheckCircle className="mx-auto mb-3 h-10 w-10 text-emerald-400" />
-        <p className="text-lg font-semibold text-white">{t('adminOneTruthAccessRequestTitle')}</p>
-        <p className="mt-2 text-sm leading-6 text-gray-300">{t('adminOneTruthAccessPending')}</p>
+        <p className="text-lg font-semibold text-gray-900 dark:text-white">{t('adminOneTruthAccessRequestTitle')}</p>
+        <p className="mt-2 text-sm leading-6 text-gray-700 dark:text-gray-300">{t('adminOneTruthAccessPending')}</p>
       </div>
     );
   }
@@ -875,14 +875,14 @@ function AccessRequestPanel() {
   const inputClass = 'w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-orange-500';
 
   return (
-    <div className="mx-auto max-w-xl rounded-3xl border border-gray-800 bg-[#111318] p-6">
+    <div className="mx-auto max-w-xl rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-6">
       <div className="mb-5 flex items-center gap-3">
         <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-orange-500/25 bg-orange-500/10">
           <KeyRound className="h-5 w-5 text-orange-400" />
         </div>
         <div>
-          <p className="text-lg font-semibold text-white">{t('adminOneTruthAccessRequiredTitle')}</p>
-          <p className="mt-1 text-sm leading-6 text-gray-400">{t('adminOneTruthAccessRequiredText')}</p>
+          <p className="text-lg font-semibold text-gray-900 dark:text-white">{t('adminOneTruthAccessRequiredTitle')}</p>
+          <p className="mt-1 text-sm leading-6 text-gray-600 dark:text-gray-400">{t('adminOneTruthAccessRequiredText')}</p>
         </div>
       </div>
 
@@ -1139,16 +1139,16 @@ export default function OneTruthPage() {
   // P1 item 11/12.2: no active grant — the page becomes the request flow.
   if (accessDenied) {
     return (
-      <div className="min-h-screen bg-[#0b0d11] px-4 py-12 text-white sm:px-6">
+      <div className="min-h-screen bg-[#0b0d11] px-4 py-12 text-gray-900 dark:text-white sm:px-6">
         <AccessRequestPanel />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0b0d11] px-4 py-6 text-white sm:px-6">
+    <div className="min-h-screen bg-[#0b0d11] px-4 py-6 text-gray-900 dark:text-white sm:px-6">
       <div className="mx-auto max-w-7xl space-y-6">
-        <div className="overflow-hidden rounded-[28px] border border-gray-800 bg-gradient-to-br from-[#12151c] via-[#0e1117] to-[#0b0d11]">
+        <div className="overflow-hidden rounded-[28px] border border-gray-200 dark:border-gray-800 bg-gradient-to-br from-[#12151c] via-[#0e1117] to-[#0b0d11]">
           <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1.3fr)_420px] lg:p-7">
             <div className="space-y-5">
               <div className="flex items-start justify-between gap-4">
@@ -1159,17 +1159,17 @@ export default function OneTruthPage() {
                     </div>
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-300/80">{t('adminOneTruthSuperAdmin')}</p>
-                      <h1 className="text-3xl font-semibold text-white">{t('adminOneTruthTitle')}</h1>
+                      <h1 className="text-3xl font-semibold text-gray-900 dark:text-white">{t('adminOneTruthTitle')}</h1>
                     </div>
                   </div>
-                  <p className="max-w-2xl text-sm leading-7 text-gray-300">
+                  <p className="max-w-2xl text-sm leading-7 text-gray-700 dark:text-gray-300">
                     {t('adminOneTruthSubtitle')}
                   </p>
                 </div>
 
                 <button
                   onClick={handleRefresh}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-gray-700 bg-gray-900/70 px-3 py-2 text-sm text-gray-300 transition hover:text-white"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-900/70 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 transition hover:text-gray-900 dark:hover:text-white"
                 >
                   <RefreshCw className={`h-4 w-4 ${statsLoading || suspectLoading || usersLoading ? 'animate-spin' : ''}`} />
                   {t('common.refresh')}
@@ -1215,10 +1215,10 @@ export default function OneTruthPage() {
               </div>
             </div>
 
-            <div className="rounded-[26px] border border-gray-800 bg-[#111318] p-5">
+            <div className="rounded-[26px] border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-5">
               <div className="mb-4 flex items-center gap-2">
                 <Filter className="h-4 w-4 text-orange-400" />
-                <p className="text-sm font-semibold text-white">{t('adminOneTruthScopeFilters')}</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">{t('adminOneTruthScopeFilters')}</p>
               </div>
 
               <div className="space-y-4">
@@ -1227,7 +1227,7 @@ export default function OneTruthPage() {
                   <select
                     value={country}
                     onChange={(event) => setCountry(event.target.value)}
-                    className="w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-3 text-sm text-white outline-none transition focus:border-orange-500"
+                    className="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-3 text-sm text-gray-900 dark:text-white outline-none transition focus:border-orange-500"
                     disabled={filtersLoading}
                   >
                     <option value="">{t('adminOneTruthAllCountries')}</option>
@@ -1244,7 +1244,7 @@ export default function OneTruthPage() {
                   <select
                     value={regionId}
                     onChange={(event) => setRegionId(event.target.value)}
-                    className="w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-3 text-sm text-white outline-none transition focus:border-orange-500"
+                    className="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-3 text-sm text-gray-900 dark:text-white outline-none transition focus:border-orange-500"
                     disabled={filtersLoading}
                   >
                     <option value="">{t('adminOneTruthAllAdminRegions')}</option>
@@ -1259,12 +1259,12 @@ export default function OneTruthPage() {
                 <button
                   onClick={clearFilters}
                   disabled={!country && !regionId}
-                  className="w-full rounded-2xl border border-gray-700 px-3 py-2.5 text-sm font-medium text-gray-300 transition hover:border-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  className="w-full rounded-2xl border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 transition hover:border-gray-500 hover:text-gray-900 dark:hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {t('adminOneTruthClearScope')}
                 </button>
 
-                <div className="rounded-2xl border border-orange-500/20 bg-orange-500/6 p-4 text-sm leading-6 text-gray-300">
+                <div className="rounded-2xl border border-orange-500/20 bg-orange-500/6 p-4 text-sm leading-6 text-gray-700 dark:text-gray-300">
                   {t('adminOneTruthScopeHelp')}
                 </div>
               </div>
@@ -1304,21 +1304,21 @@ export default function OneTruthPage() {
 
         <CoverageCard coverage={stats?.coverage} />
 
-        <div className="rounded-3xl border border-gray-800 bg-[#111318] p-5">
+        <div className="rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-5">
           <div className="mb-4 flex items-start gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-orange-500/25 bg-orange-500/10">
               <Zap className="h-4 w-4 text-orange-400" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">{t('adminOneTruthPolicyTitle')}</p>
-              <p className="mt-1 text-sm leading-6 text-gray-400">
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">{t('adminOneTruthPolicyTitle')}</p>
+              <p className="mt-1 text-sm leading-6 text-gray-600 dark:text-gray-400">
                 {t('adminOneTruthPolicyText')}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex border-b border-gray-800">
+        <div className="flex border-b border-gray-200 dark:border-gray-800">
           {TABS.map((item) => (
             <button
               key={item.id}
@@ -1326,7 +1326,7 @@ export default function OneTruthPage() {
               className={`flex items-center gap-2 border-b-2 px-5 py-3 text-sm font-medium transition ${
                 tab === item.id
                   ? 'border-orange-500 text-orange-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-300'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
               <item.icon className="h-4 w-4" />
@@ -1350,7 +1350,7 @@ export default function OneTruthPage() {
             />
 
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 {suspectLoading ? t('adminOneTruthRunningDetection') : t('adminOneTruthSuspectedPairs', { count: suspectTotal })}
               </p>
               <div className="flex flex-wrap gap-3 text-xs text-gray-500">
@@ -1397,7 +1397,7 @@ export default function OneTruthPage() {
 
         {tab === 'users' && (
           <div className="space-y-4">
-            <div className="rounded-3xl border border-gray-800 bg-[#111318] p-4">
+            <div className="rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4">
               <form onSubmit={handleUserSearch} className="flex flex-col gap-3 lg:flex-row">
                 <SuggestDropdown
                   id="one-truth-user-search"
@@ -1439,7 +1439,7 @@ export default function OneTruthPage() {
             )}
 
             {!usersLoading && !usersError && users.length === 0 && (
-              <div className="rounded-2xl border border-gray-800 bg-[#111318] py-12 text-center text-gray-500">
+              <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] py-12 text-center text-gray-500">
                 {t('adminOneTruthNoUsers')}
               </div>
             )}

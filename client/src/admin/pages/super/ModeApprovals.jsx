@@ -51,19 +51,19 @@ function ApprovalCard({ approval, onChange }) {
   const fields = Object.entries(data);
 
   return (
-    <article className="rounded-xl border border-gray-800 bg-gray-900/40 p-5 flex flex-col gap-4">
+    <article className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/40 dark:bg-gray-900/40 p-5 flex flex-col gap-4">
       <header className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-base font-semibold text-white flex items-center gap-2">
-              <User size={14} className="text-gray-400" />
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <User size={14} className="text-gray-600 dark:text-gray-400" />
               {approval.first_name} {approval.last_name}
             </h3>
             <span className="text-[10px] px-2 py-0.5 rounded-md uppercase tracking-wider font-bold bg-orange-500/15 text-orange-300">
               {approval.mode}
             </span>
           </div>
-          <div className="text-xs text-gray-400 mt-1 flex items-center gap-3 flex-wrap">
+          <div className="text-xs text-gray-600 dark:text-gray-400 mt-1 flex items-center gap-3 flex-wrap">
             <span className="flex items-center gap-1"><Mail size={11} /> {approval.email}</span>
             <span className="flex items-center gap-1"><Clock size={11} /> {t('adminModeApprovalsSubmitted', { date: new Date(approval.requested_at).toLocaleString() })}</span>
           </div>
@@ -84,7 +84,7 @@ function ApprovalCard({ approval, onChange }) {
                 type="button"
                 onClick={() => setShowReject(true)}
                 disabled={!!busy}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-gray-700 hover:border-red-500 hover:text-red-400 text-gray-300 text-sm font-semibold disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-gray-300 dark:border-gray-700 hover:border-red-500 hover:text-red-400 text-gray-700 dark:text-gray-300 text-sm font-semibold disabled:opacity-50"
               >
                 <X size={14} /> {t('adminModeApprovalsReject')}
               </button>
@@ -100,10 +100,10 @@ function ApprovalCard({ approval, onChange }) {
             onChange={(e) => setReason(e.target.value)}
             rows={3}
             placeholder={t('adminModeApprovalsReasonPlaceholder')}
-            className="w-full px-3 py-2 bg-gray-800/50 border border-gray-700 rounded-md text-white text-sm placeholder-gray-500 focus:outline-none focus:border-red-500"
+            className="w-full px-3 py-2 bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-md text-gray-900 dark:text-white text-sm placeholder-gray-500 focus:outline-none focus:border-red-500"
           />
           <div className="mt-2 flex gap-2 justify-end">
-            <button onClick={() => { setShowReject(false); setReason(''); }} className="text-xs text-gray-400 hover:text-white px-2 py-1">{t('common.cancel')}</button>
+            <button onClick={() => { setShowReject(false); setReason(''); }} className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-2 py-1">{t('common.cancel')}</button>
             <button
               onClick={handleReject}
               disabled={!!busy}
@@ -123,7 +123,7 @@ function ApprovalCard({ approval, onChange }) {
           fields.map(([key, val]) => (
             <div key={key}>
               <div className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">{key.replace(/_/g, ' ')}</div>
-              <div className="text-gray-200 whitespace-pre-wrap mt-0.5">{String(val || '—')}</div>
+              <div className="text-gray-700 dark:text-gray-200 whitespace-pre-wrap mt-0.5">{String(val || '—')}</div>
             </div>
           ))
         )}
@@ -162,15 +162,15 @@ export default function ModeApprovals() {
     <div className="space-y-6">
       <header className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">{t('adminModeApprovalsTitle')}</h1>
-          <p className="text-sm text-gray-400 mt-1">{t('adminModeApprovalsSubtitle')}</p>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{t('adminModeApprovalsTitle')}</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{t('adminModeApprovalsSubtitle')}</p>
         </div>
         <div>
           <label className="text-[11px] uppercase tracking-wider text-gray-500 mr-2">{t('adminModeApprovalsFilterByMode')}</label>
           <select
             value={filterMode}
             onChange={(e) => setFilterMode(e.target.value)}
-            className="px-3 py-1.5 bg-gray-800/50 border border-gray-700 rounded-md text-white text-sm"
+            className="px-3 py-1.5 bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-md text-gray-900 dark:text-white text-sm"
           >
             <option value="">{t('common.all')}</option>
             <option value="consultant">{t('adminModeApprovalsModeConsultant')}</option>
@@ -189,7 +189,7 @@ export default function ModeApprovals() {
       ) : error ? (
         <AdminErrorState onRetry={reload} />
       ) : approvals.length === 0 ? (
-        <div className="rounded-xl border border-gray-800 p-12 text-center text-gray-400">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-12 text-center text-gray-600 dark:text-gray-400">
           {t('adminModeApprovalsEmptyQueue')}
         </div>
       ) : (
