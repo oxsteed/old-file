@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  Building2, Crown, MapPin, Users as UsersIcon,
+  Building2, Crown, MapPin, Users as UsersIcon, UserX, UserPlus,
   ChevronDown, ChevronRight, Loader2, Filter,
 } from 'lucide-react';
 import { getCorporateOrgChart, getCorporateCatalog } from '../../../api/corporateRoles';
@@ -33,32 +34,32 @@ function Avatar({ row, size = 36 }) {
   );
 }
 
-function DepartmentSection({ block }) {
+function DepartmentPositionSection({ department, titles }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(true);
-  const { department, assignments } = block;
+  const filled = titles.filter((x) => x.assignee).length;
 
-  // Group by seniority within department for cleaner display
+  // Group positions by seniority within the department
   const groups = {};
-  for (const a of assignments) {
-    const k = a.seniority_level;
+  for (const x of titles) {
+    const k = x.seniority_level;
     if (!groups[k]) groups[k] = [];
-    groups[k].push(a);
+    groups[k].push(x);
   }
   const seniorityKeys = Object.keys(groups).map(Number).sort((a, b) => b - a);
 
   return (
-    <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+    <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-950"
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-950"
         style={{ borderLeft: `4px solid ${department.color || '#7c3aed'}` }}
       >
         <div className="flex items-center gap-3">
           <Building2 size={18} style={{ color: department.color || '#7c3aed' }} />
           <div>
-            <div className="text-white font-semibold">{department.name}</div>
-            <div className="text-xs text-gray-500">{t('adminOrgChart.activeAssignments', { count: assignments.length })}</div>
+            <div className="text-gray-900 dark:text-white font-semibold">{department.name}</div>
+            <div className="text-xs text-gray-500">{t('adminOrgChart.filledStats', { filled, total: titles.length })}</div>
           </div>
         </div>
         {open ? <ChevronDown size={18} className="text-gray-500" />
@@ -73,27 +74,50 @@ function DepartmentSection({ block }) {
                 <div className="text-xs uppercase text-gray-500 tracking-wide">
                   {t('adminOrgChart.level', { level })}
                 </div>
-                <div className="flex-1 h-px bg-gray-800" />
+                <div className="flex-1 h-px bg-gray-200 dark:bg-gray-800" />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {groups[level].map(a => (
+                {groups[level].map(x => (
                   <div
-                    key={a.id}
-                    className="bg-gray-950 border border-gray-800 rounded-lg p-3 flex gap-3"
+                    key={x.id}
+                    className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg p-3 flex gap-3"
                   >
-                    <Avatar row={a} size={42} />
+                    {x.assignee ? (
+                      <Avatar row={x.assignee} size={42} />
+                    ) : (
+                      <div
+                        style={{ width: 42, height: 42 }}
+                        className="rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-gray-400 flex-shrink-0"
+                      >
+                        <UserX size={18} />
+                      </div>
+                    )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-0.5">
-                        {a.is_csuite && <Crown size={12} className="text-yellow-400 flex-shrink-0" />}
-                        <div className="text-white text-sm font-medium truncate">
-                          {a.title_name}
+                        {x.is_csuite && <Crown size={12} className="text-yellow-400 flex-shrink-0" />}
+                        <div className="text-gray-900 dark:text-white text-sm font-medium truncate">
+                          {x.name}
                         </div>
                       </div>
-                      <div className="text-xs text-gray-400 truncate">{userName(a)}</div>
-                      <div className="text-xs text-gray-500 truncate mt-0.5 flex items-center gap-1">
-                        <MapPin size={10} />
-                        {a.country_code || t('adminOrgChart.global')}
-                      </div>
+                      {x.assignee ? (
+                        <>
+                          <div className="text-xs text-gray-600 dark:text-gray-400 truncate">{userName(x.assignee)}</div>
+                          <div className="text-xs text-gray-500 truncate mt-0.5 flex items-center gap-1">
+                            <MapPin size={10} />
+                            {x.assignee.country_code || t('adminOrgChart.global')}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5">
+                          {t('adminOrgChart.vacant')}
+                          <Link
+                            to="/admin/corporate/assignments"
+                            className="inline-flex items-center gap-0.5 text-orange-600 dark:text-orange-400 hover:text-orange-500 font-medium"
+                          >
+                            <UserPlus size={11} /> {t('adminOrgChart.assign')}
+                          </Link>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -133,6 +157,24 @@ export default function CorporateOrgChart() {
   }, [country]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Department view is position-based: group every title by department
+  // so vacant roles render instead of vanishing.
+  const deptGroups = useMemo(() => {
+    const byDept = new Map();
+    for (const x of (chart?.titles || [])) {
+      if (!byDept.has(x.department_code)) {
+        byDept.set(x.department_code, {
+          code: x.department_code,
+          name: x.department_name,
+          color: x.department_color,
+          titles: [],
+        });
+      }
+      byDept.get(x.department_code).titles.push(x);
+    }
+    return [...byDept.values()];
+  }, [chart]);
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -201,7 +243,7 @@ export default function CorporateOrgChart() {
             </p>
           </div>
         )
-      ) : !chart || chart.total_assignments === 0 ? (
+      ) : !deptGroups.length ? (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-10 text-center">
           <UsersIcon size={32} className="text-gray-600 mx-auto mb-3" />
           <p className="text-gray-300 font-medium mb-1">{t('adminOrgChart.emptyTitle')}</p>
@@ -211,8 +253,8 @@ export default function CorporateOrgChart() {
         </div>
       ) : (
         <div className="space-y-4">
-          {(chart.by_department || []).map(block => (
-            <DepartmentSection key={block.department.code} block={block} />
+          {deptGroups.map(d => (
+            <DepartmentPositionSection key={d.code} department={d} titles={d.titles} />
           ))}
         </div>
       )}
