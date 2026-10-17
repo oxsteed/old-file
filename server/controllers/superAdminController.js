@@ -3856,10 +3856,10 @@ exports.getUserActivityLog = async (req, res) => {
           l.created_at,
           u.first_name || ' ' || u.last_name AS actor_name,
           u.email AS actor_email,
-          u.role  AS actor_role
+          u.role::TEXT AS actor_role
         FROM admin_user_action_log l
         JOIN users u ON u.id = l.admin_id
-        WHERE l.target_user_id = $1
+        WHERE l.target_user_id = $1::UUID
       `);
     }
 
@@ -3877,10 +3877,10 @@ exports.getUserActivityLog = async (req, res) => {
           a.created_at,
           u.first_name || ' ' || u.last_name AS actor_name,
           u.email AS actor_email,
-          u.role  AS actor_role
+          u.role::TEXT AS actor_role
         FROM admin_audit_log a
         JOIN users u ON u.id = a.admin_id
-        WHERE a.target_id = $1
+        WHERE a.target_id = $1::TEXT
       `);
     }
 
@@ -3900,7 +3900,7 @@ exports.getUserActivityLog = async (req, res) => {
           NULL            AS actor_email,
           'system'        AS actor_role
         FROM user_login_history h
-        WHERE h.user_id = $1
+        WHERE h.user_id = $1::UUID
       `);
     }
 
@@ -3918,10 +3918,10 @@ exports.getUserActivityLog = async (req, res) => {
           l.started_at     AS created_at,
           u.first_name || ' ' || u.last_name AS actor_name,
           u.email          AS actor_email,
-          u.role           AS actor_role
+          u.role::TEXT  AS actor_role
         FROM user_impersonation_log l
         JOIN users u ON u.id = l.admin_id
-        WHERE l.target_user_id = $1
+        WHERE l.target_user_id = $1::UUID
       `);
     }
 
