@@ -32,12 +32,12 @@ function fmtRelative(d, t) {
 }
 
 const EVENT_META = {
-  user_registered:  { labelKey: 'superDashboard.eventUserRegistered', color: 'text-blue-400',   icon: Users },
-  published_job:    { labelKey: 'superDashboard.eventPublishedJob',    color: 'text-yellow-400', icon: Briefcase },
-  in_progress_job:  { labelKey: 'superDashboard.eventInProgressJob',   color: 'text-orange-400', icon: Activity },
-  completed_job:    { labelKey: 'superDashboard.eventCompletedJob',    color: 'text-emerald-400',icon: CheckCircle },
-  cancelled_job:    { labelKey: 'superDashboard.eventCancelledJob',    color: 'text-red-400',    icon: XCircle },
-  support_ticket:   { labelKey: 'superDashboard.eventSupportTicket',   color: 'text-indigo-400', icon: MessageSquare },
+  user_registered:  { labelKey: 'superDashboard.eventUserRegistered', color: 'text-blue-600 dark:text-blue-400',   icon: Users },
+  published_job:    { labelKey: 'superDashboard.eventPublishedJob',    color: 'text-yellow-600 dark:text-yellow-400', icon: Briefcase },
+  in_progress_job:  { labelKey: 'superDashboard.eventInProgressJob',   color: 'text-orange-600 dark:text-orange-400', icon: Activity },
+  completed_job:    { labelKey: 'superDashboard.eventCompletedJob',    color: 'text-emerald-600 dark:text-emerald-400',icon: CheckCircle },
+  cancelled_job:    { labelKey: 'superDashboard.eventCancelledJob',    color: 'text-red-600 dark:text-red-400',    icon: XCircle },
+  support_ticket:   { labelKey: 'superDashboard.eventSupportTicket',   color: 'text-indigo-600 dark:text-indigo-400', icon: MessageSquare },
 };
 
 // ─── sub-components ───────────────────────────────────────────────────────────
@@ -49,10 +49,10 @@ function SectionHeading({ children }) {
 function AlertCard({ icon: Icon, title, detail, to, color = 'red' }) {
   const { t } = useTranslation();
   const colors = {
-    red:    { bg: 'bg-red-500/10',    border: 'border-red-500/25',    icon: 'text-red-400',    link: 'text-red-400 hover:text-red-300'    },
-    yellow: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/25', icon: 'text-yellow-400', link: 'text-yellow-400 hover:text-yellow-300' },
-    indigo: { bg: 'bg-indigo-500/10', border: 'border-indigo-500/25', icon: 'text-indigo-400', link: 'text-indigo-400 hover:text-indigo-300' },
-    orange: { bg: 'bg-orange-500/10', border: 'border-orange-500/25', icon: 'text-orange-400', link: 'text-orange-400 hover:text-orange-300' },
+    red:    { bg: 'bg-red-500/10',    border: 'border-red-500/25',    icon: 'text-red-600 dark:text-red-400',    link: 'text-red-600 dark:text-red-400 hover:text-red-300'    },
+    yellow: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/25', icon: 'text-yellow-600 dark:text-yellow-400', link: 'text-yellow-600 dark:text-yellow-400 hover:text-yellow-300' },
+    indigo: { bg: 'bg-indigo-500/10', border: 'border-indigo-500/25', icon: 'text-indigo-600 dark:text-indigo-400', link: 'text-indigo-600 dark:text-indigo-400 hover:text-indigo-300' },
+    orange: { bg: 'bg-orange-500/10', border: 'border-orange-500/25', icon: 'text-orange-600 dark:text-orange-400', link: 'text-orange-600 dark:text-orange-400 hover:text-orange-300' },
   };
   const c = colors[color] || colors.red;
   return (
@@ -60,7 +60,7 @@ function AlertCard({ icon: Icon, title, detail, to, color = 'red' }) {
       <div className="flex items-center gap-3 min-w-0">
         <Icon size={16} className={`${c.icon} shrink-0`} />
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-white truncate">{title}</p>
+          <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{title}</p>
           {detail && <p className={`text-xs mt-0.5 ${c.icon}`}>{detail}</p>}
         </div>
       </div>
@@ -84,13 +84,13 @@ function ActivityFeed({ events, loading }) {
   return (
     <div className="space-y-1">
       {events.map((evt, i) => {
-        const meta = EVENT_META[evt.type] || { labelKey: null, color: 'text-gray-400', icon: Activity };
+        const meta = EVENT_META[evt.type] || { labelKey: null, color: 'text-gray-600 dark:text-gray-400', icon: Activity };
         const Icon = meta.icon;
         return (
-          <div key={i} className="flex items-center gap-3 py-2 border-b border-gray-800/60 last:border-0">
+          <div key={i} className="flex items-center gap-3 py-2 border-b border-gray-200 dark:border-gray-800/60 last:border-0">
             <Icon size={13} className={`${meta.color} shrink-0`} />
             <div className="flex-1 min-w-0">
-              <span className="text-xs text-gray-300 truncate">{evt.label || t('superDashboard.entityRef', { id: evt.entity_id })}</span>
+              <span className="text-xs text-gray-700 dark:text-gray-300 truncate">{evt.label || t('superDashboard.entityRef', { id: evt.entity_id })}</span>
               <span className={`text-xs ${meta.color} ml-1.5`}>{meta.labelKey ? t(meta.labelKey) : evt.type}</span>
             </div>
             <span className="text-xs text-gray-600 shrink-0">{fmtRelative(evt.occurred_at, t)}</span>
@@ -115,10 +115,10 @@ function GeoTable({ rows, loading, label }) {
         return (
           <div key={i}>
             <div className="flex justify-between text-xs mb-1">
-              <span className="text-gray-300 truncate max-w-[60%]">{loc || t('superDashboard.geoUnknown')}</span>
+              <span className="text-gray-700 dark:text-gray-300 truncate max-w-[60%]">{loc || t('superDashboard.geoUnknown')}</span>
               <span className="text-gray-500">{count.toLocaleString()} {label}</span>
             </div>
-            <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+            <div className="h-1 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
               <div className="h-full bg-orange-500/60 rounded-full" style={{ width: `${pct}%` }} />
             </div>
           </div>
@@ -249,14 +249,14 @@ export default function SuperDashboard() {
       {/* ── Page header ─────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">{t('superDashboard.title')}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('superDashboard.title')}</h1>
           <p className="text-gray-500 text-sm mt-0.5">
             {adminDate(new Date(), { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
           </p>
         </div>
         <div className="flex items-center gap-3">
           {isSuper && (
-            <div className="flex gap-1 bg-[#111318] border border-gray-800 rounded-xl p-1">
+            <div className="flex gap-1 bg-gray-100 dark:bg-[#111318] border border-gray-200 dark:border-gray-800 rounded-xl p-1">
               {['1d', '7d', '30d', '90d', '1y'].map(p => (
                 <button
                   key={p}
@@ -264,7 +264,7 @@ export default function SuperDashboard() {
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
                     period === p
                       ? 'bg-orange-500 text-white shadow-sm'
-                      : 'text-gray-400 hover:text-white'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
                   {p}
@@ -275,7 +275,7 @@ export default function SuperDashboard() {
           <button
             onClick={refreshAll}
             disabled={busy}
-            className="inline-flex items-center gap-2 rounded-lg bg-[#111318] border border-gray-800 px-3 py-2 text-xs font-semibold text-gray-400 hover:text-gray-200 transition disabled:opacity-40"
+            className="inline-flex items-center gap-2 rounded-lg bg-white dark:bg-[#111318] border border-gray-200 dark:border-gray-800 px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition disabled:opacity-40"
             title={t('superDashboard.refresh')}
           >
             <RefreshCw size={14} className={busy ? 'animate-spin' : ''} />
@@ -285,7 +285,7 @@ export default function SuperDashboard() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-800 bg-[#111318] px-2.5 py-1">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] px-2.5 py-1">
           <span className={`h-1.5 w-1.5 rounded-full ${loading ? 'bg-yellow-400' : error ? 'bg-red-400' : 'bg-emerald-400'}`} />
           {loading ? t('superDashboard.statusLoading') : error ? t('superDashboard.statusAttention') : t('superDashboard.statusCurrent')}
         </span>
@@ -293,7 +293,7 @@ export default function SuperDashboard() {
       </div>
 
       {error && (
-        <div className="flex flex-wrap items-center justify-between gap-3 bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-300 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-700 dark:text-red-300 text-sm">
           <span>{error}</span>
           <button type="button" onClick={refreshAll} disabled={busy} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/10 disabled:opacity-50">{t('superDashboard.tryAgain')}</button>
         </div>
@@ -319,7 +319,7 @@ export default function SuperDashboard() {
               value={s?.total_revenue_cents ?? null}
               format="currency"
               icon={DollarSign}
-              color="text-orange-400"
+              color="text-orange-600 dark:text-orange-400"
               highlight
             />
             <StatCard
@@ -327,7 +327,7 @@ export default function SuperDashboard() {
               value={s?.revenue_period_cents ?? null}
               format="currency"
               icon={TrendingUp}
-              color="text-emerald-400"
+              color="text-emerald-600 dark:text-emerald-400"
               delta={s?.revenue_delta_cents}
               deltaLabel={t('superDashboard.vsPrevPeriod')}
               subtitle={s ? t('superDashboard.subRevenue', { amount: fmt$(s.subscription_revenue_period_cents) }) : undefined}
@@ -337,14 +337,14 @@ export default function SuperDashboard() {
               value={s?.revenue_mtd_cents ?? null}
               format="currency"
               icon={BarChart2}
-              color="text-blue-400"
+              color="text-blue-600 dark:text-blue-400"
               subtitle={s ? t('superDashboard.subRevenue', { amount: fmt$(s.subscription_revenue_mtd_cents) }) : undefined}
             />
             <StatCard
               label={t('superDashboard.statActiveSubscribers')}
               value={s?.active_subscriptions ?? null}
               icon={CreditCard}
-              color="text-purple-400"
+              color="text-purple-600 dark:text-purple-400"
               subtitle={s?.refunds_period_cents ? t('superDashboard.refundsLabel', { period: pl, amount: fmt$(s.refunds_period_cents) }) : undefined}
             />
           </div>
@@ -355,24 +355,24 @@ export default function SuperDashboard() {
       <section>
         <SectionHeading>{t('superDashboard.usersSection')}</SectionHeading>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard label={t('superDashboard.statTotalUsers')}    value={s?.total_users     ?? null} icon={Users}     color="text-blue-400" />
-          <StatCard label={t('superDashboard.statTotalCustomers')} value={s?.total_customers ?? null} icon={Users}     color="text-sky-400" />
+          <StatCard label={t('superDashboard.statTotalUsers')}    value={s?.total_users     ?? null} icon={Users}     color="text-blue-600 dark:text-blue-400" />
+          <StatCard label={t('superDashboard.statTotalCustomers')} value={s?.total_customers ?? null} icon={Users}     color="text-sky-600 dark:text-sky-400" />
           <StatCard
             label={t('superDashboard.statNewUsers', { period: pl })}
             value={s?.new_users_period ?? null}
             icon={TrendingUp}
-            color="text-emerald-400"
+            color="text-emerald-600 dark:text-emerald-400"
             delta={s?.new_users_delta}
             deltaLabel={t('superDashboard.vsPrev')}
             subtitle={s?.new_users_today ? t('superDashboard.todayCount', { count: s.new_users_today }) : undefined}
           />
-          <StatCard label={t('superDashboard.statBrokers')}        value={s?.total_brokers   ?? null} icon={Users}     color="text-purple-400" />
+          <StatCard label={t('superDashboard.statBrokers')}        value={s?.total_brokers   ?? null} icon={Users}     color="text-purple-600 dark:text-purple-400" />
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
-          <StatCard label={t('superDashboard.statTotalHelpers')}       value={s?.total_helpers      ?? null} icon={Shield}  color="text-orange-400" />
-          <StatCard label={t('superDashboard.statVerifiedHelpers')}    value={s?.verified_helpers   ?? null} icon={UserCheck} color="text-emerald-400" href="/admin/users?role=helper" />
-          <StatCard label={t('superDashboard.statUnverifiedHelpers')}  value={s?.unverified_helpers ?? null} icon={UserCheck} color="text-yellow-400" href="/admin/users?role=helper" />
-          <StatCard label={t('superDashboard.statSuspendedBanned')}  value={s?.suspended_users    ?? null} icon={UserX}   color="text-red-400" href="/admin/users?status=banned" />
+          <StatCard label={t('superDashboard.statTotalHelpers')}       value={s?.total_helpers      ?? null} icon={Shield}  color="text-orange-600 dark:text-orange-400" />
+          <StatCard label={t('superDashboard.statVerifiedHelpers')}    value={s?.verified_helpers   ?? null} icon={UserCheck} color="text-emerald-600 dark:text-emerald-400" href="/admin/users?role=helper" />
+          <StatCard label={t('superDashboard.statUnverifiedHelpers')}  value={s?.unverified_helpers ?? null} icon={UserCheck} color="text-yellow-600 dark:text-yellow-400" href="/admin/users?role=helper" />
+          <StatCard label={t('superDashboard.statSuspendedBanned')}  value={s?.suspended_users    ?? null} icon={UserX}   color="text-red-600 dark:text-red-400" href="/admin/users?status=banned" />
         </div>
       </section>
 
@@ -380,24 +380,24 @@ export default function SuperDashboard() {
       <section>
         <SectionHeading>{t('superDashboard.jobsActivity')}</SectionHeading>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard label={t('superDashboard.statOpenJobs')}     value={s?.open_jobs      ?? null} icon={Briefcase} color="text-yellow-400" href="/admin/jobs?status=published" />
-          <StatCard label={t('superDashboard.statActiveJobs')}   value={s?.active_jobs    ?? null} icon={Activity}  color="text-orange-400" href="/admin/jobs?status=in_progress" />
-          <StatCard label={t('superDashboard.statCompleted')}     value={s?.completed_jobs ?? null} icon={CheckCircle} color="text-emerald-400" />
-          <StatCard label={t('superDashboard.statOpenDisputes')} value={s?.open_disputes  ?? null} icon={AlertTriangle} color="text-red-400" href="/admin/disputes" />
+          <StatCard label={t('superDashboard.statOpenJobs')}     value={s?.open_jobs      ?? null} icon={Briefcase} color="text-yellow-600 dark:text-yellow-400" href="/admin/jobs?status=published" />
+          <StatCard label={t('superDashboard.statActiveJobs')}   value={s?.active_jobs    ?? null} icon={Activity}  color="text-orange-600 dark:text-orange-400" href="/admin/jobs?status=in_progress" />
+          <StatCard label={t('superDashboard.statCompleted')}     value={s?.completed_jobs ?? null} icon={CheckCircle} color="text-emerald-600 dark:text-emerald-400" />
+          <StatCard label={t('superDashboard.statOpenDisputes')} value={s?.open_disputes  ?? null} icon={AlertTriangle} color="text-red-600 dark:text-red-400" href="/admin/disputes" />
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
           <StatCard
             label={t('superDashboard.statNewJobs', { period: pl })}
             value={s?.new_jobs_period ?? null}
             icon={Briefcase}
-            color="text-blue-400"
+            color="text-blue-600 dark:text-blue-400"
             delta={s?.new_jobs_delta}
             deltaLabel={t('superDashboard.vsPrev')}
             subtitle={s?.new_jobs_today ? t('superDashboard.todayCount', { count: s.new_jobs_today }) : undefined}
           />
-          <StatCard label={t('superDashboard.statCancelledJobs')}     value={s?.cancelled_jobs   ?? null} icon={XCircle}   color="text-red-400" />
-          <StatCard label={t('superDashboard.statAvgBids')}   value={s?.avg_bids_per_job != null ? String(s.avg_bids_per_job) : null} icon={BarChart2}  color="text-indigo-400" />
-          <StatCard label={t('superDashboard.statCompletionRate')} value={s?.completion_rate  ?? null} format="percent"                                    icon={TrendingUp} color="text-emerald-400" />
+          <StatCard label={t('superDashboard.statCancelledJobs')}     value={s?.cancelled_jobs   ?? null} icon={XCircle}   color="text-red-600 dark:text-red-400" />
+          <StatCard label={t('superDashboard.statAvgBids')}   value={s?.avg_bids_per_job != null ? String(s.avg_bids_per_job) : null} icon={BarChart2}  color="text-indigo-600 dark:text-indigo-400" />
+          <StatCard label={t('superDashboard.statCompletionRate')} value={s?.completion_rate  ?? null} format="percent"                                    icon={TrendingUp} color="text-emerald-600 dark:text-emerald-400" />
         </div>
       </section>
 
@@ -405,10 +405,10 @@ export default function SuperDashboard() {
       <section>
         <SectionHeading>{t('superDashboard.supportModeration')}</SectionHeading>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard label={t('superDashboard.statOpenTickets')} value={s?.open_support_tickets ?? null} icon={MessageSquare} color="text-indigo-400" href="/admin/support" />
-          <StatCard label={t('superDashboard.statPendingReports')}       value={s?.pending_reports      ?? null} icon={Flag}          color="text-yellow-400" href="/admin/reports" />
-          <StatCard label={t('superDashboard.statActiveSubs')}  value={s?.active_subscriptions ?? null} icon={CreditCard}    color="text-purple-400" />
-          <StatCard label={t('superDashboard.statPendingPayouts')}   value={s?.pending_payouts ? Math.round(s.pending_payouts) * 100 : null} format="currency" icon={DollarSign} color="text-orange-400" />
+          <StatCard label={t('superDashboard.statOpenTickets')} value={s?.open_support_tickets ?? null} icon={MessageSquare} color="text-indigo-600 dark:text-indigo-400" href="/admin/support" />
+          <StatCard label={t('superDashboard.statPendingReports')}       value={s?.pending_reports      ?? null} icon={Flag}          color="text-yellow-600 dark:text-yellow-400" href="/admin/reports" />
+          <StatCard label={t('superDashboard.statActiveSubs')}  value={s?.active_subscriptions ?? null} icon={CreditCard}    color="text-purple-600 dark:text-purple-400" />
+          <StatCard label={t('superDashboard.statPendingPayouts')}   value={s?.pending_payouts ? Math.round(s.pending_payouts) * 100 : null} format="currency" icon={DollarSign} color="text-orange-600 dark:text-orange-400" />
         </div>
       </section>
 
@@ -416,7 +416,7 @@ export default function SuperDashboard() {
       {isSuper && (
         <section>
           <SectionHeading>{t('superDashboard.platformHealth')}</SectionHeading>
-          <div className="bg-[#111318] border border-gray-800 rounded-2xl p-4 sm:p-5">
+          <div className="bg-white dark:bg-[#111318] border border-gray-200 dark:border-gray-800 rounded-2xl p-4 sm:p-5">
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
               {[
                 { label: t('superDashboard.healthApi'), status: health ? 'ok' : 'unknown', note: health ? t('superDashboard.healthApiOk') : t('superDashboard.healthApiDown') },
@@ -429,7 +429,7 @@ export default function SuperDashboard() {
                 <div key={label} className="flex items-center gap-2.5">
                   <HealthDot status={status} />
                   <div>
-                    <p className="text-sm font-medium text-white">{label}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{label}</p>
                     <p className="text-xs text-gray-500">{note}</p>
                   </div>
                 </div>
@@ -446,9 +446,9 @@ export default function SuperDashboard() {
             <SectionHeading>{t('superDashboard.securityIncidents')}</SectionHeading>
             {incidents.length > 0 && <span className="mb-3 rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-300">{t('superDashboard.incidentsOpen', { count: incidents.length })}</span>}
           </div>
-          <div className="bg-[#111318] border border-gray-800 rounded-2xl p-4 sm:p-5">
+          <div className="bg-white dark:bg-[#111318] border border-gray-200 dark:border-gray-800 rounded-2xl p-4 sm:p-5">
             {incidentLoading && <div className="flex items-center justify-center py-6"><Loader2 size={18} className="animate-spin text-gray-600" /></div>}
-            {!incidentLoading && incidentError && <p className="py-3 text-sm text-red-300">{incidentError}</p>}
+            {!incidentLoading && incidentError && <p className="py-3 text-sm text-red-700 dark:text-red-300">{incidentError}</p>}
             {!incidentLoading && !incidentError && incidents.length === 0 && <p className="py-3 text-sm text-gray-600">{t('superDashboard.incidentsEmpty')}</p>}
             {!incidentLoading && incidents.length > 0 && (
               <div className="space-y-3">
@@ -458,8 +458,8 @@ export default function SuperDashboard() {
                       <div className="flex min-w-0 items-start gap-3">
                         <AlertTriangle size={17} className="mt-0.5 shrink-0 text-red-400" />
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-white">{incident.type}</p>
-                          <p className="mt-1 text-sm text-gray-300">{incident.message}</p>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">{incident.type}</p>
+                          <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">{incident.message}</p>
                           <p className="mt-1 text-xs text-gray-500">{t('superDashboard.occurrences', { count: incident.occurrenceCount || 1 })} · {t('superDashboard.lastSeen', { relative: fmtRelative(incident.timestamp, t) })}</p>
                         </div>
                       </div>
@@ -492,7 +492,7 @@ export default function SuperDashboard() {
           {/* Recent Activity */}
           <section>
             <SectionHeading>{t('superDashboard.recentActivity')}</SectionHeading>
-            <div className="bg-[#111318] border border-gray-800 rounded-2xl p-4 sm:p-5">
+            <div className="bg-white dark:bg-[#111318] border border-gray-200 dark:border-gray-800 rounded-2xl p-4 sm:p-5">
               <ActivityFeed events={activity} loading={actLoading} />
             </div>
           </section>
@@ -500,7 +500,7 @@ export default function SuperDashboard() {
           {/* Geographic Distribution */}
           <section>
             <SectionHeading>{t('superDashboard.geoDistribution')}</SectionHeading>
-            <div className="bg-[#111318] border border-gray-800 rounded-2xl p-4 sm:p-5 space-y-5">
+            <div className="bg-white dark:bg-[#111318] border border-gray-200 dark:border-gray-800 rounded-2xl p-4 sm:p-5 space-y-5">
               <div>
                 <p className="text-xs font-medium text-gray-400 mb-3">{t('superDashboard.topCitiesUsers')}</p>
                 <GeoTable rows={geo.userGeo} loading={geoLoading} label={t('superDashboard.geoUsers')} />

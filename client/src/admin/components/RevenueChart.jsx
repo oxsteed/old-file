@@ -5,6 +5,7 @@ import {
   Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import adminApi from '../../lib/adminApi';
+import { useTheme } from '../../context/ThemeContext';
 
 function fmt$(cents) {
   return '$' + (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -12,6 +13,7 @@ function fmt$(cents) {
 
 export default function RevenueChart({ period }) {
   const { t } = useTranslation();
+  const { isDark } = useTheme();
   const [data,    setData]    = useState([]);
   const [totals,  setTotals]  = useState(null);
   const [loading, setLoading] = useState(true);
@@ -50,15 +52,15 @@ export default function RevenueChart({ period }) {
   );
 
   return (
-    <div className="bg-[#111318] border border-gray-800 rounded-2xl p-5 sm:p-6">
+    <div className="bg-white dark:bg-[#111318] border border-gray-200 dark:border-gray-800 rounded-2xl p-5 sm:p-6">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
-        <h3 className="font-semibold text-white text-sm">{t('adminRevenueChart.title')}</h3>
+        <h3 className="font-semibold text-gray-900 dark:text-white text-sm">{t('adminRevenueChart.title')}</h3>
         {totals && (
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
-            <span>{t('adminRevenueChart.total')}: <span className="text-white font-semibold">{fmt$(totals.job_fee + totals.subscription)}</span></span>
-            <span>{t('adminRevenueChart.jobFees')}: <span className="text-orange-400 font-medium">{fmt$(totals.job_fee)}</span></span>
-            <span>{t('adminRevenueChart.subscriptions')}: <span className="text-purple-400 font-medium">{fmt$(totals.subscription)}</span></span>
-            {totals.refunds > 0 && <span>{t('adminRevenueChart.refunds')}: <span className="text-red-400 font-medium">-{fmt$(totals.refunds)}</span></span>}
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+            <span>{t('adminRevenueChart.total')}: <span className="text-gray-900 dark:text-white font-semibold">{fmt$(totals.job_fee + totals.subscription)}</span></span>
+            <span>{t('adminRevenueChart.jobFees')}: <span className="text-orange-600 dark:text-orange-400 font-medium">{fmt$(totals.job_fee)}</span></span>
+            <span>{t('adminRevenueChart.subscriptions')}: <span className="text-purple-600 dark:text-purple-400 font-medium">{fmt$(totals.subscription)}</span></span>
+            {totals.refunds > 0 && <span>{t('adminRevenueChart.refunds')}: <span className="text-red-600 dark:text-red-400 font-medium">-{fmt$(totals.refunds)}</span></span>}
           </div>
         )}
       </div>
@@ -78,19 +80,19 @@ export default function RevenueChart({ period }) {
       {isEmpty && (
         <div className="h-64 flex flex-col items-center justify-center gap-3 text-center">
           {/* Placeholder axes hint */}
-          <div className="w-full h-40 relative border border-dashed border-gray-700 rounded-xl flex items-end px-6 pb-4 gap-2">
+          <div className="w-full h-40 relative border border-dashed border-gray-300 dark:border-gray-700 rounded-xl flex items-end px-6 pb-4 gap-2">
             {[0, 0, 0, 0, 0, 0, 0].map((_, i) => (
-              <div key={i} className="flex-1 bg-gray-700/30 rounded-sm" style={{ height: `${(i % 3 + 1) * 8}px` }} />
+              <div key={i} className="flex-1 bg-gray-300/60 dark:bg-gray-700/30 rounded-sm" style={{ height: `${(i % 3 + 1) * 8}px` }} />
             ))}
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center">
-                <p className="text-sm font-medium text-gray-400">{t('adminRevenueChart.noData')}</p>
-                <p className="text-xs text-gray-600 mt-1 max-w-xs">{t('adminRevenueChart.noDataHint')}</p>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('adminRevenueChart.noData')}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-600 mt-1 max-w-xs">{t('adminRevenueChart.noDataHint')}</p>
               </div>
             </div>
           </div>
           {!totals && (
-            <div className="flex gap-4 text-xs text-gray-600">
+            <div className="flex gap-4 text-xs text-gray-500 dark:text-gray-600">
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-500" />{t('adminRevenueChart.jobFees')}</span>
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-500" />{t('adminRevenueChart.subscriptions')}</span>
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500" />{t('adminRevenueChart.refunds')}</span>
@@ -116,14 +118,16 @@ export default function RevenueChart({ period }) {
                 <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#1f2937" : "#e5e7eb"} vertical={false} />
             <XAxis dataKey="period" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `$${v}`} width={55} />
             <Tooltip
-              contentStyle={{ backgroundColor: '#1a1d24', border: '1px solid #374151', borderRadius: '12px', color: '#f9fafb', fontSize: 12 }}
+              contentStyle={isDark
+              ? { backgroundColor: '#1a1d24', border: '1px solid #374151', borderRadius: '12px', color: '#f9fafb', fontSize: 12 }
+              : { backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '12px', color: '#111827', fontSize: 12 }}
               formatter={(value, name) => [`$${value.toFixed(2)}`, name]}
             />
-            <Legend wrapperStyle={{ color: '#6b7280', fontSize: 12, paddingTop: 8 }} />
+            <Legend wrapperStyle={{ color: isDark ? '#6b7280' : '#4b5563', fontSize: 12, paddingTop: 8 }} />
             <Area type="monotone" dataKey={jobFeesLabel}      stroke="#f97316" strokeWidth={2} fill="url(#jobFee)"    />
             <Area type="monotone" dataKey={subscriptionsLabel} stroke="#a855f7" strokeWidth={2} fill="url(#subGrad)"   />
             <Area type="monotone" dataKey={refundsLabel}       stroke="#ef4444" strokeWidth={1.5} fill="url(#refundGrad)" strokeDasharray="4 2" />
