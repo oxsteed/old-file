@@ -29609,7 +29609,11 @@
       "statusActive": "Aktif",
       "statusSuspended": "Sispann",
       "statusBanned": "Entèdi",
-      "statusRestricted": "Restrenn"
+      "statusRestricted": "Restrenn",
+      "statLifetimeValue": "Vale total",
+      "statOpenDisputes": "Diskisyon louvri",
+      "viewTab": "Louvri onglet",
+      "recentVolumeHint": "Denye travay yo (10 denye)"
     },
     "payments": {
       "amount": "Kantite",
@@ -29631,7 +29635,9 @@
       "incidents": "Ensidans",
       "overview": "Apèsi",
       "payments": "Peman",
-      "tickets": "Tikè sipò"
+      "tickets": "Tikè sipò",
+      "notes": "Nòt",
+      "investigation": "Ankèt"
     },
     "tickets": {
       "created": "Kreye",
@@ -29645,7 +29651,104 @@
       "title": "Tikè sipò",
       "updated": "Mete ajou"
     },
-    "title": "Kliyan 360"
+    "title": "Kliyan 360",
+    "header": {
+      "avatarFallback": "Foto kliyan an"
+    },
+    "actions": {
+      "title": "Aksyon rapid",
+      "message": "Mesaj",
+      "warn": "Aveti",
+      "suspend": "Sispann",
+      "restrict": "Restrenn",
+      "reactivate": "Reaktive",
+      "adjustCredit": "Ajiste kredi",
+      "messageTitle": "Voye mesaj bay {name}",
+      "messagePlaceholder": "Ekri yon mesaj pou kliyan an...",
+      "messageSend": "Voye mesaj",
+      "messageSent": "Mesaj voye.",
+      "cancel": "Anile",
+      "close": "Femen",
+      "warnTitle": "Aveti {name}",
+      "warnMessage": "Bay {name} yon avetisman ofisyel. Sa ap anrejistre sou kont li.",
+      "suspendTitle": "Sispann {name}",
+      "suspendMessage": "Sispann {name}? Yo ap dekonekte l toupatou touswit epi li pap ka rekonekte jous yo reaktive l.",
+      "restrictTitle": "Restrenn {name}",
+      "restrictMessage": "Restrenn {name}? Kont li ap rete aktif men make kom restrenn.",
+      "reactivateTitle": "Reaktive {name}",
+      "reactivateMessage": "Reaktive {name}? Sa ap retire sispansyon oswa restriksyon sou kont li.",
+      "reasonLabel": "Rezon",
+      "reasonPlaceholder": "Eksplike poukisa - sa ap anrejistre nan jounal odit la."
+    },
+    "risk": {
+      "title": "Risk ak verifikasyon",
+      "didit": "Didit",
+      "identity": "Idantite",
+      "background": "Antecedan",
+      "email": "Imel",
+      "w9": "W-9",
+      "warnings": "Avetisman",
+      "lastLogin": "Denye koneksyon",
+      "verified": "Verifye",
+      "unverified": "Pa verifye",
+      "passed": "Pase",
+      "complete": "Konple",
+      "incomplete": "Enkonple"
+    },
+    "timeline": {
+      "title": "Kwonoloji",
+      "subtitle": "Rezervasyon, peman, sipò, diskisyon, fwod, ensidan, avi ak aksyon admin nan yon sel fil.",
+      "empty": "Poko gen aktivite.",
+      "filterAll": "Tout",
+      "booking": "Rezervasyon",
+      "payout": "Peman",
+      "review": "Avi ({rating}/5)",
+      "activity": "Aktivite",
+      "adminAction": "Aksyon admin",
+      "kind": {
+        "booking": "Rezervasyon",
+        "payment": "Peman",
+        "support": "Sipò",
+        "dispute": "Diskisyon",
+        "fraud": "Fwod",
+        "incident": "Ensidan",
+        "review": "Avi",
+        "activity": "Aktivite",
+        "admin": "Admin"
+      }
+    },
+    "notes": {
+      "title": "Nòt dosye",
+      "subtitle": "Nòt pou pwochen anketè a. Admin yo selman ka we yo.",
+      "empty": "Poko gen nòt. Kite premye a.",
+      "placeholder": "Ekri yon nòt dosye... (admin yo selman ka we l)",
+      "add": "Ajoute nòt",
+      "edited": "modifye"
+    },
+    "investigation": {
+      "title": "Ankèt",
+      "subtitle": "Lekti pwofil elve. Chak aksè anrejistre ak rezon ak apwobate.",
+      "needGrant": "Vue sa bezwen yon otorizasyon anket limite ak yon rezon. Mande youn anba a; yon apwobate otorize dwe aktive l anvan ou ka li pwofil elve a.",
+      "purposeLabel": "Rezon",
+      "purposePlaceholder": "Poukisa ou bezwen aksè elve sou pwofil sa? (eg. dosye fwod #...)",
+      "requestGrant": "Mande otorizasyon",
+      "grantRequested": "Otorizasyon mande. Yon apwobate otorize dwe aktive l anvan pwofil elve a vizib.",
+      "colEmail": "Imel",
+      "colPhone": "Telefon",
+      "colLocation": "Kote",
+      "colDidit": "Didit",
+      "colIdentity": "Idantite",
+      "colBackground": "Antecedan",
+      "colTier": "Nivo",
+      "colSubscription": "Abònman",
+      "colOnboarding": "Enskripsyon",
+      "colLastLogin": "Denye koneksyon"
+    },
+    "reviews": {
+      "title": "Avi",
+      "subtitle": "Sa kliyan yo te di sou travay itilizate sa.",
+      "rating": "{rating} sou 5"
+    }
   },
   "adminSettingsChanges": {
     "buttons": {

@@ -29620,7 +29620,11 @@
       "statusActive": "نشط",
       "statusSuspended": "موقوف",
       "statusBanned": "محظور",
-      "statusRestricted": "مقيّد"
+      "statusRestricted": "مقيّد",
+      "statLifetimeValue": "القيمة الإجمالية",
+      "statOpenDisputes": "نزاعات مفتوحة",
+      "viewTab": "فتح التبويب",
+      "recentVolumeHint": "أحدث المهام (آخر 10)"
     },
     "payments": {
       "amount": "المبلغ",
@@ -29642,7 +29646,9 @@
       "incidents": "الحوادث",
       "overview": "نظرة عامة",
       "payments": "المدفوعات",
-      "tickets": "تذاكر الدعم"
+      "tickets": "تذاكر الدعم",
+      "notes": "ملاحظات",
+      "investigation": "تحقيق"
     },
     "tickets": {
       "created": "أُنشئت",
@@ -29656,7 +29662,104 @@
       "title": "تذاكر الدعم",
       "updated": "حُدّثت"
     },
-    "title": "العميل 360"
+    "title": "العميل 360",
+    "header": {
+      "avatarFallback": "صورة العميل"
+    },
+    "actions": {
+      "title": "إجراءات سريعة",
+      "message": "مراسلة",
+      "warn": "تحذير",
+      "suspend": "إيقاف",
+      "restrict": "تقييد",
+      "reactivate": "إعادة تفعيل",
+      "adjustCredit": "تعديل الرصيد",
+      "messageTitle": "مراسلة {name}",
+      "messagePlaceholder": "اكتب رسالة إلى العميل...",
+      "messageSend": "إرسال",
+      "messageSent": "تم إرسال الرسالة.",
+      "cancel": "إلغاء",
+      "close": "إغلاق",
+      "warnTitle": "تحذير {name}",
+      "warnMessage": "إصدار تحذير رسمي لـ {name}. سيُسجل في حسابه.",
+      "suspendTitle": "إيقاف {name}",
+      "suspendMessage": "إيقاف {name}؟ سيتم تسجيل خروجه من كل مكان فورا ولن يتمكن من الدخول حتى إعادة التفعيل.",
+      "restrictTitle": "تقييد {name}",
+      "restrictMessage": "تقييد {name}؟ سيبقى حسابه نشطا لكن موسوما كمقيد.",
+      "reactivateTitle": "إعادة تفعيل {name}",
+      "reactivateMessage": "إعادة تفعيل {name}؟ سيؤدي هذا إلى إزالة الإيقاف أو التقييد عن حسابه.",
+      "reasonLabel": "السبب",
+      "reasonPlaceholder": "اشرح السبب - سيُحفظ في سجل التدقيق."
+    },
+    "risk": {
+      "title": "المخاطر والتحقق",
+      "didit": "Didit",
+      "identity": "الهوية",
+      "background": "الخلفية",
+      "email": "البريد",
+      "w9": "W-9",
+      "warnings": "تحذيرات",
+      "lastLogin": "آخر دخول",
+      "verified": "موثق",
+      "unverified": "غير موثق",
+      "passed": "ناجح",
+      "complete": "مكتمل",
+      "incomplete": "غير مكتمل"
+    },
+    "timeline": {
+      "title": "الجدول الزمني",
+      "subtitle": "الحجوزات والمدفوعات والدعم والنزاعات والاحتيال والحوادث والتقييمات وإجراءات الإدارة في موجز واحد.",
+      "empty": "لا يوجد نشاط بعد.",
+      "filterAll": "الكل",
+      "booking": "حجز",
+      "payout": "دفعة",
+      "review": "تقييم ({rating}/5)",
+      "activity": "نشاط",
+      "adminAction": "إجراء إداري",
+      "kind": {
+        "booking": "حجز",
+        "payment": "دفعة",
+        "support": "دعم",
+        "dispute": "نزاع",
+        "fraud": "احتيال",
+        "incident": "حادثة",
+        "review": "تقييم",
+        "activity": "نشاط",
+        "admin": "إدارة"
+      }
+    },
+    "notes": {
+      "title": "ملاحظات القضية",
+      "subtitle": "ملاحظات مثبتة للمحقق التالي. مرئية للمشرفين فقط.",
+      "empty": "لا توجد ملاحظات بعد. اترك الأولى.",
+      "placeholder": "اكتب ملاحظة قضية... (مرئية للمشرفين فقط)",
+      "add": "إضافة ملاحظة",
+      "edited": "معدّلة"
+    },
+    "investigation": {
+      "title": "تحقيق",
+      "subtitle": "قراءة موسعة للملف. كل وصول يُسجل مع الغرض والموافق.",
+      "needGrant": "يتطلب هذا العرض تصريح تحقيق محدود الغرض. اطلب واحدا أدناه؛ يجب أن يفعّله موافق مخول قبل أن تتمكن من قراءة الملف الموسع.",
+      "purposeLabel": "الغرض",
+      "purposePlaceholder": "لماذا تحتاج وصولا موسعا إلى هذا الملف؟ (مثال: قضية احتيال #...)",
+      "requestGrant": "طلب التصريح",
+      "grantRequested": "تم طلب التصريح. يجب أن يفعّله موافق مخول قبل أن يصبح الملف الموسع مرئيا.",
+      "colEmail": "البريد",
+      "colPhone": "الهاتف",
+      "colLocation": "الموقع",
+      "colDidit": "Didit",
+      "colIdentity": "الهوية",
+      "colBackground": "الخلفية",
+      "colTier": "المستوى",
+      "colSubscription": "الاشتراك",
+      "colOnboarding": "التسجيل",
+      "colLastLogin": "آخر دخول"
+    },
+    "reviews": {
+      "title": "التقييمات",
+      "subtitle": "ما قاله العملاء عن عمل هذا المستخدم.",
+      "rating": "{rating} من 5"
+    }
   },
   "adminSettingsChanges": {
     "buttons": {

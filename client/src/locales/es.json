@@ -29609,7 +29609,11 @@
       "statusActive": "Activa",
       "statusSuspended": "Suspendida",
       "statusBanned": "Baneada",
-      "statusRestricted": "Restringida"
+      "statusRestricted": "Restringida",
+      "statLifetimeValue": "Valor total",
+      "statOpenDisputes": "Disputas abiertas",
+      "viewTab": "Abrir pestana",
+      "recentVolumeHint": "Trabajos recientes (ultimos 10)"
     },
     "payments": {
       "amount": "Importe",
@@ -29631,7 +29635,9 @@
       "incidents": "Incidentes",
       "overview": "Resumen",
       "payments": "Pagos",
-      "tickets": "Tickets de soporte"
+      "tickets": "Tickets de soporte",
+      "notes": "Notas",
+      "investigation": "Investigacion"
     },
     "tickets": {
       "created": "Creado",
@@ -29645,7 +29651,104 @@
       "title": "Tickets de soporte",
       "updated": "Actualizado"
     },
-    "title": "Cliente 360"
+    "title": "Cliente 360",
+    "header": {
+      "avatarFallback": "Avatar del cliente"
+    },
+    "actions": {
+      "title": "Acciones rapidas",
+      "message": "Mensaje",
+      "warn": "Advertir",
+      "suspend": "Suspender",
+      "restrict": "Restringir",
+      "reactivate": "Reactivar",
+      "adjustCredit": "Ajustar credito",
+      "messageTitle": "Enviar mensaje a {name}",
+      "messagePlaceholder": "Escribe un mensaje al cliente...",
+      "messageSend": "Enviar mensaje",
+      "messageSent": "Mensaje enviado.",
+      "cancel": "Cancelar",
+      "close": "Cerrar",
+      "warnTitle": "Advertir a {name}",
+      "warnMessage": "Emitir una advertencia formal a {name}. Queda registrada en su cuenta.",
+      "suspendTitle": "Suspender a {name}",
+      "suspendMessage": "Suspender a {name}? Se cerrara su sesion en todas partes de inmediato y no podra volver a entrar hasta ser reactivado.",
+      "restrictTitle": "Restringir a {name}",
+      "restrictMessage": "Restringir a {name}? Su cuenta seguira activa pero marcada como restringida.",
+      "reactivateTitle": "Reactivar a {name}",
+      "reactivateMessage": "Reactivar a {name}? Esto elimina la suspension o restriccion de su cuenta.",
+      "reasonLabel": "Motivo",
+      "reasonPlaceholder": "Explica por que - se guarda en el registro de auditoria."
+    },
+    "risk": {
+      "title": "Riesgo y verificacion",
+      "didit": "Didit",
+      "identity": "Identidad",
+      "background": "Antecedentes",
+      "email": "Correo",
+      "w9": "W-9",
+      "warnings": "Advertencias",
+      "lastLogin": "Ultimo acceso",
+      "verified": "Verificado",
+      "unverified": "Sin verificar",
+      "passed": "Aprobado",
+      "complete": "Completo",
+      "incomplete": "Incompleto"
+    },
+    "timeline": {
+      "title": "Cronologia",
+      "subtitle": "Reservas, pagos, soporte, disputas, fraude, incidentes, resenas y acciones de administracion en una sola vista.",
+      "empty": "Sin actividad todavia.",
+      "filterAll": "Todo",
+      "booking": "Reserva",
+      "payout": "Pago",
+      "review": "Resena ({rating}/5)",
+      "activity": "Actividad",
+      "adminAction": "Accion de admin",
+      "kind": {
+        "booking": "Reserva",
+        "payment": "Pago",
+        "support": "Soporte",
+        "dispute": "Disputa",
+        "fraud": "Fraude",
+        "incident": "Incidente",
+        "review": "Resena",
+        "activity": "Actividad",
+        "admin": "Admin"
+      }
+    },
+    "notes": {
+      "title": "Notas del caso",
+      "subtitle": "Notas fijadas para el proximo investigador. Solo visibles para administradores.",
+      "empty": "Sin notas todavia. Deja la primera.",
+      "placeholder": "Escribe una nota del caso... (solo visible para administradores)",
+      "add": "Agregar nota",
+      "edited": "editado"
+    },
+    "investigation": {
+      "title": "Investigacion",
+      "subtitle": "Lectura elevada del perfil. Cada acceso se registra con proposito y aprobador.",
+      "needGrant": "Esta vista necesita un permiso de investigacion limitado por proposito. Solicitalo abajo; un aprobador autorizado debe activarlo antes de que puedas leer el perfil elevado.",
+      "purposeLabel": "Proposito",
+      "purposePlaceholder": "Por que necesitas acceso elevado a este perfil? (ej. caso de fraude #...)",
+      "requestGrant": "Solicitar permiso",
+      "grantRequested": "Permiso solicitado. Un aprobador autorizado debe activarlo antes de que el perfil elevado sea visible.",
+      "colEmail": "Correo",
+      "colPhone": "Telefono",
+      "colLocation": "Ubicacion",
+      "colDidit": "Didit",
+      "colIdentity": "Identidad",
+      "colBackground": "Antecedentes",
+      "colTier": "Nivel",
+      "colSubscription": "Suscripcion",
+      "colOnboarding": "Registro",
+      "colLastLogin": "Ultimo acceso"
+    },
+    "reviews": {
+      "title": "Resenas",
+      "subtitle": "Lo que dijeron los clientes sobre el trabajo de este usuario.",
+      "rating": "{rating} de 5"
+    }
   },
   "adminSettingsChanges": {
     "buttons": {

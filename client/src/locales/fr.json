@@ -29609,7 +29609,11 @@
       "statusActive": "Actif",
       "statusSuspended": "Suspendu",
       "statusBanned": "Banni",
-      "statusRestricted": "Restreint"
+      "statusRestricted": "Restreint",
+      "statLifetimeValue": "Valeur totale",
+      "statOpenDisputes": "Litiges ouverts",
+      "viewTab": "Ouvrir l'onglet",
+      "recentVolumeHint": "Missions recentes (10 dernieres)"
     },
     "payments": {
       "amount": "Montant",
@@ -29631,7 +29635,9 @@
       "incidents": "Incidents",
       "overview": "Aperçu",
       "payments": "Paiements",
-      "tickets": "Tickets de support"
+      "tickets": "Tickets de support",
+      "notes": "Notes",
+      "investigation": "Enquete"
     },
     "tickets": {
       "created": "Créé",
@@ -29645,7 +29651,104 @@
       "title": "Tickets de support",
       "updated": "Mis à jour"
     },
-    "title": "Client 360"
+    "title": "Client 360",
+    "header": {
+      "avatarFallback": "Avatar du client"
+    },
+    "actions": {
+      "title": "Actions rapides",
+      "message": "Message",
+      "warn": "Avertir",
+      "suspend": "Suspendre",
+      "restrict": "Restreindre",
+      "reactivate": "Reactiver",
+      "adjustCredit": "Ajuster le credit",
+      "messageTitle": "Envoyer un message a {name}",
+      "messagePlaceholder": "Ecrivez un message au client...",
+      "messageSend": "Envoyer",
+      "messageSent": "Message envoye.",
+      "cancel": "Annuler",
+      "close": "Fermer",
+      "warnTitle": "Avertir {name}",
+      "warnMessage": "Emettre un avertissement formel a {name}. Il sera enregistre sur son compte.",
+      "suspendTitle": "Suspendre {name}",
+      "suspendMessage": "Suspendre {name} ? Il sera deconnecte partout immediatement et ne pourra pas se reconnecter avant reactivation.",
+      "restrictTitle": "Restreindre {name}",
+      "restrictMessage": "Restreindre {name} ? Son compte restera actif mais marque comme restreint.",
+      "reactivateTitle": "Reactiver {name}",
+      "reactivateMessage": "Reactiver {name} ? Cela leve la suspension ou la restriction de son compte.",
+      "reasonLabel": "Motif",
+      "reasonPlaceholder": "Expliquez pourquoi - c'est enregistre dans le journal d'audit."
+    },
+    "risk": {
+      "title": "Risque et verification",
+      "didit": "Didit",
+      "identity": "Identite",
+      "background": "Antecedents",
+      "email": "E-mail",
+      "w9": "W-9",
+      "warnings": "Avertissements",
+      "lastLogin": "Derniere connexion",
+      "verified": "Verifie",
+      "unverified": "Non verifie",
+      "passed": "Reussi",
+      "complete": "Termine",
+      "incomplete": "Incomplet"
+    },
+    "timeline": {
+      "title": "Chronologie",
+      "subtitle": "Reservations, paiements, support, litiges, fraude, incidents, avis et actions admin dans un seul fil.",
+      "empty": "Aucune activite pour le moment.",
+      "filterAll": "Tout",
+      "booking": "Reservation",
+      "payout": "Paiement",
+      "review": "Avis ({rating}/5)",
+      "activity": "Activite",
+      "adminAction": "Action admin",
+      "kind": {
+        "booking": "Reservation",
+        "payment": "Paiement",
+        "support": "Support",
+        "dispute": "Litige",
+        "fraud": "Fraude",
+        "incident": "Incident",
+        "review": "Avis",
+        "activity": "Activite",
+        "admin": "Admin"
+      }
+    },
+    "notes": {
+      "title": "Notes du dossier",
+      "subtitle": "Notes epinglees pour le prochain enqueteur. Visibles par les admins uniquement.",
+      "empty": "Aucune note. Laissez la premiere.",
+      "placeholder": "Ecrivez une note du dossier... (visible par les admins uniquement)",
+      "add": "Ajouter",
+      "edited": "modifie"
+    },
+    "investigation": {
+      "title": "Enquete",
+      "subtitle": "Lecture elevee du profil. Chaque acces est journalise avec motif et approbateur.",
+      "needGrant": "Cette vue necessite une autorisation d'enquete limitee a un motif. Demandez-la ci-dessous ; un approbateur autorise doit l'activer avant que vous puissiez lire le profil eleve.",
+      "purposeLabel": "Motif",
+      "purposePlaceholder": "Pourquoi avez-vous besoin d'un acces eleve a ce profil ? (ex. dossier de fraude n°...)",
+      "requestGrant": "Demander l'autorisation",
+      "grantRequested": "Autorisation demandee. Un approbateur autorise doit l'activer avant que le profil eleve soit visible.",
+      "colEmail": "E-mail",
+      "colPhone": "Telephone",
+      "colLocation": "Lieu",
+      "colDidit": "Didit",
+      "colIdentity": "Identite",
+      "colBackground": "Antecedents",
+      "colTier": "Niveau",
+      "colSubscription": "Abonnement",
+      "colOnboarding": "Inscription",
+      "colLastLogin": "Derniere connexion"
+    },
+    "reviews": {
+      "title": "Avis",
+      "subtitle": "Ce que les clients ont dit du travail de cet utilisateur.",
+      "rating": "{rating} sur 5"
+    }
   },
   "adminSettingsChanges": {
     "buttons": {

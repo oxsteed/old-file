@@ -29609,7 +29609,11 @@
       "statusActive": "Active",
       "statusSuspended": "Suspended",
       "statusBanned": "Banned",
-      "statusRestricted": "Restricted"
+      "statusRestricted": "Restricted",
+      "statLifetimeValue": "Lifetime value",
+      "statOpenDisputes": "Open disputes",
+      "viewTab": "Open tab",
+      "recentVolumeHint": "Recent jobs (last 10)"
     },
     "payments": {
       "amount": "Amount",
@@ -29631,7 +29635,9 @@
       "incidents": "Incidents",
       "overview": "Overview",
       "payments": "Payments",
-      "tickets": "Support tickets"
+      "tickets": "Support tickets",
+      "notes": "Notes",
+      "investigation": "Investigation"
     },
     "tickets": {
       "created": "Created",
@@ -29645,7 +29651,104 @@
       "title": "Support tickets",
       "updated": "Updated"
     },
-    "title": "Customer 360"
+    "title": "Customer 360",
+    "header": {
+      "avatarFallback": "Customer avatar"
+    },
+    "actions": {
+      "title": "Quick actions",
+      "message": "Message",
+      "warn": "Warn",
+      "suspend": "Suspend",
+      "restrict": "Restrict",
+      "reactivate": "Reactivate",
+      "adjustCredit": "Adjust credit",
+      "messageTitle": "Message {name}",
+      "messagePlaceholder": "Write a message to the customer...",
+      "messageSend": "Send message",
+      "messageSent": "Message sent.",
+      "cancel": "Cancel",
+      "close": "Close",
+      "warnTitle": "Warn {name}",
+      "warnMessage": "Issue a formal warning to {name}. This is recorded on their account.",
+      "suspendTitle": "Suspend {name}",
+      "suspendMessage": "Suspend {name}? They will be signed out everywhere immediately and cannot sign back in until reactivated.",
+      "restrictTitle": "Restrict {name}",
+      "restrictMessage": "Restrict {name}? Their account stays active but flagged as restricted.",
+      "reactivateTitle": "Reactivate {name}",
+      "reactivateMessage": "Reactivate {name}? This clears the suspension or restriction on their account.",
+      "reasonLabel": "Reason",
+      "reasonPlaceholder": "Explain why - this is saved to the audit log."
+    },
+    "risk": {
+      "title": "Risk & verification",
+      "didit": "Didit",
+      "identity": "ID",
+      "background": "Background",
+      "email": "Email",
+      "w9": "W-9",
+      "warnings": "Warnings",
+      "lastLogin": "Last login",
+      "verified": "Verified",
+      "unverified": "Unverified",
+      "passed": "Passed",
+      "complete": "Complete",
+      "incomplete": "Incomplete"
+    },
+    "timeline": {
+      "title": "Timeline",
+      "subtitle": "Bookings, payments, support, disputes, fraud, incidents, reviews, and admin actions in one feed.",
+      "empty": "No activity yet.",
+      "filterAll": "All",
+      "booking": "Booking",
+      "payout": "Payout",
+      "review": "Review ({rating}/5)",
+      "activity": "Activity",
+      "adminAction": "Admin action",
+      "kind": {
+        "booking": "Booking",
+        "payment": "Payment",
+        "support": "Support",
+        "dispute": "Dispute",
+        "fraud": "Fraud",
+        "incident": "Incident",
+        "review": "Review",
+        "activity": "Activity",
+        "admin": "Admin"
+      }
+    },
+    "notes": {
+      "title": "Case notes",
+      "subtitle": "Pinned notes for the next investigator. Visible to admins only.",
+      "empty": "No notes yet. Leave the first one.",
+      "placeholder": "Write a case note... (visible to admins only)",
+      "add": "Add note",
+      "edited": "edited"
+    },
+    "investigation": {
+      "title": "Investigation",
+      "subtitle": "Elevated profile read. Every access is logged with purpose and approver.",
+      "needGrant": "This view needs a purpose-limited investigation grant. Request one below; an authorized approver must activate it before you can read the elevated profile.",
+      "purposeLabel": "Purpose",
+      "purposePlaceholder": "Why do you need elevated access to this profile? (e.g. fraud case #...)",
+      "requestGrant": "Request grant",
+      "grantRequested": "Grant requested. An authorized approver must activate it before the elevated profile becomes visible.",
+      "colEmail": "Email",
+      "colPhone": "Phone",
+      "colLocation": "Location",
+      "colDidit": "Didit",
+      "colIdentity": "Identity",
+      "colBackground": "Background check",
+      "colTier": "Tier",
+      "colSubscription": "Subscription",
+      "colOnboarding": "Onboarding",
+      "colLastLogin": "Last login"
+    },
+    "reviews": {
+      "title": "Reviews",
+      "subtitle": "What customers said about this user's work.",
+      "rating": "{rating} out of 5"
+    }
   },
   "adminSettingsChanges": {
     "buttons": {
