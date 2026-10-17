@@ -62,14 +62,14 @@ function normalizeIdempotencyKey(value) {
 async function determineFundingPath({ restaurantId }) {
   const id = parseRestaurantId(restaurantId);
   const { rows } = await pool.query(
-    `SELECT id, country_code, currency_code, display_name
+    `SELECT id, address_country, currency_code, display_name
        FROM food_restaurants WHERE id = $1 LIMIT 1`,
     [id]
   );
   const restaurant = rows[0];
   if (!restaurant) fail('Restaurant not found', 'restaurant_not_found', 404);
 
-  const countryCode = String(restaurant.country_code || '').trim().toUpperCase() || null;
+  const countryCode = String(restaurant.address_country || '').trim().toUpperCase() || null;
   const stripeAvailable = countryCode ? await isStripeAvailableFor(countryCode) : false;
 
   if (stripeAvailable) {

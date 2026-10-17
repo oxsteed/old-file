@@ -60,15 +60,21 @@ describe('isStripeAvailableFor', () => {
 describe('determineFundingPath', () => {
   test('stripe path when country policy enables it', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: RESTAURANT_ID, country_code: 'US', currency_code: 'USD', display_name: 'Ox Burger' }] })
+      .mockResolvedValueOnce({ rows: [{ id: RESTAURANT_ID, address_country: 'US', currency_code: 'USD', display_name: 'Ox Burger' }] })
       .mockResolvedValueOnce({ rows: [{ stripe_rail_enabled: true }] });
     const path = await fundingService.determineFundingPath({ restaurantId: RESTAURANT_ID });
     expect(path.method).toBe('stripe');
+    // Regression guard: the restaurant lookup must reference the real
+    // food_restaurants.address_country column (migration 305), never the
+    // phantom country_code that 500ed in production (Sentry OXSTEED-BACKEND-3G).
+    const [restaurantSql] = mockQuery.mock.calls[0];
+    expect(restaurantSql).toContain('address_country');
+    expect(restaurantSql).not.toContain('country_code');
   });
 
   test('manual path with instructions when Stripe unavailable', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: RESTAURANT_ID, country_code: 'HT', currency_code: 'HTG', display_name: 'Lakay' }] })
+      .mockResolvedValueOnce({ rows: [{ id: RESTAURANT_ID, address_country: 'HT', currency_code: 'HTG', display_name: 'Lakay' }] })
       .mockResolvedValueOnce({ rows: [{ stripe_rail_enabled: false }] })
       .mockResolvedValueOnce({
         rows: [{
@@ -85,7 +91,7 @@ describe('determineFundingPath', () => {
 
   test('manual path with null instructions when none configured', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: RESTAURANT_ID, country_code: 'HT', currency_code: 'HTG', display_name: 'Lakay' }] })
+      .mockResolvedValueOnce({ rows: [{ id: RESTAURANT_ID, address_country: 'HT', currency_code: 'HTG', display_name: 'Lakay' }] })
       .mockResolvedValueOnce({ rows: [{ stripe_rail_enabled: false }] })
       .mockResolvedValueOnce({ rows: [] });
     const path = await fundingService.determineFundingPath({ restaurantId: RESTAURANT_ID });
