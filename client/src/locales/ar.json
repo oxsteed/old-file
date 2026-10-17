@@ -30438,7 +30438,13 @@
     "countryPlaceholder": "تصفية حسب البلد (ISO-2)",
     "loading": "جارٍ تحميل المخطط التنظيمي...",
     "emptyTitle": "لا توجد تعيينات مؤسسية بعد",
-    "emptyBody": "ابدأ بمنح نفسك أو مشرف آخر لقبًا مؤسسيًا."
+    "emptyBody": "ابدأ بمنح نفسك أو مشرف آخر لقبًا مؤسسيًا.",
+    "treeView": "شجرة",
+    "departmentView": "القسم",
+    "viewLabel": "عرض المخطط التنظيمي",
+    "vacant": "شاغر",
+    "expand": "توسيع",
+    "collapse": "طي"
   },
   "adminAllocations": {
     "title": "📊 التخصيصات والتسليم",

@@ -30427,7 +30427,13 @@
     "countryPlaceholder": "Filtrer par pays (ISO-2)",
     "loading": "Chargement de l'organigramme...",
     "emptyTitle": "Aucune affectation d'entreprise pour le moment",
-    "emptyBody": "Commencez par vous attribuer, à vous ou à un autre administrateur, un titre d'entreprise."
+    "emptyBody": "Commencez par vous attribuer, à vous ou à un autre administrateur, un titre d'entreprise.",
+    "treeView": "Arbre",
+    "departmentView": "Département",
+    "viewLabel": "Vue de l'organigramme",
+    "vacant": "Vacant",
+    "expand": "Développer",
+    "collapse": "Réduire"
   },
   "adminAllocations": {
     "title": "📊 Allocations et livraisons",

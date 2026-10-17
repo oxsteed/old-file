@@ -30427,7 +30427,13 @@
     "countryPlaceholder": "Filtrar por país (ISO-2)",
     "loading": "Cargando organigrama...",
     "emptyTitle": "Aún no hay asignaciones corporativas",
-    "emptyBody": "Comience asignándose a usted mismo o a otro administrador un título corporativo."
+    "emptyBody": "Comience asignándose a usted mismo o a otro administrador un título corporativo.",
+    "treeView": "Árbol",
+    "departmentView": "Departamento",
+    "viewLabel": "Vista del organigrama",
+    "vacant": "Vacante",
+    "expand": "Expandir",
+    "collapse": "Contraer"
   },
   "adminAllocations": {
     "title": "📊 Asignaciones y entregas",
