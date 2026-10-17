@@ -162,6 +162,12 @@ api.interceptors.response.use(
       // recover the current page once the API/database is healthy again.
       if (!isTransientRefreshFailure(refreshError)) {
         clearStoredSession();
+        // Tell the React auth state the session is dead. clearStoredSession
+        // only wipes storage; without this the in-memory user survives and
+        // the login page bounces straight back to the dashboard.
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('oxsteed:session-expired'));
+        }
       }
       // Don't hard-redirect - let ProtectedRoute handle navigation
       return Promise.reject(refreshError);
