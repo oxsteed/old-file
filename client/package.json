@@ -31,6 +31,7 @@
     "test:auth-refresh-policy": "node --test scripts/authRefreshPolicy.test.mjs scripts/authRefreshCoordinator.test.mjs",
     "test:realtime-url": "node --test scripts/realtimeUrl.test.mjs",
     "test:restaurant-discovery": "node --test scripts/restaurantDiscovery.test.mjs",
+    "test:restaurant-finance-browser": "node --test scripts/restaurantFinance.browser-check.cjs",
     "test:restaurant-accessibility": "node --test scripts/restaurantAccessibility.test.mjs",
     "test:business-profile-editor": "node --test scripts/businessProfileEditor.test.mjs",
     "test:profile-studio": "node --test scripts/profileStudio.test.mjs scripts/businessProfileEditor.test.mjs",

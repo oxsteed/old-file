@@ -822,3 +822,11 @@ Object.assign(RECIPES, {
  '/oxsteed-credit/statements/archive||Export panel with request form, light mode': {user:'customer',actions:[{click:'details.sa-export-disclosure > summary'}]},
  '/oxsteed-credit/statements/archive||Export form with parameters filled, light mode': {user:'customer',actions:[{click:'details.sa-export-disclosure > summary'}]},
 });
+
+// Finance states use the real finance tab and preserve all synthetic safeguards.
+Object.assign(RECIPES, {
+ '/restaurants/merchant||Restaurant credit manager with pending requests, light mode': {user:'restaurant',url:'/restaurants/merchant?tab=payouts'},
+ '/restaurants/merchant||Grant credit form, light mode': {user:'restaurant',url:'/restaurants/merchant?tab=payouts',actions:[{clickText:'Grant credit',exact:true}]},
+ '/restaurants/merchant||Restaurant credit manager refund form, light mode': {user:'restaurant',url:'/restaurants/merchant?tab=payouts',actions:[{clickText:'Refund credit',exact:true}]},
+ '/restaurants/merchant||Fund your credit reserve panel, light mode': {user:'restaurant',url:'/restaurants/merchant?tab=payouts',actions:[{click:'details.fd-finance-disclosure > summary'}]},
+});

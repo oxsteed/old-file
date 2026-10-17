@@ -1,288 +1,128 @@
-// Restaurant payouts panel: lets the restaurant owner connect a Stripe
-// Express account so the restaurant can receive payouts, resume onboarding,
-// see payout status (enabled/pending, next payout ETA), and disconnect.
-// Wired into the merchant page by the coordinator; do not import elsewhere
-// without checking the merchant tab gating.
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import {
-  createRestaurantPayoutAccount,
-  disconnectRestaurantPayoutAccount,
-  formatFoodMoney,
-  getRestaurantPayoutStatus,
-  getWalletPayoutBalance,
-  listWalletPayouts,
-  requestWalletPayout,
-} from '../../api/food';
+import { createRestaurantPayoutAccount, disconnectRestaurantPayoutAccount, formatFoodMoney, getRestaurantPayoutStatus, getWalletPayoutBalance, listWalletPayouts, requestWalletPayout } from '../../api/food';
+import { parseCreditMajorAmount } from '../../lib/creditCurrency';
 import { apiErrorMessage } from './foodShared';
 
-const PAYOUT_STATUS_TONE = {
-  requested: 'pending',
-  approved: 'pending',
-  processing: 'pending',
-  completed: 'ready',
-  rejected: '',
-  failed: '',
-  cancelled: '',
-};
+function Pill({ ready, children }) { return <span className={`fd-status-pill fd-payout-${ready ? 'ready' : 'pending'}`}>{children}</span>; }
 
-function WalletPayoutsSection({ restaurantId, t }) {
+function WalletPayoutsSection({ restaurantId, t, f }) {
   const [balance, setBalance] = useState(null);
   const [payouts, setPayouts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [amount, setAmount] = useState('');
   const [requesting, setRequesting] = useState(false);
-
+  const sequence = useRef(0);
   const load = useCallback(async () => {
-    if (!restaurantId) return;
-    setLoading(true);
+    const request = ++sequence.current;
+    setLoading(true); setError(false);
     try {
-      const [bal, hist] = await Promise.all([
-        getWalletPayoutBalance(restaurantId),
-        listWalletPayouts(restaurantId, { limit: 20 }),
-      ]);
-      setBalance(bal);
-      setPayouts(hist);
-    } catch {
-      // Wallet payouts are unavailable when the credit rail is off; the
-      // Connect section above remains the source of truth for card payouts.
-      setBalance(null);
-    } finally {
-      setLoading(false);
-    }
+      const [bal, hist] = await Promise.all([getWalletPayoutBalance(restaurantId), listWalletPayouts(restaurantId, { limit: 20 })]);
+      if (request !== sequence.current) return;
+      setBalance(bal); setPayouts(Array.isArray(hist) ? hist : []);
+    } catch { if (request === sequence.current) { setBalance(null); setError(true); } }
+    finally { if (request === sequence.current) setLoading(false); }
   }, [restaurantId]);
-
-  useEffect(() => { load(); }, [load]);
-
+  useEffect(() => { load(); return () => { sequence.current++; }; }, [load]);
+  const cents = parseCreditMajorAmount(amount, balance?.currencyCode || 'USD');
+  const valid = balance?.processorEnabled !== false && Number.isSafeInteger(cents) && cents > 0 && cents >= Number(balance?.minPayoutCents || 0) && cents <= Number(balance?.balanceCents || 0);
   const submitRequest = async () => {
-    const cents = Math.round(Number(amount) * 100);
-    if (!Number.isSafeInteger(cents) || cents <= 0) {
-      toast.error(t('food.merchant.payouts.invalidAmount', 'Enter a valid amount.'));
-      return;
-    }
+    if (!valid || requesting) return;
     setRequesting(true);
     try {
       const key = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       await requestWalletPayout(restaurantId, { amountCents: cents }, key);
       toast.success(t('food.merchant.payouts.requestSubmitted', 'Payout requested. An admin will review it.'));
-      setAmount('');
-      await load();
-    } catch (err) {
-      toast.error(apiErrorMessage(err, t('food.merchant.payouts.requestError', 'Could not request the payout.')));
-    } finally {
-      setRequesting(false);
-    }
+      setAmount(''); await load();
+    } catch (err) { toast.error(apiErrorMessage(err, t('food.merchant.payouts.requestError', 'Could not request the payout.'))); }
+    finally { setRequesting(false); }
   };
-
-  if (loading || balance === null) return null;
-
-  return (
-    <div style={{ marginTop: '1.25rem', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
-      <h4>{t('food.merchant.payouts.walletTitle', 'Wallet earnings')}</h4>
-      <p className="fd-card-meta">
-        {t('food.merchant.payouts.walletSubtitle', 'Earnings from wallet and OxSteed Credit orders. Card payments go straight to your bank via Stripe.')}
-      </p>
-      <p style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0.5rem 0' }}>
-        {formatFoodMoney(balance.balanceCents, balance.currencyCode)}
-      </p>
-      <div className="fd-row" style={{ gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-        <input
-          type="number"
-          min="0"
-          step="0.01"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder={t('food.merchant.payouts.amountPlaceholder', 'Amount')}
-          style={{ width: 140, height: 38, border: '1.5px solid #e2e8f0', borderRadius: 8, padding: '0 10px' }}
-          aria-label={t('food.merchant.payouts.amountPlaceholder', 'Amount')}
-        />
-        <button type="button" className="fd-btn fd-btn-sm" onClick={submitRequest} disabled={requesting || !amount}>
-          {requesting
-            ? t('food.merchant.payouts.requesting', 'Requesting…')
-            : t('food.merchant.payouts.requestPayout', 'Request payout')}
-        </button>
-      </div>
-      <p className="fd-card-meta" style={{ marginTop: '0.25rem' }}>
-        {t('food.merchant.payouts.minPayout', 'Minimum payout: {{amount}}', { amount: formatFoodMoney(balance.minPayoutCents, balance.currencyCode) })}
-      </p>
-      {payouts.length > 0 && (
-        <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.5rem' }}>
-          {payouts.map((p) => (
-            <div key={p.id} className="fd-row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>{formatFoodMoney(p.amount_cents, p.currency_code)}</span>
-              <Pill tone={PAYOUT_STATUS_TONE[p.status]}>
-                {t(`food.merchant.payouts.status.${p.status}`, p.status)}
-              </Pill>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Pill({ tone, children }) {
-  return (
-    <span className={`fd-status-pill${tone ? ` fd-payout-${tone}` : ''}`} style={{ textTransform: 'none' }}>
-      {children}
-    </span>
-  );
+  return <section className="fd-wallet-payouts" aria-label={t('food.merchant.payouts.walletTitle', 'Wallet earnings')}>
+    <h3>{t('food.merchant.payouts.walletTitle', 'Wallet earnings')}</h3><p className="fd-card-meta">{f('walletHint')}</p>
+    {loading ? <p role="status">{t('food.common.loading', 'Loading')}</p> : error ? <div className="fd-finance-notice fd-finance-error" role="alert"><p>{f('walletUnavailable')}</p><button className="fd-btn fd-btn-secondary" onClick={load} type="button">{t('food.common.retry', 'Retry')}</button></div> : balance && <>
+      <strong className="fd-payout-balance">{formatFoodMoney(balance.balanceCents, balance.currencyCode)}</strong>
+      <form onSubmit={e => { e.preventDefault(); submitRequest(); }}>
+        {balance.processorEnabled === false && <p className="fd-finance-notice" role="status">{f('walletPaused')}</p>}
+        <label htmlFor={`wallet-payout-${restaurantId}`}>{f('requestAmount', { currency: balance.currencyCode })}</label>
+        <div className="fd-row" style={{ gap: '.5rem', flexWrap: 'wrap' }}><input id={`wallet-payout-${restaurantId}`} inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} aria-describedby={`wallet-min-${restaurantId}`} disabled={requesting} /><button type="submit" className="fd-btn" disabled={requesting || !valid}>{requesting ? t('food.merchant.payouts.requesting', 'Requesting…') : t('food.merchant.payouts.requestPayout', 'Request payout')}</button></div>
+        <p id={`wallet-min-${restaurantId}`} className="fd-card-meta">{t('food.merchant.payouts.minPayout', 'Minimum payout: {{amount}}', { amount: formatFoodMoney(balance.minPayoutCents, balance.currencyCode) })} · {f('availableLimit')}</p>
+      </form>
+      <details className="fd-finance-advanced"><summary>{f('recentPayouts')}</summary>{payouts.length ? payouts.map(p => <div key={p.id} className="fd-payout-status-grid"><div className="fd-row" style={{ justifyContent: 'space-between', gap: '.75rem' }}><span>{formatFoodMoney(p.amount_cents, p.currency_code)}</span><Pill ready={p.status === 'completed'}>{t(`food.merchant.payouts.status.${p.status}`, p.status)}</Pill></div></div>) : <p className="fd-card-meta">{f('noPayouts')}</p>}</details>
+    </>}
+  </section>;
 }
 
 export default function RestaurantPayoutsPanel({ t: tProp, restaurant, restaurantId: restaurantIdProp }) {
-  const { t: tHook } = useTranslation();
+  const { t: tHook, i18n } = useTranslation();
+  const { t: financeT } = useTranslation('common');
   const t = tProp || tHook;
+  const f = (key, options) => financeT(`merchantFinance.${key}`, options);
   const restaurantId = restaurantIdProp ?? restaurant?.id;
-
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
-
+  const sequence = useRef(0);
   const load = useCallback(async () => {
     if (!restaurantId) return;
-    setLoading(true);
-    setError('');
-    try {
-      const data = await getRestaurantPayoutStatus(restaurantId);
-      setStatus(data);
-    } catch (err) {
-      setError(apiErrorMessage(err, t('food.merchant.payouts.loadError', 'Could not load payout status.')));
-    } finally {
-      setLoading(false);
-    }
-  }, [restaurantId, t]);
-
-  useEffect(() => { load(); }, [load]);
-
+    const request = ++sequence.current;
+    setLoading(true); setError(''); setStatus(null);
+    try { const data = await getRestaurantPayoutStatus(restaurantId); if (request === sequence.current) setStatus(data); }
+    catch (err) { if (request === sequence.current) setError(err?.response?.data?.code === 'feature_disabled' ? 'disabled' : 'unavailable'); }
+    finally { if (request === sequence.current) setLoading(false); }
+  }, [restaurantId]);
+  useEffect(() => { load(); return () => { sequence.current++; }; }, [load]);
   const startOnboarding = async () => {
-    if (!restaurantId || connecting) return;
+    if (!restaurantId || connecting || loading || error || status?.status_unavailable) return;
     setConnecting(true);
     try {
-      // return_path is sanitized server-side to same-origin paths only.
-      const data = await createRestaurantPayoutAccount(restaurantId, { return_path: '/food/merchant' });
+      // Return directly to this restaurant and the finance tab. The server
+      // keeps only the allowed same-origin merchant parameters.
+      const business = restaurant?.business_id;
+      const return_path = `/restaurants/merchant?${business ? `business=${encodeURIComponent(business)}&` : ''}tab=payouts`;
+      const data = await createRestaurantPayoutAccount(restaurantId, { return_path });
       const url = data?.url || data?.onboarding_url;
-      if (url) {
-        window.location.href = url;
-        return;
-      }
-      // Account was already set up; refresh what we show.
-      await load();
-      toast.success(t('food.merchant.payouts.connected', 'Payouts connected'));
-    } catch (err) {
-      toast.error(apiErrorMessage(err, t('food.merchant.payouts.connectError', 'Could not start payout setup. Please try again.')));
-    } finally {
-      setConnecting(false);
-    }
+      if (url) { window.location.href = url; return; }
+      await load(); toast.success(t('food.merchant.payouts.connected', 'Payouts connected'));
+    } catch (err) { toast.error(apiErrorMessage(err, t('food.merchant.payouts.connectError', 'Could not start payout setup. Please try again.'))); }
+    finally { setConnecting(false); }
   };
-
   const disconnect = async () => {
-    if (!restaurantId || disconnecting) return;
-    const confirmed = window.confirm(t('food.merchant.payouts.disconnectConfirm', 'Disconnect payouts for this restaurant? Future payouts will stop until you reconnect.'));
-    if (!confirmed) return;
+    if (!restaurantId || disconnecting || !window.confirm(t('food.merchant.payouts.disconnectConfirm', 'Disconnect payouts for this restaurant? Future payouts will stop until you reconnect.'))) return;
     setDisconnecting(true);
-    try {
-      await disconnectRestaurantPayoutAccount(restaurantId);
-      toast.success(t('food.merchant.payouts.disconnected', 'Payout account disconnected.'));
-      await load();
-    } catch (err) {
-      toast.error(apiErrorMessage(err, t('food.merchant.payouts.disconnectError', 'Could not disconnect payouts. Please try again.')));
-    } finally {
-      setDisconnecting(false);
-    }
+    try { await disconnectRestaurantPayoutAccount(restaurantId); toast.success(t('food.merchant.payouts.disconnected', 'Payout account disconnected.')); await load(); }
+    catch (err) { toast.error(apiErrorMessage(err, t('food.merchant.payouts.disconnectError', 'Could not disconnect payouts. Please try again.'))); }
+    finally { setDisconnecting(false); }
   };
-
-  const formatNextPayout = (next) => {
-    if (!next) return t('food.merchant.payouts.noScheduledPayout', 'No payout scheduled yet.');
-    const amount = formatFoodMoney(next.amount, (next.currency || 'usd').toUpperCase());
-    if (next.arrival_date) {
-      const date = new Date(next.arrival_date);
-      const formatted = Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString();
-      return t('food.merchant.payouts.nextPayoutDetail', '{{amount}} arriving {{date}}', { amount, date: formatted });
-    }
-    return amount;
-  };
-
   const connected = !!status?.connected;
-  const onboarded = connected && !!status?.stripe_connect_onboarded;
-  const chargesReady = connected && !!status?.stripe_connect_ready;
-  const payoutsReady = connected && !!status?.stripe_connect_payouts_ready;
-  const needsAttention = connected && (!onboarded || !chargesReady || !payoutsReady);
+  const verified = status?.status_verified !== false && !status?.status_unavailable;
+  const ready = connected && verified && !!status?.stripe_connect_payouts_ready;
+  const needsAttention = connected && (!status?.stripe_connect_onboarded || !status?.stripe_connect_ready || !ready);
+  const next = status?.next_payout;
+  const arrival = next?.arrival_date ? new Date(next.arrival_date) : null;
+  return <div className="fd-payout-panel">
+    <h3>{f('bank')}</h3><p className="fd-card-meta">{f('bankDescription')}</p>
+    {loading && <p role="status">{t('food.common.loading', 'Loading')}</p>}
+    {!loading && (error || !verified) && <div className="fd-finance-notice" role={error === 'disabled' ? 'status' : 'alert'}>
+      <strong>{f(error === 'disabled' ? 'paymentsPaused' : 'statusUnavailable')}</strong><p>{f(error === 'disabled' ? 'paymentsPausedHint' : 'statusUnavailableHint')}</p>
+      {error !== 'disabled' && <button type="button" className="fd-btn fd-btn-secondary" onClick={load}>{t('food.common.retry', 'Retry')}</button>} <Link to="/support">{f('contactSupport')}</Link>
+    </div>}
+    {!loading && !error && verified && <>
+      <Pill ready={ready}>{ready ? t('food.merchant.payouts.payoutsEnabled', 'Payouts enabled') : connected ? t('food.merchant.payouts.onboardingIncomplete', 'Onboarding incomplete') : t('food.merchant.payouts.notConnected', 'Not connected')}</Pill>
+      {connected && <ul className="fd-payout-status-grid">{[['stripe_connect_onboarded', 'identitySetup'], ['stripe_connect_ready', 'cardPayments'], ['stripe_connect_payouts_ready', 'bankTransfers']].map(([key, label]) => <li key={key}><span>{f(label)}</span><strong>{f(status[key] ? 'ready' : 'needsSetup')}</strong></li>)}</ul>}
+      {(!connected || needsAttention) ? <div className="fd-finance-notice"><p>{f('stripeHandoff')}</p><button type="button" className="fd-btn" disabled={connecting} onClick={startOnboarding}>{connecting ? t('food.merchant.payouts.connecting', 'Opening Stripe…') : connected ? t('food.merchant.payouts.continueOnboarding', 'Continue onboarding') : t('food.merchant.payouts.connect', 'Connect payouts')}</button></div> : <p className="fd-card-meta">{next ? t('food.merchant.payouts.nextPayoutDetail', '{{amount}} arriving {{date}}', {amount: formatFoodMoney(next.amount, (next.currency || 'USD').toUpperCase()), date: arrival && !Number.isNaN(arrival.getTime()) ? arrival.toLocaleDateString(i18n.language) : '—'}) : t('food.merchant.payouts.noScheduledPayout', 'No payout scheduled yet.')}</p>}
+      <button type="button" className="fd-btn fd-btn-secondary" onClick={load}>{t('food.merchant.payouts.refresh', 'Refresh status')}</button>
+      {connected && <details className="fd-finance-advanced"><summary>{f('accountControls')}</summary><p className="fd-card-meta">{t('food.merchant.payouts.disconnectConfirm', 'Disconnect payouts for this restaurant? Future payouts will stop until you reconnect.')}</p><button type="button" className="fd-btn fd-btn-danger" disabled={disconnecting} onClick={disconnect}>{disconnecting ? t('food.merchant.payouts.disconnecting', 'Disconnecting…') : t('food.merchant.payouts.disconnect', 'Disconnect payouts')}</button></details>}
+    </>}
+  </div>;
+}
 
-  return (
-    <div style={{ marginTop: '1.5rem' }}>
-      <h3>{t('food.merchant.payouts.title', 'Payouts')}</h3>
-      <p className="fd-card-meta">{t('food.merchant.payouts.subtitle', 'Connect a Stripe account so this restaurant can receive payouts for its orders.')}</p>
-
-      {loading && (
-        <p className="fd-card-meta" aria-busy="true">{t('food.common.loading', 'Loading')}</p>
-      )}
-
-      {!loading && error && (
-        <div className="fd-order-feed-error" role="alert">
-          {error}{' '}
-          <button type="button" onClick={load}>{t('food.common.retry', 'Retry')}</button>
-        </div>
-      )}
-
-      {!loading && !error && !connected && (
-        <div className="fd-row" style={{ flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center', marginTop: '0.75rem' }}>
-          <Pill tone="pending">{t('food.merchant.payouts.notConnected', 'Not connected')}</Pill>
-          <p className="fd-card-meta" style={{ margin: 0 }}>
-            {t('food.merchant.payouts.notConnectedHint', 'Set up payouts to receive money from orders directly to your bank account.')}
-          </p>
-          <button type="button" className="fd-btn fd-btn-sm" onClick={startOnboarding} disabled={connecting}>
-            {connecting ? t('food.merchant.payouts.connecting', 'Opening Stripe…') : t('food.merchant.payouts.connect', 'Connect payouts')}
-          </button>
-        </div>
-      )}
-
-      {!loading && !error && connected && (
-        <div style={{ marginTop: '0.75rem' }}>
-          <div className="fd-row" style={{ flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
-            <Pill tone={onboarded ? 'ready' : 'pending'}>
-              {onboarded
-                ? t('food.merchant.payouts.connected', 'Payouts connected')
-                : t('food.merchant.payouts.onboardingIncomplete', 'Onboarding incomplete')}
-            </Pill>
-            <Pill tone={payoutsReady ? 'ready' : 'pending'}>
-              {payoutsReady
-                ? t('food.merchant.payouts.payoutsEnabled', 'Payouts enabled')
-                : t('food.merchant.payouts.payoutsPending', 'Payouts pending')}
-            </Pill>
-          </div>
-
-          {needsAttention && (
-            <div className="fd-row" style={{ flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center', marginTop: '0.75rem' }}>
-              <p className="fd-card-meta" style={{ margin: 0 }}>
-                {t('food.merchant.payouts.onboardingIncompleteHint', 'Finish the Stripe onboarding steps to start receiving payouts.')}
-              </p>
-              <button type="button" className="fd-btn fd-btn-sm" onClick={startOnboarding} disabled={connecting}>
-                {connecting ? t('food.merchant.payouts.connecting', 'Opening Stripe…') : t('food.merchant.payouts.continueOnboarding', 'Continue onboarding')}
-              </button>
-            </div>
-          )}
-
-          {!needsAttention && (
-            <p className="fd-card-meta" style={{ marginTop: '0.5rem' }}>
-              {t('food.merchant.payouts.nextPayout', 'Next payout: {{detail}}', { detail: formatNextPayout(status?.next_payout) })}
-            </p>
-          )}
-
-          <div className="fd-row" style={{ gap: '0.5rem', marginTop: '0.75rem' }}>
-            <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={load} disabled={loading}>
-              {t('food.merchant.payouts.refresh', 'Refresh status')}
-            </button>
-            <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={disconnect} disabled={disconnecting}>
-              {disconnecting ? t('food.merchant.payouts.disconnecting', 'Disconnecting…') : t('food.merchant.payouts.disconnect', 'Disconnect payouts')}
-            </button>
-          </div>
-
-          <WalletPayoutsSection restaurantId={restaurantId} t={t} />
-        </div>
-      )}
-    </div>
-  );
+export function RestaurantWalletPayoutsPanel({ restaurantId }) {
+  const { t } = useTranslation();
+  const { t: financeT } = useTranslation('common');
+  return <WalletPayoutsSection key={restaurantId} restaurantId={restaurantId} t={t} f={(key, options) => financeT(`merchantFinance.${key}`, options)} />;
 }

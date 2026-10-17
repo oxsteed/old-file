@@ -8,7 +8,7 @@ export default {
     "customer",
     "restaurant"
   ],
-  "revision": 2,
+  "revision": 3,
   "availability": "supported",
   "conditions": [],
   "goal": "Get money back the right way: dispute restaurant credit, refund a customer wallet as a restaurant, or refund an order.",
@@ -133,7 +133,7 @@ export default {
     {
       "id": "restaurant-refund-requests-s2",
       "title": "Refund customer restaurant credit as a restaurant",
-      "body": "On the restaurant dashboard, open the \"Restaurant credit\" manager (\"Customer balances\"; \"Approve credit only after matching the customer's receipt or confirmation number.\"). Choose \"Refund credit\", enter the \"Customer email\" and \"Amount\", add a \"Reason\" (\"Why is this credit being refunded?\"), then choose \"Review refund\" and \"Yes, refund\". Note: this deducts credit from the customer wallet and sends the money back to their card; only credit issued in the last 30 days can be refunded.",
+      "body": "Open the Payouts tab, then choose the Customer credit shortcut to reach the Restaurant credit manager. On the restaurant dashboard, open the \"Restaurant credit\" manager (\"Customer balances\"; \"Approve credit only after matching the customer's receipt or confirmation number.\"). Choose \"Refund credit\", enter the \"Customer email\" and \"Amount\", add a \"Reason\" (\"Why is this credit being refunded?\"), then choose \"Review refund\" and \"Yes, refund\". Note: this deducts credit from the customer wallet and sends the money back to their card; only credit issued in the last 30 days can be refunded.",
       "expectedResult": "You see \"Refunded X to customer.\" and the wallet balance drops.",
       "screenshots": [
         {
@@ -142,7 +142,13 @@ export default {
           "state": "Restaurant credit manager refund form, light mode",
           "alt": "Refund credit form with email, amount, and reason",
           "caption": "Refunding restaurant credit, desktop view.",
-          "annotations": []
+          "annotations": [
+            {
+              "n": 1,
+              "label": "Review the customer and amount before confirming",
+              "locator": ".fd-credit-grant-form"
+            }
+          ]
         },
         {
           "viewport": "mobile",
@@ -150,7 +156,13 @@ export default {
           "state": "Restaurant credit manager refund form, light mode",
           "alt": "Refund form on a phone screen",
           "caption": "Refunding restaurant credit, mobile view.",
-          "annotations": []
+          "annotations": [
+            {
+              "n": 1,
+              "label": "Review the customer and amount before confirming",
+              "locator": ".fd-credit-grant-form"
+            }
+          ]
         }
       ]
     },

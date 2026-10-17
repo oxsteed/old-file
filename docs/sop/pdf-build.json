@@ -193,12 +193,12 @@
       "pdf": "e4d6566141868e58e041b136c340adc1a12d4d69984d5a4a337e66bb37c25a06"
     },
     "restaurant-refund-requests": {
-      "input": "acf013bf947b2622904cf3d4889e270ff4eedd76e38cd39783634a104b28b790",
-      "pdf": "b15f856994ac55a1a5270712db4e8e2a3d74272e2e115e4139adbc9f65915ac2"
+      "input": "c5d3497b25664df909f81e4409a96e728927704bd98f93feaa6cade6555993c6",
+      "pdf": "627d5b50c1eb4aad10963521e9dacd681d263b839f40595fd19202aadb7c2872"
     },
     "restaurant-setup": {
-      "input": "e2c03e447e04f6fcad96cc1811c4464d5e7de6edac93432c7b2f11ceee438f59",
-      "pdf": "c00a92192aa51d13c4e25929d4033b5cb4db58555589b9c86e0b4ddfbea37530"
+      "input": "7c0caa3198962ef8b21d7fc9f24dbce34ac34632845bc6e10ab3ddbdb530aca9",
+      "pdf": "1a7f6a44ee6253cc51aa7cab5917dfdae2ceabba0745e085b4338b97d0850cd1"
     },
     "restaurant-staff-tools": {
       "input": "9b1e56e10dc447408d0d6a053cdd35aff3ec60ab97d3f69a29e074d19632baef",
@@ -229,8 +229,8 @@
       "pdf": "9f385afcb04a68471093d935fe39f99c08d42dea1ea97dcd791cee49e74153ab"
     },
     "financial-restaurant-credit": {
-      "input": "050ecbc4fe2b01e60c64f98cfb2ead39b07e19cc7235c026ec8880bd92ab1394",
-      "pdf": "8e1b7104b8d31994d36479026db4dda46f818c9d192c4851bb6cdf939434b39c"
+      "input": "19e937953d5ea61028b1f4c083818b57a2d3aa1d989b89d6519f651a2afbdb7c",
+      "pdf": "0076f060d4be2f66c7213258e22fa29ac40a7e447f6aa9727918fbc1d896158a"
     },
     "financial-statements": {
       "input": "d1640889e7f5be8a67c35ebb17118b846db71f5f35ade112635596a65560d0ef",
@@ -327,24 +327,24 @@
   },
   "handbooks": {
     "customer": {
-      "input": "70dd83c078421943d5b66f5c2159350ffa91d7722e9097b430abe6f2b343636f",
-      "pdf": "ec9a8e9151a4582b973e1335ce7e2fdbf78b75bdaca2180da4131ec43093c22d"
+      "input": "b9c56a1fdad32ea641e88645304ebf377e4c51fcc71924e026c19d5c36031f87",
+      "pdf": "b39bb71ef2334b2cdbb9a25b7bb8a39d4d5d88c6b3534a15f66fad2b80fd889f"
     },
     "helper": {
       "input": "457c1562f5613f200491b50272eff9eafe1a164f21998d59f95c685b43bce48c",
-      "pdf": "b2dade6b50375bcf24600fe19621d22809b449a61ef2e3df3a4d74e075bd2188"
+      "pdf": "9cc363a584601041920f68e0b9f41a016eed3ab10664e43e974dbc9c436d7f05"
     },
     "business": {
       "input": "62524d0f2dc24b4a6353d48514f6467ee0d842269296e03764cf5a44f3ce9b15",
-      "pdf": "dcbfa540b6641681877a5e2ce3b666b4680a9e118beb45c9963c308abf471493"
+      "pdf": "9144826670efd6039f66379324889c83399a1ebb809c2fe368bc8b7423264313"
     },
     "restaurant": {
-      "input": "acc1b0493c5d9e510891f8addf9cd51d1669974df147f2e4d91a4d26742fc446",
-      "pdf": "901d76ecab4af54c9a42a8c0ecc242fd51f38e341d75175a1a981dc548a5f0aa"
+      "input": "68131d8828af3a0c7271558fa234f73b2ca19b10d36854148170c830a43060f6",
+      "pdf": "aba76e88e8dd9cbfb83ce8b9d0e15fbb72afbde397a1fba219b224789def22c7"
     },
     "logistics": {
       "input": "f514ceedda61d93cd91e5988f65e283484e0f5c5dc32d0f8b0bdfe9790982241",
-      "pdf": "650660cf4f1f462612daf49326004a67bc2341c0a04a24d0cfab2cf271a4df63"
+      "pdf": "8651369649e459e21fd5959fad77e76d94a4fb4d488b68a9ba1dc2f69d826e4a"
     }
   }
 }

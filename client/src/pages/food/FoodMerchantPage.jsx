@@ -30,10 +30,7 @@ import { FoodBrand, FoodConnBadge, FOOD_STATUS_KEYS, apiErrorMessage } from './f
 import { createStableIdempotencyKeyStore } from '../../lib/idempotency';
 import RestaurantSetupGuide, { shouldShowRestaurantSetup } from './RestaurantSetupGuide';
 import RestaurantMenuManager from './RestaurantMenuManager';
-import RestaurantCreditManager from './RestaurantCreditManager';
-import RestaurantPayoutsPanel from './RestaurantPayoutsPanel';
-import RestaurantTopupEligibilityPanel from './RestaurantTopupEligibilityPanel';
-import OxsteedCreditPartnerManager from './OxsteedCreditPartnerManager';
+import RestaurantFinanceWorkspace from './RestaurantFinanceWorkspace';
 import LocationsPanel from './FoodLocationsPanel';
 import PromotionsPanel from './FoodPromotionsPanel';
 import { ChecklistsPanel, SopsPanel, InventoryPanel } from './RestaurantOpsPanels';
@@ -2578,12 +2575,7 @@ export default function FoodMerchantPage() {
             {selected && tab === 'orders' && <OrdersTab t={t} restaurant={selected} />}
             {selected && tab === 'menu' && <RestaurantMenuManager t={t} restaurant={selected} />}
             {selected && tab === 'payouts' && (
-              <>
-                {canManagePayouts && <RestaurantPayoutsPanel t={t} restaurant={selected} />}
-                {canManagePayouts && <RestaurantTopupEligibilityPanel t={t} restaurant={selected} onGoToPayouts={() => goToTab('payouts')} />}
-                {canManageCredit && <RestaurantCreditManager restaurant={selected} />}
-                {canManageCredit && <OxsteedCreditPartnerManager restaurant={selected} />}
-              </>
+              <RestaurantFinanceWorkspace key={selected.id} restaurant={selected} canManagePayouts={canManagePayouts} canManageCredit={canManageCredit} />
             )}
             {selected && tab === 'settings' && canViewSettings && (
               <SettingsTab

@@ -154,6 +154,29 @@ describe('POST /api/restaurants/:id/payouts/connect', () => {
     expect(res.body.account_id).toBe('acct_rest_7');
   });
 
+  test.each([
+    ['/restaurants/merchant?business=3&tab=payouts&redirect=https://evil.test', '/restaurants/merchant?business=3&tab=payouts'],
+    ['//evil.test/path', '/food/merchant'],
+    ['/restaurants/merchant?business=invalid', '/restaurants/merchant?tab=payouts'],
+  ])('Stripe return preserves only safe merchant context: %s', async (returnPath, expectedPath) => {
+    stripeMock.accounts.create.mockResolvedValue({ id: 'acct_rest_7' });
+    mockAuth(baseUser(), OWNER_ACCESS, { rows: [] }, { rows: [{ stripe_account_id: 'acct_rest_7' }] });
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/payouts/connect`)
+      .set('Authorization', `Bearer ${OWNER_TOKEN}`)
+      .send({ return_path: returnPath });
+    expect(res.status).toBe(200);
+    const options = stripeMock.accountLinks.create.mock.calls.at(-1)[0];
+    const target = new URL(options.return_url);
+    const refresh = new URL(options.refresh_url);
+    expect(target.origin).toBe(new URL(process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com').origin);
+    expect(target.searchParams.get('onboarding')).toBe('complete');
+    expect(refresh.searchParams.get('refresh')).toBe('true');
+    target.searchParams.delete('onboarding');
+    expect(target.pathname + target.search).toBe(expectedPath);
+    expect(target.searchParams.has('redirect')).toBe(false);
+  });
+
   test('owner with a complete account gets "already set up"', async () => {
     stripeMock.accounts.retrieve.mockResolvedValue({
       charges_enabled: true,

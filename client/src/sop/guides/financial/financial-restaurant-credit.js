@@ -8,7 +8,7 @@ export default {
     "customer",
     "restaurant"
   ],
-  "revision": 2,
+  "revision": 3,
   "availability": "supported",
   "conditions": [],
   "goal": "Use per-restaurant credit balances: top up by card, request credit with proof, pay by QR, and send credit, as a customer or a restaurant.",
@@ -224,7 +224,7 @@ export default {
     {
       "id": "financial-restaurant-credit-s6",
       "title": "Approve or decline credit requests as a restaurant",
-      "body": "On the restaurant dashboard, open the \"Restaurant credit\" manager (\"Customer balances\"; \"Approve credit only after matching the customer's receipt or confirmation number.\"). On a pending request, use \"View receipt\" to check the proof, then \"Approve credit\" (\"Payment matched?\" then \"Yes, add credit\") or \"Decline\" with a reason (\"Reason, for example: receipt amount does not match\").",
+      "body": "Open the Payouts tab, then choose the Customer credit shortcut to reach the Restaurant credit manager. On the restaurant dashboard, open the \"Restaurant credit\" manager (\"Customer balances\"; \"Approve credit only after matching the customer's receipt or confirmation number.\"). On a pending request, use \"View receipt\" to check the proof, then \"Approve credit\" (\"Payment matched?\" then \"Yes, add credit\") or \"Decline\" with a reason (\"Reason, for example: receipt amount does not match\").",
       "expectedResult": "Approved credit lands in the customer wallet immediately.",
       "screenshots": [
         {
@@ -233,7 +233,13 @@ export default {
           "state": "Restaurant credit manager with pending requests, light mode",
           "alt": "Credit manager with request review actions",
           "caption": "Reviewing credit requests, desktop view.",
-          "annotations": []
+          "annotations": [
+            {
+              "n": 1,
+              "label": "Customer credit requests",
+              "locator": ".fd-credit-manager-head"
+            }
+          ]
         },
         {
           "viewport": "mobile",
@@ -241,7 +247,13 @@ export default {
           "state": "Restaurant credit manager with pending requests, light mode",
           "alt": "Credit manager on a phone screen",
           "caption": "Reviewing credit requests, mobile view.",
-          "annotations": []
+          "annotations": [
+            {
+              "n": 1,
+              "label": "Customer credit requests",
+              "locator": ".fd-credit-manager-head"
+            }
+          ]
         }
       ]
     },
@@ -257,7 +269,13 @@ export default {
           "state": "Grant credit form, light mode",
           "alt": "Grant credit form with explanation",
           "caption": "Granting credit, desktop view.",
-          "annotations": []
+          "annotations": [
+            {
+              "n": 1,
+              "label": "Review the customer and amount before confirming",
+              "locator": ".fd-credit-grant-form"
+            }
+          ]
         },
         {
           "viewport": "mobile",
@@ -265,7 +283,13 @@ export default {
           "state": "Grant credit form, light mode",
           "alt": "Grant form on a phone screen",
           "caption": "Granting credit, mobile view.",
-          "annotations": []
+          "annotations": [
+            {
+              "n": 1,
+              "label": "Review the customer and amount before confirming",
+              "locator": ".fd-credit-grant-form"
+            }
+          ]
         }
       ]
     },

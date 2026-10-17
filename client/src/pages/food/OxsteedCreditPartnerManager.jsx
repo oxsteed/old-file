@@ -25,6 +25,8 @@ function statusClass(value) {
 
 export default function OxsteedCreditPartnerManager({ restaurant }) {
   const { t, i18n } = useTranslation('credit');
+  const { t: financeT } = useTranslation('common');
+  const [notEnrolled, setNotEnrolled] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [settlements, setSettlements] = useState([]);
   const [partnerStatus, setPartnerStatus] = useState(null);
@@ -46,6 +48,7 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
     else if (appendTransactions || appendSettlements) setLoadingMore(true);
     else setLoading(true);
     setError('');
+    setNotEnrolled(false);
     try {
       const effectiveSettlementStatus = settlementStatusOverride === undefined ? settlementStatus : settlementStatusOverride;
       const [transactionResult, settlementResult, ledgerResult] = await Promise.all([
@@ -71,15 +74,18 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
       setFundingRecords(ledgerResult?.funding?.records || []);
       setPartnerStatus(transactionResult?.partnerStatus || settlementResult?.partnerStatus || ledgerResult?.partnerStatus || null);
     } catch (loadError) {
-      setError(apiErrorMessage(loadError, t('partnerActivityError')));
+      if (requestId !== requestIdRef.current) return;
+      if (loadError?.response?.data?.code === 'credit_partner_not_found') setNotEnrolled(true);
+      else setError(apiErrorMessage(loadError, t('partnerActivityError')));
     } finally {
+      if (requestId !== requestIdRef.current) return;
       if (appendTransactions || appendSettlements) setLoadingMore(false);
       else setLoading(false);
       setRefreshing(false);
     }
   }, [restaurant.id, settlementStatus, t]);
 
-  useEffect(() => { load({ quiet: Boolean(settlementStatus) }); }, [load, settlementStatus]);
+  useEffect(() => { load({ quiet: Boolean(settlementStatus) }); return () => { requestIdRef.current++; }; }, [load, settlementStatus]);
 
   const currency = restaurant.currency_code || 'USD';
   const pendingSettlementCents = settlements
@@ -117,7 +123,7 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
         </div>
         <div className="fd-ox-credit-partner-actions">
           {partnerStatus && <span className={statusClass(partnerStatus)}>{localizeCreditStatus(partnerStatus, t)}</span>}
-          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={downloadReport} disabled={loading || refreshing || downloading}>
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={downloadReport} disabled={loading || refreshing || downloading || !!error || notEnrolled}>
             <Download size={14} /> {downloading ? t('preparingReport') : t('downloadReport')}
           </button>
           <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => load({ quiet: true })} disabled={loading || refreshing}>
@@ -128,7 +134,8 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
 
       {error && <div className="fd-ox-credit-error" role="alert">{error} <button type="button" onClick={() => load()}>{t('retry')}</button></div>}
 
-      {loading ? <div className="fd-empty">{t('loadingPartnerActivity')}</div> : (
+      {notEnrolled && <div className="fd-finance-notice" role="status"><strong>{financeT('merchantFinance.notEnrolled')}</strong><p>{financeT('merchantFinance.notEnrolledHint')}</p></div>}
+      {loading ? <div className="fd-empty">{t('loadingPartnerActivity')}</div> : error || notEnrolled ? null : (
         <>
           <div className="fd-ox-credit-summary" aria-label={t('partnerSummaryLabel')}>
             <div><WalletCards size={17} /><strong>{transactions.length}</strong><span>{t('creditEvents')}</span></div>

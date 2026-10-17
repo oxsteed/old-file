@@ -1,0 +1,50 @@
+.fd-finance { display: grid; gap: 1.25rem; margin-block-start: 1.5rem; padding-block-end: 3rem; color: var(--app-text); }
+.fd-finance-heading { display: flex; gap: 1rem; justify-content: space-between; align-items: flex-start; }
+.fd-finance-heading h2 { font-size: clamp(1.5rem, 3vw, 2rem); margin: .25rem 0 .5rem; font-weight: 800; }
+.fd-finance p { line-height: 1.6; }
+.fd-finance-heading p { margin: 0; max-width: 65ch; color: var(--muted-text); }
+.fd-finance .fd-finance-eyebrow { color: var(--primary-color, #b54708); font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 800; }
+.fd-finance-heading > a { flex-shrink: 0; }
+.fd-finance-shortcuts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; }
+.fd-finance-shortcuts a { display: flex; align-items: flex-start; gap: .65rem; padding: 1rem; border: 1px solid var(--border-color); background: var(--card-bg); border-radius: 14px; color: inherit; text-decoration: none; min-height: 44px; }
+.fd-finance-shortcuts a > svg { flex-shrink: 0; color: var(--primary-color, #b54708); margin-block-start: .15rem; }
+.fd-finance-shortcuts a > svg:last-child { margin-inline-start: auto; }
+.fd-finance-shortcuts span { min-width: 0; }
+.fd-finance-shortcuts strong, .fd-finance-shortcuts small { display: block; }
+.fd-finance-shortcuts small { color: var(--muted-text); margin-block-start: .35rem; line-height: 1.5; }
+.fd-finance-setup { display: grid; grid-template-columns: 1.2fr 1fr; gap: 1.25rem; align-items: start; }
+.fd-finance-card { min-width: 0; padding: clamp(1rem, 2.5vw, 1.5rem); border: 1px solid var(--border-color); border-radius: 18px; background: var(--card-bg); scroll-margin-block-start: 6rem; overflow-wrap: anywhere; }
+.fd-finance-card h3 { font-size: 1.2rem; font-weight: 750; margin-block: 0 .5rem; }
+.fd-finance-card .fd-section { padding: 0; margin: 0; border: 0; background: none; }
+.fd-finance .fd-payout-panel, .fd-finance .fd-topup-panel { margin: 0; }
+.fd-finance .fd-btn, .fd-finance button, .fd-finance input, .fd-finance select { min-height: 44px; }
+.fd-finance :is(button, a, input, select, summary):focus-visible { outline: 3px solid var(--primary-color, #c2410c); outline-offset: 3px; }
+.fd-finance-card:focus { outline: 2px solid var(--primary-color, #c2410c); outline-offset: 3px; }
+.fd-finance :is(.fd-credit-manager-head, .fd-ox-credit-partner-head, .fd-credit-request-main, .fd-ox-credit-panel-title) { flex-wrap: wrap; }
+.fd-finance .fd-credit-manager-head > div:last-child { flex-wrap: wrap; }
+.fd-finance-notice { padding: 1rem; margin-block: 1rem; border: 1px solid var(--border-color); border-inline-start: 4px solid var(--primary-color, #c2410c); border-radius: 10px; background: var(--soft-bg); }
+.fd-finance-notice p { margin-block: .4rem; }
+.fd-finance-notice a { display: inline-flex; align-items: center; min-height: 44px; text-decoration: underline; color: inherit; }
+.fd-finance-error { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; }
+.fd-finance-error button { flex-shrink: 0; }
+.fd-finance .fd-ox-credit-error { background: var(--soft-bg); color: var(--app-text); border-color: var(--border-color); }
+.fd-finance-disclosure { margin-block-start: 1.25rem; border-block-start: 1px solid var(--border-color); padding-block-start: .5rem; }
+.fd-finance-disclosure > summary { min-height: 44px; padding-block: .75rem; font-weight: 750; cursor: pointer; }
+.fd-finance-disclosure > p { color: var(--muted-text); margin-block: .25rem 1rem; }
+.fd-wallet-payouts { margin-block-start: 1.25rem; padding-block-start: 1.25rem; border-block-start: 1px solid var(--border-color); }
+.fd-wallet-payouts input { max-width: 100%; width: 10rem; background: var(--card-bg); color: inherit; border: 1px solid var(--border-color); padding: .6rem; border-radius: 8px; }
+.fd-wallet-payouts label { display: block; font-weight: 650; margin-block: .5rem; }
+.fd-payout-balance { display: block; font-size: 1.65rem; margin-block: .5rem; }
+.fd-payout-status-grid { display: grid; gap: .5rem; padding: 0; margin-block: 1rem; list-style: none; }
+.fd-payout-status-grid li { display: flex; justify-content: space-between; gap: .75rem; padding-block: .5rem; border-block-end: 1px solid var(--border-color); }
+.fd-payout-ready { color: var(--success-text, #15803d); background: var(--success-bg, #dcfce7); }
+.fd-payout-pending { color: var(--warning-text, #92400e); background: var(--warning-bg, #fef3c7); }
+.fd-finance-advanced { margin-block-start: 1rem; }
+.fd-finance-advanced summary { cursor: pointer; min-height: 44px; padding-block: .75rem; color: var(--muted-text); }
+@media (max-width: 900px) { .fd-finance-shortcuts { grid-template-columns: repeat(2, minmax(0, 1fr)); } .fd-finance-setup { grid-template-columns: 1fr; } }
+@media (max-width: 540px) { .fd-finance-heading { flex-direction: column; } .fd-finance-shortcuts { grid-template-columns: 1fr; } .fd-finance .fd-ox-credit-summary, .fd-finance .fd-ox-credit-columns { grid-template-columns: 1fr; } }
+
+.fd-finance-wallet-card .fd-wallet-payouts { margin: 0; padding: 0; border: 0; }
+.fd-finance-wallet-card form { max-width: 40rem; }
+
+.fd-finance :is(.fd-payout-ready, .fd-payout-pending, .fd-payout-attention) { color: var(--app-text); background: var(--soft-bg); border: 1px solid var(--border-color); text-transform: none; }

@@ -452,7 +452,17 @@ __sopRoute('get', /^\\/restaurants\\/pos\\/([^/]+)$/, (m) => ({
 // Current API response contracts used by the illustrated guides. Synthetic only.
 addSection('reviewed-contracts', String.raw`
 const __reviewStart=__ROUTES.length;
-const __restaurant={id:'sop-rest-1',business_id:'sop-biz-1',name:'SOP Kitchen',slug:'sop-kitchen',status:'active',currency_code:'USD',timezone:'America/New_York',address_city:'Springfield',address_line1:'123 Example Street',is_accepting_orders:true,fulfillment_modes:['pickup','delivery'],can_manage:true};
+__sopRoute('get', /^\/restaurants\/[^/]+\/payouts\/status$/,()=>({connected:false}));
+__sopRoute('get', /^\/restaurants\/[^/]+\/wallet-payouts\/balance$/,()=>({balanceCents:0,currencyCode:'USD',minPayoutCents:2500,processorEnabled:false}));
+__sopRoute('get', /^\/restaurants\/[^/]+\/wallet-payouts$/,()=>({payouts:[]}));
+__sopRoute('get', /^\/restaurants\/[^/]+\/topup-eligibility$/,()=>({eligibility:{status:'not_applied'}}));
+__sopRoute('get', /^\/food\/restaurants\/[^/]+\/customer-wallet-load-requests$/,()=>({loadRequests:[]}));
+__sopRoute('get', /^\/food\/merchant\/credit-approval$/,()=>({restaurants:[]}));
+__sopRoute('get', /^\/food\/merchant\/credit-reserve\/balance$/,()=>({balanceCents:0,lifetimePurchasedCents:0,lifetimeIssuedCents:0,optedIn:false}));
+__sopRoute('get', /^\/food\/merchant\/credit-reserve\/ledger$/,()=>({entries:[]}));
+__sopRoute('get', /^\/food\/merchant\/wallets\/[^/]+\/exposure$/,()=>({exposureCents:0,capCents:10000,oldestBalances:[]}));
+
+const __restaurant={id:'sop-rest-1',business_id:'sop-biz-1',name:'SOP Kitchen',effective_role:'owner',slug:'sop-kitchen',status:'active',currency_code:'USD',timezone:'America/New_York',address_city:'Springfield',address_line1:'123 Example Street',is_accepting_orders:true,fulfillment_modes:['pickup','delivery'],can_manage:true};
 const __menuItem={id:'sop-item-1',name:'Griot Plate',description:'Pork with rice and plantains',price_cents:1299,price:12.99,is_available:true,is_active:true,sort_order:0,modifier_groups:[]};
 const __orders=['received','accepted','preparing','ready'].map((status,index)=>({id:'sop-order-'+index,queue_number:'A'+(12+index),status,fulfillment_type:'pickup',total_cents:2598,currency_code:'USD',created_at:new Date(Date.now()-index*60000).toISOString(),customer_name:'SOP Customer',items:[{id:'sop-item-'+index,itemName:'Griot Plate',name:'Griot Plate',quantity:2,kitchenStatus:status==='preparing'?'preparing':status==='ready'?'ready':'queued'}]}));
 __sopRoute('get', /^\/food\/my\/restaurants$/,()=>({restaurants:[__restaurant]}));

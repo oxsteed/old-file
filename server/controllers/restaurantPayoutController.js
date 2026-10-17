@@ -69,7 +69,15 @@ function sanitizeOnboardingReturnPath(value) {
   if (!clean.startsWith('/') || clean.startsWith('//') || clean.includes('\\') || /[\r\n]/.test(clean)) {
     return '/food/merchant';
   }
-  return clean;
+  // Preserve only merchant context, never arbitrary redirect/query inputs.
+  const parsed = new URL(value.trim(), 'https://oxsteed.com');
+  const result = new URL(clean, 'https://oxsteed.com');
+  if (['/restaurants/merchant', '/food/merchant'].includes(clean)) {
+    const business = parsed.searchParams.get('business');
+    if (/^[1-9]\d*$/.test(business || '')) result.searchParams.set('business', business);
+    result.searchParams.set('tab', 'payouts');
+  }
+  return result.pathname + result.search;
 }
 
 function resolveAppBaseUrl() {
@@ -223,8 +231,12 @@ exports.createConnectRestaurantAccount = async (req, res, next) => {
     const restaurantId = req.restaurantId;
     const returnPath = sanitizeOnboardingReturnPath(req.body && req.body.return_path);
     const appBase = resolveAppBaseUrl();
-    const refreshUrl = `${appBase}${returnPath}?refresh=true`;
-    const returnUrl = `${appBase}${returnPath}?onboarding=complete`;
+    const refresh = new URL(returnPath, appBase);
+    refresh.searchParams.set('refresh', 'true');
+    const returned = new URL(returnPath, appBase);
+    returned.searchParams.set('onboarding', 'complete');
+    const refreshUrl = refresh.toString();
+    const returnUrl = returned.toString();
 
     const existing = await pool.query(
       'SELECT * FROM restaurant_connect_accounts WHERE restaurant_id = $1',

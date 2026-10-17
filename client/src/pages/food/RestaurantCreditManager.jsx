@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import {
   approveMerchantFoodWalletCreditRequest,
   createMerchantFoodWalletRefund,
@@ -28,6 +29,8 @@ function displayDate(value) {
 }
 
 export default function RestaurantCreditManager({ restaurant }) {
+  const { t: financeT } = useTranslation('common');
+  const [loadError, setLoadError] = useState(false);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [workingId, setWorkingId] = useState(null);
@@ -53,11 +56,13 @@ export default function RestaurantCreditManager({ restaurant }) {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const rows = await listMerchantFoodWalletCreditRequests(restaurant.id, { status: 'pending', limit: 100 });
       setRequests(Array.isArray(rows) ? rows : []);
     } catch (error) {
-      toast.error(apiErrorMessage(error, 'Unable to load restaurant credit requests.'));
+      setLoadError(true);
+      setRequests([]);
     } finally {
       setLoading(false);
     }
@@ -216,7 +221,8 @@ export default function RestaurantCreditManager({ restaurant }) {
           <p className="fd-card-meta">Approve credit only after matching the customer’s receipt or confirmation number.</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span className="fd-credit-manager-count">{requests.length} pending</span>
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={load} disabled={loading}>{financeT('merchantFinance.refresh')}</button>
+          <span className="fd-credit-manager-count">{loading || loadError ? '—' : financeT('merchantFinance.pendingRequests', { count: requests.length })}</span>
           <button type="button" className="fd-btn fd-btn-sm" onClick={() => { setGrantOpen((v) => !v); setGrantConfirming(false); }}>
             {grantOpen ? 'Close' : 'Grant credit'}
           </button>
@@ -321,10 +327,12 @@ export default function RestaurantCreditManager({ restaurant }) {
 
       {loading ? (
         <div className="fd-empty">Loading credit requests…</div>
+      ) : loadError ? (
+        <div className="fd-finance-notice fd-finance-error" role="alert"><p>{financeT('merchantFinance.requestsUnavailable')}</p><button type="button" className="fd-btn fd-btn-secondary" onClick={load}>{financeT('merchantFinance.retry')}</button></div>
       ) : requests.length === 0 ? (
         <div className="fd-credit-manager-empty">
           <strong>No credit requests to review</strong>
-          <span>New customer requests will appear here automatically.</span>
+          <span>{financeT('merchantFinance.requestsEmpty')}</span>
         </div>
       ) : (
         <div className="fd-credit-request-list">
@@ -374,11 +382,11 @@ export default function RestaurantCreditManager({ restaurant }) {
     </section>
     {/* Phase 4: pre-purchase credit reserve. Opt-in per restaurant; issuance
         is capped at the reserve balance once the restaurant is enrolled. */}
-    <RestaurantCreditReservePanel restaurant={restaurant} />
+    <details className="fd-finance-disclosure"><summary>{financeT('merchantFinance.reserveControls')}</summary><p>{financeT('merchantFinance.reserveHint')}</p><RestaurantCreditReservePanel restaurant={restaurant} />
     {/* Phase 5: trial-tier credit cap + FIFO derisking. Applies to
         restaurants without a reserve row; enrolled restaurants see the
         reserve-enrolled state instead of the cap meter. */}
-    <RestaurantCreditExposurePanel restaurant={restaurant} />
+    <RestaurantCreditExposurePanel restaurant={restaurant} /></details>
     </>
   );
 }

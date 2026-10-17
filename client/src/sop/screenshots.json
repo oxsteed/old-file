@@ -2808,30 +2808,50 @@
   "annotations": []
  },
  "financial-restaurant-credit/financial-restaurant-credit-s6/desktop": {
-  "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s6-desktop.jpg",
+  "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s6-desktop-finance.jpg",
   "width": 1360,
   "height": 900,
   "alt": "Credit manager with request review actions",
-  "caption": "Screen overview. Some controls described in this step are not shown in this synthetic example.",
+  "caption": "Reviewing credit requests, desktop view.",
   "captureReview": {
-   "missingControls": [
-    "Approve credit button"
-   ],
-   "unmapped": []
+   "missingControls": [],
+   "unmapped": [
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/transactions",
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/settlements",
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/ledger"
+   ]
   },
-  "annotations": []
+  "annotations": [
+   {
+    "n": 1,
+    "x": 50,
+    "y": 30,
+    "label": "Customer credit requests"
+   }
+  ]
  },
  "financial-restaurant-credit/financial-restaurant-credit-s6/mobile": {
-  "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s6-mobile.jpg",
+  "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s6-mobile-finance.jpg",
   "width": 390,
   "height": 844,
   "alt": "Credit manager on a phone screen",
   "caption": "Reviewing credit requests, mobile view.",
   "captureReview": {
    "missingControls": [],
-   "unmapped": []
+   "unmapped": [
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/transactions",
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/settlements",
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/ledger"
+   ]
   },
-  "annotations": []
+  "annotations": [
+   {
+    "n": 1,
+    "x": 50,
+    "y": 30,
+    "label": "Customer credit requests"
+   }
+  ]
  },
  "financial-restaurant-credit/financial-restaurant-credit-s8/desktop": {
   "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s1-desktop.jpg",
@@ -3309,31 +3329,50 @@
   "annotations": []
  },
  "financial-restaurant-credit/financial-restaurant-credit-s7/desktop": {
-  "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s6-desktop.jpg",
+  "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s7-desktop.jpg",
   "width": 1360,
   "height": 900,
   "alt": "Grant credit form with explanation",
-  "caption": "Screen overview. Some controls described in this step are not shown in this synthetic example.",
+  "caption": "Granting credit, desktop view.",
   "captureReview": {
-   "missingControls": [
-    "Explanation field",
-    "Review grant button"
-   ],
-   "unmapped": []
+   "missingControls": [],
+   "unmapped": [
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/transactions",
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/settlements",
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/ledger"
+   ]
   },
-  "annotations": []
+  "annotations": [
+   {
+    "n": 1,
+    "x": 50,
+    "y": 30,
+    "label": "Review the customer and amount before confirming"
+   }
+  ]
  },
  "financial-restaurant-credit/financial-restaurant-credit-s7/mobile": {
-  "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s6-mobile.jpg",
+  "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s7-mobile.jpg",
   "width": 390,
   "height": 844,
   "alt": "Grant form on a phone screen",
   "caption": "Granting credit, mobile view.",
   "captureReview": {
    "missingControls": [],
-   "unmapped": []
+   "unmapped": [
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/transactions",
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/settlements",
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/ledger"
+   ]
   },
-  "annotations": []
+  "annotations": [
+   {
+    "n": 1,
+    "x": 50,
+    "y": 30,
+    "label": "Review the customer and amount before confirming"
+   }
+  ]
  },
  "financial-statements/financial-statements-s3/desktop": {
   "src": "/sop/screenshots/financial/financial-statements/financial-statements-s2-desktop.jpg",
@@ -8802,48 +8841,65 @@
   "annotations": []
  },
  "restaurant-refund-requests/restaurant-refund-requests-s2/desktop": {
-  "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s6-desktop.jpg",
+  "src": "/sop/screenshots/restaurants/restaurant-refund-requests/restaurant-refund-requests-s2-desktop.jpg",
   "width": 1360,
   "height": 900,
   "alt": "Refund credit form with email, amount, and reason",
-  "caption": "Screen overview. Some controls described in this step are not shown in this synthetic example.",
+  "caption": "Refunding restaurant credit, desktop view.",
   "captureReview": {
-   "missingControls": [
-    "Yes, refund confirmation"
-   ],
-   "unmapped": []
+   "missingControls": [],
+   "unmapped": [
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/transactions",
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/settlements",
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/ledger"
+   ]
   },
-  "annotations": []
+  "annotations": [
+   {
+    "n": 1,
+    "x": 50,
+    "y": 29.9,
+    "label": "Review the customer and amount before confirming"
+   }
+  ]
  },
  "restaurant-refund-requests/restaurant-refund-requests-s2/mobile": {
-  "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s6-mobile.jpg",
+  "src": "/sop/screenshots/restaurants/restaurant-refund-requests/restaurant-refund-requests-s2-mobile.jpg",
   "width": 390,
   "height": 844,
   "alt": "Refund form on a phone screen",
   "caption": "Refunding restaurant credit, mobile view.",
   "captureReview": {
    "missingControls": [],
-   "unmapped": []
+   "unmapped": [
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/transactions",
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/settlements",
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/ledger"
+   ]
   },
-  "annotations": []
+  "annotations": [
+   {
+    "n": 1,
+    "x": 50,
+    "y": 30,
+    "label": "Review the customer and amount before confirming"
+   }
+  ]
  },
  "restaurant-refund-requests/restaurant-refund-requests-s3/desktop": {
-  "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s6-desktop.jpg",
+  "src": "/sop/screenshots/restaurants/restaurant-refund-requests/restaurant-refund-requests-s3-desktop.jpg",
   "width": 1360,
   "height": 900,
   "alt": "Issue refund dialog with amount and reason",
-  "caption": "Screen overview. Some controls described in this step are not shown in this synthetic example.",
+  "caption": "Issuing an order refund, desktop view.",
   "captureReview": {
-   "missingControls": [
-    "Amount field",
-    "Issue Refund button"
-   ],
+   "missingControls": [],
    "unmapped": []
   },
   "annotations": []
  },
  "restaurant-refund-requests/restaurant-refund-requests-s3/mobile": {
-  "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s6-mobile.jpg",
+  "src": "/sop/screenshots/restaurants/restaurant-refund-requests/restaurant-refund-requests-s3-mobile.jpg",
   "width": 390,
   "height": 844,
   "alt": "Issue refund on a phone screen",
@@ -8886,21 +8942,19 @@
   "annotations": []
  },
  "restaurant-setup/restaurant-setup-s1/desktop": {
-  "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s6-desktop.jpg",
+  "src": "/sop/screenshots/restaurants/restaurant-refund-requests/restaurant-refund-requests-s3-desktop.jpg",
   "width": 1360,
   "height": 900,
   "alt": "Restaurant dashboard listing the restaurants you manage",
-  "caption": "Screen overview. Some controls described in this step are not shown in this synthetic example.",
+  "caption": "The restaurant dashboard, desktop view.",
   "captureReview": {
-   "missingControls": [
-    "Page title"
-   ],
+   "missingControls": [],
    "unmapped": []
   },
   "annotations": []
  },
  "restaurant-setup/restaurant-setup-s1/mobile": {
-  "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s6-mobile.jpg",
+  "src": "/sop/screenshots/restaurants/restaurant-refund-requests/restaurant-refund-requests-s3-mobile.jpg",
   "width": 390,
   "height": 844,
   "alt": "Restaurant dashboard on a phone screen",
@@ -8912,22 +8966,19 @@
   "annotations": []
  },
  "restaurant-setup/restaurant-setup-s2/desktop": {
-  "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s6-desktop.jpg",
+  "src": "/sop/screenshots/restaurants/restaurant-refund-requests/restaurant-refund-requests-s3-desktop.jpg",
   "width": 1360,
   "height": 900,
   "alt": "The add restaurant form with its fields",
-  "caption": "Screen overview. Some controls described in this step are not shown in this synthetic example.",
+  "caption": "The restaurant creation form, desktop view.",
   "captureReview": {
-   "missingControls": [
-    "Restaurant name field",
-    "Create restaurant button"
-   ],
+   "missingControls": [],
    "unmapped": []
   },
   "annotations": []
  },
  "restaurant-setup/restaurant-setup-s2/mobile": {
-  "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s6-mobile.jpg",
+  "src": "/sop/screenshots/restaurants/restaurant-refund-requests/restaurant-refund-requests-s3-mobile.jpg",
   "width": 390,
   "height": 844,
   "alt": "The add restaurant form on a phone screen",
@@ -8939,22 +8990,19 @@
   "annotations": []
  },
  "restaurant-setup/restaurant-setup-s3/desktop": {
-  "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s6-desktop.jpg",
+  "src": "/sop/screenshots/restaurants/restaurant-refund-requests/restaurant-refund-requests-s3-desktop.jpg",
   "width": 1360,
   "height": 900,
   "alt": "Setup checklist with per-step Fix buttons",
-  "caption": "Screen overview. Some controls described in this step are not shown in this synthetic example.",
+  "caption": "The setup checklist, desktop view.",
   "captureReview": {
-   "missingControls": [
-    "Setup checklist progress",
-    "Fix button on a step"
-   ],
+   "missingControls": [],
    "unmapped": []
   },
   "annotations": []
  },
  "restaurant-setup/restaurant-setup-s3/mobile": {
-  "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s6-mobile.jpg",
+  "src": "/sop/screenshots/restaurants/restaurant-refund-requests/restaurant-refund-requests-s3-mobile.jpg",
   "width": 390,
   "height": 844,
   "alt": "Setup checklist on a phone screen",
@@ -8966,31 +9014,53 @@
   "annotations": []
  },
  "restaurant-setup/restaurant-setup-s4/desktop": {
-  "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s6-desktop.jpg",
+  "src": "/sop/screenshots/restaurants/restaurant-setup/restaurant-setup-s4-desktop.jpg",
   "width": 1360,
   "height": 900,
   "alt": "Credit reserve funding panel with proof fields",
   "caption": "Funding the credit reserve, desktop view.",
   "captureReview": {
    "missingControls": [],
-   "unmapped": []
+   "unmapped": [
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/transactions",
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/settlements",
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/ledger"
+   ]
   },
-  "annotations": []
+  "annotations": [
+   {
+    "n": 1,
+    "x": 50,
+    "y": 30,
+    "label": "Review the reserve before buying credit"
+   }
+  ]
  },
  "restaurant-setup/restaurant-setup-s4/mobile": {
-  "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s6-mobile.jpg",
+  "src": "/sop/screenshots/restaurants/restaurant-setup/restaurant-setup-s4-mobile.jpg",
   "width": 390,
   "height": 844,
   "alt": "Credit reserve funding panel on a phone screen",
   "caption": "Funding the credit reserve, mobile view.",
   "captureReview": {
    "missingControls": [],
-   "unmapped": []
+   "unmapped": [
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/transactions",
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/settlements",
+    "get /food/restaurants/sop-rest-1/oxsteed-credit/ledger"
+   ]
   },
-  "annotations": []
+  "annotations": [
+   {
+    "n": 1,
+    "x": 50,
+    "y": 30,
+    "label": "Review the reserve before buying credit"
+   }
+  ]
  },
  "restaurant-setup/restaurant-setup-s5/desktop": {
-  "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s6-desktop.jpg",
+  "src": "/sop/screenshots/restaurants/restaurant-refund-requests/restaurant-refund-requests-s3-desktop.jpg",
   "width": 1360,
   "height": 900,
   "alt": "Settings tab with the Ordering section and Go live button",
@@ -9002,7 +9072,7 @@
   "annotations": []
  },
  "restaurant-setup/restaurant-setup-s5/mobile": {
-  "src": "/sop/screenshots/financial/financial-restaurant-credit/financial-restaurant-credit-s6-mobile.jpg",
+  "src": "/sop/screenshots/restaurants/restaurant-refund-requests/restaurant-refund-requests-s3-mobile.jpg",
   "width": 390,
   "height": 844,
   "alt": "Settings tab on a phone screen",

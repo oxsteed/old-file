@@ -7,7 +7,7 @@ export default {
   "audiences": [
     "restaurant"
   ],
-  "revision": 2,
+  "revision": 3,
   "availability": "supported",
   "conditions": [],
   "goal": "Create a restaurant on OxSteed, finish the setup checklist, fund the credit reserve if needed, and go live for customer ordering.",
@@ -172,7 +172,7 @@ export default {
     {
       "id": "restaurant-setup-s4",
       "title": "Fund the credit reserve if approval requires it",
-      "body": "If the platform credit approval is not yet funded, the \"Fund your credit reserve\" panel appears: \"Your approval is almost complete. Fund your OxSteed Credit reserve to start issuing restaurant credit.\" Fund by card through the reserve purchase panel, or enter \"Amount you sent\" plus \"Proof of payment\" (a \"Payment reference (optional)\" also helps) and choose \"Submit for verification\".",
+      "body": "Open the Payouts tab. Expand Credit reserve & exposure to review the reserve balance and access Buy credit reserve. If the platform credit approval is not yet funded, the \"Fund your credit reserve\" panel appears: \"Your approval is almost complete. Fund your OxSteed Credit reserve to start issuing restaurant credit.\" Fund by card through the reserve purchase panel, or enter \"Amount you sent\" plus \"Proof of payment\" (a \"Payment reference (optional)\" also helps) and choose \"Submit for verification\".",
       "expectedResult": "You see \"Funding proof submitted for review.\" and the funding status moves toward funded.",
       "screenshots": [
         {
@@ -181,7 +181,13 @@ export default {
           "state": "Fund your credit reserve panel, light mode",
           "alt": "Credit reserve funding panel with proof fields",
           "caption": "Funding the credit reserve, desktop view.",
-          "annotations": []
+          "annotations": [
+            {
+              "n": 1,
+              "label": "Review the reserve before buying credit",
+              "locator": ".fd-finance-disclosure > summary"
+            }
+          ]
         },
         {
           "viewport": "mobile",
@@ -189,7 +195,13 @@ export default {
           "state": "Fund your credit reserve panel, light mode",
           "alt": "Credit reserve funding panel on a phone screen",
           "caption": "Funding the credit reserve, mobile view.",
-          "annotations": []
+          "annotations": [
+            {
+              "n": 1,
+              "label": "Review the reserve before buying credit",
+              "locator": ".fd-finance-disclosure > summary"
+            }
+          ]
         }
       ]
     },

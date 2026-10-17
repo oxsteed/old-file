@@ -34,6 +34,7 @@ function Pill({ tone, children }) {
 
 export default function RestaurantTopupEligibilityPanel({ t: tProp, restaurant, restaurantId: restaurantIdProp, onGoToPayouts }) {
   const { t: tHook } = useTranslation();
+  const { t: financeT } = useTranslation('common');
   const t = tProp || tHook;
   const restaurantId = restaurantIdProp ?? restaurant?.id;
 
@@ -93,7 +94,7 @@ export default function RestaurantTopupEligibilityPanel({ t: tProp, restaurant, 
   }[status] || status;
 
   return (
-    <div style={{ marginTop: '2rem', borderTop: '1px solid var(--fd-border, #e5e7eb)', paddingTop: '1.5rem' }}>
+    <div className="fd-topup-panel">
       <h3>{t('restaurantTopups.merchant.title', 'Customer top-ups')}</h3>
       <p className="fd-card-meta">
         {t('restaurantTopups.merchant.subtitle', 'Let customers add money to their restaurant wallet with a card. OxSteed reviews each restaurant before enabling this.')}
@@ -140,7 +141,7 @@ export default function RestaurantTopupEligibilityPanel({ t: tProp, restaurant, 
                 {applying
                   ? t('restaurantTopups.merchant.applying', 'Submitting…')
                   : status === 'not_applied'
-                    ? t('restaurantTopups.merchant.apply', 'Enable customer top-ups')
+                    ? financeT('merchantFinance.applyTopups')
                     : t('restaurantTopups.merchant.reapply', 'Re-apply')}
               </button>
             </div>
