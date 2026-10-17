@@ -29690,7 +29690,7 @@
     "watch": {
       "watch": "Vigilar",
       "watching": "Vigilando",
-      "hint": "Recibe una notificación cuando se abra una disputa relacionada con este usuario.",
+      "hint": "Recibe una notificación cuando este usuario tenga una disputa, abra un ticket o publique un trabajo.",
       "since": "Vigilando desde el {date}"
     },
     "caseOwner": {

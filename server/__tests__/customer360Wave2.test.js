@@ -205,6 +205,64 @@ describe('customer 360 wave-2 endpoints', () => {
     try { await db.query(`DELETE FROM admin_user_notes WHERE id = $1`, [noteId]); } catch (e) { /* ignore */ }
   }, 30000);
 
+  test('notifyWatchers honors ticket and booking triggers', async () => {
+    // Watch with all three triggers
+    let res = mockRes();
+    await ctrl.addWatch(
+      adminReq({ userId: targetId }, {}, { triggers: ['dispute', 'ticket', 'booking'] }),
+      res
+    );
+    expect(res.body.watch.triggers).toEqual(
+      expect.arrayContaining(['dispute', 'ticket', 'booking'])
+    );
+
+    // Mock sendNotification to capture calls
+    const sent = [];
+    const notifPath = require.resolve('../services/notificationService');
+    const orig = require(notifPath);
+    require.cache[notifPath].exports = {
+      ...orig,
+      sendNotification: jest.fn(async (args) => { sent.push(args); }),
+    };
+    try {
+      await ctrl.notifyWatchers({
+        targetUserIds: [targetId],
+        eventType: 'ticket',
+        refId: 'tick-1',
+        title: 'Help needed',
+      });
+      expect(sent.length).toBe(1);
+      expect(sent[0].type).toBe('watchlist_ticket');
+      expect(sent[0].userId).toBe(adminId);
+
+      sent.length = 0;
+      await ctrl.notifyWatchers({
+        targetUserIds: [targetId],
+        eventType: 'booking',
+        refId: 'job-1',
+        title: 'Fix sink',
+      });
+      expect(sent.length).toBe(1);
+      expect(sent[0].type).toBe('watchlist_booking');
+
+      // Unknown event type is ignored
+      sent.length = 0;
+      await ctrl.notifyWatchers({
+        targetUserIds: [targetId],
+        eventType: 'nope',
+        refId: 'x-1',
+        title: 'x',
+      });
+      expect(sent.length).toBe(0);
+    } finally {
+      require.cache[notifPath].exports = orig;
+    }
+
+    res = mockRes();
+    await ctrl.removeWatch(adminReq({ userId: targetId }), res);
+    expect(res.body.watching).toBe(false);
+  }, 30000);
+
   test('health returns user metrics and platform baselines', async () => {
     const res = mockRes();
     await ctrl.getHealth(adminReq({ userId: targetId }), res);

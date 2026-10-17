@@ -714,7 +714,7 @@ export default function Customer360() {
       if (watching) {
         await adminApi.delete(`/admin/users/${userId}/watch`);
       } else {
-        await adminApi.post(`/admin/users/${userId}/watch`, { triggers: ['dispute'] });
+        await adminApi.post(`/admin/users/${userId}/watch`, { triggers: ['dispute', 'ticket', 'booking'] });
       }
       reloadAux();
     } catch { /* per-section error surfaces on reload */ }

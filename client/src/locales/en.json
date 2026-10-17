@@ -29690,7 +29690,7 @@
     "watch": {
       "watch": "Watch",
       "watching": "Watching",
-      "hint": "Get notified when a dispute is opened involving this user.",
+      "hint": "Get notified when this user is in a new dispute, opens a ticket, or posts a job.",
       "since": "Watching since {date}"
     },
     "caseOwner": {

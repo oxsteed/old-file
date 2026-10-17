@@ -293,6 +293,17 @@ exports.createJob = async (req, res, next) => {
     // Saved-search alerts fan out from the job event outbox (job.published),
     // committed with the insert above - see jobs/jobEventOutbox.js.
 
+    // Customer 360 watchlist: notify watching admins (best-effort).
+    try {
+      const { notifyWatchers } = require('./customer360Controller');
+      await notifyWatchers({
+        targetUserIds: [String(rows[0].client_id)],
+        eventType: 'booking',
+        refId: rows[0].id,
+        title: rows[0].title,
+      });
+    } catch (watchErr) { /* never fail the response */ }
+
     return res.status(201).json({
       ...safeJob,
       match_count:  matchResult.total    || 0,

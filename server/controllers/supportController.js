@@ -345,6 +345,19 @@ exports.submitSupportRequest = async (req, res, next) => {
       ticketId: ticket.id, ticketNumber: ticket.ticket_number,
     });
 
+    // Customer 360 watchlist: notify watching admins (best-effort, skip guests).
+    if (userId) {
+      try {
+        const { notifyWatchers } = require('./customer360Controller');
+        await notifyWatchers({
+          targetUserIds: [String(userId)],
+          eventType: 'ticket',
+          refId: ticket.id,
+          title: ticket.subject,
+        });
+      } catch (watchErr) { /* never fail the response */ }
+    }
+
       return res.status(201).json({
         ticket_id:     ticket.id,
         ticket_number: ticket.ticket_number,

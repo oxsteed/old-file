@@ -207,9 +207,11 @@ exports.addWatch = async (req, res) => {
   try {
     const { userId } = req.params;
     if (!isUuid(userId)) return res.status(400).json({ error: 'Invalid user id.' });
+    const ALLOWED = new Set(['dispute', 'ticket', 'booking']);
     const triggers = Array.isArray(req.body?.triggers) && req.body.triggers.length
-      ? req.body.triggers.filter((t) => t === 'dispute')
-      : ['dispute'];
+      ? [...new Set(req.body.triggers.filter((t) => ALLOWED.has(t)))]
+      : ['dispute', 'ticket', 'booking'];
+    if (!triggers.length) return res.status(400).json({ error: 'No valid triggers.' });
     const { rows } = await db.query(
       `INSERT INTO admin_user_watchlist (admin_id, target_user_id, triggers)
        VALUES ($1::UUID, $2::UUID, $3)
@@ -241,30 +243,49 @@ exports.removeWatch = async (req, res) => {
 };
 
 /**
- * Notify watching admins when a dispute is opened involving a watched user.
- * Called from the dispute creation path (best-effort; never throws).
+ * Notify watching admins when a watched event happens for a watched user.
+ * eventType: 'dispute' | 'ticket' | 'booking'. Called from the creation
+ * paths (best-effort; never throws).
  */
-exports.notifyWatchers = async ({ targetUserIds, disputeId, jobTitle }) => {
+exports.notifyWatchers = async ({ targetUserIds, eventType = 'dispute', refId, title }) => {
   try {
     if (!targetUserIds?.length) return;
+    if (!['dispute', 'ticket', 'booking'].includes(eventType)) return;
     // Single query, no tableExists probe: if the watchlist table is missing
     // (pre-migration), this throws and we return silently.
     const { rows } = await db.query(
       `SELECT DISTINCT admin_id FROM admin_user_watchlist
-       WHERE target_user_id = ANY($1::UUID[]) AND 'dispute' = ANY(triggers)`,
-      [targetUserIds]
+       WHERE target_user_id = ANY($1::UUID[]) AND $2 = ANY(triggers)`,
+      [targetUserIds, eventType]
     );
     if (!rows.length) return;
+    const copy = {
+      dispute: {
+        type: 'watchlist_dispute',
+        title: 'Watched user in a new dispute',
+        body: title ? `Dispute opened on "${title}".` : 'A dispute was opened.',
+        action_url: `/disputes/${refId}`,
+      },
+      ticket: {
+        type: 'watchlist_ticket',
+        title: 'Watched user opened a ticket',
+        body: title ? `New support ticket: "${title}".` : 'A support ticket was opened.',
+        action_url: `/admin/support/tickets/${refId}`,
+      },
+      booking: {
+        type: 'watchlist_booking',
+        title: 'Watched user posted a job',
+        body: title ? `New job posted: "${title}".` : 'A job was posted.',
+        action_url: `/admin/jobs/${refId}`,
+      },
+    }[eventType];
     const { sendNotification } = require('../services/notificationService');
     await Promise.all(rows.map((r) =>
       sendNotification({
         userId: r.admin_id,
-        type: 'watchlist_dispute',
-        title: 'Watched user in a new dispute',
-        body: jobTitle ? `Dispute opened on "${jobTitle}".` : 'A dispute was opened.',
-        data: { dispute_id: String(disputeId), watched_user_ids: targetUserIds },
-        action_url: `/disputes/${disputeId}`,
-        idempotencyKey: `watchlist:dispute:${disputeId}:${r.admin_id}`,
+        ...copy,
+        data: { [`${eventType}_id`]: String(refId), watched_user_ids: targetUserIds },
+        idempotencyKey: `watchlist:${eventType}:${refId}:${r.admin_id}`,
       }).catch((e) => logger.warn('watchlist notify failed', { err: e.message }))
     ));
   } catch (err) {

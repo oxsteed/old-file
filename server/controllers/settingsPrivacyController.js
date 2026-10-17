@@ -218,6 +218,19 @@ async function submitAppReport(req, res, next) {
       requestId,
     });
 
+    // Customer 360 watchlist: notify watching admins (best-effort, new tickets only).
+    if (!replayed) {
+      try {
+        const { notifyWatchers } = require('./customer360Controller');
+        await notifyWatchers({
+          targetUserIds: [String(req.user.id)],
+          eventType: 'ticket',
+          refId: ticket.id,
+          title: subject,
+        });
+      } catch (watchErr) { /* never fail the response */ }
+    }
+
     res.status(replayed ? 200 : 201).json({
       ticket_id: String(ticket.id),
       ticket_number: String(ticket.ticket_number || ticket.id),

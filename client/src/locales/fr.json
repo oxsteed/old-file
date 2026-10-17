@@ -29690,7 +29690,7 @@
     "watch": {
       "watch": "Surveiller",
       "watching": "Surveillé",
-      "hint": "Être notifié quand un litige est ouvert impliquant cet utilisateur.",
+      "hint": "Être notifié quand cet utilisateur est dans un litige, ouvre un ticket ou publie une mission.",
       "since": "Surveillé depuis le {date}"
     },
     "caseOwner": {

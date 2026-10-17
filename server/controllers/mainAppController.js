@@ -3132,6 +3132,19 @@ exports.createSupportReport = async (req, res, next) => {
         createdAt: toIso(ticket.created_at),
       },
     });
+
+    // Customer 360 watchlist: notify watching admins (best-effort).
+    try {
+      const { notifyWatchers } = require('./customer360Controller');
+      await notifyWatchers({
+        targetUserIds: [String(req.user.id)],
+        eventType: 'ticket',
+        refId: ticket.id,
+        title: subject,
+      });
+    } catch (watchErr) {
+      // never fail the response for watchlist notifications
+    }
   } catch (err) {
     next(err);
   }

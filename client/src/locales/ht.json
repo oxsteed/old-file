@@ -29690,7 +29690,7 @@
     "watch": {
       "watch": "Veye",
       "watching": "Ap veye",
-      "hint": "Resevwa notifikasyon lè yo louvri yon diskisyon ki konsène itilizatè sa a.",
+      "hint": "Resevwa notifikasyon lè itilizatè sa a nan yon diskisyon, louvri yon tikè, oswa poste yon djòb.",
       "since": "Ap veye depi {date}"
     },
     "caseOwner": {

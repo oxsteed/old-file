@@ -370,8 +370,9 @@ exports.openDispute = async (req, res, next) => {
           .filter(Boolean).map(String);
         await notifyWatchers({
           targetUserIds: [...new Set(watchedIds)],
-          disputeId: dispute.id,
-          jobTitle: jobParty?.title || '',
+          eventType: 'dispute',
+          refId: dispute.id,
+          title: jobParty?.title || '',
         });
       } catch (watchErr) {
         logger.warn('Watchlist dispute notification failed', { error: watchErr.message });

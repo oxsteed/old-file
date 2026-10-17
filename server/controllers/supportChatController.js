@@ -283,6 +283,18 @@ async function handleTicketEscalation(
       }).catch((err) => {
         logger.warn('Support ticket escalation emails failed', { message: err.message });
       });
+      // Customer 360 watchlist: notify watching admins (best-effort, skip guests).
+      if (userId) {
+        try {
+          const { notifyWatchers } = require('./customer360Controller');
+          await notifyWatchers({
+            targetUserIds: [String(userId)],
+            eventType: 'ticket',
+            refId: ticket.id,
+            title: 'Support request',
+          });
+        } catch (watchErr) { /* never fail the response */ }
+      }
     }
   } catch (err) {
     logger.error('handleTicketEscalation error', { message: err.message });

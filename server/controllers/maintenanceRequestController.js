@@ -590,6 +590,16 @@ exports.convertToJob = async (req, res, next) => {
     );
     await insertEvent(client, request.id, req.user.id, 'converted_to_job', request.status, updated.status, `Created job ${job.id}`, { job_id: job.id });
     await client.query('COMMIT');
+    // Customer 360 watchlist: notify watching admins (best-effort).
+    try {
+      const { notifyWatchers } = require('./customer360Controller');
+      await notifyWatchers({
+        targetUserIds: [String(job.client_id || req.user.id)],
+        eventType: 'booking',
+        refId: job.id,
+        title: job.title,
+      });
+    } catch (watchErr) { /* never fail the response */ }
     return res.status(201).json({ request: await withHydratedPhotos(updated), job });
   } catch (err) {
     await client.query('ROLLBACK');
