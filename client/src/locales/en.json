@@ -30435,7 +30435,13 @@
     "viewLabel": "Org chart view",
     "vacant": "Vacant",
     "expand": "Expand",
-    "collapse": "Collapse"
+    "collapse": "Collapse",
+    "searchPlaceholder": "Search titles...",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all",
+    "filledStats": "{{filled}} of {{total}} positions filled",
+    "assign": "Assign",
+    "noSearchResults": "No titles match \"{{query}}\"."
   },
   "adminAllocations": {
     "title": "📊 Allocations & Delivery",
