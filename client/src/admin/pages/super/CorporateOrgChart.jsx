@@ -189,6 +189,18 @@ export default function CorporateOrgChart() {
         <div className="p-10 text-center text-gray-400">
           <Loader2 className="inline animate-spin mr-2" size={18} /> {t('adminOrgChart.loading')}
         </div>
+      ) : view === 'tree' ? (
+        chart?.titles?.length ? (
+          <OrgTreeView titles={chart.titles} />
+        ) : (
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-10 text-center">
+            <UsersIcon size={32} className="text-gray-600 mx-auto mb-3" />
+            <p className="text-gray-300 font-medium mb-1">{t('adminOrgChart.emptyTitle')}</p>
+            <p className="text-gray-500 text-sm">
+              {t('adminOrgChart.emptyBody')}
+            </p>
+          </div>
+        )
       ) : !chart || chart.total_assignments === 0 ? (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-10 text-center">
           <UsersIcon size={32} className="text-gray-600 mx-auto mb-3" />
@@ -197,8 +209,6 @@ export default function CorporateOrgChart() {
             {t('adminOrgChart.emptyBody')}
           </p>
         </div>
-      ) : view === 'tree' ? (
-        <OrgTreeView titles={chart.titles} />
       ) : (
         <div className="space-y-4">
           {(chart.by_department || []).map(block => (
