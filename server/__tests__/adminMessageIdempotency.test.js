@@ -233,6 +233,7 @@ describe('support reply and report idempotency', () => {
       .mockResolvedValueOnce({ rows: [{ first_name: 'User', last_name: 'One', email: 'user@example.com' }] })
       .mockResolvedValueOnce({ rows: [ticket] })
       .mockResolvedValueOnce({ rows: [] }) // initial message
+      .mockResolvedValueOnce({ rows: [] }) // watchlist: no watchers
       .mockResolvedValueOnce({ rows: [{ first_name: 'User', last_name: 'One', email: 'user@example.com' }] })
       .mockResolvedValueOnce({ rows: [] }) // duplicate ticket insert
       .mockResolvedValueOnce({ rows: [ticket] }); // existing ticket lookup
