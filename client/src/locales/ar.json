@@ -26967,6 +26967,8 @@
     "daysAgo_other": "منذ {{count}} يوم",
     "entityRef": "الكيان #{{id}}",
     "errorLoadStats": "تعذر تحميل إحصاءات لوحة التحكم.",
+    "errorSessionExpired": "انتهت جلستك. يرجى تسجيل الدخول مرة أخرى.",
+    "signInAgain": "تسجيل الدخول مرة أخرى",
     "eventCancelledJob": "أُلغيت المهمة",
     "eventCompletedJob": "اكتملت المهمة",
     "eventInProgressJob": "بدأت المهمة",

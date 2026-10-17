@@ -26956,6 +26956,8 @@
     "daysAgo_other": "hace {{count}} d",
     "entityRef": "Entidad #{{id}}",
     "errorLoadStats": "No se pudieron cargar las estadísticas del panel.",
+    "errorSessionExpired": "Tu sesión expiró. Por favor, inicia sesión de nuevo.",
+    "signInAgain": "Iniciar sesión de nuevo",
     "eventCancelledJob": "Trabajo cancelado",
     "eventCompletedJob": "Trabajo completado",
     "eventInProgressJob": "Trabajo iniciado",

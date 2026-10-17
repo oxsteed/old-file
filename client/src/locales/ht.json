@@ -26956,6 +26956,8 @@
     "daysAgo_other": "{{count}} jou pase",
     "entityRef": "Antite #{{id}}",
     "errorLoadStats": "Nou pa t ka chaje estatistik tablodbò a.",
+    "errorSessionExpired": "Sesyon w lan ekspire. Tanpri konekte ankò.",
+    "signInAgain": "Konekte ankò",
     "eventCancelledJob": "Travay anile",
     "eventCompletedJob": "Travay fini",
     "eventInProgressJob": "Travay kòmanse",

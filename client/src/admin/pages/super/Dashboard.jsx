@@ -152,7 +152,10 @@ export default function SuperDashboard() {
     const { data } = await adminApi.get(endpoint, { signal });
     return data.stats;
   }, [period, isSuper]);
-  const error = !loading && statsError ? t('superDashboard.errorLoadStats') : null;
+  const sessionExpired = !loading && statsError?.response?.status === 401;
+  const error = !loading && statsError
+    ? (sessionExpired ? t('superDashboard.errorSessionExpired') : t('superDashboard.errorLoadStats'))
+    : null;
 
   useEffect(() => { if (stats) setLastUpdated(new Date()); }, [stats]);
 
@@ -295,7 +298,11 @@ export default function SuperDashboard() {
       {error && (
         <div className="flex flex-wrap items-center justify-between gap-3 bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-700 dark:text-red-300 text-sm">
           <span>{error}</span>
-          <button type="button" onClick={refreshAll} disabled={busy} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/10 disabled:opacity-50">{t('superDashboard.tryAgain')}</button>
+          {sessionExpired ? (
+            <Link to="/admin/login" className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/10">{t('superDashboard.signInAgain')}</Link>
+          ) : (
+            <button type="button" onClick={refreshAll} disabled={busy} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/10 disabled:opacity-50">{t('superDashboard.tryAgain')}</button>
+          )}
         </div>
       )}
 

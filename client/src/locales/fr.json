@@ -26956,6 +26956,8 @@
     "daysAgo_other": "il y a {{count}} j",
     "entityRef": "Entité #{{id}}",
     "errorLoadStats": "Échec du chargement des statistiques du tableau de bord.",
+    "errorSessionExpired": "Votre session a expiré. Veuillez vous reconnecter.",
+    "signInAgain": "Se reconnecter",
     "eventCancelledJob": "Mission annulée",
     "eventCompletedJob": "Mission terminée",
     "eventInProgressJob": "Mission démarrée",
