@@ -30498,7 +30498,13 @@
     "viewLabel": "عرض المخطط التنظيمي",
     "vacant": "شاغر",
     "expand": "توسيع",
-    "collapse": "طي"
+    "collapse": "طي",
+    "searchPlaceholder": "ابحث في المسميات...",
+    "expandAll": "توسيع الكل",
+    "collapseAll": "طي الكل",
+    "filledStats": "{{filled}} من {{total}} منصب مشغول",
+    "assign": "تعيين",
+    "noSearchResults": "لا توجد مسميات تطابق \"{{query}}\"."
   },
   "adminAllocations": {
     "title": "📊 التخصيصات والتسليم",

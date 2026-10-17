@@ -30487,7 +30487,13 @@
     "viewLabel": "Vista del organigrama",
     "vacant": "Vacante",
     "expand": "Expandir",
-    "collapse": "Contraer"
+    "collapse": "Contraer",
+    "searchPlaceholder": "Buscar puestos...",
+    "expandAll": "Expandir todo",
+    "collapseAll": "Contraer todo",
+    "filledStats": "{{filled}} de {{total}} puestos cubiertos",
+    "assign": "Asignar",
+    "noSearchResults": "Ningún puesto coincide con \"{{query}}\"."
   },
   "adminAllocations": {
     "title": "📊 Asignaciones y entregas",

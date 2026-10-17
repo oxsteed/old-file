@@ -30487,7 +30487,13 @@
     "viewLabel": "Vi òganigram lan",
     "vacant": "Vid",
     "expand": "Deplwaye",
-    "collapse": "Pliye"
+    "collapse": "Pliye",
+    "searchPlaceholder": "Chèche tit...",
+    "expandAll": "Louvri tout",
+    "collapseAll": "Fèmen tout",
+    "filledStats": "{{filled}} sou {{total}} pòs okipe",
+    "assign": "Bay",
+    "noSearchResults": "Okenn tit pa koresponn ak \"{{query}}\"."
   },
   "adminAllocations": {
     "title": "📊 Alokasyon ak Livrezon",

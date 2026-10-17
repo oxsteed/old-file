@@ -30487,7 +30487,13 @@
     "viewLabel": "Vue de l'organigramme",
     "vacant": "Vacant",
     "expand": "Développer",
-    "collapse": "Réduire"
+    "collapse": "Réduire",
+    "searchPlaceholder": "Rechercher des postes...",
+    "expandAll": "Tout déplier",
+    "collapseAll": "Tout replier",
+    "filledStats": "{{filled}} postes sur {{total}} pourvus",
+    "assign": "Assigner",
+    "noSearchResults": "Aucun poste ne correspond à \"{{query}}\"."
   },
   "adminAllocations": {
     "title": "📊 Allocations et livraisons",
