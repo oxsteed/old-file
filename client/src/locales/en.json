@@ -12625,7 +12625,10 @@
     "addCountry": "Add country",
     "centerLatitude": "Center latitude",
     "centerLongitude": "Center longitude",
-    "radiusMiles": "Radius (miles)"
+    "radiusMiles": "Radius (miles)",
+    "country": "Country",
+    "countryGlobalOption": "Global — usable with any country",
+    "countryHint": "Tag this region with a country so it only appears for assignments in that country. Leave as Global to offer it everywhere."
   },
   "templateBehavior": {
     "bestSetup": "Best setup for this mode",
@@ -28693,9 +28696,8 @@
     "titleOptionLabel": "{{name}}{{csuite}} - L{{level}}",
     "csuiteTag": " (C-suite)",
     "titleHint": "Higher seniority levels and C-suite titles can only be assigned by super-admin.",
-    "fieldCountry": "Country (ISO-2)",
-    "placeholderCountry": "e.g. US, MX, HT, FR",
-    "countryHint": "Empty = global scope",
+    "fieldCountry": "Country",
+    "countryHint": "Choose Global for a worldwide assignment.",
     "fieldRegion": "Region",
     "selectNoneOption": "- None -",
     "fieldReportsTo": "Reports to",
@@ -28726,7 +28728,15 @@
     "scopeGlobal": "Global",
     "editTitleAttr": "Edit",
     "endAssignmentTitle": "End assignment",
-    "endAssignmentMessage": "End this assignment? The user will lose its associated permissions."
+    "endAssignmentMessage": "End this assignment? The user will lose its associated permissions.",
+    "globalCountryOption": "Global — all countries",
+    "regionHint": "Narrows the scope within the selected country. Only regions tagged for that country, plus global regions, are listed.",
+    "boundaryZipRange": "ZIP range",
+    "boundaryCityState": "City / state",
+    "boundaryGeoRadius": "Geo radius",
+    "boundaryCountryRegion": "Country + region",
+    "boundaryCountryOnly": "Country only",
+    "boundaryCustom": "Custom"
   },
   "adminBusinessLaunchDetail": {
     "loadConsultantsFailed": "Failed to load consultants",

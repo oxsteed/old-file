@@ -12625,7 +12625,10 @@
     "addCountry": "Ajoute peyi",
     "centerLatitude": "Latitid sant lan",
     "centerLongitude": "Lonjitid sant lan",
-    "radiusMiles": "Reyon (mil)"
+    "radiusMiles": "Reyon (mil)",
+    "country": "Peyi",
+    "countryGlobalOption": "Global — ka sèvi ak nenpòt peyi",
+    "countryHint": "Make rejyon sa a ak yon peyi pou li parèt sèlman pou afektasyon nan peyi sa a. Kite l Global pou ofri l toupatou."
   },
   "templateBehavior": {
     "bestSetup": "Pi bon konfigirasyon pou mòd sa a",
@@ -28693,9 +28696,8 @@
     "titleOptionLabel": "{{name}}{{csuite}} - N{{level}}",
     "csuiteTag": " (C-suite)",
     "titleHint": "Se sipè-admin sèlman ki ka bay nivo ansyènte ki wo yo ak tit C-suite yo.",
-    "fieldCountry": "Peyi (ISO-2)",
-    "placeholderCountry": "egz. US, MX, HT, FR",
-    "countryHint": "Vid = dimansyon mondyal",
+    "fieldCountry": "Peyi",
+    "countryHint": "Chwazi Global pou yon afektasyon mondyal.",
     "fieldRegion": "Rejyon",
     "selectNoneOption": "- Okenn -",
     "fieldReportsTo": "Rapòte bay",
@@ -28726,7 +28728,15 @@
     "scopeGlobal": "Mondyal",
     "editTitleAttr": "Modifye",
     "endAssignmentTitle": "Fini afektasyon an",
-    "endAssignmentMessage": "Fini afektasyon sa a? Itilizatè a ap pèdi pèmisyon ki asosye avè l yo."
+    "endAssignmentMessage": "Fini afektasyon sa a? Itilizatè a ap pèdi pèmisyon ki asosye avè l yo.",
+    "globalCountryOption": "Global — tout peyi yo",
+    "regionHint": "Diminye dimansyon an nan peyi ou chwazi a. Se rejyon ki make pou peyi sa a, plis rejyon global yo, ki nan lis la.",
+    "boundaryZipRange": "Entèval kòd postal",
+    "boundaryCityState": "Vil / eta",
+    "boundaryGeoRadius": "Reyon jewografik",
+    "boundaryCountryRegion": "Peyi + rejyon",
+    "boundaryCountryOnly": "Peyi sèlman",
+    "boundaryCustom": "Pèsonalize"
   },
   "adminBusinessLaunchDetail": {
     "loadConsultantsFailed": "Pa t kapab chaje konsiltan yo",

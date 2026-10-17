@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Loader2, AlertCircle, Plus, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import adminApi from '../lib/adminApi';
 import CountrySelect from './CountrySelect';
+import adminApi from '../lib/adminApi';
 import RegionInput from './RegionInput';
 
 /**
@@ -38,6 +38,7 @@ export default function RegionForm({ region, onSaved, onCancel }) {
 
   const [name,        setName]        = useState(region?.name || '');
   const [description, setDescription] = useState(region?.description || '');
+  const [countryCode, setCountryCode] = useState(region?.country_code || '');
   const [boundary,    setBoundary]    = useState(
     region?.boundary_definition || defaultBoundary('zip_range')
   );
@@ -48,6 +49,7 @@ export default function RegionForm({ region, onSaved, onCancel }) {
     if (region) {
       setName(region.name || '');
       setDescription(region.description || '');
+      setCountryCode(region.country_code || '');
       setBoundary(region.boundary_definition || defaultBoundary('zip_range'));
     }
   }, [region?.id]); // eslint-disable-line
@@ -68,6 +70,7 @@ export default function RegionForm({ region, onSaved, onCancel }) {
       const payload = {
         name: name.trim(),
         description: description.trim() || null,
+        country_code: countryCode || null,
         boundary_definition: boundary,
       };
 
@@ -109,6 +112,17 @@ export default function RegionForm({ region, onSaved, onCancel }) {
             required
             placeholder={t('regionForm.namePlaceholder')}
           />
+        </div>
+        <div>
+          <label className={labelCls}>{t('regionForm.country')}</label>
+          <CountrySelect
+            value={countryCode}
+            onChange={setCountryCode}
+            placeholder={t('regionForm.countryGlobalOption')}
+            includeBlank
+            className={inputCls}
+          />
+          <p className="text-xs text-gray-500 mt-1">{t('regionForm.countryHint')}</p>
         </div>
         <div>
           <label className={labelCls}>{t('regionForm.boundaryType')}</label>

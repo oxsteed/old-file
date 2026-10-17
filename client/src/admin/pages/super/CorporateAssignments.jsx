@@ -9,11 +9,27 @@ import api from '../../../api/axios';
 import { useAuth } from '../../../hooks/useAuth';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import ConfirmDialog from '../../lib/ConfirmDialog';
+import CountrySelect from '../../../components/CountrySelect';
 import {
   createCorporateAssignment,
   updateCorporateAssignment,
   endCorporateAssignment,
 } from '../../../api/corporateRoles';
+
+/**
+ * Short human label for a region's boundary type, shown in the region
+ * picker so admins know what kind of territory they are selecting.
+ */
+function boundaryTypeKey(type) {
+  switch (type) {
+    case 'zip_range':     return 'boundaryZipRange';
+    case 'city_state':    return 'boundaryCityState';
+    case 'geo_radius':    return 'boundaryGeoRadius';
+    case 'country_region':return 'boundaryCountryRegion';
+    case 'country_only':  return 'boundaryCountryOnly';
+    default:              return 'boundaryCustom';
+  }
+}
 
 function fmtDate(d) {
   if (!d) return '-';
@@ -85,6 +101,24 @@ function AssignModal({ catalog, regions, initial, onClose, onSaved }) {
   }, [catalog, form.department_id]);
 
   function setF(k, v) { setForm(f => ({ ...f, [k]: v })); }
+
+  // Regions relevant to the chosen country: country-tagged regions that match,
+  // plus untagged (global) regions which work with any country.
+  const regionsForCountry = useMemo(() => {
+    const list = regions || [];
+    if (!form.country_code) return list;
+    return list.filter(r => !r.country_code || r.country_code === form.country_code);
+  }, [regions, form.country_code]);
+
+  // If the country changes and the picked region no longer applies, clear it.
+  function handleCountryChange(code) {
+    setForm(f => {
+      const regionStillValid = !f.region_id || (regions || []).some(
+        r => String(r.id) === String(f.region_id) && (!r.country_code || r.country_code === code)
+      );
+      return { ...f, country_code: code, region_id: regionStillValid ? f.region_id : '' };
+    });
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -195,11 +229,11 @@ function AssignModal({ catalog, regions, initial, onClose, onSaved }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm text-gray-400 mb-1">{t('adminCorporateAssignments.fieldCountry')}</label>
-              <input
-                type="text"
+              <CountrySelect
                 value={form.country_code}
-                onChange={(e) => setF('country_code', e.target.value.toUpperCase().slice(0, 2))}
-                placeholder={t('adminCorporateAssignments.placeholderCountry')}
+                onChange={handleCountryChange}
+                placeholder={t('adminCorporateAssignments.globalCountryOption')}
+                includeBlank
                 className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white"
               />
               <p className="text-xs text-gray-500 mt-1">{t('adminCorporateAssignments.countryHint')}</p>
@@ -212,10 +246,13 @@ function AssignModal({ catalog, regions, initial, onClose, onSaved }) {
                 className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white"
               >
                 <option value="">{t('adminCorporateAssignments.selectNoneOption')}</option>
-                {(regions || []).map(r => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
+                {regionsForCountry.map(r => (
+                  <option key={r.id} value={r.id}>
+                    {r.name} ({t(`adminCorporateAssignments.${boundaryTypeKey(r.boundary_definition?.type)}`)}{r.country_code ? `, ${r.country_code}` : ''})
+                  </option>
                 ))}
               </select>
+              <p className="text-xs text-gray-500 mt-1">{t('adminCorporateAssignments.regionHint')}</p>
             </div>
           </div>
 

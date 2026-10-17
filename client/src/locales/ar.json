@@ -12625,7 +12625,10 @@
     "addCountry": "إضافة دولة",
     "centerLatitude": "خط عرض المركز",
     "centerLongitude": "خط طول المركز",
-    "radiusMiles": "النطاق (أميال)"
+    "radiusMiles": "النطاق (أميال)",
+    "country": "الدولة",
+    "countryGlobalOption": "عالمي — صالح لأي دولة",
+    "countryHint": "وسم هذه المنطقة بدولة لتظهر فقط في تعيينات تلك الدولة. اتركها \"عالمي\" لعرضها في كل مكان."
   },
   "templateBehavior": {
     "bestSetup": "أفضل إعداد لهذا الوضع",
@@ -28704,9 +28707,8 @@
     "titleOptionLabel": "{{name}}{{csuite}} - م{{level}}",
     "csuiteTag": " (C-suite)",
     "titleHint": "لا يمكن تعيين مستويات الأقدمية العالية وألقاب C-suite إلا من قبل مسؤول متميز.",
-    "fieldCountry": "الدولة (ISO-2)",
-    "placeholderCountry": "مثال: US, MX, HT, FR",
-    "countryHint": "فارغ = نطاق عالمي",
+    "fieldCountry": "الدولة",
+    "countryHint": "اختر \"عالمي\" لتعيين على مستوى العالم.",
     "fieldRegion": "المنطقة",
     "selectNoneOption": "- لا شيء -",
     "fieldReportsTo": "يتبع لـ",
@@ -28737,7 +28739,15 @@
     "scopeGlobal": "عالمي",
     "editTitleAttr": "تعديل",
     "endAssignmentTitle": "إنهاء التعيين",
-    "endAssignmentMessage": "إنهاء هذا التعيين؟ سيفقد المستخدم الأذونات المرتبطة به."
+    "endAssignmentMessage": "إنهاء هذا التعيين؟ سيفقد المستخدم الأذونات المرتبطة به.",
+    "globalCountryOption": "عالمي — جميع الدول",
+    "regionHint": "يضيّق النطاق داخل الدولة المحددة. تُدرج فقط المناطق الموسومة لتلك الدولة، بالإضافة إلى المناطق العالمية.",
+    "boundaryZipRange": "نطاق الرمز البريدي",
+    "boundaryCityState": "مدينة / ولاية",
+    "boundaryGeoRadius": "نصف قطر جغرافي",
+    "boundaryCountryRegion": "دولة + منطقة",
+    "boundaryCountryOnly": "الدولة فقط",
+    "boundaryCustom": "مخصص"
   },
   "adminBusinessLaunchDetail": {
     "loadConsultantsFailed": "تعذّر تحميل المستشارين",
