@@ -33,6 +33,7 @@ const SupportRoutingService = require('../services/supportRoutingService');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const { TERMINAL_CONVERSATION_STATUS_SQL } = require('../services/supportConversationTerminal');
+const metricsRegistry = require('../analytics/metricsRegistry');
 const { columnExists } = require('../utils/schemaProbe');
 // ADM-126: webhook secret encryption/masking for support admin settings.
 const { prepareSecretFieldsForWrite, maskSecretsForRead } = require('../utils/supportIntegrationSecrets');
@@ -228,48 +229,41 @@ async function supportConversationStats(businessId) {
     : 'TRUE';
   if (businessId) {
     params.push(businessId);
-    conditions.push(`business_id = $${params.length}`);
+    conditions.push(`sc.business_id = $${params.length}`);
   }
   // Merged sources are retained for history but must not affect operational
   // volume, SLA, or resolution-rate metrics.
-  conditions.push(`status <> 'merged'`);
+  conditions.push(`sc.status <> 'merged'`);
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  // Metrics registry: SLA breach is judged against the business-configured
+  // support_sla_targets (stored per-conversation target, else the current
+  // configured target, else the legacy hardcoded default) — never the
+  // hardcoded per-priority intervals this query used before.
+  const slaJoin = metricsRegistry.slaTargetsJoinSql('sc', 'sla_tgt');
+  const frTarget = metricsRegistry.slaFirstResponseTargetSql('sc', 'sla_tgt');
   const { rows } = await db.query(
     `SELECT
        COUNT(*)::int AS total_conversations,
-       COALESCE(SUM(CASE WHEN status IN ('resolved','closed') THEN 1 ELSE 0 END), 0)::int AS resolved_conversations,
-       COALESCE(SUM(CASE WHEN status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL}) THEN 1 ELSE 0 END), 0)::int AS active_conversations,
-       COALESCE(SUM(CASE WHEN priority IN ('high','urgent') THEN 1 ELSE 0 END), 0)::int AS priority_conversations,
-       COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(first_response_at, updated_at) - created_at)))::numeric), 0)::int AS avg_response_time_seconds,
-       COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(resolved_at, updated_at) - created_at))/3600)::numeric, 1), 0)::float AS avg_resolution_hours,
+       COALESCE(SUM(CASE WHEN sc.status IN ('resolved','closed') THEN 1 ELSE 0 END), 0)::int AS resolved_conversations,
+       COALESCE(SUM(CASE WHEN sc.status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL}) THEN 1 ELSE 0 END), 0)::int AS active_conversations,
+       COALESCE(SUM(CASE WHEN sc.priority IN ('high','urgent') THEN 1 ELSE 0 END), 0)::int AS priority_conversations,
+       COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (sc.first_response_at - sc.created_at))) FILTER (WHERE sc.first_response_at IS NOT NULL)::numeric), 0)::int AS avg_response_time_seconds,
+       COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(sc.resolved_at, sc.updated_at) - sc.created_at))/3600)::numeric, 1), 0)::float AS avg_resolution_hours,
        COALESCE(SUM(CASE
-         WHEN first_response_at IS NOT NULL
-          AND first_response_at - created_at <= CASE priority
-            WHEN 'urgent' THEN INTERVAL '15 minutes'
-            WHEN 'high' THEN INTERVAL '1 hour'
-            WHEN 'low' THEN INTERVAL '24 hours'
-            ELSE INTERVAL '4 hours'
-          END THEN 1 ELSE 0 END), 0)::int AS sla_met_count,
+         WHEN sc.first_response_at IS NOT NULL
+          AND sc.first_response_at <= (${frTarget})
+         THEN 1 ELSE 0 END), 0)::int AS sla_met_count,
        COALESCE(SUM(CASE
-         WHEN (first_response_at IS NOT NULL
-           AND first_response_at - created_at > CASE priority
-             WHEN 'urgent' THEN INTERVAL '15 minutes'
-             WHEN 'high' THEN INTERVAL '1 hour'
-             WHEN 'low' THEN INTERVAL '24 hours'
-             ELSE INTERVAL '4 hours'
-           END)
-           OR (first_response_at IS NULL
-           AND NOW() - created_at > CASE priority
-             WHEN 'urgent' THEN INTERVAL '15 minutes'
-             WHEN 'high' THEN INTERVAL '1 hour'
-             WHEN 'low' THEN INTERVAL '24 hours'
-             ELSE INTERVAL '4 hours'
-           END) THEN 1 ELSE 0 END), 0)::int AS sla_violation_count
+         WHEN (sc.first_response_at IS NOT NULL
+           AND sc.first_response_at > (${frTarget}))
+           OR (sc.first_response_at IS NULL
+           AND NOW() > (${frTarget})) THEN 1 ELSE 0 END), 0)::int AS sla_violation_count
        ,(SELECT COUNT(*)::int
          FROM support_agents sa
          JOIN support_employers se ON se.id = sa.employer_id
          WHERE sa.status = 'active' AND ${agentScope}) AS active_agents
-     FROM support_conversations
+     FROM support_conversations sc
+     ${slaJoin}
      ${where}`,
     params
   );
@@ -806,43 +800,30 @@ router.get('/sla', async (req, res, next) => {
     const stats = await supportConversationStats(businessId);
     const eligible = Number(stats.sla_met_count || 0) + Number(stats.sla_violation_count || 0);
     const scope = businessId ? 'sc.business_id = $1::integer' : 'TRUE';
+    // Metrics registry: all breach math below judges against the
+    // business-configured support_sla_targets (stored per-conversation,
+    // else current config, else legacy default) — not hardcoded intervals.
+    const slaJoin = metricsRegistry.slaTargetsJoinSql('sc', 'sla_tgt');
+    const frTarget = metricsRegistry.slaFirstResponseTargetSql('sc', 'sla_tgt');
+    const resTarget = metricsRegistry.slaResolutionTargetSql('sc', 'sla_tgt');
     const [trendResult, departmentResult, violationsResult] = await Promise.all([
       db.query(
         `SELECT day::date AS date,
                 COUNT(*) FILTER (WHERE sc.first_response_at IS NOT NULL
-                  OR NOW() - sc.created_at > CASE sc.priority
-                    WHEN 'urgent' THEN INTERVAL '15 minutes'
-                    WHEN 'high' THEN INTERVAL '1 hour'
-                    WHEN 'low' THEN INTERVAL '24 hours'
-                    ELSE INTERVAL '4 hours'
-                  END)::int AS eligible,
+                  OR NOW() > (${frTarget}))::int AS eligible,
                 COUNT(*) FILTER (WHERE sc.first_response_at IS NOT NULL
-                  AND sc.first_response_at - sc.created_at <= CASE sc.priority
-                    WHEN 'urgent' THEN INTERVAL '15 minutes'
-                    WHEN 'high' THEN INTERVAL '1 hour'
-                    WHEN 'low' THEN INTERVAL '24 hours'
-                    ELSE INTERVAL '4 hours'
-                  END)::int AS met,
+                  AND sc.first_response_at <= (${frTarget}))::int AS met,
                 COUNT(*) FILTER (WHERE (sc.first_response_at IS NOT NULL
-                  AND sc.first_response_at - sc.created_at > CASE sc.priority
-                    WHEN 'urgent' THEN INTERVAL '15 minutes'
-                    WHEN 'high' THEN INTERVAL '1 hour'
-                    WHEN 'low' THEN INTERVAL '24 hours'
-                    ELSE INTERVAL '4 hours'
-                  END)
+                  AND sc.first_response_at > (${frTarget}))
                   OR (sc.first_response_at IS NULL
-                  AND NOW() - sc.created_at > CASE sc.priority
-                    WHEN 'urgent' THEN INTERVAL '15 minutes'
-                    WHEN 'high' THEN INTERVAL '1 hour'
-                    WHEN 'low' THEN INTERVAL '24 hours'
-                    ELSE INTERVAL '4 hours'
-                  END))::int AS violations
+                  AND NOW() > (${frTarget})))::int AS violations
          FROM generate_series(CURRENT_DATE - INTERVAL '29 days', CURRENT_DATE, INTERVAL '1 day') AS day
          LEFT JOIN support_conversations sc
            ON sc.created_at >= day
           AND sc.created_at < day + INTERVAL '1 day'
           AND ${scope}
           AND sc.status <> 'merged'
+         ${slaJoin}
          GROUP BY day
          ORDER BY day ASC`,
         businessId ? [businessId] : []
@@ -850,22 +831,13 @@ router.get('/sla', async (req, res, next) => {
       db.query(
         `SELECT COALESCE(NULLIF(BTRIM(sa.department), ''), 'general') AS name,
                 COUNT(*) FILTER (WHERE sc.first_response_at IS NOT NULL
-                  OR NOW() - sc.created_at > CASE sc.priority
-                    WHEN 'urgent' THEN INTERVAL '15 minutes'
-                    WHEN 'high' THEN INTERVAL '1 hour'
-                    WHEN 'low' THEN INTERVAL '24 hours'
-                    ELSE INTERVAL '4 hours'
-                  END)::int AS eligible,
+                  OR NOW() > (${frTarget}))::int AS eligible,
                 COUNT(*) FILTER (WHERE sc.first_response_at IS NOT NULL
-                  AND sc.first_response_at - sc.created_at <= CASE sc.priority
-                    WHEN 'urgent' THEN INTERVAL '15 minutes'
-                    WHEN 'high' THEN INTERVAL '1 hour'
-                    WHEN 'low' THEN INTERVAL '24 hours'
-                    ELSE INTERVAL '4 hours'
-                  END)::int AS met,
+                  AND sc.first_response_at <= (${frTarget}))::int AS met,
                 ROUND(AVG(EXTRACT(EPOCH FROM (sc.first_response_at - sc.created_at))) / 60)::int AS avg_first_response_minutes,
                 ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(sc.resolved_at, sc.updated_at) - sc.created_at))) / 3600, 1) AS avg_resolution_hours
          FROM support_conversations sc
+         ${slaJoin}
          LEFT JOIN support_agents sa ON sa.id = sc.agent_id
          WHERE sc.created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
            AND ${scope}
@@ -879,34 +851,15 @@ router.get('/sla', async (req, res, next) => {
                 COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email, sc.guest_name, 'Customer') AS customer_name,
                 violation.violation_type,
                 CASE WHEN violation.violation_type = 'first_response'
-                  THEN ROUND(EXTRACT(EPOCH FROM (NOW() - (sc.created_at + CASE sc.priority
-                    WHEN 'urgent' THEN INTERVAL '15 minutes'
-                    WHEN 'high' THEN INTERVAL '1 hour'
-                    WHEN 'low' THEN INTERVAL '24 hours'
-                    ELSE INTERVAL '4 hours'
-                  END))) / 60)::int
-                  ELSE ROUND(EXTRACT(EPOCH FROM (NOW() - (sc.created_at + CASE sc.priority
-                    WHEN 'urgent' THEN INTERVAL '12 hours'
-                    WHEN 'high' THEN INTERVAL '24 hours'
-                    WHEN 'low' THEN INTERVAL '96 hours'
-                    ELSE INTERVAL '48 hours'
-                  END))) / 3600, 1)
+                  THEN ROUND(EXTRACT(EPOCH FROM (NOW() - (${frTarget}))) / 60)::int
+                  ELSE ROUND(EXTRACT(EPOCH FROM (NOW() - (${resTarget}))) / 3600, 1)
                 END AS overage
          FROM support_conversations sc
+         ${slaJoin}
          LEFT JOIN users u ON u.id = sc.customer_id
          CROSS JOIN LATERAL (VALUES
-           ('first_response', sc.first_response_at IS NULL AND NOW() - sc.created_at > CASE sc.priority
-             WHEN 'urgent' THEN INTERVAL '15 minutes'
-             WHEN 'high' THEN INTERVAL '1 hour'
-             WHEN 'low' THEN INTERVAL '24 hours'
-             ELSE INTERVAL '4 hours'
-           END),
-           ('resolution', sc.status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL}) AND NOW() - sc.created_at > CASE sc.priority
-             WHEN 'urgent' THEN INTERVAL '12 hours'
-             WHEN 'high' THEN INTERVAL '24 hours'
-             WHEN 'low' THEN INTERVAL '96 hours'
-             ELSE INTERVAL '48 hours'
-           END)
+           ('first_response', sc.first_response_at IS NULL AND NOW() > (${frTarget})),
+           ('resolution', sc.status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL}) AND NOW() > (${resTarget}))
          ) AS violation(violation_type, is_violation)
          WHERE violation.is_violation
            AND ${scope}
