@@ -211,7 +211,7 @@ exports.getDashboardStats = async (req, res) => {
 
     // Probe optional tables/columns in one batched query — never throws
     const schemaProbe = await probeSchema(
-      ['jobs', 'subscriptions', 'platform_ledger', 'helper_profiles', 'support_tickets', 'payouts', 'content_reports', 'disputes'],
+      ['jobs', 'subscriptions', 'platform_ledger', 'helper_profiles', 'support_tickets', 'payouts', 'content_reports', 'disputes', 'payments', 'plans'],
       [['users', 'is_suspended']]
     );
     const hasJobs = schemaProbe.tables.has('jobs');
@@ -404,6 +404,20 @@ exports.getDashboardStats = async (req, res) => {
       } catch (_) {}
     }
 
+    // ── MRR + escrow held (metrics registry) ──────────────────────────────
+    // Previously hardcoded 0. MRR = active subscriptions x plan amount
+    // (yearly /12); escrow = net held payments (held/disputed escrow_status
+    // with authorized/captured status), floored per payment.
+    let mrr_cents = 0, escrow_held_cents = 0;
+    if (schemaProbe.tables.has('subscriptions') && schemaProbe.tables.has('plans')) {
+      try { mrr_cents = await metricsRegistry.mrrCents(db); }
+      catch (mrrErr) { logger.warn('getDashboardStats: mrr query failed', { err: mrrErr.message }); }
+    }
+    if (schemaProbe.tables.has('payments')) {
+      try { escrow_held_cents = await metricsRegistry.escrowHeldCents(db); }
+      catch (escrowErr) { logger.warn('getDashboardStats: escrow query failed', { err: escrowErr.message }); }
+    }
+
     // ── Completion rate ────────────────────────────────────────────────────
     // T35-F01: the cohort must be consistent. Both completions and
     // cancellations are counted over the same period.
@@ -447,10 +461,10 @@ exports.getDashboardStats = async (req, res) => {
       // Legacy aliases
       new_users_30d: safeInt(coreStats.new_users_period),
       new_jobs_30d:  new_jobs_period,
-      escrow_held:   0,
+      escrow_held:   escrow_held_cents,
     };
 
-    res.json({ stats, period, mrr: 0 });
+    res.json({ stats, period, mrr: mrr_cents });
   } catch (err) {
     logger.error('getDashboardStats error', { err });
     res.status(500).json({ error: 'Failed to load dashboard stats.' });
