@@ -62,10 +62,15 @@ export const LAUNCH_BUSINESS_HUB_TABS = new Set([
 ]);
 
 export const LAUNCH_DEFAULTS = Object.freeze({
-  affiliateRewards: false,
+  affiliateRewards: true,
   aiKnowledge: false,
   backgroundChecks: false,
   businessAscension: false,
+  // QW4: launch the business analytics tab. It is gated by
+  // isBusinessHubTabLaunched (see below), so flipping this flag restores the
+  // tab in one place, mirroring the products/businessHubProductCommerce
+  // pattern.
+  businessHubAnalytics: true,
   businessHubAdvancedOps: false,
   businessHubFinancialPlanning: false,
   businessHubGrowthTools: false,
@@ -83,7 +88,7 @@ export const LAUNCH_DEFAULTS = Object.freeze({
   discoverEverything: false,
   footerUtilityPills: true,
   genericQrGenerator: false,
-  helperEarnings: false,
+  helperEarnings: true,
   helperGrowthCenter: false,
   helperInvoices: true,
   jobEscrowLabels: true,
@@ -118,6 +123,9 @@ export function isBusinessHubTabLaunched(tab) {
   // Review P3-7-F06: the Products tab is launch-gated by
   // businessHubProductCommerce so flipping the flag restores it in one place.
   if (tab === 'products') return LAUNCH_VISIBILITY.businessHubProductCommerce;
+  // QW4: the Analytics tab is launch-gated by businessHubAnalytics so the
+  // flag has a real consumer (same pattern as products).
+  if (tab === 'analytics') return LAUNCH_VISIBILITY.businessHubAnalytics;
   return LAUNCH_BUSINESS_HUB_TABS.has(tab);
 }
 
