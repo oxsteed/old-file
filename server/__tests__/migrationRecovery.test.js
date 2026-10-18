@@ -4,6 +4,7 @@
 // recorded 611 as failed, and every later boot halted before opening the port.
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { listMigrationFiles, resolveMigrationPlan } = require('../migrate');
 
 const MIGRATIONS_DIR = path.join(__dirname, '..', 'migrations');
@@ -24,6 +25,14 @@ function categoryInsertColumns(sql) {
 }
 
 describe('migration recovery (2026-09-30 outage)', () => {
+  test('886 retains the deployed checksum, including its comments (2026-10-18 outage)', () => {
+    // Production applied the original file. Even comment-only edits prevent
+    // startup; document later watchlist behavior outside immutable migrations.
+    const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, '886_customer360_watchlist.sql'), 'utf8');
+    expect(crypto.createHash('sha256').update(sql).digest('hex'))
+      .toBe('1c476d6ed78d66fe5be774259b74a9df7be95701a5e326fb4b3e652afdff3c70');
+  });
+
   test('resolveMigrationPlan retries failed, aborts on applying, skips applied', () => {
     expect(resolveMigrationPlan({ status: 'applied' })).toBe('skip');
     expect(resolveMigrationPlan({ status: 'applying' })).toBe('abort');

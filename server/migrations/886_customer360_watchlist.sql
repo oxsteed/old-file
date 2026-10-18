@@ -1,9 +1,8 @@
 -- Migration 886: Customer 360 second wave (watchlist, note pins, case owner)
 --
 -- 1. admin_user_watchlist: lets an admin watch a user and get notified on
---    high-signal events. triggers is a subset of ('dispute', 'ticket',
---    'booking'), honored by notifyWatchers hooks in dispute, support-ticket,
---    and job creation paths.
+--    high-signal events (v1: dispute opened). The triggers array is
+--    forward-compatible; only 'dispute' is honored by notifyWatchers today.
 -- 2. admin_user_notes: pin support for case notes (is_pinned / pinned_at /
 --    pinned_by). Pinned notes sort first on the Customer 360 notes tab.
 -- 3. admin_user_case_owner: at most one owning admin per user; who is

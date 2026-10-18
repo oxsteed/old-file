@@ -1,5 +1,27 @@
 # GitHub Actions and Coolify deployment
 
+## Startup checksum failure on 2026-10-18
+
+Production returned the proxy's plain `404 page not found` while the app
+repeatedly exited during migration startup. Migration
+`886_customer360_watchlist.sql` had already been applied, but a later commit
+changed its explanatory comments. Checksums include comments, so the migration
+runner correctly rejected the changed file before opening the HTTP port.
+
+Restore the exact original migration bytes; do not rewrite production migration
+markers or disable checksum validation. The original SHA-256 is
+`1c476d6ed78d66fe5be774259b74a9df7be95701a5e326fb4b3e652afdff3c70`.
+The watchlist ticket/booking notification implementation remains intact; its
+later behavior does not require editing the original migration comments.
+`migrationRecovery.test.js` pins the deployed checksum for this regression.
+
+For immediate recovery, the original file was copied into the existing app
+container and the app restarted. Migration 887 then applied normally. Public
+`/` and `/ready` returned 200, and readiness reported all 864 migrations applied,
+database, Redis, realtime, and workers ready. The same file restoration is
+committed in source for subsequent image builds. No migration marker or
+customer/financial record was manually changed.
+
 ## Client build heap failure on 2026-10-15
 
 Deployments of `f80927c1` failed in the Docker client-build stage with
