@@ -1,4 +1,5 @@
 const T = {
+  ...require('./customer360NotificationCopy').customer360Notifications,
   ...require('./learnReviewCopy').learnReviewNotifications,
   ...require('./reviewW11NotificationTemplates').reviewW11Notifications,
   ...require('./reviewLifecycleNotificationTemplates').reviewLifecycleNotifications,

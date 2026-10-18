@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router-dom';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
@@ -27,8 +28,16 @@ import {
 } from './shared';
 import OxsteedCreditCustomerDetail from '../OxsteedCreditCustomerDetail';
 
-export default function OxsteedCreditCustomersPage() {
+export default function CustomerCreditWorkspace() {
+  const [params] = useSearchParams();
+  return <OxsteedCreditCustomersPage key={`${params.get('customerId') || ''}:${params.get('currencyCode') || ''}`} />;
+}
+
+function OxsteedCreditCustomersPage() {
   const { t } = useTranslation('credit');
+  const [contextParams] = useSearchParams();
+  const contextCustomerId = /^[0-9a-f-]{36}$/i.test(contextParams.get('customerId') || '') ? contextParams.get('customerId') : '';
+  const contextCurrency = /^[A-Z]{3}$/.test(contextParams.get('currencyCode') || '') ? contextParams.get('currencyCode') : '';
   const { loading, setLoading, busy, setBusy, error, setError, notice, setNotice, idempotencyKeysRef, loadRequestRef } = useCreditPageState();
   const [overview, setOverview] = useState(null);
   const [customerAccounts, setCustomerAccounts] = useState([]);
@@ -50,11 +59,11 @@ export default function OxsteedCreditCustomersPage() {
   const [customerAccountHasMore, setCustomerAccountHasMore] = useState(false);
   const [customerForm, setCustomerForm] = useState({ customerId: '', amount: '', currencyCode: 'USD', fundingReference: '', reason: '' });
   const [accountStatusForm, setAccountStatusForm] = useState({ customerId: '', currencyCode: 'USD', status: 'suspended', reason: '' });
-  const [customerAccountSearch, setCustomerAccountSearch] = useState('');
+  const [customerAccountSearch, setCustomerAccountSearch] = useState(contextCustomerId);
   const [customerAccountStatus, setCustomerAccountStatus] = useState('all');
   const [customerAccountCurrency, setCustomerAccountCurrency] = useState('all');
-  const [customerAccountQuery, setCustomerAccountQuery] = useState({ search: '', status: '', currencyCode: '', offset: 0 });
-  const [customerDetailAccount, setCustomerDetailAccount] = useState(null);
+  const [customerAccountQuery, setCustomerAccountQuery] = useState({ search: contextCustomerId, status: '', currencyCode: contextCustomerId ? contextCurrency : '', offset: 0 });
+  const [customerDetailAccount, setCustomerDetailAccount] = useState(contextCustomerId && contextCurrency ? { customerId: contextCustomerId, currencyCode: contextCurrency } : null);
   const { dialog, requestDialog, resolveDialog } = useCreditDialog();
   const currencyOptions = overview?.supportedCurrencies?.length ? overview.supportedCurrencies : DEFAULT_CURRENCY_OPTIONS;
   const filteredCustomerAccounts = customerAccounts;

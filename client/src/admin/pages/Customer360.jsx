@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle, BadgeCheck, Briefcase, Calendar, ChevronLeft, Eye, FileWarning,
@@ -17,6 +17,8 @@ import AdminErrorState from '../lib/AdminErrorState';
 
 const DISPUTE_STATUSES = ['open', 'under_review', 'resolved'];
 const OPEN_DISPUTE_STATUSES = new Set(['open', 'under_review']);
+
+import CustomerWorkspace from './customer360/Workspace';
 
 const NS = 'adminCustomer360';
 
@@ -352,7 +354,9 @@ function TimelineItem({ item }) {
 export default function Customer360() {
   const { t } = useTranslation();
   const { userId } = useParams();
-  const [tab, setTab] = useState('overview');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'workspace';
+  const setTab = (value) => { const next = new URLSearchParams(searchParams); next.set('tab', value); setSearchParams(next, { replace: true }); };
   const [timelineFilter, setTimelineFilter] = useState('all');
   const [noteDraft, setNoteDraft] = useState('');
   const [noteBusy, setNoteBusy] = useState(false);
@@ -507,14 +511,6 @@ export default function Customer360() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aux, user]);
 
-  const paidOutCents = useMemo(
-    () => recentPayouts.reduce((sum, p) => sum + (Number(p.net_to_helper_cents) || 0), 0),
-    [recentPayouts],
-  );
-  const lifetimeCents = useMemo(
-    () => recentJobs.reduce((sum, j) => sum + Math.round(Number(j.final_price || 0) * 100), 0),
-    [recentJobs],
-  );
   const openDisputes = useMemo(
     () => disputes.filter((d) => OPEN_DISPUTE_STATUSES.has(String(d.status).toLowerCase())),
     [disputes],
@@ -672,6 +668,7 @@ export default function Customer360() {
   ];
 
   const tabs = [
+    { id: 'workspace', icon: LayoutDashboard, label: t('customerWorkspace.title') },
     { id: 'overview', icon: LayoutDashboard, label: t(`${NS}.tabs.overview`) },
     { id: 'bookings', icon: Briefcase, label: t(`${NS}.tabs.bookings`), count: recentJobs.length },
     { id: 'payments', icon: Wallet, label: t(`${NS}.tabs.payments`), count: recentPayouts.length },
@@ -699,7 +696,7 @@ export default function Customer360() {
     } else {
       quickActions.push({ id: 'reactivate', icon: BadgeCheck, label: t(`${NS}.actions.reactivate`), onClick: () => setConfirmAction('reactivate') });
     }
-    quickActions.push({ id: 'credit', icon: Landmark, label: t(`${NS}.actions.adjustCredit`), href: '/admin/super/oxsteed-credit' });
+    quickActions.push({ id: 'credit', icon: Landmark, label: t(`${NS}.actions.adjustCredit`), href: `/admin/super/oxsteed-credit/customers?customerId=${encodeURIComponent(userId)}` });
     quickActions.push({ id: 'impersonate', icon: UserCheck, label: t(`${NS}.actions.impersonate`), danger: true, onClick: () => { setImpersonateError(null); setConfirmAction('impersonate'); } });
   }
   quickActions.push({ id: 'print', icon: Printer, label: t(`${NS}.actions.exportPdf`), onClick: () => window.print() });
@@ -931,26 +928,28 @@ export default function Customer360() {
         </div>
       )}
 
+      {tab === 'workspace' && <CustomerWorkspace key={`${user.id}:${adminUser?.id}`} user={user} />}
+
       {/* ── Overview ── */}
       {tab === 'overview' && (
         <div className="space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatCard
-              label={t(`${NS}.overview.statBookings`)}
+              label={t('customerWorkspace.loadedJobs')}
               value={recentJobs.length}
               onClick={() => setTab('bookings')}
               hint={t(`${NS}.overview.viewTab`)}
             />
             <StatCard
-              label={t(`${NS}.overview.statLifetimeValue`)}
-              value={adminMoney(lifetimeCents / 100)}
-              onClick={() => setTab('bookings')}
+              label={t('customerWorkspace.recentJobValue')}
+              value={t('customerWorkspace.seeFinance')}
+              onClick={() => setTab('workspace')}
               hint={t(`${NS}.overview.recentVolumeHint`)}
             />
             <StatCard
-              label={t(`${NS}.overview.statPaidOut`)}
-              value={adminMoney(paidOutCents / 100)}
-              onClick={() => setTab('payments')}
+              label={t('customerWorkspace.recentPayouts')}
+              value={t('customerWorkspace.seeFinance')}
+              onClick={() => setTab('workspace')}
               hint={t(`${NS}.overview.viewTab`)}
             />
             <StatCard
@@ -1442,6 +1441,15 @@ export default function Customer360() {
       {/* ── Network: duplicates, linked entities, related search ── */}
       {tab === 'network' && (
         <>
+          <figure className="c360w" aria-label={t('customerWorkspace.graph')}>
+            <article><h2>{t('customerWorkspace.graph')}</h2><p>{t('customerWorkspace.graphHint')}</p>
+              <div className="c360w-grid">
+                <article><strong>{name}</strong><p><bdi>{user.id}</bdi></p></article>
+                {duplicates.map(d=><Link key={d.id} to={`/admin/customers/${d.id}/360`}><span className="c360w-edge" aria-hidden="true">↔</span><span>{d.first_name} {d.last_name}<br/>{t(`${NS}.network.duplicatesTitle`)}</span></Link>)}
+                {linkedEntities.map((e,i)=>e.entity_type==='business'?<Link key={`${e.public_id}-${i}`} to={`/admin/businesses/${encodeURIComponent(e.entity_key)}/360`}><span className="c360w-edge" aria-hidden="true">→</span><span>{e.name}<br/>{e.relation}</span></Link>:<article key={`${e.public_id}-${i}`}>{e.name}<p>{e.relation} · {e.entity_type}</p></article>)}
+              </div><figcaption>{t('customerWorkspace.duplicateDisposition')}</figcaption>
+            </article>
+          </figure>
           <Section
             title={t(`${NS}.network.duplicatesTitle`)}
             subtitle={t(`${NS}.network.duplicatesSubtitle`)}
