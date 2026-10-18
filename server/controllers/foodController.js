@@ -24,6 +24,10 @@ const {
   consumeInventoryForOrder,
 } = require('../services/restaurantInventoryOrderService');
 const permissionsService = require('../services/permissionsService');
+// Canonical restaurant access gate (analytics scope model, Phase 1 Item 6).
+// Replaces the former local requireRestaurantAccess copy: same ownership
+// CASE, same 404, plus the union of columns the variants selected.
+const { resolveRestaurantAccess: requireRestaurantAccess } = require('../services/scopeModel');
 const { maybeUnpublishBusinessIfIncomplete } = require('./businessController');
 const { debitFoodWallet, refundWalletDebitForReference, formatLedgerRow } = require('../services/foodWalletService');
 const { logFoodWalletOperatorAudit } = require('../services/foodWalletAuditService');
@@ -1618,39 +1622,6 @@ exports.getPaymentConfig = async (req, res, next) => {
     next(err);
   }
 };
-
-async function requireRestaurantAccess(userId, restaurantId) {
-  const { rows } = await pool.query(
-    `SELECT fr.*, b.user_id AS business_owner_id,
-            CASE
-              WHEN b.user_id = $2 OR fr.owner_user_id = $2 THEN 'owner'
-              ELSE (
-                SELECT bm.role
-                  FROM business_members bm
-                 WHERE bm.business_id = fr.business_id
-                   AND bm.member_id = $2
-                   AND bm.status = 'active'
-                 LIMIT 1
-              )
-            END AS effective_role,
-            (SELECT bm.id
-               FROM business_members bm
-              WHERE bm.business_id = fr.business_id
-                AND bm.member_id = $2
-                AND bm.status = 'active'
-              LIMIT 1) AS effective_membership_id
-       FROM food_restaurants fr
-       JOIN businesses b ON b.id = fr.business_id
-      WHERE fr.id = $1`,
-    [restaurantId, userId]
-  );
-  const restaurant = rows[0];
-  if (!restaurant || !restaurant.effective_role) {
-    throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-  }
-  restaurant.access_user_id = userId;
-  return restaurant;
-}
 
 async function getRestaurantPermissions(restaurant) {
   if (restaurant.effective_role === 'owner') return new Set(['*']);

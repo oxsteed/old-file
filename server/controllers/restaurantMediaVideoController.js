@@ -48,6 +48,9 @@ const rateLimit = require('express-rate-limit');
 const { fileTypeFromBuffer } = require('file-type');
 const pool = require('../db');
 const AppError = require('../utils/appError');
+// Canonical restaurant-owner check (analytics scope model, Phase 1 Item 6).
+// Same owner CASE as the former local isRestaurantOwner.
+const { isRestaurantOwner } = require('../services/scopeModel');
 const storage = require('../utils/storage');
 const fileScanService = require('../services/fileScanService');
 const auditService = require('../services/auditService');
@@ -163,17 +166,6 @@ async function getPublicRestaurant(restaurantId) {
     [restaurantId]
   );
   return rows[0] || null;
-}
-
-async function isRestaurantOwner(userId, restaurantId) {
-  const { rows } = await pool.query(
-    `SELECT 1
-       FROM food_restaurants fr
-       JOIN businesses b ON b.id = fr.business_id
-      WHERE fr.id = $1 AND (fr.owner_user_id = $2 OR b.user_id = $2)`,
-    [restaurantId, userId]
-  );
-  return rows.length > 0;
 }
 
 // moderate_content grant check for routes under the regular customer

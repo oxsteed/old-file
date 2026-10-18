@@ -4,6 +4,8 @@
 
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
+// Canonical restaurant access gate (analytics scope model, Phase 1 Item 6).
+const { resolveRestaurantAccess } = require('../services/scopeModel');
 
 const MANAGE_ROLES = new Set(['owner', 'manager']);
 const MAX_RANGE_DAYS = 366;
@@ -13,31 +15,12 @@ function parsePositiveInt(value) {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-// Identical access query to restaurantOpsController.requireRestaurantAccess.
+// Restaurant access via the canonical scope-model gate. The fast-fail
+// `!restaurantId` guard and the manager-only reports policy are preserved
+// here: the shared gate resolves standing; this module's 403 stays.
 async function requireRestaurantAccess(userId, restaurantId) {
   if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-  const { rows } = await pool.query(
-    `SELECT fr.id, fr.business_id,
-            CASE
-              WHEN b.user_id = $2 OR fr.owner_user_id = $2 THEN 'owner'
-              ELSE (
-                SELECT bm.role
-                  FROM business_members bm
-                 WHERE bm.business_id = fr.business_id
-                   AND bm.member_id = $2
-                   AND bm.status = 'active'
-                 LIMIT 1
-              )
-            END AS effective_role
-       FROM food_restaurants fr
-       JOIN businesses b ON b.id = fr.business_id
-      WHERE fr.id = $1`,
-    [restaurantId, userId]
-  );
-  const restaurant = rows[0];
-  if (!restaurant || !restaurant.effective_role) {
-    throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-  }
+  const restaurant = await resolveRestaurantAccess(userId, restaurantId);
   if (!MANAGE_ROLES.has(restaurant.effective_role)) {
     throw new AppError('You do not have permission to view reports', 403, 'forbidden');
   }

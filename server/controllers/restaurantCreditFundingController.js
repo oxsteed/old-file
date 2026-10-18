@@ -27,6 +27,12 @@
 
 const { AppError } = require('../middleware/errorHandler');
 const pool = require('../db');
+// Canonical restaurant access gate (analytics scope model, Phase 1 Item 6).
+// Replaces the former local requireRestaurantAccess copy: same ownership
+// CASE (exposed as both effective_role and the operator_role alias this
+// module historically used), same 404. Callers pre-validate the id via
+// parseRestaurantId, so no fast-fail guard is needed.
+const { resolveRestaurantAccess: requireRestaurantAccess } = require('../services/scopeModel');
 const fundingService = require('../services/restaurantCreditFundingService');
 const instructionsService = require('../services/oxsteedFundingInstructionsService');
 
@@ -36,35 +42,6 @@ function parseRestaurantId(value) {
     throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
   }
   return id;
-}
-
-async function requireRestaurantAccess(userId, restaurantId) {
-  // Canonical restaurant access check (mirrors foodWalletController):
-  // owner via businesses.user_id or food_restaurants.owner_user_id, else the
-  // member's active business_members role. The previous version joined
-  // food_restaurant_operators, a table no migration ever creates, which made
-  // every merchant funding call 500.
-  const { rows } = await pool.query(
-    `SELECT fr.id, fr.business_id, fr.owner_user_id, fr.display_name, fr.currency_code,
-            CASE
-              WHEN b.user_id = $2 OR fr.owner_user_id = $2 THEN 'owner'
-              ELSE (
-                SELECT bm.role
-                  FROM business_members bm
-                 WHERE bm.business_id = fr.business_id
-                   AND bm.member_id = $2
-                   AND bm.status = 'active'
-                 LIMIT 1
-              )
-            END AS operator_role
-       FROM food_restaurants fr
-       JOIN businesses b ON b.id = fr.business_id
-      WHERE fr.id = $1
-      LIMIT 1`,
-    [restaurantId, userId]
-  );
-  if (!rows[0] || !rows[0].operator_role) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-  return rows[0];
 }
 
 /**
