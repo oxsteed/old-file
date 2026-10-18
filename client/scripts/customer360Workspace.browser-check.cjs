@@ -290,7 +290,7 @@ test("customer workspace flows, account changes, errors and responsive localized
       .getByRole("button", { name: copy.en.areas.all, exact: true })
       .click();
     await page.getByText("2 loaded of 150").waitFor();
-    const shotDir = path.resolve(root, "../docs/customer360/evidence");
+    const shotDir = process.env.CUSTOMER360_EVIDENCE_DIR || path.join(require("node:os").tmpdir(), "oxsteed-customer360-evidence");
     fs.mkdirSync(shotDir, { recursive: true });
     for (const lang of ["en", "fr", "ar"])
       for (const dark of [false, true])
