@@ -259,32 +259,30 @@ test("assistant sends only permitted aggregate counts and statuses, never custom
   const chat = jest
     .spyOn(provider, "fetchMetaChat")
     .mockResolvedValue({ ok: true, reply: "Review the source [jobs]." });
-  const snapshot = jest
-    .spyOn(service, "workspace")
-    .mockResolvedValue({
-      generatedAt: new Date().toISOString(),
-      sections: {
-        jobs: {
-          key: "jobs",
-          state: "ready",
-          total: 7,
-          groups: [
-            {
-              status: "pending",
-              count: 7,
-              recorded_amount_cents: "9007199254740993",
-            },
-          ],
-          records: [
-            {
-              label: "Sensitive person",
-              email: "private@example.invalid",
-              balance_cents: 2000,
-            },
-          ],
-        },
+  const snapshot = jest.spyOn(service, "workspace").mockResolvedValue({
+    generatedAt: new Date().toISOString(),
+    sections: {
+      jobs: {
+        key: "jobs",
+        state: "ready",
+        total: 7,
+        groups: [
+          {
+            status: "pending",
+            count: 7,
+            recorded_amount_cents: "9007199254740993",
+          },
+        ],
+        records: [
+          {
+            label: "Sensitive person",
+            email: "private@example.invalid",
+            balance_cents: 2000,
+          },
+        ],
       },
-    });
+    },
+  });
   try {
     const r = req();
     r.body = { language: "ar" };
@@ -301,5 +299,16 @@ test("assistant sends only permitted aggregate counts and statuses, never custom
     configured.mockRestore();
     model.mockRestore();
     chat.mockRestore();
+  }
+});
+
+test("inherited object keys are never accepted as source definitions", async () => {
+  for (const source of ["__proto__", "constructor", "toString"]) {
+    expect(service.sources[source]).toBeUndefined();
+    db.query.mockResolvedValueOnce({ rows: [user] });
+    await expect(service.workspace(req({ source }))).rejects.toMatchObject({
+      status: 400,
+      code: "invalid_source",
+    });
   }
 });

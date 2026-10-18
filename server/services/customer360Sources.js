@@ -1,7 +1,7 @@
 "use strict";
 // Every query returns an explicit, safe projection. Never select source metadata,
 // credentials, private message bodies, card secrets, or provider response blobs.
-const sources = {};
+const sources = Object.create(null);
 function source(key, area, table, predicate, columns, options = {}) {
   sources[key] = {
     key,
