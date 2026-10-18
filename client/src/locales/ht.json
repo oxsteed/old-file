@@ -33494,7 +33494,8 @@
       "api-keys": "API Keys",
       "tabs": "Tabs",
       "title": "Essential Tabs",
-      "hint": "Dechwazi onglet ou pa bezwen yo. Y ap kache nan ba lateral ou a."
+      "hint": "Dechwazi onglet ou pa bezwen yo. Y ap kache nan ba lateral ou a.",
+      "metric-alerts": "Alèt metrik"
     },
     "profile": {
       "title": "Profile",
@@ -33520,7 +33521,8 @@
       "notify_new_admins": "New admin signups",
       "notify_disputes": "Disputes",
       "email_notifications": "Email notifications",
-      "sms_notifications": "SMS notifications"
+      "sms_notifications": "SMS notifications",
+      "notify_metric_alerts": "Alèt papot metrik"
     },
     "apiKeys": {
       "title": "API Keys",
@@ -33532,6 +33534,62 @@
       "created": "Created",
       "lastUsed": "Last used",
       "confirmRevoke": "Revoke this API key?"
+    },
+    "metricAlerts": {
+      "title": "Alèt papot metrik",
+      "hint": "Règ yo evalye chak minit ak rejis ofisyèl metrik yo. Yon alèt pa janm deklanche plis pase yon fwa pa peryòd repo, epi sèlman sou chanèl ou te aktive yo.",
+      "empty": "Pa gen règ alèt pou kounye a. Kreye youn pou veye yon metrik.",
+      "newRule": "Nouvo règ alèt",
+      "editRule": "Modifye règ alèt la",
+      "metric": "Metrik",
+      "operator": "Kondisyon",
+      "threshold": "Papot",
+      "period": "Peryòd",
+      "days": "Jou istorik",
+      "cooldownMinutes": "Repo (minit)",
+      "cooldownHint": "Apre li deklanche, règ la p ap deklanche ankò pandan kantite minit sa yo.",
+      "channels": "Chanèl livrezon",
+      "channelInApp": "Nan aplikasyon an",
+      "channelEmail": "Imèl",
+      "channelSms": "SMS",
+      "active": "Règ la aktif",
+      "edit": "Modifye",
+      "cancel": "Anile",
+      "confirmDelete": "Efase règ alèt sa a?",
+      "saveFailed": "Pa t kapab anrejistre règ alèt la.",
+      "lastFired": "Dènye deklanchman",
+      "never": "Jamè",
+      "currentValue": "Valè aktyèl",
+      "paused": "Sou poz",
+      "noValue": "n/d",
+      "thresholdHint": {
+        "cents": "Antre papot la an santim (egz. 500000 = $5,000.00).",
+        "pct": "Antre papot la an pwen pousantaj (egz. 5 = 5%).",
+        "count": "Antre papot la kòm yon nonm antye.",
+        "index": "Antre papot la kòm yon valè endis (egz. 50)."
+      },
+      "operators": {
+        "gt": "pi wo pase (>)",
+        "lt": "pi ba pase (<)",
+        "eq": "egal a (==)"
+      },
+      "periods": {
+        "1d": "Dènye 24 èdtan",
+        "7d": "Dènye 7 jou",
+        "30d": "Dènye 30 jou",
+        "90d": "Dènye 90 jou",
+        "1y": "Dènye 12 mwa"
+      },
+      "metrics": {
+        "open_disputes": "Diskisyon ouvè",
+        "platform_revenue_cents": "Revni platfòm",
+        "investor_take_rate_pct": "To komisyon envestisè",
+        "cancel_rate_pct": "To anilasyon",
+        "support_nps_index": "NPS sipò",
+        "consulting_avg_nps": "NPS mwayèn konsiltasyon",
+        "mrr_cents": "Revni renouvlab chak mwa",
+        "escrow_held_cents": "Lajan nan depo garanti"
+      }
     }
   },
   "adminFoodOrderDetail": {

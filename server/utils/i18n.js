@@ -5,6 +5,8 @@ const T = {
   ...require('./reviewLifecycleNotificationTemplates').reviewLifecycleNotifications,
   ...require('./mediaCreatorNotifications').creatorNotifications,
   ...require('./disputeNotificationTemplates').disputeNotifications,
+  // Analytics platform, Phase 2 Item 9: metric threshold alert titles.
+  ...require('./metricAlertNotificationCopy').metricAlertNotifications,
   media_follow: {
     title: {
       en: 'New Media follower',

@@ -33494,7 +33494,8 @@
       "api-keys": "API Keys",
       "tabs": "Tabs",
       "title": "Essential Tabs",
-      "hint": "Décochez les onglets dont vous n'avez pas besoin. Ils seront masqués de votre barre latérale."
+      "hint": "Décochez les onglets dont vous n'avez pas besoin. Ils seront masqués de votre barre latérale.",
+      "metric-alerts": "Alertes de métriques"
     },
     "profile": {
       "title": "Profile",
@@ -33520,7 +33521,8 @@
       "notify_new_admins": "New admin signups",
       "notify_disputes": "Disputes",
       "email_notifications": "Email notifications",
-      "sms_notifications": "SMS notifications"
+      "sms_notifications": "SMS notifications",
+      "notify_metric_alerts": "Alertes de seuil de métriques"
     },
     "apiKeys": {
       "title": "API Keys",
@@ -33532,6 +33534,62 @@
       "created": "Created",
       "lastUsed": "Last used",
       "confirmRevoke": "Revoke this API key?"
+    },
+    "metricAlerts": {
+      "title": "Alertes de seuil de métriques",
+      "hint": "Les règles sont évaluées chaque minute à partir du registre officiel des métriques. Une alerte se déclenche au plus une fois par période de carence, et uniquement sur les canaux activés.",
+      "empty": "Aucune règle d’alerte pour l’instant. Créez-en une pour surveiller une métrique.",
+      "newRule": "Nouvelle règle d’alerte",
+      "editRule": "Modifier la règle d’alerte",
+      "metric": "Métrique",
+      "operator": "Condition",
+      "threshold": "Seuil",
+      "period": "Période",
+      "days": "Jours d’historique",
+      "cooldownMinutes": "Carence (minutes)",
+      "cooldownHint": "Après un déclenchement, la règle ne se déclenchera plus pendant ce nombre de minutes.",
+      "channels": "Canaux de diffusion",
+      "channelInApp": "Dans l’app",
+      "channelEmail": "E-mail",
+      "channelSms": "SMS",
+      "active": "Règle active",
+      "edit": "Modifier",
+      "cancel": "Annuler",
+      "confirmDelete": "Supprimer cette règle d’alerte ?",
+      "saveFailed": "Impossible d’enregistrer la règle d’alerte.",
+      "lastFired": "Dernier déclenchement",
+      "never": "Jamais",
+      "currentValue": "Valeur actuelle",
+      "paused": "En pause",
+      "noValue": "n/d",
+      "thresholdHint": {
+        "cents": "Saisissez le seuil en centimes (ex. 500000 = 5 000,00 $).",
+        "pct": "Saisissez le seuil en points de pourcentage (ex. 5 = 5 %).",
+        "count": "Saisissez le seuil sous forme de nombre entier.",
+        "index": "Saisissez le seuil sous forme de valeur d’indice (ex. 50)."
+      },
+      "operators": {
+        "gt": "au-dessus de (>)",
+        "lt": "en dessous de (<)",
+        "eq": "égal à (==)"
+      },
+      "periods": {
+        "1d": "Dernières 24 heures",
+        "7d": "7 derniers jours",
+        "30d": "30 derniers jours",
+        "90d": "90 derniers jours",
+        "1y": "12 derniers mois"
+      },
+      "metrics": {
+        "open_disputes": "Litiges ouverts",
+        "platform_revenue_cents": "Revenus de la plateforme",
+        "investor_take_rate_pct": "Taux de commission investisseur",
+        "cancel_rate_pct": "Taux d’annulation",
+        "support_nps_index": "NPS du support",
+        "consulting_avg_nps": "NPS moyen du conseil",
+        "mrr_cents": "Revenus mensuels récurrents",
+        "escrow_held_cents": "Fonds séquestrés"
+      }
     }
   },
   "adminFoodOrderDetail": {

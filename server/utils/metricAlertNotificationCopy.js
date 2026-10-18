@@ -1,0 +1,121 @@
+"use strict";
+
+// Server-side notification copy for metric threshold alerts
+// (analytics platform, Phase 2, Item 9). Mirrors the
+// customer360NotificationCopy.js pattern: title/body pairs in en, es, fr,
+// ht, ar, consumed by tNotif('metric_threshold_alert', lang).
+//
+// The body is a template; the evaluator substitutes {metric}, {operator},
+// {threshold} and {value}. Metric labels are localized here so the
+// notification reads correctly in the admin's preferred language without
+// duplicating the client locale catalogs.
+
+// The tNotif() entry carries ONLY the title. The body is fully composed by
+// formatAlertBody() below and passed as the explicit `body` argument to
+// sendNotification; if the entry carried the raw template, sendNotification
+// would prepend it unsubstituted in front of the formatted body.
+const metricAlertNotifications = {
+  metric_threshold_alert: {
+    title: {
+      en: "Metric threshold alert",
+      es: "Alerta de umbral de metrica",
+      fr: "Alerte de seuil de metrique",
+      ht: "Alet papot metrik",
+      ar: "تنبيه حدّ المقياس",
+    },
+  },
+};
+
+const metricAlertBodyTemplates = {
+  en: "{metric} crossed your alert threshold: {operator} {threshold} (current: {value}). Open My Settings to review the rule.",
+  es: "{metric} supero tu umbral de alerta: {operator} {threshold} (actual: {value}). Abre Mis ajustes para revisar la regla.",
+  fr: "{metric} a franchi votre seuil d’alerte : {operator} {threshold} (actuel : {value}). Ouvrez Mes reglages pour revoir la regle.",
+  ht: "{metric} depase papot alèt ou: {operator} {threshold} (kounye a: {value}). Louvri Anviwonman mwen pou revize règ la.",
+  ar: "تجاوز {metric} حدّ التنبيه: {operator} {threshold} (الحالي: {value}). افتح إعداداتي لمراجعة القاعدة.",
+};
+
+const metricAlertMetricLabels = {
+  open_disputes: {
+    en: "Open disputes",
+    es: "Disputas abiertas",
+    fr: "Litiges ouverts",
+    ht: "Diskisyon ouvè",
+    ar: "النزاعات المفتوحة",
+  },
+  platform_revenue_cents: {
+    en: "Platform revenue",
+    es: "Ingresos de la plataforma",
+    fr: "Revenus de la plateforme",
+    ht: "Revni platfòm",
+    ar: "إيرادات المنصة",
+  },
+  investor_take_rate_pct: {
+    en: "Investor take rate",
+    es: "Tasa de comision para inversores",
+    fr: "Taux de commission investisseur",
+    ht: "To komisyon envestisè",
+    ar: "نسبة عمولة المستثمر",
+  },
+  cancel_rate_pct: {
+    en: "Cancel rate",
+    es: "Tasa de cancelacion",
+    fr: "Taux d’annulation",
+    ht: "To anilasyon",
+    ar: "معدل الإلغاء",
+  },
+  support_nps_index: {
+    en: "Support NPS",
+    es: "NPS de soporte",
+    fr: "NPS du support",
+    ht: "NPS sipò",
+    ar: "صافي نقاط الترويج للدعم",
+  },
+  consulting_avg_nps: {
+    en: "Consulting average NPS",
+    es: "NPS promedio de consultoria",
+    fr: "NPS moyen du conseil",
+    ht: "NPS mwayèn konsiltasyon",
+    ar: "متوسط صافي نقاط الترويج للاستشارات",
+  },
+  mrr_cents: {
+    en: "Monthly recurring revenue",
+    es: "Ingresos recurrentes mensuales",
+    fr: "Revenus mensuels recurrents",
+    ht: "Revni renouvlab chak mwa",
+    ar: "الإيرادات الشهرية المتكررة",
+  },
+  escrow_held_cents: {
+    en: "Escrow held",
+    es: "Fondos en custodia",
+    fr: "Fonds sequestres",
+    ht: "Lajan nan depo garanti",
+    ar: "الأموال المحتجزة في الضمان",
+  },
+};
+
+const METRIC_ALERT_LANGS = ["en", "es", "fr", "ht", "ar"];
+
+function resolveLang(lang) {
+  const l = String(lang || "en").split(/[-_]/)[0].toLowerCase();
+  return METRIC_ALERT_LANGS.includes(l) ? l : "en";
+}
+
+function formatAlertBody(lang, { metric, operator, threshold, value }) {
+  const l = resolveLang(lang);
+  const template = metricAlertBodyTemplates[l];
+  const label = (metricAlertMetricLabels[metric] || {})[l]
+    || metricAlertMetricLabels[metric]?.en
+    || metric;
+  return template
+    .replace("{metric}", label)
+    .replace("{operator}", operator)
+    .replace("{threshold}", threshold)
+    .replace("{value}", value);
+}
+
+module.exports = {
+  metricAlertNotifications,
+  metricAlertBodyTemplates,
+  metricAlertMetricLabels,
+  formatAlertBody,
+};

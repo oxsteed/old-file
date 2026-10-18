@@ -63,6 +63,10 @@ exports.sendNotification = async ({
   pushToken  = null,
   idempotencyKey = null,
   promotional = false,
+  // Item 9: lets a caller suppress realtime email for this send while still
+  // delivering in-app (e.g. the admin opted out of email for metric alerts).
+  // Defaults to true: no behavior change for existing callers.
+  emailChannel = true,
 }) => {
   try {
     // ── Promo frequency governor: at most 2 promotional pushes per user
@@ -281,6 +285,10 @@ exports.sendNotification = async ({
       'logistics_campaign_rejected',
       'logistics_payment_succeeded','logistics_payment_failed','logistics:quote_published','logistics:quote_accepted',
       'logistics:refund_proposed','logistics:refund_approved','logistics:refund_pending','logistics:refund_rejected','logistics:refund_processed','logistics:refund_failed','logistics:refund_expired',
+      // Analytics platform, Phase 2 Item 9: metric threshold alerts for
+      // admins. Non-transactional: respects the recipient's email toggles
+      // (the job additionally gates on admin_notification_prefs).
+      'metric_threshold_alert',
     ];
     // Transactional: always attempt email when we have an address (cannot opt out of
     // security-relevant account notices via marketing-style toggles).
@@ -307,7 +315,7 @@ exports.sendNotification = async ({
       if (!emailTypes.includes(type)) emailTypes.push(type);
       transactionalEmailTypes.add(type);
     }
-    const emailAllowed = userEmail && emailTypes.includes(type)
+    const emailAllowed = emailChannel && userEmail && emailTypes.includes(type)
       && (transactionalEmailTypes.has(type)
         ? true
         : !emailPrefOff && prefs.email_notifications !== false)

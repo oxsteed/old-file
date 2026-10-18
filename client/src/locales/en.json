@@ -33494,7 +33494,8 @@
       "api-keys": "API Keys",
       "tabs": "Tabs",
       "title": "Essential Tabs",
-      "hint": "Uncheck tabs you do not need. They will be hidden from your sidebar."
+      "hint": "Uncheck tabs you do not need. They will be hidden from your sidebar.",
+      "metric-alerts": "Metric alerts"
     },
     "profile": {
       "title": "Profile",
@@ -33520,7 +33521,8 @@
       "notify_new_admins": "New admin signups",
       "notify_disputes": "Disputes",
       "email_notifications": "Email notifications",
-      "sms_notifications": "SMS notifications"
+      "sms_notifications": "SMS notifications",
+      "notify_metric_alerts": "Metric threshold alerts"
     },
     "apiKeys": {
       "title": "API Keys",
@@ -33532,6 +33534,62 @@
       "created": "Created",
       "lastUsed": "Last used",
       "confirmRevoke": "Revoke this API key?"
+    },
+    "metricAlerts": {
+      "title": "Metric Threshold Alerts",
+      "hint": "Rules are evaluated every minute against the governed metrics registry. An alert fires at most once per cooldown, and only on channels you enabled.",
+      "empty": "No alert rules yet. Create one to watch a metric.",
+      "newRule": "New alert rule",
+      "editRule": "Edit alert rule",
+      "metric": "Metric",
+      "operator": "Condition",
+      "threshold": "Threshold",
+      "period": "Period",
+      "days": "Lookback days",
+      "cooldownMinutes": "Cooldown (minutes)",
+      "cooldownHint": "After firing, the rule will not fire again for this many minutes.",
+      "channels": "Delivery channels",
+      "channelInApp": "In-app",
+      "channelEmail": "Email",
+      "channelSms": "SMS",
+      "active": "Rule active",
+      "edit": "Edit",
+      "cancel": "Cancel",
+      "confirmDelete": "Delete this alert rule?",
+      "saveFailed": "Could not save the alert rule.",
+      "lastFired": "Last fired",
+      "never": "Never",
+      "currentValue": "Current value",
+      "paused": "Paused",
+      "noValue": "n/a",
+      "thresholdHint": {
+        "cents": "Enter the threshold in cents (e.g. 500000 = $5,000.00).",
+        "pct": "Enter the threshold in percentage points (e.g. 5 = 5%).",
+        "count": "Enter the threshold as a whole number.",
+        "index": "Enter the threshold as an index value (e.g. 50)."
+      },
+      "operators": {
+        "gt": "above (>)",
+        "lt": "below (<)",
+        "eq": "equals (==)"
+      },
+      "periods": {
+        "1d": "Last 24 hours",
+        "7d": "Last 7 days",
+        "30d": "Last 30 days",
+        "90d": "Last 90 days",
+        "1y": "Last 12 months"
+      },
+      "metrics": {
+        "open_disputes": "Open disputes",
+        "platform_revenue_cents": "Platform revenue",
+        "investor_take_rate_pct": "Investor take rate",
+        "cancel_rate_pct": "Cancel rate",
+        "support_nps_index": "Support NPS",
+        "consulting_avg_nps": "Consulting average NPS",
+        "mrr_cents": "Monthly recurring revenue",
+        "escrow_held_cents": "Escrow held"
+      }
     }
   },
   "adminFoodOrderDetail": {

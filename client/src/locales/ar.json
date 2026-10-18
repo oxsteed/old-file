@@ -33505,7 +33505,8 @@
       "api-keys": "API Keys",
       "tabs": "Tabs",
       "title": "Essential Tabs",
-      "hint": "ألغِ تحديد علامات التبويب التي لا تحتاجها. سيتم إخفاؤها من الشريط الجانبي."
+      "hint": "ألغِ تحديد علامات التبويب التي لا تحتاجها. سيتم إخفاؤها من الشريط الجانبي.",
+      "metric-alerts": "تنبيهات المقاييس"
     },
     "profile": {
       "title": "Profile",
@@ -33531,7 +33532,8 @@
       "notify_new_admins": "New admin signups",
       "notify_disputes": "Disputes",
       "email_notifications": "Email notifications",
-      "sms_notifications": "SMS notifications"
+      "sms_notifications": "SMS notifications",
+      "notify_metric_alerts": "تنبيهات حدّ المقاييس"
     },
     "apiKeys": {
       "title": "API Keys",
@@ -33543,6 +33545,62 @@
       "created": "Created",
       "lastUsed": "Last used",
       "confirmRevoke": "Revoke this API key?"
+    },
+    "metricAlerts": {
+      "title": "تنبيهات حدّ المقاييس",
+      "hint": "تُقيَّم القواعد كل دقيقة وفق سجل المقاييس الرسمي. يُطلَق التنبيه مرة واحدة كحد أقصى لكل فترة تهدئة، وعبر القنوات التي فعّلتها فقط.",
+      "empty": "لا توجد قواعد تنبيه بعد. أنشئ قاعدة لمراقبة مقياس.",
+      "newRule": "قاعدة تنبيه جديدة",
+      "editRule": "تعديل قاعدة التنبيه",
+      "metric": "المقياس",
+      "operator": "الشرط",
+      "threshold": "الحدّ",
+      "period": "الفترة",
+      "days": "أيام السجل",
+      "cooldownMinutes": "التهدئة (بالدقائق)",
+      "cooldownHint": "بعد إطلاق التنبيه، لن يُطلَق مجددًا خلال هذه الدقائق.",
+      "channels": "قنوات التسليم",
+      "channelInApp": "داخل التطبيق",
+      "channelEmail": "البريد الإلكتروني",
+      "channelSms": "رسالة نصية",
+      "active": "القاعدة نشطة",
+      "edit": "تعديل",
+      "cancel": "إلغاء",
+      "confirmDelete": "حذف قاعدة التنبيه هذه؟",
+      "saveFailed": "تعذّر حفظ قاعدة التنبيه.",
+      "lastFired": "آخر إطلاق",
+      "never": "أبدًا",
+      "currentValue": "القيمة الحالية",
+      "paused": "موقوفة",
+      "noValue": "غير متاح",
+      "thresholdHint": {
+        "cents": "أدخل الحدّ بالسنتات (مثال: 500000 = $5,000.00).",
+        "pct": "أدخل الحدّ بالنقاط المئوية (مثال: 5 = 5%).",
+        "count": "أدخل الحدّ كعدد صحيح.",
+        "index": "أدخل الحدّ كقيمة مؤشر (مثال: 50)."
+      },
+      "operators": {
+        "gt": "أعلى من (>)",
+        "lt": "أدنى من (<)",
+        "eq": "يساوي (==)"
+      },
+      "periods": {
+        "1d": "آخر 24 ساعة",
+        "7d": "آخر 7 أيام",
+        "30d": "آخر 30 يومًا",
+        "90d": "آخر 90 يومًا",
+        "1y": "آخر 12 شهرًا"
+      },
+      "metrics": {
+        "open_disputes": "النزاعات المفتوحة",
+        "platform_revenue_cents": "إيرادات المنصة",
+        "investor_take_rate_pct": "نسبة عمولة المستثمر",
+        "cancel_rate_pct": "معدل الإلغاء",
+        "support_nps_index": "صافي نقاط الترويج للدعم",
+        "consulting_avg_nps": "متوسط صافي نقاط الترويج للاستشارات",
+        "mrr_cents": "الإيرادات الشهرية المتكررة",
+        "escrow_held_cents": "الأموال المحتجزة في الضمان"
+      }
     }
   },
   "adminFoodOrderDetail": {
