@@ -6958,6 +6958,7 @@
       "allRoles": "كل الأدوار",
       "allStatus": "كل الحالات",
       "allPlans": "كل الخطط",
+      "allVerified": "كل التحقق",
       "sortBy": "فرز: {{label}}",
       "sort": {
         "first_name": "الاسم",

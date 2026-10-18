@@ -6958,6 +6958,7 @@
       "allRoles": "All Roles",
       "allStatus": "All Status",
       "allPlans": "All Plans",
+      "allVerified": "All Verified",
       "sortBy": "Sort: {{label}}",
       "sort": {
         "first_name": "Name",

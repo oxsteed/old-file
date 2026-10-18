@@ -583,7 +583,7 @@ let getUsersSummaryCache = { data: null, at: 0 };
 exports.getUsers = async (req, res) => {
   try {
     const {
-      search, role, status, plan, location,
+      search, role, status, plan, location, verified,
       sort = 'created_at', order = 'desc'
     } = req.query;
     const { page, limit, offset } = parseBoundedPagination(req.query, { defaultLimit: 25, maxLimit: 100 });
@@ -620,6 +620,21 @@ exports.getUsers = async (req, res) => {
     const hasPlanTable = hasSubs && await tableExists('plans');
 
     if (plan && hasPlanTable) { baseConditions.push(`p.slug = $${paramIdx++}`); params.push(plan); }
+
+    // Verified filter (QW3 analytics follow-up): mirrors the dashboard
+    // helper-verification stats. verified=true -> identity OR background
+    // verified; verified=false -> the negation (IS NOT TRUE is NULL-safe so
+    // users without a helper profile are treated as unverified, matching
+    // the dashboard's unverified_helpers stat). The param is validated
+    // strictly server-side and only ever adds an AND clause on top of the
+    // existing scoping. Requires the helper_profiles LEFT JOIN below.
+    let verifiedFilterActive = false;
+    if (hasHP && (verified === 'true' || verified === 'false')) {
+      baseConditions.push(verified === 'true'
+        ? '(hp.is_identity_verified = TRUE OR hp.is_background_checked = TRUE)'
+        : '(hp.is_identity_verified IS NOT TRUE AND hp.is_background_checked IS NOT TRUE)');
+      verifiedFilterActive = true;
+    }
 
     const allowedSorts = ['created_at', 'first_name', 'email', 'last_login_at'];
     // avg_rating sort must be prefixed with hp. when hasHP, falls back to u.created_at otherwise
@@ -675,8 +690,11 @@ exports.getUsers = async (req, res) => {
 
     const countJoins = hasSubs ? "LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = 'active'" : '';
     const countJoins2 = hasPlanTable ? 'LEFT JOIN plans p ON p.id = s.plan_id' : '';
+    // The verified filter references the hp alias, which the count query does
+    // not join by default; add the 1:1 LEFT JOIN only when the filter is active.
+    const countJoins3 = verifiedFilterActive ? 'LEFT JOIN helper_profiles hp ON hp.user_id = u.id' : '';
     const { rows: countRows } = await db.query(
-      `SELECT COUNT(*) FROM users u ${countJoins} ${countJoins2} ${finalWhereClause}`,
+      `SELECT COUNT(*) FROM users u ${countJoins} ${countJoins2} ${countJoins3} ${finalWhereClause}`,
       params
     );
 

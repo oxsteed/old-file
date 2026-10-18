@@ -6958,6 +6958,7 @@
       "allRoles": "Tous les rôles",
       "allStatus": "Tous les statuts",
       "allPlans": "Tous les forfaits",
+      "allVerified": "Tous vérifiés",
       "sortBy": "Trier : {{label}}",
       "sort": {
         "first_name": "Nom",

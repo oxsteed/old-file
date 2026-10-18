@@ -241,7 +241,7 @@ export default function SuperDashboard() {
     s.open_disputes      > 0 && { icon: AlertTriangle, title: t('superDashboard.alertOpenDisputes', { count: s.open_disputes }), detail: t('superDashboard.alertOpenDisputesDetail'), to: '/admin/disputes',    color: 'red'    },
     s.open_support_tickets > 0 && { icon: MessageSquare, title: t('superDashboard.alertOpenTickets', { count: s.open_support_tickets }), detail: t('superDashboard.alertOpenTicketsDetail'), to: '/admin/support', color: 'indigo' },
     s.pending_reports    > 0 && { icon: Flag,          title: t('superDashboard.alertPendingReports', { count: s.pending_reports }), detail: t('superDashboard.alertPendingReportsDetail'), to: '/admin/reports',     color: 'yellow' },
-    s.unverified_helpers > 0 && { icon: UserCheck,     title: t('superDashboard.alertUnverifiedHelpers', { count: s.unverified_helpers }), detail: t('superDashboard.alertUnverifiedHelpersDetail'), to: '/admin/users?role=helper', color: 'orange' },
+    s.unverified_helpers > 0 && { icon: UserCheck,     title: t('superDashboard.alertUnverifiedHelpers', { count: s.unverified_helpers }), detail: t('superDashboard.alertUnverifiedHelpersDetail'), to: '/admin/users?role=helper&verified=false', color: 'orange' },
   ].filter(Boolean) : [];
 
   // ─── render ─────────────────────────────────────────────────────────────
@@ -377,8 +377,8 @@ export default function SuperDashboard() {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
           <StatCard label={t('superDashboard.statTotalHelpers')}       value={s?.total_helpers      ?? null} icon={Shield}  color="text-orange-600 dark:text-orange-400" />
-          <StatCard label={t('superDashboard.statVerifiedHelpers')}    value={s?.verified_helpers   ?? null} icon={UserCheck} color="text-emerald-600 dark:text-emerald-400" href="/admin/users?role=helper" />
-          <StatCard label={t('superDashboard.statUnverifiedHelpers')}  value={s?.unverified_helpers ?? null} icon={UserCheck} color="text-yellow-600 dark:text-yellow-400" href="/admin/users?role=helper" />
+          <StatCard label={t('superDashboard.statVerifiedHelpers')}    value={s?.verified_helpers   ?? null} icon={UserCheck} color="text-emerald-600 dark:text-emerald-400" href="/admin/users?role=helper&verified=true" />
+          <StatCard label={t('superDashboard.statUnverifiedHelpers')}  value={s?.unverified_helpers ?? null} icon={UserCheck} color="text-yellow-600 dark:text-yellow-400" href="/admin/users?role=helper&verified=false" />
           <StatCard label={t('superDashboard.statSuspendedBanned')}  value={s?.suspended_users    ?? null} icon={UserX}   color="text-red-600 dark:text-red-400" href="/admin/users?status=banned" />
         </div>
       </section>

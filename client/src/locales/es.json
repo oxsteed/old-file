@@ -6958,6 +6958,7 @@
       "allRoles": "Todos los roles",
       "allStatus": "Todos los estados",
       "allPlans": "Todos los planes",
+      "allVerified": "Todos verificados",
       "sortBy": "Ordenar: {{label}}",
       "sort": {
         "first_name": "Nombre",

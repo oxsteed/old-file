@@ -377,12 +377,14 @@ export default function UsersList() {
     const role = searchParams.get('role') || '';
     const status = searchParams.get('status') || '';
     const plan = searchParams.get('plan') || '';
+    const verified = searchParams.get('verified') || '';
     const limit = positiveQueryInt(searchParams.get('limit'), 25);
     return {
       search: searchParams.get('search') || '',
       role: ROLES.includes(role) ? role : '',
       status: STATUSES.includes(status) ? status : '',
       plan: PLANS.includes(plan) ? plan : '',
+      verified: verified === 'true' || verified === 'false' ? verified : '',
       location: searchParams.get('location') || '',
       page: positiveQueryInt(searchParams.get('page'), 1),
       limit: PAGE_SIZES.includes(limit) ? limit : 25,
@@ -666,6 +668,15 @@ export default function UsersList() {
             {options.filter(Boolean).map(o => <option key={o} value={o} className="capitalize">{o}</option>)}
           </select>
         ))}
+
+        {/* Verified: identity OR background verified (dashboard stats parity) */}
+        <select value={filters.verified} onChange={e => update('verified', e.target.value)}
+          aria-label={t('adminUsers.list.verified')}
+          className="px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:border-orange-500">
+          <option value="">{t('adminUsers.list.allVerified')}</option>
+          <option value="true">{t('common.yes')}</option>
+          <option value="false">{t('common.no')}</option>
+        </select>
 
         {/* Sort by */}
         <select value={filters.sort} onChange={e => onSort(e.target.value)}
