@@ -119,6 +119,11 @@ was changed during implementation/testing.
   Escape/focus return, pagination, tasks, alerts, refund confirmation, evidence,
   report preview, errors, and subject/viewer changes. Example captures are in
   `evidence/`; no customer data appears in them.
+- PR #605 CI exposed a locale-switch timing race in that browser fixture:
+  a translated page could render before the test clicked the English Refresh
+  label. The fixture now awaits initial mount and explicitly rerenders on locale
+  changes. The focused browser journey passed all 30 layout combinations after
+  this correction; application behavior and build output are unchanged.
 - Full client `npm run build:ci` passed during implementation. Final release
   rerun and remote CI status are recorded in the PR; neither implies deployment.
 - The broad local server run encountered environment failures in unrelated

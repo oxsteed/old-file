@@ -296,18 +296,19 @@ test("customer workspace flows, account changes, errors and responsive localized
       for (const dark of [false, true])
         for (const width of [320, 390, 768, 1360, 1600]) {
           await page.goto(url);
+          await page
+            .getByRole("heading", { name: copy.en.title, exact: true })
+            .waitFor();
           await page.evaluate(
             ({ lang, dark }) => {
               window.lang = lang;
               document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
               document.body.classList.toggle("dark", dark);
+              window.render();
             },
             { lang, dark },
           );
           await page.setViewportSize({ width, height: 1000 });
-          await page
-            .getByRole("button", { name: copy.en.refresh, exact: true })
-            .click();
           await page
             .getByRole("heading", { name: copy[lang].title, exact: true })
             .waitFor();
