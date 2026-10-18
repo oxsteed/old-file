@@ -306,6 +306,10 @@ exports.getDashboardStats = async (req, res) => {
     }
 
     // ── Revenue stats ─────────────────────────────────────────────────────
+    // Canonical platform revenue (metrics registry: platform_revenue_cents):
+    // platform take from platform_ledger, source_type IN
+    // ('job_fee','subscription'), amount_cents > 0. Vertical GMVs (food,
+    // tools, consulting) are separate metrics, not rival definitions.
     let total_revenue_cents = 0, revenue_period_cents = 0,
         subscription_revenue_period_cents = 0, revenue_mtd_cents = 0,
         subscription_revenue_mtd_cents = 0, refunds_period_cents = 0;

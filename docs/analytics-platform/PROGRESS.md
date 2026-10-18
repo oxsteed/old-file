@@ -40,13 +40,13 @@ lands. Branch: `feat/analytics-platform`.
 | # | Metric | Status | Decision / notes |
 |---|--------|--------|------------------|
 | 1 | Open disputes | done | Canonical: `disputes` table `status='open'` (matches the `/admin/disputes` drill target default tab). Replaces `jobs.status='disputed'` (admin) and `jobs.dispute_status='open'` (super-admin). `under_review` tracked separately, not folded in. |
-| 2 | Revenue / take-rate | pending | |
+| 2 | Revenue / take-rate | done | Canonical platform revenue: platform take from `platform_ledger` (`job_fee`+`subscription`, positive amounts). Super/investor dashboards already matched; now annotated to the registry. Vertical GMVs (food, tools, consulting) registered as separate metrics. |
 | 3 | Cancel rate | pending | |
-| 4 | Investor take-rate formula | pending | |
+| 4 | Investor take-rate formula | done | OLD: all-time take incl. subscriptions / budget GMV (could exceed 100% by construction). NEW (registry `investorTakeRatePct`): all-time `job_fee` take / all-time budget GMV, 2dp, NULL on zero GMV. Parity test shows old=140% vs new=6.67% on the same fixture. |
 | 5 | SLA dashboard → `support_sla_targets` | pending | |
 | 6 | NPS canonical source | pending | |
 | 7 | MRR / escrow_held | pending | |
-| 8 | Periods drift | partial | Registry holds the canonical `PERIOD_INTERVAL` (`'1y' = '1 year'`); superAdminController now references it. investorController `'365 days'` normalization pending. |
+| 8 | Periods drift | done | Canonical `PERIOD_INTERVAL` (`'1y' = '1 year'`) in the registry; superAdminController and investorController both reference it (investor was `'365 days'`). |
 
 ## Decisions log
 
@@ -56,3 +56,5 @@ lands. Branch: `feat/analytics-platform`.
 | 2026-10-18 | QW2/QW4 conflict: business analytics tab removed (was rendering $NaN/zeros), not launched; dead launch flag cleaned up; rebuild deferred to metrics layer (Phase 2) | Coordinator |
 | 2026-10-18 | Item 7/1: open_disputes canonical on the disputes table (not a job flag), because the Dashboard card drills to /admin/disputes whose default tab reads that table — drill parity decides the definition | Track B |
 | 2026-10-18 | Item 7/8 (partial): `'1y' = '1 year'` is the canonical period; the registry owns the map. investorController still on `'365 days'` until metric 4/8 migration | Track B |
+| 2026-10-18 | Item 7/2+4: investor take-rate fixed (subscriptions excluded from numerator). Investor GMV stays SUM(budget_max) — budgets not actuals — kept as a documented known limitation, NOT silently redefined on investor surfaces | Track B |
+| 2026-10-18 | Item 7/8 (done): investorController `'365 days'` normalized to registry `'1y' = '1 year'` | Track B |
