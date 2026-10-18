@@ -1,6 +1,6 @@
 # Restaurant screen control center and synchronization
 
-Browser-first delivery for POS unpaid capture, self-order kiosk, kitchen stations, expediting, pickup displays and customer tracking. No LAN hub, payment hardware, self-approval, authorization bypass or automatic financial replay.
+Browser-first delivery for POS unpaid capture, self-order kiosk, kitchen stations, expediting, pickup displays and customer tracking. Legacy guest tracking links are resolved without accepting marked stored hashes as bearer tokens. No LAN hub, payment hardware, self-approval, authorization bypass or automatic financial replay.
 
 ## Rollout and rollback
 

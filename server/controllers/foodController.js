@@ -5809,6 +5809,8 @@ exports.getTrackedOrder = async (req, res, next) => {
     const trackingToken = normalizeString(req.params.trackingToken, 255);
     if (!trackingToken) throw new AppError('Order not found', 404, 'order_not_found');
 
+    // Legacy rows without tracking_token stored the raw capability. Marked
+    // hashed rows must never accept their stored hash as a bearer token.
     const { rows } = await pool.query(
       `SELECT fo.id, fo.restaurant_id, fo.status, fo.payment_status,
               fo.order_source, fo.fulfillment_type, fo.subtotal_cents,
@@ -5830,9 +5832,10 @@ exports.getTrackedOrder = async (req, res, next) => {
          FROM food_orders fo
          JOIN food_restaurants fr ON fr.id = fo.restaurant_id
          LEFT JOIN food_order_items foi ON foi.order_id = fo.id
-        WHERE fo.metadata->>'trackingToken' = $1
+        WHERE (fo.metadata->>'trackingToken' = $1
+          OR (NOT (fo.metadata ? 'tracking_token') AND fo.metadata->>'trackingToken' = $2))
         GROUP BY fo.id, fr.display_name, fr.prep_time_min`,
-      [hashTrackingToken(trackingToken)]
+      [hashTrackingToken(trackingToken), trackingToken]
     );
     let order = rows[0];
     if (!order) throw new AppError('Order not found', 404, 'order_not_found');

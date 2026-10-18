@@ -439,6 +439,49 @@ async function call(fn, params, user, body = {}, token = null) {
       return result;
     };
     await invokeExpo("finish_check");
+    const readyBoard = await sync.snapshot({ ...scope, readOrders: false });
+    assert.ok(readyBoard.board.ready.includes(order.queue_number));
+    const tracked = await call(
+      require("../controllers/foodController").getTrackedOrder,
+      { trackingToken: accepted.data.trackingToken },
+      null,
+    );
+    assert.equal(tracked.data.order.id, order.id);
+    assert.equal(tracked.data.order.status, "ready");
+    assert.equal(tracked.data.order.queue_number, order.queue_number);
+    const trackingHash = crypto
+      .createHash("sha256")
+      .update(accepted.data.trackingToken)
+      .digest("hex");
+    await db.query(
+      "UPDATE food_orders SET metadata=metadata||$2::jsonb WHERE id=$1",
+      [
+        order.id,
+        JSON.stringify({
+          trackingToken: trackingHash,
+          tracking_token: trackingHash,
+        }),
+      ],
+    );
+    assert.equal(
+      (
+        await call(
+          require("../controllers/foodController").getTrackedOrder,
+          { trackingToken: accepted.data.trackingToken },
+          null,
+        )
+      ).data.order.status,
+      "ready",
+    );
+    await assert.rejects(
+      call(
+        require("../controllers/foodController").getTrackedOrder,
+        { trackingToken: trackingHash },
+        null,
+      ),
+      (e) => e.code === "order_not_found",
+    );
+
     assert.equal(
       (await db.query("SELECT status FROM food_orders WHERE id=$1", [order.id]))
         .rows[0].status,
@@ -452,6 +495,19 @@ async function call(fn, params, user, body = {}, token = null) {
       order.id,
     ]);
     await invokeExpo("hand_off");
+    const afterHandoff = await sync.snapshot({ ...scope, readOrders: false });
+    assert.ok(!afterHandoff.board.ready.includes(order.queue_number));
+    assert.equal(
+      (
+        await call(
+          require("../controllers/foodController").getTrackedOrder,
+          { trackingToken: accepted.data.trackingToken },
+          null,
+        )
+      ).data.order.status,
+      "completed",
+    );
+
     assert.equal(
       (await db.query("SELECT status FROM food_orders WHERE id=$1", [order.id]))
         .rows[0].status,
