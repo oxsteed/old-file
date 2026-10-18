@@ -206,7 +206,7 @@ exports.getDashboardStats = async (req, res) => {
         (SELECT COUNT(*) FROM consulting_sessions WHERE status = 'pending') as pending_requests,
         (SELECT COUNT(*) FROM consulting_sessions WHERE status = 'scheduled') as scheduled_sessions,
         (SELECT COUNT(*) FROM consulting_purchases WHERE status = 'completed') as active_packages,
-        (SELECT AVG(nps_score) FROM consulting_session_feedback WHERE nps_score IS NOT NULL) as avg_nps,
+        (SELECT AVG(nps_score) FROM consulting_session_feedback WHERE nps_score IS NOT NULL) as avg_nps, -- registry: consulting_avg_nps (feedback_trends is a rating trend, NOT an NPS source)
         (SELECT COUNT(DISTINCT user_id) FROM consulting_purchases WHERE status = 'completed') as total_clients
     `);
 
@@ -659,7 +659,7 @@ exports.getEnhancedDashboardStats = async (req, res) => {
         (SELECT COUNT(*) FROM consulting_sessions WHERE status = 'completed') as completed_sessions,
         (SELECT COUNT(*) FROM consulting_sessions WHERE status = 'cancelled') as cancelled_sessions,
         (SELECT COUNT(DISTINCT email) FROM consulting_sessions WHERE status IN ('scheduled','completed')) as total_clients,
-        (SELECT AVG(nps_score) FROM consulting_session_feedback WHERE nps_score IS NOT NULL) as avg_nps,
+        (SELECT AVG(nps_score) FROM consulting_session_feedback WHERE nps_score IS NOT NULL) as avg_nps, -- registry: consulting_avg_nps (feedback_trends is a rating trend, NOT an NPS source)
         (SELECT COALESCE(SUM(amount_cents),0) FROM consulting_payments WHERE status = 'completed') as total_revenue_cents,
         (SELECT COALESCE(SUM(amount_cents),0) FROM consulting_payments WHERE status IN ('pending','processing')) as pending_revenue_cents,
         (SELECT COALESCE(SUM(amount_cents),0) FROM consulting_payments WHERE status = 'refunded') as refunded_cents,

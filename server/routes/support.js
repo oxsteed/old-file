@@ -1066,6 +1066,8 @@ router.get('/csat/analytics', async (req, res, next) => {
            COUNT(scr.id)::int AS surveys_completed,
            COALESCE(ROUND(AVG(scr.rating)::numeric, 2), 0)::float AS avg_rating,
            ROUND(AVG(scr.nps_score)::numeric, 1)::float AS avg_nps,
+           -- Metrics registry: support_nps_index (canonical source:
+           -- support_conversation_reviews; promoters − detractors).
            ROUND(100.0 * (
              COUNT(*) FILTER (WHERE scr.nps_score >= 9)
              - COUNT(*) FILTER (WHERE scr.nps_score <= 6)
