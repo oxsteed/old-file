@@ -402,7 +402,7 @@ export default function SuperDashboard() {
             deltaLabel={t('superDashboard.vsPrev')}
             subtitle={s?.new_jobs_today ? t('superDashboard.todayCount', { count: s.new_jobs_today }) : undefined}
           />
-          <StatCard label={t('superDashboard.statCancelledJobs')}     value={s?.cancelled_jobs   ?? null} icon={XCircle}   color="text-red-600 dark:text-red-400" />
+          <StatCard label={t('superDashboard.statCancelledJobs')}     value={s?.cancelled_jobs   ?? null} icon={XCircle}   color="text-red-600 dark:text-red-400" href="/admin/jobs?status=cancelled" />
           <StatCard label={t('superDashboard.statAvgBids')}   value={s?.avg_bids_per_job != null ? String(s.avg_bids_per_job) : null} icon={BarChart2}  color="text-indigo-600 dark:text-indigo-400" />
           <StatCard label={t('superDashboard.statCompletionRate')} value={s?.completion_rate  ?? null} format="percent"                                    icon={TrendingUp} color="text-emerald-600 dark:text-emerald-400" />
         </div>

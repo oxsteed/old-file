@@ -279,6 +279,10 @@ exports.getDashboardStats = async (req, res) => {
             COUNT(*) FILTER (WHERE created_at >= date_trunc('day', now()))             AS new_jobs_today,
             ROUND(AVG(bid_count) FILTER (WHERE bid_count > 0 AND created_at >= now() - $1::interval), 1) AS avg_bids_per_job
           FROM jobs
+          -- Metrics registry parity (cancel_rate_pct canonical): soft-deleted
+          -- jobs are excluded, matching migration 170's materialized views and
+          -- the /admin/jobs drill-through list these cards link to.
+          WHERE deleted_at IS NULL
         `, [cur]);
         open_jobs             = safeInt(rows[0]?.open_jobs);
         active_jobs           = safeInt(rows[0]?.active_jobs);
@@ -1151,6 +1155,10 @@ exports.getJobs = async (req, res) => {
     const { search, status, category } = req.query;
     const { page, limit, offset } = parseBoundedPagination(req.query, { defaultLimit: 25, maxLimit: 100 });
     const params = []; let paramIdx = 1; let conditions = [];
+    // Metrics registry parity: the dashboard job cards drill into this list,
+    // so it counts only live jobs — matching migration 170's materialized
+    // views and cancel_rate_pct's canonical definition (deleted_at IS NULL).
+    conditions.push('j.deleted_at IS NULL');
     if (search) { conditions.push(`(j.title ILIKE $${paramIdx} OR j.description ILIKE $${paramIdx})`); params.push(`%${search}%`); paramIdx++; }
     if (status) { conditions.push(`j.status = $${paramIdx++}`); params.push(status); }
     if (category) { conditions.push(`j.category_name = $${paramIdx++}`); params.push(category); }

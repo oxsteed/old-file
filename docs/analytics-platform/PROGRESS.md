@@ -25,7 +25,7 @@ lands. Branch: `feat/analytics-platform`.
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| 8 | Drill-through rollout | pending | Blocked on Area 1 definitions |
+| 8 | Drill-through rollout | partially-done | **Shipped 2 parity-proven drill links** (Track A). (1) `open_disputes` → `/admin/disputes`: the card link already existed; verified the drill target's count (`disputeAdminController.getAllDisputes`, default `?status=open`) matches the registry canonical — new parity test. (2) `cancel_rate_pct` → `/admin/jobs?status=cancelled`: new `href` on the super-dashboard Cancelled Jobs card; reconciled the soft-delete edge — dashboard jobs stats (super + admin `getDashboardStats`) and the admin jobs list (`superAdminController.getJobs`) previously counted soft-deleted jobs while the registry canonical excludes them (`deleted_at IS NULL`, migration 170 MVs); all three now exclude them so KPI card, drill list, and registry numerator agree (3 parity tests; the pre-fix predicates provably disagreed: 4 vs 3 on the fixture). **Skipped with reasons** (parity unprovable, no link shipped): see "Item 8 — Skipped metrics" below. No new i18n strings (href-only client change); no new routes. Server: 3 controller edits. Tests: `metricsRegistryDrillThrough.db.test.js` (3 new) + all 7 metricsRegistry suites (31 tests) green; `build:ci` green. |
 | 9 | Threshold alerts v1; wire dead `admin_notification_prefs` toggles | pending | |
 | 10 | Embedded gaps (restaurant repeat-order, campaign performance) | pending | |
 
@@ -47,6 +47,24 @@ lands. Branch: `feat/analytics-platform`.
 | 6 | NPS canonical source | done | Two domain metrics, each pinned: `support_nps_index` = `support_conversation_reviews`, proper NPS index (promoters − detractors; already used by the support CSAT route, now annotated); `consulting_avg_nps` = `consulting_session_feedback` AVG (adminConsultingController already used it, now annotated). `feedback_trends` (from `consulting_session_followups.feedback_rating`) is explicitly NOT an NPS source — rating trend only. No endpoint changed behavior; 5 parity tests; 53 admin-bundle route tests pass. |
 | 7 | MRR / escrow_held | done | Both computed properly instead of hardcoded 0: `mrr_cents` = active subscriptions × plan amount (yearly /12); `escrow_held_cents` = net held payments (`held`/`disputed` escrow_status + `authorized`/`captured` status), floored per payment. Wired into superAdmin `getDashboardStats` (fail-open with schema probes). No client reads these fields today, so no UI change. 4 parity tests. |
 | 8 | Periods drift | done | Canonical `PERIOD_INTERVAL` (`'1y' = '1 year'`) in the registry; superAdminController and investorController both reference it (investor was `'365 days'`). |
+
+## Item 8 — Skipped metrics (no drill link shipped; parity unprovable)
+
+The rule applied: if the drill target's filtered query cannot be made to
+agree with the registry's canonical compute, the link is NOT shipped. Each
+skip below names the exact blocker; none of these is a client-param gap that
+QW3-style plumbing could close.
+
+| Metric | Reason skipped |
+|--------|---------------|
+| `platform_revenue_cents` | No drill target can reproduce the KPI. The `/admin/super/revenue` page is period-bounded (7d/30d/90d/1y) and currency-scoped, while the dashboard KPIs are all-time / period / MTD over all currencies; its transaction list is a recent-50 sample, not a filterable full ledger. A sum KPI needs a full filterable ledger list with a totals row — does not exist. |
+| `sla_first_response_compliance_pct` | No admin support-conversations list page exists: `GET /support/conversations` feeds only the agent chat workspace (1700-line console, no URL-param filtering), and the SLA dashboard's own violations list uses a broader predicate (first-response OR resolution breaches, non-terminal only) than the KPI (`sla_violation_count` = first-response breaches, all statuses). Building a breach-filtered conversations list page is follow-up work, not Item 8. |
+| `support_nps_index` | KPI is a ratio (% promoters − % detractors); no dedicated reviews list page exists. The CSAT page's `recent_feedback` is a 25-row sample whose cohort (reviews on resolved/closed conversations in 30d for the index) does not match the registry canonical cohort (all reviews in 30d), so parity is unprovable without a new full list page. |
+| `consulting_avg_nps` | No record list page exists for `consulting_session_feedback` (the canonical source). Nothing to link to; building one is out of scope. |
+| `investor_gmv_cents` | Underlying records are completed jobs, but the KPI is `SUM(budget_max)` — a jobs list cannot reproduce the number, so a drill would show a count that disagrees with the KPI. |
+| `investor_take_rate_pct` | Ratio of two all-time aggregates (job_fee take / budget GMV); no natural record list. |
+| `mrr_cents` | Derived sum (active subscriptions × plan amount, yearly /12); no natural record list. |
+| `escrow_held_cents` | No client displays this KPI (Item 7 wired it server-side only), so there is no card to drill from. |
 
 ## Decisions log
 
@@ -116,3 +134,5 @@ separate): `statementArchive` wallet-standing, media actor verification,
 | 2026-10-18 | Item 7/8 (partial): `'1y' = '1 year'` is the canonical period; the registry owns the map. investorController still on `'365 days'` until metric 4/8 migration | Track B |
 | 2026-10-18 | Item 7/2+4: investor take-rate fixed (subscriptions excluded from numerator). Investor GMV stays SUM(budget_max) — budgets not actuals — kept as a documented known limitation, NOT silently redefined on investor surfaces | Track B |
 | 2026-10-18 | Item 7/8 (done): investorController `'365 days'` normalized to registry `'1y' = '1 year'` | Track B |
+| 2026-10-18 | Item 8: cancel-rate drill reconciliation — `deleted_at IS NULL` added to the super/admin dashboard jobs stats AND the admin jobs list (`getJobs`), not just the drill filter. A drill-side-only fix would have left the dashboard cards disagreeing with their own drill targets for soft-deleted jobs; aligning all three to the registry canonical (migration 170 MVs) keeps every `/admin/jobs?status=` deep link parity-safe. Side effect: soft-deleted jobs no longer appear in the admin jobs list. | Track A |
+| 2026-10-18 | Item 8: drill links NOT shipped where parity is unprovable (revenue, SLA compliance, both NPS metrics, investor GMV/take-rate, MRR, escrow_held) — documented in "Item 8 — Skipped metrics" with exact blockers instead of linking numbers that disagree. | Track A |

@@ -27,9 +27,9 @@ exports.getDashboardStats = async (req, res) => {
 
     const { rows } = await db.query(`
       SELECT
-        ${hasJobs ? "(SELECT COUNT(*) FROM jobs WHERE status = 'published')" : '0'}
+        ${hasJobs ? "(SELECT COUNT(*) FROM jobs WHERE status = 'published' AND deleted_at IS NULL)" : '0'}
           AS open_jobs,
-        ${hasJobs ? "(SELECT COUNT(*) FROM jobs WHERE status = 'in_progress')" : '0'}
+        ${hasJobs ? "(SELECT COUNT(*) FROM jobs WHERE status = 'in_progress' AND deleted_at IS NULL)" : '0'}
           AS active_jobs,
         ${hasReports ? "(SELECT COUNT(*) FROM content_reports WHERE status = 'pending')" : '0'}
           AS pending_reports,
@@ -37,9 +37,12 @@ exports.getDashboardStats = async (req, res) => {
           WHERE created_at >= now() - interval '7 days'
             AND role NOT IN ('admin','super_admin'))
           AS new_users_7d,
-        ${hasJobs ? "(SELECT COUNT(*) FROM jobs WHERE created_at >= now() - interval '7 days')" : '0'}
+        ${hasJobs ? "(SELECT COUNT(*) FROM jobs WHERE created_at >= now() - interval '7 days' AND deleted_at IS NULL)" : '0'}
           AS new_jobs_7d
     `);
+    // Metrics registry parity: the dashboard job cards drill into
+    // /admin/jobs (which excludes soft-deleted jobs), so these counts do
+    // too — matching migration 170's materialized views.
 
     // Metrics registry: open_disputes is canonical on the disputes table
     // (status='open'), matching the /admin/disputes drill-through target.
