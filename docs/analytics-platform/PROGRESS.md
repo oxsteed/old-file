@@ -19,7 +19,7 @@ lands. Branch: `feat/analytics-platform`.
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | 6 | Area 4 scope model + one domain pilot | pending | Longest pole (4-8 weeks) |
-| 7 | Area 1 metrics registry v1; reconcile 8 divergences; SLA dashboard to `support_sla_targets`; remove hardcoded zeros | pending | Includes live credibility bugs (dispute counts by role, take-rate >100%) |
+| 7 | Area 1 metrics registry v1; reconcile 8 divergences; SLA dashboard to `support_sla_targets`; remove hardcoded zeros | in progress (Track B) | Registry v1 at `server/analytics/metricsRegistry.js`. Per-metric status below. |
 
 ## Phase 2 — capabilities
 
@@ -35,9 +35,24 @@ lands. Branch: `feat/analytics-platform`.
 |---|------|--------|-------|
 | 11 | Structured query builder, then NL layer | pending | Blocked on Areas 1+4 |
 
+## Item 7 — per-metric status (Track B)
+
+| # | Metric | Status | Decision / notes |
+|---|--------|--------|------------------|
+| 1 | Open disputes | done | Canonical: `disputes` table `status='open'` (matches the `/admin/disputes` drill target default tab). Replaces `jobs.status='disputed'` (admin) and `jobs.dispute_status='open'` (super-admin). `under_review` tracked separately, not folded in. |
+| 2 | Revenue / take-rate | pending | |
+| 3 | Cancel rate | pending | |
+| 4 | Investor take-rate formula | pending | |
+| 5 | SLA dashboard → `support_sla_targets` | pending | |
+| 6 | NPS canonical source | pending | |
+| 7 | MRR / escrow_held | pending | |
+| 8 | Periods drift | partial | Registry holds the canonical `PERIOD_INTERVAL` (`'1y' = '1 year'`); superAdminController now references it. investorController `'365 days'` normalization pending. |
+
 ## Decisions log
 
 | Date | Decision | By |
 |------|----------|----|
 | 2026-10-18 | SCOPE.md moved into repo at `docs/analytics-platform/`; this log created | Atlas |
 | 2026-10-18 | QW2/QW4 conflict: business analytics tab removed (was rendering $NaN/zeros), not launched; dead launch flag cleaned up; rebuild deferred to metrics layer (Phase 2) | Coordinator |
+| 2026-10-18 | Item 7/1: open_disputes canonical on the disputes table (not a job flag), because the Dashboard card drills to /admin/disputes whose default tab reads that table — drill parity decides the definition | Track B |
+| 2026-10-18 | Item 7/8 (partial): `'1y' = '1 year'` is the canonical period; the registry owns the map. investorController still on `'365 days'` until metric 4/8 migration | Track B |

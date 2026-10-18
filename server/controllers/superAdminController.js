@@ -13,6 +13,7 @@ const { cancelJobTransaction, finalizeJobCancellation } = require('../services/j
 const AppError = require('../utils/appError');
 const { issueStepupChallenge, verifyStepupChallenge } = require('../services/stepupChallengeService');
 const { sendMoneyMovementGateResult } = require('../utils/dualApprovalHttp');
+const metricsRegistry = require('../analytics/metricsRegistry');
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -194,13 +195,9 @@ async function notifyUserAccountEvent(userId, { type, title, body, action_url = 
 
 // ─── Dashboard helpers ────────────────────────────────────────────────────────
 
-const PERIOD_INTERVAL = {
-  '1d':  { interval: '1 day',   prev: '2 days',   trunc: 'hour'  },
-  '7d':  { interval: '7 days',  prev: '14 days',  trunc: 'day'   },
-  '30d': { interval: '30 days', prev: '60 days',  trunc: 'day'   },
-  '90d': { interval: '90 days', prev: '180 days', trunc: 'week'  },
-  '1y':  { interval: '1 year',  prev: '2 years',  trunc: 'month' },
-};
+// Canonical reporting periods live in the metrics registry (single source of
+// truth; '1y' = '1 year'). investorController previously used '365 days'.
+const PERIOD_INTERVAL = metricsRegistry.PERIOD_INTERVAL;
 
 function safeInt(v) { return parseInt(v, 10) || 0; }
 function safeFloat(v) { return parseFloat(v) || 0; }
@@ -214,7 +211,7 @@ exports.getDashboardStats = async (req, res) => {
 
     // Probe optional tables/columns in one batched query — never throws
     const schemaProbe = await probeSchema(
-      ['jobs', 'subscriptions', 'platform_ledger', 'helper_profiles', 'support_tickets', 'payouts', 'content_reports'],
+      ['jobs', 'subscriptions', 'platform_ledger', 'helper_profiles', 'support_tickets', 'payouts', 'content_reports', 'disputes'],
       [['users', 'is_suspended']]
     );
     const hasJobs = schemaProbe.tables.has('jobs');
@@ -280,7 +277,6 @@ exports.getDashboardStats = async (req, res) => {
             COUNT(*) FILTER (WHERE status = 'cancelled' AND created_at >= now() - $1::interval) AS cancelled_jobs_period,
             COUNT(*) FILTER (WHERE created_at >= now() - $1::interval)                AS new_jobs_period,
             COUNT(*) FILTER (WHERE created_at >= date_trunc('day', now()))             AS new_jobs_today,
-            COUNT(*) FILTER (WHERE dispute_status = 'open')                            AS open_disputes,
             ROUND(AVG(bid_count) FILTER (WHERE bid_count > 0 AND created_at >= now() - $1::interval), 1) AS avg_bids_per_job
           FROM jobs
         `, [cur]);
@@ -292,10 +288,20 @@ exports.getDashboardStats = async (req, res) => {
         cancelled_jobs_period = safeInt(rows[0]?.cancelled_jobs_period);
         new_jobs_period       = safeInt(rows[0]?.new_jobs_period);
         new_jobs_today        = safeInt(rows[0]?.new_jobs_today);
-        open_disputes         = safeInt(rows[0]?.open_disputes);
         avg_bids_per_job      = rows[0]?.avg_bids_per_job != null ? parseFloat(rows[0].avg_bids_per_job) : null;
       } catch (jobErr) {
         logger.warn('getDashboardStats: jobs query failed', { err: jobErr.message });
+      }
+    }
+
+    // ── Open disputes (metrics registry) ──────────────────────────────────
+    // Canonical: disputes table (status='open'), matching the /admin/disputes
+    // drill-through target. Previously jobs.dispute_status='open' here.
+    if (schemaProbe.tables.has('disputes')) {
+      try {
+        open_disputes = await metricsRegistry.openDisputes(db);
+      } catch (disputeErr) {
+        logger.warn('getDashboardStats: open disputes query failed', { err: disputeErr.message });
       }
     }
 

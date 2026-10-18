@@ -5,6 +5,7 @@ const logger = require('../utils/logger');
 const { parseBoundedPagination } = require('../utils/pagination');
 const { cancelJobTransaction, finalizeJobCancellation } = require('../services/jobCancellationService');
 const AppError = require('../utils/appError');
+const { openDisputes } = require('../analytics/metricsRegistry');
 
 // Helper: check if a table exists
 async function tableExists(name) {
@@ -22,6 +23,7 @@ exports.getDashboardStats = async (req, res) => {
   try {
     const hasJobs = await tableExists('jobs');
     const hasReports = await tableExists('content_reports');
+    const hasDisputes = await tableExists('disputes');
 
     const { rows } = await db.query(`
       SELECT
@@ -29,8 +31,6 @@ exports.getDashboardStats = async (req, res) => {
           AS open_jobs,
         ${hasJobs ? "(SELECT COUNT(*) FROM jobs WHERE status = 'in_progress')" : '0'}
           AS active_jobs,
-        ${hasJobs ? "(SELECT COUNT(*) FROM jobs WHERE status = 'disputed')" : '0'}
-          AS open_disputes,
         ${hasReports ? "(SELECT COUNT(*) FROM content_reports WHERE status = 'pending')" : '0'}
           AS pending_reports,
         (SELECT COUNT(*) FROM users
@@ -41,7 +41,15 @@ exports.getDashboardStats = async (req, res) => {
           AS new_jobs_7d
     `);
 
-    res.json({ stats: rows[0] });
+    // Metrics registry: open_disputes is canonical on the disputes table
+    // (status='open'), matching the /admin/disputes drill-through target.
+    // Previously counted jobs.status='disputed' here.
+    let open_disputes = 0;
+    if (hasDisputes) {
+      try { open_disputes = await openDisputes(db); } catch (_) { /* fail open */ }
+    }
+
+    res.json({ stats: { ...rows[0], open_disputes } });
   } catch (err) {
     logger.error('admin getDashboardStats error', { err });
     res.status(500).json({ error: 'Failed to load stats.' });
