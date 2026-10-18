@@ -1,6 +1,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const AppError = require('../utils/apiError').AppError;
+const { CANCEL_RISK_THRESHOLDS, cancelRiskLevelCaseSql } = require('../analytics/metricsRegistry');
 
 /**
  * Get cancellation statistics for a customer (job poster)
@@ -28,13 +29,7 @@ exports.getCustomerCancellationStats = async (req, res, next) => {
           cancellations_within_24h_of_start,
           cancellations_1_to_7_days_before,
           cancellations_7plus_days_before,
-          CASE
-            WHEN cancellations_total = 0 THEN 'reliable'
-            WHEN cancellation_rate_percent < 5 THEN 'reliable'
-            WHEN cancellation_rate_percent < 15 THEN 'caution'
-            WHEN cancellation_rate_percent < 30 THEN 'warning'
-            ELSE 'high_risk'
-          END as reliability_score
+          ${cancelRiskLevelCaseSql('cancellation_rate_percent', 'cancellations_total')} as reliability_score
         FROM customer_cancellation_stats
         WHERE client_id = $1
       `,
@@ -122,13 +117,7 @@ exports.getHelperCancellationStats = async (req, res, next) => {
           accepted_job_cancellation_rate,
           avg_days_from_acceptance_to_cancel,
           last_cancellation,
-          CASE
-            WHEN accepted_job_cancellations = 0 THEN 'reliable'
-            WHEN accepted_job_cancellation_rate < 5 THEN 'reliable'
-            WHEN accepted_job_cancellation_rate < 15 THEN 'caution'
-            WHEN accepted_job_cancellation_rate < 30 THEN 'warning'
-            ELSE 'high_risk'
-          END as reliability_score
+          ${cancelRiskLevelCaseSql('accepted_job_cancellation_rate', 'accepted_job_cancellations')} as reliability_score
         FROM helper_cancellation_stats
         WHERE assigned_helper_id = $1
       `,
@@ -182,13 +171,7 @@ exports.getCustomerCancellationSummary = async (req, res, next) => {
           total_jobs_posted,
           cancellation_rate_percent,
           avg_days_before_cancel,
-          CASE
-            WHEN cancellations_total = 0 THEN 'reliable'
-            WHEN cancellation_rate_percent < 5 THEN 'reliable'
-            WHEN cancellation_rate_percent < 15 THEN 'caution'
-            WHEN cancellation_rate_percent < 30 THEN 'warning'
-            ELSE 'high_risk'
-          END as reliability_score
+          ${cancelRiskLevelCaseSql('cancellation_rate_percent', 'cancellations_total')} as reliability_score
         FROM customer_cancellation_stats
         WHERE client_id = $1
       `,
@@ -254,10 +237,10 @@ function calculateRiskLevel(stats) {
 
   // Factor 1: Cancellation rate
   const cancelRate = stats.cancellation_rate_percent || 0;
-  if (cancelRate >= 30) {
+  if (cancelRate >= CANCEL_RISK_THRESHOLDS.warning) {
     riskLevel.score += 3;
     riskLevel.factors.push(`High cancellation rate: ${cancelRate}%`);
-  } else if (cancelRate >= 15) {
+  } else if (cancelRate >= CANCEL_RISK_THRESHOLDS.caution) {
     riskLevel.score += 2;
     riskLevel.factors.push(`Moderate cancellation rate: ${cancelRate}%`);
   } else if (cancelRate > 0) {

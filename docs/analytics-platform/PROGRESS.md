@@ -41,7 +41,7 @@ lands. Branch: `feat/analytics-platform`.
 |---|--------|--------|------------------|
 | 1 | Open disputes | done | Canonical: `disputes` table `status='open'` (matches the `/admin/disputes` drill target default tab). Replaces `jobs.status='disputed'` (admin) and `jobs.dispute_status='open'` (super-admin). `under_review` tracked separately, not folded in. |
 | 2 | Revenue / take-rate | done | Canonical platform revenue: platform take from `platform_ledger` (`job_fee`+`subscription`, positive amounts). Super/investor dashboards already matched; now annotated to the registry. Vertical GMVs (food, tools, consulting) registered as separate metrics. |
-| 3 | Cancel rate | pending | |
+| 3 | Cancel rate | done | Canonical: per-role, server-side, `deleted_at IS NULL` (matches migration 170 MVs). Risk thresholds 5/15/30 now live once in the registry (`CANCEL_RISK_THRESHOLDS` + `cancelRiskLevelCaseSql`); cancellationStatsController SQL CASEs and JS `calculateRiskLevel` reference them. customer360 health returns server-computed `cancel_rate_customer`/`cancel_rate_helper` (+ platform `cancel_rate` as %); Customer360.jsx no longer computes client-side. Consulting keeps its own `consulting_cancel_rate_pct` (different domain, deliberate). |
 | 4 | Investor take-rate formula | done | OLD: all-time take incl. subscriptions / budget GMV (could exceed 100% by construction). NEW (registry `investorTakeRatePct`): all-time `job_fee` take / all-time budget GMV, 2dp, NULL on zero GMV. Parity test shows old=140% vs new=6.67% on the same fixture. |
 | 5 | SLA dashboard → `support_sla_targets` | pending | |
 | 6 | NPS canonical source | pending | |

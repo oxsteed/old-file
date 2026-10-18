@@ -972,8 +972,17 @@ export default function Customer360() {
                   },
                   {
                     label: t(`${NS}.health.cancelRate`),
-                    value: health.user.total_jobs ? `${Math.round(((health.user.cancelled_jobs || 0) / health.user.total_jobs) * 100)}%` : '—',
-                    sub: health.platform?.cancel_rate != null ? t(`${NS}.health.platformAvg`, { value: `${Math.round(health.platform.cancel_rate * 100)}%` }) : null,
+                    // Metrics registry: canonical per-role cancel rate,
+                    // computed server-side (soft-deleted jobs excluded).
+                    // Previously computed client-side here, mixing the
+                    // customer/helper cohorts and skipping deleted_at.
+                    value: (() => {
+                      const rate = (user.role === 'helper' || user.role === 'helper_pro')
+                        ? health.user.cancel_rate_helper
+                        : health.user.cancel_rate_customer;
+                      return rate != null ? `${Math.round(rate)}%` : '—';
+                    })(),
+                    sub: health.platform?.cancel_rate != null ? t(`${NS}.health.platformAvg`, { value: `${Math.round(health.platform.cancel_rate)}%` }) : null,
                   },
                   {
                     label: t(`${NS}.health.avgJobValue`),
