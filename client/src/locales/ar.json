@@ -4795,6 +4795,28 @@
     "openConversation": "فتح المحادثة"
   },
   "helperDashboard": {
+    "jobEarnings": {
+      "title": "أرباح المهام",
+      "lifetime": "إجمالي الأرباح",
+      "thisWeek": "هذا الأسبوع",
+      "thisMonth": "هذا الشهر",
+      "completedJobs": "المهام المكتملة",
+      "available": "متاح",
+      "pendingPayout": "بانتظار الدفع",
+      "paidOut": "مدفوع",
+      "payouts": "المدفوعات",
+      "recentJobs": "المهام الأخيرة",
+      "weeklyTrend": "الأرباح الأسبوعية",
+      "loading": "جارٍ تحميل الأرباح…",
+      "loadFailed": "تعذّر تحميل الأرباح. يُرجى المحاولة مرة أخرى.",
+      "retry": "إعادة المحاولة",
+      "noJobs": "لا توجد مهام مكتملة بعد. ستظهر أرباحك هنا عند اكتمال المهام.",
+      "statusEarned": "مكتسب",
+      "statusNotReady": "غير جاهز",
+      "statusPending": "قيد الانتظار",
+      "statusProcessing": "قيد المعالجة",
+      "statusPaid": "مدفوع"
+    },
     "workspaceEyebrow": "مساحة عملك في OxSteed",
     "workspaceRoles": "أدوارك في OxSteed",
     "helperRole": "اكسب كمساعد",

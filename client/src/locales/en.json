@@ -4795,6 +4795,28 @@
     "openConversation": "Open conversation"
   },
   "helperDashboard": {
+    "jobEarnings": {
+      "title": "Job earnings",
+      "lifetime": "Lifetime earnings",
+      "thisWeek": "This week",
+      "thisMonth": "This month",
+      "completedJobs": "Completed jobs",
+      "available": "Available",
+      "pendingPayout": "Pending payout",
+      "paidOut": "Paid out",
+      "payouts": "Payouts",
+      "recentJobs": "Recent jobs",
+      "weeklyTrend": "Weekly earnings",
+      "loading": "Loading earnings…",
+      "loadFailed": "Could not load earnings. Please try again.",
+      "retry": "Retry",
+      "noJobs": "No completed jobs yet. Your job earnings will show up here once jobs are completed.",
+      "statusEarned": "Earned",
+      "statusNotReady": "Not ready",
+      "statusPending": "Pending",
+      "statusProcessing": "Processing",
+      "statusPaid": "Paid"
+    },
     "workspaceEyebrow": "Your OxSteed workspace",
     "workspaceRoles": "Your OxSteed roles",
     "helperRole": "Earn as a helper",
@@ -25869,8 +25891,8 @@
           "reason": "Use repeatable plans, scopes, and templates."
         },
         {
-          "label": "Analytics",
-          "reason": "Track what technical offers actually convert."
+          "label": "Overview",
+          "reason": "Track revenue and job value from the financial overview."
         }
       ],
       "dailyCadence": [

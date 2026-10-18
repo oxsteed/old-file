@@ -4795,6 +4795,28 @@
     "openConversation": "Abrir conversación"
   },
   "helperDashboard": {
+    "jobEarnings": {
+      "title": "Ganancias de trabajos",
+      "lifetime": "Ganancias totales",
+      "thisWeek": "Esta semana",
+      "thisMonth": "Este mes",
+      "completedJobs": "Trabajos completados",
+      "available": "Disponible",
+      "pendingPayout": "Pago pendiente",
+      "paidOut": "Pagado",
+      "payouts": "Pagos",
+      "recentJobs": "Trabajos recientes",
+      "weeklyTrend": "Ganancias semanales",
+      "loading": "Cargando ganancias…",
+      "loadFailed": "No se pudieron cargar las ganancias. Inténtalo de nuevo.",
+      "retry": "Reintentar",
+      "noJobs": "Aún no tienes trabajos completados. Tus ganancias aparecerán aquí cuando completes trabajos.",
+      "statusEarned": "Ganado",
+      "statusNotReady": "No listo",
+      "statusPending": "Pendiente",
+      "statusProcessing": "En proceso",
+      "statusPaid": "Pagado"
+    },
     "workspaceEyebrow": "Tu espacio de trabajo OxSteed",
     "workspaceRoles": "Tus roles en OxSteed",
     "helperRole": "Gana como ayudante",

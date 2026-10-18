@@ -4907,6 +4907,28 @@
     "openConversation": "Louvri konvèsasyon"
   },
   "helperDashboard": {
+    "jobEarnings": {
+      "title": "Kòb travay yo",
+      "lifetime": "Tout kòb ou fè",
+      "thisWeek": "Semèn sa a",
+      "thisMonth": "Mwa sa a",
+      "completedJobs": "Travay ki fini",
+      "available": "Disponib",
+      "pendingPayout": "Peman an atant",
+      "paidOut": "Peye",
+      "payouts": "Peman yo",
+      "recentJobs": "Dènye travay yo",
+      "weeklyTrend": "Kòb chak semèn",
+      "loading": "Ap chaje kòb ou…",
+      "loadFailed": "Nou pa t kapab chaje kòb yo. Tanpri eseye ankò.",
+      "retry": "Eseye ankò",
+      "noJobs": "Pa gen travay ki fini ankò. Kòb ou yo ap parèt isit la lè travay yo fini.",
+      "statusEarned": "Ou genyen",
+      "statusNotReady": "Pa pare",
+      "statusPending": "An atant",
+      "statusProcessing": "Ap trete",
+      "statusPaid": "Peye"
+    },
     "workspaceEyebrow": "Espas travay OxSteed ou",
     "workspaceRoles": "Wòl OxSteed ou yo",
     "helperRole": "Touche lajan kòm èd",

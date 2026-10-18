@@ -4795,6 +4795,28 @@
     "openConversation": "Ouvrir la conversation"
   },
   "helperDashboard": {
+    "jobEarnings": {
+      "title": "Gains des missions",
+      "lifetime": "Gains totaux",
+      "thisWeek": "Cette semaine",
+      "thisMonth": "Ce mois-ci",
+      "completedJobs": "Missions terminées",
+      "available": "Disponible",
+      "pendingPayout": "Paiement en attente",
+      "paidOut": "Payé",
+      "payouts": "Paiements",
+      "recentJobs": "Missions récentes",
+      "weeklyTrend": "Gains hebdomadaires",
+      "loading": "Chargement des gains…",
+      "loadFailed": "Impossible de charger les gains. Veuillez réessayer.",
+      "retry": "Réessayer",
+      "noJobs": "Aucune mission terminée pour le moment. Vos gains apparaîtront ici une fois vos missions terminées.",
+      "statusEarned": "Gagné",
+      "statusNotReady": "Non prêt",
+      "statusPending": "En attente",
+      "statusProcessing": "En cours",
+      "statusPaid": "Payé"
+    },
     "workspaceEyebrow": "Votre espace OxSteed",
     "workspaceRoles": "Vos rôles OxSteed",
     "helperRole": "Gagner comme aidant",
