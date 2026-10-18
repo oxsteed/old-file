@@ -23541,7 +23541,19 @@
         },
         "range7": "7 dènye jou yo",
         "range30": "30 dènye jou yo",
-        "range90": "90 dènye jou yo"
+        "range90": "90 dènye jou yo",
+        "loyalty": {
+          "title": "Fidelite kliyan",
+          "repeatRate": "To retou kòmann",
+          "windowHint": "Dènye 90 jou yo · kòmann envite yo eskli",
+          "repeatOrders": "Kòmann retou",
+          "repeatCustomers": "Kliyan retou",
+          "identifiedOrders": "Kòmann idantifye",
+          "topItems": "Atik ki fè plis lajan",
+          "unitsSold": "{{units}} vann",
+          "noData": "Pa gen kòmann kliyan idantifye nan dènye 90 jou yo.",
+          "loadError": "Pa t kapab chaje analiz fidelite yo."
+        }
       },
       "offline": {
         "queued": "Anrejistre san koneksyon. Ap senkronize lè ou gen entènèt.",
@@ -23702,7 +23714,19 @@
       "chooseBusinessPage": "Chwazi paj biznis",
       "chooseBusinessPageFirst": "Chwazi yon paj biznis nan onglet Estidyo a anvan ou mande plas an tèt.",
       "featuredSent": "Demann plas an tèt la voye",
-      "featuredFailed": "Pa t ka mande plas an tèt la"
+      "featuredFailed": "Pa t ka mande plas an tèt la",
+      "performance": {
+        "title": "Pèfòmans plas an tèt",
+        "impressions": "Enpresyon",
+        "clicks": "Klik",
+        "conversions": "Konvèsyon",
+        "clickThroughRate": "To klik",
+        "conversionRate": "To konvèsyon",
+        "live": "Aktif kounye a",
+        "noData": "Pa gen evènman pou kounye a. Estatistik yo ap parèt lè plasman ou an aktif.",
+        "loadError": "Pa t kapab chaje pèfòmans plasman an.",
+        "windowNote": "Konvèsyon yo konte kòmann yo fè pandan plasman an aktif."
+      }
     },
     "playbook": {
       "monday": "Lendi",

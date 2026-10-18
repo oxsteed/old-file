@@ -2,7 +2,7 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { getFeaturedRestaurants, listFoodRestaurantsPage, listMyFoodOrders } from '../../api/food';
+import { getFeaturedRestaurants, listFoodRestaurantsPage, listMyFoodOrders, trackFeaturedPlacementClick } from '../../api/food';
 import { getNearbyPlaces } from '../../api/geo';
 import { useAuth } from '../../context/AuthContext';
 import { FoodBrand } from './foodShared';
@@ -74,9 +74,17 @@ function SkeletonCard() {
 function RestaurantCard({ r, t }) {
   const cover = r.cover_photo_url || r.image_url;
   const cityLine = [r.address_city, r.address_state, r.address_country].filter(Boolean).join(', ');
+  // Campaign analytics (Phase 2, Item 10): clicking an effectively-featured
+  // card fires a best-effort click beacon; it never blocks navigation.
+  const isEffectivelyFeatured =
+    Boolean(r.is_featured) &&
+    (!r.featured_until || new Date(r.featured_until).getTime() > Date.now());
+  const handleClick = () => {
+    if (isEffectivelyFeatured) trackFeaturedPlacementClick(r.id);
+  };
 
   return (
-    <Link to={`/restaurants/r/${r.id}`} className="fd-card">
+    <Link to={`/restaurants/r/${r.id}`} className="fd-card" onClick={handleClick}>
       {cover ? (
         <img src={cover} alt="" className="fd-card-cover" loading="lazy" />
       ) : (

@@ -23541,7 +23541,19 @@
         },
         "range7": "7 derniers jours",
         "range30": "30 derniers jours",
-        "range90": "90 derniers jours"
+        "range90": "90 derniers jours",
+        "loyalty": {
+          "title": "Fidélité client",
+          "repeatRate": "Taux de commandes répétées",
+          "windowHint": "90 derniers jours · commandes invités exclues",
+          "repeatOrders": "Commandes répétées",
+          "repeatCustomers": "Clients fidèles",
+          "identifiedOrders": "Commandes identifiées",
+          "topItems": "Articles les plus rentables",
+          "unitsSold": "{{units}} vendus",
+          "noData": "Aucune commande client identifiée au cours des 90 derniers jours.",
+          "loadError": "Impossible de charger les analyses de fidélité."
+        }
       },
       "offline": {
         "queued": "Enregistré hors ligne. Se synchronisera au retour en ligne.",
@@ -23702,7 +23714,19 @@
       "chooseBusinessPage": "Choisir une page entreprise",
       "chooseBusinessPageFirst": "Choisissez une page entreprise dans l'onglet Studio avant de demander la mise en avant.",
       "featuredSent": "Demande de mise en avant envoyée",
-      "featuredFailed": "Impossible de demander la mise en avant"
+      "featuredFailed": "Impossible de demander la mise en avant",
+      "performance": {
+        "title": "Performance de la mise en avant",
+        "impressions": "Impressions",
+        "clicks": "Clics",
+        "conversions": "Conversions",
+        "clickThroughRate": "Taux de clic",
+        "conversionRate": "Taux de conversion",
+        "live": "En ligne",
+        "noData": "Aucun événement pour le moment. Les statistiques apparaissent quand votre mise en avant est active.",
+        "loadError": "Impossible de charger la performance de la mise en avant.",
+        "windowNote": "Les conversions comptent les commandes passées pendant que la mise en avant est active."
+      }
     },
     "playbook": {
       "monday": "Lundi",

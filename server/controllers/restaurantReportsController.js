@@ -6,6 +6,9 @@ const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 // Canonical restaurant access gate (analytics scope model, Phase 1 Item 6).
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+// Canonical restaurant-level analytics computations (Phase 2, Item 10).
+const restaurantAnalytics = require('../analytics/restaurantAnalytics');
+const { REPEAT_ORDER_WINDOW_DAYS } = restaurantAnalytics;
 
 const MANAGE_ROLES = new Set(['owner', 'manager']);
 const MAX_RANGE_DAYS = 366;
@@ -36,6 +39,15 @@ function parseRange(query) {
   if ((to - from) / 86400000 > MAX_RANGE_DAYS) {
     throw new AppError(`Date range capped at ${MAX_RANGE_DAYS} days`, 400, 'range_too_wide');
   }
+  return { from: from.toISOString(), to: to.toISOString() };
+}
+
+// Same validation as parseRange, but the loyalty section defaults to the
+// documented 90-day repeat-order window instead of 30 days.
+function parseRange90(query) {
+  if (query.from || query.to) return parseRange(query);
+  const to = new Date();
+  const from = new Date(to.getTime() - (REPEAT_ORDER_WINDOW_DAYS - 1) * 86400000);
   return { from: from.toISOString(), to: to.toISOString() };
 }
 
@@ -245,6 +257,38 @@ exports.operationsSummary = async (req, res, next) => {
         avg_score_pct: tr.avg_score == null ? null : Math.round(Number(tr.avg_score)),
         passed: Number(tr.passed),
       },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── Loyalty (Phase 2, Item 10) ───────────────────────────────────────────────
+// Repeat-order rate + top items by revenue. Computation lives in
+// server/analytics/restaurantAnalytics.js (canonical definitions
+// restaurant_repeat_order_rate / restaurant_top_items_revenue in the
+// metrics registry); this endpoint is a thin, manager-only wrapper that
+// applies the canonical restaurant access gate. Defaults to the 90-day
+// window; explicit from/to stay within the shared range cap.
+exports.loyaltySummary = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const { from, to } = parseRange90(req.query);
+    const [repeat, topItems] = await Promise.all([
+      restaurantAnalytics.getRepeatOrderRate(pool, restaurantId, { from, to }),
+      restaurantAnalytics.getTopItemsByRevenue(pool, restaurantId, { from, to, limit: 10 }),
+    ]);
+    res.json({
+      from,
+      to,
+      window_days: REPEAT_ORDER_WINDOW_DAYS,
+      repeat_order_rate: repeat.repeat_order_rate,
+      repeat_orders: repeat.repeat_orders,
+      total_identified_orders: repeat.total_identified_orders,
+      repeat_customers: repeat.repeat_customers,
+      guest_orders_excluded: repeat.guest_orders_excluded,
+      top_items: topItems,
     });
   } catch (err) {
     next(err);

@@ -16,5 +16,7 @@ router.delete('/:businessId/promo-codes/:codeId',     requireAuth, requireBusine
 
 router.get   ('/:businessId/featured-placement-requests', requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.getFeaturedPlacementRequest);
 router.post  ('/:businessId/featured-placement-requests', requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.requestFeaturedPlacement);
+// Campaign funnel performance (analytics platform, Phase 2, Item 10). Read-only.
+router.get   ('/:businessId/campaign-performance',        requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.getCampaignPerformance);
 
 module.exports = router;

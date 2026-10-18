@@ -163,6 +163,28 @@ const METRICS = Object.freeze({
     owner: 'platform/finance',
     notes: 'Replaces the hardcoded 0 on the super-admin dashboard. Net of refunds, floored at 0 per payment.',
   }),
+  // Restaurant-scoped metrics (Phase 2, Item 10). The registry holds the
+  // canonical DEFINITION; the computation lives exactly once in
+  // server/analytics/restaurantAnalytics.js (never inline in controllers).
+  restaurant_repeat_order_rate: Object.freeze({
+    name: 'restaurant_repeat_order_rate',
+    definition: `repeat_orders / total_identified_orders FROM food_orders
+      WHERE restaurant_id = $1 AND created_at in window
+      AND status NOT IN ('cancelled','refunded') AND customer_id IS NOT NULL;
+      repeat_orders = orders whose customer_id has COUNT(*) > 1 in the same window.
+      Default window: last 90 days. NULL (not 0) when no identified orders.`,
+    dimensions: ['restaurant_id', 'window'],
+    owner: 'restaurant/analytics',
+    notes: 'Guest orders (customer_id NULL) are excluded from numerator and denominator; reported separately as guest_orders_excluded.',
+  }),
+  restaurant_top_items_revenue: Object.freeze({
+    name: 'restaurant_top_items_revenue',
+    definition: `SUM(food_order_items.line_total_cents) per menu_item_id
+      over non-cancelled/non-refunded in-window food_orders, top 10 by revenue.`,
+    dimensions: ['restaurant_id', 'window'],
+    owner: 'restaurant/analytics',
+    notes: 'Grouped by menu_item_id (stable across renames); deleted menu rows fall back to the item_name snapshot on the order line.',
+  }),
 });
 
 function getMetric(name) {

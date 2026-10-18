@@ -28,6 +28,82 @@ const permissionsService = require('../services/permissionsService');
 // Replaces the former local requireRestaurantAccess copy: same ownership
 // CASE, same 404, plus the union of columns the variants selected.
 const { resolveRestaurantAccess: requireRestaurantAccess } = require('../services/scopeModel');
+// Campaign analytics event emission (analytics platform, Phase 2, Item 10).
+// Fire-and-forget: the emitter never rejects, so instrumentation can never
+// break search, ordering, or checkout.
+const {
+  emitCampaignEvent,
+  emitCampaignImpressions,
+  resolveFeaturedCampaignIds,
+  actorKeyFor,
+} = require('../analytics/campaignAnalytics');
+
+// Emit impression events for every effectively-featured restaurant in a
+// discovery/search response. Best-effort: resolves request (campaign) ids
+// for the featured rows, then batch-inserts one event row each — never
+// awaited, never throws.
+function trackFeaturedImpressions(req, rows) {
+  try {
+    if (!Array.isArray(rows) || rows.length === 0) return;
+    if (rows[0] == null || rows[0].is_featured === undefined) return; // legacy-shape guard
+    const now = Date.now();
+    const featuredIds = [];
+    for (const row of rows) {
+      const id = Number(row && row.id);
+      if (!Number.isInteger(id) || id <= 0) continue;
+      if (!row.is_featured) continue;
+      if (row.featured_until && new Date(row.featured_until).getTime() <= now) continue;
+      featuredIds.push(id);
+    }
+    if (featuredIds.length === 0) return;
+    const actorKey = actorKeyFor(req);
+    resolveFeaturedCampaignIds(pool, featuredIds).then((campaignByRestaurant) => {
+      const impressions = [];
+      featuredIds.forEach((restaurantId, idx) => {
+        const campaignId = campaignByRestaurant.get(restaurantId);
+        if (campaignId) {
+          impressions.push({
+            campaignId,
+            actorKey,
+            metadata: { source: 'food_search', position: idx, restaurant_id: restaurantId },
+          });
+        }
+      });
+      emitCampaignImpressions(pool, impressions); // never rejects
+    }).catch(() => {});
+  } catch (_) {
+    // analytics must never break the main flow
+  }
+}
+
+// Emit a conversion event when an order is placed at an effectively-featured
+// restaurant. Campaign-window attribution: the order happened while the
+// placement was live (not proven click-through causality). Fire-and-forget.
+function trackFeaturedConversion(req, restaurant, order) {
+  try {
+    if (!restaurant || !order) return;
+    if (!restaurant.is_featured) return;
+    if (restaurant.featured_until && new Date(restaurant.featured_until).getTime() <= Date.now()) return;
+    const restaurantId = Number(restaurant.id);
+    if (!Number.isInteger(restaurantId) || restaurantId <= 0) return;
+    resolveFeaturedCampaignIds(pool, [restaurantId]).then((campaignByRestaurant) => {
+      const campaignId = campaignByRestaurant.get(restaurantId);
+      if (!campaignId) return;
+      emitCampaignEvent(pool, {
+        campaignId,
+        eventType: 'conversion',
+        actorKey: actorKeyFor(req) || (order.customer_id ? `user:${order.customer_id}` : null),
+        metadata: {
+          order_id: Number(order.id) || null,
+          total_cents: Number(order.total_cents) || 0,
+          restaurant_id: restaurantId,
+        },
+      }); // never rejects
+    }).catch(() => {});
+  } catch (_) {
+    // analytics must never break the main flow
+  }
+}
 const { maybeUnpublishBusinessIfIncomplete } = require('./businessController');
 const { debitFoodWallet, refundWalletDebitForReference, formatLedgerRow } = require('../services/foodWalletService');
 const { logFoodWalletOperatorAudit } = require('../services/foodWalletAuditService');
@@ -2017,6 +2093,9 @@ exports.listRestaurants = async (req, res, next) => {
       params
     );
 
+    // Campaign analytics (Item 10): featured placements rendered = impressions.
+    // Fire-and-forget; cannot break the response.
+    trackFeaturedImpressions(req, rows);
     res.json(restaurantListResponse(rows, limit, offset));
   } catch (err) {
     if (!isMissingRelationError(err)) return next(err);
@@ -2176,6 +2255,30 @@ async function loadRestaurantMenu(restaurantId, { managed = false } = {}) {
 
 exports.getRestaurant = (req, res, next) => respondRestaurantProfile(req, res, next, false);
 exports.getAdminProfilePreview = (req, res, next) => respondRestaurantProfile(req, res, next, true);
+
+// Campaign analytics (Phase 2, Item 10): featured-card click beacon.
+// Called best-effort by the client (navigator.sendBeacon) when a visitor
+// clicks an effectively-featured restaurant card. Public (visitors click),
+// rate-limited, and always 204 — the event insert is fire-and-forget so the
+// beacon can never fail the navigation or leak timing info.
+exports.trackCampaignClick = async (req, res) => {
+  res.status(204).end();
+  try {
+    const restaurantId = Number(req.params.restaurantId);
+    if (!Number.isInteger(restaurantId) || restaurantId <= 0) return;
+    const campaignByRestaurant = await resolveFeaturedCampaignIds(pool, [restaurantId]);
+    const campaignId = campaignByRestaurant.get(restaurantId);
+    if (!campaignId) return;
+    await emitCampaignEvent(pool, {
+      campaignId,
+      eventType: 'click',
+      actorKey: actorKeyFor(req),
+      metadata: { source: 'food_home_card', restaurant_id: restaurantId },
+    });
+  } catch (_) {
+    // analytics must never break the main flow
+  }
+};
 
 async function respondRestaurantProfile(req, res, next, adminPreview) {
   try {
@@ -3776,6 +3879,9 @@ exports.createOrder = async (req, res, next) => {
     if (!createdOrder.replayed) {
       emitRestaurantOrder(order.business_id, 'food:order:created', { order });
       emitRestaurantDisplay(order.restaurant_id, order);
+      // Campaign analytics (Item 10): order at a featured restaurant while
+      // the placement is live = conversion. Fire-and-forget.
+      trackFeaturedConversion(req, createdOrder.restaurant, order);
     }
     // P2-8-F08: the per-type order_created SMS had zero callers.
     // Fire-and-forget; opt-in checks and rate limits live in the service.

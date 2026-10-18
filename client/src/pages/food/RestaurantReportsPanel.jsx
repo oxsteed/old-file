@@ -13,6 +13,7 @@ import {
   getSalesReport,
   getInventoryReport,
   getOperationsReport,
+  getLoyaltyReport,
 } from '../../api/restaurants';
 import { formatFoodMoney } from '../../api/food';
 
@@ -57,6 +58,29 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
   const [operations, setOperations] = useState(null);
   const [loading, setLoading] = useState(true);
   const [managerBlocked, setManagerBlocked] = useState(false);
+  // Loyalty analytics (Phase 2, Item 10): fixed 90-day window, fetched
+  // independently so its loading/error/empty states don't block the rest.
+  const [loyalty, setLoyalty] = useState(null);
+  const [loyaltyLoading, setLoyaltyLoading] = useState(true);
+  const [loyaltyError, setLoyaltyError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoyaltyLoading(true);
+    setLoyaltyError(false);
+    getLoyaltyReport(restaurantId)
+      .then((data) => { if (!cancelled) setLoyalty(data); })
+      .catch((err) => {
+        if (cancelled) return;
+        if (err?.response?.status === 403) {
+          setManagerBlocked(true); // same friendly state as the other reports
+          return;
+        }
+        setLoyaltyError(true);
+      })
+      .finally(() => { if (!cancelled) setLoyaltyLoading(false); });
+    return () => { cancelled = true; };
+  }, [restaurantId]);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -244,6 +268,77 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
                     <span>{t(`restaurants.ops.reports.source.${s.order_source}`, s.order_source)}</span>
                     <span className="fd-card-meta">
                       {t('restaurants.ops.reports.ordersCount', '{{count}} orders', { count: s.orders || 0 })} · {formatFoodMoney(s.revenue_cents || 0, currency)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {/* ── Customer loyalty (Phase 2, Item 10) ── */}
+      <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.loyalty.title')}</h3>
+      <p className="fd-card-meta">{t('restaurants.ops.reports.loyalty.windowHint')}</p>
+      {loyaltyLoading ? (
+        <div className="fd-empty">{t('food.common.loading')}</div>
+      ) : loyaltyError ? (
+        <div className="fd-empty" role="alert">
+          <p>{t('restaurants.ops.reports.loyalty.loadError')}</p>
+          <button
+            type="button"
+            className="fd-btn fd-btn-sm fd-btn-secondary"
+            onClick={() => {
+              setLoyaltyLoading(true);
+              setLoyaltyError(false);
+              getLoyaltyReport(restaurantId)
+                .then(setLoyalty)
+                .catch((err) => {
+                  if (err?.response?.status === 403) { setManagerBlocked(true); return; }
+                  setLoyaltyError(true);
+                })
+                .finally(() => setLoyaltyLoading(false));
+            }}
+          >
+            {t('food.common.retry')}
+          </button>
+        </div>
+      ) : (loyalty?.total_identified_orders || 0) === 0 ? (
+        <EmptyState icon={Activity} title={t('restaurants.ops.reports.loyalty.noData')} />
+      ) : (
+        <>
+          <div className="fd-ops-checklists-grid">
+            <div className="fd-ops-checklist-card">
+              <strong>
+                {loyalty.repeat_order_rate == null
+                  ? '—'
+                  : `${Math.round(loyalty.repeat_order_rate * 100)}%`}
+              </strong>
+              <p className="fd-card-meta">{t('restaurants.ops.reports.loyalty.repeatRate')}</p>
+            </div>
+            <div className="fd-ops-checklist-card">
+              <strong>{loyalty.repeat_orders || 0}</strong>
+              <p className="fd-card-meta">{t('restaurants.ops.reports.loyalty.repeatOrders')}</p>
+            </div>
+            <div className="fd-ops-checklist-card">
+              <strong>{loyalty.repeat_customers || 0}</strong>
+              <p className="fd-card-meta">{t('restaurants.ops.reports.loyalty.repeatCustomers')}</p>
+            </div>
+            <div className="fd-ops-checklist-card">
+              <strong>{loyalty.total_identified_orders || 0}</strong>
+              <p className="fd-card-meta">{t('restaurants.ops.reports.loyalty.identifiedOrders')}</p>
+            </div>
+          </div>
+
+          {(loyalty.top_items || []).length > 0 && (
+            <>
+              <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.loyalty.topItems')}</h3>
+              <div className="fd-ops-inventory-list">
+                {loyalty.top_items.map((item, idx) => (
+                  <div key={item.menu_item_id != null ? `id-${item.menu_item_id}` : `name-${item.item_name}-${idx}`} className="fd-ops-inventory-row">
+                    <span>{idx + 1}. {item.item_name}</span>
+                    <span className="fd-card-meta">
+                      {t('restaurants.ops.reports.loyalty.unitsSold', { units: item.units_sold || 0 })} · {formatFoodMoney(item.revenue_cents || 0, currency)}
                     </span>
                   </div>
                 ))}

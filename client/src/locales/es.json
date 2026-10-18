@@ -23541,7 +23541,19 @@
         },
         "range7": "Últimos 7 días",
         "range30": "Últimos 30 días",
-        "range90": "Últimos 90 días"
+        "range90": "Últimos 90 días",
+        "loyalty": {
+          "title": "Lealtad del cliente",
+          "repeatRate": "Tasa de pedidos repetidos",
+          "windowHint": "Últimos 90 días · pedidos de invitados excluidos",
+          "repeatOrders": "Pedidos repetidos",
+          "repeatCustomers": "Clientes recurrentes",
+          "identifiedOrders": "Pedidos identificados",
+          "topItems": "Artículos principales por ingresos",
+          "unitsSold": "{{units}} vendidos",
+          "noData": "No hay pedidos identificados de clientes en los últimos 90 días.",
+          "loadError": "No se pudieron cargar las analíticas de lealtad."
+        }
       },
       "offline": {
         "queued": "Guardado sin conexión. Se sincronizará al volver en línea.",
@@ -23702,7 +23714,19 @@
       "chooseBusinessPage": "Elegir página de negocio",
       "chooseBusinessPageFirst": "Elige una página de negocio en la pestaña Estudio antes de solicitar la ubicación destacada.",
       "featuredSent": "Solicitud de ubicación destacada enviada",
-      "featuredFailed": "No se pudo solicitar la ubicación destacada"
+      "featuredFailed": "No se pudo solicitar la ubicación destacada",
+      "performance": {
+        "title": "Rendimiento de la ubicación",
+        "impressions": "Impresiones",
+        "clicks": "Clics",
+        "conversions": "Conversiones",
+        "clickThroughRate": "Tasa de clics",
+        "conversionRate": "Tasa de conversión",
+        "live": "Activo ahora",
+        "noData": "Aún no hay eventos. Las estadísticas aparecen cuando tu ubicación esté activa.",
+        "loadError": "No se pudo cargar el rendimiento de la ubicación.",
+        "windowNote": "Las conversiones cuentan los pedidos realizados mientras la ubicación está activa."
+      }
     },
     "playbook": {
       "monday": "Lunes",

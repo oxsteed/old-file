@@ -202,6 +202,8 @@ router.patch('/:restaurantId/audits/corrective-actions/:actionId', audits.update
 router.get('/:restaurantId/reports/sales', franchiseReports.salesSummary);
 router.get('/:restaurantId/reports/inventory', franchiseReports.inventorySummary);
 router.get('/:restaurantId/reports/operations', franchiseReports.operationsSummary);
+// Loyalty: repeat-order rate + top items (analytics platform, Phase 2 Item 10)
+router.get('/:restaurantId/reports/loyalty', franchiseReports.loyaltySummary);
 router.delete('/:restaurantId/inventory/mappings/:mappingId', inventory.deleteMapping);
 router.post('/:restaurantId/inventory/mappings/bootstrap-defaults', inventory.bootstrapMappings);
 router.get('/:restaurantId/inventory/purchase-requests', inventory.listPurchaseRequests);

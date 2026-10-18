@@ -23543,7 +23543,19 @@
         },
         "range7": "Last 7 days",
         "range30": "Last 30 days",
-        "range90": "Last 90 days"
+        "range90": "Last 90 days",
+        "loyalty": {
+          "title": "Customer loyalty",
+          "repeatRate": "Repeat order rate",
+          "windowHint": "Last 90 days · guest orders excluded",
+          "repeatOrders": "Repeat orders",
+          "repeatCustomers": "Repeat customers",
+          "identifiedOrders": "Identified orders",
+          "topItems": "Top items by revenue",
+          "unitsSold": "{{units}} sold",
+          "noData": "No identified customer orders in the last 90 days.",
+          "loadError": "Could not load loyalty analytics."
+        }
       },
       "opChipTraining": "{{count}} training",
       "opChipOpenActions": "{{count}} open actions",
@@ -23702,7 +23714,19 @@
       "chooseBusinessPage": "Choose business page",
       "chooseBusinessPageFirst": "Choose a business page in the Studio tab before requesting featured placement.",
       "featuredSent": "Featured placement request sent",
-      "featuredFailed": "Failed to request featured placement"
+      "featuredFailed": "Failed to request featured placement",
+      "performance": {
+        "title": "Placement performance",
+        "impressions": "Impressions",
+        "clicks": "Clicks",
+        "conversions": "Conversions",
+        "clickThroughRate": "Click-through rate",
+        "conversionRate": "Conversion rate",
+        "live": "Live now",
+        "noData": "No events yet. Stats appear once your placement is live.",
+        "loadError": "Could not load placement performance.",
+        "windowNote": "Conversions count orders placed while the placement is live."
+      }
     },
     "playbook": {
       "monday": "Monday",
