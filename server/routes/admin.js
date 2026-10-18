@@ -1110,6 +1110,7 @@ router.delete('/settings/me/metric-alert-rules/:ruleId', requireAdmin, selfSetti
 const analyticsQueryCtrl = require('../controllers/analyticsQueryController');
 router.get('/analytics/query-builder/meta', requireAdmin, analyticsQueryCtrl.getMeta);
 router.post('/analytics/query-builder/run', requireAdmin, analyticsQueryCtrl.runQuery);
+router.post('/analytics/query-builder/nl-parse', requireAdmin, analyticsQueryCtrl.parseNl);
 router.get('/settings/me/api-keys', requireAdmin, selfSettingsCtrl.listMyApiKeys);
 router.post('/settings/me/api-keys', requireAdmin, selfSettingsCtrl.createMyApiKey);
 router.delete('/settings/me/api-keys/:keyId', requireAdmin, selfSettingsCtrl.revokeMyApiKey);

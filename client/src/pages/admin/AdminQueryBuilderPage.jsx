@@ -1,16 +1,13 @@
-// Admin: Analytics query builder (Phase 3, Item 11 — Track A).
+// Admin: Analytics query builder (Phase 3, Item 11 — Tracks A + B).
 // Structured, read-only queries over the governed metrics registry.
 // Metric picker -> dimension checkboxes -> filter inputs -> period picker ->
 // Run -> results table + client-side CSV export.
-//
-// TRACK B INTEGRATION POINT: the "Ask in plain language" section below is a
-// clearly-marked placeholder. Track B wires the NL input there: it compiles
-// an utterance into the builder query contract
+// The "Ask in plain language" section compiles English utterances via the
+// deterministic nlParser (no LLM) into the builder query contract
 //   { metric, dimensions, filters, period }
-// and calls handleNlCompiled(compiled) — already stubbed below — which
-// validates the shape, populates the builder state, and runs it. The NL
-// input posts raw_utterance alongside the compiled query so the audit
-// ledger (analytics_query_audit) records both.
+// The parsed interpretation is shown for confirmation BEFORE execution;
+// confirming populates the builder and runs the server-validated compiled
+// query with the raw utterance attached for the audit ledger.
 
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -161,14 +158,40 @@ export default function AdminQueryBuilderPage() {
     }
   }, [metric, dimensions, filters, period, running, t]);
 
-  // ── Track B hook ──────────────────────────────────────────────────────────
-  // Track B: call this with the compiled builder query
-  // ({ metric, dimensions, filters, period }) produced from the NL
-  // utterance. It validates the shape, populates the builder, and runs it.
-  // The NL input should ALSO pass the raw utterance through so the audit
-  // ledger records it (POST body: { ..., raw_utterance } is not needed —
-  // Track B calls executeBuilderQuery server-side with opts.rawUtterance;
-  // from this UI the compiled query runs through the normal /run endpoint).
+  // Execute a server-validated compiled query directly (used by the NL
+  // confirm flow to avoid racing the builder's setState). The raw utterance
+  // rides along so the audit ledger records it.
+  const executeCompiledQuery = useCallback(
+    async (compiled, rawUtterance) => {
+      if (running) return;
+      setRunning(true);
+      setRunError(null);
+      try {
+        const body = {
+          metric: compiled.metric,
+          dimensions: compiled.dimensions,
+          filters: compiled.filters,
+          period: compiled.period,
+        };
+        if (rawUtterance) body.raw_utterance = rawUtterance;
+        const res = await api.post('/admin/analytics/query-builder/run', body);
+        setResult(res.data);
+      } catch (err) {
+        logger.warn('query builder run failed', { metric: compiled.metric, message: err?.message });
+        const data = err?.response?.data;
+        setRunError(data?.error || data?.message || err?.message || t('queryBuilder.errorTitle'));
+        setResult(null);
+      } finally {
+        setRunning(false);
+      }
+    },
+    [running, t]
+  );
+
+  // ── Track B: natural-language input ─────────────────────────────────────
+  // Validates a compiled builder query ({ metric, dimensions, filters,
+  // period }) against the /meta catalog and populates the builder state.
+  // Called by the NL confirm flow below.
   const handleNlCompiled = useCallback(
     (compiled) => {
       if (!compiled || typeof compiled !== 'object' || typeof compiled.metric !== 'string') {
@@ -198,11 +221,55 @@ export default function AdminQueryBuilderPage() {
       setPeriod(def.periods.includes(compiled.period) ? compiled.period : '30d');
       setResult(null);
       setRunError(null);
-      // Track B: trigger runQuery() here once the NL input is live.
     },
     [meta, t]
   );
-  void handleNlCompiled;
+
+  // The admin types a plain-English question; the deterministic parser
+  // compiles it to a builder query (never SQL). The parsed interpretation
+  // is shown for confirmation BEFORE anything executes — confirming
+  // populates the builder and runs the server-validated compiled query
+  // with the raw utterance attached for the audit ledger.
+  const [nlUtterance, setNlUtterance] = useState('');
+  const [nlParsing, setNlParsing] = useState(false);
+  const [nlInterpretation, setNlInterpretation] = useState(null); // { compiled, description }
+  const [nlRejection, setNlRejection] = useState(null); // reason string
+
+  const interpretNl = useCallback(async () => {
+    const text = nlUtterance.trim();
+    if (!text || nlParsing) return;
+    setNlParsing(true);
+    setNlInterpretation(null);
+    setNlRejection(null);
+    try {
+      const res = await api.post('/admin/analytics/query-builder/nl-parse', { utterance: text });
+      if (res.data.rejected) {
+        setNlRejection(res.data.reason);
+      } else {
+        setNlInterpretation(res.data.interpretation);
+      }
+    } catch (err) {
+      logger.warn('nl parse failed', { message: err?.message });
+      const data = err?.response?.data;
+      setNlRejection(data?.error || data?.message || err?.message || t('queryBuilder.nlParseFailed'));
+    } finally {
+      setNlParsing(false);
+    }
+  }, [nlUtterance, nlParsing, t]);
+
+  const confirmNlInterpretation = useCallback(() => {
+    if (!nlInterpretation || running) return;
+    const { compiled } = nlInterpretation;
+    handleNlCompiled(compiled); // populates the builder UI
+    executeCompiledQuery(compiled, nlUtterance.trim()); // runs; utterance -> audit ledger
+    setNlInterpretation(null);
+    setNlUtterance('');
+  }, [nlInterpretation, nlUtterance, running, handleNlCompiled, executeCompiledQuery]);
+
+  const cancelNlInterpretation = useCallback(() => {
+    setNlInterpretation(null);
+    setNlRejection(null);
+  }, []);
 
   const exportCsv = () => {
     if (!result?.rows?.length) return;
@@ -260,24 +327,78 @@ export default function AdminQueryBuilderPage() {
       <h1 className="qb-title">{t('queryBuilder.title')}</h1>
       <p className="qb-subtitle">{t('queryBuilder.subtitle')}</p>
 
-      {/* ── Track B: natural-language input lives here ────────────────────
-          This section is a clearly-marked placeholder. Track B replaces the
-          disabled input with a live NL box that compiles utterances into
-          the builder contract and calls handleNlCompiled(). */}
+      {/* ── Natural-language input (Track B) ────────────────────────────────
+          Deterministic English-only parser. The interpretation is shown for
+          confirmation BEFORE anything executes; confirming populates the
+          builder above and runs the server-validated compiled query. */}
       <section className="qb-nl-section" data-testid="nl-query-section" aria-label={t('queryBuilder.nlSectionTitle')}>
         <div className="qb-nl-header">
           <MessageSquare size={16} />
           <h2>{t('queryBuilder.nlSectionTitle')}</h2>
         </div>
         <p className="qb-nl-body">{t('queryBuilder.nlSectionBody')}</p>
-        <input
-          className="qb-input qb-nl-input"
-          type="text"
-          disabled
-          placeholder={t('queryBuilder.nlPlaceholder')}
-          aria-label={t('queryBuilder.nlSectionTitle')}
-        />
-        <p className="qb-nl-note">{t('queryBuilder.nlDisabledNote')}</p>
+        <div className="qb-nl-row">
+          <input
+            className="qb-input qb-nl-input"
+            type="text"
+            value={nlUtterance}
+            onChange={(e) => setNlUtterance(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') interpretNl();
+            }}
+            placeholder={t('queryBuilder.nlPlaceholder')}
+            aria-label={t('queryBuilder.nlSectionTitle')}
+            maxLength={500}
+            disabled={nlParsing}
+          />
+          <button
+            type="button"
+            className="qb-btn qb-btn-secondary"
+            onClick={interpretNl}
+            disabled={nlParsing || !nlUtterance.trim()}
+          >
+            {nlParsing ? t('queryBuilder.nlParsing') : t('queryBuilder.nlInterpret')}
+          </button>
+        </div>
+        <p className="qb-nl-note">{t('queryBuilder.nlEnglishOnly')}</p>
+        {nlRejection && (
+          <div className="qb-error" role="alert">
+            <AlertTriangle size={16} />
+            <span>
+              {t('queryBuilder.nlRejected')}: {nlRejection}
+            </span>
+            <button type="button" className="qb-btn qb-btn-secondary" onClick={cancelNlInterpretation}>
+              {t('queryBuilder.nlDismiss')}
+            </button>
+          </div>
+        )}
+        {nlInterpretation && (
+          <div className="qb-nl-interpretation" data-testid="nl-interpretation">
+            <p className="qb-nl-interpretation-title">{t('queryBuilder.nlInterpretationTitle')}</p>
+            <p className="qb-nl-interpretation-desc">{nlInterpretation.description}</p>
+            <pre className="qb-nl-interpretation-query">
+              {JSON.stringify(nlInterpretation.compiled, null, 2)}
+            </pre>
+            <div className="qb-nl-actions">
+              <button
+                type="button"
+                className="qb-btn qb-btn-primary"
+                onClick={confirmNlInterpretation}
+                disabled={running}
+              >
+                <Play size={14} />
+                {t('queryBuilder.nlConfirmRun')}
+              </button>
+              <button
+                type="button"
+                className="qb-btn qb-btn-secondary"
+                onClick={cancelNlInterpretation}
+              >
+                {t('queryBuilder.nlDismiss')}
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="qb-builder">
