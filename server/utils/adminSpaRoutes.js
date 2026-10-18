@@ -57,6 +57,7 @@ const ADMIN_SPA_ROUTES = Object.freeze([
   '/admin/businesses/:id',
   '/admin/businesses/:businessId/360',
   '/admin/consulting/analytics',
+  '/admin/analytics/query-builder',
   '/admin/reports/dashboard',
   '/admin/legal/acceptances',
   '/admin/legal/audit-log',

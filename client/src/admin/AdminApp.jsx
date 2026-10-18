@@ -132,6 +132,7 @@ const ConsultingDashboard = lazyWithRetry(() => import('./pages/ConsultingDashbo
 const ConsultingPayments = lazyWithRetry(() => import('./pages/ConsultingPayments'));
 const ConsultingScheduler = lazyWithRetry(() => import('./pages/ConsultingScheduler'));
 const ConsultingAnalyticsDashboard = lazyWithRetry(() => import('./pages/ConsultingAnalyticsDashboard'));
+const AdminQueryBuilderPage = lazyWithRetry(() => import('../pages/admin/AdminQueryBuilderPage'));
 const BusinessLaunchAdmin = lazyWithRetry(() => import('./pages/BusinessLaunchAdmin'));
 const ConsultingSessionsAdmin = lazyWithRetry(() => import('./pages/ConsultingSessionsAdmin'));
 const OrderManagement = lazyWithRetry(() => import('./pages/OrderManagement'));
@@ -285,6 +286,7 @@ export default function AdminApp() {
           <Route path={adminRoute('consultingPayments').relative} element={<ConsultingPayments />} />
           <Route path={adminRoute('scheduling').relative} element={<ConsultingScheduler />} />
           <Route path={adminRoute('consultingAnalytics').relative} element={<ConsultingAnalyticsDashboard />} />
+          <Route path={adminRoute('queryBuilder').relative} element={<AdminQueryBuilderPage />} />
           <Route path={adminRoute('businessLaunch').relative} element={<BusinessLaunchAdmin />} />
           <Route path={adminRoute('consultingSessions').relative} element={<ConsultingSessionsAdmin />} />
           <Route path={adminRoute('supportAgentDashboard').relative} element={<SupportAgentDashboard />} />

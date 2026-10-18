@@ -1105,6 +1105,11 @@ router.get('/settings/me/metric-alert-rules', requireAdmin, selfSettingsCtrl.lis
 router.post('/settings/me/metric-alert-rules', requireAdmin, selfSettingsCtrl.createMetricAlertRule);
 router.put('/settings/me/metric-alert-rules/:ruleId', requireAdmin, selfSettingsCtrl.updateMetricAlertRule);
 router.delete('/settings/me/metric-alert-rules/:ruleId', requireAdmin, selfSettingsCtrl.deleteMetricAlertRule);
+// Analytics platform, Phase 3 Item 11: structured query builder over the
+// governed metrics registry (read-only; every execution is audit-logged).
+const analyticsQueryCtrl = require('../controllers/analyticsQueryController');
+router.get('/analytics/query-builder/meta', requireAdmin, analyticsQueryCtrl.getMeta);
+router.post('/analytics/query-builder/run', requireAdmin, analyticsQueryCtrl.runQuery);
 router.get('/settings/me/api-keys', requireAdmin, selfSettingsCtrl.listMyApiKeys);
 router.post('/settings/me/api-keys', requireAdmin, selfSettingsCtrl.createMyApiKey);
 router.delete('/settings/me/api-keys/:keyId', requireAdmin, selfSettingsCtrl.revokeMyApiKey);
