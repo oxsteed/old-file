@@ -33,7 +33,7 @@ lands. Branch: `feat/analytics-platform`.
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| 11 | Structured query builder, then NL layer | pending | Blocked on Areas 1+4 |
+| 11 | Structured query builder, then NL layer | in progress (Track B) | Track B shipped `14cbca7f`: deterministic NL parser (`server/analytics/nlParser.js`) compiling English utterances to read-only builder queries only (never SQL; longest-first pattern matching, no LLM). All 13 registry metrics covered via explicit synonym table; dimensions validated against the planned per-metric allowlist (injectable override for Track A); quarters (Q3 etc.) rejected, never silently mapped; adversarial screening (destructive SQL verbs, permission-bypass phrases) runs before metric matching. Eval harness `server/__tests__/nlParser.eval.test.js`: 62/62 green (46 utterance rows incl. 10 adversarial must-reject cases). English-only v1, stated in the file header and exported `UI_COPY.englishOnlyNotice`. No migrations. Integration stubbed pending Track A's query-builder API: `POST /api/admin/analytics/query-builder/nl-parse` (requireAdmin, never executes), confirm-before-run UI, audit logging with raw_utterance + compiled_query, 5-language i18n for the NL strings. Exports ready for it: `parseUtterance`, `describeQuery`, `DIMENSION_ALLOWLIST`, `UI_COPY`. |
 
 ## Item 7 — per-metric status (Track B)
 
