@@ -1,4 +1,63 @@
 {
+  "queryBuilder": {
+    "title": "Konstriktè rechèch",
+    "subtitle": "Bati rechèch analitik ki li sèlman apati metrik ki gouvène. Chak egzekisyon anrejistre nan odit la.",
+    "metricLabel": "Metrik",
+    "metricPlaceholder": "Chwazi yon metrik",
+    "dimensionsLabel": "Dimansyon",
+    "noDimensions": "Pa gen dimansyon disponib pou metrik sa a.",
+    "filtersLabel": "Filtè",
+    "noFilters": "Pa gen filtè disponib pou metrik sa a.",
+    "periodLabel": "Peryòd",
+    "periodInsensitiveNote": "Metrik sa a se yon foto nan yon moman; peryòd la pa chanje valè li.",
+    "run": "Egzekite rechèch la",
+    "running": "Ap egzekite...",
+    "resultsTitle": "Rezilta",
+    "noResults": "Okenn liy pa retounen.",
+    "truncatedNotice": "Rezilta yo limite a {{cap}} liy.",
+    "rowCount": "{{count}} liy",
+    "duration": "{{ms}} ms",
+    "exportCsv": "Ekspòte CSV",
+    "clear": "Efase",
+    "errorTitle": "Rechèch la echwe",
+    "loadFailed": "Te gen pwoblèm pou chaje katalòg metrik yo.",
+    "retry": "Eseye ankò",
+    "chooseMetricFirst": "Chwazi yon metrik pou wè dimansyon ak filtè li yo.",
+    "filterRole": "Gwoup pa wòl",
+    "filterCustomerId": "ID kliyan (UUID)",
+    "filterBusinessId": "ID biznis",
+    "filterRestaurantId": "ID restoran",
+    "dimensionPeriod": "Tranch tan",
+    "dimensionRole": "Gwoup pa wòl",
+    "dimensionBusiness": "Biznis",
+    "dimensionRestaurant": "Restoran",
+    "nlSectionTitle": "Poze kesyon an langaj natirèl",
+    "nlSectionBody": "Ekri yon kesyon an langaj senp. L ap konpile an yon rechèch lekti sèlman sou metrik yo gouvène; anyen pap egzekite anvan ou konfime entèpretasyon an.",
+    "nlPlaceholder": "egz. to anilasyon pa wòl mwa pase a",
+    "nlEnglishOnly": "Anglè sèlman pou kounye a; analizè a pa entèprete lòt lang.",
+    "nlInterpret": "Entèprete",
+    "nlParsing": "Ap entèprete…",
+    "nlInterpretationTitle": "Entèpretasyon — konfime anvan egzekisyon",
+    "nlConfirmRun": "Egzekite rechèch sa a",
+    "nlDismiss": "Voye jete",
+    "nlRejected": "Pa t ka entèprete",
+    "nlParseFailed": "Pa t ka rive jwenn analizè a.",
+    "metricNames": {
+      "open_disputes": "Konfli ki ouvè",
+      "platform_revenue_cents": "Revni platfòm",
+      "investor_gmv_cents": "GMV envestisè",
+      "investor_take_rate_pct": "To komisyon envestisè",
+      "cancel_rate_pct": "To anilasyon",
+      "consulting_cancel_rate_pct": "To anilasyon konsiltasyon",
+      "sla_first_response_compliance_pct": "Konfòmite SLA premye repons",
+      "support_nps_index": "NPS sipò",
+      "consulting_avg_nps": "NPS mwayen konsiltasyon",
+      "mrr_cents": "MRR",
+      "escrow_held_cents": "Lajan kenbe an depo",
+      "restaurant_repeat_order_rate": "To kliyan ki tounen nan restoran",
+      "restaurant_top_items_revenue": "Revni pi gwo atik pa restoran"
+    }
+  },
   "customerWorkspace": {
     "title": "Espas kliyan",
     "eyebrow": "CUSTOMER 360",
@@ -4907,6 +4966,28 @@
     "openConversation": "Louvri konvèsasyon"
   },
   "helperDashboard": {
+    "jobEarnings": {
+      "title": "Kòb travay yo",
+      "lifetime": "Tout kòb ou fè",
+      "thisWeek": "Semèn sa a",
+      "thisMonth": "Mwa sa a",
+      "completedJobs": "Travay ki fini",
+      "available": "Disponib",
+      "pendingPayout": "Peman an atant",
+      "paidOut": "Peye",
+      "payouts": "Peman yo",
+      "recentJobs": "Dènye travay yo",
+      "weeklyTrend": "Kòb chak semèn",
+      "loading": "Ap chaje kòb ou…",
+      "loadFailed": "Nou pa t kapab chaje kòb yo. Tanpri eseye ankò.",
+      "retry": "Eseye ankò",
+      "noJobs": "Pa gen travay ki fini ankò. Kòb ou yo ap parèt isit la lè travay yo fini.",
+      "statusEarned": "Ou genyen",
+      "statusNotReady": "Pa pare",
+      "statusPending": "An atant",
+      "statusProcessing": "Ap trete",
+      "statusPaid": "Peye"
+    },
     "workspaceEyebrow": "Espas travay OxSteed ou",
     "workspaceRoles": "Wòl OxSteed ou yo",
     "helperRole": "Touche lajan kòm èd",
@@ -7048,6 +7129,7 @@
       "allRoles": "Tout wòl",
       "allStatus": "Tout estati",
       "allPlans": "Tout plan",
+      "allVerified": "Tout verifye",
       "sortBy": "Triye: {{label}}",
       "sort": {
         "first_name": "Non",
@@ -23518,7 +23600,19 @@
         },
         "range7": "7 dènye jou yo",
         "range30": "30 dènye jou yo",
-        "range90": "90 dènye jou yo"
+        "range90": "90 dènye jou yo",
+        "loyalty": {
+          "title": "Fidelite kliyan",
+          "repeatRate": "To retou kòmann",
+          "windowHint": "Dènye 90 jou yo · kòmann envite yo eskli",
+          "repeatOrders": "Kòmann retou",
+          "repeatCustomers": "Kliyan retou",
+          "identifiedOrders": "Kòmann idantifye",
+          "topItems": "Atik ki fè plis lajan",
+          "unitsSold": "{{units}} vann",
+          "noData": "Pa gen kòmann kliyan idantifye nan dènye 90 jou yo.",
+          "loadError": "Pa t kapab chaje analiz fidelite yo."
+        }
       },
       "offline": {
         "queued": "Anrejistre san koneksyon. Ap senkronize lè ou gen entènèt.",
@@ -23679,7 +23773,19 @@
       "chooseBusinessPage": "Chwazi paj biznis",
       "chooseBusinessPageFirst": "Chwazi yon paj biznis nan onglet Estidyo a anvan ou mande plas an tèt.",
       "featuredSent": "Demann plas an tèt la voye",
-      "featuredFailed": "Pa t ka mande plas an tèt la"
+      "featuredFailed": "Pa t ka mande plas an tèt la",
+      "performance": {
+        "title": "Pèfòmans plas an tèt",
+        "impressions": "Enpresyon",
+        "clicks": "Klik",
+        "conversions": "Konvèsyon",
+        "clickThroughRate": "To klik",
+        "conversionRate": "To konvèsyon",
+        "live": "Aktif kounye a",
+        "noData": "Pa gen evènman pou kounye a. Estatistik yo ap parèt lè plasman ou an aktif.",
+        "loadError": "Pa t kapab chaje pèfòmans plasman an.",
+        "windowNote": "Konvèsyon yo konte kòmann yo fè pandan plasman an aktif."
+      }
     },
     "playbook": {
       "monday": "Lendi",
@@ -33471,7 +33577,8 @@
       "api-keys": "API Keys",
       "tabs": "Tabs",
       "title": "Essential Tabs",
-      "hint": "Dechwazi onglet ou pa bezwen yo. Y ap kache nan ba lateral ou a."
+      "hint": "Dechwazi onglet ou pa bezwen yo. Y ap kache nan ba lateral ou a.",
+      "metric-alerts": "Alèt metrik"
     },
     "profile": {
       "title": "Profile",
@@ -33497,7 +33604,8 @@
       "notify_new_admins": "New admin signups",
       "notify_disputes": "Disputes",
       "email_notifications": "Email notifications",
-      "sms_notifications": "SMS notifications"
+      "sms_notifications": "SMS notifications",
+      "notify_metric_alerts": "Alèt papot metrik"
     },
     "apiKeys": {
       "title": "API Keys",
@@ -33509,6 +33617,62 @@
       "created": "Created",
       "lastUsed": "Last used",
       "confirmRevoke": "Revoke this API key?"
+    },
+    "metricAlerts": {
+      "title": "Alèt papot metrik",
+      "hint": "Règ yo evalye chak minit ak rejis ofisyèl metrik yo. Yon alèt pa janm deklanche plis pase yon fwa pa peryòd repo, epi sèlman sou chanèl ou te aktive yo.",
+      "empty": "Pa gen règ alèt pou kounye a. Kreye youn pou veye yon metrik.",
+      "newRule": "Nouvo règ alèt",
+      "editRule": "Modifye règ alèt la",
+      "metric": "Metrik",
+      "operator": "Kondisyon",
+      "threshold": "Papot",
+      "period": "Peryòd",
+      "days": "Jou istorik",
+      "cooldownMinutes": "Repo (minit)",
+      "cooldownHint": "Apre li deklanche, règ la p ap deklanche ankò pandan kantite minit sa yo.",
+      "channels": "Chanèl livrezon",
+      "channelInApp": "Nan aplikasyon an",
+      "channelEmail": "Imèl",
+      "channelSms": "SMS",
+      "active": "Règ la aktif",
+      "edit": "Modifye",
+      "cancel": "Anile",
+      "confirmDelete": "Efase règ alèt sa a?",
+      "saveFailed": "Pa t kapab anrejistre règ alèt la.",
+      "lastFired": "Dènye deklanchman",
+      "never": "Jamè",
+      "currentValue": "Valè aktyèl",
+      "paused": "Sou poz",
+      "noValue": "n/d",
+      "thresholdHint": {
+        "cents": "Antre papot la an santim (egz. 500000 = $5,000.00).",
+        "pct": "Antre papot la an pwen pousantaj (egz. 5 = 5%).",
+        "count": "Antre papot la kòm yon nonm antye.",
+        "index": "Antre papot la kòm yon valè endis (egz. 50)."
+      },
+      "operators": {
+        "gt": "pi wo pase (>)",
+        "lt": "pi ba pase (<)",
+        "eq": "egal a (==)"
+      },
+      "periods": {
+        "1d": "Dènye 24 èdtan",
+        "7d": "Dènye 7 jou",
+        "30d": "Dènye 30 jou",
+        "90d": "Dènye 90 jou",
+        "1y": "Dènye 12 mwa"
+      },
+      "metrics": {
+        "open_disputes": "Diskisyon ouvè",
+        "platform_revenue_cents": "Revni platfòm",
+        "investor_take_rate_pct": "To komisyon envestisè",
+        "cancel_rate_pct": "To anilasyon",
+        "support_nps_index": "NPS sipò",
+        "consulting_avg_nps": "NPS mwayèn konsiltasyon",
+        "mrr_cents": "Revni renouvlab chak mwa",
+        "escrow_held_cents": "Lajan nan depo garanti"
+      }
     }
   },
   "adminFoodOrderDetail": {

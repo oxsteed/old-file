@@ -12,6 +12,7 @@
 const db = require('../db');
 const logger = require('../utils/logger');
 const { tableExists } = require('../utils/schemaProbe');
+const { cancelRate } = require('../analytics/metricsRegistry');
 
 function isUuid(v) {
   return typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
@@ -155,13 +156,27 @@ exports.getHealth = async (req, res) => {
         [userId]
       );
       out.user = rows[0] || null;
+      // Metrics registry: canonical per-role cancel rates, server-side,
+      // soft-deleted jobs excluded. Replaces the client-side computation
+      // that mixed roles and skipped the deleted_at filter.
+      let cancel_rate_customer = null, cancel_rate_helper = null;
+      try {
+        [cancel_rate_customer, cancel_rate_helper] = await Promise.all([
+          cancelRate(db, { role: 'customer', userId }),
+          cancelRate(db, { role: 'helper', userId }),
+        ]);
+      } catch (_) { /* fail open: rates stay null */ }
+      out.user = { ...(out.user || {}), cancel_rate_customer, cancel_rate_helper };
       const { rows: plat } = await db.query(
         `SELECT COUNT(*)::INT AS total_jobs,
-                AVG(CASE WHEN status = 'cancelled' THEN 1.0 ELSE 0.0 END)::FLOAT AS cancel_rate,
                 AVG(job_value)::FLOAT AS avg_job_value
          FROM jobs`
       );
-      out.platform = plat[0] || null;
+      let platform_cancel_rate = null;
+      try {
+        platform_cancel_rate = await cancelRate(db, { role: 'platform' });
+      } catch (_) { /* fail open */ }
+      out.platform = { ...(plat[0] || {}), cancel_rate: platform_cancel_rate };
     }
     if (await tableExists('disputes')) {
       const { rows } = await db.query(

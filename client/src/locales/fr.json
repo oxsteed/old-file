@@ -1,4 +1,63 @@
 {
+  "queryBuilder": {
+    "title": "Constructeur de requêtes",
+    "subtitle": "Créez des requêtes analytiques en lecture seule à partir de métriques gouvernées. Chaque exécution est journalisée.",
+    "metricLabel": "Métrique",
+    "metricPlaceholder": "Sélectionnez une métrique",
+    "dimensionsLabel": "Dimensions",
+    "noDimensions": "Aucune dimension disponible pour cette métrique.",
+    "filtersLabel": "Filtres",
+    "noFilters": "Aucun filtre disponible pour cette métrique.",
+    "periodLabel": "Période",
+    "periodInsensitiveNote": "Cette métrique est un instantané ponctuel ; la période ne change pas sa valeur.",
+    "run": "Exécuter la requête",
+    "running": "Exécution...",
+    "resultsTitle": "Résultats",
+    "noResults": "Aucune ligne retournée.",
+    "truncatedNotice": "Résultats limités à {{cap}} lignes.",
+    "rowCount": "{{count}} lignes",
+    "duration": "{{ms}} ms",
+    "exportCsv": "Exporter CSV",
+    "clear": "Effacer",
+    "errorTitle": "La requête a échoué",
+    "loadFailed": "Impossible de charger le catalogue de métriques.",
+    "retry": "Réessayer",
+    "chooseMetricFirst": "Choisissez une métrique pour voir ses dimensions et ses filtres.",
+    "filterRole": "Cohorte par rôle",
+    "filterCustomerId": "ID client (UUID)",
+    "filterBusinessId": "ID d'entreprise",
+    "filterRestaurantId": "ID de restaurant",
+    "dimensionPeriod": "Tranche de temps",
+    "dimensionRole": "Cohorte par rôle",
+    "dimensionBusiness": "Entreprise",
+    "dimensionRestaurant": "Restaurant",
+    "nlSectionTitle": "Poser une question en langage naturel",
+    "nlSectionBody": "Saisissez une question en langage simple. Elle sera compilée en requête en lecture seule sur les métriques gouvernées ; rien ne s'exécute avant confirmation de l'interprétation.",
+    "nlPlaceholder": "p. ex. taux d'annulation par rôle le mois dernier",
+    "nlEnglishOnly": "Anglais uniquement pour l'instant ; l'analyseur n'interprète pas les autres langues.",
+    "nlInterpret": "Interpréter",
+    "nlParsing": "Interprétation en cours…",
+    "nlInterpretationTitle": "Interprétation — confirmez avant d'exécuter",
+    "nlConfirmRun": "Exécuter cette requête",
+    "nlDismiss": "Ignorer",
+    "nlRejected": "Interprétation impossible",
+    "nlParseFailed": "Impossible de joindre l'analyseur.",
+    "metricNames": {
+      "open_disputes": "Litiges ouverts",
+      "platform_revenue_cents": "Revenu de la plateforme",
+      "investor_gmv_cents": "GMV investisseurs",
+      "investor_take_rate_pct": "Taux de commission investisseurs",
+      "cancel_rate_pct": "Taux d'annulation",
+      "consulting_cancel_rate_pct": "Taux d'annulation consulting",
+      "sla_first_response_compliance_pct": "Conformité SLA de première réponse",
+      "support_nps_index": "NPS du support",
+      "consulting_avg_nps": "NPS moyen du consulting",
+      "mrr_cents": "MRR",
+      "escrow_held_cents": "Séquestre détenu",
+      "restaurant_repeat_order_rate": "Taux de réachat restaurant",
+      "restaurant_top_items_revenue": "Chiffre d'affaires des plats vedettes par restaurant"
+    }
+  },
   "customerWorkspace": {
     "title": "Espace client",
     "eyebrow": "CUSTOMER 360",
@@ -4795,6 +4854,28 @@
     "openConversation": "Ouvrir la conversation"
   },
   "helperDashboard": {
+    "jobEarnings": {
+      "title": "Gains des missions",
+      "lifetime": "Gains totaux",
+      "thisWeek": "Cette semaine",
+      "thisMonth": "Ce mois-ci",
+      "completedJobs": "Missions terminées",
+      "available": "Disponible",
+      "pendingPayout": "Paiement en attente",
+      "paidOut": "Payé",
+      "payouts": "Paiements",
+      "recentJobs": "Missions récentes",
+      "weeklyTrend": "Gains hebdomadaires",
+      "loading": "Chargement des gains…",
+      "loadFailed": "Impossible de charger les gains. Veuillez réessayer.",
+      "retry": "Réessayer",
+      "noJobs": "Aucune mission terminée pour le moment. Vos gains apparaîtront ici une fois vos missions terminées.",
+      "statusEarned": "Gagné",
+      "statusNotReady": "Non prêt",
+      "statusPending": "En attente",
+      "statusProcessing": "En cours",
+      "statusPaid": "Payé"
+    },
     "workspaceEyebrow": "Votre espace OxSteed",
     "workspaceRoles": "Vos rôles OxSteed",
     "helperRole": "Gagner comme aidant",
@@ -6936,6 +7017,7 @@
       "allRoles": "Tous les rôles",
       "allStatus": "Tous les statuts",
       "allPlans": "Tous les forfaits",
+      "allVerified": "Tous vérifiés",
       "sortBy": "Trier : {{label}}",
       "sort": {
         "first_name": "Nom",
@@ -23518,7 +23600,19 @@
         },
         "range7": "7 derniers jours",
         "range30": "30 derniers jours",
-        "range90": "90 derniers jours"
+        "range90": "90 derniers jours",
+        "loyalty": {
+          "title": "Fidélité client",
+          "repeatRate": "Taux de commandes répétées",
+          "windowHint": "90 derniers jours · commandes invités exclues",
+          "repeatOrders": "Commandes répétées",
+          "repeatCustomers": "Clients fidèles",
+          "identifiedOrders": "Commandes identifiées",
+          "topItems": "Articles les plus rentables",
+          "unitsSold": "{{units}} vendus",
+          "noData": "Aucune commande client identifiée au cours des 90 derniers jours.",
+          "loadError": "Impossible de charger les analyses de fidélité."
+        }
       },
       "offline": {
         "queued": "Enregistré hors ligne. Se synchronisera au retour en ligne.",
@@ -23679,7 +23773,19 @@
       "chooseBusinessPage": "Choisir une page entreprise",
       "chooseBusinessPageFirst": "Choisissez une page entreprise dans l'onglet Studio avant de demander la mise en avant.",
       "featuredSent": "Demande de mise en avant envoyée",
-      "featuredFailed": "Impossible de demander la mise en avant"
+      "featuredFailed": "Impossible de demander la mise en avant",
+      "performance": {
+        "title": "Performance de la mise en avant",
+        "impressions": "Impressions",
+        "clicks": "Clics",
+        "conversions": "Conversions",
+        "clickThroughRate": "Taux de clic",
+        "conversionRate": "Taux de conversion",
+        "live": "En ligne",
+        "noData": "Aucun événement pour le moment. Les statistiques apparaissent quand votre mise en avant est active.",
+        "loadError": "Impossible de charger la performance de la mise en avant.",
+        "windowNote": "Les conversions comptent les commandes passées pendant que la mise en avant est active."
+      }
     },
     "playbook": {
       "monday": "Lundi",
@@ -33471,7 +33577,8 @@
       "api-keys": "API Keys",
       "tabs": "Tabs",
       "title": "Essential Tabs",
-      "hint": "Décochez les onglets dont vous n'avez pas besoin. Ils seront masqués de votre barre latérale."
+      "hint": "Décochez les onglets dont vous n'avez pas besoin. Ils seront masqués de votre barre latérale.",
+      "metric-alerts": "Alertes de métriques"
     },
     "profile": {
       "title": "Profile",
@@ -33497,7 +33604,8 @@
       "notify_new_admins": "New admin signups",
       "notify_disputes": "Disputes",
       "email_notifications": "Email notifications",
-      "sms_notifications": "SMS notifications"
+      "sms_notifications": "SMS notifications",
+      "notify_metric_alerts": "Alertes de seuil de métriques"
     },
     "apiKeys": {
       "title": "API Keys",
@@ -33509,6 +33617,62 @@
       "created": "Created",
       "lastUsed": "Last used",
       "confirmRevoke": "Revoke this API key?"
+    },
+    "metricAlerts": {
+      "title": "Alertes de seuil de métriques",
+      "hint": "Les règles sont évaluées chaque minute à partir du registre officiel des métriques. Une alerte se déclenche au plus une fois par période de carence, et uniquement sur les canaux activés.",
+      "empty": "Aucune règle d’alerte pour l’instant. Créez-en une pour surveiller une métrique.",
+      "newRule": "Nouvelle règle d’alerte",
+      "editRule": "Modifier la règle d’alerte",
+      "metric": "Métrique",
+      "operator": "Condition",
+      "threshold": "Seuil",
+      "period": "Période",
+      "days": "Jours d’historique",
+      "cooldownMinutes": "Carence (minutes)",
+      "cooldownHint": "Après un déclenchement, la règle ne se déclenchera plus pendant ce nombre de minutes.",
+      "channels": "Canaux de diffusion",
+      "channelInApp": "Dans l’app",
+      "channelEmail": "E-mail",
+      "channelSms": "SMS",
+      "active": "Règle active",
+      "edit": "Modifier",
+      "cancel": "Annuler",
+      "confirmDelete": "Supprimer cette règle d’alerte ?",
+      "saveFailed": "Impossible d’enregistrer la règle d’alerte.",
+      "lastFired": "Dernier déclenchement",
+      "never": "Jamais",
+      "currentValue": "Valeur actuelle",
+      "paused": "En pause",
+      "noValue": "n/d",
+      "thresholdHint": {
+        "cents": "Saisissez le seuil en centimes (ex. 500000 = 5 000,00 $).",
+        "pct": "Saisissez le seuil en points de pourcentage (ex. 5 = 5 %).",
+        "count": "Saisissez le seuil sous forme de nombre entier.",
+        "index": "Saisissez le seuil sous forme de valeur d’indice (ex. 50)."
+      },
+      "operators": {
+        "gt": "au-dessus de (>)",
+        "lt": "en dessous de (<)",
+        "eq": "égal à (==)"
+      },
+      "periods": {
+        "1d": "Dernières 24 heures",
+        "7d": "7 derniers jours",
+        "30d": "30 derniers jours",
+        "90d": "90 derniers jours",
+        "1y": "12 derniers mois"
+      },
+      "metrics": {
+        "open_disputes": "Litiges ouverts",
+        "platform_revenue_cents": "Revenus de la plateforme",
+        "investor_take_rate_pct": "Taux de commission investisseur",
+        "cancel_rate_pct": "Taux d’annulation",
+        "support_nps_index": "NPS du support",
+        "consulting_avg_nps": "NPS moyen du conseil",
+        "mrr_cents": "Revenus mensuels récurrents",
+        "escrow_held_cents": "Fonds séquestrés"
+      }
     }
   },
   "adminFoodOrderDetail": {

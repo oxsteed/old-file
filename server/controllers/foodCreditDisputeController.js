@@ -14,6 +14,10 @@ const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const { logFoodWalletOperatorAudit } = require('../services/foodWalletAuditService');
+// Canonical restaurant access gate (analytics scope model, Phase 1 Item 6).
+// Replaces the former local requireRestaurantAccess copy: same ownership
+// CASE, same 404, plus the union of columns the variants selected.
+const { resolveRestaurantAccess: requireRestaurantAccess } = require('../services/scopeModel');
 
 const DISPUTE_WINDOW_MS = 48 * 60 * 60 * 1000; // 48 hours
 const RESOLVE_OUTCOMES = new Set(['resolved_release', 'resolved_deny', 'resolved_info_needed']);
@@ -60,32 +64,6 @@ function formatCreditDispute(row) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
-}
-
-async function requireRestaurantAccess(userId, restaurantId) {
-  const { rows } = await pool.query(
-    `SELECT fr.id, fr.business_id, fr.owner_user_id, fr.display_name, fr.currency_code,
-            CASE
-              WHEN b.user_id = $2 OR fr.owner_user_id = $2 THEN 'owner'
-              ELSE (
-                SELECT bm.role
-                  FROM business_members bm
-                 WHERE bm.business_id = fr.business_id
-                   AND bm.member_id = $2
-                   AND bm.status = 'active'
-                 LIMIT 1
-              )
-            END AS effective_role
-       FROM food_restaurants fr
-       JOIN businesses b ON b.id = fr.business_id
-      WHERE fr.id = $1
-      LIMIT 1`,
-    [restaurantId, userId]
-  );
-  if (!rows[0] || !rows[0].effective_role) {
-    throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-  }
-  return rows[0];
 }
 
 const WALLET_OPERATOR_ROLES = new Set(['owner', 'manager']);

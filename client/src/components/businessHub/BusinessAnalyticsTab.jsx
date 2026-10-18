@@ -50,7 +50,9 @@ export function BusinessAnalyticsTab({ businessId }) {
       icon: <DollarSign size={24} />,
       iconClass: 'revenue',
       title: t('businessAnalytics.totalRevenue'),
-      value: `$${(analytics.totalRevenue / 100).toFixed(2)}`,
+      // QW4: trivial null guard. totalRevenue is the only stat without a
+      // fallback; without it a mismatched API contract renders "$NaN".
+      value: analytics.totalRevenue != null ? `$${(analytics.totalRevenue / 100).toFixed(2)}` : t('common.na'),
       hasChange: analytics.revenueChange !== undefined && analytics.revenueChange !== null,
       change: analytics.revenueChange,
       meta: null,

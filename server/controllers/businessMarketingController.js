@@ -1,5 +1,7 @@
 const pool = require('../db');
 const crypto = require('crypto');
+// Campaign funnel aggregates (analytics platform, Phase 2, Item 10).
+const campaignAnalytics = require('../analytics/campaignAnalytics');
 
 // Broadcasts
 exports.listBroadcasts = async (req, res, next) => {
@@ -189,5 +191,64 @@ exports.requestFeaturedPlacement = async (req, res, next) => {
       [businessId, req.user.id, category || null, zip || null, note || null, source]
     );
     res.status(201).json(row.rows[0]);
+  } catch (err) { next(err); }
+};
+
+// GET /:businessId/campaign-performance (analytics platform, Phase 2, Item 10).
+// Per-campaign funnel for this business's featured-placement requests:
+// impressions, clicks, conversions, click-through rate, conversion rate.
+// Read-only. Scoped to the route's business (requireBusinessAccess at the
+// route layer); aggregates come from server/analytics/campaignAnalytics.js
+// so the funnel definition is owned in one place.
+//
+// Rate semantics (documented, same as the module):
+//   click_through_rate = clicks / impressions (null when impressions = 0)
+//   conversion_rate    = conversions / clicks  (null when clicks = 0)
+// Conversions are campaign-window attributed: orders placed while the
+// placement was live, not proven click-through causality.
+exports.getCampaignPerformance = async (req, res, next) => {
+  const { businessId } = req.params;
+  try {
+    const { rows } = await pool.query(
+      `SELECT r.id, r.status, r.created_at, r.updated_at,
+              r.featured_restaurant_id,
+              fr.display_name AS featured_restaurant_name,
+              fr.featured_until,
+              (fr.is_featured AND (fr.featured_until IS NULL OR fr.featured_until > NOW())) AS is_live
+         FROM business_featured_placement_requests r
+         LEFT JOIN food_restaurants fr ON fr.id = r.featured_restaurant_id
+        WHERE r.business_id = $1
+        ORDER BY r.updated_at DESC`,
+      [businessId]
+    );
+    const campaignIds = rows.map((r) => Number(r.id));
+    const perf = await campaignAnalytics.getCampaignPerformance(pool, campaignIds);
+    const byId = new Map(perf.map((p) => [p.campaign_id, p]));
+    res.json({
+      campaigns: rows.map((r) => {
+        const p = byId.get(Number(r.id)) || {
+          impressions: 0, clicks: 0, conversions: 0,
+          click_through_rate: null, conversion_rate: null,
+        };
+        // Same 'expired' mapping as getFeaturedPlacementRequest so the
+        // status label matches the promote page's request-status display.
+        const isLive = Boolean(r.is_live);
+        const status = r.status === 'approved' && !isLive ? 'expired' : r.status;
+        return {
+          campaign_id: Number(r.id),
+          campaign_type: 'featured_placement',
+          status,
+          is_live: isLive,
+          featured_restaurant_id: r.featured_restaurant_id == null ? null : Number(r.featured_restaurant_id),
+          featured_restaurant_name: r.featured_restaurant_name || null,
+          featured_until: r.featured_until || null,
+          impressions: p.impressions,
+          clicks: p.clicks,
+          conversions: p.conversions,
+          click_through_rate: p.click_through_rate,
+          conversion_rate: p.conversion_rate,
+        };
+      }),
+    });
   } catch (err) { next(err); }
 };

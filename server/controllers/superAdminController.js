@@ -13,6 +13,7 @@ const { cancelJobTransaction, finalizeJobCancellation } = require('../services/j
 const AppError = require('../utils/appError');
 const { issueStepupChallenge, verifyStepupChallenge } = require('../services/stepupChallengeService');
 const { sendMoneyMovementGateResult } = require('../utils/dualApprovalHttp');
+const metricsRegistry = require('../analytics/metricsRegistry');
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -194,13 +195,9 @@ async function notifyUserAccountEvent(userId, { type, title, body, action_url = 
 
 // ─── Dashboard helpers ────────────────────────────────────────────────────────
 
-const PERIOD_INTERVAL = {
-  '1d':  { interval: '1 day',   prev: '2 days',   trunc: 'hour'  },
-  '7d':  { interval: '7 days',  prev: '14 days',  trunc: 'day'   },
-  '30d': { interval: '30 days', prev: '60 days',  trunc: 'day'   },
-  '90d': { interval: '90 days', prev: '180 days', trunc: 'week'  },
-  '1y':  { interval: '1 year',  prev: '2 years',  trunc: 'month' },
-};
+// Canonical reporting periods live in the metrics registry (single source of
+// truth; '1y' = '1 year'). investorController previously used '365 days'.
+const PERIOD_INTERVAL = metricsRegistry.PERIOD_INTERVAL;
 
 function safeInt(v) { return parseInt(v, 10) || 0; }
 function safeFloat(v) { return parseFloat(v) || 0; }
@@ -214,7 +211,7 @@ exports.getDashboardStats = async (req, res) => {
 
     // Probe optional tables/columns in one batched query — never throws
     const schemaProbe = await probeSchema(
-      ['jobs', 'subscriptions', 'platform_ledger', 'helper_profiles', 'support_tickets', 'payouts', 'content_reports'],
+      ['jobs', 'subscriptions', 'platform_ledger', 'helper_profiles', 'support_tickets', 'payouts', 'content_reports', 'disputes', 'payments', 'plans'],
       [['users', 'is_suspended']]
     );
     const hasJobs = schemaProbe.tables.has('jobs');
@@ -280,9 +277,12 @@ exports.getDashboardStats = async (req, res) => {
             COUNT(*) FILTER (WHERE status = 'cancelled' AND created_at >= now() - $1::interval) AS cancelled_jobs_period,
             COUNT(*) FILTER (WHERE created_at >= now() - $1::interval)                AS new_jobs_period,
             COUNT(*) FILTER (WHERE created_at >= date_trunc('day', now()))             AS new_jobs_today,
-            COUNT(*) FILTER (WHERE dispute_status = 'open')                            AS open_disputes,
             ROUND(AVG(bid_count) FILTER (WHERE bid_count > 0 AND created_at >= now() - $1::interval), 1) AS avg_bids_per_job
           FROM jobs
+          -- Metrics registry parity (cancel_rate_pct canonical): soft-deleted
+          -- jobs are excluded, matching migration 170's materialized views and
+          -- the /admin/jobs drill-through list these cards link to.
+          WHERE deleted_at IS NULL
         `, [cur]);
         open_jobs             = safeInt(rows[0]?.open_jobs);
         active_jobs           = safeInt(rows[0]?.active_jobs);
@@ -292,14 +292,28 @@ exports.getDashboardStats = async (req, res) => {
         cancelled_jobs_period = safeInt(rows[0]?.cancelled_jobs_period);
         new_jobs_period       = safeInt(rows[0]?.new_jobs_period);
         new_jobs_today        = safeInt(rows[0]?.new_jobs_today);
-        open_disputes         = safeInt(rows[0]?.open_disputes);
         avg_bids_per_job      = rows[0]?.avg_bids_per_job != null ? parseFloat(rows[0].avg_bids_per_job) : null;
       } catch (jobErr) {
         logger.warn('getDashboardStats: jobs query failed', { err: jobErr.message });
       }
     }
 
+    // ── Open disputes (metrics registry) ──────────────────────────────────
+    // Canonical: disputes table (status='open'), matching the /admin/disputes
+    // drill-through target. Previously jobs.dispute_status='open' here.
+    if (schemaProbe.tables.has('disputes')) {
+      try {
+        open_disputes = await metricsRegistry.openDisputes(db);
+      } catch (disputeErr) {
+        logger.warn('getDashboardStats: open disputes query failed', { err: disputeErr.message });
+      }
+    }
+
     // ── Revenue stats ─────────────────────────────────────────────────────
+    // Canonical platform revenue (metrics registry: platform_revenue_cents):
+    // platform take from platform_ledger, source_type IN
+    // ('job_fee','subscription'), amount_cents > 0. Vertical GMVs (food,
+    // tools, consulting) are separate metrics, not rival definitions.
     let total_revenue_cents = 0, revenue_period_cents = 0,
         subscription_revenue_period_cents = 0, revenue_mtd_cents = 0,
         subscription_revenue_mtd_cents = 0, refunds_period_cents = 0;
@@ -394,6 +408,20 @@ exports.getDashboardStats = async (req, res) => {
       } catch (_) {}
     }
 
+    // ── MRR + escrow held (metrics registry) ──────────────────────────────
+    // Previously hardcoded 0. MRR = active subscriptions x plan amount
+    // (yearly /12); escrow = net held payments (held/disputed escrow_status
+    // with authorized/captured status), floored per payment.
+    let mrr_cents = 0, escrow_held_cents = 0;
+    if (schemaProbe.tables.has('subscriptions') && schemaProbe.tables.has('plans')) {
+      try { mrr_cents = await metricsRegistry.mrrCents(db); }
+      catch (mrrErr) { logger.warn('getDashboardStats: mrr query failed', { err: mrrErr.message }); }
+    }
+    if (schemaProbe.tables.has('payments')) {
+      try { escrow_held_cents = await metricsRegistry.escrowHeldCents(db); }
+      catch (escrowErr) { logger.warn('getDashboardStats: escrow query failed', { err: escrowErr.message }); }
+    }
+
     // ── Completion rate ────────────────────────────────────────────────────
     // T35-F01: the cohort must be consistent. Both completions and
     // cancellations are counted over the same period.
@@ -437,10 +465,10 @@ exports.getDashboardStats = async (req, res) => {
       // Legacy aliases
       new_users_30d: safeInt(coreStats.new_users_period),
       new_jobs_30d:  new_jobs_period,
-      escrow_held:   0,
+      escrow_held:   escrow_held_cents,
     };
 
-    res.json({ stats, period, mrr: 0 });
+    res.json({ stats, period, mrr: mrr_cents });
   } catch (err) {
     logger.error('getDashboardStats error', { err });
     res.status(500).json({ error: 'Failed to load dashboard stats.' });
@@ -583,7 +611,7 @@ let getUsersSummaryCache = { data: null, at: 0 };
 exports.getUsers = async (req, res) => {
   try {
     const {
-      search, role, status, plan, location,
+      search, role, status, plan, location, verified,
       sort = 'created_at', order = 'desc'
     } = req.query;
     const { page, limit, offset } = parseBoundedPagination(req.query, { defaultLimit: 25, maxLimit: 100 });
@@ -620,6 +648,21 @@ exports.getUsers = async (req, res) => {
     const hasPlanTable = hasSubs && await tableExists('plans');
 
     if (plan && hasPlanTable) { baseConditions.push(`p.slug = $${paramIdx++}`); params.push(plan); }
+
+    // Verified filter (QW3 analytics follow-up): mirrors the dashboard
+    // helper-verification stats. verified=true -> identity OR background
+    // verified; verified=false -> the negation (IS NOT TRUE is NULL-safe so
+    // users without a helper profile are treated as unverified, matching
+    // the dashboard's unverified_helpers stat). The param is validated
+    // strictly server-side and only ever adds an AND clause on top of the
+    // existing scoping. Requires the helper_profiles LEFT JOIN below.
+    let verifiedFilterActive = false;
+    if (hasHP && (verified === 'true' || verified === 'false')) {
+      baseConditions.push(verified === 'true'
+        ? '(hp.is_identity_verified = TRUE OR hp.is_background_checked = TRUE)'
+        : '(hp.is_identity_verified IS NOT TRUE AND hp.is_background_checked IS NOT TRUE)');
+      verifiedFilterActive = true;
+    }
 
     const allowedSorts = ['created_at', 'first_name', 'email', 'last_login_at'];
     // avg_rating sort must be prefixed with hp. when hasHP, falls back to u.created_at otherwise
@@ -675,8 +718,11 @@ exports.getUsers = async (req, res) => {
 
     const countJoins = hasSubs ? "LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = 'active'" : '';
     const countJoins2 = hasPlanTable ? 'LEFT JOIN plans p ON p.id = s.plan_id' : '';
+    // The verified filter references the hp alias, which the count query does
+    // not join by default; add the 1:1 LEFT JOIN only when the filter is active.
+    const countJoins3 = verifiedFilterActive ? 'LEFT JOIN helper_profiles hp ON hp.user_id = u.id' : '';
     const { rows: countRows } = await db.query(
-      `SELECT COUNT(*) FROM users u ${countJoins} ${countJoins2} ${finalWhereClause}`,
+      `SELECT COUNT(*) FROM users u ${countJoins} ${countJoins2} ${countJoins3} ${finalWhereClause}`,
       params
     );
 
@@ -1109,6 +1155,10 @@ exports.getJobs = async (req, res) => {
     const { search, status, category } = req.query;
     const { page, limit, offset } = parseBoundedPagination(req.query, { defaultLimit: 25, maxLimit: 100 });
     const params = []; let paramIdx = 1; let conditions = [];
+    // Metrics registry parity: the dashboard job cards drill into this list,
+    // so it counts only live jobs — matching migration 170's materialized
+    // views and cancel_rate_pct's canonical definition (deleted_at IS NULL).
+    conditions.push('j.deleted_at IS NULL');
     if (search) { conditions.push(`(j.title ILIKE $${paramIdx} OR j.description ILIKE $${paramIdx})`); params.push(`%${search}%`); paramIdx++; }
     if (status) { conditions.push(`j.status = $${paramIdx++}`); params.push(status); }
     if (category) { conditions.push(`j.category_name = $${paramIdx++}`); params.push(category); }

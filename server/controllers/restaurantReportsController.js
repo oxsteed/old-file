@@ -4,6 +4,11 @@
 
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
+// Canonical restaurant access gate (analytics scope model, Phase 1 Item 6).
+const { resolveRestaurantAccess } = require('../services/scopeModel');
+// Canonical restaurant-level analytics computations (Phase 2, Item 10).
+const restaurantAnalytics = require('../analytics/restaurantAnalytics');
+const { REPEAT_ORDER_WINDOW_DAYS } = restaurantAnalytics;
 
 const MANAGE_ROLES = new Set(['owner', 'manager']);
 const MAX_RANGE_DAYS = 366;
@@ -13,31 +18,12 @@ function parsePositiveInt(value) {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-// Identical access query to restaurantOpsController.requireRestaurantAccess.
+// Restaurant access via the canonical scope-model gate. The fast-fail
+// `!restaurantId` guard and the manager-only reports policy are preserved
+// here: the shared gate resolves standing; this module's 403 stays.
 async function requireRestaurantAccess(userId, restaurantId) {
   if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-  const { rows } = await pool.query(
-    `SELECT fr.id, fr.business_id,
-            CASE
-              WHEN b.user_id = $2 OR fr.owner_user_id = $2 THEN 'owner'
-              ELSE (
-                SELECT bm.role
-                  FROM business_members bm
-                 WHERE bm.business_id = fr.business_id
-                   AND bm.member_id = $2
-                   AND bm.status = 'active'
-                 LIMIT 1
-              )
-            END AS effective_role
-       FROM food_restaurants fr
-       JOIN businesses b ON b.id = fr.business_id
-      WHERE fr.id = $1`,
-    [restaurantId, userId]
-  );
-  const restaurant = rows[0];
-  if (!restaurant || !restaurant.effective_role) {
-    throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-  }
+  const restaurant = await resolveRestaurantAccess(userId, restaurantId);
   if (!MANAGE_ROLES.has(restaurant.effective_role)) {
     throw new AppError('You do not have permission to view reports', 403, 'forbidden');
   }
@@ -53,6 +39,15 @@ function parseRange(query) {
   if ((to - from) / 86400000 > MAX_RANGE_DAYS) {
     throw new AppError(`Date range capped at ${MAX_RANGE_DAYS} days`, 400, 'range_too_wide');
   }
+  return { from: from.toISOString(), to: to.toISOString() };
+}
+
+// Same validation as parseRange, but the loyalty section defaults to the
+// documented 90-day repeat-order window instead of 30 days.
+function parseRange90(query) {
+  if (query.from || query.to) return parseRange(query);
+  const to = new Date();
+  const from = new Date(to.getTime() - (REPEAT_ORDER_WINDOW_DAYS - 1) * 86400000);
   return { from: from.toISOString(), to: to.toISOString() };
 }
 
@@ -262,6 +257,38 @@ exports.operationsSummary = async (req, res, next) => {
         avg_score_pct: tr.avg_score == null ? null : Math.round(Number(tr.avg_score)),
         passed: Number(tr.passed),
       },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── Loyalty (Phase 2, Item 10) ───────────────────────────────────────────────
+// Repeat-order rate + top items by revenue. Computation lives in
+// server/analytics/restaurantAnalytics.js (canonical definitions
+// restaurant_repeat_order_rate / restaurant_top_items_revenue in the
+// metrics registry); this endpoint is a thin, manager-only wrapper that
+// applies the canonical restaurant access gate. Defaults to the 90-day
+// window; explicit from/to stay within the shared range cap.
+exports.loyaltySummary = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const { from, to } = parseRange90(req.query);
+    const [repeat, topItems] = await Promise.all([
+      restaurantAnalytics.getRepeatOrderRate(pool, restaurantId, { from, to }),
+      restaurantAnalytics.getTopItemsByRevenue(pool, restaurantId, { from, to, limit: 10 }),
+    ]);
+    res.json({
+      from,
+      to,
+      window_days: REPEAT_ORDER_WINDOW_DAYS,
+      repeat_order_rate: repeat.repeat_order_rate,
+      repeat_orders: repeat.repeat_orders,
+      total_identified_orders: repeat.total_identified_orders,
+      repeat_customers: repeat.repeat_customers,
+      guest_orders_excluded: repeat.guest_orders_excluded,
+      top_items: topItems,
     });
   } catch (err) {
     next(err);

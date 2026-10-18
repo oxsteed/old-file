@@ -17,6 +17,7 @@ const pool = require('../db');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
+const { resolveRestaurantAccess } = require('../services/scopeModel');
 const { requirePermission } = require('../middleware/adminAuth');
 
 // Admins act on payouts through the same grant that covers other financial
@@ -33,31 +34,12 @@ function parseRestaurantId(value) {
 // Identical access query to foodController.requireRestaurantAccess /
 // restaurantOpsController.requireRestaurantAccess: the caller only ever
 // touches restaurants they own or belong to.
+// Canonical restaurant access gate (analytics scope model, Phase 1 Item 6).
+// The fast-fail `!restaurantId` guard is preserved here (not inside the
+// shared gate) so invalid ids keep this module's exact 404 behavior.
 async function requireRestaurantAccess(userId, restaurantId) {
   if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-  const { rows } = await pool.query(
-    `SELECT fr.id, fr.business_id,
-            CASE
-              WHEN b.user_id = $2 OR fr.owner_user_id = $2 THEN 'owner'
-              ELSE (
-                SELECT bm.role
-                  FROM business_members bm
-                 WHERE bm.business_id = fr.business_id
-                   AND bm.member_id = $2
-                   AND bm.status = 'active'
-                 LIMIT 1
-              )
-            END AS effective_role
-       FROM food_restaurants fr
-       JOIN businesses b ON b.id = fr.business_id
-      WHERE fr.id = $1`,
-    [restaurantId, userId]
-  );
-  const restaurant = rows[0];
-  if (!restaurant || !restaurant.effective_role) {
-    throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-  }
-  return restaurant;
+  return resolveRestaurantAccess(userId, restaurantId);
 }
 
 // Stripe only allows pre-registered redirect hosts, so the onboarding return

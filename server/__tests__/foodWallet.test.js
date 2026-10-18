@@ -446,7 +446,7 @@ describe('food wallet security wiring', () => {
     mockQuery.mockImplementation(async (sql, params) => {
       const creditFixture = dualPostCreditFixture(sql, params);
       if (creditFixture) return creditFixture;
-      if (/SELECT fr\.\*, b\.user_id AS business_owner_id/.test(sql) && /JOIN businesses b/.test(sql)) {
+      if (/SELECT fr\.\*,[\s\S]*b\.user_id AS business_owner_id/.test(sql) && /JOIN businesses b/.test(sql)) {
         return {
           rows: [{
             id: RESTAURANT_ID,
@@ -747,7 +747,7 @@ describe('food wallet security wiring', () => {
     mockQuery.mockImplementation(async (sql, params) => {
       const creditFixture = dualPostCreditFixture(sql, params);
       if (creditFixture) return creditFixture;
-      if (/SELECT fr\.id, fr\.business_id, fr\.owner_user_id/.test(sql)) {
+      if (/SELECT fr\.\*,[\s\S]*b\.user_id AS business_owner_id/.test(sql)) {
         return {
           rows: [{
             id: RESTAURANT_ID,
@@ -897,7 +897,7 @@ describe('food wallet security wiring', () => {
 
   test('merchant wallet load without proof or explanation is rejected', async () => {
     mockQuery.mockImplementation(async (sql) => {
-      if (/SELECT fr\.id, fr\.business_id, fr\.owner_user_id/.test(sql)) {
+      if (/SELECT fr\.\*,[\s\S]*b\.user_id AS business_owner_id/.test(sql)) {
         return {
           rows: [{
             id: RESTAURANT_ID,
@@ -935,7 +935,7 @@ describe('food wallet security wiring', () => {
 
   test('large merchant wallet load request alias requires pending approval before ledger posting', async () => {
     mockQuery.mockImplementation(async (sql) => {
-      if (/SELECT fr\.id, fr\.business_id, fr\.owner_user_id/.test(sql)) {
+      if (/SELECT fr\.\*,[\s\S]*b\.user_id AS business_owner_id/.test(sql)) {
         return {
           rows: [{
             id: RESTAURANT_ID,
@@ -1016,7 +1016,7 @@ describe('food wallet security wiring', () => {
 
   test('owner can list pending wallet load approval requests', async () => {
     mockQuery.mockImplementation(async (sql) => {
-      if (/SELECT fr\.id, fr\.business_id, fr\.owner_user_id/.test(sql)) {
+      if (/SELECT fr\.\*,[\s\S]*b\.user_id AS business_owner_id/.test(sql)) {
         return {
           rows: [{
             id: RESTAURANT_ID,
@@ -1078,7 +1078,7 @@ describe('food wallet security wiring', () => {
 
   test('owner can cancel a pending wallet load request with audit logging', async () => {
     mockQuery.mockImplementation(async (sql) => {
-      if (/SELECT fr\.id, fr\.business_id, fr\.owner_user_id/.test(sql)) {
+      if (/SELECT fr\.\*,[\s\S]*b\.user_id AS business_owner_id/.test(sql)) {
         return {
           rows: [{
             id: RESTAURANT_ID,
@@ -1166,7 +1166,7 @@ describe('food wallet security wiring', () => {
     mockQuery.mockImplementation(async (sql, params) => {
       const creditFixture = dualPostCreditFixture(sql, params);
       if (creditFixture) return creditFixture;
-      if (/SELECT fr\.id, fr\.business_id, fr\.owner_user_id/.test(sql)) {
+      if (/SELECT fr\.\*,[\s\S]*b\.user_id AS business_owner_id/.test(sql)) {
         return {
           rows: [{
             id: RESTAURANT_ID,
@@ -1342,7 +1342,7 @@ describe('food wallet security wiring', () => {
 
   test('wallet load requester cannot approve their own pending load', async () => {
     mockQuery.mockImplementation(async (sql) => {
-      if (/SELECT fr\.id, fr\.business_id, fr\.owner_user_id/.test(sql)) {
+      if (/SELECT fr\.\*,[\s\S]*b\.user_id AS business_owner_id/.test(sql)) {
         return {
           rows: [{
             id: RESTAURANT_ID,
@@ -1396,7 +1396,7 @@ describe('food wallet security wiring', () => {
 
   test('owner can suspend a customer wallet with audit logging', async () => {
     mockQuery.mockImplementation(async (sql) => {
-      if (/SELECT fr\.id, fr\.business_id, fr\.owner_user_id/.test(sql)) {
+      if (/SELECT fr\.\*,[\s\S]*b\.user_id AS business_owner_id/.test(sql)) {
         return {
           rows: [{
             id: RESTAURANT_ID,
@@ -1490,7 +1490,7 @@ describe('food wallet security wiring', () => {
 
   test('owner can reconcile customer wallet accounts and ledger movement', async () => {
     mockQuery.mockImplementation(async (sql) => {
-      if (/SELECT fr\.id, fr\.business_id, fr\.owner_user_id/.test(sql)) {
+      if (/SELECT fr\.\*,[\s\S]*b\.user_id AS business_owner_id/.test(sql)) {
         return {
           rows: [{
             id: RESTAURANT_ID,
@@ -1578,7 +1578,7 @@ describe('food wallet security wiring', () => {
 
   test('owner can export a customer-scoped wallet statement with ledger hashes', async () => {
     mockQuery.mockImplementation(async (sql) => {
-      if (/SELECT fr\.id, fr\.business_id, fr\.owner_user_id/.test(sql)) {
+      if (/SELECT fr\.\*,[\s\S]*b\.user_id AS business_owner_id/.test(sql)) {
         return {
           rows: [{
             id: RESTAURANT_ID,
@@ -1737,7 +1737,7 @@ describe('food wallet security wiring', () => {
     }, CURRENT_WALLET_HASH_ALGORITHM);
 
     mockQuery.mockImplementation(async (sql, params) => {
-      if (/SELECT fr\.id, fr\.business_id, fr\.owner_user_id/.test(sql)) {
+      if (/SELECT fr\.\*,[\s\S]*b\.user_id AS business_owner_id/.test(sql)) {
         return {
           rows: [{
             id: RESTAURANT_ID,

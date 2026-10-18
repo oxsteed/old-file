@@ -22,6 +22,9 @@
  */
 
 const { AppError } = require('../middleware/errorHandler');
+// Canonical restaurant-owner check (analytics scope model, Phase 1 Item 6).
+// Same owner CASE and `!userId -> false` guard as the former local helper.
+const { isRestaurantOwner } = require('../services/scopeModel');
 const { evaluateFundingCompliance } = require('../services/fiatComplianceService');
 const { verifyStepupChallenge, issueStepupChallenge } = require('../services/stepupChallengeService');
 const topupService = require('../services/restaurantTopupService');
@@ -206,19 +209,6 @@ async function issueTopupStepupChallenge(req, res, next) {
   } catch (err) {
     next(err);
   }
-}
-
-async function isRestaurantOwner(userId, restaurantId) {
-  if (!userId) return false;
-  const { rows } = await pool.query(
-    `SELECT 1
-       FROM food_restaurants fr
-       JOIN businesses b ON b.id = fr.business_id
-      WHERE fr.id = $1 AND (b.user_id = $2 OR fr.owner_user_id = $2)
-      LIMIT 1`,
-    [restaurantId, userId]
-  );
-  return !!rows[0];
 }
 
 // GET /api/restaurants/:restaurantId/topup-eligibility

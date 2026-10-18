@@ -17,14 +17,11 @@
 
 const pool   = require('../db');
 const logger = require('../utils/logger');
+const metricsRegistry = require('../analytics/metricsRegistry');
 
-// ── Period map (mirrors superAdminController) ────────────────────────────
-const PERIODS = {
-  '7d':  { interval: '7 days',   prev: '14 days',  trunc: 'day'   },
-  '30d': { interval: '30 days',  prev: '60 days',  trunc: 'day'   },
-  '90d': { interval: '90 days',  prev: '180 days', trunc: 'week'  },
-  '1y':  { interval: '365 days', prev: '730 days', trunc: 'month' },
-};
+// ── Period map: canonical, owned by the metrics registry ─────────────────
+// ('1y' = '1 year'; previously '365 days' here — normalized to the registry.)
+const PERIODS = metricsRegistry.PERIOD_INTERVAL;
 
 // ── Fail-open helpers ────────────────────────────────────────────────────
 const safeInt   = (v) => parseInt(v  ?? 0, 10)  || 0;
@@ -143,6 +140,9 @@ exports.getKpis = async (req, res) => {
     }
 
     // ── GMV (Gross Merchandise Value) from completed jobs ─────────────
+    // KNOWN LIMITATION (registry: investor_gmv_cents): SUM(budget_max) is
+    // budgets, not actuals. Kept as-is on investor surfaces; not silently
+    // redefined.
     let gmv_cents = 0;
     if (hasJobs) {
       const [gmvRow] = await safeQuery(`
@@ -154,6 +154,19 @@ exports.getKpis = async (req, res) => {
         WHERE status = 'completed'
       `);
       gmv_cents = safeInt(gmvRow?.gmv_cents);
+    }
+
+    // ── Investor take-rate (metrics registry) ──────────────────────────
+    // Canonical: all-time job_fee take / all-time budget GMV. The old
+    // formula divided all-time take INCLUDING subscriptions by budget GMV
+    // and could exceed 100% by construction.
+    let take_rate_pct = null;
+    if (hasLedger && hasJobs) {
+      try {
+        take_rate_pct = await metricsRegistry.investorTakeRatePct(pool);
+      } catch (e) {
+        logger.warn('[investor] take-rate skipped', { msg: e.message });
+      }
     }
 
     // ── Pending payouts ────────────────────────────────────────────────
@@ -203,9 +216,7 @@ exports.getKpis = async (req, res) => {
 
         // Derived
         gmv_cents,
-        take_rate_pct: gmv_cents > 0
-          ? Math.round((revenue_total / gmv_cents) * 10000) / 100  // e.g. 8.50
-          : null,
+        take_rate_pct,
       },
     });
   } catch (err) {

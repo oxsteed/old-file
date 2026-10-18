@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Download, Trash2, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import adminApi from '../../lib/adminApi';
@@ -12,6 +12,11 @@ import { useHasGrant } from '../lib/GrantGuard';
 import { adminDate } from '../lib/formatters';
 
 const STATUSES = ['', 'published', 'accepted', 'in_progress', 'completed', 'cancelled', 'disputed'];
+
+function positiveQueryInt(value, fallback) {
+  const parsed = Number.parseInt(value || '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
 
 function statusLabel(status, t) {
   return t(`adminJobs.status.${status}`, { defaultValue: status.replace(/_/g, ' ') });
@@ -39,7 +44,20 @@ export default function JobsList() {
   const [jobs, setJobs] = useState([]);
   const [total, setTotal] = useState(0);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [filters, setFilters] = useState({ search: '', status: '', page: 1 });
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Dashboard deep links (e.g. /admin/jobs?status=published) and browser
+  // back/forward navigation are part of the jobs-page contract. URL params
+  // initialize and stay authoritative for every supported filter without
+  // letting arbitrary values reach the API.
+  const queryFilters = useMemo(() => {
+    const status = searchParams.get('status') || '';
+    return {
+      search: searchParams.get('search') || '',
+      status: STATUSES.includes(status) ? status : '',
+      page: positiveQueryInt(searchParams.get('page'), 1),
+    };
+  }, [searchParams]);
+  const [filters, setFilters] = useState(queryFilters);
   const [exportError, setExportError] = useState('');
   const [deleting, setDeleting] = useState(null);
   const [deleteReason, setDeleteReason] = useState('');
@@ -64,7 +82,30 @@ export default function JobsList() {
 
   const fetchJobs = reload;
 
-  const updateFilter = (key, value) => setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
+  // Keep the URL filters authoritative when the URL changes underneath the
+  // page (deep links, back/forward). No-op when state already matches.
+  useEffect(() => {
+    setFilters((current) => {
+      const unchanged = Object.keys(queryFilters).every((key) => current[key] === queryFilters[key]);
+      return unchanged ? current : queryFilters;
+    });
+  }, [queryFilters]);
+
+  const updateFilter = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set(key, String(value));
+    else next.delete(key);
+    if (key !== 'page') next.set('page', '1');
+    setSearchParams(next, { replace: true });
+  };
+
+  const setPage = (page) => {
+    setFilters(prev => ({ ...prev, page }));
+    const next = new URLSearchParams(searchParams);
+    next.set('page', String(page));
+    setSearchParams(next, { replace: true });
+  };
 
   // Typeahead items for the jobs search, fed by the most recent server results.
   const jobSuggestItems = useMemo(() => jobs
@@ -236,12 +277,12 @@ export default function JobsList() {
         <div className="flex items-center justify-between mt-4 text-sm text-gray-400">
           <span>{t('adminJobs.pageTotal', { page: filters.page, total })}</span>
           <div className="flex gap-2">
-            <button onClick={() => setFilters(p => ({ ...p, page: Math.max(1, p.page - 1) }))}
+            <button onClick={() => setPage(Math.max(1, filters.page - 1))}
               disabled={filters.page <= 1}
               className="px-3 py-1 bg-gray-800 border border-gray-700 rounded-lg disabled:opacity-40 hover:bg-gray-700 transition-colors">
               ← {t('common.previous')}
             </button>
-            <button onClick={() => setFilters(p => ({ ...p, page: p.page + 1 }))}
+            <button onClick={() => setPage(filters.page + 1)}
               disabled={jobs.length < 25}
               className="px-3 py-1 bg-gray-800 border border-gray-700 rounded-lg disabled:opacity-40 hover:bg-gray-700 transition-colors">
               {t('common.next')} →

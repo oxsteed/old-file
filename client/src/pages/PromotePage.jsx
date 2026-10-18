@@ -1094,6 +1094,11 @@ function ToolkitTab({ target, qrSrc, tone, seoChecks, setSeoChecks, onTrackedCli
   // P1-312: the business's own request status (requested, contacted,
   // approved, expired, declined, closed) so it is never left guessing.
   const [placementRequest, setPlacementRequest] = useState(null);
+  // Campaign performance (Phase 2, Item 10): server-side funnel for this
+  // business's featured-placement campaign. Loading/error/empty states.
+  const [campaignPerf, setCampaignPerf] = useState(null);
+  const [campaignPerfLoading, setCampaignPerfLoading] = useState(false);
+  const [campaignPerfError, setCampaignPerfError] = useState(false);
   useEffect(() => {
     if (!target.businessId) { setPlacementRequest(null); return undefined; }
     let cancelled = false;
@@ -1102,6 +1107,17 @@ function ToolkitTab({ target, qrSrc, tone, seoChecks, setSeoChecks, onTrackedCli
       .catch(() => { if (!cancelled) setPlacementRequest(null); });
     return () => { cancelled = true; };
   }, [target.businessId]);
+  useEffect(() => {
+    if (!target.businessId) { setCampaignPerf(null); return undefined; }
+    let cancelled = false;
+    setCampaignPerfLoading(true);
+    setCampaignPerfError(false);
+    api.get(`/businesses/${target.businessId}/campaign-performance`)
+      .then(({ data }) => { if (!cancelled) setCampaignPerf(data?.campaigns || []); })
+      .catch(() => { if (!cancelled) { setCampaignPerf(null); setCampaignPerfError(true); } })
+      .finally(() => { if (!cancelled) setCampaignPerfLoading(false); });
+    return () => { cancelled = true; };
+  }, [target.businessId, placementRequest?.status]);
   // Email signature ---------------------------------------------------------
   const sigName = target.providerName;
   const sigTitle = target.serviceText;
@@ -1379,6 +1395,36 @@ function ToolkitTab({ target, qrSrc, tone, seoChecks, setSeoChecks, onTrackedCli
               </button>
             )}
           </div>
+          {/* Campaign performance (Phase 2, Item 10) */}
+          {target.businessId && (
+            <div className="promote-perf" aria-live="polite">
+              <h4><BarChart3 size={15} /> {t('promotePage.toolkit.performance.title')}</h4>
+              {campaignPerfLoading ? (
+                <p className="promote-help">{t('food.common.loading')}</p>
+              ) : campaignPerfError ? (
+                <p className="promote-help" role="alert">{t('promotePage.toolkit.performance.loadError')}</p>
+              ) : (campaignPerf || []).length === 0 ? (
+                <p className="promote-help">{t('promotePage.toolkit.performance.noData')}</p>
+              ) : (
+                campaignPerf.map((c) => (
+                  <div key={c.campaign_id} className="promote-perf-campaign">
+                    <p className="promote-help">
+                      {c.is_live && <strong>{t('promotePage.toolkit.performance.live')} · </strong>}
+                      {t(`promotePage.toolkit.featuredStatus.${c.status}`)}
+                    </p>
+                    <div className="promote-perf-stats">
+                      <div><strong>{c.impressions || 0}</strong><span>{t('promotePage.toolkit.performance.impressions')}</span></div>
+                      <div><strong>{c.clicks || 0}</strong><span>{t('promotePage.toolkit.performance.clicks')}</span></div>
+                      <div><strong>{c.conversions || 0}</strong><span>{t('promotePage.toolkit.performance.conversions')}</span></div>
+                      <div><strong>{c.click_through_rate == null ? '—' : `${(c.click_through_rate * 100).toFixed(1)}%`}</strong><span>{t('promotePage.toolkit.performance.clickThroughRate')}</span></div>
+                      <div><strong>{c.conversion_rate == null ? '—' : `${(c.conversion_rate * 100).toFixed(1)}%`}</strong><span>{t('promotePage.toolkit.performance.conversionRate')}</span></div>
+                    </div>
+                    <p className="promote-help">{t('promotePage.toolkit.performance.windowNote')}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
       </section>
     </>

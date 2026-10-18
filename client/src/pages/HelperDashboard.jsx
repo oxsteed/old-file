@@ -15,6 +15,7 @@ import HelperOffersCard from '../components/HelperOffersCard';
 import EditProfileTab from '../components/EditProfileTab';
 import AIKnowledgeTab from '../components/AIKnowledgeTab';
 import HelperAvailabilityEditor from '../components/HelperAvailabilityEditor';
+import HelperJobEarnings from '../components/HelperJobEarnings';
 import { useSocket } from '../hooks/useSocket';
 import useNearbyJobs from '../hooks/useNearbyJobs';
 import { useCapabilities } from '../hooks/useCapabilities';
@@ -1657,6 +1658,7 @@ export default function HelperDashboard() {
 
         {/* ═══════ EARNINGS ═══════ */}
         {tab==='earnings'&&(<>
+          <HelperJobEarnings/>
           <Card className="mb-6">
             <CardHeader icon={IcoDollar} title={monthYearLabel()} right={<Btn onClick={()=>setShowExpenseModal(true)}>{t('dashboard.money.logTransaction')}</Btn>}/>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

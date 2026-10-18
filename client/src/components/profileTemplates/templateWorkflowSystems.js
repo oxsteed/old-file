@@ -253,7 +253,7 @@ const CATEGORY_SYSTEMS = {
       { tab: 'services', label: 'Services & Booking', reason: 'Differentiate consultation from implementation offers.' },
       { tab: 'quotes', label: 'Quotes', reason: 'Scope builds and larger technical work.' },
       { tab: 'recurring', label: 'Documents & Records', reason: 'Use repeatable plans, scopes, and templates.' },
-      { tab: 'analytics', label: 'Analytics', reason: 'Track what technical offers actually convert.' },
+      { tab: 'overview', label: 'Overview', reason: 'Track revenue and job value from the financial overview.' },
     ],
     dailyCadence: ['Review discovery leads', 'Advance scope conversations', 'Log delivery milestone updates'],
     weeklyCadence: ['Audit proposal conversion', 'Refresh offer clarity', 'Review retainer pipeline'],

@@ -12,7 +12,7 @@ const statementController = require('../controllers/creditStatementController');
 const kiosk = require('../controllers/restaurantKioskController');
 const oxsteedCreditPartnerCtrl = require('../controllers/oxsteedCreditPartnerController');
 const { requireAdmin } = require('../middleware/adminAuth');
-const { creditExportLimiter, creditPurchaseLimiter, paymentsLimiter, restaurantCreditMutationLimiter, profileChatLimiter, foodCheckoutCompleteLimiter } = require('../middleware/rateLimiter');
+const { creditExportLimiter, creditPurchaseLimiter, paymentsLimiter, restaurantCreditMutationLimiter, profileChatLimiter, foodCheckoutCompleteLimiter, generalLimiter } = require('../middleware/rateLimiter');
 const checkRestrictions = require('../middleware/checkRestrictions');
 
 function noStoreCreditResponse(_req, res, next) {
@@ -27,6 +27,9 @@ router.get('/restaurants', ctrl.listRestaurants);
 router.get('/restaurants/:restaurantId', ctrl.getRestaurant);
 router.get('/restaurants/:restaurantId/queue-board', ctrl.getQueueBoard);
 router.get('/restaurants/:restaurantId/promotions', ctrl.listRestaurantPromotions);
+// Campaign analytics (Phase 2, Item 10): featured-card click beacon.
+// Public, rate-limited, always 204.
+router.post('/restaurants/:restaurantId/campaign-click', optionalAuth, generalLimiter, ctrl.trackCampaignClick);
 router.get('/restaurants/:restaurantId/locations', optionalAuth, ctrl.listRestaurantLocations);
 router.get('/restaurants/:restaurantId/kiosk-config', kiosk.getPublicKioskConfig);
 router.get('/payment-config', ctrl.getPaymentConfig);

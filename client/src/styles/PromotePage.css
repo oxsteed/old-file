@@ -1655,3 +1655,41 @@ html:not(.dark) .promote-code-block {
   background: #1e293b;
   /* keep dark-panel code block intentionally dark in both modes for legibility */
 }
+
+/* ── Campaign performance (Phase 2, Item 10) ─────────────────────────────── */
+.promote-perf {
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border-color);
+}
+.promote-perf h4 {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.95rem;
+  margin: 0 0 0.5rem;
+}
+.promote-perf-campaign {
+  margin-bottom: 0.75rem;
+}
+.promote-perf-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+.promote-perf-stats > div {
+  display: flex;
+  flex-direction: column;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--card-bg, #fff);
+}
+.promote-perf-stats strong {
+  font-size: 1.05rem;
+}
+.promote-perf-stats span {
+  color: var(--muted-text);
+  font-size: 0.75rem;
+}

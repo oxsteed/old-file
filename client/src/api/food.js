@@ -47,6 +47,25 @@ export const getFeaturedRestaurants = (params = {}) =>
 export const getFoodRestaurant = (restaurantId) =>
   api.get(`/food/restaurants/${restaurantId}`).then((r) => r.data);
 
+// Campaign analytics (Phase 2, Item 10): featured-card click beacon.
+// Best-effort only: sendBeacon on navigation, silent no-op on failure.
+// Never rejects, never blocks the click.
+export const trackFeaturedPlacementClick = (restaurantId) => {
+  try {
+    const id = Number(restaurantId);
+    if (!Number.isInteger(id) || id <= 0) return;
+    const url = `/api/food/restaurants/${id}/campaign-click`;
+    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+      navigator.sendBeacon(url, new Blob([JSON.stringify({})], { type: 'application/json' }));
+      return;
+    }
+    fetch(url, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: '{}' })
+      .catch(() => {});
+  } catch (_) {
+    // analytics must never break navigation
+  }
+};
+
 export const getFoodQueueBoard = (restaurantId) =>
   api.get(`/food/restaurants/${restaurantId}/queue-board`).then((r) => r.data);
 

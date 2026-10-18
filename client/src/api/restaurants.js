@@ -157,3 +157,8 @@ export const getInventoryReport = (restaurantId, params = {}) =>
 
 export const getOperationsReport = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/reports/operations`, { params }).then((r) => r.data);
+
+// ── Loyalty analytics (Phase 2, Item 10) ─────────────────────────────────────
+// Repeat-order rate + top items by revenue. Fixed 90-day window server-side.
+export const getLoyaltyReport = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/reports/loyalty`).then((r) => r.data);

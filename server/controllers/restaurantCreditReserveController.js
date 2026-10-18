@@ -15,8 +15,11 @@
  */
 
 const { AppError } = require('../middleware/errorHandler');
+// Canonical restaurant access gate (analytics scope model, Phase 1 Item 6).
+// Formerly imported from foodWalletController; the shared gate has the same
+// ownership CASE and 404 (no fast-fail guard on either path).
+const { resolveRestaurantAccess: requireRestaurantAccess } = require('../services/scopeModel');
 const {
-  requireRestaurantAccess,
   assertWalletOperator,
 } = require('./foodWalletController');
 const reserveService = require('../services/restaurantCreditReserveService');

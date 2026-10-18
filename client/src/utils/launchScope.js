@@ -62,7 +62,7 @@ export const LAUNCH_BUSINESS_HUB_TABS = new Set([
 ]);
 
 export const LAUNCH_DEFAULTS = Object.freeze({
-  affiliateRewards: false,
+  affiliateRewards: true,
   aiKnowledge: false,
   backgroundChecks: false,
   businessAscension: false,
@@ -83,7 +83,7 @@ export const LAUNCH_DEFAULTS = Object.freeze({
   discoverEverything: false,
   footerUtilityPills: true,
   genericQrGenerator: false,
-  helperEarnings: false,
+  helperEarnings: true,
   helperGrowthCenter: false,
   helperInvoices: true,
   jobEscrowLabels: true,

@@ -12,6 +12,10 @@ const foodCreditFraudService = require('../services/foodCreditFraudService');
 // row are capped at issuance; restaurants without one continue under the
 // trial-tier cap (Phase 5 owns that).
 const { debitCreditReserveForIssuance } = require('../services/restaurantCreditReserveService');
+// Canonical restaurant access gate (analytics scope model, Phase 1 Item 6).
+// Replaces the former local requireRestaurantAccess copy: same ownership
+// CASE, same 404, plus the union of columns the variants selected.
+const { resolveRestaurantAccess: requireRestaurantAccess } = require('../services/scopeModel');
 const revocationService = require('../services/restaurantCreditRevocationService');
 // Phase 5: trial-tier credit cap + FIFO derisking. Applies ONLY to
 // restaurants WITHOUT a Phase 4 reserve row (no double-enforcement: the
@@ -204,32 +208,6 @@ function parseWalletLoadRequestStatuses(value) {
     });
   }
   return statuses;
-}
-
-async function requireRestaurantAccess(userId, restaurantId) {
-  const { rows } = await pool.query(
-    `SELECT fr.id, fr.business_id, fr.owner_user_id, fr.display_name, fr.currency_code,
-            CASE
-              WHEN b.user_id = $2 OR fr.owner_user_id = $2 THEN 'owner'
-              ELSE (
-                SELECT bm.role
-                  FROM business_members bm
-                 WHERE bm.business_id = fr.business_id
-                   AND bm.member_id = $2
-                   AND bm.status = 'active'
-                 LIMIT 1
-              )
-            END AS effective_role
-       FROM food_restaurants fr
-       JOIN businesses b ON b.id = fr.business_id
-      WHERE fr.id = $1
-      LIMIT 1`,
-    [restaurantId, userId]
-  );
-  if (!rows[0] || !rows[0].effective_role) {
-    throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-  }
-  return rows[0];
 }
 
 const WALLET_OPERATOR_ROLES = new Set(['owner', 'manager']);

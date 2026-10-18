@@ -1,4 +1,63 @@
 {
+  "queryBuilder": {
+    "title": "Query builder",
+    "subtitle": "Build read-only analytics queries from governed metrics. Every run is audit-logged.",
+    "metricLabel": "Metric",
+    "metricPlaceholder": "Select a metric",
+    "dimensionsLabel": "Dimensions",
+    "noDimensions": "No dimensions available for this metric.",
+    "filtersLabel": "Filters",
+    "noFilters": "No filters available for this metric.",
+    "periodLabel": "Period",
+    "periodInsensitiveNote": "This metric is a point-in-time snapshot; the period does not change its value.",
+    "run": "Run query",
+    "running": "Running...",
+    "resultsTitle": "Results",
+    "noResults": "No rows returned.",
+    "truncatedNotice": "Results capped at {{cap}} rows.",
+    "rowCount": "{{count}} rows",
+    "duration": "{{ms}} ms",
+    "exportCsv": "Export CSV",
+    "clear": "Clear",
+    "errorTitle": "Query failed",
+    "loadFailed": "Could not load the metric catalog.",
+    "retry": "Retry",
+    "chooseMetricFirst": "Choose a metric to see its dimensions and filters.",
+    "filterRole": "Role cohort",
+    "filterCustomerId": "Customer ID (UUID)",
+    "filterBusinessId": "Business ID",
+    "filterRestaurantId": "Restaurant ID",
+    "dimensionPeriod": "Time bucket",
+    "dimensionRole": "Role cohort",
+    "dimensionBusiness": "Business",
+    "dimensionRestaurant": "Restaurant",
+    "nlSectionTitle": "Ask in plain language",
+    "nlSectionBody": "Type a question in plain English. It is compiled into a read-only query over the governed metrics — nothing runs until you confirm the interpretation.",
+    "nlPlaceholder": "e.g. cancel rate by role last month",
+    "nlEnglishOnly": "English only for now; the parser does not interpret other languages.",
+    "nlInterpret": "Interpret",
+    "nlParsing": "Interpreting…",
+    "nlInterpretationTitle": "Interpretation — confirm before running",
+    "nlConfirmRun": "Run this query",
+    "nlDismiss": "Dismiss",
+    "nlRejected": "Could not interpret",
+    "nlParseFailed": "Could not reach the parser.",
+    "metricNames": {
+      "open_disputes": "Open disputes",
+      "platform_revenue_cents": "Platform revenue",
+      "investor_gmv_cents": "Investor GMV",
+      "investor_take_rate_pct": "Investor take rate",
+      "cancel_rate_pct": "Cancel rate",
+      "consulting_cancel_rate_pct": "Consulting cancel rate",
+      "sla_first_response_compliance_pct": "SLA first-response compliance",
+      "support_nps_index": "Support NPS",
+      "consulting_avg_nps": "Consulting avg NPS",
+      "mrr_cents": "MRR",
+      "escrow_held_cents": "Escrow held",
+      "restaurant_repeat_order_rate": "Restaurant repeat order rate",
+      "restaurant_top_items_revenue": "Restaurant top items revenue"
+    }
+  },
   "customerWorkspace": {
     "title": "Customer workspace",
     "eyebrow": "CUSTOMER 360",
@@ -4795,6 +4854,28 @@
     "openConversation": "Open conversation"
   },
   "helperDashboard": {
+    "jobEarnings": {
+      "title": "Job earnings",
+      "lifetime": "Lifetime earnings",
+      "thisWeek": "This week",
+      "thisMonth": "This month",
+      "completedJobs": "Completed jobs",
+      "available": "Available",
+      "pendingPayout": "Pending payout",
+      "paidOut": "Paid out",
+      "payouts": "Payouts",
+      "recentJobs": "Recent jobs",
+      "weeklyTrend": "Weekly earnings",
+      "loading": "Loading earnings…",
+      "loadFailed": "Could not load earnings. Please try again.",
+      "retry": "Retry",
+      "noJobs": "No completed jobs yet. Your job earnings will show up here once jobs are completed.",
+      "statusEarned": "Earned",
+      "statusNotReady": "Not ready",
+      "statusPending": "Pending",
+      "statusProcessing": "Processing",
+      "statusPaid": "Paid"
+    },
     "workspaceEyebrow": "Your OxSteed workspace",
     "workspaceRoles": "Your OxSteed roles",
     "helperRole": "Earn as a helper",
@@ -6936,6 +7017,7 @@
       "allRoles": "All Roles",
       "allStatus": "All Status",
       "allPlans": "All Plans",
+      "allVerified": "All Verified",
       "sortBy": "Sort: {{label}}",
       "sort": {
         "first_name": "Name",
@@ -23520,7 +23602,19 @@
         },
         "range7": "Last 7 days",
         "range30": "Last 30 days",
-        "range90": "Last 90 days"
+        "range90": "Last 90 days",
+        "loyalty": {
+          "title": "Customer loyalty",
+          "repeatRate": "Repeat order rate",
+          "windowHint": "Last 90 days · guest orders excluded",
+          "repeatOrders": "Repeat orders",
+          "repeatCustomers": "Repeat customers",
+          "identifiedOrders": "Identified orders",
+          "topItems": "Top items by revenue",
+          "unitsSold": "{{units}} sold",
+          "noData": "No identified customer orders in the last 90 days.",
+          "loadError": "Could not load loyalty analytics."
+        }
       },
       "opChipTraining": "{{count}} training",
       "opChipOpenActions": "{{count}} open actions",
@@ -23679,7 +23773,19 @@
       "chooseBusinessPage": "Choose business page",
       "chooseBusinessPageFirst": "Choose a business page in the Studio tab before requesting featured placement.",
       "featuredSent": "Featured placement request sent",
-      "featuredFailed": "Failed to request featured placement"
+      "featuredFailed": "Failed to request featured placement",
+      "performance": {
+        "title": "Placement performance",
+        "impressions": "Impressions",
+        "clicks": "Clicks",
+        "conversions": "Conversions",
+        "clickThroughRate": "Click-through rate",
+        "conversionRate": "Conversion rate",
+        "live": "Live now",
+        "noData": "No events yet. Stats appear once your placement is live.",
+        "loadError": "Could not load placement performance.",
+        "windowNote": "Conversions count orders placed while the placement is live."
+      }
     },
     "playbook": {
       "monday": "Monday",
@@ -25869,8 +25975,8 @@
           "reason": "Use repeatable plans, scopes, and templates."
         },
         {
-          "label": "Analytics",
-          "reason": "Track what technical offers actually convert."
+          "label": "Overview",
+          "reason": "Track revenue and job value from the financial overview."
         }
       ],
       "dailyCadence": [
@@ -33471,7 +33577,8 @@
       "api-keys": "API Keys",
       "tabs": "Tabs",
       "title": "Essential Tabs",
-      "hint": "Uncheck tabs you do not need. They will be hidden from your sidebar."
+      "hint": "Uncheck tabs you do not need. They will be hidden from your sidebar.",
+      "metric-alerts": "Metric alerts"
     },
     "profile": {
       "title": "Profile",
@@ -33497,7 +33604,8 @@
       "notify_new_admins": "New admin signups",
       "notify_disputes": "Disputes",
       "email_notifications": "Email notifications",
-      "sms_notifications": "SMS notifications"
+      "sms_notifications": "SMS notifications",
+      "notify_metric_alerts": "Metric threshold alerts"
     },
     "apiKeys": {
       "title": "API Keys",
@@ -33509,6 +33617,62 @@
       "created": "Created",
       "lastUsed": "Last used",
       "confirmRevoke": "Revoke this API key?"
+    },
+    "metricAlerts": {
+      "title": "Metric Threshold Alerts",
+      "hint": "Rules are evaluated every minute against the governed metrics registry. An alert fires at most once per cooldown, and only on channels you enabled.",
+      "empty": "No alert rules yet. Create one to watch a metric.",
+      "newRule": "New alert rule",
+      "editRule": "Edit alert rule",
+      "metric": "Metric",
+      "operator": "Condition",
+      "threshold": "Threshold",
+      "period": "Period",
+      "days": "Lookback days",
+      "cooldownMinutes": "Cooldown (minutes)",
+      "cooldownHint": "After firing, the rule will not fire again for this many minutes.",
+      "channels": "Delivery channels",
+      "channelInApp": "In-app",
+      "channelEmail": "Email",
+      "channelSms": "SMS",
+      "active": "Rule active",
+      "edit": "Edit",
+      "cancel": "Cancel",
+      "confirmDelete": "Delete this alert rule?",
+      "saveFailed": "Could not save the alert rule.",
+      "lastFired": "Last fired",
+      "never": "Never",
+      "currentValue": "Current value",
+      "paused": "Paused",
+      "noValue": "n/a",
+      "thresholdHint": {
+        "cents": "Enter the threshold in cents (e.g. 500000 = $5,000.00).",
+        "pct": "Enter the threshold in percentage points (e.g. 5 = 5%).",
+        "count": "Enter the threshold as a whole number.",
+        "index": "Enter the threshold as an index value (e.g. 50)."
+      },
+      "operators": {
+        "gt": "above (>)",
+        "lt": "below (<)",
+        "eq": "equals (==)"
+      },
+      "periods": {
+        "1d": "Last 24 hours",
+        "7d": "Last 7 days",
+        "30d": "Last 30 days",
+        "90d": "Last 90 days",
+        "1y": "Last 12 months"
+      },
+      "metrics": {
+        "open_disputes": "Open disputes",
+        "platform_revenue_cents": "Platform revenue",
+        "investor_take_rate_pct": "Investor take rate",
+        "cancel_rate_pct": "Cancel rate",
+        "support_nps_index": "Support NPS",
+        "consulting_avg_nps": "Consulting average NPS",
+        "mrr_cents": "Monthly recurring revenue",
+        "escrow_held_cents": "Escrow held"
+      }
     }
   },
   "adminFoodOrderDetail": {

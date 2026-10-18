@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { User, Shield, Bell, Key, Trash2, Plus, Copy, Check, LayoutGrid } from 'lucide-react';
+import { User, Shield, Bell, Key, Trash2, Plus, Copy, Check, LayoutGrid, AlertTriangle, Pencil } from 'lucide-react';
 import api from '../../api/axios';
 import logger from '../../utils/logger';
 import './AdminUserSettingsPage.css';
@@ -12,9 +12,33 @@ const TABS = [
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'sessions', label: 'Sessions', icon: Shield },
   { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'metric-alerts', label: 'Metric alerts', icon: AlertTriangle },
   { id: 'api-keys', label: 'API Keys', icon: Key },
   { id: 'tabs', label: 'Tabs', icon: LayoutGrid },
 ];
+
+const VALID_TAB_IDS = new Set(TABS.map(tab => tab.id));
+
+function initialTabFromUrl() {
+  try {
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    if (tab && VALID_TAB_IDS.has(tab)) return tab;
+  } catch (err) { /* ignore: default tab */ }
+  return 'profile';
+}
+
+const EMPTY_RULE_FORM = {
+  metric_name: '',
+  operator: '>',
+  threshold: '',
+  period: '30d',
+  days: '30',
+  cooldown_minutes: '60',
+  is_active: true,
+  channel_in_app: true,
+  channel_email: true,
+  channel_sms: false,
+};
 
 // Tab keys matching the admin route manifest (adminRouteManifest.js).
 // These are the tabs an admin can mark as essential or hide.
@@ -31,7 +55,7 @@ const MANAGEABLE_TABS = [
 
 export default function AdminUserSettingsPage() {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState('profile');
+  const [activeTab, setActiveTab] = useState(initialTabFromUrl);
   const [loading, setLoading] = useState(true);
 
   // Profile
@@ -56,17 +80,25 @@ export default function AdminUserSettingsPage() {
   const [tabPrefs, setTabPrefs] = useState({});
   const [tabSaving, setTabSaving] = useState(false);
 
+  // Metric threshold alert rules
+  const [alertRules, setAlertRules] = useState([]);
+  const [alertMetrics, setAlertMetrics] = useState([]);
+  const [editingRule, setEditingRule] = useState(null); // 'new' | rule object | null
+  const [ruleForm, setRuleForm] = useState(EMPTY_RULE_FORM);
+  const [ruleSaving, setRuleSaving] = useState(false);
+
   useEffect(() => { loadAll(); }, []);
 
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [p, s, n, k, tb] = await Promise.all([
+      const [p, s, n, k, tb, ar] = await Promise.all([
         api.get('/admin/settings/me'),
         api.get('/admin/settings/me/sessions'),
         api.get('/admin/settings/me/notifications'),
         api.get('/admin/settings/me/api-keys'),
         api.get('/admin/settings/me/tabs'),
+        api.get('/admin/settings/me/metric-alert-rules'),
       ]);
       setProfile(p.data);
       setProfileForm({
@@ -79,6 +111,8 @@ export default function AdminUserSettingsPage() {
       setNotifPrefs(n.data);
       setApiKeys(k.data.keys || []);
       setTabPrefs(tb.data.prefs || {});
+      setAlertRules(ar.data.rules || []);
+      setAlertMetrics(ar.data.metrics || []);
     } catch (err) {
       logger.error('Failed to load admin settings', err);
     } finally {
@@ -166,6 +200,87 @@ export default function AdminUserSettingsPage() {
     setTabPrefs({ ...tabPrefs, [tabKey]: current === false ? true : false });
   };
 
+  // ── Metric threshold alert rules ─────────────────────────────────────────
+  const metricMeta = (name) => alertMetrics.find(m => m.name === name) || null;
+  const metricUnit = (name) => metricMeta(name)?.unit || 'count';
+
+  const formatRuleValue = (metricName, raw) => {
+    const v = Number(raw);
+    if (!Number.isFinite(v)) return t('adminSettings.metricAlerts.noValue');
+    const unit = metricUnit(metricName);
+    if (unit === 'cents') return `$${(v / 100).toFixed(2)}`;
+    if (unit === 'pct' || unit === 'index') return v.toFixed(2);
+    return String(Math.round(v));
+  };
+
+  const startNewRule = () => {
+    setRuleForm({ ...EMPTY_RULE_FORM, metric_name: alertMetrics[0]?.name || '' });
+    setEditingRule('new');
+  };
+
+  const startEditRule = (rule) => {
+    setRuleForm({
+      metric_name: rule.metric_name,
+      operator: rule.operator,
+      threshold: String(rule.threshold),
+      period: rule.params?.period || '30d',
+      days: rule.params?.days != null ? String(rule.params.days) : '30',
+      cooldown_minutes: String(rule.cooldown_minutes),
+      is_active: !!rule.is_active,
+      channel_in_app: !!rule.channel_in_app,
+      channel_email: !!rule.channel_email,
+      channel_sms: !!rule.channel_sms,
+    });
+    setEditingRule(rule);
+  };
+
+  const saveRule = async () => {
+    const meta = metricMeta(ruleForm.metric_name);
+    if (!meta) return;
+    setRuleSaving(true);
+    try {
+      const params = {};
+      if (meta.params.includes('period')) params.period = ruleForm.period;
+      if (meta.params.includes('days')) params.days = parseInt(ruleForm.days, 10);
+      const payload = {
+        metric_name: ruleForm.metric_name,
+        operator: ruleForm.operator,
+        threshold: Number(ruleForm.threshold),
+        params,
+        cooldown_minutes: parseInt(ruleForm.cooldown_minutes, 10),
+        is_active: ruleForm.is_active,
+        channel_in_app: ruleForm.channel_in_app,
+        channel_email: ruleForm.channel_email,
+        channel_sms: ruleForm.channel_sms,
+      };
+      let saved;
+      if (editingRule === 'new') {
+        ({ data: { rule: saved } } = await api.post('/admin/settings/me/metric-alert-rules', payload));
+        setAlertRules([saved, ...alertRules]);
+      } else {
+        ({ data: { rule: saved } } = await api.put(`/admin/settings/me/metric-alert-rules/${editingRule.id}`, payload));
+        setAlertRules(alertRules.map(r => (r.id === saved.id ? saved : r)));
+      }
+      setEditingRule(null);
+    } catch (err) {
+      logger.error('Failed to save metric alert rule', err);
+      window.alert(err.response?.data?.message || t('adminSettings.metricAlerts.saveFailed'));
+    } finally {
+      setRuleSaving(false);
+    }
+  };
+
+  const deleteRule = async (rule) => {
+    if (!window.confirm(t('adminSettings.metricAlerts.confirmDelete'))) return;
+    try {
+      await api.delete(`/admin/settings/me/metric-alert-rules/${rule.id}`);
+      setAlertRules(alertRules.filter(r => r.id !== rule.id));
+      if (editingRule && editingRule !== 'new' && editingRule.id === rule.id) setEditingRule(null);
+    } catch (err) {
+      logger.error('Failed to delete metric alert rule', err);
+    }
+  };
+
   if (loading) {
     return <div className="admin-settings-loading">{t('common.loading', 'Loading...')}</div>;
   }
@@ -184,7 +299,9 @@ export default function AdminUserSettingsPage() {
               onClick={() => setActiveTab(tab.id)}
             >
               <Icon size={16} />
-              {t(`adminSettings.tabs.${tab.id}`, tab.label)}
+              {tab.id === 'metric-alerts'
+                ? t('adminSettings.tabs.metric-alerts')
+                : t(`adminSettings.tabs.${tab.id}`, tab.label)}
             </button>
           );
         })}
@@ -270,6 +387,8 @@ export default function AdminUserSettingsPage() {
               ['notify_incidents', 'Incidents'],
               ['notify_new_admins', 'New admin signups'],
               ['notify_disputes', 'Disputes'],
+              // New keys use t('key') with no defaultValue (i18n gate).
+              ['notify_metric_alerts', null],
               ['email_notifications', 'Email notifications'],
               ['sms_notifications', 'SMS notifications'],
             ].map(([key, label]) => (
@@ -279,12 +398,174 @@ export default function AdminUserSettingsPage() {
                   checked={!!notifPrefs[key]}
                   onChange={e => setNotifPrefs({ ...notifPrefs, [key]: e.target.checked })}
                 />
-                {t(`adminSettings.notifications.${key}`, label)}
+                {label == null
+                  ? t(`adminSettings.notifications.${key}`)
+                  : t(`adminSettings.notifications.${key}`, label)}
               </label>
             ))}
             <button className="admin-settings-save" onClick={saveNotifPrefs} disabled={notifSaving}>
               {notifSaving ? t('common.saving', 'Saving...') : t('common.save', 'Save')}
             </button>
+          </div>
+        )}
+
+        {activeTab === 'metric-alerts' && (
+          <div className="admin-settings-section">
+            <h2>{t('adminSettings.metricAlerts.title')}</h2>
+            <p className="admin-settings-hint">
+              {t('adminSettings.metricAlerts.hint')}
+            </p>
+            {alertRules.length === 0 && editingRule !== 'new' && (
+              <p>{t('adminSettings.metricAlerts.empty')}</p>
+            )}
+            {alertRules.map(rule => (
+              <div key={rule.id} className="admin-settings-session">
+                <div>
+                  <div className="admin-settings-session-device">
+                    {t(`adminSettings.metricAlerts.metrics.${rule.metric_name}`)}{' '}
+                    {rule.operator} {formatRuleValue(rule.metric_name, rule.threshold)}
+                    {!rule.is_active && (
+                      <span className="admin-settings-badge revoked">{t('adminSettings.metricAlerts.paused')}</span>
+                    )}
+                  </div>
+                  <div className="admin-settings-session-meta">
+                    {t('adminSettings.metricAlerts.lastFired')}:{' '}
+                    {rule.last_fired_at
+                      ? new Date(rule.last_fired_at).toLocaleString()
+                      : t('adminSettings.metricAlerts.never')}
+                    {' · '}
+                    {t('adminSettings.metricAlerts.currentValue')}: {formatRuleValue(rule.metric_name, rule.last_value)}
+                  </div>
+                </div>
+                <div className="admin-settings-row" style={{ gap: 8 }}>
+                  <button className="admin-settings-save" onClick={() => startEditRule(rule)}>
+                    <Pencil size={14} /> {t('adminSettings.metricAlerts.edit')}
+                  </button>
+                  <button className="admin-settings-danger" onClick={() => deleteRule(rule)}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {editingRule === null && (
+              <div className="admin-settings-row">
+                <button className="admin-settings-save" onClick={startNewRule}>
+                  <Plus size={14} /> {t('adminSettings.metricAlerts.newRule')}
+                </button>
+              </div>
+            )}
+            {editingRule !== null && (
+              <div className="admin-settings-section" style={{ marginTop: 16 }}>
+                <h2>{editingRule === 'new' ? t('adminSettings.metricAlerts.newRule') : t('adminSettings.metricAlerts.editRule')}</h2>
+                <div className="admin-settings-field">
+                  <label>{t('adminSettings.metricAlerts.metric')}</label>
+                  <select
+                    value={ruleForm.metric_name}
+                    onChange={e => setRuleForm({ ...ruleForm, metric_name: e.target.value })}
+                  >
+                    {alertMetrics.map(m => (
+                      <option key={m.name} value={m.name}>
+                        {t(`adminSettings.metricAlerts.metrics.${m.name}`)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="admin-settings-row">
+                  <div className="admin-settings-field">
+                    <label>{t('adminSettings.metricAlerts.operator')}</label>
+                    <select
+                      value={ruleForm.operator}
+                      onChange={e => setRuleForm({ ...ruleForm, operator: e.target.value })}
+                    >
+                      <option value=">">{t('adminSettings.metricAlerts.operators.gt')}</option>
+                      <option value="<">{t('adminSettings.metricAlerts.operators.lt')}</option>
+                      <option value="==">{t('adminSettings.metricAlerts.operators.eq')}</option>
+                    </select>
+                  </div>
+                  <div className="admin-settings-field">
+                    <label>{t('adminSettings.metricAlerts.threshold')}</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={ruleForm.threshold}
+                      onChange={e => setRuleForm({ ...ruleForm, threshold: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <p className="admin-settings-hint">
+                  {t(`adminSettings.metricAlerts.thresholdHint.${metricUnit(ruleForm.metric_name)}`)}
+                </p>
+                {metricMeta(ruleForm.metric_name)?.params.includes('period') && (
+                  <div className="admin-settings-field">
+                    <label>{t('adminSettings.metricAlerts.period')}</label>
+                    <select
+                      value={ruleForm.period}
+                      onChange={e => setRuleForm({ ...ruleForm, period: e.target.value })}
+                    >
+                      {['1d', '7d', '30d', '90d', '1y'].map(p => (
+                        <option key={p} value={p}>{t(`adminSettings.metricAlerts.periods.${p}`)}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {metricMeta(ruleForm.metric_name)?.params.includes('days') && (
+                  <div className="admin-settings-field">
+                    <label>{t('adminSettings.metricAlerts.days')}</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="365"
+                      value={ruleForm.days}
+                      onChange={e => setRuleForm({ ...ruleForm, days: e.target.value })}
+                    />
+                  </div>
+                )}
+                <div className="admin-settings-field">
+                  <label>{t('adminSettings.metricAlerts.cooldownMinutes')}</label>
+                  <input
+                    type="number"
+                    min="5"
+                    max="43200"
+                    value={ruleForm.cooldown_minutes}
+                    onChange={e => setRuleForm({ ...ruleForm, cooldown_minutes: e.target.value })}
+                  />
+                  <p className="admin-settings-hint">{t('adminSettings.metricAlerts.cooldownHint')}</p>
+                </div>
+                <div className="admin-settings-field">
+                  <label>{t('adminSettings.metricAlerts.channels')}</label>
+                  {[
+                    ['channel_in_app', t('adminSettings.metricAlerts.channelInApp')],
+                    ['channel_email', t('adminSettings.metricAlerts.channelEmail')],
+                    ['channel_sms', t('adminSettings.metricAlerts.channelSms')],
+                  ].map(([key, label]) => (
+                    <label key={key} className="admin-settings-toggle">
+                      <input
+                        type="checkbox"
+                        checked={!!ruleForm[key]}
+                        onChange={e => setRuleForm({ ...ruleForm, [key]: e.target.checked })}
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+                <label className="admin-settings-toggle">
+                  <input
+                    type="checkbox"
+                    checked={!!ruleForm.is_active}
+                    onChange={e => setRuleForm({ ...ruleForm, is_active: e.target.checked })}
+                  />
+                  {t('adminSettings.metricAlerts.active')}
+                </label>
+                <div className="admin-settings-row" style={{ marginTop: 12, gap: 8 }}>
+                  <button className="admin-settings-save" onClick={saveRule} disabled={ruleSaving}>
+                    {ruleSaving ? t('common.saving', 'Saving...') : t('common.save', 'Save')}
+                  </button>
+                  <button className="admin-settings-save" onClick={() => setEditingRule(null)}>
+                    {t('adminSettings.metricAlerts.cancel')}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

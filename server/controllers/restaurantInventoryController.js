@@ -14,6 +14,7 @@
 
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
+const { resolveRestaurantAccess } = require('../services/scopeModel');
 const { withTransaction } = require('../utils/transaction');
 const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
 const { getEffectivePermissions, hasAny } = require('../services/permissionsService');
@@ -58,33 +59,12 @@ function parseOperationId(value) {
   return id;
 }
 
+// Canonical restaurant access gate (analytics scope model, Phase 1 Item 6).
+// The fast-fail `!restaurantId` guard is preserved here (not inside the
+// shared gate) so invalid ids keep this module's exact 404 behavior.
 async function requireRestaurantAccess(userId, restaurantId) {
   if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-  const { rows } = await pool.query(
-    `SELECT fr.id, fr.business_id,
-            CASE
-              WHEN b.user_id = $2 OR fr.owner_user_id = $2 THEN 'owner'
-              ELSE (
-                SELECT bm.role FROM business_members bm
-                 WHERE bm.business_id = fr.business_id AND bm.member_id = $2 AND bm.status = 'active'
-                 LIMIT 1
-              )
-            END AS effective_role,
-            (
-              SELECT bm.id FROM business_members bm
-               WHERE bm.business_id = fr.business_id AND bm.member_id = $2 AND bm.status = 'active'
-               LIMIT 1
-            ) AS membership_id
-       FROM food_restaurants fr
-       JOIN businesses b ON b.id = fr.business_id
-      WHERE fr.id = $1`,
-    [restaurantId, userId]
-  );
-  const restaurant = rows[0];
-  if (!restaurant || !restaurant.effective_role) {
-    throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-  }
-  return restaurant;
+  return resolveRestaurantAccess(userId, restaurantId);
 }
 
 async function requireInventoryPermission(userId, restaurant, permissions) {

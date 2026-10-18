@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useSocket } from '../../hooks/useSocket';
 import api from '../../api/axios';
@@ -36,6 +37,14 @@ export default function AdminMessages() {
   const [sending,       setSending]       = useState(false);
   const [searchInput,   setSearchInput]   = useState('');
   const [listQuery,     setListQuery]     = useState('');
+
+  // Deep link target captured once on mount: Customer 360 links land here
+  // with ?conversation=<id> (the conversations.id from the shared
+  // /admin/messages/conversations endpoint) and the row only exists after
+  // the conversation list loads.
+  const [searchParams] = useSearchParams();
+  const deepLinkConversationId = useRef(searchParams.get('conversation')).current;
+  const [deepLinkConsumed, setDeepLinkConsumed] = useState(false);
 
   // Typeahead suggestions from the latest loaded conversation rows.
   const conversationSuggestItems = useMemo(() => {
@@ -123,6 +132,17 @@ export default function AdminMessages() {
       c.id === conv.id ? { ...c, unread_count: 0 } : c
     ));
   };
+
+  // Deep link (?conversation=<id>, e.g. from Customer 360): once the
+  // conversation list has loaded, open the matching thread. If the id is
+  // not in the loaded page the page simply stays on the list.
+  useEffect(() => {
+    if (deepLinkConsumed || !deepLinkConversationId || !conversationsData) return;
+    const conv = conversationsData.find((c) => String(c.id) === String(deepLinkConversationId));
+    if (conv) openThread(conv);
+    setDeepLinkConsumed(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkConsumed, deepLinkConversationId, conversationsData]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });

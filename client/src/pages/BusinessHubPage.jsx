@@ -20,7 +20,6 @@ const BusinessServicesTab = lazyNamed(() => import('../components/businessHub/Bu
 import { PricingRulesManager } from '../components/businessHub/PricingRulesManager';
 import { ProductManagement } from '../components/businessHub/ProductManagement';
 import { ProductPricingManager } from '../components/businessHub/ProductPricingManager';
-const BusinessAnalyticsTab = lazyNamed(() => import('../components/businessHub/BusinessAnalyticsTab'), 'BusinessAnalyticsTab');
 const CustomerLoyaltyManager = lazyNamed(() => import('../components/businessHub/CustomerLoyaltyManager'), 'CustomerLoyaltyManager');
 const BusinessIntegrations = lazyNamed(() => import('../components/businessHub/BusinessIntegrations'), 'BusinessIntegrations');
 const ExpenseTracker = lazyNamed(() => import('../components/businessHub/ExpenseTracker'), 'ExpenseTracker');
@@ -1343,7 +1342,6 @@ function BusinessHubInner() {
     'invoices', 'tax', 'goals',
     'service-pricing',
     'product-pricing',
-    'analytics',
     'loyalty',
     'team',
     'hiring',
@@ -1375,7 +1373,6 @@ function BusinessHubInner() {
     if (tb === 'messages' && !canAccessMessages) return false;
     if (financeTabIds.includes(tb) && !canViewFinanceHub) return false;
     if (tb === 'overview' && !canViewFinanceHub) return false;
-    if (tb === 'analytics' && !canEditBizProfile) return false;
     if (tb === 'loyalty' && !canEditBizProfile) return false;
     if (tb === 'hiring' && !canEditBizProfile) return false;
     if (tb === 'integrations' && currentRole !== 'owner') return false;
@@ -1466,7 +1463,6 @@ function BusinessHubInner() {
     if (tb === 'products')         return t('businessHub.tabProductsLabel',        { defaultValue: 'Products' });
     if (tb === 'service-pricing')  return t('businessHub.tabServicePricingLabel',  { defaultValue: 'Service Pricing' });
     if (tb === 'product-pricing')  return t('businessHub.tabProductPricingLabel',  { defaultValue: 'Product Pricing' });
-    if (tb === 'analytics')        return t('businessHub.tabAnalyticsLabel',        { defaultValue: 'Analytics' });
     if (tb === 'loyalty')          return t('businessHub.tabLoyaltyLabel',          { defaultValue: 'Loyalty' });
     if (tb === 'integrations')     return t('businessHub.tabIntegrationsLabel',     { defaultValue: 'Integrations' });
     if (tb === 'expenses')         return t('businessHub.tabExpensesLabel', { defaultValue: 'Expenses' });
@@ -2144,11 +2140,6 @@ function BusinessHubInner() {
             {/* ── Product Pricing tab ──────────────────────────────── */}
             {tab === 'product-pricing' && bizId && canEditBizProfile && (
               <ProductPricingManager businessId={bizId} />
-            )}
-
-            {/* ── Analytics tab ────────────────────────────────────── */}
-            {tab === 'analytics' && bizId && canEditBizProfile && (
-              <BusinessAnalyticsTab businessId={bizId} />
             )}
 
             {/* ── Loyalty tab ──────────────────────────────────────── */}

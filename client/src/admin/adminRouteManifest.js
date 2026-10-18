@@ -72,6 +72,7 @@ export const ADMIN_ROUTE_MANIFEST = Object.freeze({
   businessDetail: defineRoute('/admin/businesses/:id', { grant: 'manage_users' }),
   business360: defineRoute('/admin/businesses/:businessId/360', { grant: 'manage_users' }),
   consultingAnalytics: defineRoute('/admin/consulting/analytics'),
+  queryBuilder: defineRoute('/admin/analytics/query-builder'),
   reportsDashboard: defineRoute('/admin/reports/dashboard', { grant: 'moderate_content' }),
   legalAcceptances: defineRoute('/admin/legal/acceptances'),
   legalAuditLog: defineRoute('/admin/legal/audit-log'),
