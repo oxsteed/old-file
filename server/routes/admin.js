@@ -285,6 +285,15 @@ router.delete('/users/:userId/notes/:noteId',       requireAdmin, requirePermiss
 
 // Customer 360 second wave (all read/write behind manage_users)
 const c360Ctrl = require('../controllers/customer360Controller');
+const c360Workspace = require('../controllers/customer360WorkspaceController');
+router.get('/users/:userId/workspace', requireAdmin, requirePermission('manage_users'), c360Workspace.get);
+router.post('/users/:userId/workspace/tasks', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Workspace.createTask);
+router.patch('/users/:userId/workspace/tasks/:taskId', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Workspace.updateTask);
+router.post('/users/:userId/workspace/export', requireAdmin, requirePermission('manage_users'), creditExportLimiter, c360Workspace.export);
+router.get('/users/:userId/workspace/alerts', requireAdmin, requirePermission('manage_users'), c360Workspace.alertRules);
+router.put('/users/:userId/workspace/alerts', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Workspace.saveAlertRule);
+router.post('/users/:userId/workspace/sessions/:sessionId/revoke', requireSuperAdmin, rejectImpersonated, strictLimiter, c360Workspace.revokeSession);
+router.post('/users/:userId/workspace/assistant', requireAdmin, requirePermission('manage_users'), strictLimiter, c360Workspace.assistant);
 router.get('/users/:userId/duplicates',             requireAdmin, requirePermission('manage_users'), c360Ctrl.getDuplicates);
 router.get('/users/:userId/linked-entities',        requireAdmin, requirePermission('manage_users'), c360Ctrl.getLinkedEntities);
 router.get('/users/:userId/login-history',          requireAdmin, requirePermission('manage_users'), c360Ctrl.getLoginHistory);
