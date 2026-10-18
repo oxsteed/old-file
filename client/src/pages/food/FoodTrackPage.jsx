@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import {subscribeRestaurantDisplay} from '../../api/restaurantDisplaySocket';
 import PageShell from '../../components/PageShell';
 import PageMeta from '../../components/PageMeta';
 import '../../styles/FoodPages.css';
@@ -29,9 +30,11 @@ export default function FoodTrackPage() {
 
   useEffect(() => {
     load();
-    const interval = setInterval(load, 30000);
+    const interval = setInterval(load, 5000);
     return () => clearInterval(interval);
   }, [load]);
+
+  useEffect(()=>order?.restaurant_id?subscribeRestaurantDisplay(order.restaurant_id,load):undefined,[order?.restaurant_id,load]);
 
   const handlePrint = () => window.print();
   const handleRetry = () => {

@@ -2889,7 +2889,7 @@ exports.deviceHeartbeat = async (req, res, next) => {
               sync_status = COALESCE($3, sync_status),
               sync_error = CASE
                 WHEN $3 = 'healthy' THEN NULL
-                WHEN $4 IS NOT NULL THEN $4
+                WHEN $4::text IS NOT NULL THEN $4::text
                 ELSE sync_error
               END,
               app_version = COALESCE($5, app_version),
@@ -2909,6 +2909,12 @@ exports.deviceHeartbeat = async (req, res, next) => {
       ]
     );
     if (!device) throw new AppError('Device credential is missing or invalid', 401, 'invalid_device_credential');
+    if(req.body.screenCursor!==undefined){
+      const cursor=Number(req.body.screenCursor),applied=Number(req.body.appliedConfigVersion),pending=Number(req.body.pendingOperations||0);
+      if(!Number.isSafeInteger(cursor)||cursor<0||!Number.isSafeInteger(applied)||applied<0||!Number.isSafeInteger(pending)||pending<0)throw new AppError('Invalid sync telemetry',400,'validation_failed');
+      const {rows:[telemetry]}=await pool.query(`UPDATE restaurant_app_devices SET screen_cursor=LEAST($3,COALESCE((SELECT revision FROM restaurant_screen_streams WHERE restaurant_id=$2),0)),applied_config_version=LEAST(config_version,GREATEST(applied_config_version,$4)),pending_operations=$5,last_sync_at=CASE WHEN $6 THEN NOW() ELSE last_sync_at END WHERE id=$1 AND restaurant_id=$2 AND status='paired' RETURNING *`,[deviceId,restaurantId,cursor,applied,Math.min(pending,10000),req.body.syncStatus==='healthy']);
+      Object.assign(device,telemetry);
+    }
     res.json({
       device: publicDevice(device),
       contract: deviceRouteContract(device, { restaurantId }),
@@ -2984,7 +2990,7 @@ exports.updateDeviceConfig = async (req, res, next) => {
       `UPDATE restaurant_app_devices
           SET device_name = COALESCE($1, device_name),
               mode = COALESCE($2, mode),
-              location_id = COALESCE($3, location_id),
+              location_id = CASE WHEN $9 THEN $3 ELSE location_id END,
               status = COALESCE($4, status),
               config = CASE
                 WHEN $5::jsonb IS NULL THEN config
@@ -3004,6 +3010,7 @@ exports.updateDeviceConfig = async (req, res, next) => {
         replaceConfig,
         restaurantId,
         deviceId,
+        Object.hasOwn(req.body,'locationId') || Object.hasOwn(req.body,'location_id'),
       ]
     );
     if (!device) throw new AppError('Device not found', 404, 'device_not_found');
@@ -5733,22 +5740,36 @@ exports.ackKitchenTicket = async (req, res, next) => {
   }
 };
 
+
+async function screenKitchenContext(req, restaurantId, elevated = false) {
+ if (!req.screenDevice) {
+  const restaurant=await requireRestaurantAccess(req.user.id,restaurantId);
+  await assertRestaurantPermission(restaurant,req.user.id,elevated?['kitchen.manage','orders.manage']:['kitchen.update','kitchen.manage','orders.manage']);
+  return restaurant;
+ }
+ const device=req.screenDevice;
+ if(elevated || device.app_key!=='kitchen' || String(device.restaurant_id)!==String(restaurantId)) throw new AppError('Operation requires authorized staff',403,'forbidden');
+ const {rows:[restaurant]}=await pool.query('SELECT * FROM food_restaurants WHERE id=$1',[restaurantId]);
+ if(!restaurant?.screens_v2_enabled)throw new AppError('Managed screens are disabled',409,'screens_disabled');
+ return {...restaurant,effective_role:'screen_device'};
+}
+function screenRevision(req,row) {
+ if(req.body.expectedRevision!==undefined && String(req.body.expectedRevision)!==String(row.screen_revision)) throw new AppError('Ticket changed; refresh before retrying',409,'screen_revision_conflict',{currentRevision:row.screen_revision,currentState:{id:row.id,status:row.status,kitchenStatus:row.kitchen_status,revision:row.screen_revision}});
+ if(req.screenDevice && String(req.screenDevice.location_id||'')!==String(row.location_id||''))throw new AppError('Wrong device location',403,'screen_location_mismatch');
+ if(req.screenDevice){const paymentMode=(row.order_metadata||row.metadata||{}).paymentMode;if(['pay_now','oxsteed_credit','wallet_credit','wallet'].includes(paymentMode)&&(row.order_payment_status||row.payment_status)!=='paid')throw new AppError('Payment confirmation required before preparation',409,'order_payment_pending');}
+}
+
 exports.performKitchenOrderAction = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId || req.body.orderId || req.body.order_id);
-    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await screenKitchenContext(req, restaurantId, req.body.action === 'reopen');
     const action = normalizeString(req.body.action, 32);
     if (!orderId) throw new AppError('Validation failed', 400, 'validation_failed', { orderId: 'Order is required' });
     if (!KITCHEN_ORDER_ACTIONS.has(action)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { action: 'Unsupported kitchen order action' });
     }
     const elevated = action === 'reopen';
-    await assertRestaurantPermission(
-      restaurant,
-      req.user.id,
-      elevated ? ['kitchen.manage', 'orders.manage'] : ['kitchen.update', 'kitchen.manage', 'orders.manage']
-    );
     const reason = normalizeString(req.body.reason || req.body.note, 1000);
     if ((action === 'reopen' || action === 'delay') && !reason) {
       throw new AppError('Validation failed', 400, 'validation_failed', { reason: 'A reason is required' });
@@ -5770,10 +5791,12 @@ exports.performKitchenOrderAction = async (req, res, next) => {
           [restaurantId, idempotencyKey]
         );
         if (existingEvent) {
+          if(req.body.expectedRevision!==undefined&&(String(existingEvent.food_order_id)!==String(orderId)||existingEvent.event_type!==`order_${action}`))throw new AppError('Operation ID already used',409,'screen_idempotency_conflict');
           const { rows: [replayedOrder] } = await client.query(
             `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
             [existingEvent.food_order_id, restaurantId]
           );
+          if(req.screenDevice&&String(replayedOrder?.location_id||'')!==String(req.screenDevice.location_id||''))throw new AppError('Wrong device location',403,'screen_location_mismatch');
           return { order: replayedOrder, event: existingEvent, replayed: true };
         }
       }
@@ -5783,6 +5806,8 @@ exports.performKitchenOrderAction = async (req, res, next) => {
         [orderId, restaurantId]
       );
       if (!existing) throw new AppError('Order not found', 404, 'order_not_found');
+      screenRevision(req,existing);
+      if(req.screenDevice?.config?.screenRole!=='expeditor' && req.screenDevice && ['ready_for_check','finish_check','hand_off'].includes(action))throw new AppError('Expeditor screen required',403,'forbidden');
       if (['completed', 'cancelled', 'refunded'].includes(existing.status)) {
         throw new AppError('Kitchen ticket is already terminal', 409, 'kitchen_ticket_terminal');
       }
@@ -5833,6 +5858,8 @@ exports.performKitchenOrderAction = async (req, res, next) => {
         `UPDATE food_orders
             SET status = $1,
                 kitchen_stage = $2,
+                ready_at = CASE WHEN $1='ready' THEN COALESCE(ready_at,NOW()) ELSE ready_at END,
+                completed_at = CASE WHEN $1='completed' THEN COALESCE(completed_at,NOW()) ELSE completed_at END,
                 accepted_at = COALESCE(accepted_at, NOW()),
                 kitchen_acknowledged_at = CASE
                   WHEN $2 IN ('acknowledged','preparing','quality_check','ready')
@@ -5875,7 +5902,7 @@ exports.performKitchenOrderAction = async (req, res, next) => {
             ...safeJson(req.body.metadata),
           }),
           idempotencyKey,
-          req.user.id,
+          req.user?.id || null,
         ]
       );
       return { order, event, replayed: false };
@@ -6125,8 +6152,7 @@ exports.performKitchenItemAction = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderItemId = parsePositiveInt(req.params.orderItemId || req.body.orderItemId || req.body.order_item_id);
-    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.update', 'kitchen.manage', 'orders.manage']);
+    const restaurant = await screenKitchenContext(req, restaurantId);
     const action = normalizeString(req.body.action, 32);
     if (!KITCHEN_ACTIONS.has(action)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { action: 'Unsupported kitchen action' });
@@ -6163,6 +6189,7 @@ exports.performKitchenItemAction = async (req, res, next) => {
           [restaurantId, idempotencyKey]
         );
         if (existingEvent) {
+          if(req.body.expectedRevision!==undefined&&(String(existingEvent.food_order_item_id)!==String(orderItemId)||existingEvent.event_type!==`item_${action}`))throw new AppError('Operation ID already used',409,'screen_idempotency_conflict');
           const { rows: [replayedItem] } = await client.query(
             `SELECT * FROM food_order_items WHERE id = $1`,
             [existingEvent.food_order_item_id]
@@ -6171,11 +6198,12 @@ exports.performKitchenItemAction = async (req, res, next) => {
             `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
             [existingEvent.food_order_id, restaurantId]
           );
+          if(req.screenDevice&&String(replayedOrder?.location_id||'')!==String(req.screenDevice.location_id||''))throw new AppError('Wrong device location',403,'screen_location_mismatch');
           return { item: replayedItem, order: replayedOrder, event: existingEvent, replayed: true };
         }
       }
       const { rows: [existing] } = await client.query(
-        `SELECT foi.*, fo.restaurant_id, fo.business_id, fo.status AS order_status, fo.queue_number
+        `SELECT foi.*, fo.restaurant_id, fo.business_id, fo.status AS order_status, fo.queue_number, fo.location_id, fo.payment_status AS order_payment_status, fo.metadata AS order_metadata
            FROM food_order_items foi
            JOIN food_orders fo ON fo.id = foi.order_id
           WHERE foi.id = $1 AND fo.restaurant_id = $2
@@ -6183,6 +6211,8 @@ exports.performKitchenItemAction = async (req, res, next) => {
         [orderItemId, restaurantId]
       );
       if (!existing) throw new AppError('Order item not found', 404, 'order_item_not_found');
+      screenRevision(req,existing);
+      if(req.screenDevice?.config?.stationLabel && req.screenDevice.config.screenRole!=='expeditor' && req.screenDevice.config.stationLabel!==existing.station_label)throw new AppError('Wrong kitchen station',403,'screen_station_mismatch');
       if (['completed', 'cancelled', 'refunded'].includes(existing.order_status)) {
         throw new AppError('Kitchen item belongs to a terminal order', 409, 'kitchen_order_terminal');
       }
@@ -6233,7 +6263,7 @@ exports.performKitchenItemAction = async (req, res, next) => {
             targetPrepSeconds: targetPrepSeconds || item.target_prep_seconds || null,
           }),
           idempotencyKey,
-          req.user.id,
+          req.user?.id || null,
         ]
       );
       return { item, order, event, replayed: false };
@@ -8212,3 +8242,12 @@ exports.ackPendingOperations = async (req, res, next) => {
     next(err);
   }
 };
+
+// Shared permission boundary for managed browser screens; no duplicated role rules.
+exports.requireScreenStaff = async (userId, restaurantId, manage = false) => {
+ const restaurant = await requireRestaurantAccess(userId, restaurantId);
+ if (manage) assertManage(restaurant);
+ else await assertRestaurantPermission(restaurant,userId,['kitchen.view','kitchen.update','orders.view','orders.manage','pos.use','display.manage']);
+ return restaurant;
+};
+exports.publicScreenDevice = publicDevice;

@@ -23,7 +23,7 @@ function readOutbox(restaurantId) {
 
 function writeOutbox(restaurantId, ops) {
   try {
-    localStorage.setItem(OUTBOX_KEY(restaurantId), JSON.stringify(ops.slice(-MAX_OUTBOX)));
+    localStorage.setItem(OUTBOX_KEY(restaurantId), JSON.stringify(ops));
   } catch {
     // Local storage unavailable; the in-memory op is still acked best-effort.
   }

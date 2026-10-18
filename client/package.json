@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "test:restaurant-screens": "node --test scripts/restaurantScreens.browser-check.cjs",
     "test:signup-validation": "node --test scripts/signupValidation.test.mjs",
     "test:media-payment-idempotency": "node --test scripts/mediaPaymentIdempotency.test.mjs",
     "test:media-actions": "node --test scripts/mediaActions.test.mjs",

@@ -7,7 +7,7 @@ export default {
   "audiences": [
     "restaurant"
   ],
-  "revision": 3,
+  "revision": 4,
   "availability": "supported",
   "conditions": [],
   "goal": "Create a restaurant on OxSteed, finish the setup checklist, fund the credit reserve if needed, and go live for customer ordering.",
@@ -247,6 +247,7 @@ export default {
   ],
   "supportContact": "For onboarding help, use the in-app support page at /support.",
   "relatedGuides": [
+    "restaurant-screen-control",
     "restaurant-menus",
     "restaurant-store-settings",
     "financial-restaurant-credit"

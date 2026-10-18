@@ -7,7 +7,7 @@ export default {
   "audiences": [
     "restaurant"
   ],
-  "revision": 2,
+  "revision": 3,
   "availability": "supported",
   "conditions": [],
   "goal": "Run in-store operations with the staff tools: take POS orders, track inventory, manage the crew, and run deliveries.",
@@ -242,11 +242,12 @@ export default {
     },
     {
       "problem": "POS actions fail to sync.",
-      "solution": "You see \"Sync degraded: X failed, Y pending, Z unsent\". The actions are queued on the device; check the connection and they will sync."
+      "solution": "You see \"Sync degraded: X failed, Y pending, Z unsent\". The POS reports failed-operation diagnostics after reconnection; it does not automatically retry a payment, refund, credit spend, or financial approval. Compare the current order and payment records before an explicit staff retry. Managed unpaid drafts require review and acceptance in the screen control center."
     }
   ],
   "supportContact": "For staff tool issues, use the in-app support page at /support.",
   "relatedGuides": [
+    "restaurant-screen-control",
     "restaurant-pickup-delivery-handoff",
     "restaurant-preparation",
     "restaurant-store-settings"

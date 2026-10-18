@@ -21,6 +21,7 @@ const help = require('../controllers/restaurantHelpController');
 const pos = require('../controllers/restaurantPosController');
 const kiosk = require('../controllers/restaurantKioskController');
 const appFlow = require('../controllers/restaurantAppFlowController');
+const screens = require('../controllers/restaurantScreensController');
 const food = require('../controllers/foodController');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
@@ -28,6 +29,13 @@ const enforceUploadQuota = require('../middleware/uploadQuota');
 const { authenticatedLimiter, strictLimiter, generalLimiter } = require('../middleware/rateLimiter');
 const media = require('../controllers/restaurantMediaController');
 
+// Managed appliances authenticate with their scoped device credential.
+router.post('/:restaurantId/devices/:deviceId/screen-orders', strictLimiter, screens.createOrder);
+router.get('/:restaurantId/devices/:deviceId/screen-snapshot', screens.snapshot);
+router.get('/:restaurantId/devices/:deviceId/screen-changes', screens.changes);
+router.post('/:restaurantId/devices/:deviceId/offline-tickets', strictLimiter, screens.importTicket);
+router.post('/:restaurantId/devices/:deviceId/screen-orders/:orderId/action', screens.authenticateKitchen, screens.orderAction);
+router.post('/:restaurantId/devices/:deviceId/screen-items/:orderItemId/action', screens.authenticateKitchen, appFlow.performKitchenItemAction);
 // A new appliance has no staff session yet. These routes authenticate with the
 // one-time pairing code or the per-device credential issued after pairing.
 router.post('/:restaurantId/devices/pair', strictLimiter, appFlow.pairDevice);
@@ -90,6 +98,13 @@ router.post('/:restaurantId/media/:mediaId/like', generalLimiter, media.toggleMe
 router.delete('/:restaurantId/media/:mediaId', media.deleteRestaurantMedia);
 router.post('/:restaurantId/media/:mediaId/flags', media.mediaFlagLimiter, media.flagMedia);
 
+router.get('/:restaurantId/screens/control', screens.control);
+router.put('/:restaurantId/screens/enabled', screens.enable);
+router.get('/:restaurantId/screens/snapshot', screens.snapshot);
+router.get('/:restaurantId/screens/changes', screens.changes);
+router.post('/:restaurantId/screens/offline-tickets', screens.importTicket);
+router.post('/:restaurantId/screens/offline-tickets/:ticketId/accept', screens.acceptTicket);
+router.post('/:restaurantId/screens/offline-tickets/:ticketId/dismiss', screens.dismissTicket);
 // Cross-app bootstrap / Manager operations
 router.get('/app/bootstrap', appFlow.discoverBootstrap);
 router.get('/:restaurantId/app/bootstrap', appFlow.getBootstrap);

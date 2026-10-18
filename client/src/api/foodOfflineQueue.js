@@ -49,9 +49,7 @@ export function bumpPendingFoodOrderAttempt(id) {
   const index = all.findIndex((entry) => entry.id === id);
   if (index === -1) return;
   all[index].attemptCount = (all[index].attemptCount || 0) + 1;
-  if (all[index].attemptCount >= MAX_ATTEMPTS) {
-    all.splice(index, 1);
-  }
+  if (all[index].attemptCount >= MAX_ATTEMPTS) all[index].needsReview = true;
   writeAll(all);
 }
 
@@ -62,12 +60,14 @@ export function isFoodNetworkFailure(error) {
   return status === 408 || status === 429 || (status != null && status >= 502);
 }
 
-export async function replayPendingFoodOrders(placeFn) {
+export async function replayPendingFoodOrders(placeFn, {restaurantId} = {}) {
+  if(restaurantId!==undefined&&localStorage.getItem(`oxsteed:screen-device:${restaurantId}`))return [];
   const pending = readAll();
   if (!pending.length) return [];
 
   const sent = [];
   for (const entry of pending) {
+    if(entry.needsReview || (restaurantId!==undefined&&String(entry.restaurantId)!==String(restaurantId)))continue;
     try {
       const payload = {
         orderSource: entry.orderSource,

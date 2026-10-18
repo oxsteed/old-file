@@ -91,6 +91,7 @@ const FoodKitchenPage = lazyWithRetry(() => import('./pages/food/FoodKitchenPage
 const FoodQueueBoardPage = lazyWithRetry(() => import('./pages/food/FoodQueueBoardPage'));
 const FoodTrackPage = lazyWithRetry(() => import('./pages/food/FoodTrackPage'));
 const FoodKioskPage = lazyWithRetry(() => import('./pages/food/FoodKioskPage'));
+const ManagedRestaurantScreen = lazyWithRetry(() => import('./restaurantScreens/ManagedScreen'));
 const RestaurantPOSPage = lazyWithRetry(() => import('./pages/food/RestaurantPOSPage'));
 const RestaurantInventoryPage = lazyWithRetry(() => import('./pages/food/RestaurantInventoryPage'));
 const RestaurantCrewPage = lazyWithRetry(() => import('./pages/food/RestaurantCrewPage'));
@@ -630,6 +631,7 @@ export default function App() {
                     <Route path="/restaurants/queue/:restaurantId"   element={<RouteErrorBoundary><FoodQueueBoardPage /></RouteErrorBoundary>} />
                     <Route path="/restaurants/kiosk/:restaurantId"   element={<RouteErrorBoundary><FoodKioskPage /></RouteErrorBoundary>} />
                     <Route path="/restaurants/merchant"              element={<Guarded><ProtectedRoute><RouteErrorBoundary><FoodMerchantPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/restaurants/screens/:restaurantId/:screenRole" element={<RouteErrorBoundary><ManagedRestaurantScreen /></RouteErrorBoundary>} />
                     <Route path="/restaurants/kitchen/:restaurantId"   element={<ProtectedRoute><RouteErrorBoundary><FoodKitchenPage /></RouteErrorBoundary></ProtectedRoute>} />
                     <Route path="/restaurants/pos/:restaurantId"       element={<ProtectedRoute><RouteErrorBoundary><RestaurantPOSPage /></RouteErrorBoundary></ProtectedRoute>} />
                     <Route path="/restaurants/inventory/:restaurantId" element={<ProtectedRoute><RouteErrorBoundary><RestaurantInventoryPage /></RouteErrorBoundary></ProtectedRoute>} />

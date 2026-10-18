@@ -10,7 +10,7 @@ import '../../styles/FoodPages.css';
 
 const POLL_MS = 5000;
 
-export default function FoodQueueBoardPage() {
+export default function FoodQueueBoardPage({managedBoard=null,managedStatus='online'}) {
   const { restaurantId } = useParams();
   const { t } = useTranslation();
   const [board, setBoard] = useState(null);
@@ -50,7 +50,7 @@ export default function FoodQueueBoardPage() {
   }, []);
 
   const load = useCallback(() => {
-    getFoodQueueBoard(restaurantId)
+    (managedBoard?Promise.resolve(managedBoard):getFoodQueueBoard(restaurantId))
       .then((data) => {
         const nextReady = data?.ready || [];
         const previous = new Set(readyRef.current.map(String));
@@ -65,10 +65,11 @@ export default function FoodQueueBoardPage() {
         setError(false);
       })
       .catch(() => setError(true));
-  }, [playReadyChime, restaurantId]);
+  }, [playReadyChime, restaurantId,managedBoard]);
 
   useEffect(() => {
     load();
+    if(managedBoard)return;
     timerRef.current = setInterval(load, POLL_MS);
     // Live updates (instant) layered over the poll (fallback).
     const unsubscribe = subscribeRestaurantDisplay(restaurantId, load);
@@ -84,7 +85,7 @@ export default function FoodQueueBoardPage() {
         <FoodBrand size={36} />
         <h1 className="fd-screen-title">{board?.restaurant?.display_name || ''}</h1>
         <span className="fd-row" style={{ gap: '0.6rem', alignItems: 'center' }}>
-          <FoodConnBadge ok={!error} />
+          <FoodConnBadge ok={managedBoard?managedStatus==='online':!error} />
           <span className="fd-kds-meta">{t('food.queue.payHint')}</span>
         </span>
         <button

@@ -2760,6 +2760,7 @@ exports.quoteOrder = async (req, res, next) => {
         supportedModes: supportedPaymentModes,
         oxsteedCreditEligibility,
       },
+      menuFingerprint:lineItems.map(i=>({id:String(i.menuItemId),name:i.name,price:i.unitPriceCents,modifiers:i.modifiers.map(m=>({id:String(m.id),name:m.name,price:m.priceDeltaCents})).sort((a,b)=>a.id.localeCompare(b.id))})),
       lineItems,
       line_items: lineItems,
       subtotalCents,
@@ -2809,7 +2810,16 @@ exports.createOrder = async (req, res, next) => {
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     const paymentContract = normalizeFoodPaymentMode(req.body.paymentMode || req.body.payment_mode);
     const paymentMode = paymentContract.legacy;
-    const isGuest = !req.user?.id;
+    // Optional browser kiosk quote guard is additive for legacy/native callers.
+    if(!req.screenTicket&&(req.body.orderSource||req.body.order_source)==='kiosk'&&req.body.expectedTotalCents!==undefined){
+      const quotedTotal=Number(req.body.expectedTotalCents);
+      if(!Number.isSafeInteger(quotedTotal)||quotedTotal<0)throw new AppError('Invalid quoted total',400,'validation_failed');
+      req.screenExpectedTotal=quotedTotal;req.screenExpectedFingerprint=req.body.menuFingerprint;
+    }
+    const orderCustomerId=req.screenTicket ? null : req.user?.id;
+    // Legacy/native paired-device orders retain their trusted location too.
+    if(req.restaurantDevice&&req.screenLocationId===undefined)req.screenLocationId=req.restaurantDevice.location_id||null;
+    const isGuest = !orderCustomerId;
     // Locked decision #1: guest Credit allowed with risk limits (enforced in
     // the spend adapter). Guests may also pay at the restaurant/counter, or
     // use restaurant_credit on kiosk orders created as requires_payment for
@@ -2846,10 +2856,15 @@ exports.createOrder = async (req, res, next) => {
       : null;
 
     const createdOrder = await withTransaction(pool, async (client) => {
+      if(req.screenTicket){
+        const {rows:[review]}=await client.query('SELECT * FROM restaurant_screen_tickets WHERE id=$1 AND restaurant_id=$2 FOR UPDATE',[req.screenTicket.id,restaurantId]);
+        if(!review || review.status==='dismissed')throw new AppError('Offline ticket is no longer available',409,'screen_ticket_conflict');
+        req.screenTicket=review;
+      }
       if (clientOrderId) {
         const lookup = buildFoodOrderIdempotencyLookup({
           restaurantId,
-          customerId: req.user?.id,
+          customerId: orderCustomerId,
           clientOrderId,
         });
         const { rows: existingOrders } = await client.query(lookup.text, lookup.values);
@@ -2860,6 +2875,10 @@ exports.createOrder = async (req, res, next) => {
             [restaurantId]
           );
           const existing = existingOrders[0];
+          if(req.screenTicket){
+            if(String(existing.location_id||'')!==String(req.screenTicket.location_id||''))throw new AppError('Existing order belongs to another location',409,'screen_location_mismatch');
+            await client.query("UPDATE restaurant_screen_tickets SET status='accepted',order_id=$2,conflict_code=NULL,updated_at=NOW() WHERE id=$1",[req.screenTicket.id,existing.id]);
+          }
           return {
             order: existing,
             restaurant: restaurants[0],
@@ -2901,13 +2920,17 @@ exports.createOrder = async (req, res, next) => {
       if (clientOrderId) {
         const lookup = buildFoodOrderIdempotencyLookup({
           restaurantId,
-          customerId: req.user?.id,
+          customerId: orderCustomerId,
           clientOrderId,
         });
         const { rows: existingOrders } = await client.query(lookup.text, lookup.values);
         if (existingOrders[0]) {
           assertFoodOrderIdempotencyMatch(existingOrders[0], idempotencyFingerprint, clientOrderId);
           const existing = existingOrders[0];
+          if(req.screenTicket){
+            if(String(existing.location_id||'')!==String(req.screenTicket.location_id||''))throw new AppError('Existing order belongs to another location',409,'screen_location_mismatch');
+            await client.query("UPDATE restaurant_screen_tickets SET status='accepted',order_id=$2,conflict_code=NULL,updated_at=NOW() WHERE id=$1",[req.screenTicket.id,existing.id]);
+          }
           return {
             order: existing,
             restaurant,
@@ -3225,6 +3248,17 @@ exports.createOrder = async (req, res, next) => {
       const tax = Math.round(taxableSubtotal * taxRateBps / 10000);
       const serviceFeeCents = Math.round(taxableSubtotal * serviceFeeBps / 10000);
       const total = Math.max(0, taxableSubtotal + tax + serviceFeeCents + tip + deliveryFeeCents);
+      const screenFingerprint=normalizedItems.map(i=>({id:String(i.menuItem.id),name:i.menuItem.name,price:Number(i.menuItem.price_cents),modifiers:i.modifiers.map(m=>({id:String(m.id),name:m.name,price:Number(m.price_delta_cents)})).sort((a,b)=>a.id.localeCompare(b.id))}));
+      if(req.screenExpectedFingerprint&&JSON.stringify(req.screenExpectedFingerprint)!==JSON.stringify(screenFingerprint))throw new AppError('Menu changed; review your items again',409,'screen_price_conflict');
+      if(req.screenExpectedTotal!==undefined&&req.screenExpectedTotal!==total)throw new AppError('Price changed; review the current total',409,'screen_price_conflict',{currentTotalCents:total});
+      if(req.screenTicket){
+        const approved=req.screenApprovedTotal;
+        const expected=approved===undefined?Number(req.screenTicket.expected_total_cents):Number(approved);
+        const fingerprint=screenFingerprint;
+        if(approved!==undefined&&(!req.screenApprovedFingerprint||JSON.stringify(req.screenApprovedFingerprint)!==JSON.stringify(fingerprint)))throw new AppError('Menu changed since review; review again',409,'screen_price_conflict');
+        if(!Number.isSafeInteger(expected)||expected!==total||(approved===undefined&&req.screenTicket.payload.menuFingerprint&&JSON.stringify(req.screenTicket.payload.menuFingerprint)!==JSON.stringify(fingerprint)))throw new AppError('Review the updated menu and total before accepting',409,'screen_price_conflict',{currentTotalCents:total});
+      }
+
       const shouldDebitWalletImmediately = paymentContract.canonical === 'restaurant_credit' && Boolean(req.user?.id);
       const shouldDebitOxsteedCreditImmediately = paymentContract.canonical === 'oxsteed_credit' && Boolean(req.user?.id);
       const initialPaymentStatus = ['restaurant_credit', 'oxsteed_credit'].includes(paymentContract.canonical)
@@ -3430,7 +3464,7 @@ exports.createOrder = async (req, res, next) => {
         [
           restaurantId,
           restaurant.business_id,
-          req.user?.id || null,
+          orderCustomerId || null,
           resolvedGuestName,
           resolvedGuestPhone,
           resolvedGuestEmail,
@@ -3459,6 +3493,13 @@ exports.createOrder = async (req, res, next) => {
           cardPaymentIntentId,
         ]
       );
+
+      if(req.screenLocationId!==undefined&&!req.screenTicket){const {rows:[scoped]}=await client.query('UPDATE food_orders SET location_id=$2 WHERE id=$1 RETURNING *',[created.id,req.screenLocationId]);Object.assign(created,scoped);}
+      if(req.screenTicket){
+        const {rows:[scoped]}=await client.query('UPDATE food_orders SET location_id=$2 WHERE id=$1 RETURNING *',[created.id,req.screenTicket.location_id]);
+        Object.assign(created,scoped);
+        await client.query("UPDATE restaurant_screen_tickets SET status='accepted',order_id=$2,conflict_code=NULL,updated_at=NOW() WHERE id=$1",[req.screenTicket.id,created.id]);
+      }
 
       if (paymentContract.canonical === 'card' && cardPaymentIntentId) {
         // Link the order to the intent so payment_intent.* webhooks reconcile
@@ -4198,13 +4239,15 @@ exports.updateOrderStatus = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId);
-    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = req.screenDevice ? req.screenRestaurant : await requireRestaurantAccess(req.user.id, restaurantId);
     const status = normalizeString(req.body.status, 24);
     // Critical fix: status transitions to cancelled/refunded trigger money
     // refunds. Kitchen staff (kitchen.update) must not be able to move money.
     // Financial transitions require orders.manage or issue_refunds.
     const isFinancialTransition = ['cancelled', 'refunded'].includes(status);
-    if (isFinancialTransition) {
+    if(req.screenDevice){
+      if(req.screenDevice.app_key!=='kitchen'||req.screenDevice.config?.screenRole!=='expeditor'||!['ready','completed'].includes(status)||!restaurant?.screens_v2_enabled)throw new AppError('Unsupported device action',403,'forbidden');
+    } else if (isFinancialTransition) {
       await assertRestaurantPermission(restaurant, ['orders.manage', 'issue_refunds']);
     } else {
       await assertRestaurantPermission(restaurant, ['orders.manage', 'kitchen.update']);
@@ -4234,20 +4277,29 @@ exports.updateOrderStatus = async (req, res, next) => {
           [`food-status:${restaurantId}:${idempotencyKey}`]
         );
         const { rows: [replayedEvent] } = await client.query(
-          `SELECT food_order_id
+          `SELECT food_order_id,event_type
              FROM restaurant_kitchen_events
             WHERE restaurant_id = $1 AND idempotency_key = $2`,
           [restaurantId, idempotencyKey]
         );
         if (replayedEvent) {
+          if(req.body.expectedRevision!==undefined&&(String(replayedEvent.food_order_id)!==String(orderId)||replayedEvent.event_type!==action))throw new AppError('Operation ID already used',409,'screen_idempotency_conflict');
           const { rows: [replayedOrder] } = await client.query(
             `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
             [replayedEvent.food_order_id, restaurantId]
           );
+          if(req.screenDevice&&String(replayedOrder?.location_id||'')!==String(req.screenDevice.location_id||''))throw new AppError('Wrong device location',403,'screen_location_mismatch');
           return { order: replayedOrder, walletRefund: null, payment: null, replayed: true };
         }
       }
 
+      if(req.body.expectedRevision!==undefined){
+        const {rows:[current]}=await client.query('SELECT * FROM food_orders WHERE id=$1 AND restaurant_id=$2 FOR UPDATE',[orderId,restaurantId]);
+        if(!current)throw new AppError('Order not found',404,'order_not_found');
+        if(String(current.screen_revision)!==String(req.body.expectedRevision))throw new AppError('Ticket changed; refresh before retrying',409,'screen_revision_conflict',{currentRevision:current.screen_revision,currentState:{id:current.id,status:current.status,revision:current.screen_revision}});
+        if(req.screenDevice&&String(current.location_id||'')!==String(req.screenDevice.location_id||''))throw new AppError('Wrong device location',403,'screen_location_mismatch');
+        if(req.screenDevice&&status==='completed'&&current.payment_status!=='paid')throw new AppError('Record payment before handoff',409,'order_unpaid');
+      }
       const kitchenPrep = restaurant.settings?.kitchenPrep || restaurant.settings?.kitchen_prep || {};
       const qualityCheckRequired = kitchenPrep.requireQualityCheck !== false
         && kitchenPrep.require_quality_check !== false;

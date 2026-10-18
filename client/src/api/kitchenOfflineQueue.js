@@ -16,7 +16,7 @@ function readQueue() {
 }
 
 function writeQueue(queue) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(queue.slice(-100)));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(queue));
   window.dispatchEvent(new CustomEvent('oxsteed:kitchen-queue-changed'));
 }
 

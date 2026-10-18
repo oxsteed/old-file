@@ -1,0 +1,374 @@
+.rs-control,
+.rs-screen,
+.rs-pair-page {
+  color: var(--app-text);
+  overflow-wrap: anywhere;
+}
+.rs-control {
+  display: grid;
+  gap: 1.1rem;
+  margin-block: 1rem;
+}
+.rs-heading,
+.rs-screen-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.rs-heading h2,
+.rs-screen h1 {
+  font-size: clamp(1.45rem, 3vw, 2rem);
+  font-weight: 800;
+  margin-block: 0.25rem 0.5rem;
+}
+.rs-heading p {
+  max-width: 65ch;
+  margin: 0;
+  line-height: 1.6;
+  color: var(--muted-text);
+}
+.rs-eyebrow {
+  color: var(--primary-color);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.rs-control-compact {
+  padding: 1.25rem;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  border-radius: 18px;
+}
+.rs-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.rs-stats > div {
+  display: grid;
+  gap: 0.3rem;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--soft-bg);
+}
+.rs-stats strong {
+  font-size: 1.5rem;
+}
+.rs-stats span,
+.rs-sync-line {
+  font-size: 0.9rem;
+  color: var(--muted-text);
+}
+.rs-toolbar,
+.rs-launchers {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.rs-launchers a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem;
+  min-height: 44px;
+  color: inherit;
+  text-decoration: underline;
+}
+.rs-card {
+  min-width: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 1.25rem;
+  background: var(--card-bg);
+}
+.rs-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.rs-card h3,
+.rs-card h4 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin-block: 0.25rem 0.75rem;
+}
+.rs-card dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+.rs-card dt {
+  color: var(--muted-text);
+}
+.rs-card dd {
+  margin: 0;
+  text-align: end;
+}
+.rs-device-grid,
+.rs-tickets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+.rs-status {
+  display: inline-block;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 750;
+  background: var(--soft-bg);
+  color: var(--app-text);
+}
+.rs-offline,
+.rs-degraded,
+.rs-error,
+.rs-overdue {
+  border-color: var(--primary-color);
+  border-inline-start-width: 4px;
+}
+.rs-notice {
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-inline-start: 4px solid var(--primary-color);
+  border-radius: 10px;
+  background: var(--soft-bg);
+  line-height: 1.6;
+}
+.rs-notice p {
+  margin-block: 0.25rem;
+}
+.rs-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.rs-form h3,
+.rs-form > p,
+.rs-form > .rs-toolbar,
+.rs-form > .rs-notice {
+  grid-column: 1/-1;
+}
+.rs-control label,
+.rs-pair-page label {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 650;
+}
+.rs-control input,
+.rs-control select,
+.rs-pair-page input {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.65rem;
+  background: var(--card-bg);
+  color: inherit;
+  max-width: 100%;
+}
+.rs-pair-code {
+  font-size: 2rem;
+  letter-spacing: 0.12em;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.rs-control :is(a, button, input, select, summary),
+.rs-screen :is(a, button, summary),
+.rs-pair-page :is(button, input) {
+  min-height: 44px;
+}
+:is(.rs-control, .rs-screen, .rs-pair-page)
+  :is(a, button, input, select, summary):focus-visible {
+  outline: 3px solid var(--primary-color);
+  outline-offset: 3px;
+}
+.rs-screen {
+  min-height: 100dvh;
+  padding: clamp(1rem, 2.5vw, 2rem);
+  background: var(--app-bg);
+}
+.rs-screen .rs-ticket > header h2 {
+  font-size: 2rem;
+  font-weight: 850;
+  margin: 0;
+}
+.rs-ticket ul {
+  list-style: none;
+  padding: 0;
+}
+.rs-ticket li {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  border-block-start: 1px solid var(--border-color);
+  padding-block: 0.8rem;
+}
+.rs-ticket li p {
+  margin-block: 0.25rem;
+}
+.rs-ticket small {
+  color: var(--muted-text);
+}
+.rs-ticket .rs-instructions {
+  font-weight: 700;
+}
+.rs-station-heading {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.rs-station-heading span {
+  color: var(--muted-text);
+}
+.rs-screen-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding-block: 2rem;
+  flex-wrap: wrap;
+}
+.rs-screen-footer a {
+  display: inline-flex;
+  align-items: center;
+  color: inherit;
+}
+.rs-local-op {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  padding-block: 0.7rem;
+  border-block-end: 1px solid var(--border-color);
+}
+.rs-pair-page {
+  max-width: 600px;
+  margin: 3rem auto;
+  padding: 1.5rem;
+}
+.rs-pair-page form {
+  display: grid;
+  gap: 1rem;
+}
+.rs-screen > .fd-screen {
+  min-height: 0;
+  padding: 1rem;
+}
+.rs-screen :is(.fd-kiosk-start, .fd-kiosk-main) {
+  min-height: 65vh;
+}
+.rs-screen details > summary,
+.rs-control details > summary {
+  padding-block: 0.65rem;
+  cursor: pointer;
+  font-weight: 750;
+}
+@media (min-width: 1800px) {
+  .rs-screen .rs-tickets {
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  }
+  .rs-screen {
+    font-size: 1.15rem;
+  }
+}
+@media (max-width: 700px) {
+  .rs-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .rs-form {
+    grid-template-columns: 1fr;
+  }
+  .rs-heading > a {
+    width: 100%;
+  }
+  .rs-control-compact {
+    padding: 1rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rs-screen * {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+:is(.rs-control, .rs-screen, .rs-pair-page) .fd-btn {
+  max-width: 100%;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+.rs-control label,
+.rs-pair-page label {
+  min-width: 0;
+}
+.rs-control input,
+.rs-control select,
+.rs-pair-page input {
+  min-width: 0;
+  width: 100%;
+}
+.rs-control > *,
+.rs-form > * {
+  min-width: 0;
+}
+
+.rs-station-heading label {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+.rs-station-heading select {
+  min-height: 44px;
+  max-width: 100%;
+  background: var(--card-bg);
+  color: var(--app-text);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.65rem;
+}
+/* Managed screens follow the selected site theme, including the legacy kiosk
+   and public-board components hosted inside the managed frame. */
+.rs-screen
+  :is(
+    .fd-screen,
+    .fd-kiosk-start,
+    .fd-kiosk-item,
+    .fd-kiosk-choice,
+    .fd-queue-col
+  ) {
+  background: var(--card-bg);
+  color: var(--app-text);
+  border-color: var(--border-color);
+}
+.rs-screen :is(.fd-kiosk-start p, .fd-kds-meta, .fd-pay-note) {
+  color: var(--muted-text);
+}
+.rs-screen .fd-screen-header {
+  flex-wrap: wrap;
+}
+.rs-screen .fd-cartbar {
+  inset-inline: 0;
+  background: var(--card-bg);
+  color: var(--app-text);
+  border-color: var(--border-color);
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.rs-screen .fd-kiosk-itemgrid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
+}

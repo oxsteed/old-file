@@ -7,7 +7,7 @@ export default {
   "audiences": [
     "restaurant"
   ],
-  "revision": 2,
+  "revision": 3,
   "availability": "supported",
   "conditions": [],
   "goal": "Run the kitchen display: acknowledge incoming tickets, work items, and hand orders off to guests or runners.",
@@ -253,6 +253,7 @@ export default {
   ],
   "supportContact": "For kitchen display issues, use the in-app support page at /support.",
   "relatedGuides": [
+    "restaurant-screen-control",
     "restaurant-store-settings",
     "restaurant-pickup-delivery-handoff",
     "restaurant-cancellations",

@@ -12,6 +12,7 @@ import { io } from 'socket.io-client';
 import { realtimeNamespaceUrl } from '../lib/realtime';
 
 let socket = null;
+const roomUsers = new Map();
 
 function getDisplaySocket() {
   if (!socket) {
@@ -20,7 +21,7 @@ function getDisplaySocket() {
       reconnection: true,
       reconnectionDelay: 500,
       reconnectionDelayMax: 4000,
-      reconnectionAttempts: 30,
+      reconnectionAttempts: Infinity,
       timeout: 10000,
     });
   }
@@ -43,8 +44,10 @@ export function subscribeRestaurantDisplay(restaurantId, onChange) {
     return () => {};
   }
 
+  const roomKey=String(restaurantId);
+  roomUsers.set(roomKey,(roomUsers.get(roomKey)||0)+1);
   const join = () => {
-    try { s.emit('display:join', restaurantId); } catch (_) { /* noop */ }
+    try { s.emit('display:join', restaurantId); onChange({restaurantId,reconnected:true}); } catch (_) { /* noop */ }
   };
   join();
   s.on('connect', join);
@@ -58,7 +61,8 @@ export function subscribeRestaurantDisplay(restaurantId, onChange) {
 
   return () => {
     try {
-      s.emit('display:leave', restaurantId);
+      const remaining=Math.max(0,(roomUsers.get(roomKey)||1)-1);
+      if(remaining)roomUsers.set(roomKey,remaining);else{roomUsers.delete(roomKey);s.emit('display:leave',restaurantId);}
       s.off('food:display:changed', handler);
       s.off('connect', join);
     } catch (_) {

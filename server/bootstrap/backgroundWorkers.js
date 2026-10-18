@@ -1,6 +1,7 @@
 'use strict';
 
 const cron = require('node-cron');
+const { startRestaurantScreenSync } = require('../jobs/restaurantScreenSync');
 const logger = require('../utils/logger');
 const bookingController = require('../controllers/bookingController');
 const cleanupOldMessagesJob = require('../jobs/cleanupOldMessages');
@@ -135,6 +136,7 @@ class BackgroundWorkers {
       startRestaurantWalletWatchdog();
       startMessageNotificationOutboxJob();
       startJobEventOutboxJob();
+      this.handles.push(startRestaurantScreenSync());
       startJobRevisionMaintenanceJob();
       startPaymentLayersWorker();
       startMarketplaceRefundReconciliationJob();

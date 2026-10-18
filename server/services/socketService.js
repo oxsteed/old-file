@@ -235,9 +235,9 @@ function shutdown() {
 }
 
 function broadcastToRestaurantDisplay(restaurantId, event, data) {
-  if (!displayNs || !restaurantId) return;
-  try { displayNs.to(`rdisplay_${restaurantId}`).emit(event, data); }
-  catch (err) { logger.warn('broadcastToRestaurantDisplay failed', { restaurantId, error: err.message }); }
+  if (!displayNs || !restaurantId) return false;
+  try { displayNs.to(`rdisplay_${restaurantId}`).emit(event, data); return true; }
+  catch (err) { logger.warn('broadcastToRestaurantDisplay failed', { restaurantId, error: err.message }); return false; }
 }
 
 function broadcastToBusinessCalendar(businessId, event, data) {

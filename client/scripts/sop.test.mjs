@@ -6,7 +6,7 @@ import {compareSnapshots} from '../../scripts/sop/check-manifest.mjs';
 
 test('published guides and role handbooks form a complete registry',()=>{
  assert.deepEqual(validateRegistry(),{guides:[],handbooks:[]});
- assert.equal(GUIDES.length,81);
+ assert.equal(GUIDES.length,82);
  for(const h of HANDBOOKS) {
   assert.ok(h.guideIds.length>0);
   assert.deepEqual(h.guideIds,GUIDES.filter(g=>g.audiences.includes(h.role)).map(g=>g.id));

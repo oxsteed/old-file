@@ -11,6 +11,7 @@ import api from '../../api/axios';
 import { getFoodRestaurant, formatFoodMoney } from '../../api/food';
 import { FoodBrand } from './foodShared';
 import { usePosSync } from './usePosSync';
+import {subscribeRestaurantDisplay} from '../../api/restaurantDisplaySocket';
 import PageShell from '../../components/PageShell';
 import '../../styles/FoodPages.css';
 
@@ -293,6 +294,8 @@ export default function RestaurantPOSPage() {
       setLoading(false);
     }
   }, [restaurantId, t]);
+
+  useEffect(()=>{return subscribeRestaurantDisplay(restaurantId,load);},[restaurantId,canManage,load]);
 
   useEffect(() => {
     load();

@@ -31,6 +31,7 @@ import { createStableIdempotencyKeyStore } from '../../lib/idempotency';
 import RestaurantSetupGuide, { shouldShowRestaurantSetup } from './RestaurantSetupGuide';
 import RestaurantMenuManager from './RestaurantMenuManager';
 import RestaurantFinanceWorkspace from './RestaurantFinanceWorkspace';
+import ScreenControlCenter from '../../restaurantScreens/ControlCenter';
 import LocationsPanel from './FoodLocationsPanel';
 import PromotionsPanel from './FoodPromotionsPanel';
 import { ChecklistsPanel, SopsPanel, InventoryPanel } from './RestaurantOpsPanels';
@@ -1983,6 +1984,7 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
 
   return (
     <div className="fd-section">
+      <ScreenControlCenter key={restaurant.id} restaurantId={restaurant.id} compact />
       <h2>{t('restaurants.ops.title', 'Operations')}</h2>
       <p className="fd-card-meta">{t('restaurants.ops.subtitle', 'Run your restaurant with franchise-grade systems.')}</p>
 
@@ -2302,15 +2304,7 @@ function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
         )}
       </section>
 
-      <section className="fd-owner-attention" id="in-store-screens">
-        <h3>{t('food.merchant.inStoreScreens')}</h3>
-        <p className="fd-card-meta">{t('food.merchant.inStoreScreensHint')}</p>
-        <div className="fd-settings-actions">
-          <Link to={`/restaurants/kitchen/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKitchen')}</Link>
-          <Link to={`/restaurants/queue/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openQueue')}</Link>
-          <Link to={`/restaurants/kiosk/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKiosk')}</Link>
-        </div>
-      </section>
+      <div id="in-store-screens"><ScreenControlCenter key={restaurant.id} restaurantId={restaurant.id} compact /></div>
 
       <Link className="fd-owner-view-customer" to={`/restaurants/r/${restaurant.id}`} target="_blank" rel="noreferrer">
         <span aria-hidden>↗</span><strong>{t('food.ownerHome.viewStore', 'View customer page')}</strong>

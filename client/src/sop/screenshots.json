@@ -10296,5 +10296,101 @@
    ]
   },
   "annotations": []
+ },
+ "restaurant-screen-control/restaurant-screen-control-pair/desktop": {
+  "src": "/sop/screenshots/restaurants/restaurant-screen-control/pair-desktop-screens-v2.jpg",
+  "width": 1068,
+  "height": 569,
+  "alt": "Synthetic example: restaurant pair screen",
+  "caption": "Reviewed browser component fixture, desktop. Synthetic store and credential; no live account data.",
+  "captureReview": {
+   "missingControls": [],
+   "unmapped": []
+  },
+  "annotations": []
+ },
+ "restaurant-screen-control/restaurant-screen-control-pair/mobile": {
+  "src": "/sop/screenshots/restaurants/restaurant-screen-control/pair-mobile-screens-v2.jpg",
+  "width": 358,
+  "height": 766,
+  "alt": "Synthetic example: restaurant pair screen",
+  "caption": "Reviewed browser component fixture, mobile. Synthetic store and credential; no live account data.",
+  "captureReview": {
+   "missingControls": [],
+   "unmapped": []
+  },
+  "annotations": []
+ },
+ "restaurant-screen-control/restaurant-screen-control-kitchen/desktop": {
+  "src": "/sop/screenshots/restaurants/restaurant-screen-control/kitchen-desktop-screens-v2.jpg",
+  "width": 1360,
+  "height": 1000,
+  "alt": "Synthetic example: restaurant kitchen screen",
+  "caption": "Reviewed browser component fixture, desktop. Synthetic store and credential; no live account data.",
+  "captureReview": {
+   "missingControls": [],
+   "unmapped": []
+  },
+  "annotations": []
+ },
+ "restaurant-screen-control/restaurant-screen-control-kitchen/mobile": {
+  "src": "/sop/screenshots/restaurants/restaurant-screen-control/kitchen-mobile-screens-v2.jpg",
+  "width": 390,
+  "height": 844,
+  "alt": "Synthetic example: restaurant kitchen screen",
+  "caption": "Reviewed browser component fixture, mobile. Synthetic store and credential; no live account data.",
+  "captureReview": {
+   "missingControls": [],
+   "unmapped": []
+  },
+  "annotations": []
+ },
+ "restaurant-screen-control/restaurant-screen-control-expeditor/desktop": {
+  "src": "/sop/screenshots/restaurants/restaurant-screen-control/expeditor-desktop-screens-v2.jpg",
+  "width": 1360,
+  "height": 1000,
+  "alt": "Synthetic example: restaurant expeditor screen",
+  "caption": "Reviewed browser component fixture, desktop. Synthetic store and credential; no live account data.",
+  "captureReview": {
+   "missingControls": [],
+   "unmapped": []
+  },
+  "annotations": []
+ },
+ "restaurant-screen-control/restaurant-screen-control-expeditor/mobile": {
+  "src": "/sop/screenshots/restaurants/restaurant-screen-control/expeditor-mobile-screens-v2.jpg",
+  "width": 390,
+  "height": 844,
+  "alt": "Synthetic example: restaurant expeditor screen",
+  "caption": "Reviewed browser component fixture, mobile. Synthetic store and credential; no live account data.",
+  "captureReview": {
+   "missingControls": [],
+   "unmapped": []
+  },
+  "annotations": []
+ },
+ "restaurant-screen-control/restaurant-screen-control-review/desktop": {
+  "src": "/sop/screenshots/restaurants/restaurant-screen-control/review-desktop-screens-v2.jpg",
+  "width": 1068,
+  "height": 230,
+  "alt": "Synthetic example: restaurant review screen",
+  "caption": "Reviewed browser component fixture, desktop. Synthetic store and credential; no live account data.",
+  "captureReview": {
+   "missingControls": [],
+   "unmapped": []
+  },
+  "annotations": []
+ },
+ "restaurant-screen-control/restaurant-screen-control-review/mobile": {
+  "src": "/sop/screenshots/restaurants/restaurant-screen-control/review-mobile-screens-v2.jpg",
+  "width": 358,
+  "height": 284,
+  "alt": "Synthetic example: restaurant review screen",
+  "caption": "Reviewed browser component fixture, mobile. Synthetic store and credential; no live account data.",
+  "captureReview": {
+   "missingControls": [],
+   "unmapped": []
+  },
+  "annotations": []
  }
 }
