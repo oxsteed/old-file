@@ -1078,7 +1078,9 @@ export function PerformanceTab({ target }) {
             <div><strong>{ratio(data.totals.visits_per_share)}</strong><span>{t('promotePage.performance.visitsPerShare')}</span></div>
             <div><strong>{topRow ? label(topRow.source) : '-'}</strong><span>{t('promotePage.performance.topSource')}</span></div>
             <div><strong>{number(data.totals.conversions)}</strong><span>{t('promotePage.performance.conversions')}</span></div>
+            <div><strong>{number(data.totals.net_conversions ?? data.totals.conversions)}</strong><span>{t('promotePage.performance.netConversions')}</span></div>
             <div><strong>{data.totals.conversion_rate_pct == null ? t('promotePage.performance.notAvailable') : pct(data.totals.conversion_rate_pct)}</strong><span>{t('promotePage.performance.conversionRate')}</span></div>
+            <div><strong>{(data.totals.net_conversion_rate_pct ?? data.totals.conversion_rate_pct) == null ? t('promotePage.performance.notAvailable') : pct(data.totals.net_conversion_rate_pct ?? data.totals.conversion_rate_pct)}</strong><span>{t('promotePage.performance.netConversionRate')}</span></div>
           </div>
 
           {sources.length === 0 ? (
@@ -1092,7 +1094,7 @@ export function PerformanceTab({ target }) {
                     <div className="promote-perf-label">
                       <strong>{label(row.source)}</strong>
                       <span>{t('promotePage.performance.sourceLine', { shares: number(row.shares), visits: number(row.visits), ratio: ratio(row.visits_per_share) })}</span>
-                      <span>{t('promotePage.performance.conversionLine', { conversions: number(row.conversions) })}</span>
+                      <span>{t('promotePage.performance.conversionLine', { gross: number(row.conversions), net: number(row.net_conversions ?? row.conversions) })}</span>
                     </div>
                     <div className="promote-perf-bar" aria-hidden="true">
                       <div className="promote-perf-bar-fill" style={{ width: `${pct}%` }} />
@@ -1118,7 +1120,7 @@ export function PerformanceTab({ target }) {
                   <li key={row.campaign}>
                     <bdi>{row.campaign}</bdi>
                     <span>{t('promotePage.performance.mediumLine', { shares: number(row.shares), visits: number(row.visits) })}</span>
-                    <span>{t('promotePage.performance.conversionLine', { conversions: number(row.conversions) })}</span>
+                    <span>{t('promotePage.performance.conversionLine', { gross: number(row.conversions), net: number(row.net_conversions ?? row.conversions) })}</span>
                   </li>
                 ))}
               </ul>
@@ -1128,6 +1130,12 @@ export function PerformanceTab({ target }) {
           {data.totals.conversions > 0 && (
             <p className="promote-help">{t('promotePage.performance.byType', {
               bookings: number(data.totals.by_type?.booking), appointments: number(data.totals.by_type?.appointment), orders: number(data.totals.by_type?.order),
+              jobs: number(data.totals.by_type?.job),
+            })}</p>
+          )}
+          {(data.totals.reversed?.cancelled > 0 || data.totals.reversed?.refunded > 0) && (
+            <p className="promote-help">{t('promotePage.performance.reversedLine', {
+              cancelled: number(data.totals.reversed.cancelled), refunded: number(data.totals.reversed.refunded),
             })}</p>
           )}
           <p className="promote-help">{t('promotePage.performance.help', { days: number(data.attribution_days || 7) })}</p>

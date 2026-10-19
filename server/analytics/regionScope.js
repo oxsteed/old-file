@@ -26,8 +26,11 @@
  *   food_restaurants             the restaurant address
  *   food_orders, food_order_items  the restaurant's address
  *   main_app_payout_requests, subscriptions, consulting_sessions,
- *   consulting_session_feedback  the user's address (users.zip_code/city/state; country only when
- *                                country_confirmed; geo_radius via the confirmed-US ZIP centroid)
+ *   consulting_session_feedback  the user's address (users.zip_code/city/state/country; geo_radius
+ *                                via the US ZIP centroid). Decision 4: a user whose country is
+ *                                unconfirmed counts under the stored country (users.country
+ *                                defaults to 'US', migration 117) and is reported separately
+ *                                via userCountryBreakdown().
  *   support_conversations, support_conversation_reviews  the customer's address
  * Reference tables with no per-row geography (plans, support_sla_targets) pass through.
  */
@@ -105,16 +108,18 @@ function locationInRegionsSql(loc, ref) {
 
 const JOB_LOC = (a) => ({ zip: `${a}.location_zip`, city: `${a}.location_city`, state: `${a}.location_state`,
   country: `COALESCE(NULLIF(${a}.location_country_code,''), ${a}.location_country)`, lat: `${a}.location_lat`, lng: `${a}.location_lng` });
-// users.country defaults to 'US' (migration 117), so it only counts when
-// confirmed (migration 908). Coordinates: users have none; a confirmed-US
-// user's ZIP centroid from direct_geocode_cache stands in for geo_radius
-// regions (no coordinates -> no geo_radius match, fail closed).
+// Decision 4: users count under their STORED country whether or not it is
+// confirmed (migration 908). users.country defaults to 'US' (migration 117),
+// so an unconfirmed 'US' may simply be the default; those users are flagged
+// through userCountryBreakdown() rather than dropped. Coordinates: users have
+// none; a US user's ZIP centroid from direct_geocode_cache stands in for
+// geo_radius regions (no coordinates -> no geo_radius match, fail closed).
 const USER_LOC = (a, g) => ({ zip: `${a}.zip_code`, city: `${a}.city`, state: `${a}.state`,
-  country: `CASE WHEN ${a}.country_confirmed THEN ${a}.country END`,
+  country: `${a}.country`,
   ...(g ? { lat: `${g}.lat`, lng: `${g}.lng` } : {}) });
 const USER_GEO = (a, g) => `LEFT JOIN LATERAL (
     SELECT __gc.lat, __gc.lng FROM direct_geocode_cache __gc
-     WHERE ${a}.country_confirmed AND upper(btrim(${a}.country)) = 'US'
+     WHERE upper(btrim(COALESCE(${a}.country, ''))) = 'US'
        AND __gc.zip_code = substring(btrim(COALESCE(${a}.zip_code, '')) FROM '^[0-9]{5}')
        AND __gc.lat IS NOT NULL AND __gc.lng IS NOT NULL
      ORDER BY __gc.updated_at DESC NULLS LAST LIMIT 1) ${g} ON TRUE`;
@@ -207,6 +212,36 @@ function applyRegionScope(built, scope) {
   return { ...built, text: scoped, params };
 }
 
+/** Tables in a fixed SQL template whose region anchor can be a user address. */
+function userAnchoredTables(text) {
+  return [...referencedTables(String(text))].filter(t => Object.hasOwn(ANCHORS, t) && ANCHORS[t].needs.includes('users'));
+}
+
+/**
+ * Decision 4: for a regional scope over user-anchored data, how many users
+ * inside the territory have a confirmed vs an unconfirmed country. Returns
+ * null for global scopes or metrics with no user anchor.
+ */
+async function userCountryBreakdown(db, scope, texts) {
+  if (!scope || scope.global) return null;
+  const tables = [...new Set([].concat(texts).flatMap(t => userAnchoredTables(t)))];
+  if (!tables.length) return null;
+  const { rows } = await db.query(
+    `SELECT COUNT(*) FILTER (WHERE __u.country_confirmed IS TRUE)::INT AS confirmed,
+            COUNT(*) FILTER (WHERE __u.country_confirmed IS NOT TRUE)::INT AS unconfirmed
+       FROM users __u ${USER_GEO('__u', '__ug')}
+      WHERE ${locationInRegionsSql(USER_LOC('__u', '__ug'), '$1::JSONB')}`,
+    [JSON.stringify(scope.regions)]
+  );
+  return {
+    basis: 'stored_country',
+    defaultCountry: 'US',
+    confirmed: Number(rows[0]?.confirmed || 0),
+    unconfirmed: Number(rows[0]?.unconfirmed || 0),
+    tables,
+  };
+}
+
 /** A db/client wrapper whose query() applies the region scope. */
 function regionScopedDb(db, scope) {
   if (!scope || scope.global) return db;
@@ -241,5 +276,5 @@ function supportsRegionScope(builtList) {
 
 module.exports = {
   ANCHORS, PASS_THROUGH, normalizeBoundary, locationInRegionsSql, referencedTables,
-  applyRegionScope, regionScopedDb, supportsRegionScope,
+  applyRegionScope, regionScopedDb, supportsRegionScope, userAnchoredTables, userCountryBreakdown,
 };

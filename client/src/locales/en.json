@@ -1,5 +1,7 @@
 {
   "governedKpis": {
+    "regionalUserCountry": "Your regions only · country confirmed: {{confirmed}} · unconfirmed: {{unconfirmed}}",
+    "userCountryHelp": "Users with an unconfirmed country are counted under the country on file, which defaults to US.",
     "title": "Governed metrics",
     "help": "Registry metrics for {{period}}, computed exactly like the query builder. Select a card to see the underlying records.",
     "loading": "Loading governed metrics…",
@@ -23994,6 +23996,9 @@
       "printHandOut": "Print and hand out"
     },
     "performance": {
+      "netConversions": "net conversions",
+      "netConversionRate": "net conversion rate",
+      "reversedLine": "Left out of net: {{cancelled}} cancelled · {{refunded}} refunded",
       "title": "Performance",
       "heading": "Track which promos actually move work.",
       "body": "OxSteed records every tracked post, link, card or signature you copy here, and every visit to your profile from those links. Check weekly to see which channels and angles are pulling weight, and which ones to stop running.",
@@ -24016,11 +24021,11 @@
       "noMedium": "untagged",
       "campaigns": "Campaigns",
       "empty": "Nothing tracked yet in this period. Copy a post, slot promo or referral link and share it; visits from it appear here.",
-      "conversions": "conversions",
-      "conversionRate": "conversion rate",
-      "conversionLine": "{{conversions}} conversions",
-      "byType": "Conversions: {{bookings}} bookings · {{appointments}} appointments · {{orders}} orders",
-      "help": "A visit counts once per device, source, campaign and day. Your own visits and your team's are not counted. A conversion is a booking, appointment or order made from the same device within {{days}} days of a tracked visit, credited to the latest visit and counted once. Cancellations are not subtracted. Jobs posted to the marketplace are not counted."
+      "conversions": "gross conversions",
+      "conversionRate": "gross conversion rate",
+      "conversionLine": "Conversions: {{gross}} gross · {{net}} net",
+      "byType": "Gross conversions: {{bookings}} bookings · {{appointments}} appointments · {{orders}} orders · {{jobs}} marketplace hires",
+      "help": "A visit counts once per device, source, campaign and day. Your own visits and your team's are not counted. A conversion is a booking, appointment, order or marketplace hire of one of your business's helpers made within {{days}} days of a tracked visit, from the same device or, for visitors who have not accepted analytics cookies, the same signed-in account. It is credited to the latest visit and counted once. Gross counts every conversion; net leaves out conversions that were later cancelled or refunded."
     },
     "toolkit": {
       "featuredStatus": {

@@ -80,6 +80,6 @@ router.put('/:businessId/conversations/:ticketId/status', requireAuth, scopeExem
 router.post('/:businessId/conversations/:ticketId/assign', requireAuth, scopeExempt('resource-scoped'), supportRoutingController.assignToAgent);
 
 // Get WebSocket connection status (for monitoring)
-router.get('/:businessId/status', requireAuth, scopeExempt('public-storefront'), supportRoutingController.getStatus);
+router.get('/:businessId/status', requireAuth, requireSupportBusinessAccess('conversations'), supportRoutingController.getStatus);
 
 module.exports = router;

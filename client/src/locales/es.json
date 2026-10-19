@@ -1,5 +1,7 @@
 {
   "governedKpis": {
+    "regionalUserCountry": "Solo tus regiones · país confirmado: {{confirmed}} · sin confirmar: {{unconfirmed}}",
+    "userCountryHelp": "Los usuarios con país sin confirmar se cuentan en el país registrado, que por defecto es EE. UU.",
     "title": "Métricas gobernadas",
     "help": "Métricas del registro para {{period}}, calculadas igual que en el generador de consultas. Selecciona una tarjeta para ver los registros subyacentes.",
     "loading": "Cargando métricas gobernadas…",
@@ -23994,6 +23996,9 @@
       "printHandOut": "Imprimir y repartir"
     },
     "performance": {
+      "netConversions": "conversiones netas",
+      "netConversionRate": "tasa de conversión neta",
+      "reversedLine": "Excluidas del neto: {{cancelled}} canceladas · {{refunded}} reembolsadas",
       "title": "Rendimiento",
       "heading": "Descubre qué promociones generan trabajo de verdad.",
       "body": "OxSteed registra cada publicación, enlace, tarjeta o firma con seguimiento que copias aquí, y cada visita a tu perfil desde esos enlaces. Revísalo cada semana para ver qué canales y enfoques funcionan y cuáles dejar de usar.",
@@ -24016,11 +24021,11 @@
       "noMedium": "sin etiqueta",
       "campaigns": "Campañas",
       "empty": "Todavía no hay nada registrado en este período. Copia una publicación, una promoción de horario o un enlace de referido y compártelo; sus visitas aparecerán aquí.",
-      "conversions": "conversiones",
-      "conversionRate": "tasa de conversión",
-      "conversionLine": "{{conversions}} conversiones",
-      "byType": "Conversiones: {{bookings}} reservas · {{appointments}} citas · {{orders}} pedidos",
-      "help": "Una visita cuenta una vez por dispositivo, fuente, campaña y día. No se cuentan tus visitas ni las de tu equipo. Una conversión es una reserva, cita o pedido hecho desde el mismo dispositivo dentro de {{days}} días de una visita rastreada; se atribuye a la última visita y se cuenta una sola vez. Las cancelaciones no se restan. Los trabajos publicados en el mercado no se cuentan."
+      "conversions": "conversiones brutas",
+      "conversionRate": "tasa de conversión bruta",
+      "conversionLine": "Conversiones: {{gross}} brutas · {{net}} netas",
+      "byType": "Conversiones brutas: {{bookings}} reservas · {{appointments}} citas · {{orders}} pedidos · {{jobs}} contrataciones en el mercado",
+      "help": "Una visita cuenta una vez por dispositivo, fuente, campaña y día. No se cuentan tus visitas ni las de tu equipo. Una conversión es una reserva, cita, pedido o contratación en el mercado de uno de los ayudantes de tu negocio hecha dentro de {{days}} días de una visita rastreada, desde el mismo dispositivo o, para visitantes que no aceptaron las cookies de análisis, desde la misma cuenta con sesión iniciada. Se atribuye a la última visita y se cuenta una sola vez. El bruto cuenta todas las conversiones; el neto excluye las que luego se cancelaron o reembolsaron."
     },
     "toolkit": {
       "featuredStatus": {

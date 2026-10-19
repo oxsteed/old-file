@@ -71,7 +71,14 @@ export default function GovernedKpiPanel({ metrics, period = '30d', customerId =
       const value = formatGovernedValue(kpi.metric, row, i18n.language);
       const subtitle = row.denominator != null
         ? t('governedKpis.ofDenominator', { numerator: row.numerator ?? '-', denominator: row.denominator })
-        : (kpi.scope === 'regional' ? t('governedKpis.regional') : t('governedKpis.viewEvidence'));
+        : (kpi.scope === 'regional'
+          ? (kpi.userCountry
+            ? t('governedKpis.regionalUserCountry', {
+              confirmed: new Intl.NumberFormat(i18n.language).format(kpi.userCountry.confirmed),
+              unconfirmed: new Intl.NumberFormat(i18n.language).format(kpi.userCountry.unconfirmed),
+            })
+            : t('governedKpis.regional'))
+          : t('governedKpis.viewEvidence'));
       cards.push(
         <StatCard
           key={`${kpi.metric}-${row.currency_code || row.cohort || index}`}
@@ -91,6 +98,9 @@ export default function GovernedKpiPanel({ metrics, period = '30d', customerId =
         <h2 id="governed-kpis-title" className="text-sm font-semibold text-gray-900 dark:text-white">{t(titleKey)}</h2>
       </div>
       <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">{t('governedKpis.help', { period: t(`governedKpis.period.${period}`) })}</p>
+      {state.status === 'ready' && state.kpis.some((kpi) => kpi.userCountry?.unconfirmed > 0) && (
+        <p className="text-xs text-amber-600 dark:text-amber-400 mb-3">{t('governedKpis.userCountryHelp')}</p>
+      )}
       {state.status === 'loading' && <p role="status" className="text-xs text-gray-500">{t('governedKpis.loading')}</p>}
       {state.status === 'error' && <p role="alert" className="text-xs text-red-500">{t('governedKpis.loadError')}</p>}
       {state.status === 'ready' && (

@@ -90,7 +90,7 @@ async function governedKpis(db, user, metrics, { period = '30d', filters = {} } 
     const query = validateBuilderQuery({ metric, dimensions: [], filters: metricFilters, period });
     const built = buildMetricSql(query, { isSuperAdmin: user.role === 'super_admin', isAdmin: true, restaurantIds: [] });
     try {
-      const { rows } = await runCappedQuery(db, built, 50, { regionScope: scope });
+      const { rows, userCountry } = await runCappedQuery(db, built, 50, { regionScope: scope });
       const cols = VALUE_COLUMNS[metric];
       const values = rows.map(row => ({
         currency_code: row.currency_code || null,
@@ -102,6 +102,7 @@ async function governedKpis(db, user, metrics, { period = '30d', filters = {} } 
       out.push({
         metric, permitted: true, period: query.period, filters: query.filters,
         scope: scope.global ? 'global' : 'regional',
+        ...(userCountry ? { userCountry } : {}),
         definition: def?.definition || null,
         values,
       });

@@ -208,6 +208,8 @@ const modePlatformApprovalRoutes = require('./routes/modePlatformApprovals');
 // creation, and no fresh JWT issuance, causing inconsistent auth state.
 
 const app = express();
+// Per-request method context for deep access checks (decision 5).
+app.use(require('./utils/requestContext').requestContextMiddleware);
 const httpServer = http.createServer(app);
 // SECURITY: number of trusted proxy hops for req.ip resolution.
 // Production path is Cloudflare -> Coolify/Traefik -> app, i.e. 2 hops, so

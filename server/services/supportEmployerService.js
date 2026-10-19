@@ -5,12 +5,15 @@
 
 const { query } = require('../db');
 const logger = require('../utils/logger');
+const { isReadOnlyRequest, adminSupportOk, markAdminSupportOk } = require('../utils/requestContext');
 
 /** @typedef {'business'|'helper'|'platform'} EmployerKind */
 
+// Deleted businesses grant no support standing to members (decision 5).
 const BUSINESS_ACCESS_SQL = `
   SELECT b.id FROM businesses b
   WHERE b.id = $1::integer
+    AND b.deleted_at IS NULL
     AND (
       b.user_id = $2::uuid
       OR EXISTS (
@@ -28,6 +31,7 @@ const BUSINESS_ACCESS_SQL = `
 const BUSINESS_ADMIN_ACCESS_SQL = `
   SELECT b.id FROM businesses b
   WHERE b.id = $1::integer
+    AND b.deleted_at IS NULL
     AND (
       b.user_id = $2::uuid
       OR EXISTS (
@@ -79,6 +83,8 @@ async function findAgentForConversationBusiness(businessId, userId) {
          se.kind = 'platform'
          OR (se.kind = 'business' AND se.business_id = $2)
        )
+       -- Decision 5: no agent (business or platform) works a deleted business.
+       AND NOT EXISTS (SELECT 1 FROM businesses db WHERE db.id = $2 AND db.deleted_at IS NOT NULL)
      ORDER BY CASE WHEN se.kind = 'business' THEN 0 ELSE 1 END, sa.created_at ASC
      LIMIT 1`,
     [userId, businessId]
@@ -101,9 +107,29 @@ async function findPlatformAgent(userId) {
   return rows[0] || null;
 }
 
+async function businessIsDeleted(businessId) {
+  const { rows } = await query('SELECT deleted_at FROM businesses WHERE id = $1::integer', [businessId]);
+  return Boolean(rows[0] && rows[0].deleted_at);
+}
+
+/**
+ * Platform admins keep read-only support access to a deleted business's
+ * records: allowed inside GET/HEAD requests, refused for anything else or
+ * when the request method is unknown (fail closed).
+ */
+async function platformAdminSupportAllowed(businessId) {
+  // Reads are always allowed, so they need no lookup.
+  if (isReadOnlyRequest() || adminSupportOk(businessId)) return true;
+  // Through module.exports so route tests can stub the lookup.
+  if (await module.exports.businessIsDeleted(businessId)) return false;
+  markAdminSupportOk(businessId);
+  return true;
+}
+
 async function userCanAccessBusinessConversations(businessId, userId, userRole) {
-  if (isPlatformAdmin(userRole)) return true;
+  if (isPlatformAdmin(userRole)) return platformAdminSupportAllowed(businessId);
   if (await userCanManageBusiness(businessId, userId)) return true;
+  // Agents cannot work a deleted business's queue (enforced in the SQL).
   return Boolean(await findAgentForConversationBusiness(businessId, userId));
 }
 
@@ -287,6 +313,8 @@ async function employerIdsForConversationBusiness(businessId) {
 }
 
 module.exports = {
+  businessIsDeleted,
+  platformAdminSupportAllowed,
   isPlatformAdmin,
   findAgentForConversationBusiness,
   findPlatformAgent,

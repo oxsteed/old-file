@@ -90,7 +90,7 @@ const { MONEY_METRICS, financialMetricSql } = require('./financialMetrics');
 const { DEFINITIONS: operationalMetrics, operationalMetricSql } = require('./operationalMetrics');
 const { paidOrderPredicate } = require('./restaurantAnalytics');
 const { metricEvidenceSql } = require('./metricEvidence');
-const { regionScopedDb } = require('./regionScope');
+const { regionScopedDb, userCountryBreakdown } = require('./regionScope');
 
 const PERIODS = Object.freeze(['1d', '7d', '30d', '90d', '1y']);
 // Window lengths in days for metrics that need a day count (NPS days,
@@ -622,9 +622,12 @@ async function runCappedQuery(db, built, cap = ROW_CAP, { offset = 0, summary = 
     await client.query(`SET LOCAL statement_timeout = '${STATEMENT_TIMEOUT}'`);
     const summaryResult = summary ? await reader.query(`${summary.text}\nLIMIT ${ROW_CAP+1}`,summary.params) : null;
     const res = await reader.query(`${built.text}\nLIMIT ${cap + 1}${offset ? ` OFFSET ${offset}` : ''}`, built.params);
+    // Decision 4: unconfirmed-country users count under their stored country;
+    // regional results report confirmed and unconfirmed users separately.
+    const userCountry = await userCountryBreakdown(client, regionScope, [built.text, summary?.text].filter(Boolean));
     await client.query('COMMIT');
     const truncated = res.rows.length > cap;
-    return { rows: truncated ? res.rows.slice(0, cap) : res.rows, truncated,
+    return { rows: truncated ? res.rows.slice(0, cap) : res.rows, truncated, userCountry,
       summary: summaryResult?.rows.slice(0,ROW_CAP),summaryTruncated: (summaryResult?.rows.length || 0)>ROW_CAP };
   } catch (err) {
     try { await client.query('ROLLBACK'); } catch (_) { /* ignore */ }
@@ -675,7 +678,7 @@ async function executeBuilderQuery(db, user, input, opts = {}) {
     const offset = opts.evidence ? Number(opts.offset || 0) : 0;
     if (!Number.isSafeInteger(offset) || offset < 0 || offset > 1000000) throw new AppError('Invalid evidence page',400,'invalid_param');
     const built = opts.evidence ? metricEvidenceSql(query,scope,registry,aggregate) : aggregate;
-    const { rows, truncated, summary, summaryTruncated } = await runCappedQuery(db, built,
+    const { rows, truncated, summary, summaryTruncated, userCountry } = await runCappedQuery(db, built,
       opts.evidence && opts.eventType !== 'export' ? 100 : ROW_CAP,
       { offset, summary: opts.evidence ? aggregate : null, regionScope: metricScope });
     const durationMs = Date.now() - startedAt;
@@ -685,7 +688,8 @@ async function executeBuilderQuery(db, user, input, opts = {}) {
       compiledQuery: { sql: built.text, params: built.params },
     });
     return { rows, columns: built.columns, rowCount: rows.length,
-      scope: metricScope.global ? { kind: 'global' } : { kind: 'regional', regionIds: [...metricScope.regionIds] },
+      scope: metricScope.global ? { kind: 'global' }
+        : { kind: 'regional', regionIds: [...metricScope.regionIds], ...(userCountry ? { userCountry } : {}) },
       truncated: opts.evidence && opts.eventType !== 'export' ? false : truncated, durationMs, query,
       evidence: opts.evidence === true, offset,
       ...(opts.evidence ? { summary, summaryTruncated, summaryColumns: aggregate.columns, hasMore: truncated } : {}) };
