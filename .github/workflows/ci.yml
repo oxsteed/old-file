@@ -8,8 +8,8 @@ on:
   push:
     branches: [old-files-claude]
   pull_request:
-    # Stacked PRs onto the analytics branch (#608) also need CI.
-    branches: [old-files-claude, codex/analytics-remaining-implementation, codex/analytics-scope-centralization]
+    # Temporary: PR #610 is stacked on #609; remove once #609 merges.
+    branches: [old-files-claude, codex/analytics-scope-centralization]
 
 jobs:
   install-check:
