@@ -4381,6 +4381,15 @@
       "noQuote": {
         "body": "Operaciones aún no ha publicado una cotización pagadera para este pedido. Te avisaremos cuando esté lista. No debes ningún pago por ahora.",
         "title": "Aún no hay cotización lista"
+      },
+      "countryRequired": {
+        "title": "Agrega tu país para continuar",
+        "body": "Las rutas comerciales y las reglas de productos dependen de dónde compras, por lo que el pago de logística necesita el país de tu cuenta. Se guarda en tu perfil y puedes cambiarlo después en la configuración de la cuenta.",
+        "label": "País",
+        "save": "Guardar país y continuar",
+        "saving": "Guardando…",
+        "error": "No se pudo guardar tu país. Elige un país e inténtalo de nuevo.",
+        "required": "Elige un país para continuar."
       }
     },
     "quotes": {

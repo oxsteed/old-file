@@ -4381,6 +4381,15 @@
       "noQuote": {
         "body": "Operasyon poko pibliye yon devis ou ka peye pou kòmand sa a. N ap fè ou konnen lè li pare. Ou pa dwe okenn peman pou kounye a.",
         "title": "Poko gen devis ki pare"
+      },
+      "countryRequired": {
+        "title": "Ajoute peyi ou pou kontinye",
+        "body": "Wout komès yo ak règ pwodui yo depann de kote ou achte, kidonk peman lojistik la bezwen peyi ki sou kont ou. Li anrejistre nan pwofil ou epi ou ka chanje l pita nan paramèt kont ou.",
+        "label": "Peyi",
+        "save": "Anrejistre peyi a epi kontinye",
+        "saving": "N ap anrejistre…",
+        "error": "Nou pa t ka anrejistre peyi ou. Chwazi yon peyi epi eseye ankò.",
+        "required": "Chwazi yon peyi pou kontinye."
       }
     },
     "quotes": {

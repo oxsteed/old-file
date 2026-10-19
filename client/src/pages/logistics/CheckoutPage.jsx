@@ -8,6 +8,7 @@ import LogisticsLayout from '../../components/logistics/LogisticsLayout';
 import LogisticsStatusPill from '../../components/logistics/LogisticsStatusPill';
 import QuoteAcceptanceGate from '../../components/logistics/QuoteAcceptanceGate';
 import PaymentStatusPanel from '../../components/logistics/PaymentStatusPanel';
+import CountryRequiredPanel from '../../components/logistics/CountryRequiredPanel';
 import { createPaymentAttempt, getCheckoutContext, cancelLogisticsPayment } from '../../api/logistics';
 import { formatCreditMinorUnits } from '../../lib/creditCurrency';
 import '../../styles/logistics/LogisticsHomePage.css';
@@ -232,7 +233,12 @@ function CheckoutFlow({ context, returnPath, returnLabel, onQuoteAccepted }) {
     } catch (err) {
       const code = err.response?.data?.code;
       const status = err.response?.status;
-      if (code === 'logistics_payments_disabled' || status === 503) {
+      if (code === 'country_required') {
+        // Refetch: the context now reports country_required and the page
+        // shows the country prompt instead of the payment form.
+        onQuoteAccepted(null, true);
+        setSubmitError(tx('logistics.checkout.countryRequired.title', 'Add your country to continue'));
+      } else if (code === 'logistics_payments_disabled' || status === 503) {
         setSubmitError(tx(
           'logistics.checkout.errors.paymentsDisabled',
           'Online payments are not enabled yet. Please try again later.'
@@ -717,6 +723,12 @@ function CheckoutPageInner() {
           </div>
         </div>
       );
+    }
+
+    // No country on file: the server refuses checkout (428 country_required)
+    // and never trusts a client-supplied country, so collect it first.
+    if (context.country_required) {
+      return <CountryRequiredPanel onSaved={load} />;
     }
 
     const { quote } = context;

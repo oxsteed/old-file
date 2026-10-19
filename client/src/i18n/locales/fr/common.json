@@ -4381,6 +4381,15 @@
       "noQuote": {
         "body": "Les opérations n'ont pas encore publié de devis payable pour cette commande. Vous serez notifié quand il sera prêt. Aucun paiement n'est dû pour le moment.",
         "title": "Aucun devis prêt pour le moment"
+      },
+      "countryRequired": {
+        "title": "Ajoutez votre pays pour continuer",
+        "body": "Les routes commerciales et les règles produits dépendent de l’endroit d’où vous achetez : le paiement logistique a donc besoin du pays de votre compte. Il est enregistré dans votre profil et vous pourrez le modifier plus tard dans les paramètres du compte.",
+        "label": "Pays",
+        "save": "Enregistrer le pays et continuer",
+        "saving": "Enregistrement…",
+        "error": "Impossible d’enregistrer votre pays. Choisissez un pays et réessayez.",
+        "required": "Choisissez un pays pour continuer."
       }
     },
     "quotes": {

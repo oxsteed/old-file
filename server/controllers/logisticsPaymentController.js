@@ -7,7 +7,7 @@
 const AppError = require('../utils/appError');
 const payments = require('../services/logisticsPaymentService');
 const quotes = require('../services/logisticsQuoteService');
-const { resolveLogisticsRole } = require('../middleware/requireLogisticsAccess');
+const { resolveLogisticsRole, countryOnFile } = require('../middleware/requireLogisticsAccess');
 
 async function requireStaff(req) {
   const role = await resolveLogisticsRole(req.user);
@@ -122,7 +122,10 @@ exports.getCheckoutContext = async (req, res, next) => {
       participantId: req.query.participantId !== undefined ? req.query.participantId : req.query.participant_id,
       isStaff: payments.isStaffRole(role),
     });
-    res.json({ success: true, data });
+    // The checkout UI prompts for a country before payment when none is on
+    // file; POST /checkout/attempt enforces it (428 country_required).
+    const buyerCountry = await countryOnFile(req.user.id);
+    res.json({ success: true, data: data ? { ...data, buyer_country: buyerCountry, country_required: !buyerCountry } : data });
   } catch (err) { next(err); }
 };
 

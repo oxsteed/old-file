@@ -22,7 +22,7 @@ const capabilitiesCtrl = require('../controllers/logisticsCapabilitiesController
 const paymentsCtrl  = require('../controllers/logisticsPaymentController');
 const dashboardCountsCtrl = require('../controllers/logisticsDashboardCountsController');
 const requireLogisticsPayments = require('../middleware/requireLogisticsPayments');
-const { requireLogisticsCapability, requireLaneAccess } = require('../middleware/requireLogisticsAccess');
+const { requireLogisticsCapability, requireLaneAccess, requireCountryOnFile } = require('../middleware/requireLogisticsAccess');
 // Capability gates. Each resolves the caller's server-derived capabilities
 // (the same model served to the UI via GET /api/logistics/capabilities) and
 // enforces them on mutations; admins / super_admins always pass. Effective
@@ -318,7 +318,7 @@ router.get('/refund-cases', requireAuth, async (req, res, next) => {
 // off): every route below answers 503 while disabled. Existing read
 // endpoints above are unaffected.
 
-router.post('/checkout/attempt',                    requireAuth, requireLogisticsPayments, paymentsCtrl.createAttempt);
+router.post('/checkout/attempt',                    requireAuth, requireLogisticsPayments, requireCountryOnFile(), paymentsCtrl.createAttempt);
 router.get('/checkout/attempt/:id',                  requireAuth, requireLogisticsPayments, paymentsCtrl.getAttempt);
 router.get('/checkout/reconciliation',               requireAuth, requireLogisticsPayments, paymentsCtrl.listReconciliation);
 router.patch('/checkout/reconciliation/:id',         requireAuth, requireLogisticsPayments, paymentsCtrl.resolveReconciliation);

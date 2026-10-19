@@ -1,7 +1,7 @@
 'use strict';
 const AppError = require('../utils/appError');
 const pooledOrderService = require('../services/pooledOrderService');
-const { resolveLogisticsRole } = require('../middleware/requireLogisticsAccess');
+const { resolveLogisticsRole, countryOnFile } = require('../middleware/requireLogisticsAccess');
 const pool = require('../db');
 
 // Map service-layer error codes to HTTP errors. Unknown errors propagate
@@ -37,8 +37,17 @@ function toHttpError(err) {
   return null;
 }
 
-function viewerCountry(req) {
-  return req.user?.country || req.user?.location_country || req.headers['x-buyer-country'] || null;
+// Buyer country is the country on file (users.country); client-supplied
+// headers/params are never trusted.
+async function viewerCountry(req) {
+  return req.user?.id ? countryOnFile(req.user.id) : null;
+}
+
+// Write paths that evaluate lane/market access need a country on file.
+async function requiredViewerCountry(req) {
+  const country = await viewerCountry(req);
+  if (!country) throw new AppError('Set the country on your account first.', 428, 'country_required');
+  return country;
 }
 
 // Shared page/limit/offset parsing for the paginated campaign listings.
@@ -150,7 +159,7 @@ exports.getPooledOrder = async (req, res, next) => {
       order.available_actions = await pooledOrderService.describeActions(order, {
         isOwner, isOps, isAdmin: Boolean(req.isAdmin),
         userId: req.user?.id || null,
-        userCountry: viewerCountry(req),
+        userCountry: await viewerCountry(req),
         userRole: logisticsRole,
       });
       order.approval_history = await pooledOrderService.getApprovalHistory(order.id);
@@ -167,7 +176,7 @@ exports.createPooledOrder = async (req, res, next) => {
     }
     const logisticsRole = await resolveLogisticsRole(req.user);
     const order = await pooledOrderService.createPooledOrder(req.body, req.user.id, {
-      userCountry: viewerCountry(req),
+      userCountry: await requiredViewerCountry(req),
       userRole: logisticsRole,
     });
     res.status(201).json({ success: true, data: order });
@@ -181,7 +190,7 @@ exports.updatePooledOrder = async (req, res, next) => {
   try {
     const logisticsRole = await resolveLogisticsRole(req.user);
     const order = await pooledOrderService.updateCampaignDraft(req.params.id, req.user.id, req.body, {
-      userCountry: viewerCountry(req),
+      userCountry: await requiredViewerCountry(req),
       userRole: logisticsRole,
     });
     res.json({ success: true, data: order });
@@ -194,7 +203,7 @@ exports.submitForReview = async (req, res, next) => {
   try {
     const logisticsRole = await resolveLogisticsRole(req.user);
     const order = await pooledOrderService.submitCampaignForReview(req.params.id, req.user.id, {
-      userCountry: viewerCountry(req),
+      userCountry: await requiredViewerCountry(req),
       userRole: logisticsRole,
     });
     res.json({ success: true, data: order });

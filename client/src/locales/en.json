@@ -18647,6 +18647,15 @@
       "noQuote": {
         "body": "Operations has not published a payable quote for this order. You will be notified when it is ready. No payment is due right now.",
         "title": "No quote is ready yet"
+      },
+      "countryRequired": {
+        "title": "Add your country to continue",
+        "body": "Trade lanes and product rules depend on where you buy from, so logistics checkout needs the country on your account. It is saved to your profile and you can change it later in account settings.",
+        "label": "Country",
+        "save": "Save country and continue",
+        "saving": "Saving…",
+        "error": "Your country could not be saved. Choose a country and try again.",
+        "required": "Choose a country to continue."
       }
     },
     "quotes": {
