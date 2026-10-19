@@ -15,6 +15,12 @@ const oxsteedCreditPartnerCtrl = require('../controllers/oxsteedCreditPartnerCon
 const { requireAdmin } = require('../middleware/adminAuth');
 const { creditExportLimiter, creditPurchaseLimiter, paymentsLimiter, restaurantCreditMutationLimiter, profileChatLimiter, foodCheckoutCompleteLimiter, generalLimiter } = require('../middleware/rateLimiter');
 const checkRestrictions = require('../middleware/checkRestrictions');
+// Kitchen-display device auth for the order status route: a paired kitchen
+// token authorizes Ready/Handoff transitions without a staff session (see
+// restaurantDisplayController). Non-device requests fall through to the
+// standard staff chain (authenticate + requireRestaurantAccess), so existing
+// behavior is preserved.
+const { requireKitchenDeviceOrStaff } = require('../controllers/restaurantDisplayController');
 
 function noStoreCreditResponse(_req, res, next) {
   res.set('Cache-Control', 'private, no-store');
@@ -215,7 +221,11 @@ router.post('/restaurants/:restaurantId/orders', optionalAuth, creditPurchaseLim
 
 // Merchant order operations (kitchen feed, status flow, in-store payment).
 router.get('/restaurants/:restaurantId/orders', authenticate, requireRestaurantAccess(), ctrl.listRestaurantOrders);
-router.patch('/restaurants/:restaurantId/orders/:orderId/status', authenticate, requireRestaurantAccess(), ctrl.updateOrderStatus);
+// The status route accepts a paired kitchen display's token (Ready/Handoff
+// transitions only, enforced in the controller) as well as the standard
+// staff chain; requireKitchenDeviceOrStaff falls through to authenticate +
+// requireRestaurantAccess() for non-device requests.
+router.patch('/restaurants/:restaurantId/orders/:orderId/status', requireKitchenDeviceOrStaff, ctrl.updateOrderStatus);
 router.post('/restaurants/:restaurantId/orders/:orderId/split', authenticate, requireRestaurantAccess(), ctrl.splitOrder);
 
 module.exports = router;
