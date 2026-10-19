@@ -113,15 +113,28 @@ decisions (October 19): see [Product decisions](#product-decisions-october-19).
 - [x] New analytics surfaces use the canonical resolvers (business invoice
   analytics and Growth Center business performance are manager-gated through
   `requireBusinessAccess`; helper performance is own-data only). *Now.*
-- [defer] ~470 inline business/membership filters: long-tail convergence,
-  domain by domain; no behavior change is safe without per-domain tests.
+- [x] Tenant scoping is centralized at the route layer (stacked PR on
+  `codex/analytics-scope-centralization`). All 765 tenant-id routes run a shared
+  gate or a registered `scopeExempt(reason)`: `requireBusinessAccess`,
+  `requireRestaurantAccess`, `requireSupportBusinessAccess`, or platform admin.
+  Before, 517 of them relied on per-controller checks. The last 3 copy-pasted
+  restaurant ownership checks now use `scopeModel`. `routeScopeGuard.test.js`
+  fails on any new unscoped tenant route, and the cross-tenant denial DB test
+  covers every gate. The 922 inline `business_id`/`restaurant_id` SQL predicates
+  stay as data filters behind the gates. Tightenings and open decisions are in
+  `scope-migration-inventory.md`. *Now.*
 - [x] Region-aware row filtering for regional admins. Metrics, evidence, the
   builder, alerts and exports run through a region filter per anchored table;
   tables without an anchor fail closed (`region_scope_unsupported`), as do
   unknown regions (`region_unknown`). The audit records the scope and region
   ids. Deleting a region revokes its grants so they cannot become global.
   *Decision 3 (`194ccd7b`, migrations 901-903).*
-- [defer] One Truth analyst scope + Q3 O(n^2) pairing redesign: separate work.
+- [x] One Truth analyst scope uses the shared `scopeModel.appendAnalystUserScope`
+  (fail closed on empty grants). A latent cross-user ops-count fallback is
+  removed. *Now.*
+- [decision] Q3 within-group pairing is still k(k-1)/2 (the response is pairs).
+  Clusters or a group-size cap change the API and the review keys. See
+  `scope-migration-inventory.md` ("One Truth").
 
 ## Area 5: embedded analytics
 
@@ -431,9 +444,10 @@ notification keys, and eight alertable metrics.
 Present: shared scope/access helpers and restaurant-controller convergence.
 This is the planned first-domain pilot, not codebase-wide row security.
 
-- [ ] Adopt the canonical resolver in business access middleware and legacy
+- [x] Adopt the canonical resolver in business access middleware and legacy
   business-ownership helpers, preserving each role policy.
-- [ ] Converge remaining inline membership/tenancy filters domain by domain.
+- [x] Converge inline membership/tenancy checks onto route-level gates for all
+  765 tenant routes, with a guard test (`scope-migration-inventory.md`).
 - [ ] Add logistics-specific scope resolution and fix the current country gate's
   fail-open error path (`server/middleware/requireLogisticsAccess.js:153`).
 - [ ] Integrate One Truth analyst scopes and global admin search with the shared

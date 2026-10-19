@@ -1,3 +1,4 @@
+const scopeModel = require('../services/scopeModel');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const AppError = require('../utils/appError');
@@ -234,16 +235,9 @@ function maskPII(users) {
 }
 
 // Delegated analysts only ever see rows for user ids inside their active
-// grants. scopeIds === null means super-admin (unscoped). Appends
-// `col = ANY($N::uuid[])` fragments and pushes the params.
-function withAnalystScope(whereParts, params, userColumns, scopeIds) {
-  if (!scopeIds) return;
-  const cols = Array.isArray(userColumns) ? userColumns : [userColumns];
-  const start = params.length + 1;
-  const ors = cols.map((col, i) => `${col} = ANY($${start + i}::uuid[])`);
-  whereParts.push(cols.length > 1 ? `(${ors.join(' OR ')})` : ors[0]);
-  for (const _col of cols) params.push(scopeIds);
-}
+// grants (req.oneTruthScopeIds; null = super-admin, unscoped). The clause
+// builder now lives in the shared scope model (scope report Area 4).
+const withAnalystScope = scopeModel.appendAnalystUserScope;
 
 // P1 item 13: operational errors (e.g. unsupported region types) must
 // surface their real status instead of collapsing into a 500.
@@ -527,7 +521,7 @@ async function attachBusinesses(client, users) {
 async function attachOperationalCounts(client, users) {
   if (!users.length) return users;
   const userIds = users.map((user) => user.id);
-  const opsMap = new Map(userIds.map((id) => [id, {
+  const zeroOps = () => ({
     jobsPosted: 0,
     jobsWorked: 0,
     supportTickets: 0,
@@ -536,7 +530,8 @@ async function attachOperationalCounts(client, users) {
     paymentsSent: 0,
     paymentsReceived: 0,
     consultingSessions: 0,
-  }]));
+  });
+  const opsMap = new Map(userIds.map((id) => [id, zeroOps()]));
 
   const queries = [];
 
@@ -628,7 +623,8 @@ async function attachOperationalCounts(client, users) {
 
   return users.map((user) => ({
     ...user,
-    ops: opsMap.get(user.id) || opsMap.values().next().value,
+    // Every id is seeded above; never fall back to another user's counts.
+    ops: opsMap.get(user.id) || zeroOps(),
   }));
 }
 
@@ -638,10 +634,13 @@ async function enrichUsers(client, users) {
 }
 
 /**
- * Build suspect pairs using indexed database queries instead of O(n²) in-memory
- * comparison. For each signal type, find users sharing the same value via
- * GROUP BY ... HAVING COUNT(*) > 1, then build pairs from those groups.
- * This is O(n) in database time with proper indexes, not O(n²) in Node.
+ * Build suspect pairs from indexed GROUP BY ... HAVING COUNT(*) > 1 queries.
+ * Finding the groups is O(n) in the database; the users are no longer compared
+ * all-against-all in Node. Pairing *within* a group is still k(k-1)/2 because
+ * the response is a list of pairs: one shared IP with k users yields every pair.
+ * The 5,000-user scope cap bounds this today. Replacing pairs with clusters (or
+ * capping group size) changes the response and is a product decision; see
+ * docs/analytics-platform/scope-migration-inventory.md ("One Truth").
  */
 async function buildSuspectPairsIndexed(client, userIds) {
   if (!userIds.length) return [];
@@ -856,7 +855,8 @@ exports.listSuspects = async (req, res) => {
 
     const enrichedUsers = await enrichUsers(client, rows);
     const userMap = new Map(enrichedUsers.map((user) => [user.id, user]));
-    // Use indexed DB queries instead of O(n²) in-memory comparison.
+    // Groups come from indexed DB queries; see buildSuspectPairsIndexed for the
+    // within-group pairing bound.
     const userIds = enrichedUsers.map(u => u.id);
     const suspectPairs = (await buildSuspectPairsIndexed(client, userIds)).map((pair) => ({
       ...pair,

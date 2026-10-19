@@ -386,7 +386,26 @@ async function resolveScope(user, context = {}) {
   return scope;
 }
 
+/**
+ * appendAnalystUserScope(whereParts, params, userColumns, scopeIds)
+ *
+ * One Truth delegated-analyst scoping: when scopeIds is an array, appends
+ * `col = ANY($N::uuid[])` (OR-ed across several columns) and pushes one param
+ * per column. scopeIds null/undefined means unscoped (super-admin duty) and is
+ * a no-op. An empty array matches nothing, so an analyst without live grants
+ * sees no rows (fail closed).
+ */
+function appendAnalystUserScope(whereParts, params, userColumns, scopeIds) {
+  if (!scopeIds) return;
+  const cols = Array.isArray(userColumns) ? userColumns : [userColumns];
+  const start = params.length + 1;
+  const ors = cols.map((col, i) => `${col} = ANY($${start + i}::uuid[])`);
+  whereParts.push(cols.length > 1 ? `(${ors.join(' OR ')})` : ors[0]);
+  for (let i = 0; i < cols.length; i += 1) params.push(scopeIds);
+}
+
 module.exports = {
+  appendAnalystUserScope,
   resolveScope,
   resolveBusinessAccess,
   resolveRestaurantAccess,

@@ -140,3 +140,19 @@ describe('scoped id accessors fail closed', () => {
     expect(scopedBusinessId({ business: { id: 12 } })).toBe('12');
   });
 });
+
+describe('appendAnalystUserScope (One Truth analyst scope)', () => {
+  const { appendAnalystUserScope } = require('../services/scopeModel');
+  test('null scope is unscoped; arrays bind one param per column; empty array matches nothing', () => {
+    const w = []; const p = ['x'];
+    appendAnalystUserScope(w, p, 'u.id', null);
+    expect([w, p]).toEqual([[], ['x']]);
+    appendAnalystUserScope(w, p, ['j.client_id', 'j.assigned_helper_id'], ['a']);
+    expect(w).toEqual(['(j.client_id = ANY($2::uuid[]) OR j.assigned_helper_id = ANY($3::uuid[]))']);
+    expect(p).toEqual(['x', ['a'], ['a']]);
+    const w2 = []; const p2 = [];
+    appendAnalystUserScope(w2, p2, 'u.id', []);
+    expect(w2).toEqual(['u.id = ANY($1::uuid[])']);
+    expect(p2).toEqual([[]]);
+  });
+});
