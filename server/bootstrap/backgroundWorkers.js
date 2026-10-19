@@ -167,6 +167,13 @@ class BackgroundWorkers {
           this.log.warn('Promotion link analytics retention failed', { error: error.message });
         });
       }, { timezone: 'UTC' });
+      // Decision 3: signed-in account links for non-consent visits expire
+      // after the 7-day attribution window (hourly, at :41).
+      cron.schedule('0 41 * * * *', () => {
+        require('../analytics/promotionLinkAnalytics').clearExpiredAccountLinks(require('../db')).catch((error) => {
+          this.log.warn('Promotion account-link expiry failed', { error: error.message });
+        });
+      }, { timezone: 'UTC' });
 
       cron.schedule('*/10 * * * * *', () => {
         require('../services/supportWaitService').processWaiting().catch((error) => {

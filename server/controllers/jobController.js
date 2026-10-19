@@ -1,4 +1,5 @@
 const pool = require('../db');
+const { attributePromotionJobHire } = require('../analytics/promotionAttribution');
 const { scoreAndMatch } = require('../services/matchService');
 const { uploadFile, getPublicUrl, deleteFile } = require('../utils/storage');
 const logger = require('../utils/logger');
@@ -1158,6 +1159,8 @@ exports.assignHelper = async (req, res, next) => {
       job: serializeJob(result.job, { role: 'owner' }),
       bid: result.bid,
     });
+    // Growth Center attribution (decision 2): hiring a business's helper.
+    attributePromotionJobHire(req, { helperUserId: result.bid.helper_id, jobId: result.job.id });
 
     // Notify the hired helper (non-blocking, after response)
     try {
