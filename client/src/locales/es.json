@@ -7846,7 +7846,9 @@
       "channels": {
         "email": "Correo",
         "sms": "SMS",
-        "push": "Notificación"
+        "push": "Notificación",
+        "in_app": "En la app",
+        "all": "Todos los canales"
       },
       "saveDraft": "Guardar borrador",
       "noBroadcasts": "Aún no hay difusiones.",
@@ -7873,7 +7875,27 @@
       "statuses": {
         "draft": "Borrador",
         "sent": "Enviado",
-        "failed": "Fallido"
+        "failed": "Fallido",
+        "scheduled": "Programado",
+        "sending": "Enviando",
+        "cancelled": "Cancelado"
+      },
+      "toastBroadcastQueued": "Difusión en cola para su envío",
+      "toastBroadcastScheduled": "Difusión programada",
+      "channelUnsupported": "Este canal no se puede enviar. Elige correo, push, en la app o todos los canales.",
+      "deleteBroadcast": "Eliminar difusión",
+      "delivery": {
+        "caption": "Entrega",
+        "sent": "Entregados",
+        "opened": "Abiertos",
+        "clicked": "Clics",
+        "pending": "En curso: {{count}}",
+        "notDelivered": "No entregados: {{count}}",
+        "unsubscribes": "Bajas: {{count}}",
+        "openNote": "Las aperturas de correo son estimadas; algunas apps bloquean las imágenes de seguimiento.",
+        "notTracked": "No se mide en este canal",
+        "reportTitle": "Resultados de difusiones, últimos {{days}} días",
+        "legacyUntracked": "Marcado como enviado antes del seguimiento de entregas; no se entregó ningún mensaje."
       }
     },
     "packages": {

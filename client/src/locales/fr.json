@@ -8413,7 +8413,9 @@
       "channels": {
         "email": "E-mail",
         "sms": "SMS",
-        "push": "Notification"
+        "push": "Notification",
+        "in_app": "Dans l’app",
+        "all": "Tous les canaux"
       },
       "saveDraft": "Enregistrer le brouillon",
       "noBroadcasts": "Aucune diffusion pour le moment.",
@@ -8440,7 +8442,27 @@
       "statuses": {
         "draft": "Brouillon",
         "sent": "Envoyé",
-        "failed": "Échec"
+        "failed": "Échec",
+        "scheduled": "Programmée",
+        "sending": "Envoi en cours",
+        "cancelled": "Annulée"
+      },
+      "toastBroadcastQueued": "Diffusion mise en file d’envoi",
+      "toastBroadcastScheduled": "Diffusion programmée",
+      "channelUnsupported": "Ce canal ne peut pas être envoyé. Choisissez e-mail, push, dans l’app ou tous les canaux.",
+      "deleteBroadcast": "Supprimer la diffusion",
+      "delivery": {
+        "caption": "Distribution",
+        "sent": "Remis",
+        "opened": "Ouverts",
+        "clicked": "Clics",
+        "pending": "En cours : {{count}}",
+        "notDelivered": "Non distribués : {{count}}",
+        "unsubscribes": "Désabonnements : {{count}}",
+        "openNote": "Les ouvertures d’e-mails sont estimées ; certaines messageries bloquent les images de suivi.",
+        "notTracked": "Non mesuré pour ce canal",
+        "reportTitle": "Résultats des diffusions, {{days}} derniers jours",
+        "legacyUntracked": "Marquée envoyée avant le suivi de distribution ; aucun message n’a été distribué."
       }
     },
     "packages": {

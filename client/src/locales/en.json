@@ -8413,7 +8413,9 @@
       "channels": {
         "email": "Email",
         "sms": "SMS",
-        "push": "Push"
+        "push": "Push",
+        "in_app": "In-app",
+        "all": "All channels"
       },
       "saveDraft": "Save Draft",
       "noBroadcasts": "No broadcasts yet.",
@@ -8440,7 +8442,27 @@
       "statuses": {
         "draft": "Draft",
         "sent": "Sent",
-        "failed": "Failed"
+        "failed": "Failed",
+        "scheduled": "Scheduled",
+        "sending": "Sending",
+        "cancelled": "Cancelled"
+      },
+      "toastBroadcastQueued": "Broadcast queued for delivery",
+      "toastBroadcastScheduled": "Broadcast scheduled",
+      "channelUnsupported": "This channel can't be delivered. Choose email, push, in-app or all channels.",
+      "deleteBroadcast": "Delete broadcast",
+      "delivery": {
+        "caption": "Delivery",
+        "sent": "Delivered",
+        "opened": "Opened",
+        "clicked": "Clicked",
+        "pending": "In progress: {{count}}",
+        "notDelivered": "Not delivered: {{count}}",
+        "unsubscribes": "Unsubscribes: {{count}}",
+        "openNote": "Email opens are estimates; some mail apps block tracking images.",
+        "notTracked": "Not tracked for this channel",
+        "reportTitle": "Broadcast results, last {{days}} days",
+        "legacyUntracked": "Marked sent before delivery tracking existed; no messages were delivered."
       }
     },
     "packages": {

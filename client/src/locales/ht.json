@@ -7958,7 +7958,9 @@
       "channels": {
         "email": "Imèl",
         "sms": "SMS",
-        "push": "Notifikasyon"
+        "push": "Notifikasyon",
+        "in_app": "Nan aplikasyon an",
+        "all": "Tout chanèl"
       },
       "saveDraft": "Sove bouyon",
       "noBroadcasts": "Pa gen difizyon ankò.",
@@ -7985,7 +7987,27 @@
       "statuses": {
         "draft": "Bouyon",
         "sent": "Voye",
-        "failed": "Echwe"
+        "failed": "Echwe",
+        "scheduled": "Pwograme",
+        "sending": "Ap voye",
+        "cancelled": "Anile"
+      },
+      "toastBroadcastQueued": "Difizyon an nan fil pou voye",
+      "toastBroadcastScheduled": "Difizyon an pwograme",
+      "channelUnsupported": "Ou pa ka voye sou chanèl sa a. Chwazi imèl, push, nan aplikasyon an oswa tout chanèl.",
+      "deleteBroadcast": "Efase difizyon an",
+      "delivery": {
+        "caption": "Livrezon",
+        "sent": "Livre",
+        "opened": "Louvri",
+        "clicked": "Klike",
+        "pending": "Ap fèt: {{count}}",
+        "notDelivered": "Pa livre: {{count}}",
+        "unsubscribes": "Dezabònman: {{count}}",
+        "openNote": "Kantite imèl louvri yo se estimasyon; kèk aplikasyon bloke imaj swivi yo.",
+        "notTracked": "Pa mezire sou chanèl sa a",
+        "reportTitle": "Rezilta difizyon, dènye {{days}} jou",
+        "legacyUntracked": "Make kòm voye anvan swivi livrezon te egziste; pa gen okenn mesaj ki te livre."
       }
     },
     "packages": {

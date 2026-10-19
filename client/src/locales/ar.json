@@ -8413,7 +8413,9 @@
       "channels": {
         "email": "البريد الإلكتروني",
         "sms": "رسائل SMS",
-        "push": "إشعار"
+        "push": "إشعار",
+        "in_app": "داخل التطبيق",
+        "all": "كل القنوات"
       },
       "saveDraft": "حفظ المسودة",
       "noBroadcasts": "لا توجد رسائل جماعية بعد.",
@@ -8440,7 +8442,27 @@
       "statuses": {
         "draft": "مسودة",
         "sent": "مرسل",
-        "failed": "فشل"
+        "failed": "فشل",
+        "scheduled": "مُجدول",
+        "sending": "جارٍ الإرسال",
+        "cancelled": "مُلغى"
+      },
+      "toastBroadcastQueued": "تمت إضافة البث إلى قائمة الإرسال",
+      "toastBroadcastScheduled": "تمت جدولة البث",
+      "channelUnsupported": "لا يمكن الإرسال عبر هذه القناة. اختر البريد أو الإشعارات أو داخل التطبيق أو كل القنوات.",
+      "deleteBroadcast": "حذف البث",
+      "delivery": {
+        "caption": "التسليم",
+        "sent": "تم التسليم",
+        "opened": "تم الفتح",
+        "clicked": "النقرات",
+        "pending": "قيد التنفيذ: {{count}}",
+        "notDelivered": "لم يُسلَّم: {{count}}",
+        "unsubscribes": "إلغاءات الاشتراك: {{count}}",
+        "openNote": "أرقام فتح البريد تقديرية؛ بعض تطبيقات البريد تحظر صور التتبع.",
+        "notTracked": "غير مُقاس لهذه القناة",
+        "reportTitle": "نتائج البث، آخر {{days}} يومًا",
+        "legacyUntracked": "عُلِّم كمُرسَل قبل وجود تتبع التسليم؛ لم تُسلَّم أي رسالة."
       }
     },
     "packages": {
