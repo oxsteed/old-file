@@ -828,12 +828,12 @@ const displayPollLimiter = rateLimit({
 // Per-device API budget for paired displays: 300 requests / 15 min keyed by
 // pairing id, NOT by IP. Several displays on one restaurant Wi-Fi share a
 // single NAT IP; keying by IP would let one chatty TV eat the budget of all
-// the others and the owner claim flow behind the same router. The kitchen
-// ticket surface (restaurants.js) and the paired-display heartbeat/status
-// routes (restaurantDisplays.js) apply this limiter instead of relying on
-// the anonymous IP budget, and it composes with displayPollLimiter (60/min)
-// on the polling endpoints. Non-device requests skip this limiter: they
-// already have their own budgets (authenticatedLimiter / generalLimiter).
+// the others and the owner claim flow behind the same router. This limiter is
+// mounted once for the whole API so a valid display token cannot bypass the
+// global budget on an uncovered route. Non-device requests skip this limiter:
+// they already have their own budgets (authenticatedLimiter / generalLimiter).
+// Polling endpoints can still compose a tighter route-level limiter such as
+// displayPollLimiter.
 const deviceApiLimiter = rateLimit({
   ...createStoreOption('rl:device_api:'),
   windowMs: 15 * 60 * 1000,

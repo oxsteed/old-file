@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 import {
   detectDisplayStandalone,
+  displayManifestHref,
   parseDisplayRoutePath,
   readInstallPromptDismissed,
   saveDisplayInstallDestination,
@@ -33,6 +34,14 @@ export default function DisplayInstallPrompt() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
+    const manifestLink = document.querySelector('link[rel="manifest"]');
+    const manifestBase = manifestLink?.dataset?.oxsteedManifestBase
+      || manifestLink?.getAttribute('href')?.split('?')[0]
+      || '/manifest.json';
+    const parsedPath = parseDisplayRoutePath(pathname);
+    if (manifestLink && parsedPath) {
+      manifestLink.href = displayManifestHref(parsedPath.path, manifestBase);
+    }
     const standalone = detectDisplayStandalone({
       matchMedia: window.matchMedia?.bind(window),
       standalone: window.navigator?.standalone,
@@ -46,8 +55,11 @@ export default function DisplayInstallPrompt() {
       setDeferredPrompt(event);
     };
     window.addEventListener('beforeinstallprompt', onBeforeInstall);
-    return () => window.removeEventListener('beforeinstallprompt', onBeforeInstall);
-  }, []);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+      if (manifestLink) manifestLink.href = manifestBase;
+    };
+  }, [pathname]);
 
   if (!visible) return null;
 

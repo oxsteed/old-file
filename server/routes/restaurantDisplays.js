@@ -12,7 +12,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
-const { strictLimiter, authenticatedLimiter, displayPollLimiter, deviceApiLimiter } = require('../middleware/rateLimiter');
+const { strictLimiter, authenticatedLimiter, displayPollLimiter } = require('../middleware/rateLimiter');
 const displays = require('../controllers/restaurantDisplayController');
 
 // Public pairing flow for the TV. No tenant path param here (only :id on the
@@ -23,12 +23,12 @@ router.post('/pairing-code', strictLimiter, displays.issuePairingCode);
 // TV polls /status every 5s while waiting for the owner claim: this needs the
 // dedicated polling bucket (see displayPollLimiter), not strictLimiter's
 // 10/hour budget, or the 10th poll would 429 and block the claim.
-// deviceApiLimiter counts paired displays per pairing id on top of the
-// per-IP poll bucket, so paired TVs leave the anonymous IP budget alone.
-router.post('/status', displayPollLimiter, deviceApiLimiter, displays.pairingStatus);
+// The global deviceApiLimiter counts paired displays per pairing id on top of
+// this per-IP poll bucket, so paired TVs leave the anonymous IP budget alone.
+router.post('/status', displayPollLimiter, displays.pairingStatus);
 
 // Paired displays authenticate with their pairing token (Authorization: Bearer).
-router.post('/heartbeat', displayPollLimiter, deviceApiLimiter, displays.heartbeat);
+router.post('/heartbeat', displayPollLimiter, displays.heartbeat);
 
 // Owner fleet management.
 router.post('/claim', authenticate, rejectImpersonated, strictLimiter, displays.claimDisplay);

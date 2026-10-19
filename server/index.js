@@ -13,6 +13,7 @@ require('./utils/validateEnv')();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const fs = require('fs');
 const path = require('path');
 const http = require('http');
 
@@ -29,7 +30,7 @@ const correlationId = require('./middleware/correlationId');
 const { otelRequestContext } = require('./middleware/otelRequestContext');
 const { attachCsrfToken, validateCsrfToken } = require('./middleware/csrf');
 const sanitizeInputs = require('./middleware/sanitize');
-const { generalLimiter, authenticatedLimiter, strictLimiter, channelWebhookLimiter, creditExportLimiter } = require('./middleware/rateLimiter');
+const { generalLimiter, authenticatedLimiter, deviceApiLimiter, strictLimiter, channelWebhookLimiter, creditExportLimiter } = require('./middleware/rateLimiter');
 const { webhookRateLimit } = require('./middleware/webhookAuth');
 const { authenticate, requireRole } = require('./middleware/auth');
 const { requireAdmin } = require('./middleware/adminAuth');
@@ -360,6 +361,10 @@ app.use(require('./middleware/maintenanceGate').createMaintenanceGate());
 // Authenticated requests:   500 req / 15 min / user ID
 // Each limiter skips the other's traffic so they don't double-count.
 app.use('/api/', generalLimiter);
+// Paired display credentials get a bounded per-device budget on every API
+// route. This must be global because display tokens are also used by public
+// food feeds and device-authorized order status routes.
+app.use('/api/', deviceApiLimiter);
 app.use('/api/', authenticatedLimiter);
 // Auth routes apply operation-specific limits once, after body parsing.
 // A shared mount here double-counted login attempts and let session traffic
@@ -840,6 +845,36 @@ if (process.env.NODE_ENV === 'production' || process.env.CREDIT_TEST_SERVE_STATI
   const setImmutableAssetHeaders = (res) => {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
   };
+
+  // Serve a display-specific manifest when a browser is installing from a
+  // restaurant display route. Safari/iPadOS does not copy arbitrary
+  // localStorage into a new Home Screen app, so the launch destination must
+  // travel in the manifest itself. Invalid values fall through to the normal
+  // static manifest below.
+  app.get('/manifest.json', (req, res, next) => {
+    const displayStartUrl = typeof req.query.display_start_url === 'string'
+      ? req.query.display_start_url
+      : '';
+    if (!/^\/(restaurants|food)\/(queue|kiosk|kitchen)\/\d+$/.test(displayStartUrl)) {
+      return next();
+    }
+    fs.readFile(path.join(clientDist, 'manifest.json'), 'utf8', (err, source) => {
+      if (err) return next(err);
+      let manifest;
+      try {
+        manifest = JSON.parse(source);
+      } catch (parseErr) {
+        return next(parseErr);
+      }
+      res.setHeader('Cache-Control', 'no-store');
+      return res.json({
+        ...manifest,
+        id: displayStartUrl,
+        scope: '/',
+        start_url: displayStartUrl,
+      });
+    });
+  });
 
   // Serve current and retained fingerprinted assets before the SPA fallback.
   // The retained store keeps chunks available to tabs that predate a deploy.

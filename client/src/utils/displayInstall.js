@@ -43,6 +43,18 @@ export function parseDisplayRoutePath(path) {
 }
 
 /**
+ * Builds the install-specific manifest URL used by display pages. The server
+ * validates this path and returns a manifest whose start_url points directly
+ * at the display, so iPad Home Screen installs do not depend on localStorage
+ * being copied from Safari.
+ */
+export function displayManifestHref(path, baseHref = '/manifest.json') {
+  if (!isValidDisplayRoutePath(path)) return baseHref;
+  const separator = baseHref.includes('?') ? '&' : '?';
+  return `${baseHref}${separator}display_start_url=${encodeURIComponent(path)}`;
+}
+
+/**
  * Persist where this installed display should land on next launch.
  * Returns true when saved; refuses (returns false) for invalid routes.
  * `restaurantId` and `displayType` ride along for future use but the

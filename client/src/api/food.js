@@ -15,10 +15,10 @@ function orderRequestKey() {
 }
 
 // ── Paired display auth (Track B) ──────────────────────────────────────────
-// Kitchen screens pair via DisplayPairingCode; the token is scoped to one
-// restaurant's ticket feed + ticket actions. It is attached per-request (never
-// via a global interceptor, so it cannot leak onto other endpoints) and only
-// when no staff user session is active.
+// Display screens pair via DisplayPairingCode; the token is scoped to one
+// restaurant and is attached per-request (never via a global interceptor, so
+// it cannot leak onto other endpoints) and only when no staff user session is
+// active.
 const displayTokenKey = (restaurantId) => `oxsteed:display:token:${restaurantId}`;
 
 export function readDisplayToken(restaurantId) {
@@ -36,7 +36,7 @@ export function setDisplayDeviceStaffSession(active) {
   staffSessionActive = Boolean(active);
 }
 
-function kitchenDeviceAuthHeaders(restaurantId) {
+function displayDeviceAuthHeaders(restaurantId) {
   if (staffSessionActive) return undefined;
   const token = readDisplayToken(restaurantId);
   if (!token) return undefined;
@@ -87,7 +87,9 @@ export const getFeaturedRestaurants = (params = {}) =>
   listFoodRestaurants({ featured_only: true, limit: 8, ...params });
 
 export const getFoodRestaurant = (restaurantId) =>
-  api.get(`/food/restaurants/${restaurantId}`).then((r) => r.data);
+  api.get(`/food/restaurants/${restaurantId}`, {
+    headers: displayDeviceAuthHeaders(restaurantId),
+  }).then((r) => r.data);
 
 // Campaign analytics (Phase 2, Item 10): featured-card click beacon.
 // Best-effort only: sendBeacon on navigation, silent no-op on failure.
@@ -109,7 +111,9 @@ export const trackFeaturedPlacementClick = (restaurantId) => {
 };
 
 export const getFoodQueueBoard = (restaurantId) =>
-  api.get(`/food/restaurants/${restaurantId}/queue-board`).then((r) => r.data);
+  api.get(`/food/restaurants/${restaurantId}/queue-board`, {
+    headers: displayDeviceAuthHeaders(restaurantId),
+  }).then((r) => r.data);
 
 export const sendFoodRestaurantMessage = (restaurantId, payload, options = {}) => {
   const clientMessageId = options.clientMessageId
@@ -358,7 +362,7 @@ export const updateFoodOrderStatus = (restaurantId, orderId, status, options = {
   // as getRestaurantKitchenFeed: never a global interceptor, never over a
   // staff session. Lets a paired kitchen display mark ready / hand off
   // without a staff login.
-  const headers = { ...kitchenDeviceAuthHeaders(restaurantId) };
+  const headers = { ...displayDeviceAuthHeaders(restaurantId) };
   if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
   return (
     api
@@ -380,19 +384,19 @@ export const updateFoodOrderStatus = (restaurantId, orderId, status, options = {
 export const getRestaurantKitchenFeed = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/kitchen/feed`, {
     params,
-    headers: kitchenDeviceAuthHeaders(restaurantId),
+    headers: displayDeviceAuthHeaders(restaurantId),
   }).then((r) => r.data);
 
 export const acknowledgeRestaurantKitchenOrder = (restaurantId, orderId, payload = {}) =>
   api.post(
     `/restaurants/${restaurantId}/kitchen/orders/${orderId}/ack`,
     payload,
-    { headers: kitchenDeviceAuthHeaders(restaurantId) }
+    { headers: displayDeviceAuthHeaders(restaurantId) }
   ).then((r) => r.data);
 
 export const performRestaurantKitchenOrderAction = (restaurantId, orderId, payload = {}) => {
   const idempotencyKey = payload.idempotencyKey || payload.idempotency_key;
-  const headers = { ...kitchenDeviceAuthHeaders(restaurantId) };
+  const headers = { ...displayDeviceAuthHeaders(restaurantId) };
   if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
   return api.post(
     `/restaurants/${restaurantId}/kitchen/orders/${orderId}/action`,
@@ -403,7 +407,7 @@ export const performRestaurantKitchenOrderAction = (restaurantId, orderId, paylo
 
 export const performRestaurantKitchenItemAction = (restaurantId, orderItemId, payload = {}) => {
   const idempotencyKey = payload.idempotencyKey || payload.idempotency_key;
-  const headers = { ...kitchenDeviceAuthHeaders(restaurantId) };
+  const headers = { ...displayDeviceAuthHeaders(restaurantId) };
   if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
   return api.post(
     `/restaurants/${restaurantId}/kitchen/items/${orderItemId}/action`,

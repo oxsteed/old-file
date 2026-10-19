@@ -115,7 +115,9 @@ describeDb('restaurant display pairing (migration 911)', () => {
     expect(stored.pairing_token_hash).toBeNull();
     const ttlMs = new Date(stored.expires_at).getTime() - Date.now();
     expect(ttlMs).toBeGreaterThan(9 * 60 * 1000);
-    expect(ttlMs).toBeLessThanOrEqual(10 * 60 * 1000);
+    // PostgreSQL stores the expiry with millisecond precision, so the query
+    // can finish a few milliseconds after Date.now() samples the clock.
+    expect(ttlMs).toBeLessThanOrEqual(10 * 60 * 1000 + 1000);
   });
 
   test('issuePairingCode rejects unknown and invalid restaurants', async () => {

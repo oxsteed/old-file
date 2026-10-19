@@ -3,7 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
-    <link rel="manifest" href="/manifest.json" />
+    <link id="oxsteed-manifest" rel="manifest" data-oxsteed-manifest-base="/manifest.json" />
+    <script>
+      (() => {
+        const path = window.location.pathname;
+        if (/^\/(restaurants|food)\/(queue|kiosk|kitchen)\/\d+$/.test(path)) {
+          const link = document.getElementById('oxsteed-manifest');
+          link.href = `/manifest.json?display_start_url=${encodeURIComponent(path)}`;
+        } else {
+          document.getElementById('oxsteed-manifest').href = '/manifest.json';
+        }
+      })();
+    </script>
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#F97316" />

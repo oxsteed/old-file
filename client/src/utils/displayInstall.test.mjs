@@ -4,6 +4,7 @@ import {
   DISPLAY_INSTALL_DESTINATION_KEY,
   DISPLAY_INSTALL_DISMISS_KEY,
   detectDisplayStandalone,
+  displayManifestHref,
   isValidDisplayRoutePath,
   readInstallPromptDismissed,
   readDisplayInstallDestination,
@@ -172,6 +173,18 @@ test('display route parsing extracts type and restaurant id', () => {
   assert.equal(parseDisplayRoutePath('/restaurants/kitchen/42/pair'), null);
   assert.equal(parseDisplayRoutePath('/login'), null);
   assert.equal(parseDisplayRoutePath(null), null);
+});
+
+test('display install manifest points directly to a valid display route', () => {
+  assert.equal(
+    displayManifestHref('/restaurants/kitchen/42'),
+    '/manifest.json?display_start_url=%2Frestaurants%2Fkitchen%2F42',
+  );
+  assert.equal(
+    displayManifestHref('/food/queue/7', '/manifest.json?v=1'),
+    '/manifest.json?v=1&display_start_url=%2Ffood%2Fqueue%2F7',
+  );
+  assert.equal(displayManifestHref('/dashboard'), '/manifest.json');
 });
 
 test('restore decision only fires for standalone at a bare start_url', () => {

@@ -4,9 +4,8 @@
 // budget, and must be counted per pairing id instead.
 //
 // The test app applies the real limiter stack the way production does:
-// generalLimiter globally on /api/, then deviceApiLimiter on the
-// kitchen-ticket-style route and displayPollLimiter + deviceApiLimiter on the
-// heartbeat-style route. A valid display token fires 250 requests with zero
+// generalLimiter and deviceApiLimiter globally on /api/, then
+// displayPollLimiter on the heartbeat-style route. A valid display token fires 250 requests with zero
 // 429s; anonymous traffic on the same IP 429s after 200. The db is stubbed;
 // the limiter store is in-memory (redis mocked out), exactly like the
 // existing displayPollLimiter test.
@@ -24,11 +23,13 @@ const db = require('../db');
 const TOKEN_A = crypto.randomBytes(32).toString('hex');
 const TOKEN_B = crypto.randomBytes(32).toString('hex');
 const TOKEN_C = crypto.randomBytes(32).toString('hex');
+const TOKEN_D = crypto.randomBytes(32).toString('hex');
 const hashOf = (token) => crypto.createHash('sha256').update(token, 'utf8').digest('hex');
 const DEVICE_ROWS = {
   [hashOf(TOKEN_A)]: { id: 7, restaurant_id: 42, device_role: 'kitchen' },
   [hashOf(TOKEN_B)]: { id: 8, restaurant_id: 42, device_role: 'kiosk' },
   [hashOf(TOKEN_C)]: { id: 9, restaurant_id: 42, device_role: 'kiosk' },
+  [hashOf(TOKEN_D)]: { id: 10, restaurant_id: 42, device_role: 'kiosk' },
 };
 
 db.query.mockImplementation(async (_sql, params) => {
@@ -41,10 +42,16 @@ function buildApp() {
   app.set('trust proxy', 1);
   app.use(express.json());
   app.use('/api/', rateLimiter.generalLimiter);
+  // Production mounts the device budget globally so public feeds and other
+  // display-token routes cannot bypass it.
+  app.use('/api/', rateLimiter.deviceApiLimiter);
   // Mirrors the kitchen ticket surface (restaurants.js).
   app.get(
     '/api/restaurants/:restaurantId/kitchen/feed',
-    rateLimiter.deviceApiLimiter,
+    (req, res) => res.json({ ok: true })
+  );
+  app.get(
+    '/api/food/restaurants/:restaurantId/queue-board',
     (req, res) => res.json({ ok: true })
   );
   // Mirrors the paired-display routes (restaurantDisplays.js): the poll
@@ -52,7 +59,6 @@ function buildApp() {
   app.post(
     '/api/restaurant/displays/heartbeat',
     rateLimiter.displayPollLimiter,
-    rateLimiter.deviceApiLimiter,
     (req, res) => res.json({ ok: true })
   );
   return app;
@@ -140,4 +146,17 @@ test('displayPollLimiter and deviceApiLimiter compose on heartbeat', async () =>
   const bogusStatuses = await fire(app, { ip: bogusIp, token: bogus, method: 'get', route: '/api/restaurants/42/kitchen/feed', count: 210 });
   expect(bogusStatuses.filter((s) => s === 200).length).toBe(200);
   expect(bogusStatuses.filter((s) => s === 429).length).toBe(10);
+}, 120000);
+
+test('a valid display token is still bounded on a public feed route', async () => {
+  const app = buildApp();
+  const statuses = await fire(app, {
+    ip: nextIp(),
+    token: TOKEN_D,
+    method: 'get',
+    route: '/api/food/restaurants/42/queue-board',
+    count: 350,
+  });
+  expect(statuses.filter((s) => s === 200).length).toBe(300);
+  expect(statuses.filter((s) => s === 429).length).toBe(50);
 }, 120000);
