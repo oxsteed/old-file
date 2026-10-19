@@ -38,7 +38,7 @@ There are 77 reads of `business_id` / `restaurant_id` from `req.body` / `req.que
 | Filter inside the caller's own rows | messages getConversations / getGuestInquiries, recurring procurement programs (owner/subscriber predicate), customer profile, customer eligibility, admin-less guest chat verification (guest code) |
 | Customer acting toward a tenant (by design) | support createConversation, restaurant support createCase, food quote/order/card intent, favorites, credit restaurant conversion (the customer's own wallet), applyToBeAgent, createRestaurant (the caller becomes owner) |
 | **Tightened here** | `POST /api/logistics/campaigns/:id/join`: `business_id` was stored on the pledge unverified. It now requires owner/member standing, otherwise 404 `business_not_found`, and non-numeric ids get 404 without a query. `GET /api/chat/payments/credit-hint`: the conversation's own business now wins over a client-supplied `businessId`. |
-| **Flagged** | `POST /api/main-app/payment-requests` stores a client-asserted `business_id`. A payer may legitimately name the business they pay, so membership cannot be required. No reader filters on that column today. If one is ever added, it must not trust the column. |
+| **Resolved (decision 9)** | `POST /api/main-app/payment-requests` still accepts a client-sent `business_id`, but it must match the server-derived business (the booking's or business service's business, else a live business the payee owns or belongs to). A mismatch or malformed id returns 400 `business_mismatch` / `business_invalid` before anything is stored. |
 
 ## Gates
 

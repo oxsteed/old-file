@@ -195,6 +195,8 @@ describe('main app protected payment request records', () => {
   });
 
   test('records payment requests without creating charges or settlement', async () => {
+    // Decision 9: the payee's business (7) is derived server-side first.
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 7 }] });
     mockQuery.mockResolvedValueOnce({
       rows: [{
         id: 501,
@@ -246,7 +248,8 @@ describe('main app protected payment request records', () => {
       }),
       message: expect.stringContaining('No card charge'),
     }));
-    expect(mockQuery.mock.calls[0][0]).toMatch(/INSERT INTO main_app_payment_requests/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/FROM businesses b/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/INSERT INTO main_app_payment_requests/);
     expect(next).not.toHaveBeenCalled();
   });
 

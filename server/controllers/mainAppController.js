@@ -1,6 +1,7 @@
 'use strict';
 
 const pool = require('../db');
+const { verifyPaymentRequestBusiness } = require('../services/paymentRequestBusiness');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
 const slotEngine = require('../services/bookingSlotEngine');
 const mainAppContracts = require('../models/mainAppContractsModel');
@@ -1921,12 +1922,19 @@ exports.createPaymentRequest = async (req, res, next) => {
     if (Object.keys(errors).length) {
       return res.status(400).json({ error: { code: 'validation_failed', fields: errors } });
     }
+    // Decision 9: the client-sent business id must match the server-derived one.
+    const businessCheck = await verifyPaymentRequestBusiness(req.body.businessId ?? req.body.business_id, {
+      sourceType, sourceId: req.body.sourceId || req.body.source_id || null, payeeId,
+    });
+    if (!businessCheck.ok) {
+      return res.status(400).json({ error: { code: businessCheck.code, fields: { businessId: 'The business does not match this payment request.' } } });
+    }
 
     const request = await mainAppContracts.createPaymentRequest({
       requesterId: req.user.id,
       payerId,
       payeeId,
-      businessId: parseOptionalInt(req.body.businessId ?? req.body.business_id),
+      businessId: businessCheck.businessId,
       sourceType,
       sourceId: req.body.sourceId || req.body.source_id || null,
       amountCents,
