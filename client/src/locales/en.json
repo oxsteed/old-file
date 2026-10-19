@@ -35096,5 +35096,46 @@
   "adminCreditApprovalGraceEnds": "Grace period ends",
   "adminCreditApprovalRevokedAt": "Revoked at",
   "adminCreditApprovalMigratedAt": "Balances migrated",
-  "adminCreditApprovalGrandfathered": "Approved (no approval record)"
+  "adminCreditApprovalGrandfathered": "Approved (no approval record)",
+  "display": {
+    "fullscreen": {
+      "enter": "Enter fullscreen",
+      "exit": "Exit fullscreen"
+    },
+    "offline": {
+      "banner": "You are offline. Showing the last saved screen.",
+      "reconnecting": "Reconnecting…"
+    },
+    "install": {
+      "title": "Install this display",
+      "body": "Add this page to your Home Screen for a clean, fullscreen display.",
+      "stepShare": "Tap the Share button in your browser",
+      "stepAdd": "Then tap Add to Home Screen",
+      "installNow": "Install now",
+      "dismiss": "Not now"
+    },
+    "sound": {
+      "blocked": "Sound is blocked. Tap to turn the ready chime back on."
+    }
+  },
+  "printer": {
+      "title": "Receipt printer",
+      "desc": "Print order receipts on a network ESC/POS printer and kick the cash drawer on cash sales.",
+      "enable": "Enable receipt printing",
+      "hostLabel": "Printer host",
+      "hostPlaceholder": "192.168.1.100",
+      "hostHint": "The printer's IP address or hostname on your local network. Most network receipt printers listen on port 9100.",
+      "portLabel": "Printer port",
+      "drawerKick": "Kick cash drawer on cash sales",
+      "drawerKickHint": "Sends a drawer pulse when printing a receipt for an order paid in cash.",
+      "save": "Save printer settings",
+      "printTest": "Print test page",
+      "testing": "Printing...",
+      "saved": "Printer settings saved.",
+      "loadError": "Could not load printer settings.",
+      "saveError": "Could not save printer settings.",
+      "testSuccess": "Test page sent. Check the printer.",
+      "testFailed": "Print failed. Check the printer connection and try again.",
+      "enableFirst": "Enable receipt printing and save first."
+  }
 }

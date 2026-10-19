@@ -35096,5 +35096,46 @@
   "adminCreditApprovalGraceEnds": "Peryòd gras la fini",
   "adminCreditApprovalRevokedAt": "Revoke nan",
   "adminCreditApprovalMigratedAt": "Balans yo deplase",
-  "adminCreditApprovalGrandfathered": "Apwouve (pa gen dosye apwobasyon)"
+  "adminCreditApprovalGrandfathered": "Apwouve (pa gen dosye apwobasyon)",
+  "display": {
+    "fullscreen": {
+      "enter": "Mete plen ekran",
+      "exit": "Soti nan plen ekran"
+    },
+    "offline": {
+      "banner": "Ou pa konekte. N ap montre dènye ekran nou te sove a.",
+      "reconnecting": "N ap eseye rekonekte…"
+    },
+    "install": {
+      "title": "Enstale ekran sa a",
+      "body": "Mete paj sa a sou ekran lakay ou pou yon bèl ekran plen.",
+      "stepShare": "Peze bouton Pataje nan navigatè w la",
+      "stepAdd": "Apre sa peze Ajoute sou ekran lakay",
+      "installNow": "Enstale kounye a",
+      "dismiss": "Pa kounye a"
+    },
+    "sound": {
+      "blocked": "Son an bloke. Peze pou limen sonèt la ankò."
+    }
+  },
+  "printer": {
+      "title": "Enprimant resi",
+      "desc": "Enprime resi kòmand sou yon enprimant rezo ESC/POS epi louvri tiwa lajan an pou vant kach.",
+      "enable": "Aktive enpresyon resi",
+      "hostLabel": "Adrès enprimant lan",
+      "hostPlaceholder": "192.168.1.100",
+      "hostHint": "Adrès IP oswa non enprimant lan sou rezo lokal ou a. Pifò enprimant resi rezo tande sou pò 9100.",
+      "portLabel": "Pò enprimant lan",
+      "drawerKick": "Louvri tiwa a pou vant kach",
+      "drawerKickHint": "Voye yon siyal bay tiwa a lè w ap enprime yon resi pou yon kòmand yo peye kach.",
+      "save": "Anrejistre paramèt enprimant lan",
+      "printTest": "Enprime yon paj tès",
+      "testing": "Ap enprime...",
+      "saved": "Paramèt enprimant lan anrejistre.",
+      "loadError": "Pa t kapab chaje paramèt enprimant lan.",
+      "saveError": "Pa t kapab anrejistre paramèt enprimant lan.",
+      "testSuccess": "Paj tès la voye. Tcheke enprimant lan.",
+      "testFailed": "Enpresyon an echwe. Tcheke koneksyon an epi eseye ankò.",
+      "enableFirst": "Aktive enpresyon resi a epi anrejistre anvan."
+  }
 }

@@ -35096,5 +35096,46 @@
   "adminCreditApprovalGraceEnds": "El período de gracia termina",
   "adminCreditApprovalRevokedAt": "Revocado el",
   "adminCreditApprovalMigratedAt": "Saldos migrados",
-  "adminCreditApprovalGrandfathered": "Aprobado (sin registro de aprobación)"
+  "adminCreditApprovalGrandfathered": "Aprobado (sin registro de aprobación)",
+  "display": {
+    "fullscreen": {
+      "enter": "Pantalla completa",
+      "exit": "Salir de pantalla completa"
+    },
+    "offline": {
+      "banner": "Sin conexión. Mostrando la última pantalla guardada.",
+      "reconnecting": "Reconectando…"
+    },
+    "install": {
+      "title": "Instalar esta pantalla",
+      "body": "Añade esta página a tu pantalla de inicio para una visualización limpia a pantalla completa.",
+      "stepShare": "Toca el botón Compartir de tu navegador",
+      "stepAdd": "Luego toca Añadir a pantalla de inicio",
+      "installNow": "Instalar ahora",
+      "dismiss": "Ahora no"
+    },
+    "sound": {
+      "blocked": "El sonido está bloqueado. Toca para volver a activar el aviso."
+    }
+  },
+  "printer": {
+      "title": "Impresora de recibos",
+      "desc": "Imprima recibos de pedidos en una impresora de red ESC/POS y abra el cajón de efectivo en ventas en efectivo.",
+      "enable": "Activar impresión de recibos",
+      "hostLabel": "Servidor de la impresora",
+      "hostPlaceholder": "192.168.1.100",
+      "hostHint": "La dirección IP o el nombre del servidor de la impresora en su red local. La mayoría de las impresoras de recibos de red usan el puerto 9100.",
+      "portLabel": "Puerto de la impresora",
+      "drawerKick": "Abrir el cajón en ventas en efectivo",
+      "drawerKickHint": "Envía un pulso al cajón al imprimir un recibo de un pedido pagado en efectivo.",
+      "save": "Guardar ajustes de la impresora",
+      "printTest": "Imprimir página de prueba",
+      "testing": "Imprimiendo...",
+      "saved": "Ajustes de la impresora guardados.",
+      "loadError": "No se pudieron cargar los ajustes de la impresora.",
+      "saveError": "No se pudieron guardar los ajustes de la impresora.",
+      "testSuccess": "Página de prueba enviada. Revise la impresora.",
+      "testFailed": "Error de impresión. Revise la conexión y vuelva a intentarlo.",
+      "enableFirst": "Active la impresión de recibos y guarde primero."
+  }
 }

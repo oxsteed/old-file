@@ -35096,5 +35096,46 @@
   "adminCreditApprovalGraceEnds": "Fin de la période de grâce",
   "adminCreditApprovalRevokedAt": "Révoqué le",
   "adminCreditApprovalMigratedAt": "Soldes migrés",
-  "adminCreditApprovalGrandfathered": "Approuvé (aucun dossier d'approbation)"
+  "adminCreditApprovalGrandfathered": "Approuvé (aucun dossier d'approbation)",
+  "display": {
+    "fullscreen": {
+      "enter": "Plein écran",
+      "exit": "Quitter le plein écran"
+    },
+    "offline": {
+      "banner": "Vous êtes hors ligne. Affichage du dernier écran enregistré.",
+      "reconnecting": "Reconnexion…"
+    },
+    "install": {
+      "title": "Installer cet écran",
+      "body": "Ajoutez cette page à votre écran d'accueil pour un affichage propre en plein écran.",
+      "stepShare": "Touchez le bouton Partager de votre navigateur",
+      "stepAdd": "Puis touchez Ajouter à l'écran d'accueil",
+      "installNow": "Installer",
+      "dismiss": "Pas maintenant"
+    },
+    "sound": {
+      "blocked": "Le son est bloqué. Touchez pour réactiver la sonnerie."
+    }
+  },
+  "printer": {
+      "title": "Imprimante de reçus",
+      "desc": "Imprimez les reçus de commande sur une imprimante réseau ESC/POS et ouvrez le tiroir-caisse pour les ventes en espèces.",
+      "enable": "Activer l'impression des reçus",
+      "hostLabel": "Hôte de l'imprimante",
+      "hostPlaceholder": "192.168.1.100",
+      "hostHint": "L'adresse IP ou le nom d'hôte de l'imprimante sur votre réseau local. La plupart des imprimantes réseau écoutent sur le port 9100.",
+      "portLabel": "Port de l'imprimante",
+      "drawerKick": "Ouvrir le tiroir pour les ventes en espèces",
+      "drawerKickHint": "Envoie une impulsion au tiroir lors de l'impression d'un reçu payé en espèces.",
+      "save": "Enregistrer les paramètres de l'imprimante",
+      "printTest": "Imprimer une page de test",
+      "testing": "Impression en cours...",
+      "saved": "Paramètres de l'imprimante enregistrés.",
+      "loadError": "Impossible de charger les paramètres de l'imprimante.",
+      "saveError": "Impossible d'enregistrer les paramètres de l'imprimante.",
+      "testSuccess": "Page de test envoyée. Vérifiez l'imprimante.",
+      "testFailed": "Échec d'impression. Vérifiez la connexion et réessayez.",
+      "enableFirst": "Activez d'abord l'impression des reçus et enregistrez."
+  }
 }
