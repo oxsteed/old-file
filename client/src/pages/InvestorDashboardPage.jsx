@@ -323,7 +323,7 @@ export default function InvestorDashboardPage() {
               deltaPct={userDelta} accent="blue" />
             <KpiCard icon={Briefcase} label={t('investorDashboard.kpis.newJobs')} loading={loading}
               value={fmt(k.new_jobs_cur)}
-              sub={t('investorDashboard.kpis.completionRate', { value: pct(k.completion_rate) })}
+              sub={t('investorDashboard.kpis.completionRates', { period: pct(k.completion_rate), allTime: pct(k.completion_rate_all_time) })}
               deltaPct={jobDelta} accent="orange" />
             <KpiCard icon={Activity} label={t('investorDashboard.kpis.activeSubscriptions')} loading={loading}
               value={fmt(k.active_subscriptions)}

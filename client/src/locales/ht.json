@@ -21291,7 +21291,8 @@
       "avgHelperRating": "Mwayèn evalyasyon èd",
       "verifiedHelpers": "{{value}} èd verifye",
       "refunds": "Ranbousman",
-      "pendingPayouts": "{{value}} peman ki sou pwosedi"
+      "pendingPayouts": "{{value}} peman ki sou pwosedi",
+      "completionRates": "To fini: {{period}} nan peryòd chwazi a · {{allTime}} depi kòmansman"
     },
     "charts": {
       "revenueBySource": "Revni pa sous",

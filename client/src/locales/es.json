@@ -21291,7 +21291,8 @@
       "avgHelperRating": "Calificación media de ayudantes",
       "verifiedHelpers": "{{value}} ayudantes verificados",
       "refunds": "Reembolsos",
-      "pendingPayouts": "{{value}} pagos pendientes"
+      "pendingPayouts": "{{value}} pagos pendientes",
+      "completionRates": "Tasa de finalización: {{period}} en el período seleccionado · {{allTime}} histórico"
     },
     "charts": {
       "revenueBySource": "Ingresos por fuente",

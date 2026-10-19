@@ -64,4 +64,19 @@ async function jobCompletionRate(db, interval) {
   };
 }
 
-module.exports = { DEFINITIONS, operationalMetricSql, jobCompletionRate };
+// Same cohort as job_completion_rate_pct without the creation window, for
+// surfaces that show an all-time figure next to the selected-period one.
+const WINDOW_PREDICATE = 'j.created_at >= NOW()-$1::interval AND j.created_at < NOW()';
+async function jobCompletionRateAllTime(db) {
+  const text = DEFINITIONS.job_completion_rate_pct.text.replace(WINDOW_PREDICATE, 'j.created_at < NOW()');
+  if (text === DEFINITIONS.job_completion_rate_pct.text) throw new Error('job completion window predicate changed');
+  const { rows } = await db.query(text);
+  const row = rows[0] || {};
+  return {
+    completion_rate_pct: row.completion_rate_pct == null ? null : Number(row.completion_rate_pct),
+    completed: Number(row.completed || 0),
+    decided: Number(row.decided || 0),
+  };
+}
+
+module.exports = { DEFINITIONS, operationalMetricSql, jobCompletionRate, jobCompletionRateAllTime };

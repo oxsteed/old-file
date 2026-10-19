@@ -21291,7 +21291,8 @@
       "avgHelperRating": "Avg Helper Rating",
       "verifiedHelpers": "{{value}} verified helpers",
       "refunds": "Refunds",
-      "pendingPayouts": "{{value}} pending payouts"
+      "pendingPayouts": "{{value}} pending payouts",
+      "completionRates": "Completion rate: {{period}} in selected period · {{allTime}} all time"
     },
     "charts": {
       "revenueBySource": "Revenue by Source",

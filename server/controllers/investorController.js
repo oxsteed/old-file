@@ -18,7 +18,7 @@
 const pool   = require('../db');
 const logger = require('../utils/logger');
 const metricsRegistry = require('../analytics/metricsRegistry');
-const { jobCompletionRate } = require('../analytics/operationalMetrics');
+const { jobCompletionRate, jobCompletionRateAllTime } = require('../analytics/operationalMetrics');
 
 // ── Period map: canonical, owned by the metrics registry ─────────────────
 // ('1y' = '1 year'; previously '365 days' here — normalized to the registry.)
@@ -85,7 +85,8 @@ exports.getKpis = async (req, res) => {
 
     // ── Jobs ───────────────────────────────────────────────────────────
     let open_jobs = 0, active_jobs = 0, completed_jobs = 0, cancelled_jobs = 0,
-        new_jobs_cur = 0, new_jobs_prev = 0, avg_bids = null, completion_rate = null;
+        new_jobs_cur = 0, new_jobs_prev = 0, avg_bids = null, completion_rate = null,
+        completion_rate_all_time = null;
     if (hasJobs) {
       const [jr] = await safeQuery(`
         SELECT
@@ -115,6 +116,11 @@ exports.getKpis = async (req, res) => {
         const rate = await jobCompletionRate(pool, cur);
         completion_rate = rate.completion_rate_pct == null ? null : Math.round(rate.completion_rate_pct);
       } catch (rateErr) { logger.warn('investor overview: completion rate failed', { err: rateErr.message }); }
+      // Same cohort without the window, shown next to the period figure.
+      try {
+        const all = await jobCompletionRateAllTime(pool);
+        completion_rate_all_time = all.completion_rate_pct == null ? null : Math.round(all.completion_rate_pct);
+      } catch (rateErr) { logger.warn('investor overview: all-time completion rate failed', { err: rateErr.message }); }
     }
 
     // ── Revenue ────────────────────────────────────────────────────────
@@ -187,7 +193,8 @@ exports.getKpis = async (req, res) => {
         new_jobs_cur, new_jobs_prev,
         new_jobs_delta:      new_jobs_cur - new_jobs_prev,
         avg_bids_per_job:    avg_bids,
-        completion_rate,
+        completion_rate,            // selected period (job_completion_rate_pct)
+        completion_rate_all_time,   // same cohort, all time
 
         // Revenue (cents)
         revenue_total_cents:   revenue_total,

@@ -68,6 +68,10 @@ const { businessInvoiceAnalytics }=require('../analytics/businessInvoiceAnalytic
     const evidence = metricEvidenceSql(query, {}, registry, built);
     const { rows } = await db.query(evidence.text, evidence.params);
     expect(rows.map(r => r.job_id).sort()).toEqual([ids[0], ids[1]].sort());
+    // All-time figure: same cohort without the window (60-day-old job counts,
+    // soft-deleted and undecided jobs still excluded).
+    const { jobCompletionRateAllTime } = require('../analytics/operationalMetrics');
+    expect(await jobCompletionRateAllTime(db)).toEqual({ completion_rate_pct: 66.67, completed: 2, decided: 3 });
   });
 
   test('refund count rate includes partial refunds and excludes uncollected payments', async () => {

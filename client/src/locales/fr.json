@@ -21291,7 +21291,8 @@
       "avgHelperRating": "Note moyenne des intervenants",
       "verifiedHelpers": "{{value}} intervenants vérifiés",
       "refunds": "Remboursements",
-      "pendingPayouts": "{{value}} paiements en attente"
+      "pendingPayouts": "{{value}} paiements en attente",
+      "completionRates": "Taux d’achèvement : {{period}} sur la période choisie · {{allTime}} depuis le début"
     },
     "charts": {
       "revenueBySource": "Revenus par source",

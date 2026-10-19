@@ -21302,7 +21302,8 @@
       "avgHelperRating": "متوسط تقييم المساعد",
       "verifiedHelpers": "{{value}} مساعدين موثّقين",
       "refunds": "المبالغ المستردة",
-      "pendingPayouts": "المدفوعات المعلقة: {{value}}"
+      "pendingPayouts": "المدفوعات المعلقة: {{value}}",
+      "completionRates": "معدل الإنجاز: {{period}} في الفترة المحددة · {{allTime}} منذ البداية"
     },
     "charts": {
       "revenueBySource": "الإيرادات حسب المصدر",
