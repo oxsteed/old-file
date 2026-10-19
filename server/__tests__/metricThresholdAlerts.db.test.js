@@ -140,7 +140,7 @@ describeDb('metric threshold alert evaluator', () => {
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       status TEXT NOT NULL DEFAULT 'open')`);
     // Real migrations for the alert tables (also exercises 890's ALTER).
-    for (const file of ['706_admin_self_settings.sql', '890_metric_threshold_alerts.sql', '893_analytics_alert_observations.sql','897_metric_observation_definitions.sql']) {
+    for (const file of ['706_admin_self_settings.sql', '890_metric_threshold_alerts.sql', '893_analytics_alert_observations.sql','897_metric_observation_definitions.sql','898_metric_alert_delivery_safety.sql']) {
       const sql = fs.readFileSync(path.join(__dirname, '..', 'migrations', file), 'utf8');
       await db.query(sql);
     }
@@ -180,7 +180,7 @@ describeDb('metric threshold alert evaluator', () => {
   beforeEach(async () => {
     await db.query(`TRUNCATE ${schema}.users, ${schema}.disputes, ${schema}.notifications,
       ${schema}.admin_notification_prefs, ${schema}.admin_api_keys, ${schema}.metric_alert_rules,
-      ${schema}.platform_ledger, ${schema}.jobs, ${schema}.metric_alert_observations, ${schema}.metric_alert_sms_claims`);
+      ${schema}.platform_ledger, ${schema}.jobs, ${schema}.metric_alert_observations, ${schema}.metric_alert_sms_claims, ${schema}.metric_alert_fires`);
   });
 
   async function makeAdmin(overrides = {}) {
@@ -236,21 +236,74 @@ describeDb('metric threshold alert evaluator', () => {
     expect(Number(rule.last_value)).toBe(6);
   });
 
-  test('delivery_key dedupes a same-window retry', async () => {
+  test('a fire claimed by a crashed worker is never repeated in a later bucket', async () => {
     const adminId = await makeAdmin();
     await db.query(`INSERT INTO ${schema}.disputes (status)
       SELECT 'open' FROM generate_series(1, 6)`);
-    // 30-day cooldown: the window bucket cannot roll during the test.
-    await makeRule(adminId, { threshold: 5, cooldown_minutes: 43200 });
+    const rule = await makeRule(adminId, { threshold: 5, cooldown_minutes: 5 });
+    // Simulate a worker that committed its claim, contacted a provider and
+    // then died before any bookkeeping: the claim alone holds the cooldown.
+    await db.query(`UPDATE ${schema}.metric_alert_rules SET last_fired_at = NOW() - interval '4 minutes'`);
+    await db.query(`INSERT INTO ${schema}.metric_alert_fires(rule_id, rule_updated_at, claimed_at)
+      VALUES ($1, $2, NOW() - interval '4 minutes')`, [rule.id, rule.updated_at]);
+    expect((await evaluateMetricThresholdAlerts()).sent).toBe(0);
+    expect(await notificationCount()).toBe(0);
+    // Once the cooldown has fully elapsed, the next crossing is a new fire.
+    await db.query(`UPDATE ${schema}.metric_alert_rules SET last_fired_at = NOW() - interval '6 minutes'`);
+    expect((await evaluateMetricThresholdAlerts()).sent).toBe(1);
+    const { rows: fires } = await db.query(`SELECT status FROM ${schema}.metric_alert_fires ORDER BY id`);
+    expect(fires.map(f => f.status)).toEqual(['claimed', 'delivered']);
+  });
 
-    await evaluateMetricThresholdAlerts();
-    expect(await notificationCount()).toBe(1);
+  test('a fire that reaches no channel releases its cooldown', async () => {
+    const adminId = await makeAdmin();
+    await db.query(`INSERT INTO ${schema}.disputes (status)
+      SELECT 'open' FROM generate_series(1, 6)`);
+    // SMS-only, but the admin has not opted into SMS: nothing can deliver.
+    await makeRule(adminId, { threshold: 5, channel_in_app: false, channel_sms: true });
+    expect((await evaluateMetricThresholdAlerts()).sent).toBe(0);
+    const { rows: [rule] } = await db.query(`SELECT last_fired_at FROM ${schema}.metric_alert_rules`);
+    expect(rule.last_fired_at).toBeNull();
+    const { rows: [fire] } = await db.query(`SELECT status FROM ${schema}.metric_alert_fires`);
+    expect(fire.status).toBe('not_delivered');
+  });
 
-    // Simulate a crash between evaluation and the last_fired_at write:
-    // the evaluator re-fires in the same window, the delivery_key dedupes.
-    await db.query(`UPDATE ${schema}.metric_alert_rules SET last_fired_at = NULL`);
+  test('a definitive SMS rejection is recorded as failed and an interrupted send is swept to uncertain', async () => {
+    const adminId = await makeAdmin();
+    await db.query("UPDATE users SET phone='+15555550123' WHERE id=$1", [adminId]);
+    await db.query('INSERT INTO admin_notification_prefs(admin_id,sms_notifications) VALUES($1,true)', [adminId]);
+    await db.query("INSERT INTO disputes(status) SELECT 'open' FROM generate_series(1,6)");
+    const rule = await makeRule(adminId, { channel_in_app: false, channel_sms: true });
+    const sms = require('../services/smsNotificationService'); sms.sendConfiguredSMS.mockClear();
+    sms.sendConfiguredSMS.mockResolvedValueOnce({ success: false });
     await evaluateMetricThresholdAlerts();
-    expect(await notificationCount()).toBe(1);
+    const { rows: [claim] } = await db.query('SELECT status FROM metric_alert_sms_claims');
+    expect(claim.status).toBe('failed');
+    // A stale 'sending' claim (a worker died mid-send) blocks a parallel SMS
+    // and is swept to 'uncertain' on the next pass, never resent.
+    await db.query(`INSERT INTO metric_alert_sms_claims(delivery_key,rule_id,status,updated_at)
+      VALUES('synthetic-stale',$1,'sending',NOW()-interval '11 minutes')`, [rule.id]);
+    await evaluateMetricThresholdAlerts();
+    const { rows: [stale] } = await db.query("SELECT status FROM metric_alert_sms_claims WHERE delivery_key='synthetic-stale'");
+    expect(stale.status).toBe('uncertain');
+  });
+
+  test('history retention prunes old settled rows and keeps in-flight claims', async () => {
+    const { pruneMetricAlertHistory } = require('../jobs/metricThresholdAlerts');
+    const adminId = await makeAdmin();
+    const rule = await makeRule(adminId);
+    await db.query(`INSERT INTO metric_alert_observations(rule_id,observed_at,value) VALUES
+      ($1,NOW()-interval '40 days',1),($1,NOW(),2)`, [rule.id]);
+    await db.query(`INSERT INTO metric_alert_fires(rule_id,rule_updated_at,claimed_at,status,resolved_at) VALUES
+      ($1,NOW(),NOW()-interval '40 days','delivered',NOW()-interval '40 days'),($1,NOW(),NOW()-interval '40 days','claimed',NULL)`, [rule.id]);
+    await db.query(`INSERT INTO metric_alert_sms_claims(delivery_key,rule_id,status,created_at) VALUES
+      ('old-sent',$1,'sent',NOW()-interval '40 days'),('old-sending',$1,'sending',NOW()-interval '40 days')`, [rule.id]);
+    expect(await pruneMetricAlertHistory(30)).toMatchObject({ observations: 1, fires: 1, smsClaims: 1 });
+    const { rows: [left] } = await db.query(`SELECT
+      (SELECT COUNT(*)::int FROM metric_alert_observations) AS o,
+      (SELECT COUNT(*)::int FROM metric_alert_fires) AS f,
+      (SELECT string_agg(delivery_key, ',') FROM metric_alert_sms_claims) AS c`);
+    expect(left).toEqual({ o: 1, f: 1, c: 'old-sending' });
   });
 
   test('does not fire when the threshold is not crossed', async () => {

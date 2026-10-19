@@ -13,10 +13,12 @@
  *    (server/analytics/metricAlerts.js).
  *  - If the value crosses (operator, threshold) and the rule has not fired
  *    within cooldown_minutes, deliver on the rule's enabled channels.
- *  - Idempotency: one notification per (rule_id, cooldown window). The
- *    window bucket is derived from the cooldown, so a crash/restart between
- *    evaluation and the notifications INSERT cannot double-deliver: the
- *    uq_notifications_delivery_key unique index dedupes the retry.
+ *  - Idempotency: each fire is claimed durably (metric_alert_fires +
+ *    last_fired_at, committed) before any channel is contacted, so a crash
+ *    mid-delivery cannot repeat the alert in a later cooldown bucket. The
+ *    notification delivery key is derived from the claimed fire, and SMS
+ *    keeps its own at-most-once claim ('sending' -> 'sent'/'failed', or
+ *    'uncertain' when the outcome is unknown; uncertain is never resent).
  *  - Admin prefs gate (wires the dead admin_notification_prefs toggles):
  *    notify_metric_alerts === false skips the rule entirely (opt-out,
  *    default TRUE for admins with no row); channel_email requires
@@ -51,12 +53,72 @@ async function getAdminAlertPrefs(adminId) {
   return rows[0] || null;
 }
 
-function deliveryWindowBucket(cooldownMinutes) {
-  const windowMs = Math.max(1, cooldownMinutes) * 60000;
-  return Math.floor(Date.now() / windowMs);
+// A 'sending' SMS claim older than this was interrupted mid-delivery. The
+// provider may already have accepted it, so it becomes 'uncertain' and is
+// never resent automatically.
+const STALE_SMS_CLAIM_MINUTES = 10;
+
+async function markStaleSmsClaims() {
+  await db.query(
+    `UPDATE metric_alert_sms_claims SET status='uncertain', updated_at=NOW()
+      WHERE status='sending' AND updated_at < NOW() - make_interval(mins => $1)`,
+    [STALE_SMS_CLAIM_MINUTES]
+  );
 }
 
-async function deliverRule(rule, prefs, value) {
+/**
+ * Claim one fire for a rule before contacting any channel. The claim is a
+ * committed row plus last_fired_at, so the cooldown holds even if this
+ * process dies mid-delivery: an interrupted fire is never repeated in a
+ * later cooldown bucket (at-most-once per cooldown). Returns null when the
+ * rule was edited, deactivated, or already fired within its cooldown.
+ */
+async function claimFire(rule, value) {
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+    const claimed = await client.query(
+      `UPDATE metric_alert_rules SET last_fired_at = date_trunc('milliseconds', NOW())
+        WHERE id = $1 AND is_active
+          AND date_trunc('milliseconds', updated_at) = date_trunc('milliseconds', $2::timestamptz)
+          AND (last_fired_at IS NULL OR last_fired_at <= NOW() - make_interval(mins => cooldown_minutes))
+        RETURNING last_fired_at`,
+      [rule.id, rule.updated_at]
+    );
+    if (!claimed.rows.length) { await client.query('ROLLBACK'); return null; }
+    const fire = await client.query(
+      `INSERT INTO metric_alert_fires(rule_id, rule_updated_at, claimed_at, value)
+       VALUES ($1, $2, $3, $4) RETURNING id, claimed_at`,
+      [rule.id, rule.updated_at, claimed.rows[0].last_fired_at, value]
+    );
+    await client.query('COMMIT');
+    return { id: fire.rows[0].id, claimedAt: fire.rows[0].claimed_at, previousFiredAt: rule.last_fired_at || null };
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function resolveFire(rule, fire, delivered) {
+  await db.query(
+    `UPDATE metric_alert_fires SET status=$2, resolved_at=NOW() WHERE id=$1`,
+    [fire.id, delivered ? 'delivered' : 'not_delivered']
+  );
+  // Nothing reached the admin on any channel (every channel was disabled by
+  // preference or definitively rejected): release the cooldown so the next
+  // evaluation can try again. An exception keeps the claim (fail safe).
+  if (!delivered) {
+    await db.query(
+      `UPDATE metric_alert_rules SET last_fired_at = $3
+        WHERE id = $1 AND last_fired_at = $2`,
+      [rule.id, fire.claimedAt, fire.previousFiredAt]
+    );
+  }
+}
+
+async function deliverRule(rule, prefs, value, fire) {
   const threshold = Number(rule.threshold);
   const title = null; // tNotif('metric_threshold_alert') resolves the localized title
   const body = formatAlertBody(rule.preferred_language, {
@@ -66,8 +128,9 @@ async function deliverRule(rule, prefs, value) {
     value: formatValue(rule.metric_name, value, rule.params, rule.preferred_language),
     comparison: rule.params?.comparison,
   });
-  const bucket = deliveryWindowBucket(rule.cooldown_minutes);
-  const deliveryKey = `metric-alert:${rule.id}:${new Date(rule.updated_at).getTime()}:${bucket}`;
+  // One key per claimed fire: stable for retries of this fire, distinct for
+  // the next fire after the cooldown.
+  const deliveryKey = `metric-alert:${rule.id}:${new Date(rule.updated_at).getTime()}:${fire.id}`;
 
   const emailAllowed =
     rule.channel_email === true && prefs?.email_notifications !== false;
@@ -105,6 +168,11 @@ async function deliverRule(rule, prefs, value) {
     rule.phone &&
     smsNotificationService.isTwilioConfigured()
   ) {
+    // Another worker still mid-send for this rule (or a crashed send not yet
+    // swept to 'uncertain') blocks a parallel SMS.
+    const inFlight = await db.query(
+      `SELECT 1 FROM metric_alert_sms_claims WHERE rule_id=$1 AND status='sending' LIMIT 1`, [rule.id]);
+    if (inFlight.rows.length) return delivered;
     const claim = await db.query(`INSERT INTO metric_alert_sms_claims(delivery_key,rule_id,status)
       VALUES($1,$2,'sending') ON CONFLICT DO NOTHING RETURNING delivery_key`, [deliveryKey, rule.id]);
     if (!claim.rows.length) return delivered;
@@ -114,11 +182,14 @@ async function deliverRule(rule, prefs, value) {
         body
       );
       if (sms?.success) delivered = true;
+      // success:false is a definitive provider answer: nothing was sent.
       await db.query(`UPDATE metric_alert_sms_claims SET status=$2,updated_at=NOW() WHERE delivery_key=$1`,
-        [deliveryKey, sms?.success ? 'sent' : 'uncertain']);
+        [deliveryKey, sms?.success ? 'sent' : 'failed']);
     } catch (error) {
+      // A thrown send may have reached the provider: never resend it.
       await db.query(`UPDATE metric_alert_sms_claims SET status='uncertain',updated_at=NOW() WHERE delivery_key=$1`, [deliveryKey]);
-      logger.warn("Metric alert SMS skipped", {
+      delivered = true;
+      logger.warn("Metric alert SMS outcome uncertain; it will not be resent", {
         ruleId: rule.id,
         code: error.code || error.message,
       });
@@ -141,6 +212,8 @@ async function evaluateMetricThresholdAlerts() {
      ORDER BY r.last_evaluated_at ASC NULLS FIRST, r.id
      LIMIT 50`
   );
+  await markStaleSmsClaims().catch((error) =>
+    logger.warn("Metric alert SMS claim sweep will retry", { code: error.code }));
   let sent = 0;
   let skippedByPrefs = 0;
   for (const rule of rules) {
@@ -183,13 +256,20 @@ async function evaluateMetricThresholdAlerts() {
       if (value == null) continue; // e.g. NULL take-rate on zero GMV: no comparison possible
       if (!crossed) continue;
 
-      // Cooldown: at most one fire per cooldown_minutes.
-      if (rule.last_fired_at) {
-        const sinceFire = Date.now() - new Date(rule.last_fired_at).getTime();
-        if (sinceFire < rule.cooldown_minutes * 60000) continue;
+      // Cooldown: at most one fire per cooldown_minutes, claimed durably
+      // in the database before any channel is contacted.
+      const fire = await claimFire(rule, value);
+      if (!fire) continue;
+      let delivered = false;
+      try {
+        delivered = await deliverRule(rule, prefs, value, fire);
+      } catch (deliveryError) {
+        // Delivery state is unknown: keep the claim so it is not repeated.
+        await db.query(`UPDATE metric_alert_fires SET resolved_at=NOW() WHERE id=$1`, [fire.id]).catch(() => {});
+        throw deliveryError;
       }
-
-      if (await deliverRule(rule, prefs, value)) {
+      await resolveFire(rule, fire, delivered);
+      if (delivered) {
         fired = true;
         sent++;
       }
@@ -204,10 +284,9 @@ async function evaluateMetricThresholdAlerts() {
       try { if (locked) await db.query(
         `UPDATE metric_alert_rules
          SET last_evaluated_at = now(),
-             last_value = $2,
-             last_fired_at = CASE WHEN $3 THEN now() ELSE last_fired_at END
+             last_value = $2
          WHERE id = $1`,
-        [rule.id, value, fired]
+        [rule.id, value]
       ); } finally {
         try {
           if (locked) await lockClient.query('SELECT pg_advisory_unlock(hashtextextended($1,0))', [`metric-alert:${rule.id}`]);
@@ -216,6 +295,25 @@ async function evaluateMetricThresholdAlerts() {
     }
   }
   return { sent, evaluated: rules.length, skippedByPrefs };
+}
+
+// Alert history retention. Observations, resolved fires and settled SMS
+// claims older than the window are pruned once a day. In-flight ('sending')
+// SMS claims and unresolved fires are never pruned. The analytics query
+// ledger (analytics_query_audit) is append-only and is not touched here.
+function historyRetentionDays() {
+  const days = Number.parseInt(process.env.METRIC_ALERT_HISTORY_RETENTION_DAYS || '400', 10);
+  return Number.isFinite(days) && days >= 30 ? Math.min(days, 3650) : 400;
+}
+
+async function pruneMetricAlertHistory(days = historyRetentionDays()) {
+  const observations = await db.query(
+    `DELETE FROM metric_alert_observations WHERE observed_at < NOW() - make_interval(days => $1)`, [days]);
+  const fires = await db.query(
+    `DELETE FROM metric_alert_fires WHERE resolved_at IS NOT NULL AND claimed_at < NOW() - make_interval(days => $1)`, [days]);
+  const claims = await db.query(
+    `DELETE FROM metric_alert_sms_claims WHERE status <> 'sending' AND created_at < NOW() - make_interval(days => $1)`, [days]);
+  return { observations: observations.rowCount, fires: fires.rowCount, smsClaims: claims.rowCount, days };
 }
 
 function startMetricThresholdAlerts() {
@@ -234,13 +332,21 @@ function startMetricThresholdAlerts() {
   };
   const timer = setInterval(tick, 60000);
   timer.unref?.();
+  const prune = () => {
+    if (stopped) return;
+    pruneMetricAlertHistory().catch((error) =>
+      logger.warn("Metric alert history retention will retry", { code: error.code }));
+  };
+  const retentionTimer = setInterval(prune, 24 * 60 * 60000);
+  retentionTimer.unref?.();
   return {
     stop() {
       stopped = true;
       clearInterval(timer);
+      clearInterval(retentionTimer);
       return running;
     },
   };
 }
 
-module.exports = { evaluateMetricThresholdAlerts, startMetricThresholdAlerts };
+module.exports = { evaluateMetricThresholdAlerts, startMetricThresholdAlerts, pruneMetricAlertHistory, STALE_SMS_CLAIM_MINUTES };

@@ -338,9 +338,28 @@ exports.sendNotification = async ({
         logger.debug('[Notification] realtime email suppressed: frequency=off', { userId, type });
         sendRealtimeEmail = false;
       } else if ((emailFrequency === 'daily' || emailFrequency === 'weekly') && !notifId) {
-        // An email-only caller cannot create a visible in-app row just to
-        // satisfy the digest FK. Preserve the recipient's delivery frequency.
-        sendRealtimeEmail = false;
+        // An email-only caller must not create a visible in-app row, so the
+        // digest entry carries its own localized payload (migration 898). A
+        // delivery key is required so a retry cannot queue it twice; without
+        // one, fall back to realtime email rather than dropping it.
+        if (deliveryKey) {
+          try {
+            await db.query(
+              `INSERT INTO email_digest_queue
+                 (user_id, notification_id, digest_type, notification_type, title, body, delivery_key)
+               VALUES ($1, NULL, $2, $3, $4, $5, $6)
+               ON CONFLICT (delivery_key) WHERE delivery_key IS NOT NULL DO NOTHING`,
+              [userId, emailFrequency, type, finalTitle || type, finalBody || '', deliveryKey]
+            );
+            emailQueued = true;
+            sendRealtimeEmail = false;
+            logger.debug('[Notification] email-only entry queued for digest', { userId, type, emailFrequency });
+          } catch (queueErr) {
+            logger.warn('[Notification] email-only digest queue insert failed; sending realtime', {
+              userId, type, error: queueErr.message,
+            });
+          }
+        }
       } else if ((emailFrequency === 'daily' || emailFrequency === 'weekly') && notifId) {
         try {
           await db.query(
