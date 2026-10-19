@@ -1,5 +1,6 @@
 const scopeModel = require('../services/scopeModel');
 const pool = require('../db');
+const { comparisonMode, linkSignalGroups, PAIRWISE_DEPRECATION } = require('../services/oneTruthPairing');
 const logger = require('../utils/logger');
 const AppError = require('../utils/appError');
 const countriesUtil = require('../utils/countries');
@@ -634,60 +635,40 @@ async function enrichUsers(client, users) {
 }
 
 /**
- * Build suspect pairs from indexed GROUP BY ... HAVING COUNT(*) > 1 queries.
- * Finding the groups is O(n) in the database; the users are no longer compared
- * all-against-all in Node. Pairing *within* a group is still k(k-1)/2 because
- * the response is a list of pairs: one shared IP with k users yields every pair.
- * The 5,000-user scope cap bounds this today. Replacing pairs with clusters (or
- * capping group size) changes the response and is a product decision; see
- * docs/analytics-platform/scope-migration-inventory.md ("One Truth").
+ * Build suspect links from indexed GROUP BY ... HAVING COUNT(*) > 1 queries.
+ * Finding the groups is O(n) in the database. Decision 10: by default each
+ * member is compared to one reference (the group's earliest account), so a
+ * group of k users yields k-1 links. `mode: 'pairwise'` keeps the deprecated
+ * k(k-1)/2 shape for one release. See services/oneTruthPairing.js.
  */
-async function buildSuspectPairsIndexed(client, userIds) {
-  if (!userIds.length) return [];
-  const suspectPairs = [];
-  const seen = new Set();
-
-  const addPairs = (users, signalType, label, weight) => {
-    for (let i = 0; i < users.length; i++) {
-      for (let j = i + 1; j < users.length; j++) {
-        const a = users[i], b = users[j];
-        const pairKey = a.id < b.id ? `${a.id}:${b.id}` : `${b.id}:${a.id}`;
-        if (seen.has(pairKey + signalType)) continue;
-        seen.add(pairKey + signalType);
-        suspectPairs.push({
-          userA: { id: a.id }, userB: { id: b.id },
-          signals: [{ type: signalType, label, weight }],
-          score: weight,
-        });
-      }
-    }
-  };
+async function buildSuspectPairsIndexed(client, userIds, { mode = 'linear', withGroups = false } = {}) {
+  if (!userIds.length) return withGroups ? { pairs: [], groups: [] } : [];
+  const groups = [];
 
   // Same phone
   const { rows: phoneGroups } = await client.query(
-    `SELECT phone, array_agg(id) AS user_ids
+    `SELECT phone, array_agg(id ORDER BY created_at ASC NULLS LAST, id) AS user_ids
      FROM users WHERE id = ANY($1) AND phone IS NOT NULL AND phone != ''
      GROUP BY phone HAVING COUNT(*) > 1`,
     [userIds]
   );
   for (const g of phoneGroups) {
-    const users = g.user_ids.map(id => ({ id }));
-    addPairs(users, 'same_phone', 'Same phone number', SIGNAL_WEIGHTS.same_phone);
+    groups.push({ signalType: 'same_phone', label: 'Same phone number', weight: SIGNAL_WEIGHTS.same_phone, userIds: g.user_ids });
   }
 
   // Same last login IP
   const { rows: ipGroups } = await client.query(
-    `SELECT last_login_ip, array_agg(id) AS user_ids
+    `SELECT last_login_ip, array_agg(id ORDER BY created_at ASC NULLS LAST, id) AS user_ids
      FROM users WHERE id = ANY($1) AND last_login_ip IS NOT NULL
      GROUP BY last_login_ip HAVING COUNT(*) > 1`,
     [userIds]
   );
   for (const g of ipGroups) {
-    const users = g.user_ids.map(id => ({ id }));
-    addPairs(users, 'same_ip', 'Same last login IP', SIGNAL_WEIGHTS.same_ip);
+    groups.push({ signalType: 'same_ip', label: 'Same last login IP', weight: SIGNAL_WEIGHTS.same_ip, userIds: g.user_ids });
   }
 
-  return suspectPairs;
+  const linked = linkSignalGroups(groups, mode);
+  return withGroups ? linked : linked.pairs;
 }
 
 async function countUsersWithMultipleBusinesses(client, scope, scopeIds) {
@@ -858,7 +839,9 @@ exports.listSuspects = async (req, res) => {
     // Groups come from indexed DB queries; see buildSuspectPairsIndexed for the
     // within-group pairing bound.
     const userIds = enrichedUsers.map(u => u.id);
-    const suspectPairs = (await buildSuspectPairsIndexed(client, userIds)).map((pair) => ({
+    const comparison = comparisonMode(req.query.comparison);
+    const linked = await buildSuspectPairsIndexed(client, userIds, { mode: comparison, withGroups: true });
+    const suspectPairs = linked.pairs.map((pair) => ({
       ...pair,
       userA: userMap.get(pair.userA.id) || pair.userA,
       userB: userMap.get(pair.userB.id) || pair.userB,
@@ -927,12 +910,20 @@ exports.listSuspects = async (req, res) => {
       req,
     });
 
+    if (comparison === 'pairwise') {
+      // Decision 10: kept for one release only.
+      res.set('Deprecation', 'true');
+      res.set('Warning', `299 - "${PAIRWISE_DEPRECATION.message}"`);
+    }
     res.json({
       pairs: paged,
       total,
       page,
       limit,
       totalPages: Math.ceil(total / limit),
+      comparison,
+      groupCount: linked.groups.length,
+      ...(comparison === 'pairwise' ? { deprecation: PAIRWISE_DEPRECATION } : {}),
       scope: formatScopeMeta(scope),
       filterMeta,
       filters: {
@@ -1285,7 +1276,7 @@ exports.getStats = async (req, res) => {
        FROM users u
        WHERE ${suspectWhereParts.join(' AND ')}
        ORDER BY u.created_at ASC
-       -- Keep the pairwise investigation bounded. A complete enterprise
+       -- Keep the duplicate investigation bounded. A complete enterprise
        -- review must use an indexed/async suspect job rather than allowing a
        -- dashboard request to materialize the whole user table.
        LIMIT 5000`,
@@ -1294,8 +1285,12 @@ exports.getStats = async (req, res) => {
     if (suspectUsers.length >= 5000) {
       scope.warnings.push('Duplicate statistics are truncated at 5,000 users. Refine the scope for a complete review.');
     }
-    const rawPairs = await buildSuspectPairsIndexed(client, suspectUsers.map((u) => u.id));
+    const linkedStats = await buildSuspectPairsIndexed(client, suspectUsers.map((u) => u.id), { withGroups: true });
+    const rawPairs = linkedStats.pairs;
+    // Decision 10: linear links (each member against its group reference).
     response.flaggedPairs = rawPairs.length;
+    response.flaggedGroups = linkedStats.groups.length;
+    response.comparison = 'linear';
     response.warnings = Array.from(new Set(scope.warnings));
 
     // P1 item 12.1: coverage / pipeline watermark KPIs.
@@ -1604,3 +1599,6 @@ exports.reviewSuspectPair = async (req, res) => {
     client.release();
   }
 };
+
+// Test seam (decision 10).
+exports._buildSuspectPairsIndexed = buildSuspectPairsIndexed;
