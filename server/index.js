@@ -581,6 +581,8 @@ app.use('/api/businesses', businessStaffRoutes);
 app.use('/api/businesses', staffSchedulingRoutes);
 app.use('/api/businesses', businessReviewMgmtRoutes);
 app.use('/api/businesses', businessMarketingRoutes);
+// Decision 1: public, token-scoped broadcast open/click/unsubscribe tracking.
+app.use('/api/broadcast-tracking', require('./routes/broadcastTracking'));
 app.use('/api/businesses', businessWaitlistRoutes);
 app.use('/api/businesses', businessPackagesRoutes);
 app.use('/api/businesses', businessHealthAlertsRoutes);

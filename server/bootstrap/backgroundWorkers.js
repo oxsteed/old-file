@@ -4,6 +4,7 @@ const cron = require('node-cron');
 const { startCustomer360Alerts } = require('../jobs/customer360Alerts');
 const { startMetricThresholdAlerts } = require('../jobs/metricThresholdAlerts');
 const { startMetricSnapshots } = require('../jobs/metricSnapshots');
+const { startBroadcastDelivery } = require('../jobs/broadcastDelivery');
 const { startRestaurantScreenSync } = require('../jobs/restaurantScreenSync');
 const logger = require('../utils/logger');
 const bookingController = require('../controllers/bookingController');
@@ -143,6 +144,7 @@ class BackgroundWorkers {
       this.handles.push(startCustomer360Alerts());
       this.handles.push(startMetricThresholdAlerts());
       this.handles.push(startMetricSnapshots());
+      this.handles.push(startBroadcastDelivery());
       startJobRevisionMaintenanceJob();
       startPaymentLayersWorker();
       startMarketplaceRefundReconciliationJob();

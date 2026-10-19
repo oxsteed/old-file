@@ -8,6 +8,8 @@ const { generalLimiter } = require('../middleware/rateLimiter');
 
 router.get   ('/:businessId/broadcasts',              requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.listBroadcasts);
 router.post  ('/:businessId/broadcasts',              requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.createBroadcast);
+router.get   ('/:businessId/broadcasts/report',       requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.getBroadcastReport);
+router.get   ('/:businessId/broadcasts/:id/stats',    requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.getBroadcastStats);
 router.post  ('/:businessId/broadcasts/:id/send',     requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.sendBroadcast);
 router.delete('/:businessId/broadcasts/:id',          requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.deleteBroadcast);
 
