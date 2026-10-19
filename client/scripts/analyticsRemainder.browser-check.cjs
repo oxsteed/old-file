@@ -37,6 +37,15 @@ test('evidence URLs, audited export revocation, query history, alert comparisons
     await page.getByRole('button',{name:catalogs.en.analyticsCompletion.records,exact:true}).click();
     await page.getByText('job_fee',{exact:true}).waitFor();assert.equal(JSON.parse(new URL(page.url()).searchParams.get('q')).evidence,true);
     await page.reload();await page.getByText('job_fee',{exact:true}).waitFor();
+    // Hardened deep links: unpermitted metric and malformed q fail closed with localized copy; history navigation restores evidence.
+    const evidenceUrl=page.url();
+    await page.goto(`${url}/?q=${encodeURIComponent(JSON.stringify({metric:'job_completion_rate_pct',period:'30d'}))}`);
+    await page.getByRole('alert').filter({hasText:catalogs.en.queryBuilder.errorPermissionRequired}).waitFor();
+    assert.equal(await page.evaluate(()=>window.calls.length),0);
+    await page.goto(`${url}/?q=%7Bnot-json`);
+    await page.getByRole('alert').filter({hasText:catalogs.en.queryBuilder.errorInvalidLink}).waitFor();
+    await page.goBack();await page.goBack();assert.equal(page.url(),evidenceUrl);
+    await page.getByText('job_fee',{exact:true}).waitFor();
     await page.getByRole('button',{name:catalogs.en.analyticsCompletion.loadHistory,exact:true}).click();
     await page.getByText(catalogs.en.analyticsCompletion.events.evidence,{exact:true}).waitFor();
     await page.evaluate(()=>{window.denyExport=true;});await page.getByRole('button',{name:catalogs.en.queryBuilder.exportCsv,exact:true}).click();
