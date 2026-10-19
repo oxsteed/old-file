@@ -1,4 +1,5 @@
 'use strict';
+const { attributePromotionConversion } = require('../analytics/promotionAttribution');
 
 const pool = require('../db');
 const promoRedemption = require('../services/promoRedemptionService');
@@ -3881,6 +3882,9 @@ exports.createOrder = async (req, res, next) => {
       // Campaign analytics (Item 10): order at a featured restaurant while
       // the placement is live = conversion. Fire-and-forget.
       trackFeaturedConversion(req, createdOrder.restaurant, order);
+      // Growth Center attribution (visit to the restaurant's business -> order).
+      // Kiosk/display-device orders are in-store, not link conversions.
+      if (!req.params?.deviceId) attributePromotionConversion(req, { businessId: order.business_id, conversionType: 'order', referenceId: order.id });
     }
     // P2-8-F08: the per-type order_created SMS had zero callers.
     // Fire-and-forget; opt-in checks and rate limits live in the service.

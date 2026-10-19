@@ -10,8 +10,8 @@ import api from '../api/axios';
 // used so nothing durable is stored without consent. The server hashes it and
 // counts at most one visit per device/source/campaign/UTC day.
 
-const CONSENT_KEY = 'oxsteed_cookie_consent';
-const VISITOR_KEY = 'oxs:promo:visitor';
+import { PROMO_CONSENT_KEY as CONSENT_KEY, PROMO_VISITOR_KEY as VISITOR_KEY } from '../utils/promotionVisitor';
+
 const SLUG_RE = /^[a-z0-9_-]{1,60}$/;
 
 function hasAnalyticsConsent() {

@@ -23970,7 +23970,11 @@
       "noMedium": "untagged",
       "campaigns": "Campaigns",
       "empty": "Nothing tracked yet in this period. Copy a post, slot promo or referral link and share it; visits from it appear here.",
-      "help": "A visit counts once per device, source, campaign and day. Your own visits and your team's are not counted. Visits show reach, not bookings."
+      "conversions": "conversions",
+      "conversionRate": "conversion rate",
+      "conversionLine": "{{conversions}} conversions",
+      "byType": "Conversions: {{bookings}} bookings · {{appointments}} appointments · {{orders}} orders",
+      "help": "A visit counts once per device, source, campaign and day. Your own visits and your team's are not counted. A conversion is a booking, appointment or order made from the same device within {{days}} days of a tracked visit, credited to the latest visit and counted once. Cancellations are not subtracted. Jobs posted to the marketplace are not counted."
     },
     "toolkit": {
       "featuredStatus": {

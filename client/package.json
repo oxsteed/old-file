@@ -98,7 +98,8 @@
     "verify:dist-assets": "node scripts/verify-dist-assets.mjs",
     "test:media-profile-preview": "node --test scripts/mediaProfilePreview.test.mjs",
     "test:safe-href": "node --test scripts/safeHref.test.mjs",
-    "test:job-lifecycle-ui": "node --test scripts/jobLifecycleUi.test.mjs"
+    "test:job-lifecycle-ui": "node --test scripts/jobLifecycleUi.test.mjs",
+    "test:promotion-visitor": "node --test scripts/promotionVisitor.test.mjs"
   },
   "dependencies": {
     "@sentry/react": "^8.55.1",

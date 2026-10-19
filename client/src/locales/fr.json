@@ -23970,7 +23970,11 @@
       "noMedium": "sans étiquette",
       "campaigns": "Campagnes",
       "empty": "Rien n’a encore été suivi sur cette période. Copiez une publication, une promo de créneau ou un lien de parrainage et partagez-le ; ses visites apparaîtront ici.",
-      "help": "Une visite compte une fois par appareil, source, campagne et jour. Vos visites et celles de votre équipe ne sont pas comptées. Les visites mesurent la portée, pas les réservations."
+      "conversions": "conversions",
+      "conversionRate": "taux de conversion",
+      "conversionLine": "Conversions : {{conversions}}",
+      "byType": "Conversions : {{bookings}} réservations · {{appointments}} rendez-vous · {{orders}} commandes",
+      "help": "Une visite compte une fois par appareil, source, campagne et jour. Vos visites et celles de votre équipe ne sont pas comptées. Une conversion est une réservation, un rendez-vous ou une commande faite depuis le même appareil dans les {{days}} jours suivant une visite suivie ; elle est attribuée à la dernière visite et comptée une seule fois. Les annulations ne sont pas déduites. Les missions publiées sur la place de marché ne sont pas comptées."
     },
     "toolkit": {
       "featuredStatus": {

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { existingPromotionVisitorId, isPromotionConversionRequest } from '../utils/promotionVisitor';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -66,6 +67,13 @@ api.interceptors.request.use((config) => {
   // Review P2-6-F12: device fingerprint for abuse detection.
   const deviceFingerprint = getDeviceFingerprint();
   if (deviceFingerprint) config.headers['X-Device-Fingerprint'] = deviceFingerprint;
+
+  // Growth Center attribution: a checkout POST carries the tracked-visit
+  // device id, if one exists, so the server can credit that visit.
+  if (isPromotionConversionRequest(config)) {
+    const promoVisitor = existingPromotionVisitorId();
+    if (promoVisitor) config.headers['X-Promo-Visitor'] = promoVisitor;
+  }
 
   return config;
 });

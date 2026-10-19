@@ -23970,7 +23970,11 @@
       "noMedium": "sin etiqueta",
       "campaigns": "Campañas",
       "empty": "Todavía no hay nada registrado en este período. Copia una publicación, una promoción de horario o un enlace de referido y compártelo; sus visitas aparecerán aquí.",
-      "help": "Una visita cuenta una vez por dispositivo, fuente, campaña y día. No se cuentan tus visitas ni las de tu equipo. Las visitas muestran alcance, no reservas."
+      "conversions": "conversiones",
+      "conversionRate": "tasa de conversión",
+      "conversionLine": "{{conversions}} conversiones",
+      "byType": "Conversiones: {{bookings}} reservas · {{appointments}} citas · {{orders}} pedidos",
+      "help": "Una visita cuenta una vez por dispositivo, fuente, campaña y día. No se cuentan tus visitas ni las de tu equipo. Una conversión es una reserva, cita o pedido hecho desde el mismo dispositivo dentro de {{days}} días de una visita rastreada; se atribuye a la última visita y se cuenta una sola vez. Las cancelaciones no se restan. Los trabajos publicados en el mercado no se cuentan."
     },
     "toolkit": {
       "featuredStatus": {

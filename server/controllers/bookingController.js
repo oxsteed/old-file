@@ -1,4 +1,5 @@
 const pool = require('../db');
+const { attributePromotionConversion } = require('../analytics/promotionAttribution');
 const bookingDeposits = require('../services/bookingDepositService');
 const { checkScheduleAgreementGate } = require('../services/chatAgreements');
 const availabilityService = require('../services/helperAvailabilityService');
@@ -306,6 +307,9 @@ const bookingId = uuidv4();
       success: true,
       data: transformBooking(booking),
     });
+    // Growth Center attribution (visit -> booking); after the response.
+    attributePromotionConversion(req, { businessId: booking.business_id, helperUserId: booking.helper_id,
+      conversionType: 'booking', referenceId: booking.id });
   } catch (err) {
     logger.error('Error creating booking request', { error: err.message, stack: err.stack });
     sendError(res, 500, 'Failed to create booking request');
