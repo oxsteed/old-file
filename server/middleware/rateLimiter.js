@@ -2,6 +2,7 @@ const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
+const pool = require('../db');
 
 // Shared Redis client - created once in utils/redis.js, reused here.
 // Falls back gracefully to in-memory when Redis is unavailable.
@@ -103,13 +104,88 @@ function getVerifiedAuthUserId(req) {
   return userId;
 }
 
+// Verified paired-display identity for the rate limiters.
+//
+// A paired display presents its pairing token as a Bearer credential (64 hex
+// chars, the same shape heartbeat and the kitchen middleware verify). When
+// the token matches a paired row in display_pairings, the request is device
+// traffic and leaves the anonymous IP bucket; when it does not, the request
+// stays anonymous and the normal IP budget applies (fail closed).
+//
+// The token is SHA-256 hashed before any lookup, and the in-memory cache is
+// keyed by that hash: the raw credential never becomes a cache key and is
+// never logged. Positive results cache for 5 minutes, negative for 60s. On
+// a DB error the request is treated as unverified (null) so it stays in the
+// anonymous bucket; route-level auth still runs in the controllers and
+// rejects invalid tokens. The result rides on req._verifiedDisplayDevice so
+// skip() and keyGenerator() share one verification per request, mirroring
+// the _verifiedAuthUser pattern above.
+const DISPLAY_DEVICE_CACHE_POSITIVE_MS = 5 * 60 * 1000;
+const DISPLAY_DEVICE_CACHE_NEGATIVE_MS = 60 * 1000;
+const DISPLAY_DEVICE_CACHE_MAX_ENTRIES = 5000;
+const displayDeviceCache = new Map(); // tokenHash -> { device, expiresAt }
+
+async function getVerifiedDisplayDevice(req) {
+  if (req._verifiedDisplayDevice !== undefined) return req._verifiedDisplayDevice;
+  let device = null;
+  const header = req.headers?.authorization;
+  const match = typeof header === 'string' ? /^Bearer\s+([0-9a-f]{64})$/i.exec(header) : null;
+  if (match) {
+    // Hash the token exactly as presented: verifyDisplayPairingToken hashes
+    // the same way, so a token that would fail there also fails here.
+    const tokenHash = crypto.createHash('sha256').update(match[1], 'utf8').digest('hex');
+    const now = Date.now();
+    const cached = displayDeviceCache.get(tokenHash);
+    if (cached && cached.expiresAt > now) {
+      device = cached.device;
+    } else {
+      try {
+        const { rows } = await pool.query(
+          `SELECT id, restaurant_id, device_role
+             FROM display_pairings
+            WHERE pairing_token_hash = $1 AND paired_at IS NOT NULL`,
+          [tokenHash]
+        );
+        const row = rows[0];
+        device = row
+          ? {
+              pairingId: Number(row.id),
+              restaurantId: Number(row.restaurant_id),
+              deviceRole: row.device_role || 'kiosk',
+            }
+          : null;
+        if (displayDeviceCache.size >= DISPLAY_DEVICE_CACHE_MAX_ENTRIES) {
+          displayDeviceCache.clear();
+        }
+        displayDeviceCache.set(tokenHash, {
+          device,
+          expiresAt: now + (device ? DISPLAY_DEVICE_CACHE_POSITIVE_MS : DISPLAY_DEVICE_CACHE_NEGATIVE_MS),
+        });
+      } catch (err) {
+        logger.warn('display device verification failed; treating as unverified', { message: err.message });
+        device = null;
+      }
+    }
+  }
+  req._verifiedDisplayDevice = device;
+  return device;
+}
+
+// Test seam: lets a test invalidate the in-memory device cache between cases.
+function _clearDisplayDeviceCache() {
+  displayDeviceCache.clear();
+}
+
 // General API rate limiter: 200 requests per 15 minutes per IP (unauthenticated only)
 const generalLimiter = rateLimit({
   ...createStoreOption('rl:general:'),
   windowMs: 15 * 60 * 1000,
   max: 200,
   // Cookie and native Bearer sessions share the verified per-user budget.
-  skip: (req) => getVerifiedAuthUserId(req) !== null,
+  // Verified paired displays skip the anonymous IP bucket too: their own
+  // deviceApiLimiter counts them per pairing id, so a restaurant full of TVs
+  // on one Wi-Fi never exhausts the shared IP budget.
+  skip: async (req) => getVerifiedAuthUserId(req) !== null || (await getVerifiedDisplayDevice(req)) !== null,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -749,10 +825,40 @@ const displayPollLimiter = rateLimit({
   },
 });
 
+// Per-device API budget for paired displays: 300 requests / 15 min keyed by
+// pairing id, NOT by IP. Several displays on one restaurant Wi-Fi share a
+// single NAT IP; keying by IP would let one chatty TV eat the budget of all
+// the others and the owner claim flow behind the same router. The kitchen
+// ticket surface (restaurants.js) and the paired-display heartbeat/status
+// routes (restaurantDisplays.js) apply this limiter instead of relying on
+// the anonymous IP budget, and it composes with displayPollLimiter (60/min)
+// on the polling endpoints. Non-device requests skip this limiter: they
+// already have their own budgets (authenticatedLimiter / generalLimiter).
+const deviceApiLimiter = rateLimit({
+  ...createStoreOption('rl:device_api:'),
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  skip: async (req) => (await getVerifiedDisplayDevice(req)) === null,
+  keyGenerator: async (req) => {
+    const device = await getVerifiedDisplayDevice(req);
+    // skip() already ran, so device is set here; fall back to the IP so a
+    // request never escapes being counted (fail closed).
+    return device ? `device:${device.pairingId}` : req.ip;
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many display requests. Please try again later.',
+    retryAfter: '15 minutes',
+  },
+});
+
 module.exports = {
   createStoreOption,
   getVerifiedBearerUserId,
   getVerifiedAuthUserId,
+  getVerifiedDisplayDevice,
+  _clearDisplayDeviceCache,
   generalLimiter,
   authenticatedLimiter,
   loginLimiter,
@@ -792,4 +898,5 @@ module.exports = {
   entityResolveLimiter,
   vortexRedeemLimiter,
   displayPollLimiter,
+  deviceApiLimiter,
 };

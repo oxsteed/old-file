@@ -30,7 +30,7 @@ const food = require('../controllers/foodController');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const enforceUploadQuota = require('../middleware/uploadQuota');
-const { authenticatedLimiter, strictLimiter, generalLimiter } = require('../middleware/rateLimiter');
+const { authenticatedLimiter, strictLimiter, generalLimiter, deviceApiLimiter } = require('../middleware/rateLimiter');
 const media = require('../controllers/restaurantMediaController');
 const { requireKitchenDeviceOrStaff } = require('../controllers/restaurantDisplayController');
 
@@ -92,12 +92,14 @@ router.post(
 // Kitchen ticket surface (Track B): a paired display's token authorizes the
 // ticket feed + ticket actions for its own restaurant, so a kitchen tablet
 // needs no staff login; staff requests fall through to the standard
-// session + restaurant tenancy chain. Stations, audit, printer jobs, events
+// session + restaurant tenancy chain. deviceApiLimiter counts device traffic
+// per pairing id (multiple TVs share one NAT IP) so devices never consume
+// the anonymous IP budget. Stations, audit, printer jobs, events
 // and every other kitchen route below stay staff-only.
-router.get('/:restaurantId/kitchen/feed', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.getKitchenFeed);
-router.post('/:restaurantId/kitchen/orders/:orderId/ack', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.ackKitchenTicket);
-router.post('/:restaurantId/kitchen/orders/:orderId/action', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.performKitchenOrderAction);
-router.post('/:restaurantId/kitchen/items/:orderItemId/action', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.performKitchenItemAction);
+router.get('/:restaurantId/kitchen/feed', deviceApiLimiter, requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.getKitchenFeed);
+router.post('/:restaurantId/kitchen/orders/:orderId/ack', deviceApiLimiter, requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.ackKitchenTicket);
+router.post('/:restaurantId/kitchen/orders/:orderId/action', deviceApiLimiter, requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.performKitchenOrderAction);
+router.post('/:restaurantId/kitchen/items/:orderItemId/action', deviceApiLimiter, requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.performKitchenItemAction);
 
 // All routes require a signed-in user; the controller verifies the user belongs
 // to the restaurant (and that nested rows belong to it) on every call.
