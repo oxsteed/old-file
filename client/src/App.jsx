@@ -206,10 +206,6 @@ const HelperPayoutsPage = lazyWithRetry(() => import('./pages/helper/HelperPayou
 const EnforcementPolicyPage = lazyWithRetry(() => import('./pages/EnforcementPolicyPage'));
 const FeatureGuidePage = lazyWithRetry(() => import('./pages/FeatureGuidePage'));
 const ExperienceGuidePage = lazyWithRetry(() => import('./pages/ExperienceGuidePage'));
-// Visual SOP library (English-first task guides + role handbooks).
-const SopLibraryPage = lazyWithRetry(() => import('./sop/pages/SopLibraryPage'));
-const SopHandbookPage = lazyWithRetry(() => import('./sop/pages/SopHandbookPage'));
-const SopGuidePage = lazyWithRetry(() => import('./sop/pages/SopGuidePage'));
 const LearnModePage = lazyWithRetry(() => import('./pages/LearnModePage'));
 const PromotePage = lazyWithRetry(() => import('./pages/PromotePage'));
 const DirectPortalPage = lazyWithRetry(() => import('./pages/DirectPortalPage'));
@@ -432,11 +428,6 @@ export default function App() {
                     <Route path="/forgot-password"         element={<Guarded><ForgotPasswordPage /></Guarded>} />
                     <Route path="/reset-password/:token"   element={<Guarded><ResetPasswordPage /></Guarded>} />
                     <Route path="/how-it-works"            element={<Guarded><FeatureGuidePage /></Guarded>} />
-                    {/* SOP library routes must precede /how-it-works/:area or
-                        the :area param swallows "guides" and "handbooks". */}
-                    <Route path="/how-it-works/guides"         element={<Guarded><PageShell><SopLibraryPage /></PageShell></Guarded>} />
-                    <Route path="/how-it-works/handbooks/:role" element={<Guarded><PageShell><SopHandbookPage /></PageShell></Guarded>} />
-                    <Route path="/how-it-works/:area/:guideSlug" element={<Guarded><PageShell><SopGuidePage /></PageShell></Guarded>} />
                     <Route path="/how-it-works/:area"      element={<Guarded><ExperienceGuidePage /></Guarded>} />
                     <Route path="/features"                element={<Navigate to="/how-it-works" replace />} />
                     {/* /hire is the Learn guides' "Find a helper" CTA target. */}

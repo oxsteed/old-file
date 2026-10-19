@@ -6,7 +6,6 @@ import { getFeaturedRestaurants, listFoodRestaurantsPage, listMyFoodOrders, trac
 import { getNearbyPlaces } from '../../api/geo';
 import { useAuth } from '../../context/AuthContext';
 import { FoodBrand } from './foodShared';
-import SopGuideButton from '../../sop/components/SopGuideButton';
 import PageShell from '../../components/PageShell';
 import PageMeta from '../../components/PageMeta';
 import RecentlyViewedStrip from '../../components/RecentlyViewedStrip';
@@ -485,7 +484,6 @@ export default function FoodHomePage() {
           <span className="rd-eyebrow"><Utensils size={16} aria-hidden="true" />{t('food.home.redesign.eyebrow')}</span>
           <h1 className="fd-home-hero-title">{t('food.home.redesign.headline')} <em>{t('food.home.redesign.headlineAccent')}</em></h1>
           <p className="fd-home-hero-sub">{t('food.home.redesign.subtitle')}</p>
-          <div className="sop-guide-button-wrap"><SopGuideButton /></div>
           <p className="rd-platform-note"><Store size={18} aria-hidden="true" />{t('food.home.redesign.independent')}</p>
 
           {/* Search bar lives inside the hero */}

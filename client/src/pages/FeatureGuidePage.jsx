@@ -139,7 +139,6 @@ export default function FeatureGuidePage() {
 
   return (
     <PageShell>
-      <div className="ox-container"><Link to="/how-it-works/guides" className="ox-btn ox-btn-primary" style={{minHeight:44}}>{t("sop.libraryLink")}</Link></div>
       <PageMeta
         title={t('howOxsteedWorks.experience.metaTitle')}
         description={t('howOxsteedWorks.experience.metaDescription')}

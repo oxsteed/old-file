@@ -326,7 +326,6 @@
     "disable": "Disable",
     "guides": "Guided resolution",
     "guidesHint": "Use these checklists with the linked source evidence. Completion of a follow-up does not complete a financial or authorization workflow.",
-    "visualGuides": "Open visual step-by-step guides",
     "assistant": "Evidence and handoff draft",
     "assistantHint": "Generate an optional AI handoff draft from authorized source counts and statuses only. No customer names, notes, messages, or balances are sent to the provider.",
     "generate": "Generate draft and evidence",

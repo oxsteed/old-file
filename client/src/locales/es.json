@@ -326,7 +326,6 @@
     "disable": "Desactivar",
     "guides": "Resolución guiada",
     "guidesHint": "Usa estas listas con los registros relacionados. Completar una tarea no completa un proceso financiero ni de autorización.",
-    "visualGuides": "Abrir guías visuales paso a paso",
     "assistant": "Pruebas y borrador de traspaso",
     "assistantHint": "Genera un borrador opcional con IA usando solo recuentos y estados autorizados. No se envían nombres, notas, mensajes ni saldos al proveedor.",
     "generate": "Generar borrador y pruebas",

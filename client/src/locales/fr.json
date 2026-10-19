@@ -326,7 +326,6 @@
     "disable": "Désactiver",
     "guides": "Résolution guidée",
     "guidesHint": "Utilisez ces listes avec les données liées. Terminer un suivi ne termine pas un processus financier ou d’autorisation.",
-    "visualGuides": "Ouvrir les guides visuels pas à pas",
     "assistant": "Données et brouillon de transmission",
     "assistantHint": "Générez un brouillon facultatif avec l’IA à partir des compteurs et états autorisés. Aucun nom, note, message ou solde n’est transmis au fournisseur.",
     "generate": "Générer le brouillon et les données",
