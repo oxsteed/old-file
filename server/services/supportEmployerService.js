@@ -5,7 +5,7 @@
 
 const { query } = require('../db');
 const logger = require('../utils/logger');
-const { isReadOnlyRequest } = require('../utils/requestContext');
+const { isReadOnlyRequest, adminSupportOk, markAdminSupportOk } = require('../utils/requestContext');
 
 /** @typedef {'business'|'helper'|'platform'} EmployerKind */
 
@@ -83,6 +83,8 @@ async function findAgentForConversationBusiness(businessId, userId) {
          se.kind = 'platform'
          OR (se.kind = 'business' AND se.business_id = $2)
        )
+       -- Decision 5: no agent (business or platform) works a deleted business.
+       AND NOT EXISTS (SELECT 1 FROM businesses db WHERE db.id = $2 AND db.deleted_at IS NOT NULL)
      ORDER BY CASE WHEN se.kind = 'business' THEN 0 ELSE 1 END, sa.created_at ASC
      LIMIT 1`,
     [userId, businessId]
@@ -116,15 +118,18 @@ async function businessIsDeleted(businessId) {
  * when the request method is unknown (fail closed).
  */
 async function platformAdminSupportAllowed(businessId) {
-  if (!(await businessIsDeleted(businessId))) return true;
-  return isReadOnlyRequest();
+  // Reads are always allowed, so they need no lookup.
+  if (isReadOnlyRequest() || adminSupportOk(businessId)) return true;
+  // Through module.exports so route tests can stub the lookup.
+  if (await module.exports.businessIsDeleted(businessId)) return false;
+  markAdminSupportOk(businessId);
+  return true;
 }
 
 async function userCanAccessBusinessConversations(businessId, userId, userRole) {
   if (isPlatformAdmin(userRole)) return platformAdminSupportAllowed(businessId);
   if (await userCanManageBusiness(businessId, userId)) return true;
-  // Agents (business or platform) cannot work a deleted business's queue.
-  if (await businessIsDeleted(businessId)) return false;
+  // Agents cannot work a deleted business's queue (enforced in the SQL).
   return Boolean(await findAgentForConversationBusiness(businessId, userId));
 }
 

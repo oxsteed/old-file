@@ -51,10 +51,22 @@ const { AppError } = require('./errorHandler');
 const scopeModel = require('../services/scopeModel');
 const supportEmployerService = require('../services/supportEmployerService');
 const auditService = require('../services/auditService');
+const { ensureRequestContext } = require('../utils/requestContext');
 
 function markGate(fn, kind, detail) {
   Object.defineProperty(fn, 'scopeGate', { value: Object.freeze({ kind, detail: detail || null }), enumerable: false });
   return fn;
+}
+
+// Gates run inside the per-request context (decision 5), so downstream
+// handlers and services can tell a read from a write even when the router is
+// mounted without the app-level middleware.
+function withRequestContext(fn) {
+  const wrapped = function gateWithRequestContext(req, res, next) {
+    return ensureRequestContext(req, () => fn(req, res, next));
+  };
+  Object.defineProperty(wrapped, 'name', { value: fn.name });
+  return wrapped;
 }
 
 function canonicalId(raw) {
@@ -72,7 +84,7 @@ function canonicalId(raw) {
  */
 function requireRestaurantAccess(options = {}) {
   const paramName = options.paramName || 'restaurantId';
-  return markGate(async function requireRestaurantAccessGate(req, res, next) {
+  return markGate(withRequestContext(async function requireRestaurantAccessGate(req, res, next) {
     if (!req.user || !req.user.id) {
       return sendError(res, 401, 'Authentication required.', 'auth_required');
     }
@@ -116,7 +128,7 @@ function requireRestaurantAccess(options = {}) {
     } catch (err) {
       return next(err);
     }
-  }, 'restaurant', paramName);
+  }), 'restaurant', paramName);
 }
 
 const SUPPORT_LEVELS = new Set(['administrate', 'manage', 'conversations']);
@@ -127,7 +139,7 @@ function requireSupportBusinessAccess(level, options = {}) {
   // Most support controllers let platform admins through before the
   // membership check; the few that do not pass { platformAdmins: false }.
   const platformAdmins = options.platformAdmins !== false;
-  return markGate(async function requireSupportBusinessAccessGate(req, res, next) {
+  return markGate(withRequestContext(async function requireSupportBusinessAccessGate(req, res, next) {
     if (!req.user || !req.user.id) {
       return sendError(res, 401, 'Authentication required.', 'auth_required');
     }
@@ -157,7 +169,7 @@ function requireSupportBusinessAccess(level, options = {}) {
     } catch (err) {
       return next(err);
     }
-  }, 'support-business', platformAdmins ? level : `${level} (no platform-admin bypass)`);
+  }), 'support-business', platformAdmins ? level : `${level} (no platform-admin bypass)`);
 }
 
 const SUPPORT_RANK = { conversations: 1, manage: 2, administrate: 3 };

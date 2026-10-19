@@ -107,21 +107,20 @@ describe('requireSupportBusinessAccess gate', () => {
   });
 
   test('conversations level admits an employed support agent', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ deleted_at: null }] })
-      .mockResolvedValueOnce({ rows: [{ id: 'agent-1' }] });
+    mockQuery.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ id: 'agent-1' }] });
     const res = await request(app(requireSupportBusinessAccess('conversations'), ok)).get('/b/5');
     expect(res.status).toBe(200);
   });
 
   test('platform admins pass unless the route opts out', async () => {
     const admin = { id: USER, role: 'admin' };
-    mockQuery.mockResolvedValueOnce({ rows: [{ deleted_at: null }] });
     const yes = await request(app(requireSupportBusinessAccess('administrate'), ok, admin)).get('/b/5');
     expect(yes.status).toBe(200);
-    // Only the deleted-business check (decision 5), no membership query.
-    expect(mockQuery).toHaveBeenCalledTimes(1);
+    // Reads need no lookup; writes check for a deleted business (decision 5).
+    expect(mockQuery).not.toHaveBeenCalled();
+    mockQuery.mockResolvedValueOnce({ rows: [{ deleted_at: null }] });
+    const write = await request(app(requireSupportBusinessAccess('administrate'), ok, admin)).post('/b/5').send({});
+    expect(write.status).toBe(200);
     expect(mockQuery.mock.calls[0][0]).toMatch(/deleted_at FROM businesses/);
     mockQuery.mockResolvedValueOnce({ rows: [] });
     const no = await request(app(requireSupportBusinessAccess('manage', { platformAdmins: false }), ok, admin)).get('/b/5');
@@ -178,18 +177,15 @@ describe('decision 5: deleted businesses and restaurants', () => {
   });
 
   test('support agents cannot work a deleted business queue', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ deleted_at: deletedAt }] });
+    mockQuery.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
     const handler = jest.fn();
     const res = await request(app(requireSupportBusinessAccess('conversations'), handler)).get('/b/5');
     expect(res.status).toBe(403);
     expect(handler).not.toHaveBeenCalled();
-    expect(mockQuery).toHaveBeenCalledTimes(2);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/NOT EXISTS \(SELECT 1 FROM businesses db WHERE db\.id = \$2 AND db\.deleted_at IS NOT NULL\)/);
   });
 
   test('platform admins keep read-only support access to a deleted business', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ deleted_at: deletedAt }] });
     const read = await request(app(requireSupportBusinessAccess('manage'), ok, admin)).get('/b/5');
     expect(read.status).toBe(200);
     mockQuery.mockResolvedValueOnce({ rows: [{ deleted_at: deletedAt }] });

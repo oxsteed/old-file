@@ -23,6 +23,10 @@ const CONVERSATION_ID = '00000000-0000-4000-8000-000000000042';
 
 function buildApp() {
   const app = express();
+  // Same per-request context index.js mounts first (decision 5). Admin
+  // writes check for a deleted business; these suites cover live businesses.
+  jest.spyOn(require('../services/supportEmployerService'), 'businessIsDeleted').mockResolvedValue(false);
+  app.use(require('../utils/requestContext').requestContextMiddleware);
   app.use(express.json());
   app.use('/api/support', supportRoutes);
   app.use(errorHandler);
