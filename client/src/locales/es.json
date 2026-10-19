@@ -7894,6 +7894,10 @@
         "unsubscribes": "Bajas: {{count}}",
         "openNote": "Las aperturas de correo son estimadas; algunas apps bloquean las imágenes de seguimiento.",
         "notTracked": "No se mide en este canal",
+        "emailConfirmed": "Entrega confirmada: {{count}}",
+        "emailBounced": "Rebotados: {{count}}",
+        "emailComplained": "Marcados como spam: {{count}}",
+        "emailUnconfirmed": "Aceptado por el proveedor de correo; entrega aún sin confirmar",
         "reportTitle": "Resultados de difusiones, últimos {{days}} días",
         "legacyUntracked": "Marcado como enviado antes del seguimiento de entregas; no se entregó ningún mensaje."
       }

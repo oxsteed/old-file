@@ -8461,6 +8461,10 @@
         "unsubscribes": "Unsubscribes: {{count}}",
         "openNote": "Email opens are estimates; some mail apps block tracking images.",
         "notTracked": "Not tracked for this channel",
+        "emailConfirmed": "Confirmed delivered: {{count}}",
+        "emailBounced": "Bounced: {{count}}",
+        "emailComplained": "Marked as spam: {{count}}",
+        "emailUnconfirmed": "Accepted by the mail provider; delivery not confirmed yet",
         "reportTitle": "Broadcast results, last {{days}} days",
         "legacyUntracked": "Marked sent before delivery tracking existed; no messages were delivered."
       }

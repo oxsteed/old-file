@@ -8461,6 +8461,10 @@
         "unsubscribes": "Désabonnements : {{count}}",
         "openNote": "Les ouvertures d’e-mails sont estimées ; certaines messageries bloquent les images de suivi.",
         "notTracked": "Non mesuré pour ce canal",
+        "emailConfirmed": "Remise confirmée : {{count}}",
+        "emailBounced": "Rejetés : {{count}}",
+        "emailComplained": "Signalés comme spam : {{count}}",
+        "emailUnconfirmed": "Accepté par le fournisseur d’e-mail ; remise pas encore confirmée",
         "reportTitle": "Résultats des diffusions, {{days}} derniers jours",
         "legacyUntracked": "Marquée envoyée avant le suivi de distribution ; aucun message n’a été distribué."
       }

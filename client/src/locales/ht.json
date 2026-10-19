@@ -8006,6 +8006,10 @@
         "unsubscribes": "Dezabònman: {{count}}",
         "openNote": "Kantite imèl louvri yo se estimasyon; kèk aplikasyon bloke imaj swivi yo.",
         "notTracked": "Pa mezire sou chanèl sa a",
+        "emailConfirmed": "Livrezon konfime: {{count}}",
+        "emailBounced": "Retounen: {{count}}",
+        "emailComplained": "Make kòm spam: {{count}}",
+        "emailUnconfirmed": "Founisè imèl la aksepte l; livrezon an poko konfime",
         "reportTitle": "Rezilta difizyon, dènye {{days}} jou",
         "legacyUntracked": "Make kòm voye anvan swivi livrezon te egziste; pa gen okenn mesaj ki te livre."
       }
