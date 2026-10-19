@@ -4,7 +4,7 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useSt
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand } from 'lucide-react';
+import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, Tv } from 'lucide-react';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 import api from '../../api/axios';
 import {
@@ -38,6 +38,8 @@ import { ChecklistsPanel, SopsPanel, InventoryPanel } from './RestaurantOpsPanel
 import { TrainingPanel } from './RestaurantTrainingPanels';
 import { AuditsPanel } from './RestaurantAuditPanels';
 import { ReportsPanel } from './RestaurantReportsPanel';
+import PrinterSettingsPanel from './PrinterSettingsPanel';
+import DisplayFleetPanel from './DisplayFleetPanel';
 import { syncPendingMutations, countPendingMutations, isDeviceOnline } from '../../api/restaurantsOffline';
 import PageShell from '../../components/PageShell';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
@@ -1847,6 +1849,8 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
         >
           <PromotionsPanel t={t} restaurant={restaurant} bare />
         </SettingsCard>
+
+        <PrinterSettingsPanel t={t} restaurant={restaurant} />
       </div>
     </div>
   );
@@ -2314,7 +2318,7 @@ function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
 }
 
 // ── Tab icon map ──────────────────────────────────────────────────────────────
-const TAB_ICONS = { home: Home, orders: Receipt, menu: UtensilsCrossed, payouts: Wallet, settings: Settings, operations: ClipboardList };
+const TAB_ICONS = { home: Home, orders: Receipt, menu: UtensilsCrossed, payouts: Wallet, settings: Settings, operations: ClipboardList, displays: Tv };
 
 function hasRestaurantPermission(restaurant, requested) {
   if (restaurant?.effective_role === 'owner' || restaurant?.permissions?.includes('*')) return true;
@@ -2378,6 +2382,7 @@ export default function FoodMerchantPage() {
     if (canManagePayouts || canManageCredit) tabs.push('payouts');
     if (canViewSettings) tabs.push('settings');
     if (canManageDisplays || canManageRestaurant) tabs.push('operations');
+    if (canManageDisplays || canManageRestaurant) tabs.push('displays');
     return tabs;
   }, [canManageCredit, canManageDisplays, canManagePayouts, canManageRestaurant, canViewSettings, selected]);
 
@@ -2588,6 +2593,9 @@ export default function FoodMerchantPage() {
                 restaurant={selected}
                 canManageRestaurant={canManageRestaurant}
               />
+            )}
+            {selected && tab === 'displays' && (
+              <DisplayFleetPanel t={t} restaurant={selected} />
             )}
           </>
         )}

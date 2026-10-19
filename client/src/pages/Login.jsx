@@ -69,6 +69,20 @@ export default function Login({ embedded = false, returnTo } = {}) {
 
   const from = resolveAuthReturnPath(returnTo || location.state?.from || searchParams.get('next'));
 
+  // Kicked out of a kitchen display by DeviceOrStaffRoute with no staff
+  // session and no pairing token: offer the standalone pairing entry
+  // instead of a sign-in the tablet can never complete.
+  const kitchenPairHref = (() => {
+    const rawFrom = location.state?.from;
+    const raw = typeof rawFrom === 'string' ? rawFrom : rawFrom?.pathname;
+    // Strip query/hash: appending /pair must not land after a search string.
+    const pathname = typeof raw === 'string' ? raw.split(/[?#]/)[0] : '';
+    if (pathname.includes('/kitchen/')) {
+      return `${pathname.replace(/\/+$/, '')}/pair`;
+    }
+    return null;
+  })();
+
   // Button is only enabled when all conditions are met — full name required (≥2 words)
   const canSubmit = email.trim() && password && termsAgreed && isValidFullName(signatureName);
 
@@ -514,6 +528,19 @@ export default function Login({ embedded = false, returnTo } = {}) {
                 </button>
               )}
             </form>
+
+            {/* Fresh kitchen tablet bounced here without a staff session or
+                pairing token: point it at the standalone pairing entry. */}
+            {kitchenPairHref && (
+              <div className="flex justify-center pt-1">
+                <Link
+                  to={kitchenPairHref}
+                  className="text-sm text-orange-500 hover:text-orange-400 transition"
+                >
+                  {t('login.pairKitchenDisplayInstead')}
+                </Link>
+              </div>
+            )}
 
             {/* Divider */}
             <div className="relative hidden lg:block">

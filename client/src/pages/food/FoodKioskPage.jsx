@@ -2,7 +2,7 @@
 // McDonald's style: touch to start -> eat in / take out -> build order ->
 // confirm -> big queue number, then auto-reset for the next guest.
 // Guests order without an account; payment happens at the counter.
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -21,12 +21,32 @@ import {
   enqueueOperation,
 } from "../../restaurantScreens/storage";
 import { subscribeRestaurantDisplay } from "../../api/restaurantDisplaySocket";
+import DisplayFullscreenToggle from "../../components/DisplayFullscreenToggle";
+import DisplayOfflineBanner from "../../components/DisplayOfflineBanner";
+import DisplayInstallPrompt from "../../components/DisplayInstallPrompt";
+import DisplayPairingCode from "../../components/DisplayPairingCode";
+import { useFullscreen } from "../../hooks/useFullscreen";
+import { useWakeLock } from "../../hooks/useWakeLock";
+import { useDisplayPoller } from "../../hooks/useDisplayPoller";
+import { detectDisplayStandalone } from "../../utils/displayInstall";
 import { FoodBrand } from "./foodShared";
 import { ItemModal } from "./FoodRestaurantPage";
 import FoodOrderConfirmation from "./FoodOrderConfirmation";
 import "../../styles/FoodPages.css";
 
 const RESET_AFTER_MS = 60000;
+
+// Fixed-position overlays shared by every kiosk step screen.
+function KioskOverlays({ rootRef, offline }) {
+  return (
+    <>
+      <DisplayOfflineBanner offline={offline} />
+      <DisplayFullscreenToggle targetRef={rootRef} />
+      <DisplayInstallPrompt />
+      <DisplayPairingCode />
+    </>
+  );
+}
 
 export default function FoodKioskPage({ managed = null, preview = false }) {
   const { restaurantId } = useParams();
@@ -49,6 +69,17 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
   const [orderError, setOrderError] = useState(false);
   const [offlineSaved, setOfflineSaved] = useState(false);
   const resetTimer = useRef(null);
+  const rootRef = useRef(null);
+  const { isFullscreen } = useFullscreen(rootRef);
+  // Installed standalone apps (Add to Home Screen) never enter the
+  // Fullscreen API state, so wake lock keys off that too.
+  const [isStandalone] = useState(() =>
+    detectDisplayStandalone({
+      matchMedia: typeof window !== "undefined" ? window.matchMedia?.bind(window) : undefined,
+      standalone: typeof window !== "undefined" ? window.navigator?.standalone : undefined,
+    }),
+  );
+  useWakeLock(isFullscreen || isStandalone);
   const orderingPaused =
     (managed?.acceptingOrders ?? data?.restaurant?.accepts_in_store_orders) ===
     false;
@@ -72,23 +103,27 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
   useEffect(() => {
     managed?.sessionIdle?.(step === "start");
   }, [step, managed?.sessionIdle]);
+  // Menu refresh: steady poll while healthy, exponential backoff while
+  // failing. The kiosk keeps showing its cached menu (last-known state) and
+  // the offline banner appears when the feed is unreachable.
+  const pollMenu = useCallback(
+    () =>
+      getFoodRestaurant(restaurantId).then((next) => {
+        setData(next);
+      }),
+    [restaurantId],
+  );
+  const { offline } = useDisplayPoller(pollMenu, {
+    intervalMs: 5000,
+    enabled: !managed,
+  });
   useEffect(() => {
-    if (managed) return;
-    let live = true;
-    const refresh = () =>
-      getFoodRestaurant(restaurantId)
-        .then((next) => {
-          if (live) setData(next);
-        })
-        .catch(() => {});
-    const off = subscribeRestaurantDisplay(restaurantId, refresh),
-      timer = setInterval(refresh, 5000);
-    return () => {
-      live = false;
-      off();
-      clearInterval(timer);
-    };
-  }, [restaurantId, !!managed]);
+    if (managed) return undefined;
+    // Live updates (instant) layered over the poll (fallback).
+    return subscribeRestaurantDisplay(restaurantId, () =>
+      pollMenu().catch(() => {}),
+    );
+  }, [restaurantId, !!managed, pollMenu]);
 
   const resetAll = () => {
     clearTimeout(resetTimer.current);
@@ -277,7 +312,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
 
   if (step === "offline") {
     return (
-      <div className="fd-kiosk-start">
+      <div className="fd-kiosk-start" ref={rootRef}>
         <FoodBrand size={84} />
         <h1>{data?.restaurant?.display_name}</h1>
         <p>{f("offlineSaved")}</p>
@@ -293,25 +328,28 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
         >
           {t("food.kiosk.startOver")}
         </button>
+        <KioskOverlays rootRef={rootRef} offline={offline} />
       </div>
     );
   }
 
   if (!data?.restaurant) {
     return (
-      <div className="fd-kiosk-start">
+      <div className="fd-kiosk-start" ref={rootRef}>
         <FoodBrand size={64} />
         <p>{t("food.common.loading")}</p>
+        <KioskOverlays rootRef={rootRef} offline={offline} />
       </div>
     );
   }
 
   if (orderingPaused && step !== "done")
     return (
-      <div className="fd-kiosk-start">
+      <div className="fd-kiosk-start" ref={rootRef}>
         <FoodBrand size={84} />
         <h1>{data?.restaurant?.display_name}</h1>
         <p role="status">{t("food.ownerHome.paused")}</p>
+        <KioskOverlays rootRef={rootRef} offline={offline} />
       </div>
     );
 
@@ -319,6 +357,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
     return (
       <div
         className="fd-kiosk-start"
+        ref={rootRef}
         onClick={() => setStep("mode")}
         role="button"
         tabIndex={0}
@@ -332,13 +371,15 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
         <FoodBrand size={84} />
         <h1>{data.restaurant.display_name}</h1>
         <p>{t("food.kiosk.touchToStart")}</p>
+        <KioskOverlays rootRef={rootRef} offline={offline} />
       </div>
     );
   }
 
   if (step === "mode") {
     return (
-      <div className="fd-screen">
+      <div className="fd-screen" ref={rootRef}>
+        <KioskOverlays rootRef={rootRef} offline={offline} />
         <div className="fd-screen-header">
           <FoodBrand size={36} />
           <h1 className="fd-screen-title">{t("food.kiosk.whereEating")}</h1>
@@ -378,20 +419,24 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
 
   if (step === "done" && placedOrder) {
     return (
-      <FoodOrderConfirmation
-        restaurantId={restaurantId}
-        order={placedOrder}
-        trackingToken={trackingToken}
-        currency={currency}
-        variant="kiosk"
-        onDismiss={resetAll}
-        dismissLabel={t("food.kiosk.startOver")}
-      />
+      <>
+        <FoodOrderConfirmation
+          restaurantId={restaurantId}
+          order={placedOrder}
+          trackingToken={trackingToken}
+          currency={currency}
+          variant="kiosk"
+          onDismiss={resetAll}
+          dismissLabel={t("food.kiosk.startOver")}
+        />
+        <KioskOverlays rootRef={rootRef} offline={offline} />
+      </>
     );
   }
 
   return (
-    <div className="fd-screen">
+    <div className="fd-screen" ref={rootRef}>
+      <KioskOverlays rootRef={rootRef} offline={offline} />
       <div className="fd-screen-header">
         <FoodBrand size={36} />
         <h1 className="fd-screen-title">{data.restaurant.display_name}</h1>

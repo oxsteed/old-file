@@ -864,7 +864,6 @@ export default function Workspace({ user, existingTimeline = [] }) {
                     </details>
                   ))}
                 </div>
-                <Link to="/how-it-works/guides">{copy("visualGuides")}</Link>
               </article>
             )}
             {area === "assistant" && (

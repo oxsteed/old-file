@@ -326,7 +326,6 @@
     "disable": "Dezaktive",
     "guides": "Rezolisyon gide",
     "guidesHint": "Sèvi ak lis sa yo ansanm ak prèv ki lye yo. Fini yon swivi pa fini yon pwosesis finansye oswa otorizasyon.",
-    "visualGuides": "Louvri gid vizyèl etap pa etap",
     "assistant": "Prèv ak bouyon transmisyon",
     "assistantHint": "Jenere yon bouyon opsyonèl ak IA avèk kantite ak estati otorize sèlman. Pa gen non kliyan, nòt, mesaj oswa balans ki voye bay founisè a.",
     "generate": "Jenere bouyon ak prèv",
@@ -2377,6 +2376,7 @@
     "postJob": "Pibliye Travay",
     "listSkills": "Ofri Sèvis Ou",
     "welcomeBackToast": "Byenvini tounen!",
+    "pairKitchenDisplayInstead": "Konekte yon ekran kwizin olye de sa",
     "verifyIdentityToast": "Byenvini tounen! Tanpri konplete verifikasyon idantite ou.",
     "emailRequired": "Imel obligatwa",
     "passwordRequired": "Modpas obligatwa",
@@ -22769,7 +22769,8 @@
         "menu": "Meni",
         "settings": "Paramèt",
         "operations": "Operasyon",
-        "payouts": "Peman"
+        "payouts": "Peman",
+        "displays": "Ekran"
       },
       "liveOrders": "Kòmand an dirèk",
       "noOrders": "Pa gen kòmand aktif kounye a.",
@@ -35096,5 +35097,98 @@
   "adminCreditApprovalGraceEnds": "Peryòd gras la fini",
   "adminCreditApprovalRevokedAt": "Revoke nan",
   "adminCreditApprovalMigratedAt": "Balans yo deplase",
-  "adminCreditApprovalGrandfathered": "Apwouve (pa gen dosye apwobasyon)"
+  "adminCreditApprovalGrandfathered": "Apwouve (pa gen dosye apwobasyon)",
+  "display": {
+    "fullscreen": {
+      "enter": "Mete plen ekran",
+      "exit": "Soti nan plen ekran"
+    },
+    "offline": {
+      "banner": "Ou pa konekte. N ap montre dènye ekran nou te sove a.",
+      "reconnecting": "N ap eseye rekonekte…"
+    },
+    "install": {
+      "title": "Enstale ekran sa a",
+      "body": "Mete paj sa a sou ekran lakay ou pou yon bèl ekran plen.",
+      "stepShare": "Peze bouton Pataje nan navigatè w la",
+      "stepAdd": "Apre sa peze Ajoute sou ekran lakay",
+      "installNow": "Enstale kounye a",
+      "dismiss": "Pa kounye a"
+    },
+    "sound": {
+      "blocked": "Son an bloke. Peze pou limen sonèt la ankò."
+    }
+  },
+  "printer": {
+      "title": "Enprimant resi",
+      "desc": "Enprime resi kòmand sou yon enprimant rezo ESC/POS epi louvri tiwa lajan an pou vant kach.",
+      "enable": "Aktive enpresyon resi",
+      "hostLabel": "Adrès enprimant lan",
+      "hostPlaceholder": "192.168.1.100",
+      "hostHint": "Adrès IP oswa non enprimant lan sou rezo lokal ou a. Pifò enprimant resi rezo tande sou pò 9100.",
+      "portLabel": "Pò enprimant lan",
+      "drawerKick": "Louvri tiwa a pou vant kach",
+      "drawerKickHint": "Voye yon siyal bay tiwa a lè w ap enprime yon resi pou yon kòmand yo peye kach.",
+      "save": "Anrejistre paramèt enprimant lan",
+      "printTest": "Enprime yon paj tès",
+      "testing": "Ap enprime...",
+      "saved": "Paramèt enprimant lan anrejistre.",
+      "loadError": "Pa t kapab chaje paramèt enprimant lan.",
+      "saveError": "Pa t kapab anrejistre paramèt enprimant lan.",
+      "testSuccess": "Paj tès la voye. Tcheke enprimant lan.",
+      "testFailed": "Enpresyon an echwe. Tcheke koneksyon an epi eseye ankò.",
+      "enableFirst": "Aktive enpresyon resi a epi anrejistre anvan.",
+      "hostNotLocal": "Host enprimant lan dwe yon adrès rezo lokal."
+  },
+  "displayPairing": {
+    "pairThisDisplay": "Konekte ekran sa a",
+    "title": "Konekte ekran an",
+    "close": "Fèmen",
+    "instructions": "Antre kòd sa a nan tablodbò restoran ou an, anba Ekran, pou konekte ekran sa a.",
+    "codeError": "Pa t kapab jwenn yon kòd koneksyon. Eseye ankò.",
+    "expiresIn": "Kòd la ap ekspire nan",
+    "waitingForClaim": "Ap tann yo antre kòd la nan tablodbò a…",
+    "codeExpired": "Kòd sa a ekspire. Pran yon nouvo.",
+    "getCodeHint": "Pran yon kòd pou konekte ekran sa a ak restoran ou an.",
+    "working": "Ap travay…",
+    "newCode": "Nouvo kòd",
+    "pairedOk": "Ekran sa a konekte epi l ap voye enfòmasyon bay tablodbò ou an."
+  },
+  "displayFleet": {
+    "title": "Ekran",
+    "intro": "Konekte ekran miray pou restoran sa a. Sou televizyon an, louvri paj ke, kyòs oswa kwizin nan, peze bouton koneksyon an pou wè kòd la, apre antre kòd la anba a.",
+    "codeLabel": "Kòd koneksyon",
+    "codePlaceholder": "Kòd 6 karaktè",
+    "nameLabel": "Non ekran an",
+    "namePlaceholder": "Televizyon sal manje a",
+    "pairButton": "Konekte ekran an",
+    "pairing": "Ap konekte…",
+    "pairedOk": "Ekran an konekte.",
+    "unpairedOk": "Ekran an dekonekte.",
+    "refreshSent": "Yo mande rafrechi. Ekran an ap rechaje talè.",
+    "loadError": "Pa t kapab chaje ekran yo.",
+    "pairError": "Pa t kapab konekte ekran sa a. Tcheke kòd la epi eseye ankò.",
+    "refreshError": "Pa t kapab mande rafrechi a.",
+    "unpairError": "Pa t kapab dekonekte ekran sa a.",
+    "unpairConfirm": "Dekonekte ekran sa a? Li p ap voye enfòmasyon bay tablodbò a ankò.",
+    "refreshButton": "Rafrechi",
+    "unpairButton": "Dekonekte",
+    "online": "Anliy",
+    "offline": "Oflayn",
+    "lastSeen": "Dènye fwa yo te wè l",
+    "neverSeen": "Li pa t janm konekte",
+    "noDisplays": "Pa gen ekran ki konekte pou kounye a. Sèvi ak kòd ki parèt sou televizyon an pou konekte premye ekran ou an.",
+    "justNow": "kounye a",
+    "minutesAgo": "{count} min de sa",
+    "roleLabel": "Wòl ekran an",
+    "roleKiosk": "Kyòs kliyan",
+    "roleKitchen": "Ekran kwizin",
+    "roleQueueBoard": "Tablo kyou a"
+  }
+,
+  "kitchenPairing": {
+    "title": "Konekte ekran kwizin nan",
+    "intro": "Sou tablèt la, louvri dyalòg koneksyon an pou jwenn yon kòd, apre sa reklame li nan tablò bò a pou konekte ekran sa a.",
+    "backToKitchen": "Tounen sou ekran kwizin nan"
+  }
 }

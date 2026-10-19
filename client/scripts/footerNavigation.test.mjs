@@ -6,7 +6,7 @@ import { LAUNCH_VISIBILITY } from '../src/utils/launchScope.js';
 
 const paths = groups => groups.map(group => group.links.map(item => item.to));
 const expected = [['/restaurants', '/direct', '/delivery', '/media'],
-  ['/how-it-works', '/about', '/careers', '/consulting-intake'], ['/support', '/learn', '/how-it-works/guides', '/vortex']];
+  ['/how-it-works', '/about', '/careers', '/consulting-intake'], ['/support', '/learn', '/vortex']];
 test('footer destinations and order stay consistent for guests, current modes and legacy accounts', () => {
   for (const user of [null, ...['customer', 'helper', 'business_owner', 'business_employee', 'admin'].map(default_mode => ({id:1,default_mode})), {id:1,role:'helper_pro'}]) {
     assert.deepEqual(paths(footerNavigation(user)), expected);
@@ -16,7 +16,7 @@ test('footer destinations and order stay consistent for guests, current modes an
 test('launch flags and Pro entitlement independently gate secondary destinations', () => {
   const pro = { id: 1, role: 'helper_pro' };
   const visibility = {...LAUNCH_VISIBILITY, oxsteedMedia:false, productMarketplace:true, footerUtilityPills:false, genericQrGenerator:true};
-  assert.deepEqual(paths(footerNavigation(pro, { visibility })), [['/restaurants','/direct','/delivery','/products'],expected[1],['/support','/learn','/how-it-works/guides','/qr-generator']]);
+  assert.deepEqual(paths(footerNavigation(pro, { visibility })), [['/restaurants','/direct','/delivery','/products'],expected[1],['/support','/learn','/qr-generator']]);
   for (const user of [null, {id:2,role:'helper',membership_tier:'free'}]) {
     assert.ok(!paths(footerNavigation(user, {visibility})).flat().includes('/qr-generator'));
   }

@@ -213,6 +213,11 @@ const ENTRIES = [
     classification: 'constant', shared: 'none',
     rationale: 'Write-once registry of logistics transition guard functions keyed by entity-type:target-status, populated at module load. Holds no money or workflow state; guards are pure predicates evaluated inside the applyTransition database transaction. Unknown transitions fail closed.',
   },
+  {
+    file: 'middleware/rateLimiter.js', name: 'displayDeviceCache',
+    classification: 'cache', shared: 'none',
+    rationale: 'Display pairing-token verification cache: 5min positive / 60s negative TTL, 5000-entry cap, keyed by token SHA-256 (raw token never a key). Backing store is PostgreSQL display_pairings; revocation/unpairing propagates within the TTL. Cache misses fail closed to the anonymous bucket.',
+  },
 ];
 
 for (const entry of ENTRIES) registerProcessState(entry);

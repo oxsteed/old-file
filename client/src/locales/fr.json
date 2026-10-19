@@ -326,7 +326,6 @@
     "disable": "Désactiver",
     "guides": "Résolution guidée",
     "guidesHint": "Utilisez ces listes avec les données liées. Terminer un suivi ne termine pas un processus financier ou d’autorisation.",
-    "visualGuides": "Ouvrir les guides visuels pas à pas",
     "assistant": "Données et brouillon de transmission",
     "assistantHint": "Générez un brouillon facultatif avec l’IA à partir des compteurs et états autorisés. Aucun nom, note, message ou solde n’est transmis au fournisseur.",
     "generate": "Générer le brouillon et les données",
@@ -2265,6 +2264,7 @@
     "postJob": "Publier une offre",
     "listSkills": "Proposer mes services",
     "welcomeBackToast": "Bon retour !",
+    "pairKitchenDisplayInstead": "Associer un écran cuisine à la place",
     "verifyIdentityToast": "Bon retour ! Veuillez compléter la vérification de votre identité.",
     "emailRequired": "L'e-mail est requis",
     "passwordRequired": "Le mot de passe est obligatoire",
@@ -22769,7 +22769,8 @@
         "menu": "Menu",
         "settings": "Paramètres",
         "operations": "Opérations",
-        "payouts": "Paiements"
+        "payouts": "Paiements",
+        "displays": "Écrans"
       },
       "liveOrders": "Commandes en direct",
       "noOrders": "Aucune commande active pour le moment.",
@@ -35096,5 +35097,98 @@
   "adminCreditApprovalGraceEnds": "Fin de la période de grâce",
   "adminCreditApprovalRevokedAt": "Révoqué le",
   "adminCreditApprovalMigratedAt": "Soldes migrés",
-  "adminCreditApprovalGrandfathered": "Approuvé (aucun dossier d'approbation)"
+  "adminCreditApprovalGrandfathered": "Approuvé (aucun dossier d'approbation)",
+  "display": {
+    "fullscreen": {
+      "enter": "Plein écran",
+      "exit": "Quitter le plein écran"
+    },
+    "offline": {
+      "banner": "Vous êtes hors ligne. Affichage du dernier écran enregistré.",
+      "reconnecting": "Reconnexion…"
+    },
+    "install": {
+      "title": "Installer cet écran",
+      "body": "Ajoutez cette page à votre écran d'accueil pour un affichage propre en plein écran.",
+      "stepShare": "Touchez le bouton Partager de votre navigateur",
+      "stepAdd": "Puis touchez Ajouter à l'écran d'accueil",
+      "installNow": "Installer",
+      "dismiss": "Pas maintenant"
+    },
+    "sound": {
+      "blocked": "Le son est bloqué. Touchez pour réactiver la sonnerie."
+    }
+  },
+  "printer": {
+      "title": "Imprimante de reçus",
+      "desc": "Imprimez les reçus de commande sur une imprimante réseau ESC/POS et ouvrez le tiroir-caisse pour les ventes en espèces.",
+      "enable": "Activer l'impression des reçus",
+      "hostLabel": "Hôte de l'imprimante",
+      "hostPlaceholder": "192.168.1.100",
+      "hostHint": "L'adresse IP ou le nom d'hôte de l'imprimante sur votre réseau local. La plupart des imprimantes réseau écoutent sur le port 9100.",
+      "portLabel": "Port de l'imprimante",
+      "drawerKick": "Ouvrir le tiroir pour les ventes en espèces",
+      "drawerKickHint": "Envoie une impulsion au tiroir lors de l'impression d'un reçu payé en espèces.",
+      "save": "Enregistrer les paramètres de l'imprimante",
+      "printTest": "Imprimer une page de test",
+      "testing": "Impression en cours...",
+      "saved": "Paramètres de l'imprimante enregistrés.",
+      "loadError": "Impossible de charger les paramètres de l'imprimante.",
+      "saveError": "Impossible d'enregistrer les paramètres de l'imprimante.",
+      "testSuccess": "Page de test envoyée. Vérifiez l'imprimante.",
+      "testFailed": "Échec d'impression. Vérifiez la connexion et réessayez.",
+      "enableFirst": "Activez d'abord l'impression des reçus et enregistrez.",
+      "hostNotLocal": "L'hôte de l'imprimante doit être une adresse de réseau local."
+  },
+  "displayPairing": {
+    "pairThisDisplay": "Associer cet écran",
+    "title": "Associer l’écran",
+    "close": "Fermer",
+    "instructions": "Saisissez ce code dans le tableau de bord de votre restaurant, sous Écrans, pour associer cet écran.",
+    "codeError": "Impossible d’obtenir un code d’association. Réessayez.",
+    "expiresIn": "Le code expire dans",
+    "waitingForClaim": "En attente de la saisie du code dans le tableau de bord…",
+    "codeExpired": "Ce code a expiré. Demandez-en un nouveau.",
+    "getCodeHint": "Obtenez un code pour associer cet écran à votre restaurant.",
+    "working": "En cours…",
+    "newCode": "Nouveau code",
+    "pairedOk": "Cet écran est associé et communique avec votre tableau de bord."
+  },
+  "displayFleet": {
+    "title": "Écrans",
+    "intro": "Associez des écrans muraux à ce restaurant. Sur le téléviseur, ouvrez la page file d’attente, borne ou cuisine, touchez le bouton d’association pour afficher son code, puis saisissez-le ci-dessous.",
+    "codeLabel": "Code d’association",
+    "codePlaceholder": "Code à 6 caractères",
+    "nameLabel": "Nom de l’écran",
+    "namePlaceholder": "TV de la salle",
+    "pairButton": "Associer l’écran",
+    "pairing": "Association…",
+    "pairedOk": "Écran associé.",
+    "unpairedOk": "Écran dissocié.",
+    "refreshSent": "Actualisation demandée. L’écran va se recharger.",
+    "loadError": "Impossible de charger les écrans.",
+    "pairError": "Impossible d’associer cet écran. Vérifiez le code et réessayez.",
+    "refreshError": "Impossible de demander l’actualisation.",
+    "unpairError": "Impossible de dissocier cet écran.",
+    "unpairConfirm": "Dissocier cet écran ? Il cessera de communiquer avec le tableau de bord.",
+    "refreshButton": "Actualiser",
+    "unpairButton": "Dissocier",
+    "online": "En ligne",
+    "offline": "Hors ligne",
+    "lastSeen": "Vu pour la dernière fois",
+    "neverSeen": "Jamais connecté",
+    "noDisplays": "Aucun écran associé pour le moment. Utilisez le code affiché sur le téléviseur pour associer votre premier écran.",
+    "justNow": "à l’instant",
+    "minutesAgo": "il y a {count} min",
+    "roleLabel": "Rôle de l'écran",
+    "roleKiosk": "Borne client",
+    "roleKitchen": "Écran cuisine",
+    "roleQueueBoard": "Tableau de file"
+  }
+,
+  "kitchenPairing": {
+    "title": "Associer l'écran cuisine",
+    "intro": "Sur la tablette, ouvrez la boîte de dialogue d'association pour obtenir un code, puis validez-le dans le tableau de bord pour lier cet écran.",
+    "backToKitchen": "Retour à l'écran cuisine"
+  }
 }

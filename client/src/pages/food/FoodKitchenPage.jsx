@@ -3,12 +3,15 @@
 // queue board, POS, and customer tracking surfaces.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import {
+  dropDisplayPairing,
   getRestaurantKitchenFeed,
   performRestaurantKitchenItemAction,
   performRestaurantKitchenOrderAction,
+  readDisplayToken,
   updateFoodOrderStatus,
 } from '../../api/food';
 import {
@@ -18,6 +21,14 @@ import {
 } from '../../api/kitchenOfflineQueue';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 import { FoodBrand, FoodConnBadge, foodTicketUrgency } from './foodShared';
+import DisplayFullscreenToggle from '../../components/DisplayFullscreenToggle';
+import DisplayOfflineBanner from '../../components/DisplayOfflineBanner';
+import DisplayInstallPrompt from '../../components/DisplayInstallPrompt';
+import DisplayPairingCode from '../../components/DisplayPairingCode';
+import { useFullscreen } from '../../hooks/useFullscreen';
+import { useWakeLock } from '../../hooks/useWakeLock';
+import { detectDisplayStandalone } from '../../utils/displayInstall';
+import { useDisplayPoller } from '../../hooks/useDisplayPoller';
 import '../../styles/FoodPages.css';
 
 const POLL_MS = 5000;
@@ -34,6 +45,7 @@ function isNetworkError(error) {
 
 export default function FoodKitchenPage() {
   const { restaurantId } = useParams();
+  const { user } = useAuth();
   const { t } = useTranslation();
   const [orders, setOrders] = useState([]);
   const [workflow, setWorkflow] = useState({ requireQualityCheck: true, handoffDisplaySeconds: 15 });
@@ -42,19 +54,41 @@ export default function FoodKitchenPage() {
   const [busy, setBusy] = useState(new Set());
   const [pendingOffline, setPendingOffline] = useState(() => pendingKitchenActionCount(restaurantId));
   const [, setClockTick] = useState(0);
-  const timerRef = useRef(null);
+  const rootRef = useRef(null);
   const clockRef = useRef(null);
+  const { isFullscreen } = useFullscreen(rootRef);
+  // Installed standalone apps (Add to Home Screen) never enter the
+  // Fullscreen API state, so wake lock keys off that too.
+  const [isStandalone] = useState(() =>
+    detectDisplayStandalone({
+      matchMedia: typeof window !== 'undefined' ? window.matchMedia?.bind(window) : undefined,
+      standalone: typeof window !== 'undefined' ? window.navigator?.standalone : undefined,
+    }),
+  );
+  useWakeLock(isFullscreen || isStandalone);
 
   const refreshPending = useCallback(() => {
     setPendingOffline(pendingKitchenActionCount(restaurantId));
   }, [restaurantId]);
 
-  const load = useCallback(() => {
-    if (!navigator.onLine) {
-      setOnline(false);
-      setError(true);
-      return Promise.resolve();
+  // Only a 401 that carries the device-token error code means the pairing
+  // is dead (unpaired / revoked server-side): drop it so the pairing widget
+  // reappears. Generic 401s from unrelated endpoints never drop the pairing,
+  // and staff sessions are never touched.
+  const dropStaleDevicePairing = useCallback((requestError) => {
+    if (
+      requestError?.response?.status === 401
+      && requestError?.response?.data?.code === 'display_token_invalid'
+      && !user
+      && readDisplayToken(restaurantId)
+    ) {
+      dropDisplayPairing(restaurantId);
     }
+  }, [user, restaurantId]);
+
+  // Rejects on failure so the display poller can back off and retry. The
+  // tickets already on screen stay rendered as the last-known state.
+  const load = useCallback(() => {
     return getRestaurantKitchenFeed(restaurantId)
       .then((data) => {
         setOrders(data?.orders || []);
@@ -62,8 +96,20 @@ export default function FoodKitchenPage() {
         setError(false);
         setOnline(true);
       })
-      .catch(() => setError(true));
-  }, [restaurantId]);
+      .catch((fetchError) => {
+        setError(true);
+        dropStaleDevicePairing(fetchError);
+        throw fetchError;
+      });
+  }, [restaurantId, dropStaleDevicePairing]);
+
+  // Steady poll while healthy, exponential backoff while failing. The
+  // page keeps its own online/offline listeners (they also drive the
+  // offline action queue replay), so the poller does not manage them.
+  const { offline: feedOffline, retryNow } = useDisplayPoller(load, {
+    intervalMs: POLL_MS,
+    manageOnlineEvents: false,
+  });
 
   const replay = useCallback(async () => {
     if (!navigator.onLine) return;
@@ -71,15 +117,18 @@ export default function FoodKitchenPage() {
     refreshPending();
     if (result.replayed > 0) {
       toast.success(t('food.kds.syncedActions', { count: result.replayed }));
-      await load();
+      await retryNow();
     }
-  }, [load, refreshPending, restaurantId, t]);
+  }, [retryNow, refreshPending, restaurantId, t]);
 
   useEffect(() => {
-    load().then(replay);
-    timerRef.current = setInterval(load, POLL_MS);
+    // Initial feed load runs through the poller (so failures back off);
+    // queued offline actions replay right after it settles.
+    retryNow().then(() => replay());
     clockRef.current = setInterval(() => setClockTick((n) => n + 1), 30000);
-    const unsubscribe = subscribeRestaurantDisplay(restaurantId, load);
+    // Live updates (instant) layered over the poll (fallback); routed through
+    // the poller so a successful push refresh clears the offline state.
+    const unsubscribe = subscribeRestaurantDisplay(restaurantId, () => retryNow());
     const handleOnline = () => {
       setOnline(true);
       replay();
@@ -92,14 +141,13 @@ export default function FoodKitchenPage() {
     window.addEventListener('offline', handleOffline);
     window.addEventListener('oxsteed:kitchen-queue-changed', refreshPending);
     return () => {
-      clearInterval(timerRef.current);
       clearInterval(clockRef.current);
       unsubscribe();
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('oxsteed:kitchen-queue-changed', refreshPending);
     };
-  }, [load, refreshPending, replay, restaurantId]);
+  }, [refreshPending, replay, retryNow, restaurantId]);
 
   const runMutation = async ({ key, queuedAction, request, successKey }) => {
     if (busy.has(key)) return;
@@ -113,7 +161,9 @@ export default function FoodKitchenPage() {
       try {
         await request();
         if (successKey) toast.success(t(successKey));
-        await load();
+        // The mutation succeeded; a refresh failure must not surface as a
+        // mutation error (the poller keeps retrying in the background).
+        await load().catch(() => {});
       } catch (mutationError) {
         if (isNetworkError(mutationError)) {
           enqueueKitchenAction(queuedAction);
@@ -122,6 +172,7 @@ export default function FoodKitchenPage() {
           toast(t('food.kds.savedOffline'));
           return;
         }
+        dropStaleDevicePairing(mutationError);
         const message = mutationError?.response?.data?.error?.message;
         toast.error(message || t('food.merchant.statusError'));
       }
@@ -179,7 +230,8 @@ export default function FoodKitchenPage() {
   ];
 
   return (
-    <div className="fd-screen">
+    <div className="fd-screen" ref={rootRef}>
+      <DisplayOfflineBanner offline={feedOffline || error} />
       <div className="fd-screen-header">
         <FoodBrand size={34} />
         <h1 className="fd-screen-title">{t('food.kds.title')}</h1>
@@ -304,6 +356,9 @@ export default function FoodKitchenPage() {
           );
         })}
       </div>
+      <DisplayFullscreenToggle targetRef={rootRef} />
+      <DisplayInstallPrompt />
+      <DisplayPairingCode />
     </div>
   );
 }

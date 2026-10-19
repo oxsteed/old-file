@@ -4319,7 +4319,24 @@ exports.updateOrderStatus = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId);
-    const restaurant = req.screenDevice ? req.screenRestaurant : await requireRestaurantAccess(req.user.id, restaurantId);
+    let restaurant;
+    if (req.screenDevice) {
+      restaurant = req.screenRestaurant;
+    } else if (req.displayDevice) {
+      // Device tokens carry no staff session, so there is no user to check
+      // against the scope model. The middleware already verified the pairing
+      // is valid, paired, and scoped to this restaurant; resolve the
+      // restaurant's settings directly so the readiness/QC gates below still
+      // apply to device-driven transitions.
+      const { rows: [deviceRestaurant] } = await pool.query(
+        'SELECT id, settings FROM food_restaurants WHERE id = $1',
+        [restaurantId]
+      );
+      if (!deviceRestaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+      restaurant = deviceRestaurant;
+    } else {
+      restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    }
     const status = normalizeString(req.body.status, 24);
     // Critical fix: status transitions to cancelled/refunded trigger money
     // refunds. Kitchen staff (kitchen.update) must not be able to move money.
@@ -4327,6 +4344,17 @@ exports.updateOrderStatus = async (req, res, next) => {
     const isFinancialTransition = ['cancelled', 'refunded'].includes(status);
     if(req.screenDevice){
       if(req.screenDevice.app_key!=='kitchen'||req.screenDevice.config?.screenRole!=='expeditor'||!['ready','completed'].includes(status)||!restaurant?.screens_v2_enabled)throw new AppError('Unsupported device action',403,'forbidden');
+    } else if (req.displayDevice) {
+      // Kitchen-display device gate (migration 913 roles). The middleware
+      // already rejected non-kitchen roles; this re-check is defense in
+      // depth. Only the two kitchen transitions are allowed; cancelled and
+      // refunded are never device-initiated because they move money.
+      // Attribution stays null (created_by / handed_off_by are user columns
+      // and req.user is unset here), exactly like the screenDevice branch,
+      // which also sets no device actor.
+      if (req.displayDevice.deviceRole !== 'kitchen' || !['ready', 'completed'].includes(status)) {
+        throw new AppError('Unsupported device action', 403, 'forbidden');
+      }
     } else if (isFinancialTransition) {
       await assertRestaurantPermission(restaurant, ['orders.manage', 'issue_refunds']);
     } else {

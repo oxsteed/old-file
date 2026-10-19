@@ -24,6 +24,7 @@ const help = require('../controllers/restaurantHelpController');
 const pos = require('../controllers/restaurantPosController');
 const kiosk = require('../controllers/restaurantKioskController');
 const appFlow = require('../controllers/restaurantAppFlowController');
+const printer = require('../controllers/restaurantPrinterController');
 const screens = require('../controllers/restaurantScreensController');
 const food = require('../controllers/foodController');
 const upload = require('../middleware/upload');
@@ -31,6 +32,7 @@ const validateFileUpload = require('../middleware/validateFileUpload');
 const enforceUploadQuota = require('../middleware/uploadQuota');
 const { authenticatedLimiter, strictLimiter, generalLimiter } = require('../middleware/rateLimiter');
 const media = require('../controllers/restaurantMediaController');
+const { requireKitchenDeviceOrStaff } = require('../controllers/restaurantDisplayController');
 
 // Managed appliances authenticate with their scoped device credential.
 router.post('/:restaurantId/devices/:deviceId/screen-orders', strictLimiter, scopeExempt('device-credential'), screens.createOrder);
@@ -86,6 +88,18 @@ router.post(
   authenticate,
   scopeExempt('customer-media'), videoMedia.retryVideoProcessing
 );
+
+// Kitchen ticket surface (Track B): a paired display's token authorizes the
+// ticket feed + ticket actions for its own restaurant, so a kitchen tablet
+// needs no staff login; staff requests fall through to the standard
+// session + restaurant tenancy chain. The global device limiter counts per
+// pairing id (multiple TVs share one NAT IP) so devices never consume the
+// anonymous IP budget. Stations, audit, printer jobs, events and every other
+// kitchen route below stay staff-only.
+router.get('/:restaurantId/kitchen/feed', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.getKitchenFeed);
+router.post('/:restaurantId/kitchen/orders/:orderId/ack', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.ackKitchenTicket);
+router.post('/:restaurantId/kitchen/orders/:orderId/action', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.performKitchenOrderAction);
+router.post('/:restaurantId/kitchen/items/:orderItemId/action', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.performKitchenItemAction);
 
 // All routes require a signed-in user; the controller verifies the user belongs
 // to the restaurant (and that nested rows belong to it) on every call.
@@ -294,6 +308,13 @@ router.get('/:restaurantId/pos/payments/:paymentId', requireRestaurantAccess(), 
 router.post('/:restaurantId/pos/payments/:paymentId/capture', requireRestaurantAccess(), appFlow.capturePosCardPayment);
 router.post('/:restaurantId/pos/payments/:paymentId/refund', requireRestaurantAccess(), appFlow.refundPosCardPayment);
 router.post('/:restaurantId/pos/orders/:orderId/reprint-receipt', requireRestaurantAccess(), appFlow.reprintReceipt);
+// Network receipt printer (ESC/POS) + cash drawer. Fire-and-forget: printing
+// never writes to order/payment tables, so it cannot alter order or payment
+// state.
+router.get('/:restaurantId/printer-settings', requireRestaurantAccess(), printer.getPrinterSettings);
+router.put('/:restaurantId/printer-settings', requireRestaurantAccess(), printer.updatePrinterSettings);
+router.post('/:restaurantId/printer-test', requireRestaurantAccess(), printer.printTestPage);
+router.post('/:restaurantId/print-receipt', requireRestaurantAccess(), printer.printReceipt);
 router.get('/:restaurantId/pos/shifts', requireRestaurantAccess(), appFlow.listShifts);
 router.post('/:restaurantId/pos/shifts', requireRestaurantAccess(), appFlow.openShift);
 router.post('/:restaurantId/pos/shifts/:shiftId/close', requireRestaurantAccess(), appFlow.closeShift);
@@ -308,16 +329,12 @@ router.post('/:restaurantId/pos/receipt-events', requireRestaurantAccess(), pos.
 router.get('/:restaurantId/kitchen/stations', requireRestaurantAccess(), appFlow.listKitchenStations);
 router.post('/:restaurantId/kitchen/stations', requireRestaurantAccess(), appFlow.upsertKitchenStation);
 router.post('/:restaurantId/kitchen/station-routes', requireRestaurantAccess(), appFlow.routeMenuItemToStation);
-router.get('/:restaurantId/kitchen/feed', requireRestaurantAccess(), appFlow.getKitchenFeed);
 router.post('/:restaurantId/kitchen/devices/:deviceId/feed-ack', requireRestaurantAccess(), appFlow.ackKitchenFeed);
 router.post('/:restaurantId/kitchen/feed/ack', requireRestaurantAccess(), appFlow.ackKitchenFeed);
 router.get('/:restaurantId/kitchen/events', requireRestaurantAccess(), appFlow.listKitchenEvents);
 router.get('/:restaurantId/kitchen/audit-events', requireRestaurantAccess(), appFlow.listKitchenAuditEvents);
 router.post('/:restaurantId/kitchen/events', requireRestaurantAccess(), appFlow.recordKitchenEvent);
-router.post('/:restaurantId/kitchen/orders/:orderId/ack', requireRestaurantAccess(), appFlow.ackKitchenTicket);
 router.post('/:restaurantId/kitchen/tickets/:orderId/ack', requireRestaurantAccess(), appFlow.ackKitchenTicket);
-router.post('/:restaurantId/kitchen/orders/:orderId/action', requireRestaurantAccess(), appFlow.performKitchenOrderAction);
-router.post('/:restaurantId/kitchen/items/:orderItemId/action', requireRestaurantAccess(), appFlow.performKitchenItemAction);
 router.get('/:restaurantId/kitchen/printer-jobs', requireRestaurantAccess(), appFlow.listPrinterJobs);
 router.post('/:restaurantId/kitchen/printer-jobs', requireRestaurantAccess(), appFlow.createPrinterJob);
 router.post('/:restaurantId/kitchen/printer-jobs/:jobId/claim', requireRestaurantAccess(), appFlow.claimPrinterJob);
