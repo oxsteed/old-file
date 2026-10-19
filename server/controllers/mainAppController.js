@@ -1927,7 +1927,7 @@ exports.createPaymentRequest = async (req, res, next) => {
       sourceType, sourceId: req.body.sourceId || req.body.source_id || null, payeeId,
     });
     if (!businessCheck.ok) {
-      return res.status(400).json({ error: { code: businessCheck.code, fields: { businessId: 'The business does not match this payment request.' } } });
+      return res.status(400).json({ error: { code: businessCheck.code, message: 'The business does not match this payment request.', fields: { businessId: 'The business does not match this payment request.' } } });
     }
 
     const request = await mainAppContracts.createPaymentRequest({
