@@ -88,6 +88,7 @@ describeDb('kitchen device-or-staff authorization', () => {
           owner_user_id BIGINT, display_name TEXT)`
     );
     await db.query(fs.readFileSync(path.join(__dirname, '../migrations/911_display_pairings.sql'), 'utf8'));
+    await db.query(fs.readFileSync(path.join(__dirname, '../migrations/913_display_pairing_device_role.sql'), 'utf8'));
 
     const businessId = (
       await db.query(`INSERT INTO ${schema}.businesses (user_id) VALUES ($1) RETURNING id`, [OWNER_ID])
@@ -107,18 +108,18 @@ describeDb('kitchen device-or-staff authorization', () => {
       )
     ).rows[0].id;
 
-    async function pairedRow(restaurantId, label) {
+    async function pairedRow(restaurantId, label, deviceRole = 'kiosk') {
       const token = crypto.randomBytes(32).toString('hex');
       const { rows } = await db.query(
         `INSERT INTO ${schema}.display_pairings
-           (restaurant_id, code_hash, expires_at, paired_at, label, pairing_token_hash)
-         VALUES ($1, $2, NOW() + INTERVAL '10 minutes', NOW(), $3, $4)
+           (restaurant_id, code_hash, expires_at, paired_at, label, pairing_token_hash, device_role)
+         VALUES ($1, $2, NOW() + INTERVAL '10 minutes', NOW(), $3, $4, $5)
          RETURNING id`,
-        [restaurantId, codeHash(), label, sha256hex(token)]
+        [restaurantId, codeHash(), label, sha256hex(token), deviceRole]
       );
       return { id: Number(rows[0].id), token };
     }
-    pairingA = await pairedRow(restaurantA, 'Kitchen tablet');
+    pairingA = await pairedRow(restaurantA, 'Kitchen tablet', 'kitchen');
     pairingB = await pairedRow(restaurantB, 'Expo screen');
   });
 
@@ -129,7 +130,7 @@ describeDb('kitchen device-or-staff authorization', () => {
 
   test('verifyDisplayPairingToken returns the pairing for a paired token, null otherwise', async () => {
     const ok = await controller.verifyDisplayPairingToken(pairingA.token);
-    expect(ok).toEqual({ pairingId: pairingA.id, restaurantId: Number(restaurantA), label: 'Kitchen tablet' });
+    expect(ok).toEqual({ pairingId: pairingA.id, restaurantId: Number(restaurantA), label: 'Kitchen tablet', deviceRole: 'kitchen' });
 
     expect(await controller.verifyDisplayPairingToken(crypto.randomBytes(32).toString('hex'))).toBeNull();
     expect(await controller.verifyDisplayPairingToken(null)).toBeNull();
@@ -163,6 +164,7 @@ describeDb('kitchen device-or-staff authorization', () => {
       pairingId: pairingA.id,
       restaurantId: Number(restaurantA),
       label: 'Kitchen tablet',
+      deviceRole: 'kitchen',
     });
   });
 
@@ -180,6 +182,17 @@ describeDb('kitchen device-or-staff authorization', () => {
   test('token paired to restaurant A on restaurant B route fails closed with 401', async () => {
     const { req, nextCalled, thrown } = await invokeMiddleware({
       token: pairingA.token,
+      restaurantId: restaurantB,
+    });
+    expect(nextCalled).toBe(true);
+    expect(thrown).toBeTruthy();
+    expect(thrown.statusCode).toBe(401);
+    expect(req.displayDevice).toBeUndefined();
+  });
+
+  test('kiosk-role token is rejected from kitchen authorization with 401', async () => {
+    const { req, nextCalled, thrown } = await invokeMiddleware({
+      token: pairingB.token,
       restaurantId: restaurantB,
     });
     expect(nextCalled).toBe(true);
