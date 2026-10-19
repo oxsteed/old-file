@@ -66,6 +66,18 @@ beforeEach(() => {
   mockSendExpo.mockResolvedValue([{ status: 'ok' }]);
 });
 
+test('an email-only metric alert creates no in-app row and sends no push', async () => {
+  mockPrefs({});
+  sendEmail.mockResolvedValue({ success: true });
+  const result = await sendNotification({ userId: 'u1', type: 'metric_threshold_alert', body: 'Threshold crossed',
+    emailChannel: true, inAppChannel: false, pushChannel: false, idempotencyKey: 'email-only-metric' });
+  expect(result.success).toBe(true);
+  expect(insertCalls()).toHaveLength(0);
+  expect(webPushService.sendToUser).not.toHaveBeenCalled();
+  expect(mobilePushService.sendToUser).not.toHaveBeenCalled();
+  expect(sendEmail).toHaveBeenCalledTimes(1);
+});
+
 describe('P2-8-F03 friendly toggle aliases', () => {
   test('in_app_new_bid=false suppresses the in-app row for bid_received', async () => {
     mockPrefs({ in_app_new_bid: false });

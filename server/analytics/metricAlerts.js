@@ -23,6 +23,17 @@
 const registry = require('./metricsRegistry');
 const { AppError } = require('../middleware/errorHandler');
 const { financialMetricValue } = require('./financialMetrics');
+const { DEFINITIONS: operationalMetrics } = require('./operationalMetrics');
+
+// Execute the same governed SQL as the interactive builder. This keeps the
+// window/cohort and eligible denominator identical across both consumers.
+async function builderValue(db, metric, params, column = 'value') {
+  const { buildMetricSql, validateBuilderQuery } = require('./queryBuilder');
+  const query = validateBuilderQuery({ metric, period: paramsForPeriod(params) });
+  const built = buildMetricSql(query, { isSuperAdmin: true });
+  const { rows } = await db.query(built.text, built.params);
+  return rows[0]?.[column] ?? null;
+}
 
 const OPERATORS = Object.freeze(['>', '<', '==']);
 
@@ -38,8 +49,25 @@ function paramsForPeriod(params) {
 }
 
 const ALERTABLE_METRICS = Object.freeze({
+  ...Object.fromEntries(Object.entries(operationalMetrics).map(([name, def]) => [name, Object.freeze({
+    unit: def.unit, params: ['period', 'comparison'], preference: def.preference,
+    compute: (db, params) => builderValue(db, name, params, def.valueColumn || 'value'),
+  })])),
+  investor_gmv_cents: Object.freeze({
+    unit: 'cents', params: ['currencyCode'],
+    compute: (db, params) => financialMetricValue(db, 'investor_gmv_cents', params.currencyCode || 'USD'),
+  }),
+  consulting_cancel_rate_pct: Object.freeze({
+    unit: 'pct', params: ['period'],
+    compute: (db, params) => builderValue(db, 'consulting_cancel_rate_pct', params, 'cancel_rate_pct'),
+  }),
+  sla_first_response_compliance_pct: Object.freeze({
+    unit: 'pct', params: ['period'], preference: 'notify_incidents',
+    compute: (db, params) => builderValue(db, 'sla_first_response_compliance_pct', params, 'compliance_pct'),
+  }),
   open_disputes: Object.freeze({
     unit: 'count',
+    preference: 'notify_disputes',
     params: [],
     compute: (db) => registry.openDisputes(db),
   }),
@@ -58,11 +86,11 @@ const ALERTABLE_METRICS = Object.freeze({
   }),
   cancel_rate_pct: Object.freeze({
     unit: 'pct',
-    params: [],
+    params: ['period'],
     // v1 is platform-wide: customer/helper roles need a userId, which a
     // platform-wide alert rule has no natural value for. Keep the canonical
     // 'platform' cohort; per-role scoping is a documented Item-9 limitation.
-    compute: (db) => registry.cancelRate(db, { role: 'platform' }),
+    compute: (db, params) => builderValue(db, 'cancel_rate_pct', params, 'cancel_rate_pct'),
   }),
   support_nps_index: Object.freeze({
     unit: 'index',
@@ -78,11 +106,8 @@ const ALERTABLE_METRICS = Object.freeze({
   }),
   consulting_avg_nps: Object.freeze({
     unit: 'index',
-    params: [],
-    compute: async (db) => {
-      const { avg_nps } = await registry.consultingAvgNps(db);
-      return avg_nps;
-    },
+    params: ['period'],
+    compute: (db, params) => builderValue(db, 'consulting_avg_nps', params, 'avg_nps'),
   }),
   mrr_cents: Object.freeze({
     unit: 'cents',
@@ -149,6 +174,12 @@ function validateRuleInput(body) {
         throw new AppError('Invalid days: expected an integer 1..365', 400, 'invalid_param');
       }
       params.days = days;
+    } else if (key === 'comparison') {
+      const comparison = rawParams.comparison || 'absolute';
+      if (!['absolute', 'previous_period_pct'].includes(comparison)) {
+        throw new AppError('Invalid comparison', 400, 'invalid_param');
+      }
+      params.comparison = comparison;
     }
   }
   const cooldownMinutes = input.cooldown_minutes != null ? Number(input.cooldown_minutes) : 60;
@@ -199,10 +230,30 @@ async function computeMetricValue(db, metricName, params) {
   return Number.isFinite(v) ? v : null;
 }
 
+async function computeMetricObservation(db, metricName, params = {}) {
+  const value = await computeMetricValue(db, metricName, params);
+  let previous = null, compared = value;
+  if (params.comparison === 'previous_period_pct') {
+    if (!Object.hasOwn(operationalMetrics, metricName)) {
+      throw new AppError('This metric has no previous-period comparison', 400, 'invalid_param');
+    }
+    const { operationalMetricSql } = require('./operationalMetrics');
+    const interval = registry.PERIOD_INTERVAL[paramsForPeriod(params)].interval;
+    const built = operationalMetricSql(metricName, interval);
+    const { rows } = await db.query(built.text.replaceAll('NOW()', '(NOW()-$2::interval)'), [interval, interval]);
+    previous = rows[0]?.[operationalMetrics[metricName].valueColumn || 'value'] ?? null;
+    // A zero/empty baseline has no defined percentage change.
+    compared = value == null || previous == null || Number(previous) === 0 ? null
+      : 100 * (Number(value) - Number(previous)) / Math.abs(Number(previous));
+  }
+  return { value, previous, compared };
+}
+
 function formatValue(metricName, value, params = {}, locale = 'en') {
   const def = ALERTABLE_METRICS[metricName];
   const v = Number(value);
   if (!Number.isFinite(v)) return '—';
+  if (params.comparison === 'previous_period_pct') return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(v)}%`;
   if (def && def.unit === 'cents') {
     const currency = params.currencyCode || 'USD';
     const language = locale === 'ht' ? 'fr-HT' : locale;
@@ -227,5 +278,6 @@ module.exports = {
   validateRuleInput,
   compareValues,
   computeMetricValue,
+  computeMetricObservation,
   formatValue,
 };

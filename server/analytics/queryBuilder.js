@@ -87,6 +87,9 @@ const { resolveScope } = require('../services/scopeModel');
 const logger = require('../utils/logger');
 const { assertMetricAccess } = require('./metricAccess');
 const { MONEY_METRICS, financialMetricSql } = require('./financialMetrics');
+const { DEFINITIONS: operationalMetrics, operationalMetricSql } = require('./operationalMetrics');
+const { paidOrderPredicate } = require('./restaurantAnalytics');
+const { metricEvidenceSql } = require('./metricEvidence');
 
 const PERIODS = Object.freeze(['1d', '7d', '30d', '90d', '1y']);
 // Window lengths in days for metrics that need a day count (NPS days,
@@ -101,6 +104,7 @@ const STATEMENT_TIMEOUT = '30s';
 // The registry's dimension declarations are loose strings; THIS is the
 // enforceable list. Exported so Track B's NL parser can read it.
 const BUILDER_DIMENSIONS = Object.freeze({
+  ...Object.fromEntries(Object.keys(operationalMetrics).map(name => [name, Object.freeze([])])),
   open_disputes: Object.freeze([]),
   platform_revenue_cents: Object.freeze(['period']),
   investor_gmv_cents: Object.freeze([]),
@@ -120,6 +124,7 @@ const BUILDER_DIMENSIONS = Object.freeze({
 // filters are limited to these keys per metric; each key has a fixed value
 // validator and a fixed WHERE predicate below.
 const BUILDER_FILTERS = Object.freeze({
+  ...Object.fromEntries(Object.keys(operationalMetrics).map(name => [name, Object.freeze([])])),
   open_disputes: Object.freeze([]),
   platform_revenue_cents: Object.freeze([]),
   investor_gmv_cents: Object.freeze([]),
@@ -151,6 +156,7 @@ const POINT_IN_TIME_METRICS = Object.freeze(new Set([
 ]));
 
 const METRIC_UNITS = Object.freeze({
+  ...Object.fromEntries(Object.entries(operationalMetrics).map(([name, def]) => [name, def.unit])),
   open_disputes: 'count',
   platform_revenue_cents: 'cents',
   investor_gmv_cents: 'cents',
@@ -245,14 +251,14 @@ function validateBuilderQuery(input) {
   }
   if (rawFilters.businessId != null) {
     const businessId = Number(rawFilters.businessId);
-    if (!Number.isInteger(businessId) || businessId <= 0) {
+    if (!Number.isSafeInteger(businessId) || businessId <= 0) {
       throw new AppError('Invalid businessId filter: expected a positive integer', 400, 'invalid_filter');
     }
     filters.businessId = businessId;
   }
   if (rawFilters.restaurantId != null) {
     const restaurantId = Number(rawFilters.restaurantId);
-    if (!Number.isInteger(restaurantId) || restaurantId <= 0) {
+    if (!Number.isSafeInteger(restaurantId) || restaurantId <= 0) {
       throw new AppError('Invalid restaurantId filter: expected a positive integer', 400, 'invalid_filter');
     }
     filters.restaurantId = restaurantId;
@@ -331,6 +337,7 @@ function buildSlaCompliance(query) {
   const join = registry.slaTargetsJoinSql('sc', 'sla_tgt');
   const target = registry.slaFirstResponseTargetSql('sc', 'sla_tgt');
   const metExpr = `SUM(CASE WHEN sc.first_response_at IS NOT NULL AND sc.first_response_at <= (${target}) THEN 1 ELSE 0 END)`;
+  const eligibleExpr = `COUNT(*) FILTER (WHERE sc.first_response_at IS NOT NULL OR NOW() > (${target}))`;
   const where = [`sc.status <> 'merged'`, `sc.created_at >= NOW() - $1::interval`];
   if (query.filters.businessId != null) {
     params.push(query.filters.businessId);
@@ -343,9 +350,9 @@ function buildSlaCompliance(query) {
   const joinBusiness = byBusiness ? 'LEFT JOIN businesses b ON b.id = sc.business_id' : '';
   return {
     text: `SELECT ${select}
-             ROUND(100.0 * ${metExpr} / NULLIF(COUNT(*), 0), 1)::FLOAT AS compliance_pct,
+             ROUND(100.0 * ${metExpr} / NULLIF(${eligibleExpr}, 0), 1)::FLOAT AS compliance_pct,
              ${metExpr}::INT AS met,
-             COUNT(*)::INT AS eligible
+             ${eligibleExpr}::INT AS eligible
            FROM support_conversations sc
            ${join}
            ${joinBusiness}
@@ -359,8 +366,7 @@ function buildSlaCompliance(query) {
 }
 
 function buildSupportNps(query) {
-  const days = PERIOD_DAYS[query.period];
-  const params = [String(days), query.filters.businessId != null ? query.filters.businessId : null];
+  const params = [intervalParam(query.period), query.filters.businessId != null ? query.filters.businessId : null];
   const byBusiness = query.dimensions.includes('business');
   const npsExpr = `ROUND(100.0 * (COUNT(*) FILTER (WHERE scr.nps_score >= 9) - COUNT(*) FILTER (WHERE scr.nps_score <= 6)) / NULLIF(COUNT(scr.nps_score), 0), 1)`;
   const select = byBusiness ? 'sc.business_id, MAX(b.business_name) AS business_name,' : `'all' AS scope,`;
@@ -374,7 +380,7 @@ function buildSupportNps(query) {
            JOIN support_conversations sc ON sc.id = scr.conversation_id
            ${joinBusiness}
            WHERE scr.nps_score IS NOT NULL
-             AND scr.created_at >= NOW() - ($1 || ' days')::INTERVAL
+             AND scr.created_at >= NOW() - $1::INTERVAL
              AND ($2::INTEGER IS NULL OR sc.business_id = $2::INTEGER)
            ${groupBy}`,
     params,
@@ -411,8 +417,7 @@ function restaurantScopeClause(query, scope) {
 }
 
 function buildRestaurantRepeatRate(query, scope) {
-  const days = PERIOD_DAYS[query.period];
-  const params = [String(days)];
+  const params = [intervalParam(query.period)];
   const rs = restaurantScopeClause(query, scope);
   let restaurantPredicate;
   if (rs.singleId != null) {
@@ -428,8 +433,8 @@ function buildRestaurantRepeatRate(query, scope) {
     text: `WITH identified AS (
              SELECT fo.restaurant_id, fo.customer_id, fo.id
                FROM food_orders fo
-              WHERE fo.created_at >= NOW() - ($1 || ' days')::INTERVAL
-                AND fo.status NOT IN ('cancelled', 'refunded')
+              WHERE fo.created_at >= NOW() - $1::INTERVAL
+                AND ${paidOrderPredicate()}
                 AND fo.customer_id IS NOT NULL
            ),
            customer_orders AS (
@@ -456,8 +461,7 @@ function buildRestaurantRepeatRate(query, scope) {
 }
 
 function buildRestaurantTopItems(query, scope) {
-  const days = PERIOD_DAYS[query.period];
-  const params = [String(days)];
+  const params = [intervalParam(query.period)];
   const rs = restaurantScopeClause(query, scope);
   let orderPredicate;
   if (rs.singleId != null) {
@@ -478,26 +482,27 @@ function buildRestaurantTopItems(query, scope) {
                     SUM(foi.quantity)::INT AS units_sold,
                     COUNT(DISTINCT fo.id)::INT AS orders,
                     SUM(foi.line_total_cents)::BIGINT AS revenue_cents,
+                    UPPER(fo.currency_code) AS currency_code,
                     ROW_NUMBER() OVER (
-                      PARTITION BY fo.restaurant_id
+                      PARTITION BY fo.restaurant_id, UPPER(fo.currency_code)
                       ORDER BY SUM(foi.line_total_cents) DESC, SUM(foi.quantity) DESC
                     ) AS rn
                FROM food_order_items foi
                JOIN food_orders fo ON fo.id = foi.order_id
               WHERE ${orderPredicate}
-                AND fo.created_at >= NOW() - ($1 || ' days')::INTERVAL
-                AND fo.status NOT IN ('cancelled', 'refunded')
-              GROUP BY fo.restaurant_id, 2
+                AND fo.created_at >= NOW() - $1::INTERVAL
+                AND ${paidOrderPredicate()}
+              GROUP BY fo.restaurant_id, 2, UPPER(fo.currency_code)
            )
            SELECT r.restaurant_id::INT AS restaurant_id, fr.display_name AS restaurant_name,
                   r.item_key, r.menu_item_id::INT AS menu_item_id, r.item_name,
-                  r.units_sold, r.orders, r.revenue_cents
+                  r.units_sold, r.orders, r.revenue_cents, r.currency_code
              FROM ranked r
              JOIN food_restaurants fr ON fr.id = r.restaurant_id
             WHERE r.rn <= 10
             ORDER BY r.restaurant_id, r.revenue_cents DESC`,
     params,
-    columns: ['restaurant_id', 'restaurant_name', 'item_key', 'menu_item_id', 'item_name', 'units_sold', 'orders', 'revenue_cents'],
+    columns: ['restaurant_id', 'restaurant_name', 'item_key', 'menu_item_id', 'item_name', 'units_sold', 'orders', 'revenue_cents', 'currency_code'],
   };
 }
 
@@ -536,6 +541,7 @@ function buildSingleValue(query) {
 }
 
 function buildMetricSql(query, scope) {
+  if (Object.hasOwn(operationalMetrics, query.metric)) return operationalMetricSql(query.metric, intervalParam(query.period));
   if (MONEY_METRICS.includes(query.metric)) {
     return financialMetricSql(query.metric, {
       interval: intervalParam(query.period),
@@ -569,8 +575,8 @@ async function auditAttempt(db, entry) {
     await db.query(
       `INSERT INTO analytics_query_audit
          (admin_user_id, metric_name, dimensions, filters, period,
-          row_count, duration_ms, success, error_code, raw_utterance, compiled_query)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          row_count, duration_ms, success, error_code, raw_utterance, compiled_query, event_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
       [
         entry.userId,
         String(entry.metricName || 'unknown').slice(0, 200),
@@ -583,6 +589,7 @@ async function auditAttempt(db, entry) {
         entry.errorCode || null,
         entry.rawUtterance || null,
         entry.compiledQuery ? JSON.stringify(safeJson(entry.compiledQuery)) : null,
+        entry.eventType || 'execution',
       ]
     );
   } catch (err) {
@@ -598,15 +605,17 @@ async function auditAttempt(db, entry) {
 // ── Capped execution ─────────────────────────────────────────────────────────
 // Dedicated client + transaction so SET LOCAL applies; LIMIT is a constant
 // appended to the fixed template (never user input).
-async function runCappedQuery(db, built, cap = ROW_CAP) {
+async function runCappedQuery(db, built, cap = ROW_CAP, { offset = 0, summary = null } = {}) {
   const client = await db.connect();
   try {
-    await client.query('BEGIN READ ONLY');
+    await client.query(summary ? 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY' : 'BEGIN READ ONLY');
     await client.query(`SET LOCAL statement_timeout = '${STATEMENT_TIMEOUT}'`);
-    const res = await client.query(`${built.text}\nLIMIT ${cap + 1}`, built.params);
+    const summaryResult = summary ? await client.query(`${summary.text}\nLIMIT ${ROW_CAP+1}`,summary.params) : null;
+    const res = await client.query(`${built.text}\nLIMIT ${cap + 1}${offset ? ` OFFSET ${offset}` : ''}`, built.params);
     await client.query('COMMIT');
     const truncated = res.rows.length > cap;
-    return { rows: truncated ? res.rows.slice(0, cap) : res.rows, truncated };
+    return { rows: truncated ? res.rows.slice(0, cap) : res.rows, truncated,
+      summary: summaryResult?.rows.slice(0,ROW_CAP),summaryTruncated: (summaryResult?.rows.length || 0)>ROW_CAP };
   } catch (err) {
     try { await client.query('ROLLBACK'); } catch (_) { /* ignore */ }
     throw err;
@@ -634,12 +643,13 @@ async function executeBuilderQuery(db, user, input, opts = {}) {
       rowCount: 0, durationMs: Date.now() - startedAt,
       success: false, errorCode: err.code || 'validation_error',
       rawUtterance, compiledQuery: null,
+      eventType: opts.eventType,
     });
     throw err;
   }
   const auditBase = {
     userId, metricName: query.metric, dimensions: query.dimensions,
-    filters: query.filters, period: query.period, rawUtterance,
+    filters: query.filters, period: query.period, rawUtterance, eventType: opts.eventType,
   };
   try {
     if (!user?.id || !['admin', 'super_admin'].includes(user.role)) {
@@ -650,15 +660,23 @@ async function executeBuilderQuery(db, user, input, opts = {}) {
     if (!scope.isAdmin && !scope.isSuperAdmin) {
       throw new AppError('Forbidden: the query builder requires an admin account', 403, 'forbidden');
     }
-    const built = buildMetricSql(query, scope);
-    const { rows, truncated } = await runCappedQuery(db, built);
+    const aggregate = buildMetricSql(query, scope);
+    const offset = opts.evidence ? Number(opts.offset || 0) : 0;
+    if (!Number.isSafeInteger(offset) || offset < 0 || offset > 1000000) throw new AppError('Invalid evidence page',400,'invalid_param');
+    const built = opts.evidence ? metricEvidenceSql(query,scope,registry,aggregate) : aggregate;
+    const { rows, truncated, summary, summaryTruncated } = await runCappedQuery(db, built,
+      opts.evidence && opts.eventType !== 'export' ? 100 : ROW_CAP,
+      { offset, summary: opts.evidence ? aggregate : null });
     const durationMs = Date.now() - startedAt;
     await auditAttempt(db, {
       ...auditBase, rowCount: rows.length, durationMs,
       success: true, errorCode: null,
       compiledQuery: { sql: built.text, params: built.params },
     });
-    return { rows, columns: built.columns, rowCount: rows.length, truncated, durationMs };
+    return { rows, columns: built.columns, rowCount: rows.length,
+      truncated: opts.evidence && opts.eventType !== 'export' ? false : truncated, durationMs, query,
+      evidence: opts.evidence === true, offset,
+      ...(opts.evidence ? { summary, summaryTruncated, summaryColumns: aggregate.columns, hasMore: truncated } : {}) };
   } catch (err) {
     await auditAttempt(db, {
       ...auditBase, rowCount: 0, durationMs: Date.now() - startedAt,
@@ -698,4 +716,5 @@ module.exports = {
   getBuilderMeta,
   runCappedQuery,
   buildMetricSql,
+  auditAttempt,
 };

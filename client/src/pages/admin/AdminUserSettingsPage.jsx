@@ -8,6 +8,7 @@ import api from '../../api/axios';
 import logger from '../../utils/logger';
 import { moneyMinor } from '../../lib/moneyExact';
 import './AdminUserSettingsPage.css';
+import './AdminQueryBuilderPage.css';
 
 const TABS = [
   { id: 'profile', label: 'Profile', icon: User },
@@ -35,6 +36,7 @@ const EMPTY_RULE_FORM = {
   period: '30d',
   days: '30',
   currencyCode: 'USD',
+  comparison: 'absolute',
   cooldown_minutes: '60',
   is_active: true,
   channel_in_app: true,
@@ -88,6 +90,13 @@ export default function AdminUserSettingsPage() {
   const [editingRule, setEditingRule] = useState(null); // 'new' | rule object | null
   const [ruleForm, setRuleForm] = useState(EMPTY_RULE_FORM);
   const [ruleSaving, setRuleSaving] = useState(false);
+  const [alertHistory,setAlertHistory]=useState(null);
+  const loadAlertHistory=async(rule,offset=0)=>{
+    setAlertHistory({rule,loading:true});
+    try{const response=await api.get(`/admin/settings/me/metric-alert-rules/${rule.id}/history`,{params:{offset}});
+      setAlertHistory({rule,...response.data,loading:false});}
+    catch{setAlertHistory({rule,loading:false,error:true});}
+  };
 
   useEffect(() => { loadAll(); }, []);
 
@@ -210,6 +219,7 @@ export default function AdminUserSettingsPage() {
     if (raw == null) return '—';
     const v = Number(raw);
     if (!Number.isFinite(v)) return t('adminSettings.metricAlerts.noValue');
+    if (params.comparison === 'previous_period_pct') return `${v.toFixed(2)}%`;
     const unit = metricUnit(metricName);
     if (unit === 'cents') return moneyMinor(raw, params.currencyCode || 'USD', i18n.language);
     if (unit === 'pct' || unit === 'index') return v.toFixed(2);
@@ -229,6 +239,7 @@ export default function AdminUserSettingsPage() {
       period: rule.params?.period || '30d',
       days: rule.params?.days != null ? String(rule.params.days) : '30',
       currencyCode: rule.params?.currencyCode || 'USD',
+      comparison: rule.params?.comparison || 'absolute',
       cooldown_minutes: String(rule.cooldown_minutes),
       is_active: !!rule.is_active,
       channel_in_app: !!rule.channel_in_app,
@@ -247,6 +258,7 @@ export default function AdminUserSettingsPage() {
       if (meta.params.includes('period')) params.period = ruleForm.period;
       if (meta.params.includes('days')) params.days = parseInt(ruleForm.days, 10);
       if (meta.params.includes('currencyCode')) params.currencyCode = ruleForm.currencyCode;
+      if (meta.params.includes('comparison')) params.comparison = ruleForm.comparison;
       const payload = {
         metric_name: ruleForm.metric_name,
         operator: ruleForm.operator,
@@ -443,6 +455,7 @@ export default function AdminUserSettingsPage() {
                   </div>
                 </div>
                 <div className="admin-settings-row" style={{ gap: 8 }}>
+                  <button className="admin-settings-save" onClick={() => loadAlertHistory(rule)}>{t('analyticsCompletion.alertHistory')}</button>
                   <button className="admin-settings-save" onClick={() => startEditRule(rule)}>
                     <Pencil size={14} /> {t('adminSettings.metricAlerts.edit')}
                   </button>
@@ -452,6 +465,26 @@ export default function AdminUserSettingsPage() {
                 </div>
               </div>
             ))}
+            {alertHistory&&<section aria-busy={alertHistory.loading}>
+              <h3>{t('analyticsCompletion.alertHistory')}</h3>
+              {alertHistory.error&&<p role="alert">{t('queryBuilder.loadFailed')}</p>}
+              <div className="qb-table-wrap"><table className="qb-table"><thead><tr>
+                <th>{t('analyticsCompletion.when')}</th><th>{t('analyticsCompletion.metric')}</th>
+                <th>{t('analyticsCompletion.columns.value')}</th><th>{t('analyticsCompletion.previousValue')}</th><th>{t('analyticsCompletion.comparedValue')}</th>
+              </tr></thead><tbody>{alertHistory.rows?.map(row=><tr key={row.id}>
+                <td>{new Date(row.observed_at).toLocaleString(i18n.language)}</td>
+                <td>{t(`adminSettings.metricAlerts.metrics.${row.metric_name}`)}</td>
+                <td>{formatRuleValue(row.metric_name,row.value,{...row.params,comparison:'absolute'})}</td>
+                <td>{formatRuleValue(row.metric_name,row.previous_value,{...row.params,comparison:'absolute'})}</td>
+                <td>{formatRuleValue(row.metric_name,row.compared_value,row.params)}</td>
+              </tr>)}</tbody></table></div>
+              <nav aria-label={t('analyticsCompletion.alertHistory')}>
+                <button disabled={!alertHistory.offset||alertHistory.loading} onClick={()=>loadAlertHistory(alertHistory.rule,Math.max(0,alertHistory.offset-50))}>{t('helperEarningsV2.previous')}</button>
+                <button disabled={!alertHistory.hasMore||alertHistory.loading} onClick={()=>loadAlertHistory(alertHistory.rule,alertHistory.offset+50)}>{t('helperEarningsV2.next')}</button>
+              </nav>
+              {!!alertHistory.sms?.length&&<><h4>{t('analyticsCompletion.smsDelivery')}</h4><p>{t('analyticsCompletion.smsUncertainNote')}</p>
+                <ul>{alertHistory.sms.map((row,index)=><li key={index}>{new Date(row.created_at).toLocaleString(i18n.language)} · {t(`analyticsCompletion.smsStatus.${row.status}`)}</li>)}</ul></>}
+            </section>}
             {editingRule === null && (
               <div className="admin-settings-row">
                 <button className="admin-settings-save" onClick={startNewRule}>
@@ -520,6 +553,14 @@ export default function AdminUserSettingsPage() {
                     </select>
                   </div>
                 )}
+                {metricMeta(ruleForm.metric_name)?.params.includes('comparison') && <div className="admin-settings-field">
+                  <label htmlFor="metric-comparison">{t('analyticsCompletion.comparison')}</label>
+                  <select id="metric-comparison" value={ruleForm.comparison} onChange={event => setRuleForm({ ...ruleForm, comparison: event.target.value })}>
+                    <option value="absolute">{t('analyticsCompletion.absolute')}</option>
+                    <option value="previous_period_pct">{t('analyticsCompletion.previousPeriod')}</option>
+                  </select>
+                  <p>{t('analyticsCompletion.baselineNote')}</p>
+                </div>}
                 {metricMeta(ruleForm.metric_name)?.params.includes('days') && (
                   <div className="admin-settings-field">
                     <label>{t('adminSettings.metricAlerts.days')}</label>

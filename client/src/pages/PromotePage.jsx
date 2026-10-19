@@ -1419,7 +1419,7 @@ function ToolkitTab({ target, qrSrc, tone, seoChecks, setSeoChecks, onTrackedCli
                       <div><strong>{c.click_through_rate == null ? '—' : `${(c.click_through_rate * 100).toFixed(1)}%`}</strong><span>{t('promotePage.toolkit.performance.clickThroughRate')}</span></div>
                       <div><strong>{c.conversion_rate == null ? '—' : `${(c.conversion_rate * 100).toFixed(1)}%`}</strong><span>{t('promotePage.toolkit.performance.conversionRate')}</span></div>
                     </div>
-                    <p className="promote-help">{t('promotePage.toolkit.performance.windowNote')}</p>
+                    <p className="promote-help">{t('analyticsCompletion.attributionNote')}</p>
                   </div>
                 ))
               )}

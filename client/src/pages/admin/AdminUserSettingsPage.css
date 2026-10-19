@@ -27,3 +27,18 @@
 .admin-settings-new-key { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
 .admin-settings-new-key code { display: block; word-break: break-all; font-size: 13px; margin-bottom: 8px; }
 .admin-settings-new-key p { font-size: 12px; color: #166534; margin-top: 8px; }
+
+.admin-settings-page { min-inline-size: 0; padding: clamp(8px, 3vw, 24px); color: var(--color-text, var(--app-text)); }
+.admin-settings-content { padding: clamp(10px, 3vw, 24px); min-inline-size: 0; background: var(--color-surface, var(--card-bg)); border-color: var(--color-border, var(--border-color)); }
+.admin-settings-tab { max-inline-size: 100%; background: var(--color-surface, var(--card-bg)); border-color: var(--color-border, var(--border-color)); color: inherit; }
+.admin-settings-tab.active, .admin-settings-save { background: var(--color-primary, #b83f08); color: #fff; }
+.admin-settings-hint, .admin-settings-session-meta { color: var(--color-text-muted, var(--muted-text)); }
+.admin-settings-field, .admin-settings-row { min-inline-size: 0; }
+.admin-settings-field input, .admin-settings-field select { inline-size: 100%; min-inline-size: 0; max-inline-size: 100%; box-sizing: border-box; padding: 10px 12px; color: inherit; background: var(--color-surface, var(--card-bg)); border: 1px solid var(--color-border, var(--border-color)); border-radius: 8px; }
+.admin-settings-row { flex-wrap: wrap; }
+.admin-settings-row .admin-settings-field { flex: 1 1 180px; }
+.admin-settings-field .admin-settings-toggle { display: flex; align-items: center; gap: 10px; }
+.admin-settings-field input[type="checkbox"] { inline-size: 18px; block-size: 18px; flex: 0 0 18px; padding: 0; }
+.admin-settings-session { flex-wrap: wrap; gap: 12px; min-inline-size: 0; }
+.admin-settings-session > div { min-inline-size: 0; max-inline-size: 100%; overflow-wrap: anywhere; }
+.admin-settings-page button:focus-visible, .admin-settings-page input:focus-visible, .admin-settings-page select:focus-visible { outline: 2px solid var(--color-primary, #b83f08); outline-offset: 2px; }

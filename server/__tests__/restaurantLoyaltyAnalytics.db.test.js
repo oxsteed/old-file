@@ -41,7 +41,7 @@ if (CAN_RUN_DB) {
 }
 
 const pool = require('../db');
-const { getRepeatOrderRate, getTopItemsByRevenue, REPEAT_ORDER_WINDOW_DAYS } = require('../analytics/restaurantAnalytics');
+const { getRepeatOrderRate, getTopItemsByRevenue, getRetentionCohorts, REPEAT_ORDER_WINDOW_DAYS } = require('../analytics/restaurantAnalytics');
 
 async function newUser() {
   const id = crypto.randomUUID();
@@ -67,13 +67,13 @@ async function newRestaurant(businessId, ownerId) {
 }
 
 let queue = 1000;
-async function newOrder(restaurantId, businessId, { customerId = null, status = 'completed', totalCents = 1000, daysAgo = 1 } = {}) {
+async function newOrder(restaurantId, businessId, { customerId = null, status = 'completed', paymentStatus = 'paid', totalCents = 1000, daysAgo = 1 } = {}) {
   const created = new Date(Date.now() - daysAgo * 86400000).toISOString();
   const { rows: [o] } = await pool.query(
     `INSERT INTO food_orders
-       (restaurant_id, business_id, customer_id, status, total_cents, queue_number, created_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-    [restaurantId, businessId, customerId, status, totalCents, queue++, created]);
+       (restaurant_id, business_id, customer_id, status, total_cents, queue_number, created_at, payment_status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+    [restaurantId, businessId, customerId, status, totalCents, queue++, created, paymentStatus]);
   return o.id;
 }
 
@@ -132,6 +132,19 @@ ddescribe('restaurant loyalty analytics', () => {
     await pool.end().catch(() => {});
   });
 
+  test('unpaid orders contribute neither loyalty nor item revenue; acquisition cohorts remain paid-only', async () => {
+    const guest = await newUser();
+    const unpaid = await newOrder(F.restaurantId,F.businessId,{ customerId: guest, paymentStatus: 'unpaid' });
+    await addItem(unpaid,{ name: 'Unpaid item', qty: 1, unitCents: 999999 });
+    const window = { from: new Date(Date.now()-89*86400000).toISOString(), to: new Date().toISOString() };
+    const repeat = await getRepeatOrderRate(pool,F.restaurantId,window);
+    expect(repeat.total_identified_orders).toBe(4);
+    expect((await getTopItemsByRevenue(pool,F.restaurantId,window)).some(row=>row.item_name==='Unpaid item')).toBe(false);
+    const cohorts = await getRetentionCohorts(pool,F.restaurantId,window);
+    expect(cohorts.length).toBeGreaterThan(0);
+    expect(cohorts.filter(row=>row.month_index===0).every(row=>row.retention_rate===1)).toBe(true);
+  });
+
   test('repeat rate = repeat-customer orders / identified orders; guests and cancelled excluded', async () => {
     const to = new Date().toISOString();
     const from = new Date(Date.now() - 89 * 86400000).toISOString();
@@ -167,7 +180,7 @@ ddescribe('restaurant loyalty analytics', () => {
     expect(names).not.toContain('Lobster');
     const burger = items[0];
     expect(burger.menu_item_id).toBe(F.burgerItemId);
-    expect(burger.revenue_cents).toBe(2400);
+    expect(burger.revenue_cents).toBe('2400');
     expect(burger.units_sold).toBe(3);
     expect(burger.orders).toBe(2);
   });

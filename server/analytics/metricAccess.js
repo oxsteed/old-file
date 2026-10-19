@@ -2,11 +2,13 @@
 
 const AppError = require('../utils/appError');
 const { hasGlobalGrant } = require('../middleware/adminAuth');
+const { DEFINITIONS } = require('./operationalMetrics');
 
 // Global metrics use the same grant boundary as their underlying admin lists.
 // A regional grant cannot authorize a global aggregation. Restaurant metrics
 // additionally retain the builder's existing restaurant ownership restriction.
 const METRIC_PERMISSIONS = Object.freeze({
+  ...Object.fromEntries(Object.entries(DEFINITIONS).map(([name, def]) => [name, def.permission])),
   open_disputes: 'manage_disputes',
   cancel_rate_pct: 'manage_operations',
   platform_revenue_cents: 'view_financials',

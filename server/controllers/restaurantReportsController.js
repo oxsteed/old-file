@@ -275,9 +275,10 @@ exports.loyaltySummary = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     await requireRestaurantAccess(req.user.id, restaurantId);
     const { from, to } = parseRange90(req.query);
-    const [repeat, topItems] = await Promise.all([
+    const [repeat, topItems, retention] = await Promise.all([
       restaurantAnalytics.getRepeatOrderRate(pool, restaurantId, { from, to }),
       restaurantAnalytics.getTopItemsByRevenue(pool, restaurantId, { from, to, limit: 10 }),
+      restaurantAnalytics.getRetentionCohorts(pool, restaurantId, { from, to }),
     ]);
     res.json({
       from,
@@ -289,6 +290,8 @@ exports.loyaltySummary = async (req, res, next) => {
       repeat_customers: repeat.repeat_customers,
       guest_orders_excluded: repeat.guest_orders_excluded,
       top_items: topItems,
+      retention_cohorts: retention,
+      observed_through: to,
     });
   } catch (err) {
     next(err);

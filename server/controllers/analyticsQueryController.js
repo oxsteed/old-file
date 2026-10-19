@@ -29,14 +29,16 @@ const {
   validateBuilderQuery,
   executeBuilderQuery,
   BUILDER_DIMENSIONS,
+  auditAttempt,
 } = require('../analytics/queryBuilder');
 const { parseUtterance, describeQuery } = require('../analytics/nlParser');
 const { permittedMetrics, assertMetricAccess } = require('../analytics/metricAccess');
+const { modelTranslationAvailable,translateWithModel }=require('../analytics/nlModelTranslator');
 
 async function getMeta(req, res, next) {
   try {
     res.set('Cache-Control', 'private, no-store');
-    res.json(getBuilderMeta(await permittedMetrics(req.user)));
+    res.json({...getBuilderMeta(await permittedMetrics(req.user)),nlModelAvailable:modelTranslationAvailable()});
   } catch (err) {
     next(err);
   }
@@ -47,6 +49,10 @@ async function runQuery(req, res, next) {
     res.set('Cache-Control', 'private, no-store');
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const opts = {};
+    opts.eventType = body.export === true ? 'export' : 'execution';
+    opts.evidence = body.evidence === true;
+    opts.offset = body.offset;
+    if (opts.evidence && body.export !== true) opts.eventType = 'evidence';
     if (body.raw_utterance != null) {
       if (typeof body.raw_utterance !== 'string' || body.raw_utterance.length > 2000) {
         throw new AppError('Invalid raw_utterance: expected a string up to 2000 characters', 400, 'invalid_param');
@@ -61,6 +67,8 @@ async function runQuery(req, res, next) {
 }
 
 async function parseNl(req, res, next) {
+  const startedAt = Date.now();
+  let audit = { userId: req.user?.id, metricName: 'unknown', eventType: 'nl_parse', success: false };
   try {
     res.set('Cache-Control', 'private, no-store');
     const body = req.body && typeof req.body === 'object' ? req.body : {};
@@ -71,24 +79,35 @@ async function parseNl(req, res, next) {
     if (utterance.length > 2000) {
       throw new AppError('Invalid utterance: too long (max 2000 characters)', 400, 'invalid_param');
     }
+    audit.rawUtterance = utterance;
     // Wire Track B's parser to Track A's canonical dimension allowlist so
     // the two can never drift.
-    const parsed = parseUtterance(utterance, { dimensionAllowlist: BUILDER_DIMENSIONS });
+    let parsed = parseUtterance(utterance, { dimensionAllowlist: BUILDER_DIMENSIONS });
+    // Deterministic safety/ambiguity rejections never go to the provider.
+    // Only unrecognized phrasing can use the explicitly enabled fallback.
+    if(parsed.rejected && parsed.reason==='no metric recognized' && modelTranslationAvailable()){
+      const catalog=getBuilderMeta(await permittedMetrics(req.user)).metrics;
+      parsed=await translateWithModel(utterance,catalog);
+    }
     if (parsed.rejected) {
+      await auditAttempt(db, { ...audit, durationMs: Date.now()-startedAt, errorCode: 'parse_rejected' });
       return res.json({ rejected: true, reason: parsed.reason });
     }
+    audit = { ...audit, metricName: parsed.metric, dimensions: parsed.dimensions, filters: parsed.filters, period: parsed.period };
     // Defense in depth: the compiled query must pass builder validation
     // even though the parser only emits allowlisted values. Validation
     // failures here are 422 (parser bug, not user error) — never executed.
     try {
       validateBuilderQuery(parsed);
     } catch (validationErr) {
+      await auditAttempt(db, { ...audit, durationMs: Date.now()-startedAt, errorCode: 'parse_validation_failed' });
       return res.json({
         rejected: true,
         reason: `compiled query failed validation: ${validationErr.message}`,
       });
     }
     await assertMetricAccess(req.user, parsed.metric);
+    await auditAttempt(db, { ...audit, success: true, durationMs: Date.now()-startedAt });
     return res.json({
       rejected: false,
       interpretation: {
@@ -102,8 +121,31 @@ async function parseNl(req, res, next) {
       },
     });
   } catch (err) {
+    if (err.code !== 'analytics_audit_unavailable') {
+      try { await auditAttempt(db, { ...audit, durationMs: Date.now()-startedAt, errorCode: err.code || 'parse_error' }); }
+      catch (auditError) { return next(auditError); }
+    }
     next(err);
   }
 }
 
-module.exports = { getMeta, runQuery, parseNl };
+async function getHistory(req, res, next) {
+  try {
+    res.set('Cache-Control', 'private, no-store');
+    const offset = Number(req.query.offset || 0);
+    if (!Number.isSafeInteger(offset) || offset < 0 || offset > 100000) {
+      throw new AppError('Invalid history page', 400, 'invalid_param');
+    }
+    const allowed = await permittedMetrics(req.user);
+    // Personal history only, re-filtered using current grants. Never expose
+    // another administrator's questions, SQL, or restricted metric names.
+    const { rows } = await db.query(`SELECT id,event_type,metric_name,dimensions,filters,period,
+        row_count,duration_ms,success,error_code,created_at,COUNT(*) OVER()::INT AS total
+      FROM analytics_query_audit WHERE admin_user_id=$1
+        AND (metric_name=ANY($2::text[]) OR (event_type='nl_parse' AND metric_name='unknown'))
+      ORDER BY created_at DESC,id DESC LIMIT 50 OFFSET $3`, [req.user.id, allowed, offset]);
+    res.json({ rows: rows.map(({ total, ...row }) => row), offset, total: rows[0]?.total || 0, hasMore: offset+rows.length < (rows[0]?.total || 0) });
+  } catch (error) { next(error); }
+}
+
+module.exports = { getMeta, runQuery, parseNl, getHistory };

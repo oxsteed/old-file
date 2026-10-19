@@ -1,5 +1,10 @@
 # Analytics scope: implementation checklist
 
+> Historical review below. For the October 19 implementation checkpoint,
+> verification limits and remaining work, use
+> [the current handoff](./HANDOFF-2026-10-19.md). Unchecked items below describe
+> the earlier review and must not be read as a current implementation inventory.
+
 Reviewed October 18, 2026 against `oxsteed/old-file`, default branch
 `old-files-claude`, commit `9c900efb95ec386e2b9b91b981ffab6deefa2e12`.
 

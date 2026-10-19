@@ -4,6 +4,17 @@
   color: var(--app-text);
 }
 
+.bat-container { min-width: 0; padding: clamp(.5rem, 2vw, 2rem); }
+.bat-container label { display: inline-flex; flex-wrap: wrap; gap: .5rem; margin-inline-end: 1rem; margin-block-end: 1rem; }
+.bat-container select, .bat-container button { background: var(--card-bg, var(--color-surface)); color: var(--app-text, var(--color-text)); border: 1px solid var(--border-color, var(--color-border)); border-radius: .4rem; padding: .5rem; }
+.bat-container dd { margin-inline-start: 0; overflow-wrap: anywhere; font-weight: 700; }
+.bat-container nav { display: flex; gap: 1rem; }
+.bat-container .bat-stats-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+.bat-records { overflow-x: auto; }
+.bat-records table { width: 100%; border-collapse: collapse; text-align: start; }
+.bat-records th, .bat-records td { padding: .5rem; border-block-end: 1px solid var(--border-color, var(--color-border)); }
+.bat-records td:first-child { white-space: nowrap; }
+
 .bat-header {
   display: flex;
   justify-content: space-between;

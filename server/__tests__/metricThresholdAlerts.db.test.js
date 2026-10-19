@@ -33,6 +33,7 @@ if (url) {
 jest.unmock('pg');
 jest.unmock('../db');
 jest.mock('../middleware/adminAuth', () => ({ hasGlobalGrant: jest.fn(async () => true) }));
+jest.mock('../services/smsNotificationService',()=>({isTwilioConfigured:()=>true,sendConfiguredSMS:jest.fn(async()=>({success:true}))}));
 jest.mock('../utils/email', () => {
   const actual = jest.requireActual('../utils/email');
   return { ...actual, sendEmail: jest.fn(async () => ({ success: true })) };
@@ -55,9 +56,7 @@ describe('metric alert rule validation', () => {
   test('rejects unknown and non-alertable metrics', () => {
     expect(() => validateRuleInput({ metric_name: 'nope', operator: '>', threshold: 1 }))
       .toThrow(/Invalid metric/);
-    // investor_gmv_cents is a registered metric but has no compute function:
-    // not alertable in v1.
-    expect(() => validateRuleInput({ metric_name: 'investor_gmv_cents', operator: '>', threshold: 1 }))
+    expect(() => validateRuleInput({ metric_name: 'restaurant_repeat_order_rate', operator: '>', threshold: 1 }))
       .toThrow(/Invalid metric/);
   });
 
@@ -141,7 +140,7 @@ describeDb('metric threshold alert evaluator', () => {
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       status TEXT NOT NULL DEFAULT 'open')`);
     // Real migrations for the alert tables (also exercises 890's ALTER).
-    for (const file of ['706_admin_self_settings.sql', '890_metric_threshold_alerts.sql']) {
+    for (const file of ['706_admin_self_settings.sql', '890_metric_threshold_alerts.sql', '893_analytics_alert_observations.sql','897_metric_observation_definitions.sql']) {
       const sql = fs.readFileSync(path.join(__dirname, '..', 'migrations', file), 'utf8');
       await db.query(sql);
     }
@@ -181,7 +180,7 @@ describeDb('metric threshold alert evaluator', () => {
   beforeEach(async () => {
     await db.query(`TRUNCATE ${schema}.users, ${schema}.disputes, ${schema}.notifications,
       ${schema}.admin_notification_prefs, ${schema}.admin_api_keys, ${schema}.metric_alert_rules,
-      ${schema}.platform_ledger, ${schema}.jobs`);
+      ${schema}.platform_ledger, ${schema}.jobs, ${schema}.metric_alert_observations, ${schema}.metric_alert_sms_claims`);
   });
 
   async function makeAdmin(overrides = {}) {
@@ -264,6 +263,47 @@ describeDb('metric threshold alert evaluator', () => {
     expect(await notificationCount()).toBe(0);
   });
 
+  test('concurrent workers deliver once and record durable observations', async () => {
+    const adminId = await makeAdmin();
+    await db.query("INSERT INTO disputes(status) SELECT 'open' FROM generate_series(1,6)");
+    await makeRule(adminId);
+    await Promise.all([evaluateMetricThresholdAlerts(),evaluateMetricThresholdAlerts()]);
+    expect(await notificationCount()).toBe(1);
+    const { rows: [observation] } = await db.query('SELECT value,crossed FROM metric_alert_observations LIMIT 1');
+    expect(Number(observation.value)).toBe(6);
+    expect(observation.crossed).toBe(true);
+  });
+
+  test('the original disputes preference suppresses dispute threshold delivery', async () => {
+    const adminId = await makeAdmin();
+    await db.query("INSERT INTO disputes(status) SELECT 'open' FROM generate_series(1,6)");
+    await db.query('INSERT INTO admin_notification_prefs(admin_id,notify_disputes) VALUES($1,false)', [adminId]);
+    await makeRule(adminId);
+    expect((await evaluateMetricThresholdAlerts()).skippedByPrefs).toBe(1);
+    expect(await notificationCount()).toBe(0);
+  });
+
+  test('SMS uncertainty is durable, retries do not resend, and only the owner can read history',async()=>{
+    const adminId=await makeAdmin();
+    await db.query("UPDATE users SET phone='+15555550123' WHERE id=$1",[adminId]);
+    await db.query('INSERT INTO admin_notification_prefs(admin_id,sms_notifications) VALUES($1,true)',[adminId]);
+    await db.query("INSERT INTO disputes(status) SELECT 'open' FROM generate_series(1,6)");
+    const rule=await makeRule(adminId,{channel_in_app:false,channel_sms:true});
+    const sms=require('../services/smsNotificationService');sms.sendConfiguredSMS.mockClear();
+    sms.sendConfiguredSMS.mockRejectedValueOnce(new Error('synthetic uncertain timeout'));
+    await evaluateMetricThresholdAlerts();await evaluateMetricThresholdAlerts();
+    expect(sms.sendConfiguredSMS).toHaveBeenCalledTimes(1);
+    const history=require('../controllers/adminSelfSettingsController').getMetricAlertHistory;
+    const res={set:jest.fn(),json:jest.fn()},next=jest.fn();
+    await history({params:{ruleId:rule.id},query:{},user:{id:adminId,role:'admin'}},res,next);
+    expect(next).not.toHaveBeenCalled();
+    expect(res.json.mock.calls[0][0].sms[0].status).toBe('uncertain');
+    expect(res.json.mock.calls[0][0].rows[0]).toMatchObject({metric_name:'open_disputes',value:'6'});
+    const outsider=await makeAdmin();
+    await history({params:{ruleId:rule.id},query:{},user:{id:outsider,role:'admin'}},res,next);
+    expect(next.mock.calls[0][0]).toMatchObject({status:404});
+  });
+
   test('NULL metric value never fires and never crashes the evaluator', async () => {
     const adminId = await makeAdmin();
     // No completed jobs -> budget GMV is 0 -> take-rate is NULL.
@@ -326,7 +366,8 @@ describeDb('metric threshold alert evaluator', () => {
     expect(notif.is_email_sent).toBe(true);
   });
 
-  test('alertable set covers 8 of the 11 registry metrics', () => {
-    expect(Object.keys(ALERTABLE_METRICS)).toHaveLength(8);
+  test('all non-restaurant registry metrics are alertable', () => {
+    const { METRICS } = require('../analytics/metricsRegistry');
+    expect(Object.keys(ALERTABLE_METRICS).sort()).toEqual(Object.keys(METRICS).filter(name => !name.startsWith('restaurant_')).sort());
   });
 });

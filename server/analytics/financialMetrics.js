@@ -69,4 +69,4 @@ async function financialMetricValue(db, metric, currencyCode, options = {}) {
   return row?.[key] ?? (metric === 'investor_take_rate_pct' ? null : '0');
 }
 
-module.exports = { MONEY_METRICS, financialMetricSql, financialMetricValue };
+module.exports = { MONEY_METRICS, financialMetricSql, financialMetricValue, majorUnitScaleSql };

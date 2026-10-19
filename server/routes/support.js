@@ -1052,7 +1052,7 @@ router.get('/csat/analytics', async (req, res, next) => {
       return res.status(400).json({ error: 'business_id is required' });
     }
 
-    const [summaryResult, trendResult, agentResult, feedbackResult] = await Promise.all([
+    const [summaryResult, trendResult, agentResult, feedbackResult, targetResult] = await Promise.all([
       db.query(
         `WITH finished AS (
            SELECT id
@@ -1063,7 +1063,7 @@ router.get('/csat/analytics', async (req, res, next) => {
          )
          SELECT
            (SELECT COUNT(*)::int FROM finished) AS surveys_sent,
-           COUNT(scr.id)::int AS surveys_completed,
+           COUNT(scr.id) FILTER (WHERE scr.conversation_id IN (SELECT id FROM finished))::int AS surveys_completed,
            COALESCE(ROUND(AVG(scr.rating)::numeric, 2), 0)::float AS avg_rating,
            ROUND(AVG(scr.nps_score)::numeric, 1)::float AS avg_nps,
            -- Metrics registry: support_nps_index (canonical source:
@@ -1073,9 +1073,10 @@ router.get('/csat/analytics', async (req, res, next) => {
              - COUNT(*) FILTER (WHERE scr.nps_score <= 6)
            ) / NULLIF(COUNT(scr.nps_score), 0), 1)::float AS nps_index,
            COALESCE(ROUND(100.0 * COUNT(*) FILTER (WHERE scr.rating >= 4) / NULLIF(COUNT(scr.id), 0), 1), 0)::float AS csat_score
-         FROM finished f
-         LEFT JOIN support_conversation_reviews scr ON scr.conversation_id = f.id
-           AND scr.created_at >= NOW() - INTERVAL '30 days'`,
+         FROM support_conversation_reviews scr
+         JOIN support_conversations sc ON sc.id=scr.conversation_id
+         WHERE scr.created_at >= NOW() - INTERVAL '30 days'
+           AND ($1 IS NULL OR sc.business_id=$1)`,
         [businessId]
       ),
       db.query(
@@ -1123,14 +1124,16 @@ router.get('/csat/analytics', async (req, res, next) => {
          ORDER BY scr.created_at DESC LIMIT 25`,
         [businessId]
       ),
+      db.query('SELECT settings FROM support_admin_settings WHERE business_id=$1', [businessId]),
     ]);
     const summary = summaryResult.rows[0] || {};
+    const configuredTarget = Number(targetResult?.rows[0]?.settings?.general?.csat_target);
     const surveysSent = Number(summary.surveys_sent || 0);
     const surveysCompleted = Number(summary.surveys_completed || 0);
     return res.json({
       metrics: {
         csat_score: Number(summary.csat_score || 0),
-        csat_target: 80,
+        csat_target: Number.isFinite(configuredTarget) && configuredTarget > 0 && configuredTarget <= 100 ? configuredTarget : 80,
         survey_response_rate: surveysSent ? Number(((surveysCompleted / surveysSent) * 100).toFixed(1)) : 0,
         surveys_sent: surveysSent,
         surveys_completed: surveysCompleted,
@@ -2098,6 +2101,15 @@ router.get('/:businessId/sla/trends', slaMetricsController.getSLATrends);
 // ============================================
 // PERFORMANCE ANALYTICS (Phase 3)
 // ============================================
+
+// Compatibility-only daily snapshots have no maintained producer. Keep
+// their existing response/auth contract while making the freshness limit
+// explicit; live reporting and metric-alert observations own new analytics.
+router.use('/:businessId/analytics', (_req,res,next) => {
+  res.set('Deprecation', `@${Math.floor(Date.parse('2026-10-19T00:00:00-04:00')/1000)}`);
+  res.set('X-Analytics-Freshness', 'unmaintained-snapshot');
+  next();
+});
 
 router.get('/:businessId/analytics/leaderboard', performanceAnalyticsController.getAgentLeaderboard);
 router.get('/:businessId/analytics/agents/:agentId', performanceAnalyticsController.getAgentMetrics);

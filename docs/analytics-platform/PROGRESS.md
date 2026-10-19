@@ -1,5 +1,9 @@
 # Analytics Platform — Progress Log
 
+> This log retains historical implementation claims. The current checkpoint and
+> release blockers are recorded in [HANDOFF-2026-10-19.md](./HANDOFF-2026-10-19.md),
+> which supersedes stale counts, financial definitions and completion claims here.
+
 Living build log for the Power BI-inspired analytics platform work, scoped in
 [SCOPE.md](./SCOPE.md) (two-pass codebase scope, 2026-10-18). Updated as work
 lands. Branch: `feat/analytics-platform`.

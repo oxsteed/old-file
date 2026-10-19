@@ -68,6 +68,9 @@
 // whole-word regex. The flat list is sorted longest-first at load time so
 // greedy span consumption always prefers the most specific phrase.
 const METRIC_SYNONYMS = Object.freeze({
+  dispute_rate_pct: ['disputed job rate', 'dispute rate'],
+  refund_rate_pct: ['refunded payment rate', 'refund rate'],
+  payout_failure_count: ['main-app payout failures', 'payout failure count', 'payout failures'],
   open_disputes: ['open disputes', 'disputes'],
   platform_revenue_cents: ['platform revenue', 'platform take', 'revenue'],
   investor_gmv_cents: ['investor gmv', 'gross merchandise value', 'gmv'],
@@ -99,6 +102,7 @@ const METRIC_PATTERNS = (() => {
 
 // ── Dimension allowlist (mirrors Track A's planned per-metric allowlist) ────
 const DIMENSION_ALLOWLIST = Object.freeze({
+  dispute_rate_pct: Object.freeze([]), refund_rate_pct: Object.freeze([]), payout_failure_count: Object.freeze([]),
   open_disputes: Object.freeze([]),
   platform_revenue_cents: Object.freeze(['period']),
   investor_gmv_cents: Object.freeze([]),
@@ -165,13 +169,13 @@ const MAX_INPUT_CHARS = 500;
 // ── Filter rules ────────────────────────────────────────────────────────────
 // v1 recognizes exactly:
 //   - numeric restaurant id: "for restaurant 42" / "restaurant 42"
-//     -> filters { restaurant_id: 42 }
+//     -> filters { restaurantId: 42 }
 //   - name-based restaurant references are REJECTED (no name lookup in v1).
 //   - role words, cancel_rate_pct only: "for customers"/"for helpers",
 //     "customer cancel rate", "helper cancellation rate"
 //     -> filters { role: 'customer' | 'helper' }.
 //   - numeric business id, sla_first_response_compliance_pct and
-//     support_nps_index only: "for business 7" -> { business_id: 7 };
+//     support_nps_index only: "for business 7" -> { businessId: 7 };
 //     name-based business references are REJECTED.
 // Any other "for X" phrasing is IGNORED in v1 (documented): the admin sees
 // the parsed interpretation before confirming, so dropped intent is visible.
@@ -255,7 +259,7 @@ function parseUtterance(rawText, options = {}) {
     if (!/^\d+$/.test(idToken)) {
       return { rejected: true, reason: 'restaurant name lookup not supported in v1' };
     }
-    filters.restaurant_id = parseInt(idToken, 10);
+    filters.restaurantId = parseInt(idToken, 10);
   }
 
   // 5b. Role filter (cancel_rate_pct only).
@@ -276,7 +280,7 @@ function parseUtterance(rawText, options = {}) {
       if (!/^\d+$/.test(bm[1])) {
         return { rejected: true, reason: 'business name lookup not supported in v1' };
       }
-      filters.business_id = parseInt(bm[1], 10);
+      filters.businessId = parseInt(bm[1], 10);
     }
   }
 
@@ -295,6 +299,7 @@ function parseUtterance(rawText, options = {}) {
 // ── Plain-language interpretation (for the admin confirm step) ──────────────
 // English-only, matching the parser. No em dashes.
 const METRIC_LABELS = Object.freeze({
+  dispute_rate_pct: 'Disputed job rate', refund_rate_pct: 'Refunded payment rate', payout_failure_count: 'Main-app payout failures',
   open_disputes: 'Open disputes',
   platform_revenue_cents: 'Platform revenue',
   investor_gmv_cents: 'Investor GMV',
@@ -339,8 +344,8 @@ function describeQuery(query) {
   if (!query || query.rejected) return '';
   const parts = [METRIC_LABELS[query.metric] || query.metric];
   const f = query.filters || {};
-  if (f.restaurant_id != null) parts.push(`for restaurant #${f.restaurant_id}`);
-  if (f.business_id != null) parts.push(`for business #${f.business_id}`);
+  if (f.restaurantId != null) parts.push(`for restaurant #${f.restaurantId}`);
+  if (f.businessId != null) parts.push(`for business #${f.businessId}`);
   if (f.role) parts.push(`for ${f.role}s`);
   for (const d of query.dimensions || []) {
     if (DIMENSION_LABELS[d]) parts.push(DIMENSION_LABELS[d]);
