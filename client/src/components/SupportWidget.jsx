@@ -89,9 +89,15 @@ function renderInline(text, prefix = '', onInternalNav) {
   while ((m = regex.exec(text)) !== null) {
     if (m.index > last) parts.push(text.slice(last, m.index));
     if (m[2] !== undefined) {
-      parts.push(<strong key={`${prefix}-b${k++}`} className="font-semibold text-white">{m[2]}</strong>);
+      const key = `${prefix}-b${k++}`;
+      parts.push(
+        <strong key={key} className="font-semibold text-white">
+          {renderInline(m[2], `${key}-inline`, onInternalNav)}
+        </strong>
+      );
     } else if (m[3] !== undefined) {
-      parts.push(<em key={`${prefix}-i${k++}`}>{m[3]}</em>);
+      const key = `${prefix}-i${k++}`;
+      parts.push(<em key={key}>{renderInline(m[3], `${key}-inline`, onInternalNav)}</em>);
     } else if (m[4] !== undefined) {
       parts.push(<code key={`${prefix}-c${k++}`} className="px-1 py-0.5 bg-gray-700/80 rounded text-orange-300 text-xs font-mono">{m[4]}</code>);
     } else if (m[5] !== undefined) {

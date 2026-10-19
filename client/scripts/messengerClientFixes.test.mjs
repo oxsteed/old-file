@@ -224,6 +224,13 @@ test('widget caps history per turn and composer length', async () => {
   assert.ok(code.includes('maxLength={1000}'), 'composer has a 1000-char maxLength');
 });
 
+test('widget linkifies routes inside bold and italic AI formatting', async () => {
+  const code = await src('src/components/SupportWidget.jsx');
+  assert.ok(code.includes("renderInline(m[2], `${key}-inline`, onInternalNav)"), 'bold text is recursively linkified');
+  assert.ok(code.includes("renderInline(m[3], `${key}-inline`, onInternalNav)"), 'italic text is recursively linkified');
+  assert.ok(code.includes('{m[4]}'), 'code spans remain unprocessed and non-clickable');
+});
+
 test('widget remembers proactive dismissal in localStorage', async () => {
   const code = await src('src/components/SupportWidget.jsx');
   assert.ok(code.includes('oxsteed_support_proactive_dismissed'), 'dismissal key is used');
