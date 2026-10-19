@@ -35137,7 +35137,8 @@
       "saveError": "No se pudieron guardar los ajustes de la impresora.",
       "testSuccess": "Página de prueba enviada. Revise la impresora.",
       "testFailed": "Error de impresión. Revise la conexión y vuelva a intentarlo.",
-      "enableFirst": "Active la impresión de recibos y guarde primero."
+      "enableFirst": "Active la impresión de recibos y guarde primero.",
+      "hostNotLocal": "El host de la impresora debe ser una dirección de red local."
   },
   "displayPairing": {
     "pairThisDisplay": "Vincular esta pantalla",

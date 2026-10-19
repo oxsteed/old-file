@@ -35137,7 +35137,8 @@
       "saveError": "Pa t kapab anrejistre paramèt enprimant lan.",
       "testSuccess": "Paj tès la voye. Tcheke enprimant lan.",
       "testFailed": "Enpresyon an echwe. Tcheke koneksyon an epi eseye ankò.",
-      "enableFirst": "Aktive enpresyon resi a epi anrejistre anvan."
+      "enableFirst": "Aktive enpresyon resi a epi anrejistre anvan.",
+      "hostNotLocal": "Host enprimant lan dwe yon adrès rezo lokal."
   },
   "displayPairing": {
     "pairThisDisplay": "Konekte ekran sa a",

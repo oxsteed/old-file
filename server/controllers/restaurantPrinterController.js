@@ -15,6 +15,7 @@
 const pool = require('../db');
 const AppError = require('../utils/appError');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const { validatePrinterHost } = require('../utils/printerHostValidation');
 const escpos = require('../services/escposPrinter');
 
 const MANAGE_ROLES = new Set(['owner', 'manager']);
@@ -217,6 +218,12 @@ exports.updatePrinterSettings = async (req, res, next) => {
       throw new AppError('A printer host is required when printing is enabled', 400, 'validation_failed');
     }
 
+    // SSRF guard: the transport dials this host, so it must be a LAN address
+    // (RFC1918 IPv4 or IPv6 unique-local). Validated again at print time.
+    // The original hostname is stored (DHCP-friendly); print time dials the
+    // validated resolved address to close the DNS-rebinding window.
+    const { host: validatedHost } = host ? await validatePrinterHost(host) : { host: null };
+
     const { rows: [saved] } = await pool.query(
       `INSERT INTO restaurant_printer_settings
          (restaurant_id, host, port, enabled, drawer_kick_on_cash, updated_at)
@@ -228,7 +235,7 @@ exports.updatePrinterSettings = async (req, res, next) => {
                      drawer_kick_on_cash = EXCLUDED.drawer_kick_on_cash,
                      updated_at = NOW()
        RETURNING id, restaurant_id, host, port, enabled, drawer_kick_on_cash, updated_at`,
-      [restaurantId, host, port, enabled, drawerKickOnCash]
+      [restaurantId, validatedHost, port, enabled, drawerKickOnCash]
     );
     res.json({ settings: settingsShape(saved) });
   } catch (err) {
@@ -245,7 +252,13 @@ async function requireEnabledSettings(restaurantId) {
   if (!settings.host) {
     throw new AppError('No printer host configured', 409, 'printer_not_configured');
   }
-  return settings;
+  // Re-validate on every print: DNS records can change after save, and rows
+  // written before the save-time check must never dial arbitrary hosts.
+  // The dial uses the validated resolved address (dialHost), not the
+  // hostname, so DNS cannot be flipped between validation and connect.
+  // Validation only gates the TCP dial destination; it touches no money state.
+  const { host, dialHost } = await validatePrinterHost(settings.host);
+  return { ...settings, host, dialHost };
 }
 
 exports.printTestPage = async (req, res, next) => {
@@ -260,7 +273,8 @@ exports.printTestPage = async (req, res, next) => {
       title: restaurant.display_name || 'PRINTER TEST',
       lines: [`${settings.host}:${settings.port}`],
     });
-    const result = await escpos.sendToPrinter(settings.host, settings.port, buffer);
+    // Dial the validated resolved address, never the raw hostname.
+    const result = await escpos.sendToPrinter(settings.dialHost || settings.host, settings.port, buffer);
     res.json({ ok: result.ok, error: result.ok ? null : result.error });
   } catch (err) {
     next(err);
@@ -279,7 +293,8 @@ exports.printReceipt = async (req, res, next) => {
     // food_order_items, restaurant_pos_payments, or any ledger.
     const snapshot = await loadOrderSnapshot(restaurantId, orderId);
     const buffer = buildOrderReceipt({ restaurant, settings, snapshot });
-    const result = await escpos.sendToPrinter(settings.host, settings.port, buffer);
+    // Dial the validated resolved address, never the raw hostname.
+    const result = await escpos.sendToPrinter(settings.dialHost || settings.host, settings.port, buffer);
     res.json({ ok: result.ok, error: result.ok ? null : result.error, orderId });
   } catch (err) {
     next(err);

@@ -35137,7 +35137,8 @@
       "saveError": "Impossible d'enregistrer les paramètres de l'imprimante.",
       "testSuccess": "Page de test envoyée. Vérifiez l'imprimante.",
       "testFailed": "Échec d'impression. Vérifiez la connexion et réessayez.",
-      "enableFirst": "Activez d'abord l'impression des reçus et enregistrez."
+      "enableFirst": "Activez d'abord l'impression des reçus et enregistrez.",
+      "hostNotLocal": "L'hôte de l'imprimante doit être une adresse de réseau local."
   },
   "displayPairing": {
     "pairThisDisplay": "Associer cet écran",

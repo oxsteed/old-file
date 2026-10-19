@@ -24,8 +24,14 @@ function Switch({ checked, onChange, disabled, label }) {
   );
 }
 
-function apiErr(err, fallback) {
-  const m = err?.response?.data?.error?.message || err?.response?.data?.message;
+function apiErr(err, fallback, t) {
+  const data = err?.response?.data || {};
+  // The server rejects non-LAN printer hosts with a machine-readable code;
+  // show the translated message instead of the raw English fallback.
+  if (data.code === 'printer_host_not_local' && typeof t === 'function') {
+    return t('printer.hostNotLocal');
+  }
+  const m = data?.error?.message || data?.message;
   return typeof m === 'string' && m ? m : fallback;
 }
 
@@ -77,7 +83,7 @@ export default function PrinterSettingsPanel({ t, restaurant }) {
       setDrawerKick(s.drawerKickOnCash !== false);
       setTestResult({ ok: true, message: t('printer.saved') });
     } catch (err) {
-      setTestResult({ ok: false, message: apiErr(err, t('printer.saveError')) });
+      setTestResult({ ok: false, message: apiErr(err, t('printer.saveError'), t) });
     } finally {
       setSaving(false);
     }
@@ -94,7 +100,7 @@ export default function PrinterSettingsPanel({ t, restaurant }) {
         setTestResult({ ok: false, message: res.data?.error || t('printer.testFailed') });
       }
     } catch (err) {
-      setTestResult({ ok: false, message: apiErr(err, t('printer.testFailed')) });
+      setTestResult({ ok: false, message: apiErr(err, t('printer.testFailed'), t) });
     } finally {
       setTesting(false);
     }

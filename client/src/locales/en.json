@@ -35137,7 +35137,8 @@
       "saveError": "Could not save printer settings.",
       "testSuccess": "Test page sent. Check the printer.",
       "testFailed": "Print failed. Check the printer connection and try again.",
-      "enableFirst": "Enable receipt printing and save first."
+      "enableFirst": "Enable receipt printing and save first.",
+      "hostNotLocal": "Printer host must be a local network address."
   },
   "displayPairing": {
     "pairThisDisplay": "Pair this display",
