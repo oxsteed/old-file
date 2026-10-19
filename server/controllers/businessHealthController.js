@@ -1,13 +1,11 @@
 const pool = require('../db');
+const { businessScopeSatisfies } = require('../middleware/scopeGates');
+const { resolveBusinessAccess } = require('../services/scopeModel');
 
+// Owner or any active member. Was a hand-written business_members query on a
+// column (user_id) the table does not have; now the shared resolver.
 async function checkAccess(businessId, userId) {
-  const { rows } = await pool.query(
-    `SELECT role FROM business_members WHERE business_id=$1 AND user_id=$2 AND status='active'
-     UNION
-     SELECT 'owner' AS role FROM businesses WHERE id=$1 AND user_id=$2`,
-    [businessId, userId]
-  );
-  return rows.length > 0;
+  return Boolean(await resolveBusinessAccess(userId, businessId));
 }
 
 async function upsertAlert(businessId, alertType, severity, title, message, actionUrl) {
@@ -119,7 +117,7 @@ exports.dismissAlert = async (req, res, next) => {
     const { businessId, id } = req.params;
     const userId = req.user.id;
 
-    if (!await checkAccess(businessId, userId)) return res.status(403).json({ error: 'Access denied' });
+    if (!(businessScopeSatisfies(req, businessId, 'any') || await checkAccess(businessId, userId))) return res.status(403).json({ error: 'Access denied' });
 
     const { rows } = await pool.query(
       `UPDATE business_health_alerts SET is_dismissed=true, dismissed_at=now()

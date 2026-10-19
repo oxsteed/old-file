@@ -96,8 +96,37 @@
  *     from ownership/membership.
  */
 
+const { AsyncLocalStorage } = require('async_hooks');
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
+
+// Request-scoped hand-off from the route-level restaurant gate
+// (middleware/scopeGates.js) to the controller's own access call: the row the
+// gate resolved is consumed by the first matching resolveRestaurantAccess
+// call, so gating at the route adds no query. Later calls read fresh.
+const resolvedRestaurants = new AsyncLocalStorage();
+const restaurantKey = (userId, restaurantId) => `${String(userId)}|${String(restaurantId).trim()}`;
+
+// `restaurantIds` lists every spelling the controller may pass for the same
+// id (the raw param and its parsed integer). One shared slot: the first lookup
+// under any spelling consumes it.
+function runWithResolvedRestaurant(userId, restaurantIds, row, fn) {
+  const parent = resolvedRestaurants.getStore();
+  const store = new Map(parent || []);
+  const slot = { row };
+  for (const id of [].concat(restaurantIds)) store.set(restaurantKey(userId, id), slot);
+  return resolvedRestaurants.run(store, fn);
+}
+
+function takeResolvedRestaurant(userId, restaurantId) {
+  const store = resolvedRestaurants.getStore();
+  if (!store || restaurantId == null) return null;
+  const slot = store.get(restaurantKey(userId, restaurantId));
+  if (!slot || !slot.row) return null;
+  const row = slot.row;
+  slot.row = null;
+  return { ...row };
+}
 
 // The one canonical ownership CASE shared by every restaurant access query
 // (byte-equivalent to the historical variants' CASE).
@@ -126,6 +155,8 @@ const EFFECTIVE_MEMBERSHIP_ID_SUBQUERY = `(
  * Canonical restaurant access gate (see module docstring).
  */
 async function resolveRestaurantAccess(userId, restaurantId) {
+  const handedOff = takeResolvedRestaurant(userId, restaurantId);
+  if (handedOff) return handedOff;
   const { rows } = await pool.query(
     `SELECT fr.*,
             b.user_id AS business_owner_id,
@@ -355,9 +386,29 @@ async function resolveScope(user, context = {}) {
   return scope;
 }
 
+/**
+ * appendAnalystUserScope(whereParts, params, userColumns, scopeIds)
+ *
+ * One Truth delegated-analyst scoping: when scopeIds is an array, appends
+ * `col = ANY($N::uuid[])` (OR-ed across several columns) and pushes one param
+ * per column. scopeIds null/undefined means unscoped (super-admin duty) and is
+ * a no-op. An empty array matches nothing, so an analyst without live grants
+ * sees no rows (fail closed).
+ */
+function appendAnalystUserScope(whereParts, params, userColumns, scopeIds) {
+  if (!scopeIds) return;
+  const cols = Array.isArray(userColumns) ? userColumns : [userColumns];
+  const start = params.length + 1;
+  const ors = cols.map((col, i) => `${col} = ANY($${start + i}::uuid[])`);
+  whereParts.push(cols.length > 1 ? `(${ors.join(' OR ')})` : ors[0]);
+  for (let i = 0; i < cols.length; i += 1) params.push(scopeIds);
+}
+
 module.exports = {
+  appendAnalystUserScope,
   resolveScope,
   resolveBusinessAccess,
   resolveRestaurantAccess,
   isRestaurantOwner,
+  runWithResolvedRestaurant,
 };

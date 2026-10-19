@@ -319,3 +319,12 @@ exports.requireSuperAdminOrPermission = (permission) => async (req, res, next) =
   if (req.isSuper) return next();
   return exports.requirePermission(permission)(req, res, next);
 };
+
+// Route scope guard (scope report Area 4): platform-admin gates grant the
+// global admin scope, so tenant-id routes behind them are scoped by role.
+for (const name of ['requireAdmin', 'requireSuperAdmin']) {
+  Object.defineProperty(exports[name], 'scopeGate', {
+    value: Object.freeze({ kind: 'platform-admin', detail: name }),
+    enumerable: false,
+  });
+}

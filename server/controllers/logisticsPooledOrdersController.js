@@ -3,6 +3,7 @@ const AppError = require('../utils/appError');
 const pooledOrderService = require('../services/pooledOrderService');
 const { resolveLogisticsRole, countryOnFile } = require('../middleware/requireLogisticsAccess');
 const pool = require('../db');
+const { resolveBusinessAccess } = require('../services/scopeModel');
 
 // Map service-layer error codes to HTTP errors. Unknown errors propagate
 // unchanged to the shared error handler.
@@ -271,6 +272,14 @@ exports.joinPooledOrder = async (req, res, next) => {
     const { committed_qty, destination_country, destination_address, delivery_preference } = req.body;
     if (!committed_qty || committed_qty < 1) {
       return next(new AppError('committed_qty must be >= 1', 400, 'validation_failed'));
+    }
+    // A pledge attributed to a business must come from someone on that
+    // business (scope report Area 4); the id was previously stored unverified.
+    if (req.body.business_id != null && req.body.business_id !== '') {
+      const access = /^[1-9]\d{0,9}$/.test(String(req.body.business_id))
+        ? await resolveBusinessAccess(req.user.id, Number(req.body.business_id))
+        : null;
+      if (!access) return next(new AppError('Business not found', 404, 'business_not_found'));
     }
     const participant = await pooledOrderService.joinPooledOrder(
       req.params.id,

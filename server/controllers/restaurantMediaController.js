@@ -117,6 +117,8 @@ function parseMediaVideoUrl(raw) {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+const { isRestaurantOwner } = require('../services/scopeModel');
+
 function parsePositiveInt(value) {
   const n = Number(value);
   return Number.isInteger(n) && n > 0 ? n : null;
@@ -127,14 +129,8 @@ function parsePositiveInt(value) {
 // admin holding the moderate_content grant.
 async function viewerCanModerateRestaurant(userId, restaurantId, req) {
   if (!userId) return false;
-  const { rows: ownerRows } = await pool.query(
-    `SELECT 1
-       FROM food_restaurants fr
-       JOIN businesses b ON b.id = fr.business_id
-      WHERE fr.id = $1 AND (fr.owner_user_id = $2 OR b.user_id = $2)`,
-    [restaurantId, userId]
-  );
-  if (ownerRows.length > 0) return true;
+  // Shared owner predicate (scope model): businesses.user_id or owner_user_id.
+  if (await isRestaurantOwner(userId, restaurantId)) return true;
   if (req.isSuperAdmin) return true;
   if (req.isAdmin) return userCanModerateContent(userId);
   return false;

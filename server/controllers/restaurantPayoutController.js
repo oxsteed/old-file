@@ -203,6 +203,10 @@ exports.requirePayoutManager = async (req, res, next) => {
   }
 };
 
+// Route scope guard: this is the payout domain's restaurant gate (owner via the
+// canonical restaurant gate, or a platform admin holding the payouts grant).
+require('../middleware/scopeGates').markGate(exports.requirePayoutManager, 'restaurant', 'payout-manager');
+
 // ── handlers ─────────────────────────────────────────────────────────────────
 
 exports.createConnectRestaurantAccount = async (req, res, next) => {

@@ -2,6 +2,7 @@
 
 const express = require('express');
 const router = express.Router();
+const { requireRestaurantAccess, scopeExempt } = require('../middleware/scopeGates');
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const ctrl = require('../controllers/foodController');
 const walletCtrl = require('../controllers/foodWalletController');
@@ -24,14 +25,14 @@ function noStoreCreditResponse(_req, res, next) {
 // Public customer discovery + the in-store "now serving" queue board.
 router.get('/markets', ctrl.listMarkets);
 router.get('/restaurants', ctrl.listRestaurants);
-router.get('/restaurants/:restaurantId', ctrl.getRestaurant);
-router.get('/restaurants/:restaurantId/queue-board', ctrl.getQueueBoard);
-router.get('/restaurants/:restaurantId/promotions', ctrl.listRestaurantPromotions);
+router.get('/restaurants/:restaurantId', scopeExempt('public-storefront'), ctrl.getRestaurant);
+router.get('/restaurants/:restaurantId/queue-board', scopeExempt('public-storefront'), ctrl.getQueueBoard);
+router.get('/restaurants/:restaurantId/promotions', scopeExempt('public-storefront'), ctrl.listRestaurantPromotions);
 // Campaign analytics (Phase 2, Item 10): featured-card click beacon.
 // Public, rate-limited, always 204.
-router.post('/restaurants/:restaurantId/campaign-click', optionalAuth, generalLimiter, ctrl.trackCampaignClick);
-router.get('/restaurants/:restaurantId/locations', optionalAuth, ctrl.listRestaurantLocations);
-router.get('/restaurants/:restaurantId/kiosk-config', kiosk.getPublicKioskConfig);
+router.post('/restaurants/:restaurantId/campaign-click', optionalAuth, generalLimiter, scopeExempt('public-storefront'), ctrl.trackCampaignClick);
+router.get('/restaurants/:restaurantId/locations', optionalAuth, scopeExempt('public-storefront'), ctrl.listRestaurantLocations);
+router.get('/restaurants/:restaurantId/kiosk-config', scopeExempt('public-storefront'), kiosk.getPublicKioskConfig);
 router.get('/payment-config', ctrl.getPaymentConfig);
 router.get('/orders/track/:trackingToken', ctrl.getTrackedOrder);
 router.post('/orders/:orderId/review', optionalAuth, ctrl.createOrderReview);
@@ -52,7 +53,7 @@ router.get('/orders/:orderId/checkout/complete', optionalAuth, foodCheckoutCompl
 router.get('/orders/:orderId/checkout/cancelled', ctrl.cancelCheckout);
 // H12: resume an interrupted pay_now checkout without placing a duplicate order.
 router.post('/orders/:orderId/checkout', authenticate, checkRestrictions('checkout'), ctrl.resumeFoodCheckoutSession);
-router.post('/restaurants/:restaurantId/orders/quote', optionalAuth, ctrl.quoteOrder);
+router.post('/restaurants/:restaurantId/orders/quote', optionalAuth, scopeExempt('public-storefront'), ctrl.quoteOrder);
 
 // Signed-in customer surface.
 router.get('/my/restaurants', authenticate, ctrl.listMyRestaurants);
@@ -61,30 +62,30 @@ router.get('/orders/:orderId', authenticate, ctrl.getOrder);
 router.get('/customer/profile', authenticate, ctrl.getCustomerProfile);
 router.patch('/customer/profile', authenticate, ctrl.updateCustomerProfile);
 // P3-9-F01: customer-facing loyalty balance (view points / redeem at checkout).
-router.get('/customer/loyalty/:restaurantId', authenticate, ctrl.getMyLoyaltyBalance);
+router.get('/customer/loyalty/:restaurantId', authenticate, scopeExempt('customer-self-service'), ctrl.getMyLoyaltyBalance);
 router.use('/customer/wallets', authenticate, checkRestrictions('checkout'), noStoreCreditResponse);
 router.get('/customer/wallets', walletCtrl.listCustomerWallets);
-router.get('/customer/wallets/:restaurantId', walletCtrl.getCustomerWallet);
-router.get('/customer/wallets/:restaurantId/integrity', walletCtrl.verifyMyWalletIntegrity);
-router.get('/customer/wallets/:restaurantId/statements', creditExportLimiter, statementController.handler('restaurant'));
-router.get('/customer/wallets/:restaurantId/statements.pdf', creditExportLimiter, statementController.handler('restaurant', 'pdf'));
-router.get('/customer/wallets/:restaurantId/statements.csv', creditExportLimiter, statementController.handler('restaurant', 'csv'));
-router.post('/customer/wallets/:restaurantId/payment-sessions', restaurantCreditMutationLimiter, walletCtrl.createCustomerWalletPaymentSession);
-router.post('/customer/wallets/:restaurantId/payment-sessions/:sessionId/cancel', restaurantCreditMutationLimiter, walletCtrl.cancelCustomerWalletPaymentSession);
-router.post('/customer/wallets/:restaurantId/holds', restaurantCreditMutationLimiter, walletCtrl.createMyWalletHold);
-router.get('/customer/wallets/:restaurantId/holds', walletCtrl.listMyWalletHolds);
-router.post('/customer/wallets/:restaurantId/holds/:holdId/release', restaurantCreditMutationLimiter, walletCtrl.releaseMyWalletHold);
-router.post('/customer/wallets/:restaurantId/transfers', restaurantCreditMutationLimiter, walletCtrl.createMyWalletTransfer);
-router.get('/customer/wallets/:restaurantId/transfers', walletCtrl.listMyWalletTransfers);
-router.post('/customer/wallets/:restaurantId/load-requests', restaurantCreditMutationLimiter, walletCtrl.createMyWalletLoadRequest);
-router.get('/customer/wallets/:restaurantId/load-requests', walletCtrl.listMyWalletLoadRequests);
+router.get('/customer/wallets/:restaurantId', scopeExempt('customer-self-service'), walletCtrl.getCustomerWallet);
+router.get('/customer/wallets/:restaurantId/integrity', scopeExempt('customer-self-service'), walletCtrl.verifyMyWalletIntegrity);
+router.get('/customer/wallets/:restaurantId/statements', creditExportLimiter, scopeExempt('customer-self-service'), statementController.handler('restaurant'));
+router.get('/customer/wallets/:restaurantId/statements.pdf', creditExportLimiter, scopeExempt('customer-self-service'), statementController.handler('restaurant', 'pdf'));
+router.get('/customer/wallets/:restaurantId/statements.csv', creditExportLimiter, scopeExempt('customer-self-service'), statementController.handler('restaurant', 'csv'));
+router.post('/customer/wallets/:restaurantId/payment-sessions', restaurantCreditMutationLimiter, scopeExempt('customer-self-service'), walletCtrl.createCustomerWalletPaymentSession);
+router.post('/customer/wallets/:restaurantId/payment-sessions/:sessionId/cancel', restaurantCreditMutationLimiter, scopeExempt('customer-self-service'), walletCtrl.cancelCustomerWalletPaymentSession);
+router.post('/customer/wallets/:restaurantId/holds', restaurantCreditMutationLimiter, scopeExempt('customer-self-service'), walletCtrl.createMyWalletHold);
+router.get('/customer/wallets/:restaurantId/holds', scopeExempt('customer-self-service'), walletCtrl.listMyWalletHolds);
+router.post('/customer/wallets/:restaurantId/holds/:holdId/release', restaurantCreditMutationLimiter, scopeExempt('customer-self-service'), walletCtrl.releaseMyWalletHold);
+router.post('/customer/wallets/:restaurantId/transfers', restaurantCreditMutationLimiter, scopeExempt('customer-self-service'), walletCtrl.createMyWalletTransfer);
+router.get('/customer/wallets/:restaurantId/transfers', scopeExempt('customer-self-service'), walletCtrl.listMyWalletTransfers);
+router.post('/customer/wallets/:restaurantId/load-requests', restaurantCreditMutationLimiter, scopeExempt('customer-self-service'), walletCtrl.createMyWalletLoadRequest);
+router.get('/customer/wallets/:restaurantId/load-requests', scopeExempt('customer-self-service'), walletCtrl.listMyWalletLoadRequests);
 // Phase 5: trial-tier credit-cap pre-check for the RequestCreditModal.
 // Enforcement is authoritative on the request path; this endpoint only
 // informs the UI whether the "at capacity" notice should render.
-router.get('/customer/wallets/:restaurantId/credit-capacity', walletCtrl.getCreditCapacity);
-router.post('/customer/wallets/:restaurantId/load-requests/:requestId/cancel', restaurantCreditMutationLimiter, walletCtrl.cancelMyWalletLoadRequest);
-router.post('/customer/wallets/:restaurantId/load-requests/:requestId/disputes', restaurantCreditMutationLimiter, disputeCtrl.createDispute);
-router.get('/customer/wallets/:restaurantId/disputes', disputeCtrl.listMyDisputes);
+router.get('/customer/wallets/:restaurantId/credit-capacity', scopeExempt('customer-self-service'), walletCtrl.getCreditCapacity);
+router.post('/customer/wallets/:restaurantId/load-requests/:requestId/cancel', restaurantCreditMutationLimiter, scopeExempt('customer-self-service'), walletCtrl.cancelMyWalletLoadRequest);
+router.post('/customer/wallets/:restaurantId/load-requests/:requestId/disputes', restaurantCreditMutationLimiter, scopeExempt('customer-self-service'), disputeCtrl.createDispute);
+router.get('/customer/wallets/:restaurantId/disputes', scopeExempt('customer-self-service'), disputeCtrl.listMyDisputes);
 // Phase 3 restaurant-credit fraud controls: admin-only review surface for
 // food_credit_fraud_signals. requireAdmin verifies the admin token itself,
 // the same gating used by server/routes/admin.js.
@@ -96,22 +97,22 @@ router.post('/admin/fraud-signals/:id/review', requireAdmin, walletCtrl.reviewFr
 // the grace-period worker migrates remaining balances to OxSteed Credit.
 router.get('/admin/restaurants/:restaurantId/credit-approval', requireAdmin, walletCtrl.getRestaurantCreditApproval);
 router.post('/admin/restaurants/:restaurantId/credit-approval', requireAdmin, walletCtrl.setRestaurantCreditApproval);
-router.get('/customer/wallets/:restaurantId/refunds', walletCtrl.listMyWalletRefunds);
+router.get('/customer/wallets/:restaurantId/refunds', scopeExempt('customer-self-service'), walletCtrl.listMyWalletRefunds);
 router.get('/customer/favorites', authenticate, ctrl.listCustomerFavoriteRestaurants);
-router.post('/customer/favorites/:restaurantId/toggle', authenticate, ctrl.toggleCustomerFavoriteRestaurant);
+router.post('/customer/favorites/:restaurantId/toggle', authenticate, scopeExempt('customer-self-service'), ctrl.toggleCustomerFavoriteRestaurant);
 router.get('/customer/favorite-items', authenticate, ctrl.listCustomerFavoriteItems);
 router.put('/customer/favorite-items/sync', authenticate, ctrl.syncCustomerFavoriteItems);
-router.post('/customer/favorite-items/:restaurantId/:itemId/toggle', authenticate, ctrl.toggleCustomerFavoriteItem);
-router.post('/restaurants/:restaurantId/messages', authenticate, profileChatLimiter, ctrl.createRestaurantCustomerMessage);
-router.post('/restaurants/:restaurantId/reports', authenticate, ctrl.createRestaurantReport);
+router.post('/customer/favorite-items/:restaurantId/:itemId/toggle', authenticate, scopeExempt('customer-self-service'), ctrl.toggleCustomerFavoriteItem);
+router.post('/restaurants/:restaurantId/messages', authenticate, profileChatLimiter, scopeExempt('customer-self-service'), ctrl.createRestaurantCustomerMessage);
+router.post('/restaurants/:restaurantId/reports', authenticate, scopeExempt('customer-self-service'), ctrl.createRestaurantReport);
 
 // Merchant dispute surface (Phase 1 of the restaurant credit protection
 // system). Path mirrors the customer /customer/wallets/:restaurantId shape
 // while keeping operator authorization on requireRestaurantAccess +
 // assertWalletOperator in the controller.
 router.use('/merchant/wallets', authenticate, noStoreCreditResponse);
-router.get('/merchant/wallets/:restaurantId/disputes', disputeCtrl.listMerchantDisputes);
-router.post('/merchant/wallets/:restaurantId/disputes/:disputeId/respond', restaurantCreditMutationLimiter, disputeCtrl.respondToDispute);
+router.get('/merchant/wallets/:restaurantId/disputes', requireRestaurantAccess(), disputeCtrl.listMerchantDisputes);
+router.post('/merchant/wallets/:restaurantId/disputes/:disputeId/respond', restaurantCreditMutationLimiter, requireRestaurantAccess(), disputeCtrl.respondToDispute);
 // Phase 6: a restaurant's own platform credit-approval status (badge/banner
 // data for the merchant credit dashboard). Scoped to restaurants the
 // signed-in operator can access; the controller enforces that.
@@ -134,24 +135,24 @@ router.post('/admin/wallets/disputes/:disputeId/resolve', requireAdmin, disputeC
 
 // Merchant onboarding and menu setup.
 router.post('/restaurants', authenticate, ctrl.createRestaurant);
-router.patch('/restaurants/:restaurantId', authenticate, ctrl.updateRestaurant);
-router.get('/restaurants/:restaurantId/setup-progress', authenticate, ctrl.getRestaurantSetupProgress);
-router.post('/restaurants/:restaurantId/promotions', authenticate, ctrl.createRestaurantPromotion);
-router.get('/restaurants/:restaurantId/promotions/manage', authenticate, ctrl.listMerchantRestaurantPromotions);
-router.patch('/restaurants/:restaurantId/promotions/:promotionId', authenticate, ctrl.updateRestaurantPromotion);
-router.post('/restaurants/:restaurantId/locations', authenticate, ctrl.createRestaurantLocation);
-router.patch('/restaurants/:restaurantId/locations/:locationId', authenticate, ctrl.updateRestaurantLocation);
-router.get('/restaurants/:restaurantId/menu/manage', authenticate, ctrl.getManagedRestaurantMenu);
-router.post('/restaurants/:restaurantId/categories', authenticate, ctrl.createMenuCategory);
-router.patch('/restaurants/:restaurantId/categories/:categoryId', authenticate, ctrl.updateMenuCategory);
-router.delete('/restaurants/:restaurantId/categories/:categoryId', authenticate, ctrl.deleteMenuCategory);
-router.post('/restaurants/:restaurantId/menu-items', authenticate, ctrl.createMenuItem);
-router.post('/restaurants/:restaurantId/menu-items/:itemId/duplicate', authenticate, ctrl.duplicateMenuItem);
-router.patch('/restaurants/:restaurantId/menu-items/:itemId', authenticate, ctrl.updateMenuItem);
-router.delete('/restaurants/:restaurantId/menu-items/:itemId', authenticate, ctrl.deleteMenuItem);
-router.post('/restaurants/:restaurantId/menu-items/:itemId/modifier-groups', authenticate, ctrl.createModifierGroup);
-router.patch('/restaurants/:restaurantId/modifier-groups/:groupId', authenticate, ctrl.updateModifierGroup);
-router.delete('/restaurants/:restaurantId/modifier-groups/:groupId', authenticate, ctrl.deleteModifierGroup);
+router.patch('/restaurants/:restaurantId', authenticate, requireRestaurantAccess(), ctrl.updateRestaurant);
+router.get('/restaurants/:restaurantId/setup-progress', authenticate, requireRestaurantAccess(), ctrl.getRestaurantSetupProgress);
+router.post('/restaurants/:restaurantId/promotions', authenticate, requireRestaurantAccess(), ctrl.createRestaurantPromotion);
+router.get('/restaurants/:restaurantId/promotions/manage', authenticate, requireRestaurantAccess(), ctrl.listMerchantRestaurantPromotions);
+router.patch('/restaurants/:restaurantId/promotions/:promotionId', authenticate, requireRestaurantAccess(), ctrl.updateRestaurantPromotion);
+router.post('/restaurants/:restaurantId/locations', authenticate, requireRestaurantAccess(), ctrl.createRestaurantLocation);
+router.patch('/restaurants/:restaurantId/locations/:locationId', authenticate, requireRestaurantAccess(), ctrl.updateRestaurantLocation);
+router.get('/restaurants/:restaurantId/menu/manage', authenticate, requireRestaurantAccess(), ctrl.getManagedRestaurantMenu);
+router.post('/restaurants/:restaurantId/categories', authenticate, requireRestaurantAccess(), ctrl.createMenuCategory);
+router.patch('/restaurants/:restaurantId/categories/:categoryId', authenticate, requireRestaurantAccess(), ctrl.updateMenuCategory);
+router.delete('/restaurants/:restaurantId/categories/:categoryId', authenticate, requireRestaurantAccess(), ctrl.deleteMenuCategory);
+router.post('/restaurants/:restaurantId/menu-items', authenticate, requireRestaurantAccess(), ctrl.createMenuItem);
+router.post('/restaurants/:restaurantId/menu-items/:itemId/duplicate', authenticate, requireRestaurantAccess(), ctrl.duplicateMenuItem);
+router.patch('/restaurants/:restaurantId/menu-items/:itemId', authenticate, requireRestaurantAccess(), ctrl.updateMenuItem);
+router.delete('/restaurants/:restaurantId/menu-items/:itemId', authenticate, requireRestaurantAccess(), ctrl.deleteMenuItem);
+router.post('/restaurants/:restaurantId/menu-items/:itemId/modifier-groups', authenticate, requireRestaurantAccess(), ctrl.createModifierGroup);
+router.patch('/restaurants/:restaurantId/modifier-groups/:groupId', authenticate, requireRestaurantAccess(), ctrl.updateModifierGroup);
+router.delete('/restaurants/:restaurantId/modifier-groups/:groupId', authenticate, requireRestaurantAccess(), ctrl.deleteModifierGroup);
 router.use('/restaurants/:restaurantId/customer-wallet-loads', authenticate, noStoreCreditResponse);
 router.use('/restaurants/:restaurantId/customer-wallet-load-requests', authenticate, noStoreCreditResponse);
 router.use('/restaurants/:restaurantId/customer-wallet-status', authenticate, noStoreCreditResponse);
@@ -159,26 +160,26 @@ router.use('/restaurants/:restaurantId/customer-wallet-integrity', authenticate,
 router.use('/restaurants/:restaurantId/customer-wallet-reconciliation', authenticate, noStoreCreditResponse);
 router.use('/restaurants/:restaurantId/customer-wallet-statement', authenticate, noStoreCreditResponse);
 router.use('/merchant/wallets/:restaurantId/refunds', authenticate, noStoreCreditResponse);
-router.post('/restaurants/:restaurantId/customer-wallet-loads', restaurantCreditMutationLimiter, walletCtrl.loadCustomerWallet);
-router.post('/restaurants/:restaurantId/customer-wallet-load-requests', restaurantCreditMutationLimiter, walletCtrl.loadCustomerWallet);
-router.get('/restaurants/:restaurantId/customer-wallet-load-requests', walletCtrl.listCustomerWalletLoadRequests);
-router.post('/restaurants/:restaurantId/customer-wallet-load-requests/:requestId/approve', restaurantCreditMutationLimiter, walletCtrl.approveCustomerWalletLoadRequest);
-router.post('/restaurants/:restaurantId/customer-wallet-load-requests/:requestId/cancel', restaurantCreditMutationLimiter, walletCtrl.cancelCustomerWalletLoadRequest);
-router.patch('/restaurants/:restaurantId/customer-wallet-status', restaurantCreditMutationLimiter, walletCtrl.updateCustomerWalletStatus);
-router.get('/restaurants/:restaurantId/customer-wallet-integrity', walletCtrl.verifyCustomerWalletIntegrity);
-router.get('/restaurants/:restaurantId/customer-wallet-reconciliation', walletCtrl.getCustomerWalletReconciliation);
-router.get('/restaurants/:restaurantId/customer-wallet-statement', walletCtrl.getCustomerWalletStatement);
+router.post('/restaurants/:restaurantId/customer-wallet-loads', restaurantCreditMutationLimiter, requireRestaurantAccess(), walletCtrl.loadCustomerWallet);
+router.post('/restaurants/:restaurantId/customer-wallet-load-requests', restaurantCreditMutationLimiter, requireRestaurantAccess(), walletCtrl.loadCustomerWallet);
+router.get('/restaurants/:restaurantId/customer-wallet-load-requests', requireRestaurantAccess(), walletCtrl.listCustomerWalletLoadRequests);
+router.post('/restaurants/:restaurantId/customer-wallet-load-requests/:requestId/approve', restaurantCreditMutationLimiter, requireRestaurantAccess(), walletCtrl.approveCustomerWalletLoadRequest);
+router.post('/restaurants/:restaurantId/customer-wallet-load-requests/:requestId/cancel', restaurantCreditMutationLimiter, requireRestaurantAccess(), walletCtrl.cancelCustomerWalletLoadRequest);
+router.patch('/restaurants/:restaurantId/customer-wallet-status', restaurantCreditMutationLimiter, requireRestaurantAccess(), walletCtrl.updateCustomerWalletStatus);
+router.get('/restaurants/:restaurantId/customer-wallet-integrity', requireRestaurantAccess(), walletCtrl.verifyCustomerWalletIntegrity);
+router.get('/restaurants/:restaurantId/customer-wallet-reconciliation', requireRestaurantAccess(), walletCtrl.getCustomerWalletReconciliation);
+router.get('/restaurants/:restaurantId/customer-wallet-statement', requireRestaurantAccess(), walletCtrl.getCustomerWalletStatement);
 // Phase 2: restaurant-initiated credit refunds. Operator authorization is
 // enforced inside the controller (requireRestaurantAccess + assertWalletOperator).
-router.post('/merchant/wallets/:restaurantId/refunds', restaurantCreditMutationLimiter, walletCtrl.createCustomerWalletRefund);
-router.get('/merchant/wallets/:restaurantId/refunds', walletCtrl.listRestaurantWalletRefunds);
+router.post('/merchant/wallets/:restaurantId/refunds', restaurantCreditMutationLimiter, requireRestaurantAccess(), walletCtrl.createCustomerWalletRefund);
+router.get('/merchant/wallets/:restaurantId/refunds', requireRestaurantAccess(), walletCtrl.listRestaurantWalletRefunds);
 // Phase 5: trial-tier credit cap + FIFO derisking. Only meaningful for
 // restaurants WITHOUT a Phase 4 reserve row (the trial-cap service itself
 // reports trial_cap_applies: false for enrolled restaurants). Operator
 // authorization is enforced inside the controller (requireRestaurantAccess
 // + assertWalletOperator), mirroring the merchant wallet surface.
-router.get('/merchant/wallets/:restaurantId/exposure', walletCtrl.getCreditExposure);
-router.post('/merchant/wallets/:restaurantId/derisk', restaurantCreditMutationLimiter, walletCtrl.deriskCredit);
+router.get('/merchant/wallets/:restaurantId/exposure', requireRestaurantAccess(), walletCtrl.getCreditExposure);
+router.post('/merchant/wallets/:restaurantId/derisk', restaurantCreditMutationLimiter, requireRestaurantAccess(), walletCtrl.deriskCredit);
 // Phase 4: restaurant credit pre-purchase reserve ("gift card inventory"
 // model). Opt-in per restaurant: only restaurants WITH a reserve row are
 // capped at issuance; restaurants without a row keep the trial-tier cap
@@ -190,13 +191,13 @@ router.post('/merchant/credit-reserve/purchase', restaurantCreditMutationLimiter
 router.post('/merchant/credit-reserve/purchase/:purchaseId/confirm', restaurantCreditMutationLimiter, reserveCtrl.confirmCreditReservePurchase);
 router.get('/merchant/credit-reserve/balance', reserveCtrl.getCreditReserveBalance);
 router.get('/merchant/credit-reserve/ledger', reserveCtrl.listCreditReserveLedger);
-router.get('/restaurants/:restaurantId/oxsteed-credit/settlements', authenticate, noStoreCreditResponse, oxsteedCreditPartnerCtrl.listPartnerSettlements);
-router.get('/restaurants/:restaurantId/oxsteed-credit/transactions', authenticate, noStoreCreditResponse, oxsteedCreditPartnerCtrl.listPartnerTransactions);
-router.get('/restaurants/:restaurantId/oxsteed-credit/ledger', authenticate, noStoreCreditResponse, oxsteedCreditPartnerCtrl.getPartnerCreditLedger);
-router.get('/restaurants/:restaurantId/oxsteed-credit/report.csv', authenticate, noStoreCreditResponse, creditExportLimiter, oxsteedCreditPartnerCtrl.downloadPartnerCreditReport);
+router.get('/restaurants/:restaurantId/oxsteed-credit/settlements', authenticate, noStoreCreditResponse, requireRestaurantAccess(), oxsteedCreditPartnerCtrl.listPartnerSettlements);
+router.get('/restaurants/:restaurantId/oxsteed-credit/transactions', authenticate, noStoreCreditResponse, requireRestaurantAccess(), oxsteedCreditPartnerCtrl.listPartnerTransactions);
+router.get('/restaurants/:restaurantId/oxsteed-credit/ledger', authenticate, noStoreCreditResponse, requireRestaurantAccess(), oxsteedCreditPartnerCtrl.getPartnerCreditLedger);
+router.get('/restaurants/:restaurantId/oxsteed-credit/report.csv', authenticate, noStoreCreditResponse, creditExportLimiter, requireRestaurantAccess(), oxsteedCreditPartnerCtrl.downloadPartnerCreditReport);
 router.use('/restaurants/:restaurantId/customer-wallet-holds', authenticate, noStoreCreditResponse);
-router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/capture', restaurantCreditMutationLimiter, walletCtrl.captureCustomerWalletHold);
-router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/release', restaurantCreditMutationLimiter, walletCtrl.releaseCustomerWalletHold);
+router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/capture', restaurantCreditMutationLimiter, requireRestaurantAccess(), walletCtrl.captureCustomerWalletHold);
+router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/release', restaurantCreditMutationLimiter, requireRestaurantAccess(), walletCtrl.releaseCustomerWalletHold);
 
 // Ordering. Customers can browse as guests, but must sign in before submitting
 // an order so the restaurant has an accountable customer record.
@@ -210,11 +211,11 @@ router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/release', 
 // admin checkout restrictions like the other payment-intent routes.
 router.post('/card-payment/intent', authenticate, checkRestrictions('checkout'), paymentsLimiter, ctrl.createCardPaymentIntent);
 router.get('/payment-methods', authenticate, ctrl.listSavedPaymentMethods);
-router.post('/restaurants/:restaurantId/orders', optionalAuth, creditPurchaseLimiter, ctrl.createOrder);
+router.post('/restaurants/:restaurantId/orders', optionalAuth, creditPurchaseLimiter, scopeExempt('public-storefront'), ctrl.createOrder);
 
 // Merchant order operations (kitchen feed, status flow, in-store payment).
-router.get('/restaurants/:restaurantId/orders', authenticate, ctrl.listRestaurantOrders);
-router.patch('/restaurants/:restaurantId/orders/:orderId/status', authenticate, ctrl.updateOrderStatus);
-router.post('/restaurants/:restaurantId/orders/:orderId/split', authenticate, ctrl.splitOrder);
+router.get('/restaurants/:restaurantId/orders', authenticate, requireRestaurantAccess(), ctrl.listRestaurantOrders);
+router.patch('/restaurants/:restaurantId/orders/:orderId/status', authenticate, requireRestaurantAccess(), ctrl.updateOrderStatus);
+router.post('/restaurants/:restaurantId/orders/:orderId/split', authenticate, requireRestaurantAccess(), ctrl.splitOrder);
 
 module.exports = router;

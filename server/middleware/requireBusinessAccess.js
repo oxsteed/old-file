@@ -68,7 +68,7 @@ function requireBusinessAccess(options = {}) {
   const minRole = options.allowOwnerOnly ? 'owner' : (options.minRole || 'any');
   const resolvePermissions = options.resolvePermissions !== false;
 
-  return async function requireBusinessAccessMw(req, res, next) {
+  const mw = async function requireBusinessAccessMw(req, res, next) {
     if (!req.user || !req.user.id) {
       return sendError(res, 401, 'Authentication required.', 'auth_required');
     }
@@ -125,6 +125,9 @@ function requireBusinessAccess(options = {}) {
       return next(err);
     }
   };
+  // Recognized by the route scope guard (__tests__/routeScopeGuard.test.js).
+  Object.defineProperty(mw, 'scopeGate', { value: Object.freeze({ kind: 'business', detail: minRole }), enumerable: false });
+  return mw;
 }
 
 // Convenience shortcuts so route files read naturally.

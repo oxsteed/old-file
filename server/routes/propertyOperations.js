@@ -4,8 +4,9 @@ const requireBusinessAccess = require('../middleware/requireBusinessAccess');
 const controller = require('../controllers/propertyOperationsController');
 
 const router = express.Router();
+const { scopeExempt } = require('../middleware/scopeGates');
 
-router.get('/public/:businessId', controller.getPublicWorkspace);
+router.get('/public/:businessId', scopeExempt('public-storefront'), controller.getPublicWorkspace);
 
 router.get('/business/:businessId', authenticate, requireBusinessAccess.member(), controller.getBusinessWorkspace);
 router.put('/business/:businessId/settings', authenticate, requireBusinessAccess.manager(), controller.updateSettings);

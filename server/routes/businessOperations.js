@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { scopeExempt } = require('../middleware/scopeGates');
 const { requireAuth } = require('../middleware/auth');
 const requireBusinessAccess = require('../middleware/requireBusinessAccess');
 const upload = require('../middleware/upload');
@@ -27,20 +28,20 @@ router.post('/:businessId/messages/:conversationId/release',               requi
 router.post('/:businessId/messages/:conversationId/reassign',              requireAuth, requireBusinessAccess({ minRole: 'manager' }), businessConversationAssignmentController.reassignConversation);
 
 // ── SERVICES ROUTES ───────────────────────────────────────────
-router.get ('/:businessId/services',                                                                                                    businessServicesController.listServices);
+router.get ('/:businessId/services',                                                                                                    scopeExempt('public-storefront'), businessServicesController.listServices);
 router.post('/:businessId/services',                                       requireAuth, requireBusinessAccess({ minRole: 'manager' }), businessServicesController.createService);
 router.put ('/:businessId/services/:serviceId',                            requireAuth, requireBusinessAccess({ minRole: 'manager' }), businessServicesController.updateService);
 router.post('/:businessId/services/:serviceId/staff',                      requireAuth, requireBusinessAccess({ minRole: 'manager' }), businessServicesController.assignStaffToService);
 router.post('/:businessId/services/:serviceId/availability',               requireAuth, requireBusinessAccess({ minRole: 'manager' }), businessServicesController.setServiceAvailability);
 
 // Phase 2b: real slot engine. Public (customers can see availability without auth).
-router.get ('/:businessId/services/:serviceId/slots',                                                                                   businessCalendarController.getServiceSlots);
+router.get ('/:businessId/services/:serviceId/slots',                                                                                   scopeExempt('public-storefront'), businessCalendarController.getServiceSlots);
 
 // ── APPOINTMENTS ROUTES ───────────────────────────────────────
 // Phase 2c: enforce business_booking_rules + per-staff overbooking guard before insert.
 // Customers may book a public business service; the controller validates the
 // service/business relationship and binds the appointment to the signed-in user.
-router.post('/:businessId/appointments',                                   requireAuth, enforceBookingRules, businessAppointmentsController.createAppointment);
+router.post('/:businessId/appointments',                                   requireAuth, enforceBookingRules, scopeExempt('public-intake'), businessAppointmentsController.createAppointment);
 // P3-8-F10: staff walk-in / phone booking. Same controller, but staff may
 // book inside the customer advance-notice window, and the appointment is
 // never bound to the staff member's own user id.
@@ -56,7 +57,7 @@ router.post('/:businessId/appointments/:appointmentId/record-payment',    requir
 router.post('/:businessId/appointments/:appointmentId/notes',              requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessAppointmentsController.addAppointmentNote);
 
 // ── DYNAMIC PRICING ROUTES ────────────────────────────────────
-router.get   ('/:businessId/services/:serviceId/calculate-price',                                                                       dynamicPricingController.calculatePrice);
+router.get   ('/:businessId/services/:serviceId/calculate-price',                                                                       scopeExempt('public-storefront'), dynamicPricingController.calculatePrice);
 router.post  ('/:businessId/pricing-rules',                                requireAuth, requireBusinessAccess({ minRole: 'manager' }), dynamicPricingController.createPricingRule);
 router.get   ('/:businessId/pricing-rules',                                requireAuth, requireBusinessAccess({ minRole: 'any' }),     dynamicPricingController.listPricingRules);
 router.get   ('/:businessId/services/:serviceId/pricing-rules',            requireAuth, requireBusinessAccess({ minRole: 'any' }),     dynamicPricingController.listPricingRules);

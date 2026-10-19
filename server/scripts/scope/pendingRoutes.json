@@ -1,0 +1,4 @@
+{
+  "_comment": "Tenant routes not yet behind a route-level scope gate (scope report Area 4). This list may only shrink: routeScopeGuard.test.js fails on any new ungated tenant route and on stale entries.",
+  "pending": []
+}

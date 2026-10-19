@@ -2,14 +2,19 @@ const { query } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
+const { supportScopeSatisfies } = require('../middleware/scopeGates');
 
 async function canManageBusiness(req, businessId) {
+  // Route gate (requireSupportBusinessAccess) already granted this level.
+  if (supportScopeSatisfies(req, businessId, 'administrate')) return true;
   if (!businessId) return false;
   if (supportEmployerService.isPlatformAdmin(req.user?.role)) return true;
   return supportEmployerService.userCanAdministrateBusiness(businessId, req.user.id);
 }
 
 async function canAccessBusiness(req, businessId) {
+  // Route gate (requireSupportBusinessAccess) already granted this level.
+  if (supportScopeSatisfies(req, businessId, 'conversations')) return true;
   if (!businessId) return false;
   if (supportEmployerService.isPlatformAdmin(req.user?.role)) return true;
   return supportEmployerService.userCanAccessBusinessConversations(businessId, req.user.id, req.user.role);

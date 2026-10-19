@@ -4,6 +4,8 @@ const { generalLimiter } = require('../middleware/rateLimiter');
 const leadController = require('../controllers/leadController');
 
 const router = express.Router();
+const requireBusinessAccess = require('../middleware/requireBusinessAccess');
+const { scopeExempt } = require('../middleware/scopeGates');
 
 // Rate limiting
 router.use(generalLimiter);
@@ -16,12 +18,12 @@ router.get('/my', authenticate, leadController.getMyLeads);
 // ── Business endpoints (must come before /:leadId to avoid route conflicts) ──
 
 // GET business's received leads
-router.get('/business/:businessId', authenticate, leadController.getBusinessLeads);
+router.get('/business/:businessId', authenticate, requireBusinessAccess({ minRole: 'any', resolvePermissions: false }), leadController.getBusinessLeads);
 
 // ── Shared/parameterized endpoints ────────────────────────────────────────
 
 // POST create a new lead request for a business
-router.post('/:businessId/request', authenticate, leadController.createLead);
+router.post('/:businessId/request', authenticate, scopeExempt('public-intake'), leadController.createLead);
 
 // GET single lead details (customer or business can view)
 router.get('/:leadId', authenticate, leadController.getLead);

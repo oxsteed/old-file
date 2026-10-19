@@ -4,6 +4,7 @@ const { query } = pool;
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
+const { supportScopeSatisfies } = require('../middleware/scopeGates');
 const WebSocketService = require('../services/websocketService');
 const { logAdminAction } = require('../services/auditService');
 const { withTransaction } = require('../utils/transaction');
@@ -22,6 +23,8 @@ async function authorizeBusinessConversation(req, conversation) {
 }
 
 async function canAccessBusiness(req) {
+  // Route gate (requireSupportBusinessAccess) already granted this level.
+  if (supportScopeSatisfies(req, req.params.businessId, 'conversations')) return true;
   if (supportEmployerService.isPlatformAdmin(req.user.role)) return true;
   return supportEmployerService.userCanAccessBusinessConversations(
     req.params.businessId,

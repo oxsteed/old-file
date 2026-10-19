@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { requireSupportBusinessAccess, scopeExempt } = require('../middleware/scopeGates');
 const { requireAuth } = require('../middleware/auth');
 const supportRoutingController = require('../controllers/supportRoutingController');
 const db = require('../db');
@@ -64,21 +65,21 @@ router.post('/conversations', conversationMessageLimiter, requireAuth, async (re
 });
 
 // Create new support conversation with auto-routing
-router.post('/:businessId/conversations', requireAuth, supportRoutingController.createConversation);
+router.post('/:businessId/conversations', requireAuth, scopeExempt('customer-self-service'), supportRoutingController.createConversation);
 
 // Get conversation details with messages
-router.get('/:businessId/conversations/:ticketId', requireAuth, supportRoutingController.getConversation);
+router.get('/:businessId/conversations/:ticketId', requireAuth, scopeExempt('resource-scoped'), supportRoutingController.getConversation);
 
 // Send message to conversation
-router.post('/:businessId/conversations/:ticketId/message', requireAuth, supportRoutingController.sendMessage);
+router.post('/:businessId/conversations/:ticketId/message', requireAuth, scopeExempt('resource-scoped'), supportRoutingController.sendMessage);
 
 // Update conversation status
-router.put('/:businessId/conversations/:ticketId/status', requireAuth, supportRoutingController.updateStatus);
+router.put('/:businessId/conversations/:ticketId/status', requireAuth, scopeExempt('resource-scoped'), supportRoutingController.updateStatus);
 
 // Manually assign ticket to agent
-router.post('/:businessId/conversations/:ticketId/assign', requireAuth, supportRoutingController.assignToAgent);
+router.post('/:businessId/conversations/:ticketId/assign', requireAuth, scopeExempt('resource-scoped'), supportRoutingController.assignToAgent);
 
 // Get WebSocket connection status (for monitoring)
-router.get('/:businessId/status', requireAuth, supportRoutingController.getStatus);
+router.get('/:businessId/status', requireAuth, scopeExempt('public-storefront'), supportRoutingController.getStatus);
 
 module.exports = router;

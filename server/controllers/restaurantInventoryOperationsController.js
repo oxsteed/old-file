@@ -2,6 +2,7 @@
 
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
+const { resolveRestaurantAccess } = require('../services/scopeModel');
 const { withTransaction } = require('../utils/transaction');
 const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
 const { getEffectivePermissions, hasAny } = require('../services/permissionsService');
@@ -40,35 +41,12 @@ function operationId(value) {
   return normalized;
 }
 
-async function restaurantAccess(userId, restaurantId, client = pool) {
+// Canonical restaurant access gate (scope report Area 4). This was the last
+// local copy of the ownership CASE; the shared gate returns a superset of the
+// columns it selected (fr.*, effective_role, membership_id) with the same 404.
+async function restaurantAccess(userId, restaurantId) {
   if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-  const { rows: [restaurant] } = await client.query(
-    `SELECT fr.id, fr.business_id, fr.display_name, fr.address_city, fr.address_state,
-            fr.address_country, fr.timezone, fr.currency_code,
-            CASE
-              WHEN b.user_id = $2 OR fr.owner_user_id = $2 THEN 'owner'
-              ELSE (
-                SELECT bm.role FROM business_members bm
-                 WHERE bm.business_id = fr.business_id
-                   AND bm.member_id = $2 AND bm.status = 'active'
-                 LIMIT 1
-              )
-            END AS effective_role,
-            (
-              SELECT bm.id FROM business_members bm
-               WHERE bm.business_id = fr.business_id
-                 AND bm.member_id = $2 AND bm.status = 'active'
-               LIMIT 1
-            ) AS membership_id
-       FROM food_restaurants fr
-       JOIN businesses b ON b.id = fr.business_id
-      WHERE fr.id = $1`,
-    [restaurantId, userId]
-  );
-  if (!restaurant || !restaurant.effective_role) {
-    throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-  }
-  return restaurant;
+  return resolveRestaurantAccess(userId, restaurantId);
 }
 
 async function requireInventoryPermission(userId, restaurant, permissions) {

@@ -17,6 +17,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
 const router = express.Router();
+const { scopeExempt } = require('../middleware/scopeGates');
 const { authenticate } = require('../middleware/auth');
 const { paymentsLimiter, strictLimiter, generalLimiter } = require('../middleware/rateLimiter');
 const pool = require('../db');
@@ -371,7 +372,7 @@ router.get('/public/user/:userId/pay-code', strictLimiter, async (req, res, next
 // ── Public: a BUSINESS's pay link (GV-5: the public business payload no
 // longer carries the owner's user id). Resolves the owner server-side behind
 // the public business visibility gate; the owner id is never returned.
-router.get('/public/business/:businessId/pay-code', strictLimiter, async (req, res, next) => {
+router.get('/public/business/:businessId/pay-code', strictLimiter, scopeExempt('public-storefront'), async (req, res, next) => {
   try {
     const { resolvePublicBusinessOwner, parseBusinessId } = require('../services/businessPublicOwner');
     if (!parseBusinessId(req.params.businessId)) {

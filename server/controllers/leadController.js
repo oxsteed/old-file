@@ -1,5 +1,6 @@
 const pool = require('../db');
 const { sendError, sendSuccess } = require('../utils/apiError');
+const { businessScopeSatisfies } = require('../middleware/scopeGates');
 const logger = require('../utils/logger');
 
 // ── Helper: Check if user can access business leads (owner, manager, or representative) ──
@@ -122,7 +123,7 @@ exports.getBusinessLeads = async (req, res) => {
     const { businessId } = req.params;
     const { status, page = 1, limit = 20 } = req.query;
 
-    const access = await canAccessBusinessLeads(req.user.id, businessId);
+    const access = businessScopeSatisfies(req, businessId, 'any') || await canAccessBusinessLeads(req.user.id, businessId);
     if (!access) return sendError(res, 403, 'Access denied');
 
     // Validate pagination

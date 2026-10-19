@@ -154,3 +154,11 @@ separate): `statementArchive` wallet-standing, media actor verification,
 | 2026-10-18 | Item 10: performance view lives on the business-owner surface (PromotePage, `GET /api/businesses/:businessId/campaign-performance`, manager role, business-scoped) — the business owns the campaign. No new admin route, so no `adminSpaRoutes.js` change. The admin approve/review flow (`adminFeaturedPlacement`) is untouched. | Track C |
 | 2026-10-18 | Item 10: impressions are server-side only (`listRestaurants` emits one event per effectively-featured row in the response). Click beacons cover FoodHomePage `RestaurantCard` grid/section cards; map pins and the suggestion-dropdown jump are known gaps (no click tracking there in this pass). | Track C |
 | 2026-10-18 | Item 10: all instrumentation is fire-and-forget — the emitter never rejects and call sites never await (same pattern as `emitRestaurantOrder`). `trackCampaignClick` answers 204 before emitting. No ordering, payment, or campaign execution paths were modified. | Track C |
+
+## 2026-10-19: scope centralization (stacked on #608)
+
+Branch `codex/analytics-scope-centralization`. Route-level tenant gates now
+cover every tenant route (765). The route scope guard, gate unit tests and the
+cross-tenant DB test are added, and One Truth analyst scope uses the shared
+model. The inventory, tightenings and flagged decisions are in
+`scope-migration-inventory.md`.

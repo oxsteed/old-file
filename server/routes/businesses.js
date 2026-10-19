@@ -1,6 +1,7 @@
 // server/routes/businesses.js
 const express = require('express');
 const router  = express.Router();
+const { scopeExempt } = require('../middleware/scopeGates');
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const requireBusinessAccess = require('../middleware/requireBusinessAccess');
 const { requireFeatureEnabled } = require('../middleware/featureFlags');
@@ -167,11 +168,11 @@ router.delete('/:id/vortex-tokens/:tokenId',    authenticate, rejectImpersonated
 // owner/manager: without req.user the Business Hub editor got 404 for its own
 // draft/unlisted business content.
 // SERVICES
-router.get('/:businessId/services/manage',       authenticate, (req, res, next) => {
+router.get('/:businessId/services/manage',       authenticate, requireBusinessAccess({ minRole: 'manager', resolvePermissions: false }), (req, res, next) => {
   req.query = { ...req.query, all: 'true' };
   return getBusinessServices(req, res, next);
 });
-router.get('/:businessId/services',              optionalAuth, getBusinessServices);
+router.get('/:businessId/services',              optionalAuth, scopeExempt('public-storefront'), getBusinessServices);
 router.post('/:businessId/services',             authenticate, businessIdAccess('any'), createBusinessService);
 router.put('/:businessId/services/:serviceId',   authenticate, businessIdAccess('any'), updateBusinessService);
 router.delete('/:businessId/services/:serviceId', authenticate, businessIdAccess('any'), deleteBusinessService);
@@ -181,30 +182,30 @@ router.post('/:businessId/services/:serviceId/blocked-times', authenticate, busi
 router.delete('/:businessId/services/:serviceId/blocked-times/:blockId', authenticate, businessIdAccess('manager'), deleteServiceBlockedTime);
 
 // GALLERY
-router.get('/:businessId/gallery',               optionalAuth, getBusinessGallery);
+router.get('/:businessId/gallery',               optionalAuth, scopeExempt('public-storefront'), getBusinessGallery);
 router.post('/:businessId/gallery',              authenticate, businessIdAccess('any'), addBusinessGalleryPhoto);
 router.put('/:businessId/gallery/:photoId',      authenticate, businessIdAccess('any'), updateBusinessGalleryPhoto);
 router.delete('/:businessId/gallery/:photoId',   authenticate, businessIdAccess('any'), deleteBusinessGalleryPhoto);
 
 // POLICIES
-router.get('/:businessId/policies',              optionalAuth, getBusinessPolicies);
+router.get('/:businessId/policies',              optionalAuth, scopeExempt('public-storefront'), getBusinessPolicies);
 router.post('/:businessId/policies',             authenticate, businessIdAccess('any'), createBusinessPolicy);
 router.put('/:businessId/policies/:policyId',    authenticate, businessIdAccess('any'), updateBusinessPolicy);
 router.delete('/:businessId/policies/:policyId', authenticate, businessIdAccess('any'), deleteBusinessPolicy);
 
 // FAQs
-router.get('/:businessId/faqs',                  optionalAuth, getBusinessFAQs);
+router.get('/:businessId/faqs',                  optionalAuth, scopeExempt('public-storefront'), getBusinessFAQs);
 router.post('/:businessId/faqs',                 authenticate, businessIdAccess('any'), createBusinessFAQ);
 router.put('/:businessId/faqs/:faqId',           authenticate, businessIdAccess('any'), updateBusinessFAQ);
 router.delete('/:businessId/faqs/:faqId',        authenticate, businessIdAccess('any'), deleteBusinessFAQ);
 
 // HOURS
-router.get('/:businessId/hours',                 optionalAuth, getBusinessHours);
+router.get('/:businessId/hours',                 optionalAuth, scopeExempt('public-storefront'), getBusinessHours);
 router.put('/:businessId/hours',                 authenticate, businessIdAccess('any'), updateBusinessHours);
 
 // SKILLS
-router.get('/:businessId/skills/search',         searchSkillsForBusiness);
-router.get('/:businessId/skills',                listBusinessSkills);
+router.get('/:businessId/skills/search',         scopeExempt('public-storefront'), searchSkillsForBusiness);
+router.get('/:businessId/skills',                scopeExempt('public-storefront'), listBusinessSkills);
 router.post('/:businessId/skills',               authenticate, businessIdAccess('any'), addBusinessSkill);
 router.put('/:businessId/skills',                authenticate, businessIdAccess('any'), replaceBusinessSkills);
 router.put('/:businessId/skills/:skillId',       authenticate, businessIdAccess('any'), updateBusinessSkill);

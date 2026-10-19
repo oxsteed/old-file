@@ -2,6 +2,7 @@
 
 const express = require('express');
 const router = express.Router();
+const { requireRestaurantAccess } = require('../middleware/scopeGates');
 const { authenticate } = require('../middleware/auth');
 const ctrl = require('../controllers/restaurantSupportController');
 
@@ -22,14 +23,14 @@ router.post('/support/cases/:caseId/reopen', ctrl.reopenCase);
 router.post('/support/cases/:caseId/accept-resolution', ctrl.acceptResolution);
 
 // Restaurant manager / owner app surface.
-router.get('/:restaurantId/support/cases', ctrl.listRestaurantCases);
-router.get('/:restaurantId/support/cases/:caseId', ctrl.getRestaurantCase);
-router.post('/:restaurantId/support/cases/:caseId/respond', ctrl.restaurantRespond);
-router.post('/:restaurantId/support/cases/:caseId/internal-note', ctrl.restaurantInternalNote);
-router.post('/:restaurantId/support/cases/:caseId/assign', ctrl.restaurantAssign);
-router.post('/:restaurantId/support/cases/:caseId/offer-resolution', ctrl.restaurantOfferResolution);
-router.post('/:restaurantId/support/cases/:caseId/resolve', ctrl.restaurantResolve);
-router.post('/:restaurantId/support/cases/:caseId/escalate', ctrl.restaurantEscalate);
-router.get('/:restaurantId/support/summary', ctrl.getRestaurantSummary);
+router.get('/:restaurantId/support/cases', requireRestaurantAccess(), ctrl.listRestaurantCases);
+router.get('/:restaurantId/support/cases/:caseId', requireRestaurantAccess(), ctrl.getRestaurantCase);
+router.post('/:restaurantId/support/cases/:caseId/respond', requireRestaurantAccess(), ctrl.restaurantRespond);
+router.post('/:restaurantId/support/cases/:caseId/internal-note', requireRestaurantAccess(), ctrl.restaurantInternalNote);
+router.post('/:restaurantId/support/cases/:caseId/assign', requireRestaurantAccess(), ctrl.restaurantAssign);
+router.post('/:restaurantId/support/cases/:caseId/offer-resolution', requireRestaurantAccess(), ctrl.restaurantOfferResolution);
+router.post('/:restaurantId/support/cases/:caseId/resolve', requireRestaurantAccess(), ctrl.restaurantResolve);
+router.post('/:restaurantId/support/cases/:caseId/escalate', requireRestaurantAccess(), ctrl.restaurantEscalate);
+router.get('/:restaurantId/support/summary', requireRestaurantAccess(), ctrl.getRestaurantSummary);
 
 module.exports = router;

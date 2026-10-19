@@ -2,6 +2,7 @@
 
 const express = require('express');
 const router = express.Router();
+const { scopeExempt } = require('../middleware/scopeGates');
 const { requireAuth } = require('../middleware/auth');
 const requireBusinessAccess = require('../middleware/requireBusinessAccess');
 const ctrl = require('../controllers/businessIntegrationsController');
@@ -67,7 +68,7 @@ router.post(
 router.get('/integrations/stripe/callback', ctrl.stripeCallback);
 router.get(
   '/:businessId/integrations/stripe/callback',
-  ctrl.stripeCallback
+  scopeExempt('signed-callback'), ctrl.stripeCallback
 );
 
 router.post(
