@@ -8,8 +8,7 @@ on:
   push:
     branches: [old-files-claude]
   pull_request:
-    # Temporary: PR #610 is stacked on #609; remove once #609 merges.
-    branches: [old-files-claude, codex/analytics-scope-centralization]
+    branches: [old-files-claude]
 
 jobs:
   install-check:
