@@ -2265,6 +2265,7 @@
     "postJob": "نشر وظيفة",
     "listSkills": "إدراج مهاراتك",
     "welcomeBackToast": "مرحبًا بعودتك!",
+    "pairKitchenDisplayInstead": "إقران شاشة مطبخ بدلاً من ذلك",
     "verifyIdentityToast": "مرحبًا بعودتك! يرجى إكمال التحقق من هويتك.",
     "emailRequired": "البريد الإلكتروني مطلوب",
     "passwordRequired": "كلمة المرور مطلوبة",
@@ -35190,6 +35191,16 @@
     "neverSeen": "لم يتصل أبدًا",
     "noDisplays": "لا توجد شاشات مقترنة بعد. استخدم الرمز المعروض على شاشة التلفاز لإقران شاشتك الأولى.",
     "justNow": "الآن",
-    "minutesAgo": "منذ {count} د"
+    "minutesAgo": "منذ {count} د",
+    "roleLabel": "دور الشاشة",
+    "roleKiosk": "كشك العميل",
+    "roleKitchen": "شاشة المطبخ",
+    "roleQueueBoard": "لوحة الطابور"
+  }
+,
+  "kitchenPairing": {
+    "title": "إقران شاشة المطبخ",
+    "intro": "على الجهاز اللوحي، افتح مربع حوار الإقران للحصول على رمز، ثم اطلبه في لوحة التحكم لربط هذه الشاشة.",
+    "backToKitchen": "العودة إلى شاشة المطبخ"
   }
 }

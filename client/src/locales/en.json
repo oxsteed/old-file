@@ -2265,6 +2265,7 @@
     "postJob": "Post a Job",
     "listSkills": "List Your Skills",
     "welcomeBackToast": "Welcome back!",
+    "pairKitchenDisplayInstead": "Pair a kitchen display instead",
     "verifyIdentityToast": "Welcome back! Please complete your identity verification.",
     "emailRequired": "Email is required",
     "passwordRequired": "Password is required",
@@ -35179,6 +35180,16 @@
     "neverSeen": "Never connected",
     "noDisplays": "No displays paired yet. Use the code shown on the TV screen to pair your first display.",
     "justNow": "just now",
-    "minutesAgo": "{count} min ago"
+    "minutesAgo": "{count} min ago",
+    "roleLabel": "Display role",
+    "roleKiosk": "Customer kiosk",
+    "roleKitchen": "Kitchen display",
+    "roleQueueBoard": "Queue board"
+  }
+,
+  "kitchenPairing": {
+    "title": "Pair kitchen display",
+    "intro": "On the tablet, open the pairing dialog to get a code, then claim the code in the dashboard to link this display.",
+    "backToKitchen": "Back to kitchen display"
   }
 }

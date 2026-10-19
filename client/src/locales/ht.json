@@ -2377,6 +2377,7 @@
     "postJob": "Pibliye Travay",
     "listSkills": "Ofri Sèvis Ou",
     "welcomeBackToast": "Byenvini tounen!",
+    "pairKitchenDisplayInstead": "Konekte yon ekran kwizin olye de sa",
     "verifyIdentityToast": "Byenvini tounen! Tanpri konplete verifikasyon idantite ou.",
     "emailRequired": "Imel obligatwa",
     "passwordRequired": "Modpas obligatwa",
@@ -35179,6 +35180,16 @@
     "neverSeen": "Li pa t janm konekte",
     "noDisplays": "Pa gen ekran ki konekte pou kounye a. Sèvi ak kòd ki parèt sou televizyon an pou konekte premye ekran ou an.",
     "justNow": "kounye a",
-    "minutesAgo": "{count} min de sa"
+    "minutesAgo": "{count} min de sa",
+    "roleLabel": "Wòl ekran an",
+    "roleKiosk": "Kyòs kliyan",
+    "roleKitchen": "Ekran kwizin",
+    "roleQueueBoard": "Tablo kyou a"
+  }
+,
+  "kitchenPairing": {
+    "title": "Konekte ekran kwizin nan",
+    "intro": "Sou tablèt la, louvri dyalòg koneksyon an pou jwenn yon kòd, apre sa reklame li nan tablò bò a pou konekte ekran sa a.",
+    "backToKitchen": "Tounen sou ekran kwizin nan"
   }
 }

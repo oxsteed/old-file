@@ -354,20 +354,26 @@ export const listFoodRestaurantOrdersPage = (restaurantId, params = {}) =>
 
 export const updateFoodOrderStatus = (restaurantId, orderId, status, options = {}) => {
   const idempotencyKey = options.idempotencyKey || options.idempotency_key;
+  // Per-request device token (merged with the Idempotency-Key), same pattern
+  // as getRestaurantKitchenFeed: never a global interceptor, never over a
+  // staff session. Lets a paired kitchen display mark ready / hand off
+  // without a staff login.
+  const headers = { ...kitchenDeviceAuthHeaders(restaurantId) };
+  if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
   return (
-  api
-    .patch(
-      `/food/restaurants/${restaurantId}/orders/${orderId}/status`,
-      {
-        status,
-        action: options.action,
-        reason: options.reason,
-        stationLabel: options.stationLabel,
-        idempotencyKey,
-      },
-      idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
-    )
-    .then((r) => r.data?.order)
+    api
+      .patch(
+        `/food/restaurants/${restaurantId}/orders/${orderId}/status`,
+        {
+          status,
+          action: options.action,
+          reason: options.reason,
+          stationLabel: options.stationLabel,
+          idempotencyKey,
+        },
+        { headers }
+      )
+      .then((r) => r.data?.order)
   );
 };
 

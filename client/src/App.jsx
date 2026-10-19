@@ -1,6 +1,6 @@
 import PageShell from './components/PageShell';
 import LogisticsRouteBoundary from './components/logistics/LogisticsRouteBoundary';
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from 'react-hot-toast';
@@ -15,6 +15,10 @@ import InternalWorkspaceGuard from './components/InternalWorkspaceGuard';
 import ErrorBoundary, { RouterAwareErrorBoundary } from './components/ErrorBoundary';
 import RouteErrorBoundary from './components/RouteErrorBoundary';
 import ScrollToTop from './components/ScrollToTop';
+import {
+  detectDisplayStandalone,
+  resolveDisplayInstallRedirect,
+} from './utils/displayInstall';
 import PageviewBeacon from './components/PageviewBeacon';
 import ImpersonationBanner from './components/ImpersonationBanner';
 import { lazyWithRetry } from './utils/lazyWithRetry';
@@ -89,6 +93,7 @@ const FoodHomePage = lazyWithRetry(routeLoaders.restaurants, { name: 'restaurant
 const FoodRestaurantPage = lazyWithRetry(() => import('./pages/food/FoodRestaurantPage'));
 const FoodMerchantPage = lazyWithRetry(() => import('./pages/food/FoodMerchantPage'));
 const FoodKitchenPage = lazyWithRetry(() => import('./pages/food/FoodKitchenPage'));
+const KitchenPairingPage = lazyWithRetry(() => import('./pages/food/KitchenPairingPage'));
 const FoodQueueBoardPage = lazyWithRetry(() => import('./pages/food/FoodQueueBoardPage'));
 const FoodTrackPage = lazyWithRetry(() => import('./pages/food/FoodTrackPage'));
 const FoodKioskPage = lazyWithRetry(() => import('./pages/food/FoodKioskPage'));
@@ -349,6 +354,27 @@ function LegacyLogisticsLoginRedirect({ mode }) {
   return <Navigate to={`/logistics/login${suffix}`} replace />;
 }
 
+// Installed display apps (Add to Home Screen) launch at the manifest
+// start_url ('/'), losing the display screen they were installed from.
+// When this is a standalone launch at a bare start_url AND a display
+// destination was saved by DisplayInstallPrompt, restore it. Never fires in
+// a regular browser tab; the destination helper only returns valid display
+// routes.
+function DisplayInstallRestore() {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const target = resolveDisplayInstallRedirect({
+      standalone: detectDisplayStandalone({
+        matchMedia: window.matchMedia?.bind(window),
+        standalone: window.navigator?.standalone,
+      }),
+      pathname: window.location.pathname,
+    });
+    if (target) window.location.replace(target);
+  }, []);
+  return null;
+}
+
 export default function App() {
   const isStatusHost = typeof window !== 'undefined'
     && window.location.hostname.toLowerCase() === 'status.oxsteed.com';
@@ -378,6 +404,7 @@ export default function App() {
             <CookieConsentProvider>
               <RouterAwareErrorBoundary>
                 <AuthProvider>
+                <DisplayInstallRestore />
                 <ScrollToTop />
                 <PageviewBeacon />
                 <ImpersonationBanner />
@@ -620,6 +647,8 @@ export default function App() {
                     <Route path="/food/restaurants/:restaurantId" element={<Guarded><RouteErrorBoundary><FoodRestaurantPage /></RouteErrorBoundary></Guarded>} />
                     <Route path="/food/queue/:restaurantId"   element={<RouteErrorBoundary><FoodQueueBoardPage /></RouteErrorBoundary>} />
                     <Route path="/food/kiosk/:restaurantId"   element={<RouteErrorBoundary><FoodKioskPage /></RouteErrorBoundary>} />
+                    {/* Public kitchen-tablet setup entry: no auth, no token. */}
+                    <Route path="/food/kitchen/:restaurantId/pair" element={<RouteErrorBoundary><KitchenPairingPage /></RouteErrorBoundary>} />
                     <Route path="/food/merchant"              element={<Guarded><ProtectedRoute><RouteErrorBoundary><FoodMerchantPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/food/kitchen/:restaurantId" element={<DeviceOrStaffRoute><RouteErrorBoundary><FoodKitchenPage /></RouteErrorBoundary></DeviceOrStaffRoute>} />
 
@@ -634,6 +663,8 @@ export default function App() {
                     <Route path="/restaurants/merchant"              element={<Guarded><ProtectedRoute><RouteErrorBoundary><FoodMerchantPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/restaurants/screens/:restaurantId/:screenRole" element={<RouteErrorBoundary><ManagedRestaurantScreen /></RouteErrorBoundary>} />
                     <Route path="/restaurants/kitchen/:restaurantId"   element={<DeviceOrStaffRoute><RouteErrorBoundary><FoodKitchenPage /></RouteErrorBoundary></DeviceOrStaffRoute>} />
+                    {/* Public kitchen-tablet setup entry: no auth, no token. */}
+                    <Route path="/restaurants/kitchen/:restaurantId/pair" element={<RouteErrorBoundary><KitchenPairingPage /></RouteErrorBoundary>} />
                     <Route path="/restaurants/pos/:restaurantId"       element={<ProtectedRoute><RouteErrorBoundary><RestaurantPOSPage /></RouteErrorBoundary></ProtectedRoute>} />
                     <Route path="/restaurants/inventory/:restaurantId" element={<ProtectedRoute><RouteErrorBoundary><RestaurantInventoryPage /></RouteErrorBoundary></ProtectedRoute>} />
                     <Route path="/restaurants/crew/:restaurantId"      element={<ProtectedRoute><RouteErrorBoundary><RestaurantCrewPage /></RouteErrorBoundary></ProtectedRoute>} />

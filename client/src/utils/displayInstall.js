@@ -5,6 +5,13 @@
 
 export const DISPLAY_INSTALL_DISMISS_KEY =
   'oxsteed:display:install-prompt-dismissed:v1';
+export const DISPLAY_INSTALL_DESTINATION_KEY =
+  'oxsteed:display:install-destination:v1';
+
+// Only real display routes are restorable: queue board, kiosk, and kitchen
+// screens under /restaurants or /food. Anything else is never a restore
+// target, so a stale or tampered value can never bounce the app elsewhere.
+const DISPLAY_ROUTE_PATTERN = /^\/(restaurants|food)\/(queue|kiosk|kitchen)\/\d+$/;
 
 function safeStorage() {
   try {
@@ -12,6 +19,80 @@ function safeStorage() {
   } catch {
     return null;
   }
+}
+
+/**
+ * True for a valid display route path, e.g. /restaurants/kitchen/42.
+ */
+export function isValidDisplayRoutePath(path) {
+  return typeof path === 'string' && DISPLAY_ROUTE_PATTERN.test(path);
+}
+
+// Captures (displayType, restaurantId) from a display route path.
+const DISPLAY_ROUTE_CAPTURE = /^\/(?:restaurants|food)\/(queue|kiosk|kitchen)\/(\d+)$/;
+
+/**
+ * Parses a display route path into { path, displayType, restaurantId }, or
+ * null when the path is not a display route.
+ */
+export function parseDisplayRoutePath(path) {
+  if (typeof path !== 'string') return null;
+  const match = DISPLAY_ROUTE_CAPTURE.exec(path);
+  if (!match) return null;
+  return { path, displayType: match[1], restaurantId: match[2] };
+}
+
+/**
+ * Persist where this installed display should land on next launch.
+ * Returns true when saved; refuses (returns false) for invalid routes.
+ * `restaurantId` and `displayType` ride along for future use but the
+ * restore path itself is the authority.
+ */
+export function saveDisplayInstallDestination(
+  { path, restaurantId, displayType } = {},
+  storage = safeStorage(),
+) {
+  if (!isValidDisplayRoutePath(path)) return false;
+  try {
+    storage?.setItem(
+      DISPLAY_INSTALL_DESTINATION_KEY,
+      JSON.stringify({ path, restaurantId: restaurantId ?? null, displayType: displayType ?? null }),
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Read the saved destination, or null when absent, unparseable, or not a
+ * valid display route.
+ */
+export function readDisplayInstallDestination(storage = safeStorage()) {
+  try {
+    const raw = storage?.getItem(DISPLAY_INSTALL_DESTINATION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !isValidDisplayRoutePath(parsed.path)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Startup redirect decision: pure, injected values. Returns the destination
+ * path to restore, or null when nothing should happen.
+ *
+ * Only redirects an installed standalone display that launched at a bare
+ * start_url ('/' or '/restaurants') with a saved valid display route.
+ * Never redirects in a regular browser tab, never to non-display routes.
+ */
+export function resolveDisplayInstallRedirect({ standalone, pathname, storage } = {}) {
+  if (!standalone) return null;
+  if (pathname !== '/' && pathname !== '/restaurants') return null;
+  const saved = readDisplayInstallDestination(storage);
+  return saved ? saved.path : null;
 }
 
 /**

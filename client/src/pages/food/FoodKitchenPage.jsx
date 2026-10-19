@@ -71,11 +71,17 @@ export default function FoodKitchenPage() {
     setPendingOffline(pendingKitchenActionCount(restaurantId));
   }, [restaurantId]);
 
-  // A 401 on a device-token request means the pairing is dead (unpaired /
-  // revoked server-side): drop it so the pairing widget reappears. Staff
-  // sessions are never touched.
+  // Only a 401 that carries the device-token error code means the pairing
+  // is dead (unpaired / revoked server-side): drop it so the pairing widget
+  // reappears. Generic 401s from unrelated endpoints never drop the pairing,
+  // and staff sessions are never touched.
   const dropStaleDevicePairing = useCallback((requestError) => {
-    if (requestError?.response?.status === 401 && !user && readDisplayToken(restaurantId)) {
+    if (
+      requestError?.response?.status === 401
+      && requestError?.response?.data?.code === 'display_token_invalid'
+      && !user
+      && readDisplayToken(restaurantId)
+    ) {
       dropDisplayPairing(restaurantId);
     }
   }, [user, restaurantId]);

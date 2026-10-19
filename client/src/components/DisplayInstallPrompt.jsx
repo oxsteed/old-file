@@ -5,18 +5,31 @@
 // localStorage. Skipped entirely when already installed.
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 import {
   detectDisplayStandalone,
+  parseDisplayRoutePath,
   readInstallPromptDismissed,
+  saveDisplayInstallDestination,
   shouldShowInstallPrompt,
   writeInstallPromptDismissed,
 } from '../utils/displayInstall';
 
 export default function DisplayInstallPrompt() {
   const { t } = useTranslation();
+  const { pathname } = useLocation();
   const [visible, setVisible] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
+
+  // Remember where this installed display should land on next launch.
+  // Only valid display routes are persisted (saveDisplayInstallDestination
+  // refuses anything else).
+  const persistDestination = () => {
+    const parsed = parseDisplayRoutePath(pathname);
+    if (!parsed) return;
+    saveDisplayInstallDestination(parsed);
+  };
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -25,6 +38,7 @@ export default function DisplayInstallPrompt() {
       standalone: window.navigator?.standalone,
     });
     if (shouldShowInstallPrompt({ dismissed: readInstallPromptDismissed(), standalone })) {
+      persistDestination();
       setVisible(true);
     }
     const onBeforeInstall = (event) => {
@@ -67,6 +81,8 @@ export default function DisplayInstallPrompt() {
       // The browser dismissed the prompt; keep our card up.
       return;
     }
+    // Install accepted: remember the destination before the app relaunches.
+    persistDestination();
     setDeferredPrompt(null);
     dismiss();
   };

@@ -27,6 +27,10 @@ export default function DisplayFleetPanel({ t, restaurant }) {
   const [loading, setLoading] = useState(true);
   const [code, setCode] = useState('');
   const [label, setLabel] = useState('');
+  // Default to the least-privilege role; the owner chooses deliberately at
+  // claim time. Kitchen-role tokens are what authorize ready/handoff on the
+  // kitchen display.
+  const [deviceRole, setDeviceRole] = useState('kiosk');
   const [pairing, setPairing] = useState(false);
   const [busyId, setBusyId] = useState(null);
 
@@ -57,10 +61,15 @@ export default function DisplayFleetPanel({ t, restaurant }) {
     if (!cleanCode || pairing) return;
     setPairing(true);
     try {
-      await api.post('/restaurant/displays/claim', { code: cleanCode, label: label.trim() || undefined });
+      await api.post('/restaurant/displays/claim', {
+        code: cleanCode,
+        label: label.trim() || undefined,
+        device_role: deviceRole,
+      });
       toast.success(t('displayFleet.pairedOk'));
       setCode('');
       setLabel('');
+      setDeviceRole('kiosk');
       load();
     } catch (err) {
       toast.error(apiErr(err, t('displayFleet.pairError')));
@@ -127,6 +136,18 @@ export default function DisplayFleetPanel({ t, restaurant }) {
             maxLength={60}
             autoComplete="off"
           />
+        </div>
+        <div className="fd-field" style={{ marginBottom: 0, minWidth: '12rem' }}>
+          <label htmlFor="display-pair-role">{t('displayFleet.roleLabel')}</label>
+          <select
+            id="display-pair-role"
+            value={deviceRole}
+            onChange={(e) => setDeviceRole(e.target.value)}
+          >
+            <option value="kiosk">{t('displayFleet.roleKiosk')}</option>
+            <option value="kitchen">{t('displayFleet.roleKitchen')}</option>
+            <option value="queue_board">{t('displayFleet.roleQueueBoard')}</option>
+          </select>
         </div>
         <button type="submit" className="fd-btn fd-btn-primary" disabled={pairing || !code.trim()}>
           {pairing ? t('displayFleet.pairing') : t('displayFleet.pairButton')}

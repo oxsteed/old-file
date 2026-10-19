@@ -2265,6 +2265,7 @@
     "postJob": "Publicar Trabajo",
     "listSkills": "Ofrecer Servicios",
     "welcomeBackToast": "¡Bienvenido de nuevo!",
+    "pairKitchenDisplayInstead": "Vincular una pantalla de cocina en su lugar",
     "verifyIdentityToast": "¡Bienvenido de nuevo! Por favor completa la verificación de identidad.",
     "emailRequired": "El correo electrónico es requerido",
     "passwordRequired": "La contraseña es requerida",
@@ -35179,6 +35180,16 @@
     "neverSeen": "Nunca conectado",
     "noDisplays": "Aún no hay pantallas vinculadas. Usa el código que se muestra en el televisor para vincular tu primera pantalla.",
     "justNow": "ahora mismo",
-    "minutesAgo": "hace {count} min"
+    "minutesAgo": "hace {count} min",
+    "roleLabel": "Rol de la pantalla",
+    "roleKiosk": "Quiosco de cliente",
+    "roleKitchen": "Pantalla de cocina",
+    "roleQueueBoard": "Tablero de turnos"
+  }
+,
+  "kitchenPairing": {
+    "title": "Vincular pantalla de cocina",
+    "intro": "En la tableta, abre el diálogo de vinculación para obtener un código y luego reclámalo en el panel para vincular esta pantalla.",
+    "backToKitchen": "Volver a la pantalla de cocina"
   }
 }

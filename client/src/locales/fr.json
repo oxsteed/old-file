@@ -2265,6 +2265,7 @@
     "postJob": "Publier une offre",
     "listSkills": "Proposer mes services",
     "welcomeBackToast": "Bon retour !",
+    "pairKitchenDisplayInstead": "Associer un écran cuisine à la place",
     "verifyIdentityToast": "Bon retour ! Veuillez compléter la vérification de votre identité.",
     "emailRequired": "L'e-mail est requis",
     "passwordRequired": "Le mot de passe est obligatoire",
@@ -35179,6 +35180,16 @@
     "neverSeen": "Jamais connecté",
     "noDisplays": "Aucun écran associé pour le moment. Utilisez le code affiché sur le téléviseur pour associer votre premier écran.",
     "justNow": "à l’instant",
-    "minutesAgo": "il y a {count} min"
+    "minutesAgo": "il y a {count} min",
+    "roleLabel": "Rôle de l'écran",
+    "roleKiosk": "Borne client",
+    "roleKitchen": "Écran cuisine",
+    "roleQueueBoard": "Tableau de file"
+  }
+,
+  "kitchenPairing": {
+    "title": "Associer l'écran cuisine",
+    "intro": "Sur la tablette, ouvrez la boîte de dialogue d'association pour obtenir un code, puis validez-le dans le tableau de bord pour lier cet écran.",
+    "backToKitchen": "Retour à l'écran cuisine"
   }
 }
