@@ -78,6 +78,10 @@ router.get('/my-tickets/:ticketId', supportTicketController.getMyTicket);
 router.post('/my-tickets/:ticketId/reopen', supportTicketController.reopenMyTicket);
 router.post('/my-tickets/:ticketId/reply', supportTicketController.replyToMyTicket);
 
+// Gap #8: one-click handoff from the AI support chat, carrying the transcript.
+// Requires auth (router.use(requireAuth) above); identity comes from the session.
+router.post('/chat-escalation', supportTicketController.createChatEscalation);
+
 // ============================================
 // AGENT SELF-SERVICE PORTAL (must precede /:businessId/*)
 // ============================================

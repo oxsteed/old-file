@@ -11201,7 +11201,13 @@
     "proactiveHelpers": "Vous cherchez le bon assistant ? Je peux vous expliquer comment fonctionne OxSteed.",
     "errorMessage": "Désolé, je rencontre un problème pour le moment. Veuillez réessayer ou écrire à **support@oxsteed.com**.",
     "handoffTitle": "Parler à un humain",
-    "handoffText": "Cela mérite peut-être une touche humaine. Un spécialiste du support peut vous aider directement."
+    "handoffText": "Cela mérite peut-être une touche humaine. Un spécialiste du support peut vous aider directement.",
+    "attachImage": "Joindre une capture ou une photo",
+    "removeImage": "Retirer l'image",
+    "imageTooLarge": "Cette image est trop lourde. Choisissez-en une de moins de 2 Mo.",
+    "escalated": "C'est fait. Le support a votre conversation et vous recontactera par e-mail.",
+    "escalateFailed": "Impossible de joindre le support pour le moment. Veuillez réessayer.",
+    "escalating": "Transfert en cours..."
   },
   "errorBoundary": {
     "title": "Une erreur s'est produite",

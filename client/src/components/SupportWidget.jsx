@@ -38,7 +38,10 @@ function loadHistory() {
 
 function saveHistory(msgs) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(msgs.slice(-MAX_HISTORY)));
+    // Gap #3: image data URLs are display-only; persisting them would blow
+    // the localStorage quota, so they are stripped from saved history.
+    const slim = msgs.slice(-MAX_HISTORY).map(({ image, ...rest }) => rest);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(slim));
   } catch { /* storage full */ }
 }
 
@@ -205,14 +208,30 @@ function AISupportWidget() {
   const [copied,       setCopied]       = useState(null);
   const [unread,       setUnread]       = useState(0);
   const [isMobile,     setIsMobile]     = useState(false);
-  const suggestions = [
-    t('supportWidget.suggestionPostJob'),
-    t('supportWidget.suggestionPayments'),
-    t('supportWidget.suggestionHelper'),
-    t('supportWidget.suggestionCredit'),
-    t('supportWidget.suggestionDispute'),
-    t('supportWidget.suggestionBidding'),
+  // Gap #3: one image may ride along with the next message.
+  const [pendingImage, setPendingImage] = useState(null);
+  const [imageError,   setImageError]   = useState(null);
+  const fileInputRef = useRef(null);
+  // Gap #8: one-click handoff state.
+  const [escalating,   setEscalating]   = useState(false);
+  const escalatedRef = useRef(false);
+  // Gap #7: suggestion chips follow the page instead of one-size-fits-all.
+  const SUGGESTION_KEYS_BY_PATH = [
+    { match: (p) => p.startsWith('/post-job'), keys: ['suggestionPostJob', 'suggestionBidding', 'suggestionPayments'] },
+    { match: (p) => p.startsWith('/jobs') || p.startsWith('/my-bids'), keys: ['suggestionBidding', 'suggestionHelper', 'suggestionDispute'] },
+    { match: (p) => p.startsWith('/helpers'), keys: ['suggestionHelper', 'suggestionBidding', 'suggestionPayments'] },
+    { match: (p) => p.startsWith('/wallet') || p.startsWith('/oxsteed-credit') || p.startsWith('/statements') || p.startsWith('/invoices'), keys: ['suggestionPayments', 'suggestionCredit', 'suggestionDispute'] },
+    { match: (p) => p.startsWith('/disputes'), keys: ['suggestionDispute', 'suggestionPayments', 'suggestionHelper'] },
+    { match: (p) => p.startsWith('/verify-identity'), keys: ['suggestionHelper', 'suggestionDispute', 'suggestionPayments'] },
   ];
+  const suggestions = (() => {
+    const path = location.pathname || '';
+    const hit = SUGGESTION_KEYS_BY_PATH.find((s) => s.match(path));
+    const keys = hit
+      ? hit.keys
+      : ['suggestionPostJob', 'suggestionPayments', 'suggestionHelper', 'suggestionCredit', 'suggestionDispute', 'suggestionBidding'];
+    return keys.map((k) => t(`supportWidget.${k}`));
+  })();
   const transcriptLabels = {
     title: t('supportWidget.transcriptTitle'),
     exported: t('supportWidget.transcriptExported'),
@@ -265,6 +284,18 @@ function markProactiveDismissed() {
   try { localStorage.setItem(PROACTIVE_DISMISS_KEY, '1'); } catch { /* storage unavailable */ }
 }
 
+  // Gap #6: the proactive nudge only fires when the user is genuinely idle.
+  // Any recent interaction, or focus in a form field, means they are busy
+  // (often mid-form on /post-job) and the widget stays quiet. Skipped cycles
+  // do not count as dismissals; the nudge simply waits for a quiet moment.
+  const lastActivityRef = useRef(Date.now());
+  useEffect(() => {
+    const bump = () => { lastActivityRef.current = Date.now(); };
+    const events = ['keydown', 'pointerdown', 'touchstart', 'wheel', 'scroll'];
+    events.forEach((e) => window.addEventListener(e, bump, { passive: true }));
+    return () => events.forEach((e) => window.removeEventListener(e, bump));
+  }, []);
+
   // 7. Proactive trigger on /post-job and /helpers after 45 seconds
   useEffect(() => {
     const path = location.pathname;
@@ -273,16 +304,20 @@ function markProactiveDismissed() {
     if (!isMatch || proactiveTriggered.current || open || isProactiveDismissed()) return;
 
     const timer = setTimeout(() => {
-      if (!proactiveTriggered.current && !open && !isProactiveDismissed()) {
-        proactiveTriggered.current = true;
-        markProactiveDismissed();
-        const msg = path.startsWith('/post-job')
-          ? t('supportWidget.proactivePostJob')
-          : t('supportWidget.proactiveHelpers');
-        setMessages(prev => [...prev, { role: 'assistant', content: msg, ts: new Date().toISOString() }]);
-        setOpen(true);
-        setMinimized(false);
-      }
+      if (proactiveTriggered.current || open || isProactiveDismissed()) return;
+      const activeEl = document.activeElement;
+      const inForm = activeEl && /^(INPUT|TEXTAREA|SELECT)$/.test(activeEl.tagName);
+      const idleMs = Date.now() - lastActivityRef.current;
+      // Busy or mid-form: stay quiet and wait for a later cycle.
+      if (inForm || idleMs < 30000) return;
+      proactiveTriggered.current = true;
+      markProactiveDismissed();
+      const msg = path.startsWith('/post-job')
+        ? t('supportWidget.proactivePostJob')
+        : t('supportWidget.proactiveHelpers');
+      setMessages(prev => [...prev, { role: 'assistant', content: msg, ts: new Date().toISOString() }]);
+      setOpen(true);
+      setMinimized(false);
     }, PROACTIVE_DELAY_MS);
 
     return () => clearTimeout(timer);
@@ -358,8 +393,61 @@ function markProactiveDismissed() {
     navigate('/support/escalation');
   }, [navigate, location.pathname]);
 
+  // Gap #8: one-click handoff that carries the transcript. Signed-in users
+  // get a ticket instantly; guests fall back to the escalation page.
+  const handleChatEscalation = useCallback(async () => {
+    if (escalating || escalatedRef.current) return;
+    setEscalating(true);
+    try {
+      const transcript = messages
+        .filter(m => !m.handoff && !m.isError)
+        .slice(-20)
+        .map(m => ({ role: m.role, content: String(m.content || '').slice(0, 1500) }));
+      await api.post('/support/chat-escalation', {
+        subject: `Chat escalation from ${window.location.pathname}`,
+        transcript,
+        page: window.location.pathname,
+      });
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: t('supportWidget.escalated'),
+        ts: new Date().toISOString(),
+      }]);
+      escalatedRef.current = true;
+    } catch (err) {
+      if (err?.response?.status === 401) {
+        navigate('/support/escalation');
+        return;
+      }
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: t('supportWidget.escalateFailed'),
+        ts: new Date().toISOString(),
+        isError: true,
+      }]);
+    } finally {
+      setEscalating(false);
+    }
+  }, [messages, escalating, navigate, t]);
+
+  // Gap #3: attach a screenshot or photo to the next message.
+  const handleImageSelect = useCallback((e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!/^image\/(png|jpe?g|webp)$/.test(file.type) || file.size > 2 * 1024 * 1024) {
+      setImageError(t('supportWidget.imageTooLarge'));
+      return;
+    }
+    setImageError(null);
+    const reader = new FileReader();
+    reader.onload = () => setPendingImage(String(reader.result));
+    reader.onerror = () => setImageError(t('supportWidget.imageTooLarge'));
+    reader.readAsDataURL(file);
+  }, [t]);
+
   const send = useCallback(async (text, isRetry = false) => {
-    if (!text.trim() || loading) return;
+    if ((!text.trim() && !pendingImage) || loading) return;
 
     // One-shot Learn guide tag: when this send carries the prefill the Learn
     // page set, tell the server which guide+step it is about so the cached
@@ -367,14 +455,17 @@ function markProactiveDismissed() {
     // Cleared on every send so follow-up messages are never cached.
     const pendingGuideHelp = guideHelpRef.current;
     guideHelpRef.current = null;
-    const trimmed = text.trim();
+    const trimmed = text.trim() || (pendingImage ? '[image]' : '');
     const guideHelpPayload = (
       pendingGuideHelp?.guide_id &&
       pendingGuideHelp.prefill.trim() &&
       trimmed.startsWith(pendingGuideHelp.prefill.trim())
     ) ? { guide_help: { guide_id: pendingGuideHelp.guide_id, step: pendingGuideHelp.step ?? 0 } } : {};
 
-    const userMsg = { role: 'user', content: trimmed, ts: new Date().toISOString() };
+    // Gap #3: the image rides on the dedicated field and renders from the
+    // message record; it is never duplicated into the text history.
+    const outgoingImage = pendingImage;
+    const userMsg = { role: 'user', content: trimmed, image: outgoingImage, ts: new Date().toISOString() };
 
     // 5. On retry, strip the last error message before re-sending
     const base = isRetry
@@ -384,6 +475,8 @@ function markProactiveDismissed() {
     const updated = [...base, userMsg];
     setMessages(updated);
     setInput('');
+    setPendingImage(null);
+    setImageError(null);
     setLoading(true);
     atBottomRef.current = true;
 
@@ -398,6 +491,7 @@ function markProactiveDismissed() {
         // Cap the history per turn to the server's context window. The
         // handoff card is UI chrome, not conversation, so it stays out.
         messages:    updated.filter(m => !m.handoff).slice(-MAX_CONTEXT_MESSAGES).map(m => ({ role: m.role, content: m.content })),
+        images:      outgoingImage ? [outgoingImage] : undefined,
         pageContext,
         language:    localStorage.getItem('oxs:language') || 'en',
         ...guideHelpPayload,
@@ -436,7 +530,7 @@ function markProactiveDismissed() {
       setLoading(false);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
-  }, [messages, loading, open, minimized, t]);
+  }, [messages, loading, open, minimized, pendingImage, t]);
 
   const handleSubmit = (e) => { e.preventDefault(); send(input); };
 
@@ -635,13 +729,13 @@ function markProactiveDismissed() {
                             <p className="text-gray-300 leading-relaxed mb-2.5">{m.content}</p>
                             <div className="flex items-center gap-2 flex-wrap">
                               <button
-                                onClick={() => handleEscalate()}
-                                className="px-3 py-1.5 bg-action hover:bg-action-hover text-on-action rounded-full text-xs font-semibold transition active:scale-95"
+                                onClick={() => handleChatEscalation()}
+                                disabled={escalating}
+                                className="px-3 py-1.5 bg-action hover:bg-action-hover text-on-action rounded-full text-xs font-semibold transition active:scale-95 disabled:opacity-50"
                               >
-                                {t('supportWidget.handoffTitle')}
+                                {escalating ? t('supportWidget.escalating') : t('supportWidget.handoffTitle')}
                               </button>
-                              <span className="text-[10px] text-gray-600">{formatTime(m.ts)}</span>
-                            </div>
+                              <span className="text-[10px] text-gray-600">{formatTime(m.ts)}</span>                            </div>
                           </div>
                         ) : (
                         <>
@@ -653,7 +747,14 @@ function markProactiveDismissed() {
                             ? 'bg-red-900/40 text-red-200 border border-red-800/50 rounded-bl-sm leading-relaxed'
                             : 'bg-gray-800 text-gray-100 rounded-bl-sm'
                         }`}>
-                          {/* 1. Markdown for AI messages */}
+                          {/* Gap #3: attached screenshot renders above the message text. */}
+                          {m.role === 'user' && m.image && (
+                            <img
+                              src={m.image}
+                              alt=""
+                              className="mb-1.5 max-w-full rounded-lg max-h-40 object-contain bg-black/20"
+                            />
+                          )}
                           {m.role === 'assistant' && !m.isError
                             ? renderMarkdown(m.content, (path) => navigate(path))
                             : m.content
@@ -761,8 +862,51 @@ function markProactiveDismissed() {
                   </div>
                 )}
 
+                {/* Gap #3: pending image preview with remove. */}
+                {pendingImage && (
+                  <div className="px-4 pt-2 flex-shrink-0">
+                    <div className="relative inline-block">
+                      <img src={pendingImage} alt="" className="h-16 rounded-lg object-contain bg-black/20 border border-gray-700" />
+                      <button
+                        type="button"
+                        onClick={() => setPendingImage(null)}
+                        aria-label={t('supportWidget.removeImage')}
+                        className="absolute -top-2 -end-2 w-5 h-5 bg-gray-700 hover:bg-red-600 text-white rounded-full text-[10px] leading-none transition"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {imageError && (
+                  <div className="px-4 pt-1 flex-shrink-0">
+                    <p className="text-[11px] text-red-400">{imageError}</p>
+                  </div>
+                )}
+
                 {/* Input composer */}
                 <form onSubmit={handleSubmit} className="flex items-end gap-2 px-4 py-3 border-t border-gray-800 flex-shrink-0">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    aria-hidden="true"
+                    tabIndex={-1}
+                    onChange={handleImageSelect}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={loading}
+                    aria-label={t('supportWidget.attachImage')}
+                    title={t('supportWidget.attachImage')}
+                    className="flex-shrink-0 p-2.5 text-gray-500 hover:text-orange-400 rounded-xl transition disabled:opacity-40 active:scale-95"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+                    </svg>
+                  </button>
                   <div className="flex-1 relative">
                     <textarea
                       ref={inputRef}
@@ -786,7 +930,7 @@ function markProactiveDismissed() {
                   </div>
                   <button
                     type="submit"
-                    disabled={loading || !input.trim()}
+                    disabled={loading || (!input.trim() && !pendingImage)}
                     className="flex-shrink-0 p-2.5 bg-action hover:bg-action-hover text-on-action rounded-xl transition disabled:opacity-40 active:scale-95"
                     aria-label={t('supportWidget.sendMessage')}
                   >

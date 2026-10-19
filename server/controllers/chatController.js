@@ -15,6 +15,9 @@ const { buildProfileAiFailurePayload } = require('../services/profileChatRouting
 const { withTransaction } = require('../utils/transaction');
 const { canEditProfile } = require('../utils/businessOwnership');
 const { getUserFinancialContext, formatFinancialContextForAI } = require('../services/userFinancialContextService');
+const { getSupportAccountSnapshot, formatSnapshotForAI } = require('../services/supportAccountSnapshot');
+const { getLaunchVisibility } = require('../middleware/launchGate');
+const supportChatThreads = require('../services/supportChatThreads');
 const { sanitizeMessage } = require('../utils/messageSanitizer');
 const { ensureBusinessConversation, mirrorMessage } = require('../services/businessConversationSync');
 const { sendNotification } = require('../services/notificationService');
@@ -93,6 +96,10 @@ const OPENROUTER_CHAT_MODEL = process.env.OPENROUTER_CHAT_MODEL
   || process.env.OPENROUTER_SUPPORT_MODEL
   || 'openrouter/free';
 
+// Vision-capable model used only when the user attaches an image (gap #3).
+const OPENROUTER_VISION_MODEL = process.env.OPENROUTER_VISION_MODEL
+  || 'google/gemma-3-27b-it:free';
+
 /**
  * Try OpenRouter (OpenAI-compatible chat completions). Requires OPENROUTER_API_KEY.
  */
@@ -170,10 +177,11 @@ async function fetchOllamaChat(messages, options) {
  * @param {object} options - reserved for future use
  */
 async function callWithFallback(messages, ollamaOptions, logTag, options = {}) {
+  const openRouterModel = options.openRouterModel || OPENROUTER_CHAT_MODEL;
   const attempts = [
     {
-      name: `OpenRouter (${OPENROUTER_CHAT_MODEL})`,
-      run: () => fetchOpenRouterChat(OPENROUTER_CHAT_MODEL, messages),
+      name: `OpenRouter (${openRouterModel})`,
+      run: () => fetchOpenRouterChat(openRouterModel, messages),
     },
     {
       name: `Ollama (${process.env.OLLAMA_MODEL || 'qwen2.5:3b'})`,
@@ -282,8 +290,42 @@ exports.chatMessage = async (req, res, next) => {
       systemPrompt += `\n\n## Signed-in State\nThe user is not signed in. When the next step requires an account, say so first and point them to /login before the action.`;
     }
 
+    // Launch-flag awareness (gap #4): the guide lists products whose
+    // availability depends on launch flags; give the model the actual states
+    // so it never recommends a product the user cannot access.
+    {
+      const vis = getLaunchVisibility();
+      const off = Object.entries(vis).filter(([, v]) => !v).map(([k]) => k);
+      const on = Object.entries(vis).filter(([, v]) => v).map(([k]) => k);
+      systemPrompt += '\n\n## Product Availability (launch flags, authoritative)';
+      if (off.length) systemPrompt += `\nNot launched / disabled, do not recommend: ${off.join(', ')}.`;
+      if (on.length) systemPrompt += `\nLaunched: ${on.join(', ')}.`;
+    }
+
+    // Live account snapshot (gaps #1 and #9): signed-in users get their own
+    // balances, payout, disputes, jobs and tickets so money answers cite
+    // real values instead of guessing. Each section fails open.
+    if (req.user?.id) {
+      const snapshot = await getSupportAccountSnapshot(req.user.id);
+      const formatted = formatSnapshotForAI(snapshot);
+      if (formatted) systemPrompt += `\n\n${formatted}`;
+    }
+
+    // Image attachments (gap #3): one image per message, validated data URL.
+    // When present, the vision model handles this turn instead of the text model.
+    let visionImageUrl = null;
+    {
+      const images = Array.isArray(req.body.images) ? req.body.images : [];
+      for (const img of images.slice(0, 1)) {
+        const m = typeof img === 'string'
+          && /^data:image\/(png|jpe?g|webp);base64,([A-Za-z0-9+/=]+)$/.exec(img);
+        // ~2.8M base64 chars ~= 2MB; larger images are ignored, not rejected.
+        if (m && m[2].length <= 2800000) { visionImageUrl = img; break; }
+      }
+    }
+
     // Sanitize and limit conversation history
-    const history = messages
+    let history = messages
       .slice(-12)
       .map(m => ({
         role: ['user', 'assistant'].includes(m.role) ? m.role : 'user',
@@ -291,9 +333,44 @@ exports.chatMessage = async (req, res, next) => {
       }))
       .filter(m => m.content.trim());
 
+    // Server-side thread memory (gap #5): for signed-in users the Redis
+    // thread is authoritative, so context survives devices and storage wipes.
+    // The client's newest message is appended when it is not the thread tail.
+    if (req.user?.id) {
+      const prior = await supportChatThreads.getSupportThread(req.user.id);
+      if (prior.length) {
+        const latestClient = history[history.length - 1];
+        history = prior.map(({ role, content }) => ({ role, content }));
+        const tail = history[history.length - 1];
+        if (latestClient && latestClient.role === 'user' &&
+            !(tail && tail.role === 'user' && tail.content === latestClient.content)) {
+          history.push(latestClient);
+        }
+        history = history.slice(-12);
+      }
+    }
+
+    // Attach the validated image to the latest user turn in vision format.
+    // This runs on a copy: the handoff heuristic above reads string content.
+    const visionHistory = visionImageUrl ? history.map((m) => ({ ...m })) : history;
+    if (visionImageUrl) {
+      const idx = visionHistory.map(m => m.role).lastIndexOf('user');
+      if (idx >= 0) {
+        visionHistory[idx] = {
+          role: 'user',
+          content: [
+            { type: 'text', text: visionHistory[idx].content },
+            { type: 'image_url', image_url: { url: visionImageUrl } },
+          ],
+        };
+      } else {
+        visionImageUrl = null;
+      }
+    }
+
     const ollamaMessages = [
       { role: 'system', content: systemPrompt },
-      ...history,
+      ...visionHistory,
     ];
 
     // Handoff heuristic runs on the sanitized history for every AI turn.
@@ -303,7 +380,9 @@ exports.chatMessage = async (req, res, next) => {
     // language triggers the provider call; identical requests are then served
     // from Redis for one year instead of calling the provider again.
     let guideCacheCtx = null;
-    if (guide_help?.guide_id) {
+    // Image turns skip the text-only guide cache: a cached reply cannot
+    // describe an image it never saw.
+    if (guide_help?.guide_id && !visionImageUrl) {
       guideCacheCtx = {
         guide_id: guide_help.guide_id,
         step: guide_help.step ?? 0,
@@ -327,11 +406,24 @@ exports.chatMessage = async (req, res, next) => {
       '[Chat]',
       // Meta tokens are never spent on unauthenticated requests: anonymous
       // callers get the free-tier chain with the same UX.
-      { allowMeta: Boolean(req.user) }
+      // Vision turns use the vision-capable model instead of the text model.
+      { allowMeta: Boolean(req.user), openRouterModel: visionImageUrl ? OPENROUTER_VISION_MODEL : undefined }
     );
 
     if (!ai.ok) {
       throw new AppError('AI service temporarily unavailable', 502, 'external_service_error');
+    }
+
+    // Persist the turn for signed-in users (gap #5). Fire-and-forget by
+    // design: the helper never throws and the reply must not wait on Redis.
+    if (req.user?.id) {
+      const lastUser = [...history].reverse().find(m => m.role === 'user');
+      const lastUserText = typeof lastUser?.content === 'string'
+        ? lastUser.content
+        : Array.isArray(lastUser?.content)
+          ? String(lastUser.content.find(p => p?.type === 'text')?.text || '')
+          : '';
+      supportChatThreads.appendSupportThread(req.user.id, lastUserText, ai.reply);
     }
 
     if (guideCacheCtx) {

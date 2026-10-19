@@ -11201,7 +11201,13 @@
     "proactiveHelpers": "W ap chèche bon moun pou ede w? Mwen ka esplike kijan OxSteed mache.",
     "errorMessage": "Padon, mwen gen yon pwoblèm kounye a. Tanpri eseye ankò oswa voye imèl bay **support@oxsteed.com**.",
     "handoffTitle": "Pale ak yon moun",
-    "handoffText": "Sa ka bezwen yon touche imen. Yon espesyalis sipò ka ede w dirèkteman."
+    "handoffText": "Sa ka bezwen yon touche imen. Yon espesyalis sipò ka ede w dirèkteman.",
+    "attachImage": "Tache yon ekran oswa yon foto",
+    "removeImage": "Retire imaj la",
+    "imageTooLarge": "Imaj sa a twò gwo. Chwazi youn ki pi piti pase 2 MB.",
+    "escalated": "Fèt. Sipò gen konvèsasyon ou a epi l ap kontakte ou pa imèl.",
+    "escalateFailed": "Nou pa t ka jwenn sipò kounye a. Eseye ankò.",
+    "escalating": "Ap transfere..."
   },
   "errorBoundary": {
     "title": "Yon bagay te mal pase",

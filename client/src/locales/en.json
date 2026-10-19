@@ -11201,7 +11201,13 @@
     "proactiveHelpers": "Looking for the right helper? I can help you understand how OxSteed works!",
     "errorMessage": "Sorry, I'm having trouble right now. Please try again or email **support@oxsteed.com**.",
     "handoffTitle": "Talk to a human",
-    "handoffText": "This might need a human touch. A support specialist can pick this up with you directly."
+    "handoffText": "This might need a human touch. A support specialist can pick this up with you directly.",
+    "attachImage": "Attach a screenshot or photo",
+    "removeImage": "Remove image",
+    "imageTooLarge": "That image is too large. Please choose one under 2 MB.",
+    "escalated": "Done. Support has your chat and will follow up by email.",
+    "escalateFailed": "Couldn't reach support just now. Please try again.",
+    "escalating": "Handing off..."
   },
   "errorBoundary": {
     "title": "Something went wrong",

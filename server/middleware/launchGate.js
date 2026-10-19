@@ -92,6 +92,23 @@ function isLaunchGateDisabled() {
   return String(process.env.LAUNCH_GATE_DISABLED || '').toLowerCase() === 'true';
 }
 
+/**
+ * Product launch states for AI/support contexts (gap #4: launch-flag
+ * blindness). Mirrors LAUNCH_VISIBILITY plus the main env-gated products
+ * so the assistant never recommends a product the user cannot access.
+ */
+function getLaunchVisibility() {
+  const on = (v) => String(v || '').trim().toLowerCase() === 'true';
+  return {
+    templates: false,
+    productMarketplace: false,
+    specializedProfileTemplates: false,
+    oxsteedMedia: LAUNCH_VISIBILITY.oxsteedMedia,
+    affiliate: on(process.env.AFFILIATE_ENABLED),
+    logisticsPayments: on(process.env.LOGISTICS_PAYMENTS_ENABLED),
+  };
+}
+
 function matchesPrefix(path, prefix) {
   return path === prefix || path.startsWith(`${prefix}/`);
 }
@@ -129,5 +146,6 @@ module.exports = {
   launchGate,
   GATED_PREFIXES,
   LAUNCH_VISIBILITY,
+  getLaunchVisibility,
   _resolveRequestPath: resolveRequestPath,
 };

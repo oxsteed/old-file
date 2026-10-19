@@ -377,6 +377,84 @@ exports.submitSupportRequest = async (req, res, next) => {
 
 // ─── USER (authenticated) ─────────────────────────────────────────────────────
 
+/**
+ * POST /api/support/chat-escalation
+ * Gap #8: one-click handoff from the AI support chat. Creates a ticket with
+ * category 'chat_escalation' carrying the conversation transcript, so the
+ * user does not start over with support. Requires auth: identity comes from
+ * the session, never from client-supplied name/email.
+ */
+exports.createChatEscalation = async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) throw new AppError('Sign in required', 401, 'unauthorized');
+
+    const { subject, transcript, page } = req.body || {};
+    const turns = Array.isArray(transcript) ? transcript.slice(-20) : [];
+    const transcriptText = turns
+      .map((t) => {
+        const who = t?.role === 'user' ? 'User' : 'Ox';
+        return `${who}: ${String(t?.content || '').slice(0, 1500)}`;
+      })
+      .filter((line) => line.length > 4)
+      .join('\n\n')
+      .slice(0, 12000);
+
+    const { rows: urows } = await db.query(
+      'SELECT first_name, last_name, email FROM users WHERE id = $1',
+      [userId]
+    );
+    const u = urows[0] || {};
+    const name = `${u.first_name || ''} ${u.last_name || ''}`.trim() || 'OxSteed user';
+    const email = (u.email || '').trim().toLowerCase();
+    if (!email) throw new AppError('Account email is required', 400, 'validation_failed');
+
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const ticketRes = await client.query(
+        `INSERT INTO support_tickets
+           (user_id, name, email, subject, category, priority, status, source, metadata, sla_due_at)
+         VALUES ($1, $2, $3, $4, 'chat_escalation', 'high', 'open', 'widget', $5::jsonb,
+                 NOW() + INTERVAL '4 hours')
+         RETURNING id, ticket_number`,
+        [
+          userId,
+          name,
+          email,
+          String(subject || 'Chat escalation').slice(0, 500),
+          JSON.stringify({
+            page: typeof page === 'string' ? page.slice(0, 200) : null,
+            transcript: transcriptText || '(no transcript captured)',
+          }),
+        ]
+      );
+      const ticket = ticketRes.rows[0];
+      await client.query(
+        `INSERT INTO support_messages
+           (ticket_id, sender_id, sender_name, sender_email, content,
+            sender_language, is_internal, is_from_admin)
+         VALUES ($1, $2, $3, $4, $5, 'en', false, false)`,
+        [ticket.id, userId, name, email, transcriptText || '(no transcript captured)']
+      );
+      await client.query('COMMIT');
+      return res.status(201).json({
+        ticket_id: ticket.id,
+        ticket_number: ticket.ticket_number,
+        message: 'Handed off to support with your chat attached.',
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      logger.error('Failed to create chat escalation', { err });
+      throw new AppError('Failed to hand off to support', 500, 'escalation_failed');
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
 /** GET /api/support/my-tickets */
 exports.getMyTickets = async (req, res) => {
   try {
