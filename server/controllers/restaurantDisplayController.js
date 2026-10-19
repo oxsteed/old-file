@@ -151,7 +151,7 @@ async function issuePairingCode(req, res, next) {
     const { rows } = await pool.query('SELECT id FROM food_restaurants WHERE id = $1', [restaurantId]);
     if (!rows[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
 
-    // Codes live in a 32^6 space and the code_hash column is unique, so retry
+    // Codes live in a 31^6 space and the code_hash column is unique, so retry
     // a few times on the (astronomically unlikely) collision.
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const code = generatePairingCode();
@@ -258,8 +258,19 @@ async function pairingStatus(req, res, next) {
       // Token already delivered (or delivery already consumed): reveal nothing.
       return res.json({ claimed: true, label: row.label });
     }
+    // Decrypt BEFORE consuming the escrow: if decryption fails (e.g. a key
+    // rotation between claim and delivery) the escrow stays intact so the TV
+    // can retry instead of being stuck paired-but-tokenless forever.
+    let token;
+    try {
+      token = decrypt(row.pairing_token_encrypted);
+    } catch (decryptErr) {
+      logger.error('display pairing token decrypt failed', { pairingId: row.id });
+      throw new AppError('Pairing failed; request a new code', 500, 'delivery_failed');
+    }
     // Exactly-once delivery: the conditional UPDATE below nulls the escrow, so
-    // a racing second poll gets the "already delivered" branch above.
+    // a racing second poll gets the "already delivered" branch above and the
+    // already-decrypted token is simply not sent again.
     const { rows: delivered } = await pool.query(
       `UPDATE display_pairings
           SET token_delivered_at = NOW(), pairing_token_encrypted = NULL
@@ -269,13 +280,6 @@ async function pairingStatus(req, res, next) {
     );
     if (!delivered[0]) {
       return res.json({ claimed: true, label: row.label });
-    }
-    let token;
-    try {
-      token = decrypt(row.pairing_token_encrypted);
-    } catch (decryptErr) {
-      logger.error('display pairing token decrypt failed', { pairingId: row.id });
-      throw new AppError('Pairing failed; request a new code', 500, 'delivery_failed');
     }
     return res.json({ claimed: true, label: row.label, token });
   } catch (err) {
