@@ -2,6 +2,7 @@ const pool = require('../db');
 const { sendError, sendSuccess } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { canManageBusinessFinance } = require('../utils/businessOwnership');
+const { businessScopeSatisfies } = require('../middleware/scopeGates');
 
 // ── List business's required skills ──────────────────────────────────────────
 exports.listBusinessSkills = async (req, res) => {
@@ -74,7 +75,7 @@ exports.addBusinessSkill = async (req, res) => {
     }
 
     // Verify business exists and user has access (owner or manager)
-    const biz = await canManageBusinessFinance(req.user.id, businessId);
+    const biz = businessScopeSatisfies(req, businessId, 'manager') || await canManageBusinessFinance(req.user.id, businessId);
     if (!biz) {
       return sendError(res, 403, 'You do not have permission to manage this business');
     }
@@ -132,7 +133,7 @@ exports.updateBusinessSkill = async (req, res) => {
     const { isRequired, minYearsExperience } = req.body;
 
     // Verify user has access (owner or manager)
-    const biz = await canManageBusinessFinance(req.user.id, businessId);
+    const biz = businessScopeSatisfies(req, businessId, 'manager') || await canManageBusinessFinance(req.user.id, businessId);
     if (!biz) {
       return sendError(res, 403, 'You do not have permission to manage this business');
     }
@@ -215,7 +216,7 @@ exports.replaceBusinessSkills = async (req, res) => {
       });
     }
 
-    const biz = await canManageBusinessFinance(req.user.id, businessId);
+    const biz = businessScopeSatisfies(req, businessId, 'manager') || await canManageBusinessFinance(req.user.id, businessId);
     if (!biz) {
       return sendError(res, 403, 'You do not have permission to manage this business');
     }
@@ -274,7 +275,7 @@ exports.removeBusinessSkill = async (req, res) => {
     const { businessId, skillId } = req.params;
 
     // Verify user has access (owner or manager)
-    const biz = await canManageBusinessFinance(req.user.id, businessId);
+    const biz = businessScopeSatisfies(req, businessId, 'manager') || await canManageBusinessFinance(req.user.id, businessId);
     if (!biz) {
       return sendError(res, 403, 'You do not have permission to manage this business');
     }

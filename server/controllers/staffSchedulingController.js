@@ -1,4 +1,5 @@
 const pool = require('../db');
+const { businessScopeSatisfies } = require('../middleware/scopeGates');
 
 async function checkAccess(businessId, userId) {
   const { rows } = await pool.query(
@@ -15,7 +16,7 @@ exports.getWeekSchedule = async (req, res, next) => {
     const { businessId } = req.params;
     const { week_start } = req.query;
 
-    if (!await checkAccess(businessId, req.user.id)) return res.status(403).json({ error: 'Access denied' });
+    if (!(businessScopeSatisfies(req, businessId, 'manager') || await checkAccess(businessId, req.user.id))) return res.status(403).json({ error: 'Access denied' });
 
     const start = week_start ? new Date(week_start) : (() => {
       const d = new Date();
@@ -66,7 +67,7 @@ exports.createShift = async (req, res, next) => {
     const userId = req.user.id;
     const { user_id, shift_date, start_time, end_time, role_label, notes } = req.body;
 
-    if (!await checkAccess(businessId, userId)) return res.status(403).json({ error: 'Access denied' });
+    if (!(businessScopeSatisfies(req, businessId, 'manager') || await checkAccess(businessId, userId))) return res.status(403).json({ error: 'Access denied' });
     if (!user_id || !shift_date || !start_time || !end_time) {
       return res.status(400).json({ error: 'user_id, shift_date, start_time, end_time required' });
     }
@@ -97,7 +98,7 @@ exports.deleteShift = async (req, res, next) => {
     const { businessId, id } = req.params;
     const userId = req.user.id;
 
-    if (!await checkAccess(businessId, userId)) return res.status(403).json({ error: 'Access denied' });
+    if (!(businessScopeSatisfies(req, businessId, 'manager') || await checkAccess(businessId, userId))) return res.status(403).json({ error: 'Access denied' });
 
     const { rows } = await pool.query(
       'DELETE FROM business_staff_shifts WHERE id=$1 AND business_id=$2 RETURNING id',
@@ -116,7 +117,7 @@ exports.logHours = async (req, res, next) => {
     const userId = req.user.id;
     const { user_id, entry_date, hours_worked, description } = req.body;
 
-    if (!await checkAccess(businessId, userId)) return res.status(403).json({ error: 'Access denied' });
+    if (!(businessScopeSatisfies(req, businessId, 'manager') || await checkAccess(businessId, userId))) return res.status(403).json({ error: 'Access denied' });
     if (!user_id || !hours_worked) return res.status(400).json({ error: 'user_id and hours_worked required' });
 
     const memberCheck = await pool.query(
@@ -149,7 +150,7 @@ exports.getTimeEntries = async (req, res, next) => {
     const { businessId } = req.params;
     const { user_id, from_date, to_date } = req.query;
 
-    if (!await checkAccess(businessId, req.user.id)) return res.status(403).json({ error: 'Access denied' });
+    if (!(businessScopeSatisfies(req, businessId, 'manager') || await checkAccess(businessId, req.user.id))) return res.status(403).json({ error: 'Access denied' });
 
     const conditions = ['te.business_id = $1'];
     const params = [businessId];
@@ -187,7 +188,7 @@ exports.deleteTimeEntry = async (req, res, next) => {
     const { businessId, id } = req.params;
     const userId = req.user.id;
 
-    if (!await checkAccess(businessId, userId)) return res.status(403).json({ error: 'Access denied' });
+    if (!(businessScopeSatisfies(req, businessId, 'manager') || await checkAccess(businessId, userId))) return res.status(403).json({ error: 'Access denied' });
 
     const { rows } = await pool.query(
       'DELETE FROM business_time_entries WHERE id=$1 AND business_id=$2 RETURNING id',

@@ -1,13 +1,11 @@
 const pool = require('../db');
+const { businessScopeSatisfies } = require('../middleware/scopeGates');
+const { resolveBusinessAccess } = require('../services/scopeModel');
 
+// Owner or any active member. Was a hand-written business_members query on a
+// column (user_id) the table does not have; now the shared resolver.
 async function checkAccess(businessId, userId) {
-  const { rows } = await pool.query(
-    `SELECT role FROM business_members WHERE business_id=$1 AND user_id=$2 AND status='active'
-     UNION
-     SELECT 'owner' AS role FROM businesses WHERE id=$1 AND user_id=$2`,
-    [businessId, userId]
-  );
-  return rows.length > 0;
+  return Boolean(await resolveBusinessAccess(userId, businessId));
 }
 
 exports.list = async (req, res, next) => {
@@ -37,7 +35,7 @@ exports.create = async (req, res, next) => {
     const userId = req.user.id;
     const { name, category, subject, body, variables } = req.body;
 
-    if (!await checkAccess(businessId, userId)) return res.status(403).json({ error: 'Access denied' });
+    if (!(businessScopeSatisfies(req, businessId, 'any') || await checkAccess(businessId, userId))) return res.status(403).json({ error: 'Access denied' });
     if (!name?.trim()) return res.status(400).json({ error: 'name required' });
     if (!category) return res.status(400).json({ error: 'category required' });
     if (!body?.trim()) return res.status(400).json({ error: 'body required' });
@@ -60,7 +58,7 @@ exports.update = async (req, res, next) => {
     const userId = req.user.id;
     const { name, category, subject, body, variables } = req.body;
 
-    if (!await checkAccess(businessId, userId)) return res.status(403).json({ error: 'Access denied' });
+    if (!(businessScopeSatisfies(req, businessId, 'any') || await checkAccess(businessId, userId))) return res.status(403).json({ error: 'Access denied' });
 
     const { rows } = await pool.query(
       `UPDATE business_message_templates SET
@@ -86,7 +84,7 @@ exports.remove = async (req, res, next) => {
     const { businessId, id } = req.params;
     const userId = req.user.id;
 
-    if (!await checkAccess(businessId, userId)) return res.status(403).json({ error: 'Access denied' });
+    if (!(businessScopeSatisfies(req, businessId, 'any') || await checkAccess(businessId, userId))) return res.status(403).json({ error: 'Access denied' });
 
     const { rows } = await pool.query(
       'DELETE FROM business_message_templates WHERE id=$1 AND business_id=$2 RETURNING id',

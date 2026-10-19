@@ -3,6 +3,7 @@ const path = require('path');
 const { AppError } = require('../middleware/errorHandler');
 const jobSchema = require('../validation/jobSchema');
 const { canAccessBusinessTeam } = require('../utils/businessOwnership');
+const { businessScopeSatisfies } = require('../middleware/scopeGates');
 const { toPrivatePhotoRef, withHydratedPhotos, withHydratedPhotosList, resolvePhotoKey } = require('../utils/intakeMedia');
 const { copyObject, deleteFile, getPublicUrl } = require('../utils/storage');
 const { uploadFilesOrThrow } = require('../utils/uploadBatch');
@@ -271,7 +272,7 @@ exports.createRequest = async (req, res, next) => {
 exports.listBusinessRequests = async (req, res, next) => {
   try {
     const { businessId } = req.params;
-    const access = await canAccessBusinessTeam(req.user.id, businessId);
+    const access = businessScopeSatisfies(req, businessId, 'any') || await canAccessBusinessTeam(req.user.id, businessId);
     if (!access) throw new AppError('Business not found', 404, 'not_found');
 
     const status = req.query.status && VALID_STATUSES.has(req.query.status) ? req.query.status : null;

@@ -6,6 +6,7 @@ const imageFileFilter = require('../middleware/imageFileFilter');
 const profileImageController = require('../controllers/businessProfileImageController');
 
 const router = express.Router();
+const { scopeExempt } = require('../middleware/scopeGates');
 
 // Configure multer for image uploads
 const upload = multer({
@@ -47,18 +48,18 @@ router.delete('/cover-image', requireAuth, profileImageController.deleteCoverIma
  * Generate QR code for business profile
  * Query params: size (small/medium/large or custom px), format (dataurl/buffer/svg)
  */
-router.get('/:businessId/qr-code', profileImageController.generateQRCode);
+router.get('/:businessId/qr-code', scopeExempt('public-storefront'), profileImageController.generateQRCode);
 
 /**
  * GET /api/business-profile/:businessId/qr-code/multi-size
  * Generate QR codes in multiple sizes (small, medium, large)
  */
-router.get('/:businessId/qr-code/multi-size', profileImageController.generateMultiSizeQRCode);
+router.get('/:businessId/qr-code/multi-size', scopeExempt('public-storefront'), profileImageController.generateMultiSizeQRCode);
 
 /**
  * GET /api/business-profile/:businessId/public
  * Get business profile with cover image (public endpoint)
  */
-router.get('/:businessId/public', profileImageController.getBusinessProfileWithCover);
+router.get('/:businessId/public', scopeExempt('public-storefront'), profileImageController.getBusinessProfileWithCover);
 
 module.exports = router;

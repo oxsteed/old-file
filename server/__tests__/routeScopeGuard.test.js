@@ -78,6 +78,17 @@ describe('route scope guard', () => {
   });
 });
 
+describe('tenant routes mounted directly in index.js', () => {
+  test('carry a scope gate too', () => {
+    const fs = require('fs');
+    const src = fs.readFileSync(path.join(__dirname, '..', 'index.js'), 'utf8');
+    const lines = src.split('\n').filter((l) => /app\.(get|post|put|patch|delete|all)\(\s*['"][^'"]*:(businessId|restaurantId|bizId|business_id|restaurant_id)\b/.test(l));
+    const bad = lines.filter((l) => !/requireBusinessAccess|requireRestaurantAccess|requireSupportBusinessAccess|scopeExempt|requireAdmin|requireSuperAdmin/.test(l));
+    expect(lines.length).toBeGreaterThan(0);
+    expect(bad).toEqual([]);
+  });
+});
+
 describe('scope gate markers', () => {
   const { scopeExempt, requireRestaurantAccess, requireSupportBusinessAccess } = require('../middleware/scopeGates');
   const requireBusinessAccess = require('../middleware/requireBusinessAccess');

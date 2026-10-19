@@ -774,7 +774,7 @@ app.use('/api/admin/restaurant-payouts', adminRestaurantPayoutRoutes);
 app.use('/api/admin/featured-placements', adminFeaturedPlacementRoutes);
 app.use('/api/admin/message-notification-outbox', adminMessageOutboxRoutes);
 app.use('/api/admin/restaurant-media', adminRestaurantMediaRoutes);
-app.get('/api/business/:businessId/workspace/mobile-summary', require('./middleware/auth').authenticate, require('./controllers/mobileController').getBusinessMobileSummary);
+app.get('/api/business/:businessId/workspace/mobile-summary', require('./middleware/auth').authenticate, require('./middleware/requireBusinessAccess')({ minRole: 'any', resolvePermissions: false }), require('./controllers/mobileController').getBusinessMobileSummary);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/admin/orders', adminOrdersRoutes);
 app.use('/api/admin/products', adminProductsRoutes);

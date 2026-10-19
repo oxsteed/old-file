@@ -6,9 +6,10 @@ const controller = require('../controllers/professionalOperationsController');
 const { publicIntakeLimiter } = require('../middleware/rateLimiter');
 const { stripPrivilegedIntakeFields } = require('../middleware/publicIntake');
 const router = express.Router();
+const { scopeExempt } = require('../middleware/scopeGates');
 
-router.get('/public/:businessId', controller.getPublicWorkspace);
-router.post('/public/:businessId/intakes', publicIntakeLimiter, stripPrivilegedIntakeFields, controller.createEngagementRequest);
+router.get('/public/:businessId', scopeExempt('public-storefront'), controller.getPublicWorkspace);
+router.post('/public/:businessId/intakes', publicIntakeLimiter, stripPrivilegedIntakeFields, scopeExempt('public-intake'), controller.createEngagementRequest);
 
 router.get('/business/:businessId', authenticate, requireBusinessAccess.member(), controller.getBusinessWorkspace);
 router.put('/business/:businessId/settings', authenticate, requireBusinessAccess.manager(), controller.updateSettings);

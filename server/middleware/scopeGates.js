@@ -143,6 +143,16 @@ function supportScopeSatisfies(req, businessId, level) {
   return (SUPPORT_RANK[scope.supportLevel] || 0) >= (SUPPORT_RANK[level] || Infinity);
 }
 
+// Same idea for routes gated by requireBusinessAccess: a controller's local
+// role check can trust the gate's verified role for the same business.
+const BUSINESS_RANK = { owner: 5, manager: 4, representative: 3, support_agent: 2, employee: 1 };
+function businessScopeSatisfies(req, businessId, minRole = 'any') {
+  if (!req || !req.business || !req.businessRole || canonicalId(businessId) == null) return false;
+  if (String(req.business.id) !== String(canonicalId(businessId))) return false;
+  if (minRole === 'any') return true;
+  return (BUSINESS_RANK[req.businessRole] || 0) >= (BUSINESS_RANK[minRole] || Infinity);
+}
+
 // The only accepted exemption reasons. Adding one is a reviewed change to
 // this file; scopeExempt() throws at load time for anything else.
 const EXEMPT_REASONS = Object.freeze({
@@ -152,6 +162,8 @@ const EXEMPT_REASONS = Object.freeze({
   'customer-media': 'Restaurant media written by any signed-in customer; the controller checks poster/owner/moderator per media row.',
   'device-credential': 'Managed device routes authenticated by a per-device credential bound to :restaurantId (requireDeviceCredential), not a user session.',
   'applicant-self-service': 'Job applicant acting on their own application; the controller keys rows by the caller id.',
+  'public-intake': 'Anonymous or customer request addressed to a business (lead/quote request, intake form, waitlist, appointment, review, maintenance request); the controller only creates rows owned by the requester and applies the public visibility predicate.',
+  'signed-callback': 'Third-party redirect (Stripe Connect OAuth) authorized by a signed, expiring state token bound to the business and user, not a session.',
   'agent-self-service': "Support agent acting on their own employment record (clock-in, breaks, own shifts); the controller checks the agent row belongs to the caller or a manager.",
 });
 
@@ -180,6 +192,7 @@ module.exports = {
   requireSupportBusinessAccess,
   scopeExempt,
   supportScopeSatisfies,
+  businessScopeSatisfies,
   scopedBusinessId,
   scopedRestaurantId,
 };

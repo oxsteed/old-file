@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const requireBusinessAccess = require('../middleware/requireBusinessAccess');
 const { authenticate } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
@@ -19,7 +20,7 @@ router.delete('/push-token', authenticate, mobileController.unregisterPushToken)
 router.get('/feed', authenticate, mobileController.getFeed);
 router.get('/nearby', authenticate, mobileController.getNearby);
 router.post('/offline-sync', authenticate, mobileController.offlineSync);
-router.get('/business/:businessId/workspace/mobile-summary', authenticate, mobileController.getBusinessMobileSummary);
+router.get('/business/:businessId/workspace/mobile-summary', authenticate, requireBusinessAccess({ minRole: 'any', resolvePermissions: false }), mobileController.getBusinessMobileSummary);
 router.get('/payment-config', authenticate, mobileController.getPaymentConfig);
 // Review P2-7-F07: mobile payment surfaces honor admin checkout restrictions.
 router.post('/invoices/:invoiceId/payment-intent', strictLimiter, authenticate, rejectImpersonated, checkRestrictions('checkout'), mobileController.createInvoicePaymentIntent);

@@ -109,7 +109,8 @@ describe('P2-653 / P2-654 public intakes', () => {
   ])('%s public intake is rate limited and sanitized', (file, path) => {
     const router = require(`../routes/${file}`);
     const layer = router.stack.find((l) => l.route?.path === path && l.route.methods.post);
-    const names = layer.route.stack.map((s) => s.handle);
+    // scopeExempt() markers are no-ops recorded for the route scope guard.
+    const names = layer.route.stack.map((s) => s.handle).filter((h) => !(h.scopeGate && h.scopeGate.kind === 'exempt'));
     const { publicIntakeLimiter } = require('../middleware/rateLimiter');
     expect(names[0]).toBe(publicIntakeLimiter);
     expect(names[names.length - 2]).toBe(stripPrivilegedIntakeFields);

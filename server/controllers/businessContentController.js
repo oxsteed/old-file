@@ -2,6 +2,7 @@ const db = require('../db');
 const { sendError, sendSuccess } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { canAccessBusiness } = require('../utils/businessOwnership');
+const { businessScopeSatisfies } = require('../middleware/scopeGates');
 const { validateMediaUrl } = require('../utils/mediaUrlValidation');
 const { maybeUnpublishBusinessIfIncomplete } = require('./businessController');
 
@@ -135,7 +136,7 @@ exports.getBusinessServices = async (req, res) => {
     try {
       // If requesting all services (for Business Hub editing), require auth and ownership check
       if (showAll) {
-        const hasAccess = await canAccessBusiness(req.user?.id, businessId, ['owner', 'manager']);
+        const hasAccess = businessScopeSatisfies(req, businessId, 'manager') || await canAccessBusiness(req.user?.id, businessId, ['owner', 'manager']);
         if (!hasAccess) return sendError(res, 403, 'Access denied');
       } else {
         const gate = await resolveContentGate(req, client, businessId, 'services');
