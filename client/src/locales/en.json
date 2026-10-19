@@ -1,5 +1,7 @@
 {
   "governedKpis": {
+    "regionalUserCountry": "Your regions only · country confirmed: {{confirmed}} · unconfirmed: {{unconfirmed}}",
+    "userCountryHelp": "Users with an unconfirmed country are counted under the country on file, which defaults to US.",
     "title": "Governed metrics",
     "help": "Registry metrics for {{period}}, computed exactly like the query builder. Select a card to see the underlying records.",
     "loading": "Loading governed metrics…",

@@ -1,5 +1,7 @@
 {
   "governedKpis": {
+    "regionalUserCountry": "Rejyon ou yo sèlman · peyi konfime: {{confirmed}} · pa konfime: {{unconfirmed}}",
+    "userCountryHelp": "Itilizatè ki gen yon peyi ki pa konfime konte nan peyi ki anrejistre a, ki se Etazini pa defo.",
     "title": "Endikatè ofisyèl",
     "help": "Endikatè rejis la pou {{period}}, kalkile menm jan ak jeneratè demann lan. Chwazi yon kat pou wè dosye yo.",
     "loading": "N ap chaje endikatè ofisyèl yo…",

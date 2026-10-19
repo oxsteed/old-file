@@ -1,5 +1,7 @@
 {
   "governedKpis": {
+    "regionalUserCountry": "Solo tus regiones · país confirmado: {{confirmed}} · sin confirmar: {{unconfirmed}}",
+    "userCountryHelp": "Los usuarios con país sin confirmar se cuentan en el país registrado, que por defecto es EE. UU.",
     "title": "Métricas gobernadas",
     "help": "Métricas del registro para {{period}}, calculadas igual que en el generador de consultas. Selecciona una tarjeta para ver los registros subyacentes.",
     "loading": "Cargando métricas gobernadas…",

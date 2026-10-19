@@ -1,5 +1,7 @@
 {
   "governedKpis": {
+    "regionalUserCountry": "Vos régions uniquement · pays confirmé : {{confirmed}} · non confirmé : {{unconfirmed}}",
+    "userCountryHelp": "Les utilisateurs dont le pays n’est pas confirmé sont comptés dans le pays enregistré, par défaut les États-Unis.",
     "title": "Indicateurs gouvernés",
     "help": "Indicateurs du registre pour {{period}}, calculés exactement comme dans le générateur de requêtes. Sélectionnez une carte pour voir les enregistrements concernés.",
     "loading": "Chargement des indicateurs gouvernés…",

@@ -19,7 +19,7 @@ if (url) {
 jest.unmock('pg');
 jest.unmock('../db');
 const db = require('../db');
-const { applyRegionScope } = require('../analytics/regionScope');
+const { applyRegionScope, userCountryBreakdown } = require('../analytics/regionScope');
 
 const migration = fs.readFileSync(path.join(__dirname, '..', 'migrations', '908_users_country_confirmation.sql'), 'utf8')
   // Functions are created in the test schema, not public.
@@ -72,12 +72,13 @@ const migration = fs.readFileSync(path.join(__dirname, '..', 'migrations', '908_
     await db.query(`UPDATE users SET country = 'US' WHERE id=$1`, [ids.defaulted]);
   });
 
-  test('country regions ignore unconfirmed default countries', async () => {
+  test('decision 4: unconfirmed users count under their stored country', async () => {
     await add('stillDefault', { zip_code: '60601', state: 'IL' });
     await db.query('INSERT INTO consulting_sessions(user_id) VALUES($1)', [ids.stillDefault]);
     const us = await scopedUsers([{ type: 'country_only', countries: ['US'] }]);
     expect(us.has(ids.usEvidence)).toBe(true);
-    expect(us.has(ids.stillDefault)).toBe(false);
+    expect(us.has(ids.stillDefault)).toBe(true);
+    expect(us.has(ids.haiti)).toBe(false);
     const ht = await scopedUsers([{ type: 'country_only', countries: ['HT'] }]);
     expect([...ht]).toEqual([ids.haiti]);
     // ZIP ranges still match on the address on file, confirmed or not.
@@ -85,11 +86,22 @@ const migration = fs.readFileSync(path.join(__dirname, '..', 'migrations', '908_
     expect(zips.has(ids.stillDefault)).toBe(true);
   });
 
-  test('geo_radius matches confirmed-US users by ZIP centroid; no coordinates, no match', async () => {
+  test('decision 4: confirmed and unconfirmed users are counted separately', async () => {
+    const scope = { global: false, regions: [{ type: 'country_only', countries: ['US'] }] };
+    const breakdown = await userCountryBreakdown(db, scope, ['SELECT user_id FROM consulting_sessions']);
+    const { rows } = await db.query(`SELECT COUNT(*) FILTER (WHERE country_confirmed)::INT AS c,
+      COUNT(*) FILTER (WHERE NOT country_confirmed)::INT AS u FROM users WHERE country = 'US'`);
+    expect(breakdown).toEqual({ basis: 'stored_country', defaultCountry: 'US', confirmed: rows[0].c, unconfirmed: rows[0].u, tables: ['consulting_sessions'] });
+    expect(breakdown.unconfirmed).toBeGreaterThan(0);
+    expect(await userCountryBreakdown(db, { global: true }, ['SELECT 1 FROM consulting_sessions'])).toBeNull();
+    expect(await userCountryBreakdown(db, scope, ['SELECT id FROM food_restaurants'])).toBeNull();
+  });
+
+  test('geo_radius matches US users (stored country) by ZIP centroid; no coordinates, no match', async () => {
     const chicago = await scopedUsers([{ type: 'geo_radius', lat: 41.88, lng: -87.63, radius_miles: 25 }]);
     expect(chicago.has(ids.usEvidence)).toBe(true);
     expect(chicago.has(ids.usFar)).toBe(false);
-    expect(chicago.has(ids.stillDefault)).toBe(false);
+    expect(chicago.has(ids.stillDefault)).toBe(true);
     expect(chicago.has(ids.haiti)).toBe(false);
   });
 });
