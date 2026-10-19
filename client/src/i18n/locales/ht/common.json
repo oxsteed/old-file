@@ -96,7 +96,8 @@
       "evidence": "Dosye sous yo",
       "execution": "Rechèch",
       "export": "Ekspòtasyon",
-      "nl_parse": "Entèpretasyon"
+      "nl_parse": "Entèpretasyon",
+      "trend": "Tandans"
     },
     "comparison": "Konpare ak",
     "absolute": "Papòt fiks",
@@ -4639,7 +4640,24 @@
     "regionScopedNotice": "Liy yo limite a rejyon yo ba ou yo",
     "regionScopedHint": "Pèmisyon ou pou mezi sa a se rejyonal, kidonk total, dosye ak ekspòtasyon yo gen sèlman liy ki nan rejyon ou yo.",
     "errorRegionUnknown": "Pèmisyon rejyonal ou pa koresponn ak okenn rejyon ki konnen. Mande yon super administratè pou korije rejyon an oswa pèmisyon an.",
-    "errorRegionUnsupported": "Nou poko ka limite mezi sa a a rejyon ou yo, kidonk li pa disponib ak yon pèmisyon rejyonal."
+    "errorRegionUnsupported": "Nou poko ka limite mezi sa a a rejyon ou yo, kidonk li pa disponib ak yon pèmisyon rejyonal.",
+    "trend": {
+      "title": "Tandans chak jou",
+      "subtitle": "Valè chak jou ki soti nan foto lannuit mezi gouvène sa a, ak menm definisyon ak demann ki anwo a. Jou yo an UTC; jodi a parèt lè li fini.",
+      "daysOption": "{{count}} jou",
+      "currencyLabel": "Lajan",
+      "loading": "N ap chaje tandans lan…",
+      "empty": "Poko gen foto pou zòn ou. Travay lannuit lan ranpli l nan yon jou.",
+      "error": "Nou pa t ka chaje tandans lan. Eseye ankò.",
+      "pointInTime": "Mezi sa a se yon kont eta aktyèl la, yo pran l yon fwa pa jou; istwa li kòmanse lè yo te kòmanse pran l.",
+      "definitionChanged": "Definisyon mezi a chanje pandan peryòd sa a; ansyen pwen yo te sèvi ak definisyon anvan an.",
+      "summary": "{{count}} jou · dènye {{latest}} · pi ba {{min}} · pi wo {{max}}",
+      "lastUpdated": "Foto mete ajou {{time}}",
+      "showData": "Montre valè chak jou",
+      "date": "Jou (UTC)",
+      "value": "Valè",
+      "daysLabel": "Peryòd tandans lan"
+    }
   },
   "helperDashboard": {
     "jobEarnings": {

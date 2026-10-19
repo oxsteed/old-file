@@ -34,6 +34,9 @@ const {
 const { parseUtterance, describeQuery } = require('../analytics/nlParser');
 const { permittedMetrics, permittedMetricScopes, assertMetricAccess } = require('../analytics/metricAccess');
 const { modelTranslationAvailable,translateWithModel }=require('../analytics/nlModelTranslator');
+const snapshots = require('../analytics/metricSnapshots');
+const { logAdminAction } = require('../services/auditService');
+const logger = require('../utils/logger');
 
 async function getMeta(req, res, next) {
   try {
@@ -41,7 +44,7 @@ async function getMeta(req, res, next) {
     const scopes = await permittedMetricScopes(req.user);
     const meta = getBuilderMeta(Object.keys(scopes));
     // scope per metric: 'global' or 'regional' (rows limited to assigned regions).
-    meta.metrics = meta.metrics.map(m => ({ ...m, scope: scopes[m.name] }));
+    meta.metrics = meta.metrics.map(m => ({ ...m, scope: scopes[m.name], trend: snapshots.isSnapshotMetric(m.name) }));
     res.json({...meta,nlModelAvailable:modelTranslationAvailable()});
   } catch (err) {
     next(err);
@@ -152,4 +155,70 @@ async function getHistory(req, res, next) {
   } catch (error) { next(error); }
 }
 
-module.exports = { getMeta, runQuery, parseNl, getHistory };
+const TREND_DAYS = Object.freeze([30, 90, 180, 365]);
+
+// Governed trend series from the nightly snapshot store. Scoped exactly like
+// live reads (global grant or the caller's own regional territory) and
+// audited before disclosure (fail closed).
+async function getTrend(req, res, next) {
+  const startedAt = Date.now();
+  const metric = String(req.query.metric || '');
+  const audit = { userId: req.user?.id, metricName: metric || 'unknown', eventType: 'trend', success: false };
+  try {
+    res.set('Cache-Control', 'private, no-store');
+    if (!snapshots.isSnapshotMetric(metric)) throw new AppError('This metric has no trend series', 400, 'invalid_metric');
+    const days = Number(req.query.days || 90);
+    if (!TREND_DAYS.includes(days)) throw new AppError(`Invalid days: expected one of ${TREND_DAYS.join(', ')}`, 400, 'invalid_param');
+    const currency = String(req.query.currency || 'USD').toUpperCase();
+    if (!/^[A-Z]{3}$/.test(currency)) throw new AppError('Invalid currency', 400, 'invalid_param');
+    const scope = await assertMetricAccess(req.user, metric);
+    audit.scope = scope;
+    audit.period = `${days}d`;
+    audit.filters = { currency };
+    const trend = await snapshots.readTrend(db, scope, { metric, days, currency });
+    await auditAttempt(db, { ...audit, success: true, rowCount: trend.points.length, durationMs: Date.now() - startedAt });
+    res.json(trend);
+  } catch (err) {
+    if (err.code !== 'analytics_audit_unavailable') {
+      try { await auditAttempt(db, { ...audit, durationMs: Date.now() - startedAt, errorCode: err.code || 'trend_error' }); }
+      catch (auditError) { return next(auditError); }
+    }
+    next(err);
+  }
+}
+
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// Super admin: queue a backfill (optionally recomputing existing rows). The
+// action is audited before it starts; the run itself is fenced and reported
+// through listSnapshotRuns.
+async function startSnapshotBackfill(req, res, next) {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const from = String(body.from || ''), to = String(body.to || '');
+    if (!DAY_RE.test(from) || !DAY_RE.test(to)) throw new AppError('Invalid range: from/to must be YYYY-MM-DD', 400, 'invalid_param');
+    const yesterday = snapshots.addDays(snapshots.utcDay(new Date()), -1);
+    if (from > to || to > yesterday || snapshots.dayRange(from, to).length > 400) {
+      throw new AppError('Invalid range: closed UTC days only, at most 400 days', 400, 'invalid_param');
+    }
+    const recompute = body.recompute === true;
+    await logAdminAction({ adminId: req.user.id, action: 'analytics_snapshot_backfill', targetType: 'metric_snapshots',
+      targetKey: `${from}..${to}`, after: { from, to, recompute }, req, throwOnError: true });
+    const { runMetricSnapshots } = require('../jobs/metricSnapshots');
+    runMetricSnapshots({ kind: 'backfill', from, to, recompute, requestedBy: req.user.id })
+      .catch(error => logger.warn('Metric snapshot backfill failed', { code: error.code }));
+    res.status(202).json({ accepted: true, from, to, recompute });
+  } catch (err) { next(err); }
+}
+
+async function listSnapshotRuns(req, res, next) {
+  try {
+    res.set('Cache-Control', 'private, no-store');
+    const { rows } = await db.query(`SELECT id, kind, to_char(from_date,'YYYY-MM-DD') AS from_date,
+        to_char(to_date,'YYYY-MM-DD') AS to_date, status, recompute, rows_written, error_code, started_at, finished_at
+      FROM metric_snapshot_runs ORDER BY id DESC LIMIT 30`);
+    res.json({ runs: rows });
+  } catch (err) { next(err); }
+}
+
+module.exports = { getMeta, runQuery, parseNl, getHistory, getTrend, startSnapshotBackfill, listSnapshotRuns };

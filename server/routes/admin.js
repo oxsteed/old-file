@@ -1113,6 +1113,9 @@ router.get('/analytics/query-builder/meta', requireAdmin, analyticsQueryCtrl.get
 router.get('/analytics/query-builder/history', requireAdmin, analyticsQueryCtrl.getHistory);
 router.post('/analytics/query-builder/run', requireAdmin, analyticsQueryCtrl.runQuery);
 router.post('/analytics/query-builder/nl-parse', requireAdmin, analyticsQueryCtrl.parseNl);
+router.get('/analytics/query-builder/trend', requireAdmin, analyticsQueryCtrl.getTrend);
+router.get('/analytics/snapshots/runs', requireSuperAdmin, analyticsQueryCtrl.listSnapshotRuns);
+router.post('/analytics/snapshots/backfill', requireSuperAdmin, analyticsQueryCtrl.startSnapshotBackfill);
 router.get('/settings/me/api-keys', requireAdmin, selfSettingsCtrl.listMyApiKeys);
 router.post('/settings/me/api-keys', requireAdmin, selfSettingsCtrl.createMyApiKey);
 router.delete('/settings/me/api-keys/:keyId', requireAdmin, selfSettingsCtrl.revokeMyApiKey);

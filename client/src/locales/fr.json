@@ -96,7 +96,8 @@
       "evidence": "Enregistrements sources",
       "execution": "Requête",
       "export": "Exportation",
-      "nl_parse": "Interprétation"
+      "nl_parse": "Interprétation",
+      "trend": "Tendance"
     },
     "comparison": "Comparer avec",
     "absolute": "Seuil fixe",
@@ -203,7 +204,24 @@
     "regionScopedNotice": "Lignes limitées à vos régions attribuées",
     "regionScopedHint": "Votre autorisation pour cet indicateur est régionale : les totaux, les enregistrements et les exports ne comprennent que les lignes situées dans vos régions.",
     "errorRegionUnknown": "Votre autorisation régionale ne correspond à aucune région connue. Demandez à un super administrateur de corriger la région ou l’autorisation.",
-    "errorRegionUnsupported": "Cet indicateur ne peut pas encore être limité à vos régions ; il n’est donc pas disponible avec une autorisation régionale."
+    "errorRegionUnsupported": "Cet indicateur ne peut pas encore être limité à vos régions ; il n’est donc pas disponible avec une autorisation régionale.",
+    "trend": {
+      "title": "Tendance quotidienne",
+      "subtitle": "Valeurs quotidiennes issues de l’instantané nocturne de cet indicateur gouverné, avec la même définition que la requête ci-dessus. Les jours sont en UTC ; la journée en cours apparaît une fois terminée.",
+      "daysOption": "{{count}} jours",
+      "currencyLabel": "Devise",
+      "loading": "Chargement de la tendance…",
+      "empty": "Aucun instantané n’est encore disponible pour votre périmètre. Le traitement nocturne le remplit sous un jour.",
+      "error": "Impossible de charger la tendance. Réessayez.",
+      "pointInTime": "Cet indicateur est un décompte de l’état actuel, relevé une fois par jour ; son historique commence au début des relevés.",
+      "definitionChanged": "La définition de l’indicateur a changé pendant cette période ; les points plus anciens utilisaient la définition précédente.",
+      "summary": "{{count}} jours · dernier {{latest}} · minimum {{min}} · maximum {{max}}",
+      "lastUpdated": "Instantané mis à jour {{time}}",
+      "showData": "Afficher les valeurs quotidiennes",
+      "date": "Jour (UTC)",
+      "value": "Valeur",
+      "daysLabel": "Plage de la tendance"
+    }
   },
   "customerWorkspace": {
     "title": "Espace client",

@@ -324,7 +324,7 @@ function buildCancelRate(query) {
       COUNT(*)::INT AS total
       FROM jobs j
       WHERE j.deleted_at IS NULL AND ${userPredicate}
-        AND j.created_at >= NOW() - $1::interval`);
+        AND j.created_at >= NOW() - $1::interval AND j.created_at < NOW()`);
     if (pieces.length === 1) params.push(...localParams.slice(1));
   }
   // All cohort SELECTs share the same parameter layout ($1 = interval,
@@ -339,7 +339,7 @@ function buildSlaCompliance(query) {
   const target = registry.slaFirstResponseTargetSql('sc', 'sla_tgt');
   const metExpr = `SUM(CASE WHEN sc.first_response_at IS NOT NULL AND sc.first_response_at <= (${target}) THEN 1 ELSE 0 END)`;
   const eligibleExpr = `COUNT(*) FILTER (WHERE sc.first_response_at IS NOT NULL OR NOW() > (${target}))`;
-  const where = [`sc.status <> 'merged'`, `sc.created_at >= NOW() - $1::interval`];
+  const where = [`sc.status <> 'merged'`, `sc.created_at >= NOW() - $1::interval`, `sc.created_at < NOW()`];
   if (query.filters.businessId != null) {
     params.push(query.filters.businessId);
     where.push(`sc.business_id = $${params.length}::INTEGER`);
@@ -381,7 +381,7 @@ function buildSupportNps(query) {
            JOIN support_conversations sc ON sc.id = scr.conversation_id
            ${joinBusiness}
            WHERE scr.nps_score IS NOT NULL
-             AND scr.created_at >= NOW() - $1::INTERVAL
+             AND scr.created_at >= NOW() - $1::INTERVAL AND scr.created_at < NOW()
              AND ($2::INTEGER IS NULL OR sc.business_id = $2::INTEGER)
            ${groupBy}`,
     params,
@@ -434,7 +434,7 @@ function buildRestaurantRepeatRate(query, scope) {
     text: `WITH identified AS (
              SELECT fo.restaurant_id, fo.customer_id, fo.id
                FROM food_orders fo
-              WHERE fo.created_at >= NOW() - $1::INTERVAL
+              WHERE fo.created_at >= NOW() - $1::INTERVAL AND fo.created_at < NOW()
                 AND ${paidOrderPredicate()}
                 AND fo.customer_id IS NOT NULL
            ),
@@ -491,7 +491,7 @@ function buildRestaurantTopItems(query, scope) {
                FROM food_order_items foi
                JOIN food_orders fo ON fo.id = foi.order_id
               WHERE ${orderPredicate}
-                AND fo.created_at >= NOW() - $1::INTERVAL
+                AND fo.created_at >= NOW() - $1::INTERVAL AND fo.created_at < NOW()
                 AND ${paidOrderPredicate()}
               GROUP BY fo.restaurant_id, 2, UPPER(fo.currency_code)
            )
@@ -524,7 +524,7 @@ function buildSingleValue(query) {
                        / NULLIF(COUNT(*) FILTER (WHERE status IN ('completed', 'cancelled')), 0), 1)::FLOAT AS cancel_rate_pct,
                      COUNT(*) FILTER (WHERE status = 'cancelled')::INT AS cancelled,
                      COUNT(*) FILTER (WHERE status IN ('completed', 'cancelled'))::INT AS decided
-               FROM consulting_sessions WHERE created_at >= NOW() - $1::interval`,
+               FROM consulting_sessions WHERE created_at >= NOW() - $1::interval AND created_at < NOW()`,
         params: [interval],
         columns: ['cancel_rate_pct', 'cancelled', 'decided'],
       };
@@ -532,7 +532,7 @@ function buildSingleValue(query) {
       return {
         text: `SELECT AVG(nps_score)::FLOAT AS avg_nps, COUNT(*)::INT AS responses
                FROM consulting_session_feedback
-               WHERE nps_score IS NOT NULL AND created_at >= NOW() - $1::interval`,
+               WHERE nps_score IS NOT NULL AND created_at >= NOW() - $1::interval AND created_at < NOW()`,
         params: [interval],
         columns: ['avg_nps', 'responses'],
       };

@@ -17,6 +17,7 @@ import api from '../../api/axios';
 import logger from '../../utils/logger';
 import { formatAnalyticsCell, analyticsCsv } from '../../utils/analyticsFormat';
 import { useAuth } from '../../hooks/useAuth';
+import MetricTrendPanel from '../../components/analytics/MetricTrendPanel';
 import './AdminQueryBuilderPage.css';
 
 const PERIOD_LABELS = {
@@ -644,6 +645,7 @@ function QueryBuilderWorkspace() {
           </nav>}
         </section>
       )}
+      {activeMetric?.trend && <MetricTrendPanel key={activeMetric.name} metric={activeMetric.name} regional={activeMetric.scope === 'regional'} />}
       <section className="qb-results" aria-busy={historyLoading}>
         <h2>{t('analyticsCompletion.history')}</h2>
         <button className="qb-btn qb-btn-secondary" disabled={historyLoading} onClick={() => loadHistory()}>{t('analyticsCompletion.loadHistory')}</button>

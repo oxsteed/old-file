@@ -96,7 +96,8 @@
       "evidence": "Underlying records",
       "execution": "Query",
       "export": "Export",
-      "nl_parse": "Interpretation"
+      "nl_parse": "Interpretation",
+      "trend": "Trend"
     },
     "comparison": "Compare with",
     "absolute": "Fixed threshold",
@@ -4639,7 +4640,24 @@
     "regionScopedNotice": "Rows limited to your assigned regions",
     "regionScopedHint": "Your grant for this metric is regional, so totals, records and exports include only rows located in your regions.",
     "errorRegionUnknown": "Your regional grant does not match a known region. Ask a super admin to fix the region or the grant.",
-    "errorRegionUnsupported": "This metric cannot be limited to your regions yet, so it is not available with a regional grant."
+    "errorRegionUnsupported": "This metric cannot be limited to your regions yet, so it is not available with a regional grant.",
+    "trend": {
+      "title": "Daily trend",
+      "subtitle": "Daily values from the nightly snapshot of this governed metric, using the same definition as the query above. Days are UTC; today appears after it closes.",
+      "daysOption": "{{count}} days",
+      "currencyLabel": "Currency",
+      "loading": "Loading trend…",
+      "empty": "No snapshot is available for your scope yet. The nightly run fills it within a day.",
+      "error": "The trend could not be loaded. Try again.",
+      "pointInTime": "This metric is a current-state count, captured once per day; its history starts when capture began.",
+      "definitionChanged": "The metric definition changed within this range; older points used the earlier definition.",
+      "summary": "{{count}} days · latest {{latest}} · lowest {{min}} · highest {{max}}",
+      "lastUpdated": "Snapshot updated {{time}}",
+      "showData": "Show daily values",
+      "date": "Day (UTC)",
+      "value": "Value",
+      "daysLabel": "Trend range"
+    }
   },
   "helperDashboard": {
     "jobEarnings": {

@@ -22,7 +22,7 @@ function financialMetricSql(metric, { interval = '30 days', trunc = null } = {})
       return { text: `SELECT ${bucket} UPPER(currency) AS currency_code,
           COALESCE(SUM(amount_cents), 0)::BIGINT AS revenue_cents
         FROM platform_ledger WHERE source_type IN ('job_fee','subscription') AND amount_cents > 0
-          AND created_at >= NOW() - $1::interval
+          AND created_at >= NOW() - $1::interval AND created_at < NOW()
         GROUP BY ${trunc ? '1,2 ORDER BY 1,2' : '1 ORDER BY 1'}`,
         params: [interval], columns: [...(trunc ? ['bucket'] : []), 'currency_code', 'revenue_cents'] };
     }

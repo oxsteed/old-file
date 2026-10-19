@@ -376,7 +376,7 @@ async function supportNpsIndex(db, { businessId = null, days = 30 } = {}) {
     FROM support_conversation_reviews scr
     JOIN support_conversations sc ON sc.id = scr.conversation_id
     WHERE scr.nps_score IS NOT NULL
-      AND scr.created_at >= NOW() - ($1 || ' days')::INTERVAL
+      AND scr.created_at >= NOW() - ($1 || ' days')::INTERVAL AND scr.created_at < NOW()
       AND ($2::INTEGER IS NULL OR sc.business_id = $2::INTEGER)
   `, [String(boundedDays), businessId]);
   const r = rows[0] || {};

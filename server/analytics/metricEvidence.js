@@ -9,7 +9,7 @@ const { paidOrderPredicate } = require('./restaurantAnalytics');
 function metricEvidenceSql(query, scope, registry, summary) {
   const params = [registry.PERIOD_INTERVAL[query.period].interval];
   let text, columns;
-  const window = alias => `${alias}.created_at>=NOW()-$1::interval`;
+  const window = alias => `${alias}.created_at>=NOW()-$1::interval AND ${alias}.created_at<NOW()`;
   switch (query.metric) {
     case 'platform_revenue_cents':
       text = `SELECT id AS ledger_id,job_id,source_type,UPPER(currency) AS currency_code,amount_cents,created_at
@@ -109,7 +109,7 @@ function metricEvidenceSql(query, scope, registry, summary) {
           : !scope.isSuperAdmin ? 'AND fo.restaurant_id=ANY($2::bigint[])' : '';
         text=`WITH top_items AS (${summary.text}), paid AS (
           SELECT fo.* FROM food_orders fo WHERE ${paidOrderPredicate()}
-          AND fo.created_at>=NOW()-$1::interval ${summaryFilter}
+          AND fo.created_at>=NOW()-$1::interval AND fo.created_at<NOW() ${summaryFilter}
         ) SELECT fo.id AS order_id,fo.restaurant_id,
           foi.menu_item_id,foi.item_name,foi.quantity,foi.line_total_cents AS revenue_cents,UPPER(fo.currency_code) AS currency_code,fo.created_at
           FROM paid fo JOIN food_order_items foi ON foi.order_id=fo.id

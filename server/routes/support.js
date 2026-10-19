@@ -2102,12 +2102,11 @@ router.get('/:businessId/sla/trends', slaMetricsController.getSLATrends);
 // PERFORMANCE ANALYTICS (Phase 3)
 // ============================================
 
-// Compatibility-only daily snapshots have no maintained producer. Keep
-// their existing response/auth contract while making the freshness limit
-// explicit; live reporting and metric-alert observations own new analytics.
+// Daily support snapshots are produced by the nightly metric snapshot worker
+// (jobs/metricSnapshots.js → analytics/supportDailyRollups.js) for closed UTC
+// days; the current day is not included until it closes.
 router.use('/:businessId/analytics', (_req,res,next) => {
-  res.set('Deprecation', `@${Math.floor(Date.parse('2026-10-19T00:00:00-04:00')/1000)}`);
-  res.set('X-Analytics-Freshness', 'unmaintained-snapshot');
+  res.set('X-Analytics-Freshness', 'nightly-utc');
   next();
 });
 

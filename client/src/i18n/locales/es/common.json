@@ -96,7 +96,8 @@
       "evidence": "Registros de origen",
       "execution": "Consulta",
       "export": "Exportación",
-      "nl_parse": "Interpretación"
+      "nl_parse": "Interpretación",
+      "trend": "Tendencia"
     },
     "comparison": "Comparar con",
     "absolute": "Umbral fijo",
@@ -4639,7 +4640,24 @@
     "regionScopedNotice": "Filas limitadas a tus regiones asignadas",
     "regionScopedHint": "Tu permiso para esta métrica es regional: los totales, registros y exportaciones solo incluyen filas ubicadas en tus regiones.",
     "errorRegionUnknown": "Tu permiso regional no coincide con una región conocida. Pide a un superadministrador que corrija la región o el permiso.",
-    "errorRegionUnsupported": "Esta métrica todavía no se puede limitar a tus regiones, así que no está disponible con un permiso regional."
+    "errorRegionUnsupported": "Esta métrica todavía no se puede limitar a tus regiones, así que no está disponible con un permiso regional.",
+    "trend": {
+      "title": "Tendencia diaria",
+      "subtitle": "Valores diarios de la instantánea nocturna de esta métrica gobernada, con la misma definición que la consulta anterior. Los días están en UTC; el día de hoy aparece cuando termina.",
+      "daysOption": "{{count}} días",
+      "currencyLabel": "Moneda",
+      "loading": "Cargando tendencia…",
+      "empty": "Todavía no hay instantánea para tu alcance. La ejecución nocturna la completa en un día.",
+      "error": "No se pudo cargar la tendencia. Inténtalo de nuevo.",
+      "pointInTime": "Esta métrica es un conteo del estado actual que se captura una vez al día; su historial empieza cuando comenzó la captura.",
+      "definitionChanged": "La definición de la métrica cambió en este periodo; los puntos anteriores usaron la definición previa.",
+      "summary": "{{count}} días · último {{latest}} · mínimo {{min}} · máximo {{max}}",
+      "lastUpdated": "Instantánea actualizada {{time}}",
+      "showData": "Mostrar valores diarios",
+      "date": "Día (UTC)",
+      "value": "Valor",
+      "daysLabel": "Rango de la tendencia"
+    }
   },
   "helperDashboard": {
     "jobEarnings": {
