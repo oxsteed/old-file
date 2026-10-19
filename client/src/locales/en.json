@@ -1,4 +1,23 @@
 {
+  "governedKpis": {
+    "title": "Governed metrics",
+    "help": "Registry metrics for {{period}}, computed exactly like the query builder. Select a card to see the underlying records.",
+    "loading": "Loading governed metrics…",
+    "loadError": "Governed metrics could not be loaded.",
+    "permissionRequired": "Permission required",
+    "unavailable": "Unavailable",
+    "noData": "No data",
+    "viewEvidence": "View underlying records",
+    "regional": "Your regions only",
+    "ofDenominator": "{{numerator}} of {{denominator}}",
+    "period": {
+      "1d": "the last day",
+      "7d": "the last 7 days",
+      "30d": "the last 30 days",
+      "90d": "the last 90 days",
+      "1y": "the last 12 months"
+    }
+  },
   "analyticsCompletion": {
     "alertHistory": "Evaluation history",
     "previousValue": "Previous window",
@@ -8461,6 +8480,10 @@
         "unsubscribes": "Unsubscribes: {{count}}",
         "openNote": "Email opens are estimates; some mail apps block tracking images.",
         "notTracked": "Not tracked for this channel",
+        "emailConfirmed": "Confirmed delivered: {{count}}",
+        "emailBounced": "Bounced: {{count}}",
+        "emailComplained": "Marked as spam: {{count}}",
+        "emailUnconfirmed": "Accepted by the mail provider; delivery not confirmed yet",
         "reportTitle": "Broadcast results, last {{days}} days",
         "legacyUntracked": "Marked sent before delivery tracking existed; no messages were delivered."
       }
@@ -21328,6 +21351,33 @@
     }
   },
   "investorDashboard": {
+    "evidence": {
+      "title": "How these numbers are made up",
+      "help": "Totals by period, currency and source for the selected KPI. Aggregates only: no individual jobs, payments or people are shown.",
+      "loading": "Loading breakdown…",
+      "loadError": "The breakdown could not be loaded.",
+      "allTime": "All time",
+      "allTimeNote": "This KPI covers all completed jobs, so it is not split by period.",
+      "bucket": "Period",
+      "currency": "Currency",
+      "source": "Source",
+      "records": "Records",
+      "amount": "Amount",
+      "suppressed_one": "Fewer than {{count}} record; hidden",
+      "suppressed_other": "Fewer than {{count}} records; hidden",
+      "gmvFee": "GMV {{gmv}} · fees {{fee}}",
+      "completedCancelled": "{{completed}} completed · {{cancelled}} cancelled",
+      "metrics": {
+        "platform_revenue_cents": "Platform revenue",
+        "job_completion_rate_pct": "Completion rate",
+        "investor_gmv_cents": "GMV",
+        "investor_take_rate_pct": "Take rate"
+      },
+      "sources": {
+        "job_fee": "Job fees",
+        "subscription": "Subscriptions"
+      }
+    },
     "header": {
       "mode": "Investor mode",
       "title": "Investor Dashboard"
@@ -23966,7 +24016,11 @@
       "noMedium": "untagged",
       "campaigns": "Campaigns",
       "empty": "Nothing tracked yet in this period. Copy a post, slot promo or referral link and share it; visits from it appear here.",
-      "help": "A visit counts once per device, source, campaign and day. Your own visits and your team's are not counted. Visits show reach, not bookings."
+      "conversions": "conversions",
+      "conversionRate": "conversion rate",
+      "conversionLine": "{{conversions}} conversions",
+      "byType": "Conversions: {{bookings}} bookings · {{appointments}} appointments · {{orders}} orders",
+      "help": "A visit counts once per device, source, campaign and day. Your own visits and your team's are not counted. A conversion is a booking, appointment or order made from the same device within {{days}} days of a tracked visit, credited to the latest visit and counted once. Cancellations are not subtracted. Jobs posted to the marketplace are not counted."
     },
     "toolkit": {
       "featuredStatus": {
@@ -27855,6 +27909,7 @@
     "viewJob": "View job"
   },
   "adminOperations": {
+    "sectionsNotGoverned": "The section cards below are live operational counts, not governed metrics.",
     "authoritativeNote": "Read-only signals from existing domain services. Open each module for actions.",
     "title": "Operations Overview",
     "subtitle": "See the work that needs attention across OxSteed without duplicating domain records.",
@@ -28274,6 +28329,8 @@
     "unknownActions": "Unknown: {{actions}}"
   },
   "superMoney": {
+    "operationalEstimateNote": "The cards below are operational estimates across sources and currencies. They are not governed metrics; use the governed cards above for reported figures.",
+    "channelsNotGoverned": "Channel tiles are operational estimates, not governed metrics.",
     "badge": "Super-admin money",
     "catConfiguredDesc": "Commercial models that now exist structurally, even if cash capture is still ahead of them.",
     "catConfiguredTitle": "Configured Program Economics",
@@ -28613,6 +28670,12 @@
     "failedMessage": "Could not load support metrics."
   },
   "adminSupportSla": {
+    "governedWindow": "Last 30 days: {{met}} of {{eligible}} first responses on time (governed metric)",
+    "legacyAllTime": "Previous definition (all time): {{value}}",
+    "viewEvidence": "View underlying conversations",
+    "last30Days": "Last 30 days (first-response breaches)",
+    "legacyViolations_one": "Previous definition (all time): {{count}} breach",
+    "legacyViolations_other": "Previous definition (all time): {{count}} breaches",
     "title": "SLA Dashboard",
     "subtitle": "Service level agreement compliance tracking.",
     "refresh": "Refresh SLA data",
@@ -30570,6 +30633,7 @@
     "title": "Business 360"
   },
   "adminCustomer360": {
+    "governedTitle": "Governed metrics for this customer",
     "audit": {
       "action": "Action",
       "actor": "Actor",
@@ -31265,6 +31329,11 @@
     "loadFailedBody": "The live agent data could not be loaded. Check your connection and try again."
   },
   "adminSupportCSAT": {
+    "npsIndexTitle": "NPS (promoters − detractors)",
+    "npsResponses_one": "{{count}} NPS response in this period",
+    "npsResponses_other": "{{count}} NPS responses in this period",
+    "legacyAvgNps": "Previous headline, average 0-10 score (not an NPS): {{value}}",
+    "viewEvidence": "View underlying reviews",
     "title": "CSAT Analytics",
     "description": "Customer satisfaction metrics and feedback analysis.",
     "range7d": "Last 7 days",

@@ -31,6 +31,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import PageShell from '../components/PageShell';
 import api from '../api/axios';
+import InvestorEvidencePanel from '../components/investor/InvestorEvidencePanel';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (n) => (n ?? 0).toLocaleString();
@@ -338,6 +339,8 @@ export default function InvestorDashboardPage() {
               sub={t('investorDashboard.kpis.pendingPayouts', { value: fmtK(k.pending_payouts_cents) })}
               accent="rose" />
           </div>
+
+          <InvestorEvidencePanel period={period} />
 
           {/* ── Revenue chart + franchise pipeline ─────────────────── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

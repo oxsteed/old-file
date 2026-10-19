@@ -37,6 +37,28 @@ const { modelTranslationAvailable,translateWithModel }=require('../analytics/nlM
 const snapshots = require('../analytics/metricSnapshots');
 const { logAdminAction } = require('../services/auditService');
 const logger = require('../utils/logger');
+const { governedKpis, parseMetricList } = require('../analytics/governedKpis');
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// GET /api/admin/analytics/governed-kpis?metrics=a,b&period=30d[&customerId=]
+// Card values for dashboards, computed exactly like the builder (see
+// analytics/governedKpis.js). Ungranted metrics come back permitted:false.
+async function getGovernedKpis(req, res, next) {
+  try {
+    res.set('Cache-Control', 'private, no-store');
+    const metrics = parseMetricList(req.query.metrics);
+    const period = req.query.period ? String(req.query.period) : '30d';
+    const filters = {};
+    if (req.query.customerId != null) {
+      if (!UUID_RE.test(String(req.query.customerId))) throw new AppError('Invalid customerId', 400, 'invalid_param');
+      filters.customerId = String(req.query.customerId);
+    }
+    res.json({ period, kpis: await governedKpis(db, req.user, metrics, { period, filters }) });
+  } catch (err) {
+    next(err);
+  }
+}
 
 async function getMeta(req, res, next) {
   try {
@@ -221,4 +243,5 @@ async function listSnapshotRuns(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { getMeta, runQuery, parseNl, getHistory, getTrend, startSnapshotBackfill, listSnapshotRuns };
+module.exports = {
+  getGovernedKpis, getMeta, runQuery, parseNl, getHistory, getTrend, startSnapshotBackfill, listSnapshotRuns };

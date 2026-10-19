@@ -397,11 +397,30 @@ const STATS_SQL = `
          COUNT(*) FILTER (WHERE d.status = 'failed')::INT AS failed,
          COUNT(*) FILTER (WHERE d.status = 'skipped')::INT AS skipped,
          COUNT(*) FILTER (WHERE d.status = 'sent' AND (d.opened_at IS NOT NULL OR n.read_at IS NOT NULL))::INT AS opened,
-         COUNT(*) FILTER (WHERE d.status = 'sent' AND d.clicked_at IS NOT NULL)::INT AS clicked
+         COUNT(*) FILTER (WHERE d.status = 'sent' AND d.clicked_at IS NOT NULL)::INT AS clicked,
+         COUNT(*) FILTER (WHERE d.delivered_at IS NOT NULL)::INT AS delivered,
+         COUNT(*) FILTER (WHERE d.bounced_at IS NOT NULL)::INT AS bounced,
+         COUNT(*) FILTER (WHERE d.complained_at IS NOT NULL)::INT AS complained,
+         COUNT(*) FILTER (WHERE d.provider_failed_at IS NOT NULL)::INT AS provider_failed,
+         COUNT(*) FILTER (WHERE d.provider_event_at IS NOT NULL)::INT AS provider_events
     FROM business_broadcast_deliveries d
     LEFT JOIN notifications n ON n.id = d.notification_id
    WHERE d.broadcast_id = ANY($1::BIGINT[])
    GROUP BY d.broadcast_id, d.channel`;
+
+// Email only: what the provider confirmed through signed webhooks (Resend).
+// "sent" stays "accepted by the provider"; providerConfirmed is false until
+// any delivery event arrived, so the UI never implies confirmed delivery.
+function providerFields(row) {
+  if (row.channel !== 'email') return {};
+  return {
+    delivered: row.delivered || 0,
+    bounced: row.bounced || 0,
+    complained: row.complained || 0,
+    providerFailed: row.provider_failed || 0,
+    providerConfirmed: Number(row.provider_events || 0) > 0,
+  };
+}
 
 const rate = (num, den) => (den > 0 ? Math.round((1000 * num) / den) / 10 : null);
 
@@ -424,6 +443,7 @@ async function getBroadcastStats(db, broadcastIds) {
       total: row.total, sent: row.sent, pending: row.pending, failed: row.failed, skipped: row.skipped, skipReasons: {},
       opened: row.opened, clicked: row.clicked,
       openRatePct: rate(row.opened, row.sent), clickRatePct: row.channel === 'email' ? rate(row.clicked, row.sent) : null,
+      ...providerFields(row),
     };
   }
   for (const r of reasons) {
@@ -443,7 +463,12 @@ async function getBroadcastReport(db, businessId, days = 30) {
             COUNT(*) FILTER (WHERE d.status = 'failed')::INT AS failed,
             COUNT(*) FILTER (WHERE d.status = 'skipped')::INT AS skipped,
             COUNT(*) FILTER (WHERE d.status = 'sent' AND (d.opened_at IS NOT NULL OR n.read_at IS NOT NULL))::INT AS opened,
-            COUNT(*) FILTER (WHERE d.status = 'sent' AND d.clicked_at IS NOT NULL)::INT AS clicked
+            COUNT(*) FILTER (WHERE d.status = 'sent' AND d.clicked_at IS NOT NULL)::INT AS clicked,
+            COUNT(*) FILTER (WHERE d.delivered_at IS NOT NULL)::INT AS delivered,
+            COUNT(*) FILTER (WHERE d.bounced_at IS NOT NULL)::INT AS bounced,
+            COUNT(*) FILTER (WHERE d.complained_at IS NOT NULL)::INT AS complained,
+            COUNT(*) FILTER (WHERE d.provider_failed_at IS NOT NULL)::INT AS provider_failed,
+            COUNT(*) FILTER (WHERE d.provider_event_at IS NOT NULL)::INT AS provider_events
        FROM business_broadcast_deliveries d
        JOIN business_broadcasts b ON b.id = d.broadcast_id
        LEFT JOIN notifications n ON n.id = d.notification_id
@@ -454,8 +479,11 @@ async function getBroadcastReport(db, businessId, days = 30) {
       WHERE business_id = $1 AND created_at >= NOW() - ($2 || ' days')::INTERVAL AND created_at < NOW()`, [businessId, String(days)]);
   return {
     days,
-    channels: Object.fromEntries(rows.map(r => [r.channel, { ...r, openRatePct: rate(r.opened, r.sent),
-      clickRatePct: r.channel === 'email' ? rate(r.clicked, r.sent) : null }])),
+    channels: Object.fromEntries(rows.map(r => {
+      const { delivered, bounced, complained, provider_failed, provider_events, ...rest } = r;
+      return [r.channel, { ...rest, openRatePct: rate(r.opened, r.sent),
+        clickRatePct: r.channel === 'email' ? rate(r.clicked, r.sent) : null, ...providerFields(r) }];
+    })),
     unsubscribes: u?.n || 0,
   };
 }

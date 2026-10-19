@@ -25,7 +25,7 @@ const { runBroadcastDeliveryTick } = require('../jobs/broadcastDelivery');
 
 const TABLES = ['users', 'businesses', 'business_clients', 'customer_business_profile', 'notification_preferences',
   'notifications', 'business_broadcasts', 'business_broadcast_recipients', 'business_broadcast_deliveries',
-  'business_broadcast_suppressions', 'business_audit_log'];
+  'business_broadcast_suppressions', 'business_audit_log', 'webhook_event_receipts'];
 
 (url ? describe : describe.skip)('business broadcast delivery', () => {
   const owner = crypto.randomUUID();
@@ -198,5 +198,87 @@ const TABLES = ['users', 'businesses', 'business_clients', 'customer_business_pr
   test('sms and unknown channels are refused rather than silently marked sent', async () => {
     const id = await broadcast('sms');
     await expect(queue(id)).rejects.toMatchObject({ code: 'broadcast_channel_unsupported' });
+  });
+
+  describe('Resend delivery webhooks', () => {
+    const express = require('express');
+    const request = require('supertest');
+    const SECRET = `whsec_${Buffer.from('broadcast-webhook-test-secret').toString('base64')}`;
+    const app = express();
+    app.use('/api/webhooks', require('../routes/webhook'));
+    const sign = (id, body, ts = Math.floor(Date.now() / 1000)) => {
+      const key = Buffer.from(SECRET.slice(6), 'base64');
+      const sig = crypto.createHmac('sha256', key).update(`${id}.${ts}.${body}`).digest('base64');
+      return { 'svix-id': id, 'svix-timestamp': String(ts), 'svix-signature': `v1,${sig}`, 'content-type': 'application/json' };
+    };
+    const post = (id, event, headers) => {
+      const body = JSON.stringify(event);
+      return request(app).post('/api/webhooks/resend').set(headers || sign(id, body)).send(body);
+    };
+    let emailRow;
+    beforeAll(async () => {
+      process.env.RESEND_WEBHOOK_SECRET = SECRET;
+      emailRow = (await db.query(`SELECT d.*, r.email, r.business_id FROM business_broadcast_deliveries d
+        JOIN business_broadcast_recipients r ON r.id = d.recipient_id
+        WHERE d.channel = 'email' AND d.provider_message_id IS NOT NULL ORDER BY d.id LIMIT 1`)).rows[0];
+    });
+    afterAll(() => { delete process.env.RESEND_WEBHOOK_SECRET; });
+
+    test('a signed delivered event confirms delivery once; replays are no-ops', async () => {
+      expect(emailRow).toBeTruthy();
+      const event = { type: 'email.delivered', created_at: new Date().toISOString(), data: { email_id: emailRow.provider_message_id } };
+      const first = await post('msg_delivered_1', event);
+      expect(first.status).toBe(200);
+      expect(first.body).toMatchObject({ outcome: 'applied' });
+      const replay = await post('msg_delivered_1', event);
+      expect(replay.body).toMatchObject({ duplicate: true });
+      const { rows: [d] } = await db.query('SELECT delivered_at, provider_event_at FROM business_broadcast_deliveries WHERE id=$1', [emailRow.id]);
+      expect(d.delivered_at).toBeTruthy();
+      const stats = await svc.getBroadcastStats(db, [emailRow.broadcast_id]);
+      expect(stats[String(emailRow.broadcast_id)].channels.email).toMatchObject({ delivered: 1, providerConfirmed: true });
+      const report = await svc.getBroadcastReport(db, emailRow.business_id, 30);
+      expect(report.channels.email).toMatchObject({ delivered: 1, providerConfirmed: true });
+    });
+
+    test('a hard bounce is recorded and suppresses that address for the business', async () => {
+      const res = await post('msg_bounce_1', { type: 'email.bounced', created_at: new Date().toISOString(),
+        data: { email_id: emailRow.provider_message_id, bounce: { type: 'Permanent' } } });
+      expect(res.status).toBe(200);
+      const { rows: [d] } = await db.query('SELECT bounced_at, bounce_type FROM business_broadcast_deliveries WHERE id=$1', [emailRow.id]);
+      expect(d).toMatchObject({ bounce_type: 'Permanent' });
+      const { rows } = await db.query(`SELECT source FROM business_broadcast_suppressions WHERE business_id=$1 AND email=$2`, [emailRow.business_id, emailRow.email]);
+      expect(rows.map(r => r.source)).toContain('hard_bounce');
+    });
+
+    test('bad signatures, stale timestamps and a missing secret are refused', async () => {
+      const body = JSON.stringify({ type: 'email.delivered', data: { email_id: emailRow.provider_message_id } });
+      const forged = await request(app).post('/api/webhooks/resend')
+        .set({ ...sign('msg_x', body), 'svix-signature': 'v1,AAAA' }).send(body);
+      expect(forged.status).toBe(401);
+      const stale = await request(app).post('/api/webhooks/resend')
+        .set(sign('msg_y', body, Math.floor(Date.now() / 1000) - 3600)).send(body);
+      expect(stale.status).toBe(401);
+      delete process.env.RESEND_WEBHOOK_SECRET;
+      const unset = await request(app).post('/api/webhooks/resend').set(sign('msg_z', body)).send(body);
+      expect(unset.status).toBe(503);
+      process.env.RESEND_WEBHOOK_SECRET = SECRET;
+      const { rows } = await db.query(`SELECT event_id FROM webhook_event_receipts WHERE event_id IN ('msg_x','msg_y','msg_z')`);
+      expect(rows).toEqual([]);
+    });
+
+    test('an event for a message not recorded yet is retried, then applied', async () => {
+      const event = { type: 'email.delivered', created_at: new Date().toISOString(), data: { email_id: 're_not_yet' } };
+      const early = await post('msg_early_1', event);
+      expect(early.status).toBe(503);
+      await db.query(`UPDATE business_broadcast_deliveries SET provider_message_id = 're_not_yet'
+        WHERE id = (SELECT id FROM business_broadcast_deliveries WHERE channel='email' AND status='sent' AND id <> $1 ORDER BY id LIMIT 1)`, [emailRow.id]);
+      const retry = await post('msg_early_1', event);
+      expect(retry.status).toBe(200);
+      expect(retry.body).toMatchObject({ outcome: 'applied' });
+      const old = { type: 'email.delivered', created_at: new Date(Date.now() - 2 * 3600e3).toISOString(), data: { email_id: 're_never' } };
+      const ignored = await post('msg_old_1', old);
+      expect(ignored.status).toBe(200);
+      expect(ignored.body).toMatchObject({ outcome: 'unmatched' });
+    });
   });
 });

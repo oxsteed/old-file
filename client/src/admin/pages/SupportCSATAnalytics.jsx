@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 import {
@@ -7,6 +7,7 @@ import {
   BarChart, Bar,
 } from 'recharts';
 import SupportSubNav from '../components/SupportSubNav';
+import { analyticsEvidenceHref } from '../../utils/analyticsEvidenceLink';
 import {
   MessageSquare, TrendingUp, Heart, AlertCircle, RefreshCw, Calendar, ThumbsUp,
 } from 'lucide-react';
@@ -212,12 +213,20 @@ export default function SupportCSATAnalytics() {
         </div>
 
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-          <p className="text-gray-400 text-sm mb-2">{t('adminSupportCSAT.npsScore')}</p>
-          <p className="text-white text-3xl font-bold mb-3">{averageNps == null ? t('common.na') : averageNps.toFixed(1)}</p>
+          <p className="text-gray-400 text-sm mb-2">{t('adminSupportCSAT.npsIndexTitle')}</p>
+          <p className="text-white text-3xl font-bold mb-3"><bdi>{npsIndex == null ? t('common.na') : `${npsIndex > 0 ? '+' : ''}${npsIndex}`}</bdi></p>
           <div className="flex items-center gap-2 text-gray-400 text-xs">
             <TrendingUp size={14} className="text-blue-400" />
-            <span>{npsIndex == null ? t('adminSupportCSAT.noNps') : t('adminSupportCSAT.npsIndexLabel', { value: `${npsIndex > 0 ? '+' : ''}${npsIndex}` })}</span>
+            <span>{npsIndex == null ? t('adminSupportCSAT.noNps') : t('adminSupportCSAT.npsResponses', { count: csatMetrics.nps_responses || 0 })}</span>
           </div>
+          <p className="text-gray-500 text-xs mt-2">
+            {t('adminSupportCSAT.legacyAvgNps', { value: averageNps == null ? t('common.na') : averageNps.toFixed(1) })}
+          </p>
+          {csatData.governed && (
+            <Link to={analyticsEvidenceHref(csatData.governed.metric, csatData.governed.period, csatData.governed.filters)} className="text-orange-400 hover:text-orange-300 text-xs mt-2 inline-block underline">
+              {t('adminSupportCSAT.viewEvidence')}
+            </Link>
+          )}
         </div>
       </div>
 

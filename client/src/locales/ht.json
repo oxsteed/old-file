@@ -1,4 +1,23 @@
 {
+  "governedKpis": {
+    "title": "Endikatè ofisyèl",
+    "help": "Endikatè rejis la pou {{period}}, kalkile menm jan ak jeneratè demann lan. Chwazi yon kat pou wè dosye yo.",
+    "loading": "N ap chaje endikatè ofisyèl yo…",
+    "loadError": "Nou pa t ka chaje endikatè ofisyèl yo.",
+    "permissionRequired": "Fò w gen pèmisyon",
+    "unavailable": "Pa disponib",
+    "noData": "Pa gen done",
+    "viewEvidence": "Wè dosye yo",
+    "regional": "Rejyon pa w sèlman",
+    "ofDenominator": "{{numerator}} sou {{denominator}}",
+    "period": {
+      "1d": "dènye jou a",
+      "7d": "7 dènye jou yo",
+      "30d": "30 dènye jou yo",
+      "90d": "90 dènye jou yo",
+      "1y": "12 dènye mwa yo"
+    }
+  },
   "analyticsCompletion": {
     "alertHistory": "Istwa evalyasyon",
     "previousValue": "Peryòd anvan",
@@ -8006,6 +8025,10 @@
         "unsubscribes": "Dezabònman: {{count}}",
         "openNote": "Kantite imèl louvri yo se estimasyon; kèk aplikasyon bloke imaj swivi yo.",
         "notTracked": "Pa mezire sou chanèl sa a",
+        "emailConfirmed": "Livrezon konfime: {{count}}",
+        "emailBounced": "Retounen: {{count}}",
+        "emailComplained": "Make kòm spam: {{count}}",
+        "emailUnconfirmed": "Founisè imèl la aksepte l; livrezon an poko konfime",
         "reportTitle": "Rezilta difizyon, dènye {{days}} jou",
         "legacyUntracked": "Make kòm voye anvan swivi livrezon te egziste; pa gen okenn mesaj ki te livre."
       }
@@ -21328,6 +21351,33 @@
     }
   },
   "investorDashboard": {
+    "evidence": {
+      "title": "Kijan chif sa yo fèt",
+      "help": "Total pa peryòd, lajan ak sous pou KPI ou chwazi a. Se total sèlman: pa gen okenn travay, peman oswa moun endividyèl ki parèt.",
+      "loading": "N ap chaje detay la…",
+      "loadError": "Nou pa t ka chaje detay la.",
+      "allTime": "Tout tan",
+      "allTimeNote": "KPI sa a kouvri tout travay ki fini, kidonk li pa separe pa peryòd.",
+      "bucket": "Peryòd",
+      "currency": "Lajan",
+      "source": "Sous",
+      "records": "Dosye",
+      "amount": "Montan",
+      "suppressed_one": "Mwens pase {{count}} dosye; kache",
+      "suppressed_other": "Mwens pase {{count}} dosye; kache",
+      "gmvFee": "GMV {{gmv}} · frè {{fee}}",
+      "completedCancelled": "{{completed}} fini · {{cancelled}} anile",
+      "metrics": {
+        "platform_revenue_cents": "Revni platfòm",
+        "job_completion_rate_pct": "To travay fini",
+        "investor_gmv_cents": "GMV",
+        "investor_take_rate_pct": "To komisyon"
+      },
+      "sources": {
+        "job_fee": "Frè travay",
+        "subscription": "Abònman"
+      }
+    },
     "header": {
       "mode": "Mòd envestisè",
       "title": "Tablo envestisè"
@@ -23966,7 +24016,11 @@
       "noMedium": "san etikèt",
       "campaigns": "Kanpay",
       "empty": "Poko gen anyen ki swiv nan peryòd sa a. Kopye yon pòs, yon pwomosyon plas oswa yon lyen parennaj epi pataje l; vizit li yo ap parèt isit la.",
-      "help": "Yon vizit konte yon sèl fwa pou chak aparèy, sous, kanpay ak jou. Vizit pa w ak pa ekip ou pa konte. Vizit yo montre rive, pa rezèvasyon."
+      "conversions": "konvèsyon",
+      "conversionRate": "to konvèsyon",
+      "conversionLine": "{{conversions}} konvèsyon",
+      "byType": "Konvèsyon: {{bookings}} rezèvasyon · {{appointments}} randevou · {{orders}} kòmand",
+      "help": "Yon vizit konte yon sèl fwa pou chak aparèy, sous, kanpay ak jou. Vizit pa w ak vizit ekip ou pa konte. Yon konvèsyon se yon rezèvasyon, randevou oswa kòmand ki fèt sou menm aparèy la nan {{days}} jou apre yon vizit swiv; li ale sou dènye vizit la epi li konte yon sèl fwa. Anilasyon pa retire. Travay ki poste sou mache a pa konte."
     },
     "toolkit": {
       "featuredStatus": {
@@ -27855,6 +27909,7 @@
     "viewJob": "Wè travay"
   },
   "adminOperations": {
+    "sectionsNotGoverned": "Kat seksyon anba yo se kont operasyonèl an dirèk, se pa endikatè ofisyèl.",
     "authoritativeNote": "Siy lekti sèlman ki soti nan sèvis prensipal yo. Louvri chak modil pou fè aksyon.",
     "title": "Apèsi operasyon yo",
     "subtitle": "Gade travay ki bezwen atansyon nan OxSteed san nou pa double dosye prensipal yo.",
@@ -28274,6 +28329,8 @@
     "unknownActions": "Pa konnen: {{actions}}"
   },
   "superMoney": {
+    "operationalEstimateNote": "Kat anba yo se estimasyon operasyonèl sou tout sous ak tout lajan. Se pa endikatè ofisyèl; sèvi ak kat ofisyèl anlè yo pou chif rapò yo.",
+    "channelsNotGoverned": "Kat chanèl yo se estimasyon operasyonèl, se pa endikatè ofisyèl.",
     "badge": "Lajan super-admin",
     "catConfiguredDesc": "Modèl komèsyal ki egziste estriktirèlman kounye a, menm si kaptire lajan an poko vini.",
     "catConfiguredTitle": "Ekonomi pwogram konfigire",
@@ -28613,6 +28670,12 @@
     "failedMessage": "Metrik sipò yo pa disponib."
   },
   "adminSupportSla": {
+    "governedWindow": "30 dènye jou: {{met}} sou {{eligible}} premye repons alè (endikatè ofisyèl)",
+    "legacyAllTime": "Ansyen definisyon (tout tan): {{value}}",
+    "viewEvidence": "Wè konvèsasyon yo",
+    "last30Days": "30 dènye jou (premye repons ki an reta)",
+    "legacyViolations_one": "Ansyen definisyon (tout tan): {{count}} reta",
+    "legacyViolations_other": "Ansyen definisyon (tout tan): {{count}} reta",
     "title": "Tablo SLA",
     "subtitle": "Suivi respè akò nivo sèvis yo.",
     "refresh": "Rafrechi done SLA yo",
@@ -30570,6 +30633,7 @@
     "title": "Biznis 360"
   },
   "adminCustomer360": {
+    "governedTitle": "Endikatè ofisyèl pou kliyan sa a",
     "audit": {
       "action": "Aksyon",
       "actor": "Aktè",
@@ -31265,6 +31329,11 @@
     "loadFailedBody": "Nou pa t kapab chaje done ajan yo an dirèk. Tcheke koneksyon ou epi eseye ankò."
   },
   "adminSupportCSAT": {
+    "npsIndexTitle": "NPS (pwomotè − kritik)",
+    "npsResponses_one": "{{count}} repons NPS nan peryòd sa a",
+    "npsResponses_other": "{{count}} repons NPS nan peryòd sa a",
+    "legacyAvgNps": "Ansyen endikatè, nòt mwayèn sou 10 (se pa yon NPS): {{value}}",
+    "viewEvidence": "Wè evalyasyon yo",
     "title": "Analiz CSAT",
     "description": "Mezi satisfaksyon kliyan ak analiz kòmantè.",
     "range7d": "7 dènye jou yo",

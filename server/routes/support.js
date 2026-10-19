@@ -35,6 +35,11 @@ const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const { TERMINAL_CONVERSATION_STATUS_SQL } = require('../services/supportConversationTerminal');
 const metricsRegistry = require('../analytics/metricsRegistry');
+const queryBuilder = require('../analytics/queryBuilder');
+
+// Support analytics headline figures are governed registry metrics.
+const SUPPORT_GOVERNED_PERIOD = '30d';
+const CSAT_PERIODS = Object.freeze(['7d', '30d', '90d']);
 const { columnExists } = require('../utils/schemaProbe');
 // ADM-126: webhook secret encryption/masking for support admin settings.
 const { prepareSecretFieldsForWrite, maskSecretsForRead } = require('../utils/supportIntegrationSecrets');
@@ -792,6 +797,7 @@ router.get('/metrics', async (req, res, next) => {
 router.get('/sla', async (req, res, next) => {
   try {
     const businessId = req.query.business_id || req.query.businessId || null;
+    if (businessId && !/^[1-9]\d{0,9}$/.test(String(businessId))) return res.status(400).json({ error: 'Invalid business_id' });
     if (businessId) {
       const allowed = await supportEmployerService.userCanAccessBusinessConversations(businessId, req.user.id, req.user.role);
       if (!allowed) return res.status(403).json({ error: 'Access denied' });
@@ -807,7 +813,15 @@ router.get('/sla', async (req, res, next) => {
     const slaJoin = metricsRegistry.slaTargetsJoinSql('sc', 'sla_tgt');
     const frTarget = metricsRegistry.slaFirstResponseTargetSql('sc', 'sla_tgt');
     const resTarget = metricsRegistry.slaResolutionTargetSql('sc', 'sla_tgt');
-    const [trendResult, departmentResult, violationsResult] = await Promise.all([
+    // Governed headline: the registry metric sla_first_response_compliance_pct
+    // over the last 30 days, executed with the query builder's own SQL so the
+    // card, the builder, alerts and evidence agree. The previous all-time
+    // figure stays in the payload, labeled as the previous definition.
+    const governedSla = queryBuilder.buildMetricSql({
+      metric: 'sla_first_response_compliance_pct', dimensions: [], period: SUPPORT_GOVERNED_PERIOD,
+      filters: { businessId: businessId ? Number(businessId) : null },
+    });
+    const [trendResult, departmentResult, violationsResult, governedSlaResult] = await Promise.all([
       db.query(
         `SELECT day::date AS date,
                 COUNT(*) FILTER (WHERE sc.first_response_at IS NOT NULL
@@ -869,7 +883,14 @@ router.get('/sla', async (req, res, next) => {
          LIMIT 100`,
         businessId ? [businessId] : []
       ),
+      db.query(governedSla.text, governedSla.params),
     ]);
+    const governedRow = governedSlaResult?.rows?.[0] || {};
+    const governed = {
+      compliance_pct: governedRow.compliance_pct == null ? null : Number(governedRow.compliance_pct),
+      met: Number(governedRow.met || 0),
+      eligible: Number(governedRow.eligible || 0),
+    };
     const departments = departmentResult.rows.map((row) => {
       const departmentEligible = Number(row.eligible || 0);
       return {
@@ -880,10 +901,23 @@ router.get('/sla', async (req, res, next) => {
     });
     res.json({
       stats: {
-        overall_compliance: eligible ? Math.round((Number(stats.sla_met_count || 0) / eligible) * 100) : null,
+        overall_compliance: governed.compliance_pct,
+        compliance_met: governed.met,
+        compliance_eligible: governed.eligible,
         avg_first_response_minutes: Math.round((stats.avg_response_time_seconds || 0) / 60),
         avg_resolution_hours: stats.avg_resolution_hours || 0,
-        violation_count: Number(stats.sla_violation_count || 0),
+        violation_count: governed.eligible - governed.met,
+        period: SUPPORT_GOVERNED_PERIOD,
+        // Previous definition (all-time, every conversation): kept visible.
+        legacy: {
+          overall_compliance: eligible ? Math.round((Number(stats.sla_met_count || 0) / eligible) * 100) : null,
+          violation_count: Number(stats.sla_violation_count || 0),
+        },
+      },
+      governed: {
+        metric: 'sla_first_response_compliance_pct',
+        period: SUPPORT_GOVERNED_PERIOD,
+        filters: businessId ? { businessId: Number(businessId) } : {},
       },
       trend: trendResult.rows.map((row) => ({
         ...row,
@@ -1042,6 +1076,7 @@ router.get('/performance/:agentId', async (req, res, next) => {
 router.get('/csat/analytics', async (req, res, next) => {
   try {
     const businessId = req.query.business_id || req.query.businessId || null;
+    if (businessId && !/^[1-9]\d{0,9}$/.test(String(businessId))) return res.status(400).json({ error: 'Invalid business_id' });
     if (businessId) {
       const allowed = await supportEmployerService.userCanAccessBusinessConversations(
         businessId,
@@ -1053,32 +1088,35 @@ router.get('/csat/analytics', async (req, res, next) => {
       return res.status(400).json({ error: 'business_id is required' });
     }
 
-    const [summaryResult, trendResult, agentResult, feedbackResult, targetResult] = await Promise.all([
+    // The page's range selector (7d/30d/90d) now applies to every figure.
+    const period = CSAT_PERIODS.includes(String(req.query.range)) ? String(req.query.range) : '30d';
+    const interval = metricsRegistry.PERIOD_INTERVAL[period].interval;
+    // Governed NPS: registry support_nps_index with the builder's own SQL.
+    const governedNps = queryBuilder.buildMetricSql({
+      metric: 'support_nps_index', dimensions: [], period,
+      filters: { businessId: businessId ? Number(businessId) : null },
+    });
+    const [summaryResult, trendResult, agentResult, feedbackResult, targetResult, governedNpsResult] = await Promise.all([
       db.query(
         `WITH finished AS (
            SELECT id
            FROM support_conversations
            WHERE status IN ('resolved', 'closed')
-             AND updated_at >= NOW() - INTERVAL '30 days'
+             AND updated_at >= NOW() - $2::interval
              AND ($1 IS NULL OR business_id = $1)
          )
          SELECT
            (SELECT COUNT(*)::int FROM finished) AS surveys_sent,
            COUNT(scr.id) FILTER (WHERE scr.conversation_id IN (SELECT id FROM finished))::int AS surveys_completed,
            COALESCE(ROUND(AVG(scr.rating)::numeric, 2), 0)::float AS avg_rating,
+           -- Previous headline: mean 0-10 score. Not an NPS; shown labeled.
            ROUND(AVG(scr.nps_score)::numeric, 1)::float AS avg_nps,
-           -- Metrics registry: support_nps_index (canonical source:
-           -- support_conversation_reviews; promoters − detractors).
-           ROUND(100.0 * (
-             COUNT(*) FILTER (WHERE scr.nps_score >= 9)
-             - COUNT(*) FILTER (WHERE scr.nps_score <= 6)
-           ) / NULLIF(COUNT(scr.nps_score), 0), 1)::float AS nps_index,
            COALESCE(ROUND(100.0 * COUNT(*) FILTER (WHERE scr.rating >= 4) / NULLIF(COUNT(scr.id), 0), 1), 0)::float AS csat_score
          FROM support_conversation_reviews scr
          JOIN support_conversations sc ON sc.id=scr.conversation_id
-         WHERE scr.created_at >= NOW() - INTERVAL '30 days'
+         WHERE scr.created_at >= NOW() - $2::interval
            AND ($1 IS NULL OR sc.business_id=$1)`,
-        [businessId]
+        [businessId, interval]
       ),
       db.query(
         `SELECT DATE_TRUNC('day', scr.created_at)::date AS day,
@@ -1087,10 +1125,10 @@ router.get('/csat/analytics', async (req, res, next) => {
                 ROUND(AVG(scr.nps_score)::numeric, 1)::float AS avg_nps
          FROM support_conversation_reviews scr
          JOIN support_conversations sc ON sc.id = scr.conversation_id
-         WHERE scr.created_at >= NOW() - INTERVAL '30 days'
+         WHERE scr.created_at >= NOW() - $2::interval
            AND ($1 IS NULL OR sc.business_id = $1)
          GROUP BY 1 ORDER BY 1 ASC`,
-        [businessId]
+        [businessId, interval]
       ),
       db.query(
         `SELECT COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email, 'Support team') AS agent_name,
@@ -1105,10 +1143,10 @@ router.get('/csat/analytics', async (req, res, next) => {
          JOIN support_conversations sc ON sc.id = scr.conversation_id
          LEFT JOIN support_agents sa ON sa.id = sc.agent_id
          LEFT JOIN users u ON u.id = sa.user_id
-         WHERE scr.created_at >= NOW() - INTERVAL '30 days'
+         WHERE scr.created_at >= NOW() - $2::interval
            AND ($1 IS NULL OR sc.business_id = $1)
          GROUP BY 1 ORDER BY avg_rating DESC, responses DESC`,
-        [businessId]
+        [businessId, interval]
       ),
       db.query(
         `SELECT scr.id, scr.conversation_id, scr.rating, scr.nps_score, scr.comment, scr.created_at,
@@ -1120,13 +1158,15 @@ router.get('/csat/analytics', async (req, res, next) => {
          LEFT JOIN users u ON u.id = sc.customer_id
          LEFT JOIN support_agents sa ON sa.id = sc.agent_id
          LEFT JOIN users au ON au.id = sa.user_id
-         WHERE scr.created_at >= NOW() - INTERVAL '30 days'
+         WHERE scr.created_at >= NOW() - $2::interval
            AND ($1 IS NULL OR sc.business_id = $1)
          ORDER BY scr.created_at DESC LIMIT 25`,
-        [businessId]
+        [businessId, interval]
       ),
       db.query('SELECT settings FROM support_admin_settings WHERE business_id=$1', [businessId]),
+      db.query(governedNps.text, governedNps.params),
     ]);
+    const npsRow = governedNpsResult?.rows?.[0] || {};
     const summary = summaryResult.rows[0] || {};
     const configuredTarget = Number(targetResult?.rows[0]?.settings?.general?.csat_target);
     const surveysSent = Number(summary.surveys_sent || 0);
@@ -1140,7 +1180,14 @@ router.get('/csat/analytics', async (req, res, next) => {
         surveys_completed: surveysCompleted,
         avg_rating: Number(summary.avg_rating || 0),
         avg_nps: summary.avg_nps == null ? null : Number(summary.avg_nps),
-        nps_index: summary.nps_index == null ? null : Number(summary.nps_index),
+        nps_index: npsRow.nps_index == null ? null : Number(npsRow.nps_index),
+        nps_responses: Number(npsRow.responses || 0),
+        period,
+      },
+      governed: {
+        metric: 'support_nps_index',
+        period,
+        filters: businessId ? { businessId: Number(businessId) } : {},
       },
       csat_trend: trendResult.rows,
       sentiment_distribution: [],

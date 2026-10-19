@@ -1035,6 +1035,7 @@ export function PerformanceTab({ target }) {
   const ratio = (value) => (value == null
     ? t('promotePage.performance.notAvailable')
     : new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 }).format(value));
+  const pct = (value) => new Intl.NumberFormat(i18n.language, { style: 'percent', maximumFractionDigits: 1 }).format((value || 0) / 100);
   const label = (value) => String(value || '').replace(/_/g, ' ');
   const sources = data?.sources || [];
   const maxVisits = Math.max(1, ...sources.map((row) => row.visits));
@@ -1076,6 +1077,8 @@ export function PerformanceTab({ target }) {
             <div><strong>{number(data.totals.visits)}</strong><span>{t('promotePage.performance.visits')}</span></div>
             <div><strong>{ratio(data.totals.visits_per_share)}</strong><span>{t('promotePage.performance.visitsPerShare')}</span></div>
             <div><strong>{topRow ? label(topRow.source) : '-'}</strong><span>{t('promotePage.performance.topSource')}</span></div>
+            <div><strong>{number(data.totals.conversions)}</strong><span>{t('promotePage.performance.conversions')}</span></div>
+            <div><strong>{data.totals.conversion_rate_pct == null ? t('promotePage.performance.notAvailable') : pct(data.totals.conversion_rate_pct)}</strong><span>{t('promotePage.performance.conversionRate')}</span></div>
           </div>
 
           {sources.length === 0 ? (
@@ -1089,6 +1092,7 @@ export function PerformanceTab({ target }) {
                     <div className="promote-perf-label">
                       <strong>{label(row.source)}</strong>
                       <span>{t('promotePage.performance.sourceLine', { shares: number(row.shares), visits: number(row.visits), ratio: ratio(row.visits_per_share) })}</span>
+                      <span>{t('promotePage.performance.conversionLine', { conversions: number(row.conversions) })}</span>
                     </div>
                     <div className="promote-perf-bar" aria-hidden="true">
                       <div className="promote-perf-bar-fill" style={{ width: `${pct}%` }} />
@@ -1114,13 +1118,19 @@ export function PerformanceTab({ target }) {
                   <li key={row.campaign}>
                     <bdi>{row.campaign}</bdi>
                     <span>{t('promotePage.performance.mediumLine', { shares: number(row.shares), visits: number(row.visits) })}</span>
+                    <span>{t('promotePage.performance.conversionLine', { conversions: number(row.conversions) })}</span>
                   </li>
                 ))}
               </ul>
             </div>
           )}
 
-          <p className="promote-help">{t('promotePage.performance.help')}</p>
+          {data.totals.conversions > 0 && (
+            <p className="promote-help">{t('promotePage.performance.byType', {
+              bookings: number(data.totals.by_type?.booking), appointments: number(data.totals.by_type?.appointment), orders: number(data.totals.by_type?.order),
+            })}</p>
+          )}
+          <p className="promote-help">{t('promotePage.performance.help', { days: number(data.attribution_days || 7) })}</p>
         </>
       )}
     </section>

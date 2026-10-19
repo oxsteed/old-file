@@ -11,7 +11,8 @@ function pct(value, language) {
 /**
  * Delivery and engagement for one broadcast or a reporting window
  * (analytics decision 1). `channels` is { in_app|push|email: { sent, failed,
- * skipped, pending, opened, clicked, openRatePct, clickRatePct } }.
+ * skipped, pending, opened, clicked, openRatePct, clickRatePct } }; email also
+ * carries delivered/bounced/complained/providerConfirmed from Resend webhooks.
  */
 export function BroadcastDeliveryStats({ channels = {}, unsubscribes = 0, compact = false, testId }) {
   const { t, i18n } = useTranslation();
@@ -43,6 +44,16 @@ export function BroadcastDeliveryStats({ channels = {}, unsubscribes = 0, compac
                   {t(`businessHub.marketing.channels.${ch}`)}
                   {Number(c.pending || 0) > 0 && <div style={{ fontWeight: 400, color: 'var(--muted-text)' }}>{t('businessHub.marketing.delivery.pending', { count: c.pending })}</div>}
                   {issues > 0 && <div style={{ fontWeight: 400, color: 'var(--muted-text)' }}>{t('businessHub.marketing.delivery.notDelivered', { count: issues })}</div>}
+                  {ch === 'email' && c.providerConfirmed === true && (
+                    <div style={{ fontWeight: 400, color: 'var(--muted-text)' }} data-testid="broadcast-email-provider">
+                      {t('businessHub.marketing.delivery.emailConfirmed', { count: c.delivered || 0 })}
+                      {Number(c.bounced || 0) > 0 && <> · {t('businessHub.marketing.delivery.emailBounced', { count: c.bounced })}</>}
+                      {Number(c.complained || 0) > 0 && <> · {t('businessHub.marketing.delivery.emailComplained', { count: c.complained })}</>}
+                    </div>
+                  )}
+                  {ch === 'email' && c.providerConfirmed === false && Number(c.sent || 0) > 0 && (
+                    <div style={{ fontWeight: 400, color: 'var(--muted-text)' }} data-testid="broadcast-email-unconfirmed">{t('businessHub.marketing.delivery.emailUnconfirmed')}</div>
+                  )}
                 </th>
                 <td style={{ textAlign: 'end', padding: '0.25rem' }}>{n(c.sent)}</td>
                 <td style={{ textAlign: 'end', padding: '0.25rem' }}>

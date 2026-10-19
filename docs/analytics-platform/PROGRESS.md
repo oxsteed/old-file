@@ -57,6 +57,8 @@ lands. Branch: `feat/analytics-platform`.
 
 ## Item 8 — Skipped metrics (no drill link shipped; parity unprovable)
 
+> Update 2026-10-19: SLA compliance, support NPS, revenue, investor GMV/take-rate, MRR and escrow held now have governed cards with builder evidence (support pages, `GovernedKpiPanel`), and investors get aggregate-only drill-through. See `COMPLETION.md`. `consulting_avg_nps` is available as a governed card but no page shows it yet.
+
 The rule applied: if the drill target's filtered query cannot be made to
 agree with the registry's canonical compute, the link is NOT shipped. Each
 skip below names the exact blocker; none of these is a client-param gap that
@@ -162,3 +164,20 @@ cover every tenant route (765). The route scope guard, gate unit tests and the
 cross-tenant DB test are added, and One Truth analyst scope uses the shared
 model. The inventory, tightenings and flagged decisions are in
 `scope-migration-inventory.md`.
+
+## 2026-10-19: deferred items finished (stacked on the scope PR)
+
+Branch `codex/analytics-finish-deferred`, migrations 907-909. Item 8's
+skipped SLA/NPS links are now shipped, because the support pages run the
+builder's registry SQL. MoneyPage, Operations and Customer 360 get governed
+cards with evidence links, and the investor dashboard gets aggregate-only
+drill-through.
+
+The branch also adds:
+- signed Resend delivery webhooks;
+- the documented native push-open contract;
+- a confirmed-country flag and ZIP-centroid `geo_radius`;
+- visit-to-booking/appointment/order attribution.
+
+Details, number changes and remaining operational labels are in
+`COMPLETION.md`.

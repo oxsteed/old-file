@@ -21,7 +21,7 @@ jest.unmock('../db');
 
 const db = require('../db');
 const {
-  recordShare, recordVisit, promotionPerformance, prunePromotionLinkEvents, normalizeEvent,
+  recordShare, recordVisit, recordConversion, promotionPerformance, prunePromotionLinkEvents, normalizeEvent,
 } = require('../analytics/promotionLinkAnalytics');
 
 (url ? describe : describe.skip)('promotion link analytics', () => {
@@ -37,6 +37,7 @@ const {
       tax_rate NUMERIC, is_active BOOLEAN DEFAULT true, deleted_at TIMESTAMPTZ)`);
     await db.query(`CREATE TABLE business_members(id SERIAL PRIMARY KEY, business_id INTEGER, member_id UUID, role TEXT, status TEXT)`);
     await db.query(fs.readFileSync(path.join(__dirname, '..', 'migrations', '900_promotion_link_events.sql'), 'utf8'));
+    await db.query(fs.readFileSync(path.join(__dirname, '..', 'migrations', '909_promotion_conversions.sql'), 'utf8'));
     await db.query('INSERT INTO users(id) VALUES($1),($2)', [helperId, otherHelperId]);
     ({ rows: [{ id: businessId }] } = await db.query(`INSERT INTO businesses(user_id) VALUES($1) RETURNING id`, [helperId]));
     ({ rows: [{ id: otherBusinessId }] } = await db.query(`INSERT INTO businesses(user_id) VALUES($1) RETURNING id`, [otherHelperId]));
@@ -62,17 +63,18 @@ const {
     expect(await recordVisit(db, helper, { source: 'facebook', medium: 'organic', campaign: 'studio', visitorId: visitor })).toBe(false);
     expect(await recordVisit(db, helper, { source: 'facebook', campaign: 'studio', visitorId: crypto.randomUUID() })).toBe(true);
     const summary = await promotionPerformance(db, helper, { days: 30 });
-    expect(summary.totals).toEqual({ shares: 2, visits: 2, visits_per_share: 1 });
+    expect(summary.totals).toEqual({ shares: 2, visits: 2, visits_per_share: 1, conversions: 0, conversion_rate_pct: 0,
+      by_type: { booking: 0, appointment: 0, order: 0 } });
     expect(summary.sources).toHaveLength(1);
     expect(summary.sources[0]).toMatchObject({ source: 'facebook', shares: 2, visits: 2, visits_per_share: 1 });
     expect(summary.sources[0].mediums).toEqual([
-      { medium: null, shares: 0, visits: 1 },
-      { medium: 'organic', shares: 1, visits: 1 },
-      { medium: 'referral', shares: 1, visits: 0 },
+      { medium: null, shares: 0, visits: 1, conversions: 0 },
+      { medium: 'organic', shares: 1, visits: 1, conversions: 0 },
+      { medium: 'referral', shares: 1, visits: 0, conversions: 0 },
     ]);
     expect(summary.campaigns.map(c => c.campaign)).toEqual(['studio', 'spring']);
     const business = await promotionPerformance(db, { type: 'business', businessId }, { days: 30 });
-    expect(business.totals).toEqual({ shares: 1, visits: 0, visits_per_share: 0 });
+    expect(business.totals).toMatchObject({ shares: 1, visits: 0, visits_per_share: 0, conversions: 0, conversion_rate_pct: null });
     expect((await promotionPerformance(db, { type: 'business', businessId: otherBusinessId })).totals.shares).toBe(0);
   });
 
@@ -87,6 +89,61 @@ const {
     await db.query('UPDATE businesses SET deleted_at=NOW() WHERE id=$1', [otherBusinessId]);
     expect(await recordVisit(db, { type: 'business', businessId: otherBusinessId }, { source: 'qr', visitorId: crypto.randomUUID() })).toBe(false);
     expect(await recordVisit(db, { type: 'helper', userId: crypto.randomUUID() }, { source: 'qr', visitorId: crypto.randomUUID() })).toBe(false);
+  });
+
+  test('conversions attribute to the same device latest tracked visit to that owner, once per reference', async () => {
+    const helper = { type: 'helper', userId: helperId };
+    const business = { type: 'business', businessId };
+    const device = crypto.randomUUID();
+    // No visit yet: nothing is attributed.
+    expect(await recordConversion(db, helper, { visitorId: device, conversionType: 'booking', referenceId: 'b-0' })).toBe(false);
+    await recordVisit(db, helper, { source: 'facebook', medium: 'organic', campaign: 'studio', visitorId: device });
+    expect(await recordConversion(db, helper, { visitorId: device, conversionType: 'booking', referenceId: 'b-1' })).toBe(true);
+    // Same booking again (retry/replay): deduped.
+    expect(await recordConversion(db, helper, { visitorId: device, conversionType: 'booking', referenceId: 'b-1' })).toBe(false);
+    // Another device, another owner, unknown types and bad ids never attribute.
+    expect(await recordConversion(db, helper, { visitorId: crypto.randomUUID(), conversionType: 'booking', referenceId: 'b-2' })).toBe(false);
+    expect(await recordConversion(db, business, { visitorId: device, conversionType: 'order', referenceId: 'o-1' })).toBe(false);
+    expect(await recordConversion(db, helper, { visitorId: device, conversionType: 'refund', referenceId: 'x' })).toBe(false);
+    expect(await recordConversion(db, helper, { visitorId: 'not-a-uuid', conversionType: 'booking', referenceId: 'b-3' })).toBe(false);
+    // The owner booking themselves is excluded.
+    expect(await recordConversion(db, helper, { visitorId: device, conversionType: 'booking', referenceId: 'b-4', converterUserId: helperId },
+      { isOwnerViewer: async (o, v) => String(o.ownerUserId) === String(v) })).toBe(false);
+    const summary = await promotionPerformance(db, helper, { days: 30 });
+    expect(summary.attribution_days).toBe(7);
+    expect(summary.totals).toMatchObject({ visits: 1, conversions: 1, conversion_rate_pct: 100, by_type: { booking: 1, appointment: 0, order: 0 } });
+    expect(summary.sources[0]).toMatchObject({ source: 'facebook', conversions: 1, conversion_rate_pct: 100 });
+    expect(summary.campaigns[0]).toMatchObject({ campaign: 'studio', conversions: 1 });
+    // Stored rows carry no reference id or user id: the dedupe key is a hash.
+    const { rows } = await db.query(`SELECT dedupe_key, owner_user_id, conversion_type FROM promotion_link_events WHERE event_type='conversion'`);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].dedupe_key).toMatch(/^conversion:[0-9a-f]{64}$/);
+    expect(rows[0].dedupe_key).not.toContain('b-1');
+  });
+
+  test('visits older than the attribution window do not convert', async () => {
+    const business = { type: 'business', businessId };
+    const device = crypto.randomUUID();
+    await recordVisit(db, business, { source: 'qr', visitorId: device });
+    await db.query(`UPDATE promotion_link_events SET occurred_at = NOW() - interval '8 days' WHERE event_type='visit'`);
+    expect(await recordConversion(db, business, { visitorId: device, conversionType: 'appointment', referenceId: 'a-1' })).toBe(false);
+    await recordVisit(db, business, { source: 'qr', campaign: 'fresh', visitorId: device });
+    expect(await recordConversion(db, business, { visitorId: device, conversionType: 'appointment', referenceId: 'a-1' })).toBe(true);
+    const { rows: [c] } = await db.query(`SELECT campaign FROM promotion_link_events WHERE event_type='conversion'`);
+    expect(c.campaign).toBe('fresh');
+  });
+
+  test('the checkout hook only acts with the visitor header and after the response', async () => {
+    const { attributePromotionConversion } = require('../analytics/promotionAttribution');
+    const helper = { type: 'helper', userId: helperId };
+    const device = crypto.randomUUID();
+    await recordVisit(db, helper, { source: 'nextdoor', visitorId: device });
+    const req = (header) => ({ get: (h) => (h === 'x-promo-visitor' ? header : undefined), user: { id: crypto.randomUUID() } });
+    expect(attributePromotionConversion(req(undefined), { helperUserId: helperId, conversionType: 'booking', referenceId: 'h-1' }, db)).toBe(false);
+    expect(attributePromotionConversion(req(device), { helperUserId: helperId, conversionType: 'booking', referenceId: 'h-1' }, db)).toBe(true);
+    await new Promise((r) => setTimeout(r, 200));
+    const { rows } = await db.query(`SELECT source FROM promotion_link_events WHERE event_type='conversion'`);
+    expect(rows).toEqual([{ source: 'nextdoor' }]);
   });
 
   test('windows are fixed and retention prunes only expired events', async () => {

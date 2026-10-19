@@ -14,8 +14,16 @@
  *   visits_per_share = visits / shares for the same source (NULL when no shares).
  * A visit is counted at most once per visitor, owner, source, campaign and UTC
  * day. Owners' own visits and visits without a device key are not counted.
- * This measures link reach, not bookings: booking attribution needs a
- * checkout-side join that does not exist for helper/business profiles.
+ *
+ * Conversions (migration 909): a booking request, business appointment or
+ * food order created by a device whose tracked visit to the same owner happened
+ * in the previous ATTRIBUTION_DAYS (last touch, visit before conversion). One
+ * conversion per booking/appointment/order (hashed reference dedupe). The
+ * device id is the visit's consent-aware id (persistent only with analytics
+ * consent, otherwise per tab, so without consent only same-session conversions
+ * are attributed). Owners and their team converting on their own profile are
+ * excluded. Conversions are counted when created; later cancellations are not
+ * subtracted. conversion_rate = conversions / visits for the same grouping.
  *
  * Emission never rejects: analytics must not break profile pages or copying.
  */
@@ -27,6 +35,8 @@ const SLUG_RE = /^[a-z0-9_-]{1,60}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const WINDOWS = Object.freeze([7, 30, 90, 365]);
 const RETENTION_DAYS = 730;
+const ATTRIBUTION_DAYS = 7;
+const CONVERSION_TYPES = Object.freeze(['booking', 'appointment', 'order']);
 
 function slug(value, fallback = null) {
   if (value == null || value === '') return fallback;
@@ -109,6 +119,46 @@ async function recordVisit(db, ownerInput, input = {}, { viewerUserId = null, is
   }
 }
 
+/**
+ * Attribute a conversion to the visitor's latest tracked visit to this owner.
+ * Never rejects; returns true when a new conversion was stored.
+ */
+async function recordConversion(db, ownerInput, { visitorId, conversionType, referenceId, converterUserId = null } = {},
+  { isOwnerViewer = async () => false } = {}) {
+  try {
+    if (!CONVERSION_TYPES.includes(conversionType) || referenceId == null || referenceId === '') return false;
+    const id = String(visitorId || '');
+    if (!UUID_RE.test(id)) return false;
+    const owner = ownerColumns(ownerInput);
+    if (converterUserId && await isOwnerViewer(owner, converterUserId)) return false;
+    const actorKey = visitorHash(owner, id);
+    const ownerSql = owner.ownerType === 'business'
+      ? "owner_type='business' AND business_id=$2" : "owner_type='helper' AND owner_user_id=$2::uuid";
+    const { rows: [visit] } = await db.query(
+      `SELECT id, source, medium, campaign, content FROM promotion_link_events
+        WHERE event_type='visit' AND actor_key=$1 AND ${ownerSql}
+          AND occurred_at >= NOW() - make_interval(days => $3) AND occurred_at <= NOW()
+        ORDER BY occurred_at DESC, id DESC LIMIT 1`,
+      [actorKey, owner.ownerType === 'business' ? owner.businessId : owner.ownerUserId, ATTRIBUTION_DAYS]
+    );
+    if (!visit) return false;
+    const refHash = crypto.createHash('sha256').update(`${conversionType}:${referenceId}`).digest('hex');
+    const { rowCount } = await db.query(
+      `INSERT INTO promotion_link_events
+         (owner_type, owner_user_id, business_id, event_type, source, medium, campaign, content, actor_key, dedupe_key,
+          conversion_type, attributed_visit_id)
+       VALUES ($1,$2,$3,'conversion',$4,$5,$6,$7,$8,$9,$10,$11)
+       ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING`,
+      [owner.ownerType, owner.ownerUserId, owner.businessId, visit.source, visit.medium, visit.campaign, visit.content,
+        actorKey, `conversion:${refHash}`, conversionType, visit.id]
+    );
+    return rowCount > 0;
+  } catch (error) {
+    logger.warn('Promotion conversion was not persisted', { code: error.code || error.message });
+    return false;
+  }
+}
+
 function windowDays(value) {
   const days = Number.parseInt(value, 10);
   return WINDOWS.includes(days) ? days : 30;
@@ -124,31 +174,45 @@ async function promotionPerformance(db, ownerInput, { days } = {}) {
   const scoped = `FROM promotion_link_events WHERE ${ownerSql} AND occurred_at >= NOW() - make_interval(days => $2)`;
   const [sources, mediums, campaigns, totals] = await Promise.all([
     db.query(`SELECT source, COUNT(*) FILTER (WHERE event_type='share')::int AS shares,
-        COUNT(*) FILTER (WHERE event_type='visit')::int AS visits
+        COUNT(*) FILTER (WHERE event_type='visit')::int AS visits,
+        COUNT(*) FILTER (WHERE event_type='conversion')::int AS conversions
       ${scoped} GROUP BY source ORDER BY visits DESC, shares DESC, source`, params),
     db.query(`SELECT source, COALESCE(medium,'') AS medium, COUNT(*) FILTER (WHERE event_type='share')::int AS shares,
-        COUNT(*) FILTER (WHERE event_type='visit')::int AS visits
+        COUNT(*) FILTER (WHERE event_type='visit')::int AS visits,
+        COUNT(*) FILTER (WHERE event_type='conversion')::int AS conversions
       ${scoped} GROUP BY 1,2 ORDER BY 1,2`, params),
     db.query(`SELECT campaign, COUNT(*) FILTER (WHERE event_type='visit')::int AS visits,
-        COUNT(*) FILTER (WHERE event_type='share')::int AS shares
+        COUNT(*) FILTER (WHERE event_type='share')::int AS shares,
+        COUNT(*) FILTER (WHERE event_type='conversion')::int AS conversions
       ${scoped} AND campaign IS NOT NULL GROUP BY campaign ORDER BY visits DESC, shares DESC, campaign LIMIT 50`, params),
     db.query(`SELECT COUNT(*) FILTER (WHERE event_type='share')::int AS shares,
         COUNT(*) FILTER (WHERE event_type='visit')::int AS visits,
+        COUNT(*) FILTER (WHERE event_type='conversion')::int AS conversions,
+        COUNT(*) FILTER (WHERE event_type='conversion' AND conversion_type='booking')::int AS bookings,
+        COUNT(*) FILTER (WHERE event_type='conversion' AND conversion_type='appointment')::int AS appointments,
+        COUNT(*) FILTER (WHERE event_type='conversion' AND conversion_type='order')::int AS orders,
         MIN(occurred_at) AS first_event_at ${scoped}`, params),
   ]);
   const ratio = (visits, shares) => (shares > 0 ? Math.round((visits / shares) * 100) / 100 : null);
+  const rate = (conversions, visits) => (visits > 0 ? Math.round((1000 * (conversions || 0)) / visits) / 10 : null);
   const byMedium = new Map();
   for (const row of mediums.rows) {
     if (!byMedium.has(row.source)) byMedium.set(row.source, []);
-    byMedium.get(row.source).push({ medium: row.medium || null, shares: row.shares, visits: row.visits });
+    byMedium.get(row.source).push({ medium: row.medium || null, shares: row.shares, visits: row.visits, conversions: row.conversions || 0 });
   }
-  const total = totals.rows[0] || { shares: 0, visits: 0, first_event_at: null };
+  const total = totals.rows[0] || { shares: 0, visits: 0, conversions: 0, first_event_at: null };
   return {
     window_days: window,
-    totals: { shares: total.shares || 0, visits: total.visits || 0, visits_per_share: ratio(total.visits || 0, total.shares || 0) },
+    attribution_days: ATTRIBUTION_DAYS,
+    totals: {
+      shares: total.shares || 0, visits: total.visits || 0, visits_per_share: ratio(total.visits || 0, total.shares || 0),
+      conversions: total.conversions || 0, conversion_rate_pct: rate(total.conversions, total.visits || 0),
+      by_type: { booking: total.bookings || 0, appointment: total.appointments || 0, order: total.orders || 0 },
+    },
     first_event_at: total.first_event_at || null,
-    sources: sources.rows.map(row => ({ ...row, visits_per_share: ratio(row.visits, row.shares), mediums: byMedium.get(row.source) || [] })),
-    campaigns: campaigns.rows,
+    sources: sources.rows.map(row => ({ ...row, conversions: row.conversions || 0, visits_per_share: ratio(row.visits, row.shares),
+      conversion_rate_pct: rate(row.conversions, row.visits), mediums: byMedium.get(row.source) || [] })),
+    campaigns: campaigns.rows.map(row => ({ ...row, conversions: row.conversions || 0, conversion_rate_pct: rate(row.conversions, row.visits) })),
   };
 }
 
@@ -159,5 +223,6 @@ async function prunePromotionLinkEvents(db, days = RETENTION_DAYS) {
 }
 
 module.exports = {
-  WINDOWS, RETENTION_DAYS, normalizeEvent, recordShare, recordVisit, promotionPerformance, prunePromotionLinkEvents,
+  WINDOWS, RETENTION_DAYS, ATTRIBUTION_DAYS, CONVERSION_TYPES, normalizeEvent, recordShare, recordVisit, recordConversion,
+  promotionPerformance, prunePromotionLinkEvents,
 };

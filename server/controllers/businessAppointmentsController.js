@@ -1,5 +1,6 @@
 // Business appointments controller
 // Handle appointment bookings, updates, cancellations, and customer interactions
+const { attributePromotionConversion } = require('../analytics/promotionAttribution');
 
 const pool = require('../db');
 const { AppError } = require('../utils/apiError');
@@ -306,6 +307,8 @@ async function createAppointment(req, res, next) {
     const requiresPaymentUpfront = rulesRes.rows[0]?.require_payment_upfront !== false;
 
     res.status(201).json({ ...appointment, requires_payment_upfront: requiresPaymentUpfront });
+    // Staff-created appointments are not customer conversions.
+    if (!req.staffCreated) attributePromotionConversion(req, { businessId, conversionType: 'appointment', referenceId: appointment.id });
   } catch (error) {
     // DB-level backstop (ba_no_staff_double_booking exclusion) fired: the
     // window was taken between check and insert.

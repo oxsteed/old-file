@@ -19,6 +19,7 @@ const DISPUTE_STATUSES = ['open', 'under_review', 'resolved'];
 const OPEN_DISPUTE_STATUSES = new Set(['open', 'under_review']);
 
 import CustomerWorkspace from './customer360/Workspace';
+import GovernedKpiPanel from '../components/GovernedKpiPanel';
 
 const NS = 'adminCustomer360';
 
@@ -959,6 +960,11 @@ export default function Customer360() {
               hint={t(`${NS}.overview.viewTab`)}
             />
           </div>
+
+          {/* Governed: the builder's cancel_rate_pct for this customer (customer cohort, last 12 months). */}
+          {user.role !== 'helper' && user.role !== 'helper_pro' && (
+            <GovernedKpiPanel metrics={['cancel_rate_pct']} period="1y" customerId={user.id} titleKey={`${NS}.governedTitle`} />
+          )}
 
           {/* Health metrics vs platform */}
           {!sectionError('health') && health?.user && (
