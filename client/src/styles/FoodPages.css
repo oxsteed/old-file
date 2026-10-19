@@ -3188,3 +3188,39 @@ input[type="color"].fd-settings-color {
 @media print {
   .food-track-print { display: none; }
 }
+
+/* Restaurant display overlays (Track A): fullscreen toggle, offline banner,
+   install prompt, sound-blocked notice. Fixed-position so they work on every
+   display page regardless of layout. */
+.fd-display-fs-toggle {
+  position: fixed; right: 12px; bottom: 12px; z-index: 60;
+  width: 44px; height: 44px; border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(15, 23, 42, 0.55); color: #fff;
+  font-size: 20px; line-height: 1; cursor: pointer;
+  opacity: 0.18; transition: opacity 0.3s ease;
+}
+.fd-display-fs-toggle:hover, .fd-display-fs-toggle:focus-visible { opacity: 1; }
+.fd-display-offline-banner {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 70;
+  background: #b45309; color: #fff; text-align: center;
+  padding: 0.55rem 1rem; font-weight: 700; font-size: 0.95rem;
+}
+.fd-display-offline-retry { margin-left: 0.6rem; font-weight: 400; opacity: 0.9; }
+.fd-display-install {
+  position: fixed; left: 50%; bottom: 72px; transform: translateX(-50%);
+  z-index: 65; max-width: 340px; width: calc(100% - 3rem);
+  background: #0f172a; color: #f8fafc;
+  border: 1px solid #334155; border-radius: 14px;
+  padding: 1rem 1.25rem; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+.fd-display-install-title { font-size: 1.05rem; }
+.fd-display-install p { margin: 0.5rem 0; font-size: 0.9rem; color: #cbd5e1; }
+.fd-display-install-steps { margin: 0.5rem 0 0.75rem 1.2rem; padding: 0; font-size: 0.9rem; color: #cbd5e1; }
+.fd-display-install-steps li { margin-bottom: 0.25rem; }
+.fd-display-install-actions { display: flex; gap: 0.6rem; justify-content: flex-end; }
+.fd-display-sound-blocked {
+  border: 1px solid #f59e0b; background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24; border-radius: 999px; padding: 0.5rem 0.9rem;
+  font-weight: 700; cursor: pointer; font-size: 0.9rem;
+}
