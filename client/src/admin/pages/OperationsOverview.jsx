@@ -9,6 +9,7 @@ import adminApi from '../../lib/adminApi';
 import { adminRoute } from '../adminRouteManifest';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import { useHasGrant } from '../lib/GrantGuard';
+import GovernedKpiPanel from '../components/GovernedKpiPanel';
 
 // Read-only command center: mutations stay inside authoritative modules.
 const ICONS = {
@@ -281,6 +282,13 @@ export default function OperationsOverview() {
             </button>
           </div>
         )}
+
+        <div className="mt-6">
+          <GovernedKpiPanel
+            metrics={['open_disputes', 'dispute_rate_pct', 'refund_rate_pct', 'payout_failure_count', 'job_completion_rate_pct', 'cancel_rate_pct', 'sla_first_response_compliance_pct', 'support_nps_index']}
+          />
+          <p className="text-xs text-gray-500">{t('adminOperations.sectionsNotGoverned')}</p>
+        </div>
 
         {loading && !data ? (
           <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3" aria-busy="true" aria-label={t('adminOperations.loading')}>

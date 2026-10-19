@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
 import { useTranslation } from 'react-i18next';
+import GovernedKpiPanel from '../../components/GovernedKpiPanel';
 
 const PERIOD_OPTIONS = ['7d', '30d', '90d', '1y'];
 
@@ -298,6 +299,12 @@ export default function MoneyPage() {
           </div>
         ) : null}
 
+        <GovernedKpiPanel
+          metrics={['platform_revenue_cents', 'refund_rate_pct', 'promo_discount_cents', 'mrr_cents', 'escrow_held_cents', 'payout_failure_count', 'investor_gmv_cents', 'investor_take_rate_pct']}
+          period={period}
+        />
+
+        <p className="text-xs text-gray-500 dark:text-gray-400">{t('superMoney.operationalEstimateNote')}</p>
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <SummaryCard
             icon={DollarSign}
@@ -336,6 +343,7 @@ export default function MoneyPage() {
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500">{t('superMoney.revenueArchitecture')}</p>
                 <h2 className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{t('superMoney.howMakesMoney')}</h2>
+                <p className="mt-1 text-xs text-gray-500">{t('superMoney.channelsNotGoverned')}</p>
               </div>
               <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/75 dark:bg-gray-900/75 px-4 py-3 text-right">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">{t('superMoney.lifetimeTracked')}</p>

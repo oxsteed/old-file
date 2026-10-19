@@ -1,4 +1,23 @@
 {
+  "governedKpis": {
+    "title": "Métricas gobernadas",
+    "help": "Métricas del registro para {{period}}, calculadas igual que en el generador de consultas. Selecciona una tarjeta para ver los registros subyacentes.",
+    "loading": "Cargando métricas gobernadas…",
+    "loadError": "No se pudieron cargar las métricas gobernadas.",
+    "permissionRequired": "Se requiere permiso",
+    "unavailable": "No disponible",
+    "noData": "Sin datos",
+    "viewEvidence": "Ver registros subyacentes",
+    "regional": "Solo tus regiones",
+    "ofDenominator": "{{numerator}} de {{denominator}}",
+    "period": {
+      "1d": "el último día",
+      "7d": "los últimos 7 días",
+      "30d": "los últimos 30 días",
+      "90d": "los últimos 90 días",
+      "1y": "los últimos 12 meses"
+    }
+  },
   "analyticsCompletion": {
     "alertHistory": "Historial de evaluaciones",
     "previousValue": "Período anterior",
@@ -21332,6 +21351,33 @@
     }
   },
   "investorDashboard": {
+    "evidence": {
+      "title": "Cómo se componen estas cifras",
+      "help": "Totales por periodo, moneda y origen del KPI seleccionado. Solo agregados: no se muestran trabajos, pagos ni personas individuales.",
+      "loading": "Cargando desglose…",
+      "loadError": "No se pudo cargar el desglose.",
+      "allTime": "Todo el historial",
+      "allTimeNote": "Este KPI cubre todos los trabajos completados, por eso no se divide por periodo.",
+      "bucket": "Periodo",
+      "currency": "Moneda",
+      "source": "Origen",
+      "records": "Registros",
+      "amount": "Importe",
+      "suppressed_one": "Menos de {{count}} registro; oculto",
+      "suppressed_other": "Menos de {{count}} registros; oculto",
+      "gmvFee": "GMV {{gmv}} · comisiones {{fee}}",
+      "completedCancelled": "{{completed}} completados · {{cancelled}} cancelados",
+      "metrics": {
+        "platform_revenue_cents": "Ingresos de la plataforma",
+        "job_completion_rate_pct": "Tasa de finalización",
+        "investor_gmv_cents": "GMV",
+        "investor_take_rate_pct": "Tasa de comisión"
+      },
+      "sources": {
+        "job_fee": "Comisiones de trabajos",
+        "subscription": "Suscripciones"
+      }
+    },
     "header": {
       "mode": "Modo inversionista",
       "title": "Panel de inversionista"
@@ -27863,6 +27909,7 @@
     "viewJob": "Ver trabajo"
   },
   "adminOperations": {
+    "sectionsNotGoverned": "Las tarjetas de sección siguientes son recuentos operativos en vivo, no métricas gobernadas.",
     "authoritativeNote": "Señales de solo lectura de los servicios de dominio existentes. Abre cada módulo para actuar.",
     "title": "Resumen de operaciones",
     "subtitle": "Consulta el trabajo que requiere atención en OxSteed sin duplicar los registros de dominio.",
@@ -28282,6 +28329,8 @@
     "unknownActions": "Desconocidas: {{actions}}"
   },
   "superMoney": {
+    "operationalEstimateNote": "Las tarjetas siguientes son estimaciones operativas entre fuentes y monedas. No son métricas gobernadas; usa las tarjetas gobernadas de arriba para cifras oficiales.",
+    "channelsNotGoverned": "Los mosaicos por canal son estimaciones operativas, no métricas gobernadas.",
     "badge": "Dinero de superadmin",
     "catConfiguredDesc": "Modelos comerciales que ya existen estructuralmente, aunque la captura de efectivo aún esté por venir.",
     "catConfiguredTitle": "Economía de programas configurados",
@@ -30584,6 +30633,7 @@
     "title": "Negocio 360"
   },
   "adminCustomer360": {
+    "governedTitle": "Métricas gobernadas de este cliente",
     "audit": {
       "action": "Acción",
       "actor": "Actor",

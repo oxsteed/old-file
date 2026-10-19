@@ -38,6 +38,26 @@ const { businessInvoiceAnalytics }=require('../analytics/businessInvoiceAnalytic
     expect((await businessInvoiceAnalytics(db,1,{currencyCode:'JPY'})).summary.revenue).toBe('5678.00');
   });
 
+  test('dashboard governed KPI cards equal the builder aggregate and fail closed without a grant', async () => {
+    const { governedKpis } = require('../analytics/governedKpis');
+    const ids = Array.from({ length: 3 }, () => crypto.randomUUID());
+    await db.query(`INSERT INTO jobs(id,deleted_at,created_at,status) VALUES
+      ($1,NULL,NOW()-INTERVAL '1 day','completed'),($2,NULL,NOW()-INTERVAL '1 day','cancelled'),($3,NULL,NOW()-INTERVAL '2 days','completed')`, ids);
+    await db.query('INSERT INTO disputes VALUES($1,$2,\'open\')', [crypto.randomUUID(), ids[0]]);
+    const superAdmin = { id: crypto.randomUUID(), role: 'super_admin' };
+    const kpis = await governedKpis(db, superAdmin, ['dispute_rate_pct', 'job_completion_rate_pct'], { period: '7d' });
+    for (const kpi of kpis) {
+      const built = buildMetricSql(validateBuilderQuery({ metric: kpi.metric, period: '7d' }), {});
+      const { rows: [row] } = await db.query(built.text, built.params);
+      const valueCol = kpi.metric === 'dispute_rate_pct' ? 'dispute_rate_pct' : 'completion_rate_pct';
+      expect(kpi).toMatchObject({ permitted: true, period: '7d', scope: 'global' });
+      expect(kpi.values).toEqual([expect.objectContaining({ value: row[valueCol] })]);
+    }
+    expect(kpis[1].values[0]).toMatchObject({ value: 66.67, numerator: 2, denominator: 3 });
+    // A non-admin gets no value at all.
+    expect(await governedKpis(db, { id: crypto.randomUUID(), role: 'customer' }, ['dispute_rate_pct'])).toEqual([{ metric: 'dispute_rate_pct', permitted: false }]);
+  });
+
   test('two disputes on one job count once; deleted and old jobs are excluded', async () => {
     const ids = Array.from({ length: 4 }, () => crypto.randomUUID());
     await db.query(`INSERT INTO jobs VALUES($1,NULL,NOW()-INTERVAL '1 day'),($2,NULL,NOW()-INTERVAL '1 day'),

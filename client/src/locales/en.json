@@ -1,4 +1,23 @@
 {
+  "governedKpis": {
+    "title": "Governed metrics",
+    "help": "Registry metrics for {{period}}, computed exactly like the query builder. Select a card to see the underlying records.",
+    "loading": "Loading governed metrics…",
+    "loadError": "Governed metrics could not be loaded.",
+    "permissionRequired": "Permission required",
+    "unavailable": "Unavailable",
+    "noData": "No data",
+    "viewEvidence": "View underlying records",
+    "regional": "Your regions only",
+    "ofDenominator": "{{numerator}} of {{denominator}}",
+    "period": {
+      "1d": "the last day",
+      "7d": "the last 7 days",
+      "30d": "the last 30 days",
+      "90d": "the last 90 days",
+      "1y": "the last 12 months"
+    }
+  },
   "analyticsCompletion": {
     "alertHistory": "Evaluation history",
     "previousValue": "Previous window",
@@ -21332,6 +21351,33 @@
     }
   },
   "investorDashboard": {
+    "evidence": {
+      "title": "How these numbers are made up",
+      "help": "Totals by period, currency and source for the selected KPI. Aggregates only: no individual jobs, payments or people are shown.",
+      "loading": "Loading breakdown…",
+      "loadError": "The breakdown could not be loaded.",
+      "allTime": "All time",
+      "allTimeNote": "This KPI covers all completed jobs, so it is not split by period.",
+      "bucket": "Period",
+      "currency": "Currency",
+      "source": "Source",
+      "records": "Records",
+      "amount": "Amount",
+      "suppressed_one": "Fewer than {{count}} record; hidden",
+      "suppressed_other": "Fewer than {{count}} records; hidden",
+      "gmvFee": "GMV {{gmv}} · fees {{fee}}",
+      "completedCancelled": "{{completed}} completed · {{cancelled}} cancelled",
+      "metrics": {
+        "platform_revenue_cents": "Platform revenue",
+        "job_completion_rate_pct": "Completion rate",
+        "investor_gmv_cents": "GMV",
+        "investor_take_rate_pct": "Take rate"
+      },
+      "sources": {
+        "job_fee": "Job fees",
+        "subscription": "Subscriptions"
+      }
+    },
     "header": {
       "mode": "Investor mode",
       "title": "Investor Dashboard"
@@ -27863,6 +27909,7 @@
     "viewJob": "View job"
   },
   "adminOperations": {
+    "sectionsNotGoverned": "The section cards below are live operational counts, not governed metrics.",
     "authoritativeNote": "Read-only signals from existing domain services. Open each module for actions.",
     "title": "Operations Overview",
     "subtitle": "See the work that needs attention across OxSteed without duplicating domain records.",
@@ -28282,6 +28329,8 @@
     "unknownActions": "Unknown: {{actions}}"
   },
   "superMoney": {
+    "operationalEstimateNote": "The cards below are operational estimates across sources and currencies. They are not governed metrics; use the governed cards above for reported figures.",
+    "channelsNotGoverned": "Channel tiles are operational estimates, not governed metrics.",
     "badge": "Super-admin money",
     "catConfiguredDesc": "Commercial models that now exist structurally, even if cash capture is still ahead of them.",
     "catConfiguredTitle": "Configured Program Economics",
@@ -30584,6 +30633,7 @@
     "title": "Business 360"
   },
   "adminCustomer360": {
+    "governedTitle": "Governed metrics for this customer",
     "audit": {
       "action": "Action",
       "actor": "Actor",

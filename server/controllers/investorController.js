@@ -348,3 +348,19 @@ exports.getSupplyDemand = async (req, res) => {
     res.status(500).json({ error: 'Failed to load supply/demand data' });
   }
 };
+
+// ── GET /api/investor/evidence/:metric ──────────────────────────────────
+// Aggregate-only drill-through for investor KPIs (no records, no PII; small
+// buckets suppressed). See analytics/investorEvidence.js.
+exports.getEvidence = async (req, res) => {
+  try {
+    res.set('Cache-Control', 'private, no-store');
+    const period = PERIODS[req.query.period] ? req.query.period : '30d';
+    const { investorEvidence } = require('../analytics/investorEvidence');
+    res.json(await investorEvidence(pool, String(req.params.metric || ''), period));
+  } catch (err) {
+    if (err.statusCode === 404 || err.status === 404) return res.status(404).json({ error: 'Unknown metric' });
+    logger.error('[investor] getEvidence error', { err: err.message });
+    res.status(500).json({ error: 'Failed to load evidence' });
+  }
+};

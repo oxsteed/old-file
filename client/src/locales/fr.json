@@ -1,4 +1,23 @@
 {
+  "governedKpis": {
+    "title": "Indicateurs gouvernés",
+    "help": "Indicateurs du registre pour {{period}}, calculés exactement comme dans le générateur de requêtes. Sélectionnez une carte pour voir les enregistrements concernés.",
+    "loading": "Chargement des indicateurs gouvernés…",
+    "loadError": "Impossible de charger les indicateurs gouvernés.",
+    "permissionRequired": "Autorisation requise",
+    "unavailable": "Indisponible",
+    "noData": "Aucune donnée",
+    "viewEvidence": "Voir les enregistrements",
+    "regional": "Vos régions uniquement",
+    "ofDenominator": "{{numerator}} sur {{denominator}}",
+    "period": {
+      "1d": "le dernier jour",
+      "7d": "les 7 derniers jours",
+      "30d": "les 30 derniers jours",
+      "90d": "les 90 derniers jours",
+      "1y": "les 12 derniers mois"
+    }
+  },
   "analyticsCompletion": {
     "alertHistory": "Historique des évaluations",
     "previousValue": "Période précédente",
@@ -21332,6 +21351,33 @@
     }
   },
   "investorDashboard": {
+    "evidence": {
+      "title": "Comment ces chiffres sont composés",
+      "help": "Totaux par période, devise et source pour l’indicateur choisi. Agrégats uniquement : aucune mission, aucun paiement ni aucune personne n’est affiché.",
+      "loading": "Chargement du détail…",
+      "loadError": "Impossible de charger le détail.",
+      "allTime": "Depuis le début",
+      "allTimeNote": "Cet indicateur couvre toutes les missions terminées ; il n’est donc pas réparti par période.",
+      "bucket": "Période",
+      "currency": "Devise",
+      "source": "Source",
+      "records": "Enregistrements",
+      "amount": "Montant",
+      "suppressed_one": "Moins de {{count}} enregistrement ; masqué",
+      "suppressed_other": "Moins de {{count}} enregistrements ; masqué",
+      "gmvFee": "Volume d’affaires {{gmv}} · frais {{fee}}",
+      "completedCancelled": "{{completed}} terminées · {{cancelled}} annulées",
+      "metrics": {
+        "platform_revenue_cents": "Revenus de la plateforme",
+        "job_completion_rate_pct": "Taux d’achèvement",
+        "investor_gmv_cents": "Volume d’affaires",
+        "investor_take_rate_pct": "Taux de commission"
+      },
+      "sources": {
+        "job_fee": "Frais de missions",
+        "subscription": "Abonnements"
+      }
+    },
     "header": {
       "mode": "Mode investisseur",
       "title": "Tableau de bord investisseur"
@@ -27863,6 +27909,7 @@
     "viewJob": "Voir le poste"
   },
   "adminOperations": {
+    "sectionsNotGoverned": "Les cartes de section ci-dessous sont des comptages opérationnels en direct, pas des indicateurs gouvernés.",
     "authoritativeNote": "Signaux en lecture seule des services métier existants. Ouvrez chaque module pour agir.",
     "title": "Vue d’ensemble des opérations",
     "subtitle": "Visualisez le travail à traiter dans OxSteed sans dupliquer les données métier.",
@@ -28282,6 +28329,8 @@
     "unknownActions": "Inconnues : {{actions}}"
   },
   "superMoney": {
+    "operationalEstimateNote": "Les cartes ci-dessous sont des estimations opérationnelles, toutes sources et devises confondues. Ce ne sont pas des indicateurs gouvernés ; utilisez les cartes gouvernées ci-dessus pour les chiffres officiels.",
+    "channelsNotGoverned": "Les vignettes par canal sont des estimations opérationnelles, pas des indicateurs gouvernés.",
     "badge": "Argent du super-admin",
     "catConfiguredDesc": "Modèles commerciaux qui existent désormais structurellement, même si la capture des fonds reste à venir.",
     "catConfiguredTitle": "Économie des programmes configurés",
@@ -30584,6 +30633,7 @@
     "title": "Entreprise 360"
   },
   "adminCustomer360": {
+    "governedTitle": "Indicateurs gouvernés de ce client",
     "audit": {
       "action": "Action",
       "actor": "Acteur",

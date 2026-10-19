@@ -1110,6 +1110,7 @@ router.delete('/settings/me/metric-alert-rules/:ruleId', requireAdmin, selfSetti
 // governed metrics registry (read-only; every execution is audit-logged).
 const analyticsQueryCtrl = require('../controllers/analyticsQueryController');
 router.get('/analytics/query-builder/meta', requireAdmin, analyticsQueryCtrl.getMeta);
+router.get('/analytics/governed-kpis', requireAdmin, analyticsQueryCtrl.getGovernedKpis);
 router.get('/analytics/query-builder/history', requireAdmin, analyticsQueryCtrl.getHistory);
 router.post('/analytics/query-builder/run', requireAdmin, analyticsQueryCtrl.runQuery);
 router.post('/analytics/query-builder/nl-parse', requireAdmin, analyticsQueryCtrl.parseNl);
