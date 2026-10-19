@@ -3,6 +3,8 @@
 const cron = require('node-cron');
 const { startCustomer360Alerts } = require('../jobs/customer360Alerts');
 const { startMetricThresholdAlerts } = require('../jobs/metricThresholdAlerts');
+const { startMetricSnapshots } = require('../jobs/metricSnapshots');
+const { startBroadcastDelivery } = require('../jobs/broadcastDelivery');
 const { startRestaurantScreenSync } = require('../jobs/restaurantScreenSync');
 const logger = require('../utils/logger');
 const bookingController = require('../controllers/bookingController');
@@ -141,6 +143,8 @@ class BackgroundWorkers {
       this.handles.push(startRestaurantScreenSync());
       this.handles.push(startCustomer360Alerts());
       this.handles.push(startMetricThresholdAlerts());
+      this.handles.push(startMetricSnapshots());
+      this.handles.push(startBroadcastDelivery());
       startJobRevisionMaintenanceJob();
       startPaymentLayersWorker();
       startMarketplaceRefundReconciliationJob();
@@ -157,6 +161,13 @@ class BackgroundWorkers {
       startProfileVisibilityScheduler();
       startProfileVisibilityNotificationRetryJob();
       startReferralRewardRetryJob();
+      // Growth Center link analytics retention (daily, 03:17 UTC).
+      cron.schedule('0 17 3 * * *', () => {
+        require('../analytics/promotionLinkAnalytics').prunePromotionLinkEvents(require('../db')).catch((error) => {
+          this.log.warn('Promotion link analytics retention failed', { error: error.message });
+        });
+      }, { timezone: 'UTC' });
+
       cron.schedule('*/10 * * * * *', () => {
         require('../services/supportWaitService').processWaiting().catch((error) => {
           this.log.error('Support waiting worker failed', { error: error.message });

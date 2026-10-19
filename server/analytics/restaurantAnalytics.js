@@ -48,6 +48,7 @@
  */
 
 const REPEAT_ORDER_WINDOW_DAYS = 90;
+const paidOrderPredicate = (alias = 'fo') => `${alias}.payment_status = 'paid' AND ${alias}.status NOT IN ('cancelled','refunded')`;
 
 /**
  * Compute the repeat-order rate for one restaurant over a window.
@@ -60,11 +61,11 @@ const REPEAT_ORDER_WINDOW_DAYS = 90;
 async function getRepeatOrderRate(db, restaurantId, { from, to }) {
   const { rows } = await db.query(
     `WITH cohort AS (
-       SELECT id, customer_id
-         FROM food_orders
+       SELECT fo.id, fo.customer_id
+         FROM food_orders fo
         WHERE restaurant_id = $1
           AND created_at >= $2 AND created_at <= $3
-          AND status NOT IN ('cancelled', 'refunded')
+          AND ${paidOrderPredicate()}
      ),
      identified AS (
        SELECT id, customer_id FROM cohort WHERE customer_id IS NOT NULL
@@ -111,13 +112,14 @@ async function getTopItemsByRevenue(db, restaurantId, { from, to, limit = 10 }) 
        SUM(foi.quantity)::int                                     AS units_sold,
        COUNT(DISTINCT fo.id)::int                                AS orders,
        SUM(foi.line_total_cents)::bigint                          AS revenue_cents
+       ,UPPER(fo.currency_code) AS currency_code
        FROM food_order_items foi
        JOIN food_orders fo
          ON fo.id = foi.order_id
         AND fo.restaurant_id = $1
         AND fo.created_at >= $2 AND fo.created_at <= $3
-        AND fo.status NOT IN ('cancelled', 'refunded')
-      GROUP BY 1
+        AND ${paidOrderPredicate()}
+      GROUP BY 1, UPPER(fo.currency_code)
       ORDER BY revenue_cents DESC, units_sold DESC
       LIMIT $4`,
     [restaurantId, from, to, safeLimit]
@@ -127,12 +129,42 @@ async function getTopItemsByRevenue(db, restaurantId, { from, to, limit = 10 }) 
     item_name: r.item_name,
     units_sold: Number(r.units_sold) || 0,
     orders: Number(r.orders) || 0,
-    revenue_cents: Number(r.revenue_cents) || 0,
+    revenue_cents: r.revenue_cents == null ? '0' : String(r.revenue_cents),
+    currency_code: r.currency_code,
   }));
+}
+
+// Acquisition-month cohorts; age zero is the initial purchase month.
+// Counts are based on paid orders and stable customer ids, never guest ids.
+async function getRetentionCohorts(db, restaurantId, { from, to }) {
+  const { rows } = await db.query(`WITH purchases AS (
+      SELECT customer_id,date_trunc('month',created_at)::date AS month
+      FROM food_orders fo WHERE restaurant_id=$1 AND customer_id IS NOT NULL
+        AND created_at <= $3 AND ${paidOrderPredicate()}
+    ), acquired AS (
+      SELECT customer_id,MIN(month) AS cohort FROM purchases GROUP BY 1
+    ), activity AS (
+      SELECT DISTINCT a.customer_id,a.cohort,p.month,
+        (EXTRACT(YEAR FROM age(p.month,a.cohort))*12+EXTRACT(MONTH FROM age(p.month,a.cohort)))::INT AS month_index
+      FROM acquired a JOIN purchases p USING(customer_id)
+      WHERE a.cohort>=date_trunc('month',$2::timestamptz)::date
+    ), cohorts AS (SELECT cohort,COUNT(*)::INT AS customers FROM acquired
+      WHERE cohort>=date_trunc('month',$2::timestamptz)::date GROUP BY 1)
+    SELECT c.cohort AS cohort_month,c.customers AS cohort_customers,g.month_index,
+      COUNT(a.customer_id)::INT AS returning_customers,
+      ROUND(COUNT(a.customer_id)::numeric/NULLIF(c.customers,0),4)::FLOAT AS retention_rate
+    FROM cohorts c CROSS JOIN LATERAL generate_series(0,
+      (EXTRACT(YEAR FROM age(date_trunc('month',$3::timestamptz)::date,c.cohort))*12+
+       EXTRACT(MONTH FROM age(date_trunc('month',$3::timestamptz)::date,c.cohort)))::INT) g(month_index)
+    LEFT JOIN activity a ON a.cohort=c.cohort AND a.month_index=g.month_index
+    GROUP BY c.cohort,c.customers,g.month_index ORDER BY 1,3`, [restaurantId, from, to]);
+  return rows;
 }
 
 module.exports = {
   REPEAT_ORDER_WINDOW_DAYS,
   getRepeatOrderRate,
   getTopItemsByRevenue,
+  getRetentionCohorts,
+  paidOrderPredicate,
 };

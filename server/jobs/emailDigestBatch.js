@@ -136,12 +136,17 @@ async function processSingleUserDigest(userId, digestType) {
 
     // Get queued notifications
     const notificationsResult = await pool.query(`
-      SELECT edq.id, n.type, n.title, n.body, n.created_at
+      SELECT edq.id,
+             COALESCE(n.type, edq.notification_type) AS type,
+             COALESCE(n.title, edq.title) AS title,
+             COALESCE(n.body, edq.body) AS body,
+             COALESCE(n.created_at, edq.queued_at) AS created_at
       FROM email_digest_queue edq
-      JOIN notifications n ON n.id = edq.notification_id
+      LEFT JOIN notifications n ON n.id = edq.notification_id
       WHERE edq.user_id = $1
         AND edq.sent_at IS NULL
-      ORDER BY n.created_at DESC
+        AND (n.id IS NOT NULL OR edq.notification_id IS NULL)
+      ORDER BY 5 DESC
       LIMIT 50
     `, [userId]);
 

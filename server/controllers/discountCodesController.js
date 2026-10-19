@@ -3,6 +3,7 @@ const { withTransaction } = require('../utils/transaction');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const discountService = require('../services/discountService');
+const promoRedemption = require('../services/promoRedemptionService');
 
 async function createDiscountCode(req, res, next) {
   try {
@@ -18,7 +19,10 @@ async function createDiscountCode(req, res, next) {
       applicable_categories,
       applicable_products,
       start_date,
-      end_date
+      end_date,
+      per_user_limit,
+      currency_code,
+      applicable_surfaces
     } = req.body;
 
     const userId = req.user?.id;
@@ -45,6 +49,28 @@ async function createDiscountCode(req, res, next) {
       errors.discount_amount = 'Percentage cannot exceed 100';
     }
 
+    const intOrNull = (v) => (v === undefined || v === null || v === '' ? null : Number(v));
+    for (const [field, value] of [['usage_limit', usage_limit], ['per_user_limit', per_user_limit],
+      ['min_order_cents', min_order_cents], ['max_order_cents', max_order_cents], ['max_discount_cents', max_discount_cents]]) {
+      const n = intOrNull(value);
+      if (n !== null && (!Number.isSafeInteger(n) || n < 0)) errors[field] = 'Must be a non-negative integer';
+    }
+    if (discount_type === 'fixed_cents' && discount_amount && !Number.isSafeInteger(Number(discount_amount))) {
+      errors.discount_amount = 'Fixed discounts are integer cents';
+    }
+    if (currency_code != null && currency_code !== '' && !/^[A-Za-z]{3}$/.test(String(currency_code))) {
+      errors.currency_code = 'Must be a 3-letter ISO currency';
+    }
+    let surfaces = null;
+    if (applicable_surfaces != null) {
+      if (!Array.isArray(applicable_surfaces) || applicable_surfaces.length === 0
+        || applicable_surfaces.some((x) => !promoRedemption.SURFACES.includes(x))) {
+        errors.applicable_surfaces = `Must be a non-empty subset of ${promoRedemption.SURFACES.join(', ')}`;
+      } else {
+        surfaces = [...new Set(applicable_surfaces)];
+      }
+    }
+
     if (Object.keys(errors).length > 0) {
       throw new AppError('Validation failed', 400, 'validation_failed', errors);
     }
@@ -53,8 +79,8 @@ async function createDiscountCode(req, res, next) {
       `INSERT INTO discount_codes
        (code, description, discount_type, discount_amount, max_discount_cents, usage_limit,
         min_order_cents, max_order_cents, applicable_categories, applicable_products,
-        start_date, end_date, created_by, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        start_date, end_date, created_by, status, per_user_limit, currency_code, applicable_surfaces)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
        RETURNING *`,
       [
         code.toUpperCase().trim(),
@@ -70,7 +96,10 @@ async function createDiscountCode(req, res, next) {
         start_date || null,
         end_date || null,
         userId,
-        'active'
+        'active',
+        intOrNull(per_user_limit),
+        currency_code ? String(currency_code).toUpperCase() : null,
+        surfaces
       ]
     );
 
@@ -88,7 +117,7 @@ async function createDiscountCode(req, res, next) {
 async function updateDiscountCode(req, res, next) {
   try {
     const { codeId } = req.params;
-    const { status, usage_limit, end_date } = req.body;
+    const { status, usage_limit, end_date, per_user_limit } = req.body;
 
     const code = await pool.query(
       'SELECT * FROM discount_codes WHERE id = $1',
@@ -110,6 +139,16 @@ async function updateDiscountCode(req, res, next) {
     if (usage_limit !== undefined) {
       updates.push(`usage_limit = $${paramCount}`);
       values.push(usage_limit);
+      paramCount++;
+    }
+
+    if (per_user_limit !== undefined) {
+      const n = per_user_limit === null || per_user_limit === '' ? null : Number(per_user_limit);
+      if (n !== null && (!Number.isSafeInteger(n) || n < 0)) {
+        throw new AppError('Validation failed', 400, 'validation_failed', { per_user_limit: 'Must be a non-negative integer' });
+      }
+      updates.push(`per_user_limit = $${paramCount}`);
+      values.push(n);
       paramCount++;
     }
 
@@ -181,15 +220,29 @@ async function getDiscountCodeUsage(req, res, next) {
   try {
     const { codeId } = req.params;
 
+    // Checkout redemptions (decision 2) live in promo_redemptions; legacy
+    // cart applications stay in order_discount_history.
     const usage = await pool.query(
       `SELECT
-        dc.id, dc.code, dc.usage_count, dc.usage_limit,
-        COUNT(odh.id) as applied_count,
-        SUM(odh.discount_applied_cents) as total_discount_given_cents
+        dc.id, dc.code, dc.usage_count, dc.usage_limit, dc.per_user_limit,
+        (SELECT COUNT(*)::INT FROM order_discount_history odh WHERE odh.discount_code_id = dc.id) AS applied_count,
+        (SELECT COALESCE(SUM(odh.discount_applied_cents), 0)::BIGINT FROM order_discount_history odh
+          WHERE odh.discount_code_id = dc.id) AS total_discount_given_cents,
+        COALESCE((SELECT jsonb_object_agg(x.surface, x.stats) FROM (
+          SELECT pr.surface, jsonb_build_object(
+                   'redeemed', COUNT(*) FILTER (WHERE pr.status = 'redeemed'),
+                   'reserved', COUNT(*) FILTER (WHERE pr.status = 'reserved'),
+                   'reversed', COUNT(*) FILTER (WHERE pr.status = 'reversed'),
+                   'discount_cents_by_currency', (
+                     SELECT COALESCE(jsonb_object_agg(c.currency_code, c.cents), '{}'::jsonb) FROM (
+                       SELECT p2.currency_code, SUM(p2.discount_cents)::BIGINT AS cents
+                         FROM promo_redemptions p2
+                        WHERE p2.discount_code_id = dc.id AND p2.surface = pr.surface AND p2.status = 'redeemed'
+                        GROUP BY 1) c)) AS stats
+            FROM promo_redemptions pr WHERE pr.discount_code_id = dc.id GROUP BY pr.surface) x), '{}'::jsonb)
+          AS checkout_redemptions
        FROM discount_codes dc
-       LEFT JOIN order_discount_history odh ON dc.id = odh.discount_code_id
-       WHERE dc.id = $1
-       GROUP BY dc.id, dc.code, dc.usage_count, dc.usage_limit`,
+       WHERE dc.id = $1`,
       [codeId]
     );
 

@@ -122,14 +122,32 @@ ddescribe('campaign analytics events', () => {
         metadata: { source: 'food_home_card', restaurant_id: restaurantId },
       });
     }
+    const { rows: [order] } = await pool.query(`INSERT INTO food_orders(restaurant_id,business_id,customer_id,status,payment_status,total_cents,queue_number)
+      VALUES($1,$2,$3,'completed','paid',2500,9001) RETURNING id`, [restaurantId,businessId,owner]);
+    F.orderId = Number(order.id);
     await emitCampaignEvent(pool, {
       campaignId, eventType: 'conversion', actorKey: `user:${owner}`,
-      metadata: { order_id: 4242, total_cents: 2500, restaurant_id: restaurantId },
+      metadata: { order_id: F.orderId, total_cents: 2500, restaurant_id: restaurantId },
     });
   });
 
   afterAll(async () => {
     await pool.end().catch(() => {});
+  });
+
+  test('conversion retries dedupe and unpaid/refunded orders do not convert', async () => {
+    await emitCampaignEvent(pool,{ campaignId: F.campaignId,eventType: 'conversion',actorKey: `user:${F.owner}`,
+      metadata: { order_id: F.orderId,restaurant_id: F.restaurantId } });
+    const { rows: [count] } = await pool.query("SELECT COUNT(*)::INT AS n FROM campaign_analytics_events WHERE campaign_id=$1 AND event_type='conversion'",[F.campaignId]);
+    expect(count.n).toBe(1);
+    const client=await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query("UPDATE food_orders SET payment_status='unpaid' WHERE id=$1",[F.orderId]);
+      expect((await getCampaignPerformance(client,[F.campaignId]))[0].conversions).toBe(0);
+      await client.query("UPDATE food_orders SET payment_status='paid',status='refunded' WHERE id=$1",[F.orderId]);
+      expect((await getCampaignPerformance(client,[F.campaignId]))[0].conversions).toBe(0);
+    } finally { await client.query('ROLLBACK');client.release(); }
   });
 
   test('emission never rejects when the events insert fails', async () => {
@@ -163,7 +181,7 @@ ddescribe('campaign analytics events', () => {
       [F.campaignId]);
     expect(rows).toHaveLength(1);
     expect(rows[0].actor_key).toBe(`user:${F.owner}`);
-    expect(rows[0].metadata.order_id).toBe(4242);
+    expect(rows[0].metadata.order_id).toBe(F.orderId);
     expect(rows[0].metadata.total_cents).toBe(2500);
   });
 

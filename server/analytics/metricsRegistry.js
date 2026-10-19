@@ -1,6 +1,12 @@
 'use strict';
 
 const { financialMetricValue } = require('./financialMetrics');
+const { DEFINITIONS: operationalMetrics } = require('./operationalMetrics');
+const exactInteger = value => {
+  if (value == null) return 0;
+  const number = Number(value);
+  return Number.isSafeInteger(number) ? number : String(value);
+};
 
 /**
  * Governed metrics registry v1 — Area 1 of the analytics platform.
@@ -88,6 +94,8 @@ function resolvePeriod(period) {
 // ── Metric catalog ──────────────────────────────────────────────────────────
 // name → { name, definition (canonical SQL), dimensions, owner, notes }
 const METRICS = Object.freeze({
+  ...Object.fromEntries(Object.entries(operationalMetrics).map(([name, def]) => [name,
+    Object.freeze({ name, definition: def.definition, dimensions: [], owner: 'platform/operations' })])),
   open_disputes: Object.freeze({
     name: 'open_disputes',
     definition: "SELECT COUNT(*) FROM disputes WHERE status = 'open'",
@@ -165,6 +173,13 @@ const METRICS = Object.freeze({
     owner: 'platform/finance',
     notes: 'Replaces the hardcoded 0 on the super-admin dashboard. Net of refunds, floored at 0 per payment.',
   }),
+  promo_discount_cents: Object.freeze({
+    name: 'promo_discount_cents',
+    definition: `SUM(discount_cents) FROM promo_redemptions WHERE status = 'redeemed' AND redeemed_at in the period, grouped by currency`,
+    dimensions: ['period'],
+    owner: 'platform/growth',
+    notes: 'Checkout promo codes (decision 2). Reserved and reversed (refunded/cancelled) redemptions are excluded; platform_funded_cents splits jobs/bookings from restaurant-funded food.',
+  }),
   // Restaurant-scoped metrics (Phase 2, Item 10). The registry holds the
   // canonical DEFINITION; the computation lives exactly once in
   // server/analytics/restaurantAnalytics.js (never inline in controllers).
@@ -222,7 +237,7 @@ async function platformRevenue(db, interval, currencyCode = 'USD') {
     FROM platform_ledger WHERE UPPER(currency) = UPPER($3)
   `, [interval, PLATFORM_REVENUE_SOURCE_TYPES, currencyCode]);
   const r = rows[0] || {};
-  const toInt = (v) => parseInt(v, 10) || 0;
+  const toInt = exactInteger;
   return {
     currency_code: currencyCode.toUpperCase(),
     prev_cents: toInt(r.prev_cents),
@@ -368,7 +383,7 @@ async function supportNpsIndex(db, { businessId = null, days = 30 } = {}) {
     FROM support_conversation_reviews scr
     JOIN support_conversations sc ON sc.id = scr.conversation_id
     WHERE scr.nps_score IS NOT NULL
-      AND scr.created_at >= NOW() - ($1 || ' days')::INTERVAL
+      AND scr.created_at >= NOW() - ($1 || ' days')::INTERVAL AND scr.created_at < NOW()
       AND ($2::INTEGER IS NULL OR sc.business_id = $2::INTEGER)
   `, [String(boundedDays), businessId]);
   const r = rows[0] || {};
@@ -392,15 +407,15 @@ async function consultingAvgNps(db) {
 
 // ── 7. MRR and escrow held ──────────────────────────────────────────────────
 async function investorGmvCents(db, currencyCode = 'USD') {
-  return Number(await financialMetricValue(db, 'investor_gmv_cents', currencyCode));
+  return exactInteger(await financialMetricValue(db, 'investor_gmv_cents', currencyCode));
 }
 
 async function mrrCents(db, currencyCode = 'USD') {
-  return Number(await financialMetricValue(db, 'mrr_cents', currencyCode));
+  return exactInteger(await financialMetricValue(db, 'mrr_cents', currencyCode));
 }
 
 async function escrowHeldCents(db, currencyCode = 'USD') {
-  return Number(await financialMetricValue(db, 'escrow_held_cents', currencyCode));
+  return exactInteger(await financialMetricValue(db, 'escrow_held_cents', currencyCode));
 }
 
 module.exports = {

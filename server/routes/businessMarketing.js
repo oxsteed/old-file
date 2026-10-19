@@ -3,9 +3,13 @@ const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const requireBusinessAccess = require('../middleware/requireBusinessAccess');
 const ctrl = require('../controllers/businessMarketingController');
+const promotionCtrl = require('../controllers/promotionAnalyticsController');
+const { generalLimiter } = require('../middleware/rateLimiter');
 
 router.get   ('/:businessId/broadcasts',              requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.listBroadcasts);
 router.post  ('/:businessId/broadcasts',              requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.createBroadcast);
+router.get   ('/:businessId/broadcasts/report',       requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.getBroadcastReport);
+router.get   ('/:businessId/broadcasts/:id/stats',    requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.getBroadcastStats);
 router.post  ('/:businessId/broadcasts/:id/send',     requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.sendBroadcast);
 router.delete('/:businessId/broadcasts/:id',          requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.deleteBroadcast);
 
@@ -18,5 +22,8 @@ router.get   ('/:businessId/featured-placement-requests', requireAuth, requireBu
 router.post  ('/:businessId/featured-placement-requests', requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.requestFeaturedPlacement);
 // Campaign funnel performance (analytics platform, Phase 2, Item 10). Read-only.
 router.get   ('/:businessId/campaign-performance',        requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.getCampaignPerformance);
+// Growth Center link analytics (share actions and tracked-link visits).
+router.post  ('/:businessId/promotion-events/share',      requireAuth, generalLimiter, requireBusinessAccess({ minRole: 'manager' }), promotionCtrl.recordBusinessShare);
+router.get   ('/:businessId/promotion-performance',       requireAuth, requireBusinessAccess({ minRole: 'manager' }), promotionCtrl.getBusinessPerformance);
 
 module.exports = router;

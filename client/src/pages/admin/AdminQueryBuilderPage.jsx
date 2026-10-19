@@ -9,13 +9,15 @@
 // confirming populates the builder and runs the server-validated compiled
 // query with the raw utterance attached for the audit ledger.
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Play, Download, RotateCcw, MessageSquare, AlertTriangle } from 'lucide-react';
 import api from '../../api/axios';
 import logger from '../../utils/logger';
 import { formatAnalyticsCell, analyticsCsv } from '../../utils/analyticsFormat';
 import { useAuth } from '../../hooks/useAuth';
+import MetricTrendPanel from '../../components/analytics/MetricTrendPanel';
 import './AdminQueryBuilderPage.css';
 
 const PERIOD_LABELS = {
@@ -37,6 +39,38 @@ export default function AdminQueryBuilderPage() {
 
 function QueryBuilderWorkspace() {
   const { t, i18n } = useTranslation();
+  const columnLabel = key => t(`analyticsCompletion.columns.${key}`, {
+    defaultValue: t(`queryBuilder.metricNames.${key}`, { defaultValue: prettifyColumn(key) }),
+  });
+  // Localized messages for the governed failure modes; anything else keeps
+  // the server's message so nothing is hidden from the admin.
+  const queryErrorMessage = useCallback(err => {
+    const data = err?.response?.data;
+    switch (data?.code) {
+      case 'metric_permission_required':
+      case 'forbidden':
+        return t('queryBuilder.errorPermissionRequired');
+      case 'analytics_audit_unavailable':
+        return t('queryBuilder.errorAuditUnavailable');
+      case 'region_unknown':
+        return t('queryBuilder.errorRegionUnknown');
+      case 'region_scope_unsupported':
+        return t('queryBuilder.errorRegionUnsupported');
+      case 'query_error':
+      case 'statement_timeout':
+        return t('queryBuilder.errorQueryFailed');
+      default:
+        return data?.error || data?.message || err?.message || t('queryBuilder.errorTitle');
+    }
+  }, [t]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const lastRequested = useRef('');
+  const locationQuery = searchParams.get('q') || '';
+  const rememberQuery = useCallback(query => {
+    const encoded = JSON.stringify(query);
+    lastRequested.current = encoded;
+    setSearchParams({ q: encoded });
+  }, [setSearchParams]);
   const [meta, setMeta] = useState(null);
   const [metaError, setMetaError] = useState(null);
   const [metaLoading, setMetaLoading] = useState(true);
@@ -49,6 +83,20 @@ function QueryBuilderWorkspace() {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null);
   const [runError, setRunError] = useState(null);
+  const [history, setHistory] = useState(null);
+  const [historyOffset, setHistoryOffset] = useState(0);
+  const [historyError, setHistoryError] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const loadHistory = async (offset = 0) => {
+    setHistoryLoading(true); setHistoryError(false);
+    try {
+      const response = await api.get('/admin/analytics/query-builder/history', { params: { offset } });
+      setHistory(response.data); setHistoryOffset(offset);
+    } catch { setHistoryError(true); }
+    finally { setHistoryLoading(false); }
+  };
 
   const loadMeta = useCallback(async () => {
     setMetaLoading(true);
@@ -67,6 +115,37 @@ function QueryBuilderWorkspace() {
   useEffect(() => {
     loadMeta();
   }, [loadMeta]);
+
+  useEffect(() => {
+    if (!meta || !locationQuery || lastRequested.current === locationQuery) return;
+    const controller = new AbortController();
+    let saved;
+    try {
+      if (locationQuery.length > 4000) throw new Error('query too long');
+      saved = JSON.parse(locationQuery);
+      if (!saved || typeof saved !== 'object' || typeof saved.metric !== 'string') throw new Error('invalid link');
+    } catch { setResult(null); setRunError(t('queryBuilder.errorInvalidLink')); return; }
+    // The catalog only lists metrics the admin currently holds a grant for:
+    // a deep link to anything else (an alert, a dashboard card) says so.
+    if (!meta.metrics.some(m => m.name === saved.metric)) {
+      setResult(null); setRunError(t('queryBuilder.errorPermissionRequired')); return;
+    }
+    lastRequested.current = locationQuery;
+    let settled = false;
+    setMetric(saved.metric);setDimensions(saved.dimensions || []);setFilters(saved.filters || {});setPeriod(saved.period || '30d');
+    setRunning(true);setRunError(null);setResult(null);
+    api.post('/admin/analytics/query-builder/run',saved,{ signal: controller.signal })
+      .then(response => { settled = true; if(!controller.signal.aborted) setResult({...response.data,query:response.data.query || saved}); })
+      .catch(error => { settled = true; if(!controller.signal.aborted) setRunError(queryErrorMessage(error)); })
+      .finally(() => { if(!controller.signal.aborted) setRunning(false); });
+    return () => {
+      // An aborted request (navigation, language or account change) must be
+      // retried when this location is shown again, not treated as done.
+      if (!settled && lastRequested.current === locationQuery) lastRequested.current = '';
+      controller.abort();
+      setRunning(false);
+    };
+  }, [meta,locationQuery,t,queryErrorMessage]);
 
   const activeMetric = meta?.metrics?.find((m) => m.name === metric) || null;
 
@@ -101,22 +180,22 @@ function QueryBuilderWorkspace() {
     setRunning(true);
     setRunError(null);
     try {
+      rememberQuery({metric,dimensions,filters,period});
       const res = await api.post('/admin/analytics/query-builder/run', {
         metric,
         dimensions,
         filters,
         period,
       });
-      setResult(res.data);
+      setResult({ ...res.data, query: res.data.query || { metric, dimensions, filters, period } });
     } catch (err) {
       logger.warn('query builder run failed', { metric, message: err?.message });
-      const data = err?.response?.data;
-      setRunError(data?.error || data?.message || err?.message || t('queryBuilder.errorTitle'));
+      setRunError(queryErrorMessage(err));
       setResult(null);
     } finally {
       setRunning(false);
     }
-  }, [metric, dimensions, filters, period, running, t]);
+  }, [metric, dimensions, filters, period, running, rememberQuery, queryErrorMessage]);
 
   // Execute a server-validated compiled query directly (used by the NL
   // confirm flow to avoid racing the builder's setState). The raw utterance
@@ -134,18 +213,18 @@ function QueryBuilderWorkspace() {
           period: compiled.period,
         };
         if (rawUtterance) body.raw_utterance = rawUtterance;
+        rememberQuery(compiled);
         const res = await api.post('/admin/analytics/query-builder/run', body);
-        setResult(res.data);
+        setResult({ ...res.data, query: res.data.query || compiled });
       } catch (err) {
         logger.warn('query builder run failed', { metric: compiled.metric, message: err?.message });
-        const data = err?.response?.data;
-        setRunError(data?.error || data?.message || err?.message || t('queryBuilder.errorTitle'));
+        setRunError(queryErrorMessage(err));
         setResult(null);
       } finally {
         setRunning(false);
       }
     },
-    [running, t]
+    [running, rememberQuery, queryErrorMessage]
   );
 
   // ── Track B: natural-language input ─────────────────────────────────────
@@ -231,19 +310,36 @@ function QueryBuilderWorkspace() {
     setNlRejection(null);
   }, []);
 
-  const exportCsv = () => {
-    if (!result?.rows?.length) return;
-    const csv = analyticsCsv(result.rows, result.columns);
+  const exportCsv = async () => {
+    if (!result?.rows?.length || exporting) return;
+    setExporting(true);
+    try {
+    // Recheck grants and audit the query that produced these results,
+    // even if the user has since edited the form.
+    const response = await api.post('/admin/analytics/query-builder/run', { ...result.query, evidence: result.evidence === true, export: true });
+    setResult(previous => previous ? {...previous,exportTruncated:response.data.truncated} : previous);
+    const csv = analyticsCsv(response.data.rows, response.data.columns);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
     a.href = url;
-    a.download = `query-builder-${metric}-${stamp}.csv`;
+    a.download = `query-builder-${result.query.metric}-${stamp}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    } catch (error) { setRunError(queryErrorMessage(error)); }
+    finally { setExporting(false); }
+  };
+
+  const loadEvidence = async (offset = 0) => {
+    if (!result?.query || running) return;
+    const request = { ...result.query,evidence:true,offset };
+    rememberQuery(request);setRunning(true);setRunError(null);
+    try { const response=await api.post('/admin/analytics/query-builder/run',request);setResult(response.data); }
+    catch(error){setRunError(queryErrorMessage(error));setResult(null);}
+    finally{setRunning(false);}
   };
 
   const renderFilterInput = (filterName) => {
@@ -320,7 +416,7 @@ function QueryBuilderWorkspace() {
             {nlParsing ? t('queryBuilder.nlParsing') : t('queryBuilder.nlInterpret')}
           </button>
         </div>
-        <p className="qb-nl-note">{t('queryBuilder.nlEnglishOnly')}</p>
+        <p className="qb-nl-note">{meta?.nlModelAvailable ? t('analyticsCompletion.modelNlHint') : t('queryBuilder.nlEnglishOnly')}</p>
         {nlRejection && (
           <div className="qb-error" role="alert">
             <AlertTriangle size={16} />
@@ -479,18 +575,25 @@ function QueryBuilderWorkspace() {
             <div className="qb-results-meta">
               <span>{t('queryBuilder.rowCount', { count: result.rowCount })}</span>
               <span>{t('queryBuilder.duration', { ms: result.durationMs })}</span>
-              {result.truncated && (
+              {result.scope?.kind === 'regional' && (
+                <span className="qb-region-scoped">
+                  <strong>{t('queryBuilder.regionScopedNotice')}</strong>{' '}
+                  <span className="qb-region-scoped-hint">{t('queryBuilder.regionScopedHint')}</span>
+                </span>
+              )}
+              {(result.truncated || result.summaryTruncated || result.exportTruncated) && (
                 <span className="qb-truncated">
                   {t('queryBuilder.truncatedNotice', { cap: meta?.rowCap || 10000 })}
                 </span>
               )}
             </div>
             <div className="qb-results-actions">
+              <button className="qb-btn qb-btn-secondary" disabled={running} onClick={() => loadEvidence()}>{t('analyticsCompletion.records')}</button>
               <button
                 type="button"
                 className="qb-btn qb-btn-secondary"
                 onClick={exportCsv}
-                disabled={!result.rows?.length}
+                disabled={!result.rows?.length || exporting}
               >
                 <Download size={15} />
                 {t('queryBuilder.exportCsv')}
@@ -508,13 +611,17 @@ function QueryBuilderWorkspace() {
               </button>
             </div>
           </div>
+          {result.summary && <><h3>{t('analyticsCompletion.cohortTotals')}</h3>
+            <div className="qb-table-wrap"><table className="qb-table"><thead><tr>{result.summaryColumns.map(c=><th key={c}>{columnLabel(c)}</th>)}</tr></thead>
+              <tbody>{result.summary.map((row,i)=><tr key={i}>{result.summaryColumns.map(c=><td key={c}>{formatAnalyticsCell(c,row[c],row,i18n.language)}</td>)}</tr>)}</tbody>
+            </table></div><h3>{t('analyticsCompletion.records')}</h3></>}
           {result.rows?.length ? (
             <div className="qb-table-wrap">
               <table className="qb-table">
                 <thead>
                   <tr>
                     {result.columns.map((c) => (
-                      <th key={c}>{prettifyColumn(c)}</th>
+                      <th key={c}>{columnLabel(c)}</th>
                     ))}
                   </tr>
                 </thead>
@@ -532,8 +639,30 @@ function QueryBuilderWorkspace() {
           ) : (
             <p className="qb-hint">{t('queryBuilder.noResults')}</p>
           )}
+          {result.evidence && <nav aria-label={t('analyticsCompletion.records')}>
+            <button className="qb-btn" disabled={!result.offset || running} onClick={()=>loadEvidence(Math.max(0,result.offset-100))}>{t('helperEarningsV2.previous')}</button>
+            <button className="qb-btn" disabled={!result.hasMore || running} onClick={()=>loadEvidence((result.offset||0)+100)}>{t('helperEarningsV2.next')}</button>
+          </nav>}
         </section>
       )}
+      {activeMetric?.trend && <MetricTrendPanel key={activeMetric.name} metric={activeMetric.name} regional={activeMetric.scope === 'regional'} />}
+      <section className="qb-results" aria-busy={historyLoading}>
+        <h2>{t('analyticsCompletion.history')}</h2>
+        <button className="qb-btn qb-btn-secondary" disabled={historyLoading} onClick={() => loadHistory()}>{t('analyticsCompletion.loadHistory')}</button>
+        {historyError && <p role="alert">{t('queryBuilder.loadFailed')}</p>}
+        {history && <><div className="qb-table-wrap"><table className="qb-table">
+          <thead><tr>{['when','event','metric','result'].map(name => <th key={name}>{t(`analyticsCompletion.${name}`)}</th>)}</tr></thead>
+          <tbody>{history.rows?.map(row => <tr key={row.id}>
+            <td>{new Date(row.created_at).toLocaleString(i18n.language)}</td>
+            <td>{t(`analyticsCompletion.events.${row.event_type}`)}</td>
+            <td>{t(`queryBuilder.metricNames.${row.metric_name}`, { defaultValue: row.metric_name })}</td>
+            <td>{row.success ? t('analyticsCompletion.succeeded') : t('analyticsCompletion.denied')}</td>
+          </tr>)}</tbody>
+        </table></div><nav aria-label={t('analyticsCompletion.history')}>
+          <button className="qb-btn" disabled={historyOffset===0 || historyLoading} onClick={() => loadHistory(Math.max(0,historyOffset-50))}>{t('helperEarningsV2.previous')}</button>
+          <button className="qb-btn" disabled={!history.hasMore || historyLoading} onClick={() => loadHistory(historyOffset+50)}>{t('helperEarningsV2.next')}</button>
+        </nav></>}
+      </section>
     </div>
   );
 }

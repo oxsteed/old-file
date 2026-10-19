@@ -3,11 +3,16 @@ import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, Send, Tag, Megaphone, ToggleLeft, ToggleRight } from 'lucide-react';
+import { BroadcastDeliveryStats } from './BroadcastDeliveryStats';
+
+const BROADCAST_CHANNELS = ['email', 'push', 'in_app', 'all'];
+const EDITABLE = ['draft', 'scheduled'];
 
 export function MarketingTools({ businessId }) {
   const { t, i18n } = useTranslation();
   const [tab, setTab] = useState('broadcasts');
   const [broadcasts, setBroadcasts] = useState([]);
+  const [report, setReport] = useState(null);
   const [promos, setPromos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showBroadcastForm, setShowBroadcastForm] = useState(false);
@@ -25,6 +30,9 @@ export function MarketingTools({ businessId }) {
     try { const res = await api.get(`/businesses/${businessId}/broadcasts`); setBroadcasts(res.data || []); }
     catch { toast.error(t('businessHub.marketing.toastLoadBroadcastsFail')); }
     finally { setLoading(false); }
+    // Decision 1: delivery/open/click reporting for the last 30 days.
+    api.get(`/businesses/${businessId}/broadcasts/report`, { params: { days: 30 } })
+      .then((res) => setReport(res.data || null)).catch(() => setReport(null));
   };
 
   const loadPromos = async () => {
@@ -37,13 +45,22 @@ export function MarketingTools({ businessId }) {
   const createBroadcast = async () => {
     if (!bf.subject || !bf.message) return toast.error(t('businessHub.marketing.toastSubjectMessageRequired'));
     try { await api.post(`/businesses/${businessId}/broadcasts`, bf); toast.success(t('businessHub.marketing.toastBroadcastCreated')); setShowBroadcastForm(false); setBf({ subject: '', message: '', channel: 'email', audience: 'all' }); loadBroadcasts(); }
-    catch { toast.error(t('businessHub.marketing.toastBroadcastCreateFail')); }
+    catch (err) {
+      toast.error(err?.response?.data?.code === 'broadcast_channel_unsupported'
+        ? t('businessHub.marketing.channelUnsupported') : t('businessHub.marketing.toastBroadcastCreateFail'));
+    }
   };
 
   const sendBroadcast = async (id) => {
     if (!window.confirm(t('businessHub.marketing.confirmSendBroadcast'))) return;
-    try { await api.post(`/businesses/${businessId}/broadcasts/${id}/send`); toast.success(t('businessHub.marketing.toastBroadcastSent')); loadBroadcasts(); }
-    catch { toast.error(t('businessHub.marketing.toastSendFail')); }
+    try {
+      const res = await api.post(`/businesses/${businessId}/broadcasts/${id}/send`);
+      toast.success(res.data?.status === 'scheduled' ? t('businessHub.marketing.toastBroadcastScheduled') : t('businessHub.marketing.toastBroadcastQueued'));
+      loadBroadcasts();
+    } catch (err) {
+      toast.error(err?.response?.data?.code === 'broadcast_channel_unsupported'
+        ? t('businessHub.marketing.channelUnsupported') : t('businessHub.marketing.toastSendFail'));
+    }
   };
 
   const deleteBroadcast = async (id) => {
@@ -104,11 +121,9 @@ export function MarketingTools({ businessId }) {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>{t('businessHub.marketing.channel')}</label>
-                    <select value={bf.channel} onChange={e => setBf(f => ({ ...f, channel: e.target.value }))} style={{ width: '100%', padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)' }}>
-                      <option value="email">{t('businessHub.marketing.channels.email')}</option>
-                      <option value="sms">{t('businessHub.marketing.channels.sms')}</option>
-                      <option value="push">{t('businessHub.marketing.channels.push')}</option>
+                    <label htmlFor="broadcast-channel" style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>{t('businessHub.marketing.channel')}</label>
+                    <select id="broadcast-channel" value={bf.channel} onChange={e => setBf(f => ({ ...f, channel: e.target.value }))} style={{ width: '100%', padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)' }}>
+                      {BROADCAST_CHANNELS.map((ch) => <option key={ch} value={ch}>{t(`businessHub.marketing.channels.${ch}`)}</option>)}
                     </select>
                   </div>
                 </div>
@@ -119,16 +134,24 @@ export function MarketingTools({ businessId }) {
               </div>
             </div>
           )}
+          {report && Object.keys(report.channels || {}).length > 0 && (
+            <section aria-labelledby="broadcast-report-title" style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.75rem', padding: '0.75rem 1rem', marginBottom: '1rem' }}>
+              <h4 id="broadcast-report-title" style={{ margin: '0 0 0.5rem', fontSize: '0.95rem' }}>{t('businessHub.marketing.delivery.reportTitle', { days: report.days })}</h4>
+              <BroadcastDeliveryStats channels={report.channels} unsubscribes={report.unsubscribes} testId="broadcast-report" />
+            </section>
+          )}
           {loading ? <p style={{ color: 'var(--muted-text)' }}>{t('common.loading')}</p> : broadcasts.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--muted-text)' }}><Megaphone size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} /><p>{t('businessHub.marketing.noBroadcasts')}</p></div>
           ) : broadcasts.map(b => (
-            <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.5rem', padding: '0.75rem 1rem', marginBottom: '0.5rem' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600 }}>{b.subject}</div>
+            <div key={b.id} data-testid="broadcast-row" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.75rem 1rem', background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.5rem', padding: '0.75rem 1rem', marginBottom: '0.5rem' }}>
+              <div style={{ flex: '1 1 12rem', minWidth: 0 }}>
+                <div style={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{b.subject}</div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--muted-text)' }}>{t(`businessHub.marketing.channels.${b.channel}`, b.channel)} · {t(`businessHub.marketing.statuses.${b.status}`, b.status)} · {t('businessHub.marketing.recipients', { count: b.recipient_count || 0 })}</div>
+                {b.delivery && <BroadcastDeliveryStats channels={b.delivery.channels} unsubscribes={b.delivery.unsubscribes} compact testId={`broadcast-stats-${b.id}`} />}
+                {b.status === 'sent' && !b.delivery_tracked && <div style={{ fontSize: '0.7rem', color: 'var(--muted-text)', marginTop: '0.25rem' }}>{t('businessHub.marketing.delivery.legacyUntracked')}</div>}
               </div>
-              {b.status !== 'sent' && <button onClick={() => sendBroadcast(b.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.4rem 0.75rem', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}><Send size={12} /> {t('businessHub.marketing.send')}</button>}
-              {b.status !== 'sent' && <button onClick={() => deleteBroadcast(b.id)} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={14} /></button>}
+              {EDITABLE.includes(b.status) && <button onClick={() => sendBroadcast(b.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.4rem 0.75rem', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}><Send size={12} /> {t('businessHub.marketing.send')}</button>}
+              {EDITABLE.includes(b.status) && <button onClick={() => deleteBroadcast(b.id)} aria-label={t('businessHub.marketing.deleteBroadcast')} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={14} /></button>}
             </div>
           ))}
         </>

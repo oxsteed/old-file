@@ -1102,6 +1102,7 @@ router.get('/settings/me/notifications', requireAdmin, selfSettingsCtrl.getMyNot
 router.put('/settings/me/notifications', requireAdmin, selfSettingsCtrl.updateMyNotificationPrefs);
 // Analytics platform, Phase 2 Item 9: per-admin metric threshold alert rules.
 router.get('/settings/me/metric-alert-rules', requireAdmin, selfSettingsCtrl.listMetricAlertRules);
+router.get('/settings/me/metric-alert-rules/:ruleId/history', requireAdmin, selfSettingsCtrl.getMetricAlertHistory);
 router.post('/settings/me/metric-alert-rules', requireAdmin, selfSettingsCtrl.createMetricAlertRule);
 router.put('/settings/me/metric-alert-rules/:ruleId', requireAdmin, selfSettingsCtrl.updateMetricAlertRule);
 router.delete('/settings/me/metric-alert-rules/:ruleId', requireAdmin, selfSettingsCtrl.deleteMetricAlertRule);
@@ -1109,8 +1110,12 @@ router.delete('/settings/me/metric-alert-rules/:ruleId', requireAdmin, selfSetti
 // governed metrics registry (read-only; every execution is audit-logged).
 const analyticsQueryCtrl = require('../controllers/analyticsQueryController');
 router.get('/analytics/query-builder/meta', requireAdmin, analyticsQueryCtrl.getMeta);
+router.get('/analytics/query-builder/history', requireAdmin, analyticsQueryCtrl.getHistory);
 router.post('/analytics/query-builder/run', requireAdmin, analyticsQueryCtrl.runQuery);
 router.post('/analytics/query-builder/nl-parse', requireAdmin, analyticsQueryCtrl.parseNl);
+router.get('/analytics/query-builder/trend', requireAdmin, analyticsQueryCtrl.getTrend);
+router.get('/analytics/snapshots/runs', requireSuperAdmin, analyticsQueryCtrl.listSnapshotRuns);
+router.post('/analytics/snapshots/backfill', requireSuperAdmin, analyticsQueryCtrl.startSnapshotBackfill);
 router.get('/settings/me/api-keys', requireAdmin, selfSettingsCtrl.listMyApiKeys);
 router.post('/settings/me/api-keys', requireAdmin, selfSettingsCtrl.createMyApiKey);
 router.delete('/settings/me/api-keys/:keyId', requireAdmin, selfSettingsCtrl.revokeMyApiKey);

@@ -3,7 +3,18 @@ const crypto = require('crypto');
 // Campaign funnel aggregates (analytics platform, Phase 2, Item 10).
 const campaignAnalytics = require('../analytics/campaignAnalytics');
 
-// Broadcasts
+// Broadcasts (analytics decision 1: real delivery + tracking).
+const broadcastDelivery = require('../services/broadcastDeliveryService');
+const { logBusinessAction } = require('../services/businessAuditLog');
+const BROADCAST_CHANNEL_INPUTS = Object.keys(broadcastDelivery.CHANNEL_SETS);
+
+function broadcastSummary(stats) {
+  const channels = stats?.channels || {};
+  const sum = (k) => Object.values(channels).reduce((n, c) => n + Number(c[k] || 0), 0);
+  return { ...stats, sent: sum('sent'), failed: sum('failed'), skipped: sum('skipped'), pending: sum('pending'),
+    opened: sum('opened'), clicked: sum('clicked') };
+}
+
 exports.listBroadcasts = async (req, res, next) => {
   const { businessId } = req.params;
   try {
@@ -11,7 +22,9 @@ exports.listBroadcasts = async (req, res, next) => {
       'SELECT * FROM business_broadcasts WHERE business_id=$1 ORDER BY created_at DESC LIMIT 50',
       [businessId]
     );
-    res.json(rows.rows);
+    const tracked = rows.rows.filter(b => b.delivery_tracked).map(b => b.id);
+    const stats = await broadcastDelivery.getBroadcastStats(pool, tracked);
+    res.json(rows.rows.map(b => ({ ...b, delivery: b.delivery_tracked ? broadcastSummary(stats[String(b.id)]) : null })));
   } catch (err) { next(err); }
 };
 
@@ -19,16 +32,29 @@ exports.createBroadcast = async (req, res, next) => {
   const { businessId } = req.params;
   const { subject, message, channel = 'email', audience = 'all', scheduled_at } = req.body;
   if (!subject || !message) return res.status(400).json({ error: 'subject and message are required' });
+  if (!BROADCAST_CHANNEL_INPUTS.includes(channel)) {
+    return res.status(400).json({ error: 'Unsupported channel', code: 'broadcast_channel_unsupported', allowed: BROADCAST_CHANNEL_INPUTS });
+  }
+  if (String(subject).length > 300 || String(message).length > 10000) {
+    return res.status(400).json({ error: 'Subject or message is too long', code: 'validation_failed' });
+  }
+  let scheduledAt = null;
+  if (scheduled_at) {
+    scheduledAt = new Date(scheduled_at);
+    if (Number.isNaN(scheduledAt.getTime())) return res.status(400).json({ error: 'Invalid schedule', code: 'validation_failed' });
+  }
   try {
     const audienceCount = await pool.query(
-      `SELECT COUNT(*) FROM business_customers WHERE business_id=$1 AND is_active=TRUE`,
-      [businessId]
+      `SELECT COUNT(*)::INT AS count FROM business_clients
+        WHERE business_id=$1 AND deleted_at IS NULL AND status='active' AND ($2 = 'all' OR $2 = ANY(tags))`,
+      [businessId, audience]
     );
     const row = await pool.query(
       `INSERT INTO business_broadcasts
-         (business_id, subject, body, message, channel, audience, audience_tag, recipient_count, scheduled_at, status)
-       VALUES ($1,$2,$3,$3,$4,$5,$5,$6,$7,$8) RETURNING *`,
-      [businessId, subject, message, channel, audience, parseInt(audienceCount.rows[0].count), scheduled_at, scheduled_at ? 'scheduled' : 'draft']
+         (business_id, subject, body, message, channel, channels, audience, audience_tag, recipient_count, scheduled_at, status, created_by)
+       VALUES ($1,$2,$3,$3,$4,$5,$6,$6,$7,$8,$9,$10) RETURNING *`,
+      [businessId, subject, message, channel, broadcastDelivery.CHANNEL_SETS[channel], audience,
+        audienceCount.rows[0].count, scheduledAt, scheduledAt ? 'scheduled' : 'draft', req.user?.id || null]
     );
     res.status(201).json(row.rows[0]);
   } catch (err) { next(err); }
@@ -36,22 +62,54 @@ exports.createBroadcast = async (req, res, next) => {
 
 exports.sendBroadcast = async (req, res, next) => {
   const { businessId, id } = req.params;
+  const client = await pool.connect();
   try {
-    const row = await pool.query(
-      `UPDATE business_broadcasts SET status='sent', sent_at=NOW(), updated_at=NOW()
-       WHERE id=$1 AND business_id=$2 AND status IN ('draft','scheduled') RETURNING *`,
-      [id, businessId]
-    );
-    if (!row.rows.length) return res.status(404).json({ error: 'Not found or already sent' });
-    res.json(row.rows[0]);
+    await client.query('BEGIN');
+    const out = await broadcastDelivery.queueBroadcast(client, { businessId, broadcastId: id, userId: req.user?.id || null });
+    if (out.notFound || out.conflict) {
+      await client.query('ROLLBACK');
+      return res.status(out.notFound ? 404 : 409).json({ error: 'Not found or already sent', code: out.notFound ? 'not_found' : 'broadcast_already_queued' });
+    }
+    // Fail closed: no audit row, no delivery.
+    await logBusinessAction(req, {
+      client, throwOnError: true, business_id: Number(businessId), action: out.scheduled ? 'broadcast.scheduled' : 'broadcast.queued',
+      target_type: 'business_broadcast', target_id: id,
+      metadata: { channels: out.broadcast.channels, recipients: out.broadcast.recipient_count, scheduled_at: out.broadcast.scheduled_at },
+    });
+    await client.query('COMMIT');
+    res.status(202).json(out.broadcast);
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    if (err.code === 'broadcast_channel_unsupported') return res.status(400).json({ error: err.message, code: err.code });
+    next(err);
+  } finally { client.release(); }
+};
+
+exports.getBroadcastStats = async (req, res, next) => {
+  const { businessId, id } = req.params;
+  try {
+    const { rows: [b] } = await pool.query('SELECT id, delivery_tracked FROM business_broadcasts WHERE id=$1 AND business_id=$2', [id, businessId]);
+    if (!b) return res.status(404).json({ error: 'Not found' });
+    if (!b.delivery_tracked) return res.json({ broadcastId: b.id, tracked: false });
+    const stats = await broadcastDelivery.getBroadcastStats(pool, [b.id]);
+    res.json({ broadcastId: b.id, tracked: true, ...broadcastSummary(stats[String(b.id)]) });
+  } catch (err) { next(err); }
+};
+
+exports.getBroadcastReport = async (req, res, next) => {
+  const { businessId } = req.params;
+  const days = [7, 30, 90, 365].includes(Number(req.query.days)) ? Number(req.query.days) : 30;
+  try {
+    res.json(await broadcastDelivery.getBroadcastReport(pool, businessId, days));
   } catch (err) { next(err); }
 };
 
 exports.deleteBroadcast = async (req, res, next) => {
   const { businessId, id } = req.params;
   try {
+    // Only drafts and not-yet-due schedules; a sending broadcast keeps its ledger.
     await pool.query(
-      'DELETE FROM business_broadcasts WHERE id=$1 AND business_id=$2 AND status!=\'sent\'',
+      `DELETE FROM business_broadcasts WHERE id=$1 AND business_id=$2 AND status IN ('draft','scheduled')`,
       [id, businessId]
     );
     res.json({ success: true });

@@ -198,6 +198,7 @@ async function notifyUserAccountEvent(userId, { type, title, body, action_url = 
 // Canonical reporting periods live in the metrics registry (single source of
 // truth; '1y' = '1 year'). investorController previously used '365 days'.
 const PERIOD_INTERVAL = metricsRegistry.PERIOD_INTERVAL;
+const { jobCompletionRate } = require('../analytics/operationalMetrics');
 
 function safeInt(v) { return parseInt(v, 10) || 0; }
 function safeFloat(v) { return parseFloat(v) || 0; }
@@ -316,7 +317,8 @@ exports.getDashboardStats = async (req, res) => {
     // tools, consulting) are separate metrics, not rival definitions.
     let total_revenue_cents = 0, revenue_period_cents = 0,
         subscription_revenue_period_cents = 0, revenue_mtd_cents = 0,
-        subscription_revenue_mtd_cents = 0, refunds_period_cents = 0;
+        subscription_revenue_mtd_cents = 0, refunds_period_cents = 0,
+        revenue_prev_from_registry = 0;
     if (hasLedger) {
       try {
         const revenue = await metricsRegistry.platformRevenue(db, cur, 'USD');
@@ -326,6 +328,9 @@ exports.getDashboardStats = async (req, res) => {
         revenue_mtd_cents = revenue.mtd_cents;
         subscription_revenue_mtd_cents = revenue.subscription_mtd_cents;
         refunds_period_cents = revenue.refunds_period_cents;
+        // Same registry call and currency as the period card, so the delta
+        // compares like with like (previously an all-currency raw sum).
+        revenue_prev_from_registry = revenue.prev_cents;
       } catch (_) {}
     }
 
@@ -389,15 +394,7 @@ exports.getDashboardStats = async (req, res) => {
         new_jobs_prev = safeInt(rows[0]?.cnt);
       } catch (_) {}
     }
-    if (hasLedger) {
-      try {
-        const { rows } = await db.query(
-          `SELECT COALESCE(SUM(amount_cents),0) AS total FROM platform_ledger WHERE source_type IN ('job_fee','subscription') AND amount_cents > 0 AND created_at BETWEEN now() - $2::interval AND now() - $1::interval`,
-          [cur, prevInterval]
-        );
-        revenue_prev_cents = safeInt(rows[0]?.total);
-      } catch (_) {}
-    }
+    revenue_prev_cents = revenue_prev_from_registry;
 
     // ── MRR + escrow held (metrics registry) ──────────────────────────────
     // Previously hardcoded 0. MRR = active subscriptions x plan amount
@@ -416,10 +413,16 @@ exports.getDashboardStats = async (req, res) => {
     // ── Completion rate ────────────────────────────────────────────────────
     // T35-F01: the cohort must be consistent. Both completions and
     // cancellations are counted over the same period.
-    const totalFinished = completed_jobs_period + cancelled_jobs_period;
-    const completion_rate = totalFinished > 0
-      ? Math.round((completed_jobs_period / totalFinished) * 100)
-      : null;
+    // Registry metric job_completion_rate_pct: same cohort as the investor
+    // dashboard, the query builder and alerts (decided, non-deleted jobs
+    // created in the selected period).
+    let completion_rate = null;
+    if (hasJobs) {
+      try {
+        const rate = await jobCompletionRate(db, cur);
+        completion_rate = rate.completion_rate_pct == null ? null : Math.round(rate.completion_rate_pct);
+      } catch (rateErr) { logger.warn('getDashboardStats: completion rate failed', { err: rateErr.message }); }
+    }
 
     const stats = {
       total_users:          safeInt(coreStats.total_users),

@@ -3,8 +3,10 @@
 jest.mock('../middleware/adminAuth', () => ({ hasGlobalGrant: jest.fn() }));
 jest.mock('../services/scopeModel', () => ({ resolveScope: jest.fn() }));
 jest.mock('../utils/logger', () => ({ warn: jest.fn() }));
+jest.mock('../db', () => ({ query: jest.fn() }));
 
 const { hasGlobalGrant } = require('../middleware/adminAuth');
+const grantDb = require('../db');
 const { resolveScope } = require('../services/scopeModel');
 const { assertMetricAccess, permittedMetrics, METRIC_PERMISSIONS } = require('../analytics/metricAccess');
 const { executeBuilderQuery, runCappedQuery, getBuilderMeta } = require('../analytics/queryBuilder');
@@ -14,6 +16,7 @@ const superAdmin = { ...admin, role: 'super_admin' };
 beforeEach(() => {
   jest.resetAllMocks();
   hasGlobalGrant.mockResolvedValue(false);
+  grantDb.query.mockResolvedValue({ rows: [] });
   resolveScope.mockResolvedValue({ isAdmin: true, restaurantIds: [], regionRestricted: true });
 });
 
@@ -62,4 +65,44 @@ test('uses database read-only transactions with timeout and rollback on failure'
     'BEGIN READ ONLY', "SET LOCAL statement_timeout = '30s'", 'SELECT 1\nLIMIT 10001', 'ROLLBACK',
   ]);
   expect(client.release).toHaveBeenCalledTimes(1);
+});
+
+describe('regional admins (decision 3)', () => {
+  const region = (id, boundary) => ({ region_id: id, region_row_id: id, boundary_definition: boundary });
+
+  test('a regional-only grant yields a regional scope with normalized territory', async () => {
+    grantDb.query.mockResolvedValue({ rows: [region(4, { type: 'country_only', countries: ['ht'] })] });
+    const scope = await assertMetricAccess(admin, 'platform_revenue_cents');
+    expect(scope).toMatchObject({ global: false, regionIds: [4], regions: [{ type: 'country_only', countries: ['HT'] }] });
+    expect(await permittedMetrics(admin, ['platform_revenue_cents'])).toEqual(['platform_revenue_cents']);
+  });
+
+  test('a global grant wins over regional grants', async () => {
+    hasGlobalGrant.mockResolvedValue(true);
+    grantDb.query.mockResolvedValue({ rows: [region(4, { type: 'country_only', countries: ['HT'] })] });
+    expect(await assertMetricAccess(admin, 'platform_revenue_cents')).toMatchObject({ global: true });
+  });
+
+  test('fails closed when the region row is missing or its boundary is unknown', async () => {
+    grantDb.query.mockResolvedValue({ rows: [
+      { region_id: 9, region_row_id: null, boundary_definition: null },
+      region(5, { type: 'polygon', points: [] }),
+      region(6, { type: 'zip_range', ranges: [{ start: 'a', end: 2 }] }),
+    ] });
+    await expect(assertMetricAccess(admin, 'platform_revenue_cents')).rejects.toMatchObject({ status: 403, code: 'region_unknown' });
+    expect(await permittedMetrics(admin, ['platform_revenue_cents'])).toEqual([]);
+  });
+
+  test('regional execution runs region-filtered SQL and audits the scope', async () => {
+    grantDb.query.mockResolvedValue({ rows: [region(4, { type: 'country_only', countries: ['HT'] })] });
+    const client = { query: jest.fn(async () => ({ rows: [] })), release: jest.fn() };
+    const db = { connect: jest.fn(async () => client), query: jest.fn(async () => ({ rows: [] })) };
+    const result = await executeBuilderQuery(db, admin, { metric: 'job_completion_rate_pct', period: '7d' });
+    expect(result.scope).toEqual({ kind: 'regional', regionIds: [4] });
+    const select = client.query.mock.calls.map(c => c).find(([sql]) => /jobs AS NOT MATERIALIZED/.test(sql));
+    expect(select).toBeTruthy();
+    expect(select[1].at(-1)).toBe(JSON.stringify([{ type: 'country_only', countries: ['HT'] }]));
+    const audit = db.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO analytics_query_audit'));
+    expect(audit[1].slice(-2)).toEqual(['regional', [4]]);
+  });
 });

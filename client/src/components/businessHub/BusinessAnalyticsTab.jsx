@@ -1,211 +1,51 @@
-import React, { useState, useEffect } from 'react';
-import api from '../../api/axios';
-import toast from 'react-hot-toast';
+import { useEffect,useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, DollarSign, Calendar, Users } from 'lucide-react';
+import api from '../../api/axios';
+import { moneyMajor } from '../../lib/moneyExact';
 import '../../styles/BusinessAnalyticsTab.css';
 
-const CHART_COLORS = ['#f97316', '#ea580c', '#d97706', '#b45309'];
+export function BusinessAnalyticsTab({businessId,onInvoices,viewerId}) {
+  return <BusinessInvoiceRevenue key={`${viewerId || ''}:${businessId}`} businessId={businessId} onInvoices={onInvoices}/>;
+}
 
-export function BusinessAnalyticsTab({ businessId }) {
-  const { t } = useTranslation();
-  const [analytics, setAnalytics] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [dateRange, setDateRange] = useState('30d');
-
-  useEffect(() => {
-    loadAnalytics();
-  }, [businessId, dateRange]);
-
-  const loadAnalytics = async () => {
-    try {
-      setLoading(true);
-      const response = await api.get(
-        `/businesses/${businessId}/analytics`,
-        { params: { range: dateRange } }
-      );
-      setAnalytics(response.data);
-    } catch (error) {
-      toast.error(t('businessAnalytics.toastLoadFailed'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return <div className="bat-loading">{t('businessAnalytics.loading')}</div>;
-  }
-
-  if (!analytics) {
-    return (
-      <div className="bat-empty">
-        <p>{t('businessAnalytics.noData')}</p>
-      </div>
-    );
-  }
-
-  const stats = [
-    {
-      icon: <DollarSign size={24} />,
-      iconClass: 'revenue',
-      title: t('businessAnalytics.totalRevenue'),
-      // QW4: trivial null guard. totalRevenue is the only stat without a
-      // fallback; without it a mismatched API contract renders "$NaN".
-      value: analytics.totalRevenue != null ? `$${(analytics.totalRevenue / 100).toFixed(2)}` : t('common.na'),
-      hasChange: analytics.revenueChange !== undefined && analytics.revenueChange !== null,
-      change: analytics.revenueChange,
-      meta: null,
-    },
-    {
-      icon: <Calendar size={24} />,
-      iconClass: 'appointments',
-      title: t('businessAnalytics.appointments'),
-      value: analytics.appointmentCount || 0,
-      hasChange: false,
-      meta: t('businessAnalytics.completedAppointments', { count: analytics.completedAppointments || 0 }),
-    },
-    {
-      icon: <Users size={24} />,
-      iconClass: 'customers',
-      title: t('businessAnalytics.customers'),
-      value: analytics.customerCount || 0,
-      hasChange: false,
-      meta: t('businessAnalytics.newCustomers', { count: analytics.newCustomers || 0 }),
-    },
-    {
-      icon: <TrendingUp size={24} />,
-      iconClass: 'rating',
-      title: t('businessAnalytics.rating'),
-      value: analytics.averageRating ? analytics.averageRating.toFixed(1) : t('common.na'),
-      hasChange: false,
-      meta: t('businessAnalytics.reviews', { count: analytics.reviewCount || 0 }),
-    },
-  ];
-
-  return (
-    <div className="bat-container">
-      <div className="bat-header">
-        <h3>{t('businessAnalytics.title')}</h3>
-        <select
-          value={dateRange}
-          onChange={(e) => setDateRange(e.target.value)}
-          className="bat-date-selector"
-        >
-          <option value="7d">{t('businessAnalytics.dateRange.7d')}</option>
-          <option value="30d">{t('businessAnalytics.dateRange.30d')}</option>
-          <option value="90d">{t('businessAnalytics.dateRange.90d')}</option>
-          <option value="1y">{t('businessAnalytics.dateRange.1y')}</option>
-        </select>
-      </div>
-
-      <div className="bat-stats-grid">
-        {stats.map((stat) => (
-          <div key={stat.title} className="bat-stat-card">
-            <div className={`bat-stat-icon ${stat.iconClass}`}>
-              {stat.icon}
-            </div>
-            <div className="bat-stat-content">
-              <p className="bat-stat-label">{stat.title}</p>
-              <p className="bat-stat-value">{stat.value}</p>
-              {stat.hasChange ? (
-                <p className={`bat-stat-change ${stat.change >= 0 ? 'positive' : 'negative'}`}>
-                  {stat.change >= 0 ? '+' : ''}{stat.change}%
-                </p>
-              ) : (
-                <p className="bat-stat-meta">{stat.meta}</p>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="bat-charts-grid">
-        <div className="bat-chart-container">
-          <h4>{t('businessAnalytics.revenueTrend')}</h4>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={analytics.revenueTrend || []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-              <XAxis dataKey="date" stroke="var(--muted-text)" />
-              <YAxis stroke="var(--muted-text)" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'var(--card-bg)',
-                  border: '1px solid var(--border-color)',
-                  color: 'var(--app-text)'
-                }}
-              />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="revenue"
-                stroke="#f97316"
-                strokeWidth={2}
-                dot={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="bat-chart-container">
-          <h4>{t('businessAnalytics.appointmentsByStatus')}</h4>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={analytics.appointmentsByStatus || []}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, value }) => `${name}: ${value}`}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="count"
-              >
-                {(analytics.appointmentsByStatus || []).map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="bat-chart-container full-width">
-          <h4>{t('businessAnalytics.servicesPerformance')}</h4>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={analytics.serviceMetrics || []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-              <XAxis dataKey="serviceName" stroke="var(--muted-text)" />
-              <YAxis stroke="var(--muted-text)" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'var(--card-bg)',
-                  border: '1px solid var(--border-color)',
-                  color: 'var(--app-text)'
-                }}
-              />
-              <Legend />
-              <Bar dataKey="bookings" fill="#f97316" />
-              <Bar dataKey="revenue" fill="#ea580c" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div className="bat-insights-section">
-        <h4>{t('businessAnalytics.keyInsights')}</h4>
-        <div className="bat-insights-grid">
-          {analytics.insights && analytics.insights.length > 0 ? (
-            analytics.insights.map((insight, idx) => (
-              <div key={idx} className={`bat-insight ${insight.type}`}>
-                <p className="bat-insight-text">{insight.message}</p>
-              </div>
-            ))
-          ) : (
-            <p className="bat-no-insights">{t('businessAnalytics.noInsights')}</p>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+function BusinessInvoiceRevenue({businessId,onInvoices}) {
+  const {t,i18n}=useTranslation();
+  const [period,setPeriod]=useState('30d'),[currency,setCurrency]=useState(''),[offset,setOffset]=useState(0),[retry,setRetry]=useState(0);
+  const key=`${businessId}:${period}:${currency}:${offset}:${retry}`;
+  const [state,setState]=useState({key:null,data:null,error:false});
+  useEffect(()=>{
+    const controller=new AbortController();
+    api.get(`/businesses/${businessId}/analytics`,{signal:controller.signal,params:{view:'invoice-revenue',period,currencyCode:currency||undefined,offset}})
+      .then(response=>{if(!controller.signal.aborted)setState({key,data:response.data,error:false});})
+      .catch(()=>{if(!controller.signal.aborted)setState({key,data:null,error:true});});
+    return()=>controller.abort();
+  },[businessId,period,currency,offset,retry,key]);
+  const data=state.key===key?state.data:null,error=state.key===key&&state.error;
+  const money=value=>moneyMajor(value,data?.currency_code,i18n.language);
+  return <section className="bat-container" aria-busy={!data&&!error}>
+    <h2>{t('analyticsCompletion.businessRevenue')}</h2><p>{t('analyticsCompletion.businessRevenueNote')}</p>
+    <label>{t('queryBuilder.periodLabel')} <select aria-label={t('queryBuilder.periodLabel')} value={period} onChange={e=>{setPeriod(e.target.value);setOffset(0);}}>
+      {['7d','30d','90d','1y'].map(p=><option key={p} value={p}>{t(`businessAnalytics.dateRange.${p}`)}</option>)}
+    </select></label>
+    {!data&&!error&&<p role="status">{t('businessAnalytics.loading')}</p>}
+    {error&&<div role="alert"><p>{t('businessAnalytics.toastLoadFailed')}</p><button onClick={()=>setRetry(n=>n+1)}>{t('queryBuilder.retry')}</button></div>}
+    {data&&<>
+      <label>{t('helperEarningsV2.currency')} <select aria-label={t('helperEarningsV2.currency')} value={data.currency_code} onChange={e=>{setCurrency(e.target.value);setOffset(0);}}>
+        {(data.accounts.length?data.accounts:[data.currency_code]).map(code=><option key={code}>{code}</option>)}
+      </select></label>
+      <dl className="bat-stats-grid"><div className="bat-stat-card"><dt>{t('analyticsCompletion.businessRevenue')}</dt><dd>{money(data.summary.revenue)}</dd></div>
+        <div className="bat-stat-card"><dt>{t('analyticsCompletion.paidInvoices')}</dt><dd>{data.summary.paid_invoices}</dd></div></dl>
+      <div className="bat-records"><table><caption>{t('businessAnalytics.revenueTrend')}</caption>
+        <thead><tr><th>{t('analyticsCompletion.month')}</th><th>{t('analyticsCompletion.paidInvoices')}</th><th>{t('analyticsCompletion.businessRevenue')}</th></tr></thead>
+        <tbody>{data.monthly.map(row=><tr key={row.month}><td>{row.month}</td><td>{row.paid_invoices}</td><td>{money(row.revenue)}</td></tr>)}</tbody>
+      </table></div>
+      <h3>{t('analyticsCompletion.records')}</h3>
+      {!data.invoices.length&&<p>{t('businessAnalytics.noData')}</p>}
+      <ul>{data.invoices.map(row=><li key={row.id}><button onClick={onInvoices}>{row.invoice_number}</button> · {money(row.revenue)}</li>)}</ul>
+      <nav aria-label={t('analyticsCompletion.paidInvoices')}>
+        <button disabled={!offset} onClick={()=>setOffset(Math.max(0,offset-20))}>{t('helperEarningsV2.previous')}</button>
+        <button disabled={!data.hasMore} onClick={()=>setOffset(offset+20)}>{t('helperEarningsV2.next')}</button>
+      </nav>
+    </>}
+  </section>;
 }

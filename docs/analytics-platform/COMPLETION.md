@@ -1,4 +1,283 @@
-# Analytics scope: implementation checklist
+# Analytics scope: completion status
+
+Status as of October 19, 2026 on branch `codex/analytics-remaining-implementation`
+(based on `old-files-claude` @ `4a89196a`, which includes PRs #605/#606/#607).
+Authoritative scope: [SCOPE.md](./SCOPE.md) (same text as the original "Power BI
+Capabilities: Codebase Scope Report"). The October 18 review that produced the
+checklist below is preserved at the end of this file for its evidence.
+
+Legend: **[x] done** in code with automated evidence; **[ops]** implemented but
+needs live/ops verification; **[defer]** deliberately not built, with reason.
+"Before" means merged in #605-#607 or the first branch commit `b40a6228`;
+"now" means the follow-up commits `72d604ad`, `005fd354`, `24692700`, `aa1c5361`.
+"Decision N" marks work built after Emile's answers to the seven open product
+decisions (October 19): see [Product decisions](#product-decisions-october-19).
+
+## Highest-priority corrections (Oct 18 review)
+
+- [x] Per-metric grants (`view_financials` etc.) rechecked at execution; catalog,
+  structured query, NL, export, evidence, history and alert CRUD/evaluation all
+  use `metricAccess.js`. Regional-only grants are denied for global metrics
+  (explicit global-or-deny). *Before (#607).*
+- [x] Fail-closed audit: results are not returned if the ledger insert fails;
+  READ ONLY / REPEATABLE READ transactions; append-only trigger (migration 892).
+  *Before (#607).* Error codes `metric_permission_required` /
+  `analytics_audit_unavailable` now map to localized copy in the builder. *Now.*
+- [x] Per-currency money with exact BIGINT strings and `moneyExact` /
+  `analyticsFormat` display; CSV formula neutralization. *Before (#607).*
+- [x] Take rate can no longer exceed 100% by construction: job-fee ledger
+  entries linked to priced completed jobs of the same currency / recorded value
+  of those jobs. *Before (#607).* Values over 100% now indicate a data anomaly
+  (fee above recorded price) and are shown, not clamped.
+- [x] Super-admin revenue period delta: the previous-period figure summed every
+  currency; it now comes from the registry USD account like the current figure
+  (parity test `metricsRegistryRevenueTakeRate.db.test.js`). *Now.*
+
+## Area 1: governed metrics
+
+- [x] Registry of 18 governed metrics; builder dimensions, alerts, permissions
+  and catalog derive from the same definitions. *Before: 16; now: +
+  `job_completion_rate_pct`; decision 2: + `promo_discount_cents`
+  (`view_financials`, per currency).*
+- [x] Job completion rate is one definition (decided = completed + cancelled,
+  non-deleted, created in window) used by super-admin dashboard, investor
+  dashboard, builder, evidence and alerts. The investor dashboard previously used
+  an all-time rate and counted soft-deleted jobs. *Now* (parity test in
+  `analyticsOperationalMetrics.db.test.js`).
+- [x] Configurable CSAT target: server reads `settings.general.csat_target`
+  (default 80 only when unset/invalid). *Before.* The client's `|| 80` is a
+  redundant display fallback, not a second definition.
+- [defer] Remaining NPS/SLA support-page cohorts differ from the registry; they
+  are documented, not linked to evidence, until the support pages adopt the
+  registry cohort (product sign-off needed on the cohort change).
+- [x] QW5 daily snapshot pipeline. *Decision 4 (`55af21a7`, migration 904).*
+  `metric_daily_snapshots` stores one row per UTC day/metric/scope/currency,
+  computed with the builder's own SQL as of each day end (regional territories
+  through the region filter). A fenced hourly worker backfills gradually (90-day
+  lookback, 14 days per run); point-in-time metrics are captured daily and never
+  backfilled. Support daily rollups now fill `agent_daily_performance`,
+  `business_daily_metrics` and `team_daily_performance`. The query builder has a
+  daily trend panel; super admins can run a backfill and see runs.
+
+## Area 2: drill-through
+
+- [x] Evidence (underlying records + canonical per-currency summary) for all
+  18 builder metrics, URL-encoded, paginated, exportable, audited. *Before (16),
+  now (+1).*
+- [x] Super-admin Dashboard revenue-period and completion-rate cards link to
+  their evidence (`analyticsEvidenceHref`); open disputes and cancelled jobs
+  keep their parity-proven list links. *Now / before.*
+- [x] Deep links fail closed: an unpermitted metric shows "permission required"
+  without issuing a request; a malformed link shows "invalid link"; an aborted
+  restore is retried when the location is shown again; back/forward restores
+  evidence. Covered by `analyticsRemainder.browser-check.cjs`. *Now.*
+- [x] Investor dashboard shows the selected-period and all-time job completion
+  rate from the same governed cohort, labeled in 5 locales. It is
+  investor-facing, so it has no admin builder links. *Decision 7 (`e157d101`).*
+- [defer] MoneyPage per-channel tiles, OperationsOverview incident counts and
+  Customer 360 timeline rows: these numbers are not registry metrics yet; links
+  are added only once KPI/evidence parity is provable.
+
+## Area 3: threshold alerts
+
+- [x] Dispute rate, refund rate, payout failure count, SLA compliance and job
+  completion rate are alertable (16 of 18 metrics, including `promo_discount_cents`; the two restaurant metrics
+  are per-restaurant). Previous-period % comparisons; observation history.
+  *Before (14) + now (+1).*
+- [x] `notify_payout_failures` / `notify_disputes` / `notify_incidents` and
+  `notify_metric_alerts` have readers in the evaluator. *Before.*
+- [x] Delivery safety: the fire is claimed transactionally (cooldown and rule
+  version checked in one UPDATE, `metric_alert_fires` row) before any channel
+  runs, so two workers or a crash after delivery cannot double-fire; a fire that
+  reaches no channel releases the cooldown. *Now* (migration 898).
+- [x] SMS crash recovery across buckets: a `sending` claim blocks new SMS for
+  the rule; claims stuck in `sending` for 10 minutes become `uncertain` and are
+  never auto-resent; provider rejection is `failed`. *Now.*
+- [x] Email-only with daily/weekly digest preference now queues a payload digest
+  row (migration 899) instead of being dropped; without a delivery key it falls
+  back to realtime email. *Now.*
+- [x] Retention: observations, fires and SMS claims pruned daily after
+  `METRIC_ALERT_HISTORY_RETENTION_DAYS` (default 400, 30-3650). *Now.*
+- [ops] Live email/SMS/push delivery, `METRIC_ALERTS_ENABLED=true`, worker
+  readiness, and review of existing rules affected by period-default changes.
+
+## Area 4: scope architecture
+
+- [x] `scopeModel` canonical resolver; restaurant pilot; business access
+  middleware converged onto `resolveBusinessAccess`. *Before (#606/#607).*
+- [x] Logistics country gate fails closed on error. *Before.* Buyer country is
+  now the country on file only: `x-buyer-country` and `?country=` are no longer
+  trusted, checkout and campaign create/edit/submit return `country_required`
+  (428) without one, and checkout shows a localized country prompt.
+  *Decision 6 (`2c795e13`).*
+- [x] New analytics surfaces use the canonical resolvers (business invoice
+  analytics and Growth Center business performance are manager-gated through
+  `requireBusinessAccess`; helper performance is own-data only). *Now.*
+- [defer] ~470 inline business/membership filters: long-tail convergence,
+  domain by domain; no behavior change is safe without per-domain tests.
+- [x] Region-aware row filtering for regional admins. Metrics, evidence, the
+  builder, alerts and exports run through a region filter per anchored table;
+  tables without an anchor fail closed (`region_scope_unsupported`), as do
+  unknown regions (`region_unknown`). The audit records the scope and region
+  ids. Deleting a region revokes its grants so they cannot become global.
+  *Decision 3 (`194ccd7b`, migrations 901-903).*
+- [defer] One Truth analyst scope + Q3 O(n^2) pairing redesign: separate work.
+
+## Area 5: embedded analytics
+
+- [x] Helper earnings: currency accounts, monthly series, paginated jobs.
+  *Before (#607).*
+- [x] Business Hub analytics tab rebuilt on paid invoices per currency.
+  *Before (`b40a6228`).*
+- [x] Restaurant paid-order retention cohorts and currency-separated top items.
+  *Before (`b40a6228`).*
+- [x] Featured placements: deduped conversions, 7-day identified-user click
+  attribution, unpaid/cancelled/refunded excluded. *Before (`b40a6228`).*
+- [x] Growth Center (Promote) Performance tab is server-backed: every copied
+  tracked post/link/card/signature records a share; profile visits from tracked
+  links (`ref=growth_center`) are recorded once per device/source/campaign/UTC
+  day, excluding the owner and business team. Per source, medium and campaign;
+  7/30/90/365-day windows; 730-day retention. The per-browser localStorage
+  counter is removed. Visitor ids persist only with analytics-cookie consent
+  (otherwise per-tab). *Now* (migration 900).
+- [x] Broadcast delivery with delivery and open tracking. *Decision 1
+  (`42f99665` server, `0ce76e64` UI, migration 906).*
+  - "Send" queues one delivery row per recipient and channel (in-app, push,
+    email, or all). SMS is refused (`broadcast_channel_unsupported`), not
+    faked. The audience is active, unblocked business clients, optionally by
+    tag.
+  - A fenced worker (on unless `BROADCAST_DELIVERY_ENABLED=false`) claims rows with SKIP
+    LOCKED and a per-claim lease token. Completions are conditioned on the
+    lease, retries back off exponentially (5 attempts), and provider calls
+    carry an idempotency key per broadcast and recipient.
+  - Recipient preferences are respected: push opt-out, email/marketing/bulk
+    opt-out, unsubscribe-all, and per-business unsubscribe (link and RFC 8058
+    one-click; the GET page never changes anything).
+  - Tracking: email opens by pixel (an estimate), clicks through whitelisted
+    redirects only, in-app reads from `notifications.read_at`, push sent
+    when at least one device accepted, push opens reported by the web service
+    worker.
+  - Business Hub shows per-broadcast and 30-day per-channel
+    sent/opened/clicked, pending, not delivered and unsubscribes (5 locales,
+    RTL, 320px). Broadcasts marked sent before this work are labeled
+    untracked (`delivery_tracked=false`).
+- [x] Promo-code redemption across job, booking and food checkout, with
+  redemption analytics. *Decision 2 (`0e5a7c4c` server, `b6e26280` UI,
+  migration 905).*
+  - Validation is server-side only: active window, expiry, minimum order,
+    currency, surface, global and per-user limits, sign-in required.
+  - Redemption is a `promo_redemptions` row reserved under a row lock, with
+    an idempotency key per checkout attempt and one live redemption per
+    surface reference. It is marked redeemed on payment and reversed on
+    cancel, refund, void, or a canceled payment intent (a failed attempt
+    keeps the reservation for retry).
+  - Funding follows the existing model: food codes are an order discount the
+    restaurant receives net of. Where the model was ambiguous (jobs,
+    bookings), the platform funds it. A job discount comes out of the
+    platform fee (capped by it), so the helper's net is unchanged. Bookings
+    charge the net and record the gross. A DB check enforces food =
+    restaurant-funded.
+  - Amounts are integer cents. Credit-paid flows are unchanged.
+  - The food checkout shows the quoted discount and localized promo errors.
+    The builder metric `promo_discount_cents` (redeemed discount, redemptions,
+    platform-funded and gross per currency) is permissioned, evidenced,
+    alertable and snapshotted. Admin promo usage shows checkout redemptions
+    per surface.
+- [defer] Booking attribution for tracked profile links: visits are reach, not
+  conversions; tying anonymous visits to bookings needs an attribution policy.
+- [ops] Production `AFFILIATE_ENABLED`.
+
+## Area 6: governed query / NL
+
+- [x] Fixed-template builder, caps, timeout, ledger, history filtered by
+  current grants, admin-nav entry. *Before.*
+- [x] NL: deterministic parser + parse-attempt auditing; optional validated
+  JSON-only model fallback behind `ANALYTICS_NL_MODEL_ENABLED` (default false,
+  documented in `server/.env.example`). *Before (`b40a6228`) / now (env docs).*
+- [x] New metric aliases (`completion rate`, `job completion`). *Now.*
+- [ops] *Decision 5 (docs only):* `ANALYTICS_NL_MODEL_ENABLED` stays `false`.
+  Provider and privacy review is pending (free-text admin questions would
+  leave the platform), as is acceptance review. Nothing was enabled or
+  changed in code.
+
+## Cross-cutting
+
+- [x] Legacy and namespaced catalogs in en/es/fr/ht/ar for every new key
+  (`verify:i18n`, i18n debt gates and duplicate-key checks green).
+- [x] Browser regressions (synthetic fixtures): `analyticsRemainder` and
+  `promotionPerformance` checks at 320/390/1360 px, en/fr/ar, light/dark, RTL.
+- [x] SOP: only the review manifest was re-baselined (it hashes `en.json`);
+  guide PDFs/screenshots were already current and were not regenerated.
+- [ops] Apply migrations 893-906 through the deployment workflow; repeat
+  authenticated admin/business flows with real sessions, including revoked
+  grants. No production migration or deployment was performed.
+
+## Migrations on this branch
+
+| # | Purpose |
+|---|---------|
+| 893-897 | Alert observations + SMS claims, audit event types, campaign dedupe, evidence audit type, observation definition snapshots (`b40a6228`) |
+| 898 | `metric_alert_fires`, SMS claim statuses `sending/sent/uncertain/failed` |
+| 899 | `email_digest_queue` payload rows (nullable `notification_id`, unique `delivery_key`) |
+| 900 | `promotion_link_events` (Growth Center shares/visits) |
+| 901 | Regional analytics scope columns (grants, query ledger) |
+| 902 | Deleting a region revokes its analytics grants (instead of FK SET NULL making them global) |
+| 903 | Region scope on alert observations |
+| 904 | `metric_daily_snapshots`, `metric_snapshot_runs` (single running run), `trend` audit event |
+| 905 | `promo_redemptions`; `discount_codes.per_user_limit/currency_code/applicable_surfaces`; booking `gross_amount_cents/promo_discount_cents` |
+| 906 | Broadcast channels/queue state, per-recipient tracking tokens, `business_broadcast_deliveries`, `business_broadcast_suppressions`; `notification_preferences.email_notifications/marketing_emails` (already read by email preferences but missing) |
+
+All additive. Exercised through the real migration runner on a disposable
+database; CI runs the migration rehearsal from 785.
+
+## Product decisions (October 19)
+
+| # | Decision | Status | Commits |
+|---|----------|--------|---------|
+| 1 | Broadcast delivery in-app/push/email with delivery + open tracking | Built (Area 5) | `42f99665`, `0ce76e64` |
+| 2 | Promo redemption across jobs/bookings/food | Built (Area 5) | `0e5a7c4c`, `b6e26280` |
+| 3 | Regional admins see region-filtered rows | Built (Area 4) | `194ccd7b` |
+| 4 | Build the QW5 snapshot pipeline | Built (Area 1) | `55af21a7` |
+| 5 | NL model stays off | Docs only (Area 6) | this file |
+| 6 | Logistics buyer country = country on file | Built (Area 4) | `2c795e13` |
+| 7 | Investor completion rate | Built (Area 2) | `e157d101` |
+
+Open points for product/ops:
+
+- Food promo codes are restaurant-funded (existing model). Platform-funded food
+  promos would need a restaurant reimbursement mechanism.
+- Job promos are capped by the platform fee. Booking helper payouts happen
+  outside the system; the gross is recorded for reconciliation.
+- Credit-paid checkout does not take promo codes (P3-1009 untouched).
+- Broadcast email needs Resend configured and tracking links that reach the API
+  (`BROADCAST_TRACKING_BASE_URL`, else `API_PUBLIC_URL`, else the public site
+  URL plus `/api`). Resend delivered/bounce webhooks are not integrated, so
+  "sent" means accepted by the provider. Email opens are estimates.
+- The native mobile app must POST to the push payload's `track_url` on tap to
+  report push opens; the web service worker already does.
+- The delivery worker runs by default; `BROADCAST_DELIVERY_ENABLED=false` stops it.
+- Regional scope: `users.country` defaults to `US` (a confirmed-country flag
+  would be safer); grants already nulled by an earlier region delete cannot be
+  detected; `geo_radius` regions cannot match user-address anchors; the lanes
+  what-if endpoint stays informational.
+
+## Verification (local, October 19)
+
+- Full server Jest suite against the disposable database: 730 suites / 8003
+  tests passed. `businessMarketing` was then updated for the new broadcast
+  behavior. `statementSelfService.db` and `ledgerTransactionUuid` fail locally
+  on the base branch as well (state in the shared local Credit test database)
+  and are not touched here.
+- Client: duplicate-key, i18n debt gates, `verify:i18n`, `typecheck`, `test:sop`,
+  production `build` and `verify:dist-assets` passed.
+- Browser checks passed (Chrome, synthetic API fixtures, not live sessions),
+  including broadcasts, food promo, regional analytics, metric trend and the
+  logistics country prompt at 320px, fr, light and RTL.
+- Remote CI: see the pull request.
+
+---
+
+## Historical review (October 18, 2026; superseded by the status above)
 
 Reviewed October 18, 2026 against `oxsteed/old-file`, default branch
 `old-files-claude`, commit `9c900efb95ec386e2b9b91b981ffab6deefa2e12`.

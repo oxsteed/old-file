@@ -1287,7 +1287,7 @@
   "annotations": []
  },
  "business-work-clients/business-work-clients-s3/desktop": {
-  "src": "/sop/screenshots/business-work/business-work-clients/business-work-clients-s3-desktop.jpg",
+  "src": "/sop/screenshots/business-work/business-work-clients/business-work-clients-s1-desktop.jpg",
   "width": 1360,
   "height": 900,
   "alt": "Synthetic example: Service business hub",
@@ -1299,7 +1299,7 @@
   "annotations": []
  },
  "business-work-clients/business-work-clients-s3/mobile": {
-  "src": "/sop/screenshots/business-work/business-work-clients/business-work-clients-s3-mobile.jpg",
+  "src": "/sop/screenshots/business-work/business-work-clients/business-work-clients-s1-mobile.jpg",
   "width": 390,
   "height": 844,
   "alt": "Synthetic example: Service business hub",
@@ -1378,7 +1378,7 @@
   "annotations": []
  },
  "business-work-invoices/business-work-invoices-s4/desktop": {
-  "src": "/sop/screenshots/business-work/business-work-invoices/business-work-invoices-s4-desktop.jpg",
+  "src": "/sop/screenshots/business-work/business-work-invoices/business-work-invoices-s1-desktop.jpg",
   "width": 1360,
   "height": 900,
   "alt": "Synthetic example: Service business hub",
@@ -1469,11 +1469,9 @@
   "width": 1360,
   "height": 900,
   "alt": "Synthetic example: Service business hub",
-  "caption": "Screen overview. Some controls described in this step are not shown in this synthetic example.",
+  "caption": "The Hiring tab, desktop view.",
   "captureReview": {
-   "missingControls": [
-    "Role row with applicant count"
-   ],
+   "missingControls": [],
    "unmapped": [
     "get /careers/employer/openings"
    ]
@@ -1499,11 +1497,9 @@
   "width": 1360,
   "height": 900,
   "alt": "Synthetic example: Service business hub",
-  "caption": "Screen overview. Some controls described in this step are not shown in this synthetic example.",
+  "caption": "Working the hiring pipeline, desktop view.",
   "captureReview": {
-   "missingControls": [
-    "Pipeline stages"
-   ],
+   "missingControls": [],
    "unmapped": [
     "get /careers/employer/openings",
     "get /businesses/sop-biz-1/analytics"
@@ -1591,15 +1587,13 @@
   "annotations": []
  },
  "business-work-scheduling/business-work-scheduling-s3/desktop": {
-  "src": "/sop/screenshots/business-work/business-work-scheduling/business-work-scheduling-s3-desktop.jpg",
+  "src": "/sop/screenshots/business-work/business-work-scheduling/business-work-scheduling-s1-desktop.jpg",
   "width": 1360,
   "height": 900,
   "alt": "Synthetic example: Service business hub",
-  "caption": "Screen overview. Some controls described in this step are not shown in this synthetic example.",
+  "caption": "Reviewing appointments, desktop view.",
   "captureReview": {
-   "missingControls": [
-    "Selected appointment detail"
-   ],
+   "missingControls": [],
    "unmapped": [
     "get /businesses/sop-biz-1/hours",
     "get /businesses/sop-biz-1/appointments",
@@ -1609,7 +1603,7 @@
   "annotations": []
  },
  "business-work-scheduling/business-work-scheduling-s3/mobile": {
-  "src": "/sop/screenshots/business-work/business-work-scheduling/business-work-scheduling-s3-mobile.jpg",
+  "src": "/sop/screenshots/business-work/business-work-scheduling/business-work-scheduling-s1-mobile.jpg",
   "width": 390,
   "height": 844,
   "alt": "Synthetic example: Service business hub",
@@ -1672,13 +1666,13 @@
    {
     "n": 1,
     "x": 22.1,
-    "y": 28.4,
+    "y": 29,
     "label": "Business switcher"
    },
    {
     "n": 2,
     "x": 50,
-    "y": 78.2,
+    "y": 78.8,
     "label": "Workspace tabs"
    }
   ]
@@ -1702,11 +1696,9 @@
   "width": 1360,
   "height": 900,
   "alt": "Synthetic example: Service business hub",
-  "caption": "Screen overview. Some controls described in this step are not shown in this synthetic example.",
+  "caption": "The Business switcher, desktop view.",
   "captureReview": {
-   "missingControls": [
-    "Role tag"
-   ],
+   "missingControls": [],
    "unmapped": [
     "get /businesses/sop-biz-1/analytics"
    ]
@@ -1715,7 +1707,7 @@
    {
     "n": 1,
     "x": 22.1,
-    "y": 28.4,
+    "y": 29,
     "label": "Business switcher dropdown"
    }
   ]
@@ -1805,7 +1797,7 @@
   "annotations": []
  },
  "business-work-services/business-work-services-s4/desktop": {
-  "src": "/sop/screenshots/business-work/business-work-services/business-work-services-s4-desktop.jpg",
+  "src": "/sop/screenshots/business-work/business-work-services/business-work-services-s1-desktop.jpg",
   "width": 1360,
   "height": 900,
   "alt": "Synthetic example: Service business hub",
@@ -1966,11 +1958,9 @@
   "width": 1360,
   "height": 900,
   "alt": "Synthetic example: Service business hub",
-  "caption": "Screen overview. Some controls described in this step are not shown in this synthetic example.",
+  "caption": "Triaging an intake, desktop view.",
   "captureReview": {
-   "missingControls": [
-    "Intake entry"
-   ],
+   "missingControls": [],
    "unmapped": [
     "get /maintenance-requests/business/sop-biz-1",
     "get /businesses/sop-biz-1/analytics"
@@ -1994,15 +1984,13 @@
   "annotations": []
  },
  "business-work-team-access/business-work-team-access-s1/desktop": {
-  "src": "/sop/screenshots/business-work/business-work-team-access/business-work-team-access-s1-desktop.jpg",
+  "src": "/sop/screenshots/business-work/business-work-select/business-work-select-s3-desktop.jpg",
   "width": 1360,
   "height": 900,
   "alt": "Synthetic example: Service business hub",
-  "caption": "Screen overview. Some controls described in this step are not shown in this synthetic example.",
+  "caption": "The Team tab, desktop view.",
   "captureReview": {
-   "missingControls": [
-    "Team Members table"
-   ],
+   "missingControls": [],
    "unmapped": [
     "get /businesses/sop-biz-1/memberships"
    ]
@@ -2010,7 +1998,7 @@
   "annotations": []
  },
  "business-work-team-access/business-work-team-access-s1/mobile": {
-  "src": "/sop/screenshots/business-work/business-work-team-access/business-work-team-access-s1-mobile.jpg",
+  "src": "/sop/screenshots/business-work/business-work-select/business-work-select-s3-mobile.jpg",
   "width": 390,
   "height": 844,
   "alt": "Synthetic example: Service business hub",
@@ -2065,7 +2053,7 @@
   "annotations": []
  },
  "business-work-team-access/business-work-team-access-s3/desktop": {
-  "src": "/sop/screenshots/business-work/business-work-team-access/business-work-team-access-s3-desktop.jpg",
+  "src": "/sop/screenshots/business-work/business-work-select/business-work-select-s3-desktop.jpg",
   "width": 1360,
   "height": 900,
   "alt": "Synthetic example: Service business hub",
@@ -2079,7 +2067,7 @@
   "annotations": []
  },
  "business-work-team-access/business-work-team-access-s3/mobile": {
-  "src": "/sop/screenshots/business-work/business-work-team-access/business-work-team-access-s3-mobile.jpg",
+  "src": "/sop/screenshots/business-work/business-work-select/business-work-select-s3-mobile.jpg",
   "width": 390,
   "height": 844,
   "alt": "Synthetic example: Service business hub",

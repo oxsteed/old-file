@@ -29,6 +29,7 @@ jest.mock('../services/notificationService', () => ({
 const mockResolveLogisticsRole = jest.fn();
 jest.mock('../middleware/requireLogisticsAccess', () => ({
   resolveLogisticsRole: (...args) => mockResolveLogisticsRole(...args),
+  countryOnFile: jest.fn().mockResolvedValue('US'),
 }));
 
 const express = require('express');

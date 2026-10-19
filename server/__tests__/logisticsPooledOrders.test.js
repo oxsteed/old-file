@@ -23,6 +23,7 @@ jest.mock('../services/pooledOrderService', () => ({
 // stub it so tests don't touch the database.
 jest.mock('../middleware/requireLogisticsAccess', () => ({
   resolveLogisticsRole: jest.fn().mockResolvedValue('individual_buyer'),
+  countryOnFile: jest.fn().mockResolvedValue('US'),
 }));
 
 jest.mock('../db', () => ({ query: jest.fn() }));
@@ -484,5 +485,24 @@ describe('GET /campaigns/:id/approval-history', () => {
     db.query.mockResolvedValue({ rows: [] });
     const res = await request(authedApp()).get('/campaigns/999/approval-history');
     expect(res.status).toBe(404);
+  });
+});
+
+describe('buyer country on file (decision 6)', () => {
+  const { countryOnFile } = require('../middleware/requireLogisticsAccess');
+  test('submission requires a country on file and never reads x-buyer-country', async () => {
+    countryOnFile.mockResolvedValueOnce(null);
+    const res = await request(authedApp()).post('/campaigns/5/submit').set('x-buyer-country', 'US').send({});
+    expect(res.status).toBe(428);
+    expect(res.body.code).toBe('country_required');
+    expect(pooledOrderService.submitCampaignForReview).not.toHaveBeenCalled();
+  });
+
+  test('submission passes the on-file country to the service', async () => {
+    countryOnFile.mockResolvedValueOnce('CA');
+    pooledOrderService.submitCampaignForReview.mockResolvedValue({ id: 5, approval_state: 'pending_review' });
+    const res = await request(authedApp()).post('/campaigns/5/submit').set('x-buyer-country', 'US').send({});
+    expect(res.status).toBe(200);
+    expect(pooledOrderService.submitCampaignForReview).toHaveBeenCalledWith('5', 'user-1', expect.objectContaining({ userCountry: 'CA' }));
   });
 });

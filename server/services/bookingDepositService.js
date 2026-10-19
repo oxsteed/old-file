@@ -18,6 +18,7 @@
 const db = require('../db');
 const logger = require('../utils/logger');
 const { notifyRefundIssued } = require('./refundNotification');
+const promoRedemption = require('./promoRedemptionService');
 
 const TERMINAL_STATUSES = ['declined', 'expired', 'cancelled', 'accepted_cancelled'];
 
@@ -46,6 +47,7 @@ async function applyBookingIntentWebhook(eventType, pi) {
         RETURNING id, status`,
       [bookingId, Number(pi.amount_received || pi.amount || 0), pi.id]
     );
+    if (booking) await promoRedemption.markRedeemed(db, { surface: 'booking', providerReference: pi.id });
     // Paid after the booking already ended: refund straight away.
     if (booking && TERMINAL_STATUSES.includes(booking.status)) {
       await settleTerminalBooking(booking.id, 'paid_after_terminal');
@@ -60,6 +62,11 @@ async function applyBookingIntentWebhook(eventType, pi) {
           AND payment_status IN ('requires_payment', 'processing')`,
       [bookingId, pi.id]
     );
+    // A canceled intent can never complete: release its promo. A failed one
+    // can still be retried by the customer, so its reservation stays.
+    if (eventType === 'payment_intent.canceled') {
+      await promoRedemption.reversePromo(db, { surface: 'booking', providerReference: pi.id, reason: 'intent_canceled' });
+    }
     return true;
   }
   if (eventType === 'payment_intent.processing') {
@@ -108,6 +115,7 @@ async function settleTerminalBooking(bookingId, reason = 'booking_ended') {
           WHERE id = $1 AND payment_status = 'paid'`,
         [booking.id, refund.id || null]
       );
+      await promoRedemption.reversePromo(db, { surface: 'booking', referenceId: booking.id, reason: 'booking_refunded' });
       logger.info('Booking deposit refunded', { bookingId: booking.id, refundId: refund.id, reason });
       // P3-3-F07: the customer learns their deposit refund was issued
       // (in-app + email). Best-effort; the refund is settled.
@@ -149,6 +157,7 @@ async function settleTerminalBooking(bookingId, reason = 'booking_ended') {
         WHERE id = $1 AND payment_status IN ('requires_payment', 'processing')`,
       [booking.id]
     );
+    await promoRedemption.reversePromo(db, { surface: 'booking', referenceId: booking.id, reason: 'booking_voided' });
     return 'voided';
   } catch (err) {
     await db.query(

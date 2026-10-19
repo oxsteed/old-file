@@ -1034,6 +1034,13 @@ async function getBusinessAnalytics(req, res, next) {
     const access = await canManageBusinessFinance(req.user.id, req.params.id);
     if (!access) throw new AppError('Business not found', 404, 'not_found');
 
+    if (req.query.view === 'invoice-revenue') {
+      const { businessInvoiceAnalytics } = require('../analytics/businessInvoiceAnalytics');
+      return res.json(await businessInvoiceAnalytics(pool,access.id,{
+        period:req.query.period,currencyCode:req.query.currencyCode,offset:req.query.offset,
+      }));
+    }
+
     const bizId   = access.id;
     const ownerId = access.owner_id;
 

@@ -59,6 +59,7 @@ import { getPublicSiteUrl } from '../../utils/seoDescription';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 import { SuggestDropdown } from '../../components/SuggestDropdown';
 import '../../styles/FoodRestaurantPage.css';
+import PromoCodeField from '../../components/food/PromoCodeField';
 
 // Stripe for in-checkout card payments and credit top-ups. Same lazy pattern
 // as the /restaurant-credit page: null when the publishable key is missing,
@@ -256,6 +257,8 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
   const [addressLine1, setAddressLine1] = useState('');
   const [addressLine2, setAddressLine2] = useState('');
   const [promoCode, setPromoCode] = useState('');
+  // Decision 2: server-side promo rejection (expired, limit reached, ...).
+  const [promoError, setPromoError] = useState(null);
   // P3-9-F01: loyalty points redemption. Balance is fetched for the signed-in
   // customer; the requested points ride along in the quote and order payloads
   // (the server re-validates and clamps them).
@@ -1066,9 +1069,16 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
           };
         }
         const nextQuote = await quoteFoodOrder(restaurantId, payload);
-        if (quoteRequestRef.current === requestId) setQuote(nextQuote);
-      } catch {
-        if (quoteRequestRef.current === requestId) setQuote(null);
+        if (quoteRequestRef.current === requestId) {
+          setQuote(nextQuote);
+          setPromoError(null);
+        }
+      } catch (err) {
+        if (quoteRequestRef.current === requestId) {
+          setQuote(null);
+          const code = err?.response?.data?.code;
+          setPromoError(promoCode.trim() && typeof code === 'string' && code.startsWith('promo_') ? code : null);
+        }
       } finally {
         if (quoteRequestRef.current === requestId) setQuoteLoading(false);
       }
@@ -2938,13 +2948,15 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                         payment mode, so the input is no longer gated to
                         restaurant_credit. */}
                     <>
-                      <p style={{ ...sectionLabel, color: '#64748b' }}>{t('food.restaurant.promoCode')} <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>({t('food.restaurant.optional')})</span></p>
-                      <input
+                      <PromoCodeField
                         value={promoCode}
-                        onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                        placeholder={t('food.restaurant.promoPlaceholder')}
-                        maxLength={40}
-                        style={{ ...inputStyle, marginBottom: 20, textTransform: 'uppercase' }}
+                        onChange={setPromoCode}
+                        error={promoError}
+                        discountCents={Math.max(0, Number(quote?.discountCents || 0) - Number(quote?.loyaltyDiscountCents || 0))}
+                        formatMoney={(cents) => formatFoodMoney(cents, currency)}
+                        labelStyle={{ ...sectionLabel, color: '#64748b', display: 'block' }}
+                        hintStyle={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}
+                        inputStyle={inputStyle}
                       />
                     </>
                     {/* P3-9-F01: loyalty points. Signed-in customers see their

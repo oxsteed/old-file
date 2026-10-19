@@ -1246,7 +1246,7 @@
 
 .promote-perf-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
   gap: 0.6rem;
 }
 
@@ -1336,6 +1336,80 @@
   align-items: center;
   gap: 0.85rem;
   margin-top: 0.85rem;
+}
+
+/* Durable link performance (server-backed; window picker + campaigns). */
+.promote-perf-window {
+  display: grid;
+  gap: 0.3rem;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  font-size: 0.8rem;
+  color: var(--muted-text);
+}
+
+.promote-perf-window select {
+  min-block-size: 2.5rem;
+  max-inline-size: 100%;
+  padding-block: 0.4rem;
+  padding-inline: 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--card-bg, var(--app-bg));
+  color: inherit;
+  font: inherit;
+}
+
+.promote-perf-summary strong {
+  overflow-wrap: anywhere;
+}
+
+.promote-perf-label {
+  flex-wrap: wrap;
+}
+
+.promote-perf-campaign-list {
+  margin-block-start: 1rem;
+}
+
+.promote-perf-campaign-list h3 {
+  margin-block: 0 0.5rem;
+  font-size: 1rem;
+}
+
+.promote-perf-campaign-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.promote-perf-campaign-list li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.3rem 0.75rem;
+  padding-block: 0.6rem;
+  padding-inline: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  min-inline-size: 0;
+}
+
+.promote-perf-campaign-list bdi {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  min-inline-size: 0;
+}
+
+.promote-perf-campaign-list span {
+  color: var(--muted-text);
+  font-size: 0.8rem;
+}
+
+[dir="rtl"] .promote-perf-bar-fill {
+  background: linear-gradient(270deg, #f97316, #fb923c);
 }
 
 /* Toolkit ----------------------------------------------------------------- */

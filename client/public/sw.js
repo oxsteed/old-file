@@ -197,6 +197,12 @@ self.addEventListener('push', event => {
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
+  // Decision 1: report a broadcast push open. Only the broadcast tracking
+  // endpoint shape is accepted; failures never block navigation.
+  const trackUrl = event.notification.data && event.notification.data.track_url;
+  if (typeof trackUrl === 'string' && /^https?:\/\/[^/]+\/api\/broadcast-tracking\/p\/[a-f0-9]{40,128}$/i.test(trackUrl)) {
+    event.waitUntil(fetch(trackUrl, { method: 'POST', mode: 'no-cors', keepalive: true, credentials: 'omit' }).catch(() => {}));
+  }
   // Validate action_url is same-origin or a simple path - never javascript: or data: URIs.
   const rawTarget = (event.notification.data && event.notification.data.action_url) || '/';
   let target = '/';

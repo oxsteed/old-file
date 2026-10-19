@@ -27,6 +27,9 @@ const q = (metric, dimensions = [], filters = {}, period = '30d') => ({ metric, 
 const R = { rejected: true };
 
 const CASES = [
+  ['dispute rate last 7 days', q('dispute_rate_pct',[],{},'7d')],
+  ['refund rate', q('refund_rate_pct')],
+  ['payout failures this week', q('payout_failure_count',[],{},'7d')],
   // ── Happy path: one per registry metric ──────────────────────────────
   ['show me open disputes', q('open_disputes')],
   ['what is our platform revenue', q('platform_revenue_cents')],
@@ -39,8 +42,8 @@ const CASES = [
   ['consulting nps', q('consulting_avg_nps')],
   ['what is mrr', q('mrr_cents')],
   ['how much escrow is held', q('escrow_held_cents')],
-  ['repeat order rate for restaurant 42', q('restaurant_repeat_order_rate', [], { restaurant_id: 42 })],
-  ['top items revenue for restaurant 7', q('restaurant_top_items_revenue', [], { restaurant_id: 7 })],
+  ['repeat order rate for restaurant 42', q('restaurant_repeat_order_rate', [], { restaurantId: 42 })],
+  ['top items revenue for restaurant 7', q('restaurant_top_items_revenue', [], { restaurantId: 7 })],
 
   // ── Dimension variants ───────────────────────────────────────────────
   ['revenue over time', q('platform_revenue_cents', ['period'])],
@@ -69,8 +72,8 @@ const CASES = [
   ['cancel rate for customers', q('cancel_rate_pct', [], { role: 'customer' })],
   ['customer cancellation rate', q('cancel_rate_pct', [], { role: 'customer' })],
   ['helper cancel rate last month', q('cancel_rate_pct', [], { role: 'helper' })],
-  ['repeat order rate for restaurant 99', q('restaurant_repeat_order_rate', [], { restaurant_id: 99 })],
-  ['sla compliance for business 12', q('sla_first_response_compliance_pct', [], { business_id: 12 })],
+  ['repeat order rate for restaurant 99', q('restaurant_repeat_order_rate', [], { restaurantId: 99 })],
+  ['sla compliance for business 12', q('sla_first_response_compliance_pct', [], { businessId: 12 })],
   ["revenue for restaurant Joe's", R], // name lookup not supported in v1
   ['support nps for business Acme Corp', R], // name lookup not supported in v1
   ['cancel rate for customers and helpers', R], // ambiguous role filter

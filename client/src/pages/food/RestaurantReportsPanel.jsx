@@ -6,6 +6,8 @@
 // of an error toast.
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { moneyMinor } from '../../lib/moneyExact';
 import toast from 'react-hot-toast';
 import { Receipt, Activity } from 'lucide-react';
 import EmptyState from '../../components/EmptyState';
@@ -45,6 +47,7 @@ const PRESETS = [7, 30, 90];
 const ADJUSTMENT_TYPES = ['receive', 'waste', 'usage', 'count', 'correction'];
 
 export function ReportsPanel({ t, restaurant, bare, onStats }) {
+  const { i18n } = useTranslation();
   const restaurantId = restaurant.id;
   const [preset, setPreset] = useState(30);
   const [from, setFrom] = useState(() => {
@@ -338,13 +341,26 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
                   <div key={item.menu_item_id != null ? `id-${item.menu_item_id}` : `name-${item.item_name}-${idx}`} className="fd-ops-inventory-row">
                     <span>{idx + 1}. {item.item_name}</span>
                     <span className="fd-card-meta">
-                      {t('restaurants.ops.reports.loyalty.unitsSold', { units: item.units_sold || 0 })} · {formatFoodMoney(item.revenue_cents || 0, currency)}
+                      {t('restaurants.ops.reports.loyalty.unitsSold', { units: item.units_sold || 0 })} · {moneyMinor(item.revenue_cents || 0, item.currency_code || currency, i18n.language)}
                     </span>
                   </div>
                 ))}
               </div>
             </>
           )}
+          {loyalty.retention_cohorts?.length > 0 && <section className="fd-card">
+            <h3>{t('analyticsCompletion.retention')}</h3>
+            <p>{t('analyticsCompletion.retentionNote')}</p>
+            <div style={{ overflowX: 'auto' }}><table>
+              <thead><tr>{['cohort', 'monthAge', 'customers', 'retained', 'retentionRate'].map(key =>
+                <th key={key} scope="col">{t(`analyticsCompletion.${key}`)}</th>)}</tr></thead>
+              <tbody>{loyalty.retention_cohorts.map(row => <tr key={`${row.cohort_month}:${row.month_index}`}>
+                <td>{String(row.cohort_month).slice(0,7)}</td><td>{row.month_index}</td>
+                <td>{row.cohort_customers}</td><td>{row.returning_customers}</td>
+                <td>{new Intl.NumberFormat(i18n.language, { style: 'percent', maximumFractionDigits: 1 }).format(row.retention_rate)}</td>
+              </tr>)}</tbody>
+            </table></div>
+          </section>}
         </>
       )}
 

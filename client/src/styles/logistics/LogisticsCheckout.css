@@ -258,3 +258,12 @@
   .lx-method-option,
   .lx-checkbox-row { transition: none; }
 }
+
+/* Country-on-file prompt (logistics checkout requires a country; RTL-safe). */
+.lx-country-required { max-inline-size: 36rem; margin-inline: auto; }
+.lx-country-required h2 { margin-block: 0 .5rem; overflow-wrap: anywhere; }
+.lx-country-required form { margin-block-start: 1rem; }
+.lx-country-required .lx-input { inline-size: 100%; max-inline-size: 100%; min-block-size: 2.75rem; }
+.lx-country-required .lx-btn-row { flex-wrap: wrap; }
+.lx-country-required .lx-action-primary { max-inline-size: 100%; white-space: normal; }
+.lx-country-required-error { color: var(--color-error); font-weight: 700; }

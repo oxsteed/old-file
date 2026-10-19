@@ -66,6 +66,18 @@ beforeEach(() => {
   mockSendExpo.mockResolvedValue([{ status: 'ok' }]);
 });
 
+test('an email-only metric alert creates no in-app row and sends no push', async () => {
+  mockPrefs({});
+  sendEmail.mockResolvedValue({ success: true });
+  const result = await sendNotification({ userId: 'u1', type: 'metric_threshold_alert', body: 'Threshold crossed',
+    emailChannel: true, inAppChannel: false, pushChannel: false, idempotencyKey: 'email-only-metric' });
+  expect(result.success).toBe(true);
+  expect(insertCalls()).toHaveLength(0);
+  expect(webPushService.sendToUser).not.toHaveBeenCalled();
+  expect(mobilePushService.sendToUser).not.toHaveBeenCalled();
+  expect(sendEmail).toHaveBeenCalledTimes(1);
+});
+
 describe('P2-8-F03 friendly toggle aliases', () => {
   test('in_app_new_bid=false suppresses the in-app row for bid_received', async () => {
     mockPrefs({ in_app_new_bid: false });
@@ -145,6 +157,29 @@ describe('P2-8-F04 email_frequency honored by the realtime path', () => {
     const queued = digestQueueCalls();
     expect(queued).toHaveLength(1);
     expect(queued[0][1]).toEqual(['u1', 'n1', 'weekly']);
+  });
+
+  test("email-only delivery with a digest frequency queues a payload entry, not an in-app row", async () => {
+    mockPrefs({ email_frequency: 'daily' });
+    const result = await sendNotification({ userId: 'u1', type: 'metric_threshold_alert', body: 'Threshold crossed',
+      emailChannel: true, inAppChannel: false, pushChannel: false, idempotencyKey: 'email-only-digest' });
+    expect(result).toMatchObject({ success: true, delivered: true });
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(insertCalls()).toHaveLength(0);
+    const queued = digestQueueCalls();
+    expect(queued).toHaveLength(1);
+    expect(queued[0][1][0]).toBe('u1');
+    expect(queued[0][1][1]).toBe('daily');
+    expect(queued[0][1][2]).toBe('metric_threshold_alert');
+    expect(queued[0][1][5]).toBe('email-only-digest');
+  });
+
+  test('email-only delivery without a delivery key falls back to realtime instead of dropping', async () => {
+    mockPrefs({ email_frequency: 'weekly' });
+    await sendNotification({ userId: 'u1', type: 'metric_threshold_alert', body: 'Threshold crossed',
+      emailChannel: true, inAppChannel: false, pushChannel: false });
+    expect(digestQueueCalls()).toHaveLength(0);
+    expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 
   test('real-time (default) sends email immediately and queues nothing', async () => {

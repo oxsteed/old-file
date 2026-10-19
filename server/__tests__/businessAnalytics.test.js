@@ -85,4 +85,11 @@ describe('business workspace analytics', () => {
 
     expect(res.status).toBe(404);
   });
+
+  test('the new invoice-revenue contract requires the same manager ownership gate',async()=>{
+    mockQuery.mockResolvedValueOnce({rows:[]});
+    await request(buildApp()).get('/api/businesses/2/analytics?view=invoice-revenue').expect(404);
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(mockQuery.mock.calls[0][0]).not.toContain('business_invoices');
+  });
 });

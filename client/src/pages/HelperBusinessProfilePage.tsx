@@ -22,6 +22,7 @@ import ProfileShareControls from '../components/helperProfile/ProfileShareContro
 import { Flag, GraduationCap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
+import usePromotionVisitBeacon from '../hooks/usePromotionVisitBeacon';
 import toast from 'react-hot-toast';
 import { recordView } from '../hooks/useRecentlyViewed';
 import { defaultProfileChatDestination } from '../components/helperProfile/chat/messengerDockState.js';
@@ -121,6 +122,8 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
   const helperUuid: string | undefined = ((data as any)?.helper?.id as string | undefined) || id;
   // Review P1-204: honour the helper's "allow booking" switch in every Book CTA.
   const bookingAllowed = (data as any)?.helper?.allowBooking !== false;
+  // Growth Center tracked-link visits (never for the owner's customer-view snapshot).
+  usePromotionVisitBeacon('helper', customerSnapshot ? null : ((data as any)?.helper?.id as string | undefined));
 
   // Review P1-213: one canonical URL per helper (/helpers/<slug> when set).
   useEffect(() => {

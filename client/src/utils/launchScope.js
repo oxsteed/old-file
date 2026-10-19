@@ -41,6 +41,7 @@ export const LAUNCH_SETTINGS_TABS = new Set([
 
 export const LAUNCH_BUSINESS_HUB_TABS = new Set([
   'overview',
+  'analytics',
   'profile',
   'clients',
   'services',

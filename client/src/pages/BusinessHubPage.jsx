@@ -13,6 +13,7 @@ const AIKnowledgeTab = lazyDefault(() => import('../components/AIKnowledgeTab'))
 import RoleMenu from '../components/businessHub/RoleMenu';
 const BusinessCalendarView = lazyDefault(() => import('../components/calendar/BusinessCalendarView'));
 const BusinessClientsTab = lazyDefault(() => import('../components/businessHub/BusinessClientsTab'));
+const BusinessAnalyticsTab = lazyNamed(() => import('../components/businessHub/BusinessAnalyticsTab'), 'BusinessAnalyticsTab');
 const BusinessMediaTab = lazyDefault(() => import('../components/businessHub/BusinessMediaTab'));
 const MessagingWorkspace = lazyDefault(() => import('../components/messaging/MessagingWorkspace'));
 const AppointmentCalendarView = lazyNamed(() => import('../components/businessHub/AppointmentCalendarView'), 'AppointmentCalendarView');
@@ -1295,7 +1296,7 @@ function BusinessHubInner() {
     }
   }
 
-  const financeTabIds = ['overview', 'invoices', 'tax', 'goals'];
+  const financeTabIds = ['overview', 'analytics', 'invoices', 'tax', 'goals'];
   const contentTabIds = ['services', 'gallery', 'policies', 'faqs', 'skills', 'ai'];
   const tabAliases = {
     hours: 'calendar',
@@ -1324,6 +1325,7 @@ function BusinessHubInner() {
   //   8. Team
   const serviceBusinessTabs = [
     'overview',
+    'analytics',
     'workflow',
     'profile',
     'clients',
@@ -1443,6 +1445,7 @@ function BusinessHubInner() {
     if (tb === 'team') return t('businessHub.tabTeamLabel');
     if (tb === 'hiring') return t('businessHub.tabHiringLabel');
     if (tb === 'overview') return t('businessHub.tabOverviewLabel');
+    if (tb === 'analytics') return t('businessAnalytics.title');
     if (tb === 'invoices') return t('businessHub.tabInvoicesLabel');
     if (tb === 'tax') return t('businessHub.tabTaxLabel');
     if (tb === 'goals') return t('businessHub.tabGoalsLabel');
@@ -1998,6 +2001,10 @@ function BusinessHubInner() {
                   setTab={setTab}
                 />
               )
+            )}
+
+            {tab === 'analytics' && bizId && canViewFinanceHub && (
+              <BusinessAnalyticsTab businessId={bizId} viewerId={user?.id} onInvoices={() => setTab('invoices')} />
             )}
 
             {tab === 'workflow' && bizId && canEditBizProfile && (

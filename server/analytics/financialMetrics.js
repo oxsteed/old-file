@@ -3,7 +3,7 @@
 // Shared executable definitions. Each result row belongs to exactly one
 // currency and BIGINTs remain strings through the PostgreSQL driver.
 const MONEY_METRICS = Object.freeze(['platform_revenue_cents', 'investor_gmv_cents',
-  'investor_take_rate_pct', 'mrr_cents', 'escrow_held_cents']);
+  'investor_take_rate_pct', 'mrr_cents', 'escrow_held_cents', 'promo_discount_cents']);
 
 function majorUnitScaleSql(expression) {
   const cases = [];
@@ -22,7 +22,7 @@ function financialMetricSql(metric, { interval = '30 days', trunc = null } = {})
       return { text: `SELECT ${bucket} UPPER(currency) AS currency_code,
           COALESCE(SUM(amount_cents), 0)::BIGINT AS revenue_cents
         FROM platform_ledger WHERE source_type IN ('job_fee','subscription') AND amount_cents > 0
-          AND created_at >= NOW() - $1::interval
+          AND created_at >= NOW() - $1::interval AND created_at < NOW()
         GROUP BY ${trunc ? '1,2 ORDER BY 1,2' : '1 ORDER BY 1'}`,
         params: [interval], columns: [...(trunc ? ['bucket'] : []), 'currency_code', 'revenue_cents'] };
     }
@@ -57,6 +57,18 @@ function financialMetricSql(metric, { interval = '30 days', trunc = null } = {})
           -COALESCE(ROUND(refunded_amount*${majorUnitScaleSql('currency')})::BIGINT,0),0))::BIGINT AS escrow_held_cents
         FROM payments WHERE escrow_status IN ('held','disputed') AND status IN ('authorized','captured')
         GROUP BY 1 ORDER BY 1`, params: [], columns: ['currency_code', 'escrow_held_cents'] };
+    case 'promo_discount_cents':
+      // Decision 2: redeemed checkout promo discounts, by redemption time.
+      // Funding follows the surface (jobs/bookings platform, food restaurant).
+      return { text: `SELECT UPPER(currency_code) AS currency_code,
+          COALESCE(SUM(discount_cents),0)::BIGINT AS promo_discount_cents,
+          COUNT(*)::INT AS redemptions,
+          COALESCE(SUM(discount_cents) FILTER (WHERE funded_by='platform'),0)::BIGINT AS platform_funded_cents,
+          COALESCE(SUM(gross_cents),0)::BIGINT AS gross_cents
+        FROM promo_redemptions WHERE status='redeemed'
+          AND redeemed_at >= NOW() - $1::interval AND redeemed_at < NOW()
+        GROUP BY 1 ORDER BY 1`, params: [interval],
+        columns: ['currency_code', 'promo_discount_cents', 'redemptions', 'platform_funded_cents', 'gross_cents'] };
     default: throw new Error('Unsupported financial metric');
   }
 }
@@ -69,4 +81,4 @@ async function financialMetricValue(db, metric, currencyCode, options = {}) {
   return row?.[key] ?? (metric === 'investor_take_rate_pct' ? null : '0');
 }
 
-module.exports = { MONEY_METRICS, financialMetricSql, financialMetricValue };
+module.exports = { MONEY_METRICS, financialMetricSql, financialMetricValue, majorUnitScaleSql };

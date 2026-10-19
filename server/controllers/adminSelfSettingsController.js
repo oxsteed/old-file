@@ -356,6 +356,26 @@ async function updateMetricAlertRule(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function getMetricAlertHistory(req,res,next) {
+  try {
+    const {ruleId}=req.params;
+    if(!/^[0-9a-f-]{36}$/i.test(String(ruleId)))throw new AppError('Rule not found',404,'not_found');
+    const {rows:[rule]}=await db.query('SELECT metric_name FROM metric_alert_rules WHERE id=$1 AND admin_id=$2',[ruleId,req.user.id]);
+    if(!rule)throw new AppError('Rule not found',404,'not_found');
+    await assertMetricAccess(req.user,rule.metric_name);
+    const offset=Number(req.query.offset || 0);
+    if(!Number.isSafeInteger(offset)||offset<0||offset>100000)throw new AppError('Invalid history page',400,'invalid_param');
+    const allowed=await permittedMetrics(req.user);
+    const {rows}=await db.query(`SELECT id,observed_at,value,previous_value,compared_value,crossed,metric_name,params
+      FROM metric_alert_observations WHERE rule_id=$1 AND metric_name=ANY($2::text[])
+      ORDER BY observed_at DESC,id DESC LIMIT 51 OFFSET $3`,[ruleId,allowed,offset]);
+    const {rows:sms}=await db.query(`SELECT status,created_at FROM metric_alert_sms_claims
+      WHERE rule_id=$1 ORDER BY created_at DESC LIMIT 20`,[ruleId]);
+    res.set('Cache-Control','private, no-store');
+    res.json({rows:rows.slice(0,50),offset,hasMore:rows.length>50,sms});
+  }catch(error){next(error);}
+}
+
 async function deleteMetricAlertRule(req, res, next) {
   try {
     const { ruleId } = req.params;
@@ -402,6 +422,7 @@ module.exports = {
   getMyTabPrefs,
   updateMyTabPrefs,
   listMetricAlertRules,
+  getMetricAlertHistory,
   createMetricAlertRule,
   updateMetricAlertRule,
   deleteMetricAlertRule,

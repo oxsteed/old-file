@@ -4,6 +4,9 @@ const express = require('express');
 const request = require('supertest');
 const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
+jest.mock('../services/businessAuditLog', () => ({ logBusinessAction: jest.fn() }));
+const { logBusinessAction } = require('../services/businessAuditLog');
+const broadcastDelivery = require('../services/broadcastDeliveryService');
 const ctrl = require('../controllers/businessMarketingController');
 
 function buildApp() {
@@ -23,35 +26,65 @@ function buildApp() {
   return app;
 }
 
-beforeEach(() => resetMocks());
+beforeEach(() => { resetMocks(); jest.restoreAllMocks(); logBusinessAction.mockReset(); });
 
 describe('business marketing actions', () => {
   test('creates a broadcast draft with legacy and current message columns', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ count: '4' }] })
+      .mockResolvedValueOnce({ rows: [{ count: 4 }] })
       .mockResolvedValueOnce({ rows: [{ id: 10, subject: 'Open slots', status: 'draft' }] });
 
     const res = await request(buildApp())
       .post('/api/businesses/12/broadcasts')
-      .send({ subject: 'Open slots', message: 'Two openings Friday.', channel: 'sms', audience: 'all' });
+      .send({ subject: 'Open slots', message: 'Two openings Friday.', channel: 'all', audience: 'all' });
 
     expect(res.status).toBe(201);
     expect(res.body.id).toBe(10);
 
     const [sql, params] = mockQuery.mock.calls[1];
     expect(sql).toMatch(/body, message/);
-    expect(params).toEqual(['12', 'Open slots', 'Two openings Friday.', 'sms', 'all', 4, undefined, 'draft']);
+    expect(params).toEqual(['12', 'Open slots', 'Two openings Friday.', 'all', ['in_app', 'push', 'email'], 'all', 4, null, 'draft', 'user-123']);
   });
 
-  test('send broadcast uses the route id parameter', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: 22, status: 'sent' }] });
+  test('refuses SMS broadcasts instead of pretending to send them', async () => {
+    const res = await request(buildApp())
+      .post('/api/businesses/12/broadcasts')
+      .send({ subject: 'Open slots', message: 'Two openings Friday.', channel: 'sms', audience: 'all' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('broadcast_channel_unsupported');
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('send broadcast queues by route id and audits before committing', async () => {
+    const queue = jest.spyOn(broadcastDelivery, 'queueBroadcast')
+      .mockResolvedValue({ broadcast: { id: 22, status: 'sending', channels: ['email'], recipient_count: 3 } });
+    logBusinessAction.mockResolvedValue(undefined);
 
     const res = await request(buildApp())
       .post('/api/businesses/12/broadcasts/22/send')
       .send({});
 
-    expect(res.status).toBe(200);
-    expect(mockQuery.mock.calls[0][1]).toEqual(['22', '12']);
+    expect(res.status).toBe(202);
+    expect(queue.mock.calls[0][1]).toEqual({ businessId: '12', broadcastId: '22', userId: 'user-123' });
+    expect(logBusinessAction.mock.calls[0][1]).toMatchObject({ throwOnError: true, action: 'broadcast.queued', target_id: '22' });
+    const sqls = mockQuery.mock.calls.map(c => c[0]);
+    expect(sqls).toContain('COMMIT');
+  });
+
+  test('send broadcast fails closed when the audit write fails', async () => {
+    jest.spyOn(broadcastDelivery, 'queueBroadcast')
+      .mockResolvedValue({ broadcast: { id: 22, status: 'sending', channels: ['email'], recipient_count: 3 } });
+    logBusinessAction.mockRejectedValue(new Error('audit down'));
+
+    const res = await request(buildApp())
+      .post('/api/businesses/12/broadcasts/22/send')
+      .send({});
+
+    expect(res.status).toBe(500);
+    const sqls = mockQuery.mock.calls.map(c => c[0]);
+    expect(sqls).toContain('ROLLBACK');
+    expect(sqls).not.toContain('COMMIT');
   });
 
   test('delete broadcast uses the route id parameter', async () => {

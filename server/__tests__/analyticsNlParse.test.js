@@ -81,6 +81,9 @@ if (url) {
     const migration = fs.readFileSync(
       path.join(__dirname, '..', 'migrations', '891_analytics_query_audit.sql'), 'utf8');
     await db.query(migration);
+    await db.query(fs.readFileSync(path.join(__dirname, '..', 'migrations', '894_analytics_audit_events.sql'), 'utf8'));
+    await db.query(fs.readFileSync(path.join(__dirname, '..', 'migrations', '896_analytics_evidence_audit.sql'), 'utf8'));
+    await db.query(fs.readFileSync(path.join(__dirname, '..', 'migrations', '901_regional_analytics_scope.sql'), 'utf8'));
   }, 60000);
   afterAll(async () => {
     await db.query(`DROP SCHEMA ${schema} CASCADE`).catch(() => {});
@@ -135,9 +138,12 @@ describeDb('nl-parse route', () => {
     });
     expect(typeof res.body.interpretation.description).toBe('string');
     expect(res.body.interpretation.description.length).toBeGreaterThan(0);
-    // Parsing never executes: no audit row was written.
+    // Parsing is accountable without executing a metric query.
     const after = await db.query('SELECT COUNT(*)::INT AS n FROM analytics_query_audit');
-    expect(after.rows[0].n).toBe(before.rows[0].n);
+    expect(after.rows[0].n).toBe(before.rows[0].n+1);
+    const { rows: [event] } = await db.query("SELECT event_type,compiled_query FROM analytics_query_audit ORDER BY created_at DESC LIMIT 1");
+    expect(event.event_type).toBe('nl_parse');
+    expect(event.compiled_query).toBeNull();
   });
 
   test('adversarial utterances are rejected, never compiled or executed', async () => {
@@ -154,8 +160,8 @@ describeDb('nl-parse route', () => {
       expect(typeof res.body.reason).toBe('string');
       expect(res.body.interpretation).toBeUndefined();
     }
-    const { rows } = await db.query('SELECT COUNT(*)::INT AS n FROM analytics_query_audit');
-    expect(rows[0].n).toBe(0);
+    const { rows } = await db.query("SELECT COUNT(*)::INT AS n FROM analytics_query_audit WHERE event_type='nl_parse' AND error_code='parse_rejected'");
+    expect(rows[0].n).toBe(hostile.length);
   });
 
   test('parser is wired to Track A dimension allowlist', () => {
@@ -172,6 +178,15 @@ describeDb('nl-parse route', () => {
       dimensionAllowlist: BUILDER_DIMENSIONS,
     });
     expect(bad.rejected).toBe(true);
+  });
+
+  test.each([
+    ['support nps for business 12',{businessId:12}],
+    ['repeat order rate for restaurant 42',{restaurantId:42}],
+  ])('numeric scope filter survives confirmation: %s',async(utterance,filters)=>{
+    const res=await request(app).post('/api/admin/analytics/query-builder/nl-parse').set(adminHeaders).send({utterance}).expect(200);
+    expect(res.body.rejected).toBe(false);
+    expect(res.body.interpretation.compiled.filters).toEqual(filters);
   });
 
   test('run with raw_utterance records the utterance in the audit ledger', async () => {

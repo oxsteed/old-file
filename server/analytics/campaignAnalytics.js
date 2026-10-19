@@ -36,6 +36,7 @@
 
 const CAMPAIGN_EVENT_TYPES = Object.freeze(['impression', 'click', 'conversion']);
 const CAMPAIGN_TYPE_FEATURED_PLACEMENT = 'featured_placement';
+const logger = require('../utils/logger');
 
 function actorKeyFor(req) {
   if (req && req.user && req.user.id) return `user:${req.user.id}`;
@@ -50,12 +51,14 @@ function emitCampaignEvent(db, { campaignId, campaignType = CAMPAIGN_TYPE_FEATUR
   return Promise.resolve()
     .then(() => db.query(
       `INSERT INTO campaign_analytics_events
-         (campaign_id, campaign_type, event_type, actor_key, metadata)
-       VALUES ($1, $2, $3, $4, $5::jsonb)`,
-      [campaignId, campaignType, eventType, actorKey, JSON.stringify(metadata || {})]
+         (campaign_id, campaign_type, event_type, actor_key, metadata, dedupe_key)
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6)
+       ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING`,
+      [campaignId, campaignType, eventType, actorKey, JSON.stringify(metadata || {}),
+        eventType === 'conversion' && metadata?.order_id != null ? `${campaignType}:${campaignId}:order:${metadata.order_id}` : null]
     ))
     .then(() => true)
-    .catch(() => false); // analytics must never break the main flow
+    .catch(error => { logger.warn('Campaign analytics event was not persisted', { eventType, code: error.code }); return false; });
 }
 
 /**
@@ -83,7 +86,7 @@ function emitCampaignImpressions(db, impressions) {
       params
     ))
     .then(() => clean.length)
-    .catch(() => 0);
+    .catch(error => { logger.warn('Campaign impressions were not persisted', { count: clean.length, code: error.code }); return 0; });
 }
 
 /**
@@ -119,13 +122,26 @@ async function getCampaignPerformance(db, campaignIds) {
     .map(Number).filter((n) => Number.isInteger(n) && n > 0);
   if (ids.length === 0) return [];
   const { rows } = await db.query(
-    `SELECT campaign_id,
+    `SELECT e.campaign_id,
             COUNT(*) FILTER (WHERE event_type = 'impression')::int  AS impressions,
             COUNT(*) FILTER (WHERE event_type = 'click')::int       AS clicks,
-            COUNT(*) FILTER (WHERE event_type = 'conversion')::int AS conversions
-       FROM campaign_analytics_events
-      WHERE campaign_id = ANY($1::bigint[])
-      GROUP BY campaign_id`,
+            COUNT(DISTINCT fo.id) FILTER (WHERE e.event_type='conversion'
+              AND fo.payment_status='paid' AND fo.status NOT IN ('cancelled','refunded'))::int AS window_orders,
+            COUNT(DISTINCT fo.id) FILTER (WHERE e.event_type='conversion'
+              AND fo.payment_status='paid' AND fo.status NOT IN ('cancelled','refunded')
+              AND e.actor_key='user:'||fo.customer_id::text AND EXISTS (
+                SELECT 1 FROM campaign_analytics_events click
+                WHERE click.campaign_id=e.campaign_id AND click.event_type='click'
+                  AND click.actor_key=e.actor_key AND click.occurred_at<=fo.created_at
+                  AND click.occurred_at>=fo.created_at-INTERVAL '7 days'
+              ))::int AS conversions
+       FROM campaign_analytics_events e
+       LEFT JOIN business_featured_placement_requests p ON p.id=e.campaign_id
+       LEFT JOIN food_orders fo ON e.event_type='conversion'
+         AND fo.id=CASE WHEN e.metadata->>'order_id' ~ '^[0-9]{1,18}$' THEN (e.metadata->>'order_id')::bigint END
+         AND fo.restaurant_id=p.featured_restaurant_id
+      WHERE e.campaign_id = ANY($1::bigint[])
+      GROUP BY e.campaign_id`,
     [ids]
   );
   const byId = new Map(rows.map((r) => [Number(r.campaign_id), r]));
@@ -139,6 +155,8 @@ async function getCampaignPerformance(db, campaignIds) {
       impressions,
       clicks,
       conversions,
+      window_orders: r ? Number(r.window_orders) : 0,
+      attribution_days: 7,
       click_through_rate: impressions > 0 ? clicks / impressions : null,
       conversion_rate: clicks > 0 ? conversions / clicks : null,
     };

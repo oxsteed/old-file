@@ -4,6 +4,10 @@
  *  - requireLogisticsRole(...roles)  → gate on logistics_user_role values, plus admin/super_admin
  *  - requireLaneAccess(getLaneId)    → resolve a lane from req, evaluate access, attach req.laneAccess
  *  - enforceCountryRestriction()     → 403 if buyer country / role can't see the route's resource
+ *  - requireCountryOnFile()          → 428 country_required unless users.country is a valid ISO-2 code
+ *
+ * Buyer country is ALWAYS the country on file (users.country). Client-supplied
+ * values (x-buyer-country header, query/body country) are never trusted.
  *
  * Designed to compose AFTER authenticate (req.user is set).
  */
@@ -12,6 +16,40 @@ const logger = require('../utils/logger');
 const laneService = require('../services/logisticsLaneService');
 const accessService = require('../services/logisticsAccessService');
 const stateMachine = require('../services/logisticsStateMachine');
+
+const COUNTRY_RE = /^[A-Z]{2}$/;
+
+/** users.country for this user, or null when missing/invalid. DB errors throw (callers fail closed). */
+async function countryOnFile(userId) {
+  if (!userId) return null;
+  const { rows } = await pool.query('SELECT country FROM users WHERE id = $1', [userId]);
+  const country = String(rows[0]?.country || '').trim().toUpperCase();
+  return COUNTRY_RE.test(country) ? country : null;
+}
+
+function countryRequiredBody() {
+  return {
+    error: 'Set the country on your account before checking out.',
+    code: 'country_required',
+  };
+}
+
+/** Gate for logistics checkout: a country must be on file. Fails closed. */
+function requireCountryOnFile() {
+  return async (req, res, next) => {
+    try {
+      if (!req.user?.id) return res.status(401).json({ error: 'unauthenticated', code: 'unauthenticated' });
+      const country = await countryOnFile(req.user.id);
+      if (!country) return res.status(428).json(countryRequiredBody());
+      req.buyerCountry = country;
+      return next();
+    } catch (err) {
+      logger.error('requireCountryOnFile failed', { err: err.message });
+      return res.status(503).json({ error: 'Logistics access checks are temporarily unavailable.',
+        code: 'logistics_access_unavailable', retryable: true });
+    }
+  };
+}
 
 const LOGISTICS_ROLES = new Set([
   'individual_buyer', 'business_buyer', 'organizer', 'reseller',
@@ -83,11 +121,7 @@ function requireLaneAccess(getLaneId) {
       if (!lane) return res.status(404).json({ error: 'lane_not_found' });
       req.lane = lane;
 
-      const userCountry =
-        req.user?.country ||
-        req.user?.location_country ||
-        req.headers['x-buyer-country'] ||
-        null;
+      const userCountry = req.user?.id ? await countryOnFile(req.user.id) : null;
       const role = req.logisticsRole || (req.user ? await resolveLogisticsRole(req.user) : null);
       // Probe business verification status (best-effort)
       let isBusinessVerified = false;
@@ -135,9 +169,12 @@ function enforceCountryRestriction() {
     try {
       const category = req.params?.category || req.query?.category || req.body?.category;
       if (!category) return next();
-      const country = req.user?.country || req.user?.location_country || req.headers['x-buyer-country'];
-      if (!country) return next();
-      const role = req.logisticsRole || (req.user ? await resolveLogisticsRole(req.user) : null);
+      if (!req.user?.id) return res.status(401).json({ error: 'unauthenticated', code: 'unauthenticated' });
+      const role = req.logisticsRole || await resolveLogisticsRole(req.user);
+      req.logisticsRole = role;
+      const country = await countryOnFile(req.user.id);
+      // Previously a missing country skipped the gate (fail open).
+      if (!country && role !== 'admin' && role !== 'super_admin') return res.status(428).json(countryRequiredBody());
       const access = await accessService.evaluateAccess({
         category, buyerCountry: country, userRole: role,
       });
@@ -231,5 +268,7 @@ module.exports = {
   buildActionContext,
   requireLaneAccess,
   enforceCountryRestriction,
+  requireCountryOnFile,
+  countryOnFile,
   LOGISTICS_ROLES: Array.from(LOGISTICS_ROLES),
 };

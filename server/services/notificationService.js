@@ -67,6 +67,8 @@ exports.sendNotification = async ({
   // delivering in-app (e.g. the admin opted out of email for metric alerts).
   // Defaults to true: no behavior change for existing callers.
   emailChannel = true,
+  inAppChannel = true,
+  pushChannel = true,
 }) => {
   try {
     // ── Promo frequency governor: at most 2 promotional pushes per user
@@ -128,7 +130,7 @@ exports.sendNotification = async ({
     );
 
     // ── 1. Save to DB (in-app) ────────────────────────────────
-    const inAppEnabled = prefAllows(prefs, 'in_app', type); // default true
+    const inAppEnabled = inAppChannel && prefAllows(prefs, 'in_app', type);
     let notifId = null;
     let notificationRow = null;
     if (inAppEnabled) {
@@ -169,7 +171,7 @@ exports.sendNotification = async ({
     // The push_notifications master toggle gates every push channel
     // (Expo, Web Push, native APNs/FCM): it is checked here because the
     // Web Push and native mobile blocks below both build on pushEnabled.
-    const pushEnabled = prefs.push_notifications !== false
+    const pushEnabled = pushChannel && prefs.push_notifications !== false
       && prefAllows(prefs, 'push', type)
       && !inQuietHours;
     // Tracks delivery across channels in this call. notificationRow is the
@@ -329,10 +331,35 @@ exports.sendNotification = async ({
     const isTransactionalEmail = transactionalEmailTypes.has(type);
     const emailFrequency = String(prefs.email_frequency || 'real-time');
     let sendRealtimeEmail = emailAllowed;
+    let emailDelivered = !!notificationRow?.is_email_sent;
+    let emailQueued = false;
     if (emailAllowed && !isTransactionalEmail) {
       if (emailFrequency === 'off') {
         logger.debug('[Notification] realtime email suppressed: frequency=off', { userId, type });
         sendRealtimeEmail = false;
+      } else if ((emailFrequency === 'daily' || emailFrequency === 'weekly') && !notifId) {
+        // An email-only caller must not create a visible in-app row, so the
+        // digest entry carries its own localized payload (migration 898). A
+        // delivery key is required so a retry cannot queue it twice; without
+        // one, fall back to realtime email rather than dropping it.
+        if (deliveryKey) {
+          try {
+            await db.query(
+              `INSERT INTO email_digest_queue
+                 (user_id, notification_id, digest_type, notification_type, title, body, delivery_key)
+               VALUES ($1, NULL, $2, $3, $4, $5, $6)
+               ON CONFLICT (delivery_key) WHERE delivery_key IS NOT NULL DO NOTHING`,
+              [userId, emailFrequency, type, finalTitle || type, finalBody || '', deliveryKey]
+            );
+            emailQueued = true;
+            sendRealtimeEmail = false;
+            logger.debug('[Notification] email-only entry queued for digest', { userId, type, emailFrequency });
+          } catch (queueErr) {
+            logger.warn('[Notification] email-only digest queue insert failed; sending realtime', {
+              userId, type, error: queueErr.message,
+            });
+          }
+        }
       } else if ((emailFrequency === 'daily' || emailFrequency === 'weekly') && notifId) {
         try {
           await db.query(
@@ -341,6 +368,7 @@ exports.sendNotification = async ({
              ON CONFLICT (notification_id) DO NOTHING`,
             [userId, notifId, emailFrequency]
           );
+          emailQueued = true;
           logger.debug('[Notification] queued for email digest', { userId, type, emailFrequency });
           sendRealtimeEmail = false;
         } catch (queueErr) {
@@ -367,6 +395,7 @@ exports.sendNotification = async ({
         fallbackTranslations: emailTranslations,
         idempotencyKey: deliveryKey,
       });
+      emailDelivered = delivery?.success === true;
       if (type === 'oxsteed_credit_card_security' && delivery?.success !== true) {
         throw new Error('Card security email delivery unavailable');
       }
@@ -391,7 +420,8 @@ exports.sendNotification = async ({
         return { success: false, error: delivery?.error || 'Email delivery failed', notificationId: notifId };
       }
     }
-    return { success: true, notificationId: notifId };
+    return { success: true, notificationId: notifId,
+      ...(type === 'metric_threshold_alert' ? { delivered: !!notifId || pushDelivered || emailDelivered || emailQueued } : {}) };
   } catch (err) {
     logger.error('Send notification failed', { userId, type, error: err.message });
     // Never throw - notification failure should never block business logic

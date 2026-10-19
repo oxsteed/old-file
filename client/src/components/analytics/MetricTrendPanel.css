@@ -1,0 +1,10 @@
+.metric-trend-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
+.metric-trend-controls { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
+.metric-trend-controls select { min-height: 36px; max-width: 100%; }
+.metric-trend-chart { margin-block: 12px 4px; margin-inline: 0; }
+.metric-trend-chart svg { display: block; inline-size: 100%; block-size: 160px; background: var(--color-surface-2, #f5f7fb); border-radius: 6px; }
+.metric-trend-bar { fill: var(--color-primary, #b83f08); }
+.metric-trend-missing { fill: var(--color-border, #cbd5e1); }
+.metric-trend-chart figcaption { display: flex; justify-content: space-between; font-size: 12px; color: var(--color-text-muted, #46556b); }
+.metric-trend-summary { overflow-wrap: anywhere; }
+.metric-trend-data summary { cursor: pointer; min-height: 32px; }

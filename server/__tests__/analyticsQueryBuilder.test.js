@@ -169,6 +169,7 @@ describe('validateBuilderQuery', () => {
 
   test('dimension allowlist matches the Track B contract', () => {
     expect(BUILDER_DIMENSIONS).toEqual({
+      dispute_rate_pct: [], job_completion_rate_pct: [], refund_rate_pct: [], payout_failure_count: [],
       open_disputes: [],
       platform_revenue_cents: ['period'],
       investor_gmv_cents: [],
@@ -180,11 +181,12 @@ describe('validateBuilderQuery', () => {
       consulting_avg_nps: [],
       mrr_cents: [],
       escrow_held_cents: [],
+      promo_discount_cents: [],
       restaurant_repeat_order_rate: ['restaurant'],
       restaurant_top_items_revenue: ['restaurant'],
     });
     const meta = getBuilderMeta();
-    expect(meta.metrics).toHaveLength(13);
+    expect(meta.metrics).toHaveLength(18);
     expect(meta.rowCap).toBe(10000);
     const byName = Object.fromEntries(meta.metrics.map((m) => [m.name, m]));
     expect(byName.cancel_rate_pct.dimensions).toEqual(['role']);
@@ -239,6 +241,9 @@ describeDb('analytics query builder', () => {
     // Real migration 891: the audit ledger under test.
     const auditSql = fs.readFileSync(path.join(__dirname, '..', 'migrations', '891_analytics_query_audit.sql'), 'utf8');
     await db.query(auditSql);
+    await db.query(fs.readFileSync(path.join(__dirname, '..', 'migrations', '894_analytics_audit_events.sql'), 'utf8'));
+    await db.query(fs.readFileSync(path.join(__dirname, '..', 'migrations', '896_analytics_evidence_audit.sql'), 'utf8'));
+    await db.query(fs.readFileSync(path.join(__dirname, '..', 'migrations', '901_regional_analytics_scope.sql'), 'utf8'));
 
     // Minimal domain fixtures (columns actually read by the builders).
     await db.query(`CREATE TABLE ${schema}.users (id UUID PRIMARY KEY, role TEXT NOT NULL)`);
@@ -259,7 +264,7 @@ describeDb('analytics query builder', () => {
       budget_max NUMERIC, budget_min NUMERIC, final_price_cents BIGINT, currency_code TEXT DEFAULT 'USD')`);
     await db.query(`CREATE TABLE ${schema}.food_orders (
       id BIGSERIAL PRIMARY KEY, restaurant_id BIGINT, customer_id UUID, status TEXT,
-      created_at TIMESTAMPTZ DEFAULT NOW())`);
+      created_at TIMESTAMPTZ DEFAULT NOW(), payment_status TEXT DEFAULT 'paid', currency_code TEXT DEFAULT 'USD')`);
     await db.query(`CREATE TABLE ${schema}.food_order_items (
       id BIGSERIAL PRIMARY KEY, order_id BIGINT, menu_item_id BIGINT, item_name TEXT,
       quantity INT, line_total_cents BIGINT)`);
@@ -511,7 +516,7 @@ describeDb('query builder routes', () => {
   test('admin gets meta and can run a query', async () => {
     const metaRes = await request(app).get('/api/admin/analytics/query-builder/meta')
       .set(adminHeaders).expect(200);
-    expect(metaRes.body.metrics).toHaveLength(13);
+    expect(metaRes.body.metrics).toHaveLength(18);
     const runRes = await request(app).post('/api/admin/analytics/query-builder/run')
       .set(adminHeaders).send({ metric: 'open_disputes' }).expect(200);
     expect(runRes.body.rows).toEqual([{ value: 2 }]);
@@ -524,5 +529,24 @@ describeDb('query builder routes', () => {
     const res = await request(app).post('/api/admin/analytics/query-builder/run')
       .set(adminHeaders).send({ metric: 'nope' }).expect(400);
     expect(res.body.error).toMatch(/Invalid metric/);
+  });
+
+  test('evidence and exports are audited and personal history excludes other admins', async () => {
+    const records=await request(app).post('/api/admin/analytics/query-builder/run').set(adminHeaders)
+      .send({metric:'platform_revenue_cents',evidence:true}).expect(200);
+    expect(records.body.evidence).toBe(true);
+    expect(records.body.summary[0].revenue_cents).toBe('1500');
+    expect(records.body.rows.reduce((sum,row)=>sum+BigInt(row.amount_cents),0n)).toBe(1500n);
+    await request(app).post('/api/admin/analytics/query-builder/run').set(adminHeaders)
+      .send({metric:'open_disputes',export:true}).expect(200);
+    await db.query(`INSERT INTO analytics_query_audit(admin_user_id,metric_name,event_type,success)
+      VALUES($1,'open_disputes','execution',true)`,[OTHER_CUSTOMER_ID]);
+    const history=await request(app).get('/api/admin/analytics/query-builder/history').set(adminHeaders).expect(200);
+    expect(history.body.rows.some(row=>row.event_type==='evidence')).toBe(true);
+    expect(history.body.rows.some(row=>row.event_type==='export')).toBe(true);
+    expect(history.body.rows.every(row=>!Object.hasOwn(row,'compiled_query'))).toBe(true);
+    const ids=history.body.rows.map(row=>row.id);
+    const {rows:[other]}=await db.query('SELECT id FROM analytics_query_audit WHERE admin_user_id=$1',[OTHER_CUSTOMER_ID]);
+    expect(ids).not.toContain(other.id);
   });
 });

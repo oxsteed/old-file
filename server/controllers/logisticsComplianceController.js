@@ -8,7 +8,7 @@ const pool    = require('../db');
 const AppError = require('../utils/appError');
 const accessService = require('../services/logisticsAccessService');
 const { logLogisticsAction } = require('../services/logisticsAuditService');
-const { resolveLogisticsRole } = require('../middleware/requireLogisticsAccess');
+const { resolveLogisticsRole, countryOnFile } = require('../middleware/requireLogisticsAccess');
 
 // ─── Buyer-facing access evaluation ───────────────────────────
 
@@ -28,7 +28,8 @@ exports.evaluateAccess = async (req, res, next) => {
       }
     }
     const role = await resolveLogisticsRole(req.user);
-    const country = req.user?.country || req.query.country;
+    // Country on file only: a ?country= query value is never trusted.
+    const country = await countryOnFile(req.user.id);
     const access = await accessService.evaluateAccess({
       laneId: lane_id ? parseInt(lane_id, 10) : null,
       category,
@@ -37,7 +38,7 @@ exports.evaluateAccess = async (req, res, next) => {
       buyerCountry: country,
       userRole: role,
     });
-    res.json({ success: true, data: access });
+    res.json({ success: true, data: { ...access, buyer_country: country, country_required: !country } });
   } catch (err) { next(err); }
 };
 
