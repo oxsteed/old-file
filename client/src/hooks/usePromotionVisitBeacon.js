@@ -8,7 +8,9 @@ import api from '../api/axios';
 // Dedupe key: a random device id. It is persisted in localStorage only when the
 // visitor accepted analytics cookies; otherwise a per-tab sessionStorage id is
 // used so nothing durable is stored without consent. The server hashes it and
-// counts at most one visit per device/source/campaign/UTC day.
+// counts at most one visit per device/source/campaign/UTC day. For a signed-in
+// visitor without analytics consent the server also keeps a hashed account
+// link for 7 days so a later booking by that account can be attributed.
 
 import { PROMO_CONSENT_KEY as CONSENT_KEY, PROMO_VISITOR_KEY as VISITOR_KEY } from '../utils/promotionVisitor';
 
@@ -85,6 +87,10 @@ export default function usePromotionVisitBeacon(ownerType, ownerId) {
       ownerId,
       ...promo,
       visitorId: promotionVisitorId(),
+      // Without analytics consent the server links a signed-in visitor's
+      // later conversion through the account for 7 days instead of a
+      // persistent device id (Promote attribution, decision 3).
+      analyticsConsent: hasAnalyticsConsent(),
     }).catch(() => {});
   }, [ownerType, ownerId]);
 }

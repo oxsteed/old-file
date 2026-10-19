@@ -23996,6 +23996,9 @@
       "printHandOut": "Enprime epi distribye"
     },
     "performance": {
+      "netConversions": "konvèsyon nèt",
+      "netConversionRate": "to konvèsyon nèt",
+      "reversedLine": "Retire nan nèt la: {{cancelled}} anile · {{refunded}} ranbouse",
       "title": "Pèfòmans",
       "heading": "Swiv ki pwomosyon ki vrèman pote travay.",
       "body": "OxSteed anrejistre chak pòs, lyen, kat oswa siyati ak swivi ou kopye isit la, ak chak vizit sou pwofil ou ki soti nan lyen sa yo. Tcheke chak semèn pou wè ki kanal ak ki ang ki mache, ak kilès pou sispann.",
@@ -24018,11 +24021,11 @@
       "noMedium": "san etikèt",
       "campaigns": "Kanpay",
       "empty": "Poko gen anyen ki swiv nan peryòd sa a. Kopye yon pòs, yon pwomosyon plas oswa yon lyen parennaj epi pataje l; vizit li yo ap parèt isit la.",
-      "conversions": "konvèsyon",
-      "conversionRate": "to konvèsyon",
-      "conversionLine": "{{conversions}} konvèsyon",
-      "byType": "Konvèsyon: {{bookings}} rezèvasyon · {{appointments}} randevou · {{orders}} kòmand",
-      "help": "Yon vizit konte yon sèl fwa pou chak aparèy, sous, kanpay ak jou. Vizit pa w ak vizit ekip ou pa konte. Yon konvèsyon se yon rezèvasyon, randevou oswa kòmand ki fèt sou menm aparèy la nan {{days}} jou apre yon vizit swiv; li ale sou dènye vizit la epi li konte yon sèl fwa. Anilasyon pa retire. Travay ki poste sou mache a pa konte."
+      "conversions": "konvèsyon brit",
+      "conversionRate": "to konvèsyon brit",
+      "conversionLine": "Konvèsyon: {{gross}} brit · {{net}} nèt",
+      "byType": "Konvèsyon brit: {{bookings}} rezèvasyon · {{appointments}} randevou · {{orders}} kòmand · {{jobs}} anboche sou mache a",
+      "help": "Yon vizit konte yon sèl fwa pou chak aparèy, sous, kanpay ak jou. Vizit pa w ak vizit ekip ou pa konte. Yon konvèsyon se yon rezèvasyon, randevou, kòmand oswa anboche sou mache a pou youn nan èd biznis ou, ki fèt nan {{days}} jou apre yon vizit swiv, sou menm aparèy la oswa, pou vizitè ki pa aksepte cookies analiz yo, sou menm kont ki konekte a. Li ale sou dènye vizit la epi li konte yon sèl fwa. Brit la konte tout konvèsyon; nèt la retire sa ki te anile oswa ranbouse apre."
     },
     "toolkit": {
       "featuredStatus": {

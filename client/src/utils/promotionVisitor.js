@@ -11,6 +11,8 @@ const CONVERSION_PATHS = [
   /^\/?bookings\/?$/,
   /^\/?businesses\/\d+\/appointments\/?$/,
   /^\/?(food\/)?restaurants\/[^/]+\/orders\/?$/,
+  // Marketplace hire (accepting a helper's bid): decision 2.
+  /^\/?jobs\/assign\/?$/,
 ];
 
 // Reads the existing id without ever creating one: a visitor who never arrived

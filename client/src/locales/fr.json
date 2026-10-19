@@ -23996,6 +23996,9 @@
       "printHandOut": "Imprimer et distribuer"
     },
     "performance": {
+      "netConversions": "conversions nettes",
+      "netConversionRate": "taux de conversion net",
+      "reversedLine": "Exclues du net : {{cancelled}} annulées · {{refunded}} remboursées",
       "title": "Performance",
       "heading": "Suivez quelles promos génèrent réellement du travail.",
       "body": "OxSteed enregistre chaque publication, lien, carte ou signature suivis que vous copiez ici, ainsi que chaque visite de votre profil depuis ces liens. Revenez chaque semaine pour voir quels canaux et quels angles fonctionnent, et lesquels arrêter.",
@@ -24018,11 +24021,11 @@
       "noMedium": "sans étiquette",
       "campaigns": "Campagnes",
       "empty": "Rien n’a encore été suivi sur cette période. Copiez une publication, une promo de créneau ou un lien de parrainage et partagez-le ; ses visites apparaîtront ici.",
-      "conversions": "conversions",
-      "conversionRate": "taux de conversion",
-      "conversionLine": "Conversions : {{conversions}}",
-      "byType": "Conversions : {{bookings}} réservations · {{appointments}} rendez-vous · {{orders}} commandes",
-      "help": "Une visite compte une fois par appareil, source, campagne et jour. Vos visites et celles de votre équipe ne sont pas comptées. Une conversion est une réservation, un rendez-vous ou une commande faite depuis le même appareil dans les {{days}} jours suivant une visite suivie ; elle est attribuée à la dernière visite et comptée une seule fois. Les annulations ne sont pas déduites. Les missions publiées sur la place de marché ne sont pas comptées."
+      "conversions": "conversions brutes",
+      "conversionRate": "taux de conversion brut",
+      "conversionLine": "Conversions : {{gross}} brutes · {{net}} nettes",
+      "byType": "Conversions brutes : {{bookings}} réservations · {{appointments}} rendez-vous · {{orders}} commandes · {{jobs}} embauches sur la place de marché",
+      "help": "Une visite compte une fois par appareil, source, campagne et jour. Vos visites et celles de votre équipe ne sont pas comptées. Une conversion est une réservation, un rendez-vous, une commande ou l’embauche sur la place de marché d’un des prestataires de votre entreprise, faite dans les {{days}} jours suivant une visite suivie, depuis le même appareil ou, pour les visiteurs qui n’ont pas accepté les cookies d’analyse, depuis le même compte connecté. Elle est attribuée à la dernière visite et comptée une seule fois. Le brut compte toutes les conversions ; le net exclut celles annulées ou remboursées ensuite."
     },
     "toolkit": {
       "featuredStatus": {
