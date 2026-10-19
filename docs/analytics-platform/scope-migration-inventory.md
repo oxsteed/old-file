@@ -8,15 +8,15 @@ cd server && JWT_SECRET=<64 chars> node scripts/scope/routeInventory.js --json
 
 ## Totals
 
-765 tenant routes (a path parameter of `:businessId`, `:restaurantId`, `:bizId`, `:business_id` or `:restaurant_id`) across every router in `server/routes`, plus the one tenant route mounted directly in `index.js`. Before this branch, 248 of them had a route-level gate and 517 relied on each controller remembering its own check. Now all of them have a gate or a registered exemption. `routeScopeGuard.test.js` fails on any new tenant route that has neither.
+749 tenant routes (a path parameter of `:businessId`, `:restaurantId`, `:bizId`, `:business_id` or `:restaurant_id`) across every router in `server/routes`, plus the one tenant route mounted directly in `index.js`. Before this branch, 248 of them had a route-level gate and 501 relied on each controller remembering its own check. Now all of them have a gate or a registered exemption. `routeScopeGuard.test.js` fails on any new tenant route that has neither.
 
 | Domain | Tenant routes | Gate already present | Newly gated | Newly exempt (registered reason) |
 |---|---:|---:|---:|---:|
 | restaurant/food | 331 | 2 | 250 | 79 |
 | support | 119 | 0 | 83 | 36 |
-| business | 311 | 242 | 30 | 39 |
+| business | 295 | 242 | 16 | 37 |
 | platform admin | 4 | 4 | 0 | 0 |
-| **total** | **765** | **248** | **363** | **154** |
+| **total** | **749** | **248** | **349** | **152** |
 
 Copy-pasted restaurant access checks. 19 controllers carried their own copy of the restaurant ownership query. 16 had already been reduced to thin wrappers over `scopeModel.resolveRestaurantAccess` in the #606 pilot. The last three are migrated here:
 - `restaurantInventoryOperationsController.restaurantAccess`
@@ -59,19 +59,18 @@ There are 77 reads of `business_id` / `restaurant_id` from `req.body` / `req.que
    - Non-members get 404 instead of 403.
    - Deleted businesses get 404. The legacy leads, maintenance and services/manage checks did not exclude `deleted_at`, and mobile summary checked only `is_active`.
    - Inactive businesses get 404.
-4. **Unmounted route files that were also unsafe** are now gated, in case they are ever mounted:
-   - `businessExpenses.js` had *no* access check at all.
-   - `businessMessageTemplates.js`: two routes had no check.
-   - `businessHealth.js`
-   - `businessSkills.js`
+4. **Unmounted route files** (decision 8): the four files, 16 routes, were reviewed and deleted. Each one duplicated a router that is already mounted and gated, so none of them was worth mounting:
+   - `businessExpenses.js` duplicated the expenses routes of the mounted `businessFinance.js`, which uses the same controller and the same manager gate.
+   - `businessMessageTemplates.js` (using `businessTemplatesController`) duplicated the mounted `businessMsgTemplates.js`. Both work on the same `business_message_templates` table, but the mounted one limits writes to managers. The dead file let any member write.
+   - `businessHealth.js` (using `businessHealthController`) duplicated the mounted `businessHealthAlerts.js`. The dead version wrote alerts as a side effect of a GET and only had English copy. The mounted one has localized alerts and is the one the Business Hub dashboard calls.
+   - `businessSkills.js` duplicated the skills routes mounted in `businesses.js`.
 
-   The local `checkAccess` in `businessHealthController` and `businessTemplatesController` queried `business_members.user_id`, a column that does not exist. It now uses `resolveBusinessAccess`. None of these files is mounted in `index.js` today, so production behavior is unchanged.
+   The two controllers that only the dead files used (`businessHealthController`, `businessTemplatesController`) were deleted too. `businessExpensesController` and `businessSkillsController` stay because mounted routers use them.
+
 5. **Support routes whose handler looked the resource up first** (survey follow-up, escalation policies, team mutations, settings sub-resources, AI handoff check) now deny non-members with 403 before the lookup. Two mocked tests were updated to reflect the new query order. The assertions are unchanged.
 
 ## Flagged for a decision (behavior kept)
 
-- **Support SQL ignores `businesses.deleted_at`.** `requireBusinessAccess` 404s deleted businesses, but the support helpers (`BUSINESS_ACCESS_SQL` and the others) still admit them. The support gate keeps the support semantics. Should a deleted business's support desk stay reachable?
-- **The restaurant gate does not check `businesses.deleted_at` either.** This is the existing #606 note. Restaurants of a deleted business remain manageable.
 - **Platform admins have full restaurant access through the gate (decision 6).** An admin or super_admin with no membership gets owner-level rights on any restaurant (`effective_role: 'owner'`, `platform_admin_access: true`). The grant also covers later `resolveRestaurantAccess` calls in the same request, but never a lookup outside the gate. Every such request writes an `admin_audit_log` row (`restaurant_admin_access:<METHOD>`, target `restaurant:<id>`). If that write fails, the request is refused with 503 `admin_audit_unavailable` (fail closed). Admins who are also members use their own role and are not audited as platform-admin access. Credit dual-admin approvals are separate admin services and are unchanged.
 - **Deleted records (decision 5).** A restaurant counts as deleted when its business is soft-deleted, because restaurants have no deletion of their own. Owners and members get 404 `restaurant_not_found`. Platform admins can still read it (GET/HEAD); any other method returns 409 `restaurant_deleted_read_only`. In support, the membership SQL excludes deleted businesses and agents are refused. Platform admins keep read-only access, and support writes are refused, including when the request method is unknown (fail closed).
 - **`GET /api/support-routing/:businessId/status`** *(resolved, decision 7)*: now gated by `requireSupportBusinessAccess('conversations')` and reports that business's availability only.
@@ -82,7 +81,7 @@ There are 77 reads of `business_id` / `restaurant_id` from `req.body` / `req.que
   - message and attachment routes
 
   Each authorizes against the loaded row. The list is frozen in `resourceScopedRoutes.json`.
-- **Unmounted route files** (`businessExpenses`, `businessHealth`, `businessMessageTemplates`, `businessSkills`) should be deleted or mounted deliberately.
+- **Unmounted route files** *(resolved, decision 8)*: all four were reviewed and deleted as duplicates of mounted routers. See Behavior tightenings item 4.
 
 ## One Truth
 
@@ -112,7 +111,6 @@ There are 77 reads of `business_id` / `restaurant_id` from `req.body` / `req.que
 | businessConversationAssignmentController.js | 3 | 0 | all tenant routes gated |
 | businessExpensesController.js | 4 | 0 | all tenant routes gated |
 | businessHealthAlertsController.js | 6 | 0 | all tenant routes gated |
-| businessHealthController.js | 6 | 0 | all tenant routes gated |
 | businessIntegrationsController.js | 3 | 0 | gated + exempt:signed-callback |
 | businessInvoiceController.js | 12 | 0 | no tenant-param routes (scope from resource/body/admin) |
 | businessLeadPipelineController.js | 6 | 0 | all tenant routes gated |
@@ -131,7 +129,6 @@ There are 77 reads of `business_id` / `restaurant_id` from `req.body` / `req.que
 | businessStaffScheduleController.js | 8 | 0 | all tenant routes gated |
 | businessSupportSettingsController.js | 8 | 0 | all tenant routes gated |
 | businessTeamController.js | 5 | 0 | all tenant routes gated |
-| businessTemplatesController.js | 4 | 0 | all tenant routes gated |
 | businessWaitlistController.js | 4 | 0 | gated + exempt:public-intake |
 | cannedResponsesController.js | 5 | 0 | all tenant routes gated |
 | careerController.js | 3 | 0 | no tenant-param routes (scope from resource/body/admin) |
@@ -227,10 +224,6 @@ Columns:
 | beautyOperations.js | PUT /business/:businessId/settings | route gate: business:manager | business:manager | none: route gate pre-existed | beautyOperationsController.js#updateSettings |
 | beautyOperations.js | PUT /business/:businessId/trust-records/:recordId | route gate: business:manager | business:manager | none: route gate pre-existed | beautyOperationsController.js#updateTrustRecord |
 | bookings.js | GET /business/:businessId/available-slots | controller: legacy helper/local query (see handler) | exempt:public-storefront | low: public/self-service, no tenant data beyond public predicate | bookingController.js#getBusinessAvailableSlots |
-| businessExpenses.js | DELETE /:businessId/expenses/:id | controller: legacy helper/local query (see handler) | business:manager | low: gate verified to match legacy first-query semantics | businessExpensesController.js#deleteExpense |
-| businessExpenses.js | GET /:businessId/expenses | controller: legacy helper/local query (see handler) | business:manager | low: gate verified to match legacy first-query semantics | businessExpensesController.js#listExpenses |
-| businessExpenses.js | POST /:businessId/expenses | controller: legacy helper/local query (see handler) | business:manager | low: gate verified to match legacy first-query semantics | businessExpensesController.js#createExpense |
-| businessExpenses.js | PUT /:businessId/expenses/:id | controller: legacy helper/local query (see handler) | business:manager | low: gate verified to match legacy first-query semantics | businessExpensesController.js#updateExpense |
 | businessFinance.js | DELETE /:businessId/expenses/:expenseId | route gate: business:manager | business:manager | none: route gate pre-existed | businessExpensesController.js#deleteExpense |
 | businessFinance.js | DELETE /:businessId/quotes/:quoteId | route gate: business:manager | business:manager | none: route gate pre-existed | businessQuotesController.js#deleteQuote |
 | businessFinance.js | DELETE /:businessId/recurring/:id | route gate: business:manager | business:manager | none: route gate pre-existed | businessRecurringBillingController.js#deleteRecurring |
@@ -246,8 +239,6 @@ Columns:
 | businessFinance.js | PUT /:businessId/expenses/:expenseId | route gate: business:manager | business:manager | none: route gate pre-existed | businessExpensesController.js#updateExpense |
 | businessFinance.js | PUT /:businessId/quotes/:quoteId | route gate: business:manager | business:manager | none: route gate pre-existed | businessQuotesController.js#updateQuote |
 | businessFinance.js | PUT /:businessId/recurring/:id | route gate: business:manager | business:manager | none: route gate pre-existed | businessRecurringBillingController.js#updateRecurring |
-| businessHealth.js | GET /:businessId/health-alerts | controller: legacy helper/local query (see handler) | business:any | low: gate verified to match legacy first-query semantics | businessHealthController.js#getAlerts |
-| businessHealth.js | PATCH /:businessId/health-alerts/:id/dismiss | controller: legacy helper/local query (see handler) | business:any | low: gate verified to match legacy first-query semantics | businessHealthController.js#dismissAlert |
 | businessHealthAlerts.js | GET /:businessId/health-alerts | route gate: business:any | business:any | none: route gate pre-existed | businessHealthAlertsController.js#listAlerts |
 | businessHealthAlerts.js | POST /:businessId/health-alerts/:alertId/dismiss | route gate: business:any | business:any | none: route gate pre-existed | businessHealthAlertsController.js#dismissAlert |
 | businessHealthAlerts.js | POST /:businessId/health-alerts/generate | route gate: business:any | business:any | none: route gate pre-existed | businessHealthAlertsController.js#generateAlerts |
@@ -286,11 +277,6 @@ Columns:
 | businessMarketing.js | POST /:businessId/promo-codes | route gate: business:manager | business:manager | none: route gate pre-existed | businessMarketingController.js#createPromoCode |
 | businessMarketing.js | POST /:businessId/promo-codes/:codeId/toggle | route gate: business:manager | business:manager | none: route gate pre-existed | businessMarketingController.js#togglePromoCode |
 | businessMarketing.js | POST /:businessId/promotion-events/share | route gate: business:manager | business:manager | none: route gate pre-existed | promotionAnalyticsController.js#recordBusinessShare |
-| businessMessageTemplates.js | DELETE /:businessId/message-templates/:id | controller: legacy helper/local query (see handler) | business:any | low: gate verified to match legacy first-query semantics | businessTemplatesController.js#remove |
-| businessMessageTemplates.js | GET /:businessId/message-templates | controller: legacy helper/local query (see handler) | business:any | low: gate verified to match legacy first-query semantics | businessTemplatesController.js#list |
-| businessMessageTemplates.js | POST /:businessId/message-templates | controller: legacy helper/local query (see handler) | business:any | low: gate verified to match legacy first-query semantics | businessTemplatesController.js#create |
-| businessMessageTemplates.js | POST /:businessId/message-templates/:id/use | controller: legacy helper/local query (see handler) | business:any | low: gate verified to match legacy first-query semantics | businessTemplatesController.js#use |
-| businessMessageTemplates.js | PUT /:businessId/message-templates/:id | controller: legacy helper/local query (see handler) | business:any | low: gate verified to match legacy first-query semantics | businessTemplatesController.js#update |
 | businessMsgTemplates.js | DELETE /:businessId/message-templates/:templateId | route gate: business:manager | business:manager | none: route gate pre-existed | businessMessageTemplatesController.js#deleteTemplate |
 | businessMsgTemplates.js | GET /:businessId/message-templates | route gate: business:any | business:any | none: route gate pre-existed | businessMessageTemplatesController.js#listTemplates |
 | businessMsgTemplates.js | POST /:businessId/message-templates | route gate: business:manager | business:manager | none: route gate pre-existed | businessMessageTemplatesController.js#createTemplate |
@@ -385,11 +371,6 @@ Columns:
 | businessReviews.js | GET /:businessId | controller: legacy helper/local query (see handler) | exempt:public-storefront | low: public/self-service, no tenant data beyond public predicate | reviewsController.js#getBusinessReviews |
 | businessReviews.js | GET /:businessId/stats | controller: legacy helper/local query (see handler) | exempt:public-storefront | low: public/self-service, no tenant data beyond public predicate | reviewsController.js#getReviewStats |
 | businessReviews.js | POST /:businessId/submit | controller: legacy helper/local query (see handler) | exempt:public-intake | low: public/self-service, no tenant data beyond public predicate | reviewsController.js#submitReview |
-| businessSkills.js | DELETE /:businessId/skills/:skillId | controller: legacy-business-helper | business:manager | low: gate + legacy controller check (defence in depth) | businessSkillsController.js#removeBusinessSkill |
-| businessSkills.js | GET /:businessId/skills | controller: legacy helper/local query (see handler) | exempt:public-storefront | low: public/self-service, no tenant data beyond public predicate | businessSkillsController.js#listBusinessSkills |
-| businessSkills.js | GET /:businessId/skills/search | controller: legacy helper/local query (see handler) | exempt:public-storefront | low: public/self-service, no tenant data beyond public predicate | businessSkillsController.js#searchSkillsForBusiness |
-| businessSkills.js | POST /:businessId/skills | controller: legacy-business-helper | business:manager | low: gate + legacy controller check (defence in depth) | businessSkillsController.js#addBusinessSkill |
-| businessSkills.js | PUT /:businessId/skills/:skillId | controller: legacy-business-helper | business:manager | low: gate + legacy controller check (defence in depth) | businessSkillsController.js#updateBusinessSkill |
 | businessStaff.js | DELETE /:businessId/staff/shifts/:shiftId | route gate: business:manager | business:manager | none: route gate pre-existed | businessStaffScheduleController.js#deleteShift |
 | businessStaff.js | GET /:businessId/staff/shifts | route gate: business:any | business:any | none: route gate pre-existed | businessStaffScheduleController.js#listShifts |
 | businessStaff.js | GET /:businessId/staff/time-entries | route gate: business:manager | business:manager | none: route gate pre-existed | businessStaffScheduleController.js#listTimeEntries |
