@@ -60,8 +60,10 @@ test('evidence URLs, audited export revocation, query history, alert comparisons
       await page.evaluate(({view,lang,dark})=>{history.replaceState({},'',view==='settings'?'?tab=metric-alerts':'/');window.view=view;window.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';document.documentElement.classList.toggle('dark',dark);window.render();},{view,lang,dark});
       if(view==='settings'){
         const newRule=page.getByRole('button',{name:catalogs[lang].adminSettings.metricAlerts.newRule,exact:true});
-        if(await newRule.count())await newRule.click();
-        await page.locator('.admin-settings-field select').first().selectOption('payout_failure_count');
+        const ruleSelect=page.locator('.admin-settings-field select').first();
+        await newRule.or(ruleSelect).first().waitFor();
+        if(!(await ruleSelect.count())&&await newRule.count())await newRule.click();
+        await ruleSelect.selectOption('payout_failure_count');
         await page.locator('#metric-comparison').selectOption('previous_period_pct');
       }
       for(const width of [320,390,1360]){await page.setViewportSize({width,height:1000});
