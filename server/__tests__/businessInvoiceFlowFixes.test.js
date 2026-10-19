@@ -47,7 +47,7 @@ describe('business invoice flow fixes', () => {
 
   test('createInvoice returns 400 without leaving an open transaction', async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [{ id: 8, owner_id: '00000000-0000-4000-8000-000000000008' }],
+      rows: [{ id: 8, effective_role: 'owner', owner_id: '00000000-0000-4000-8000-000000000008' }],
     });
 
     const req = {
@@ -77,7 +77,7 @@ describe('business invoice flow fixes', () => {
   test('markInvoicePaid accumulates amount_paid', async () => {
     mockQuery
       .mockResolvedValueOnce({
-        rows: [{ id: 8, owner_id: '00000000-0000-4000-8000-000000000008' }],
+        rows: [{ id: 8, effective_role: 'owner', owner_id: '00000000-0000-4000-8000-000000000008' }],
       })
       .mockResolvedValueOnce({
         rows: [{

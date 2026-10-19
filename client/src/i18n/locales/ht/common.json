@@ -549,14 +549,12 @@
     "dataFreshness": "Frekans done yo",
     "fresh": "Ajou",
     "catchingUp": "Bezwen mete ajou",
-
     "localRecovery": "Rekiperasyon lokal sou navigatè sa a",
     "localRecoveryHint": "Revize travay ki poko voye nan ansyen sesyon oswa aparèy ki dezaktive. Yon bouyon ki poko peye toujou bezwen akseptasyon anplwaye. Ansyen dosye yo rete; konpare aksyon kwizin ak dyagnostik finansye ak dosye aktyèl sèvè a.",
     "recoverUnpaid": "Enpòte bouyon ki poko peye",
     "reconcileManually": "Konpare ak dosye aktyèl yo",
     "reviewCurrentWork": "Revize travay aktyèl la",
     "lastHeartbeat": "Dènye siyal",
-
     "controlTitle": "Sant kontwòl ekran anndan restoran",
     "storeOperations": "Operasyon restoran",
     "controlHint": "Jere ekran konekte yo, swiv senkronizasyon yo epi revize kòmand san peye ki rekipere yo.",
@@ -754,86 +752,86 @@
   "sop": {
     "unavailable": "Pa disponib",
     "unavailableTitle": "Pa disponib nan vèsyon sa a",
-  "downloadGuide": "Telechaje gid la (PDF)",
-  "downloadHandbook": "Telechaje manyèl la (PDF)",
-  "imageUnavailable": "Ekran an pa disponib. Eseye chaje li ankò.",
-  "libraryLink": "Gid vizyèl etap pa etap",
-  "guideButton": "Gid etap pa etap",
-  "englishBadge": "English",
-  "modal": {
-    "title": "Gid etap pa etap",
-    "close": "Fèmen",
-    "openFullGuide": "Louvri gid konplè a",
-    "chooseGuide": "Chwazi gid ki koresponn ak travay ou a",
-    "noneLinked": "Pa gen gid etap pa etap ki lye ak paj sa a pou kounye a."
+    "downloadGuide": "Telechaje gid la (PDF)",
+    "downloadHandbook": "Telechaje manyèl la (PDF)",
+    "imageUnavailable": "Ekran an pa disponib. Eseye chaje li ankò.",
+    "libraryLink": "Gid vizyèl etap pa etap",
+    "guideButton": "Gid etap pa etap",
+    "englishBadge": "English",
+    "modal": {
+      "title": "Gid etap pa etap",
+      "close": "Fèmen",
+      "openFullGuide": "Louvri gid konplè a",
+      "chooseGuide": "Chwazi gid ki koresponn ak travay ou a",
+      "noneLinked": "Pa gen gid etap pa etap ki lye ak paj sa a pou kounye a."
+    },
+    "library": {
+      "title": "Gid etap pa etap",
+      "subtitle": "Leson vizyèl pou travay komen sou OxSteed. Kontni gid yo ekri an anglè.",
+      "searchLabel": "Chèche gid",
+      "searchPlaceholder": "Chèche pa travay, pa egzanp pibliye yon djòb",
+      "areaLabel": "Domèn",
+      "audienceLabel": "Odyans",
+      "allAreas": "Tout domèn yo",
+      "allAudiences": "Tout odyans yo",
+      "suggestedForYou": "Sijere pou ou",
+      "useSuggestion": "Sèvi ak sijesyon an",
+      "clearFilters": "Efase filtè yo",
+      "results": "{{count}} gid",
+      "noResults": "Okenn gid pa koresponn ak rechèch ou a. Eseye lòt mo oswa efase filtè yo.",
+      "viewGuide": "Wè gid la",
+      "supported": "Disponib",
+      "conditional": "Kondisyonèl",
+      "handbooksTitle": "Gid pa wòl",
+      "handbooksSubtitle": "Lis lekti òdone pou chak wòl sou OxSteed.",
+      "openHandbook": "Louvri manyèl la",
+      "guidesInHandbook": "{{count}} gid"
+    },
+    "audience": {
+      "customer": "Kliyan",
+      "helper": "Edan",
+      "business": "Biznis",
+      "restaurant": "Restoran",
+      "logistics": "Lojistik"
+    },
+    "guide": {
+      "goal": "Objektif",
+      "prerequisites": "Anvan ou kòmanse",
+      "processMap": "Kat pwosesis la",
+      "processMapTextToggle": "Vèsyon tèks kat sa a",
+      "steps": "Etap yo",
+      "stepNumber": "Etap {{n}}",
+      "expectedResult": "Rezilta ou dwe wè",
+      "viewLarger": "Wè pi gwo",
+      "closeZoom": "Fèmen imaj agrandi a",
+      "screenshotPending": "Ekran poko pran",
+      "confirmOutcome": "Verifye li mache",
+      "recovery": "Si yon bagay pa mache",
+      "support": "Jwenn èd",
+      "relatedGuides": "Gid ki gen rapò",
+      "siteLinks": "Paj ki gen rapò",
+      "sources": "Sous",
+      "revision": "Revizyon {{revision}}",
+      "notFound": "Gid pa jwenn",
+      "notFoundBody": "Gid sa a poko pibliye. Gade bibliyotèk konplè a pou jwenn yon leson pou travay ou a.",
+      "backToLibrary": "Tounen nan tout gid yo"
+    },
+    "checklist": {
+      "title": "Pwogrè ou",
+      "reset": "Rekòmanse pwogrè a",
+      "progress": "{{done}} sou {{total}} etap fini",
+      "markDone": "Make etap la kòm fini",
+      "markNotDone": "Make etap la kòm pa fini"
+    },
+    "handbook": {
+      "contents": "Kontni",
+      "notFound": "Manyèl pa jwenn",
+      "notFoundBody": "Manyèl wòl sa a poko pibliye.",
+      "backToLibrary": "Tounen nan tout gid yo",
+      "guideNotPublished": "Poko pibliye",
+      "openGuide": "Louvri gid la"
+    }
   },
-  "library": {
-    "title": "Gid etap pa etap",
-    "subtitle": "Leson vizyèl pou travay komen sou OxSteed. Kontni gid yo ekri an anglè.",
-    "searchLabel": "Chèche gid",
-    "searchPlaceholder": "Chèche pa travay, pa egzanp pibliye yon djòb",
-    "areaLabel": "Domèn",
-    "audienceLabel": "Odyans",
-    "allAreas": "Tout domèn yo",
-    "allAudiences": "Tout odyans yo",
-    "suggestedForYou": "Sijere pou ou",
-    "useSuggestion": "Sèvi ak sijesyon an",
-    "clearFilters": "Efase filtè yo",
-    "results": "{{count}} gid",
-    "noResults": "Okenn gid pa koresponn ak rechèch ou a. Eseye lòt mo oswa efase filtè yo.",
-    "viewGuide": "Wè gid la",
-    "supported": "Disponib",
-    "conditional": "Kondisyonèl",
-    "handbooksTitle": "Gid pa wòl",
-    "handbooksSubtitle": "Lis lekti òdone pou chak wòl sou OxSteed.",
-    "openHandbook": "Louvri manyèl la",
-    "guidesInHandbook": "{{count}} gid"
-  },
-  "audience": {
-    "customer": "Kliyan",
-    "helper": "Edan",
-    "business": "Biznis",
-    "restaurant": "Restoran",
-    "logistics": "Lojistik"
-  },
-  "guide": {
-    "goal": "Objektif",
-    "prerequisites": "Anvan ou kòmanse",
-    "processMap": "Kat pwosesis la",
-    "processMapTextToggle": "Vèsyon tèks kat sa a",
-    "steps": "Etap yo",
-    "stepNumber": "Etap {{n}}",
-    "expectedResult": "Rezilta ou dwe wè",
-    "viewLarger": "Wè pi gwo",
-    "closeZoom": "Fèmen imaj agrandi a",
-    "screenshotPending": "Ekran poko pran",
-    "confirmOutcome": "Verifye li mache",
-    "recovery": "Si yon bagay pa mache",
-    "support": "Jwenn èd",
-    "relatedGuides": "Gid ki gen rapò",
-    "siteLinks": "Paj ki gen rapò",
-    "sources": "Sous",
-    "revision": "Revizyon {{revision}}",
-    "notFound": "Gid pa jwenn",
-    "notFoundBody": "Gid sa a poko pibliye. Gade bibliyotèk konplè a pou jwenn yon leson pou travay ou a.",
-    "backToLibrary": "Tounen nan tout gid yo"
-  },
-  "checklist": {
-    "title": "Pwogrè ou",
-    "reset": "Rekòmanse pwogrè a",
-    "progress": "{{done}} sou {{total}} etap fini",
-    "markDone": "Make etap la kòm fini",
-    "markNotDone": "Make etap la kòm pa fini"
-  },
-  "handbook": {
-    "contents": "Kontni",
-    "notFound": "Manyèl pa jwenn",
-    "notFoundBody": "Manyèl wòl sa a poko pibliye.",
-    "backToLibrary": "Tounen nan tout gid yo",
-    "guideNotPublished": "Poko pibliye",
-    "openGuide": "Louvri gid la"
-  }
-},
   "helperOnboarding": {
     "background": "Verifikasyon antesedan (li ka obligatwa pou sèten aktivite oswa kèk kliyan ka mande li)"
   },
@@ -4426,6 +4424,207 @@
       "reconciled": "Debi doub la bezwen revizyon",
       "empty": "Pa gen dosye ouvè",
       "reviewHint": "Anrejistre yon revizyon pa deplase lajan ni lage machandiz."
+    }
+  },
+  "helperEarningsV2": {
+    "currency": "Lajan",
+    "recordedOnly": "Se sèlman peman èd ki anrejistre. Bidjè travay yo pa ladan.",
+    "unpriced": "{{count}} travay fini poko gen yon peman ki anrejistre.",
+    "trend": "Tandans",
+    "weekly": "Chak semèn",
+    "monthly": "Chak mwa",
+    "untitled": "Travay fini",
+    "notRecorded": "Pa anrejistre",
+    "pagination": "Paj revni yo",
+    "previous": "Anvan",
+    "next": "Apre",
+    "unpriced_one": "{{count}} travay fini poko gen yon peman ki anrejistre.",
+    "unpriced_other": "{{count}} travay fini poko gen yon peman ki anrejistre."
+  },
+  "queryBuilder": {
+    "title": "Konstriktè rechèch",
+    "subtitle": "Bati rechèch analitik ki li sèlman apati metrik ki gouvène. Chak egzekisyon anrejistre nan odit la.",
+    "metricLabel": "Metrik",
+    "metricPlaceholder": "Chwazi yon metrik",
+    "dimensionsLabel": "Dimansyon",
+    "noDimensions": "Pa gen dimansyon disponib pou metrik sa a.",
+    "filtersLabel": "Filtè",
+    "noFilters": "Pa gen filtè disponib pou metrik sa a.",
+    "periodLabel": "Peryòd",
+    "periodInsensitiveNote": "Metrik sa a se yon foto nan yon moman; peryòd la pa chanje valè li.",
+    "run": "Egzekite rechèch la",
+    "running": "Ap egzekite...",
+    "resultsTitle": "Rezilta",
+    "noResults": "Okenn liy pa retounen.",
+    "truncatedNotice": "Rezilta yo limite a {{cap}} liy.",
+    "rowCount": "{{count}} liy",
+    "duration": "{{ms}} ms",
+    "exportCsv": "Ekspòte CSV",
+    "clear": "Efase",
+    "errorTitle": "Rechèch la echwe",
+    "loadFailed": "Te gen pwoblèm pou chaje katalòg metrik yo.",
+    "retry": "Eseye ankò",
+    "chooseMetricFirst": "Chwazi yon metrik pou wè dimansyon ak filtè li yo.",
+    "filterRole": "Gwoup pa wòl",
+    "filterCustomerId": "ID kliyan (UUID)",
+    "filterBusinessId": "ID biznis",
+    "filterRestaurantId": "ID restoran",
+    "dimensionPeriod": "Tranch tan",
+    "dimensionRole": "Gwoup pa wòl",
+    "dimensionBusiness": "Biznis",
+    "dimensionRestaurant": "Restoran",
+    "nlSectionTitle": "Poze kesyon an langaj natirèl",
+    "nlSectionBody": "Ekri yon kesyon an langaj senp. L ap konpile an yon rechèch lekti sèlman sou metrik yo gouvène; anyen pap egzekite anvan ou konfime entèpretasyon an.",
+    "nlPlaceholder": "egz. to anilasyon pa wòl mwa pase a",
+    "nlEnglishOnly": "Anglè sèlman pou kounye a; analizè a pa entèprete lòt lang.",
+    "nlInterpret": "Entèprete",
+    "nlParsing": "Ap entèprete…",
+    "nlInterpretationTitle": "Entèpretasyon — konfime anvan egzekisyon",
+    "nlConfirmRun": "Egzekite rechèch sa a",
+    "nlDismiss": "Voye jete",
+    "nlRejected": "Pa t ka entèprete",
+    "nlParseFailed": "Pa t ka rive jwenn analizè a.",
+    "metricNames": {
+      "open_disputes": "Konfli ki ouvè",
+      "platform_revenue_cents": "Revni platfòm",
+      "investor_gmv_cents": "GMV envestisè",
+      "investor_take_rate_pct": "To komisyon envestisè",
+      "cancel_rate_pct": "To anilasyon",
+      "consulting_cancel_rate_pct": "To anilasyon konsiltasyon",
+      "sla_first_response_compliance_pct": "Konfòmite SLA premye repons",
+      "support_nps_index": "NPS sipò",
+      "consulting_avg_nps": "NPS mwayen konsiltasyon",
+      "mrr_cents": "MRR",
+      "escrow_held_cents": "Lajan kenbe an depo",
+      "restaurant_repeat_order_rate": "To kliyan ki tounen nan restoran",
+      "restaurant_top_items_revenue": "Revni pi gwo atik pa restoran"
+    }
+  },
+  "helperDashboard": {
+    "jobEarnings": {
+      "title": "Kòb travay yo",
+      "lifetime": "Tout kòb ou fè",
+      "thisWeek": "Semèn sa a",
+      "thisMonth": "Mwa sa a",
+      "completedJobs": "Travay ki fini",
+      "available": "Disponib",
+      "pendingPayout": "Peman an atant",
+      "paidOut": "Peye",
+      "payouts": "Peman yo",
+      "recentJobs": "Dènye travay yo",
+      "weeklyTrend": "Kòb chak semèn",
+      "loading": "Ap chaje kòb ou…",
+      "loadFailed": "Nou pa t kapab chaje kòb yo. Tanpri eseye ankò.",
+      "retry": "Eseye ankò",
+      "noJobs": "Pa gen travay ki fini ankò. Kòb ou yo ap parèt isit la lè travay yo fini.",
+      "statusEarned": "Ou genyen",
+      "statusNotReady": "Pa pare",
+      "statusPending": "An atant",
+      "statusProcessing": "Ap trete",
+      "statusPaid": "Peye"
+    }
+  },
+  "adminUsers": {
+    "list": {
+      "allVerified": "Tout verifye"
+    }
+  },
+  "restaurants": {
+    "ops": {
+      "reports": {
+        "loyalty": {
+          "title": "Fidelite kliyan",
+          "repeatRate": "To retou kòmann",
+          "windowHint": "Dènye 90 jou yo · kòmann envite yo eskli",
+          "repeatOrders": "Kòmann retou",
+          "repeatCustomers": "Kliyan retou",
+          "identifiedOrders": "Kòmann idantifye",
+          "topItems": "Atik ki fè plis lajan",
+          "unitsSold": "{{units}} vann",
+          "noData": "Pa gen kòmann kliyan idantifye nan dènye 90 jou yo.",
+          "loadError": "Pa t kapab chaje analiz fidelite yo."
+        }
+      }
+    }
+  },
+  "promotePage": {
+    "toolkit": {
+      "performance": {
+        "title": "Pèfòmans plas an tèt",
+        "impressions": "Enpresyon",
+        "clicks": "Klik",
+        "conversions": "Konvèsyon",
+        "clickThroughRate": "To klik",
+        "conversionRate": "To konvèsyon",
+        "live": "Aktif kounye a",
+        "noData": "Pa gen evènman pou kounye a. Estatistik yo ap parèt lè plasman ou an aktif.",
+        "loadError": "Pa t kapab chaje pèfòmans plasman an.",
+        "windowNote": "Konvèsyon yo konte kòmann yo fè pandan plasman an aktif."
+      }
+    }
+  },
+  "adminSettings": {
+    "tabs": {
+      "metric-alerts": "Alèt metrik"
+    },
+    "notifications": {
+      "notify_metric_alerts": "Alèt papot metrik"
+    },
+    "metricAlerts": {
+      "title": "Alèt papot metrik",
+      "hint": "Règ yo evalye chak minit ak rejis ofisyèl metrik yo. Yon alèt pa janm deklanche plis pase yon fwa pa peryòd repo, epi sèlman sou chanèl ou te aktive yo.",
+      "empty": "Pa gen règ alèt pou kounye a. Kreye youn pou veye yon metrik.",
+      "newRule": "Nouvo règ alèt",
+      "editRule": "Modifye règ alèt la",
+      "metric": "Metrik",
+      "operator": "Kondisyon",
+      "threshold": "Papot",
+      "period": "Peryòd",
+      "days": "Jou istorik",
+      "cooldownMinutes": "Repo (minit)",
+      "cooldownHint": "Apre li deklanche, règ la p ap deklanche ankò pandan kantite minit sa yo.",
+      "channels": "Chanèl livrezon",
+      "channelInApp": "Nan aplikasyon an",
+      "channelEmail": "Imèl",
+      "channelSms": "SMS",
+      "active": "Règ la aktif",
+      "edit": "Modifye",
+      "cancel": "Anile",
+      "confirmDelete": "Efase règ alèt sa a?",
+      "saveFailed": "Pa t kapab anrejistre règ alèt la.",
+      "lastFired": "Dènye deklanchman",
+      "never": "Jamè",
+      "currentValue": "Valè aktyèl",
+      "paused": "Sou poz",
+      "noValue": "n/d",
+      "thresholdHint": {
+        "cents": "Antre papot la an santim (egz. 500000 = $5,000.00).",
+        "pct": "Antre papot la an pwen pousantaj (egz. 5 = 5%).",
+        "count": "Antre papot la kòm yon nonm antye.",
+        "index": "Antre papot la kòm yon valè endis (egz. 50)."
+      },
+      "operators": {
+        "gt": "pi wo pase (>)",
+        "lt": "pi ba pase (<)",
+        "eq": "egal a (==)"
+      },
+      "periods": {
+        "1d": "Dènye 24 èdtan",
+        "7d": "Dènye 7 jou",
+        "30d": "Dènye 30 jou",
+        "90d": "Dènye 90 jou",
+        "1y": "Dènye 12 mwa"
+      },
+      "metrics": {
+        "open_disputes": "Diskisyon ouvè",
+        "platform_revenue_cents": "Revni platfòm",
+        "investor_take_rate_pct": "To komisyon envestisè",
+        "cancel_rate_pct": "To anilasyon",
+        "support_nps_index": "NPS sipò",
+        "consulting_avg_nps": "NPS mwayèn konsiltasyon",
+        "mrr_cents": "Revni renouvlab chak mwa",
+        "escrow_held_cents": "Lajan nan depo garanti"
+      }
     }
   }
 }

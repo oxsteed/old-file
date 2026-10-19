@@ -33,7 +33,7 @@ beforeEach(() => resetMocks());
 describe('business hub messaging tab', () => {
   test('lists conversations without querying business_team_members', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, effective_role: 'owner', owner_id: OWNER.id }] })
       .mockResolvedValueOnce({
         rows: [{
           id: 'conv-1',
@@ -66,7 +66,7 @@ describe('business hub messaging tab', () => {
 
   test('loads a conversation thread without invalid json_agg LIMIT SQL', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, effective_role: 'owner', owner_id: OWNER.id }] })
       .mockResolvedValueOnce({
         rows: [{ id: 'conv-1', business_id: 1, conversation_type: 'team', subject: 'Staff huddle' }],
       })
@@ -85,7 +85,7 @@ describe('business hub messaging tab', () => {
 
   test('marks the latest business message read for the member opening the thread', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, effective_role: 'owner', owner_id: OWNER.id }] })
       .mockResolvedValueOnce({ rows: [{ id: 'conv-1', business_id: 1, conversation_type: 'team' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'msg-1', content: 'Hello team', sender_type: 'team_member' }] });
 
@@ -98,7 +98,7 @@ describe('business hub messaging tab', () => {
 
   test('sends a message using first/last name instead of users.display_name', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, effective_role: 'owner', owner_id: OWNER.id }] })
       .mockResolvedValueOnce({ rows: [{ id: 'conv-1', business_id: 1 }] })
       .mockResolvedValueOnce({ rows: [{ id: 'msg-2', content: 'On my way', sender_type: 'team_member' }] })
       .mockResolvedValueOnce({ rows: [] });
@@ -116,7 +116,7 @@ describe('business hub messaging tab', () => {
   test('replays a team message by client ID without updating the conversation twice', async () => {
     const clientMessageId = '22222222-2222-4222-8222-222222222222';
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, effective_role: 'owner', owner_id: OWNER.id }] })
       .mockResolvedValueOnce({ rows: [{ id: 'conv-1', business_id: 1 }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 'msg-2', content: 'On my way', client_message_id: clientMessageId }] });
@@ -141,13 +141,13 @@ describe('business hub messaging tab', () => {
       file_type: 'application/pdf',
     };
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, effective_role: 'owner', owner_id: OWNER.id }] })
       .mockResolvedValueOnce({ rows: [{ id: 'conv-1', business_id: 1 }] })
       .mockResolvedValueOnce({ rows: [{ id: 'msg-3', content: 'See the receipt', client_message_id: clientMessageId }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] }) // business message notification lookup
-      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, effective_role: 'owner', owner_id: OWNER.id }] })
       .mockResolvedValueOnce({ rows: [{ id: 'conv-1', business_id: 1 }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 1, content: 'See the receipt', client_message_id: clientMessageId }] });
@@ -171,7 +171,7 @@ describe('business hub messaging tab', () => {
 
   test('rejects an empty team message unless it has an attachment', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, effective_role: 'owner', owner_id: OWNER.id }] })
       .mockResolvedValueOnce({ rows: [{ id: 'conv-1', business_id: 1 }] });
 
     const res = await request(buildApp())
@@ -183,7 +183,7 @@ describe('business hub messaging tab', () => {
   });
 
   test('requires a file before uploading a business attachment', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 1, effective_role: 'owner', owner_id: OWNER.id }] });
 
     const res = await request(buildApp())
       .post('/api/businesses/1/messages/conv-1/attachments');
@@ -194,7 +194,7 @@ describe('business hub messaging tab', () => {
 
   test('includes archived conversations only when explicitly requested', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, effective_role: 'owner', owner_id: OWNER.id }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ count: '0' }] });
 
@@ -207,7 +207,7 @@ describe('business hub messaging tab', () => {
   test('restores an archived business conversation', async () => {
     const restored = { id: 'conv-archived', business_id: 1, status: 'active' };
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, effective_role: 'owner', owner_id: OWNER.id }] })
       .mockResolvedValueOnce({ rows: [restored] });
 
     const res = await request(buildApp())
@@ -228,9 +228,9 @@ describe('business hub messaging tab', () => {
       client_request_id: clientRequestId,
     };
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, effective_role: 'owner', owner_id: OWNER.id }] })
       .mockResolvedValueOnce({ rows: [conversation] })
-      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, effective_role: 'owner', owner_id: OWNER.id }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [conversation] });
 

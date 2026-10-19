@@ -1,4 +1,19 @@
 {
+  "helperEarningsV2": {
+    "unpriced_one": "{{count}} trabajo completado aún no tiene un pago registrado.",
+    "unpriced_other": "{{count}} trabajos completados aún no tienen un pago registrado.",
+    "currency": "Moneda",
+    "recordedOnly": "Solo pagos registrados al ayudante. Se excluyen los presupuestos.",
+    "unpriced": "{{count}} trabajos completados aún no tienen un pago registrado.",
+    "trend": "Tendencia",
+    "weekly": "Semanal",
+    "monthly": "Mensual",
+    "untitled": "Trabajo completado",
+    "notRecorded": "Sin registrar",
+    "pagination": "Páginas de ingresos",
+    "previous": "Anterior",
+    "next": "Siguiente"
+  },
   "queryBuilder": {
     "title": "Constructor de consultas",
     "subtitle": "Cree consultas analíticas de solo lectura a partir de métricas gobernadas. Cada ejecución queda registrada en la auditoría.",

@@ -42,6 +42,7 @@ jest.unmock('../db');
 // req.user from test headers and 403s non-admins, like production
 // requireAdmin does for a non-admin JWT.
 jest.mock('../middleware/adminAuth', () => ({
+  hasGlobalGrant: jest.fn(async () => true),
   requireAdmin: (req, res, next) => {
     req.user = { id: req.headers['x-test-user'] || 'user-1', role: req.headers['x-test-role'] || 'customer' };
     if (!['admin', 'super_admin'].includes(req.user?.role)) {
@@ -251,11 +252,11 @@ describeDb('analytics query builder', () => {
       grantee_id UUID, region_id TEXT, revoked_at TIMESTAMPTZ, expires_at TIMESTAMPTZ)`);
     await db.query(`CREATE TABLE ${schema}.disputes (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), status TEXT)`);
     await db.query(`CREATE TABLE ${schema}.platform_ledger (
-      id BIGSERIAL PRIMARY KEY, amount_cents BIGINT, source_type TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`);
+      id BIGSERIAL PRIMARY KEY, currency TEXT DEFAULT 'USD', job_id UUID, amount_cents BIGINT, source_type TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`);
     await db.query(`CREATE TABLE ${schema}.jobs (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(), status TEXT, deleted_at TIMESTAMPTZ,
       client_id UUID, assigned_helper_id UUID, created_at TIMESTAMPTZ DEFAULT NOW(),
-      budget_max NUMERIC, budget_min NUMERIC)`);
+      budget_max NUMERIC, budget_min NUMERIC, final_price_cents BIGINT, currency_code TEXT DEFAULT 'USD')`);
     await db.query(`CREATE TABLE ${schema}.food_orders (
       id BIGSERIAL PRIMARY KEY, restaurant_id BIGINT, customer_id UUID, status TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW())`);
@@ -276,11 +277,11 @@ describeDb('analytics query builder', () => {
       id BIGSERIAL PRIMARY KEY, status TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`);
     await db.query(`CREATE TABLE ${schema}.consulting_session_feedback (
       id BIGSERIAL PRIMARY KEY, nps_score INT, created_at TIMESTAMPTZ DEFAULT NOW())`);
-    await db.query(`CREATE TABLE ${schema}.plans (id UUID PRIMARY KEY, amount_cents INT, "interval" TEXT)`);
+    await db.query(`CREATE TABLE ${schema}.plans (id UUID PRIMARY KEY, amount_cents INT, "interval" TEXT, currency TEXT DEFAULT 'USD')`);
     await db.query(`CREATE TABLE ${schema}.subscriptions (id UUID PRIMARY KEY, plan_id UUID, status TEXT)`);
     await db.query(`CREATE TABLE ${schema}.payments (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(), escrow_status TEXT, status TEXT,
-      capture_amount_cents BIGINT, amount NUMERIC, refunded_amount NUMERIC)`);
+      capture_amount_cents BIGINT, amount NUMERIC, refunded_amount NUMERIC, currency TEXT DEFAULT 'USD')`);
 
     // Users: super_admin (global), admin (owns restaurant 1), customer (nothing).
     await db.query(`INSERT INTO users (id, role) VALUES
@@ -307,6 +308,8 @@ describeDb('analytics query builder', () => {
       ('completed', '${CUSTOMER_ID}', NULL, 200),
       ('cancelled', '${CUSTOMER_ID}', '${ADMIN_ID}', 50),
       ('completed', '${CUSTOMER_ID}', NULL, 75)`);
+    await db.query(`UPDATE jobs SET final_price_cents=ROUND(COALESCE(budget_max,budget_min,0)*100)`);
+    await db.query(`UPDATE platform_ledger SET job_id=(SELECT id FROM jobs WHERE status='completed' LIMIT 1) WHERE source_type='job_fee'`);
     await db.query(`UPDATE jobs SET deleted_at = NOW() WHERE budget_max = 75`);
     // Restaurant orders: customer ordered twice at restaurant 1 (repeat),
     // once at restaurant 2; one guest order excluded.
@@ -408,7 +411,7 @@ describeDb('analytics query builder', () => {
       db, { id: SUPER_ADMIN_ID, role: 'super_admin' },
       { metric: 'platform_revenue_cents', dimensions: ['period'], period: '30d' }
     );
-    expect(result.columns).toEqual(['bucket', 'revenue_cents']);
+    expect(result.columns).toEqual(['bucket', 'currency_code', 'revenue_cents']);
     // $10.00 job_fee + $5.00 subscription inside 30d; the 60-day-old $20 excluded.
     const total = result.rows.reduce((s, r) => s + Number(r.revenue_cents), 0);
     expect(total).toBe(1500);
@@ -460,7 +463,8 @@ describeDb('analytics query builder', () => {
     // All-time job_fee take: $10 + $20 = $30.00 = 3000c.
     // GMV (registry canonical: status='completed', no deleted_at filter):
     // (100+200+75)*100 = 37500c → 8.00%.
-    expect(take.rows[0].take_rate_pct).toBeCloseTo(8, 2);
+    // Only priced, non-deleted completed jobs and their linked fees contribute.
+    expect(take.rows[0].take_rate_pct).toBeCloseTo(10, 2);
     const mrr = await executeBuilderQuery(
       db, { id: SUPER_ADMIN_ID, role: 'super_admin' }, { metric: 'mrr_cents' });
     expect(Number(mrr.rows[0].mrr_cents)).toBe(1200);

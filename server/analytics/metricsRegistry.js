@@ -1,5 +1,7 @@
 'use strict';
 
+const { financialMetricValue } = require('./financialMetrics');
+
 /**
  * Governed metrics registry v1 — Area 1 of the analytics platform.
  *
@@ -102,14 +104,14 @@ const METRICS = Object.freeze({
   }),
   investor_gmv_cents: Object.freeze({
     name: 'investor_gmv_cents',
-    definition: `SELECT COALESCE(SUM(COALESCE(budget_max, budget_min, 0) * 100), 0)::BIGINT FROM jobs WHERE status = 'completed'`,
+    definition: `SUM(final_price_cents) of non-deleted completed jobs, grouped by currency; unpriced jobs reported separately`,
     dimensions: [],
     owner: 'platform/finance',
-    notes: 'KNOWN LIMITATION: SUM of budget_max (budgets, not actuals). Kept as-is on investor surfaces; do not silently redefine.',
+    notes: 'Recorded service value, not budget estimates or cash receipts. Missing final prices are reported, never estimated.',
   }),
   investor_take_rate_pct: Object.freeze({
     name: 'investor_take_rate_pct',
-    definition: `100.0 * (all-time job_fee take) / (all-time budget GMV), NULL when GMV = 0`,
+    definition: `100.0 * positive job_fee ledger entries linked to priced completed jobs / recorded value of the same jobs and currency`,
     dimensions: [],
     owner: 'platform/finance',
     notes: 'New formula excludes subscription take from the numerator (old formula could exceed 100% by construction).',
@@ -207,19 +209,24 @@ async function openDisputes(db) {
 // ── 2. Platform revenue ─────────────────────────────────────────────────────
 // Canonical platform take. Controllers aggregate several windows in one
 // query; this returns the shared totals shape.
-async function platformRevenue(db, interval) {
+async function platformRevenue(db, interval, currencyCode = 'USD') {
   const { rows } = await db.query(`
     SELECT
       COALESCE(SUM(amount_cents) FILTER (WHERE source_type = ANY($2) AND amount_cents > 0), 0)::BIGINT                                             AS total_cents,
       COALESCE(SUM(amount_cents) FILTER (WHERE source_type = ANY($2) AND amount_cents > 0 AND created_at >= now() - $1::interval), 0)::BIGINT       AS period_cents,
       COALESCE(SUM(amount_cents) FILTER (WHERE source_type = 'subscription' AND amount_cents > 0 AND created_at >= now() - $1::interval), 0)::BIGINT AS subscription_period_cents,
       COALESCE(SUM(amount_cents) FILTER (WHERE source_type = ANY($2) AND amount_cents > 0 AND created_at >= date_trunc('month', now())), 0)::BIGINT AS mtd_cents,
+      COALESCE(SUM(amount_cents) FILTER (WHERE source_type = ANY($2) AND amount_cents > 0 AND created_at >= now() - ($1::interval * 2) AND created_at < now() - $1::interval),0)::BIGINT AS prev_cents,
+      COALESCE(SUM(amount_cents) FILTER (WHERE source_type = 'subscription' AND amount_cents > 0 AND created_at >= date_trunc('month',now())),0)::BIGINT AS subscription_mtd_cents,
       COALESCE(SUM(ABS(amount_cents)) FILTER (WHERE source_type = 'refund' AND created_at >= now() - $1::interval), 0)::BIGINT                        AS refunds_period_cents
-    FROM platform_ledger
-  `, [interval, PLATFORM_REVENUE_SOURCE_TYPES]);
+    FROM platform_ledger WHERE UPPER(currency) = UPPER($3)
+  `, [interval, PLATFORM_REVENUE_SOURCE_TYPES, currencyCode]);
   const r = rows[0] || {};
   const toInt = (v) => parseInt(v, 10) || 0;
   return {
+    currency_code: currencyCode.toUpperCase(),
+    prev_cents: toInt(r.prev_cents),
+    subscription_mtd_cents: toInt(r.subscription_mtd_cents),
     total_cents: toInt(r.total_cents),
     period_cents: toInt(r.period_cents),
     subscription_period_cents: toInt(r.subscription_period_cents),
@@ -288,20 +295,9 @@ function cancelRiskLevelCaseSql(rateExpr, cancellationsExpr) {
 // them let the old formula exceed 100% by construction.
 // KNOWN LIMITATION: GMV is SUM(budget_max) of completed jobs (budgets, not
 // actuals). Documented, not silently redefined.
-async function investorTakeRatePct(db) {
-  const { rows } = await db.query(`
-    SELECT
-      (SELECT COALESCE(SUM(amount_cents), 0)::BIGINT
-       FROM platform_ledger
-       WHERE source_type = 'job_fee' AND amount_cents > 0) AS job_take_cents,
-      (SELECT COALESCE(SUM(COALESCE(budget_max, budget_min, 0) * 100), 0)::BIGINT
-       FROM jobs
-       WHERE status = 'completed') AS gmv_cents
-  `);
-  const jobTake = parseInt(rows[0]?.job_take_cents, 10) || 0;
-  const gmv = parseInt(rows[0]?.gmv_cents, 10) || 0;
-  if (gmv <= 0) return null;
-  return Math.round((jobTake / gmv) * 10000) / 100;
+async function investorTakeRatePct(db, currencyCode = 'USD') {
+  const value = await financialMetricValue(db, 'investor_take_rate_pct', currencyCode);
+  return value == null ? null : Number(value);
 }
 
 // ── 5. SLA targets ──────────────────────────────────────────────────────────
@@ -395,33 +391,16 @@ async function consultingAvgNps(db) {
 }
 
 // ── 7. MRR and escrow held ──────────────────────────────────────────────────
-async function mrrCents(db) {
-  const { rows } = await db.query(`
-    SELECT COALESCE(SUM(
-      CASE p.interval
-        WHEN 'year' THEN p.amount_cents / 12.0
-        ELSE p.amount_cents
-      END
-    ), 0)::BIGINT AS mrr_cents
-    FROM subscriptions s
-    JOIN plans p ON p.id = s.plan_id
-    WHERE s.status = 'active'
-  `);
-  return Math.round(parseFloat(rows[0]?.mrr_cents) || 0);
+async function investorGmvCents(db, currencyCode = 'USD') {
+  return Number(await financialMetricValue(db, 'investor_gmv_cents', currencyCode));
 }
 
-async function escrowHeldCents(db) {
-  const { rows } = await db.query(`
-    SELECT COALESCE(SUM(GREATEST(
-      COALESCE(capture_amount_cents, ROUND(amount * 100)::BIGINT, 0)
-      - COALESCE(ROUND(refunded_amount * 100)::BIGINT, 0),
-      0
-    )), 0)::BIGINT AS escrow_held_cents
-    FROM payments
-    WHERE escrow_status IN ('held', 'disputed')
-      AND status IN ('authorized', 'captured')
-  `);
-  return parseInt(rows[0]?.escrow_held_cents, 10) || 0;
+async function mrrCents(db, currencyCode = 'USD') {
+  return Number(await financialMetricValue(db, 'mrr_cents', currencyCode));
+}
+
+async function escrowHeldCents(db, currencyCode = 'USD') {
+  return Number(await financialMetricValue(db, 'escrow_held_cents', currencyCode));
 }
 
 module.exports = {
@@ -440,6 +419,7 @@ module.exports = {
   cancelRiskLevel,
   cancelRiskLevelCaseSql,
   investorTakeRatePct,
+  investorGmvCents,
   slaTargetsJoinSql,
   slaFirstResponseTargetSql,
   slaResolutionTargetSql,

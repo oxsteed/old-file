@@ -1,0 +1,18 @@
+.helper-job-earnings { color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 1rem; padding: clamp(1rem, 3vw, 1.5rem); margin-block-end: 1.5rem; overflow-wrap: anywhere; }
+.helper-job-earnings h2,.helper-job-earnings h3 { font-weight: 700; margin-block: 0 1rem; }
+.helper-job-earnings h3 { margin-block-start: 1.5rem; }
+.helper-job-earnings p,.helper-job-earnings dt,.helper-job-earnings time { color: var(--color-text-muted); }
+.helper-job-earnings button,.helper-job-earnings select,.helper-job-earnings a { min-block-size: 44px; }
+.helper-job-earnings button,.helper-job-earnings select { color: var(--color-text); background: var(--color-surface-2); border: 1px solid var(--color-border); border-radius: .6rem; padding: .6rem; }
+.helper-job-earnings :focus-visible { outline: 3px solid var(--color-primary); outline-offset: 3px; }
+.helper-job-earnings button:disabled { opacity: .5; cursor: not-allowed; }
+.helper-job-earnings label { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; }
+.helper-earnings-totals { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,160px),1fr)); gap: 1rem; margin-block: 1.5rem; }
+.helper-earnings-totals dd { font-size: 1.25rem; font-weight: 700; }
+.helper-earnings-jobs,.helper-earnings-series { list-style: none; padding: 0; margin-block: 1rem; }
+.helper-earnings-jobs li { display: grid; grid-template-columns: minmax(0,2fr) repeat(3,minmax(0,1fr)); gap: .75rem; align-items: center; padding-block: .75rem; border-block-end: 1px solid var(--color-border); }
+.helper-earnings-jobs a { color: var(--color-primary); display: inline-flex; align-items: center; }
+.helper-job-earnings nav { display: flex; justify-content: space-between; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.helper-earnings-series li { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,2fr) minmax(0,1fr); align-items: center; gap: .75rem; margin-block: .5rem; }
+.helper-earnings-bar { block-size: .5rem; border-radius: .5rem; background: var(--color-primary); }
+@media (max-width: 640px) { .helper-earnings-jobs li { grid-template-columns: minmax(0,1fr) minmax(0,1fr); } }

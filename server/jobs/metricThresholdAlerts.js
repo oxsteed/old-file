@@ -38,6 +38,7 @@ const {
 } = require("../analytics/metricAlerts");
 const { formatAlertBody } = require("../utils/metricAlertNotificationCopy");
 const logger = require("../utils/logger");
+const { assertMetricAccess } = require('../analytics/metricAccess');
 
 async function getAdminAlertPrefs(adminId) {
   const { rows } = await db.query(
@@ -59,8 +60,8 @@ async function deliverRule(rule, prefs, value) {
   const body = formatAlertBody(rule.preferred_language, {
     metric: rule.metric_name,
     operator: rule.operator,
-    threshold: formatValue(rule.metric_name, threshold),
-    value: formatValue(rule.metric_name, value),
+    threshold: formatValue(rule.metric_name, threshold, rule.params, rule.preferred_language),
+    value: formatValue(rule.metric_name, value, rule.params, rule.preferred_language),
   });
   const bucket = deliveryWindowBucket(rule.cooldown_minutes);
   const deliveryKey = `metric-alert:${rule.id}:${bucket}`;
@@ -133,6 +134,7 @@ async function evaluateMetricThresholdAlerts() {
     let value = null;
     try {
       if (!["admin", "super_admin"].includes(rule.role)) continue;
+      await assertMetricAccess({ id: rule.admin_id, role: rule.role }, rule.metric_name);
 
       // Wire the dead admin_notification_prefs toggles: the master
       // notify_metric_alerts switch gates the rule; missing row = defaults

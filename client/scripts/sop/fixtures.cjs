@@ -38,11 +38,11 @@ function __sopQuery(raw) {
 const __ROUTES = [];
 function __sopRoute(method, re, fn) { __ROUTES.push([method, re, fn]); }
 
-function __sopRespond(method, url, data) {
+function __sopRespond(method, url, data, params) {
   const raw = String(url || '');
   const p = raw.split('?')[0];
   __sopLog(method, raw);
-  const query = __sopQuery(raw);
+  const query = { ...__sopQuery(raw), ...params };
   for (const [m, re, fn] of __ROUTES) {
     if (m !== method && m !== '*') continue;
     const match = p.match(re);
@@ -56,7 +56,7 @@ function __sopRespond(method, url, data) {
 
 const __later = (fn) => Promise.resolve().then(fn);
 const api = {
-  get: (url, config) => __later(() => __sopRespond('get', url)),
+  get: (url, config) => __later(() => __sopRespond('get', url, undefined, config?.params)),
   post: (url, data, config) => __later(() => __sopRespond('post', url, data)),
   put: (url, data, config) => __later(() => __sopRespond('put', url, data)),
   patch: (url, data, config) => __later(() => __sopRespond('patch', url, data)),
@@ -372,6 +372,15 @@ __sopRoute('get', /^\\/statements\\/exports\\/([^/]+)$/, (m) => ({
 
 /* ================= helper-work area ================= */
 addSection('helper-work', `
+__sopRoute('get', /^\\/main-app\\/earnings$/, (m, data, query) => {
+  const currency = query.currencyCode || 'USD';
+  return { accounts: [{currencyCode:'USD'},{currencyCode:'JPY'}],
+    summary:{currencyCode:currency,completedJobs:3,unpricedJobs:1,lifetimeCents:15000,weekCents:8000,monthCents:15000,availableCents:8000,pendingCents:7000,paidCents:0},
+    jobs:[{id:'sop-job-1',title:'Fix leaky kitchen faucet',amountCents:8000,currencyCode:currency,payoutStatus:'earned',completedAt:'2026-10-15T12:00:00Z'},
+      {id:'sop-job-2',title:'Garden maintenance',amountCents:null,currencyCode:currency,payoutStatus:'not_ready',completedAt:'2026-10-14T12:00:00Z'}],
+    weekly:[{period:'2026-10-12',amountCents:8000},{period:'2026-10-05',amountCents:7000}],
+    monthly:[{period:'2026-10-01',amountCents:15000}],pagination:{offset:0,limit:20,total:3,hasMore:false}};
+});
 __sopRoute('get', /^\\/bids\\/me$/, () => ({
   bids: [
     { id: 'sop-bid-1', job_id: 'sop-job-1', job_title: 'Fix leaky kitchen faucet', amount: 85, status: 'pending', created_at: '2026-10-15T10:00:00Z' },

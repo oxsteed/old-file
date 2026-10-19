@@ -36,6 +36,7 @@ jest.unmock('../db');
 
 // Same route-level auth mock as analyticsQueryBuilder.test.js.
 jest.mock('../middleware/adminAuth', () => ({
+  hasGlobalGrant: jest.fn(async () => true),
   requireAdmin: (req, res, next) => {
     req.user = { id: req.headers['x-test-user'] || 'user-1', role: req.headers['x-test-role'] || 'customer' };
     if (!['admin', 'super_admin'].includes(req.user?.role)) {

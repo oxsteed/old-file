@@ -31,10 +31,12 @@ const {
   BUILDER_DIMENSIONS,
 } = require('../analytics/queryBuilder');
 const { parseUtterance, describeQuery } = require('../analytics/nlParser');
+const { permittedMetrics, assertMetricAccess } = require('../analytics/metricAccess');
 
 async function getMeta(req, res, next) {
   try {
-    res.json(getBuilderMeta());
+    res.set('Cache-Control', 'private, no-store');
+    res.json(getBuilderMeta(await permittedMetrics(req.user)));
   } catch (err) {
     next(err);
   }
@@ -42,6 +44,7 @@ async function getMeta(req, res, next) {
 
 async function runQuery(req, res, next) {
   try {
+    res.set('Cache-Control', 'private, no-store');
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const opts = {};
     if (body.raw_utterance != null) {
@@ -59,6 +62,7 @@ async function runQuery(req, res, next) {
 
 async function parseNl(req, res, next) {
   try {
+    res.set('Cache-Control', 'private, no-store');
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const utterance = body.utterance;
     if (typeof utterance !== 'string' || utterance.trim() === '') {
@@ -84,6 +88,7 @@ async function parseNl(req, res, next) {
         reason: `compiled query failed validation: ${validationErr.message}`,
       });
     }
+    await assertMetricAccess(req.user, parsed.metric);
     return res.json({
       rejected: false,
       interpretation: {

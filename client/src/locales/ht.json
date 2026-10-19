@@ -1,4 +1,19 @@
 {
+  "helperEarningsV2": {
+    "unpriced_one": "{{count}} travay fini poko gen yon peman ki anrejistre.",
+    "unpriced_other": "{{count}} travay fini poko gen yon peman ki anrejistre.",
+    "currency": "Lajan",
+    "recordedOnly": "Se sèlman peman èd ki anrejistre. Bidjè travay yo pa ladan.",
+    "unpriced": "{{count}} travay fini poko gen yon peman ki anrejistre.",
+    "trend": "Tandans",
+    "weekly": "Chak semèn",
+    "monthly": "Chak mwa",
+    "untitled": "Travay fini",
+    "notRecorded": "Pa anrejistre",
+    "pagination": "Paj revni yo",
+    "previous": "Anvan",
+    "next": "Apre"
+  },
   "queryBuilder": {
     "title": "Konstriktè rechèch",
     "subtitle": "Bati rechèch analitik ki li sèlman apati metrik ki gouvène. Chak egzekisyon anrejistre nan odit la.",

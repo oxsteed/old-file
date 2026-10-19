@@ -14,6 +14,8 @@ import { useTranslation } from 'react-i18next';
 import { Play, Download, RotateCcw, MessageSquare, AlertTriangle } from 'lucide-react';
 import api from '../../api/axios';
 import logger from '../../utils/logger';
+import { formatAnalyticsCell, analyticsCsv } from '../../utils/analyticsFormat';
+import { useAuth } from '../../hooks/useAuth';
 import './AdminQueryBuilderPage.css';
 
 const PERIOD_LABELS = {
@@ -24,59 +26,17 @@ const PERIOD_LABELS = {
   '1y': '1Y',
 };
 
-// Column keys that hold integer cents -> render as dollars.
-function isCentsColumn(key) {
-  return key.endsWith('_cents');
-}
-
-function isPctColumn(key) {
-  return key.endsWith('_pct');
-}
-
-function formatCell(key, value) {
-  if (value === null || value === undefined) return '—';
-  if (key === 'bucket' && typeof value === 'string') {
-    const d = new Date(value);
-    if (!Number.isNaN(d.getTime())) return d.toLocaleString();
-    return value;
-  }
-  if (isCentsColumn(key) && typeof value === 'number') {
-    return `$${(value / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }
-  if (isPctColumn(key) && typeof value === 'number') {
-    return `${value.toFixed(1)}%`;
-  }
-  if (key === 'repeat_order_rate' && typeof value === 'number') {
-    return `${(value * 100).toFixed(2)}%`;
-  }
-  if ((key === 'nps_index' || key === 'avg_nps' || key === 'compliance_pct') && typeof value === 'number') {
-    return value.toFixed(1);
-  }
-  if (typeof value === 'boolean') return value ? '✓' : '✗';
-  return String(value);
-}
-
 function prettifyColumn(key) {
-  return key
-    .split('_')
-    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
-    .join(' ');
-}
-
-function toCsv(rows, columns) {
-  const escape = (v) => {
-    const s = v === null || v === undefined ? '' : String(v);
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const lines = [columns.map(escape).join(',')];
-  for (const row of rows) {
-    lines.push(columns.map((c) => escape(row[c])).join(','));
-  }
-  return lines.join('\n');
+  return key.split('_').map(word => word ? word[0].toUpperCase() + word.slice(1) : '').join(' ');
 }
 
 export default function AdminQueryBuilderPage() {
-  const { t } = useTranslation();
+  const { user } = useAuth();
+  return user?.id ? <QueryBuilderWorkspace key={`${user.id}:${user.role}`} /> : null;
+}
+
+function QueryBuilderWorkspace() {
+  const { t, i18n } = useTranslation();
   const [meta, setMeta] = useState(null);
   const [metaError, setMetaError] = useState(null);
   const [metaLoading, setMetaLoading] = useState(true);
@@ -273,7 +233,7 @@ export default function AdminQueryBuilderPage() {
 
   const exportCsv = () => {
     if (!result?.rows?.length) return;
-    const csv = toCsv(result.rows, result.columns);
+    const csv = analyticsCsv(result.rows, result.columns);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -562,7 +522,7 @@ export default function AdminQueryBuilderPage() {
                   {result.rows.map((row, i) => (
                     <tr key={i}>
                       {result.columns.map((c) => (
-                        <td key={c}>{formatCell(c, row[c])}</td>
+                        <td key={c}>{formatAnalyticsCell(c, row[c], row, i18n.language)}</td>
                       ))}
                     </tr>
                   ))}

@@ -22,6 +22,7 @@
 
 const registry = require('./metricsRegistry');
 const { AppError } = require('../middleware/errorHandler');
+const { financialMetricValue } = require('./financialMetrics');
 
 const OPERATORS = Object.freeze(['>', '<', '==']);
 
@@ -44,16 +45,16 @@ const ALERTABLE_METRICS = Object.freeze({
   }),
   platform_revenue_cents: Object.freeze({
     unit: 'cents',
-    params: ['period'],
+    params: ['period', 'currencyCode'],
     compute: async (db, params) => {
-      const totals = await registry.platformRevenue(db, registry.PERIOD_INTERVAL[paramsForPeriod(params)].interval);
-      return totals.period_cents;
+      return financialMetricValue(db, 'platform_revenue_cents', params.currencyCode || 'USD',
+        { interval: registry.PERIOD_INTERVAL[paramsForPeriod(params)].interval });
     },
   }),
   investor_take_rate_pct: Object.freeze({
     unit: 'pct',
-    params: [],
-    compute: (db) => registry.investorTakeRatePct(db),
+    params: ['currencyCode'],
+    compute: (db, params) => registry.investorTakeRatePct(db, params.currencyCode || 'USD'),
   }),
   cancel_rate_pct: Object.freeze({
     unit: 'pct',
@@ -85,13 +86,13 @@ const ALERTABLE_METRICS = Object.freeze({
   }),
   mrr_cents: Object.freeze({
     unit: 'cents',
-    params: [],
-    compute: (db) => registry.mrrCents(db),
+    params: ['currencyCode'],
+    compute: (db, params) => financialMetricValue(db, 'mrr_cents', params.currencyCode || 'USD'),
   }),
   escrow_held_cents: Object.freeze({
     unit: 'cents',
-    params: [],
-    compute: (db) => registry.escrowHeldCents(db),
+    params: ['currencyCode'],
+    compute: (db, params) => financialMetricValue(db, 'escrow_held_cents', params.currencyCode || 'USD'),
   }),
 });
 
@@ -123,6 +124,9 @@ function validateRuleInput(body) {
   if (!Number.isFinite(threshold)) {
     throw new AppError('Invalid threshold: expected a finite number', 400, 'invalid_threshold');
   }
+  if (def.unit === 'cents' && !Number.isSafeInteger(threshold)) {
+    throw new AppError('Money thresholds require integer minor units', 400, 'invalid_threshold');
+  }
   // Thresholds in native units; bound them so a typo cannot create an
   // always/never-firing rule that is hard to notice. Cents metrics: up to
   // $10M in cents. Counts/pct/index: sane absolute bounds.
@@ -135,6 +139,10 @@ function validateRuleInput(body) {
   for (const key of def.params) {
     if (key === 'period') {
       params.period = paramsForPeriod(rawParams);
+    } else if (key === 'currencyCode') {
+      const code = String(rawParams.currencyCode || 'USD').trim().toUpperCase();
+      if (!Intl.supportedValuesOf('currency').includes(code)) throw new AppError('Invalid currency', 400, 'invalid_currency');
+      params.currencyCode = code;
     } else if (key === 'days') {
       const days = rawParams.days != null ? parseInt(rawParams.days, 10) : 30;
       if (!Number.isInteger(days) || days < 1 || days > 365) {
@@ -168,6 +176,10 @@ function validateRuleInput(body) {
 }
 
 function compareValues(operator, value, threshold) {
+  if (typeof value === 'string' && /^-?\d+$/.test(value) && Number.isSafeInteger(threshold)) {
+    const v = BigInt(value), t = BigInt(threshold);
+    return operator === '>' ? v > t : operator === '<' ? v < t : operator === '==' ? v === t : false;
+  }
   const v = Number(value);
   if (!Number.isFinite(v)) return false;
   switch (operator) {
@@ -182,16 +194,25 @@ async function computeMetricValue(db, metricName, params) {
   const def = ALERTABLE_METRICS[metricName];
   if (!def) throw new AppError(`Invalid metric "${metricName}"`, 400, 'invalid_metric');
   const value = await def.compute(db, params || {});
+  if (def.unit === 'cents' && value != null && /^-?\d+$/.test(String(value))) return String(value);
   const v = value == null ? null : Number(value);
   return Number.isFinite(v) ? v : null;
 }
 
-function formatValue(metricName, value) {
+function formatValue(metricName, value, params = {}, locale = 'en') {
   const def = ALERTABLE_METRICS[metricName];
   const v = Number(value);
   if (!Number.isFinite(v)) return '—';
   if (def && def.unit === 'cents') {
-    return `$${(v / 100).toFixed(2)}`;
+    const currency = params.currencyCode || 'USD';
+    const language = locale === 'ht' ? 'fr-HT' : locale;
+    const formatter = new Intl.NumberFormat(language, { style: 'currency', currency });
+    if (!/^-?\d+$/.test(String(value))) return '—';
+    const digits = formatter.resolvedOptions().maximumFractionDigits, scale = 10n ** BigInt(digits);
+    const minor = BigInt(String(value)), abs = minor < 0n ? -minor : minor;
+    const whole = abs / scale, signed = minor < 0n ? (whole === 0n ? -0 : -whole) : whole;
+    const fraction = new Intl.NumberFormat(language, { useGrouping: false, minimumIntegerDigits: digits || 1 }).format(Number(abs % scale));
+    return formatter.formatToParts(signed).map(part => part.type === 'fraction' ? fraction : part.value).join('');
   }
   if (def && (def.unit === 'pct' || def.unit === 'index')) {
     return v.toFixed(2);

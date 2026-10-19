@@ -90,6 +90,7 @@ export const SUPER_NAV = [
   { tabKey: 'visitors', to: routePath('visitors'),    icon: Eye,         labelKey: 'adminNav.visitors',    grant: adminRoute('visitors').grant },
   { tabKey: 'profileVisibility', to: routePath('profileVisibility'), icon: EyeOff, labelKey: 'adminNav.profileVisibility', grant: adminRoute('profileVisibility').grant },
   { tabKey: 'oneTruth', to: routePath('oneTruth'),              icon: Fingerprint,   labelKey: 'adminNav.oneTruth'       },
+  { tabKey: 'queryBuilder', to: routePath('queryBuilder'), icon: TrendingUp, labelKey: 'queryBuilder.title' },
   { tabKey: 'franchiseHq', to: routePath('franchiseHq'),             icon: Globe,         labelKey: 'adminNav.franchiseHq'    },
   { tabKey: 'careers', to: routePath('careers'),                icon: Briefcase,     labelKey: 'adminNav.careers'         },
   { tabKey: 'countryPacks', to: routePath('countryPacks'),          icon: Globe,         labelKey: 'adminNav.countryPacks'   },

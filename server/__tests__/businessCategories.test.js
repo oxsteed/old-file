@@ -259,7 +259,7 @@ describe('business category long-term wiring', () => {
     mockQuery
       // validateFileUpload reserves the upload against the daily quota first (P3-6-F13).
       .mockResolvedValueOnce({ rows: [{ bytes_used: '0' }] })
-      .mockResolvedValueOnce({ rows: [{ id: 15, owner_id: '00000000-0000-4000-8000-000000000456' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 15, effective_role: 'owner', owner_id: '00000000-0000-4000-8000-000000000456' }] })
       .mockResolvedValueOnce({ rows: [{ id: assetId }] })
       .mockResolvedValueOnce({ rows: [{ id: 15, logo_url: `http://127.0.0.1/api/businesses/media/${assetId}`, cover_photo_url: null }] });
 
@@ -298,7 +298,7 @@ describe('business category long-term wiring', () => {
 
   test('loads an unpublished draft business for the owner after create', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 8, owner_id: '00000000-0000-4000-8000-000000000456' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 8, effective_role: 'owner', owner_id: '00000000-0000-4000-8000-000000000456' }] })
       .mockResolvedValueOnce({
         rows: [{
           id: 8,
@@ -327,7 +327,7 @@ describe('business category long-term wiring', () => {
 
   test('profile-edit uses the same owner payload for an in-progress business', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 8, owner_id: '00000000-0000-4000-8000-000000000456' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 8, effective_role: 'owner', owner_id: '00000000-0000-4000-8000-000000000456' }] })
       .mockResolvedValueOnce({
         rows: [{
           id: 8,

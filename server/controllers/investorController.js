@@ -112,24 +112,13 @@ exports.getKpis = async (req, res) => {
     let revenue_total = 0, revenue_cur = 0, revenue_prev = 0,
         revenue_mtd = 0, sub_revenue_cur = 0, refunds_cur = 0;
     if (hasLedger) {
-      const [rv] = await safeQuery(`
-        SELECT
-          COALESCE(SUM(amount_cents) FILTER (WHERE source_type IN ('job_fee','subscription') AND amount_cents > 0), 0)                                              AS total,
-          COALESCE(SUM(amount_cents) FILTER (WHERE source_type IN ('job_fee','subscription') AND amount_cents > 0 AND created_at >= now() - $1::interval), 0)      AS cur,
-          COALESCE(SUM(amount_cents) FILTER (WHERE source_type IN ('job_fee','subscription') AND amount_cents > 0
-                                               AND created_at >= now() - $2::interval AND created_at < now() - $1::interval), 0)                                  AS prev,
-          COALESCE(SUM(amount_cents) FILTER (WHERE source_type IN ('job_fee','subscription') AND amount_cents > 0
-                                               AND created_at >= date_trunc('month', now())), 0)                                                                   AS mtd,
-          COALESCE(SUM(amount_cents) FILTER (WHERE source_type = 'subscription' AND amount_cents > 0 AND created_at >= now() - $1::interval), 0)                   AS sub_cur,
-          COALESCE(SUM(ABS(amount_cents)) FILTER (WHERE source_type = 'refund' AND created_at >= now() - $1::interval), 0)                                         AS refunds
-        FROM platform_ledger
-      `, [cur, prevInterval]);
-      revenue_total   = safeInt(rv?.total);
-      revenue_cur     = safeInt(rv?.cur);
-      revenue_prev    = safeInt(rv?.prev);
-      revenue_mtd     = safeInt(rv?.mtd);
-      sub_revenue_cur = safeInt(rv?.sub_cur);
-      refunds_cur     = safeInt(rv?.refunds);
+      const rv = await metricsRegistry.platformRevenue(pool, cur, 'USD');
+      revenue_total = rv.total_cents;
+      revenue_cur = rv.period_cents;
+      revenue_prev = rv.prev_cents;
+      revenue_mtd = rv.mtd_cents;
+      sub_revenue_cur = rv.subscription_period_cents;
+      refunds_cur = rv.refunds_period_cents;
     }
 
     // ── Subscriptions ──────────────────────────────────────────────────
@@ -140,24 +129,14 @@ exports.getKpis = async (req, res) => {
     }
 
     // ── GMV (Gross Merchandise Value) from completed jobs ─────────────
-    // KNOWN LIMITATION (registry: investor_gmv_cents): SUM(budget_max) is
-    // budgets, not actuals. Kept as-is on investor surfaces; not silently
-    // redefined.
+    // Recorded final service prices for completed jobs in USD; budgets excluded.
     let gmv_cents = 0;
     if (hasJobs) {
-      const [gmvRow] = await safeQuery(`
-        SELECT COALESCE(
-          SUM(COALESCE(budget_max, budget_min, 0) * 100)::BIGINT,
-          0
-        ) AS gmv_cents
-        FROM jobs
-        WHERE status = 'completed'
-      `);
-      gmv_cents = safeInt(gmvRow?.gmv_cents);
+      gmv_cents = await metricsRegistry.investorGmvCents(pool, 'USD');
     }
 
     // ── Investor take-rate (metrics registry) ──────────────────────────
-    // Canonical: all-time job_fee take / all-time budget GMV. The old
+    // Canonical: completed-job fees / recorded service value for the same jobs and currency. The old
     // formula divided all-time take INCLUDING subscriptions by budget GMV
     // and could exceed 100% by construction.
     let take_rate_pct = null;

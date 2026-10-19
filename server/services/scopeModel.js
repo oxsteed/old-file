@@ -171,7 +171,8 @@ async function isRestaurantOwner(userId, restaurantId) {
  * null to their own 404 (the middleware uses 404 for both not-found and
  * no-access to avoid leaking which businesses exist).
  */
-async function resolveBusinessAccess(userId, businessId) {
+async function resolveBusinessAccess(userId, businessId, { includeDeleted = false } = {}) {
+  if (!userId || businessId == null) return null;
   const { rows } = await pool.query(
     `SELECT b.id,
             b.business_name,
@@ -203,11 +204,11 @@ async function resolveBusinessAccess(userId, businessId) {
               )
             END AS membership_id
        FROM businesses b
-      WHERE b.id = $1`,
-    [businessId, userId]
+      WHERE b.id = $1 AND ($3::boolean OR b.deleted_at IS NULL)`,
+    [businessId, userId, includeDeleted]
   );
   const row = rows[0];
-  if (!row || row.deleted_at || !row.effective_role) return null;
+  if (!row || (!includeDeleted && row.deleted_at) || !row.effective_role) return null;
   return row;
 }
 

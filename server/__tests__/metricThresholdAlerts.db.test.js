@@ -32,6 +32,7 @@ if (url) {
 }
 jest.unmock('pg');
 jest.unmock('../db');
+jest.mock('../middleware/adminAuth', () => ({ hasGlobalGrant: jest.fn(async () => true) }));
 jest.mock('../utils/email', () => {
   const actual = jest.requireActual('../utils/email');
   return { ...actual, sendEmail: jest.fn(async () => ({ success: true })) };
@@ -88,7 +89,7 @@ describe('metric alert rule validation', () => {
       channel_in_app: true,
       channel_sms: true,
     });
-    expect(rule.params).toEqual({ period: '7d' });
+    expect(rule.params).toEqual({ period: '7d', currencyCode: 'USD' });
     expect(validateRuleInput({ metric_name: 'open_disputes', operator: '>', threshold: 1 }).params)
       .toEqual({});
   });
@@ -165,10 +166,11 @@ describeDb('metric threshold alert evaluator', () => {
     // Minimal tables for the NULL take-rate case.
     await db.query(`CREATE TABLE ${schema}.platform_ledger (
       id SERIAL PRIMARY KEY, source_type VARCHAR(50) NOT NULL,
-      amount_cents INTEGER NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+      job_id UUID, currency TEXT DEFAULT 'USD', amount_cents INTEGER NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
     await db.query(`CREATE TABLE ${schema}.jobs (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(), status TEXT NOT NULL DEFAULT 'published',
-      budget_max NUMERIC(10,2), budget_min NUMERIC(10,2))`);
+      budget_max NUMERIC(10,2), budget_min NUMERIC(10,2), deleted_at TIMESTAMPTZ,
+      final_price_cents BIGINT, currency_code TEXT DEFAULT 'USD')`);
   });
 
   afterAll(async () => {

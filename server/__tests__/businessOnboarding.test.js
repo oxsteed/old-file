@@ -35,7 +35,7 @@ test.each(['employee', 'representative', 'support_agent'])('setup tasks respect 
 });
 test.each(['owner', 'manager'])('onboarding read exposes the existing publish permission for %s', async role => {
   const userId = role === 'owner' ? 'owner' : 'manager';
-  mockQuery.mockResolvedValueOnce({ rows: [{ id: 7, owner_id: 'owner' }] })
+  mockQuery.mockResolvedValueOnce({ rows: [{ id: 7, effective_role: 'manager', owner_id: 'owner' }] })
     .mockResolvedValueOnce({ rows: [business] }).mockResolvedValueOnce({ rows: [] });
   const res = { json: jest.fn() }; const next = jest.fn();
   await controller.getBusinessOnboarding({ user: { id: userId }, params: { id: '7' } }, res, next);
@@ -49,14 +49,14 @@ test('unrelated users cannot read business setup', async () => {
   expect(res.json).not.toHaveBeenCalled(); expect(next.mock.calls[0][0].statusCode).toBe(404);
 });
 test('manager cannot publish even by directly calling the API', async () => {
-  mockQuery.mockResolvedValueOnce({ rows: [{ id: 7, owner_id: 'owner' }] });
+  mockQuery.mockResolvedValueOnce({ rows: [{ id: 7, effective_role: 'manager', owner_id: 'owner' }] });
   const next = jest.fn();
   await controller.completeBusinessOnboarding({ user: { id: 'manager' }, params: { id: '7' } }, {}, next);
   expect(next.mock.calls[0][0].statusCode).toBe(403);
   expect(mockQuery).toHaveBeenCalledTimes(1);
 });
 test('owner cannot publish when actual requirements are missing', async () => {
-  mockQuery.mockResolvedValueOnce({ rows: [{ id: 7, owner_id: 'owner' }] })
+  mockQuery.mockResolvedValueOnce({ rows: [{ id: 7, effective_role: 'manager', owner_id: 'owner' }] })
     .mockResolvedValueOnce({ rows: [{ ...business, service_count: 0 }] });
   const next = jest.fn();
   await controller.completeBusinessOnboarding({ user: { id: 'owner' }, params: { id: '7' } }, {}, next);

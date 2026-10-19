@@ -1,4 +1,19 @@
 {
+  "helperEarningsV2": {
+    "unpriced_one": "{{count}} completed job does not yet have a recorded payout.",
+    "unpriced_other": "{{count}} completed jobs do not yet have a recorded payout.",
+    "currency": "Currency",
+    "recordedOnly": "Recorded helper payouts only. Job budgets are excluded.",
+    "unpriced": "{{count}} completed jobs do not yet have a recorded payout.",
+    "trend": "Trend",
+    "weekly": "Weekly",
+    "monthly": "Monthly",
+    "untitled": "Completed job",
+    "notRecorded": "Not recorded",
+    "pagination": "Earnings pages",
+    "previous": "Previous",
+    "next": "Next"
+  },
   "queryBuilder": {
     "title": "Query builder",
     "subtitle": "Build read-only analytics queries from governed metrics. Every run is audit-logged.",

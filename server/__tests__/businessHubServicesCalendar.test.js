@@ -43,7 +43,7 @@ describe('hub services + calendar error sources', () => {
   });
 
   test('canAccessBusiness is a real owner/manager check', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 1, effective_role: 'owner', owner_id: OWNER.id }] });
     await expect(canAccessBusiness(OWNER.id, 1, ['owner', 'manager'])).resolves.toBe(true);
     mockQuery.mockResolvedValueOnce({ rows: [] });
     await expect(canAccessBusiness(OWNER.id, 99, ['owner', 'manager'])).resolves.toBe(false);
@@ -52,7 +52,7 @@ describe('hub services + calendar error sources', () => {
 
   test('GET services?all=true returns the catalog for an owner instead of crashing', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, effective_role: 'owner', owner_id: OWNER.id }] })
       .mockResolvedValueOnce({
         rows: [{ id: 8, name: 'Haircut', price: 45, duration_minutes: 30, base_price_cents: 4500, is_active: true }],
       });
@@ -73,7 +73,7 @@ describe('hub services + calendar error sources', () => {
 
   test('POST services accepts base_price_cents from the booking form', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, effective_role: 'owner', owner_id: OWNER.id }] })
       .mockResolvedValueOnce({
         rows: [{ id: 12, name: 'Color', price: 80, duration_minutes: 90, base_price_cents: 8000 }],
       });

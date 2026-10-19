@@ -549,14 +549,12 @@
     "dataFreshness": "حداثة البيانات",
     "fresh": "محدّث",
     "catchingUp": "يلزم استكمال المزامنة",
-
     "localRecovery": "الاسترداد المحلي في هذا المتصفح",
     "localRecoveryHint": "راجع العمل غير المرسل من الجلسات السابقة أو الأجهزة المعطلة. تتطلب المسودة غير المدفوعة قبول الموظف. تبقى السجلات السابقة محفوظة؛ طابق إجراءات المطبخ والتشخيصات المالية مع سجلات الخادم الحالية.",
     "recoverUnpaid": "استيراد مسودة غير مدفوعة",
     "reconcileManually": "المطابقة مع السجلات الحالية",
     "reviewCurrentWork": "مراجعة العمل الحالي",
     "lastHeartbeat": "آخر إشارة اتصال",
-
     "controlTitle": "مركز التحكم بشاشات المطعم",
     "storeOperations": "عمليات المطعم",
     "controlHint": "أدر الشاشات المتصلة وتابع المزامنة وراجع الطلبات غير المدفوعة المستعادة.",
@@ -754,86 +752,86 @@
   "sop": {
     "unavailable": "غير متاح",
     "unavailableTitle": "غير متاح في هذا الإصدار",
-  "downloadGuide": "تنزيل الدليل (PDF)",
-  "downloadHandbook": "تنزيل الكتيب (PDF)",
-  "imageUnavailable": "لقطة الشاشة غير متاحة. حاول تحميلها مجددًا.",
-  "libraryLink": "أدلة مرئية خطوة بخطوة",
-  "guideButton": "دليل خطوة بخطوة",
-  "englishBadge": "English",
-  "modal": {
-    "title": "أدلة خطوة بخطوة",
-    "close": "إغلاق",
-    "openFullGuide": "فتح الدليل الكامل",
-    "chooseGuide": "اختر الدليل المناسب لمهمتك",
-    "noneLinked": "لا يوجد دليل خطوة بخطوة مرتبط بهذه الصفحة بعد."
+    "downloadGuide": "تنزيل الدليل (PDF)",
+    "downloadHandbook": "تنزيل الكتيب (PDF)",
+    "imageUnavailable": "لقطة الشاشة غير متاحة. حاول تحميلها مجددًا.",
+    "libraryLink": "أدلة مرئية خطوة بخطوة",
+    "guideButton": "دليل خطوة بخطوة",
+    "englishBadge": "English",
+    "modal": {
+      "title": "أدلة خطوة بخطوة",
+      "close": "إغلاق",
+      "openFullGuide": "فتح الدليل الكامل",
+      "chooseGuide": "اختر الدليل المناسب لمهمتك",
+      "noneLinked": "لا يوجد دليل خطوة بخطوة مرتبط بهذه الصفحة بعد."
+    },
+    "library": {
+      "title": "أدلة خطوة بخطوة",
+      "subtitle": "شروحات مرئية للمهام الشائعة على OxSteed. محتوى الأدلة مكتوب باللغة الإنجليزية.",
+      "searchLabel": "البحث في الأدلة",
+      "searchPlaceholder": "ابحث حسب المهمة، على سبيل المثال نشر وظيفة",
+      "areaLabel": "المجال",
+      "audienceLabel": "الجمهور",
+      "allAreas": "كل المجالات",
+      "allAudiences": "كل الجماهير",
+      "suggestedForYou": "مقترح لك",
+      "useSuggestion": "استخدام الاقتراح",
+      "clearFilters": "مسح عوامل التصفية",
+      "results": "{{count}} من الأدلة",
+      "noResults": "لا توجد أدلة تطابق بحثك. جرّب كلمات مختلفة أو امسح عوامل التصفية.",
+      "viewGuide": "عرض الدليل",
+      "supported": "مدعوم",
+      "conditional": "مشروط",
+      "handbooksTitle": "الأدلة حسب الدور",
+      "handbooksSubtitle": "قوائم قراءة مرتبة لكل دور على OxSteed.",
+      "openHandbook": "فتح الدليل",
+      "guidesInHandbook": "{{count}} من الأدلة"
+    },
+    "audience": {
+      "customer": "عميل",
+      "helper": "مساعد",
+      "business": "نشاط تجاري",
+      "restaurant": "مطعم",
+      "logistics": "لوجستيات"
+    },
+    "guide": {
+      "goal": "الهدف",
+      "prerequisites": "قبل أن تبدأ",
+      "processMap": "خريطة العملية",
+      "processMapTextToggle": "النسخة النصية لهذه الخريطة",
+      "steps": "الخطوات",
+      "stepNumber": "الخطوة {{n}}",
+      "expectedResult": "النتيجة المتوقعة",
+      "viewLarger": "عرض أكبر",
+      "closeZoom": "إغلاق الصورة المكبرة",
+      "screenshotPending": "لقطة الشاشة بانتظار الالتقاط",
+      "confirmOutcome": "تأكد من نجاح العملية",
+      "recovery": "إذا حدث خطأ ما",
+      "support": "الحصول على المساعدة",
+      "relatedGuides": "أدلة ذات صلة",
+      "siteLinks": "صفحات ذات صلة",
+      "sources": "المصادر",
+      "revision": "المراجعة {{revision}}",
+      "notFound": "الدليل غير موجود",
+      "notFoundBody": "هذا الدليل غير منشور بعد. تصفح المكتبة الكاملة للعثور على شرح مناسب لمهمتك.",
+      "backToLibrary": "العودة إلى كل الأدلة"
+    },
+    "checklist": {
+      "title": "تقدمك",
+      "reset": "إعادة تعيين التقدم",
+      "progress": "{{done}} من {{total}} خطوات مكتملة",
+      "markDone": "وضع علامة على الخطوة كمنجزة",
+      "markNotDone": "وضع علامة على الخطوة كغير منجزة"
+    },
+    "handbook": {
+      "contents": "المحتويات",
+      "notFound": "الدليل غير موجود",
+      "notFoundBody": "دليل هذا الدور غير منشور بعد.",
+      "backToLibrary": "العودة إلى كل الأدلة",
+      "guideNotPublished": "غير منشور بعد",
+      "openGuide": "فتح الدليل"
+    }
   },
-  "library": {
-    "title": "أدلة خطوة بخطوة",
-    "subtitle": "شروحات مرئية للمهام الشائعة على OxSteed. محتوى الأدلة مكتوب باللغة الإنجليزية.",
-    "searchLabel": "البحث في الأدلة",
-    "searchPlaceholder": "ابحث حسب المهمة، على سبيل المثال نشر وظيفة",
-    "areaLabel": "المجال",
-    "audienceLabel": "الجمهور",
-    "allAreas": "كل المجالات",
-    "allAudiences": "كل الجماهير",
-    "suggestedForYou": "مقترح لك",
-    "useSuggestion": "استخدام الاقتراح",
-    "clearFilters": "مسح عوامل التصفية",
-    "results": "{{count}} من الأدلة",
-    "noResults": "لا توجد أدلة تطابق بحثك. جرّب كلمات مختلفة أو امسح عوامل التصفية.",
-    "viewGuide": "عرض الدليل",
-    "supported": "مدعوم",
-    "conditional": "مشروط",
-    "handbooksTitle": "الأدلة حسب الدور",
-    "handbooksSubtitle": "قوائم قراءة مرتبة لكل دور على OxSteed.",
-    "openHandbook": "فتح الدليل",
-    "guidesInHandbook": "{{count}} من الأدلة"
-  },
-  "audience": {
-    "customer": "عميل",
-    "helper": "مساعد",
-    "business": "نشاط تجاري",
-    "restaurant": "مطعم",
-    "logistics": "لوجستيات"
-  },
-  "guide": {
-    "goal": "الهدف",
-    "prerequisites": "قبل أن تبدأ",
-    "processMap": "خريطة العملية",
-    "processMapTextToggle": "النسخة النصية لهذه الخريطة",
-    "steps": "الخطوات",
-    "stepNumber": "الخطوة {{n}}",
-    "expectedResult": "النتيجة المتوقعة",
-    "viewLarger": "عرض أكبر",
-    "closeZoom": "إغلاق الصورة المكبرة",
-    "screenshotPending": "لقطة الشاشة بانتظار الالتقاط",
-    "confirmOutcome": "تأكد من نجاح العملية",
-    "recovery": "إذا حدث خطأ ما",
-    "support": "الحصول على المساعدة",
-    "relatedGuides": "أدلة ذات صلة",
-    "siteLinks": "صفحات ذات صلة",
-    "sources": "المصادر",
-    "revision": "المراجعة {{revision}}",
-    "notFound": "الدليل غير موجود",
-    "notFoundBody": "هذا الدليل غير منشور بعد. تصفح المكتبة الكاملة للعثور على شرح مناسب لمهمتك.",
-    "backToLibrary": "العودة إلى كل الأدلة"
-  },
-  "checklist": {
-    "title": "تقدمك",
-    "reset": "إعادة تعيين التقدم",
-    "progress": "{{done}} من {{total}} خطوات مكتملة",
-    "markDone": "وضع علامة على الخطوة كمنجزة",
-    "markNotDone": "وضع علامة على الخطوة كغير منجزة"
-  },
-  "handbook": {
-    "contents": "المحتويات",
-    "notFound": "الدليل غير موجود",
-    "notFoundBody": "دليل هذا الدور غير منشور بعد.",
-    "backToLibrary": "العودة إلى كل الأدلة",
-    "guideNotPublished": "غير منشور بعد",
-    "openGuide": "فتح الدليل"
-  }
-},
   "helperOnboarding": {
     "background": "فحص الخلفية (قد يكون مطلوبًا لبعض الأنشطة أو بناءً على طلب بعض العملاء)"
   },
@@ -4426,6 +4424,207 @@
       "reconciled": "الخصم المكرر يحتاج إلى مراجعة",
       "empty": "لا توجد عناصر مفتوحة",
       "reviewHint": "تسجيل المراجعة لا ينقل الأموال ولا يفرج عن البضائع."
+    }
+  },
+  "helperEarningsV2": {
+    "currency": "العملة",
+    "recordedOnly": "مدفوعات المساعد المسجلة فقط. لا تشمل ميزانيات الوظائف.",
+    "unpriced": "هناك {{count}} وظائف مكتملة لم تُسجّل مدفوعاتها بعد.",
+    "trend": "الاتجاه",
+    "weekly": "أسبوعي",
+    "monthly": "شهري",
+    "untitled": "وظيفة مكتملة",
+    "notRecorded": "غير مسجل",
+    "pagination": "صفحات الأرباح",
+    "previous": "السابق",
+    "next": "التالي",
+    "unpriced_one": "هناك وظيفة مكتملة واحدة لم تُسجّل مدفوعاتها بعد.",
+    "unpriced_other": "هناك {{count}} وظائف مكتملة لم تُسجّل مدفوعاتها بعد."
+  },
+  "queryBuilder": {
+    "title": "منشئ الاستعلامات",
+    "subtitle": "أنشئ استعلامات تحليلية للقراءة فقط من مقاييس محكومة. يتم تسجيل كل عملية تنفيذ في سجل التدقيق.",
+    "metricLabel": "المقياس",
+    "metricPlaceholder": "اختر مقياسا",
+    "dimensionsLabel": "الأبعاد",
+    "noDimensions": "لا توجد أبعاد متاحة لهذا المقياس.",
+    "filtersLabel": "عوامل التصفية",
+    "noFilters": "لا توجد عوامل تصفية متاحة لهذا المقياس.",
+    "periodLabel": "الفترة",
+    "periodInsensitiveNote": "هذا المقياس لقطة لحظية؛ الفترة لا تغير قيمته.",
+    "run": "تشغيل الاستعلام",
+    "running": "جار التشغيل...",
+    "resultsTitle": "النتائج",
+    "noResults": "لم يتم إرجاع أي صفوف.",
+    "truncatedNotice": "النتائج محدودة بـ {{cap}} صف.",
+    "rowCount": "{{count}} صف",
+    "duration": "{{ms}} م.ث",
+    "exportCsv": "تصدير CSV",
+    "clear": "مسح",
+    "errorTitle": "فشل الاستعلام",
+    "loadFailed": "تعذر تحميل كتالوج المقاييس.",
+    "retry": "إعادة المحاولة",
+    "chooseMetricFirst": "اختر مقياسا لرؤية أبعاده وعوامل التصفية.",
+    "filterRole": "المجموعة حسب الدور",
+    "filterCustomerId": "معرف العميل (UUID)",
+    "filterBusinessId": "معرف النشاط التجاري",
+    "filterRestaurantId": "معرف المطعم",
+    "dimensionPeriod": "الفترة الزمنية",
+    "dimensionRole": "المجموعة حسب الدور",
+    "dimensionBusiness": "النشاط التجاري",
+    "dimensionRestaurant": "المطعم",
+    "nlSectionTitle": "اسأل باللغة الطبيعية",
+    "nlSectionBody": "اكتب سؤالا بلغة بسيطة. سيتم تحويله إلى استعلام للقراءة فقط عبر المقاييس المحكومة؛ لن يتم تنفيذ أي شيء حتى تؤكد التفسير.",
+    "nlPlaceholder": "مثال: معدل الإلغاء حسب الدور الشهر الماضي",
+    "nlEnglishOnly": "الإنجليزية فقط في الوقت الحالي؛ المحلل لا يفسر اللغات الأخرى.",
+    "nlInterpret": "فسّر",
+    "nlParsing": "جارٍ التفسير…",
+    "nlInterpretationTitle": "التفسير — أكّد قبل التنفيذ",
+    "nlConfirmRun": "نفّذ هذا الاستعلام",
+    "nlDismiss": "تجاهل",
+    "nlRejected": "تعذّر التفسير",
+    "nlParseFailed": "تعذّر الوصول إلى المحلل.",
+    "metricNames": {
+      "open_disputes": "النزاعات المفتوحة",
+      "platform_revenue_cents": "إيرادات المنصة",
+      "investor_gmv_cents": "إجمالي قيمة بضائع المستثمرين",
+      "investor_take_rate_pct": "معدل حصة المستثمرين",
+      "cancel_rate_pct": "معدل الإلغاء",
+      "consulting_cancel_rate_pct": "معدل إلغاء الاستشارات",
+      "sla_first_response_compliance_pct": "الامتثال لاتفاقية مستوى الخدمة للاستجابة الأولى",
+      "support_nps_index": "صافي نقاط الترويج للدعم",
+      "consulting_avg_nps": "متوسط صافي نقاط الترويج للاستشارات",
+      "mrr_cents": "الإيرادات الشهرية المتكررة",
+      "escrow_held_cents": "الضمان المحتجز",
+      "restaurant_repeat_order_rate": "معدل تكرار الطلبات في المطاعم",
+      "restaurant_top_items_revenue": "إيرادات الأصناف الأعلى حسب المطعم"
+    }
+  },
+  "helperDashboard": {
+    "jobEarnings": {
+      "title": "أرباح المهام",
+      "lifetime": "إجمالي الأرباح",
+      "thisWeek": "هذا الأسبوع",
+      "thisMonth": "هذا الشهر",
+      "completedJobs": "المهام المكتملة",
+      "available": "متاح",
+      "pendingPayout": "بانتظار الدفع",
+      "paidOut": "مدفوع",
+      "payouts": "المدفوعات",
+      "recentJobs": "المهام الأخيرة",
+      "weeklyTrend": "الأرباح الأسبوعية",
+      "loading": "جارٍ تحميل الأرباح…",
+      "loadFailed": "تعذّر تحميل الأرباح. يُرجى المحاولة مرة أخرى.",
+      "retry": "إعادة المحاولة",
+      "noJobs": "لا توجد مهام مكتملة بعد. ستظهر أرباحك هنا عند اكتمال المهام.",
+      "statusEarned": "مكتسب",
+      "statusNotReady": "غير جاهز",
+      "statusPending": "قيد الانتظار",
+      "statusProcessing": "قيد المعالجة",
+      "statusPaid": "مدفوع"
+    }
+  },
+  "adminUsers": {
+    "list": {
+      "allVerified": "كل التحقق"
+    }
+  },
+  "restaurants": {
+    "ops": {
+      "reports": {
+        "loyalty": {
+          "title": "ولاء العملاء",
+          "repeatRate": "معدل الطلبات المتكررة",
+          "windowHint": "آخر 90 يومًا · طلبات الضيوف مستبعدة",
+          "repeatOrders": "طلبات متكررة",
+          "repeatCustomers": "عملاء متكررون",
+          "identifiedOrders": "طلبات محددة",
+          "topItems": "الأصناف الأعلى إيرادًا",
+          "unitsSold": "تم بيع {{units}}",
+          "noData": "لا توجد طلبات عملاء محددة خلال آخر 90 يومًا.",
+          "loadError": "تعذر تحميل تحليلات الولاء."
+        }
+      }
+    }
+  },
+  "promotePage": {
+    "toolkit": {
+      "performance": {
+        "title": "أداء الموضع المميز",
+        "impressions": "مرات الظهور",
+        "clicks": "النقرات",
+        "conversions": "التحويلات",
+        "clickThroughRate": "معدل النقر",
+        "conversionRate": "معدل التحويل",
+        "live": "نشط الآن",
+        "noData": "لا توجد أحداث بعد. تظهر الإحصاءات عندما يكون موضعك نشطًا.",
+        "loadError": "تعذر تحميل أداء الموضع.",
+        "windowNote": "تحسب التحويلات الطلبات المقدمة أثناء نشاط الموضع."
+      }
+    }
+  },
+  "adminSettings": {
+    "tabs": {
+      "metric-alerts": "تنبيهات المقاييس"
+    },
+    "notifications": {
+      "notify_metric_alerts": "تنبيهات حدّ المقاييس"
+    },
+    "metricAlerts": {
+      "title": "تنبيهات حدّ المقاييس",
+      "hint": "تُقيَّم القواعد كل دقيقة وفق سجل المقاييس الرسمي. يُطلَق التنبيه مرة واحدة كحد أقصى لكل فترة تهدئة، وعبر القنوات التي فعّلتها فقط.",
+      "empty": "لا توجد قواعد تنبيه بعد. أنشئ قاعدة لمراقبة مقياس.",
+      "newRule": "قاعدة تنبيه جديدة",
+      "editRule": "تعديل قاعدة التنبيه",
+      "metric": "المقياس",
+      "operator": "الشرط",
+      "threshold": "الحدّ",
+      "period": "الفترة",
+      "days": "أيام السجل",
+      "cooldownMinutes": "التهدئة (بالدقائق)",
+      "cooldownHint": "بعد إطلاق التنبيه، لن يُطلَق مجددًا خلال هذه الدقائق.",
+      "channels": "قنوات التسليم",
+      "channelInApp": "داخل التطبيق",
+      "channelEmail": "البريد الإلكتروني",
+      "channelSms": "رسالة نصية",
+      "active": "القاعدة نشطة",
+      "edit": "تعديل",
+      "cancel": "إلغاء",
+      "confirmDelete": "حذف قاعدة التنبيه هذه؟",
+      "saveFailed": "تعذّر حفظ قاعدة التنبيه.",
+      "lastFired": "آخر إطلاق",
+      "never": "أبدًا",
+      "currentValue": "القيمة الحالية",
+      "paused": "موقوفة",
+      "noValue": "غير متاح",
+      "thresholdHint": {
+        "cents": "أدخل الحدّ بالسنتات (مثال: 500000 = $5,000.00).",
+        "pct": "أدخل الحدّ بالنقاط المئوية (مثال: 5 = 5%).",
+        "count": "أدخل الحدّ كعدد صحيح.",
+        "index": "أدخل الحدّ كقيمة مؤشر (مثال: 50)."
+      },
+      "operators": {
+        "gt": "أعلى من (>)",
+        "lt": "أدنى من (<)",
+        "eq": "يساوي (==)"
+      },
+      "periods": {
+        "1d": "آخر 24 ساعة",
+        "7d": "آخر 7 أيام",
+        "30d": "آخر 30 يومًا",
+        "90d": "آخر 90 يومًا",
+        "1y": "آخر 12 شهرًا"
+      },
+      "metrics": {
+        "open_disputes": "النزاعات المفتوحة",
+        "platform_revenue_cents": "إيرادات المنصة",
+        "investor_take_rate_pct": "نسبة عمولة المستثمر",
+        "cancel_rate_pct": "معدل الإلغاء",
+        "support_nps_index": "صافي نقاط الترويج للدعم",
+        "consulting_avg_nps": "متوسط صافي نقاط الترويج للاستشارات",
+        "mrr_cents": "الإيرادات الشهرية المتكررة",
+        "escrow_held_cents": "الأموال المحتجزة في الضمان"
+      }
     }
   }
 }

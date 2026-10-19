@@ -15,7 +15,7 @@ beforeEach(() => resetMocks());
 describe('business invoice currency contract', () => {
   test('creates business invoices using the business currency code', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 8, owner_id: '00000000-0000-4000-8000-000000000008' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 8, effective_role: 'owner', owner_id: '00000000-0000-4000-8000-000000000008' }] })
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({ rows: [{ invoice_seq: 12 }] })
       .mockResolvedValueOnce({ rows: [{ currency_code: 'GHS' }] })
@@ -60,7 +60,7 @@ describe('business invoice currency contract', () => {
       .mockResolvedValueOnce({
         rows: [{
           id: 8,
-          owner_id: '00000000-0000-4000-8000-000000000008',
+          effective_role: 'owner', owner_id: '00000000-0000-4000-8000-000000000008',
         }],
       }) // canManageBusinessFinance
       .mockResolvedValueOnce({
