@@ -12,7 +12,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
-const { strictLimiter, generalLimiter, authenticatedLimiter } = require('../middleware/rateLimiter');
+const { strictLimiter, authenticatedLimiter, displayPollLimiter } = require('../middleware/rateLimiter');
 const displays = require('../controllers/restaurantDisplayController');
 
 // Public pairing flow for the TV. No tenant path param here (only :id on the
@@ -20,10 +20,13 @@ const displays = require('../controllers/restaurantDisplayController');
 // comes from the request body and ownership is enforced in the controller via
 // the canonical restaurant access check.
 router.post('/pairing-code', strictLimiter, displays.issuePairingCode);
-router.post('/status', strictLimiter, displays.pairingStatus);
+// TV polls /status every 5s while waiting for the owner claim: this needs the
+// dedicated polling bucket (see displayPollLimiter), not strictLimiter's
+// 10/hour budget, or the 10th poll would 429 and block the claim.
+router.post('/status', displayPollLimiter, displays.pairingStatus);
 
 // Paired displays authenticate with their pairing token (Authorization: Bearer).
-router.post('/heartbeat', generalLimiter, displays.heartbeat);
+router.post('/heartbeat', displayPollLimiter, displays.heartbeat);
 
 // Owner fleet management.
 router.post('/claim', authenticate, rejectImpersonated, strictLimiter, displays.claimDisplay);

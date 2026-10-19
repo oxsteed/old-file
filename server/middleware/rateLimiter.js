@@ -729,6 +729,26 @@ const entityResolveLimiter = rateLimit({
   },
 });
 
+// Wall-display polling: the TV hits /status every 5s while waiting for an
+// owner claim, and paired displays heartbeat on a similar cadence. Those
+// routes must NOT share strictLimiter's 10/hour bucket (the 10th poll would
+// 429 and the owner claim on the same network would be blocked too).
+// 60/minute per IP covers 5s polling (12/min) for ~4-5 displays behind one
+// NAT IP with headroom. Keyed by req.ip with no skip for missing auth
+// (fail-closed per P3-13-F22).
+const displayPollLimiter = rateLimit({
+  ...createStoreOption('rl:display_poll:'),
+  windowMs: 60 * 1000,
+  max: 60,
+  keyGenerator: (req) => req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many display polling requests. Please slow down.',
+    retryAfter: '1 minute',
+  },
+});
+
 module.exports = {
   createStoreOption,
   getVerifiedBearerUserId,
@@ -771,4 +791,5 @@ module.exports = {
   connectorMutationLimiter,
   entityResolveLimiter,
   vortexRedeemLimiter,
+  displayPollLimiter,
 };
