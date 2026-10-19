@@ -271,6 +271,17 @@ exports.chatMessage = async (req, res, next) => {
       if (pathHint) systemPrompt += `\n\n## Current Page Context\n${pathHint} Tailor your response to be relevant to what they are doing.`;
     }
 
+    // Auth awareness: the route uses optionalAuth, so req.user tells us whether
+    // the user is signed in. The model previously never received this, so answers
+    // could not adapt (e.g. telling a signed-out user to sign in before acting).
+    // Only the role is shared, never identity fields.
+    if (req.user) {
+      const role = typeof req.user.role === 'string' ? req.user.role : null;
+      systemPrompt += `\n\n## Signed-in State\nThe user is signed in${role ? ` (role: ${role})` : ''}. Give next steps for a signed-in user; do not ask them to sign in or create an account.`;
+    } else {
+      systemPrompt += `\n\n## Signed-in State\nThe user is not signed in. When the next step requires an account, say so first and point them to /login before the action.`;
+    }
+
     // Sanitize and limit conversation history
     const history = messages
       .slice(-12)

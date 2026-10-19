@@ -43,12 +43,46 @@ function saveHistory(msgs) {
 }
 
 // ── 1. Markdown renderer (no dangerouslySetInnerHTML) ─────────────────────────
-function renderInline(text, prefix = '') {
+// Also linkifies bare site paths (/post-job) and full URLs in AI answers so
+// navigation hints are tappable. Internal paths route through the SPA navigator
+// instead of causing a full page reload.
+const LINK_CLASS = 'text-orange-400 underline underline-offset-2 hover:text-orange-300 break-all';
+
+function renderInline(text, prefix = '', onInternalNav) {
   const parts = [];
-  const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`)/g;
+  const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`|(https?:\/\/[^\s<>"'`]+)|(\/[A-Za-z0-9][\w\-./%?=&#:]*))/g;
   let last = 0;
   let m;
   let k = 0;
+  const pushLink = (raw, external) => {
+    // Trim trailing sentence punctuation that is not part of the address.
+    const trimmed = raw.replace(/[.,;:!?)\]]+$/, '');
+    const trail = raw.slice(trimmed.length);
+    if (!trimmed || trimmed === '/') {
+      parts.push(raw);
+      return;
+    }
+    const key = `${prefix}-l${k++}`;
+    if (external) {
+      parts.push(<a key={key} href={trimmed} target="_blank" rel="noopener noreferrer" className={LINK_CLASS}>{trimmed}</a>);
+    } else {
+      parts.push(
+        <a
+          key={key}
+          href={trimmed}
+          onClick={(e) => {
+            e.preventDefault();
+            if (onInternalNav) onInternalNav(trimmed);
+            else window.location.assign(trimmed);
+          }}
+          className={LINK_CLASS}
+        >
+          {trimmed}
+        </a>
+      );
+    }
+    if (trail) parts.push(trail);
+  };
   while ((m = regex.exec(text)) !== null) {
     if (m.index > last) parts.push(text.slice(last, m.index));
     if (m[2] !== undefined) {
@@ -57,6 +91,13 @@ function renderInline(text, prefix = '') {
       parts.push(<em key={`${prefix}-i${k++}`}>{m[3]}</em>);
     } else if (m[4] !== undefined) {
       parts.push(<code key={`${prefix}-c${k++}`} className="px-1 py-0.5 bg-gray-700/80 rounded text-orange-300 text-xs font-mono">{m[4]}</code>);
+    } else if (m[5] !== undefined) {
+      pushLink(m[5], true);
+    } else if (m[6] !== undefined) {
+      // Avoid linkifying fractions like 50/50: the char before must not be alnum.
+      const prev = m.index > 0 ? text[m.index - 1] : '';
+      if (/[A-Za-z0-9]/.test(prev)) parts.push(m[6]);
+      else pushLink(m[6], false);
     }
     last = m.index + m[0].length;
   }
@@ -64,7 +105,7 @@ function renderInline(text, prefix = '') {
   return parts;
 }
 
-function renderMarkdown(text) {
+function renderMarkdown(text, onInternalNav) {
   if (!text) return null;
   const lines = text.split('\n');
   const result = [];
@@ -76,7 +117,7 @@ function renderMarkdown(text) {
     result.push(
       <ul key={`ul-${key}`} className="list-disc list-inside space-y-0.5 my-1 ms-0.5">
         {bullets.map((item, i) => (
-          <li key={i} className="leading-relaxed">{renderInline(item, `b${key}-${i}`)}</li>
+          <li key={i} className="leading-relaxed">{renderInline(item, `b${key}-${i}`, onInternalNav)}</li>
         ))}
       </ul>
     );
@@ -96,7 +137,7 @@ function renderMarkdown(text) {
     } else {
       result.push(
         <span key={`ln-${idx}`} className="block leading-relaxed">
-          {renderInline(line, `ln-${idx}`)}
+          {renderInline(line, `ln-${idx}`, onInternalNav)}
         </span>
       );
     }
@@ -614,7 +655,7 @@ function markProactiveDismissed() {
                         }`}>
                           {/* 1. Markdown for AI messages */}
                           {m.role === 'assistant' && !m.isError
-                            ? renderMarkdown(m.content)
+                            ? renderMarkdown(m.content, (path) => navigate(path))
                             : m.content
                           }
                         </div>
