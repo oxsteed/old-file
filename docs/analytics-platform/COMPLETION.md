@@ -255,10 +255,10 @@ decisions (October 19): see [Product decisions](#product-decisions-october-19).
   - **Timing:** recorded after the response and never blocks checkout.
   - **Display:** Performance shows conversions, conversion rate and the split
     by type in 5 locales.
-  - **Policy:** cancellations are not subtracted. Marketplace jobs are not
-    counted, because they are not addressed to a profile owner. Without
-    analytics consent the id is per tab, so only same-session conversions
-    count.
+  - **Policy (superseded by decisions 1-3 below, migration 910):** gross and
+    net are shown side by side, marketplace hires of a business's helper
+    count, and non-consent signed-in visitors are linked through the account
+    for 7 days.
 - [x] Resend delivery webhooks for broadcast email (migration 907).
   - `POST /api/webhooks/resend` verifies the Svix signature
     (`RESEND_WEBHOOK_SECRET`, 5-minute tolerance) and dedupes by event id.
@@ -293,7 +293,7 @@ decisions (October 19): see [Product decisions](#product-decisions-october-19).
   `promotionPerformance` checks at 320/390/1360 px, en/fr/ar, light/dark, RTL.
 - [x] SOP: only the review manifest was re-baselined (it hashes `en.json`);
   guide PDFs/screenshots were already current and were not regenerated.
-- [ops] Apply migrations 893-909 through the deployment workflow; repeat
+- [ops] Apply migrations 893-910 through the deployment workflow; repeat
   authenticated admin/business flows with real sessions, including revoked
   grants. No production migration or deployment was performed.
 
@@ -314,6 +314,7 @@ decisions (October 19): see [Product decisions](#product-decisions-october-19).
 | 907 | Broadcast provider events: delivered/bounced/complained/failed columns, suppression sources `hard_bounce`/`complaint` |
 | 908 | `users.country_confirmed` (+ source, timestamp), confirmation trigger and backfill; ZIP index on `direct_geocode_cache` |
 | 909 | `promotion_link_events` conversions (`conversion_type`, `attributed_visit_id`) |
+| 910 | `promotion_link_events`: `reversed_at`/`reversal_reason` (net conversions) with reversal triggers on `booking_requests`, `business_appointments`, `food_orders` and `jobs`; conversion type `job`; `account_key` (7-day account link for non-consent visits) |
 
 All additive. Exercised through the real migration runner on a disposable
 database; CI runs the migration rehearsal from 785.
@@ -344,11 +345,43 @@ Open points for product/ops:
 - The native mobile app must POST to the push payload's `track_url` on tap to
   report push opens (`push-open-contract.md`); the web service worker already does.
 - The delivery worker runs by default; `BROADCAST_DELIVERY_ENABLED=false` stops it.
-- Regional scope: unconfirmed-US users drop out of country regions (intended);
+- Regional scope: unconfirmed-country users now count under their stored
+  country and are reported separately (decision 4, superseding the earlier
+  drop-out);
   grants already nulled by an earlier region delete cannot be detected; the
   lanes what-if endpoint stays informational. The `regionAuth` JS
   `geo_radius` check and the super-admin user query still reference user
   coordinates that do not exist (no change; SQL scoping is authoritative).
+
+## Decisions on the #610 open points (October 19, PR #611)
+
+| # | Decision | What was built |
+|---|----------|----------------|
+| 1 | Gross and net conversions side by side | Migration 910 reversal triggers. `net_conversions`, `net_conversion_rate_pct` and `reversed.{cancelled,refunded}` per total, source, medium and campaign. Promote shows both, labeled, in 5 locales. |
+| 2 | Marketplace hires count | `POST /jobs/assign` hook. The conversion goes to the business whose owner or active member was hired. Same rules: 7 days, latest visit across that helper's businesses, once per job, owner and team excluded. |
+| 3 | Non-consent visitors are linked through the signed-in account for 7 days | `account_key` on visits (non-consent, signed-in only), cleared after 7 days. See `privacy-consent-notes.md`. **Privacy-policy check needed.** |
+| 4 | Unconfirmed countries count under the stored country | Region scope uses `users.country` (default `US`). Regional results report confirmed and unconfirmed users (`userCountry`); the governed KPI panel shows both. |
+| 5 | Deleted businesses/restaurants blocked; admins read-only | Support SQL excludes deleted businesses. The restaurant gate returns 404 to members. Platform admins get GET/HEAD only (support 403, restaurant 409 `restaurant_deleted_read_only`). |
+| 6 | Platform admins get full access to individual restaurants, audited | The restaurant gate grants owner rights. Each request writes `admin_audit_log` `restaurant_admin_access:<METHOD>`, and is refused with 503 if the audit row cannot be written. |
+| 7 | `/support-routing/:businessId/status` uses its business id | `requireSupportBusinessAccess('conversations')`; returns that business's availability only. |
+| 8 | Unmounted route files | All four were duplicates of mounted routers and were deleted, along with two orphan controllers. A guard test fails on new unmounted route files. |
+| 9 | Client-sent payment-request business id must match | Server derives the business from the source or payee and returns 400 `business_mismatch`/`business_invalid` otherwise. |
+| 10 | One Truth linear comparison | Each group member is compared to the group's earliest account (k-1 links). `?comparison=pairwise` is kept for one release, marked deprecated. |
+
+Open points from these decisions:
+
+- Privacy-policy check for decision 3 (account link for non-consent visitors).
+- `users.country` defaults to `US`, so "unconfirmed" in a US region may just
+  mean the default was never changed. The counts are shown separately for that
+  reason.
+- Remove the deprecated `?comparison=pairwise` One Truth response in the next
+  release.
+- Two other route files are unreferenced (`apiVersion`, `businessQuotes`). They
+  were outside decision 8 and are listed in the guard's known list.
+- Job hires count only for business owners. A helper's personal Promote link
+  does not get credit for a marketplace hire.
+- Declined or expired booking requests are not counted as cancelled for net;
+  only cancellations and refunds are.
 
 ## Verification (local, October 19)
 
