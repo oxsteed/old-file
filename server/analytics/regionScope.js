@@ -26,7 +26,8 @@
  *   food_restaurants             the restaurant address
  *   food_orders, food_order_items  the restaurant's address
  *   main_app_payout_requests, subscriptions, consulting_sessions,
- *   consulting_session_feedback  the user's address (users.zip_code/city/state/country)
+ *   consulting_session_feedback  the user's address (users.zip_code/city/state; country only when
+ *                                country_confirmed; geo_radius via the confirmed-US ZIP centroid)
  *   support_conversations, support_conversation_reviews  the customer's address
  * Reference tables with no per-row geography (plans, support_sla_targets) pass through.
  */
@@ -104,11 +105,23 @@ function locationInRegionsSql(loc, ref) {
 
 const JOB_LOC = (a) => ({ zip: `${a}.location_zip`, city: `${a}.location_city`, state: `${a}.location_state`,
   country: `COALESCE(NULLIF(${a}.location_country_code,''), ${a}.location_country)`, lat: `${a}.location_lat`, lng: `${a}.location_lng` });
-const USER_LOC = (a) => ({ zip: `${a}.zip_code`, city: `${a}.city`, state: `${a}.state`, country: `${a}.country` });
+// users.country defaults to 'US' (migration 117), so it only counts when
+// confirmed (migration 908). Coordinates: users have none; a confirmed-US
+// user's ZIP centroid from direct_geocode_cache stands in for geo_radius
+// regions (no coordinates -> no geo_radius match, fail closed).
+const USER_LOC = (a, g) => ({ zip: `${a}.zip_code`, city: `${a}.city`, state: `${a}.state`,
+  country: `CASE WHEN ${a}.country_confirmed THEN ${a}.country END`,
+  ...(g ? { lat: `${g}.lat`, lng: `${g}.lng` } : {}) });
+const USER_GEO = (a, g) => `LEFT JOIN LATERAL (
+    SELECT __gc.lat, __gc.lng FROM direct_geocode_cache __gc
+     WHERE ${a}.country_confirmed AND upper(btrim(${a}.country)) = 'US'
+       AND __gc.zip_code = substring(btrim(COALESCE(${a}.zip_code, '')) FROM '^[0-9]{5}')
+       AND __gc.lat IS NOT NULL AND __gc.lng IS NOT NULL
+     ORDER BY __gc.updated_at DESC NULLS LAST LIMIT 1) ${g} ON TRUE`;
 const RESTAURANT_LOC = (a) => ({ zip: `${a}.address_zip`, city: `${a}.address_city`, state: `${a}.address_state`,
   country: `${a}.address_country`, lat: `${a}.latitude`, lng: `${a}.longitude` });
 
-const userIn = (col, ref) => `EXISTS (SELECT 1 FROM __rs_users __u WHERE __u.id = ${col} AND ${locationInRegionsSql(USER_LOC('__u'), ref)})`;
+const userIn = (col, ref) => `EXISTS (SELECT 1 FROM __rs_users __u ${USER_GEO('__u', '__ug')} WHERE __u.id = ${col} AND ${locationInRegionsSql(USER_LOC('__u', '__ug'), ref)})`;
 const jobIn = (col, ref) => `EXISTS (SELECT 1 FROM __rs_jobs __j WHERE __j.id = ${col} AND ${locationInRegionsSql(JOB_LOC('__j'), ref)})`;
 const restaurantIn = (col, ref) => `EXISTS (SELECT 1 FROM __rs_food_restaurants __r WHERE __r.id = ${col} AND ${locationInRegionsSql(RESTAURANT_LOC('__r'), ref)})`;
 
