@@ -73,7 +73,7 @@ There are 77 reads of `business_id` / `restaurant_id` from `req.body` / `req.que
 - **Support SQL ignores `businesses.deleted_at`.** `requireBusinessAccess` 404s deleted businesses, but the support helpers (`BUSINESS_ACCESS_SQL` and the others) still admit them. The support gate keeps the support semantics. Should a deleted business's support desk stay reachable?
 - **The restaurant gate does not check `businesses.deleted_at` either.** This is the existing #606 note. Restaurants of a deleted business remain manageable.
 - **Platform admins have no restaurant standing** through the gate. Admin restaurant tooling goes through `/api/admin`. This was already the behavior and is unchanged.
-- **`GET /api/support-routing/:businessId/status` ignores `:businessId`** and returns platform routing status. It is exempted as public-storefront. Should it be removed or scoped?
+- **`GET /api/support-routing/:businessId/status`** *(resolved, decision 7)*: now gated by `requireSupportBusinessAccess('conversations')` and reports that business's availability only.
 - **Resource-scoped support routes** are not gated by business membership, by design. These are:
   - agent self-service (`agent/:agentId/...`)
   - customer conversation routes (`conversations/:id/...`)
@@ -958,7 +958,7 @@ Columns:
 | support.js | PUT /:businessId/settings/routing-rules/:ruleId | controller: support-employer | support-business:manage | low: gate + legacy controller check (defence in depth) | businessSupportSettingsController.js#updateRoutingRule |
 | support.js | PUT /:businessId/teams/:teamId | controller: legacy-business-helper,support-employer | support-business:administrate | low: gate + legacy controller check (defence in depth) | supportTeamsController.js#updateTeam |
 | supportRouting.js | GET /:businessId/conversations/:ticketId | controller: legacy helper/local query (see handler) | exempt:resource-scoped | medium: resource-level check only (reviewed allowlist) | supportRoutingController.js#getConversation |
-| supportRouting.js | GET /:businessId/status | controller: legacy helper/local query (see handler) | exempt:public-storefront | low: public/self-service, no tenant data beyond public predicate | supportRoutingController.js#getStatus |
+| supportRouting.js | GET /:businessId/status | gate: support-business (conversations) | gated | low: route gate | supportRoutingController.js#getStatus |
 | supportRouting.js | POST /:businessId/conversations | controller: legacy helper/local query (see handler) | exempt:customer-self-service | low: keyed by caller/credential | supportRoutingController.js#createConversation |
 | supportRouting.js | POST /:businessId/conversations/:ticketId/assign | controller: support-employer | exempt:resource-scoped | medium: resource-level check only (reviewed allowlist) | supportRoutingController.js#assignToAgent |
 | supportRouting.js | POST /:businessId/conversations/:ticketId/message | controller: legacy helper/local query (see handler) | exempt:resource-scoped | medium: resource-level check only (reviewed allowlist) | supportRoutingController.js#sendMessage |

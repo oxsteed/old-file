@@ -83,3 +83,31 @@ test('allows platform admins to select an operational support business', async (
   expect(res.status).toBe(200);
   expect(res.body).toEqual({ businessId: 999 });
 });
+
+describe('GET /:businessId/status (decision 7)', () => {
+  const supportEmployerService = require('../services/supportEmployerService');
+  const SupportRoutingService = require('../services/supportRoutingService');
+
+  test('reports only that business, after the business access check', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [authUserRow('customer')] });
+    const access = jest.spyOn(supportEmployerService, 'userCanAccessBusinessConversations').mockResolvedValue(true);
+    const availability = jest.spyOn(SupportRoutingService, 'getLiveAvailability').mockResolvedValue({
+      liveAvailableAgents: 1, onlineAgents: 1, availableCapacity: 2, markedAvailableAgents: 1, diagnostics: [],
+    });
+    const res = await request(buildApp()).get('/api/support-routing/42/status').set('Authorization', authHeader());
+    expect(res.status).toBe(200);
+    expect(access).toHaveBeenCalledWith('42', expect.any(String), 'customer');
+    expect(availability).toHaveBeenCalledWith('42');
+    expect(res.body).toMatchObject({ businessId: '42', liveAvailableAgents: 1, socketAgents: 1 });
+    expect(res.body).not.toHaveProperty('customers');
+  });
+
+  test('refuses a caller without access to that business', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [authUserRow('customer')] });
+    jest.spyOn(supportEmployerService, 'userCanAccessBusinessConversations').mockResolvedValue(false);
+    const availability = jest.spyOn(SupportRoutingService, 'getLiveAvailability');
+    const res = await request(buildApp()).get('/api/support-routing/43/status').set('Authorization', authHeader());
+    expect(res.status).toBe(403);
+    expect(availability).not.toHaveBeenCalled();
+  });
+});

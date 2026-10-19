@@ -4,6 +4,7 @@
  */
 
 const pool = require('../db');
+const { scopedBusinessId } = require('../middleware/scopeGates');
 const logger = require('../utils/logger');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const SupportRoutingService = require('../services/supportRoutingService');
@@ -768,8 +769,23 @@ exports.assignToAgent = async (req, res) => {
 // Get connection status (for admin dashboard)
 exports.getStatus = async (req, res) => {
   try {
+    // /:businessId/status runs behind requireSupportBusinessAccess and reports
+    // that business only; /status (no id) keeps the platform-wide view.
+    const businessId = req.params.businessId ? scopedBusinessId(req) : null;
+    const availability = await SupportRoutingService.getLiveAvailability(businessId);
+    if (businessId) {
+      return res.json({
+        businessId,
+        agents: availability.liveAvailableAgents,
+        liveAvailableAgents: availability.liveAvailableAgents,
+        onlineAgents: availability.onlineAgents,
+        availableCapacity: availability.availableCapacity,
+        markedAvailableAgents: availability.markedAvailableAgents,
+        diagnostics: availability.diagnostics,
+        socketAgents: availability.onlineAgents,
+      });
+    }
     const status = WebSocketService.getConnectionStatus();
-    const availability = await SupportRoutingService.getLiveAvailability(null);
 
     res.json({
       ...status,
