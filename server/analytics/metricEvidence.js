@@ -34,6 +34,12 @@ function metricEvidenceSql(query, scope, registry, summary) {
           -COALESCE(ROUND(refunded_amount*${majorUnitScaleSql('currency')})::bigint,0),0)::bigint AS escrow_held_cents
         FROM payments WHERE escrow_status IN ('held','disputed') AND status IN ('authorized','captured') ORDER BY id`;
       columns = ['payment_id','currency_code','status','escrow_status','escrow_held_cents']; params.length=0; break;
+    case 'promo_discount_cents':
+      text = `SELECT id AS redemption_id,surface,reference_id,code,UPPER(currency_code) AS currency_code,
+        gross_cents,discount_cents,funded_by,redeemed_at
+        FROM promo_redemptions p WHERE status='redeemed' AND p.redeemed_at>=NOW()-$1::interval AND p.redeemed_at<NOW()
+        ORDER BY redeemed_at DESC,id`;
+      columns = ['redemption_id','surface','reference_id','code','currency_code','gross_cents','discount_cents','funded_by','redeemed_at']; break;
     case 'open_disputes':
       text = "SELECT id AS dispute_id,job_id,status FROM disputes WHERE status='open' ORDER BY id";
       columns=['dispute_id','job_id','status']; params.length=0; break;

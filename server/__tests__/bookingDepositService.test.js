@@ -29,6 +29,9 @@ test('a paid deposit on a cancelled booking is refunded with a per-booking key',
     { idempotencyKey: 'booking-deposit:b1:refund' }
   );
   expect(mockQuery.mock.calls.some(([sql]) => /SET payment_status = 'refunded'/.test(String(sql)))).toBe(true);
+  // Decision 2: the refunded booking releases its promo redemption.
+  const reversal = mockQuery.mock.calls.find(([sql]) => /UPDATE promo_redemptions SET status = 'reversed'/.test(String(sql)));
+  expect(reversal[1]).toEqual(['booking', 'b1', null, 'booking_refunded']);
 });
 
 test('an unpaid intent on an ended booking is voided', async () => {
@@ -66,6 +69,7 @@ test('webhook marks a booking paid even if the client never confirmed', async ()
 test('payment landing after the booking ended is refunded immediately', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{ id: 'b1', status: 'declined' }] })
+    .mockResolvedValueOnce({ rows: [] }) // promo markRedeemed
     .mockResolvedValueOnce({ rows: [booking({ status: 'declined' })] })
     .mockResolvedValue({ rows: [] });
   mockStripe.refunds.create.mockResolvedValue({ id: 're_late' });
@@ -73,6 +77,28 @@ test('payment landing after the booking ended is refunded immediately', async ()
     id: 'pi_b', amount: 2000, metadata: { booking_request_id: 'b1', source: 'mobile_booking' },
   });
   expect(mockStripe.refunds.create).toHaveBeenCalled();
+});
+
+test('webhook success redeems the booking promo; a canceled intent releases it', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{ id: 'b1', status: 'pending' }] }).mockResolvedValue({ rows: [] });
+  await svc.applyBookingIntentWebhook('payment_intent.succeeded', {
+    id: 'pi_b', amount: 1500, metadata: { booking_request_id: 'b1', source: 'mobile_booking' },
+  });
+  expect(String(mockQuery.mock.calls[1][0])).toMatch(/SET status = 'redeemed'/);
+  expect(mockQuery.mock.calls[1][1]).toEqual(['booking', null, 'pi_b']);
+
+  mockQuery.mockClear();
+  await svc.applyBookingIntentWebhook('payment_intent.canceled', {
+    id: 'pi_b', metadata: { booking_request_id: 'b1', source: 'mobile_booking' },
+  });
+  expect(String(mockQuery.mock.calls[1][0])).toMatch(/SET status = 'reversed'/);
+  expect(mockQuery.mock.calls[1][1]).toEqual(['booking', null, 'pi_b', 'intent_canceled']);
+
+  mockQuery.mockClear();
+  await svc.applyBookingIntentWebhook('payment_intent.payment_failed', {
+    id: 'pi_b', metadata: { booking_request_id: 'b1', source: 'mobile_booking' },
+  });
+  expect(mockQuery.mock.calls.some(([sql]) => /promo_redemptions/.test(String(sql)))).toBe(false);
 });
 
 test('non-booking intents are not claimed', async () => {

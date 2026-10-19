@@ -230,6 +230,11 @@ async function settlePaymentRefund(reservation, providerRefund) {
       after: { amount_cents: Number(attempt.amount_cents), cumulative_refunded_amount_cents: nextRefundedCents,
         refund_id: providerRefund.id, reason: attempt.reason, reverse_application_fee: attempt.reverse_application_fee },
     });
+    // Decision 2: a full refund reverses the job's platform-funded promo.
+    if (fullyRefunded && payment.stripe_payment_intent_id) {
+      await require('./promoRedemptionService').reversePromo(client, {
+        surface: 'job', providerReference: payment.stripe_payment_intent_id, reason: 'payment_refunded' });
+    }
     await client.query(
       `INSERT INTO platform_ledger (user_id, source_type, amount_cents, description, metadata)
        VALUES (NULL, 'payment_refunded', $1, $2, $3)`,
@@ -290,6 +295,10 @@ async function settlePaymentVoid(reservation, intent) {
         RETURNING *`,
       [attempt.payment_id, attempt.reason]
     );
+    if (updatedPayment?.stripe_payment_intent_id) {
+      await require('./promoRedemptionService').reversePromo(client, {
+        surface: 'job', providerReference: updatedPayment.stripe_payment_intent_id, reason: 'payment_voided' });
+    }
     await logAdminAction({
       client, adminId: attempt.actor_user_id,
       action: 'void_payment',

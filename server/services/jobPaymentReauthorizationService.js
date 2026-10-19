@@ -91,7 +91,10 @@ async function feesFor(client, payment, amount) {
  */
 async function netFeesFor(client, payment, target) {
   const meta = parseJson(payment?.metadata);
-  const appliedCredit = cents(meta.applied_credit_cents ?? meta.appliedCreditCents) || 0;
+  // Referral credit and a platform promo code (decision 2) are both funded
+  // from the platform fee; preserve both.
+  const appliedCredit = (cents(meta.applied_credit_cents ?? meta.appliedCreditCents) || 0)
+    + (cents(meta.promo_discount_cents) || 0);
   const gross = (cents(target) || 0) + appliedCredit;
   const fees = await feesFor(client, payment, gross);
   return {
@@ -389,6 +392,11 @@ async function finalizeAuthorizedInTransaction(client, attempt, intent, { job, p
       JSON.stringify({ ...nextMeta, platform_fee_cents: fees.platform_fee_cents }),
       model === 'platform_hold' ? null : new Date(Date.now() + windowDays * 86_400_000)]
   );
+  // The promo reservation follows the payment to its replacement intent.
+  await client.query(
+    `UPDATE promo_redemptions SET provider_reference = $2
+      WHERE surface = 'job' AND provider_reference = $1 AND status <> 'reversed'`,
+    [lockedPayment.stripe_payment_intent_id, intent.id]);
   const { rows: updated } = await client.query(
     `UPDATE job_payment_reauthorizations
         SET status = 'authorized', completed_at = NOW(), failure_code = NULL, failure_message = NULL,

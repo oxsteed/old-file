@@ -32,6 +32,7 @@ const { applyChargeRefund, verifiedChargeRefundTotal } = require('../services/pa
 const stripeWebhookContract = require('../config/stripeWebhookContract');
 const businessInvoiceStripeConnectService = require('../services/businessInvoiceStripeConnectService');
 const creditLedger = require('../services/referralCreditLedger');
+const promoRedemption = require('../services/promoRedemptionService');
 const { toLocalSubscriptionStatus } = require('../utils/subscriptionStatus');
 const jobPaymentReauth = require('../services/jobPaymentReauthorizationService');
 const paymentRailWebhooks = require('../services/paymentRails/webhooks');
@@ -333,6 +334,11 @@ async function applyFoodOrderPaymentState(client, {
     [paymentStatus, stripePaymentIntentId, orderId]
   );
   const order = rows[0] || null;
+  if (order && order.payment_status === 'paid') {
+    await promoRedemption.markRedeemed(client, { surface: 'food', referenceId: order.id });
+  } else if (order && order.payment_status === 'refunded') {
+    await promoRedemption.reversePromo(client, { surface: 'food', referenceId: order.id, reason: 'order_refunded' });
+  }
   if (order) emitFoodOrderUpdate(order);
   return order;
 }
@@ -1162,6 +1168,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
               [pi.id]
             );
             const pay = payRows[0];
+            if (pay) await promoRedemption.markRedeemed(client, { surface: 'job', providerReference: pi.id });
             const appliedCents = Number(pay?.metadata?.applied_credit_cents ?? pay?.metadata?.appliedCreditCents ?? 0);
             if (pay && appliedCents > 0) {
               // No-op when the reservation was made at intent creation.
@@ -1299,6 +1306,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             const meta = typeof payment.metadata === 'string'
               ? JSON.parse(payment.metadata || '{}')
               : (payment.metadata || {});
+            await promoRedemption.markRedeemed(client, { surface: 'job', providerReference: pi.id });
             const appliedCents = Number(meta?.applied_credit_cents ?? meta?.appliedCreditCents ?? 0);
             if (appliedCents > 0) {
               await creditLedger.applyCreditToPayment(client, {
@@ -1447,6 +1455,8 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             for (const row of endedPayments) {
               await creditLedger.releaseCreditForPayment(client, { paymentId: row.id, reason: 'payment_intent_failed' });
             }
+            // Decision 2: release the promo reserved for this intent.
+            if (endedPayments.length) await promoRedemption.reversePromo(client, { surface: 'job', providerReference: pi.id, reason: 'payment_intent_failed' });
             return endedPayments;
           });
           // Re-open escrow on the job so client can retry (unless this intent
@@ -1516,6 +1526,8 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             for (const row of endedPayments) {
               await creditLedger.releaseCreditForPayment(client, { paymentId: row.id, reason: 'payment_intent_canceled' });
             }
+            // Decision 2: release the promo reserved for this intent.
+            if (endedPayments.length) await promoRedemption.reversePromo(client, { surface: 'job', providerReference: pi.id, reason: 'payment_intent_canceled' });
             return endedPayments;
           });
           // An intent superseded by a change-order re-authorization no longer

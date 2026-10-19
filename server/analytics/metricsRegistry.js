@@ -173,6 +173,13 @@ const METRICS = Object.freeze({
     owner: 'platform/finance',
     notes: 'Replaces the hardcoded 0 on the super-admin dashboard. Net of refunds, floored at 0 per payment.',
   }),
+  promo_discount_cents: Object.freeze({
+    name: 'promo_discount_cents',
+    definition: `SUM(discount_cents) FROM promo_redemptions WHERE status = 'redeemed' AND redeemed_at in the period, grouped by currency`,
+    dimensions: ['period'],
+    owner: 'platform/growth',
+    notes: 'Checkout promo codes (decision 2). Reserved and reversed (refunded/cancelled) redemptions are excluded; platform_funded_cents splits jobs/bookings from restaurant-funded food.',
+  }),
   // Restaurant-scoped metrics (Phase 2, Item 10). The registry holds the
   // canonical DEFINITION; the computation lives exactly once in
   // server/analytics/restaurantAnalytics.js (never inline in controllers).

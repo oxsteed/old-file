@@ -83,6 +83,7 @@ const METRIC_SYNONYMS = Object.freeze({
   consulting_avg_nps: ['consulting nps'],
   mrr_cents: ['monthly recurring revenue', 'mrr'],
   escrow_held_cents: ['escrow held', 'escrow'],
+  promo_discount_cents: ['promo discounts', 'promo code discounts', 'promo redemptions'],
   restaurant_repeat_order_rate: ['repeat order rate', 'repeat order'],
   restaurant_top_items_revenue: ['top menu items revenue', 'top items revenue', 'top menu items', 'top items'],
 });
@@ -115,6 +116,7 @@ const DIMENSION_ALLOWLIST = Object.freeze({
   consulting_avg_nps: Object.freeze([]),
   mrr_cents: Object.freeze([]),
   escrow_held_cents: Object.freeze([]),
+  promo_discount_cents: Object.freeze([]),
   restaurant_repeat_order_rate: Object.freeze(['restaurant']),
   restaurant_top_items_revenue: Object.freeze(['restaurant']),
 });
@@ -312,6 +314,7 @@ const METRIC_LABELS = Object.freeze({
   consulting_avg_nps: 'Consulting average NPS',
   mrr_cents: 'MRR',
   escrow_held_cents: 'Escrow held',
+  promo_discount_cents: 'Promo discounts',
   restaurant_repeat_order_rate: 'Restaurant repeat order rate',
   restaurant_top_items_revenue: 'Restaurant top items revenue',
 });

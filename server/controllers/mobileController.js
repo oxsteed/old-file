@@ -1,5 +1,6 @@
 const pool = require('../db');
 const AppError = require('../utils/appError');
+const promoRedemption = require('../services/promoRedemptionService');
 const {
   isInvoicePayer,
   stripeInvoiceCurrency,
@@ -607,66 +608,133 @@ exports.createBookingPaymentIntent = async (req, res, next) => {
       });
     }
 
-    // Keep an active intent stable so retries cannot replace the amount or
-    // leave an older client holding a second payable intent.
-    if (booking.stripe_payment_intent_id && ['requires_payment', 'processing'].includes(booking.payment_status)) {
-      const existingIntent = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id);
-      const existingAmountCents = Number(existingIntent.amount);
-      if (existingAmountCents === amountCents
-        && String(booking.payment_requirement || 'deposit') === paymentRequirement
-        && !['succeeded', 'canceled'].includes(existingIntent.status)) {
-        return res.json({
-          success: true,
-          data: {
-            bookingId: booking.id,
-            clientSecret: existingIntent.client_secret,
-            paymentIntentId: existingIntent.id,
-            amountCents: existingAmountCents,
-            paymentRequirement,
-            publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
-          },
-        });
+    const promoCode = normalizeString(req.body.promoCode || req.body.promo_code, 64);
+    const client = await pool.connect();
+    let committed = false;
+    try {
+      await client.query('BEGIN');
+      const { rows: [locked] } = await client.query(
+        'SELECT id, payment_status, stripe_payment_intent_id, payment_requirement FROM booking_requests WHERE id = $1 FOR UPDATE',
+        [booking.id]);
+      if (!locked || locked.payment_status === 'paid') {
+        throw new AppError('Booking is already paid', 409, 'booking_already_paid');
       }
-      if (!['succeeded', 'canceled'].includes(existingIntent.status)) {
-        throw new AppError('An active payment already exists for this booking', 409, 'payment_already_in_progress');
+
+      // Decision 2: a platform promo code is platform-funded on bookings (the
+      // platform collects booking payments itself). The customer is charged
+      // the net; the booking keeps its gross value for the helper. One live
+      // reservation per booking: an abandoned attempt's reservation is
+      // released here (rolled back with everything else if this call fails).
+      const promoKey = promoCode
+        ? `booking:${booking.id}:${paymentRequirement}:${amountCents}:${promoCode.toUpperCase()}:promo`
+        : null;
+      await client.query(
+        `WITH released AS (
+           UPDATE promo_redemptions SET status = 'reversed', reversed_at = NOW(), reversal_reason = 'checkout_replaced'
+            WHERE surface = 'booking' AND reference_id = $1 AND status = 'reserved'
+              AND idempotency_key IS DISTINCT FROM $2
+            RETURNING discount_code_id)
+         UPDATE discount_codes d SET usage_count = GREATEST(0, COALESCE(d.usage_count, 0) - r.n), updated_at = NOW()
+           FROM (SELECT discount_code_id, COUNT(*)::INT AS n FROM released GROUP BY 1) r
+          WHERE d.id = r.discount_code_id`,
+        [String(booking.id), promoKey]);
+      let promo = null;
+      if (promoCode) {
+        try {
+          promo = await promoRedemption.reservePromo(client, {
+            code: promoCode, userId: req.user.id, surface: 'booking', referenceId: booking.id,
+            currency: 'USD', grossCents: amountCents, fundableCents: Math.max(0, amountCents - 50),
+            idempotencyKey: promoKey,
+          });
+        } catch (promoErr) {
+          if (promoErr.code === '23505') throw new AppError('A promo is already applied to this booking', 409, 'promo_in_use');
+          throw promoErr;
+        }
       }
+      const promoDiscountCents = promo ? promo.discountCents : 0;
+      const chargeCents = amountCents - promoDiscountCents;
+
+      // Keep an active intent stable so retries cannot replace the amount or
+      // leave an older client holding a second payable intent.
+      if (locked.stripe_payment_intent_id && ['requires_payment', 'processing'].includes(locked.payment_status)) {
+        const existingIntent = await stripe.paymentIntents.retrieve(locked.stripe_payment_intent_id);
+        const existingAmountCents = Number(existingIntent.amount);
+        if (existingAmountCents === chargeCents
+          && String(locked.payment_requirement || 'deposit') === paymentRequirement
+          && !['succeeded', 'canceled'].includes(existingIntent.status)) {
+          await client.query('COMMIT');
+          committed = true;
+          return res.json({
+            success: true,
+            data: {
+              bookingId: booking.id,
+              clientSecret: existingIntent.client_secret,
+              paymentIntentId: existingIntent.id,
+              amountCents: existingAmountCents,
+              grossAmountCents: amountCents,
+              promoDiscountCents,
+              paymentRequirement,
+              publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+            },
+          });
+        }
+        if (!['succeeded', 'canceled'].includes(existingIntent.status)) {
+          throw new AppError('An active payment already exists for this booking', 409, 'payment_already_in_progress');
+        }
+      }
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: chargeCents,
+        currency: 'usd',
+        receipt_email: req.user.email || undefined,
+        metadata: {
+          booking_request_id: String(booking.id),
+          customer_id: String(req.user.id),
+          helper_id: String(booking.helper_id),
+          payment_requirement: paymentRequirement,
+          source: 'mobile_booking',
+          gross_amount_cents: String(amountCents),
+          promo_discount_cents: String(promoDiscountCents),
+          promo_redemption_id: promo ? String(promo.redemption.id) : '',
+        },
+      });
+      if (promo) {
+        await promoRedemption.attachProviderReference(client, promo.redemption.id, paymentIntent.id);
+      }
+
+      await client.query(
+        `UPDATE booking_requests
+            SET payment_requirement = $1,
+                payment_amount_cents = $2,
+                payment_status = 'requires_payment',
+                stripe_payment_intent_id = $3,
+                gross_amount_cents = $5,
+                promo_discount_cents = $6,
+                updated_at = CURRENT_TIMESTAMP
+          WHERE id = $4`,
+        [paymentRequirement, chargeCents, paymentIntent.id, booking.id, amountCents, promoDiscountCents]
+      );
+      await client.query('COMMIT');
+      committed = true;
+
+      res.json({
+        success: true,
+        data: {
+          bookingId: booking.id,
+          clientSecret: paymentIntent.client_secret,
+          paymentIntentId: paymentIntent.id,
+          amountCents: chargeCents,
+          grossAmountCents: amountCents,
+          promoDiscountCents,
+          promoLimited: promo ? Boolean(promo.limited) : false,
+          paymentRequirement,
+          publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+        },
+      });
+    } finally {
+      if (!committed) await client.query('ROLLBACK').catch(() => {});
+      client.release();
     }
-
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amountCents,
-      currency: 'usd',
-      receipt_email: req.user.email || undefined,
-      metadata: {
-        booking_request_id: String(booking.id),
-        customer_id: String(req.user.id),
-        helper_id: String(booking.helper_id),
-        payment_requirement: paymentRequirement,
-        source: 'mobile_booking',
-      },
-    });
-
-    await pool.query(
-      `UPDATE booking_requests
-          SET payment_requirement = $1,
-              payment_amount_cents = $2,
-              payment_status = 'requires_payment',
-              stripe_payment_intent_id = $3,
-              updated_at = CURRENT_TIMESTAMP
-        WHERE id = $4`,
-      [paymentRequirement, amountCents, paymentIntent.id, booking.id]
-    );
-
-    res.json({
-      success: true,
-      data: {
-        bookingId: booking.id,
-        clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id,
-        amountCents,
-        paymentRequirement,
-        publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
-      },
-    });
   } catch (err) {
     next(err);
   }
@@ -725,6 +793,7 @@ exports.confirmBookingPayment = async (req, res, next) => {
         RETURNING *`,
       [paymentIntent.amount_received || paymentIntent.amount || 0, paymentIntentId, booking.id]
     );
+    await promoRedemption.markRedeemed(pool, { surface: 'booking', providerReference: paymentIntentId });
 
     res.json({ success: true, data: { booking: rows[0], paymentIntentId, status: 'paid' } });
   } catch (err) {

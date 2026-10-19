@@ -19,6 +19,7 @@ const METRIC_PERMISSIONS = Object.freeze({
   investor_take_rate_pct: 'view_financials',
   mrr_cents: 'view_financials',
   escrow_held_cents: 'view_financials',
+  promo_discount_cents: 'view_financials',
   consulting_cancel_rate_pct: 'manage_operations',
   consulting_avg_nps: 'manage_operations',
   sla_first_response_compliance_pct: 'manage_support',

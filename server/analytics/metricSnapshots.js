@@ -35,6 +35,7 @@ const VALUE_COLUMNS = Object.freeze({
   investor_take_rate_pct: 'take_rate_pct',
   mrr_cents: 'mrr_cents',
   escrow_held_cents: 'escrow_held_cents',
+  promo_discount_cents: 'promo_discount_cents',
   cancel_rate_pct: 'cancel_rate_pct',
   consulting_cancel_rate_pct: 'cancel_rate_pct',
   sla_first_response_compliance_pct: 'compliance_pct',

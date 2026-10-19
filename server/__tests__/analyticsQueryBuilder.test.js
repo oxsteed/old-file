@@ -181,11 +181,12 @@ describe('validateBuilderQuery', () => {
       consulting_avg_nps: [],
       mrr_cents: [],
       escrow_held_cents: [],
+      promo_discount_cents: [],
       restaurant_repeat_order_rate: ['restaurant'],
       restaurant_top_items_revenue: ['restaurant'],
     });
     const meta = getBuilderMeta();
-    expect(meta.metrics).toHaveLength(17);
+    expect(meta.metrics).toHaveLength(18);
     expect(meta.rowCap).toBe(10000);
     const byName = Object.fromEntries(meta.metrics.map((m) => [m.name, m]));
     expect(byName.cancel_rate_pct.dimensions).toEqual(['role']);
@@ -515,7 +516,7 @@ describeDb('query builder routes', () => {
   test('admin gets meta and can run a query', async () => {
     const metaRes = await request(app).get('/api/admin/analytics/query-builder/meta')
       .set(adminHeaders).expect(200);
-    expect(metaRes.body.metrics).toHaveLength(17);
+    expect(metaRes.body.metrics).toHaveLength(18);
     const runRes = await request(app).post('/api/admin/analytics/query-builder/run')
       .set(adminHeaders).send({ metric: 'open_disputes' }).expect(200);
     expect(runRes.body.rows).toEqual([{ value: 2 }]);

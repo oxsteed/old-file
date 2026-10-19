@@ -9,6 +9,7 @@ const creditLedger = require('../services/referralCreditLedger');
 const stripeRail = require('../services/paymentRails/stripeRail');
 const chargeModel = require('../services/stripeChargeModel');
 const { applyPlatformFundedDiscount } = require('../utils/feeCalculator');
+const promoRedemption = require('../services/promoRedemptionService');
 const { currencyExponent } = require('../validation/money');
 const {
   withTransaction,
@@ -393,14 +394,16 @@ exports.createPaymentIntent = async (req, res, next) => {
       // the platform never goes negative funding a discount), and the
       // customer charge never drops below the $0.50 Stripe minimum.
       const fees = await stripeRail.feesFor(client, plan, rawJobValueCents);
-      const discount = applyPlatformFundedDiscount({
+      let discount = applyPlatformFundedDiscount({
         rawJobValueCents,
         availableCreditCents,
         platformFeeCents: fees.platform_fee_cents,
         applicationFeeCents: fees.application_fee_cents,
       });
-      const appliedCreditCents = discount.appliedCreditCents;
-      const jobValueCents = discount.chargeCents;
+      let appliedCreditCents = discount.appliedCreditCents;
+      let jobValueCents = discount.chargeCents;
+      let promoDiscountCents = 0;
+      let promoReservation = null;
 
       // Check for existing payment to prevent duplicates (idempotency).
       // We must return the actual `client_secret` from Stripe — not the PaymentIntent
@@ -453,6 +456,35 @@ exports.createPaymentIntent = async (req, res, next) => {
       const paymentAttempt = Number(attemptResult.rows[0]?.attempt_count || 0) + 1;
       const paymentIdempotencyKey = `job-payment:${job_id}:${paymentAttempt}`;
 
+      // Decision 2: a platform promo code is applied before referral credit
+      // and funded from the same platform fee (P2-6-F09), so the helper's net
+      // is unchanged; together they never exceed the fee or push the charge
+      // below the Stripe minimum. The reservation shares this transaction.
+      const promoCode = req.body.promo_code || req.body.promoCode;
+      if (promoCode) {
+        const fundable = Math.min(fees.platform_fee_cents, fees.application_fee_cents, Math.max(0, rawJobValueCents - 50));
+        try {
+          promoReservation = await promoRedemption.reservePromo(client, {
+            code: promoCode, userId: req.user.id, surface: 'job', referenceId: job_id,
+            currency: plan.currency, grossCents: rawJobValueCents, fundableCents: fundable,
+            idempotencyKey: `${paymentIdempotencyKey}:promo`,
+          });
+        } catch (promoErr) {
+          if (promoErr.code === '23505') throw new AppError('A promo code is already applied to this job payment', 409, 'promo_in_use');
+          throw promoErr;
+        }
+        promoDiscountCents = promoReservation.discountCents;
+        const afterPromo = applyPlatformFundedDiscount({
+          rawJobValueCents: rawJobValueCents - promoDiscountCents,
+          availableCreditCents,
+          platformFeeCents: fees.platform_fee_cents - promoDiscountCents,
+          applicationFeeCents: fees.application_fee_cents - promoDiscountCents,
+        });
+        discount = afterPromo;
+        appliedCreditCents = afterPromo.appliedCreditCents;
+        jobValueCents = afterPromo.chargeCents;
+      }
+
       // Direct charge on helper's connected account
       // Retries and concurrent browser requests for one job must resolve to the
       // same Stripe intent rather than creating multiple authorizations.
@@ -471,7 +503,8 @@ exports.createPaymentIntent = async (req, res, next) => {
           // Net platform take after funding the discount; the gross fee is
           // kept alongside for audit.
           platform_fee_cents: discount.applicationFeeCents.toString(),
-          gross_platform_fee_cents: fees.platform_fee_cents.toString()
+          gross_platform_fee_cents: fees.platform_fee_cents.toString(),
+          ...(promoDiscountCents > 0 ? { promo_discount_cents: String(promoDiscountCents), promo_redemption_id: String(promoReservation.redemption.id) } : {})
         }
       });
       if (plan.model === 'direct' && !plan.feeCountry) delete built.params.metadata.charge_model;
@@ -499,7 +532,10 @@ exports.createPaymentIntent = async (req, res, next) => {
           appliedCreditCents: appliedCreditCents,
           platform_fee_cents: discount.applicationFeeCents,
           gross_platform_fee_cents: fees.platform_fee_cents,
-          applied_credit_cents: appliedCreditCents
+          applied_credit_cents: appliedCreditCents,
+          promo_discount_cents: promoDiscountCents,
+          promo_redemption_id: promoReservation ? String(promoReservation.redemption.id) : null,
+          promo_funded_by: promoDiscountCents > 0 ? 'platform' : null
         }), plan.currency.toLowerCase(), plan.model, plan.model === 'direct' ? null : freshConnect.stripe_account_id, plan.feeCountry]));
         // Audit fix: payment starts as 'pending', not 'authorized'. The
         // webhook (payment_intent.amount_capturable_updated) marks it
@@ -526,6 +562,9 @@ exports.createPaymentIntent = async (req, res, next) => {
         throw new AppError('Failed to save payment intent to database', 500, 'payment_save_failed');
       }
 
+      if (promoReservation) {
+        await promoRedemption.attachProviderReference(client, promoReservation.redemption.id, paymentIntent.id);
+      }
       // Review P2-571: reserve the credit now, under the same advisory lock
       // that read the balance, so concurrent intents cannot spend it twice.
       // It is returned if the intent fails or is cancelled.
@@ -574,7 +613,9 @@ exports.createPaymentIntent = async (req, res, next) => {
         replay: false,
         paymentIntent,
         appliedCreditCents,
-        jobValueCents
+        jobValueCents,
+        promoDiscountCents,
+        promoLimited: Boolean(promoReservation?.limited)
       };
     }, 'payment_create_intent');
     if (intentResult.replay) {
@@ -591,7 +632,11 @@ exports.createPaymentIntent = async (req, res, next) => {
       charge_model: plan.model,
       currency: plan.currency,
       applied_credit_cents: appliedCreditCents,
-      applied_credit_dollars: (appliedCreditCents / 100).toFixed(2)
+      applied_credit_dollars: (appliedCreditCents / 100).toFixed(2),
+      promo_discount_cents: intentResult.promoDiscountCents || 0,
+      promo_limited: Boolean(intentResult.promoLimited),
+      amount_cents: intentResult.jobValueCents,
+      gross_amount_cents: rawJobValueCents
     });
   } catch (err) {
     next(err);

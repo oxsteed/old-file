@@ -117,6 +117,7 @@ const BUILDER_DIMENSIONS = Object.freeze({
   consulting_avg_nps: Object.freeze([]),
   mrr_cents: Object.freeze([]),
   escrow_held_cents: Object.freeze([]),
+  promo_discount_cents: Object.freeze([]),
   restaurant_repeat_order_rate: Object.freeze(['restaurant']),
   restaurant_top_items_revenue: Object.freeze(['restaurant']),
 });
@@ -137,6 +138,7 @@ const BUILDER_FILTERS = Object.freeze({
   consulting_avg_nps: Object.freeze([]),
   mrr_cents: Object.freeze([]),
   escrow_held_cents: Object.freeze([]),
+  promo_discount_cents: Object.freeze([]),
   restaurant_repeat_order_rate: Object.freeze(['restaurantId']),
   restaurant_top_items_revenue: Object.freeze(['restaurantId']),
 });
@@ -168,6 +170,7 @@ const METRIC_UNITS = Object.freeze({
   support_nps_index: 'index',
   consulting_avg_nps: 'average',
   mrr_cents: 'cents',
+  promo_discount_cents: 'cents',
   escrow_held_cents: 'cents',
   restaurant_repeat_order_rate: 'ratio',
   restaurant_top_items_revenue: 'cents',

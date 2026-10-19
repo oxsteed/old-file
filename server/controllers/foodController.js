@@ -1,6 +1,7 @@
 'use strict';
 
 const pool = require('../db');
+const promoRedemption = require('../services/promoRedemptionService');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const socketService = require('../services/socketService');
@@ -658,6 +659,7 @@ function parseTipCents(value, subtotalCents, field = 'tipCents') {
   return tipCents;
 }
 exports.parseTipCents = parseTipCents;
+exports.resolveFoodPromotionDiscount = resolveFoodPromotionDiscount;
 // Agent/admin consoles refund card orders through the same idempotency-keyed
 // Stripe path as the kitchen (food-order:<id>:refund), so paths dedupe.
 exports.refundFoodOrderCardPayment = (client, { order, createdByUserId = null, status = 'refunded', destinationCharge = false }) =>
@@ -801,7 +803,7 @@ function distanceMeters(lat1, lng1, lat2, lng2) {
   return 2 * earthRadiusMeters * Math.asin(Math.sqrt(a));
 }
 
-async function resolveFoodPromotionDiscount(client, restaurantId, code, subtotalCents) {
+async function resolveFoodPromotionDiscount(client, restaurantId, code, subtotalCents, ctx = {}) {
   const normalized = normalizeString(code, 40);
   if (!normalized) return { discountCents: 0, metadata: null, promotionId: null };
   try {
@@ -819,44 +821,32 @@ async function resolveFoodPromotionDiscount(client, restaurantId, code, subtotal
     );
     let promo = rows[0];
     if (!promo) {
-      const global = await client.query(
-        `SELECT id, code, description AS title, discount_type, discount_amount,
-                max_discount_cents, min_order_cents
-           FROM discount_codes
-          WHERE UPPER(code) = UPPER($1)
-            AND status = 'active'
-            AND (start_date IS NULL OR start_date <= NOW())
-            AND (end_date IS NULL OR end_date >= NOW())
-            AND (usage_limit IS NULL OR usage_count < usage_limit)
-          LIMIT 1`,
-        [normalized]
-      );
-      promo = global.rows[0];
-      if (!promo) return { discountCents: 0, metadata: null, promotionId: null };
-      if (subtotalCents < Number(promo.min_order_cents || 0)) {
-        throw new AppError('Validation failed', 400, 'validation_failed', {
-          discountCode: `Minimum subtotal not met for promotion ${normalized}`,
+      // Platform codes (discount_codes) go through the shared promo engine:
+      // expiry, surface, currency, minimum order and global/per-user limits
+      // (decision 2). Food keeps its existing funding model: the discount is
+      // an order discount the restaurant receives net of. An unknown code is
+      // ignored as before; any other rejection is surfaced to the customer.
+      if (subtotalCents <= 0) return { discountCents: 0, metadata: null, promotionId: null };
+      let evaluation;
+      try {
+        evaluation = await promoRedemption.evaluatePromo(client, {
+          code: normalized, userId: ctx.userId || null, surface: 'food', currency: ctx.currency || 'USD',
+          grossCents: subtotalCents, fundableCents: subtotalCents,
         });
+      } catch (promoErr) {
+        if (promoErr.code === 'promo_invalid') return { discountCents: 0, metadata: null, promotionId: null };
+        throw promoErr;
       }
-      let discountCents = 0;
-      if (promo.discount_type === 'percentage') {
-        discountCents = Math.round(subtotalCents * Number(promo.discount_amount || 0) / 100);
-        if (promo.max_discount_cents != null) {
-          discountCents = Math.min(discountCents, Number(promo.max_discount_cents || 0));
-        }
-      } else {
-        discountCents = Number(promo.discount_amount || 0);
-      }
-      discountCents = Math.min(subtotalCents, Math.max(0, discountCents));
       return {
-        discountCents,
+        discountCents: evaluation.discountCents,
         promotionId: null,
         metadata: {
-          code: promo.code,
-          label: promo.title || promo.description || promo.code,
-          amountCents: discountCents,
-          discountCodeId: promo.id,
+          code: evaluation.code,
+          label: evaluation.label,
+          amountCents: evaluation.discountCents,
+          discountCodeId: evaluation.promo.id,
           source: 'discount_codes',
+          fundedBy: evaluation.fundedBy,
         },
       };
     }
@@ -2703,7 +2693,8 @@ exports.quoteOrder = async (req, res, next) => {
     const discountCode = normalizeString(req.body.discountCode || req.body.discount_code, 40);
     let discount = null;
     if (discountCode) {
-      const promoResult = await resolveFoodPromotionDiscount(pool, restaurantId, discountCode, subtotalCents);
+      const promoResult = await resolveFoodPromotionDiscount(pool, restaurantId, discountCode, subtotalCents,
+        { userId: req.user?.id || null, currency: normalizeCurrency(restaurant.currency_code) });
       discountCents = promoResult.discountCents;
       discount = promoResult.metadata;
     }
@@ -3282,7 +3273,8 @@ exports.createOrder = async (req, res, next) => {
       let promotionId = null;
       let discountSourceMetadata = null;
       if (discountCode) {
-        const promoResult = await resolveFoodPromotionDiscount(client, restaurantId, discountCode, subtotal);
+        const promoResult = await resolveFoodPromotionDiscount(client, restaurantId, discountCode, subtotal,
+          { userId: req.user?.id || null, currency: normalizeCurrency(restaurant.currency_code) });
         if (promoResult.discountCents > 0) {
           discount = promoResult.discountCents;
           discountLabel = promoResult.metadata?.label || discountLabel;
@@ -3783,12 +3775,19 @@ exports.createOrder = async (req, res, next) => {
           [promotionId, restaurantId]
         );
       } else if (discountMetadata?.discountCodeId) {
-        await client.query(
-          `UPDATE discount_codes
-              SET usage_count = usage_count + 1, updated_at = NOW()
-            WHERE id = $1`,
-          [discountMetadata.discountCodeId]
-        );
+        // Atomic redemption in the order transaction (re-validated under a
+        // row lock, so a code that hit its limit meanwhile rolls the order back).
+        const reservation = await promoRedemption.reservePromo(client, {
+          code: discountMetadata.code, userId: req.user?.id || null, surface: 'food', referenceId: created.id,
+          currency: normalizeCurrency(restaurant.currency_code), grossCents: subtotal, fundableCents: subtotal,
+          idempotencyKey: `food-order:${created.id}:promo`,
+        });
+        if (reservation.discountCents !== Number(discountMetadata.amountCents)) {
+          throw new AppError('The promo discount changed; review your order again', 409, 'promo_changed');
+        }
+        if (created.payment_status === 'paid') {
+          await promoRedemption.markRedeemed(client, { surface: 'food', referenceId: created.id });
+        }
       }
 
       if (loyaltyPointsRedeemed > 0 && loyaltyAccountId) {
@@ -4517,6 +4516,10 @@ exports.updateOrderStatus = async (req, res, next) => {
       const paymentMode = order.metadata && typeof order.metadata === 'object'
         ? order.metadata.paymentMode || order.metadata.payment_mode || null
         : null;
+      // Decision 2: a cancelled/refunded order releases its promo redemption.
+      if (['cancelled', 'refunded'].includes(status)) {
+        await promoRedemption.reversePromo(client, { surface: 'food', referenceId: order.id, reason: `order_${status}` });
+      }
       if (['cancelled', 'refunded'].includes(status) && paymentMode === 'oxsteed_credit') {
         await assertRestaurantPermission(
           restaurant,
@@ -4977,6 +4980,7 @@ exports.completeCheckout = async (req, res, next) => {
         [paymentIntentId, orderId]
       );
       updatedOrder = updatedRows[0] || order;
+      await promoRedemption.markRedeemed(pool, { surface: 'food', referenceId: orderId });
       emitRestaurantOrder(updatedOrder.business_id, 'food:order:updated', { order: updatedOrder });
       // P2-8-F08: the per-type payment_confirmed SMS had zero callers.
       // Fire-and-forget; opt-in checks and rate limits live in the service.

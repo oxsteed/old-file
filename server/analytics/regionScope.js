@@ -128,6 +128,13 @@ const ANCHORS = Object.freeze({
   support_conversation_reviews: { needs: ['users'], predicate: (ref) => userIn('t.customer_id', ref) },
   food_restaurants: { needs: [], predicate: (ref) => locationInRegionsSql(RESTAURANT_LOC('t'), ref) },
   food_orders: { needs: ['food_restaurants'], predicate: (ref) => restaurantIn('t.restaurant_id', ref) },
+  // Checkout promo redemptions (decision 2): jobs anchor on the job, food on
+  // the restaurant, bookings on the customer's address.
+  promo_redemptions: { needs: ['jobs', 'users', 'food_orders', 'food_restaurants'], predicate: (ref) =>
+    `CASE t.surface
+       WHEN 'job' THEN EXISTS (SELECT 1 FROM __rs_jobs __j WHERE __j.id::text = t.reference_id AND ${locationInRegionsSql(JOB_LOC('__j'), ref)})
+       WHEN 'food' THEN EXISTS (SELECT 1 FROM __rs_food_orders __o WHERE __o.id::text = t.reference_id AND ${restaurantIn('__o.restaurant_id', ref)})
+       ELSE ${userIn('t.user_id', ref)} END` },
   food_order_items: { needs: ['food_orders', 'food_restaurants'], predicate: (ref) =>
     `EXISTS (SELECT 1 FROM __rs_food_orders __o WHERE __o.id = t.order_id AND ${restaurantIn('__o.restaurant_id', ref)})` },
 });

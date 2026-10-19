@@ -79,6 +79,12 @@ const ALERTABLE_METRICS = Object.freeze({
         { interval: registry.PERIOD_INTERVAL[paramsForPeriod(params)].interval });
     },
   }),
+  promo_discount_cents: Object.freeze({
+    unit: 'cents',
+    params: ['period', 'currencyCode'],
+    compute: (db, params) => financialMetricValue(db, 'promo_discount_cents', params.currencyCode || 'USD',
+      { interval: registry.PERIOD_INTERVAL[paramsForPeriod(params)].interval }),
+  }),
   investor_take_rate_pct: Object.freeze({
     unit: 'pct',
     params: ['currencyCode'],
