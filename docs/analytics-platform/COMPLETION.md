@@ -1,9 +1,185 @@
-# Analytics scope: implementation checklist
+# Analytics scope: completion status
 
-> Historical review below. For the October 19 implementation checkpoint,
-> verification limits and remaining work, use
-> [the current handoff](./HANDOFF-2026-10-19.md). Unchecked items below describe
-> the earlier review and must not be read as a current implementation inventory.
+Status as of October 19, 2026 on branch `codex/analytics-remaining-implementation`
+(based on `old-files-claude` @ `4a89196a`, which includes PRs #605/#606/#607).
+Authoritative scope: [SCOPE.md](./SCOPE.md) (same text as the original "Power BI
+Capabilities: Codebase Scope Report"). The October 18 review that produced the
+checklist below is preserved at the end of this file for its evidence.
+
+Legend: **[x] done** in code with automated evidence; **[ops]** implemented but
+needs live/ops verification; **[defer]** deliberately not built, with reason.
+"Before" means merged in #605-#607 or the first branch commit `b40a6228`;
+"now" means the follow-up commits `72d604ad`, `005fd354`, `24692700`, `aa1c5361`.
+
+## Highest-priority corrections (Oct 18 review)
+
+- [x] Per-metric grants (`view_financials` etc.) rechecked at execution; catalog,
+  structured query, NL, export, evidence, history and alert CRUD/evaluation all
+  use `metricAccess.js`. Regional-only grants are denied for global metrics
+  (explicit global-or-deny). *Before (#607).*
+- [x] Fail-closed audit: results are not returned if the ledger insert fails;
+  READ ONLY / REPEATABLE READ transactions; append-only trigger (migration 892).
+  *Before (#607).* Error codes `metric_permission_required` /
+  `analytics_audit_unavailable` now map to localized copy in the builder. *Now.*
+- [x] Per-currency money with exact BIGINT strings and `moneyExact` /
+  `analyticsFormat` display; CSV formula neutralization. *Before (#607).*
+- [x] Take rate can no longer exceed 100% by construction: job-fee ledger
+  entries linked to priced completed jobs of the same currency / recorded value
+  of those jobs. *Before (#607).* Values over 100% now indicate a data anomaly
+  (fee above recorded price) and are shown, not clamped.
+- [x] Super-admin revenue period delta: the previous-period figure summed every
+  currency; it now comes from the registry USD account like the current figure
+  (parity test `metricsRegistryRevenueTakeRate.db.test.js`). *Now.*
+
+## Area 1: governed metrics
+
+- [x] Registry of 17 governed metrics; builder dimensions, alerts, permissions
+  and catalog derive from the same definitions. *Before: 16; now: +
+  `job_completion_rate_pct`.*
+- [x] Job completion rate is one definition (decided = completed + cancelled,
+  non-deleted, created in window) used by super-admin dashboard, investor
+  dashboard, builder, evidence and alerts. The investor dashboard previously used
+  an all-time rate and counted soft-deleted jobs. *Now* (parity test in
+  `analyticsOperationalMetrics.db.test.js`).
+- [x] Configurable CSAT target: server reads `settings.general.csat_target`
+  (default 80 only when unset/invalid). *Before.* The client's `|| 80` is a
+  redundant display fallback, not a second definition.
+- [defer] Remaining NPS/SLA support-page cohorts differ from the registry; they
+  are documented, not linked to evidence, until the support pages adopt the
+  registry cohort (product sign-off needed on the cohort change).
+- [defer] QW5 daily snapshot pipeline (`agent_daily_performance`,
+  `business_daily_metrics`, `team_daily_performance`): endpoints are marked
+  deprecated; build-vs-delete is a product decision. Alert observations
+  (migration 893/897) provide the persistent history the alerts need.
+
+## Area 2: drill-through
+
+- [x] Evidence (underlying records + canonical per-currency summary) for all
+  17 builder metrics, URL-encoded, paginated, exportable, audited. *Before (16),
+  now (+1).*
+- [x] Super-admin Dashboard revenue-period and completion-rate cards link to
+  their evidence (`analyticsEvidenceHref`); open disputes and cancelled jobs
+  keep their parity-proven list links. *Now / before.*
+- [x] Deep links fail closed: an unpermitted metric shows "permission required"
+  without issuing a request; a malformed link shows "invalid link"; an aborted
+  restore is retried when the location is shown again; back/forward restores
+  evidence. Covered by `analyticsRemainder.browser-check.cjs`. *Now.*
+- [defer] Investor dashboard: investor-facing, so no admin builder links.
+- [defer] MoneyPage per-channel tiles, OperationsOverview incident counts and
+  Customer 360 timeline rows: these numbers are not registry metrics yet; links
+  are added only once KPI/evidence parity is provable.
+
+## Area 3: threshold alerts
+
+- [x] Dispute rate, refund rate, payout failure count, SLA compliance and job
+  completion rate are alertable (15 of 17 metrics; the two restaurant metrics
+  are per-restaurant). Previous-period % comparisons; observation history.
+  *Before (14) + now (+1).*
+- [x] `notify_payout_failures` / `notify_disputes` / `notify_incidents` and
+  `notify_metric_alerts` have readers in the evaluator. *Before.*
+- [x] Delivery safety: the fire is claimed transactionally (cooldown and rule
+  version checked in one UPDATE, `metric_alert_fires` row) before any channel
+  runs, so two workers or a crash after delivery cannot double-fire; a fire that
+  reaches no channel releases the cooldown. *Now* (migration 898).
+- [x] SMS crash recovery across buckets: a `sending` claim blocks new SMS for
+  the rule; claims stuck in `sending` for 10 minutes become `uncertain` and are
+  never auto-resent; provider rejection is `failed`. *Now.*
+- [x] Email-only with daily/weekly digest preference now queues a payload digest
+  row (migration 899) instead of being dropped; without a delivery key it falls
+  back to realtime email. *Now.*
+- [x] Retention: observations, fires and SMS claims pruned daily after
+  `METRIC_ALERT_HISTORY_RETENTION_DAYS` (default 400, 30-3650). *Now.*
+- [ops] Live email/SMS/push delivery, `METRIC_ALERTS_ENABLED=true`, worker
+  readiness, and review of existing rules affected by period-default changes.
+
+## Area 4: scope architecture
+
+- [x] `scopeModel` canonical resolver; restaurant pilot; business access
+  middleware converged onto `resolveBusinessAccess`. *Before (#606/#607).*
+- [x] Logistics country gate fails closed on error. *Before.*
+- [x] New analytics surfaces use the canonical resolvers (business invoice
+  analytics and Growth Center business performance are manager-gated through
+  `requireBusinessAccess`; helper performance is own-data only). *Now.*
+- [defer] ~470 inline business/membership filters: long-tail convergence,
+  domain by domain; no behavior change is safe without per-domain tests.
+- [defer] Region-aware row filtering: product/security decision. Current policy
+  is explicit global-or-deny.
+- [defer] One Truth analyst scope + Q3 O(n^2) pairing redesign: separate work.
+
+## Area 5: embedded analytics
+
+- [x] Helper earnings: currency accounts, monthly series, paginated jobs.
+  *Before (#607).*
+- [x] Business Hub analytics tab rebuilt on paid invoices per currency.
+  *Before (`b40a6228`).*
+- [x] Restaurant paid-order retention cohorts and currency-separated top items.
+  *Before (`b40a6228`).*
+- [x] Featured placements: deduped conversions, 7-day identified-user click
+  attribution, unpaid/cancelled/refunded excluded. *Before (`b40a6228`).*
+- [x] Growth Center (Promote) Performance tab is server-backed: every copied
+  tracked post/link/card/signature records a share; profile visits from tracked
+  links (`ref=growth_center`) are recorded once per device/source/campaign/UTC
+  day, excluding the owner and business team. Per source, medium and campaign;
+  7/30/90/365-day windows; 730-day retention. The per-browser localStorage
+  counter is removed. Visitor ids persist only with analytics-cookie consent
+  (otherwise per-tab). *Now* (migration 900).
+- [defer] Broadcast delivery/open analytics: `business_broadcasts` "send" only
+  marks a row sent; there is no delivery to measure. Needs a product decision
+  to build delivery first.
+- [defer] Promo-code redemption analytics: promo codes are never redeemed in
+  code. Same dependency.
+- [defer] Booking attribution for tracked profile links: visits are reach, not
+  conversions; tying anonymous visits to bookings needs an attribution policy.
+- [ops] Production `AFFILIATE_ENABLED`.
+
+## Area 6: governed query / NL
+
+- [x] Fixed-template builder, caps, timeout, ledger, history filtered by
+  current grants, admin-nav entry. *Before.*
+- [x] NL: deterministic parser + parse-attempt auditing; optional validated
+  JSON-only model fallback behind `ANALYTICS_NL_MODEL_ENABLED` (default false,
+  documented in `server/.env.example`). *Before (`b40a6228`) / now (env docs).*
+- [x] New metric aliases (`completion rate`, `job completion`). *Now.*
+- [ops] Enabling the model fallback needs provider, privacy (free-text
+  questions) and acceptance review.
+
+## Cross-cutting
+
+- [x] Legacy and namespaced catalogs in en/es/fr/ht/ar for every new key
+  (`verify:i18n`, i18n debt gates and duplicate-key checks green).
+- [x] Browser regressions (synthetic fixtures): `analyticsRemainder` and
+  `promotionPerformance` checks at 320/390/1360 px, en/fr/ar, light/dark, RTL.
+- [x] SOP: only the review manifest was re-baselined (it hashes `en.json`);
+  guide PDFs/screenshots were already current and were not regenerated.
+- [ops] Apply migrations 893-900 through the deployment workflow; repeat
+  authenticated admin/business flows with real sessions, including revoked
+  grants. No production migration or deployment was performed.
+
+## Migrations on this branch
+
+| # | Purpose |
+|---|---------|
+| 893-897 | Alert observations + SMS claims, audit event types, campaign dedupe, evidence audit type, observation definition snapshots (`b40a6228`) |
+| 898 | `metric_alert_fires`, SMS claim statuses `sending/sent/uncertain/failed` |
+| 899 | `email_digest_queue` payload rows (nullable `notification_id`, unique `delivery_key`) |
+| 900 | `promotion_link_events` (Growth Center shares/visits) |
+
+All additive. Exercised through the real migration runner on a disposable
+database; CI runs the migration rehearsal from 785.
+
+## Verification (local, October 19)
+
+- Touched server suites: 17 suites / 201 tests passed against the disposable
+  database (alerts, digest, notification wiring, query builder, operational
+  metrics, registry parity, promotion link analytics, NL, controllers).
+- Client: duplicate-key, i18n debt gates, `verify:i18n`, `typecheck`, `test:sop`,
+  production `build` and `verify:dist-assets` passed.
+- Browser checks passed (Chrome, synthetic API fixtures, not live sessions).
+- Remote CI: see the pull request.
+
+---
+
+## Historical review (October 18, 2026; superseded by the status above)
 
 Reviewed October 18, 2026 against `oxsteed/old-file`, default branch
 `old-files-claude`, commit `9c900efb95ec386e2b9b91b981ffab6deefa2e12`.
