@@ -62,9 +62,9 @@ describe('owner sees own unlisted business content through the real router', () 
         return Promise.resolve({ rows: [] });
       }
       // canAccessBusiness ownership check
-      if (sql.includes('SELECT b.id, b.user_id AS owner_id')) {
+      if (sql.includes('AS effective_role') && sql.includes('FROM businesses b')) {
         const ok = String(params[0]) === BIZ_ID && params[1] === OWNER_ID;
-        return Promise.resolve({ rows: ok ? [{ id: BIZ_ID, owner_id: OWNER_ID }] : [] });
+        return Promise.resolve({ rows: ok ? [{ id: BIZ_ID, effective_role: 'owner', owner_id: OWNER_ID }] : [] });
       }
       // Public visibility predicate: the business is unlisted.
       if (sql.includes('AND b.is_listed = TRUE')) return Promise.resolve({ rows: [] });

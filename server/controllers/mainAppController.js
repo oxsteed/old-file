@@ -2731,92 +2731,14 @@ exports.getReceivedReviews = async (req, res, next) => {
 
 exports.getHelperEarningsDashboard = async (req, res, next) => {
   try {
-    const userId = req.user.id;
-    const [summaryResult, jobsResult, weeklyResult, monthlyResult, payoutResult] = await Promise.all([
-      pool.query(
-        `SELECT COALESCE(SUM(COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0)), 0)::bigint AS lifetime_cents,
-                COALESCE(SUM(CASE WHEN completed_at >= date_trunc('week', NOW()) THEN COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0) ELSE 0 END), 0)::bigint AS week_cents,
-                COALESCE(SUM(CASE WHEN completed_at >= date_trunc('month', NOW()) THEN COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0) ELSE 0 END), 0)::bigint AS month_cents,
-                COUNT(*)::int AS completed_jobs,
-                COALESCE(MAX(currency_code), 'USD') AS currency_code
-           FROM jobs
-          WHERE assigned_helper_id = $1
-            AND status = 'completed'`,
-        [userId]
-      ),
-      pool.query(
-        `SELECT id, title, completed_at,
-                COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0)::bigint AS amount_cents,
-                currency_code, payout_status
-           FROM jobs
-          WHERE assigned_helper_id = $1
-            AND status = 'completed'
-          ORDER BY completed_at DESC NULLS LAST, created_at DESC
-          LIMIT 50`,
-        [userId]
-      ),
-      pool.query(
-        `SELECT date_trunc('week', completed_at)::date AS period,
-                COALESCE(SUM(COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0)), 0)::bigint AS amount_cents
-           FROM jobs
-          WHERE assigned_helper_id = $1
-            AND status = 'completed'
-            AND completed_at >= NOW() - INTERVAL '12 weeks'
-          GROUP BY 1
-          ORDER BY 1 DESC`,
-        [userId]
-      ),
-      pool.query(
-        `SELECT date_trunc('month', completed_at)::date AS period,
-                COALESCE(SUM(COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0)), 0)::bigint AS amount_cents
-           FROM jobs
-          WHERE assigned_helper_id = $1
-            AND status = 'completed'
-            AND completed_at >= NOW() - INTERVAL '12 months'
-          GROUP BY 1
-          ORDER BY 1 DESC`,
-        [userId]
-      ),
-      pool.query(
-        `SELECT
-            COALESCE(SUM(CASE WHEN payout_status IN ('earned', 'not_ready') THEN COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0) ELSE 0 END), 0)::bigint AS available_cents,
-            COALESCE(SUM(CASE WHEN payout_status IN ('pending', 'processing') THEN COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0) ELSE 0 END), 0)::bigint AS pending_cents,
-            COALESCE(SUM(CASE WHEN payout_status = 'paid' THEN COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0) ELSE 0 END), 0)::bigint AS paid_cents
-           FROM jobs
-          WHERE assigned_helper_id = $1
-            AND status = 'completed'`,
-        [userId]
-      ),
-    ]);
-
-    const summary = summaryResult.rows[0] || {};
-    const payout = payoutResult.rows[0] || {};
-    res.json({
-      contract: { version: 'main-helper-earnings-v1', generatedAt: new Date().toISOString(), dataSource: 'production' },
-      summary: {
-        lifetimeCents: Number(summary.lifetime_cents || 0),
-        weekCents: Number(summary.week_cents || 0),
-        monthCents: Number(summary.month_cents || 0),
-        completedJobs: Number(summary.completed_jobs || 0),
-        currencyCode: normalizeCurrency(summary.currency_code),
-        availableCents: Number(payout.available_cents || 0),
-        pendingCents: Number(payout.pending_cents || 0),
-        paidCents: Number(payout.paid_cents || 0),
-      },
-      jobs: jobsResult.rows.map((job) => ({
-        id: String(job.id),
-        title: job.title || 'Completed job',
-        completedAt: toIso(job.completed_at),
-        amountCents: Number(job.amount_cents || 0),
-        currencyCode: normalizeCurrency(job.currency_code),
-        payoutStatus: job.payout_status || 'not_ready',
-      })),
-      weekly: weeklyResult.rows.map((row) => ({ period: toIso(row.period), amountCents: Number(row.amount_cents || 0) })),
-      monthly: monthlyResult.rows.map((row) => ({ period: toIso(row.period), amountCents: Number(row.amount_cents || 0) })),
-    });
-  } catch (err) {
-    next(err);
-  }
+    const { helperEarnings } = require('../analytics/helperEarnings');
+    res.set('Cache-Control', 'private, no-store');
+    res.json(await helperEarnings(pool, req.user.id, {
+      currencyCode: req.query.currencyCode,
+      offset: req.query.offset ?? 0,
+      limit: req.query.limit ?? 20,
+    }));
+  } catch (error) { next(error); }
 };
 
 exports.getBillingHub = async (req, res, next) => {

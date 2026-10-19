@@ -35,7 +35,7 @@ emailUtils.sendBusinessInviteEmail = jest.fn().mockResolvedValue({ success: true
 
 const OWNER = { id: '00000000-0000-4000-8000-000000000111', email: 'owner@example.com', first_name: 'Olive' };
 const MANAGER = { id: '00000000-0000-4000-8000-000000000222', email: 'manager@example.com', first_name: 'Moe' };
-const BIZ = { id: 7, business_name: 'Acme Services', owner_id: OWNER.id };
+const BIZ = { id: 7, business_name: 'Acme Services', effective_role: 'manager', owner_id: OWNER.id };
 
 function buildBlockedTimesApp(user = OWNER) {
   const app = express();
@@ -78,7 +78,7 @@ describe('F03 service blocked times', () => {
   test('creates a block for a manager (201)', async () => {
     const { start, end } = future();
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: BIZ.id, owner_id: OWNER.id }] }) // canEditProfile
+      .mockResolvedValueOnce({ rows: [{ id: BIZ.id, effective_role: 'manager', owner_id: OWNER.id }] }) // canEditProfile
       .mockResolvedValueOnce({ rows: [{ id: 9 }] })                          // service belongs to business
       .mockResolvedValueOnce({ rows: [] })                                   // no overlap
       .mockResolvedValueOnce({ rows: [{ id: 'b1', service_id: 9, business_id: 7, start_time: start, end_time: end }] });
@@ -96,7 +96,7 @@ describe('F03 service blocked times', () => {
 
   test('rejects end_time before start_time (400)', async () => {
     const { start, end } = future();
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: BIZ.id, owner_id: OWNER.id }] }); // canEditProfile
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: BIZ.id, effective_role: 'manager', owner_id: OWNER.id }] }); // canEditProfile
     const res = await request(buildBlockedTimesApp())
       .post('/api/businesses/7/services/9/blocked-times')
       .send({ start_time: end, end_time: start });
@@ -107,7 +107,7 @@ describe('F03 service blocked times', () => {
   test('rejects overlapping blocks (409)', async () => {
     const { start, end } = future();
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: BIZ.id, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: BIZ.id, effective_role: 'manager', owner_id: OWNER.id }] })
       .mockResolvedValueOnce({ rows: [{ id: 9 }] })
       .mockResolvedValueOnce({ rows: [{ id: 'existing' }] });
     const res = await request(buildBlockedTimesApp())
@@ -119,7 +119,7 @@ describe('F03 service blocked times', () => {
   test('404s when the service does not belong to the business', async () => {
     const { start, end } = future();
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: BIZ.id, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: BIZ.id, effective_role: 'manager', owner_id: OWNER.id }] })
       .mockResolvedValueOnce({ rows: [] });
     const res = await request(buildBlockedTimesApp())
       .post('/api/businesses/7/services/999/blocked-times')
@@ -129,7 +129,7 @@ describe('F03 service blocked times', () => {
 
   test('lists blocks for a service', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: BIZ.id, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: BIZ.id, effective_role: 'manager', owner_id: OWNER.id }] })
       .mockResolvedValueOnce({ rows: [{ id: 9 }] })
       .mockResolvedValueOnce({ rows: [{ id: 'b1' }, { id: 'b2' }] });
     const res = await request(buildBlockedTimesApp()).get('/api/businesses/7/services/9/blocked-times');
@@ -139,7 +139,7 @@ describe('F03 service blocked times', () => {
 
   test('deletes a block scoped to the business+service', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: BIZ.id, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: BIZ.id, effective_role: 'manager', owner_id: OWNER.id }] })
       .mockResolvedValueOnce({ rowCount: 1 });
     const res = await request(buildBlockedTimesApp()).delete('/api/businesses/7/services/9/blocked-times/b1');
     expect(res.status).toBe(200);
@@ -149,7 +149,7 @@ describe('F03 service blocked times', () => {
 
   test('delete 404s when the block is not found', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: BIZ.id, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: BIZ.id, effective_role: 'manager', owner_id: OWNER.id }] })
       .mockResolvedValueOnce({ rowCount: 0 });
     const res = await request(buildBlockedTimesApp()).delete('/api/businesses/7/services/9/blocked-times/nope');
     expect(res.status).toBe(404);
@@ -161,7 +161,7 @@ describe('F02 manager invite', () => {
   test('a manager can invite (201) and the row is scoped to the business owner', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // no existing account
-      .mockResolvedValueOnce({ rows: [{ id: 55, business_id: 7, owner_id: OWNER.id, status: 'pending' }] });
+      .mockResolvedValueOnce({ rows: [{ id: 55, business_id: 7, effective_role: 'manager', owner_id: OWNER.id, status: 'pending' }] });
     const res = await request(buildInviteApp())
       .post('/api/businesses/7/members')
       .send({ email: 'newbie@example.com', role: 'representative' });
@@ -181,7 +181,7 @@ describe('F11 invite email', () => {
   test('emails the invitee when they have no account', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ id: 56, business_id: 7, owner_id: OWNER.id, status: 'pending' }] });
+      .mockResolvedValueOnce({ rows: [{ id: 56, business_id: 7, effective_role: 'manager', owner_id: OWNER.id, status: 'pending' }] });
     const res = await request(buildInviteApp())
       .post('/api/businesses/7/members')
       .send({ email: 'ghost@example.com', role: 'manager' });
@@ -196,7 +196,7 @@ describe('F11 invite email', () => {
   test('does not email when the invitee already has an account', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 'u9', first_name: 'Nia', email: 'nia@example.com' }] })
-      .mockResolvedValueOnce({ rows: [{ id: 57, business_id: 7, owner_id: OWNER.id, status: 'pending' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 57, business_id: 7, effective_role: 'manager', owner_id: OWNER.id, status: 'pending' }] })
       .mockResolvedValueOnce({ rows: [] }); // in-app notification insert
     const res = await request(buildInviteApp())
       .post('/api/businesses/7/members')

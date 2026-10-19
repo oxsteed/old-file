@@ -252,17 +252,19 @@ async function updateMyTabPrefs(req, res, next) {
 const METRIC_ALERT_RULE_COLUMNS = `id, metric_name, operator, threshold, params,
   cooldown_minutes, is_active, channel_in_app, channel_email, channel_sms,
   created_at, updated_at, last_evaluated_at, last_fired_at, last_value`;
+const { permittedMetrics, assertMetricAccess } = require('../analytics/metricAccess');
 
 async function listMetricAlertRules(req, res, next) {
   try {
+    const allowed = await permittedMetrics(req.user, Object.keys(ALERTABLE_METRICS));
     const { rows } = await db.query(
       `SELECT ${METRIC_ALERT_RULE_COLUMNS} FROM metric_alert_rules
        WHERE admin_id = $1 ORDER BY created_at DESC`,
       [req.user.id]
     );
     res.json({
-      rules: rows,
-      metrics: Object.entries(ALERTABLE_METRICS).map(([name, def]) => ({
+      rules: rows.filter(rule => allowed.includes(rule.metric_name)),
+      metrics: Object.entries(ALERTABLE_METRICS).filter(([name]) => allowed.includes(name)).map(([name, def]) => ({
         name,
         unit: def.unit,
         params: def.params,
@@ -274,6 +276,7 @@ async function listMetricAlertRules(req, res, next) {
 async function createMetricAlertRule(req, res, next) {
   try {
     const rule = validateRuleInput(req.body);
+    await assertMetricAccess(req.user, rule.metric_name);
     const created = await withTransaction(
       db,
       async (client) => {
@@ -313,6 +316,7 @@ async function updateMetricAlertRule(req, res, next) {
       throw new AppError('Rule not found', 404, 'not_found');
     }
     const rule = validateRuleInput(req.body);
+    await assertMetricAccess(req.user, rule.metric_name);
     const updated = await withTransaction(
       db,
       async (client) => {

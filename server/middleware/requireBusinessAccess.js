@@ -35,7 +35,7 @@
  *   403 if minRole is not met
  */
 
-const pool = require('../db');
+const { resolveBusinessAccess } = require('../services/scopeModel');
 const { sendError } = require('../utils/apiError');
 const permissionsService = require('../services/permissionsService');
 
@@ -80,42 +80,7 @@ function requireBusinessAccess(options = {}) {
     }
 
     try {
-      const { rows } = await pool.query(
-        `SELECT b.id,
-                b.business_name,
-                b.is_primary,
-                b.tax_rate,
-                b.user_id AS owner_id,
-                b.is_active,
-                b.deleted_at,
-                CASE
-                  WHEN b.user_id = $2 THEN 'owner'
-                  ELSE (
-                    SELECT bm.role
-                    FROM business_members bm
-                    WHERE bm.business_id = b.id
-                      AND bm.member_id   = $2
-                      AND bm.status      = 'active'
-                    LIMIT 1
-                  )
-                END AS effective_role,
-                CASE
-                  WHEN b.user_id = $2 THEN NULL
-                  ELSE (
-                    SELECT bm.id
-                    FROM business_members bm
-                    WHERE bm.business_id = b.id
-                      AND bm.member_id   = $2
-                      AND bm.status      = 'active'
-                    LIMIT 1
-                  )
-                END AS membership_id
-         FROM businesses b
-         WHERE b.id = $1`,
-        [businessId, req.user.id]
-      );
-
-      const row = rows[0];
+      const row = await resolveBusinessAccess(req.user.id, businessId);
       if (!row || row.deleted_at) {
         return sendError(res, 404, 'Business not found.', 'business_not_found');
       }

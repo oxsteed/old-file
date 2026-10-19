@@ -21,7 +21,7 @@ beforeEach(() => resetMocks());
 describe('business skills bulk update', () => {
   test('replaces business skills with a validated list', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 12, owner_id: 'user-123' }] }) // canManageBusinessFinance
+      .mockResolvedValueOnce({ rows: [{ id: 12, effective_role: 'owner', owner_id: 'user-123' }] }) // canManageBusinessFinance
       .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // BEGIN
       .mockResolvedValueOnce({ rows: [], rowCount: 2 }) // DELETE
       .mockResolvedValueOnce({ rows: [], rowCount: 2 }) // INSERT

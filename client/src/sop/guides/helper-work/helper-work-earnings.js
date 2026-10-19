@@ -7,12 +7,12 @@ export default {
   "audiences": [
     "helper"
   ],
-  "revision": 2,
+  "revision": 3,
   "availability": "conditional",
   "conditions": [
-    "The Earnings tab on the helper dashboard is visible only while the helperEarnings launch flag is enabled (it is off by default). Your payouts at /helper/payouts and your earnings statements at /helper-earnings/statements stay available while the tab is hidden."
+    "The Earnings tab is currently available in helper mode. If it is unavailable for your account, use Payouts and Helper earnings statements."
   ],
-  "goal": "See your income, expenses, and net earnings in one place, even while the dashboard earnings section is unreleased.",
+  "goal": "Review recorded job payouts by currency, inspect trends and job details, and open earnings statements. Budgets and personal money logs are separate from recorded payouts.",
   "intendedRoles": [
     "Helper"
   ],
@@ -31,32 +31,27 @@ export default {
     "nodes": [
       {
         "id": "start",
-        "label": "Open your helper dashboard",
+        "label": "Open helper Earnings",
         "type": "terminal"
       },
       {
-        "id": "flag",
-        "label": "Is the helperEarnings flag enabled?",
-        "type": "decision"
-      },
-      {
-        "id": "tab",
-        "label": "Open the Earnings tab",
+        "id": "currency",
+        "label": "Choose a currency",
         "type": "step"
       },
       {
-        "id": "blocked",
-        "label": "Earnings tab hidden (flag off)",
-        "type": "blocked"
+        "id": "review",
+        "label": "Review recorded payouts and missing amounts",
+        "type": "step"
       },
       {
-        "id": "payouts",
-        "label": "Use the Payouts page instead",
+        "id": "trend",
+        "label": "Inspect weekly or monthly trends and jobs",
         "type": "step"
       },
       {
         "id": "statements",
-        "label": "Open your earnings statements",
+        "label": "Open earnings statements",
         "type": "step"
       },
       {
@@ -68,28 +63,18 @@ export default {
     "edges": [
       {
         "from": "start",
-        "to": "flag"
+        "to": "currency"
       },
       {
-        "from": "flag",
-        "to": "tab",
-        "label": "Yes"
+        "from": "currency",
+        "to": "review"
       },
       {
-        "from": "flag",
-        "to": "blocked",
-        "label": "No"
+        "from": "review",
+        "to": "trend"
       },
       {
-        "from": "tab",
-        "to": "done"
-      },
-      {
-        "from": "blocked",
-        "to": "payouts"
-      },
-      {
-        "from": "payouts",
+        "from": "trend",
         "to": "statements"
       },
       {
@@ -98,108 +83,164 @@ export default {
       }
     ]
   },
-  "processMapText": "1. Open your helper dashboard. 2. Check whether the helperEarnings flag is enabled. If it is, open the Earnings tab to review income, expenses, net, and savings rate. If it is not (the default), the Earnings tab is hidden and that is expected; use the Payouts page for balances and the earnings statements page for records. 3. In either path you finish with your earnings reviewed.",
+  "processMapText": "Open helper Earnings, select one currency, review recorded payouts and any missing amounts, compare weekly or monthly trends, open individual jobs, then open earnings statements for period records.",
   "steps": [
     {
       "id": "helper-work-earnings-s1",
-      "title": "Check for the Earnings tab",
-      "body": "Open your helper dashboard (/dashboard or /helper-dashboard). If the helperEarnings launch flag is enabled, an Earnings tab appears beside the other tabs. By default the flag is off and the tab is hidden; the rest of this guide covers both paths.",
-      "expectedResult": "You know whether the Earnings tab is available to you.",
+      "title": "Open recorded job earnings",
+      "body": "Open /helper-dashboard?tab=earnings in helper mode. The Job earnings card shows recorded helper payouts separately from personal income and expense logging. Job budgets do not count as recorded payouts.",
+      "expectedResult": "The currency selector and recorded payout totals are visible.",
       "screenshots": [
         {
           "id": "helper-work-earnings-s1-desktop",
           "viewport": "desktop",
-          "screen": "/dashboard",
-          "state": "Helper dashboard tabs, Earnings tab absent (flag off), light mode",
-          "alt": "Helper dashboard tab bar without an Earnings tab",
-          "caption": "The dashboard with the Earnings tab hidden, desktop view.",
-          "annotations": []
+          "screen": "/helper-dashboard?tab=earnings",
+          "state": "Recorded job earnings and currency selector, light mode",
+          "alt": "Open recorded job earnings on desktop",
+          "caption": "Open recorded job earnings, desktop view.",
+          "annotations": [
+            {
+              "n": 1,
+              "label": "Currency selector",
+              "locator": ".helper-job-earnings select[aria-label=\"Currency\"]"
+            }
+          ]
         },
         {
           "id": "helper-work-earnings-s1-mobile",
           "viewport": "mobile",
-          "screen": "/dashboard",
-          "state": "Helper dashboard tabs, Earnings tab absent (flag off), light mode",
-          "alt": "Dashboard tabs on a phone screen without an Earnings tab",
-          "caption": "The dashboard with the Earnings tab hidden, mobile view.",
-          "annotations": []
+          "screen": "/helper-dashboard?tab=earnings",
+          "state": "Recorded job earnings and currency selector, light mode",
+          "alt": "Open recorded job earnings on mobile",
+          "caption": "Open recorded job earnings, mobile view.",
+          "annotations": [
+            {
+              "n": 1,
+              "label": "Currency selector",
+              "locator": ".helper-job-earnings select[aria-label=\"Currency\"]"
+            }
+          ]
         }
       ]
     },
     {
       "id": "helper-work-earnings-s2",
-      "title": "Review earnings on the Payouts page",
-      "body": "Open /helper/payouts any time. It always shows your Available, Pending, and Available for instant payout balances, regardless of the flag. This is the always-on view of what you have earned and can withdraw.",
-      "expectedResult": "Your current balances are visible.",
+      "title": "Choose a currency and check missing amounts",
+      "body": "Use Currency to review one currency at a time. Available, pending, and paid amounts are separate. A missing recorded payout is called out; it is not estimated from the job budget and is not a confirmed balance.",
+      "expectedResult": "You can identify the currency and distinguish recorded payouts from missing amounts.",
       "screenshots": [
         {
           "id": "helper-work-earnings-s2-desktop",
           "viewport": "desktop",
-          "screen": "/helper/payouts",
-          "state": "Payouts page with synthetic balances, light mode",
-          "alt": "Payouts page showing balance breakdown",
-          "caption": "Balances on the Payouts page, desktop view.",
-          "annotations": []
+          "screen": "/helper-dashboard?tab=earnings",
+          "state": "JPY recorded job earnings, light mode",
+          "alt": "Choose a currency and check missing amounts on desktop",
+          "caption": "Choose a currency and check missing amounts, desktop view.",
+          "annotations": [
+            {
+              "n": 1,
+              "label": "Selected currency",
+              "locator": ".helper-job-earnings select[aria-label=\"Currency\"]"
+            },
+            {
+              "n": 2,
+              "label": "Missing recorded payouts",
+              "locator": ".helper-job-earnings p[role=\"status\"]"
+            }
+          ]
         },
         {
           "id": "helper-work-earnings-s2-mobile",
           "viewport": "mobile",
-          "screen": "/helper/payouts",
-          "state": "Payouts page with synthetic balances, light mode",
-          "alt": "Payouts page on a phone screen",
-          "caption": "Balances on the Payouts page, mobile view.",
-          "annotations": []
+          "screen": "/helper-dashboard?tab=earnings",
+          "state": "JPY recorded job earnings, light mode",
+          "alt": "Choose a currency and check missing amounts on mobile",
+          "caption": "Choose a currency and check missing amounts, mobile view.",
+          "annotations": [
+            {
+              "n": 1,
+              "label": "Selected currency",
+              "locator": ".helper-job-earnings select[aria-label=\"Currency\"]"
+            },
+            {
+              "n": 2,
+              "label": "Missing recorded payouts",
+              "locator": ".helper-job-earnings p[role=\"status\"]"
+            }
+          ]
         }
       ]
     },
     {
       "id": "helper-work-earnings-s3",
-      "title": "Open your earnings statements",
-      "body": "Open /helper-earnings/statements for your archived helper earnings statements. Statements give you the period-by-period record of what you earned, independent of the dashboard tab.",
-      "expectedResult": "Your earnings statements list loads.",
+      "title": "Inspect trends and open a job",
+      "body": "Switch Trend between Weekly and Monthly. Open a job title to inspect its details. Use Previous and Next to review older recorded jobs; the list stays within the selected currency.",
+      "expectedResult": "The monthly trend and individual job links are available.",
       "screenshots": [
         {
           "id": "helper-work-earnings-s3-desktop",
           "viewport": "desktop",
-          "screen": "/helper-earnings/statements",
-          "state": "Earnings statements list with synthetic data, light mode",
-          "alt": "Earnings statements archive with statement periods listed",
-          "caption": "Earnings statements, desktop view.",
-          "annotations": []
+          "screen": "/helper-dashboard?tab=earnings",
+          "state": "Monthly recorded earnings and job links, light mode",
+          "alt": "Inspect trends and open a job on desktop",
+          "caption": "Inspect trends and open a job, desktop view.",
+          "annotations": [
+            {
+              "n": 1,
+              "label": "Weekly or monthly trend",
+              "locator": ".helper-job-earnings select[aria-label=\"Trend\"]"
+            },
+            {
+              "n": 2,
+              "label": "Open a job",
+              "locator": ".helper-earnings-jobs a"
+            }
+          ]
         },
         {
           "id": "helper-work-earnings-s3-mobile",
           "viewport": "mobile",
-          "screen": "/helper-earnings/statements",
-          "state": "Earnings statements list with synthetic data, light mode",
-          "alt": "Earnings statements on a phone screen",
-          "caption": "Earnings statements, mobile view.",
-          "annotations": []
+          "screen": "/helper-dashboard?tab=earnings",
+          "state": "Monthly recorded earnings and job links, light mode",
+          "alt": "Inspect trends and open a job on mobile",
+          "caption": "Inspect trends and open a job, mobile view.",
+          "annotations": [
+            {
+              "n": 1,
+              "label": "Weekly or monthly trend",
+              "locator": ".helper-job-earnings select[aria-label=\"Trend\"]"
+            },
+            {
+              "n": 2,
+              "label": "Open a job",
+              "locator": ".helper-earnings-jobs a"
+            }
+          ]
         }
       ]
     },
     {
       "id": "helper-work-earnings-s4",
-      "title": "Use the Earnings tab when it is enabled",
-      "body": "When the helperEarnings flag is on, open the dashboard Earnings tab. It shows income, expenses, net, and savings rate for the month, plus recent transactions and budgets. Use the log transaction button to record income and expenses.",
-      "expectedResult": "The earnings overview shows your monthly income, expenses, net, and recent transactions.",
+      "title": "Open your earnings statements",
+      "body": "Open /helper-earnings/statements for authorized period records and downloads. Use /helper/payouts for payout requests and their existing eligibility checks. Reviewing analytics never submits a payout.",
+      "expectedResult": "Your authorized earnings statement area loads.",
       "screenshots": [
         {
           "id": "helper-work-earnings-s4-desktop",
           "viewport": "desktop",
-          "screen": "/dashboard?tab=earnings",
-          "state": "Earnings tab with synthetic data (flag enabled), light mode",
-          "alt": "Earnings tab showing income, expenses, net, and savings rate cards",
-          "caption": "The Earnings tab (flag enabled), desktop view.",
+          "screen": "/helper-earnings/statements",
+          "state": "Earnings statements list with synthetic data, light mode",
+          "alt": "Open your earnings statements on desktop",
+          "caption": "Open your earnings statements, desktop view.",
           "annotations": []
         },
         {
           "id": "helper-work-earnings-s4-mobile",
           "viewport": "mobile",
-          "screen": "/dashboard?tab=earnings",
-          "state": "Earnings tab with synthetic data (flag enabled), light mode",
-          "alt": "Earnings tab on a phone screen",
-          "caption": "The Earnings tab (flag enabled), mobile view.",
+          "screen": "/helper-earnings/statements",
+          "state": "Earnings statements list with synthetic data, light mode",
+          "alt": "Open your earnings statements on mobile",
+          "caption": "Open your earnings statements, mobile view.",
           "annotations": []
         }
       ]
@@ -233,7 +274,7 @@ export default {
   "sources": [
     {
       "type": "route",
-      "ref": "/dashboard?tab=earnings"
+      "ref": "/helper-dashboard?tab=earnings"
     },
     {
       "type": "route",
@@ -241,15 +282,15 @@ export default {
     },
     {
       "type": "screen",
-      "ref": "client/src/pages/HelperDashboard.jsx (earnings tab)"
-    },
-    {
-      "type": "flag",
-      "ref": "helperEarnings: false (LAUNCH_VISIBILITY)"
+      "ref": "client/src/pages/HelperDashboard.jsx; client/src/components/HelperJobEarnings.jsx"
     },
     {
       "type": "handler",
-      "ref": "GET /api/statement-archive/archive (helper_earnings scope)"
+      "ref": "server/analytics/helperEarnings.js; GET /api/main-app/earnings"
+    },
+    {
+      "type": "flag",
+      "ref": "helperEarnings: true (LAUNCH_VISIBILITY)"
     }
   ]
 };

@@ -22,11 +22,11 @@ const OWNER_BUSINESSES = { '2': true }; // owner owns the unlisted business 2
 
 function dispatch(text, params) {
   // Ownership check (canEditProfile via canAccessBusiness)
-  if (text.includes('SELECT b.id, b.user_id AS owner_id')) {
+  if (text.includes('AS effective_role') && text.includes('FROM businesses b')) {
     const userId = params[1];
     const bizId = String(params[0]);
     const ok = userId === OWNER_ID && OWNER_BUSINESSES[bizId];
-    return Promise.resolve({ rows: ok ? [{ id: bizId, owner_id: userId }] : [] });
+    return Promise.resolve({ rows: ok ? [{ id: bizId, effective_role: 'owner', owner_id: userId }] : [] });
   }
   // Slug resolution for the image controller's profileUrl
   if (text.includes('SELECT profile_slug FROM businesses WHERE id = $1')) {

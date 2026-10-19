@@ -132,7 +132,7 @@ describe('public careers', () => {
 describe('employer hiring', () => {
   test('lets a business owner post a role that hires into the team tab', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 12, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 12, owner_id: OWNER.id, effective_role: 'owner' }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
@@ -220,7 +220,7 @@ describe('employer hiring', () => {
           opening_title: 'Line Cook',
         }],
       })
-      .mockResolvedValueOnce({ rows: [{ id: 12, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 12, owner_id: OWNER.id, effective_role: 'owner' }] })
       .mockResolvedValueOnce({ rows: [{ id: 88, stage: 'offer' }] })
       .mockResolvedValueOnce({ rows: [{ id: 88, stage: 'hired', opening_id: 21, user_id: '00000000-0000-4000-8000-000000000111', applicant_email: 'hire@example.com' }] })
       .mockResolvedValueOnce({ rows: [] })

@@ -38,10 +38,10 @@ describeDb('metrics registry: revenue + take-rate parity', () => {
     await db.query(`CREATE SCHEMA ${schema}`);
     await db.query(`CREATE TABLE ${schema}.platform_ledger (
       id SERIAL PRIMARY KEY, source_type VARCHAR(50) NOT NULL,
-      amount_cents INTEGER NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+      job_id UUID, currency TEXT DEFAULT 'USD', amount_cents INTEGER NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
     await db.query(`CREATE TABLE ${schema}.jobs (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(), status TEXT NOT NULL DEFAULT 'published',
-      budget_max NUMERIC(10,2), budget_min NUMERIC(10,2))`);
+      budget_max NUMERIC(10,2), budget_min NUMERIC(10,2), final_price_cents BIGINT, deleted_at TIMESTAMPTZ, currency_code TEXT DEFAULT 'USD')`);
   });
 
   afterAll(async () => {
@@ -68,6 +68,8 @@ describeDb('metrics registry: revenue + take-rate parity', () => {
     expect(old.rows[0].take_rate).toBeGreaterThan(100);
 
     // NEW canonical formula (registry):
+    await db.query(`UPDATE jobs SET final_price_cents=ROUND(budget_max*100)`);
+    await db.query(`UPDATE platform_ledger SET job_id=(SELECT id FROM jobs WHERE status='completed' LIMIT 1)`);
     const takeRate = await registry.investorTakeRatePct(db);
     expect(takeRate).toBeCloseTo(6.67, 2);
     expect(takeRate).toBeLessThanOrEqual(100);
@@ -78,6 +80,8 @@ describeDb('metrics registry: revenue + take-rate parity', () => {
     await db.query(`INSERT INTO platform_ledger (source_type, amount_cents) VALUES
       ('job_fee', 8000), ('job_fee', -2000), ('subscription', 999999)`);
     // job take = 8000 (the -2000 row is excluded by amount_cents > 0); GMV = 100000; subs excluded
+    await db.query(`UPDATE jobs SET final_price_cents=ROUND(budget_max*100)`);
+    await db.query(`UPDATE platform_ledger SET job_id=(SELECT id FROM jobs WHERE status='completed' LIMIT 1)`);
     expect(await registry.investorTakeRatePct(db)).toBeCloseTo(8.0, 2);
   });
 

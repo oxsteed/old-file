@@ -319,22 +319,13 @@ exports.getDashboardStats = async (req, res) => {
         subscription_revenue_mtd_cents = 0, refunds_period_cents = 0;
     if (hasLedger) {
       try {
-        const { rows } = await db.query(`
-          SELECT
-            COALESCE(SUM(amount_cents) FILTER (WHERE source_type IN ('job_fee','subscription') AND amount_cents > 0), 0)                                             AS total_revenue_cents,
-            COALESCE(SUM(amount_cents) FILTER (WHERE source_type IN ('job_fee','subscription') AND amount_cents > 0 AND created_at >= now() - $1::interval), 0)     AS revenue_period_cents,
-            COALESCE(SUM(amount_cents) FILTER (WHERE source_type = 'subscription' AND amount_cents > 0 AND created_at >= now() - $1::interval), 0)                  AS subscription_revenue_period_cents,
-            COALESCE(SUM(amount_cents) FILTER (WHERE source_type IN ('job_fee','subscription') AND amount_cents > 0 AND created_at >= date_trunc('month', now())), 0) AS revenue_mtd_cents,
-            COALESCE(SUM(amount_cents) FILTER (WHERE source_type = 'subscription' AND amount_cents > 0 AND created_at >= date_trunc('month', now())), 0)             AS subscription_revenue_mtd_cents,
-            COALESCE(SUM(ABS(amount_cents)) FILTER (WHERE source_type = 'refund' AND created_at >= now() - $1::interval), 0)                                        AS refunds_period_cents
-          FROM platform_ledger
-        `, [cur]);
-        total_revenue_cents               = safeInt(rows[0]?.total_revenue_cents);
-        revenue_period_cents              = safeInt(rows[0]?.revenue_period_cents);
-        subscription_revenue_period_cents = safeInt(rows[0]?.subscription_revenue_period_cents);
-        revenue_mtd_cents                 = safeInt(rows[0]?.revenue_mtd_cents);
-        subscription_revenue_mtd_cents    = safeInt(rows[0]?.subscription_revenue_mtd_cents);
-        refunds_period_cents              = safeInt(rows[0]?.refunds_period_cents);
+        const revenue = await metricsRegistry.platformRevenue(db, cur, 'USD');
+        total_revenue_cents = revenue.total_cents;
+        revenue_period_cents = revenue.period_cents;
+        subscription_revenue_period_cents = revenue.subscription_period_cents;
+        revenue_mtd_cents = revenue.mtd_cents;
+        subscription_revenue_mtd_cents = revenue.subscription_mtd_cents;
+        refunds_period_cents = revenue.refunds_period_cents;
       } catch (_) {}
     }
 

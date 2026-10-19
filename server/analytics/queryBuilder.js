@@ -60,8 +60,8 @@
  * - resolveScope(user) runs first. Callers without an admin/super_admin
  *   platform role get 403 (defense in depth; the routes also sit behind
  *   requireAdmin, so this path should never fire in production).
- * - Non-restaurant metrics: admin and super_admin both read GLOBAL,
- *   matching resolveScope's `global: true` for admin surfaces.
+ * - Global metrics require a current global domain grant. Regional-only
+ *   grants cannot authorize them; catalogs and workers use the same policy.
  * - Restaurant-dimensioned metrics (restaurant_repeat_order_rate,
  *   restaurant_top_items_revenue): super_admin reads global. A plain admin
  *   is constrained to scope.restaurantIds (ownership/membership standing
@@ -77,14 +77,16 @@
  * ══════════════════════════════════════════════════════════════════════════
  * EVERY execution attempt is appended to analytics_query_audit (migration
  * 891) — success and failure alike, including validation failures. The
- * audit write itself is fail-open (a ledger outage must not break reads);
- * failures are logged server-side. compiled_query stores { sql, params }.
+ * audit write is fail-closed: no result is disclosed during a ledger outage.
+ * compiled_query stores { sql, params }.
  */
 
 const AppError = require('../utils/appError');
 const registry = require('./metricsRegistry');
 const { resolveScope } = require('../services/scopeModel');
 const logger = require('../utils/logger');
+const { assertMetricAccess } = require('./metricAccess');
+const { MONEY_METRICS, financialMetricSql } = require('./financialMetrics');
 
 const PERIODS = Object.freeze(['1d', '7d', '30d', '90d', '1y']);
 // Window lengths in days for metrics that need a day count (NPS days,
@@ -323,29 +325,6 @@ function buildCancelRate(query) {
   return { text: pieces.join('\nUNION ALL\n') + '\nORDER BY 1', params, columns };
 }
 
-function buildPlatformRevenue(query) {
-  const params = [intervalParam(query.period), registry.PLATFORM_REVENUE_SOURCE_TYPES];
-  if (!query.dimensions.includes('period')) {
-    return {
-      text: `SELECT COALESCE(SUM(amount_cents) FILTER (WHERE source_type = ANY($2) AND amount_cents > 0), 0)::BIGINT AS revenue_cents
-             FROM platform_ledger WHERE created_at >= NOW() - $1::interval`,
-      params,
-      columns: ['revenue_cents'],
-    };
-  }
-  // trunc unit comes from the frozen registry map, keyed by validated period.
-  const trunc = registry.PERIOD_INTERVAL[query.period].trunc;
-  return {
-    text: `SELECT date_trunc('${trunc}', created_at) AS bucket,
-             COALESCE(SUM(amount_cents) FILTER (WHERE source_type = ANY($2) AND amount_cents > 0), 0)::BIGINT AS revenue_cents
-           FROM platform_ledger
-           WHERE created_at >= NOW() - $1::interval
-           GROUP BY 1 ORDER BY 1`,
-    params,
-    columns: ['bucket', 'revenue_cents'],
-  };
-}
-
 function buildSlaCompliance(query) {
   const params = [intervalParam(query.period)];
   const byBusiness = query.dimensions.includes('business');
@@ -533,24 +512,6 @@ function buildSingleValue(query) {
         params: [],
         columns: ['value'],
       };
-    case 'investor_gmv_cents':
-      return {
-        text: `SELECT COALESCE(SUM(COALESCE(budget_max, budget_min, 0) * 100), 0)::BIGINT AS gmv_cents
-               FROM jobs WHERE status = 'completed'`,
-        params: [],
-        columns: ['gmv_cents'],
-      };
-    case 'investor_take_rate_pct':
-      return {
-        text: `SELECT CASE WHEN gmv.gmv_cents > 0
-                       THEN ROUND(100.0 * take.job_take_cents / gmv.gmv_cents, 2)::FLOAT END AS take_rate_pct
-               FROM (SELECT COALESCE(SUM(amount_cents), 0)::BIGINT AS job_take_cents
-                     FROM platform_ledger WHERE source_type = 'job_fee' AND amount_cents > 0) take
-               CROSS JOIN (SELECT COALESCE(SUM(COALESCE(budget_max, budget_min, 0) * 100), 0)::BIGINT AS gmv_cents
-                     FROM jobs WHERE status = 'completed') gmv`,
-        params: [],
-        columns: ['take_rate_pct'],
-      };
     case 'consulting_cancel_rate_pct':
       return {
         text: `SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE status = 'cancelled')
@@ -569,32 +530,20 @@ function buildSingleValue(query) {
         params: [interval],
         columns: ['avg_nps', 'responses'],
       };
-    case 'mrr_cents':
-      return {
-        text: `SELECT COALESCE(SUM(CASE p.interval WHEN 'year' THEN p.amount_cents / 12.0 ELSE p.amount_cents END), 0)::BIGINT AS mrr_cents
-               FROM subscriptions s JOIN plans p ON p.id = s.plan_id WHERE s.status = 'active'`,
-        params: [],
-        columns: ['mrr_cents'],
-      };
-    case 'escrow_held_cents':
-      return {
-        text: `SELECT COALESCE(SUM(GREATEST(
-                       COALESCE(capture_amount_cents, ROUND(amount * 100)::BIGINT, 0)
-                       - COALESCE(ROUND(refunded_amount * 100)::BIGINT, 0), 0)), 0)::BIGINT AS escrow_held_cents
-               FROM payments
-               WHERE escrow_status IN ('held', 'disputed') AND status IN ('authorized', 'captured')`,
-        params: [],
-        columns: ['escrow_held_cents'],
-      };
     default:
       throw new AppError(`No query builder for metric "${query.metric}"`, 500, 'builder_missing');
   }
 }
 
 function buildMetricSql(query, scope) {
+  if (MONEY_METRICS.includes(query.metric)) {
+    return financialMetricSql(query.metric, {
+      interval: intervalParam(query.period),
+      trunc: query.dimensions.includes('period') ? registry.PERIOD_INTERVAL[query.period].trunc : null,
+    });
+  }
   switch (query.metric) {
     case 'cancel_rate_pct': return buildCancelRate(query);
-    case 'platform_revenue_cents': return buildPlatformRevenue(query);
     case 'sla_first_response_compliance_pct': return buildSlaCompliance(query);
     case 'support_nps_index': return buildSupportNps(query);
     case 'restaurant_repeat_order_rate': return buildRestaurantRepeatRate(query, scope);
@@ -604,9 +553,7 @@ function buildMetricSql(query, scope) {
 }
 
 // ── Audit ledger ────────────────────────────────────────────────────────────
-// Fail-open: a ledger outage must never break reads. Failures are logged
-// server-side with the query context (never the raw SQL text at error level
-// beyond what the logger already redacts — params may contain UUIDs).
+// A result may only be disclosed after its execution audit is durable.
 
 function safeJson(value) {
   try {
@@ -639,11 +586,12 @@ async function auditAttempt(db, entry) {
       ]
     );
   } catch (err) {
-    logger.warn('analytics_query_audit insert failed (fail-open)', {
+    logger.warn('analytics_query_audit insert failed', {
       code: err && err.code,
       metric: entry.metricName,
       success: entry.success,
     });
+    throw new AppError('Analytics audit is temporarily unavailable', 503, 'analytics_audit_unavailable');
   }
 }
 
@@ -653,7 +601,7 @@ async function auditAttempt(db, entry) {
 async function runCappedQuery(db, built, cap = ROW_CAP) {
   const client = await db.connect();
   try {
-    await client.query('BEGIN');
+    await client.query('BEGIN READ ONLY');
     await client.query(`SET LOCAL statement_timeout = '${STATEMENT_TIMEOUT}'`);
     const res = await client.query(`${built.text}\nLIMIT ${cap + 1}`, built.params);
     await client.query('COMMIT');
@@ -694,6 +642,10 @@ async function executeBuilderQuery(db, user, input, opts = {}) {
     filters: query.filters, period: query.period, rawUtterance,
   };
   try {
+    if (!user?.id || !['admin', 'super_admin'].includes(user.role)) {
+      throw new AppError('Forbidden: the query builder requires an admin account', 403, 'forbidden');
+    }
+    await assertMetricAccess(user, query.metric);
     const scope = await resolveScope(user);
     if (!scope.isAdmin && !scope.isSuperAdmin) {
       throw new AppError('Forbidden: the query builder requires an admin account', 403, 'forbidden');
@@ -722,8 +674,8 @@ async function executeBuilderQuery(db, user, input, opts = {}) {
 /**
  * /meta payload: drives the UI dropdowns (and Track B's parser context).
  */
-function getBuilderMeta() {
-  const metrics = Object.keys(BUILDER_DIMENSIONS).map((name) => ({
+function getBuilderMeta(allowedNames = Object.keys(BUILDER_DIMENSIONS)) {
+  const metrics = Object.keys(BUILDER_DIMENSIONS).filter(name => allowedNames.includes(name)).map((name) => ({
     name,
     dimensions: [...BUILDER_DIMENSIONS[name]],
     filters: [...BUILDER_FILTERS[name]],

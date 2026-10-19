@@ -14,6 +14,7 @@
  */
 const path = require('node:path');
 const fs = require('node:fs');
+const { screenshotName } = require('./capture-assets.cjs');
 const { loadPlans } = require('./plans.cjs');
 const H = require('./harness.cjs');
 const { buildApiMockSource } = require('./fixtures.cjs');
@@ -277,13 +278,15 @@ async function main() {
         const fileName = `${first.step}-${vp}.jpg`;
         const absDir = path.join(SHOTS_DIR, relDir);
         fs.mkdirSync(absDir, { recursive: true });
-        const absPath = path.join(absDir, fileName);
         const tmpShot = path.join('/tmp/sop-capture', `shot-${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`);
         await H.screenshotJpeg(page, tmpShot);
         let imgW = viewport.width, imgH = viewport.height;
+        const publishedName = screenshotName(fileName, relDir, manifest,
+          new Set(comboPlans.map(p => `${p.guide}/${p.step}/${p.vp}`)), fs.readFileSync(tmpShot));
+        const absPath = path.join(absDir, publishedName);
         fs.copyFileSync(tmpShot, absPath);
         fs.unlinkSync(tmpShot);
-        const src = `/sop/screenshots/${relDir}/${fileName}`;
+        const src = `/sop/screenshots/${relDir}/${publishedName}`;
 
         for (const p of comboPlans) {
           const key = `${p.guide}/${p.step}/${p.vp}`;

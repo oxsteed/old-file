@@ -38,11 +38,11 @@ describeDb('metrics registry: MRR + escrow held parity', () => {
   beforeAll(async () => {
     await db.query(`CREATE SCHEMA ${schema}`);
     await db.query(`CREATE TABLE ${schema}.plans (
-      id SERIAL PRIMARY KEY, amount_cents INTEGER NOT NULL, interval VARCHAR(20) NOT NULL DEFAULT 'month')`);
+      id SERIAL PRIMARY KEY, currency TEXT DEFAULT 'USD', amount_cents INTEGER NOT NULL, interval VARCHAR(20) NOT NULL DEFAULT 'month')`);
     await db.query(`CREATE TABLE ${schema}.subscriptions (
       id SERIAL PRIMARY KEY, plan_id INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'active')`);
     await db.query(`CREATE TABLE ${schema}.payments (
-      id SERIAL PRIMARY KEY, escrow_status VARCHAR(30) DEFAULT 'none',
+      id SERIAL PRIMARY KEY, currency TEXT DEFAULT 'USD', escrow_status VARCHAR(30) DEFAULT 'none',
       status VARCHAR(30) NOT NULL DEFAULT 'pending',
       amount NUMERIC(10,2) NOT NULL DEFAULT 0,
       capture_amount_cents INTEGER, refunded_amount NUMERIC(10,2) NOT NULL DEFAULT 0)`);

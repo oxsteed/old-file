@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { User, Shield, Bell, Key, Trash2, Plus, Copy, Check, LayoutGrid, AlertTriangle, Pencil } from 'lucide-react';
 import api from '../../api/axios';
 import logger from '../../utils/logger';
+import { moneyMinor } from '../../lib/moneyExact';
 import './AdminUserSettingsPage.css';
 
 const TABS = [
@@ -33,6 +34,7 @@ const EMPTY_RULE_FORM = {
   threshold: '',
   period: '30d',
   days: '30',
+  currencyCode: 'USD',
   cooldown_minutes: '60',
   is_active: true,
   channel_in_app: true,
@@ -54,7 +56,7 @@ const MANAGEABLE_TABS = [
 ];
 
 export default function AdminUserSettingsPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState(initialTabFromUrl);
   const [loading, setLoading] = useState(true);
 
@@ -204,11 +206,12 @@ export default function AdminUserSettingsPage() {
   const metricMeta = (name) => alertMetrics.find(m => m.name === name) || null;
   const metricUnit = (name) => metricMeta(name)?.unit || 'count';
 
-  const formatRuleValue = (metricName, raw) => {
+  const formatRuleValue = (metricName, raw, params = {}) => {
+    if (raw == null) return '—';
     const v = Number(raw);
     if (!Number.isFinite(v)) return t('adminSettings.metricAlerts.noValue');
     const unit = metricUnit(metricName);
-    if (unit === 'cents') return `$${(v / 100).toFixed(2)}`;
+    if (unit === 'cents') return moneyMinor(raw, params.currencyCode || 'USD', i18n.language);
     if (unit === 'pct' || unit === 'index') return v.toFixed(2);
     return String(Math.round(v));
   };
@@ -225,6 +228,7 @@ export default function AdminUserSettingsPage() {
       threshold: String(rule.threshold),
       period: rule.params?.period || '30d',
       days: rule.params?.days != null ? String(rule.params.days) : '30',
+      currencyCode: rule.params?.currencyCode || 'USD',
       cooldown_minutes: String(rule.cooldown_minutes),
       is_active: !!rule.is_active,
       channel_in_app: !!rule.channel_in_app,
@@ -242,6 +246,7 @@ export default function AdminUserSettingsPage() {
       const params = {};
       if (meta.params.includes('period')) params.period = ruleForm.period;
       if (meta.params.includes('days')) params.days = parseInt(ruleForm.days, 10);
+      if (meta.params.includes('currencyCode')) params.currencyCode = ruleForm.currencyCode;
       const payload = {
         metric_name: ruleForm.metric_name,
         operator: ruleForm.operator,
@@ -423,7 +428,7 @@ export default function AdminUserSettingsPage() {
                 <div>
                   <div className="admin-settings-session-device">
                     {t(`adminSettings.metricAlerts.metrics.${rule.metric_name}`)}{' '}
-                    {rule.operator} {formatRuleValue(rule.metric_name, rule.threshold)}
+                    {rule.operator} {formatRuleValue(rule.metric_name, rule.threshold, rule.params)}
                     {!rule.is_active && (
                       <span className="admin-settings-badge revoked">{t('adminSettings.metricAlerts.paused')}</span>
                     )}
@@ -434,7 +439,7 @@ export default function AdminUserSettingsPage() {
                       ? new Date(rule.last_fired_at).toLocaleString()
                       : t('adminSettings.metricAlerts.never')}
                     {' · '}
-                    {t('adminSettings.metricAlerts.currentValue')}: {formatRuleValue(rule.metric_name, rule.last_value)}
+                    {t('adminSettings.metricAlerts.currentValue')}: {formatRuleValue(rule.metric_name, rule.last_value, rule.params)}
                   </div>
                 </div>
                 <div className="admin-settings-row" style={{ gap: 8 }}>
@@ -495,6 +500,13 @@ export default function AdminUserSettingsPage() {
                 <p className="admin-settings-hint">
                   {t(`adminSettings.metricAlerts.thresholdHint.${metricUnit(ruleForm.metric_name)}`)}
                 </p>
+                {metricMeta(ruleForm.metric_name)?.params.includes('currencyCode') && (
+                  <div className="admin-settings-field">
+                    <label htmlFor="metric-rule-currency">{t('helperEarningsV2.currency')}</label>
+                    <input id="metric-rule-currency" maxLength={3} pattern="[A-Za-z]{3}" value={ruleForm.currencyCode}
+                      onChange={event => setRuleForm({ ...ruleForm, currencyCode: event.target.value.toUpperCase() })} />
+                  </div>
+                )}
                 {metricMeta(ruleForm.metric_name)?.params.includes('period') && (
                   <div className="admin-settings-field">
                     <label>{t('adminSettings.metricAlerts.period')}</label>

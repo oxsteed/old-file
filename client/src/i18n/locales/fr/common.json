@@ -549,14 +549,12 @@
     "dataFreshness": "Fraîcheur des données",
     "fresh": "À jour",
     "catchingUp": "Rattrapage nécessaire",
-
     "localRecovery": "Récupération locale sur ce navigateur",
     "localRecoveryHint": "Examinez le travail non envoyé de sessions précédentes ou d’appareils désactivés. Un brouillon impayé exige toujours l’acceptation du personnel. Les anciens enregistrements sont conservés ; rapprochez les actions de cuisine et les diagnostics financiers des données du serveur.",
     "recoverUnpaid": "Importer le brouillon impayé",
     "reconcileManually": "Rapprocher des données actuelles",
     "reviewCurrentWork": "Examiner le travail actuel",
     "lastHeartbeat": "Dernier signal",
-
     "controlTitle": "Centre de contrôle des écrans",
     "storeOperations": "Opérations du restaurant",
     "controlHint": "Gérez les écrans connectés, suivez leur synchronisation et examinez les commandes impayées récupérées.",
@@ -754,86 +752,86 @@
   "sop": {
     "unavailable": "Indisponible",
     "unavailableTitle": "Indisponible dans cette version",
-  "downloadGuide": "Télécharger le guide (PDF)",
-  "downloadHandbook": "Télécharger le manuel (PDF)",
-  "imageUnavailable": "Capture indisponible. Réessayez de la charger.",
-  "libraryLink": "Guides visuels étape par étape",
-  "guideButton": "Guide étape par étape",
-  "englishBadge": "English",
-  "modal": {
-    "title": "Guides étape par étape",
-    "close": "Fermer",
-    "openFullGuide": "Ouvrir le guide complet",
-    "chooseGuide": "Choisissez le guide qui correspond à votre tâche",
-    "noneLinked": "Aucun guide étape par étape n'est encore lié à cette page."
+    "downloadGuide": "Télécharger le guide (PDF)",
+    "downloadHandbook": "Télécharger le manuel (PDF)",
+    "imageUnavailable": "Capture indisponible. Réessayez de la charger.",
+    "libraryLink": "Guides visuels étape par étape",
+    "guideButton": "Guide étape par étape",
+    "englishBadge": "English",
+    "modal": {
+      "title": "Guides étape par étape",
+      "close": "Fermer",
+      "openFullGuide": "Ouvrir le guide complet",
+      "chooseGuide": "Choisissez le guide qui correspond à votre tâche",
+      "noneLinked": "Aucun guide étape par étape n'est encore lié à cette page."
+    },
+    "library": {
+      "title": "Guides étape par étape",
+      "subtitle": "Des tutoriels visuels pour les tâches courantes sur OxSteed. Le contenu des guides est rédigé en anglais.",
+      "searchLabel": "Rechercher des guides",
+      "searchPlaceholder": "Rechercher par tâche, par exemple publier une annonce",
+      "areaLabel": "Domaine",
+      "audienceLabel": "Public",
+      "allAreas": "Tous les domaines",
+      "allAudiences": "Tous les publics",
+      "suggestedForYou": "Suggéré pour vous",
+      "useSuggestion": "Utiliser la suggestion",
+      "clearFilters": "Effacer les filtres",
+      "results": "{{count}} guides",
+      "noResults": "Aucun guide ne correspond à votre recherche. Essayez d'autres mots-clés ou effacez les filtres.",
+      "viewGuide": "Voir le guide",
+      "supported": "Disponible",
+      "conditional": "Conditionnel",
+      "handbooksTitle": "Guides par rôle",
+      "handbooksSubtitle": "Listes de lecture ordonnées pour chaque rôle sur OxSteed.",
+      "openHandbook": "Ouvrir le manuel",
+      "guidesInHandbook": "{{count}} guides"
+    },
+    "audience": {
+      "customer": "Client",
+      "helper": "Aidant",
+      "business": "Entreprise",
+      "restaurant": "Restaurant",
+      "logistics": "Logistique"
+    },
+    "guide": {
+      "goal": "Objectif",
+      "prerequisites": "Avant de commencer",
+      "processMap": "Schéma du processus",
+      "processMapTextToggle": "Version texte de ce schéma",
+      "steps": "Étapes",
+      "stepNumber": "Étape {{n}}",
+      "expectedResult": "Résultat attendu",
+      "viewLarger": "Agrandir",
+      "closeZoom": "Fermer l'image agrandie",
+      "screenshotPending": "Capture en attente",
+      "confirmOutcome": "Vérifiez que cela a fonctionné",
+      "recovery": "En cas de problème",
+      "support": "Obtenir de l'aide",
+      "relatedGuides": "Guides associés",
+      "siteLinks": "Pages associées",
+      "sources": "Sources",
+      "revision": "Révision {{revision}}",
+      "notFound": "Guide introuvable",
+      "notFoundBody": "Ce guide n'est pas encore publié. Parcourez la bibliothèque complète pour trouver un tutoriel adapté à votre tâche.",
+      "backToLibrary": "Retour à tous les guides"
+    },
+    "checklist": {
+      "title": "Votre progression",
+      "reset": "Réinitialiser la progression",
+      "progress": "{{done}} étapes sur {{total}} terminées",
+      "markDone": "Marquer l'étape comme terminée",
+      "markNotDone": "Marquer l'étape comme non terminée"
+    },
+    "handbook": {
+      "contents": "Sommaire",
+      "notFound": "Manuel introuvable",
+      "notFoundBody": "Le manuel de ce rôle n'est pas encore publié.",
+      "backToLibrary": "Retour à tous les guides",
+      "guideNotPublished": "Pas encore publié",
+      "openGuide": "Ouvrir le guide"
+    }
   },
-  "library": {
-    "title": "Guides étape par étape",
-    "subtitle": "Des tutoriels visuels pour les tâches courantes sur OxSteed. Le contenu des guides est rédigé en anglais.",
-    "searchLabel": "Rechercher des guides",
-    "searchPlaceholder": "Rechercher par tâche, par exemple publier une annonce",
-    "areaLabel": "Domaine",
-    "audienceLabel": "Public",
-    "allAreas": "Tous les domaines",
-    "allAudiences": "Tous les publics",
-    "suggestedForYou": "Suggéré pour vous",
-    "useSuggestion": "Utiliser la suggestion",
-    "clearFilters": "Effacer les filtres",
-    "results": "{{count}} guides",
-    "noResults": "Aucun guide ne correspond à votre recherche. Essayez d'autres mots-clés ou effacez les filtres.",
-    "viewGuide": "Voir le guide",
-    "supported": "Disponible",
-    "conditional": "Conditionnel",
-    "handbooksTitle": "Guides par rôle",
-    "handbooksSubtitle": "Listes de lecture ordonnées pour chaque rôle sur OxSteed.",
-    "openHandbook": "Ouvrir le manuel",
-    "guidesInHandbook": "{{count}} guides"
-  },
-  "audience": {
-    "customer": "Client",
-    "helper": "Aidant",
-    "business": "Entreprise",
-    "restaurant": "Restaurant",
-    "logistics": "Logistique"
-  },
-  "guide": {
-    "goal": "Objectif",
-    "prerequisites": "Avant de commencer",
-    "processMap": "Schéma du processus",
-    "processMapTextToggle": "Version texte de ce schéma",
-    "steps": "Étapes",
-    "stepNumber": "Étape {{n}}",
-    "expectedResult": "Résultat attendu",
-    "viewLarger": "Agrandir",
-    "closeZoom": "Fermer l'image agrandie",
-    "screenshotPending": "Capture en attente",
-    "confirmOutcome": "Vérifiez que cela a fonctionné",
-    "recovery": "En cas de problème",
-    "support": "Obtenir de l'aide",
-    "relatedGuides": "Guides associés",
-    "siteLinks": "Pages associées",
-    "sources": "Sources",
-    "revision": "Révision {{revision}}",
-    "notFound": "Guide introuvable",
-    "notFoundBody": "Ce guide n'est pas encore publié. Parcourez la bibliothèque complète pour trouver un tutoriel adapté à votre tâche.",
-    "backToLibrary": "Retour à tous les guides"
-  },
-  "checklist": {
-    "title": "Votre progression",
-    "reset": "Réinitialiser la progression",
-    "progress": "{{done}} étapes sur {{total}} terminées",
-    "markDone": "Marquer l'étape comme terminée",
-    "markNotDone": "Marquer l'étape comme non terminée"
-  },
-  "handbook": {
-    "contents": "Sommaire",
-    "notFound": "Manuel introuvable",
-    "notFoundBody": "Le manuel de ce rôle n'est pas encore publié.",
-    "backToLibrary": "Retour à tous les guides",
-    "guideNotPublished": "Pas encore publié",
-    "openGuide": "Ouvrir le guide"
-  }
-},
   "helperOnboarding": {
     "background": "Vérification des antécédents (peut être requise pour certaines activités ou demandée par certains clients)"
   },
@@ -4426,6 +4424,207 @@
       "reconciled": "Le débit en double nécessite une révision",
       "empty": "Aucun élément ouvert",
       "reviewHint": "Enregistrer une révision ne déplace pas de fonds et ne libère pas de marchandises."
+    }
+  },
+  "helperEarningsV2": {
+    "currency": "Devise",
+    "recordedOnly": "Uniquement les rémunérations enregistrées. Les budgets sont exclus.",
+    "unpriced": "{{count}} missions terminées n’ont pas encore de rémunération enregistrée.",
+    "trend": "Tendance",
+    "weekly": "Hebdomadaire",
+    "monthly": "Mensuelle",
+    "untitled": "Mission terminée",
+    "notRecorded": "Non enregistré",
+    "pagination": "Pages des revenus",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "unpriced_one": "{{count}} mission terminée n’a pas encore de rémunération enregistrée.",
+    "unpriced_other": "{{count}} missions terminées n’ont pas encore de rémunération enregistrée."
+  },
+  "queryBuilder": {
+    "title": "Constructeur de requêtes",
+    "subtitle": "Créez des requêtes analytiques en lecture seule à partir de métriques gouvernées. Chaque exécution est journalisée.",
+    "metricLabel": "Métrique",
+    "metricPlaceholder": "Sélectionnez une métrique",
+    "dimensionsLabel": "Dimensions",
+    "noDimensions": "Aucune dimension disponible pour cette métrique.",
+    "filtersLabel": "Filtres",
+    "noFilters": "Aucun filtre disponible pour cette métrique.",
+    "periodLabel": "Période",
+    "periodInsensitiveNote": "Cette métrique est un instantané ponctuel ; la période ne change pas sa valeur.",
+    "run": "Exécuter la requête",
+    "running": "Exécution...",
+    "resultsTitle": "Résultats",
+    "noResults": "Aucune ligne retournée.",
+    "truncatedNotice": "Résultats limités à {{cap}} lignes.",
+    "rowCount": "{{count}} lignes",
+    "duration": "{{ms}} ms",
+    "exportCsv": "Exporter CSV",
+    "clear": "Effacer",
+    "errorTitle": "La requête a échoué",
+    "loadFailed": "Impossible de charger le catalogue de métriques.",
+    "retry": "Réessayer",
+    "chooseMetricFirst": "Choisissez une métrique pour voir ses dimensions et ses filtres.",
+    "filterRole": "Cohorte par rôle",
+    "filterCustomerId": "ID client (UUID)",
+    "filterBusinessId": "ID d'entreprise",
+    "filterRestaurantId": "ID de restaurant",
+    "dimensionPeriod": "Tranche de temps",
+    "dimensionRole": "Cohorte par rôle",
+    "dimensionBusiness": "Entreprise",
+    "dimensionRestaurant": "Restaurant",
+    "nlSectionTitle": "Poser une question en langage naturel",
+    "nlSectionBody": "Saisissez une question en langage simple. Elle sera compilée en requête en lecture seule sur les métriques gouvernées ; rien ne s'exécute avant confirmation de l'interprétation.",
+    "nlPlaceholder": "p. ex. taux d'annulation par rôle le mois dernier",
+    "nlEnglishOnly": "Anglais uniquement pour l'instant ; l'analyseur n'interprète pas les autres langues.",
+    "nlInterpret": "Interpréter",
+    "nlParsing": "Interprétation en cours…",
+    "nlInterpretationTitle": "Interprétation — confirmez avant d'exécuter",
+    "nlConfirmRun": "Exécuter cette requête",
+    "nlDismiss": "Ignorer",
+    "nlRejected": "Interprétation impossible",
+    "nlParseFailed": "Impossible de joindre l'analyseur.",
+    "metricNames": {
+      "open_disputes": "Litiges ouverts",
+      "platform_revenue_cents": "Revenu de la plateforme",
+      "investor_gmv_cents": "GMV investisseurs",
+      "investor_take_rate_pct": "Taux de commission investisseurs",
+      "cancel_rate_pct": "Taux d'annulation",
+      "consulting_cancel_rate_pct": "Taux d'annulation consulting",
+      "sla_first_response_compliance_pct": "Conformité SLA de première réponse",
+      "support_nps_index": "NPS du support",
+      "consulting_avg_nps": "NPS moyen du consulting",
+      "mrr_cents": "MRR",
+      "escrow_held_cents": "Séquestre détenu",
+      "restaurant_repeat_order_rate": "Taux de réachat restaurant",
+      "restaurant_top_items_revenue": "Chiffre d'affaires des plats vedettes par restaurant"
+    }
+  },
+  "helperDashboard": {
+    "jobEarnings": {
+      "title": "Gains des missions",
+      "lifetime": "Gains totaux",
+      "thisWeek": "Cette semaine",
+      "thisMonth": "Ce mois-ci",
+      "completedJobs": "Missions terminées",
+      "available": "Disponible",
+      "pendingPayout": "Paiement en attente",
+      "paidOut": "Payé",
+      "payouts": "Paiements",
+      "recentJobs": "Missions récentes",
+      "weeklyTrend": "Gains hebdomadaires",
+      "loading": "Chargement des gains…",
+      "loadFailed": "Impossible de charger les gains. Veuillez réessayer.",
+      "retry": "Réessayer",
+      "noJobs": "Aucune mission terminée pour le moment. Vos gains apparaîtront ici une fois vos missions terminées.",
+      "statusEarned": "Gagné",
+      "statusNotReady": "Non prêt",
+      "statusPending": "En attente",
+      "statusProcessing": "En cours",
+      "statusPaid": "Payé"
+    }
+  },
+  "adminUsers": {
+    "list": {
+      "allVerified": "Tous vérifiés"
+    }
+  },
+  "restaurants": {
+    "ops": {
+      "reports": {
+        "loyalty": {
+          "title": "Fidélité client",
+          "repeatRate": "Taux de commandes répétées",
+          "windowHint": "90 derniers jours · commandes invités exclues",
+          "repeatOrders": "Commandes répétées",
+          "repeatCustomers": "Clients fidèles",
+          "identifiedOrders": "Commandes identifiées",
+          "topItems": "Articles les plus rentables",
+          "unitsSold": "{{units}} vendus",
+          "noData": "Aucune commande client identifiée au cours des 90 derniers jours.",
+          "loadError": "Impossible de charger les analyses de fidélité."
+        }
+      }
+    }
+  },
+  "promotePage": {
+    "toolkit": {
+      "performance": {
+        "title": "Performance de la mise en avant",
+        "impressions": "Impressions",
+        "clicks": "Clics",
+        "conversions": "Conversions",
+        "clickThroughRate": "Taux de clic",
+        "conversionRate": "Taux de conversion",
+        "live": "En ligne",
+        "noData": "Aucun événement pour le moment. Les statistiques apparaissent quand votre mise en avant est active.",
+        "loadError": "Impossible de charger la performance de la mise en avant.",
+        "windowNote": "Les conversions comptent les commandes passées pendant que la mise en avant est active."
+      }
+    }
+  },
+  "adminSettings": {
+    "tabs": {
+      "metric-alerts": "Alertes de métriques"
+    },
+    "notifications": {
+      "notify_metric_alerts": "Alertes de seuil de métriques"
+    },
+    "metricAlerts": {
+      "title": "Alertes de seuil de métriques",
+      "hint": "Les règles sont évaluées chaque minute à partir du registre officiel des métriques. Une alerte se déclenche au plus une fois par période de carence, et uniquement sur les canaux activés.",
+      "empty": "Aucune règle d’alerte pour l’instant. Créez-en une pour surveiller une métrique.",
+      "newRule": "Nouvelle règle d’alerte",
+      "editRule": "Modifier la règle d’alerte",
+      "metric": "Métrique",
+      "operator": "Condition",
+      "threshold": "Seuil",
+      "period": "Période",
+      "days": "Jours d’historique",
+      "cooldownMinutes": "Carence (minutes)",
+      "cooldownHint": "Après un déclenchement, la règle ne se déclenchera plus pendant ce nombre de minutes.",
+      "channels": "Canaux de diffusion",
+      "channelInApp": "Dans l’app",
+      "channelEmail": "E-mail",
+      "channelSms": "SMS",
+      "active": "Règle active",
+      "edit": "Modifier",
+      "cancel": "Annuler",
+      "confirmDelete": "Supprimer cette règle d’alerte ?",
+      "saveFailed": "Impossible d’enregistrer la règle d’alerte.",
+      "lastFired": "Dernier déclenchement",
+      "never": "Jamais",
+      "currentValue": "Valeur actuelle",
+      "paused": "En pause",
+      "noValue": "n/d",
+      "thresholdHint": {
+        "cents": "Saisissez le seuil en centimes (ex. 500000 = 5 000,00 $).",
+        "pct": "Saisissez le seuil en points de pourcentage (ex. 5 = 5 %).",
+        "count": "Saisissez le seuil sous forme de nombre entier.",
+        "index": "Saisissez le seuil sous forme de valeur d’indice (ex. 50)."
+      },
+      "operators": {
+        "gt": "au-dessus de (>)",
+        "lt": "en dessous de (<)",
+        "eq": "égal à (==)"
+      },
+      "periods": {
+        "1d": "Dernières 24 heures",
+        "7d": "7 derniers jours",
+        "30d": "30 derniers jours",
+        "90d": "90 derniers jours",
+        "1y": "12 derniers mois"
+      },
+      "metrics": {
+        "open_disputes": "Litiges ouverts",
+        "platform_revenue_cents": "Revenus de la plateforme",
+        "investor_take_rate_pct": "Taux de commission investisseur",
+        "cancel_rate_pct": "Taux d’annulation",
+        "support_nps_index": "NPS du support",
+        "consulting_avg_nps": "NPS moyen du conseil",
+        "mrr_cents": "Revenus mensuels récurrents",
+        "escrow_held_cents": "Fonds séquestrés"
+      }
     }
   }
 }

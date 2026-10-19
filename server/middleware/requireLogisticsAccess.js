@@ -152,7 +152,8 @@ function enforceCountryRestriction() {
       return next();
     } catch (err) {
       logger.error('enforceCountryRestriction failed', { err: err.message });
-      return next(); // fail open — not a blocking gate
+      return res.status(503).json({ error: 'Logistics access checks are temporarily unavailable.',
+        code: 'logistics_access_unavailable', retryable: true });
     }
   };
 }

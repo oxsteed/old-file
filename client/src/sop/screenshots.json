@@ -4030,52 +4030,111 @@
   "width": 1360,
   "height": 900,
   "alt": "Synthetic example: Welcome back, Sam!",
-  "caption": "Screen overview. Some controls described in this step are not shown in this synthetic example.",
+  "caption": "Open recorded job earnings, desktop view.",
   "captureReview": {
-   "missingControls": [
-    "Dashboard tabs (no Earnings)"
-   ],
+   "missingControls": [],
    "unmapped": [
     "get /maintenance-requests/assigned",
     "get /verification/identity/status",
+    "get /life/summary",
+    "get /life/pulse",
+    "get /life/community",
+    "get /life/expenses",
+    "get /life/budgets",
+    "get /life/goals",
+    "get /life/checklist",
+    "get /life/saved-helpers",
+    "get /life/home-tasks",
+    "get /house/my",
     "get /helpers/me/listing",
     "get /helpers/me/availability",
     "get /planned-needs/helper/offers"
    ]
   },
-  "annotations": []
+  "annotations": [
+   {
+    "n": 1,
+    "x": 15.9,
+    "y": 64.5,
+    "label": "Currency selector"
+   }
+  ]
  },
  "helper-work-earnings/helper-work-earnings-s1/mobile": {
   "src": "/sop/screenshots/helper-work/helper-work-earnings/helper-work-earnings-s1-mobile.jpg",
   "width": 390,
   "height": 844,
   "alt": "Synthetic example: Welcome back, Sam!",
-  "caption": "The dashboard with the Earnings tab hidden, mobile view.",
+  "caption": "Open recorded job earnings, mobile view.",
   "captureReview": {
    "missingControls": [],
    "unmapped": [
     "get /maintenance-requests/assigned",
     "get /verification/identity/status",
+    "get /life/summary",
+    "get /life/pulse",
+    "get /life/community",
+    "get /life/expenses",
+    "get /life/budgets",
+    "get /life/goals",
+    "get /life/checklist",
+    "get /life/saved-helpers",
+    "get /life/home-tasks",
+    "get /house/my",
     "get /helpers/me/listing",
     "get /helpers/me/availability",
     "get /planned-needs/helper/offers"
    ]
   },
-  "annotations": []
+  "annotations": [
+   {
+    "n": 1,
+    "x": 39.1,
+    "y": 30,
+    "label": "Currency selector"
+   }
+  ]
  },
  "helper-work-earnings/helper-work-earnings-s2/desktop": {
-  "src": "/sop/screenshots/helper-work/helper-work-earnings/helper-work-earnings-s2-desktop.jpg",
+  "src": "/sop/screenshots/helper-work/helper-work-earnings/helper-work-earnings-s2-desktop-db665ae45249bd1f.jpg",
   "width": 1360,
   "height": 900,
-  "alt": "Synthetic example: Payouts",
-  "caption": "Screen overview. Some controls described in this step are not shown in this synthetic example.",
+  "alt": "Synthetic example: Welcome back, Sam!",
+  "caption": "Choose a currency and check missing amounts, desktop view.",
   "captureReview": {
-   "missingControls": [
-    "Balance breakdown"
-   ],
-   "unmapped": []
+   "missingControls": [],
+   "unmapped": [
+    "get /maintenance-requests/assigned",
+    "get /verification/identity/status",
+    "get /life/summary",
+    "get /life/pulse",
+    "get /life/community",
+    "get /life/expenses",
+    "get /life/budgets",
+    "get /life/goals",
+    "get /life/checklist",
+    "get /life/saved-helpers",
+    "get /life/home-tasks",
+    "get /house/my",
+    "get /helpers/me/listing",
+    "get /helpers/me/availability",
+    "get /planned-needs/helper/offers"
+   ]
   },
-  "annotations": []
+  "annotations": [
+   {
+    "n": 1,
+    "x": 15.9,
+    "y": 64.5,
+    "label": "Selected currency"
+   },
+   {
+    "n": 2,
+    "x": 50,
+    "y": 70.9,
+    "label": "Missing recorded payouts"
+   }
+  ]
  },
  "helper-work-payouts/helper-work-payouts-s1/desktop": {
   "src": "/sop/screenshots/helper-work/helper-work-earnings/helper-work-earnings-s2-desktop.jpg",
@@ -4094,16 +4153,45 @@
   "annotations": []
  },
  "helper-work-earnings/helper-work-earnings-s2/mobile": {
-  "src": "/sop/screenshots/helper-work/helper-work-earnings/helper-work-earnings-s2-mobile.jpg",
+  "src": "/sop/screenshots/helper-work/helper-work-earnings/helper-work-earnings-s2-mobile-14cac183a20d1b67.jpg",
   "width": 390,
   "height": 844,
-  "alt": "Synthetic example: Payouts",
-  "caption": "Balances on the Payouts page, mobile view.",
+  "alt": "Synthetic example: Welcome back, Sam!",
+  "caption": "Choose a currency and check missing amounts, mobile view.",
   "captureReview": {
    "missingControls": [],
-   "unmapped": []
+   "unmapped": [
+    "get /maintenance-requests/assigned",
+    "get /verification/identity/status",
+    "get /life/summary",
+    "get /life/pulse",
+    "get /life/community",
+    "get /life/expenses",
+    "get /life/budgets",
+    "get /life/goals",
+    "get /life/checklist",
+    "get /life/saved-helpers",
+    "get /life/home-tasks",
+    "get /house/my",
+    "get /helpers/me/listing",
+    "get /helpers/me/availability",
+    "get /planned-needs/helper/offers"
+   ]
   },
-  "annotations": []
+  "annotations": [
+   {
+    "n": 1,
+    "x": 39.1,
+    "y": 30,
+    "label": "Selected currency"
+   },
+   {
+    "n": 2,
+    "x": 50,
+    "y": 41.1,
+    "label": "Missing recorded payouts"
+   }
+  ]
  },
  "helper-work-payouts/helper-work-payouts-s1/mobile": {
   "src": "/sop/screenshots/helper-work/helper-work-earnings/helper-work-earnings-s2-mobile.jpg",
@@ -4121,47 +4209,93 @@
   "src": "/sop/screenshots/helper-work/helper-work-earnings/helper-work-earnings-s3-desktop.jpg",
   "width": 1360,
   "height": 900,
-  "alt": "Synthetic example: Statement archive",
-  "caption": "Screen overview. Some controls described in this step are not shown in this synthetic example.",
+  "alt": "Synthetic example: Welcome back, Sam!",
+  "caption": "Inspect trends and open a job, desktop view.",
   "captureReview": {
-   "missingControls": [
-    "Statement entries"
-   ],
-   "unmapped": []
+   "missingControls": [],
+   "unmapped": [
+    "get /maintenance-requests/assigned",
+    "get /verification/identity/status",
+    "get /life/summary",
+    "get /life/pulse",
+    "get /life/community",
+    "get /life/expenses",
+    "get /life/budgets",
+    "get /life/goals",
+    "get /life/checklist",
+    "get /life/saved-helpers",
+    "get /life/home-tasks",
+    "get /house/my",
+    "get /helpers/me/listing",
+    "get /helpers/me/availability",
+    "get /planned-needs/helper/offers"
+   ]
   },
-  "annotations": []
+  "annotations": [
+   {
+    "n": 1,
+    "x": 15,
+    "y": 30,
+    "label": "Weekly or monthly trend"
+   },
+   {
+    "n": 2,
+    "x": 23.8,
+    "y": 47.8,
+    "label": "Open a job"
+   }
+  ]
  },
  "helper-work-earnings/helper-work-earnings-s3/mobile": {
   "src": "/sop/screenshots/helper-work/helper-work-earnings/helper-work-earnings-s3-mobile.jpg",
   "width": 390,
   "height": 844,
-  "alt": "Synthetic example: Statement archive",
-  "caption": "Earnings statements, mobile view.",
+  "alt": "Synthetic example: Welcome back, Sam!",
+  "caption": "Inspect trends and open a job, mobile view.",
   "captureReview": {
    "missingControls": [],
-   "unmapped": []
+   "unmapped": [
+    "get /maintenance-requests/assigned",
+    "get /verification/identity/status",
+    "get /life/summary",
+    "get /life/pulse",
+    "get /life/community",
+    "get /life/expenses",
+    "get /life/budgets",
+    "get /life/goals",
+    "get /life/checklist",
+    "get /life/saved-helpers",
+    "get /life/home-tasks",
+    "get /house/my",
+    "get /helpers/me/listing",
+    "get /helpers/me/availability",
+    "get /planned-needs/helper/offers"
+   ]
   },
-  "annotations": []
+  "annotations": [
+   {
+    "n": 1,
+    "x": 36,
+    "y": 30,
+    "label": "Weekly or monthly trend"
+   },
+   {
+    "n": 2,
+    "x": 28.5,
+    "y": 52,
+    "label": "Open a job"
+   }
+  ]
  },
  "helper-work-earnings/helper-work-earnings-s4/desktop": {
   "src": "/sop/screenshots/helper-work/helper-work-earnings/helper-work-earnings-s4-desktop.jpg",
   "width": 1360,
   "height": 900,
-  "alt": "Synthetic example: Welcome back, Sam!",
-  "caption": "Screen overview. Some controls described in this step are not shown in this synthetic example.",
+  "alt": "Synthetic example: Statement archive",
+  "caption": "Open your earnings statements, desktop view.",
   "captureReview": {
-   "missingControls": [
-    "Income card",
-    "Expenses card",
-    "Net and savings rate"
-   ],
-   "unmapped": [
-    "get /maintenance-requests/assigned",
-    "get /verification/identity/status",
-    "get /helpers/me/listing",
-    "get /helpers/me/availability",
-    "get /planned-needs/helper/offers"
-   ]
+   "missingControls": [],
+   "unmapped": []
   },
   "annotations": []
  },
@@ -4169,17 +4303,11 @@
   "src": "/sop/screenshots/helper-work/helper-work-earnings/helper-work-earnings-s4-mobile.jpg",
   "width": 390,
   "height": 844,
-  "alt": "Synthetic example: Welcome back, Sam!",
-  "caption": "The Earnings tab (flag enabled), mobile view.",
+  "alt": "Synthetic example: Statement archive",
+  "caption": "Open your earnings statements, mobile view.",
   "captureReview": {
    "missingControls": [],
-   "unmapped": [
-    "get /maintenance-requests/assigned",
-    "get /verification/identity/status",
-    "get /helpers/me/listing",
-    "get /helpers/me/availability",
-    "get /planned-needs/helper/offers"
-   ]
+   "unmapped": []
   },
   "annotations": []
  },

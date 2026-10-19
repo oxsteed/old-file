@@ -30,6 +30,7 @@ describe('business workspace analytics', () => {
         rows: [{
           id: 1,
           business_name: 'Draft Co',
+          effective_role: 'owner',
           is_primary: false,
           tax_rate: 25,
           owner_id: '00000000-0000-4000-8000-000000000456',
@@ -58,6 +59,7 @@ describe('business workspace analytics', () => {
         rows: [{
           id: 1,
           business_name: 'Draft Co',
+          effective_role: 'owner',
           is_primary: false,
           tax_rate: 25,
           owner_id: '00000000-0000-4000-8000-000000000456',

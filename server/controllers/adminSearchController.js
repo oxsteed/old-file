@@ -2,6 +2,7 @@
 const db = require('../db');
 const { hashIP } = require('../utils/encryption');
 const logger = require('../utils/logger');
+const { hasGlobalGrant } = require('../middleware/adminAuth');
 
 // ── Valid entity types the search engine covers ───────────────────────────────
 const ALL_ENTITY_TYPES = [
@@ -15,20 +16,19 @@ const DEFAULT_PAGE = 1;
 // A search permission must not become alternate access to private messages
 // or financial records (T17-F01).
 const ENTITY_GRANT_REQUIREMENTS = {
+  users: 'manage_users',
+  jobs: 'manage_operations',
   messages: 'manage_support',
   payments: 'view_financials',
+  disputes: 'manage_disputes',
+  support_tickets: 'manage_support',
+  reviews: 'moderate_content',
+  bids: 'moderate_content',
 };
 
 async function hasGrant(userId, isSuper, permission) {
   if (isSuper) return true;
-  const { rows } = await db.query(
-    `SELECT 1 FROM admin_permission_grants
-     WHERE grantee_id = $1 AND permissions ? $2
-       AND expires_at > NOW() AND revoked_at IS NULL AND region_id IS NULL
-     LIMIT 1`,
-    [userId, permission]
-  );
-  return rows.length > 0;
+  return hasGlobalGrant(userId, permission);
 }
 
 exports.search = async (req, res) => {
@@ -62,7 +62,13 @@ exports.search = async (req, res) => {
       allowedTypes.push(type);
       continue;
     }
-    if (await hasGrant(adminId, isSuper, required)) {
+    let granted;
+    try { granted = await hasGrant(adminId, isSuper, required); }
+    catch (error) {
+      logger.warn('Search scope unavailable', { code: error.code });
+      return res.status(503).json({ error: 'Search permissions are temporarily unavailable.', code: 'search_scope_unavailable', retryable: true });
+    }
+    if (granted) {
       allowedTypes.push(type);
     } else if (explicitlyRequested) {
       return res.status(403).json({

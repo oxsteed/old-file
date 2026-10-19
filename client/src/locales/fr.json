@@ -1,4 +1,19 @@
 {
+  "helperEarningsV2": {
+    "unpriced_one": "{{count}} mission terminée n’a pas encore de rémunération enregistrée.",
+    "unpriced_other": "{{count}} missions terminées n’ont pas encore de rémunération enregistrée.",
+    "currency": "Devise",
+    "recordedOnly": "Uniquement les rémunérations enregistrées. Les budgets sont exclus.",
+    "unpriced": "{{count}} missions terminées n’ont pas encore de rémunération enregistrée.",
+    "trend": "Tendance",
+    "weekly": "Hebdomadaire",
+    "monthly": "Mensuelle",
+    "untitled": "Mission terminée",
+    "notRecorded": "Non enregistré",
+    "pagination": "Pages des revenus",
+    "previous": "Précédent",
+    "next": "Suivant"
+  },
   "queryBuilder": {
     "title": "Constructeur de requêtes",
     "subtitle": "Créez des requêtes analytiques en lecture seule à partir de métriques gouvernées. Chaque exécution est journalisée.",
