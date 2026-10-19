@@ -15,6 +15,7 @@ import {
 export default function DisplayInstallPrompt() {
   const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
 
   useEffect(() => {
@@ -41,6 +42,22 @@ export default function DisplayInstallPrompt() {
     setVisible(false);
   };
 
+  // Collapsed by default: a small floating button that never intercepts
+  // taps meant for the page (kiosk ordering flow, kitchen tickets).
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        className="fd-display-install-fab"
+        aria-label={t('display.install.title')}
+        title={t('display.install.title')}
+        onClick={() => setExpanded(true)}
+      >
+        <span aria-hidden="true">⤓</span>
+      </button>
+    );
+  }
+
   const installNow = async () => {
     if (!deferredPrompt) return;
     try {
@@ -56,6 +73,14 @@ export default function DisplayInstallPrompt() {
 
   return (
     <div className="fd-display-install" role="dialog" aria-label={t('display.install.title')}>
+      <button
+        type="button"
+        className="fd-display-install-close"
+        aria-label={t('common.close')}
+        onClick={() => setExpanded(false)}
+      >
+        <span aria-hidden="true">×</span>
+      </button>
       <strong className="fd-display-install-title">{t('display.install.title')}</strong>
       <p>{t('display.install.body')}</p>
       {!deferredPrompt && (
