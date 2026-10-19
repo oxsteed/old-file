@@ -22769,7 +22769,8 @@
         "menu": "Menu",
         "settings": "Settings",
         "operations": "Operations",
-        "payouts": "Payouts"
+        "payouts": "Payouts",
+        "displays": "Displays"
       },
       "liveOrders": "Live orders",
       "noOrders": "No active orders right now.",
@@ -35137,5 +35138,46 @@
       "testSuccess": "Test page sent. Check the printer.",
       "testFailed": "Print failed. Check the printer connection and try again.",
       "enableFirst": "Enable receipt printing and save first."
+  },
+  "displayPairing": {
+    "pairThisDisplay": "Pair this display",
+    "title": "Pair this display",
+    "close": "Close",
+    "instructions": "Enter this code in your restaurant dashboard under Displays to pair this screen.",
+    "codeError": "Could not get a pairing code. Try again.",
+    "expiresIn": "Code expires in",
+    "waitingForClaim": "Waiting for the code to be entered in the dashboard…",
+    "codeExpired": "This code expired. Get a new one.",
+    "getCodeHint": "Get a code to pair this display with your restaurant.",
+    "working": "Working…",
+    "newCode": "New code",
+    "pairedOk": "This display is paired and reporting to your dashboard."
+  },
+  "displayFleet": {
+    "title": "Displays",
+    "intro": "Pair wall displays for this restaurant. On the TV, open the queue board, kiosk or kitchen page, tap the pair button to show its code, then enter the code below.",
+    "codeLabel": "Pairing code",
+    "codePlaceholder": "6-character code",
+    "nameLabel": "Display name",
+    "namePlaceholder": "Dining room TV",
+    "pairButton": "Pair display",
+    "pairing": "Pairing…",
+    "pairedOk": "Display paired.",
+    "unpairedOk": "Display unpaired.",
+    "refreshSent": "Refresh requested. The display will reload shortly.",
+    "loadError": "Could not load displays.",
+    "pairError": "Could not pair this display. Check the code and try again.",
+    "refreshError": "Could not request a refresh.",
+    "unpairError": "Could not unpair this display.",
+    "unpairConfirm": "Unpair this display? It will stop reporting to the dashboard.",
+    "refreshButton": "Refresh",
+    "unpairButton": "Unpair",
+    "online": "Online",
+    "offline": "Offline",
+    "lastSeen": "Last seen",
+    "neverSeen": "Never connected",
+    "noDisplays": "No displays paired yet. Use the code shown on the TV screen to pair your first display.",
+    "justNow": "just now",
+    "minutesAgo": "{count} min ago"
   }
 }

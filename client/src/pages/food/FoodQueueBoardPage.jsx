@@ -9,6 +9,7 @@ import { FoodBrand, FoodConnBadge } from './foodShared';
 import DisplayFullscreenToggle from '../../components/DisplayFullscreenToggle';
 import DisplayOfflineBanner from '../../components/DisplayOfflineBanner';
 import DisplayInstallPrompt from '../../components/DisplayInstallPrompt';
+import DisplayPairingCode from '../../components/DisplayPairingCode';
 import { useFullscreen } from '../../hooks/useFullscreen';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { useDisplayPoller } from '../../hooks/useDisplayPoller';
@@ -136,6 +137,7 @@ export default function FoodQueueBoardPage({managedBoard=null,managedStatus='onl
       <DisplayOfflineBanner offline={showOffline} />
       <DisplayFullscreenToggle targetRef={rootRef} />
       <DisplayInstallPrompt />
+      <DisplayPairingCode />
     </div>
   );
 }

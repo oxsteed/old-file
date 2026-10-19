@@ -24,6 +24,7 @@ import { subscribeRestaurantDisplay } from "../../api/restaurantDisplaySocket";
 import DisplayFullscreenToggle from "../../components/DisplayFullscreenToggle";
 import DisplayOfflineBanner from "../../components/DisplayOfflineBanner";
 import DisplayInstallPrompt from "../../components/DisplayInstallPrompt";
+import DisplayPairingCode from "../../components/DisplayPairingCode";
 import { useFullscreen } from "../../hooks/useFullscreen";
 import { useWakeLock } from "../../hooks/useWakeLock";
 import { useDisplayPoller } from "../../hooks/useDisplayPoller";
@@ -41,6 +42,7 @@ function KioskOverlays({ rootRef, offline }) {
       <DisplayOfflineBanner offline={offline} />
       <DisplayFullscreenToggle targetRef={rootRef} />
       <DisplayInstallPrompt />
+      <DisplayPairingCode />
     </>
   );
 }

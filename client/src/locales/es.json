@@ -22769,7 +22769,8 @@
         "menu": "Menú",
         "settings": "Configuración",
         "operations": "Operaciones",
-        "payouts": "Pagos"
+        "payouts": "Pagos",
+        "displays": "Pantallas"
       },
       "liveOrders": "Pedidos en vivo",
       "noOrders": "No hay pedidos activos ahora.",
@@ -35137,5 +35138,46 @@
       "testSuccess": "Página de prueba enviada. Revise la impresora.",
       "testFailed": "Error de impresión. Revise la conexión y vuelva a intentarlo.",
       "enableFirst": "Active la impresión de recibos y guarde primero."
+  },
+  "displayPairing": {
+    "pairThisDisplay": "Vincular esta pantalla",
+    "title": "Vincular pantalla",
+    "close": "Cerrar",
+    "instructions": "Ingresa este código en el panel de tu restaurante, en Pantallas, para vincular esta pantalla.",
+    "codeError": "No se pudo obtener un código de vinculación. Inténtalo de nuevo.",
+    "expiresIn": "El código vence en",
+    "waitingForClaim": "Esperando que se ingrese el código en el panel…",
+    "codeExpired": "Este código venció. Obtén uno nuevo.",
+    "getCodeHint": "Obtén un código para vincular esta pantalla con tu restaurante.",
+    "working": "Procesando…",
+    "newCode": "Nuevo código",
+    "pairedOk": "Esta pantalla está vinculada y reporta a tu panel."
+  },
+  "displayFleet": {
+    "title": "Pantallas",
+    "intro": "Vincula pantallas de pared para este restaurante. En el televisor, abre la página de cola, quiosco o cocina, toca el botón de vinculación para mostrar su código e ingrésalo abajo.",
+    "codeLabel": "Código de vinculación",
+    "codePlaceholder": "Código de 6 caracteres",
+    "nameLabel": "Nombre de la pantalla",
+    "namePlaceholder": "TV del comedor",
+    "pairButton": "Vincular pantalla",
+    "pairing": "Vinculando…",
+    "pairedOk": "Pantalla vinculada.",
+    "unpairedOk": "Pantalla desvinculada.",
+    "refreshSent": "Actualización solicitada. La pantalla se recargará en breve.",
+    "loadError": "No se pudieron cargar las pantallas.",
+    "pairError": "No se pudo vincular esta pantalla. Verifica el código e inténtalo de nuevo.",
+    "refreshError": "No se pudo solicitar la actualización.",
+    "unpairError": "No se pudo desvincular esta pantalla.",
+    "unpairConfirm": "¿Desvincular esta pantalla? Dejará de reportar al panel.",
+    "refreshButton": "Actualizar",
+    "unpairButton": "Desvincular",
+    "online": "En línea",
+    "offline": "Sin conexión",
+    "lastSeen": "Visto por última vez",
+    "neverSeen": "Nunca conectado",
+    "noDisplays": "Aún no hay pantallas vinculadas. Usa el código que se muestra en el televisor para vincular tu primera pantalla.",
+    "justNow": "ahora mismo",
+    "minutesAgo": "hace {count} min"
   }
 }

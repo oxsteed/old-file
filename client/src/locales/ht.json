@@ -22769,7 +22769,8 @@
         "menu": "Meni",
         "settings": "Paramèt",
         "operations": "Operasyon",
-        "payouts": "Peman"
+        "payouts": "Peman",
+        "displays": "Ekran"
       },
       "liveOrders": "Kòmand an dirèk",
       "noOrders": "Pa gen kòmand aktif kounye a.",
@@ -35137,5 +35138,46 @@
       "testSuccess": "Paj tès la voye. Tcheke enprimant lan.",
       "testFailed": "Enpresyon an echwe. Tcheke koneksyon an epi eseye ankò.",
       "enableFirst": "Aktive enpresyon resi a epi anrejistre anvan."
+  },
+  "displayPairing": {
+    "pairThisDisplay": "Konekte ekran sa a",
+    "title": "Konekte ekran an",
+    "close": "Fèmen",
+    "instructions": "Antre kòd sa a nan tablodbò restoran ou an, anba Ekran, pou konekte ekran sa a.",
+    "codeError": "Pa t kapab jwenn yon kòd koneksyon. Eseye ankò.",
+    "expiresIn": "Kòd la ap ekspire nan",
+    "waitingForClaim": "Ap tann yo antre kòd la nan tablodbò a…",
+    "codeExpired": "Kòd sa a ekspire. Pran yon nouvo.",
+    "getCodeHint": "Pran yon kòd pou konekte ekran sa a ak restoran ou an.",
+    "working": "Ap travay…",
+    "newCode": "Nouvo kòd",
+    "pairedOk": "Ekran sa a konekte epi l ap voye enfòmasyon bay tablodbò ou an."
+  },
+  "displayFleet": {
+    "title": "Ekran",
+    "intro": "Konekte ekran miray pou restoran sa a. Sou televizyon an, louvri paj ke, kyòs oswa kwizin nan, peze bouton koneksyon an pou wè kòd la, apre antre kòd la anba a.",
+    "codeLabel": "Kòd koneksyon",
+    "codePlaceholder": "Kòd 6 karaktè",
+    "nameLabel": "Non ekran an",
+    "namePlaceholder": "Televizyon sal manje a",
+    "pairButton": "Konekte ekran an",
+    "pairing": "Ap konekte…",
+    "pairedOk": "Ekran an konekte.",
+    "unpairedOk": "Ekran an dekonekte.",
+    "refreshSent": "Yo mande rafrechi. Ekran an ap rechaje talè.",
+    "loadError": "Pa t kapab chaje ekran yo.",
+    "pairError": "Pa t kapab konekte ekran sa a. Tcheke kòd la epi eseye ankò.",
+    "refreshError": "Pa t kapab mande rafrechi a.",
+    "unpairError": "Pa t kapab dekonekte ekran sa a.",
+    "unpairConfirm": "Dekonekte ekran sa a? Li p ap voye enfòmasyon bay tablodbò a ankò.",
+    "refreshButton": "Rafrechi",
+    "unpairButton": "Dekonekte",
+    "online": "Anliy",
+    "offline": "Oflayn",
+    "lastSeen": "Dènye fwa yo te wè l",
+    "neverSeen": "Li pa t janm konekte",
+    "noDisplays": "Pa gen ekran ki konekte pou kounye a. Sèvi ak kòd ki parèt sou televizyon an pou konekte premye ekran ou an.",
+    "justNow": "kounye a",
+    "minutesAgo": "{count} min de sa"
   }
 }

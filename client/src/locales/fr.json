@@ -22769,7 +22769,8 @@
         "menu": "Menu",
         "settings": "Paramètres",
         "operations": "Opérations",
-        "payouts": "Paiements"
+        "payouts": "Paiements",
+        "displays": "Écrans"
       },
       "liveOrders": "Commandes en direct",
       "noOrders": "Aucune commande active pour le moment.",
@@ -35137,5 +35138,46 @@
       "testSuccess": "Page de test envoyée. Vérifiez l'imprimante.",
       "testFailed": "Échec d'impression. Vérifiez la connexion et réessayez.",
       "enableFirst": "Activez d'abord l'impression des reçus et enregistrez."
+  },
+  "displayPairing": {
+    "pairThisDisplay": "Associer cet écran",
+    "title": "Associer l’écran",
+    "close": "Fermer",
+    "instructions": "Saisissez ce code dans le tableau de bord de votre restaurant, sous Écrans, pour associer cet écran.",
+    "codeError": "Impossible d’obtenir un code d’association. Réessayez.",
+    "expiresIn": "Le code expire dans",
+    "waitingForClaim": "En attente de la saisie du code dans le tableau de bord…",
+    "codeExpired": "Ce code a expiré. Demandez-en un nouveau.",
+    "getCodeHint": "Obtenez un code pour associer cet écran à votre restaurant.",
+    "working": "En cours…",
+    "newCode": "Nouveau code",
+    "pairedOk": "Cet écran est associé et communique avec votre tableau de bord."
+  },
+  "displayFleet": {
+    "title": "Écrans",
+    "intro": "Associez des écrans muraux à ce restaurant. Sur le téléviseur, ouvrez la page file d’attente, borne ou cuisine, touchez le bouton d’association pour afficher son code, puis saisissez-le ci-dessous.",
+    "codeLabel": "Code d’association",
+    "codePlaceholder": "Code à 6 caractères",
+    "nameLabel": "Nom de l’écran",
+    "namePlaceholder": "TV de la salle",
+    "pairButton": "Associer l’écran",
+    "pairing": "Association…",
+    "pairedOk": "Écran associé.",
+    "unpairedOk": "Écran dissocié.",
+    "refreshSent": "Actualisation demandée. L’écran va se recharger.",
+    "loadError": "Impossible de charger les écrans.",
+    "pairError": "Impossible d’associer cet écran. Vérifiez le code et réessayez.",
+    "refreshError": "Impossible de demander l’actualisation.",
+    "unpairError": "Impossible de dissocier cet écran.",
+    "unpairConfirm": "Dissocier cet écran ? Il cessera de communiquer avec le tableau de bord.",
+    "refreshButton": "Actualiser",
+    "unpairButton": "Dissocier",
+    "online": "En ligne",
+    "offline": "Hors ligne",
+    "lastSeen": "Vu pour la dernière fois",
+    "neverSeen": "Jamais connecté",
+    "noDisplays": "Aucun écran associé pour le moment. Utilisez le code affiché sur le téléviseur pour associer votre premier écran.",
+    "justNow": "à l’instant",
+    "minutesAgo": "il y a {count} min"
   }
 }
