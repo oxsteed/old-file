@@ -140,7 +140,9 @@ export default function DisplayPairingCode() {
         );
         if (data?.refresh_requested) window.location.reload();
       } catch (err) {
-        if (err?.response?.status === 401) dropPairing();
+        // Only an explicit invalid-token response drops the pairing; other
+        // 401s (rate limits, unrelated auth failures) must not unpair the TV.
+        if (err?.response?.data?.code === 'display_token_invalid') dropPairing();
       }
     };
     beatRef.current = setInterval(beat, HEARTBEAT_MS);

@@ -362,7 +362,7 @@ async function pairingStatus(req, res, next) {
 async function heartbeat(req, res, next) {
   try {
     const pairing = await verifyDisplayPairingToken(bearerToken(req));
-    if (!pairing) throw new AppError('Unauthorized', 401, 'unauthorized');
+    if (!pairing) throw new AppError('Unauthorized', 401, 'display_token_invalid');
     const { rows } = await pool.query(
       `SELECT refresh_requested_at FROM display_pairings WHERE id = $1 AND paired_at IS NOT NULL`,
       [pairing.pairingId]
