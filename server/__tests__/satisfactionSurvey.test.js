@@ -104,7 +104,7 @@ describe('support satisfaction surveys', () => {
   test('requires support management access for survey follow-up updates', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [authUser(CUSTOMER_ID, 'customer', 'customer@example.com')] })
-      .mockResolvedValueOnce({ rows: [{ id: 'survey-1', business_id: BUSINESS_ID }] })
+      // Route gate (administrate level): the customer has no standing.
       .mockResolvedValueOnce({ rows: [] });
 
     const res = await request(buildApp())

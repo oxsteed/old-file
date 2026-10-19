@@ -1502,6 +1502,8 @@ describe('support routes', () => {
   test('blocks AI handoff checks when the URL business does not own the conversation', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [authUserRow()] })
+      // Route gate (conversations level): the caller manages business 42.
+      .mockResolvedValueOnce({ rows: [{ id: 42 }] })
       .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', business_id: 99 }] });
 
     const res = await request(buildApp())

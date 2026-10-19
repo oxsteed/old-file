@@ -1,6 +1,7 @@
 // Support Routes - Phase 1: Agent Infrastructure, Hiring, Shifts, Queue, Conversations
 const express = require('express');
 const router = express.Router();
+const { requireSupportBusinessAccess, scopeExempt } = require('../middleware/scopeGates');
 
 const { requireAuth, optionalAuth } = require('../middleware/auth');
 const supportAgentsController = require('../controllers/supportAgentsController');
@@ -96,75 +97,75 @@ router.post('/employers/helper', agentOnboardingController.ensureMyHelperEmploye
 router.post('/apply', agentOnboardingController.applyToBeAgent);
 
 // User applies to be an agent (legacy: businessId in path)
-router.post('/:businessId/apply', agentOnboardingController.applyToBeAgent);
+router.post('/:businessId/apply', scopeExempt('customer-self-service'), agentOnboardingController.applyToBeAgent);
 
 // Get user's application status
-router.get('/:businessId/my-application', agentOnboardingController.getMyApplicationStatus);
+router.get('/:businessId/my-application', scopeExempt('resource-scoped'), agentOnboardingController.getMyApplicationStatus);
 
 // Admin: Get all applications
-router.get('/:businessId/applications', agentOnboardingController.getApplications);
+router.get('/:businessId/applications', requireSupportBusinessAccess('manage', { platformAdmins: false }), agentOnboardingController.getApplications);
 
 // Admin: Get single application
-router.get('/:businessId/applications/:applicationId', agentOnboardingController.getApplication);
+router.get('/:businessId/applications/:applicationId', scopeExempt('resource-scoped'), agentOnboardingController.getApplication);
 
 // Admin: Review application (approve/reject)
-router.put('/:businessId/applications/:applicationId/review', agentOnboardingController.reviewApplication);
+router.put('/:businessId/applications/:applicationId/review', scopeExempt('resource-scoped'), agentOnboardingController.reviewApplication);
 
 // Admin: Approve and hire agent
-router.post('/:businessId/applications/:applicationId/hire', agentOnboardingController.approveAndHire);
+router.post('/:businessId/applications/:applicationId/hire', scopeExempt('resource-scoped'), agentOnboardingController.approveAndHire);
 
 // Admin: Get application statistics
-router.get('/:businessId/applications-stats', agentOnboardingController.getApplicationStats);
+router.get('/:businessId/applications-stats', requireSupportBusinessAccess('manage', { platformAdmins: false }), agentOnboardingController.getApplicationStats);
 
 // ============================================
 // AGENT MANAGEMENT
 // ============================================
 
 // Get all agents for a business
-router.get('/:businessId/agents', supportAgentsController.listAgents);
+router.get('/:businessId/agents', requireSupportBusinessAccess('administrate'), supportAgentsController.listAgents);
 
 // Get single agent
-router.get('/:businessId/agents/:agentId', supportAgentsController.getAgent);
+router.get('/:businessId/agents/:agentId', scopeExempt('resource-scoped'), supportAgentsController.getAgent);
 
 // Update agent status (active, inactive, paused, training)
-router.put('/:businessId/agents/:agentId/status', supportAgentsController.updateAgentStatus);
+router.put('/:businessId/agents/:agentId/status', scopeExempt('resource-scoped'), supportAgentsController.updateAgentStatus);
 
 // Set agent availability (available/offline)
-router.put('/:businessId/agents/:agentId/availability', supportAgentsController.setAgentAvailability);
+router.put('/:businessId/agents/:agentId/availability', scopeExempt('resource-scoped'), supportAgentsController.setAgentAvailability);
 
 // Add skill to agent
-router.post('/:businessId/agents/:agentId/skills', supportAgentsController.addAgentSkill);
+router.post('/:businessId/agents/:agentId/skills', scopeExempt('resource-scoped'), supportAgentsController.addAgentSkill);
 
 // Get agent availability log
-router.get('/:businessId/agents/:agentId/availability-log', supportAgentsController.getAvailabilityLog);
+router.get('/:businessId/agents/:agentId/availability-log', scopeExempt('resource-scoped'), supportAgentsController.getAvailabilityLog);
 
 // ============================================
 // AGENT SHIFTS
 // ============================================
 
 // Get agent's shifts for date range
-router.get('/:businessId/agents/:agentId/shifts', agentShiftsController.getAgentShifts);
+router.get('/:businessId/agents/:agentId/shifts', scopeExempt('resource-scoped'), agentShiftsController.getAgentShifts);
 
 // Create scheduled shift
-router.post('/:businessId/agents/:agentId/shifts', agentShiftsController.createShift);
+router.post('/:businessId/agents/:agentId/shifts', scopeExempt('resource-scoped'), agentShiftsController.createShift);
 
 // Clock in
-router.post('/:businessId/agents/:agentId/clock-in', agentShiftsController.clockIn);
+router.post('/:businessId/agents/:agentId/clock-in', scopeExempt('resource-scoped'), agentShiftsController.clockIn);
 
 // Clock out
-router.post('/:businessId/agents/:agentId/clock-out', agentShiftsController.clockOut);
+router.post('/:businessId/agents/:agentId/clock-out', scopeExempt('resource-scoped'), agentShiftsController.clockOut);
 
 // Start break
-router.post('/:businessId/agents/:agentId/break-start', agentShiftsController.startBreak);
+router.post('/:businessId/agents/:agentId/break-start', scopeExempt('resource-scoped'), agentShiftsController.startBreak);
 
 // End break
-router.post('/:businessId/agents/:agentId/break-end', agentShiftsController.endBreak);
+router.post('/:businessId/agents/:agentId/break-end', scopeExempt('resource-scoped'), agentShiftsController.endBreak);
 
 // Get shift templates (recurring schedules)
-router.get('/:businessId/agents/:agentId/shift-templates', agentShiftsController.getShiftTemplate);
+router.get('/:businessId/agents/:agentId/shift-templates', scopeExempt('resource-scoped'), agentShiftsController.getShiftTemplate);
 
 // Set shift template
-router.post('/:businessId/agents/:agentId/shift-templates', agentShiftsController.setShiftTemplate);
+router.post('/:businessId/agents/:agentId/shift-templates', scopeExempt('resource-scoped'), agentShiftsController.setShiftTemplate);
 
 // ============================================
 // SUPPORT CONVERSATIONS (Tickets)
@@ -1956,147 +1957,147 @@ router.get('/audit/export', strictLimiter, async (req, res, next) => {
 });
 
 // Create new conversation
-router.post('/:businessId/conversations', conversationMessageLimiter, supportConversationsController.createConversation);
+router.post('/:businessId/conversations', conversationMessageLimiter, scopeExempt('customer-self-service'), supportConversationsController.createConversation);
 
 // List conversations (with filters)
-router.get('/:businessId/conversations', supportConversationsController.listConversations);
+router.get('/:businessId/conversations', requireSupportBusinessAccess('conversations'), supportConversationsController.listConversations);
 
 // Get single conversation
-router.get('/:businessId/conversations/:conversationId', supportConversationsController.getConversation);
+router.get('/:businessId/conversations/:conversationId', scopeExempt('resource-scoped'), supportConversationsController.getConversation);
 
 // Update conversation status
-router.put('/:businessId/conversations/:conversationId/status', supportConversationsController.updateConversationStatus);
+router.put('/:businessId/conversations/:conversationId/status', scopeExempt('resource-scoped'), supportConversationsController.updateConversationStatus);
 
 // Add message to conversation
-router.post('/:businessId/conversations/:conversationId/messages', conversationMessageLimiter, upload.single('file'), validateFileUpload, supportConversationsController.addMessage);
+router.post('/:businessId/conversations/:conversationId/messages', conversationMessageLimiter, upload.single('file'), validateFileUpload, scopeExempt('resource-scoped'), supportConversationsController.addMessage);
 
 // Get conversation stats
-router.get('/:businessId/conversation-stats', supportConversationsController.getConversationStats);
+router.get('/:businessId/conversation-stats', requireSupportBusinessAccess('conversations'), supportConversationsController.getConversationStats);
 
 // ============================================
 // CONVERSATION ASSIGNMENT
 // ============================================
 
 // Agent claims a conversation
-router.post('/:businessId/conversations/:conversationId/claim', conversationAssignmentController.claimConversation);
+router.post('/:businessId/conversations/:conversationId/claim', scopeExempt('resource-scoped'), conversationAssignmentController.claimConversation);
 
 // Admin assigns to specific agent
-router.post('/:businessId/conversations/:conversationId/assign', conversationAssignmentController.assignToAgent);
+router.post('/:businessId/conversations/:conversationId/assign', scopeExempt('resource-scoped'), conversationAssignmentController.assignToAgent);
 
 // Reassign to different agent
-router.post('/:businessId/conversations/:conversationId/reassign', conversationAssignmentController.reassignAgent);
+router.post('/:businessId/conversations/:conversationId/reassign', scopeExempt('resource-scoped'), conversationAssignmentController.reassignAgent);
 
 // Release conversation (agent stops working)
-router.post('/:businessId/conversations/:conversationId/release', conversationAssignmentController.releaseConversation);
+router.post('/:businessId/conversations/:conversationId/release', scopeExempt('resource-scoped'), conversationAssignmentController.releaseConversation);
 
 // Get agent's active assignments
-router.get('/:businessId/agents/:agentId/assignments', conversationAssignmentController.getAgentAssignments);
+router.get('/:businessId/agents/:agentId/assignments', scopeExempt('resource-scoped'), conversationAssignmentController.getAgentAssignments);
 
 // ============================================
 // SUPPORT QUEUE
 // ============================================
 
 // Get queue status
-router.get('/:businessId/queue/status', queueController.getQueueStatus);
+router.get('/:businessId/queue/status', requireSupportBusinessAccess('administrate'), queueController.getQueueStatus);
 
 // Get next available agent
-router.get('/:businessId/queue/next-agent', queueController.getNextAvailableAgent);
+router.get('/:businessId/queue/next-agent', requireSupportBusinessAccess('administrate'), queueController.getNextAvailableAgent);
 
 // Route next conversation from queue
-router.post('/:businessId/queue/route-next', queueController.routeNextConversation);
+router.post('/:businessId/queue/route-next', requireSupportBusinessAccess('administrate'), queueController.routeNextConversation);
 
 // Remove from queue
-router.post('/:businessId/queue/remove/:conversationId', queueController.removeFromQueue);
+router.post('/:businessId/queue/remove/:conversationId', requireSupportBusinessAccess('administrate'), queueController.removeFromQueue);
 
 // Get queue analytics
-router.get('/:businessId/queue/analytics', queueController.getQueueAnalytics);
+router.get('/:businessId/queue/analytics', requireSupportBusinessAccess('administrate'), queueController.getQueueAnalytics);
 
 // ============================================
 // SUPPORT SETTINGS
 // ============================================
 
 // Get support settings for business
-router.get('/:businessId/settings', businessSupportSettingsController.getSupportSettings);
-router.get('/:businessId/settings/hiring', businessSupportSettingsController.getHiringProfile);
-router.put('/:businessId/settings/hiring', businessSupportSettingsController.upsertHiringProfile);
+router.get('/:businessId/settings', requireSupportBusinessAccess('manage'), businessSupportSettingsController.getSupportSettings);
+router.get('/:businessId/settings/hiring', requireSupportBusinessAccess('manage'), businessSupportSettingsController.getHiringProfile);
+router.put('/:businessId/settings/hiring', requireSupportBusinessAccess('manage'), businessSupportSettingsController.upsertHiringProfile);
 
 // Set SLA target
-router.post('/:businessId/settings/sla', businessSupportSettingsController.setSLATarget);
+router.post('/:businessId/settings/sla', requireSupportBusinessAccess('manage'),  businessSupportSettingsController.setSLATarget);
 
 // Create break type
-router.post('/:businessId/settings/break-types', businessSupportSettingsController.createBreakType);
+router.post('/:businessId/settings/break-types', requireSupportBusinessAccess('manage'),  businessSupportSettingsController.createBreakType);
 
 // Create routing rule
-router.post('/:businessId/settings/routing-rules', businessSupportSettingsController.createRoutingRule);
+router.post('/:businessId/settings/routing-rules', requireSupportBusinessAccess('manage'),  businessSupportSettingsController.createRoutingRule);
 
 // Update routing rule
-router.put('/:businessId/settings/routing-rules/:ruleId', businessSupportSettingsController.updateRoutingRule);
+router.put('/:businessId/settings/routing-rules/:ruleId', requireSupportBusinessAccess('manage'), businessSupportSettingsController.updateRoutingRule);
 
 // Delete routing rule
-router.delete('/:businessId/settings/routing-rules/:ruleId', businessSupportSettingsController.deleteRoutingRule);
+router.delete('/:businessId/settings/routing-rules/:ruleId', requireSupportBusinessAccess('manage'), businessSupportSettingsController.deleteRoutingRule);
 
 // Get support statistics
-router.get('/:businessId/statistics', businessSupportSettingsController.getSupportStatistics);
+router.get('/:businessId/statistics', requireSupportBusinessAccess('manage'), businessSupportSettingsController.getSupportStatistics);
 
 // ============================================
 // KNOWLEDGE BASE (Phase 2)
 // ============================================
 
-router.post('/:businessId/kb/categories', knowledgeBaseController.createCategory);
-router.get('/:businessId/kb/categories', knowledgeBaseController.listCategories);
-router.post('/:businessId/kb/articles', knowledgeBaseController.createArticle);
-router.put('/:businessId/kb/articles/:articleId', knowledgeBaseController.updateArticle);
-router.post('/:businessId/kb/articles/:articleId/publish', knowledgeBaseController.publishArticle);
-router.get('/:businessId/kb/articles/:articleId', knowledgeBaseController.getArticle);
-router.get('/:businessId/kb/search', knowledgeBaseController.searchArticles);
-router.post('/:businessId/kb/articles/:articleId/feedback', knowledgeBaseController.recordFeedback);
-router.get('/:businessId/kb/categories/:categoryId/articles', knowledgeBaseController.getArticlesByCategory);
+router.post('/:businessId/kb/categories', requireSupportBusinessAccess('manage'), knowledgeBaseController.createCategory);
+router.get('/:businessId/kb/categories', requireSupportBusinessAccess('conversations'), knowledgeBaseController.listCategories);
+router.post('/:businessId/kb/articles', requireSupportBusinessAccess('manage'), knowledgeBaseController.createArticle);
+router.put('/:businessId/kb/articles/:articleId', requireSupportBusinessAccess('manage'), knowledgeBaseController.updateArticle);
+router.post('/:businessId/kb/articles/:articleId/publish', requireSupportBusinessAccess('manage'), knowledgeBaseController.publishArticle);
+router.get('/:businessId/kb/articles/:articleId', requireSupportBusinessAccess('conversations'), knowledgeBaseController.getArticle);
+router.get('/:businessId/kb/search', requireSupportBusinessAccess('conversations'), knowledgeBaseController.searchArticles);
+router.post('/:businessId/kb/articles/:articleId/feedback', requireSupportBusinessAccess('conversations'), knowledgeBaseController.recordFeedback);
+router.get('/:businessId/kb/categories/:categoryId/articles', requireSupportBusinessAccess('conversations'), knowledgeBaseController.getArticlesByCategory);
 
 // ============================================
 // CANNED RESPONSES (Phase 2)
 // ============================================
 
-router.post('/:businessId/responses', cannedResponsesController.createResponse);
-router.get('/:businessId/responses', cannedResponsesController.listResponses);
-router.put('/:businessId/responses/:responseId', cannedResponsesController.updateResponse);
-router.delete('/:businessId/responses/:responseId', cannedResponsesController.deleteResponse);
-router.get('/:businessId/responses/expand', cannedResponsesController.expandShortcut);
-router.get('/:businessId/response-categories', cannedResponsesController.getCategories);
+router.post('/:businessId/responses', requireSupportBusinessAccess('manage'), cannedResponsesController.createResponse);
+router.get('/:businessId/responses', requireSupportBusinessAccess('conversations'), cannedResponsesController.listResponses);
+router.put('/:businessId/responses/:responseId', requireSupportBusinessAccess('manage'), cannedResponsesController.updateResponse);
+router.delete('/:businessId/responses/:responseId', requireSupportBusinessAccess('manage'), cannedResponsesController.deleteResponse);
+router.get('/:businessId/responses/expand', requireSupportBusinessAccess('conversations'), cannedResponsesController.expandShortcut);
+router.get('/:businessId/response-categories', requireSupportBusinessAccess('conversations'), cannedResponsesController.getCategories);
 
 // ============================================
 // AI CHATBOT (Phase 2)
 // ============================================
 
-router.post('/:businessId/ai/message', conversationMessageLimiter, aiChatbotController.sendMessage);
-router.post('/:businessId/ai/drafts/:draftId/apply', conversationMessageLimiter, aiChatbotController.applyDraft);
-router.post('/:businessId/ai/drafts/:draftId/discard', conversationMessageLimiter, aiChatbotController.discardDraft);
-router.post('/:businessId/ai/check-handoff', aiChatbotController.checkNeedsHandoff);
-router.get('/:businessId/ai/suggest-articles/:conversationId', aiChatbotController.suggestKBArticles);
-router.get('/:businessId/ai/suggest-responses', aiChatbotController.suggestResponses);
+router.post('/:businessId/ai/message', conversationMessageLimiter, requireSupportBusinessAccess('conversations'), aiChatbotController.sendMessage);
+router.post('/:businessId/ai/drafts/:draftId/apply', conversationMessageLimiter, requireSupportBusinessAccess('conversations'), aiChatbotController.applyDraft);
+router.post('/:businessId/ai/drafts/:draftId/discard', conversationMessageLimiter, requireSupportBusinessAccess('conversations'), aiChatbotController.discardDraft);
+router.post('/:businessId/ai/check-handoff', requireSupportBusinessAccess('conversations'), aiChatbotController.checkNeedsHandoff);
+router.get('/:businessId/ai/suggest-articles/:conversationId', requireSupportBusinessAccess('conversations'), aiChatbotController.suggestKBArticles);
+router.get('/:businessId/ai/suggest-responses', requireSupportBusinessAccess('conversations'), aiChatbotController.suggestResponses);
 
 // ============================================
 // CONVERSATION MESSAGES (Phase 2)
 // ============================================
 
-router.get('/:businessId/conversations/:conversationId/messages', conversationMessageController.getMessages);
-router.put('/:businessId/messages/:messageId/read', conversationMessageController.markAsRead);
-router.delete('/:businessId/messages/:messageId', conversationMessageController.deleteMessage);
-router.put('/:businessId/messages/:messageId', conversationMessageController.editMessage);
-router.post('/:businessId/conversations/:conversationId/attachment', conversationMessageController.addAttachment);
-router.get('/:businessId/conversations/:conversationId/unread-count', conversationMessageController.getUnreadCount);
-router.post('/:businessId/conversations/:conversationId/mark-all-read', conversationMessageController.markAllAsRead);
-router.post('/:businessId/conversations/:conversationId/typing', conversationMessageController.sendTypingIndicator);
+router.get('/:businessId/conversations/:conversationId/messages', requireSupportBusinessAccess('conversations'), conversationMessageController.getMessages);
+router.put('/:businessId/messages/:messageId/read', requireSupportBusinessAccess('conversations'), conversationMessageController.markAsRead);
+router.delete('/:businessId/messages/:messageId', requireSupportBusinessAccess('conversations'), conversationMessageController.deleteMessage);
+router.put('/:businessId/messages/:messageId', scopeExempt('resource-scoped'), conversationMessageController.editMessage);
+router.post('/:businessId/conversations/:conversationId/attachment', scopeExempt('resource-scoped'), conversationMessageController.addAttachment);
+router.get('/:businessId/conversations/:conversationId/unread-count', requireSupportBusinessAccess('conversations'), conversationMessageController.getUnreadCount);
+router.post('/:businessId/conversations/:conversationId/mark-all-read', requireSupportBusinessAccess('conversations'), conversationMessageController.markAllAsRead);
+router.post('/:businessId/conversations/:conversationId/typing', requireSupportBusinessAccess('conversations'), conversationMessageController.sendTypingIndicator);
 
 // ============================================
 // SLA METRICS (Phase 3)
 // ============================================
 
-router.get('/:businessId/sla/dashboard', slaMetricsController.getSLADashboard);
-router.get('/:businessId/sla/breaches', slaMetricsController.getSLABreaches);
-router.get('/:businessId/sla/by-priority', slaMetricsController.getSLAByPriority);
-router.get('/:businessId/sla/upcoming-breaches', slaMetricsController.getUpcomingBreaches);
-router.post('/:businessId/sla/update/:conversationId', slaMetricsController.updateSLAStatus);
-router.get('/:businessId/sla/trends', slaMetricsController.getSLATrends);
+router.get('/:businessId/sla/dashboard', requireSupportBusinessAccess('conversations'), slaMetricsController.getSLADashboard);
+router.get('/:businessId/sla/breaches', requireSupportBusinessAccess('conversations'), slaMetricsController.getSLABreaches);
+router.get('/:businessId/sla/by-priority', requireSupportBusinessAccess('conversations'), slaMetricsController.getSLAByPriority);
+router.get('/:businessId/sla/upcoming-breaches', requireSupportBusinessAccess('conversations'), slaMetricsController.getUpcomingBreaches);
+router.post('/:businessId/sla/update/:conversationId', requireSupportBusinessAccess('administrate'), slaMetricsController.updateSLAStatus);
+router.get('/:businessId/sla/trends', requireSupportBusinessAccess('conversations'), slaMetricsController.getSLATrends);
 
 // ============================================
 // PERFORMANCE ANALYTICS (Phase 3)
@@ -2110,57 +2111,57 @@ router.use('/:businessId/analytics', (_req,res,next) => {
   next();
 });
 
-router.get('/:businessId/analytics/leaderboard', performanceAnalyticsController.getAgentLeaderboard);
-router.get('/:businessId/analytics/agents/:agentId', performanceAnalyticsController.getAgentMetrics);
-router.get('/:businessId/analytics/teams', performanceAnalyticsController.getTeamPerformance);
-router.get('/:businessId/analytics/business', performanceAnalyticsController.getBusinessMetrics);
-router.get('/:businessId/analytics/conversations', performanceAnalyticsController.getConversationMetrics);
-router.get('/:businessId/analytics/utilization', performanceAnalyticsController.getAgentUtilization);
+router.get('/:businessId/analytics/leaderboard', requireSupportBusinessAccess('conversations'), performanceAnalyticsController.getAgentLeaderboard);
+router.get('/:businessId/analytics/agents/:agentId', requireSupportBusinessAccess('conversations'), performanceAnalyticsController.getAgentMetrics);
+router.get('/:businessId/analytics/teams', requireSupportBusinessAccess('conversations'), performanceAnalyticsController.getTeamPerformance);
+router.get('/:businessId/analytics/business', requireSupportBusinessAccess('conversations'), performanceAnalyticsController.getBusinessMetrics);
+router.get('/:businessId/analytics/conversations', requireSupportBusinessAccess('conversations'), performanceAnalyticsController.getConversationMetrics);
+router.get('/:businessId/analytics/utilization', requireSupportBusinessAccess('conversations'), performanceAnalyticsController.getAgentUtilization);
 
 // ============================================
 // SATISFACTION SURVEYS (Phase 3)
 // ============================================
 
-router.post('/:businessId/surveys/:conversationId', satisfactionSurveyController.createSurvey);
-router.get('/:businessId/surveys', satisfactionSurveyController.getSurveys);
-router.get('/:businessId/surveys/summary', satisfactionSurveyController.getSurveySummary);
-router.get('/:businessId/surveys/agent-ratings', satisfactionSurveyController.getAgentRatings);
-router.get('/:businessId/surveys/negative-feedback', satisfactionSurveyController.getNegativeFeedback);
-router.get('/:businessId/surveys/trends', satisfactionSurveyController.getSurveyTrends);
-router.post('/:businessId/surveys/:surveyId/follow-up', satisfactionSurveyController.sendFollowUp);
+router.post('/:businessId/surveys/:conversationId', scopeExempt('customer-self-service'), satisfactionSurveyController.createSurvey);
+router.get('/:businessId/surveys', requireSupportBusinessAccess('conversations'), satisfactionSurveyController.getSurveys);
+router.get('/:businessId/surveys/summary', requireSupportBusinessAccess('conversations'), satisfactionSurveyController.getSurveySummary);
+router.get('/:businessId/surveys/agent-ratings', requireSupportBusinessAccess('conversations'), satisfactionSurveyController.getAgentRatings);
+router.get('/:businessId/surveys/negative-feedback', requireSupportBusinessAccess('conversations'), satisfactionSurveyController.getNegativeFeedback);
+router.get('/:businessId/surveys/trends', requireSupportBusinessAccess('conversations'), satisfactionSurveyController.getSurveyTrends);
+router.post('/:businessId/surveys/:surveyId/follow-up', requireSupportBusinessAccess('administrate'),  satisfactionSurveyController.sendFollowUp);
 
 // ============================================
 // ESCALATION POLICIES (Phase 4)
 // ============================================
 
-router.post('/:businessId/escalation-policies', escalationPoliciesController.createPolicy);
-router.get('/:businessId/escalation-policies', escalationPoliciesController.listPolicies);
-router.put('/:businessId/escalation-policies/:policyId', escalationPoliciesController.updatePolicy);
-router.delete('/:businessId/escalation-policies/:policyId', escalationPoliciesController.deletePolicy);
-router.post('/:businessId/escalation-policies/:policyId/steps', escalationPoliciesController.addStep);
-router.post('/:businessId/escalations/trigger/:conversationId', escalationPoliciesController.triggerEscalation);
-router.get('/:businessId/escalations/:conversationId', escalationPoliciesController.getEscalationHistory);
+router.post('/:businessId/escalation-policies', requireSupportBusinessAccess('administrate'), escalationPoliciesController.createPolicy);
+router.get('/:businessId/escalation-policies', requireSupportBusinessAccess('administrate'), escalationPoliciesController.listPolicies);
+router.put('/:businessId/escalation-policies/:policyId', requireSupportBusinessAccess('administrate'),  escalationPoliciesController.updatePolicy);
+router.delete('/:businessId/escalation-policies/:policyId', requireSupportBusinessAccess('administrate'),  escalationPoliciesController.deletePolicy);
+router.post('/:businessId/escalation-policies/:policyId/steps', requireSupportBusinessAccess('administrate'),  escalationPoliciesController.addStep);
+router.post('/:businessId/escalations/trigger/:conversationId', requireSupportBusinessAccess('administrate'), escalationPoliciesController.triggerEscalation);
+router.get('/:businessId/escalations/:conversationId', requireSupportBusinessAccess('conversations'), escalationPoliciesController.getEscalationHistory);
 
 // ============================================
 // SUPPORT TEAMS (Phase 4)
 // ============================================
 
-router.post('/:businessId/teams', supportTeamsController.createTeam);
-router.get('/:businessId/teams', supportTeamsController.listTeams);
-router.put('/:businessId/teams/:teamId', supportTeamsController.updateTeam);
-router.post('/:businessId/teams/:teamId/members', supportTeamsController.addMember);
-router.delete('/:businessId/teams/members/:memberId', supportTeamsController.removeMember);
-router.post('/:businessId/teams/:teamId/skills', supportTeamsController.addSkill);
-router.get('/:businessId/teams/:teamId/metrics', supportTeamsController.getTeamMetrics);
+router.post('/:businessId/teams', requireSupportBusinessAccess('administrate'), supportTeamsController.createTeam);
+router.get('/:businessId/teams', requireSupportBusinessAccess('conversations'), supportTeamsController.listTeams);
+router.put('/:businessId/teams/:teamId', requireSupportBusinessAccess('administrate'),  supportTeamsController.updateTeam);
+router.post('/:businessId/teams/:teamId/members', requireSupportBusinessAccess('administrate'),  supportTeamsController.addMember);
+router.delete('/:businessId/teams/members/:memberId', requireSupportBusinessAccess('administrate'),  supportTeamsController.removeMember);
+router.post('/:businessId/teams/:teamId/skills', requireSupportBusinessAccess('administrate'),  supportTeamsController.addSkill);
+router.get('/:businessId/teams/:teamId/metrics', requireSupportBusinessAccess('conversations'),  supportTeamsController.getTeamMetrics);
 
 // ============================================
 // SKILL-BASED ROUTING (Phase 4)
 // ============================================
 
-router.post('/:businessId/routing/find-agent', skillBasedRoutingController.findAgentBySkills);
-router.post('/:businessId/routing/find-team', skillBasedRoutingController.findTeamBySkills);
-router.post('/:businessId/routing/by-skills/:conversationId', skillBasedRoutingController.routeBySkills);
-router.get('/:businessId/routing/skill-matrix', skillBasedRoutingController.getAgentSkillMatrix);
-router.get('/:businessId/routing/coverage', skillBasedRoutingController.getCoverageBySkill);
+router.post('/:businessId/routing/find-agent', requireSupportBusinessAccess('conversations'), skillBasedRoutingController.findAgentBySkills);
+router.post('/:businessId/routing/find-team', requireSupportBusinessAccess('conversations'), skillBasedRoutingController.findTeamBySkills);
+router.post('/:businessId/routing/by-skills/:conversationId', requireSupportBusinessAccess('administrate'), skillBasedRoutingController.routeBySkills);
+router.get('/:businessId/routing/skill-matrix', requireSupportBusinessAccess('conversations'), skillBasedRoutingController.getAgentSkillMatrix);
+router.get('/:businessId/routing/coverage', requireSupportBusinessAccess('conversations'), skillBasedRoutingController.getCoverageBySkill);
 
 module.exports = router;

@@ -14,6 +14,7 @@
 // per-user rate limited.
 
 const router = require('express').Router();
+const { scopeExempt } = require('../middleware/scopeGates');
 const { authenticate } = require('../middleware/auth');
 const { restaurantTopupIntentLimiter } = require('../middleware/rateLimiter');
 const { requirePayoutManager } = require('../controllers/restaurantPayoutController');
@@ -33,24 +34,24 @@ router.post(
 router.get(
   '/:restaurantId/topup-eligibility',
   authenticate,
-  ctrl.getEligibility
+  scopeExempt('customer-self-service'), ctrl.getEligibility
 );
 router.post(
   '/:restaurantId/topups',
   authenticate,
   restaurantTopupIntentLimiter,
-  ctrl.createTopup
+  scopeExempt('customer-self-service'), ctrl.createTopup
 );
 router.post(
   '/:restaurantId/topups/stepup-challenges',
   authenticate,
   restaurantTopupIntentLimiter,
-  ctrl.issueTopupStepupChallenge
+  scopeExempt('customer-self-service'), ctrl.issueTopupStepupChallenge
 );
 router.get(
   '/:restaurantId/topups/:topupId',
   authenticate,
-  ctrl.getTopup
+  scopeExempt('customer-self-service'), ctrl.getTopup
 );
 
 // Route-local JSON error handler for consistent API responses when this

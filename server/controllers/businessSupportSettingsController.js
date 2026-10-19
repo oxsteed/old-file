@@ -5,6 +5,7 @@ const { query } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
+const { supportScopeSatisfies } = require('../middleware/scopeGates');
 
 function isSupportAgentHiringSchemaMissing(err) {
   if (!err) return false;
@@ -48,6 +49,8 @@ function boundedJson(value, max = 10000) {
 }
 
 async function canManageBusiness(req, businessId) {
+  // Route gate (requireSupportBusinessAccess) already granted this level.
+  if (supportScopeSatisfies(req, businessId, 'manage')) return true;
   if (supportEmployerService.isPlatformAdmin(req.user.role)) return true;
   return supportEmployerService.userCanManageBusiness(businessId, req.user.id);
 }

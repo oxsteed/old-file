@@ -2,6 +2,7 @@
 
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
+const { resolveRestaurantAccess } = require('../services/scopeModel');
 const { listSettlements } = require('../services/oxsteedCreditAdminService');
 const {
   getPartnerLedger,
@@ -50,27 +51,10 @@ function parseRestaurantId(value) {
   return parsed;
 }
 
+// Canonical restaurant gate (scope report Area 4): same ownership CASE and 404
+// as the former local query; the owner/manager policy stays here.
 async function requireRestaurantManager(userId, restaurantId) {
-  const { rows } = await pool.query(
-    `SELECT fr.id,
-            CASE
-              WHEN b.user_id = $2 OR fr.owner_user_id = $2 THEN 'owner'
-              ELSE (
-                SELECT bm.role
-                  FROM business_members bm
-                 WHERE bm.business_id = fr.business_id
-                   AND bm.member_id = $2
-                   AND bm.status = 'active'
-                 LIMIT 1
-              )
-            END AS effective_role
-       FROM food_restaurants fr
-       JOIN businesses b ON b.id = fr.business_id
-      WHERE fr.id = $1`,
-    [restaurantId, userId]
-  );
-  const restaurant = rows[0];
-  if (!restaurant || !restaurant.effective_role) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+  const restaurant = await resolveRestaurantAccess(userId, restaurantId);
   if (!MANAGE_ROLES.has(restaurant.effective_role)) throw new AppError('Owner or manager access required', 403, 'forbidden');
   return restaurant;
 }

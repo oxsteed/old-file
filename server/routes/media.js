@@ -3,6 +3,7 @@
 // OxSteed Media routes.
 
 const router = require('express').Router();
+const { scopeExempt } = require('../middleware/scopeGates');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
 const rateLimit = require('express-rate-limit');
 const ctrl = require('../controllers/mediaController');
@@ -52,7 +53,7 @@ router.post('/communities/suggestions', requireAuth, ctrl.createCommunitySuggest
 router.get('/communities/:slug', ctrl.getCommunity);
 router.post('/communities/:id/join', requireAuth, ctrl.joinCommunity);
 router.delete('/communities/:id/join', requireAuth, ctrl.leaveCommunity);
-router.get('/business/:businessId/posts', ctrl.getBusinessPosts);
+router.get('/business/:businessId/posts', scopeExempt('public-storefront'), ctrl.getBusinessPosts);
 router.get('/posts/:id/draft', requireAuth, ctrl.getDraft);
 router.get('/posts/:id/moderation', requireAuth, ctrl.getModerationStatus);
 router.post('/posts/:id/appeals', requireAuth, ctrl.createAppeal);
