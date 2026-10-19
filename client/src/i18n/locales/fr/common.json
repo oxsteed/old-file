@@ -8,6 +8,17 @@
     "smsStatus": {"sent":"Envoyé","uncertain":"Livraison incertaine","sending":"Réservé ; achèvement non confirmé"},
     "modelNlHint": "Le modèle facultatif propose une requête à vérifier. Seuls les indicateurs autorisés sont disponibles. Confirmez l’indicateur, les filtres et la période glissante avant l’exécution.",
     "columns": {
+      "redemption_id": "Utilisation",
+      "surface": "Paiement",
+      "reference_id": "Référence",
+      "code": "Code",
+      "gross_cents": "Montant brut",
+      "discount_cents": "Remise",
+      "funded_by": "Financé par",
+      "redeemed_at": "Utilisé le",
+      "redemptions": "Utilisations",
+      "platform_funded_cents": "Financé par la plateforme",
+      "promo_discount_cents": "Remises promo",
       "value": "Valeur",
       "scope": "Périmètre",
       "cohort": "Cohorte",
@@ -4635,7 +4646,8 @@
       "mrr_cents": "MRR",
       "escrow_held_cents": "Séquestre détenu",
       "restaurant_repeat_order_rate": "Taux de réachat restaurant",
-      "restaurant_top_items_revenue": "Chiffre d'affaires des plats vedettes par restaurant"
+      "restaurant_top_items_revenue": "Chiffre d'affaires des plats vedettes par restaurant",
+      "promo_discount_cents": "Remises promo"
     },
     "regionScopedNotice": "Lignes limitées à vos régions attribuées",
     "regionScopedHint": "Votre autorisation pour cet indicateur est régionale : les totaux, les enregistrements et les exports ne comprennent que les lignes situées dans vos régions.",
@@ -4814,8 +4826,28 @@
         "support_nps_index": "NPS du support",
         "consulting_avg_nps": "NPS moyen du conseil",
         "mrr_cents": "Revenus mensuels récurrents",
-        "escrow_held_cents": "Fonds séquestrés"
+        "escrow_held_cents": "Fonds séquestrés",
+        "promo_discount_cents": "Remises promo"
       }
+    }
+  },
+  "food": {
+    "restaurant": {
+      "promoErrors": {
+        "generic": "Ce code promo ne peut pas être utilisé pour cette commande.",
+        "promo_sign_in_required": "Connectez-vous pour utiliser un code promo.",
+        "promo_not_started": "Ce code promo n'est pas encore actif.",
+        "promo_expired": "Ce code promo a expiré.",
+        "promo_surface_not_supported": "Ce code promo ne s'applique pas aux commandes de repas.",
+        "promo_currency_mismatch": "Ce code promo n'est pas valable dans la devise de ce restaurant.",
+        "promo_min_order_not_met": "Votre commande est inférieure au minimum de ce code promo.",
+        "promo_max_order_exceeded": "Votre commande dépasse le maximum de ce code promo.",
+        "promo_usage_limit_reached": "Ce code promo a atteint sa limite d'utilisation.",
+        "promo_user_limit_reached": "Vous avez déjà utilisé ce code promo le nombre maximal de fois.",
+        "promo_not_fundable": "Ce code promo ne peut pas être appliqué à cette commande.",
+        "promo_changed": "La remise promo a changé. Vérifiez votre commande et réessayez."
+      },
+      "promoApplied": "Code promo appliqué : −{{amount}}"
     }
   }
 }

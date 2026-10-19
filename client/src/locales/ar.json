@@ -8,6 +8,17 @@
     "smsStatus": {"sent":"تم الإرسال","uncertain":"التسليم غير مؤكد","sending":"محجوز؛ الاكتمال غير مؤكد"},
     "modelNlHint": "يقترح النموذج الاختياري استعلامًا لمراجعته. تتوفر المقاييس المصرح بها فقط. أكّد المقياس وعوامل التصفية والفترة الزمنية السابقة قبل التنفيذ.",
     "columns": {
+      "redemption_id": "الاسترداد",
+      "surface": "الدفع",
+      "reference_id": "المرجع",
+      "code": "الرمز",
+      "gross_cents": "المبلغ الإجمالي",
+      "discount_cents": "الخصم",
+      "funded_by": "مموّل من",
+      "redeemed_at": "تاريخ الاسترداد",
+      "redemptions": "عمليات الاسترداد",
+      "platform_funded_cents": "مموّل من المنصة",
+      "promo_discount_cents": "خصومات ترويجية",
       "value": "القيمة",
       "scope": "النطاق",
       "cohort": "المجموعة",
@@ -199,7 +210,8 @@
       "mrr_cents": "الإيرادات الشهرية المتكررة",
       "escrow_held_cents": "الضمان المحتجز",
       "restaurant_repeat_order_rate": "معدل تكرار الطلبات في المطاعم",
-      "restaurant_top_items_revenue": "إيرادات الأصناف الأعلى حسب المطعم"
+      "restaurant_top_items_revenue": "إيرادات الأصناف الأعلى حسب المطعم",
+      "promo_discount_cents": "خصومات ترويجية"
     },
     "regionScopedNotice": "الصفوف مقصورة على مناطقك المعيّنة",
     "regionScopedHint": "صلاحيتك لهذا المقياس إقليمية، لذا تشمل الإجماليات والسجلات والتصديرات الصفوف الواقعة في مناطقك فقط.",
@@ -22566,7 +22578,22 @@
       "loyaltyUseMax": "استخدام الكل",
       "loyaltyBalanceHint": "{{balance}} نقطة متاحة. الحد الأدنى {{min}} نقطة للاستبدال.",
       "loyaltyLoading": "جارٍ تحميل رصيد نقاطك...",
-      "loyaltyDiscount": "الولاء ({{points}} نقطة)"
+      "loyaltyDiscount": "الولاء ({{points}} نقطة)",
+      "promoErrors": {
+        "generic": "لا يمكن استخدام رمز الترويج هذا في هذا الطلب.",
+        "promo_sign_in_required": "سجّل الدخول لاستخدام رمز ترويجي.",
+        "promo_not_started": "رمز الترويج هذا غير مفعّل بعد.",
+        "promo_expired": "انتهت صلاحية رمز الترويج هذا.",
+        "promo_surface_not_supported": "لا يمكن استخدام رمز الترويج هذا لطلبات الطعام.",
+        "promo_currency_mismatch": "رمز الترويج هذا غير صالح بعملة هذا المطعم.",
+        "promo_min_order_not_met": "طلبك أقل من الحد الأدنى لرمز الترويج هذا.",
+        "promo_max_order_exceeded": "طلبك يتجاوز الحد الأقصى لرمز الترويج هذا.",
+        "promo_usage_limit_reached": "بلغ رمز الترويج هذا حد الاستخدام.",
+        "promo_user_limit_reached": "لقد استخدمت رمز الترويج هذا الحد الأقصى من المرات.",
+        "promo_not_fundable": "لا يمكن تطبيق رمز الترويج هذا على هذا الطلب.",
+        "promo_changed": "تغيّر خصم الترويج. راجع طلبك وحاول مرة أخرى."
+      },
+      "promoApplied": "تم تطبيق الترويج: −{{amount}}"
     },
     "order": {
       "specialInstructions": "تعليمات خاصة (اختياري)",
@@ -33878,7 +33905,8 @@
         "support_nps_index": "صافي نقاط الترويج للدعم",
         "consulting_avg_nps": "متوسط صافي نقاط الترويج للاستشارات",
         "mrr_cents": "الإيرادات الشهرية المتكررة",
-        "escrow_held_cents": "الأموال المحتجزة في الضمان"
+        "escrow_held_cents": "الأموال المحتجزة في الضمان",
+        "promo_discount_cents": "خصومات ترويجية"
       }
     }
   },

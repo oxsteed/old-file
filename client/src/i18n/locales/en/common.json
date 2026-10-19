@@ -8,6 +8,17 @@
     "smsStatus": {"sent":"Sent","uncertain":"Delivery uncertain","sending":"Claimed; completion unconfirmed"},
     "modelNlHint": "The optional model proposes a query for your review. Only permitted metrics are available. Confirm the metric, filters and trailing time window before running.",
     "columns": {
+      "redemption_id": "Redemption",
+      "surface": "Checkout",
+      "reference_id": "Reference",
+      "code": "Code",
+      "gross_cents": "Gross amount",
+      "discount_cents": "Discount",
+      "funded_by": "Funded by",
+      "redeemed_at": "Redeemed",
+      "redemptions": "Redemptions",
+      "platform_funded_cents": "Platform-funded",
+      "promo_discount_cents": "Promo discounts",
       "value": "Value",
       "scope": "Scope",
       "cohort": "Cohort",
@@ -4635,7 +4646,8 @@
       "mrr_cents": "MRR",
       "escrow_held_cents": "Escrow held",
       "restaurant_repeat_order_rate": "Restaurant repeat order rate",
-      "restaurant_top_items_revenue": "Restaurant top items revenue"
+      "restaurant_top_items_revenue": "Restaurant top items revenue",
+      "promo_discount_cents": "Promo discounts"
     },
     "regionScopedNotice": "Rows limited to your assigned regions",
     "regionScopedHint": "Your grant for this metric is regional, so totals, records and exports include only rows located in your regions.",
@@ -4814,8 +4826,28 @@
         "support_nps_index": "Support NPS",
         "consulting_avg_nps": "Consulting average NPS",
         "mrr_cents": "Monthly recurring revenue",
-        "escrow_held_cents": "Escrow held"
+        "escrow_held_cents": "Escrow held",
+        "promo_discount_cents": "Promo discounts"
       }
+    }
+  },
+  "food": {
+    "restaurant": {
+      "promoErrors": {
+        "generic": "This promo code can't be used on this order.",
+        "promo_sign_in_required": "Sign in to use a promo code.",
+        "promo_not_started": "This promo code isn't active yet.",
+        "promo_expired": "This promo code has expired.",
+        "promo_surface_not_supported": "This promo code can't be used for food orders.",
+        "promo_currency_mismatch": "This promo code isn't valid in this restaurant's currency.",
+        "promo_min_order_not_met": "Your order is below this promo code's minimum.",
+        "promo_max_order_exceeded": "Your order is above this promo code's maximum.",
+        "promo_usage_limit_reached": "This promo code has reached its usage limit.",
+        "promo_user_limit_reached": "You've already used this promo code the maximum number of times.",
+        "promo_not_fundable": "This promo code can't be applied to this order.",
+        "promo_changed": "The promo discount changed. Review your order and try again."
+      },
+      "promoApplied": "Promo applied: −{{amount}}"
     }
   }
 }

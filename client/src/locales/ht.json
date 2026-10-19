@@ -8,6 +8,17 @@
     "smsStatus": {"sent":"Voye","uncertain":"Livrezon pa sèten","sending":"Rezève; fini an poko konfime"},
     "modelNlHint": "Modèl opsyonèl la pwopoze yon rechèch pou ou verifye. Se sèlman metrik ou gen pèmisyon pou yo ki disponib. Konfime metrik la, filtè yo ak peryòd la anvan ou lanse li.",
     "columns": {
+      "redemption_id": "Itilizasyon",
+      "surface": "Peman",
+      "reference_id": "Referans",
+      "code": "Kòd",
+      "gross_cents": "Montan brit",
+      "discount_cents": "Rabè",
+      "funded_by": "Finanse pa",
+      "redeemed_at": "Itilize",
+      "redemptions": "Itilizasyon yo",
+      "platform_funded_cents": "Platfòm finanse",
+      "promo_discount_cents": "Rabè pwomo",
       "value": "Valè",
       "scope": "Dimansyon aksè",
       "cohort": "Gwoup",
@@ -199,7 +210,8 @@
       "mrr_cents": "MRR",
       "escrow_held_cents": "Lajan kenbe an depo",
       "restaurant_repeat_order_rate": "To kliyan ki tounen nan restoran",
-      "restaurant_top_items_revenue": "Revni pi gwo atik pa restoran"
+      "restaurant_top_items_revenue": "Revni pi gwo atik pa restoran",
+      "promo_discount_cents": "Rabè pwomo"
     },
     "regionScopedNotice": "Liy yo limite a rejyon yo ba ou yo",
     "regionScopedHint": "Pèmisyon ou pou mezi sa a se rejyonal, kidonk total, dosye ak ekspòtasyon yo gen sèlman liy ki nan rejyon ou yo.",
@@ -22555,7 +22567,22 @@
       "loyaltyUseMax": "Itilize tout",
       "loyaltyBalanceHint": "{{balance}} pwen disponib. Minimom {{min}} pwen pou itilize.",
       "loyaltyLoading": "Ap chaje balans pwen ou...",
-      "loyaltyDiscount": "Fidelite ({{points}} pwen)"
+      "loyaltyDiscount": "Fidelite ({{points}} pwen)",
+      "promoErrors": {
+        "generic": "Ou pa ka itilize kòd pwomo sa a sou kòmand sa a.",
+        "promo_sign_in_required": "Konekte pou itilize yon kòd pwomo.",
+        "promo_not_started": "Kòd pwomo sa a poko aktif.",
+        "promo_expired": "Kòd pwomo sa a ekspire.",
+        "promo_surface_not_supported": "Ou pa ka itilize kòd pwomo sa a pou kòmand manje.",
+        "promo_currency_mismatch": "Kòd pwomo sa a pa valab nan lajan restoran sa a.",
+        "promo_min_order_not_met": "Kòmand ou a pi piti pase minimòm kòd pwomo sa a.",
+        "promo_max_order_exceeded": "Kòmand ou a depase maksimòm kòd pwomo sa a.",
+        "promo_usage_limit_reached": "Kòd pwomo sa a rive nan limit itilizasyon li.",
+        "promo_user_limit_reached": "Ou deja itilize kòd pwomo sa a kantite fwa maksimòm lan.",
+        "promo_not_fundable": "Ou pa ka aplike kòd pwomo sa a sou kòmand sa a.",
+        "promo_changed": "Rabè pwomo a chanje. Revize kòmand ou a epi eseye ankò."
+      },
+      "promoApplied": "Pwomo aplike: −{{amount}}"
     },
     "order": {
       "specialInstructions": "Enstriksyon espesyal (si w vle)",
@@ -33867,7 +33894,8 @@
         "support_nps_index": "NPS sipò",
         "consulting_avg_nps": "NPS mwayèn konsiltasyon",
         "mrr_cents": "Revni renouvlab chak mwa",
-        "escrow_held_cents": "Lajan nan depo garanti"
+        "escrow_held_cents": "Lajan nan depo garanti",
+        "promo_discount_cents": "Rabè pwomo"
       }
     }
   },

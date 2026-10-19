@@ -8,6 +8,17 @@
     "smsStatus": {"sent":"Enviado","uncertain":"Entrega incierta","sending":"Reservado; finalización sin confirmar"},
     "modelNlHint": "El modelo opcional propone una consulta para tu revisión. Solo están disponibles las métricas autorizadas. Confirma la métrica, los filtros y el período antes de ejecutarla.",
     "columns": {
+      "redemption_id": "Canje",
+      "surface": "Pago",
+      "reference_id": "Referencia",
+      "code": "Código",
+      "gross_cents": "Importe bruto",
+      "discount_cents": "Descuento",
+      "funded_by": "Financiado por",
+      "redeemed_at": "Canjeado",
+      "redemptions": "Canjes",
+      "platform_funded_cents": "Financiado por la plataforma",
+      "promo_discount_cents": "Descuentos promocionales",
       "value": "Valor",
       "scope": "Ámbito",
       "cohort": "Cohorte",
@@ -4635,7 +4646,8 @@
       "mrr_cents": "MRR",
       "escrow_held_cents": "Depósito en garantía retenido",
       "restaurant_repeat_order_rate": "Tasa de recompra en restaurantes",
-      "restaurant_top_items_revenue": "Ingresos de platos principales por restaurante"
+      "restaurant_top_items_revenue": "Ingresos de platos principales por restaurante",
+      "promo_discount_cents": "Descuentos promocionales"
     },
     "regionScopedNotice": "Filas limitadas a tus regiones asignadas",
     "regionScopedHint": "Tu permiso para esta métrica es regional: los totales, registros y exportaciones solo incluyen filas ubicadas en tus regiones.",
@@ -4814,8 +4826,28 @@
         "support_nps_index": "NPS de soporte",
         "consulting_avg_nps": "NPS promedio de consultoría",
         "mrr_cents": "Ingresos recurrentes mensuales",
-        "escrow_held_cents": "Fondos en custodia"
+        "escrow_held_cents": "Fondos en custodia",
+        "promo_discount_cents": "Descuentos promocionales"
       }
+    }
+  },
+  "food": {
+    "restaurant": {
+      "promoErrors": {
+        "generic": "Este código promocional no se puede usar en este pedido.",
+        "promo_sign_in_required": "Inicia sesión para usar un código promocional.",
+        "promo_not_started": "Este código promocional aún no está activo.",
+        "promo_expired": "Este código promocional ha caducado.",
+        "promo_surface_not_supported": "Este código promocional no se puede usar en pedidos de comida.",
+        "promo_currency_mismatch": "Este código promocional no es válido en la moneda de este restaurante.",
+        "promo_min_order_not_met": "Tu pedido no alcanza el mínimo de este código promocional.",
+        "promo_max_order_exceeded": "Tu pedido supera el máximo de este código promocional.",
+        "promo_usage_limit_reached": "Este código promocional alcanzó su límite de usos.",
+        "promo_user_limit_reached": "Ya usaste este código promocional el número máximo de veces.",
+        "promo_not_fundable": "Este código promocional no se puede aplicar a este pedido.",
+        "promo_changed": "El descuento promocional cambió. Revisa tu pedido e inténtalo de nuevo."
+      },
+      "promoApplied": "Promoción aplicada: −{{amount}}"
     }
   }
 }
