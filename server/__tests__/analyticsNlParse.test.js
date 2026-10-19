@@ -83,6 +83,7 @@ if (url) {
     await db.query(migration);
     await db.query(fs.readFileSync(path.join(__dirname, '..', 'migrations', '894_analytics_audit_events.sql'), 'utf8'));
     await db.query(fs.readFileSync(path.join(__dirname, '..', 'migrations', '896_analytics_evidence_audit.sql'), 'utf8'));
+    await db.query(fs.readFileSync(path.join(__dirname, '..', 'migrations', '901_regional_analytics_scope.sql'), 'utf8'));
   }, 60000);
   afterAll(async () => {
     await db.query(`DROP SCHEMA ${schema} CASCADE`).catch(() => {});

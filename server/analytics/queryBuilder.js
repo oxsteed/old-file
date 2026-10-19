@@ -90,6 +90,7 @@ const { MONEY_METRICS, financialMetricSql } = require('./financialMetrics');
 const { DEFINITIONS: operationalMetrics, operationalMetricSql } = require('./operationalMetrics');
 const { paidOrderPredicate } = require('./restaurantAnalytics');
 const { metricEvidenceSql } = require('./metricEvidence');
+const { regionScopedDb } = require('./regionScope');
 
 const PERIODS = Object.freeze(['1d', '7d', '30d', '90d', '1y']);
 // Window lengths in days for metrics that need a day count (NPS days,
@@ -575,8 +576,9 @@ async function auditAttempt(db, entry) {
     await db.query(
       `INSERT INTO analytics_query_audit
          (admin_user_id, metric_name, dimensions, filters, period,
-          row_count, duration_ms, success, error_code, raw_utterance, compiled_query, event_type)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+          row_count, duration_ms, success, error_code, raw_utterance, compiled_query, event_type,
+          scope_kind, region_ids)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
       [
         entry.userId,
         String(entry.metricName || 'unknown').slice(0, 200),
@@ -590,6 +592,8 @@ async function auditAttempt(db, entry) {
         entry.rawUtterance || null,
         entry.compiledQuery ? JSON.stringify(safeJson(entry.compiledQuery)) : null,
         entry.eventType || 'execution',
+        entry.scope ? (entry.scope.global ? 'global' : 'regional') : null,
+        entry.scope && !entry.scope.global ? entry.scope.regionIds : null,
       ]
     );
   } catch (err) {
@@ -605,13 +609,16 @@ async function auditAttempt(db, entry) {
 // ── Capped execution ─────────────────────────────────────────────────────────
 // Dedicated client + transaction so SET LOCAL applies; LIMIT is a constant
 // appended to the fixed template (never user input).
-async function runCappedQuery(db, built, cap = ROW_CAP, { offset = 0, summary = null } = {}) {
+async function runCappedQuery(db, built, cap = ROW_CAP, { offset = 0, summary = null, regionScope = null } = {}) {
   const client = await db.connect();
+  // Regional admins: every statement reads region-filtered rows (fails closed
+  // on any table without a geographic anchor).
+  const reader = regionScopedDb(client, regionScope);
   try {
     await client.query(summary ? 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY' : 'BEGIN READ ONLY');
     await client.query(`SET LOCAL statement_timeout = '${STATEMENT_TIMEOUT}'`);
-    const summaryResult = summary ? await client.query(`${summary.text}\nLIMIT ${ROW_CAP+1}`,summary.params) : null;
-    const res = await client.query(`${built.text}\nLIMIT ${cap + 1}${offset ? ` OFFSET ${offset}` : ''}`, built.params);
+    const summaryResult = summary ? await reader.query(`${summary.text}\nLIMIT ${ROW_CAP+1}`,summary.params) : null;
+    const res = await reader.query(`${built.text}\nLIMIT ${cap + 1}${offset ? ` OFFSET ${offset}` : ''}`, built.params);
     await client.query('COMMIT');
     const truncated = res.rows.length > cap;
     return { rows: truncated ? res.rows.slice(0, cap) : res.rows, truncated,
@@ -655,7 +662,8 @@ async function executeBuilderQuery(db, user, input, opts = {}) {
     if (!user?.id || !['admin', 'super_admin'].includes(user.role)) {
       throw new AppError('Forbidden: the query builder requires an admin account', 403, 'forbidden');
     }
-    await assertMetricAccess(user, query.metric);
+    const metricScope = await assertMetricAccess(user, query.metric);
+    auditBase.scope = metricScope;
     const scope = await resolveScope(user);
     if (!scope.isAdmin && !scope.isSuperAdmin) {
       throw new AppError('Forbidden: the query builder requires an admin account', 403, 'forbidden');
@@ -666,7 +674,7 @@ async function executeBuilderQuery(db, user, input, opts = {}) {
     const built = opts.evidence ? metricEvidenceSql(query,scope,registry,aggregate) : aggregate;
     const { rows, truncated, summary, summaryTruncated } = await runCappedQuery(db, built,
       opts.evidence && opts.eventType !== 'export' ? 100 : ROW_CAP,
-      { offset, summary: opts.evidence ? aggregate : null });
+      { offset, summary: opts.evidence ? aggregate : null, regionScope: metricScope });
     const durationMs = Date.now() - startedAt;
     await auditAttempt(db, {
       ...auditBase, rowCount: rows.length, durationMs,
@@ -674,6 +682,7 @@ async function executeBuilderQuery(db, user, input, opts = {}) {
       compiledQuery: { sql: built.text, params: built.params },
     });
     return { rows, columns: built.columns, rowCount: rows.length,
+      scope: metricScope.global ? { kind: 'global' } : { kind: 'regional', regionIds: [...metricScope.regionIds] },
       truncated: opts.evidence && opts.eventType !== 'export' ? false : truncated, durationMs, query,
       evidence: opts.evidence === true, offset,
       ...(opts.evidence ? { summary, summaryTruncated, summaryColumns: aggregate.columns, hasMore: truncated } : {}) };

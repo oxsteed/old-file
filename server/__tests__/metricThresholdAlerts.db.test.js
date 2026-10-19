@@ -140,7 +140,7 @@ describeDb('metric threshold alert evaluator', () => {
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       status TEXT NOT NULL DEFAULT 'open')`);
     // Real migrations for the alert tables (also exercises 890's ALTER).
-    for (const file of ['706_admin_self_settings.sql', '890_metric_threshold_alerts.sql', '893_analytics_alert_observations.sql','897_metric_observation_definitions.sql','898_metric_alert_delivery_safety.sql']) {
+    for (const file of ['706_admin_self_settings.sql', '890_metric_threshold_alerts.sql', '893_analytics_alert_observations.sql','897_metric_observation_definitions.sql','898_metric_alert_delivery_safety.sql','903_metric_alert_observation_scope.sql']) {
       const sql = fs.readFileSync(path.join(__dirname, '..', 'migrations', file), 'utf8');
       await db.query(sql);
     }

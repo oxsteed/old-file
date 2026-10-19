@@ -51,6 +51,10 @@ function QueryBuilderWorkspace() {
         return t('queryBuilder.errorPermissionRequired');
       case 'analytics_audit_unavailable':
         return t('queryBuilder.errorAuditUnavailable');
+      case 'region_unknown':
+        return t('queryBuilder.errorRegionUnknown');
+      case 'region_scope_unsupported':
+        return t('queryBuilder.errorRegionUnsupported');
       case 'query_error':
       case 'statement_timeout':
         return t('queryBuilder.errorQueryFailed');
@@ -570,6 +574,12 @@ function QueryBuilderWorkspace() {
             <div className="qb-results-meta">
               <span>{t('queryBuilder.rowCount', { count: result.rowCount })}</span>
               <span>{t('queryBuilder.duration', { ms: result.durationMs })}</span>
+              {result.scope?.kind === 'regional' && (
+                <span className="qb-region-scoped">
+                  <strong>{t('queryBuilder.regionScopedNotice')}</strong>{' '}
+                  <span className="qb-region-scoped-hint">{t('queryBuilder.regionScopedHint')}</span>
+                </span>
+              )}
               {(result.truncated || result.summaryTruncated || result.exportTruncated) && (
                 <span className="qb-truncated">
                   {t('queryBuilder.truncatedNotice', { cap: meta?.rowCap || 10000 })}

@@ -242,6 +242,7 @@ describeDb('analytics query builder', () => {
     await db.query(auditSql);
     await db.query(fs.readFileSync(path.join(__dirname, '..', 'migrations', '894_analytics_audit_events.sql'), 'utf8'));
     await db.query(fs.readFileSync(path.join(__dirname, '..', 'migrations', '896_analytics_evidence_audit.sql'), 'utf8'));
+    await db.query(fs.readFileSync(path.join(__dirname, '..', 'migrations', '901_regional_analytics_scope.sql'), 'utf8'));
 
     // Minimal domain fixtures (columns actually read by the builders).
     await db.query(`CREATE TABLE ${schema}.users (id UUID PRIMARY KEY, role TEXT NOT NULL)`);

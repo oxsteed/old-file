@@ -32,13 +32,17 @@ const {
   auditAttempt,
 } = require('../analytics/queryBuilder');
 const { parseUtterance, describeQuery } = require('../analytics/nlParser');
-const { permittedMetrics, assertMetricAccess } = require('../analytics/metricAccess');
+const { permittedMetrics, permittedMetricScopes, assertMetricAccess } = require('../analytics/metricAccess');
 const { modelTranslationAvailable,translateWithModel }=require('../analytics/nlModelTranslator');
 
 async function getMeta(req, res, next) {
   try {
     res.set('Cache-Control', 'private, no-store');
-    res.json({...getBuilderMeta(await permittedMetrics(req.user)),nlModelAvailable:modelTranslationAvailable()});
+    const scopes = await permittedMetricScopes(req.user);
+    const meta = getBuilderMeta(Object.keys(scopes));
+    // scope per metric: 'global' or 'regional' (rows limited to assigned regions).
+    meta.metrics = meta.metrics.map(m => ({ ...m, scope: scopes[m.name] }));
+    res.json({...meta,nlModelAvailable:modelTranslationAvailable()});
   } catch (err) {
     next(err);
   }

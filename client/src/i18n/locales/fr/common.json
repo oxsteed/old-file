@@ -4635,7 +4635,11 @@
       "escrow_held_cents": "Séquestre détenu",
       "restaurant_repeat_order_rate": "Taux de réachat restaurant",
       "restaurant_top_items_revenue": "Chiffre d'affaires des plats vedettes par restaurant"
-    }
+    },
+    "regionScopedNotice": "Lignes limitées à vos régions attribuées",
+    "regionScopedHint": "Votre autorisation pour cet indicateur est régionale : les totaux, les enregistrements et les exports ne comprennent que les lignes situées dans vos régions.",
+    "errorRegionUnknown": "Votre autorisation régionale ne correspond à aucune région connue. Demandez à un super administrateur de corriger la région ou l’autorisation.",
+    "errorRegionUnsupported": "Cet indicateur ne peut pas encore être limité à vos régions ; il n’est donc pas disponible avec une autorisation régionale."
   },
   "helperDashboard": {
     "jobEarnings": {

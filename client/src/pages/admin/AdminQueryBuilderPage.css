@@ -31,6 +31,8 @@
 .qb-results-head h2 { font-size: 18px; margin: 0; }
 .qb-results-meta { display: flex; gap: 12px; flex-wrap: wrap; }
 .qb-truncated { font-weight: 600; }
+.qb-region-scoped { flex-basis: 100%; padding-block: 4px; padding-inline: 8px; border-inline-start: 3px solid #2563eb; background: #eff6ff; color: #1e3a8a; overflow-wrap: anywhere; }
+.qb-region-scoped-hint { font-weight: 400; }
 .qb-results-actions { margin-inline-start: auto; display: flex; gap: 8px; flex-wrap: wrap; max-inline-size: 100%; }
 .qb-table-wrap { overflow-x: auto; min-inline-size: 0; max-inline-size: 100%; }
 .qb-table { width: 100%; border-collapse: collapse; font-size: 14px; }

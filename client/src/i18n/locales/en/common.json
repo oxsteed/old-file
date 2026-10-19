@@ -4635,7 +4635,11 @@
       "escrow_held_cents": "Escrow held",
       "restaurant_repeat_order_rate": "Restaurant repeat order rate",
       "restaurant_top_items_revenue": "Restaurant top items revenue"
-    }
+    },
+    "regionScopedNotice": "Rows limited to your assigned regions",
+    "regionScopedHint": "Your grant for this metric is regional, so totals, records and exports include only rows located in your regions.",
+    "errorRegionUnknown": "Your regional grant does not match a known region. Ask a super admin to fix the region or the grant.",
+    "errorRegionUnsupported": "This metric cannot be limited to your regions yet, so it is not available with a regional grant."
   },
   "helperDashboard": {
     "jobEarnings": {

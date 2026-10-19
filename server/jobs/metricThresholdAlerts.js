@@ -42,6 +42,7 @@ const {
 const { formatAlertBody } = require("../utils/metricAlertNotificationCopy");
 const logger = require("../utils/logger");
 const { assertMetricAccess } = require('../analytics/metricAccess');
+const { regionScopedDb } = require('../analytics/regionScope');
 
 async function getAdminAlertPrefs(adminId) {
   const { rows } = await db.query(
@@ -232,7 +233,9 @@ async function evaluateMetricThresholdAlerts() {
       if (!fresh.rows[0]?.is_active || new Date(fresh.rows[0].updated_at).getTime() !== new Date(rule.updated_at).getTime()) continue;
       rule.last_fired_at = fresh.rows[0].last_fired_at;
       if (!["admin", "super_admin"].includes(rule.role)) continue;
-      await assertMetricAccess({ id: rule.admin_id, role: rule.role }, rule.metric_name);
+      // Re-resolved every evaluation: revoked/expired grants stop the rule and
+      // a regional-only admin's rule evaluates region-filtered rows.
+      const accessScope = await assertMetricAccess({ id: rule.admin_id, role: rule.role }, rule.metric_name);
 
       // Wire the dead admin_notification_prefs toggles: the master
       // notify_metric_alerts switch gates the rule; missing row = defaults
@@ -246,13 +249,14 @@ async function evaluateMetricThresholdAlerts() {
 
       await lockClient.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
       await lockClient.query("SET LOCAL statement_timeout='30s'");
-      const observation = await computeMetricObservation(lockClient, rule.metric_name, rule.params || {});
+      const observation = await computeMetricObservation(regionScopedDb(lockClient, accessScope), rule.metric_name, rule.params || {});
       await lockClient.query('COMMIT');
       value = observation.compared;
       const crossed = value != null && compareValues(rule.operator, value, Number(rule.threshold));
-      await db.query(`INSERT INTO metric_alert_observations(rule_id,value,previous_value,compared_value,crossed,metric_name,params,rule_updated_at)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, [rule.id, observation.value, observation.previous, value, crossed,
-          rule.metric_name,JSON.stringify(rule.params || {}),rule.updated_at]);
+      await db.query(`INSERT INTO metric_alert_observations(rule_id,value,previous_value,compared_value,crossed,metric_name,params,rule_updated_at,scope_kind,region_ids)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, [rule.id, observation.value, observation.previous, value, crossed,
+          rule.metric_name,JSON.stringify(rule.params || {}),rule.updated_at,
+          accessScope.global ? 'global' : 'regional', accessScope.global ? null : accessScope.regionIds]);
       if (value == null) continue; // e.g. NULL take-rate on zero GMV: no comparison possible
       if (!crossed) continue;
 

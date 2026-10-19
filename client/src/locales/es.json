@@ -199,7 +199,11 @@
       "escrow_held_cents": "Depósito en garantía retenido",
       "restaurant_repeat_order_rate": "Tasa de recompra en restaurantes",
       "restaurant_top_items_revenue": "Ingresos de platos principales por restaurante"
-    }
+    },
+    "regionScopedNotice": "Filas limitadas a tus regiones asignadas",
+    "regionScopedHint": "Tu permiso para esta métrica es regional: los totales, registros y exportaciones solo incluyen filas ubicadas en tus regiones.",
+    "errorRegionUnknown": "Tu permiso regional no coincide con una región conocida. Pide a un superadministrador que corrija la región o el permiso.",
+    "errorRegionUnsupported": "Esta métrica todavía no se puede limitar a tus regiones, así que no está disponible con un permiso regional."
   },
   "customerWorkspace": {
     "title": "Espacio del cliente",

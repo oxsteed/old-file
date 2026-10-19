@@ -4635,7 +4635,11 @@
       "escrow_held_cents": "Lajan kenbe an depo",
       "restaurant_repeat_order_rate": "To kliyan ki tounen nan restoran",
       "restaurant_top_items_revenue": "Revni pi gwo atik pa restoran"
-    }
+    },
+    "regionScopedNotice": "Liy yo limite a rejyon yo ba ou yo",
+    "regionScopedHint": "Pèmisyon ou pou mezi sa a se rejyonal, kidonk total, dosye ak ekspòtasyon yo gen sèlman liy ki nan rejyon ou yo.",
+    "errorRegionUnknown": "Pèmisyon rejyonal ou pa koresponn ak okenn rejyon ki konnen. Mande yon super administratè pou korije rejyon an oswa pèmisyon an.",
+    "errorRegionUnsupported": "Nou poko ka limite mezi sa a a rejyon ou yo, kidonk li pa disponib ak yon pèmisyon rejyonal."
   },
   "helperDashboard": {
     "jobEarnings": {
