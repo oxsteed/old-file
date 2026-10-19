@@ -263,12 +263,16 @@ Open points for product/ops:
 
 ## Verification (local, October 19)
 
-- Touched server suites: 17 suites / 201 tests passed against the disposable
-  database (alerts, digest, notification wiring, query builder, operational
-  metrics, registry parity, promotion link analytics, NL, controllers).
+- Full server Jest suite against the disposable database: 730 suites / 8003
+  tests passed. `businessMarketing` was then updated for the new broadcast
+  behavior. `statementSelfService.db` and `ledgerTransactionUuid` fail locally
+  on the base branch as well (state in the shared local Credit test database)
+  and are not touched here.
 - Client: duplicate-key, i18n debt gates, `verify:i18n`, `typecheck`, `test:sop`,
   production `build` and `verify:dist-assets` passed.
-- Browser checks passed (Chrome, synthetic API fixtures, not live sessions).
+- Browser checks passed (Chrome, synthetic API fixtures, not live sessions),
+  including broadcasts, food promo, regional analytics, metric trend and the
+  logistics country prompt at 320px, fr, light and RTL.
 - Remote CI: see the pull request.
 
 ---
