@@ -14,6 +14,7 @@ import { useFullscreen } from '../../hooks/useFullscreen';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { useDisplayPoller } from '../../hooks/useDisplayPoller';
 import { useReadyChime } from '../../hooks/useReadyChime';
+import { detectDisplayStandalone } from '../../utils/displayInstall';
 import '../../styles/FoodPages.css';
 
 const POLL_MS = 5000;
@@ -27,7 +28,15 @@ export default function FoodQueueBoardPage({managedBoard=null,managedStatus='onl
   const [newlyReady, setNewlyReady] = useState([]);
   const readyRef = useRef([]);
   const { isFullscreen } = useFullscreen(rootRef);
-  useWakeLock(isFullscreen);
+  // Installed standalone apps (Add to Home Screen) never enter the
+  // Fullscreen API state, so wake lock keys off that too.
+  const [isStandalone] = useState(() =>
+    detectDisplayStandalone({
+      matchMedia: typeof window !== 'undefined' ? window.matchMedia?.bind(window) : undefined,
+      standalone: typeof window !== 'undefined' ? window.navigator?.standalone : undefined,
+    }),
+  );
+  useWakeLock(isFullscreen || isStandalone);
   const { soundEnabled, audioBlocked, enableSound, disableSound, playChime } = useReadyChime();
 
   const load = useCallback(() => {

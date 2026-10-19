@@ -28,6 +28,7 @@ import DisplayPairingCode from "../../components/DisplayPairingCode";
 import { useFullscreen } from "../../hooks/useFullscreen";
 import { useWakeLock } from "../../hooks/useWakeLock";
 import { useDisplayPoller } from "../../hooks/useDisplayPoller";
+import { detectDisplayStandalone } from "../../utils/displayInstall";
 import { FoodBrand } from "./foodShared";
 import { ItemModal } from "./FoodRestaurantPage";
 import FoodOrderConfirmation from "./FoodOrderConfirmation";
@@ -70,7 +71,15 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
   const resetTimer = useRef(null);
   const rootRef = useRef(null);
   const { isFullscreen } = useFullscreen(rootRef);
-  useWakeLock(isFullscreen);
+  // Installed standalone apps (Add to Home Screen) never enter the
+  // Fullscreen API state, so wake lock keys off that too.
+  const [isStandalone] = useState(() =>
+    detectDisplayStandalone({
+      matchMedia: typeof window !== "undefined" ? window.matchMedia?.bind(window) : undefined,
+      standalone: typeof window !== "undefined" ? window.navigator?.standalone : undefined,
+    }),
+  );
+  useWakeLock(isFullscreen || isStandalone);
   const orderingPaused =
     (managed?.acceptingOrders ?? data?.restaurant?.accepts_in_store_orders) ===
     false;

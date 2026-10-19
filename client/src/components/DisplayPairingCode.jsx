@@ -166,7 +166,9 @@ export default function DisplayPairingCode() {
     <>
       <button
         type="button"
-        onClick={() => { setOpen((v) => !v); if (!open && !paired && !code) requestCode(); }}
+        // Stop propagation: on the kiosk start screen this widget sits
+        // inside a container whose click advances the ordering flow.
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); if (!open && !paired && !code) requestCode(); }}
         aria-label={t('displayPairing.pairThisDisplay')}
         title={t('displayPairing.pairThisDisplay')}
         style={{
@@ -186,6 +188,9 @@ export default function DisplayPairingCode() {
           role="dialog"
           aria-modal="false"
           aria-label={t('displayPairing.title')}
+          // Stop propagation so clicks inside the dialog (close, new code)
+          // never bubble to the kiosk start screen's advance-on-click.
+          onClick={(e) => e.stopPropagation()}
           style={{
             position: 'fixed', left: '0.75rem', bottom: '4rem', zIndex: 60,
             width: 'min(22rem, calc(100vw - 1.5rem))',

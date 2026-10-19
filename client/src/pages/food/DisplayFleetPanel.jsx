@@ -43,7 +43,13 @@ export default function DisplayFleetPanel({ t, restaurant }) {
     }
   }, [restaurant.id, t]);
 
-  useEffect(() => { load(); }, [load]);
+  // Load on mount and re-poll every 30s while mounted so the
+  // connection status does not go stale as displays heartbeat.
+  useEffect(() => {
+    load();
+    const id = setInterval(load, 30000);
+    return () => clearInterval(id);
+  }, [load]);
 
   const pair = async (e) => {
     e.preventDefault();

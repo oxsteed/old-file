@@ -31,9 +31,13 @@ export function useDisplayPoller(
   };
 
   const scheduleNext = (delayMs) => {
+    // Never schedule after unmount: an in-flight load that resolves late
+    // must not queue another run on a dead component.
+    if (!mountedRef.current) return;
     clearTimer();
     timerRef.current = setTimeout(() => {
       timerRef.current = null;
+      if (!mountedRef.current) return;
       runOnceRef.current?.();
     }, delayMs);
   };

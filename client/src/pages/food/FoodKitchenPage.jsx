@@ -24,6 +24,7 @@ import DisplayInstallPrompt from '../../components/DisplayInstallPrompt';
 import DisplayPairingCode from '../../components/DisplayPairingCode';
 import { useFullscreen } from '../../hooks/useFullscreen';
 import { useWakeLock } from '../../hooks/useWakeLock';
+import { detectDisplayStandalone } from '../../utils/displayInstall';
 import { useDisplayPoller } from '../../hooks/useDisplayPoller';
 import '../../styles/FoodPages.css';
 
@@ -52,7 +53,15 @@ export default function FoodKitchenPage() {
   const rootRef = useRef(null);
   const clockRef = useRef(null);
   const { isFullscreen } = useFullscreen(rootRef);
-  useWakeLock(isFullscreen);
+  // Installed standalone apps (Add to Home Screen) never enter the
+  // Fullscreen API state, so wake lock keys off that too.
+  const [isStandalone] = useState(() =>
+    detectDisplayStandalone({
+      matchMedia: typeof window !== 'undefined' ? window.matchMedia?.bind(window) : undefined,
+      standalone: typeof window !== 'undefined' ? window.navigator?.standalone : undefined,
+    }),
+  );
+  useWakeLock(isFullscreen || isStandalone);
 
   const refreshPending = useCallback(() => {
     setPendingOffline(pendingKitchenActionCount(restaurantId));
