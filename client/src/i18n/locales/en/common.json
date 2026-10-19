@@ -4689,6 +4689,31 @@
         "loadError": "Could not load placement performance.",
         "windowNote": "Conversions count orders placed while the placement is live."
       }
+    },
+    "performance": {
+      "title": "Performance",
+      "heading": "Track which promos actually move work.",
+      "body": "OxSteed records every tracked post, link, card or signature you copy here, and every visit to your profile from those links. Check weekly to see which channels and angles are pulling weight, and which ones to stop running.",
+      "windowLabel": "Period",
+      "window7": "Last 7 days",
+      "window30": "Last 30 days",
+      "window90": "Last 90 days",
+      "window365": "Last 12 months",
+      "loading": "Loading your link performance…",
+      "loadError": "Link performance could not be loaded.",
+      "retry": "Try again",
+      "forbidden": "Only owners and managers of this business can see its link performance.",
+      "shares": "shares",
+      "visits": "profile visits",
+      "visitsPerShare": "visits per share",
+      "topSource": "top source",
+      "notAvailable": "n/a",
+      "sourceLine": "{{shares}} shares · {{visits}} visits · {{ratio}} per share",
+      "mediumLine": "{{shares}} shares, {{visits}} visits",
+      "noMedium": "untagged",
+      "campaigns": "Campaigns",
+      "empty": "Nothing tracked yet in this period. Copy a post, slot promo or referral link and share it; visits from it appear here.",
+      "help": "A visit counts once per device, source, campaign and day. Your own visits and your team's are not counted. Visits show reach, not bookings."
     }
   },
   "adminSettings": {

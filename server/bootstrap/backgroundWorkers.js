@@ -157,6 +157,13 @@ class BackgroundWorkers {
       startProfileVisibilityScheduler();
       startProfileVisibilityNotificationRetryJob();
       startReferralRewardRetryJob();
+      // Growth Center link analytics retention (daily, 03:17 UTC).
+      cron.schedule('0 17 3 * * *', () => {
+        require('../analytics/promotionLinkAnalytics').prunePromotionLinkEvents(require('../db')).catch((error) => {
+          this.log.warn('Promotion link analytics retention failed', { error: error.message });
+        });
+      }, { timezone: 'UTC' });
+
       cron.schedule('*/10 * * * * *', () => {
         require('../services/supportWaitService').processWaiting().catch((error) => {
           this.log.error('Support waiting worker failed', { error: error.message });

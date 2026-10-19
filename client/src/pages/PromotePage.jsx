@@ -117,16 +117,6 @@ function buildTrackedUrl(baseUrl, { source, medium, campaign, content }) {
   }
 }
 
-function bumpCounter(key, channel) {
-  const all = readJson(LS_TRACKED_CLICKS, {});
-  const slot = all[key] || {};
-  slot[channel] = (slot[channel] || 0) + 1;
-  slot._total = Object.entries(slot).reduce((acc, [k, v]) => (k === '_total' ? acc : acc + v), 0);
-  all[key] = slot;
-  writeJson(LS_TRACKED_CLICKS, all);
-  return all;
-}
-
 function formatRelativeDate(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -913,7 +903,7 @@ ${target.providerName}`
         <div>
           <span className="promote-kicker"><Gift size={18} /> {t('promotePage.referrals.title', { defaultValue: 'Referral Program Builder' })}</span>
           <h2>{t('promotePage.referrals.heading', { defaultValue: 'Turn happy customers into your sales team.' })}</h2>
-          <p>{t('promotePage.referrals.body', { defaultValue: 'Build a "give $X, get $X" referral offer and generate trackable links for every channel. OxSteed counts clicks on each link so you can see which neighbors actually drive bookings.' })}</p>
+          <p>{t('promotePage.referrals.body', { defaultValue: 'Build a "give $X, get $X" referral offer and generate trackable links for every channel. OxSteed counts profile visits from each link so you can see which channels actually bring people to you.' })}</p>
         </div>
       </div>
 
@@ -962,7 +952,7 @@ ${target.providerName}`
             </button>
           </div>
 
-          <p className="promote-help">{t('promotePage.referrals.help', { defaultValue: 'Send the right link from the right channel. OxSteed counts the click in your Performance tab. Whoever brings the most new bookings should get a thank-you note.' })}</p>
+          <p className="promote-help">{t('promotePage.referrals.help', { defaultValue: 'Send the right link from the right channel. Visits from it appear in your Performance tab. Whoever brings you the most new bookings should get a thank-you note.' })}</p>
         </div>
 
         <div className="promote-referral-card">
@@ -1004,62 +994,133 @@ ${target.providerName}`
  * Performance tab - tracked link analytics
  * ------------------------------------------------------------------------- */
 
-function PerformanceTab({ trackedClicks, onReset }) {
-  const { t } = useTranslation();
-  const entries = Object.entries(trackedClicks)
-    .map(([key, slot]) => ({ key, total: slot._total || 0, details: slot }))
-    .sort((a, b) => b.total - a.total);
+const PERFORMANCE_WINDOWS = [7, 30, 90, 365];
 
-  const grandTotal = entries.reduce((acc, e) => acc + e.total, 0);
-  const topRow = entries[0];
+function performanceEndpoint(target) {
+  return target.businessId
+    ? `/businesses/${target.businessId}/promotion-performance`
+    : '/promotion-analytics/performance';
+}
+
+// Fire-and-forget share event for the owner currently being promoted.
+function recordPromotionShare(target, source, medium) {
+  const url = target.businessId
+    ? `/businesses/${target.businessId}/promotion-events/share`
+    : '/promotion-analytics/share';
+  return api.post(url, { source, medium }).catch(() => {});
+}
+
+export function PerformanceTab({ target }) {
+  const { t, i18n } = useTranslation();
+  const [days, setDays] = useState(30);
+  const [data, setData] = useState(null);
+  const [state, setState] = useState('loading');
+  const [reload, setReload] = useState(0);
+  const endpoint = performanceEndpoint(target);
+
+  useEffect(() => {
+    let cancelled = false;
+    setState('loading');
+    api.get(endpoint, { params: { days } })
+      .then(({ data: body }) => { if (!cancelled) { setData(body); setState('ready'); } })
+      .catch((error) => {
+        if (cancelled) return;
+        setData(null);
+        setState([403, 404].includes(error?.response?.status) ? 'forbidden' : 'error');
+      });
+    return () => { cancelled = true; };
+  }, [endpoint, days, reload]);
+
+  const number = (value) => new Intl.NumberFormat(i18n.language).format(value || 0);
+  const ratio = (value) => (value == null
+    ? t('promotePage.performance.notAvailable')
+    : new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 }).format(value));
+  const label = (value) => String(value || '').replace(/_/g, ' ');
+  const sources = data?.sources || [];
+  const maxVisits = Math.max(1, ...sources.map((row) => row.visits));
+  const topRow = sources[0];
 
   return (
     <section className="promote-section">
       <div className="promote-section-head">
         <div>
-          <span className="promote-kicker"><BarChart3 size={18} /> {t('promotePage.performance.title', { defaultValue: 'Performance' })}</span>
-          <h2>{t('promotePage.performance.heading', { defaultValue: 'Track which promos actually move work.' })}</h2>
-          <p>{t('promotePage.performance.body', { defaultValue: 'Every time you copy a tracked link or post, OxSteed records it locally. Look here weekly to spot which channels and angles are pulling weight - and which ones to stop running.' })}</p>
+          <span className="promote-kicker"><BarChart3 size={18} /> {t('promotePage.performance.title')}</span>
+          <h2>{t('promotePage.performance.heading')}</h2>
+          <p>{t('promotePage.performance.body')}</p>
         </div>
-        <div className="promote-perf-summary">
-          <div><strong>{grandTotal}</strong><span>{t('promotePage.performance.trackedActions', { defaultValue: 'tracked actions' })}</span></div>
-          <div><strong>{entries.length}</strong><span>{t('promotePage.performance.activeSources', { defaultValue: 'active sources' })}</span></div>
-          <div><strong>{topRow ? topRow.key.replace(/_/g, ' ') : '-'}</strong><span>{t('promotePage.performance.topSource', { defaultValue: 'top source' })}</span></div>
+        <div className="promote-perf-window">
+          <label htmlFor="promote-perf-window">{t('promotePage.performance.windowLabel')}</label>
+          <select id="promote-perf-window" value={days} onChange={(event) => setDays(Number(event.target.value))}>
+            {PERFORMANCE_WINDOWS.map((value) => (
+              <option key={value} value={value}>{t(`promotePage.performance.window${value}`)}</option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {entries.length === 0 ? (
-          <div className="promote-empty-small">{t('promotePage.performance.empty', { defaultValue: 'Nothing tracked yet. Copy a post, slot promo, or referral link and OxSteed will record the source automatically. Reload after a few days for the first picture.' })}</div>
-      ) : (
+      {state === 'loading' && <div className="promote-empty-small" role="status">{t('promotePage.performance.loading')}</div>}
+      {state === 'forbidden' && <div className="promote-empty-small" role="alert">{t('promotePage.performance.forbidden')}</div>}
+      {state === 'error' && (
+        <div className="promote-empty-small" role="alert">
+          {t('promotePage.performance.loadError')}{' '}
+          <button type="button" className="promote-btn secondary" onClick={() => setReload((n) => n + 1)}>
+            <RefreshCw size={14} /> {t('promotePage.performance.retry')}
+          </button>
+        </div>
+      )}
+
+      {state === 'ready' && (
         <>
-          <div className="promote-perf-bars">
-            {entries.map((row) => {
-              const pct = grandTotal === 0 ? 0 : Math.round((row.total / grandTotal) * 100);
-              return (
-                <div key={row.key} className="promote-perf-row">
-                  <div className="promote-perf-label">
-                    <strong>{row.key.replace(/_/g, ' ')}</strong>
-                    <span>{row.total} actions · {pct}%</span>
-                  </div>
-                  <div className="promote-perf-bar">
-                    <div className="promote-perf-bar-fill" style={{ width: `${pct}%` }} />
-                  </div>
-                  <div className="promote-perf-breakdown">
-                    {Object.entries(row.details).filter(([k]) => k !== '_total').map(([sub, n]) => (
-                      <span key={sub}>{sub}: <strong>{n}</strong></span>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
+          <div className="promote-perf-summary">
+            <div><strong>{number(data.totals.shares)}</strong><span>{t('promotePage.performance.shares')}</span></div>
+            <div><strong>{number(data.totals.visits)}</strong><span>{t('promotePage.performance.visits')}</span></div>
+            <div><strong>{ratio(data.totals.visits_per_share)}</strong><span>{t('promotePage.performance.visitsPerShare')}</span></div>
+            <div><strong>{topRow ? label(topRow.source) : '-'}</strong><span>{t('promotePage.performance.topSource')}</span></div>
           </div>
 
-          <div className="promote-perf-actions">
-            <button type="button" className="promote-btn secondary" onClick={onReset}>
-              <RefreshCw size={14} /> {t('promotePage.performance.resetTracking', { defaultValue: 'Reset tracking' })}
-            </button>
-            <span className="promote-help">{t('promotePage.performance.help', { defaultValue: 'Tracking is stored locally in your browser so you can experiment safely.' })}</span>
-          </div>
+          {sources.length === 0 ? (
+            <div className="promote-empty-small">{t('promotePage.performance.empty')}</div>
+          ) : (
+            <div className="promote-perf-bars">
+              {sources.map((row) => {
+                const pct = Math.round((row.visits / maxVisits) * 100);
+                return (
+                  <div key={row.source} className="promote-perf-row">
+                    <div className="promote-perf-label">
+                      <strong>{label(row.source)}</strong>
+                      <span>{t('promotePage.performance.sourceLine', { shares: number(row.shares), visits: number(row.visits), ratio: ratio(row.visits_per_share) })}</span>
+                    </div>
+                    <div className="promote-perf-bar" aria-hidden="true">
+                      <div className="promote-perf-bar-fill" style={{ width: `${pct}%` }} />
+                    </div>
+                    <div className="promote-perf-breakdown">
+                      {row.mediums.map((m) => (
+                        <span key={m.medium || 'none'}>
+                          {m.medium ? label(m.medium) : t('promotePage.performance.noMedium')}: <strong>{t('promotePage.performance.mediumLine', { shares: number(m.shares), visits: number(m.visits) })}</strong>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {data.campaigns?.length > 0 && (
+            <div className="promote-perf-campaign-list">
+              <h3>{t('promotePage.performance.campaigns')}</h3>
+              <ul>
+                {data.campaigns.map((row) => (
+                  <li key={row.campaign}>
+                    <bdi>{row.campaign}</bdi>
+                    <span>{t('promotePage.performance.mediumLine', { shares: number(row.shares), visits: number(row.visits) })}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <p className="promote-help">{t('promotePage.performance.help')}</p>
         </>
       )}
     </section>
@@ -1447,7 +1508,6 @@ export default function PromotePage() {
   const [printLayout, setPrintLayout] = useState('flyer');
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('studio');
-  const [trackedClicks, setTrackedClicks] = useState(() => readJson(LS_TRACKED_CLICKS, {}));
   const [seoChecks, setSeoChecks] = useState(() => readJson(LS_SEO_CHECKS, {}));
 
   const isProvider = HELPER_ROLES.has(user?.role);
@@ -1538,16 +1598,15 @@ export default function PromotePage() {
     window.setTimeout(() => window.print(), 80);
   };
 
-  const onTrackedClick = useCallback((key, channel) => {
-    const next = bumpCounter(key, channel || 'default');
-    setTrackedClicks(next);
+  // Share actions are recorded server-side for the profile being promoted;
+  // the retired browser-local counter is cleared once.
+  useEffect(() => {
+    try { localStorage.removeItem(LS_TRACKED_CLICKS); } catch { /* private mode */ }
   }, []);
 
-  const resetTracking = useCallback(() => {
-    writeJson(LS_TRACKED_CLICKS, {});
-    setTrackedClicks({});
-    toast.success('Performance reset');
-  }, []);
+  const onTrackedClick = useCallback((key, channel) => {
+    recordPromotionShare(target, key, channel || null);
+  }, [target]);
 
   return (
     <PageShell>
@@ -1639,7 +1698,7 @@ export default function PromotePage() {
             )}
 
             {activeTab === 'performance' && (
-              <PerformanceTab trackedClicks={trackedClicks} onReset={resetTracking} />
+              <PerformanceTab key={target.businessId || 'helper'} target={target} />
             )}
 
             {activeTab === 'toolkit' && (

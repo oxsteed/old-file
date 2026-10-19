@@ -171,6 +171,7 @@ const uploadRoutes = require('./routes/upload');
 const storageRoutes = require('./routes/storage');
 const moderationRoutes = require('./routes/moderation');
 const foodRoutes = require('./routes/food');
+const promotionAnalyticsRoutes = require('./routes/promotionAnalytics');
 const oxsteedCreditRoutes = require('./routes/oxsteedCredit');
 const oxsteedCreditKioskRoutes = require('./routes/oxsteedCreditKiosk');
 const mainAppRoutes = require('./routes/mainApp');
@@ -736,6 +737,7 @@ app.use('/api/moderation', moderationRoutes);
 app.use('/api/main-app', mainAppRoutes);
 app.use('/api/direct', directRoutes);
 app.use('/api/food', foodRoutes);
+app.use('/api/promotion-analytics', promotionAnalyticsRoutes);
 app.use('/api/oxsteed-credit', oxsteedCreditRoutes);
 // Credit Everywhere Phase 1: self-serve participant apply. Any
 // authenticated user (business owner, helper) can apply; the customer

@@ -45,6 +45,7 @@ import CTASection from '../components/helperProfile/CTASection';
 import PublicProfileMessenger from '../components/helperProfile/chat/PublicProfileMessenger.jsx';
 
 import api from '../api/axios';
+import usePromotionVisitBeacon from '../hooks/usePromotionVisitBeacon';
 import { getBusinessPublicProfile } from '../api/businesses';
 import { getPublicPropertyOperations } from '../api/propertyOperations';
 import { getPublicTradesOperations } from '../api/tradesOperations';
@@ -757,6 +758,7 @@ export default function BusinessProfilePage() {
   const { user } = useAuth();
 
   const [profileData,     setProfileData]     = useState(null);
+  usePromotionVisitBeacon('business', profileData?.bizId);
   const [propertyOpsData, setPropertyOpsData] = useState(null);
   const [tradesOpsData, setTradesOpsData] = useState(null);
   const [beautyOpsData, setBeautyOpsData] = useState(null);
@@ -788,7 +790,11 @@ export default function BusinessProfilePage() {
       // /b/:slug is canonical (in-app /business/:id links keep working).
       const slug = raw.business?.profile_slug;
       if (slug && String(id) !== slug && !pathnameRef.current.startsWith('/business/')) {
-        navigate(businessProfilePath({ businessId: raw.business.id, slug }), { replace: true });
+        // Keep the query string so tracked-link attribution (utm_*/ref) survives.
+        navigate(
+          { pathname: businessProfilePath({ businessId: raw.business.id, slug }), search: window.location.search },
+          { replace: true },
+        );
       }
       setProfileData(mapToHelperProfileData(raw, t));
       setActiveTemplate(raw.business?.active_template || 'default');

@@ -4689,6 +4689,31 @@
         "loadError": "No se pudo cargar el rendimiento de la ubicación.",
         "windowNote": "Las conversiones cuentan los pedidos realizados mientras la ubicación está activa."
       }
+    },
+    "performance": {
+      "title": "Rendimiento",
+      "heading": "Descubre qué promociones generan trabajo de verdad.",
+      "body": "OxSteed registra cada publicación, enlace, tarjeta o firma con seguimiento que copias aquí, y cada visita a tu perfil desde esos enlaces. Revísalo cada semana para ver qué canales y enfoques funcionan y cuáles dejar de usar.",
+      "windowLabel": "Período",
+      "window7": "Últimos 7 días",
+      "window30": "Últimos 30 días",
+      "window90": "Últimos 90 días",
+      "window365": "Últimos 12 meses",
+      "loading": "Cargando el rendimiento de tus enlaces…",
+      "loadError": "No se pudo cargar el rendimiento de los enlaces.",
+      "retry": "Intentar de nuevo",
+      "forbidden": "Solo los propietarios y gerentes de este negocio pueden ver el rendimiento de sus enlaces.",
+      "shares": "veces compartido",
+      "visits": "visitas al perfil",
+      "visitsPerShare": "visitas por vez compartida",
+      "topSource": "fuente principal",
+      "notAvailable": "n/d",
+      "sourceLine": "{{shares}} compartidos · {{visits}} visitas · {{ratio}} por compartido",
+      "mediumLine": "{{shares}} compartidos, {{visits}} visitas",
+      "noMedium": "sin etiqueta",
+      "campaigns": "Campañas",
+      "empty": "Todavía no hay nada registrado en este período. Copia una publicación, una promoción de horario o un enlace de referido y compártelo; sus visitas aparecerán aquí.",
+      "help": "Una visita cuenta una vez por dispositivo, fuente, campaña y día. No se cuentan tus visitas ni las de tu equipo. Las visitas muestran alcance, no reservas."
     }
   },
   "adminSettings": {
