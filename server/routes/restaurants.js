@@ -24,6 +24,7 @@ const help = require('../controllers/restaurantHelpController');
 const pos = require('../controllers/restaurantPosController');
 const kiosk = require('../controllers/restaurantKioskController');
 const appFlow = require('../controllers/restaurantAppFlowController');
+const printer = require('../controllers/restaurantPrinterController');
 const screens = require('../controllers/restaurantScreensController');
 const food = require('../controllers/foodController');
 const upload = require('../middleware/upload');
@@ -294,6 +295,13 @@ router.get('/:restaurantId/pos/payments/:paymentId', requireRestaurantAccess(), 
 router.post('/:restaurantId/pos/payments/:paymentId/capture', requireRestaurantAccess(), appFlow.capturePosCardPayment);
 router.post('/:restaurantId/pos/payments/:paymentId/refund', requireRestaurantAccess(), appFlow.refundPosCardPayment);
 router.post('/:restaurantId/pos/orders/:orderId/reprint-receipt', requireRestaurantAccess(), appFlow.reprintReceipt);
+// Network receipt printer (ESC/POS) + cash drawer. Fire-and-forget: printing
+// never writes to order/payment tables, so it cannot alter order or payment
+// state.
+router.get('/:restaurantId/printer-settings', requireRestaurantAccess(), printer.getPrinterSettings);
+router.put('/:restaurantId/printer-settings', requireRestaurantAccess(), printer.updatePrinterSettings);
+router.post('/:restaurantId/printer-test', requireRestaurantAccess(), printer.printTestPage);
+router.post('/:restaurantId/print-receipt', requireRestaurantAccess(), printer.printReceipt);
 router.get('/:restaurantId/pos/shifts', requireRestaurantAccess(), appFlow.listShifts);
 router.post('/:restaurantId/pos/shifts', requireRestaurantAccess(), appFlow.openShift);
 router.post('/:restaurantId/pos/shifts/:shiftId/close', requireRestaurantAccess(), appFlow.closeShift);
