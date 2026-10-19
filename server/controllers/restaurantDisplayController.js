@@ -47,6 +47,33 @@ const CODE_LENGTH = 6;
 // Heartbeats at a 30s cadence stay "online" with headroom for jitter.
 const ONLINE_THRESHOLD_MS = 90 * 1000;
 const MAX_LABEL_LENGTH = 60;
+// Device roles (migration 913). A pairing token only authorizes the surface
+// its physical display belongs to: 'kitchen' tokens reach the kitchen ticket
+// feed + actions, 'kiosk' and 'queue_board' tokens never do. The default is
+// the fail-closed choice for the kitchen surface.
+const DISPLAY_DEVICE_ROLES = ['kitchen', 'kiosk', 'queue_board'];
+const DEFAULT_DEVICE_ROLE = 'kiosk';
+
+// issuePairingCode is lenient: an invalid or absent display_type falls back
+// to the fail-closed default.
+function normalizeDeviceRole(raw) {
+  const role = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+  return DISPLAY_DEVICE_ROLES.includes(role) ? role : DEFAULT_DEVICE_ROLE;
+}
+
+// claimDisplay is strict: the owner explicitly approves the role at claim
+// time, so an invalid device_role is a 400, not a silent default. An absent
+// value keeps the role the TV declared when it issued the code.
+function resolveClaimDeviceRole(raw, current) {
+  if (raw === undefined || raw === null || String(raw).trim() === '') {
+    return current || DEFAULT_DEVICE_ROLE;
+  }
+  const role = String(raw).trim().toLowerCase();
+  if (!DISPLAY_DEVICE_ROLES.includes(role)) {
+    throw new AppError('Invalid device role', 400, 'invalid_device_role');
+  }
+  return role;
+}
 
 function generatePairingCode(randomBytes = crypto.randomBytes) {
   const alphabet = CODE_ALPHABET;
@@ -117,7 +144,7 @@ function isDisplayTokenShape(token) {
 async function verifyDisplayPairingToken(token) {
   if (!isDisplayTokenShape(token)) return null;
   const { rows } = await pool.query(
-    `SELECT id, restaurant_id, label, pairing_token_hash
+    `SELECT id, restaurant_id, label, pairing_token_hash, device_role
        FROM display_pairings
       WHERE pairing_token_hash = $1 AND paired_at IS NOT NULL`,
     [hashSecret(token)]
@@ -130,6 +157,7 @@ async function verifyDisplayPairingToken(token) {
     pairingId: Number(row.id),
     restaurantId: Number(row.restaurant_id),
     label: row.label,
+    deviceRole: row.device_role || DEFAULT_DEVICE_ROLE,
   };
 }
 
@@ -163,6 +191,7 @@ function publicPairingShape(row) {
     restaurant_id: Number(row.restaurant_id),
     restaurant_name: row.restaurant_name || null,
     label: row.label,
+    device_role: row.device_role || DEFAULT_DEVICE_ROLE,
     paired_at: row.paired_at,
     last_seen_at: row.last_seen_at,
     refresh_requested_at: row.refresh_requested_at,
@@ -183,6 +212,10 @@ async function issuePairingCode(req, res, next) {
     if (!restaurantId) throw new AppError('A valid restaurant id is required', 400, 'invalid_restaurant_id');
     const { rows } = await pool.query('SELECT id FROM food_restaurants WHERE id = $1', [restaurantId]);
     if (!rows[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    // The TV declares its physical role up front so the pairing record is
+    // fail-closed from issuance: an invalid or absent display_type becomes
+    // 'kiosk', which can never reach the kitchen ticket surface.
+    const deviceRole = normalizeDeviceRole(req.body?.display_type);
 
     // Codes live in a 31^6 space and the code_hash column is unique, so retry
     // a few times on the (astronomically unlikely) collision.
@@ -191,10 +224,10 @@ async function issuePairingCode(req, res, next) {
       const codeHash = hashSecret(code);
       try {
         const { rows: inserted } = await pool.query(
-          `INSERT INTO display_pairings (restaurant_id, code_hash, expires_at)
-           VALUES ($1, $2, NOW() + make_interval(secs => $3))
+          `INSERT INTO display_pairings (restaurant_id, code_hash, expires_at, device_role)
+           VALUES ($1, $2, NOW() + make_interval(secs => $3), $4)
            RETURNING id, expires_at`,
-          [restaurantId, codeHash, PAIRING_CODE_TTL_MS / 1000]
+          [restaurantId, codeHash, PAIRING_CODE_TTL_MS / 1000, deviceRole]
         );
         return res.status(201).json({
           code,
@@ -223,7 +256,7 @@ async function claimDisplay(req, res, next) {
     const codeHash = hashSecret(code);
 
     const { rows: candidates } = await pool.query(
-      `SELECT id, restaurant_id, code_hash, paired_at, expires_at
+      `SELECT id, restaurant_id, code_hash, device_role, paired_at, expires_at
          FROM display_pairings
         WHERE code_hash = $1 AND paired_at IS NULL AND expires_at > NOW()`,
       [codeHash]
@@ -235,6 +268,9 @@ async function claimDisplay(req, res, next) {
     // Ownership first: claiming a code for a restaurant the caller does not
     // own must fail even when the code is valid (fail closed).
     const restaurant = await requireRestaurantOwner(req.user?.id, candidate.restaurant_id);
+    // The owner approves the final device role at claim time; an invalid
+    // value is a 400, an absent one keeps the role the TV declared.
+    const deviceRole = resolveClaimDeviceRole(req.body?.device_role, candidate.device_role);
 
     const token = crypto.randomBytes(32).toString('hex');
     const { rows: updated } = await pool.query(
@@ -242,10 +278,11 @@ async function claimDisplay(req, res, next) {
           SET paired_at = NOW(),
               label = $2,
               pairing_token_hash = $3,
-              pairing_token_encrypted = $4
+              pairing_token_encrypted = $4,
+              device_role = $5
         WHERE id = $1 AND paired_at IS NULL AND expires_at > NOW()
-        RETURNING id, restaurant_id, label, paired_at, created_at`,
-      [candidate.id, label, hashSecret(token), encrypt(token)]
+        RETURNING id, restaurant_id, label, device_role, paired_at, created_at`,
+      [candidate.id, label, hashSecret(token), encrypt(token), deviceRole]
     );
     if (!updated[0]) {
       throw new AppError('Pairing code not found or expired', 404, 'code_not_found');
@@ -358,34 +395,41 @@ function kitchenStaffPath(req, res, next) {
   });
 }
 
-// Kitchen device-or-staff authorization (Track B).
+// Kitchen device-or-staff authorization (Track B, roles from migration 913).
 //
 // A paired display's token authorizes the kitchen ticket feed + ticket
 // actions (ack, order/item actions) for ITS restaurant only, so a fresh
 // kitchen tablet needs no staff login. Fail closed everywhere:
-//   - display-token-shaped bearer, valid and scoped to :restaurantId ->
-//     req.displayDevice = { pairingId, restaurantId, label }, then next()
-//   - display-token-shaped bearer, invalid / unpaired / wrong restaurant ->
-//     401 (never falls through to staff auth)
+//   - display-token-shaped bearer, valid, scoped to :restaurantId, AND with
+//     device_role 'kitchen' -> req.displayDevice = { pairingId,
+//     restaurantId, label, deviceRole }, then next()
+//   - display-token-shaped bearer, invalid / unpaired / wrong restaurant /
+//     non-kitchen role (kiosk, queue_board) -> 401 with code
+//     'display_token_invalid' (never falls through to staff auth; the client
+//     drops the pairing when it sees this code)
 //   - no bearer, or a bearer that is not display-token-shaped (staff sessions
 //     authenticate by cookie; impersonation uses a JWT bearer) -> the
 //     standard staff path (session + restaurant tenancy gate)
 //
 // The pairing token never authorizes stations, audit, printer jobs, events,
 // or any other route: those keep requireRestaurantAccess() and stay
-// staff-only.
+// staff-only. Heartbeat and polling stay role-agnostic (presence only).
 async function requireKitchenDeviceOrStaff(req, res, next) {
   try {
     const token = bearerToken(req);
     if (token && isDisplayTokenShape(token)) {
       const pairing = await verifyDisplayPairingToken(token);
       if (!pairing || Number(pairing.restaurantId) !== Number(req.params.restaurantId)) {
-        throw new AppError('Unauthorized', 401, 'unauthorized');
+        throw new AppError('Unauthorized', 401, 'display_token_invalid');
+      }
+      if (pairing.deviceRole !== 'kitchen') {
+        throw new AppError('Unauthorized', 401, 'display_token_invalid');
       }
       req.displayDevice = {
         pairingId: pairing.pairingId,
         restaurantId: pairing.restaurantId,
         label: pairing.label,
+        deviceRole: pairing.deviceRole,
       };
       return next();
     }
@@ -471,6 +515,10 @@ module.exports = {
     parsePositiveInt,
     bearerToken,
     isDisplayTokenShape,
+    normalizeDeviceRole,
+    resolveClaimDeviceRole,
+    DISPLAY_DEVICE_ROLES,
+    DEFAULT_DEVICE_ROLE,
     PAIRING_CODE_TTL_MS,
     ONLINE_THRESHOLD_MS,
     CODE_ALPHABET,
