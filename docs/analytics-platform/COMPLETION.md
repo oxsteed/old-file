@@ -47,9 +47,22 @@ decisions (October 19): see [Product decisions](#product-decisions-october-19).
 - [x] Configurable CSAT target: server reads `settings.general.csat_target`
   (default 80 only when unset/invalid). *Before.* The client's `|| 80` is a
   redundant display fallback, not a second definition.
-- [defer] Remaining NPS/SLA support-page cohorts differ from the registry; they
-  are documented, not linked to evidence, until the support pages adopt the
-  registry cohort (product sign-off needed on the cohort change).
+- [x] Support SLA and CSAT pages use the governed registry metrics with
+  evidence links (follow-up PR on `codex/analytics-finish-deferred`).
+  - **SLA headline:** now `sla_first_response_compliance_pct` over the last
+    30 days, run through the builder's own SQL, with met/eligible shown.
+  - **SLA number change:** the previous headline was all-time, over every
+    conversation. It stays visible, labeled "previous definition (all time)",
+    and so does the all-time breach count. The violations card now shows
+    30-day first-response breaches, so "this week" became "last 30 days".
+  - **NPS card:** now shows `support_nps_index` (promoters minus detractors)
+    for the selected range.
+  - **NPS number change:** the previous headline was the mean 0-10 score
+    (`avg_nps`), which is not an NPS. It stays visible, labeled as the
+    previous headline.
+  - **CSAT range:** the server ignored the page's range selector and always
+    used 30 days. It now honors 7d/30d/90d for every figure on the page.
+  - **Bad ids:** a malformed `business_id` returns 400 before any query.
 - [x] QW5 daily snapshot pipeline. *Decision 4 (`55af21a7`, migration 904).*
   `metric_daily_snapshots` stores one row per UTC day/metric/scope/currency,
   computed with the builder's own SQL as of each day end (regional territories
@@ -74,9 +87,33 @@ decisions (October 19): see [Product decisions](#product-decisions-october-19).
 - [x] Investor dashboard shows the selected-period and all-time job completion
   rate from the same governed cohort, labeled in 5 locales. It is
   investor-facing, so it has no admin builder links. *Decision 7 (`e157d101`).*
-- [defer] MoneyPage per-channel tiles, OperationsOverview incident counts and
-  Customer 360 timeline rows: these numbers are not registry metrics yet; links
-  are added only once KPI/evidence parity is provable.
+- [x] MoneyPage, OperationsOverview and Customer 360 show governed metric
+  cards (`GovernedKpiPanel`), each linking to builder evidence for the same
+  metric, period and filters.
+  - **Endpoint:** `GET /admin/analytics/governed-kpis` computes each card
+    with the builder's SQL, the admin's per-metric grant and the region
+    filter. It has a parity DB test against the builder aggregate. Ungranted
+    metrics return no value and show "permission required".
+  - **MoneyPage:** revenue, refund rate, promo discount, MRR, escrow held,
+    payout failures, GMV and take rate.
+  - **Operations:** open disputes, dispute, refund, completion and cancel
+    rates, payout failures, SLA and NPS.
+  - **Customer 360:** the customer's own `cancel_rate_pct` (customerId
+    filter, 12 months).
+  - **Still operational, labeled on screen as estimates, not governed:**
+    MoneyPage's mixed-source, mixed-currency channel tiles and summary cards,
+    the Operations section cards (incident counts included), and Customer 360
+    timeline rows (records, not aggregates).
+  - **Not covered:** helpers have no `helperId` builder filter, so the helper
+    cancel rate is not on a governed card.
+- [x] The investor dashboard has aggregate-only drill-through
+  (`GET /investor/evidence/:metric`) for revenue, completion rate, GMV and
+  take rate.
+  - Totals are by period bucket, currency and source, over the builder
+    evidence record set, so they reconcile with the KPI.
+  - The response has no ids, names or PII. Buckets with fewer than 3 records
+    are suppressed.
+  - Covered by a DB test.
 
 ## Area 3: threshold alerts
 
@@ -129,6 +166,15 @@ decisions (October 19): see [Product decisions](#product-decisions-october-19).
   unknown regions (`region_unknown`). The audit records the scope and region
   ids. Deleting a region revokes its grants so they cannot become global.
   *Decision 3 (`194ccd7b`, migrations 901-903).*
+- [x] Region scoping trusts `users.country` only when confirmed (migration
+  908).
+  - A trigger confirms the country when it differs from the default, when US
+    address evidence exists (US phone, 5-digit ZIP or US state), or when it
+    is set explicitly. Existing users were backfilled the same way.
+  - Unconfirmed users no longer match `country_only`/`country_region`
+    regions. `zip_range` and `city_state` matching is unchanged.
+  - `geo_radius` regions now match confirmed US users by ZIP centroid through
+    `direct_geocode_cache`. Users have no stored coordinates.
 - [x] One Truth analyst scope uses the shared `scopeModel.appendAnalystUserScope`
   (fail closed on empty grants). A latent cross-user ops-count fallback is
   removed. *Now.*
@@ -196,8 +242,34 @@ decisions (October 19): see [Product decisions](#product-decisions-october-19).
     platform-funded and gross per currency) is permissioned, evidenced,
     alertable and snapshotted. Admin promo usage shows checkout redemptions
     per surface.
-- [defer] Booking attribution for tracked profile links: visits are reach, not
-  conversions; tying anonymous visits to bookings needs an attribution policy.
+- [x] Visit-to-booking attribution for Promote performance (migration 909).
+  - **What counts:** a booking, business appointment or food order made from
+    the same consent-scoped device id as a tracked visit to the same owner
+    within 7 days. Last touch wins.
+  - **How it gets there:** the client sends `X-Promo-Visitor` only on those
+    checkout POSTs, and only if a tracked visit already created the id.
+  - **Dedupe:** one conversion per reference, using a hashed key. No
+    reference or user id is stored.
+  - **Excluded:** owners and team members, staff-created appointments, and
+    kiosk/display-device orders.
+  - **Timing:** recorded after the response and never blocks checkout.
+  - **Display:** Performance shows conversions, conversion rate and the split
+    by type in 5 locales.
+  - **Policy:** cancellations are not subtracted. Marketplace jobs are not
+    counted, because they are not addressed to a profile owner. Without
+    analytics consent the id is per tab, so only same-session conversions
+    count.
+- [x] Resend delivery webhooks for broadcast email (migration 907).
+  - `POST /api/webhooks/resend` verifies the Svix signature
+    (`RESEND_WEBHOOK_SECRET`, 5-minute tolerance) and dedupes by event id.
+    It records delivered, bounced, complained and failed per delivery.
+  - Hard bounces and complaints add a suppression.
+  - Business Hub shows confirmed, bounced, complained and unconfirmed
+    counts. "Sent" still means accepted by the provider.
+  - **[ops]** Create the webhook in Resend and set the secret. The endpoint
+    returns 503 until the secret is set.
+- [x] Native push-open contract documented in `push-open-contract.md`. The app
+  update itself is out of repo.
 - [ops] Production `AFFILIATE_ENABLED`.
 
 ## Area 6: governed query / NL
@@ -221,7 +293,7 @@ decisions (October 19): see [Product decisions](#product-decisions-october-19).
   `promotionPerformance` checks at 320/390/1360 px, en/fr/ar, light/dark, RTL.
 - [x] SOP: only the review manifest was re-baselined (it hashes `en.json`);
   guide PDFs/screenshots were already current and were not regenerated.
-- [ops] Apply migrations 893-906 through the deployment workflow; repeat
+- [ops] Apply migrations 893-909 through the deployment workflow; repeat
   authenticated admin/business flows with real sessions, including revoked
   grants. No production migration or deployment was performed.
 
@@ -239,6 +311,9 @@ decisions (October 19): see [Product decisions](#product-decisions-october-19).
 | 904 | `metric_daily_snapshots`, `metric_snapshot_runs` (single running run), `trend` audit event |
 | 905 | `promo_redemptions`; `discount_codes.per_user_limit/currency_code/applicable_surfaces`; booking `gross_amount_cents/promo_discount_cents` |
 | 906 | Broadcast channels/queue state, per-recipient tracking tokens, `business_broadcast_deliveries`, `business_broadcast_suppressions`; `notification_preferences.email_notifications/marketing_emails` (already read by email preferences but missing) |
+| 907 | Broadcast provider events: delivered/bounced/complained/failed columns, suppression sources `hard_bounce`/`complaint` |
+| 908 | `users.country_confirmed` (+ source, timestamp), confirmation trigger and backfill; ZIP index on `direct_geocode_cache` |
+| 909 | `promotion_link_events` conversions (`conversion_type`, `attributed_visit_id`) |
 
 All additive. Exercised through the real migration runner on a disposable
 database; CI runs the migration rehearsal from 785.
@@ -264,15 +339,16 @@ Open points for product/ops:
 - Credit-paid checkout does not take promo codes (P3-1009 untouched).
 - Broadcast email needs Resend configured and tracking links that reach the API
   (`BROADCAST_TRACKING_BASE_URL`, else `API_PUBLIC_URL`, else the public site
-  URL plus `/api`). Resend delivered/bounce webhooks are not integrated, so
-  "sent" means accepted by the provider. Email opens are estimates.
+  URL plus `/api`). The Resend webhook must be registered with
+  `RESEND_WEBHOOK_SECRET` set. Email opens are estimates.
 - The native mobile app must POST to the push payload's `track_url` on tap to
-  report push opens; the web service worker already does.
+  report push opens (`push-open-contract.md`); the web service worker already does.
 - The delivery worker runs by default; `BROADCAST_DELIVERY_ENABLED=false` stops it.
-- Regional scope: `users.country` defaults to `US` (a confirmed-country flag
-  would be safer); grants already nulled by an earlier region delete cannot be
-  detected; `geo_radius` regions cannot match user-address anchors; the lanes
-  what-if endpoint stays informational.
+- Regional scope: unconfirmed-US users drop out of country regions (intended);
+  grants already nulled by an earlier region delete cannot be detected; the
+  lanes what-if endpoint stays informational. The `regionAuth` JS
+  `geo_radius` check and the super-admin user query still reference user
+  coordinates that do not exist (no change; SQL scoping is authoritative).
 
 ## Verification (local, October 19)
 
