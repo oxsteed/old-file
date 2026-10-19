@@ -224,8 +224,10 @@ router.get('/restaurants/:restaurantId/orders', authenticate, requireRestaurantA
 // The status route accepts a paired kitchen display's token (Ready/Handoff
 // transitions only, enforced in the controller) as well as the standard
 // staff chain; requireKitchenDeviceOrStaff falls through to authenticate +
-// requireRestaurantAccess() for non-device requests.
-router.patch('/restaurants/:restaurantId/orders/:orderId/status', requireKitchenDeviceOrStaff, ctrl.updateOrderStatus);
+// requireRestaurantAccess() for non-device requests. scopeExempt marks the
+// device-credential path like the other kitchen device routes; the staff
+// path keeps its tenancy gate inside the middleware.
+router.patch('/restaurants/:restaurantId/orders/:orderId/status', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), ctrl.updateOrderStatus);
 router.post('/restaurants/:restaurantId/orders/:orderId/split', authenticate, requireRestaurantAccess(), ctrl.splitOrder);
 
 module.exports = router;
