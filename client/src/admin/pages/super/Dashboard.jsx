@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import RevenueChart from '../../components/RevenueChart';
 import StatCard     from '../../components/StatCard';
+import { analyticsEvidenceHref } from '../../../utils/analyticsEvidenceLink';
 import adminApi     from '../../../lib/adminApi';
 import { useAuth }  from '../../../hooks/useAuth';
 import { useTranslation } from 'react-i18next';
@@ -332,6 +333,7 @@ export default function SuperDashboard() {
             <StatCard
               label={t('superDashboard.statRevenuePeriod', { period: pl })}
               value={s?.revenue_period_cents ?? null}
+              href={analyticsEvidenceHref('platform_revenue_cents', period)}
               format="currency"
               icon={TrendingUp}
               color="text-emerald-600 dark:text-emerald-400"
@@ -404,7 +406,7 @@ export default function SuperDashboard() {
           />
           <StatCard label={t('superDashboard.statCancelledJobs')}     value={s?.cancelled_jobs   ?? null} icon={XCircle}   color="text-red-600 dark:text-red-400" href="/admin/jobs?status=cancelled" />
           <StatCard label={t('superDashboard.statAvgBids')}   value={s?.avg_bids_per_job != null ? String(s.avg_bids_per_job) : null} icon={BarChart2}  color="text-indigo-600 dark:text-indigo-400" />
-          <StatCard label={t('superDashboard.statCompletionRate')} value={s?.completion_rate  ?? null} format="percent"                                    icon={TrendingUp} color="text-emerald-600 dark:text-emerald-400" />
+          <StatCard label={t('superDashboard.statCompletionRate')} value={s?.completion_rate  ?? null} format="percent" href={analyticsEvidenceHref('job_completion_rate_pct', period)}                                    icon={TrendingUp} color="text-emerald-600 dark:text-emerald-400" />
         </div>
       </section>
 

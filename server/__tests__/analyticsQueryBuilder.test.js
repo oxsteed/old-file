@@ -169,7 +169,7 @@ describe('validateBuilderQuery', () => {
 
   test('dimension allowlist matches the Track B contract', () => {
     expect(BUILDER_DIMENSIONS).toEqual({
-      dispute_rate_pct: [], refund_rate_pct: [], payout_failure_count: [],
+      dispute_rate_pct: [], job_completion_rate_pct: [], refund_rate_pct: [], payout_failure_count: [],
       open_disputes: [],
       platform_revenue_cents: ['period'],
       investor_gmv_cents: [],
@@ -185,7 +185,7 @@ describe('validateBuilderQuery', () => {
       restaurant_top_items_revenue: ['restaurant'],
     });
     const meta = getBuilderMeta();
-    expect(meta.metrics).toHaveLength(16);
+    expect(meta.metrics).toHaveLength(17);
     expect(meta.rowCap).toBe(10000);
     const byName = Object.fromEntries(meta.metrics.map((m) => [m.name, m]));
     expect(byName.cancel_rate_pct.dimensions).toEqual(['role']);
@@ -514,7 +514,7 @@ describeDb('query builder routes', () => {
   test('admin gets meta and can run a query', async () => {
     const metaRes = await request(app).get('/api/admin/analytics/query-builder/meta')
       .set(adminHeaders).expect(200);
-    expect(metaRes.body.metrics).toHaveLength(16);
+    expect(metaRes.body.metrics).toHaveLength(17);
     const runRes = await request(app).post('/api/admin/analytics/query-builder/run')
       .set(adminHeaders).send({ metric: 'open_disputes' }).expect(200);
     expect(runRes.body.rows).toEqual([{ value: 2 }]);

@@ -45,6 +45,8 @@
       "responses": "الردود",
       "avg_nps": "متوسط مؤشر الترويج",
       "decided": "المكتملة أو الملغاة",
+      "completed": "المكتملة",
+      "completion_rate_pct": "معدل الإنجاز",
       "disputed": "المتنازع عليها",
       "refunded": "المستردة",
       "ledger_id": "معرف القيد",
@@ -109,6 +111,7 @@
     "retentionRate": "الاحتفاظ",
     "metricNames": {
       "dispute_rate_pct": "معدل المهام المتنازع عليها",
+      "job_completion_rate_pct": "معدل إنجاز المهام",
       "refund_rate_pct": "معدل المدفوعات المستردة",
       "payout_failure_count": "عمليات السحب الفاشلة في التطبيق الرئيسي",
       "investor_gmv_cents": "قيمة المهام المسجلة",
@@ -4601,8 +4604,13 @@
     "nlDismiss": "تجاهل",
     "nlRejected": "تعذّر التفسير",
     "nlParseFailed": "تعذّر الوصول إلى المحلل.",
+    "errorPermissionRequired": "تحتاج إلى صلاحية سارية لهذا المؤشر. اطلبها من مشرف عام ثم أعد التحميل.",
+    "errorAuditUnavailable": "تم حجب النتائج لأن سجل تدقيق الاستعلامات غير متاح. حاول مرة أخرى بعد قليل.",
+    "errorQueryFailed": "تعذّر إكمال الاستعلام. قلّص الفترة أو حاول مرة أخرى.",
+    "errorInvalidLink": "رابط التحليلات هذا غير صالح. اختر مؤشرًا لبدء استعلام جديد.",
     "metricNames": {
       "dispute_rate_pct": "معدل المهام المتنازع عليها",
+      "job_completion_rate_pct": "معدل إنجاز المهام",
       "refund_rate_pct": "معدل المدفوعات المستردة",
       "payout_failure_count": "عمليات السحب الفاشلة في التطبيق الرئيسي",
       "open_disputes": "النزاعات المفتوحة",
@@ -4737,6 +4745,7 @@
       },
       "metrics": {
         "dispute_rate_pct": "معدل المهام المتنازع عليها",
+        "job_completion_rate_pct": "معدل إنجاز المهام",
         "refund_rate_pct": "معدل المدفوعات المستردة",
         "payout_failure_count": "عمليات السحب الفاشلة في التطبيق الرئيسي",
         "investor_gmv_cents": "قيمة المهام المسجلة",

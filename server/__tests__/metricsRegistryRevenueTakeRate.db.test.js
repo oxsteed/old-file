@@ -53,6 +53,25 @@ describeDb('metrics registry: revenue + take-rate parity', () => {
     await db.query(`TRUNCATE ${schema}.platform_ledger, ${schema}.jobs`);
   });
 
+  test('dashboard revenue card, its previous-period delta and the builder evidence agree per currency', async () => {
+    const { buildMetricSql, validateBuilderQuery } = require('../analytics/queryBuilder');
+    const { metricEvidenceSql } = require('../analytics/metricEvidence');
+    await db.query(`INSERT INTO platform_ledger (source_type, currency, amount_cents, created_at) VALUES
+      ('job_fee','USD',1000,NOW()-interval '2 days'),('subscription','USD',500,NOW()-interval '3 days'),
+      ('job_fee','EUR',7000,NOW()-interval '2 days'),('refund','USD',-200,NOW()-interval '2 days'),
+      ('job_fee','USD',300,NOW()-interval '40 days'),('job_fee','EUR',900,NOW()-interval '40 days')`);
+    const card = await registry.platformRevenue(db, '30 days', 'USD');
+    expect(card).toMatchObject({ period_cents: 1500, prev_cents: 300 });
+    const query = validateBuilderQuery({ metric: 'platform_revenue_cents', period: '30d' });
+    const summary = buildMetricSql(query, { isSuperAdmin: true });
+    const { rows } = await db.query(summary.text, summary.params);
+    expect(rows.find(r => r.currency_code === 'USD').revenue_cents).toBe(String(card.period_cents));
+    const evidence = metricEvidenceSql(query, { isSuperAdmin: true }, registry, summary);
+    const { rows: records } = await db.query(evidence.text, evidence.params);
+    const usd = records.filter(r => r.currency_code === 'USD').reduce((sum, r) => sum + Number(r.amount_cents), 0);
+    expect(usd).toBe(card.period_cents);
+  });
+
   test('old take-rate formula exceeds 100% by construction; new formula is sane', async () => {
     // Two completed jobs, budgets $1000 and $500 -> budget GMV = $1500 = 150000c
     await db.query(`INSERT INTO jobs (status, budget_max) VALUES

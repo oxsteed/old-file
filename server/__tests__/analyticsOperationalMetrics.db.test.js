@@ -17,7 +17,7 @@ const { businessInvoiceAnalytics }=require('../analytics/businessInvoiceAnalytic
 (url ? describe : describe.skip)('operational metric cohorts and previous windows', () => {
   beforeAll(async () => {
     await db.query(`CREATE SCHEMA ${schema};
-      CREATE TABLE jobs(id UUID PRIMARY KEY,deleted_at TIMESTAMPTZ,created_at TIMESTAMPTZ);
+      CREATE TABLE jobs(id UUID PRIMARY KEY,deleted_at TIMESTAMPTZ,created_at TIMESTAMPTZ,status TEXT NOT NULL DEFAULT 'published');
       CREATE TABLE disputes(id UUID PRIMARY KEY,job_id UUID REFERENCES jobs(id),status TEXT);
       CREATE TABLE payments(id BIGSERIAL PRIMARY KEY,status TEXT,refunded_amount NUMERIC,created_at TIMESTAMPTZ);
       CREATE TABLE main_app_payout_requests(id BIGSERIAL PRIMARY KEY,status TEXT,created_at TIMESTAMPTZ);
@@ -47,6 +47,27 @@ const { businessInvoiceAnalytics }=require('../analytics/businessInvoiceAnalytic
     const { rows: [r] } = await db.query(query.text,query.params);
     expect(r).toEqual({ dispute_rate_pct: 50,disputed: 1,total: 2 });
     expect(await computeMetricValue(db,'dispute_rate_pct',{ period: '7d' })).toBe(r.dispute_rate_pct);
+  });
+
+  test('job completion rate is one cohort for dashboards, builder, alerts and evidence', async () => {
+    const { jobCompletionRate } = require('../analytics/operationalMetrics');
+    const { metricEvidenceSql } = require('../analytics/metricEvidence');
+    const registry = require('../analytics/metricsRegistry');
+    const ids = Array.from({ length: 5 }, () => crypto.randomUUID());
+    await db.query(`INSERT INTO jobs(id,deleted_at,created_at,status) VALUES
+      ($1,NULL,NOW()-INTERVAL '1 day','completed'),($2,NULL,NOW()-INTERVAL '1 day','cancelled'),
+      ($3,NULL,NOW()-INTERVAL '1 day','published'),($4,NOW(),NOW()-INTERVAL '1 day','completed'),
+      ($5,NULL,NOW()-INTERVAL '60 days','completed')`, ids);
+    const dashboard = await jobCompletionRate(db, registry.PERIOD_INTERVAL['7d'].interval);
+    expect(dashboard).toEqual({ completion_rate_pct: 50, completed: 1, decided: 2 });
+    const query = validateBuilderQuery({ metric: 'job_completion_rate_pct', period: '7d' });
+    const built = buildMetricSql(query, {});
+    const { rows: [builder] } = await db.query(built.text, built.params);
+    expect(builder).toEqual(dashboard);
+    expect(await computeMetricValue(db, 'job_completion_rate_pct', { period: '7d' })).toBe(50);
+    const evidence = metricEvidenceSql(query, {}, registry, built);
+    const { rows } = await db.query(evidence.text, evidence.params);
+    expect(rows.map(r => r.job_id).sort()).toEqual([ids[0], ids[1]].sort());
   });
 
   test('refund count rate includes partial refunds and excludes uncollected payments', async () => {

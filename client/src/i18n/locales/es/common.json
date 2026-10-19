@@ -45,6 +45,8 @@
       "responses": "Respuestas",
       "avg_nps": "NPS medio",
       "decided": "Completados o cancelados",
+      "completed": "Completados",
+      "completion_rate_pct": "Tasa de finalización",
       "disputed": "En disputa",
       "refunded": "Reembolsados",
       "ledger_id": "ID del asiento",
@@ -109,6 +111,7 @@
     "retentionRate": "Retención",
     "metricNames": {
       "dispute_rate_pct": "Tasa de trabajos con disputa",
+      "job_completion_rate_pct": "Tasa de finalización de trabajos",
       "refund_rate_pct": "Tasa de pagos reembolsados",
       "payout_failure_count": "Retiros fallidos de la aplicación principal",
       "investor_gmv_cents": "Valor registrado de trabajos",
@@ -4601,8 +4604,13 @@
     "nlDismiss": "Descartar",
     "nlRejected": "No se pudo interpretar",
     "nlParseFailed": "No se pudo contactar el analizador.",
+    "errorPermissionRequired": "Necesitas un permiso vigente para esta métrica. Pide a un superadministrador que lo otorgue y vuelve a cargar.",
+    "errorAuditUnavailable": "Los resultados se retienen porque el registro de auditoría de consultas no está disponible. Inténtalo de nuevo en breve.",
+    "errorQueryFailed": "La consulta no pudo terminar. Reduce el período o inténtalo de nuevo.",
+    "errorInvalidLink": "Este enlace de analítica no es válido. Elige una métrica para iniciar una consulta nueva.",
     "metricNames": {
       "dispute_rate_pct": "Tasa de trabajos con disputa",
+      "job_completion_rate_pct": "Tasa de finalización de trabajos",
       "refund_rate_pct": "Tasa de pagos reembolsados",
       "payout_failure_count": "Retiros fallidos de la aplicación principal",
       "open_disputes": "Disputas abiertas",
@@ -4737,6 +4745,7 @@
       },
       "metrics": {
         "dispute_rate_pct": "Tasa de trabajos con disputa",
+        "job_completion_rate_pct": "Tasa de finalización de trabajos",
         "refund_rate_pct": "Tasa de pagos reembolsados",
         "payout_failure_count": "Retiros fallidos de la aplicación principal",
         "investor_gmv_cents": "Valor registrado de trabajos",

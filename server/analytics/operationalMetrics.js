@@ -25,6 +25,17 @@ const DEFINITIONS = Object.freeze({
       FROM payments WHERE status IN ('captured','released','refunded') AND created_at >= NOW()-$1::interval AND created_at < NOW()`,
     columns: ['refund_rate_pct', 'refunded', 'total'],
   },
+  job_completion_rate_pct: {
+    valueColumn: 'completion_rate_pct',
+    unit: 'pct', permission: 'manage_operations', preference: null,
+    definition: 'Completed share of decided (completed or cancelled) non-deleted jobs created in the window. One cohort for every dashboard: the period selected on the page.',
+    text: `SELECT COUNT(*) FILTER (WHERE j.status IN ('completed','cancelled'))::INT AS decided,
+      COUNT(*) FILTER (WHERE j.status='completed')::INT AS completed,
+      ROUND(100.0*COUNT(*) FILTER (WHERE j.status='completed')
+        /NULLIF(COUNT(*) FILTER (WHERE j.status IN ('completed','cancelled')),0),2)::FLOAT AS completion_rate_pct
+      FROM jobs j WHERE j.deleted_at IS NULL AND j.created_at >= NOW()-$1::interval AND j.created_at < NOW()`,
+    columns: ['completion_rate_pct', 'completed', 'decided'],
+  },
   payout_failure_count: {
     unit: 'count', permission: 'view_financials', preference: 'notify_payout_failures',
     definition: 'Failed main_app_payout_requests created in the window. Other payout products are separate ledgers and are not folded into this count.',
@@ -40,4 +51,17 @@ function operationalMetricSql(metric, interval) {
   return { text: def.text, params: [interval], columns: def.columns };
 }
 
-module.exports = { DEFINITIONS, operationalMetricSql };
+// Shared value for dashboard consumers (super-admin and investor). Returns
+// the same numbers the builder and alert evaluator compute.
+async function jobCompletionRate(db, interval) {
+  const built = operationalMetricSql('job_completion_rate_pct', interval);
+  const { rows } = await db.query(built.text, built.params);
+  const row = rows[0] || {};
+  return {
+    completion_rate_pct: row.completion_rate_pct == null ? null : Number(row.completion_rate_pct),
+    completed: Number(row.completed || 0),
+    decided: Number(row.decided || 0),
+  };
+}
+
+module.exports = { DEFINITIONS, operationalMetricSql, jobCompletionRate };

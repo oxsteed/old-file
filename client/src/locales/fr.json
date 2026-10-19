@@ -45,6 +45,8 @@
       "responses": "Réponses",
       "avg_nps": "NPS moyen",
       "decided": "Terminées ou annulées",
+      "completed": "Terminées",
+      "completion_rate_pct": "Taux d’achèvement",
       "disputed": "Contestés",
       "refunded": "Remboursés",
       "ledger_id": "ID de l’écriture",
@@ -109,6 +111,7 @@
     "retentionRate": "Fidélisation",
     "metricNames": {
       "dispute_rate_pct": "Taux de missions contestées",
+      "job_completion_rate_pct": "Taux de missions terminées",
       "refund_rate_pct": "Taux de paiements remboursés",
       "payout_failure_count": "Échecs de versement de l’application principale",
       "investor_gmv_cents": "Valeur enregistrée des missions",
@@ -174,8 +177,13 @@
     "nlDismiss": "Ignorer",
     "nlRejected": "Interprétation impossible",
     "nlParseFailed": "Impossible de joindre l'analyseur.",
+    "errorPermissionRequired": "Vous avez besoin d’une autorisation en cours de validité pour cet indicateur. Demandez-la à un super administrateur, puis rechargez.",
+    "errorAuditUnavailable": "Les résultats sont retenus car le journal d’audit des requêtes est indisponible. Réessayez dans un instant.",
+    "errorQueryFailed": "La requête n’a pas pu aboutir. Réduisez la période ou réessayez.",
+    "errorInvalidLink": "Ce lien d’analyse n’est pas valide. Choisissez un indicateur pour lancer une nouvelle requête.",
     "metricNames": {
       "dispute_rate_pct": "Taux de missions contestées",
+      "job_completion_rate_pct": "Taux de missions terminées",
       "refund_rate_pct": "Taux de paiements remboursés",
       "payout_failure_count": "Échecs de versement de l’application principale",
       "open_disputes": "Litiges ouverts",
@@ -33800,6 +33808,7 @@
       },
       "metrics": {
         "dispute_rate_pct": "Taux de missions contestées",
+        "job_completion_rate_pct": "Taux de missions terminées",
         "refund_rate_pct": "Taux de paiements remboursés",
         "payout_failure_count": "Échecs de versement de l’application principale",
         "investor_gmv_cents": "Valeur enregistrée des missions",

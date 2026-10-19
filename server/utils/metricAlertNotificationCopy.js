@@ -28,13 +28,14 @@ const metricAlertNotifications = {
 
 const metricAlertBodyTemplates = {
   en: "{metric} crossed your alert threshold: {operator} {threshold} (current: {value}). Open My Settings to review the rule.",
-  es: "{metric} supero tu umbral de alerta: {operator} {threshold} (actual: {value}). Abre Mis ajustes para revisar la regla.",
-  fr: "{metric} a franchi votre seuil d’alerte : {operator} {threshold} (actuel : {value}). Ouvrez Mes reglages pour revoir la regle.",
+  es: "{metric} superó tu umbral de alerta: {operator} {threshold} (actual: {value}). Abre Mis ajustes para revisar la regla.",
+  fr: "{metric} a franchi votre seuil d’alerte : {operator} {threshold} (actuel : {value}). Ouvrez Mes réglages pour revoir la règle.",
   ht: "{metric} depase papot alèt ou: {operator} {threshold} (kounye a: {value}). Louvri Anviwonman mwen pou revize règ la.",
   ar: "تجاوز {metric} حدّ التنبيه: {operator} {threshold} (الحالي: {value}). افتح إعداداتي لمراجعة القاعدة.",
 };
 
 const metricAlertMetricLabels = {
+  job_completion_rate_pct: {"en":"Job completion rate","es":"Tasa de finalización de trabajos","fr":"Taux de missions terminées","ht":"To travay ki fini","ar":"معدل إنجاز المهام"},
   dispute_rate_pct: {"en":"Disputed job rate","es":"Tasa de trabajos con disputa","fr":"Taux de missions contestées","ht":"To travay ki gen diskisyon","ar":"معدل المهام المتنازع عليها"},
   refund_rate_pct: {"en":"Refunded payment rate","es":"Tasa de pagos reembolsados","fr":"Taux de paiements remboursés","ht":"To peman ranbouse","ar":"معدل المدفوعات المستردة"},
   payout_failure_count: {"en":"Main-app payout failures","es":"Retiros fallidos de la aplicación principal","fr":"Échecs de versement de l’application principale","ht":"Retrè ki echwe nan aplikasyon prensipal la","ar":"عمليات السحب الفاشلة في التطبيق الرئيسي"},

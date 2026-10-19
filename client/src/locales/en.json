@@ -45,6 +45,8 @@
       "responses": "Responses",
       "avg_nps": "Average NPS",
       "decided": "Completed or cancelled",
+      "completed": "Completed",
+      "completion_rate_pct": "Completion rate",
       "disputed": "Disputed",
       "refunded": "Refunded",
       "ledger_id": "Ledger entry ID",
@@ -109,6 +111,7 @@
     "retentionRate": "Retention",
     "metricNames": {
       "dispute_rate_pct": "Disputed job rate",
+      "job_completion_rate_pct": "Job completion rate",
       "refund_rate_pct": "Refunded payment rate",
       "payout_failure_count": "Main-app payout failures",
       "investor_gmv_cents": "Recorded job value",
@@ -174,8 +177,13 @@
     "nlDismiss": "Dismiss",
     "nlRejected": "Could not interpret",
     "nlParseFailed": "Could not reach the parser.",
+    "errorPermissionRequired": "You need a current permission for this metric. Ask a super admin to grant it, then reload.",
+    "errorAuditUnavailable": "Results are withheld because the query audit log is unavailable. Try again shortly.",
+    "errorQueryFailed": "The query could not finish. Narrow the period or try again.",
+    "errorInvalidLink": "This analytics link is not valid. Choose a metric to start a new query.",
     "metricNames": {
       "dispute_rate_pct": "Disputed job rate",
+      "job_completion_rate_pct": "Job completion rate",
       "refund_rate_pct": "Refunded payment rate",
       "payout_failure_count": "Main-app payout failures",
       "open_disputes": "Open disputes",
@@ -33800,6 +33808,7 @@
       },
       "metrics": {
         "dispute_rate_pct": "Disputed job rate",
+        "job_completion_rate_pct": "Job completion rate",
         "refund_rate_pct": "Refunded payment rate",
         "payout_failure_count": "Main-app payout failures",
         "investor_gmv_cents": "Recorded job value",

@@ -69,6 +69,7 @@
 // greedy span consumption always prefers the most specific phrase.
 const METRIC_SYNONYMS = Object.freeze({
   dispute_rate_pct: ['disputed job rate', 'dispute rate'],
+  job_completion_rate_pct: ['job completion rate', 'completion rate'],
   refund_rate_pct: ['refunded payment rate', 'refund rate'],
   payout_failure_count: ['main-app payout failures', 'payout failure count', 'payout failures'],
   open_disputes: ['open disputes', 'disputes'],
@@ -102,7 +103,7 @@ const METRIC_PATTERNS = (() => {
 
 // ── Dimension allowlist (mirrors Track A's planned per-metric allowlist) ────
 const DIMENSION_ALLOWLIST = Object.freeze({
-  dispute_rate_pct: Object.freeze([]), refund_rate_pct: Object.freeze([]), payout_failure_count: Object.freeze([]),
+  dispute_rate_pct: Object.freeze([]), job_completion_rate_pct: Object.freeze([]), refund_rate_pct: Object.freeze([]), payout_failure_count: Object.freeze([]),
   open_disputes: Object.freeze([]),
   platform_revenue_cents: Object.freeze(['period']),
   investor_gmv_cents: Object.freeze([]),
@@ -299,7 +300,7 @@ function parseUtterance(rawText, options = {}) {
 // ── Plain-language interpretation (for the admin confirm step) ──────────────
 // English-only, matching the parser. No em dashes.
 const METRIC_LABELS = Object.freeze({
-  dispute_rate_pct: 'Disputed job rate', refund_rate_pct: 'Refunded payment rate', payout_failure_count: 'Main-app payout failures',
+  dispute_rate_pct: 'Disputed job rate', job_completion_rate_pct: 'Job completion rate', refund_rate_pct: 'Refunded payment rate', payout_failure_count: 'Main-app payout failures',
   open_disputes: 'Open disputes',
   platform_revenue_cents: 'Platform revenue',
   investor_gmv_cents: 'Investor GMV',

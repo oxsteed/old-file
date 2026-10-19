@@ -45,6 +45,8 @@
       "responses": "Repons",
       "avg_nps": "NPS mwayèn",
       "decided": "Fini oswa anile",
+      "completed": "Fini",
+      "completion_rate_pct": "To fini",
       "disputed": "An diskisyon",
       "refunded": "Ranbouse",
       "ledger_id": "ID antre nan rejis",
@@ -109,6 +111,7 @@
     "retentionRate": "Retansyon",
     "metricNames": {
       "dispute_rate_pct": "To travay ki gen diskisyon",
+      "job_completion_rate_pct": "To travay ki fini",
       "refund_rate_pct": "To peman ranbouse",
       "payout_failure_count": "Retrè ki echwe nan aplikasyon prensipal la",
       "investor_gmv_cents": "Valè travay ki anrejistre",
@@ -4601,8 +4604,13 @@
     "nlDismiss": "Voye jete",
     "nlRejected": "Pa t ka entèprete",
     "nlParseFailed": "Pa t ka rive jwenn analizè a.",
+    "errorPermissionRequired": "Ou bezwen yon pèmisyon ki aktif pou mezi sa a. Mande yon super admin ba ou li, epi rechaje.",
+    "errorAuditUnavailable": "Rezilta yo bloke paske jounal odit rechèch yo pa disponib. Eseye ankò talè.",
+    "errorQueryFailed": "Rechèch la pa t ka fini. Diminye peryòd la oswa eseye ankò.",
+    "errorInvalidLink": "Lyen analiz sa a pa valab. Chwazi yon mezi pou kòmanse yon nouvo rechèch.",
     "metricNames": {
       "dispute_rate_pct": "To travay ki gen diskisyon",
+      "job_completion_rate_pct": "To travay ki fini",
       "refund_rate_pct": "To peman ranbouse",
       "payout_failure_count": "Retrè ki echwe nan aplikasyon prensipal la",
       "open_disputes": "Konfli ki ouvè",
@@ -4737,6 +4745,7 @@
       },
       "metrics": {
         "dispute_rate_pct": "To travay ki gen diskisyon",
+        "job_completion_rate_pct": "To travay ki fini",
         "refund_rate_pct": "To peman ranbouse",
         "payout_failure_count": "Retrè ki echwe nan aplikasyon prensipal la",
         "investor_gmv_cents": "Valè travay ki anrejistre",

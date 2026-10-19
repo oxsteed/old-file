@@ -50,6 +50,11 @@ function metricEvidenceSql(query, scope, registry, summary) {
           ${query.metric==='dispute_rate_pct'?'AND j.created_at<NOW()':''} ORDER BY j.created_at DESC,j.id`;
       columns=['job_id','status','customer_cohort','helper_cohort','disputed','created_at']; break;
     }
+    case 'job_completion_rate_pct':
+      text=`SELECT j.id AS job_id,j.status,j.created_at FROM jobs j
+        WHERE j.deleted_at IS NULL AND j.status IN ('completed','cancelled') AND ${window('j')} AND j.created_at<NOW()
+        ORDER BY j.created_at DESC,j.id`;
+      columns=['job_id','status','created_at']; break;
     case 'refund_rate_pct':
       text=`SELECT id AS payment_id,status,COALESCE(refunded_amount,0) AS refunded_major_units,UPPER(currency) AS currency_code,created_at
         FROM payments p WHERE status IN ('captured','released','refunded') AND ${window('p')} AND created_at<NOW() ORDER BY created_at DESC,id`;

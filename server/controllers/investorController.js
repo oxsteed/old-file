@@ -18,6 +18,7 @@
 const pool   = require('../db');
 const logger = require('../utils/logger');
 const metricsRegistry = require('../analytics/metricsRegistry');
+const { jobCompletionRate } = require('../analytics/operationalMetrics');
 
 // ── Period map: canonical, owned by the metrics registry ─────────────────
 // ('1y' = '1 year'; previously '365 days' here — normalized to the registry.)
@@ -96,6 +97,9 @@ exports.getKpis = async (req, res) => {
           COUNT(*) FILTER (WHERE created_at >= now() - $2::interval AND created_at < now() - $1::interval)          AS new_jobs_prev,
           ROUND(AVG(bid_count) FILTER (WHERE bid_count > 0 AND created_at >= now() - $1::interval), 1)              AS avg_bids
         FROM jobs
+        -- Soft-deleted jobs are excluded, matching the super-admin dashboard
+        -- and the metrics registry.
+        WHERE deleted_at IS NULL
       `, [cur, prevInterval]);
       open_jobs       = safeInt(jr?.open_jobs);
       active_jobs     = safeInt(jr?.active_jobs);
@@ -104,8 +108,13 @@ exports.getKpis = async (req, res) => {
       new_jobs_cur    = safeInt(jr?.new_jobs_cur);
       new_jobs_prev   = safeInt(jr?.new_jobs_prev);
       avg_bids        = jr?.avg_bids != null ? safeFlt(jr.avg_bids) : null;
-      const fin = safeInt(jr?.completed_jobs) + safeInt(jr?.cancelled_jobs);
-      completion_rate = fin > 0 ? Math.round((safeInt(jr?.completed_jobs) / fin) * 100) : null;
+      // Registry metric job_completion_rate_pct over the selected period:
+      // the same cohort the super-admin dashboard shows under the same name
+      // (previously an all-time cohort here).
+      try {
+        const rate = await jobCompletionRate(pool, cur);
+        completion_rate = rate.completion_rate_pct == null ? null : Math.round(rate.completion_rate_pct);
+      } catch (rateErr) { logger.warn('investor overview: completion rate failed', { err: rateErr.message }); }
     }
 
     // ── Revenue ────────────────────────────────────────────────────────

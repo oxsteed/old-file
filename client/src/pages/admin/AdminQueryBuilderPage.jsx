@@ -41,6 +41,23 @@ function QueryBuilderWorkspace() {
   const columnLabel = key => t(`analyticsCompletion.columns.${key}`, {
     defaultValue: t(`queryBuilder.metricNames.${key}`, { defaultValue: prettifyColumn(key) }),
   });
+  // Localized messages for the governed failure modes; anything else keeps
+  // the server's message so nothing is hidden from the admin.
+  const queryErrorMessage = useCallback(err => {
+    const data = err?.response?.data;
+    switch (data?.code) {
+      case 'metric_permission_required':
+      case 'forbidden':
+        return t('queryBuilder.errorPermissionRequired');
+      case 'analytics_audit_unavailable':
+        return t('queryBuilder.errorAuditUnavailable');
+      case 'query_error':
+      case 'statement_timeout':
+        return t('queryBuilder.errorQueryFailed');
+      default:
+        return data?.error || data?.message || err?.message || t('queryBuilder.errorTitle');
+    }
+  }, [t]);
   const [searchParams, setSearchParams] = useSearchParams();
   const lastRequested = useRef('');
   const locationQuery = searchParams.get('q') || '';
@@ -101,17 +118,29 @@ function QueryBuilderWorkspace() {
     try {
       if (locationQuery.length > 4000) throw new Error('query too long');
       saved = JSON.parse(locationQuery);
-      if (!meta.metrics.some(m => m.name===saved.metric)) throw new Error('metric unavailable');
-    } catch { setRunError(t('queryBuilder.errorTitle')); return; }
-    lastRequested.current=locationQuery;
+      if (!saved || typeof saved !== 'object' || typeof saved.metric !== 'string') throw new Error('invalid link');
+    } catch { setResult(null); setRunError(t('queryBuilder.errorInvalidLink')); return; }
+    // The catalog only lists metrics the admin currently holds a grant for:
+    // a deep link to anything else (an alert, a dashboard card) says so.
+    if (!meta.metrics.some(m => m.name === saved.metric)) {
+      setResult(null); setRunError(t('queryBuilder.errorPermissionRequired')); return;
+    }
+    lastRequested.current = locationQuery;
+    let settled = false;
     setMetric(saved.metric);setDimensions(saved.dimensions || []);setFilters(saved.filters || {});setPeriod(saved.period || '30d');
     setRunning(true);setRunError(null);setResult(null);
     api.post('/admin/analytics/query-builder/run',saved,{ signal: controller.signal })
-      .then(response => { if(!controller.signal.aborted) setResult({...response.data,query:response.data.query || saved}); })
-      .catch(error => { if(!controller.signal.aborted) setRunError(error?.response?.data?.error || t('queryBuilder.errorTitle')); })
+      .then(response => { settled = true; if(!controller.signal.aborted) setResult({...response.data,query:response.data.query || saved}); })
+      .catch(error => { settled = true; if(!controller.signal.aborted) setRunError(queryErrorMessage(error)); })
       .finally(() => { if(!controller.signal.aborted) setRunning(false); });
-    return () => controller.abort();
-  }, [meta,locationQuery,t]);
+    return () => {
+      // An aborted request (navigation, language or account change) must be
+      // retried when this location is shown again, not treated as done.
+      if (!settled && lastRequested.current === locationQuery) lastRequested.current = '';
+      controller.abort();
+      setRunning(false);
+    };
+  }, [meta,locationQuery,t,queryErrorMessage]);
 
   const activeMetric = meta?.metrics?.find((m) => m.name === metric) || null;
 
@@ -156,13 +185,12 @@ function QueryBuilderWorkspace() {
       setResult({ ...res.data, query: res.data.query || { metric, dimensions, filters, period } });
     } catch (err) {
       logger.warn('query builder run failed', { metric, message: err?.message });
-      const data = err?.response?.data;
-      setRunError(data?.error || data?.message || err?.message || t('queryBuilder.errorTitle'));
+      setRunError(queryErrorMessage(err));
       setResult(null);
     } finally {
       setRunning(false);
     }
-  }, [metric, dimensions, filters, period, running, t,rememberQuery]);
+  }, [metric, dimensions, filters, period, running, rememberQuery, queryErrorMessage]);
 
   // Execute a server-validated compiled query directly (used by the NL
   // confirm flow to avoid racing the builder's setState). The raw utterance
@@ -185,14 +213,13 @@ function QueryBuilderWorkspace() {
         setResult({ ...res.data, query: res.data.query || compiled });
       } catch (err) {
         logger.warn('query builder run failed', { metric: compiled.metric, message: err?.message });
-        const data = err?.response?.data;
-        setRunError(data?.error || data?.message || err?.message || t('queryBuilder.errorTitle'));
+        setRunError(queryErrorMessage(err));
         setResult(null);
       } finally {
         setRunning(false);
       }
     },
-    [running, t,rememberQuery]
+    [running, rememberQuery, queryErrorMessage]
   );
 
   // ── Track B: natural-language input ─────────────────────────────────────
@@ -297,7 +324,7 @@ function QueryBuilderWorkspace() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    } catch (error) { setRunError(error?.response?.data?.error || t('queryBuilder.errorTitle')); }
+    } catch (error) { setRunError(queryErrorMessage(error)); }
     finally { setExporting(false); }
   };
 
@@ -306,7 +333,7 @@ function QueryBuilderWorkspace() {
     const request = { ...result.query,evidence:true,offset };
     rememberQuery(request);setRunning(true);setRunError(null);
     try { const response=await api.post('/admin/analytics/query-builder/run',request);setResult(response.data); }
-    catch(error){setRunError(error?.response?.data?.error || t('queryBuilder.errorTitle'));setResult(null);}
+    catch(error){setRunError(queryErrorMessage(error));setResult(null);}
     finally{setRunning(false);}
   };
 
