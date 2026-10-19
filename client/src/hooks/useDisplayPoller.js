@@ -21,6 +21,7 @@ export function useDisplayPoller(
   const failuresRef = useRef(0);
   const timerRef = useRef(null);
   const mountedRef = useRef(true);
+  const runOnceRef = useRef(null);
 
   const clearTimer = () => {
     if (timerRef.current) {
@@ -29,19 +30,19 @@ export function useDisplayPoller(
     }
   };
 
-  const schedule = useCallback((delayMs) => {
+  const scheduleNext = (delayMs) => {
     clearTimer();
     timerRef.current = setTimeout(() => {
       timerRef.current = null;
-      runOnce();
+      runOnceRef.current?.();
     }, delayMs);
-  }, []);
+  };
 
   const runOnce = useCallback(async () => {
     clearTimer();
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       if (mountedRef.current) setOffline(true);
-      schedule(computeDisplayBackoffMs(Math.max(1, failuresRef.current)));
+      scheduleNext(computeDisplayBackoffMs(Math.max(1, failuresRef.current)));
       return;
     }
     try {
@@ -52,16 +53,17 @@ export function useDisplayPoller(
         setOffline(false);
         setLastOkAt(Date.now());
       }
-      schedule(intervalMs);
+      scheduleNext(intervalMs);
     } catch {
       failuresRef.current += 1;
       if (mountedRef.current) {
         setFailures(failuresRef.current);
         setOffline(true);
       }
-      schedule(computeDisplayBackoffMs(failuresRef.current));
+      scheduleNext(computeDisplayBackoffMs(failuresRef.current));
     }
-  }, [intervalMs, schedule]);
+  }, [intervalMs]);
+  runOnceRef.current = runOnce;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -70,7 +72,7 @@ export function useDisplayPoller(
     let onOnline;
     let onOffline;
     if (manageOnlineEvents && typeof window !== 'undefined') {
-      onOnline = () => runOnce();
+      onOnline = () => runOnceRef.current?.();
       onOffline = () => {
         clearTimer();
         setOffline(true);

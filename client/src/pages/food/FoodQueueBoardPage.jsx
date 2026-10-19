@@ -6,6 +6,13 @@ import { useTranslation } from 'react-i18next';
 import { getFoodQueueBoard } from '../../api/food';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 import { FoodBrand, FoodConnBadge } from './foodShared';
+import DisplayFullscreenToggle from '../../components/DisplayFullscreenToggle';
+import DisplayOfflineBanner from '../../components/DisplayOfflineBanner';
+import DisplayInstallPrompt from '../../components/DisplayInstallPrompt';
+import { useFullscreen } from '../../hooks/useFullscreen';
+import { useWakeLock } from '../../hooks/useWakeLock';
+import { useDisplayPoller } from '../../hooks/useDisplayPoller';
+import { useReadyChime } from '../../hooks/useReadyChime';
 import '../../styles/FoodPages.css';
 
 const POLL_MS = 5000;
@@ -13,44 +20,20 @@ const POLL_MS = 5000;
 export default function FoodQueueBoardPage({managedBoard=null,managedStatus='online'}) {
   const { restaurantId } = useParams();
   const { t } = useTranslation();
+  const rootRef = useRef(null);
   const [board, setBoard] = useState(null);
   const [error, setError] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('oxsteed:queue:sound') === '1');
   const [newlyReady, setNewlyReady] = useState([]);
-  const timerRef = useRef(null);
   const readyRef = useRef([]);
-  const soundRef = useRef(soundEnabled);
-
-  useEffect(() => {
-    soundRef.current = soundEnabled;
-    localStorage.setItem('oxsteed:queue:sound', soundEnabled ? '1' : '0');
-  }, [soundEnabled]);
-
-  const playReadyChime = useCallback(() => {
-    if (!soundRef.current) return;
-    try {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      const context = new AudioContext();
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(660, context.currentTime);
-      oscillator.frequency.setValueAtTime(880, context.currentTime + 0.14);
-      gain.gain.setValueAtTime(0.0001, context.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.18, context.currentTime + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.42);
-      oscillator.connect(gain);
-      gain.connect(context.destination);
-      oscillator.start();
-      oscillator.stop(context.currentTime + 0.45);
-      oscillator.addEventListener('ended', () => context.close());
-    } catch (_) {
-      // Visual ready animation remains available when audio is blocked.
-    }
-  }, []);
+  const { isFullscreen } = useFullscreen(rootRef);
+  useWakeLock(isFullscreen);
+  const { soundEnabled, audioBlocked, enableSound, disableSound, playChime } = useReadyChime();
 
   const load = useCallback(() => {
-    (managedBoard?Promise.resolve(managedBoard):getFoodQueueBoard(restaurantId))
+    const request = managedBoard
+      ? Promise.resolve(managedBoard)
+      : getFoodQueueBoard(restaurantId);
+    return request
       .then((data) => {
         const nextReady = data?.ready || [];
         const previous = new Set(readyRef.current.map(String));
@@ -58,29 +41,33 @@ export default function FoodQueueBoardPage({managedBoard=null,managedStatus='onl
         readyRef.current = nextReady;
         if (additions.length) {
           setNewlyReady(additions.map(String));
-          playReadyChime();
+          playChime();
           window.setTimeout(() => setNewlyReady([]), 5000);
         }
         setBoard(data);
         setError(false);
       })
-      .catch(() => setError(true));
-  }, [playReadyChime, restaurantId,managedBoard]);
+      .catch((fetchError) => {
+        setError(true);
+        throw fetchError;
+      });
+  }, [playChime, restaurantId, managedBoard]);
+
+  // Steady poll while healthy, exponential backoff while failing; the board
+  // keeps rendering its last-known state and the banner shows offline.
+  const { offline } = useDisplayPoller(load, { intervalMs: POLL_MS });
 
   useEffect(() => {
-    load();
-    if(managedBoard)return;
-    timerRef.current = setInterval(load, POLL_MS);
-    // Live updates (instant) layered over the poll (fallback).
-    const unsubscribe = subscribeRestaurantDisplay(restaurantId, load);
-    return () => {
-      clearInterval(timerRef.current);
-      unsubscribe();
-    };
-  }, [load, restaurantId]);
+    if (managedBoard) return undefined;
+    // Live updates (instant) layered over the poll (fallback). Routed through
+    // the poller so a successful push refresh also clears the offline state.
+    return subscribeRestaurantDisplay(restaurantId, () => load().catch(() => {}));
+  }, [load, restaurantId, managedBoard]);
+
+  const showOffline = offline || (managedBoard ? managedStatus !== 'online' : error);
 
   return (
-    <div className="fd-screen">
+    <div className="fd-screen" ref={rootRef}>
       <div className="fd-screen-header">
         <FoodBrand size={36} />
         <h1 className="fd-screen-title">{board?.restaurant?.display_name || ''}</h1>
@@ -88,13 +75,23 @@ export default function FoodQueueBoardPage({managedBoard=null,managedStatus='onl
           <FoodConnBadge ok={managedBoard?managedStatus==='online':!error} />
           <span className="fd-kds-meta">{t('food.queue.payHint')}</span>
         </span>
-        <button
-          type="button"
-          className="fd-queue-sound-toggle"
-          onClick={() => setSoundEnabled((value) => !value)}
-        >
-          {soundEnabled ? t('food.queue.soundOn') : t('food.queue.enableSound')}
-        </button>
+        {audioBlocked && soundEnabled ? (
+          <button
+            type="button"
+            className="fd-display-sound-blocked"
+            onClick={enableSound}
+          >
+            {t('display.sound.blocked')}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="fd-queue-sound-toggle"
+            onClick={() => (soundEnabled ? disableSound() : enableSound())}
+          >
+            {soundEnabled ? t('food.queue.soundOn') : t('food.queue.enableSound')}
+          </button>
+        )}
         {typeof board?.externalPaymentCount === 'number' && board.externalPaymentCount > 0 && (
           <span
             className="fd-kds-meta"
@@ -136,6 +133,9 @@ export default function FoodQueueBoardPage({managedBoard=null,managedStatus='onl
           </div>
         </div>
       </div>
+      <DisplayOfflineBanner offline={showOffline} />
+      <DisplayFullscreenToggle targetRef={rootRef} />
+      <DisplayInstallPrompt />
     </div>
   );
 }

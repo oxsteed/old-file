@@ -3,22 +3,11 @@
 // degrades to a no-op where fullscreen is unsupported (e.g. iPad Safari,
 // where the Add to Home Screen install path takes over instead).
 import { useCallback, useEffect, useState } from 'react';
-
-export function resolveFullscreenRequest(element) {
-  if (!element) return null;
-  if (typeof element.requestFullscreen === 'function') {
-    return () => element.requestFullscreen();
-  }
-  if (typeof element.webkitRequestFullscreen === 'function') {
-    return () => element.webkitRequestFullscreen();
-  }
-  return null;
-}
-
-export function isFullscreenActive(doc) {
-  if (!doc) return false;
-  return Boolean(doc.fullscreenElement || doc.webkitFullscreenElement);
-}
+import {
+  isFullscreenActive,
+  resolveFullscreenExit,
+  resolveFullscreenRequest,
+} from '../utils/displayFullscreen';
 
 export function useFullscreen(targetRef) {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -45,10 +34,12 @@ export function useFullscreen(targetRef) {
     const doc = element.ownerDocument || document;
     try {
       if (isFullscreenActive(doc)) {
-        if (typeof doc.exitFullscreen === 'function') {
-          await doc.exitFullscreen();
-        } else if (typeof doc.webkitExitFullscreen === 'function') {
-          doc.webkitExitFullscreen();
+        const exit = resolveFullscreenExit(doc);
+        if (exit) {
+          const result = exit();
+          if (result && typeof result.catch === 'function') {
+            await result.catch(() => {});
+          }
         }
       } else {
         const request = resolveFullscreenRequest(element);
