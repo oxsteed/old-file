@@ -5,12 +5,15 @@
 
 const { query } = require('../db');
 const logger = require('../utils/logger');
+const { isReadOnlyRequest } = require('../utils/requestContext');
 
 /** @typedef {'business'|'helper'|'platform'} EmployerKind */
 
+// Deleted businesses grant no support standing to members (decision 5).
 const BUSINESS_ACCESS_SQL = `
   SELECT b.id FROM businesses b
   WHERE b.id = $1::integer
+    AND b.deleted_at IS NULL
     AND (
       b.user_id = $2::uuid
       OR EXISTS (
@@ -28,6 +31,7 @@ const BUSINESS_ACCESS_SQL = `
 const BUSINESS_ADMIN_ACCESS_SQL = `
   SELECT b.id FROM businesses b
   WHERE b.id = $1::integer
+    AND b.deleted_at IS NULL
     AND (
       b.user_id = $2::uuid
       OR EXISTS (
@@ -101,9 +105,26 @@ async function findPlatformAgent(userId) {
   return rows[0] || null;
 }
 
+async function businessIsDeleted(businessId) {
+  const { rows } = await query('SELECT deleted_at FROM businesses WHERE id = $1::integer', [businessId]);
+  return Boolean(rows[0] && rows[0].deleted_at);
+}
+
+/**
+ * Platform admins keep read-only support access to a deleted business's
+ * records: allowed inside GET/HEAD requests, refused for anything else or
+ * when the request method is unknown (fail closed).
+ */
+async function platformAdminSupportAllowed(businessId) {
+  if (!(await businessIsDeleted(businessId))) return true;
+  return isReadOnlyRequest();
+}
+
 async function userCanAccessBusinessConversations(businessId, userId, userRole) {
-  if (isPlatformAdmin(userRole)) return true;
+  if (isPlatformAdmin(userRole)) return platformAdminSupportAllowed(businessId);
   if (await userCanManageBusiness(businessId, userId)) return true;
+  // Agents (business or platform) cannot work a deleted business's queue.
+  if (await businessIsDeleted(businessId)) return false;
   return Boolean(await findAgentForConversationBusiness(businessId, userId));
 }
 
@@ -287,6 +308,8 @@ async function employerIdsForConversationBusiness(businessId) {
 }
 
 module.exports = {
+  businessIsDeleted,
+  platformAdminSupportAllowed,
   isPlatformAdmin,
   findAgentForConversationBusiness,
   findPlatformAgent,

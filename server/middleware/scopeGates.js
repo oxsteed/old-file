@@ -50,6 +50,7 @@ const { sendError } = require('../utils/apiError');
 const { AppError } = require('./errorHandler');
 const scopeModel = require('../services/scopeModel');
 const supportEmployerService = require('../services/supportEmployerService');
+const auditService = require('../services/auditService');
 
 function markGate(fn, kind, detail) {
   Object.defineProperty(fn, 'scopeGate', { value: Object.freeze({ kind, detail: detail || null }), enumerable: false });
@@ -81,10 +82,37 @@ function requireRestaurantAccess(options = {}) {
       // (the four wrappers without that guard let the driver 500 instead).
       const id = canonicalId(raw);
       if (id == null) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-      const restaurant = await scopeModel.resolveRestaurantAccess(req.user.id, id);
+      const admin = supportEmployerService.isPlatformAdmin(req.user.role);
+      const resolve = () => scopeModel.resolveRestaurantAccess(req.user.id, id);
+      const restaurant = admin ? await scopeModel.runAsPlatformAdmin(req.user.id, resolve) : await resolve();
       req.scope = { ...(req.scope || {}), restaurantId: String(restaurant.id), restaurantParam: paramName };
       req.restaurantRole = restaurant.effective_role;
-      return scopeModel.runWithResolvedRestaurant(req.user.id, [raw, id], restaurant, () => next());
+      if (restaurant.platform_admin_access) {
+        // Decision 6: every platform-admin action on a restaurant is audited.
+        // Fail closed: no audit row, no access.
+        try {
+          await auditService.logAdminAction({
+            adminId: req.user.id,
+            action: `restaurant_admin_access:${req.method}`,
+            targetType: 'food_restaurant',
+            targetKey: `restaurant:${restaurant.id}`,
+            description: `${req.method} ${String(req.originalUrl || req.url || '').split('?')[0].slice(0, 400)}`,
+            after: {
+              restaurantId: restaurant.id,
+              businessId: restaurant.business_id,
+              memberRole: restaurant.member_role,
+              deletedReadOnly: Boolean(restaurant.deleted_read_only),
+            },
+            req,
+            throwOnError: true,
+          });
+        } catch (auditErr) {
+          return sendError(res, 503, 'Admin access could not be audited. Try again.', 'admin_audit_unavailable');
+        }
+        req.scope.restaurantViaPlatformAdmin = true;
+      }
+      const proceed = () => scopeModel.runWithResolvedRestaurant(req.user.id, [raw, id], restaurant, () => next());
+      return restaurant.platform_admin_access ? scopeModel.runAsPlatformAdmin(req.user.id, proceed) : proceed();
     } catch (err) {
       return next(err);
     }
@@ -108,7 +136,11 @@ function requireSupportBusinessAccess(level, options = {}) {
       let allowed = false;
       let viaPlatformAdmin = false;
       if (businessId && canonicalId(businessId) != null) {
-        if (platformAdmins && supportEmployerService.isPlatformAdmin(req.user.role)) { allowed = true; viaPlatformAdmin = true; }
+        if (platformAdmins && supportEmployerService.isPlatformAdmin(req.user.role)) {
+          // Decision 5: read-only on a deleted business's records.
+          allowed = await supportEmployerService.platformAdminSupportAllowed(businessId);
+          viaPlatformAdmin = allowed;
+        }
         else if (level === 'administrate') allowed = await supportEmployerService.userCanAdministrateBusiness(businessId, req.user.id);
         else if (level === 'manage') allowed = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
         else allowed = await supportEmployerService.userCanAccessBusinessConversations(businessId, req.user.id, req.user.role);

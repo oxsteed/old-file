@@ -99,6 +99,7 @@
 const { AsyncLocalStorage } = require('async_hooks');
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
+const { isReadOnlyRequest } = require('../utils/requestContext');
 
 // Request-scoped hand-off from the route-level restaurant gate
 // (middleware/scopeGates.js) to the controller's own access call: the row the
@@ -116,6 +117,22 @@ function runWithResolvedRestaurant(userId, restaurantIds, row, fn) {
   const slot = { row };
   for (const id of [].concat(restaurantIds)) store.set(restaurantKey(userId, id), slot);
   return resolvedRestaurants.run(store, fn);
+}
+
+// Decision 6: the restaurant gate marks a platform admin's request so every
+// resolveRestaurantAccess call in it (gate and controllers) grants access.
+const platformAdminKey = (userId) => `platform-admin|${String(userId)}`;
+
+function runAsPlatformAdmin(userId, fn) {
+  const parent = resolvedRestaurants.getStore();
+  const store = new Map(parent || []);
+  store.set(platformAdminKey(userId), true);
+  return resolvedRestaurants.run(store, fn);
+}
+
+function isPlatformAdminRequest(userId) {
+  const store = resolvedRestaurants.getStore();
+  return Boolean(store && store.get(platformAdminKey(userId)));
 }
 
 function takeResolvedRestaurant(userId, restaurantId) {
@@ -160,6 +177,7 @@ async function resolveRestaurantAccess(userId, restaurantId) {
   const { rows } = await pool.query(
     `SELECT fr.*,
             b.user_id AS business_owner_id,
+            b.deleted_at AS business_deleted_at,
             ${EFFECTIVE_ROLE_CASE} AS effective_role,
             ${EFFECTIVE_ROLE_CASE} AS operator_role,
             ${EFFECTIVE_MEMBERSHIP_ID_SUBQUERY} AS effective_membership_id,
@@ -170,11 +188,30 @@ async function resolveRestaurantAccess(userId, restaurantId) {
     [restaurantId, userId]
   );
   const restaurant = rows[0];
-  if (!restaurant || !restaurant.effective_role) {
-    throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+  if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+  // A restaurant is "deleted" when its business is soft-deleted (restaurants
+  // have no deletion of their own). Decision 5: owners and members lose
+  // access; platform admins keep read-only access.
+  const deleted = Boolean(restaurant.business_deleted_at);
+  if (restaurant.effective_role && !deleted) {
+    restaurant.access_user_id = userId;
+    return restaurant;
   }
-  restaurant.access_user_id = userId;
-  return restaurant;
+  if (isPlatformAdminRequest(userId)) {
+    if (deleted && !isReadOnlyRequest()) {
+      throw new AppError('This restaurant belongs to a deleted business and is read-only.', 409, 'restaurant_deleted_read_only');
+    }
+    // Decision 6: platform admins act with owner-level rights. The gate has
+    // already audit-logged this request.
+    restaurant.platform_admin_access = true;
+    restaurant.member_role = restaurant.effective_role || null;
+    restaurant.effective_role = 'owner';
+    restaurant.operator_role = 'owner';
+    restaurant.deleted_read_only = deleted;
+    restaurant.access_user_id = userId;
+    return restaurant;
+  }
+  throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
 }
 
 /**
@@ -411,4 +448,6 @@ module.exports = {
   resolveRestaurantAccess,
   isRestaurantOwner,
   runWithResolvedRestaurant,
+  runAsPlatformAdmin,
+  isPlatformAdminRequest,
 };
