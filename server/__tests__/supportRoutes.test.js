@@ -822,20 +822,50 @@ describe('support routes', () => {
     expect(mockQuery).toHaveBeenCalledTimes(3);
   });
 
+  test('SLA headline is the governed 30-day registry metric; the all-time figure stays labeled', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, email: 'admin@example.com', role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ sla_met_count: 9, sla_violation_count: 1, avg_response_time_seconds: 120, avg_resolution_hours: 2 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ scope: 'all', compliance_pct: 66.7, met: 2, eligible: 3 }] });
+    const res = await request(buildApp()).get('/api/support/sla').set('Authorization', adminAuthHeader());
+    expect(res.status).toBe(200);
+    expect(res.body.stats).toMatchObject({ overall_compliance: 66.7, compliance_met: 2, compliance_eligible: 3, violation_count: 1, period: '30d',
+      legacy: { overall_compliance: 90, violation_count: 1 } });
+    expect(res.body.governed).toEqual({ metric: 'sla_first_response_compliance_pct', period: '30d', filters: {} });
+    expect(mockQuery.mock.calls[5][0]).toBe(require('../analytics/queryBuilder').buildMetricSql({
+      metric: 'sla_first_response_compliance_pct', dimensions: [], period: '30d', filters: { businessId: null } }).text);
+  });
+
+  test('support analytics reject a malformed business id before any query', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, email: 'admin@example.com', role: 'super_admin' }] });
+    const res = await request(buildApp()).get('/api/support/sla?business_id=1%20OR%201').set('Authorization', adminAuthHeader());
+    expect(res.status).toBe(400);
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
   test('returns real CSAT analytics to platform admins', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, email: 'admin@example.com', role: 'super_admin' }] })
       .mockResolvedValueOnce({ rows: [{ surveys_sent: 4, surveys_completed: 2, avg_rating: 4.5, avg_nps: 9, nps_index: 100, csat_score: 100 }] })
       .mockResolvedValueOnce({ rows: [{ day: '2026-09-09', responses: 2, avg_rating: 4.5, avg_nps: 9 }] })
       .mockResolvedValueOnce({ rows: [{ agent_name: 'Support', responses: 2, avg_rating: 4.5, avg_nps: 9, nps_index: 100 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 'review-1', rating: 5, comment: 'Helpful', customer_name: 'Casey Customer', conversation_subject: 'Billing question', agent_name: 'Support' }] });
+      .mockResolvedValueOnce({ rows: [{ id: 'review-1', rating: 5, comment: 'Helpful', customer_name: 'Casey Customer', conversation_subject: 'Billing question', agent_name: 'Support' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ scope: 'all', nps_index: 100, responses: 2 }] });
 
     const res = await request(buildApp())
       .get('/api/support/csat/analytics')
       .set('Authorization', adminAuthHeader());
 
     expect(res.status).toBe(200);
-    expect(res.body.metrics).toMatchObject({ surveys_sent: 4, surveys_completed: 2, csat_score: 100, survey_response_rate: 50, avg_nps: 9, nps_index: 100 });
+    expect(res.body.metrics).toMatchObject({ surveys_sent: 4, surveys_completed: 2, csat_score: 100, survey_response_rate: 50, avg_nps: 9, nps_index: 100, nps_responses: 2, period: '30d' });
+    expect(res.body.governed).toEqual({ metric: 'support_nps_index', period: '30d', filters: {} });
+    // The governed NPS runs the query builder's registry SQL, not a page-local copy.
+    expect(mockQuery.mock.calls[6][0]).toBe(require('../analytics/queryBuilder').buildMetricSql({ metric: 'support_nps_index', dimensions: [], period: '30d', filters: { businessId: null } }).text);
+    expect(mockQuery.mock.calls[1][1]).toEqual([null, '30 days']);
     expect(res.body.csat_trend[0]).toMatchObject({ avg_nps: 9 });
     expect(res.body.agent_csat[0]).toMatchObject({ avg_nps: 9, nps_index: 100 });
     expect(res.body.recent_feedback[0]).toMatchObject({ customer_name: 'Casey Customer', conversation_subject: 'Billing question', agent_name: 'Support' });

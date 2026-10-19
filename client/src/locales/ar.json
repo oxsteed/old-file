@@ -28632,6 +28632,12 @@
     "failedMessage": "تعذر تحميل مقاييس الدعم."
   },
   "adminSupportSla": {
+    "governedWindow": "آخر 30 يومًا: {{met}} من {{eligible}} ردود أولى في الوقت المحدد (مؤشر معتمد)",
+    "legacyAllTime": "التعريف السابق (طوال الفترة): {{value}}",
+    "viewEvidence": "عرض المحادثات الأساسية",
+    "last30Days": "آخر 30 يومًا (تجاوزات الرد الأول)",
+    "legacyViolations_one": "التعريف السابق (طوال الفترة): تجاوز واحد",
+    "legacyViolations_other": "التعريف السابق (طوال الفترة): {{count}} تجاوزات",
     "title": "لوحة اتفاقية مستوى الخدمة",
     "subtitle": "متابعة الالتزام باتفاقيات مستوى الخدمة.",
     "refresh": "تحديث بيانات SLA",
@@ -31284,6 +31290,11 @@
     "loadFailedBody": "تعذر تحميل بيانات الوكلاء المباشرة. تحقق من اتصالك وحاول مرة أخرى."
   },
   "adminSupportCSAT": {
+    "npsIndexTitle": "NPS (المروّجون − المنتقدون)",
+    "npsResponses_one": "استجابة NPS واحدة في هذه الفترة",
+    "npsResponses_other": "{{count}} استجابات NPS في هذه الفترة",
+    "legacyAvgNps": "المؤشر السابق، متوسط الدرجة من 0 إلى 10 (ليس NPS): {{value}}",
+    "viewEvidence": "عرض التقييمات الأساسية",
     "title": "تحليلات CSAT",
     "description": "مقاييس رضا العملاء وتحليل الملاحظات.",
     "range7d": "آخر 7 أيام",

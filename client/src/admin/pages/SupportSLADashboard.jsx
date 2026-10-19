@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 import AdminErrorState from '../lib/AdminErrorState';
 import { Clock, AlertCircle, TrendingUp, CheckCircle, RefreshCw, Target } from 'lucide-react';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import SupportSubNav from '../components/SupportSubNav';
+import { analyticsEvidenceHref } from '../../utils/analyticsEvidenceLink';
 
 export default function SupportSLADashboard() {
   const { businessId } = useParams();
@@ -112,6 +113,17 @@ export default function SupportSLADashboard() {
             {compliance == null ? t('adminSupportSla.notAvailable') : `${compliance}%`}
           </p>
           <p className="text-gray-500 text-xs mt-2">{t('adminSupportSla.targetPercent', { value: 95 })}</p>
+          <p className="text-gray-500 text-xs mt-1">{t('adminSupportSla.governedWindow', { met: stats.compliance_met || 0, eligible: stats.compliance_eligible || 0 })}</p>
+          {stats.legacy && (
+            <p className="text-gray-500 text-xs mt-1">
+              {t('adminSupportSla.legacyAllTime', { value: stats.legacy.overall_compliance == null ? t('adminSupportSla.notAvailable') : `${stats.legacy.overall_compliance}%` })}
+            </p>
+          )}
+          {data?.governed && (
+            <Link to={analyticsEvidenceHref(data.governed.metric, data.governed.period, data.governed.filters)} className="text-orange-400 hover:text-orange-300 text-xs mt-2 inline-block underline">
+              {t('adminSupportSla.viewEvidence')}
+            </Link>
+          )}
         </div>
 
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
@@ -138,7 +150,10 @@ export default function SupportSLADashboard() {
             {t('adminSupportSla.violations')}
           </p>
           <p className="text-white text-3xl font-bold">{stats.violation_count || 0}</p>
-          <p className="text-gray-500 text-xs mt-2">{t('adminSupportSla.thisWeek')}</p>
+          <p className="text-gray-500 text-xs mt-2">{t('adminSupportSla.last30Days')}</p>
+          {stats.legacy && (
+            <p className="text-gray-500 text-xs mt-1">{t('adminSupportSla.legacyViolations', { count: stats.legacy.violation_count || 0 })}</p>
+          )}
         </div>
       </div>
 

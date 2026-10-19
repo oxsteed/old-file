@@ -28621,6 +28621,12 @@
     "failedMessage": "Metrik sipò yo pa disponib."
   },
   "adminSupportSla": {
+    "governedWindow": "30 dènye jou: {{met}} sou {{eligible}} premye repons alè (endikatè ofisyèl)",
+    "legacyAllTime": "Ansyen definisyon (tout tan): {{value}}",
+    "viewEvidence": "Wè konvèsasyon yo",
+    "last30Days": "30 dènye jou (premye repons ki an reta)",
+    "legacyViolations_one": "Ansyen definisyon (tout tan): {{count}} reta",
+    "legacyViolations_other": "Ansyen definisyon (tout tan): {{count}} reta",
     "title": "Tablo SLA",
     "subtitle": "Suivi respè akò nivo sèvis yo.",
     "refresh": "Rafrechi done SLA yo",
@@ -31273,6 +31279,11 @@
     "loadFailedBody": "Nou pa t kapab chaje done ajan yo an dirèk. Tcheke koneksyon ou epi eseye ankò."
   },
   "adminSupportCSAT": {
+    "npsIndexTitle": "NPS (pwomotè − kritik)",
+    "npsResponses_one": "{{count}} repons NPS nan peryòd sa a",
+    "npsResponses_other": "{{count}} repons NPS nan peryòd sa a",
+    "legacyAvgNps": "Ansyen endikatè, nòt mwayèn sou 10 (se pa yon NPS): {{value}}",
+    "viewEvidence": "Wè evalyasyon yo",
     "title": "Analiz CSAT",
     "description": "Mezi satisfaksyon kliyan ak analiz kòmantè.",
     "range7d": "7 dènye jou yo",

@@ -28621,6 +28621,12 @@
     "failedMessage": "Could not load support metrics."
   },
   "adminSupportSla": {
+    "governedWindow": "Last 30 days: {{met}} of {{eligible}} first responses on time (governed metric)",
+    "legacyAllTime": "Previous definition (all time): {{value}}",
+    "viewEvidence": "View underlying conversations",
+    "last30Days": "Last 30 days (first-response breaches)",
+    "legacyViolations_one": "Previous definition (all time): {{count}} breach",
+    "legacyViolations_other": "Previous definition (all time): {{count}} breaches",
     "title": "SLA Dashboard",
     "subtitle": "Service level agreement compliance tracking.",
     "refresh": "Refresh SLA data",
@@ -31273,6 +31279,11 @@
     "loadFailedBody": "The live agent data could not be loaded. Check your connection and try again."
   },
   "adminSupportCSAT": {
+    "npsIndexTitle": "NPS (promoters − detractors)",
+    "npsResponses_one": "{{count}} NPS response in this period",
+    "npsResponses_other": "{{count}} NPS responses in this period",
+    "legacyAvgNps": "Previous headline, average 0-10 score (not an NPS): {{value}}",
+    "viewEvidence": "View underlying reviews",
     "title": "CSAT Analytics",
     "description": "Customer satisfaction metrics and feedback analysis.",
     "range7d": "Last 7 days",

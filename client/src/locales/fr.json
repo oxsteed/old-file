@@ -28621,6 +28621,12 @@
     "failedMessage": "Les métriques d’assistance sont indisponibles."
   },
   "adminSupportSla": {
+    "governedWindow": "30 derniers jours : {{met}} premières réponses à temps sur {{eligible}} (indicateur gouverné)",
+    "legacyAllTime": "Ancienne définition (depuis le début) : {{value}}",
+    "viewEvidence": "Voir les conversations concernées",
+    "last30Days": "30 derniers jours (dépassements de première réponse)",
+    "legacyViolations_one": "Ancienne définition (depuis le début) : {{count}} dépassement",
+    "legacyViolations_other": "Ancienne définition (depuis le début) : {{count}} dépassements",
     "title": "Tableau de SLA",
     "subtitle": "Suivi du respect des accords de niveau de service.",
     "refresh": "Actualiser les données SLA",
@@ -31273,6 +31279,11 @@
     "loadFailedBody": "Les données des agents en direct n'ont pas pu être chargées. Vérifiez votre connexion et réessayez."
   },
   "adminSupportCSAT": {
+    "npsIndexTitle": "NPS (promoteurs − détracteurs)",
+    "npsResponses_one": "{{count}} réponse NPS sur la période",
+    "npsResponses_other": "{{count}} réponses NPS sur la période",
+    "legacyAvgNps": "Ancien indicateur, note moyenne sur 10 (pas un NPS) : {{value}}",
+    "viewEvidence": "Voir les avis concernés",
     "title": "Analytiques CSAT",
     "description": "Indicateurs de satisfaction client et analyse des retours.",
     "range7d": "7 derniers jours",

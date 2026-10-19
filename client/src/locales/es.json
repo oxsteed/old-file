@@ -28621,6 +28621,12 @@
     "failedMessage": "No se pudieron cargar las métricas de soporte."
   },
   "adminSupportSla": {
+    "governedWindow": "Últimos 30 días: {{met}} de {{eligible}} primeras respuestas a tiempo (métrica gobernada)",
+    "legacyAllTime": "Definición anterior (todo el historial): {{value}}",
+    "viewEvidence": "Ver conversaciones subyacentes",
+    "last30Days": "Últimos 30 días (incumplimientos de primera respuesta)",
+    "legacyViolations_one": "Definición anterior (todo el historial): {{count}} incumplimiento",
+    "legacyViolations_other": "Definición anterior (todo el historial): {{count}} incumplimientos",
     "title": "Panel de SLA",
     "subtitle": "Seguimiento del cumplimiento de los acuerdos de nivel de servicio.",
     "refresh": "Actualizar datos de SLA",
@@ -31273,6 +31279,11 @@
     "loadFailedBody": "No se pudieron cargar los datos de agentes en vivo. Revisa tu conexión e inténtalo de nuevo."
   },
   "adminSupportCSAT": {
+    "npsIndexTitle": "NPS (promotores − detractores)",
+    "npsResponses_one": "{{count}} respuesta NPS en este periodo",
+    "npsResponses_other": "{{count}} respuestas NPS en este periodo",
+    "legacyAvgNps": "Indicador anterior, puntuación media de 0 a 10 (no es un NPS): {{value}}",
+    "viewEvidence": "Ver reseñas subyacentes",
     "title": "Analíticas de CSAT",
     "description": "Métricas de satisfacción del cliente y análisis de comentarios.",
     "range7d": "Últimos 7 días",

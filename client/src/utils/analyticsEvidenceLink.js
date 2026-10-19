@@ -5,7 +5,8 @@
 // shows a localized permission message when it is missing.
 export const ANALYTICS_EVIDENCE_PATH = '/admin/analytics/query-builder';
 
-export function analyticsEvidenceHref(metric, period = '30d') {
+export function analyticsEvidenceHref(metric, period = '30d', filters = null) {
   const query = { metric, period, evidence: true };
+  if (filters && Object.keys(filters).length) query.filters = filters;
   return `${ANALYTICS_EVIDENCE_PATH}?q=${encodeURIComponent(JSON.stringify(query))}`;
 }
