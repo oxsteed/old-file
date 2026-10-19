@@ -3,12 +3,15 @@
 // queue board, POS, and customer tracking surfaces.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import {
+  dropDisplayPairing,
   getRestaurantKitchenFeed,
   performRestaurantKitchenItemAction,
   performRestaurantKitchenOrderAction,
+  readDisplayToken,
   updateFoodOrderStatus,
 } from '../../api/food';
 import {
@@ -42,6 +45,7 @@ function isNetworkError(error) {
 
 export default function FoodKitchenPage() {
   const { restaurantId } = useParams();
+  const { user } = useAuth();
   const { t } = useTranslation();
   const [orders, setOrders] = useState([]);
   const [workflow, setWorkflow] = useState({ requireQualityCheck: true, handoffDisplaySeconds: 15 });
@@ -67,6 +71,15 @@ export default function FoodKitchenPage() {
     setPendingOffline(pendingKitchenActionCount(restaurantId));
   }, [restaurantId]);
 
+  // A 401 on a device-token request means the pairing is dead (unpaired /
+  // revoked server-side): drop it so the pairing widget reappears. Staff
+  // sessions are never touched.
+  const dropStaleDevicePairing = useCallback((requestError) => {
+    if (requestError?.response?.status === 401 && !user && readDisplayToken(restaurantId)) {
+      dropDisplayPairing(restaurantId);
+    }
+  }, [user, restaurantId]);
+
   // Rejects on failure so the display poller can back off and retry. The
   // tickets already on screen stay rendered as the last-known state.
   const load = useCallback(() => {
@@ -79,9 +92,10 @@ export default function FoodKitchenPage() {
       })
       .catch((fetchError) => {
         setError(true);
+        dropStaleDevicePairing(fetchError);
         throw fetchError;
       });
-  }, [restaurantId]);
+  }, [restaurantId, dropStaleDevicePairing]);
 
   // Steady poll while healthy, exponential backoff while failing. The
   // page keeps its own online/offline listeners (they also drive the
@@ -152,6 +166,7 @@ export default function FoodKitchenPage() {
           toast(t('food.kds.savedOffline'));
           return;
         }
+        dropStaleDevicePairing(mutationError);
         const message = mutationError?.response?.data?.error?.message;
         toast.error(message || t('food.merchant.statusError'));
       }

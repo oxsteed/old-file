@@ -155,6 +155,17 @@ export default function DisplayPairingCode() {
     return () => clearInterval(id);
   }, [code, expiresAt]);
 
+  // Another surface (e.g. the kitchen page after a 401 on the device token)
+  // can drop this display's pairing: return to pairing mode without a reload.
+  useEffect(() => {
+    const onPairingDropped = (event) => {
+      if (String(event?.detail?.restaurantId || '') !== String(restaurantId)) return;
+      dropPairing();
+    };
+    window.addEventListener('oxsteed:display:pairing-dropped', onPairingDropped);
+    return () => window.removeEventListener('oxsteed:display:pairing-dropped', onPairingDropped);
+  }, [restaurantId, dropPairing]);
+
   useEffect(() => () => { stopPolling(); stopHeartbeat(); }, [stopPolling, stopHeartbeat]);
 
   if (!restaurantId) return null;

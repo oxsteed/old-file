@@ -33,6 +33,10 @@ const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
 const { encrypt, decrypt } = require('../utils/encryption');
 const { resolveScope, resolveRestaurantAccess } = require('../services/scopeModel');
+// Imported as module objects (not destructured) so tests can stub the staff
+// path at the module boundary.
+const authMiddleware = require('../middleware/auth');
+const scopeGates = require('../middleware/scopeGates');
 
 // ── Pure helpers (exported for unit tests) ────────────────────────────────
 
@@ -98,6 +102,35 @@ function bearerToken(req) {
   const header = req.headers?.authorization || '';
   const match = /^Bearer\s+(\S+)$/i.exec(header);
   return match ? match[1] : null;
+}
+
+// Pairing tokens are 32 random bytes, hex-encoded (64 hex chars). The shape
+// check lets the kitchen middleware tell a display token apart from a staff
+// impersonation JWT (which contains dots) before touching the database.
+function isDisplayTokenShape(token) {
+  return typeof token === 'string' && /^[0-9a-f]{64}$/i.test(token);
+}
+
+// Verifies a pairing token against display_pairings (paired rows only).
+// Returns { pairingId, restaurantId, label } or null. Constant-time compare,
+// exactly like heartbeat()'s original inline check.
+async function verifyDisplayPairingToken(token) {
+  if (!isDisplayTokenShape(token)) return null;
+  const { rows } = await pool.query(
+    `SELECT id, restaurant_id, label, pairing_token_hash
+       FROM display_pairings
+      WHERE pairing_token_hash = $1 AND paired_at IS NOT NULL`,
+    [hashSecret(token)]
+  );
+  const row = rows[0];
+  // The row matched the token's hash in SQL; compare again in constant time
+  // so the bearer credential check does not leak via timing.
+  if (!row || !timingSafeEqualHex(row.pairing_token_hash, hashSecret(token))) return null;
+  return {
+    pairingId: Number(row.id),
+    restaurantId: Number(row.restaurant_id),
+    label: row.label,
+  };
 }
 
 // Canonical owner gate: the restaurant must belong to the caller's business
@@ -291,33 +324,72 @@ async function pairingStatus(req, res, next) {
 // Updates last_seen_at; consumes refresh_requested_at and reports it.
 async function heartbeat(req, res, next) {
   try {
-    const token = bearerToken(req);
-    if (!token || token.length > 256) throw new AppError('Unauthorized', 401, 'unauthorized');
+    const pairing = await verifyDisplayPairingToken(bearerToken(req));
+    if (!pairing) throw new AppError('Unauthorized', 401, 'unauthorized');
     const { rows } = await pool.query(
-      `SELECT id, restaurant_id, label, pairing_token_hash, refresh_requested_at
-         FROM display_pairings
-        WHERE pairing_token_hash = $1 AND paired_at IS NOT NULL`,
-      [hashSecret(token)]
+      `SELECT refresh_requested_at FROM display_pairings WHERE id = $1 AND paired_at IS NOT NULL`,
+      [pairing.pairingId]
     );
-    const row = rows[0];
-    // The row matched the token's hash in SQL; compare again in constant time
-    // so the bearer credential check does not leak via timing.
-    if (!row || !timingSafeEqualHex(row.pairing_token_hash, hashSecret(token))) {
-      throw new AppError('Unauthorized', 401, 'unauthorized');
-    }
-    const refreshRequested = row.refresh_requested_at != null;
+    const refreshRequested = rows[0] ? rows[0].refresh_requested_at != null : false;
     await pool.query(
       `UPDATE display_pairings
           SET last_seen_at = NOW(),
               refresh_requested_at = NULL
-        WHERE id = $1`,
-      [row.id]
+        WHERE id = $1 AND paired_at IS NOT NULL`,
+      [pairing.pairingId]
     );
     return res.json({
       refresh_requested: refreshRequested,
-      restaurant_id: Number(row.restaurant_id),
-      label: row.label,
+      restaurant_id: pairing.restaurantId,
+      label: pairing.label,
     });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// Staff path for the kitchen routes: the standard session chain. authenticate
+// populates req.user from the session cookie (or an impersonation JWT);
+// requireRestaurantAccess enforces the restaurant tenancy gate.
+function kitchenStaffPath(req, res, next) {
+  return authMiddleware.authenticate(req, res, (authErr) => {
+    if (authErr) return next(authErr);
+    return scopeGates.requireRestaurantAccess()(req, res, next);
+  });
+}
+
+// Kitchen device-or-staff authorization (Track B).
+//
+// A paired display's token authorizes the kitchen ticket feed + ticket
+// actions (ack, order/item actions) for ITS restaurant only, so a fresh
+// kitchen tablet needs no staff login. Fail closed everywhere:
+//   - display-token-shaped bearer, valid and scoped to :restaurantId ->
+//     req.displayDevice = { pairingId, restaurantId, label }, then next()
+//   - display-token-shaped bearer, invalid / unpaired / wrong restaurant ->
+//     401 (never falls through to staff auth)
+//   - no bearer, or a bearer that is not display-token-shaped (staff sessions
+//     authenticate by cookie; impersonation uses a JWT bearer) -> the
+//     standard staff path (session + restaurant tenancy gate)
+//
+// The pairing token never authorizes stations, audit, printer jobs, events,
+// or any other route: those keep requireRestaurantAccess() and stay
+// staff-only.
+async function requireKitchenDeviceOrStaff(req, res, next) {
+  try {
+    const token = bearerToken(req);
+    if (token && isDisplayTokenShape(token)) {
+      const pairing = await verifyDisplayPairingToken(token);
+      if (!pairing || Number(pairing.restaurantId) !== Number(req.params.restaurantId)) {
+        throw new AppError('Unauthorized', 401, 'unauthorized');
+      }
+      req.displayDevice = {
+        pairingId: pairing.pairingId,
+        restaurantId: pairing.restaurantId,
+        label: pairing.label,
+      };
+      return next();
+    }
+    return kitchenStaffPath(req, res, next);
   } catch (err) {
     return next(err);
   }
@@ -386,6 +458,8 @@ module.exports = {
   listPairings,
   requestRefresh,
   unpairDisplay,
+  verifyDisplayPairingToken,
+  requireKitchenDeviceOrStaff,
   // Pure helpers for unit tests.
   _test: {
     generatePairingCode,
@@ -396,6 +470,7 @@ module.exports = {
     normalizeLabel,
     parsePositiveInt,
     bearerToken,
+    isDisplayTokenShape,
     PAIRING_CODE_TTL_MS,
     ONLINE_THRESHOLD_MS,
     CODE_ALPHABET,

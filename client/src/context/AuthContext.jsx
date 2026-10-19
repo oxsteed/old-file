@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { authAPI, clearStoredSession } from '../api/auth';
 import api from '../api/axios';
+import { setDisplayDeviceStaffSession } from '../api/food';
 import { useLanguage } from './LanguageContext';
 
 export const AuthContext = createContext(null);
@@ -44,6 +45,12 @@ export function AuthProvider({ children }) {
   const clearAuthState = useCallback(() => {
     setUser(null);
   }, []);
+
+  // Kitchen displays authorize with the pairing token only when no staff
+  // user session is active; keep the food API's device-auth helper in sync.
+  useEffect(() => {
+    setDisplayDeviceStaffSession(Boolean(user));
+  }, [user]);
 
   // The axios interceptor clears storage on a dead session; mirror that into
   // React state so the login page stops bouncing back to the dashboard.

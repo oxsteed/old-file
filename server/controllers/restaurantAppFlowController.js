@@ -5622,8 +5622,20 @@ exports.ackKitchenTicket = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId || req.body.orderId || req.body.order_id);
-    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.update', 'kitchen.manage', 'orders.manage']);
+    let restaurant;
+    if (req.displayDevice) {
+      // Track B paired display: the pairing token is the authorization,
+      // scoped to this restaurant's ticket actions only.
+      const { rows: [displayRestaurant] } = await pool.query(
+        'SELECT id, business_id, settings, prep_time_min FROM food_restaurants WHERE id = $1',
+        [restaurantId]
+      );
+      if (!displayRestaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+      restaurant = { ...displayRestaurant, effective_role: 'display_device' };
+    } else {
+      restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+      await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.update', 'kitchen.manage', 'orders.manage']);
+    }
     if (!orderId) throw new AppError('Validation failed', 400, 'validation_failed', { orderId: 'Order is required' });
     const requestedStatus = normalizeString(req.body.status || req.body.toStatus || req.body.to_status, 32);
     const startPreparing = asBool(req.body.startPreparing ?? req.body.start_preparing, false);
@@ -5698,7 +5710,7 @@ exports.ackKitchenTicket = async (req, res, next) => {
             source: 'kitchen_ack',
             ...safeJson(req.body.metadata),
           }),
-          req.user.id,
+          req.user?.id || null,
         ]
       );
       return { order, event };
@@ -5717,6 +5729,15 @@ exports.ackKitchenTicket = async (req, res, next) => {
 
 
 async function screenKitchenContext(req, restaurantId, elevated = false) {
+ // Track B paired display: the pairing token is the authorization, scoped to
+ // this restaurant's ticket actions only (defense in depth: the middleware
+ // already matched the pairing to :restaurantId).
+ if (req.displayDevice) {
+  if (String(req.displayDevice.restaurantId) !== String(restaurantId)) throw new AppError('Operation requires authorized staff',403,'forbidden');
+  const {rows:[displayRestaurant]}=await pool.query('SELECT id, business_id, settings, prep_time_min FROM food_restaurants WHERE id=$1',[restaurantId]);
+  if(!displayRestaurant) throw new AppError('Restaurant not found',404,'restaurant_not_found');
+  return {...displayRestaurant,effective_role:'display_device'};
+ }
  if (!req.screenDevice) {
   const restaurant=await requireRestaurantAccess(req.user.id,restaurantId);
   await assertRestaurantPermission(restaurant,req.user.id,elevated?['kitchen.manage','orders.manage']:['kitchen.update','kitchen.manage','orders.manage']);
@@ -5964,7 +5985,17 @@ exports.getKitchenFeed = async (req, res, next) => {
     let sinceEventId = parsePositiveInt(requestedCursor, 0) || 0;
     let device = null;
     let restaurant = null;
-    if (req.user?.id) {
+    if (req.displayDevice) {
+      // Track B paired display: the pairing token is the authorization,
+      // scoped to this restaurant's ticket feed only. Mirrors the minimal
+      // context of the restaurant_app_devices branch below.
+      const { rows: [displayRestaurant] } = await pool.query(
+        'SELECT id, business_id, settings, prep_time_min FROM food_restaurants WHERE id = $1',
+        [restaurantId]
+      );
+      if (!displayRestaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+      restaurant = { ...displayRestaurant, effective_role: 'display_device' };
+    } else if (req.user?.id) {
       restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
       await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.view', 'kitchen.update', 'kitchen.manage', 'orders.manage']);
     } else if (!deviceId) {

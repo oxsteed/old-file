@@ -14,6 +14,48 @@ function orderRequestKey() {
   return `food-order:${Date.now()}:${Math.random().toString(16).slice(2)}`;
 }
 
+// ── Paired display auth (Track B) ──────────────────────────────────────────
+// Kitchen screens pair via DisplayPairingCode; the token is scoped to one
+// restaurant's ticket feed + ticket actions. It is attached per-request (never
+// via a global interceptor, so it cannot leak onto other endpoints) and only
+// when no staff user session is active.
+const displayTokenKey = (restaurantId) => `oxsteed:display:token:${restaurantId}`;
+
+export function readDisplayToken(restaurantId) {
+  try {
+    return localStorage.getItem(displayTokenKey(restaurantId)) || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+// Mirrors AuthContext: true while a staff user session is active, so the
+// device token is never attached on top of a staff session.
+let staffSessionActive = false;
+export function setDisplayDeviceStaffSession(active) {
+  staffSessionActive = Boolean(active);
+}
+
+function kitchenDeviceAuthHeaders(restaurantId) {
+  if (staffSessionActive) return undefined;
+  const token = readDisplayToken(restaurantId);
+  if (!token) return undefined;
+  return { Authorization: `Bearer ${token}` };
+}
+
+// Drops a dead pairing (e.g. after a 401): removes the token and notifies
+// the pairing widget so it returns to pairing mode.
+export function dropDisplayPairing(restaurantId) {
+  try {
+    localStorage.removeItem(displayTokenKey(restaurantId));
+  } catch (_) { /* ignore */ }
+  try {
+    window.dispatchEvent(
+      new CustomEvent('oxsteed:display:pairing-dropped', { detail: { restaurantId: String(restaurantId) } })
+    );
+  } catch (_) { /* ignore */ }
+}
+
 export const uploadFoodAsset = (file, purpose = 'food-general') => {
   const formData = new FormData();
   formData.append('file', file);
@@ -330,26 +372,37 @@ export const updateFoodOrderStatus = (restaurantId, orderId, status, options = {
 };
 
 export const getRestaurantKitchenFeed = (restaurantId, params = {}) =>
-  api.get(`/restaurants/${restaurantId}/kitchen/feed`, { params }).then((r) => r.data);
+  api.get(`/restaurants/${restaurantId}/kitchen/feed`, {
+    params,
+    headers: kitchenDeviceAuthHeaders(restaurantId),
+  }).then((r) => r.data);
 
 export const acknowledgeRestaurantKitchenOrder = (restaurantId, orderId, payload = {}) =>
-  api.post(`/restaurants/${restaurantId}/kitchen/orders/${orderId}/ack`, payload).then((r) => r.data);
+  api.post(
+    `/restaurants/${restaurantId}/kitchen/orders/${orderId}/ack`,
+    payload,
+    { headers: kitchenDeviceAuthHeaders(restaurantId) }
+  ).then((r) => r.data);
 
 export const performRestaurantKitchenOrderAction = (restaurantId, orderId, payload = {}) => {
   const idempotencyKey = payload.idempotencyKey || payload.idempotency_key;
+  const headers = { ...kitchenDeviceAuthHeaders(restaurantId) };
+  if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
   return api.post(
     `/restaurants/${restaurantId}/kitchen/orders/${orderId}/action`,
     payload,
-    idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
+    { headers }
   ).then((r) => r.data);
 };
 
 export const performRestaurantKitchenItemAction = (restaurantId, orderItemId, payload = {}) => {
   const idempotencyKey = payload.idempotencyKey || payload.idempotency_key;
+  const headers = { ...kitchenDeviceAuthHeaders(restaurantId) };
+  if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
   return api.post(
     `/restaurants/${restaurantId}/kitchen/items/${orderItemId}/action`,
     payload,
-    idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
+    { headers }
   ).then((r) => r.data);
 };
 

@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { CookieConsentProvider } from './context/CookieConsentContext';
 import './i18n'; // initialise i18next before any component renders
 import ProtectedRoute from './components/ProtectedRoute';
+import DeviceOrStaffRoute from './components/DeviceOrStaffRoute';
 import LogisticsOperatorGuard from './components/LogisticsOperatorGuard';
 import InternalWorkspaceGuard from './components/InternalWorkspaceGuard';
 import ErrorBoundary, { RouterAwareErrorBoundary } from './components/ErrorBoundary';
@@ -620,7 +621,7 @@ export default function App() {
                     <Route path="/food/queue/:restaurantId"   element={<RouteErrorBoundary><FoodQueueBoardPage /></RouteErrorBoundary>} />
                     <Route path="/food/kiosk/:restaurantId"   element={<RouteErrorBoundary><FoodKioskPage /></RouteErrorBoundary>} />
                     <Route path="/food/merchant"              element={<Guarded><ProtectedRoute><RouteErrorBoundary><FoodMerchantPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
-                    <Route path="/food/kitchen/:restaurantId" element={<ProtectedRoute><RouteErrorBoundary><FoodKitchenPage /></RouteErrorBoundary></ProtectedRoute>} />
+                    <Route path="/food/kitchen/:restaurantId" element={<DeviceOrStaffRoute><RouteErrorBoundary><FoodKitchenPage /></RouteErrorBoundary></DeviceOrStaffRoute>} />
 
                     {/* Local Food Directory — new branch name for the same operating
                         surface. The /restaurants/* paths are the canonical routes going
@@ -632,7 +633,7 @@ export default function App() {
                     <Route path="/restaurants/kiosk/:restaurantId"   element={<RouteErrorBoundary><FoodKioskPage /></RouteErrorBoundary>} />
                     <Route path="/restaurants/merchant"              element={<Guarded><ProtectedRoute><RouteErrorBoundary><FoodMerchantPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/restaurants/screens/:restaurantId/:screenRole" element={<RouteErrorBoundary><ManagedRestaurantScreen /></RouteErrorBoundary>} />
-                    <Route path="/restaurants/kitchen/:restaurantId"   element={<ProtectedRoute><RouteErrorBoundary><FoodKitchenPage /></RouteErrorBoundary></ProtectedRoute>} />
+                    <Route path="/restaurants/kitchen/:restaurantId"   element={<DeviceOrStaffRoute><RouteErrorBoundary><FoodKitchenPage /></RouteErrorBoundary></DeviceOrStaffRoute>} />
                     <Route path="/restaurants/pos/:restaurantId"       element={<ProtectedRoute><RouteErrorBoundary><RestaurantPOSPage /></RouteErrorBoundary></ProtectedRoute>} />
                     <Route path="/restaurants/inventory/:restaurantId" element={<ProtectedRoute><RouteErrorBoundary><RestaurantInventoryPage /></RouteErrorBoundary></ProtectedRoute>} />
                     <Route path="/restaurants/crew/:restaurantId"      element={<ProtectedRoute><RouteErrorBoundary><RestaurantCrewPage /></RouteErrorBoundary></ProtectedRoute>} />
