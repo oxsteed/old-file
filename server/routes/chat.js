@@ -13,18 +13,17 @@ const {
   getProfileContext,
 } = require('../controllers/chatController');
 const { chatLimiter, profileChatLimiter, authLimiter, paymentsLimiter } = require('../middleware/rateLimiter');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, optionalAuth: sharedOptionalAuth } = require('../middleware/auth');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const checkRestrictions = require('../middleware/checkRestrictions');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const logger = require('../utils/logger');
 
-// Middleware: attach user if token present and valid; continue as unauthenticated otherwise.
-// Never sends 401/403 - an expired or invalid token simply means req.user stays undefined,
-// which the profileChatMessage handler treats as "AI mode".
-const jwt = require('jsonwebtoken');
-const pool = require('../db');
+// Preserve verified guest-profile sessions, then delegate normal authentication
+// to the shared optionalAuth implementation. The shared middleware accepts both
+// the httpOnly web access cookie and Bearer tokens, while also applying
+// revocation and suspension checks.
 const chatQuotes = require('../controllers/chatQuotesController');
 const chatPop = require('../controllers/chatProofOfPaymentController');
 const chatAgreements = require('../controllers/chatAgreementsController');
@@ -61,31 +60,12 @@ const optionalAuth = async (req, res, next) => {
     }
     return next();
   }
-  if (!header.startsWith('Bearer ')) return next();
-  try {
-    const token = header.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
-    const { rows } = await pool.query(
-      `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active,
-              COALESCE(u.is_suspended, FALSE) AS is_suspended, u.suspended_until
-         FROM users u WHERE u.id = $1`,
-      [decoded.id]
-    );
-    const user = rows[0];
-    // Audit fix (P2-1-F05): a suspended user must not be treated as
-    // authenticated here; that would keep the paid Meta-first provider chain.
-    const suspensionActive = user?.is_suspended
-      && (!user.suspended_until || new Date(user.suspended_until) > new Date());
-    if (user && user.is_active && !suspensionActive) req.user = user;
-  } catch {
-    // Expired, invalid, or DB error - continue as unauthenticated
-  }
-  next();
+  return sharedOptionalAuth(req, res, next);
 };
 
 // Public - no auth required for support chat. optionalAuth attaches req.user
-// when a valid Bearer <redacted> present so signed-in users keep the Meta-first
-// provider chain; anonymous requests skip Meta entirely (free tier only).
+// when a valid web cookie or Bearer token is present so signed-in users keep
+// the Meta-first provider chain; anonymous requests skip Meta entirely.
 router.post('/message', chatLimiter, optionalAuth, chatMessage);
 
 // POST /api/chat/financial-advisor
