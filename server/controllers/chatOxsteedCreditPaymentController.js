@@ -940,7 +940,8 @@ exports.getCreditPayHint = async (req, res, next) => {
     const conv = await assertConversationParticipant(userId, conversationId, { writable: true });
     if (!conv) return bad(res, 403, 'Not a conversation participant', 'forbidden');
 
-    const businessId = req.query.businessId || req.query.business_id || conv.business_id || null;
+    // The conversation's own business wins over a client-supplied id (Area 4).
+    const businessId = conv.business_id || req.query.businessId || req.query.business_id || null;
     const helperId = req.query.helperId || req.query.helper_id || conv.helper_id || null;
     let partnerEligible = false;
     let partnerError = null;

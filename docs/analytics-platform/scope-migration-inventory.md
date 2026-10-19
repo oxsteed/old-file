@@ -27,6 +27,19 @@ Every restaurant route now also runs `requireRestaurantAccess()` before the hand
 
 Hand-written `business_id` filters. Controllers contain 521 `business_id = $N` predicates and 401 `restaurant_id = $N` predicates, across 100 files (see the table below). These are data predicates, not authorization. They have to stay in the SQL. What this migration changes is the *authorization* that makes the id trustworthy. On every tenant-param route, the id is now verified by a shared gate before the controller runs. Controllers that had local role checks trust the gate's verified level through `supportScopeSatisfies` / `businessScopeSatisfies`. That covers 12 support controllers and 7 business controllers, and the legacy check remains as a fallback for non-gated callers. `scopedBusinessId(req)` and `scopedRestaurantId(req)` are fail-closed accessors (500 `scope_gate_missing` without a gate) for new code. Rewriting the 922 SQL predicates themselves would be churn with no security gain and was not done.
 
+## Tenant ids from the body or query (outside the route guard)
+
+There are 77 reads of `business_id` / `restaurant_id` from `req.body` / `req.query` in controllers and routes, covering 50 handlers. Each was traced to its route and middleware.
+
+| Outcome | Handlers |
+|---|---|
+| Platform-admin routes (`requireAdmin`/`requireSuperAdmin`) | adminListCases, listFoodOrders, approveRequest (featured), listIntegrations, registerAdminPartner, enrollAdminParticipant, admin.js statement/report filters |
+| Verified in the handler against the caller | settlementStatementArchive (`assertScopeStanding`), credit funding path/proof (`requireRestaurantAccess`), credit reserve (`authorizeOperator`), support routes (`userCanAccessBusinessConversations` / `userCanAdministrateBusiness`), follow-up reminders, QA reviews, channel capabilities, careers employer openings (`canEditProfile`), media createPost (business/restaurant ownership), setWorkspaceContext, chat quotes, credit payment request, proof-of-payment and agreement share (participant asserts), message conversations (`business_members`), restaurant app bootstrap, attention inbox (`resolveBusinesses`: owner/member, 404 otherwise), hireAgent (`canManageBusiness`), agent shifts (resource-scoped, mismatched body business refused) |
+| Filter inside the caller's own rows | messages getConversations / getGuestInquiries, recurring procurement programs (owner/subscriber predicate), customer profile, customer eligibility, admin-less guest chat verification (guest code) |
+| Customer acting toward a tenant (by design) | support createConversation, restaurant support createCase, food quote/order/card intent, favorites, credit restaurant conversion (the customer's own wallet), applyToBeAgent, createRestaurant (the caller becomes owner) |
+| **Tightened here** | `POST /api/logistics/campaigns/:id/join`: `business_id` was stored on the pledge unverified. It now requires owner/member standing, otherwise 404 `business_not_found`, and non-numeric ids get 404 without a query. `GET /api/chat/payments/credit-hint`: the conversation's own business now wins over a client-supplied `businessId`. |
+| **Flagged** | `POST /api/main-app/payment-requests` stores a client-asserted `business_id`. A payer may legitimately name the business they pay, so membership cannot be required. No reader filters on that column today. If one is ever added, it must not trust the column. |
+
 ## Gates
 
 | Gate | Kind | Semantics (unchanged from the controller checks it fronts) |
