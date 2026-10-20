@@ -12,6 +12,7 @@ const { logAdminAction } = require("../services/auditService");
 const access = require("../growth/access");
 const segments = require("../growth/segments/compile");
 const campaigns = require("../growth/campaigns");
+const { validateRegexPattern } = require("../growth/classify");
 const wrap = (fn) => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
 const grant = requireRegionalPermission;
@@ -99,6 +100,159 @@ router.get(
       "SELECT * FROM demand_taxonomy_nodes ORDER BY code",
     );
     res.json({ rows });
+  }),
+);
+router.get(
+  "/taxonomy/review-queue",
+  requirePermission("manage_marketing"),
+  wrap(async (req, res) => {
+    const status = String(req.query.status || "pending");
+    if (!["pending", "approved", "rejected"].includes(status))
+      return res.status(400).json({ error: "invalid_review_status" });
+    const limit = Number(req.query.limit || 50);
+    const offset = Number(req.query.offset || 0);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100)
+      return res.status(400).json({ error: "invalid_review_limit" });
+    if (!Number.isInteger(offset) || offset < 0 || offset > 100000)
+      return res.status(400).json({ error: "invalid_review_offset" });
+    const { rows } = await db.query(
+      `SELECT q.id,q.entity_type,q.entity_id,q.proposed_node_id,q.reason,q.status,
+              q.created_at,q.reviewed_by,q.reviewed_at,q.review_note,
+              pn.code AS proposed_code,pn.labels AS proposed_labels
+         FROM classification_review_queue q
+         LEFT JOIN demand_taxonomy_nodes pn ON pn.id=q.proposed_node_id
+        WHERE q.status=$1
+        ORDER BY q.created_at ASC,q.id ASC
+        LIMIT $2 OFFSET $3`,
+      [status, limit, offset],
+    );
+    res.json({ rows, status, limit, offset });
+  }),
+);
+router.post(
+  "/taxonomy/review-queue/:reviewId/review",
+  requirePermission("manage_marketing"),
+  wrap(async (req, res) => {
+    const reviewId = id(req.params.reviewId);
+    const decision = String(req.body?.decision || "");
+    if (!["approve", "reject"].includes(decision))
+      return res.status(400).json({ error: "invalid_review_decision" });
+    const reviewNote = req.body?.review_note == null
+      ? null
+      : String(req.body.review_note).trim();
+    if (reviewNote && reviewNote.length > 500)
+      return res.status(400).json({ error: "invalid_review_note" });
+
+    let keywordRule = null;
+    if (req.body?.keyword_rule != null) {
+      const candidate = req.body.keyword_rule;
+      const locale = String(candidate.locale || "");
+      const kind = String(candidate.kind || "keyword");
+      const pattern = String(candidate.pattern || "").trim();
+      const weight = candidate.weight == null ? 0.7 : Number(candidate.weight);
+      if (
+        decision !== "approve" ||
+        !campaigns.LOCALES.includes(locale) ||
+        !["keyword", "regex"].includes(kind) ||
+        !pattern ||
+        pattern.length > (kind === "regex" ? 200 : 120) ||
+        /[\r\n]/.test(pattern) ||
+        (kind === "regex" && !validateRegexPattern(pattern)) ||
+        !Number.isFinite(weight) ||
+        weight < 0 ||
+        weight > 1
+      )
+        return res.status(400).json({ error: "invalid_keyword_rule" });
+      keywordRule = { locale, kind, pattern, weight };
+    }
+    if (decision === "approve" && req.body?.node_id == null && !req.body?.node_code)
+      return res.status(400).json({ error: "review_node_required" });
+
+    const result = await withTransaction(
+      db,
+      async (conn) => {
+        const {
+          rows: [queue],
+        } = await conn.query(
+          "SELECT * FROM classification_review_queue WHERE id=$1 FOR UPDATE",
+          [reviewId],
+        );
+        if (!queue)
+          throw Object.assign(new Error("review_not_found"), { status: 404 });
+        if (queue.status !== "pending")
+          throw Object.assign(new Error("review_not_pending"), { status: 409 });
+
+        let node = null;
+        if (decision === "approve") {
+          if (req.body.node_id != null && !/^[1-9]\d{0,15}$/.test(String(req.body.node_id)))
+            throw Object.assign(new Error("invalid_review_node"), { status: 400 });
+          if (req.body.node_code != null && !/^[a-z][a-z0-9_.]{1,120}$/.test(String(req.body.node_code)))
+            throw Object.assign(new Error("invalid_review_node"), { status: 400 });
+          const selector = req.body.node_id != null ? "id=$1" : "code=$1";
+          const value = req.body.node_id != null ? String(req.body.node_id) : String(req.body.node_code);
+          const nodeResult = await conn.query(
+            `SELECT id,code,status,sensitive FROM demand_taxonomy_nodes WHERE ${selector}`,
+            [value],
+          );
+          node = nodeResult.rows[0];
+          if (!node || node.status !== "active")
+            throw Object.assign(new Error("review_node_not_active"), { status: 400 });
+        }
+
+        let intent = null;
+        if (node) {
+          await conn.query(
+            "UPDATE entity_intents SET superseded_at=NOW() WHERE entity_type=$1 AND entity_id=$2 AND superseded_at IS NULL",
+            [queue.entity_type, queue.entity_id],
+          );
+          const {
+            rows: [createdIntent],
+          } = await conn.query(
+            `INSERT INTO entity_intents(entity_type,entity_id,node_id,confidence,source)
+             VALUES($1,$2,$3,1,'admin') RETURNING *`,
+            [queue.entity_type, queue.entity_id, node.id],
+          );
+          intent = createdIntent;
+          if (keywordRule) {
+            const {
+              rows: [createdRule],
+            } = await conn.query(
+              `INSERT INTO demand_taxonomy_rules(node_id,locale,kind,pattern,weight)
+               VALUES($1,$2,$3,$4,$5)
+               ON CONFLICT(node_id,locale,kind,pattern) DO UPDATE SET weight=EXCLUDED.weight
+               RETURNING *`,
+              [node.id, keywordRule.locale, keywordRule.kind, keywordRule.pattern, keywordRule.weight],
+            );
+            keywordRule = createdRule;
+          }
+        }
+        const {
+          rows: [updatedQueue],
+        } = await conn.query(
+          `UPDATE classification_review_queue
+              SET status=$2,reviewed_by=$3,reviewed_at=NOW(),review_note=$4
+            WHERE id=$1 RETURNING *`,
+          [reviewId, decision === "approve" ? "approved" : "rejected", req.user.id, reviewNote],
+        );
+        await logAdminAction({
+          adminId: req.user.id,
+          action: "growth_classification_overridden",
+          targetType: "classification_review",
+          targetKey: queue.id,
+          before: { status: queue.status, proposed_node_id: queue.proposed_node_id },
+          after: {
+            decision,
+            node_id: node?.id || null,
+            keyword_rule: keywordRule ? { locale: keywordRule.locale, pattern: keywordRule.pattern } : null,
+            review_note: reviewNote,
+          },
+          client: conn,
+        });
+        return { queue: updatedQueue, intent, keyword_rule: keywordRule };
+      },
+      "growth_classification_review",
+    );
+    res.json(result);
   }),
 );
 router.get(

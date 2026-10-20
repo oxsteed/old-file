@@ -172,6 +172,7 @@ export default function GrowthInsights({ section = 'overview' }) {
   const [data, setData] = useState(null),
     [error, setError] = useState(false),
     [busy, setBusy] = useState(false);
+  const [classificationDrafts, setClassificationDrafts] = useState({});
   const [name, setName] = useState(''),
     [role, setRole] = useState('helper'),
     [country, setCountry] = useState('US'),
@@ -195,9 +196,13 @@ export default function GrowthInsights({ section = 'overview' }) {
     setError(false);
     setData(null);
     try {
-      const { data: result } = await api.get(
-        `/admin/growth/${section === 'overview' ? 'overview' : section === 'clusters' ? 'clusters/options' : section}`,
-      );
+      const path = `/admin/growth/${section === 'overview' ? 'overview' : section === 'clusters' ? 'clusters/options' : section}`;
+      const response = await api.get(path);
+      const result = response.data;
+      if (section === 'taxonomy') {
+        const queue = await api.get('/admin/growth/taxonomy/review-queue');
+        result.reviewQueue = queue.data.rows || [];
+      }
       setData(result);
     } catch {
       setError(true);
@@ -300,6 +305,26 @@ export default function GrowthInsights({ section = 'overview' }) {
       setChecklist({});
       await load();
     });
+  const reviewClassification = async (row, decision) => {
+    const draft = classificationDrafts[row.id] || {};
+    await run(async () => {
+      await api.post(`/admin/growth/taxonomy/review-queue/${row.id}/review`, {
+        decision,
+        node_code: decision === 'approve' ? (draft.node_code || row.proposed_code) : undefined,
+        review_note: draft.review_note || undefined,
+        keyword_rule:
+          decision === 'approve' && draft.pattern
+            ? { locale: draft.locale || 'en', pattern: draft.pattern }
+            : undefined,
+      });
+      setClassificationDrafts((current) => {
+        const next = { ...current };
+        delete next[row.id];
+        return next;
+      });
+      await load();
+    });
+  };
   const label = (key) => t(`growthInsights.${key}`);
   const renderRow = (row) => {
     if (section === 'demand')
@@ -987,6 +1012,111 @@ export default function GrowthInsights({ section = 'overview' }) {
             </button>
           </div>
         </form>
+      )}
+      {section === 'taxonomy' && data?.reviewQueue && (
+        <section className="space-y-3 rounded border p-4" aria-labelledby="classification-review-heading">
+          <h3 id="classification-review-heading" className="font-semibold">
+            {label('classificationReview')}
+          </h3>
+          {data.reviewQueue.length === 0 ? (
+            <p>{label('classificationReviewEmpty')}</p>
+          ) : (
+            <div className="space-y-3">
+              {data.reviewQueue.map((row) => {
+                const draft = classificationDrafts[row.id] || {};
+                const setDraft = (field, value) =>
+                  setClassificationDrafts((current) => ({
+                    ...current,
+                    [row.id]: { ...current[row.id], [field]: value },
+                  }));
+                return (
+                  <article key={row.id} className="space-y-3 rounded border p-3">
+                    <dl className="grid gap-2 sm:grid-cols-3">
+                      <div>
+                        <dt className="text-sm font-semibold">{label('classificationEntity')}</dt>
+                        <dd>{row.entity_type} · {row.entity_id}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm font-semibold">{label('classificationReason')}</dt>
+                        <dd>{row.reason}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm font-semibold">{label('classificationProposed')}</dt>
+                        <dd>{row.proposed_code || '—'}</dd>
+                      </div>
+                    </dl>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label>
+                        {label('classificationNode')}
+                        <select
+                          className={input}
+                          value={draft.node_code || row.proposed_code || ''}
+                          onChange={(e) => setDraft('node_code', e.target.value)}
+                        >
+                          <option value="">—</option>
+                          {(data.rows || [])
+                            .filter((node) => node.status === 'active')
+                            .map((node) => (
+                              <option key={node.code} value={node.code}>
+                                {node.code}
+                              </option>
+                            ))}
+                        </select>
+                      </label>
+                      <label>
+                        {label('classificationKeyword')} ({label('classificationOptional')})
+                        <input
+                          className={input}
+                          maxLength={120}
+                          value={draft.pattern || ''}
+                          onChange={(e) => setDraft('pattern', e.target.value)}
+                        />
+                      </label>
+                      <label>
+                        {label('classificationLocale')}
+                        <select
+                          className={input}
+                          value={draft.locale || 'en'}
+                          onChange={(e) => setDraft('locale', e.target.value)}
+                        >
+                          {LOCALES.map((locale) => <option key={locale} value={locale}>{locale}</option>)}
+                        </select>
+                      </label>
+                      <label>
+                        {label('classificationNote')} ({label('classificationOptional')})
+                        <textarea
+                          className={input}
+                          maxLength={500}
+                          rows={2}
+                          value={draft.review_note || ''}
+                          onChange={(e) => setDraft('review_note', e.target.value)}
+                        />
+                      </label>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className={button}
+                        disabled={busy || !(draft.node_code || row.proposed_code)}
+                        onClick={() => reviewClassification(row, 'approve')}
+                      >
+                        {label('classificationApprove')}
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded border px-4 py-2"
+                        disabled={busy}
+                        onClick={() => reviewClassification(row, 'reject')}
+                      >
+                        {label('classificationReject')}
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
       )}
       {data?.rows &&
         section !== 'clusters' &&
