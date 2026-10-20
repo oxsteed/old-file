@@ -15,6 +15,7 @@ const PROACTIVE_DISMISS_KEY = 'oxsteed_support_proactive_dismissed';
 // Pages that get the proactive auto-open trigger after 45s
 const PROACTIVE_PATHS = ['/post-job', '/helpers'];
 const PROACTIVE_DELAY_MS = 45_000;
+const PROACTIVE_RETRY_DELAY_MS = 15_000;
 
 /** Public helper profile `/helpers/:uuid` — page has built-in chat; hide floating widget */
 function isHelperPublicProfilePath(pathname) {
@@ -309,22 +310,29 @@ function markProactiveDismissed() {
     const isMatch = PROACTIVE_PATHS.some(p => path.startsWith(p));
     if (!isMatch || proactiveTriggered.current || open || isProactiveDismissed()) return;
 
-    const timer = setTimeout(() => {
-      if (proactiveTriggered.current || open || isProactiveDismissed()) return;
-      const activeEl = document.activeElement;
-      const inForm = activeEl && /^(INPUT|TEXTAREA|SELECT)$/.test(activeEl.tagName);
-      const idleMs = Date.now() - lastActivityRef.current;
-      // Busy or mid-form: stay quiet and wait for a later cycle.
-      if (inForm || idleMs < 30000) return;
-      proactiveTriggered.current = true;
-      markProactiveDismissed();
-      const msg = path.startsWith('/post-job')
-        ? t('supportWidget.proactivePostJob')
-        : t('supportWidget.proactiveHelpers');
-      setMessages(prev => [...prev, { role: 'assistant', content: msg, ts: new Date().toISOString() }]);
-      setOpen(true);
-      setMinimized(false);
-    }, PROACTIVE_DELAY_MS);
+    let timer;
+    const schedule = (delay) => {
+      timer = setTimeout(() => {
+        if (proactiveTriggered.current || open || isProactiveDismissed()) return;
+        const activeEl = document.activeElement;
+        const inForm = activeEl && /^(INPUT|TEXTAREA|SELECT)$/.test(activeEl.tagName);
+        const idleMs = Date.now() - lastActivityRef.current;
+        // Busy or mid-form: defer instead of losing the nudge for this visit.
+        if (inForm || idleMs < 30000) {
+          schedule(PROACTIVE_RETRY_DELAY_MS);
+          return;
+        }
+        proactiveTriggered.current = true;
+        markProactiveDismissed();
+        const msg = path.startsWith('/post-job')
+          ? t('supportWidget.proactivePostJob')
+          : t('supportWidget.proactiveHelpers');
+        setMessages(prev => [...prev, { role: 'assistant', content: msg, ts: new Date().toISOString() }]);
+        setOpen(true);
+        setMinimized(false);
+      }, delay);
+    };
+    schedule(PROACTIVE_DELAY_MS);
 
     return () => clearTimeout(timer);
   }, [open, location.pathname, t]);

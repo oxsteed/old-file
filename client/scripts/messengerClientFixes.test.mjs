@@ -238,6 +238,14 @@ test('widget remembers proactive dismissal in localStorage', async () => {
   assert.ok(code.includes('markProactiveDismissed()'), 'dismissals are recorded');
 });
 
+test('widget retries the proactive nudge after a busy or mid-form check', async () => {
+  const code = await src('src/components/SupportWidget.jsx');
+  assert.ok(code.includes('PROACTIVE_RETRY_DELAY_MS = 15_000'), 'retry delay is explicit');
+  assert.ok(code.includes('const schedule = (delay)'), 'proactive trigger is reschedulable');
+  assert.ok(code.includes('schedule(PROACTIVE_RETRY_DELAY_MS)'), 'busy checks schedule a later attempt');
+  assert.ok(code.includes('return () => clearTimeout(timer)'), 'retry timer is cancelled on cleanup');
+});
+
 // ── Locale parity for the new copy ───────────────────────────────────────
 const NEW_MESSAGE_KEYS = [
   'blockedSendTitle',
