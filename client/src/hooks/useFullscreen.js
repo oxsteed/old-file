@@ -7,7 +7,7 @@ import {
   isFullscreenActive,
   resolveFullscreenExit,
   resolveFullscreenRequest,
-} from '../utils/displayFullscreen';
+} from '../utils/displayFullscreen.js';
 
 export function useFullscreen(targetRef) {
   const [isFullscreen, setIsFullscreen] = useState(false);

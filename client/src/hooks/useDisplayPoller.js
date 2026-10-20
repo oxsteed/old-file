@@ -5,7 +5,7 @@
 // network drop shows an offline banner immediately and reconnects fast when
 // the link returns. `load` must return a promise that rejects on failure.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { computeDisplayBackoffMs } from '../utils/displayBackoff';
+import { computeDisplayBackoffMs } from '../utils/displayBackoff.js';
 
 export function useDisplayPoller(
   load,

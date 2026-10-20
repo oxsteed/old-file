@@ -138,6 +138,11 @@ export default function DisplayPairingCode() {
           {},
           { headers: { Authorization: `Bearer ${token}` } }
         );
+        // F-27: the server rotates the pairing token before it expires;
+        // persist the replacement or this display would unpair at expiry.
+        if (data?.rotated_token) {
+          try { localStorage.setItem(tokenKey(restaurantId), data.rotated_token); } catch (_) { /* ignore */ }
+        }
         if (data?.refresh_requested) window.location.reload();
       } catch (err) {
         // Only an explicit invalid-token response drops the pairing; other

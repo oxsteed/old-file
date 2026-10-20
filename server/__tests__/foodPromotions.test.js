@@ -94,6 +94,16 @@ describe('food merchant promotions (B5)', () => {
   test('deactivates a promotion', async () => {
     mockQuery
       .mockResolvedValueOnce(mockRestaurantAccess())
+      // F-20: updateRestaurantPromotion reads the before-image for the
+      // business audit log before applying the update.
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 10,
+          restaurant_id: RESTAURANT_ID,
+          code: 'WELCOME5',
+          is_active: true,
+        }],
+      })
       .mockResolvedValueOnce({
         rows: [{
           id: 10,
@@ -109,7 +119,7 @@ describe('food merchant promotions (B5)', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.promotion.is_active).toBe(false);
-    expect(mockQuery.mock.calls[1][0]).toMatch(/UPDATE food_restaurant_promotions/);
-    expect(mockQuery.mock.calls[1][0]).toMatch(/is_active/);
+    expect(mockQuery.mock.calls[2][0]).toMatch(/UPDATE food_restaurant_promotions/);
+    expect(mockQuery.mock.calls[2][0]).toMatch(/is_active/);
   });
 });

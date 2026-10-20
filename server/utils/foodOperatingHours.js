@@ -147,6 +147,8 @@ function openResult(range) {
     opensAt: formatMinutes(range.open),
     closesAt: formatMinutes(range.close),
     message: `Open until ${formatMinutes(range.close)}`,
+    messageCode: 'open_until',
+    messageParams: { closesAt: formatMinutes(range.close) },
   };
 }
 
@@ -163,7 +165,7 @@ function openResult(range) {
 function evaluateOperatingHours(operatingHours, timezone, now = new Date()) {
   const hours = normalizeHoursInput(operatingHours);
   if (!hasAnySchedule(hours)) {
-    return { isOpen: true, opensAt: null, closesAt: null, message: null };
+    return { isOpen: true, opensAt: null, closesAt: null, message: null, messageCode: null, messageParams: null };
   }
 
   const parts = zonedParts(now, timezone);
@@ -200,6 +202,8 @@ function evaluateOperatingHours(operatingHours, timezone, now = new Date()) {
       opensAt: formatMinutes(laterToday.open),
       closesAt: formatMinutes(laterToday.close),
       message: `Opens at ${formatMinutes(laterToday.open)}`,
+      messageCode: 'opens_at',
+      messageParams: { opensAt: formatMinutes(laterToday.open) },
     };
   }
   for (let offset = 1; offset <= 7; offset += 1) {
@@ -216,11 +220,15 @@ function evaluateOperatingHours(operatingHours, timezone, now = new Date()) {
         message: offset === 1
           ? `Opens tomorrow at ${formatMinutes(next.open)}`
           : `Opens ${DAY_KEYS[nextDay]} at ${formatMinutes(next.open)}`,
+        messageCode: offset === 1 ? 'opens_tomorrow_at' : 'opens_day_at',
+        messageParams: offset === 1
+          ? { opensAt: formatMinutes(next.open) }
+          : { opensAt: formatMinutes(next.open), opensDay: DAY_KEYS[nextDay] },
       };
     }
   }
 
-  return { isOpen: false, opensAt: null, closesAt: null, message: 'Closed' };
+  return { isOpen: false, opensAt: null, closesAt: null, message: 'Closed', messageCode: 'closed', messageParams: {} };
 }
 
 function normalizeBrandAccentHex(value) {
@@ -230,6 +238,12 @@ function normalizeBrandAccentHex(value) {
   return trimmed.toUpperCase();
 }
 
+// evaluateOperatingHours returns { isOpen, opensAt, closesAt, message,
+// messageCode, messageParams }: `message` is the English rendering kept for
+// backwards compatibility; messageCode + messageParams are the structured
+// form (F-24) clients localize: 'open_until' { closesAt }, 'opens_at'
+// { opensAt }, 'opens_tomorrow_at' { opensAt }, 'opens_day_at'
+// { opensAt, opensDay }, 'closed' {}.
 module.exports = {
   DAY_KEYS,
   evaluateOperatingHours,
@@ -237,4 +251,6 @@ module.exports = {
   normalizeBrandAccentHex,
   normalizeHoursInput,
   safeTimezone,
+  parseTimeToMinutes,
+  zonedParts,
 };

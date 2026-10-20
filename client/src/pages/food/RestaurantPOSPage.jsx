@@ -232,7 +232,7 @@ function PaymentModal({ total, currency, discounts, serverOrder, onCreateOrder, 
                 type="text"
                 value={creditHoldId}
                 onChange={(e) => setCreditHoldId(e.target.value)}
-                placeholder="Paste the OxSteed Credit hold ID"
+                placeholder={t('food.pos.creditHoldPlaceholder')}
                 autoComplete="off"
               />
             </div>

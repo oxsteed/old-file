@@ -82,10 +82,27 @@ async function loadSettings(restaurantId) {
   return rows[0] || null;
 }
 
-function formatMoney(cents, currency) {
+// F-24: receipts format money and dates in the restaurant's stored
+// receipt locale when one is configured (settings.receiptLocale, a BCP-47
+// tag such as 'es' or 'fr-CA'); otherwise the historical en-US rendering.
+// Dates are rendered in the restaurant's own time zone, not the server's.
+function receiptLocale(restaurant) {
+  const settings = restaurant && typeof restaurant.settings === 'object' && restaurant.settings
+    ? restaurant.settings
+    : {};
+  const raw = settings.receiptLocale || settings.receipt_locale;
+  if (typeof raw !== 'string' || !raw.trim()) return 'en-US';
+  try {
+    return Intl.NumberFormat.supportedLocalesOf(raw.trim())[0] || 'en-US';
+  } catch (_) {
+    return 'en-US';
+  }
+}
+
+function formatMoney(cents, currency, locale = 'en-US') {
   const n = Number(cents || 0) / 100;
   try {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: currency || 'USD',
     }).format(n);
@@ -144,6 +161,8 @@ async function loadOrderSnapshot(restaurantId, orderId) {
 function buildOrderReceipt({ restaurant, settings, snapshot }) {
   const { order, items, modifiersByItem, payments } = snapshot;
   const currency = order.currency_code || 'USD';
+  const locale = receiptLocale(restaurant);
+  const money = (cents) => formatMoney(cents, currency, locale);
   const addressParts = [restaurant.address_street, restaurant.address_city, restaurant.address_state, restaurant.address_zip]
     .filter(Boolean)
     .join(', ');
@@ -154,7 +173,7 @@ function buildOrderReceipt({ restaurant, settings, snapshot }) {
 
   const metaLines = [
     `Order #${order.queue_number || order.id}`,
-    `Date: ${order.created_at ? new Date(order.created_at).toLocaleString() : ''}`,
+    `Date: ${order.created_at ? new Date(order.created_at).toLocaleString(locale, { timeZone: restaurant.timezone || 'UTC' }) : ''}`,
   ];
   if (order.guest_name) metaLines.push(`Guest: ${order.guest_name}`);
   if (order.table_label) metaLines.push(`Table: ${order.table_label}`);
@@ -165,29 +184,29 @@ function buildOrderReceipt({ restaurant, settings, snapshot }) {
     return {
       qty: item.quantity,
       name: item.item_name,
-      amount: formatMoney(item.line_total_cents, currency),
+      amount: money(item.line_total_cents),
       subLines: [
-        ...mods.map((m) => `+ ${m.modifier_name}${Number(m.price_delta_cents) ? ` (${formatMoney(m.price_delta_cents, currency)})` : ''}`),
+        ...mods.map((m) => `+ ${m.modifier_name}${Number(m.price_delta_cents) ? ` (${money(m.price_delta_cents)})` : ''}`),
         ...(item.special_instructions ? [`* ${item.special_instructions}`] : []),
       ],
     };
   });
 
   const totals = [
-    { label: 'Subtotal', amount: formatMoney(order.subtotal_cents, currency) },
+    { label: 'Subtotal', amount: money(order.subtotal_cents) },
   ];
-  if (Number(order.discount_cents) > 0) totals.push({ label: 'Discount', amount: `-${formatMoney(order.discount_cents, currency)}` });
-  if (Number(order.tax_cents) > 0) totals.push({ label: 'Tax', amount: formatMoney(order.tax_cents, currency) });
-  if (Number(order.service_fee_cents) > 0) totals.push({ label: 'Service fee', amount: formatMoney(order.service_fee_cents, currency) });
-  if (Number(order.delivery_fee_cents) > 0) totals.push({ label: 'Delivery fee', amount: formatMoney(order.delivery_fee_cents, currency) });
-  if (Number(order.tip_cents) > 0) totals.push({ label: 'Tip', amount: formatMoney(order.tip_cents, currency) });
-  totals.push({ label: 'TOTAL', amount: formatMoney(order.total_cents, currency), grand: true });
+  if (Number(order.discount_cents) > 0) totals.push({ label: 'Discount', amount: `-${money(order.discount_cents)}` });
+  if (Number(order.tax_cents) > 0) totals.push({ label: 'Tax', amount: money(order.tax_cents) });
+  if (Number(order.service_fee_cents) > 0) totals.push({ label: 'Service fee', amount: money(order.service_fee_cents) });
+  if (Number(order.delivery_fee_cents) > 0) totals.push({ label: 'Delivery fee', amount: money(order.delivery_fee_cents) });
+  if (Number(order.tip_cents) > 0) totals.push({ label: 'Tip', amount: money(order.tip_cents) });
+  totals.push({ label: 'TOTAL', amount: money(order.total_cents), grand: true });
 
   const paidTypes = payments.filter((p) => p.status !== 'refunded');
   if (paidTypes.length) {
     metaLines.push('');
     for (const p of paidTypes) {
-      metaLines.push(`Paid (${p.payment_type}): ${formatMoney(p.amount_cents, currency)}`);
+      metaLines.push(`Paid (${p.payment_type}): ${money(p.amount_cents)}`);
     }
   }
 

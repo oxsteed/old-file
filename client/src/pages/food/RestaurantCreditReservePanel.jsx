@@ -12,6 +12,7 @@ import {
 import { apiErrorMessage } from './foodShared';
 import { formatCreditDateTime } from '../../lib/creditDateTime';
 import { parseCreditMajorAmount } from '../../lib/creditCurrency';
+import { useTranslation } from 'react-i18next';
 import { createStableIdempotencyKeyStore } from '../../lib/idempotency';
 
 // Phase 4: restaurant credit pre-purchase reserve ("gift card inventory"
@@ -40,18 +41,18 @@ function feeCentsFor(amountCents) {
   return Math.round((amountCents * RESERVE_FEE_BPS) / 10000);
 }
 
-function referenceLabel(entry) {
+function referenceLabel(entry, t) {
   switch (entry.referenceType) {
     case 'purchase':
-      return 'Reserve purchase';
+      return t('food.creditCenter.reserve.refPurchase');
     case 'issuance':
-      return 'Credit issued to customer';
+      return t('food.creditCenter.reserve.refIssuance');
     case 'refund_reversal':
-      return 'Refund reversal';
+      return t('food.creditCenter.reserve.refRefundReversal');
     case 'admin_adjustment':
-      return 'Admin adjustment';
+      return t('food.creditCenter.reserve.refAdminAdjustment');
     default:
-      return entry.referenceType || 'Reserve movement';
+      return entry.referenceType || t('food.creditCenter.reserve.refMovement');
   }
 }
 
@@ -76,6 +77,7 @@ const modalStyle = {
 };
 
 function ReserveCardForm({ clientSecret, amountCents, currency, onConfirmed }) {
+  const { t } = useTranslation();
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
@@ -91,13 +93,13 @@ function ReserveCardForm({ clientSecret, amountCents, currency, onConfirmed }) {
         payment_method: { card: elements.getElement(CardElement) },
       });
       if (error) {
-        setCardError(error.message || 'The card payment failed. Try another card.');
+        setCardError(error.message || t('food.creditCenter.reserve.cardFailed'));
         return;
       }
       if (paymentIntent && ['succeeded', 'processing', 'requires_capture'].includes(paymentIntent.status)) {
         onConfirmed();
       } else {
-        setCardError('The card payment failed. Try another card.');
+        setCardError(t('food.creditCenter.reserve.cardFailed'));
       }
     } finally {
       setSubmitting(false);
@@ -107,23 +109,24 @@ function ReserveCardForm({ clientSecret, amountCents, currency, onConfirmed }) {
   return (
     <form onSubmit={submit} data-track-private>
       <p className="fd-card-meta" style={{ marginBottom: '0.75rem' }}>
-        Pay {formatFoodMoney(amountCents, currency)} by card. The reserve is credited only after the payment succeeds.
+        {t('food.creditCenter.reserve.cardIntro', { amount: formatFoodMoney(amountCents, currency) })}
       </p>
       <label style={{ display: 'block', marginBottom: '0.75rem' }}>
-        <span className="fd-card-meta">Card details</span>
+        <span className="fd-card-meta">{t('food.creditCenter.reserve.cardDetails')}</span>
         <div style={{ border: '1px solid #d7dce3', borderRadius: 8, padding: '0.85rem 1rem', background: '#fff', marginTop: 4 }}>
           <CardElement options={{ style: { base: { fontSize: '16px', color: '#10253f' } } }} />
         </div>
       </label>
       {cardError && <p role="alert" style={{ color: '#b42318', fontSize: '0.9rem' }}>{cardError}</p>}
       <button type="submit" className="fd-btn" disabled={submitting || !stripe} style={{ width: '100%' }} data-track-private>
-        {submitting ? 'Processing…' : `Pay ${formatFoodMoney(amountCents, currency)}`}
+        {submitting ? t('food.creditCenter.reserve.processing') : t('food.creditCenter.reserve.pay', { amount: formatFoodMoney(amountCents, currency) })}
       </button>
     </form>
   );
 }
 
 function ReservePurchaseModal({ restaurantId, currency, onClose, onPurchased }) {
+  const { t } = useTranslation();
   const [step, setStep] = useState('amount');
   const [amount, setAmount] = useState('');
   const [amountError, setAmountError] = useState('');
@@ -142,7 +145,7 @@ function ReservePurchaseModal({ restaurantId, currency, onClose, onPurchased }) 
     const cents = parseAmountCents(amount, currency);
     if (!cents || cents < RESERVE_MIN_CENTS || cents > RESERVE_MAX_CENTS) {
       setAmountError(
-        `Enter an amount between ${formatFoodMoney(RESERVE_MIN_CENTS, currency)} and ${formatFoodMoney(RESERVE_MAX_CENTS, currency)}.`
+        t('food.creditCenter.reserve.amountRange', { min: formatFoodMoney(RESERVE_MIN_CENTS, currency), max: formatFoodMoney(RESERVE_MAX_CENTS, currency) })
       );
       return;
     }
@@ -169,7 +172,7 @@ function ReservePurchaseModal({ restaurantId, currency, onClose, onPurchased }) 
         setStep('card');
       }
     } catch (error) {
-      toast.error(apiErrorMessage(error, 'Could not start the reserve purchase.'));
+      toast.error(apiErrorMessage(error, t('food.creditCenter.reserve.startError')));
     } finally {
       setSubmitting(false);
     }
@@ -183,12 +186,12 @@ function ReservePurchaseModal({ restaurantId, currency, onClose, onPurchased }) 
       if (result?.reserve) {
         await onPurchased();
         setStep('done');
-        toast.success('Credit reserve funded.');
+        toast.success(t('food.creditCenter.reserve.fundedToast'));
       } else {
         throw new Error('confirm-missing');
       }
     } catch (error) {
-      setConfirmError(apiErrorMessage(error, 'The payment has not completed yet. You can retry once it clears.'));
+      setConfirmError(apiErrorMessage(error, t('food.creditCenter.reserve.confirmPending')));
       setStep('card');
     }
   };
@@ -198,19 +201,19 @@ function ReservePurchaseModal({ restaurantId, currency, onClose, onPurchased }) 
 
   return (
     <div style={modalBackdropStyle} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
-      <section style={modalStyle} role="dialog" aria-modal="true" aria-label="Buy credit reserve">
+      <section style={modalStyle} role="dialog" aria-modal="true" aria-label={t('food.creditCenter.reserve.buy')}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-          <strong style={{ fontSize: '1.05rem' }}>Buy credit reserve</strong>
-          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={close} data-track-private>Close</button>
+          <strong style={{ fontSize: '1.05rem' }}>{t('food.creditCenter.reserve.buy')}</strong>
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={close} data-track-private>{t('food.common.close')}</button>
         </div>
 
         {step === 'amount' && (
           <form onSubmit={beginIntent} data-track-private>
             <p className="fd-card-meta" style={{ marginBottom: '0.75rem' }}>
-              Pre-pay for the credit you plan to issue to customers. A 2.5% platform fee applies; the rest lands in your reserve.
+              {t('food.creditCenter.reserve.modalIntro')}
             </p>
             <label style={{ display: 'block', marginBottom: '0.75rem' }}>
-              <span className="fd-card-meta">Amount ({currency})</span>
+              <span className="fd-card-meta">{t('food.creditCenter.reserve.amount', { currency })}</span>
               <input
                 autoFocus
                 inputMode="decimal"
@@ -224,11 +227,11 @@ function ReservePurchaseModal({ restaurantId, currency, onClose, onPurchased }) 
             {amountError && <p role="alert" style={{ color: '#b42318', fontSize: '0.9rem' }}>{amountError}</p>}
             {cents > 0 && !amountError && (
               <p className="fd-card-meta" style={{ marginBottom: '0.75rem' }}>
-                Fee (2.5%): {formatFoodMoney(feePreview, currency)} · Added to reserve: {formatFoodMoney(cents - feePreview, currency)}
+                {t('food.creditCenter.reserve.feePreview', { fee: formatFoodMoney(feePreview, currency), net: formatFoodMoney(cents - feePreview, currency) })}
               </p>
             )}
             <button type="submit" className="fd-btn" disabled={submitting} style={{ width: '100%' }} data-track-private>
-              {submitting ? 'Starting…' : 'Continue to payment'}
+              {submitting ? t('food.creditCenter.reserve.starting') : t('food.creditCenter.reserve.continuePayment')}
             </button>
           </form>
         )}
@@ -246,22 +249,22 @@ function ReservePurchaseModal({ restaurantId, currency, onClose, onPurchased }) 
 
         {step === 'card' && (!intent?.clientSecret || !stripePromise) && (
           <div>
-            <p className="fd-card-meta">Card payments are unavailable right now. The purchase was recorded as pending; retry once payments are back.</p>
-            <button type="button" className="fd-btn fd-btn-secondary" onClick={close} style={{ width: '100%', marginTop: '0.75rem' }} data-track-private>Close</button>
+            <p className="fd-card-meta">{t('food.creditCenter.reserve.cardUnavailable')}</p>
+            <button type="button" className="fd-btn fd-btn-secondary" onClick={close} style={{ width: '100%', marginTop: '0.75rem' }} data-track-private>{t('food.common.close')}</button>
           </div>
         )}
 
         {step === 'processing' && (
           <div>
-            <p role="status" className="fd-card-meta">Confirming your payment with the reserve…</p>
+            <p role="status" className="fd-card-meta">{t('food.creditCenter.reserve.confirming')}</p>
             {confirmError && <p role="alert" style={{ color: '#b42318', fontSize: '0.9rem' }}>{confirmError}</p>}
           </div>
         )}
 
         {step === 'done' && (
           <div>
-            <p className="fd-card-meta">Your credit reserve is funded. New customer credit issuance draws down from this balance.</p>
-            <button type="button" className="fd-btn" onClick={onClose} style={{ width: '100%', marginTop: '0.75rem' }} data-track-private>Done</button>
+            <p className="fd-card-meta">{t('food.creditCenter.reserve.doneText')}</p>
+            <button type="button" className="fd-btn" onClick={onClose} style={{ width: '100%', marginTop: '0.75rem' }} data-track-private>{t('common.done')}</button>
           </div>
         )}
       </section>
@@ -270,6 +273,7 @@ function ReservePurchaseModal({ restaurantId, currency, onClose, onPurchased }) 
 }
 
 export default function RestaurantCreditReservePanel({ restaurant }) {
+  const { t } = useTranslation();
   const restaurantId = restaurant?.id;
   const currency = restaurant?.currency_code || 'USD';
   const [balance, setBalance] = useState(null);
@@ -291,7 +295,7 @@ export default function RestaurantCreditReservePanel({ restaurant }) {
         total: Number(ledgerResult?.total || 0),
       });
     } catch (error) {
-      toast.error(apiErrorMessage(error, 'Unable to load the credit reserve.'));
+      toast.error(apiErrorMessage(error, t('food.creditCenter.reserve.loadError')));
     } finally {
       setLoading(false);
     }
@@ -300,48 +304,47 @@ export default function RestaurantCreditReservePanel({ restaurant }) {
   useEffect(() => { load(); }, [load]);
 
   return (
-    <section className="fd-section" aria-label="Credit reserve">
+    <section className="fd-section" aria-label={t('food.creditCenter.reserve.kicker')}>
       <div className="fd-credit-manager-head" style={{ marginBottom: '0.75rem' }}>
         <div>
-          <p className="fd-credit-manager-kicker">Credit reserve</p>
+          <p className="fd-credit-manager-kicker">{t('food.creditCenter.reserve.kicker')}</p>
           <p className="fd-card-meta">
-            Pre-pay for customer credit before you issue it. Once enrolled, every credit grant is capped at this balance.
+            {t('food.creditCenter.reserve.intro')}
           </p>
         </div>
         <button type="button" className="fd-btn fd-btn-sm" onClick={() => setPurchaseOpen(true)} data-track-private>
-          Buy credit reserve
+          {t('food.creditCenter.reserve.buy')}
         </button>
       </div>
 
       {loading ? (
-        <div className="fd-empty">Loading credit reserve…</div>
+        <div className="fd-empty">{t('food.creditCenter.reserve.loading')}</div>
       ) : (
         <>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
             <div className="fd-card" style={{ flex: '1 1 160px', padding: '0.85rem 1rem' }}>
-              <p className="fd-card-meta">Available balance</p>
+              <p className="fd-card-meta">{t('food.creditCenter.reserve.availableBalance')}</p>
               <strong style={{ fontSize: '1.35rem' }}>{formatFoodMoney(Number(balance?.balanceCents || 0), currency)}</strong>
             </div>
             <div className="fd-card" style={{ flex: '1 1 160px', padding: '0.85rem 1rem' }}>
-              <p className="fd-card-meta">Lifetime purchased</p>
+              <p className="fd-card-meta">{t('food.creditCenter.reserve.lifetimePurchased')}</p>
               <strong style={{ fontSize: '1.35rem' }}>{formatFoodMoney(Number(balance?.lifetimePurchasedCents || 0), currency)}</strong>
             </div>
             <div className="fd-card" style={{ flex: '1 1 160px', padding: '0.85rem 1rem' }}>
-              <p className="fd-card-meta">Lifetime issued</p>
+              <p className="fd-card-meta">{t('food.creditCenter.reserve.lifetimeIssued')}</p>
               <strong style={{ fontSize: '1.35rem' }}>{formatFoodMoney(Number(balance?.lifetimeIssuedCents || 0), currency)}</strong>
             </div>
           </div>
 
           {!balance?.optedIn && (
             <p className="fd-card-meta" style={{ marginBottom: '1rem' }}>
-              This restaurant is not enrolled yet: credit issuance is not capped by a reserve.
-              Your first purchase enrolls it and caps future issuance at the reserve balance.
+              {t('food.creditCenter.reserve.notEnrolled')}
             </p>
           )}
 
-          <p className="fd-section-label">Reserve history</p>
+          <p className="fd-section-label">{t('food.creditCenter.reserve.history')}</p>
           {ledger.entries.length === 0 ? (
-            <div className="fd-empty">No reserve movements yet.</div>
+            <div className="fd-empty">{t('food.creditCenter.reserve.historyEmpty')}</div>
           ) : (
             <div className="fd-credit-request-list">
               {ledger.entries.map((entry) => {
@@ -351,8 +354,8 @@ export default function RestaurantCreditReservePanel({ restaurant }) {
                   <article key={entry.id} className="fd-credit-request-card">
                     <div className="fd-credit-request-main">
                       <div>
-                        <strong>{referenceLabel(entry)}</strong>
-                        <span>{formatCreditDateTime(entry.createdAt, 'Recently')} · Balance after: {formatFoodMoney(Number(entry.balanceAfterCents || 0), currency)}</span>
+                        <strong>{referenceLabel(entry, t)}</strong>
+                        <span>{formatCreditDateTime(entry.createdAt, t('food.creditCenter.recentFallback'))} · {t('food.creditCenter.reserve.balanceAfter', { amount: formatFoodMoney(Number(entry.balanceAfterCents || 0), currency) })}</span>
                       </div>
                       <strong className="fd-credit-request-amount" style={{ color: positive ? '#15803d' : '#b42318' }}>
                         {positive ? '+' : '−'}{formatFoodMoney(Math.abs(cents), currency)}
@@ -365,7 +368,7 @@ export default function RestaurantCreditReservePanel({ restaurant }) {
           )}
           {ledger.total > ledger.entries.length && (
             <p className="fd-card-meta" style={{ marginTop: '0.5rem' }}>
-              Showing {ledger.entries.length} of {ledger.total} movements.
+              {t('food.creditCenter.reserve.showingMovements', { shown: ledger.entries.length, total: ledger.total })}
             </p>
           )}
         </>

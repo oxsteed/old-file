@@ -84,6 +84,9 @@ describeDb('restaurant display pairing (migration 911)', () => {
     // Migration 913 (device roles) is part of the same branch: the pairing
     // endpoints always read/write device_role, so the test schema must have it.
     await db.query(fs.readFileSync(path.join(__dirname, '../migrations/913_display_pairing_device_role.sql'), 'utf8'));
+    // Migration 944 (F-27 pairing-token expiry/rotation): the endpoints
+    // read/write the token expiry columns, so the schema must have them too.
+    await db.query(fs.readFileSync(path.join(__dirname, '../migrations/944_display_pairing_token_expiry.sql'), 'utf8'));
     businessId = (await db.query(`INSERT INTO ${schema}.businesses (user_id) VALUES ($1) RETURNING id`, [OWNER_ID])).rows[0].id;
     restaurantId = (
       await db.query(
