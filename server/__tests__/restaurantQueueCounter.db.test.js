@@ -4,9 +4,9 @@
 // counter (migration 945, findings F-18/F-32). Skipped when no test
 // database URL is configured, so the default unit suite never needs a
 // database. Points at a disposable, fully migrated database:
-//   QUEUE_COUNTER_TEST_DATABASE_URL=postgresql://.../fr_t5 npx jest restaurantQueueCounter
-// Fixtures are created with unique random identifiers and removed again,
-// so the suite is safe to run against a shared disposable database.
+//   QUEUE_COUNTER_TEST_DATABASE_URL=postgresql://.../credit_statement_test npx jest restaurantQueueCounter
+// STATEMENT_TEST_DATABASE_URL is also honored by the shared opt-in guard.
+// Fixtures use unique random identifiers and remain in the disposable DB.
 
 jest.unmock('pg');
 
@@ -14,7 +14,9 @@ const crypto = require('crypto');
 const { Pool } = require('pg');
 const { nextQueueNumber, businessDateFor } = require('../services/restaurantQueueCounter');
 
-const url = process.env.QUEUE_COUNTER_TEST_DATABASE_URL || process.env.DATABASE_URL;
+const { disposableDatabaseOptIn } = require('./helpers/statementTestDatabase');
+// setup.js always supplies a mock DATABASE_URL; it is never a real DB opt-in.
+const url = disposableDatabaseOptIn('QUEUE_COUNTER_TEST_DATABASE_URL');
 const describeDb = url ? describe : describe.skip;
 
 describeDb('restaurantQueueCounter (db)', () => {
