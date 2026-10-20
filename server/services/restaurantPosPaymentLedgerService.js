@@ -154,8 +154,11 @@ async function reconcilePosOrderPayment(client, orderId) {
           ? 'requires_payment'
           : 'unpaid';
   const { rows: [updatedOrder] } = await client.query(
+    // The $1::text cast is load-bearing: $1 is also a jsonb_build_object
+    // value below, and Postgres otherwise deduces it as both varchar
+    // (this assignment) and text, failing with 42P08 on a real database.
     `UPDATE food_orders
-        SET payment_status = $1,
+        SET payment_status = $1::text,
             pos_ticket_state = CASE
               WHEN $1 = 'refunded' THEN 'refunded'
               WHEN $1 = 'paid' AND pos_ticket_state IN ('open','held') THEN 'closed'

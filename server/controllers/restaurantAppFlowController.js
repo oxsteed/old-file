@@ -3569,6 +3569,10 @@ exports.createPosOrder = async (req, res, next) => {
       req.body.paymentMode || req.body.payment_mode,
       'pay_at_restaurant'
     );
+    // F-04: one stable id per checkout attempt. A retry of the pay flow
+    // resends it and replays on the order the first attempt created
+    // (enforced by the partial unique index from migration 942).
+    const clientOrderId = normalizeString(req.body.clientOrderId || req.body.client_order_id, 120) || null;
 
     const result = await withTransaction(pool, async (client) => {
       if (shiftId) {
@@ -3587,8 +3591,23 @@ exports.createPosOrder = async (req, res, next) => {
       if (!restaurantRow || restaurantRow.status !== 'active' || !restaurantRow.accepts_in_store_orders) {
         throw new AppError('Restaurant is not accepting in-store orders', 409, 'restaurant_not_accepting_orders');
       }
-      if (!Array.isArray(restaurantRow.fulfillment_modes)
-        || !restaurantRow.fulfillment_modes.includes(fulfillment)) {
+      if (clientOrderId) {
+        const { rows: [existingOrder] } = await client.query(
+          `SELECT * FROM food_orders WHERE restaurant_id = $1 AND client_order_id = $2`,
+          [restaurantId, clientOrderId]
+        );
+        if (existingOrder) {
+          return { order: existingOrder, printerJobs: [], runnerTask: null, replayed: true };
+        }
+      }
+      // F-12: onboarding could persist an empty fulfillment_modes array,
+      // which rejected every POS order. Treat empty like the schema
+      // default set so a fresh restaurant's first dine-in order works.
+      const fulfillmentModes = Array.isArray(restaurantRow.fulfillment_modes)
+        && restaurantRow.fulfillment_modes.length
+        ? restaurantRow.fulfillment_modes
+        : ['pickup', 'dine_in', 'kiosk'];
+      if (!fulfillmentModes.includes(fulfillment)) {
         throw new AppError('This fulfillment mode is not available', 409, 'fulfillment_mode_unavailable');
       }
       const ids = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
@@ -3754,7 +3773,7 @@ exports.createPosOrder = async (req, res, next) => {
         ...safeJson(req.body.metadata),
         pos: true,
         shiftId,
-        clientOrderId: normalizeString(req.body.clientOrderId || req.body.client_order_id, 120),
+        clientOrderId,
         paymentMode: paymentContract.legacy,
         payment_mode: paymentContract.legacy,
         restaurantPaymentMode: paymentContract.canonical,
@@ -3772,8 +3791,8 @@ exports.createPosOrder = async (req, res, next) => {
             order_source, fulfillment_type, payment_status, subtotal_cents, tax_cents,
             service_fee_cents, delivery_fee_cents, tax_rate_bps, service_fee_bps,
             tip_cents, discount_cents, total_cents, currency_code, table_label,
-            queue_number, promised_at, notes, metadata)
-         VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW() + ($21 || ' minutes')::interval,$22,$23)
+            queue_number, promised_at, notes, metadata, client_order_id)
+         VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW() + ($21 || ' minutes')::interval,$22,$23,$24)
          RETURNING *`,
         [
           restaurantId,
@@ -3794,11 +3813,16 @@ exports.createPosOrder = async (req, res, next) => {
           discount,
           total,
           restaurantRow.currency_code || 'USD',
-          normalizeString(req.body.tableLabel || req.body.table_label, 80),
+          // F-13: the web POS sends table_name; accept every spelling.
+          normalizeString(
+            req.body.tableLabel || req.body.table_label || req.body.tableName || req.body.table_name,
+            80
+          ),
           queueNumber,
           restaurantRow.prep_time_min || 15,
           normalizeString(req.body.notes, 1000),
           metadata,
+          clientOrderId,
         ]
       );
       const createdOrderItems = [];
@@ -3858,15 +3882,19 @@ exports.createPosOrder = async (req, res, next) => {
             fulfillmentType: fulfillment,
             paymentContract: paymentContractMetadata(paymentContract),
           },
-          idempotencyKey: normalizeString(req.body.clientOrderId || req.body.client_order_id, 120)
-            ? `pos-order-created:${restaurantId}:${normalizeString(req.body.clientOrderId || req.body.client_order_id, 120)}`
+          idempotencyKey: clientOrderId
+            ? `pos-order-created:${restaurantId}:${clientOrderId}`
             : null,
         });
       }
       return { order, printerJobs, runnerTask };
     });
-    broadcastRestaurant(restaurant, 'food:order:created', result);
-    res.status(201).json(result);
+    // F-04: a replayed checkout returns the original order with 200 and
+    // does not re-fire the creation broadcast.
+    if (!result.replayed) {
+      broadcastRestaurant(restaurant, 'food:order:created', result);
+    }
+    res.status(result.replayed ? 200 : 201).json(result);
   } catch (err) {
     next(err);
   }
@@ -3882,9 +3910,13 @@ exports.updatePosTicket = async (req, res, next) => {
       throw new AppError('Validation failed', 400, 'validation_failed', { ticketState: 'Unsupported ticket state' });
     }
     // Voiding erases what the customer owes: owner/manager only. Hold and
-    // reopen are non-money ticket routing and stay employee-accessible.
+    // reopen are non-money ticket routing, but F-31: membership alone no
+    // longer suffices; the caller needs pos.use (or orders.manage), which
+    // representative and support-agent memberships do not hold.
     if (ticketState === 'voided') {
       assertManage(restaurant);
+    } else {
+      await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'orders.manage']);
     }
     if (ticketState === 'refunded') {
       throw new AppError(
@@ -4549,11 +4581,10 @@ exports.recordPosPayment = async (req, res, next) => {
         'card_payment_requires_processor'
       );
     }
-    // Every manual POS payment records or moves real money (cash tender,
-    // external receipt confirmation, customer wallet debits, refunds):
-    // owner/manager only. Order taking and non-money ticket updates stay
-    // employee-accessible elsewhere.
-    assertManage(restaurant);
+    // Authorization is resolved after shiftId is parsed below (F-03):
+    // tendering is a pos.use capability inside the staff member's own
+    // open drawer shift; refunds stay manager-only.
+    const isManager = MANAGE_ROLES.has(restaurant.effective_role);
     if (!POS_PAYMENT_STATUSES.has(status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported payment status' });
     }
@@ -4565,6 +4596,22 @@ exports.recordPosPayment = async (req, res, next) => {
       throw new AppError('Validation failed', 400, 'validation_failed', { amountCents: 'Must be greater than zero' });
     }
     const shiftId = parsePositiveInt(req.body.shiftId || req.body.shift_id);
+    // F-03: staff holding the catalog permission pos.use may tender cash,
+    // external/mobile, wallet-credit and OxSteed-credit payments, but
+    // only against their own open drawer shift (ownership is enforced by
+    // requireOpenPosShift inside the transaction); without one the
+    // payment is refused. Refunds keep requiring a manager, by role or
+    // via the pos.manage permission.
+    if (paymentType === 'refund') {
+      if (!isManager) {
+        await assertRestaurantPermission(restaurant, req.user.id, ['pos.manage']);
+      }
+    } else if (!isManager) {
+      await assertRestaurantPermission(restaurant, req.user.id, ['pos.use']);
+      if (!shiftId) {
+        throw new AppError('An open POS shift is required to record a payment', 409, 'open_pos_shift_required');
+      }
+    }
     const idempotencyKey = normalizeString(
       req.get('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key,
       200
@@ -4648,11 +4695,11 @@ exports.recordPosPayment = async (req, res, next) => {
       if (['voided', 'refunded'].includes(order.pos_ticket_state) || order.status === 'cancelled') {
         throw new AppError('This ticket cannot accept payments', 409, 'ticket_not_payable');
       }
-      // Managers may record payments without an open shift. Non-managers are
-      // already rejected by assertManage above, so the old
-      // `!MANAGE_ROLES.has(...)` disjunct here was dead.
+      // Managers may record payments without an open shift, or against
+      // any open shift. Staff tender only inside their own open shift:
+      // canManage=false makes requireOpenPosShift enforce ownership.
       if (shiftId) {
-        await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, true);
+        await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, isManager);
       }
       const { rows: [ledger] } = await client.query(
         `SELECT COALESCE(SUM(amount_cents) FILTER (
@@ -4758,15 +4805,26 @@ exports.recordPosPayment = async (req, res, next) => {
         // Stripe Terminal. Fail closed and route the operator to the card
         // refund endpoint.
         const { rows: [processorCard] } = await client.query(
+          // The refunded side joins refunds to this order's processor
+          // card payments on the recorded originalPaymentId. (The prior
+          // form referenced the aggregate query's own ungrouped columns
+          // inside the subquery, which Postgres rejects with 42803, so a
+          // generic refund could never execute on a real database.)
           `SELECT COALESCE(SUM(p.amount_cents), 0)::int AS captured_cents,
                   COALESCE((
                     SELECT SUM(r.amount_cents)
                       FROM restaurant_pos_payments r
-                     WHERE r.restaurant_id = p.restaurant_id
-                       AND r.food_order_id = p.food_order_id
+                      JOIN restaurant_pos_payments cp
+                        ON cp.id::text = r.metadata->>'originalPaymentId'
+                     WHERE r.restaurant_id = $1
+                       AND r.food_order_id = $2
                        AND r.payment_type = 'refund'
                        AND r.status IN ('pending','recorded','captured','refunded')
-                       AND r.metadata->>'originalPaymentId' = p.id::text
+                       AND cp.restaurant_id = $1
+                       AND cp.food_order_id = $2
+                       AND cp.payment_type = 'card'
+                       AND cp.provider_payment_intent_id IS NOT NULL
+                       AND cp.status IN ('recorded','captured')
                   ), 0)::int AS refunded_cents
              FROM restaurant_pos_payments p
             WHERE p.restaurant_id = $1
@@ -5216,6 +5274,9 @@ exports.capturePosCardPayment = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const paymentId = parsePositiveInt(req.params.paymentId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    // F-31: capturing a card payment moves money; membership alone is not
+    // enough, the caller needs pos.use (or orders.manage).
+    await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'orders.manage']);
     const { rows: [payment] } = await pool.query(
       `SELECT * FROM restaurant_pos_payments
         WHERE id = $1 AND restaurant_id = $2 AND payment_type = 'card'`,
@@ -8051,7 +8112,13 @@ exports.setMenuItemAvailability = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const itemId = parsePositiveInt(req.params.itemId || req.body.itemId || req.body.item_id);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    // F-17: 86ing an item is floor work, not a management act. Kitchen
+    // and POS staff (kitchen.update or pos.use) may toggle availability;
+    // every toggle is written to the availability event log below with
+    // the actor and reason, which is the audit entry for the change.
+    if (!MANAGE_ROLES.has(restaurant.effective_role)) {
+      await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.update', 'pos.use']);
+    }
     const available = parseOptionalBoolean(
       req.body.isAvailable ?? req.body.is_available ?? req.body.available,
       'isAvailable'

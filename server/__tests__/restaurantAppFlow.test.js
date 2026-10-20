@@ -43,11 +43,11 @@ function accessRow(overrides = {}) {
   };
 }
 
-function buildApp() {
+function buildApp(userId = USER_ID) {
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => {
-    req.user = { id: USER_ID, email: 'owner@example.com', role: 'customer' };
+    req.user = { id: userId, email: 'staff@example.com', role: 'customer' };
     next();
   });
 
@@ -1019,7 +1019,7 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.order.pos_ticket_state).toBe('voided');
   });
 
-  test('denies cash payment recording to non-manager staff', async () => {
+  test('denies cash payment recording to staff without pos.use', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'employee' })] });
 
     const res = await request(buildApp())
@@ -1031,7 +1031,7 @@ describe('restaurant app-flow backend', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO restaurant_pos_payments/.test(sql))).toBe(false);
   });
 
-  test('denies external payment recording to non-manager staff', async () => {
+  test('denies external payment recording to staff without pos.use', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'employee' })] });
 
     const res = await request(buildApp())
@@ -1060,18 +1060,35 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.payment.payment_type).toBe('cash');
   });
 
-  test('still allows non-manager staff to hold tickets (non-money routing)', async () => {
+  test('still allows staff with pos.use to hold tickets (non-money routing)', async () => {
+    // F-31: hold/reopen now require pos.use (or orders.manage). The
+    // seeded catalog grants pos.use to the employee role by default, so
+    // the mocked catalog returns that grant row. A fresh user id keeps
+    // the permissions cache from the no-grant tests above out of the way.
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'employee' })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'pos.use', allow: true }] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, pos_ticket_state: 'held', status: 'received', payment_status: 'unpaid' }] })
       .mockResolvedValueOnce({ rows: [{ id: 9001 }] });
 
-    const res = await request(buildApp())
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000777'))
       .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/hold`)
       .send({ reason: 'Waiting on customer' });
 
     expect(res.status).toBe(200);
     expect(res.body.order.pos_ticket_state).toBe('held');
+  });
+
+  test('denies ticket hold to members without pos.use (F-31)', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'representative' })] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000888'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/hold`)
+      .send({ reason: 'Waiting on customer' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('forbidden');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(false);
   });
 
   test('toggles menu availability for sold-out POS flows', async () => {
