@@ -41,6 +41,7 @@ import {
   trapFocus,
 } from './supportChatActionState';
 import { CookieConsentContext } from '../context/CookieConsentContext';
+import { displayRoute, displayRoutesInText, linkSegments, siteHost } from './supportChatLinks';
 
 // History lives under a per-user (or guest) key; see lib/supportChatStorage.
 const MAX_HISTORY = 40;
@@ -84,48 +85,70 @@ function saveHistory(storageKey, msgs) {
 }
 
 // ── 1. Markdown renderer (no dangerouslySetInnerHTML) ─────────────────────────
-// Also linkifies bare site paths (/post-job) and full URLs in AI answers so
-// navigation hints are tappable. Internal paths route through the SPA navigator
-// instead of causing a full page reload.
+// Also linkifies site routes (/post-job, oxsteed.com/post-job and
+// https://<this host>/...) and external URLs in AI answers. Internal links show
+// the full address without the scheme ("oxsteed.com/post-job", or the staging
+// host) and route through the SPA navigator instead of a full reload. Link text
+// is bidi-isolated LTR so it reads correctly inside Arabic sentences.
 const LINK_CLASS = 'text-orange-400 underline underline-offset-2 hover:text-orange-300 break-all';
 
-function renderInline(text, prefix = '', onInternalNav) {
-  const parts = [];
-  const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`|(https?:\/\/[^\s<>"'`]+)|(\/[A-Za-z0-9][\w\-./%?=&#:]*))/g;
-  let last = 0;
-  let m;
-  let k = 0;
-  const pushLink = (raw, external) => {
-    // Trim trailing sentence punctuation that is not part of the address.
-    const trimmed = raw.replace(/[.,;:!?)\]]+$/, '');
-    const trail = raw.slice(trimmed.length);
-    if (!trimmed || trimmed === '/') {
-      parts.push(raw);
-      return;
-    }
-    const key = `${prefix}-l${k++}`;
-    if (external) {
-      parts.push(<a key={key} href={trimmed} target="_blank" rel="noopener noreferrer" className={LINK_CLASS}>{trimmed}</a>);
-    } else {
-      parts.push(
-        <a
-          key={key}
-          href={trimmed}
-          onClick={(e) => {
-            e.preventDefault();
-            if (onInternalNav) onInternalNav(trimmed);
-            else window.location.assign(trimmed);
-          }}
-          className={LINK_CLASS}
-        >
-          {trimmed}
+function RouteText({ children }) {
+  return <bdi dir="ltr">{children}</bdi>;
+}
+
+/** A single internal route shown as its full site address (nudges, action cards). */
+function RouteLink({ path, onNav }) {
+  const href = linkSegments(path, { host: siteHost() }).find((seg) => seg.type === 'internal')?.path;
+  if (!href) return null;
+  return (
+    <a
+      href={href}
+      onClick={(e) => { e.preventDefault(); onNav(href); }}
+      className={`${LINK_CLASS} text-xs`}
+    >
+      <RouteText>{displayRoute(href, siteHost())}</RouteText>
+    </a>
+  );
+}
+
+function renderLinks(text, prefix, onInternalNav, nextKey) {
+  return linkSegments(text, { host: siteHost() }).map((seg) => {
+    if (seg.type === 'text') return seg.text;
+    const key = `${prefix}-l${nextKey()}`;
+    if (seg.type === 'external') {
+      return (
+        <a key={key} href={seg.href} target="_blank" rel="noopener noreferrer" className={LINK_CLASS}>
+          <RouteText>{seg.display}</RouteText>
         </a>
       );
     }
-    if (trail) parts.push(trail);
-  };
+    return (
+      <a
+        key={key}
+        href={seg.path}
+        onClick={(e) => {
+          e.preventDefault();
+          if (onInternalNav) onInternalNav(seg.path);
+          else window.location.assign(seg.path);
+        }}
+        className={LINK_CLASS}
+      >
+        <RouteText>{seg.display}</RouteText>
+      </a>
+    );
+  });
+}
+
+function renderInline(text, prefix = '', onInternalNav) {
+  const parts = [];
+  const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`)/g;
+  let last = 0;
+  let m;
+  let k = 0;
+  const nextKey = () => k++;
+  const pushPlain = (s) => { if (s) parts.push(...renderLinks(s, prefix, onInternalNav, nextKey)); };
   while ((m = regex.exec(text)) !== null) {
-    if (m.index > last) parts.push(text.slice(last, m.index));
+    if (m.index > last) pushPlain(text.slice(last, m.index));
     if (m[2] !== undefined) {
       const key = `${prefix}-b${k++}`;
       parts.push(
@@ -138,17 +161,10 @@ function renderInline(text, prefix = '', onInternalNav) {
       parts.push(<em key={key}>{renderInline(m[3], `${key}-inline`, onInternalNav)}</em>);
     } else if (m[4] !== undefined) {
       parts.push(<code key={`${prefix}-c${k++}`} className="px-1 py-0.5 bg-gray-700/80 rounded text-orange-300 text-xs font-mono">{m[4]}</code>);
-    } else if (m[5] !== undefined) {
-      pushLink(m[5], true);
-    } else if (m[6] !== undefined) {
-      // Avoid linkifying fractions like 50/50: the char before must not be alnum.
-      const prev = m.index > 0 ? text[m.index - 1] : '';
-      if (/[A-Za-z0-9]/.test(prev)) parts.push(m[6]);
-      else pushLink(m[6], false);
     }
     last = m.index + m[0].length;
   }
-  if (last < text.length) parts.push(text.slice(last));
+  if (last < text.length) pushPlain(text.slice(last));
   return parts;
 }
 
@@ -216,7 +232,7 @@ function exportTranscript(messages, locale, labels) {
   const lines = messages.map(m => {
     const who = m.role === 'user' ? labels.you : labels.assistant;
     const time = new Date(m.ts).toLocaleString(locale || undefined);
-    return `[${time}] ${who}:\n${m.content}`;
+    return `[${time}] ${who}:\n${displayRoutesInText(m.content || '', { host: siteHost() })}`;
   });
   const text = `${labels.title}\n${labels.exported}: ${new Date().toLocaleString(locale || undefined)}\n${'─'.repeat(40)}\n\n${lines.join('\n\n')}`;
   const blob = new Blob([text], { type: 'text/plain' });
@@ -527,11 +543,13 @@ function markProactiveDismissed() {
     from: 'support_chat',
     prefillMessage: buildGuestHandoffPrefill(messages, {
       header: t('supportWidget.handoffPrefillHeader'),
-      pageLabel: t('supportWidget.handoffPrefillPage', { page: window.location.pathname }),
+      // Raw {{page}} placeholder: the helper fills in the full site address.
+      pageLabel: t('supportWidget.handoffPrefillPage', { page: '{{page}}', interpolation: { escapeValue: false } }),
       recentLabel: t('supportWidget.handoffPrefillRecent'),
       you: t('supportWidget.transcriptYou'),
       assistant: t('supportWidget.transcriptAssistant'),
       page: window.location.pathname,
+      host: siteHost(),
     }),
   }), [messages, t]);
 
@@ -579,7 +597,7 @@ function markProactiveDismissed() {
       const transcript = messages
         .filter(m => !m.handoff && !m.isError)
         .slice(-20)
-        .map(m => ({ role: m.role, content: String(m.content || '').slice(0, 1500) }));
+        .map(m => ({ role: m.role, content: displayRoutesInText(String(m.content || ''), { host: siteHost() }).slice(0, 1500) }));
       const { data } = await api.post('/support/chat-escalation', {
         subject: `Chat escalation from ${window.location.pathname}`,
         transcript,
@@ -1043,6 +1061,7 @@ function markProactiveDismissed() {
                         {/* Item 9: state nudge with its record link and a per-trigger dismiss. */}
                         {m.role === 'assistant' && m.nudge && (
                           <div className="flex items-center gap-2 flex-wrap">
+                            <RouteLink path={m.nudge.path} onNav={navigate} />
                             <button
                               type="button"
                               onClick={() => navigate(m.nudge.path)}
@@ -1073,6 +1092,10 @@ function markProactiveDismissed() {
                             >
                               <p className="font-semibold text-orange-300 mb-1">{t('supportWidget.actionCardLabel')}</p>
                               <p className="text-gray-200 leading-relaxed">{t(label.key, label.params)}</p>
+                              {m.action.type === 'navigate' && typeof m.action.display?.path === 'string' && (
+                                // Text only: the navigation itself is the confirmed action.
+                                <p className="mt-1 text-xs text-gray-400 break-all"><RouteText>{displayRoute(m.action.display.path, siteHost())}</RouteText></p>
+                              )}
                               {m.action.type === 'reply_ticket' && m.action.params?.message && (
                                 <blockquote dir="auto" className="mt-1.5 border-s-2 border-orange-500/50 ps-2 text-gray-400 whitespace-pre-wrap">
                                   {m.action.params.message}
