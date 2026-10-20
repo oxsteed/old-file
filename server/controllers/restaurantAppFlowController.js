@@ -6,6 +6,7 @@ const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 // Canonical restaurant access gate (analytics scope model, Phase 1 Item 6).
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const { logBusinessAction } = require('../services/businessAuditLog');
 const { withTransaction } = require('../utils/transaction');
 const socketService = require('../services/socketService');
 const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
@@ -48,6 +49,7 @@ const { scheduleSupportMessageNotifications } = require('../services/supportNoti
 const { getClientRequestId } = require('../utils/idempotency');
 const { notifyRefundIssued } = require('../services/refundNotification');
 const { resolveOrderItemModifiers } = require('./foodController');
+const { isItemAvailableAt } = require('../utils/menuDayparts');
 const { calculateRoute: calculateGeoRoute } = require('../services/geoRouteProviderService');
 
 // Absolute ceiling for a POS ticket tip, in cents ($500).
@@ -1925,6 +1927,33 @@ exports.updatePublishing = async (req, res, next) => {
         ]
       );
 
+      // F-20: tax-rate and service-fee changes are money-relevant; record
+      // before/after in the audit trail inside the same transaction.
+      if (restaurant.business_id && (taxRateBps !== null || serviceFeeBps !== null)) {
+        const priorFees = {};
+        const nextFees = {};
+        if (taxRateBps !== null && Number(updated.tax_rate_bps) !== Number(restaurant.tax_rate_bps)) {
+          priorFees.tax_rate_bps = restaurant.tax_rate_bps;
+          nextFees.tax_rate_bps = updated.tax_rate_bps;
+        }
+        if (serviceFeeBps !== null && Number(updated.service_fee_bps) !== Number(restaurant.service_fee_bps)) {
+          priorFees.service_fee_bps = restaurant.service_fee_bps;
+          nextFees.service_fee_bps = updated.service_fee_bps;
+        }
+        if (Object.keys(nextFees).length > 0) {
+          await logBusinessAction(req, {
+            client,
+            business_id: restaurant.business_id,
+            actor_role: restaurant.effective_role || null,
+            action: 'restaurant.settings.updated',
+            target_type: 'restaurant',
+            target_id: updated.id,
+            before_state: priorFees,
+            after_state: nextFees,
+          });
+        }
+      }
+
       let primaryLocation = null;
       if (locationPatch) {
         let existingPrimary = null;
@@ -3575,6 +3604,7 @@ exports.createPosOrder = async (req, res, next) => {
       const ids = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
       const { rows: menuRows } = await client.query(
         `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
+                fmi.availability_schedule,
                 COALESCE((
                   SELECT jsonb_agg(
                     jsonb_build_object(
@@ -3613,6 +3643,11 @@ exports.createPosOrder = async (req, res, next) => {
         const item = menu.get(parsePositiveInt(line.menuItemId || line.menu_item_id));
         if (!item || item.is_available === false) {
           throw new AppError('Validation failed', 400, 'validation_failed', { [`items.${index}.menuItemId`]: 'Menu item is unavailable' });
+        }
+        // F-11: POS orders are immediate, so dayparts are enforced at the
+        // current time in the restaurant's timezone, same as online orders.
+        if (!isItemAvailableAt(item, new Date(), lockedRestaurant.timezone)) {
+          throw new AppError('Validation failed', 400, 'validation_failed', { [`items.${index}.menuItemId`]: 'Menu item is not available at this time of day' });
         }
         const quantity = Math.min(parsePositiveInt(line.quantity, 1), 99);
         const requestedUnitPrice = line.unitPriceCents ?? line.unit_price_cents;
@@ -6068,6 +6103,7 @@ exports.getKitchenFeed = async (req, res, next) => {
         WHERE fo.restaurant_id = $1
           AND fo.status IN ('received','accepted','preparing','ready')
           AND fo.created_at >= NOW() - INTERVAL '1 day'
+          AND (fo.scheduled_for IS NULL OR fo.scheduled_for <= NOW() + (COALESCE((SELECT fr.prep_time_min FROM food_restaurants fr WHERE fr.id = fo.restaurant_id), 30) * INTERVAL '1 minute'))
         GROUP BY fo.id
         ${itemHaving}
         ORDER BY

@@ -300,6 +300,9 @@ describe('restaurant app-flow backend', () => {
           currency_code: 'USD',
         })],
       })
+      // F-20: the fee change writes one business_audit_log row inside the
+      // transaction, between the restaurant UPDATE and the location reads.
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 77 }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
@@ -752,6 +755,35 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.order.queue_number).toBe(12);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_orders/.test(sql))).toBe(true);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_order_items/.test(sql))).toBe(true);
+  });
+
+  test('rejects POS order items outside their daypart window (F-11)', async () => {
+    const closedAllWeek = {
+      weekly: Object.fromEntries(['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].map((day) => [day, { closed: true }])),
+    };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 55, restaurant_id: RESTAURANT_ID, status: 'open', staff_user_id: USER_ID }] })
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 11, name: 'Breakfast Plate', price_cents: 899, currency_code: 'USD',
+          is_available: true, availability_schedule: closedAllWeek,
+        }],
+      });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders`)
+      .send({
+        orderSource: 'counter',
+        fulfillmentType: 'pickup',
+        shiftId: 55,
+        items: [{ menuItemId: 11, quantity: 1 }],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.fields['items.0.menuItemId']).toMatch(/not available at this time of day/);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_orders/.test(sql))).toBe(false);
   });
 
   test('creates POS tickets through alias route with modifiers and discount lines', async () => {

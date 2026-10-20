@@ -79,6 +79,8 @@ describe('restaurant owner menu management', () => {
   test('owner can save publishing, archive, tags, and uncategorized state together', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [restaurant()] })
+      // F-20: updateMenuItem reads the before-image for the audit log first.
+      .mockResolvedValueOnce({ rows: [{ id: 12, restaurant_id: RESTAURANT_ID, category_id: 1, publication_status: 'published', archived_at: null }] })
       .mockResolvedValueOnce({ rows: [{ id: 12, restaurant_id: RESTAURANT_ID, category_id: null, publication_status: 'draft', archived_at: '2026-08-09T00:00:00Z' }] });
 
     const response = await request(buildApp())
@@ -96,6 +98,10 @@ describe('restaurant owner menu management', () => {
   test('modifier editing replaces option rows atomically', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [restaurant()] })
+      // F-20: updateModifierGroup reads the before-image (group + its prior
+      // options) for the audit log before applying the update.
+      .mockResolvedValueOnce({ rows: [{ id: 5, restaurant_id: RESTAURANT_ID, name: 'Choose a size' }] })
+      .mockResolvedValueOnce({ rows: [{ name: 'Small', price_delta_cents: 0 }, { name: 'Large', price_delta_cents: 200 }] })
       .mockResolvedValueOnce({ rows: [{ id: 5, restaurant_id: RESTAURANT_ID, name: 'Choose a size' }] })
       .mockResolvedValueOnce({ rows: [], rowCount: 2 })
       .mockResolvedValueOnce({ rows: [{ id: 91, name: 'Small', price_delta_cents: 0 }] })

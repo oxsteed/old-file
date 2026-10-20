@@ -10,7 +10,7 @@ import {
   getWebAudioContextClass,
   readSoundPreference,
   writeSoundPreference,
-} from '../utils/displayAudio';
+} from '../utils/displayAudio.js';
 
 function buildChime(context) {
   const oscillator = context.createOscillator();

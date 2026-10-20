@@ -24,11 +24,12 @@ function requestProof(request) {
   };
 }
 
-function displayDate(value) {
-  return formatCreditDateTime(value, 'Recently');
+function displayDate(value, fallback) {
+  return formatCreditDateTime(value, fallback);
 }
 
 export default function RestaurantCreditManager({ restaurant }) {
+  const { t } = useTranslation();
   const { t: financeT } = useTranslation('common');
   const [loadError, setLoadError] = useState(false);
   const [requests, setRequests] = useState([]);
@@ -90,11 +91,11 @@ export default function RestaurantCreditManager({ restaurant }) {
       await approveMerchantFoodWalletCreditRequest(restaurant.id, request.id, {
         approvalNote: 'Payment verified in the restaurant credit inbox.',
       });
-      toast.success(`Credit added for ${request.customerName || request.customerEmail || 'customer'}.`);
+      toast.success(t('food.creditCenter.manager.approvedToast', { name: request.customerName || request.customerEmail || t('food.creditCenter.customerFallback') }));
       setConfirmingId(null);
       await load();
     } catch (error) {
-      toast.error(apiErrorMessage(error, 'Unable to approve this credit request.'));
+      toast.error(apiErrorMessage(error, t('food.creditCenter.manager.approveError')));
     } finally {
       setWorkingId(null);
     }
@@ -102,18 +103,18 @@ export default function RestaurantCreditManager({ restaurant }) {
 
   const decline = async (request) => {
     if (!declineReason.trim()) {
-      toast.error('Add a short reason so the customer knows what to correct.');
+      toast.error(t('food.creditCenter.manager.declineReasonRequired'));
       return;
     }
     setWorkingId(request.id);
     try {
       await declineMerchantFoodWalletCreditRequest(restaurant.id, request.id, declineReason.trim());
-      toast.success('Credit request declined.');
+      toast.success(t('food.creditCenter.manager.declinedToast'));
       setDecliningId(null);
       setDeclineReason('');
       await load();
     } catch (error) {
-      toast.error(apiErrorMessage(error, 'Unable to decline this credit request.'));
+      toast.error(apiErrorMessage(error, t('food.creditCenter.manager.declineError')));
     } finally {
       setWorkingId(null);
     }
@@ -147,7 +148,7 @@ export default function RestaurantCreditManager({ restaurant }) {
   const submitRefund = async () => {
     const email = refundEmail.trim();
     if ((!refundCustomerId && !email) || !refundAmount.trim()) {
-      toast.error('Customer and amount are required for a refund.');
+      toast.error(t('food.creditCenter.manager.refundFieldsRequired'));
       return;
     }
     setRefundWorking(true);
@@ -163,15 +164,15 @@ export default function RestaurantCreditManager({ restaurant }) {
       else payload.customerEmail = email;
       const result = await createMerchantFoodWalletRefund(restaurant.id, payload);
       if (result?.refund?.status === 'processed') {
-        toast.success(`Refunded ${refundAmount.trim()} ${restaurant.currency_code || 'USD'} to ${email || 'customer'}.`);
+        toast.success(t('food.creditCenter.manager.refundProcessedToast', { amount: refundAmount.trim(), currency: restaurant.currency_code || 'USD', email: email || t('food.creditCenter.customerFallback') }));
       } else {
-        toast.success('Refund request recorded.');
+        toast.success(t('food.creditCenter.manager.refundRecordedToast'));
       }
       resetRefundForm();
       setRefundOpen(false);
       await load();
     } catch (error) {
-      toast.error(apiErrorMessage(error, 'Unable to process this refund.'));
+      toast.error(apiErrorMessage(error, t('food.creditCenter.manager.refundError')));
     } finally {
       setRefundWorking(false);
     }
@@ -181,7 +182,7 @@ export default function RestaurantCreditManager({ restaurant }) {
     const email = grantEmail.trim();
     const note = grantNote.trim();
     if (!email || !grantAmount.trim() || !note) {
-      toast.error('Customer email, amount, and an explanation are required.');
+      toast.error(t('food.creditCenter.manager.grantFieldsRequired'));
       return;
     }
     setGrantWorking(true);
@@ -197,15 +198,15 @@ export default function RestaurantCreditManager({ restaurant }) {
         idempotencyKey,
       });
       if (result?.pendingApproval) {
-        toast.success('Large grant submitted for approval.');
+        toast.success(t('food.creditCenter.manager.grantPendingToast'));
       } else {
-        toast.success(`Credit granted to ${email}.`);
+        toast.success(t('food.creditCenter.manager.grantSuccessToast', { email }));
       }
       resetGrantForm();
       setGrantOpen(false);
       await load();
     } catch (error) {
-      toast.error(apiErrorMessage(error, 'Unable to grant credit.'));
+      toast.error(apiErrorMessage(error, t('food.creditCenter.manager.grantError')));
     } finally {
       setGrantWorking(false);
     }
@@ -216,18 +217,18 @@ export default function RestaurantCreditManager({ restaurant }) {
     <section className="fd-section fd-credit-manager">
       <div className="fd-credit-manager-head">
         <div>
-          <p className="fd-credit-manager-kicker">Customer balances</p>
-          <h2>Restaurant credit</h2>
-          <p className="fd-card-meta">Approve credit only after matching the customer’s receipt or confirmation number.</p>
+          <p className="fd-credit-manager-kicker">{t('food.creditCenter.manager.kicker')}</p>
+          <h2>{t('food.creditCenter.manager.title')}</h2>
+          <p className="fd-card-meta">{t('food.creditCenter.manager.intro')}</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={load} disabled={loading} data-track-private>{financeT('merchantFinance.refresh')}</button>
           <span className="fd-credit-manager-count">{loading || loadError ? '—' : financeT('merchantFinance.pendingRequests', { count: requests.length })}</span>
           <button type="button" className="fd-btn fd-btn-sm" onClick={() => { setGrantOpen((v) => !v); setGrantConfirming(false); }} data-track-private>
-            {grantOpen ? 'Close' : 'Grant credit'}
+            {grantOpen ? t('food.common.close') : t('food.creditCenter.manager.grantCredit')}
           </button>
           <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => { setRefundOpen((v) => !v); setRefundConfirming(false); }} data-track-private>
-            {refundOpen ? 'Close' : 'Refund credit'}
+            {refundOpen ? t('food.common.close') : t('food.creditCenter.manager.refundCredit')}
           </button>
         </div>
       </div>
@@ -236,12 +237,12 @@ export default function RestaurantCreditManager({ restaurant }) {
         <div className="fd-credit-approval-banner" role="alert" data-status={approval.status}>
           <strong>
             {approval.status === 'suspended'
-              ? 'New credit is paused for this restaurant while its platform approval is suspended.'
-              : 'This restaurant\u2019s credit approval was revoked. Remaining customer balances move to OxSteed Credit when the grace period ends.'}
+              ? t('food.creditCenter.manager.suspendedBanner')
+              : t('food.creditCenter.manager.revokedBanner')}
           </strong>
-          {approval.revocationReason && <p>Reason: {approval.revocationReason}</p>}
+          {approval.revocationReason && <p>{t('food.creditCenter.manager.reason', { reason: approval.revocationReason })}</p>}
           {approval.status === 'revoked' && approval.gracePeriodEndsAt && (
-            <p>Grace period ends: {displayDate(approval.gracePeriodEndsAt)}</p>
+            <p>{t('food.creditCenter.manager.graceEnds', { date: displayDate(approval.gracePeriodEndsAt, t('food.creditCenter.recentFallback')) })}</p>
           )}
         </div>
       )}
@@ -253,28 +254,28 @@ export default function RestaurantCreditManager({ restaurant }) {
 
       {grantOpen && (
         <div className="fd-credit-grant-form">
-          <strong>Grant credit directly</strong>
-          <p className="fd-card-meta">Adds credit to a customer’s wallet immediately. An explanation is required for every grant and is recorded on the audit trail.</p>
-          <label>Customer email
+          <strong>{t('food.creditCenter.manager.grantTitle')}</strong>
+          <p className="fd-card-meta">{t('food.creditCenter.manager.grantIntro')}</p>
+          <label>{t('food.creditCenter.manager.customerEmail')}
             <input type="email" required value={grantEmail} onChange={(event) => setGrantEmail(event.target.value)} placeholder="customer@example.com" maxLength={255} />
           </label>
-          <label>Amount ({restaurant.currency_code || 'USD'})
+          <label>{t('food.creditCenter.manager.amount', { currency: restaurant.currency_code || 'USD' })}
             <input inputMode="decimal" required value={grantAmount} onChange={(event) => setGrantAmount(event.target.value)} placeholder="25.00" />
           </label>
-          <label>Explanation (required)
-            <input value={grantNote} onChange={(event) => setGrantNote(event.target.value)} maxLength={255} placeholder="Why is this credit being added? e.g. comp for wrong order" />
+          <label>{t('food.creditCenter.manager.explanation')}
+            <input value={grantNote} onChange={(event) => setGrantNote(event.target.value)} maxLength={255} placeholder={t('food.creditCenter.manager.explanationPlaceholder')} />
           </label>
-          <label>Payment / proof reference (optional)
-            <input value={grantReference} onChange={(event) => setGrantReference(event.target.value)} maxLength={160} placeholder="Confirmation or receipt number" />
+          <label>{t('food.creditCenter.manager.paymentReference')}
+            <input value={grantReference} onChange={(event) => setGrantReference(event.target.value)} maxLength={160} placeholder={t('food.creditCenter.manager.paymentReferencePlaceholder')} />
           </label>
-          <label>Proof attachment URL (optional)
+          <label>{t('food.creditCenter.manager.proofUrl')}
             <input type="url" value={grantProofUrl} onChange={(event) => setGrantProofUrl(event.target.value)} maxLength={2000} placeholder="https://…" />
           </label>
           {grantConfirming ? (
             <div className="fd-credit-confirm-row">
-              <strong>Grant {grantAmount.trim()} {restaurant.currency_code || 'USD'} to {grantEmail.trim()}?</strong>
-              <button type="button" className="fd-btn fd-btn-sm" disabled={grantWorking} onClick={submitGrant} data-track-private>{grantWorking ? 'Granting…' : 'Yes, grant credit'}</button>
-              <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setGrantConfirming(false)} data-track-private>Cancel</button>
+              <strong>{t('food.creditCenter.manager.grantConfirm', { amount: grantAmount.trim(), currency: restaurant.currency_code || 'USD', email: grantEmail.trim() })}</strong>
+              <button type="button" className="fd-btn fd-btn-sm" disabled={grantWorking} onClick={submitGrant} data-track-private>{grantWorking ? t('food.creditCenter.manager.granting') : t('food.creditCenter.manager.grantYes')}</button>
+              <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setGrantConfirming(false)} data-track-private>{t('food.common.cancel')}</button>
             </div>
           ) : (
             <div>
@@ -284,7 +285,7 @@ export default function RestaurantCreditManager({ restaurant }) {
                 disabled={!grantEmail.trim() || !grantAmount.trim() || !grantNote.trim()}
                 onClick={() => setGrantConfirming(true)} data-track-private
               >
-                Review grant
+                {t('food.creditCenter.manager.grantReview')}
               </button>
             </div>
           )}
@@ -293,22 +294,22 @@ export default function RestaurantCreditManager({ restaurant }) {
 
       {refundOpen && (
         <div className="fd-credit-grant-form">
-          <strong>Refund credit to a customer</strong>
-          <p className="fd-card-meta">Deducts credit from the customer’s wallet and sends the money back to their card. Only credit issued in the last 30 days can be refunded. If the card refund fails, the wallet balance is left untouched.</p>
-          <label>Customer email
+          <strong>{t('food.creditCenter.manager.refundTitle')}</strong>
+          <p className="fd-card-meta">{t('food.creditCenter.manager.refundIntro')}</p>
+          <label>{t('food.creditCenter.manager.customerEmail')}
             <input type="email" required value={refundEmail} onChange={(event) => { setRefundEmail(event.target.value); setRefundCustomerId(''); }} placeholder="customer@example.com" maxLength={255} />
           </label>
-          <label>Amount ({restaurant.currency_code || 'USD'})
+          <label>{t('food.creditCenter.manager.amount', { currency: restaurant.currency_code || 'USD' })}
             <input inputMode="decimal" required value={refundAmount} onChange={(event) => setRefundAmount(event.target.value)} placeholder="25.00" />
           </label>
-          <label>Reason (optional)
-            <input value={refundReason} onChange={(event) => setRefundReason(event.target.value)} maxLength={500} placeholder="Why is this credit being refunded?" />
+          <label>{t('food.creditCenter.manager.refundReason')}
+            <input value={refundReason} onChange={(event) => setRefundReason(event.target.value)} maxLength={500} placeholder={t('food.creditCenter.manager.refundReasonPlaceholder')} />
           </label>
           {refundConfirming ? (
             <div className="fd-credit-confirm-row">
-              <strong>Refund {refundAmount.trim()} {restaurant.currency_code || 'USD'} to {refundEmail.trim() || 'customer'}?</strong>
-              <button type="button" className="fd-btn fd-btn-sm" disabled={refundWorking} onClick={submitRefund} data-track-private>{refundWorking ? 'Refunding…' : 'Yes, refund'}</button>
-              <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setRefundConfirming(false)} data-track-private>Cancel</button>
+              <strong>{t('food.creditCenter.manager.refundConfirm', { amount: refundAmount.trim(), currency: restaurant.currency_code || 'USD', email: refundEmail.trim() || t('food.creditCenter.customerFallback') })}</strong>
+              <button type="button" className="fd-btn fd-btn-sm" disabled={refundWorking} onClick={submitRefund} data-track-private>{refundWorking ? t('food.creditCenter.manager.refunding') : t('food.creditCenter.manager.refundYes')}</button>
+              <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setRefundConfirming(false)} data-track-private>{t('food.common.cancel')}</button>
             </div>
           ) : (
             <div>
@@ -318,7 +319,7 @@ export default function RestaurantCreditManager({ restaurant }) {
                 disabled={!refundEmail.trim() || !refundAmount.trim()}
                 onClick={() => setRefundConfirming(true)} data-track-private
               >
-                Review refund
+                {t('food.creditCenter.manager.refundReview')}
               </button>
             </div>
           )}
@@ -326,12 +327,12 @@ export default function RestaurantCreditManager({ restaurant }) {
       )}
 
       {loading ? (
-        <div className="fd-empty">Loading credit requests…</div>
+        <div className="fd-empty">{t('food.creditCenter.manager.loadingRequests')}</div>
       ) : loadError ? (
         <div className="fd-finance-notice fd-finance-error" role="alert"><p>{financeT('merchantFinance.requestsUnavailable')}</p><button type="button" className="fd-btn fd-btn-secondary" onClick={load} data-track-private>{financeT('merchantFinance.retry')}</button></div>
       ) : requests.length === 0 ? (
         <div className="fd-credit-manager-empty">
-          <strong>No credit requests to review</strong>
+          <strong>{t('food.creditCenter.manager.noRequests')}</strong>
           <span>{financeT('merchantFinance.requestsEmpty')}</span>
         </div>
       ) : (
@@ -343,35 +344,35 @@ export default function RestaurantCreditManager({ restaurant }) {
               <article key={request.id} className="fd-credit-request-card">
                 <div className="fd-credit-request-main">
                   <div>
-                    <strong>{request.customerName || 'OxSteed customer'}</strong>
-                    <span>{request.customerEmail || 'Customer account'} · {displayDate(request.createdAt)}</span>
+                    <strong>{request.customerName || t('food.creditCenter.oxsteedCustomer')}</strong>
+                    <span>{request.customerEmail || t('food.creditCenter.customerAccount')} · {displayDate(request.createdAt, t('food.creditCenter.recentFallback'))}</span>
                   </div>
                   <strong className="fd-credit-request-amount">{formatFoodMoney(request.amountCents, request.currencyCode || restaurant.currency_code || 'USD')}</strong>
                 </div>
                 <div className="fd-credit-proof-row">
-                  {proof.reference && <span><small>Confirmation</small><strong>{proof.reference}</strong></span>}
-                  {proof.attachmentUrl && <a href={proof.attachmentUrl} target="_blank" rel="noreferrer" data-track-private>View receipt</a>}
-                  {!proof.reference && !proof.attachmentUrl && <span className="fd-card-meta">No receipt or confirmation attached.</span>}
+                  {proof.reference && <span><small>{t('food.creditCenter.manager.confirmation')}</small><strong>{proof.reference}</strong></span>}
+                  {proof.attachmentUrl && <a href={proof.attachmentUrl} target="_blank" rel="noreferrer" data-track-private>{t('food.creditCenter.manager.viewReceipt')}</a>}
+                  {!proof.reference && !proof.attachmentUrl && <span className="fd-card-meta">{t('food.creditCenter.manager.noProof')}</span>}
                 </div>
                 {request.note && <p className="fd-credit-request-note">{request.note}</p>}
 
                 {decliningId === request.id ? (
                   <div className="fd-credit-decline-form">
-                    <input autoFocus value={declineReason} onChange={(event) => setDeclineReason(event.target.value)} maxLength={500} placeholder="Reason, for example: receipt amount does not match" />
-                    <button type="button" className="fd-btn fd-btn-danger fd-btn-sm" disabled={isWorking} onClick={() => decline(request)} data-track-private>{isWorking ? 'Declining…' : 'Decline request'}</button>
-                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => { setDecliningId(null); setDeclineReason(''); }} data-track-private>Cancel</button>
+                    <input autoFocus value={declineReason} onChange={(event) => setDeclineReason(event.target.value)} maxLength={500} placeholder={t('food.creditCenter.manager.declinePlaceholder')} />
+                    <button type="button" className="fd-btn fd-btn-danger fd-btn-sm" disabled={isWorking} onClick={() => decline(request)} data-track-private>{isWorking ? t('food.creditCenter.manager.declining') : t('food.creditCenter.manager.declineRequest')}</button>
+                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => { setDecliningId(null); setDeclineReason(''); }} data-track-private>{t('food.common.cancel')}</button>
                   </div>
                 ) : confirmingId === request.id ? (
                   <div className="fd-credit-confirm-row">
-                    <strong>Payment matched?</strong>
-                    <button type="button" className="fd-btn fd-btn-sm" disabled={isWorking} onClick={() => approve(request)} data-track-private>{isWorking ? 'Adding credit…' : 'Yes, add credit'}</button>
-                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setConfirmingId(null)} data-track-private>Cancel</button>
+                    <strong>{t('food.creditCenter.manager.paymentMatched')}</strong>
+                    <button type="button" className="fd-btn fd-btn-sm" disabled={isWorking} onClick={() => approve(request)} data-track-private>{isWorking ? t('food.creditCenter.manager.addingCredit') : t('food.creditCenter.manager.addCreditYes')}</button>
+                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setConfirmingId(null)} data-track-private>{t('food.common.cancel')}</button>
                   </div>
                 ) : (
                   <div className="fd-credit-request-actions">
-                    <button type="button" className="fd-btn fd-btn-sm" onClick={() => { setConfirmingId(request.id); setDecliningId(null); }} data-track-private>Approve credit</button>
-                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => { setDecliningId(request.id); setConfirmingId(null); }} data-track-private>Decline</button>
-                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => openRefundForRequest(request)} data-track-private>Refund</button>
+                    <button type="button" className="fd-btn fd-btn-sm" onClick={() => { setConfirmingId(request.id); setDecliningId(null); }} data-track-private>{t('food.creditCenter.manager.approveCredit')}</button>
+                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => { setDecliningId(request.id); setConfirmingId(null); }} data-track-private>{t('food.creditCenter.manager.decline')}</button>
+                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => openRefundForRequest(request)} data-track-private>{t('food.creditCenter.manager.refund')}</button>
                   </div>
                 )}
               </article>

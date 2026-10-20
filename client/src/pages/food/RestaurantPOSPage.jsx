@@ -182,7 +182,7 @@ function PaymentModal({ total, currency, discounts, onPay, onClose }) {
                 type="text"
                 value={creditHoldId}
                 onChange={(e) => setCreditHoldId(e.target.value)}
-                placeholder="Paste the OxSteed Credit hold ID"
+                placeholder={t('food.pos.creditHoldPlaceholder')}
                 autoComplete="off"
               />
             </div>

@@ -59,14 +59,19 @@ function daySchedule(hours, dayIndex) {
 
 /**
  * Evaluate whether a restaurant is open right now.
- * Returns { isOpen, opensAt, closesAt, message }.
+ * Returns { isOpen, opensAt, closesAt, message, messageCode, messageParams }.
+ * `message` is the English rendering kept for backwards compatibility;
+ * `messageCode` + `messageParams` are the structured form (F-24) that
+ * clients localize: 'open_until' { closesAt }, 'opens_at' { opensAt },
+ * 'opens_tomorrow_at' { opensAt }, 'opens_day_at' { opensAt, opensDay },
+ * 'closed' {}.
  * Empty/missing hours => always open (no guardrail).
  */
 function evaluateOperatingHours(operatingHours, timezone, now = new Date()) {
   const hours = normalizeHoursInput(operatingHours);
   const weekly = hours.weekly || {};
   if (!weekly || Object.keys(weekly).length === 0) {
-    return { isOpen: true, opensAt: null, closesAt: null, message: null };
+    return { isOpen: true, opensAt: null, closesAt: null, message: null, messageCode: null, messageParams: null };
   }
 
   const { dayIndex, minutes } = zonedParts(now, timezone);
@@ -80,6 +85,8 @@ function evaluateOperatingHours(operatingHours, timezone, now = new Date()) {
           opensAt: formatMinutes(open),
           closesAt: formatMinutes(close),
           message: `Open until ${formatMinutes(close)}`,
+          messageCode: 'open_until',
+          messageParams: { closesAt: formatMinutes(close) },
         };
       }
       if (minutes < open) {
@@ -88,6 +95,8 @@ function evaluateOperatingHours(operatingHours, timezone, now = new Date()) {
           opensAt: formatMinutes(open),
           closesAt: formatMinutes(close),
           message: `Opens at ${formatMinutes(open)}`,
+          messageCode: 'opens_at',
+          messageParams: { opensAt: formatMinutes(open) },
         };
       }
     } else if (minutes >= open || minutes < close) {
@@ -96,6 +105,8 @@ function evaluateOperatingHours(operatingHours, timezone, now = new Date()) {
         opensAt: formatMinutes(open),
         closesAt: formatMinutes(close),
         message: `Open until ${formatMinutes(close)}`,
+        messageCode: 'open_until',
+        messageParams: { closesAt: formatMinutes(close) },
       };
     }
   }
@@ -111,11 +122,15 @@ function evaluateOperatingHours(operatingHours, timezone, now = new Date()) {
         message: offset === 1
           ? `Opens tomorrow at ${formatMinutes(schedule.open)}`
           : `Opens ${DAY_KEYS[nextDay]} at ${formatMinutes(schedule.open)}`,
+        messageCode: offset === 1 ? 'opens_tomorrow_at' : 'opens_day_at',
+        messageParams: offset === 1
+          ? { opensAt: formatMinutes(schedule.open) }
+          : { opensAt: formatMinutes(schedule.open), opensDay: DAY_KEYS[nextDay] },
       };
     }
   }
 
-  return { isOpen: false, opensAt: null, closesAt: null, message: 'Closed' };
+  return { isOpen: false, opensAt: null, closesAt: null, message: 'Closed', messageCode: 'closed', messageParams: {} };
 }
 
 function normalizeBrandAccentHex(value) {
@@ -130,4 +145,6 @@ module.exports = {
   evaluateOperatingHours,
   normalizeBrandAccentHex,
   normalizeHoursInput,
+  parseTimeToMinutes,
+  zonedParts,
 };

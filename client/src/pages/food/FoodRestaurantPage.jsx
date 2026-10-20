@@ -1575,8 +1575,23 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
   const ratingDisplay = rating > 0 ? rating.toFixed(1) : t('food.restaurant.new');
   const reviewCount = Number(restaurant.review_count || 0) || 0;
   const isOpen = restaurant.is_open !== false;
-  const openStatus = restaurant.hours_message || (isOpen ? t('food.restaurant.openNow') : t('food.home.closed'));
-  const todayHours = restaurant.hours_message || (isOpen ? t('food.restaurant.openNow') : t('food.home.closed'));
+  // F-24: prefer the structured hours code + params from the server so the
+  // status line localizes; hours_message stays as the English fallback.
+  const HOURS_DAY_NAME = { sun: 'sunday', mon: 'monday', tue: 'tuesday', wed: 'wednesday', thu: 'thursday', fri: 'friday', sat: 'saturday' };
+  const hoursParams = restaurant.hours_message_params || {};
+  const localizedHoursMessage = (() => {
+    switch (restaurant.hours_message_code) {
+      case 'open_until': return t('food.hours.openUntil', { time: hoursParams.closesAt || '' });
+      case 'opens_at': return t('food.hours.opensAt', { time: hoursParams.opensAt || '' });
+      case 'opens_tomorrow_at': return t('food.hours.opensTomorrowAt', { time: hoursParams.opensAt || '' });
+      case 'opens_day_at': return t('food.hours.opensDayAt', { day: hoursParams.opensDay ? t(`food.restaurant.days.${HOURS_DAY_NAME[hoursParams.opensDay] || hoursParams.opensDay}`) : '', time: hoursParams.opensAt || '' });
+      case 'closed': return t('food.hours.closed');
+      case 'temporarily_closed': return t('food.hours.temporarilyClosed');
+      default: return null;
+    }
+  })();
+  const openStatus = localizedHoursMessage || restaurant.hours_message || (isOpen ? t('food.restaurant.openNow') : t('food.home.closed'));
+  const todayHours = localizedHoursMessage || restaurant.hours_message || (isOpen ? t('food.restaurant.openNow') : t('food.home.closed'));
   const priceRange = settings.priceRange || settings.price_range || '$$';
   const prepMin = Number(restaurant.prep_time_min || 20) || 20;
   const delivTime = t('food.restaurant.minuteRange', { start: prepMin, end: prepMin + 10 });

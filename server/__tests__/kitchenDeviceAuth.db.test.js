@@ -89,6 +89,9 @@ describeDb('kitchen device-or-staff authorization', () => {
     );
     await db.query(fs.readFileSync(path.join(__dirname, '../migrations/911_display_pairings.sql'), 'utf8'));
     await db.query(fs.readFileSync(path.join(__dirname, '../migrations/913_display_pairing_device_role.sql'), 'utf8'));
+    // Migration 944 (F-27 pairing-token expiry/rotation): token verification
+    // reads the expiry/previous-hash columns, so the schema must have them.
+    await db.query(fs.readFileSync(path.join(__dirname, '../migrations/944_display_pairing_token_expiry.sql'), 'utf8'));
 
     const businessId = (
       await db.query(`INSERT INTO ${schema}.businesses (user_id) VALUES ($1) RETURNING id`, [OWNER_ID])
@@ -130,7 +133,10 @@ describeDb('kitchen device-or-staff authorization', () => {
 
   test('verifyDisplayPairingToken returns the pairing for a paired token, null otherwise', async () => {
     const ok = await controller.verifyDisplayPairingToken(pairingA.token);
-    expect(ok).toEqual({ pairingId: pairingA.id, restaurantId: Number(restaurantA), label: 'Kitchen tablet', deviceRole: 'kitchen' });
+    // F-27: the verifier also reports token expiry and whether the
+    // rotated-out previous token was used; this legacy fixture row has no
+    // expiry recorded yet, so tokenExpiresAt is null.
+    expect(ok).toEqual({ pairingId: pairingA.id, restaurantId: Number(restaurantA), label: 'Kitchen tablet', deviceRole: 'kitchen', tokenExpiresAt: null, usedPreviousToken: false });
 
     expect(await controller.verifyDisplayPairingToken(crypto.randomBytes(32).toString('hex'))).toBeNull();
     expect(await controller.verifyDisplayPairingToken(null)).toBeNull();

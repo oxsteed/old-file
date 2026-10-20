@@ -75,6 +75,10 @@ jobs:
         working-directory: client
         run: node --test scripts/*.test.mjs
 
+      - name: Client src unit tests
+        working-directory: client
+        run: node --test src/**/*.test.mjs
+
       - name: Growth instrumentation coverage check
         working-directory: client
         run: node scripts/growthInstrumentation.mjs --check

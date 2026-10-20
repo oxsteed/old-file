@@ -125,10 +125,17 @@ const {
   normalizeBrandAccentHex,
   normalizeHoursInput,
 } = require('../utils/foodOperatingHours');
+const { isItemAvailableAt } = require('../utils/menuDayparts');
+const { logBusinessAction } = require('../services/businessAuditLog');
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? require('stripe')(process.env.STRIPE_SECRET_KEY)
   : null;
+
+// F-11: a scheduled order becomes kitchen work at scheduled_for minus the
+// restaurant's prep lead (prep_time_min; 30 minutes when unset). Shared by
+// the merchant kitchen feed branches in listRestaurantOrders.
+const SCHEDULED_ORDER_HOLD_SQL = `(fo.scheduled_for IS NULL OR fo.scheduled_for <= NOW() + (COALESCE((SELECT fr.prep_time_min FROM food_restaurants fr WHERE fr.id = fo.restaurant_id), 30) * INTERVAL '1 minute'))`;
 
 const VALID_FULFILLMENT = new Set(['pickup', 'dine_in', 'delivery', 'kiosk']);
 const VALID_ORDER_SOURCES = new Set(['mobile', 'web', 'kiosk', 'counter', 'tablet']);
@@ -711,6 +718,11 @@ function attachRestaurantHours(row) {
     hours_message: isTemporarilyClosed
       ? `Temporarily closed until ${closureUntil.toISOString()}`
       : hours.message,
+    // F-24: structured form of hours_message so clients can localize it.
+    hours_message_code: isTemporarilyClosed ? 'temporarily_closed' : hours.messageCode,
+    hours_message_params: isTemporarilyClosed
+      ? { until: closureUntil.toISOString() }
+      : hours.messageParams,
     opens_at: hours.opensAt,
     closes_at: hours.closesAt,
   };
@@ -1720,6 +1732,48 @@ async function assertRestaurantManage(restaurant) {
   await assertRestaurantPermission(restaurant, ['restaurant.manage', 'settings.manage']);
 }
 
+// F-20: append-only audit trail for money-relevant restaurant writes (menu
+// pricing, tax/fees, promotions, settings). logBusinessAction never throws;
+// pass a transaction client where the write itself is transactional so the
+// audit row lands atomically with the change.
+async function auditFoodChange(req, restaurant, entry) {
+  if (!restaurant || !restaurant.business_id) return;
+  await logBusinessAction(req, {
+    business_id: restaurant.business_id,
+    actor_role: entry.actor_role || restaurant.effective_role || null,
+    ...entry,
+  });
+}
+
+function menuItemAuditSnapshot(item) {
+  if (!item) return null;
+  return {
+    name: item.name,
+    price_cents: item.price_cents,
+    currency_code: item.currency_code,
+    category_id: item.category_id,
+    is_available: item.is_available,
+    manual_available: item.manual_available,
+    publication_status: item.publication_status,
+    availability_schedule: item.availability_schedule || {},
+  };
+}
+
+function promotionAuditSnapshot(promotion) {
+  if (!promotion) return null;
+  return {
+    code: promotion.code,
+    title: promotion.title,
+    discount_percent: promotion.discount_percent,
+    discount_cents: promotion.discount_cents,
+    min_subtotal_cents: promotion.min_subtotal_cents,
+    valid_from: promotion.valid_from,
+    valid_until: promotion.valid_until,
+    max_uses: promotion.max_uses,
+    is_active: promotion.is_active,
+  };
+}
+
 function emitRestaurantOrder(businessId, event, payload) {
   try {
     if (businessId) socketService.broadcastToBusinessInbox(businessId, event, payload);
@@ -2534,6 +2588,12 @@ exports.createMenuItem = async (req, res, next) => {
           : '{}',
       ]
     );
+    await auditFoodChange(req, restaurant, {
+      action: 'menu.item.created',
+      target_type: 'menu_item',
+      target_id: item.id,
+      after_state: menuItemAuditSnapshot(item),
+    });
     res.status(201).json({ item });
   } catch (err) {
     next(err);
@@ -2614,6 +2674,7 @@ exports.quoteOrder = async (req, res, next) => {
     const itemIds = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
     const { rows: menuRows } = await pool.query(
       `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
+              fmi.availability_schedule,
               fmc.name AS category_name,
               COALESCE((
                 SELECT jsonb_agg(
@@ -2651,12 +2712,25 @@ exports.quoteOrder = async (req, res, next) => {
     );
     const menuById = new Map(menuRows.map((row) => [Number(row.id), row]));
 
+    // F-11: dayparts are evaluated at the fulfillment instant: the scheduled
+    // time when the quote carries one, otherwise now.
+    const quoteScheduledRaw = req.body.scheduledFor ?? req.body.scheduled_for;
+    const quoteScheduledDate = quoteScheduledRaw ? new Date(quoteScheduledRaw) : null;
+    const daypartInstant = quoteScheduledDate && !Number.isNaN(quoteScheduledDate.getTime())
+      ? quoteScheduledDate
+      : new Date();
+
     const lineItems = items.map((item, index) => {
       const menuItemId = parsePositiveInt(item.menuItemId || item.menu_item_id);
       const menuItem = menuById.get(menuItemId);
       if (!menuItem || !menuItem.is_available) {
         throw new AppError('Validation failed', 400, 'validation_failed', {
           [`items.${index}.menuItemId`]: 'Menu item is unavailable',
+        });
+      }
+      if (!isItemAvailableAt(menuItem, daypartInstant, restaurant.timezone)) {
+        throw new AppError('Validation failed', 400, 'validation_failed', {
+          [`items.${index}.menuItemId`]: 'Menu item is not available at this time of day',
         });
       }
       const quantity = Math.min(parsePositiveInt(item.quantity, 1), 99);
@@ -3047,14 +3121,55 @@ exports.createOrder = async (req, res, next) => {
             hoursStatus.message || 'Restaurant is closed',
             409,
             'restaurant_closed',
-            { hoursMessage: hoursStatus.message, opensAt: hoursStatus.opensAt }
+            {
+              hoursMessage: hoursStatus.message,
+              hoursCode: hoursStatus.messageCode,
+              hoursMessageParams: hoursStatus.messageParams,
+              opensAt: hoursStatus.opensAt,
+            }
           );
+        }
+        // F-33: online order pacing. A merchant-set cap on accepted online
+        // orders per rolling 15-minute window (settings key
+        // onlineOrderPacingMaxPer15Min); 0/absent disables pacing. Runs
+        // under the restaurant row lock so concurrent checkouts cannot
+        // both slip under the cap.
+        const pacingSettings = restaurant.settings && typeof restaurant.settings === 'object'
+          ? restaurant.settings
+          : {};
+        const pacingLimit = Math.max(0, Math.floor(Number(
+          pacingSettings.onlineOrderPacingMaxPer15Min
+          ?? pacingSettings.online_order_pacing_max_per_15_min
+        ) || 0));
+        if (pacingLimit > 0) {
+          const { rows: [pacing] } = await client.query(
+            `SELECT COUNT(*)::int AS accepted_count, MIN(created_at) AS oldest_at
+               FROM food_orders
+              WHERE restaurant_id = $1
+                AND created_at > NOW() - INTERVAL '15 minutes'
+                AND status NOT IN ('cancelled')
+                AND order_source NOT IN ('kiosk', 'counter', 'tablet')`,
+            [restaurantId]
+          );
+          if (Number(pacing?.accepted_count || 0) >= pacingLimit) {
+            const oldestAt = pacing?.oldest_at ? new Date(pacing.oldest_at).getTime() : NaN;
+            const retryAfterSeconds = Number.isFinite(oldestAt)
+              ? Math.max(1, Math.ceil((oldestAt + 15 * 60 * 1000 - Date.now()) / 1000))
+              : 900;
+            throw new AppError(
+              'This restaurant is at its order capacity for the moment. Please try again shortly.',
+              429,
+              'order_pacing_limit_reached',
+              { limit: pacingLimit, windowMinutes: 15, retryAfterSeconds }
+            );
+          }
         }
       }
 
       const ids = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
       const { rows: menuRows } = await client.query(
         `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
+                fmi.availability_schedule,
                 fmc.name AS category_name,
                 COALESCE((
                   SELECT jsonb_agg(
@@ -3150,6 +3265,31 @@ exports.createOrder = async (req, res, next) => {
         }
         scheduledFor = parsed.toISOString();
       }
+      if (scheduledFor) {
+        // F-11: a scheduled order must land inside operating hours; until
+        // now any future time within 48h was accepted, including 3 AM for a
+        // lunch-only kitchen.
+        const scheduledHours = evaluateOperatingHours(
+          restaurant.operating_hours,
+          restaurant.timezone,
+          new Date(scheduledFor)
+        );
+        if (!scheduledHours.isOpen) {
+          throw new AppError('Validation failed', 400, 'validation_failed', {
+            scheduledFor: 'The restaurant is closed at the scheduled time',
+          });
+        }
+      }
+      // F-11: daypart enforcement at the fulfillment instant (the scheduled
+      // time for later orders, otherwise now), mirroring quoteOrder.
+      const daypartInstant = scheduledFor ? new Date(scheduledFor) : new Date();
+      normalizedItems.forEach((entry, index) => {
+        if (!isItemAvailableAt(entry.menuItem, daypartInstant, restaurant.timezone)) {
+          throw new AppError('Validation failed', 400, 'validation_failed', {
+            [`items.${index}.menuItemId`]: 'Menu item is not available at this time of day',
+          });
+        }
+      });
       const pickupContactName = normalizeString(
         req.body.pickupContactName || req.body.pickup_contact_name,
         120
@@ -4189,6 +4329,9 @@ exports.listRestaurantOrders = async (req, res, next) => {
       filters.push(`fo.status IN ('received','accepted','preparing','ready')`);
       // Review P1-236: unpaid pay_now checkouts are not kitchen work yet.
       filters.push(`NOT (COALESCE(fo.metadata->>'paymentMode', '') = 'pay_now' AND fo.payment_status = 'requires_payment')`);
+      // F-11: scheduled orders stay out of the kitchen feed until their
+      // fire time (scheduled_for minus the restaurant prep lead).
+      filters.push(SCHEDULED_ORDER_HOLD_SQL);
     } else if (scope === 'history') {
       filters.push(`fo.status IN ('completed','cancelled','refunded')`);
     } else if (req.query.active === '1' || req.query.active === 'true') {
@@ -4196,6 +4339,8 @@ exports.listRestaurantOrders = async (req, res, next) => {
       filters.push(`fo.status IN ('received','accepted','preparing','ready')`);
       // Review P1-236: unpaid pay_now checkouts are not kitchen work yet.
       filters.push(`NOT (COALESCE(fo.metadata->>'paymentMode', '') = 'pay_now' AND fo.payment_status = 'requires_payment')`);
+      // F-11: hold scheduled orders until fire time, as in scope=active.
+      filters.push(SCHEDULED_ORDER_HOLD_SQL);
       filters.push(`(fo.created_at AT TIME ZONE COALESCE(
         (SELECT fr.timezone FROM food_restaurants fr WHERE fr.id = fo.restaurant_id), 'UTC'
       ))::date = (CURRENT_TIMESTAMP AT TIME ZONE COALESCE(
@@ -5195,6 +5340,18 @@ function normalizeRestaurantCheckoutSettingsPatch(settings = {}) {
   return patch;
 }
 
+// F-33: online order pacing setting. Stored in food_restaurants.settings as
+// onlineOrderPacingMaxPer15Min (accepted orders per rolling 15-minute
+// window for the online channel; 0 disables pacing).
+function normalizeFoodPacingSettingsPatch(settings = {}) {
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return {};
+  const raw = settings.onlineOrderPacingMaxPer15Min ?? settings.online_order_pacing_max_per_15_min;
+  if (raw === undefined) return {};
+  const value = Math.floor(Number(raw));
+  if (!Number.isFinite(value)) return {};
+  return { onlineOrderPacingMaxPer15Min: Math.max(0, Math.min(1000, value)) };
+}
+
 function normalizeFoodExternalPaymentSettingsPatch(settings = {}) {
   if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return {};
   const patch = {};
@@ -5379,6 +5536,7 @@ exports.updateRestaurant = async (req, res, next) => {
     const settingsPatch = {
       ...normalizeRestaurantCheckoutSettingsPatch(settingsInput),
       ...normalizeFoodExternalPaymentSettingsPatch(settingsInput),
+      ...normalizeFoodPacingSettingsPatch(settingsInput),
     };
     if (Object.keys(settingsPatch).length > 0) {
       params.push(JSON.stringify(settingsPatch));
@@ -5472,6 +5630,43 @@ exports.updateRestaurant = async (req, res, next) => {
             JSON.stringify({ status }),
           ]
         );
+      }
+
+      // F-20: tax-rate and settings changes are money-relevant and were
+      // previously invisible in the audit trail. Log before/after for the
+      // fields that actually changed, in the same transaction.
+      if (updated.business_id) {
+        const beforeSettings = restaurantAccess.settings && typeof restaurantAccess.settings === 'object'
+          ? restaurantAccess.settings
+          : {};
+        const priorChanged = {};
+        const nextChanged = {};
+        if (Number(updated.tax_rate_bps) !== Number(restaurantAccess.tax_rate_bps)) {
+          priorChanged.tax_rate_bps = restaurantAccess.tax_rate_bps;
+          nextChanged.tax_rate_bps = updated.tax_rate_bps;
+        }
+        for (const key of Object.keys(settingsPatch)) {
+          const beforeValue = beforeSettings[key] ?? null;
+          const afterValue = updated.settings && typeof updated.settings === 'object'
+            ? (updated.settings[key] ?? null)
+            : null;
+          if (JSON.stringify(beforeValue) !== JSON.stringify(afterValue)) {
+            priorChanged[`settings.${key}`] = beforeValue;
+            nextChanged[`settings.${key}`] = afterValue;
+          }
+        }
+        if (Object.keys(nextChanged).length > 0) {
+          await logBusinessAction(req, {
+            client,
+            business_id: updated.business_id,
+            actor_role: restaurantAccess.effective_role,
+            action: 'restaurant.settings.updated',
+            target_type: 'restaurant',
+            target_id: updated.id,
+            before_state: priorChanged,
+            after_state: nextChanged,
+          });
+        }
       }
       return updated;
     }, 'restaurant_update');
@@ -5598,6 +5793,11 @@ exports.updateMenuItem = async (req, res, next) => {
     }
     sets.push('updated_at = NOW()');
     params.push(itemId, restaurantId);
+    // F-20: capture the before image for the audit trail.
+    const { rows: [existingItem] } = await pool.query(
+      'SELECT * FROM food_menu_items WHERE id = $1 AND restaurant_id = $2',
+      [itemId, restaurantId]
+    );
     const { rows: [item] } = await pool.query(
       `UPDATE food_menu_items SET ${sets.join(', ')}
         WHERE id = $${params.length - 1} AND restaurant_id = $${params.length}
@@ -5605,6 +5805,13 @@ exports.updateMenuItem = async (req, res, next) => {
       params
     );
     if (!item) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
+    await auditFoodChange(req, restaurant, {
+      action: 'menu.item.updated',
+      target_type: 'menu_item',
+      target_id: item.id,
+      before_state: menuItemAuditSnapshot(existingItem),
+      after_state: menuItemAuditSnapshot(item),
+    });
     // Audit fix (P2-3-F13): availability/menu edits can break publish
     // readiness (restaurants need at least one available menu item).
     // Re-check and auto-unpublish if the business is now incomplete.
@@ -5631,11 +5838,21 @@ exports.deleteMenuItem = async (req, res, next) => {
     const itemId = parsePositiveInt(req.params.itemId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
+    const { rows: [existingItem] } = await pool.query(
+      'SELECT * FROM food_menu_items WHERE id = $1 AND restaurant_id = $2',
+      [itemId, restaurantId]
+    );
     const { rowCount } = await pool.query(
       `DELETE FROM food_menu_items WHERE id = $1 AND restaurant_id = $2`,
       [itemId, restaurantId]
     );
     if (!rowCount) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
+    await auditFoodChange(req, restaurant, {
+      action: 'menu.item.deleted',
+      target_type: 'menu_item',
+      target_id: itemId,
+      before_state: menuItemAuditSnapshot(existingItem),
+    });
     // Audit fix (P2-3-F13): deleting menu items can break publish readiness.
     // The 204 contract has no body, so the guard's audit log + server log are
     // the feedback channel here.
@@ -5698,6 +5915,20 @@ exports.createModifierGroup = async (req, res, next) => {
         );
         createdOptions.push(option);
       }
+      await auditFoodChange(req, restaurant, {
+        client,
+        action: 'menu.modifier_group.created',
+        target_type: 'modifier_group',
+        target_id: created.id,
+        after_state: {
+          name: created.name,
+          menu_item_id: itemId,
+          min_select: created.min_select,
+          max_select: created.max_select,
+          is_required: created.is_required,
+          options: createdOptions.map((o) => ({ name: o.name, price_delta_cents: o.price_delta_cents })),
+        },
+      });
       return { ...created, options: createdOptions };
     }, 'food_create_modifier_group');
 
@@ -5720,6 +5951,17 @@ exports.updateModifierGroup = async (req, res, next) => {
     const group = await withTransaction(pool, async (client) => {
       const minSelect = Math.max(0, parsePositiveInt(req.body.minSelect ?? req.body.min_select, 0) || 0);
       const maxSelect = Math.max(minSelect, parsePositiveInt(req.body.maxSelect ?? req.body.max_select, 1) || 1);
+      // F-20: before image for the audit trail (options carry price deltas).
+      const { rows: [priorGroup] } = await client.query(
+        'SELECT * FROM food_modifier_groups WHERE id = $1 AND restaurant_id = $2',
+        [groupId, restaurantId]
+      );
+      const { rows: priorOptions } = priorGroup
+        ? await client.query(
+          'SELECT name, price_delta_cents FROM food_modifiers WHERE modifier_group_id = $1 ORDER BY sort_order, id',
+          [groupId]
+        )
+        : { rows: [] };
       const { rows: [updated] } = await client.query(
         `UPDATE food_modifier_groups
             SET name = $1, min_select = $2, max_select = $3,
@@ -5759,6 +6001,28 @@ exports.updateModifierGroup = async (req, res, next) => {
         );
         updatedOptions.push(option);
       }
+      await auditFoodChange(req, restaurant, {
+        client,
+        action: 'menu.modifier_group.updated',
+        target_type: 'modifier_group',
+        target_id: updated.id,
+        before_state: priorGroup
+          ? {
+            name: priorGroup.name,
+            min_select: priorGroup.min_select,
+            max_select: priorGroup.max_select,
+            is_required: priorGroup.is_required,
+            options: priorOptions,
+          }
+          : null,
+        after_state: {
+          name: updated.name,
+          min_select: updated.min_select,
+          max_select: updated.max_select,
+          is_required: updated.is_required,
+          options: updatedOptions.map((o) => ({ name: o.name, price_delta_cents: o.price_delta_cents })),
+        },
+      });
       return { ...updated, options: updatedOptions };
     }, 'food_update_modifier_group');
 
@@ -5830,6 +6094,13 @@ exports.duplicateMenuItem = async (req, res, next) => {
       return created;
     }, 'food_duplicate_menu_item');
 
+    await auditFoodChange(req, restaurant, {
+      action: 'menu.item.created',
+      target_type: 'menu_item',
+      target_id: item.id,
+      after_state: menuItemAuditSnapshot(item),
+      metadata: { duplicated_from_item_id: itemId },
+    });
     res.status(201).json({ item });
   } catch (err) {
     next(err);
@@ -5842,11 +6113,35 @@ exports.deleteModifierGroup = async (req, res, next) => {
     const groupId = parsePositiveInt(req.params.groupId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
+    const { rows: [priorGroup] } = await pool.query(
+      'SELECT * FROM food_modifier_groups WHERE id = $1 AND restaurant_id = $2',
+      [groupId, restaurantId]
+    );
+    const { rows: priorOptions } = priorGroup
+      ? await pool.query(
+        'SELECT name, price_delta_cents FROM food_modifiers WHERE modifier_group_id = $1 ORDER BY sort_order, id',
+        [groupId]
+      )
+      : { rows: [] };
     const { rowCount } = await pool.query(
       `DELETE FROM food_modifier_groups WHERE id = $1 AND restaurant_id = $2`,
       [groupId, restaurantId]
     );
     if (!rowCount) throw new AppError('Modifier group not found', 404, 'modifier_group_not_found');
+    await auditFoodChange(req, restaurant, {
+      action: 'menu.modifier_group.deleted',
+      target_type: 'modifier_group',
+      target_id: groupId,
+      before_state: priorGroup
+        ? {
+          name: priorGroup.name,
+          min_select: priorGroup.min_select,
+          max_select: priorGroup.max_select,
+          is_required: priorGroup.is_required,
+          options: priorOptions,
+        }
+        : null,
+    });
     res.status(204).end();
   } catch (err) {
     next(err);
@@ -6778,6 +7073,12 @@ exports.createRestaurantPromotion = async (req, res, next) => {
         req.body.isActive !== false,
       ]
     );
+    await auditFoodChange(req, restaurant, {
+      action: 'restaurant.promotion.created',
+      target_type: 'promotion',
+      target_id: promotion.id,
+      after_state: promotionAuditSnapshot(promotion),
+    });
     res.status(201).json({ promotion });
   } catch (err) {
     if (isMissingRelationError(err)) {
@@ -6855,6 +7156,10 @@ exports.updateRestaurantPromotion = async (req, res, next) => {
     params.push(promotionId, restaurantId);
 
     try {
+      const { rows: [existingPromotion] } = await pool.query(
+        'SELECT * FROM food_restaurant_promotions WHERE id = $1 AND restaurant_id = $2',
+        [promotionId, restaurantId]
+      );
       const { rows: [promotion] } = await pool.query(
         `UPDATE food_restaurant_promotions
             SET ${sets.join(', ')}
@@ -6863,6 +7168,13 @@ exports.updateRestaurantPromotion = async (req, res, next) => {
         params
       );
       if (!promotion) throw new AppError('Promotion not found', 404, 'promotion_not_found');
+      await auditFoodChange(req, restaurant, {
+        action: 'restaurant.promotion.updated',
+        target_type: 'promotion',
+        target_id: promotion.id,
+        before_state: promotionAuditSnapshot(existingPromotion),
+        after_state: promotionAuditSnapshot(promotion),
+      });
       return res.json({ promotion });
     } catch (err) {
       if (isMissingRelationError(err)) {

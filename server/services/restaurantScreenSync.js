@@ -109,13 +109,14 @@ async function snapshot(scope, query = {}) {
             `SELECT o.id,o.restaurant_id,o.location_id,o.queue_number,o.status,o.kitchen_stage,o.payment_status,o.screen_revision,o.fulfillment_type,o.created_at,o.preparation_started_at,o.promised_at,o.table_label,
      COALESCE((SELECT jsonb_agg(jsonb_build_object('id',i.id,'itemName',i.item_name,'quantity',i.quantity,'specialInstructions',i.special_instructions,'kitchenStatus',i.kitchen_status,'stationLabel',i.station_label,'screenRevision',i.screen_revision,'targetPrepSeconds',i.target_prep_seconds,'kitchenStartedAt',i.kitchen_started_at,'modifiers',COALESCE((SELECT jsonb_agg(m.modifier_name) FROM food_order_item_modifiers m WHERE m.order_item_id=i.id),'[]'::jsonb)) ORDER BY i.id) FROM food_order_items i WHERE i.order_id=o.id),'[]'::jsonb) AS items
     FROM food_orders o WHERE o.restaurant_id=$1 AND ($2::boolean OR o.location_id IS NOT DISTINCT FROM $3::bigint)
-    AND o.id>$4 AND o.status IN ('received','accepted','preparing','ready') AND COALESCE(o.pos_ticket_state,'open') NOT IN ('held','voided') ORDER BY o.id LIMIT 251`,
+    AND o.id>$4 AND o.status IN ('received','accepted','preparing','ready') AND COALESCE(o.pos_ticket_state,'open') NOT IN ('held','voided')
+    AND (o.scheduled_for IS NULL OR o.scheduled_for <= NOW() + (COALESCE((SELECT fr.prep_time_min FROM food_restaurants fr WHERE fr.id = o.restaurant_id), 30) * INTERVAL '1 minute')) ORDER BY o.id LIMIT 251`,
             [scope.restaurantId, scope.allLocations, scope.locationId, after],
           )
         : { rows: [] };
       const page = orders.slice(0, 250);
       const { rows: publicOrders } = await client.query(
-        `SELECT queue_number,status FROM food_orders WHERE restaurant_id=$1 AND ($2::boolean OR location_id IS NOT DISTINCT FROM $3::bigint) AND status IN ('received','accepted','preparing','ready') AND COALESCE(pos_ticket_state,'open') NOT IN ('held','voided') AND NOT(payment_status='requires_payment' AND COALESCE(metadata->>'paymentMode','')='pay_now') ORDER BY created_at`,
+        `SELECT queue_number,status FROM food_orders WHERE restaurant_id=$1 AND ($2::boolean OR location_id IS NOT DISTINCT FROM $3::bigint) AND status IN ('received','accepted','preparing','ready') AND COALESCE(pos_ticket_state,'open') NOT IN ('held','voided') AND NOT(payment_status='requires_payment' AND COALESCE(metadata->>'paymentMode','')='pay_now') AND (scheduled_for IS NULL OR scheduled_for <= NOW() + (COALESCE((SELECT fr.prep_time_min FROM food_restaurants fr WHERE fr.id = food_orders.restaurant_id), 30) * INTERVAL '1 minute')) ORDER BY created_at`,
         [scope.restaurantId, scope.allLocations, scope.locationId],
       );
       const board = {
