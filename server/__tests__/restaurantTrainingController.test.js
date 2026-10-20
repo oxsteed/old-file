@@ -6,6 +6,7 @@ const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
 
 const training = require('../controllers/restaurantTrainingController');
+const permissionsService = require('../services/permissionsService');
 
 const USER_ID = '00000000-0000-4000-8000-000000000123';
 const STAFF_ID = '00000000-0000-4000-8000-000000000456';
@@ -31,12 +32,15 @@ function app() {
   return server;
 }
 
-beforeEach(() => resetMocks());
+// S-08: training gates resolve through permissionsService; clear its
+// cache per test so each scripted chain includes the resolver's rows.
+beforeEach(() => { resetMocks(); permissionsService.invalidateCache(); });
 
 describe('restaurant training backend', () => {
   test('non-managers do not see quiz answers', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [access('employee')] })
+      .mockResolvedValueOnce({ rows: [] }) // role defaults: no crew.manage
       .mockResolvedValueOnce({ rows: [{ id: 1, title: 'Food safety', restaurant_id: RESTAURANT_ID }] })
       .mockResolvedValueOnce({ rows: [{ id: 7, module_id: 1, question: 'Q?', options: ['a', 'b'], correct_index: 1, sort_order: 0 }] });
     const res = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/training/modules`);
@@ -48,6 +52,7 @@ describe('restaurant training backend', () => {
   test('managers see quiz answers', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [access('manager')] })
+      .mockResolvedValueOnce({ rows: [{ code: 'crew.manage', allow: true }] })
       .mockResolvedValueOnce({ rows: [{ id: 1, title: 'Food safety', restaurant_id: RESTAURANT_ID }] })
       .mockResolvedValueOnce({ rows: [{ id: 7, module_id: 1, question: 'Q?', options: ['a', 'b'], correct_index: 1, sort_order: 0 }] });
     const res = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/training/modules`);
@@ -56,7 +61,9 @@ describe('restaurant training backend', () => {
   });
 
   test('createModule requires a title and valid category', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [access('owner')] });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access('owner')] })
+      .mockResolvedValueOnce({ rows: [{ code: 'crew.manage' }] });
     const noTitle = await request(app()).post(`/api/restaurants/${RESTAURANT_ID}/training/modules`).send({});
     expect(noTitle.status).toBe(400);
 
@@ -78,6 +85,7 @@ describe('restaurant training backend', () => {
   test('assignModule upserts and rejects unknown staff', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [access('owner')] })
+      .mockResolvedValueOnce({ rows: [{ code: 'crew.manage' }] })
       .mockResolvedValueOnce({ rows: [{ id: 3 }] })
       .mockResolvedValueOnce({ rows: [] });
     const notFound = await request(app())

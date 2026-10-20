@@ -182,10 +182,12 @@ ddescribe('restaurant_printer_settings (migration 912)', () => {
   });
 
   function ownerAccess() {
-    resolveRestaurantAccess.mockResolvedValue({ id: fx.restaurantId, effective_role: 'owner', display_name: 'Printer Diner', phone: '555-0100' });
+    // S-08: the mocked access row mirrors the real gate's shape — the
+    // permission resolver needs business_id + effective_membership_id.
+    resolveRestaurantAccess.mockResolvedValue({ id: fx.restaurantId, business_id: fx.businessId, effective_membership_id: null, effective_role: 'owner', display_name: 'Printer Diner', phone: '555-0100' });
   }
   function staffAccess() {
-    resolveRestaurantAccess.mockResolvedValue({ id: fx.restaurantId, effective_role: 'staff', display_name: 'Printer Diner' });
+    resolveRestaurantAccess.mockResolvedValue({ id: fx.restaurantId, business_id: fx.businessId, effective_membership_id: null, effective_role: 'staff', display_name: 'Printer Diner' });
   }
 
   async function enablePrinting(overrides = {}) {

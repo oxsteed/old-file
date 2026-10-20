@@ -36,11 +36,35 @@ exports.listMemberships = async (req, res, next) => {
       [req.business.id]
     );
 
+    // Raw per-membership overrides (S-08: the Team permissions editor needs
+    // the override set itself, not just the resolved permissions).
+    const overrideRows = await pool.query(
+      `SELECT mpo.membership_id, p.code AS permission_code, mpo.effect,
+              mpo.reason, mpo.expires_at
+         FROM membership_permission_overrides mpo
+         JOIN team_permissions p ON p.id = mpo.permission_id
+         JOIN business_members bm ON bm.id = mpo.membership_id
+        WHERE bm.business_id = $1
+        ORDER BY mpo.id ASC`,
+      [req.business.id]
+    );
+    const overridesByMembership = new Map();
+    for (const o of overrideRows.rows) {
+      if (!overridesByMembership.has(o.membership_id)) overridesByMembership.set(o.membership_id, []);
+      overridesByMembership.get(o.membership_id).push({
+        permission_code: o.permission_code,
+        effect: o.effect,
+        reason: o.reason,
+        expires_at: o.expires_at,
+      });
+    }
+
     // Attach effective permissions per active membership (parallel)
     const enriched = await Promise.all(
       rows.map(async (row) => {
+        const overrides = overridesByMembership.get(row.id) || [];
         if (row.status !== 'active' || !row.member_id) {
-          return { ...row, permissions: [] };
+          return { ...row, permissions: [], overrides };
         }
         const { permissions } = await permissionsService.getEffectivePermissions({
           businessId: req.business.id,
@@ -48,7 +72,7 @@ exports.listMemberships = async (req, res, next) => {
           role: row.role,
           membershipId: row.id,
         });
-        return { ...row, permissions: Array.from(permissions) };
+        return { ...row, permissions: Array.from(permissions), overrides };
       })
     );
 
@@ -146,7 +170,6 @@ exports.changeMembershipRole = async (req, res, next) => {
  * being allow-overridden (i.e. you cannot give what you don't have).
  */
 exports.setMembershipOverrides = async (req, res, next) => {
-  const client = await pool.connect();
   try {
     const mid = parseInt(req.params.membershipId, 10);
     if (!Number.isFinite(mid)) {
@@ -154,8 +177,19 @@ exports.setMembershipOverrides = async (req, res, next) => {
     }
     const overrides = Array.isArray(req.body.overrides) ? req.body.overrides : [];
     for (const o of overrides) {
-      if (!o || typeof o.permission_code !== 'string' || !['allow','deny'].includes(o.effect)) {
+      if (!o || typeof o.permission_code !== 'string' || !o.permission_code || !['allow','deny'].includes(o.effect)) {
         return sendError(res, 400, 'Each override needs permission_code and effect.', 'invalid_override');
+      }
+      // S-22: an override that is already expired grants/denies nothing and
+      // only confuses the audit trail — reject it instead of storing it.
+      if (o.expires_at != null && o.expires_at !== '') {
+        const expires = new Date(o.expires_at);
+        if (Number.isNaN(expires.getTime())) {
+          return sendError(res, 400, 'Override expires_at is not a valid date.', 'invalid_override_expiry', { permission: o.permission_code });
+        }
+        if (expires.getTime() <= Date.now()) {
+          return sendError(res, 400, 'Override expires_at is in the past.', 'override_expiry_in_past', { permission: o.permission_code });
+        }
       }
     }
 
@@ -166,70 +200,106 @@ exports.setMembershipOverrides = async (req, res, next) => {
       return sendError(res, 403, 'You cannot assign permissions.', 'permission_denied');
     }
 
-    await client.query('BEGIN');
-
-    const exists = await client.query(
-      'SELECT id, member_id, role FROM business_members WHERE id = $1 AND business_id = $2',
-      [mid, req.business.id]
-    );
-    if (exists.rowCount === 0) {
-      await client.query('ROLLBACK');
-      return sendError(res, 404, 'Membership not found.', 'membership_not_found');
-    }
-
-    // S-09: nobody edits their own overrides, and a non-owner may only
-    // edit overrides for members ranked below them — previously a manager
-    // could deny a peer manager's (or their own) permissions.
-    if (exists.rows[0].member_id && exists.rows[0].member_id === req.user.id) {
-      await client.query('ROLLBACK');
-      return sendError(res, 403, 'You cannot change your own permission overrides.', 'cannot_edit_own_overrides');
-    }
-    if (!isOwner && req.businessRole && !canActOnRole(req.businessRole, exists.rows[0].role)) {
-      await client.query('ROLLBACK');
-      return sendError(res, 403, 'You can only edit permissions for members below your own role.', 'target_rank_too_high');
-    }
-
-    // Filter: managers cannot grant ALLOW for a permission they themselves lack.
-    if (!isOwner && req.permissions) {
-      for (const o of overrides) {
-        if (o.effect === 'allow' && !req.permissions.has(o.permission_code)) {
-          await client.query('ROLLBACK');
-          return sendError(res, 403, `You cannot grant a permission you do not hold: ${o.permission_code}`, 'cannot_grant_above_level', { permission: o.permission_code });
-        }
+    // S-08: reject unknown permission codes up front. The previous
+    // INSERT ... SELECT FROM team_permissions silently dropped codes that
+    // are not in the catalog while the API still reported success.
+    for (const o of overrides) {
+      if (!(await permissionsService.isKnownPermissionCode(o.permission_code))) {
+        return sendError(res, 400, `Unknown permission code: ${o.permission_code}`, 'unknown_permission_code', { permission: o.permission_code });
       }
     }
 
-    await client.query('DELETE FROM membership_permission_overrides WHERE membership_id = $1', [mid]);
 
-    for (const o of overrides) {
-      await client.query(
-        `INSERT INTO membership_permission_overrides
-           (membership_id, permission_id, effect, reason, granted_by_user_id, expires_at)
-         SELECT $1, p.id, $2, $3, $4, $5
-           FROM team_permissions p
-          WHERE p.code = $6`,
-        [mid, o.effect, o.reason ? String(o.reason).slice(0, 500) : null, req.user.id, o.expires_at || null, o.permission_code]
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const exists = await client.query(
+        'SELECT id, member_id, role FROM business_members WHERE id = $1 AND business_id = $2',
+        [mid, req.business.id]
       );
+      if (exists.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return sendError(res, 404, 'Membership not found.', 'membership_not_found');
+      }
+      const target = exists.rows[0];
+
+      // S-09 + S-22 guardrails: nobody rewrites their own overrides, not
+      // even an owner (that would let anyone clear a deny placed on them;
+      // another owner can make the change), and a non-owner may only touch
+      // members ranked below them, so changes to managers are owner-only
+      // in practice.
+      if (target.member_id && String(target.member_id) === String(req.user.id)) {
+        await client.query('ROLLBACK');
+        return sendError(res, 403, 'You cannot change your own permission overrides.', 'cannot_edit_own_overrides');
+      }
+      if (!isOwner && permissionsService.roleRank(target.role) >= permissionsService.roleRank(req.businessRole)) {
+        await client.query('ROLLBACK');
+        return sendError(res, 403, 'You can only edit permissions for members below your own role.', 'target_rank_too_high', { target_role: target.role });
+      }
+
+      // Filter: managers cannot grant ALLOW for a permission they themselves lack.
+      if (!isOwner && req.permissions) {
+        for (const o of overrides) {
+          if (o.effect === 'allow' && !req.permissions.has(o.permission_code)) {
+            await client.query('ROLLBACK');
+            return sendError(res, 403, `You cannot grant a permission you do not hold: ${o.permission_code}`, 'cannot_grant_above_level', { permission: o.permission_code });
+          }
+        }
+      }
+
+      // S-22: capture the before state so the audit row shows what the
+      // override set replaced, not only what it became.
+      const before = await client.query(
+        `SELECT p.code AS permission_code, mpo.effect, mpo.reason, mpo.expires_at
+           FROM membership_permission_overrides mpo
+           JOIN team_permissions p ON p.id = mpo.permission_id
+          WHERE mpo.membership_id = $1
+          ORDER BY mpo.id ASC`,
+        [mid]
+      );
+
+      await client.query('DELETE FROM membership_permission_overrides WHERE membership_id = $1', [mid]);
+
+      for (const o of overrides) {
+        const inserted = await client.query(
+          `INSERT INTO membership_permission_overrides
+             (membership_id, permission_id, effect, reason, granted_by_user_id, expires_at)
+           SELECT $1, p.id, $2, $3, $4, $5
+             FROM team_permissions p
+            WHERE p.code = $6`,
+          [mid, o.effect, o.reason ? String(o.reason).slice(0, 500) : null, req.user.id, o.expires_at || null, o.permission_code]
+        );
+        // Codes were validated above; a miss here means the catalog changed
+        // mid-request. Fail the whole write rather than dropping the entry.
+        if (inserted.rowCount !== 1) {
+          await client.query('ROLLBACK');
+          return sendError(res, 400, `Unknown permission code: ${o.permission_code}`, 'unknown_permission_code', { permission: o.permission_code });
+        }
+      }
+
+      await client.query('COMMIT');
+
+      if (target.member_id) {
+        permissionsService.invalidateCache(req.business.id, target.member_id);
+      }
+      await logBusinessAction(req, {
+        action: 'business.member.permissions_updated',
+        target_type: 'business_member',
+        target_id: mid,
+        before_state: { overrides: before.rows },
+        after_state: { overrides },
+      });
+
+      res.json({ data: { ok: true, count: overrides.length } });
+    } catch (err) {
+      try { await client.query('ROLLBACK'); } catch (_) {}
+      throw err;
+    } finally {
+      client.release();
     }
-
-    await client.query('COMMIT');
-
-    if (exists.rows[0].member_id) {
-      permissionsService.invalidateCache(req.business.id, exists.rows[0].member_id);
-    }
-    await logBusinessAction(req, {
-      action: 'business.member.permissions_updated',
-      target_type: 'business_member',
-      target_id: mid,
-      after_state: { overrides },
-    });
-
-    res.json({ data: { ok: true, count: overrides.length } });
   } catch (err) {
-    try { await client.query('ROLLBACK'); } catch (_) {}
     next(err);
-  } finally {
-    client.release();
   }
 };
 

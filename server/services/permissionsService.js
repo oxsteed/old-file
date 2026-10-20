@@ -11,16 +11,41 @@
  * (server/migrations/245_team_roles_permissions_access_codes.sql).
  *
  * Backed by a small in-process cache keyed on (business_id, user_id, role).
- * Cache TTL is short (30s) so role changes propagate quickly without
- * needing pubsub. The cache key includes role so revoke + reassign
- * naturally invalidates.
+ * Cache TTL is short (30s). The cache key includes role so revoke +
+ * reassign naturally invalidates.
+ *
+ * Cross-instance invalidation (S-21): invalidateCache() also publishes the
+ * evicted (business_id, user_id) pair to the Redis channel
+ * 'oxsteed:permissions:invalidate'; every instance subscribes and applies
+ * the same eviction locally. When REDIS_URL is configured (production)
+ * propagation is effectively immediate. When Redis is not configured the
+ * invalidation bound is the cache TTL: a permission change made on another
+ * instance can take up to TTL_MS (30s) to reach permission-gated routes
+ * served by this instance. Membership checks themselves are never cached,
+ * so a removed member loses access on the very next request everywhere.
  */
 
 const pool = require('../db');
+const logger = require('../utils/logger');
 
 const TTL_MS = 30 * 1000;
 const MAX_CACHE_ENTRIES = 5000;
 const cache = new Map();
+
+// Role ordering (descending privilege). Mirrors the ordering documented in
+// middleware/requireBusinessAccess.js; defined here so services and
+// controllers share one rank model (S-22 guardrails).
+const ROLE_RANK = {
+  owner: 5,
+  manager: 4,
+  representative: 3,
+  support_agent: 2,
+  employee: 1,
+};
+
+function roleRank(role) {
+  return ROLE_RANK[role] || 0;
+}
 
 function cacheKey(businessId, userId, role) {
   return `${businessId}|${userId}|${role}`;
@@ -72,7 +97,8 @@ async function getEffectivePermissions(ctx) {
   // Owner short-circuit — owner gets every permission.
   if (role === 'owner') {
     const { rows } = await pool.query(
-      'SELECT code FROM team_permissions'
+      'SELECT code FROM team_permissions',
+      []
     );
     const perms = new Set(rows.map((r) => r.code));
     const result = { permissions: perms, raw: { role: 'owner', source: 'owner_grant' } };
@@ -154,7 +180,7 @@ function hasAll(permSet, requested) {
   return true;
 }
 
-function invalidateCache(businessId, userId) {
+function evictLocal(businessId, userId) {
   if (businessId && userId) {
     for (const key of cache.keys()) {
       if (key.startsWith(`${businessId}|${userId}|`)) cache.delete(key);
@@ -169,6 +195,66 @@ function invalidateCache(businessId, userId) {
     return;
   }
   cache.clear();
+}
+
+// ── Cross-instance invalidation bus (S-21) ─────────────────────────────────
+// Uses the shared Redis client (server/utils/redis). Publishing is
+// fire-and-forget: a Redis outage never blocks or fails a permission
+// write; the local eviction above has already happened and the TTL bound
+// documented in the header applies until Redis recovers.
+const INVALIDATION_CHANNEL = 'oxsteed:permissions:invalidate';
+let invalidationPublisher = null; // async (businessId, userId) => void
+let invalidationSubscriber = null;
+
+function handleInvalidationMessage(raw) {
+  try {
+    const msg = JSON.parse(raw);
+    if (msg && (msg.businessId || msg.userId)) {
+      evictLocal(msg.businessId || null, msg.userId || null);
+    }
+  } catch (_) {
+    // A malformed message must never crash the subscriber; ignore it.
+  }
+}
+
+function initInvalidationBus() {
+  if (invalidationPublisher || invalidationSubscriber) return;
+  let redis = null;
+  try {
+    redis = require('../utils/redis');
+  } catch (_) {
+    redis = null;
+  }
+  if (!redis) return; // No Redis configured: TTL bound applies (see header).
+  invalidationPublisher = async (businessId, userId) => {
+    try {
+      await redis.publish(INVALIDATION_CHANNEL, JSON.stringify({ businessId, userId }));
+    } catch (err) {
+      logger.warn('permissionsService: invalidation publish failed', { message: err.message });
+    }
+  };
+  try {
+    const sub = redis.duplicate();
+    sub.on('error', (err) => logger.warn('permissionsService: invalidation subscriber error', { message: err.message }));
+    sub.subscribe(INVALIDATION_CHANNEL).catch((err) => {
+      logger.warn('permissionsService: invalidation subscribe failed', { message: err.message });
+    });
+    sub.on('message', (channel, message) => {
+      if (channel === INVALIDATION_CHANNEL) handleInvalidationMessage(message);
+    });
+    invalidationSubscriber = sub;
+  } catch (err) {
+    logger.warn('permissionsService: invalidation subscriber setup failed', { message: err.message });
+  }
+}
+
+function invalidateCache(businessId, userId) {
+  evictLocal(businessId, userId);
+  initInvalidationBus();
+  if (invalidationPublisher) {
+    // Fire-and-forget; the publisher swallows its own errors.
+    invalidationPublisher(businessId || null, userId || null);
+  }
 }
 
 /**
@@ -211,10 +297,75 @@ async function getCatalog() {
   return catalogCache;
 }
 
+/**
+ * S-08: THE single permission resolver for restaurant surfaces.
+ *
+ * Every restaurant controller gate must resolve through here (directly or
+ * via hasRestaurantPermission) so the catalog + per-membership overrides
+ * are the only source of truth. Role-only checks (the old MANAGE_ROLES
+ * sets) cannot see deny overrides and are not used for authorization.
+ *
+ * `restaurant` is the row returned by scopeModel.resolveRestaurantAccess:
+ * it carries business_id, effective_role and effective_membership_id.
+ * Platform-admin requests arrive with effective_role 'owner' and resolve
+ * to the full catalog, exactly like the business owner.
+ *
+ * Fails closed: missing context resolves to an empty set, and a resolver
+ * error propagates (the caller's error handler returns 5xx, never a pass).
+ */
+async function getRestaurantPermissions(restaurant, userId) {
+  if (!restaurant || !userId || !restaurant.business_id || !restaurant.effective_role) {
+    return new Set();
+  }
+  const { permissions } = await getEffectivePermissions({
+    businessId: restaurant.business_id,
+    userId,
+    role: restaurant.effective_role,
+    membershipId: restaurant.effective_membership_id || null,
+  });
+  return permissions;
+}
+
+/**
+ * True when the caller's resolved set contains at least one of `codes`
+ * (or the owner '*' marker). Use for restaurant manage gates that used to
+ * be `MANAGE_ROLES.has(restaurant.effective_role)`.
+ */
+async function hasRestaurantPermission(restaurant, userId, codes) {
+  const permissions = await getRestaurantPermissions(restaurant, userId);
+  if (permissions.has('*')) return true;
+  return hasAny(permissions, codes);
+}
+
+/**
+ * True when `code` exists in the permission catalog. The override write
+ * path uses this to reject unknown codes instead of silently dropping
+ * them (S-08). Reads the table directly (not the 60s catalog cache) so a
+ * freshly migrated code is valid immediately.
+ */
+async function isKnownPermissionCode(code) {
+  if (typeof code !== 'string' || !code) return false;
+  const { rows } = await pool.query('SELECT 1 FROM team_permissions WHERE code = $1', [code]);
+  return rows.length > 0;
+}
+
 module.exports = {
   getEffectivePermissions,
   hasAny,
   hasAll,
   invalidateCache,
   getCatalog,
+  getRestaurantPermissions,
+  hasRestaurantPermission,
+  isKnownPermissionCode,
+  ROLE_RANK,
+  roleRank,
+  // Test hooks for the S-21 invalidation bus (no Redis needed to verify
+  // the publish/evict wiring).
+  _testHooks: {
+    setInvalidationPublisher(fn) { invalidationPublisher = fn; },
+    getInvalidationPublisher() { return invalidationPublisher; },
+    handleInvalidationMessage,
+    INVALIDATION_CHANNEL,
+  },
 };

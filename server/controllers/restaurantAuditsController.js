@@ -7,12 +7,12 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const permissionsService = require('../services/permissionsService');
 
 const AUDIT_CATEGORIES = ['general', 'kitchen', 'front_of_house', 'cleaning', 'food_safety', 'safety'];
 const AUDIT_STATUSES = ['in_progress', 'completed', 'abandoned'];
 const SEVERITIES = ['low', 'medium', 'high', 'critical'];
 const ACTION_STATUSES = ['open', 'in_progress', 'resolved', 'verified'];
-const MANAGE_ROLES = new Set(['owner', 'manager']);
 
 function parsePositiveInt(value) {
   const n = Number(value);
@@ -28,8 +28,15 @@ async function requireRestaurantAccess(userId, restaurantId) {
   return resolveRestaurantAccess(userId, restaurantId);
 }
 
-function assertManage(restaurant) {
-  if (!MANAGE_ROLES.has(restaurant.effective_role)) {
+// S-08: manage gates resolve through the permission catalog (role defaults
+// + per-membership overrides) via permissionsService, the single resolver.
+// MANAGE_PERMISSION_CODES reproduces the previous owner/manager-only gate
+// for members without overrides; deny overrides now take effect here too.
+const MANAGE_PERMISSION_CODES = ['audit.view'];
+
+async function assertManage(restaurant, userId) {
+  const allowed = await permissionsService.hasRestaurantPermission(restaurant, userId, MANAGE_PERMISSION_CODES);
+  if (!allowed) {
     throw new AppError('You do not have permission to manage this restaurant', 403, 'forbidden');
   }
 }
@@ -73,7 +80,7 @@ exports.createTemplate = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const { name, description, category, items } = req.body || {};
     if (!name || !String(name).trim()) throw new AppError('Name is required', 400, 'name_required');
     if (category && !AUDIT_CATEGORIES.includes(category)) throw new AppError('Invalid category', 400, 'invalid_category');
@@ -127,7 +134,7 @@ exports.updateTemplate = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const templateId = parsePositiveInt(req.params.templateId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const { name, description, category, isActive, items } = req.body || {};
     const client = await pool.connect();
     try {
@@ -181,7 +188,7 @@ exports.deleteTemplate = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const templateId = parsePositiveInt(req.params.templateId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const { rowCount } = await pool.query(
       `DELETE FROM restaurant_audit_templates WHERE id = $1 AND restaurant_id = $2`,
       [templateId, restaurantId]
@@ -408,7 +415,7 @@ exports.createCorrectiveAction = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const findingId = parsePositiveInt(req.params.findingId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const { description, assigneeId, dueAt } = req.body || {};
     if (!description || !String(description).trim()) throw new AppError('Description is required', 400, 'description_required');
     const { rows: [finding] } = await pool.query(
@@ -446,7 +453,7 @@ exports.listCorrectiveActions = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const isManager = MANAGE_ROLES.has(restaurant.effective_role);
+    const isManager = await permissionsService.hasRestaurantPermission(restaurant, req.user.id, ['audit.view']);
     const mineOnly = req.query.mine === '1' || !isManager;
     const status = req.query.status;
     const { rows } = await pool.query(
@@ -476,7 +483,7 @@ exports.updateCorrectiveAction = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const actionId = parsePositiveInt(req.params.actionId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const isManager = MANAGE_ROLES.has(restaurant.effective_role);
+    const isManager = await permissionsService.hasRestaurantPermission(restaurant, req.user.id, ['audit.view']);
     const { status } = req.body || {};
     if (!ACTION_STATUSES.includes(status)) throw new AppError('Invalid status', 400, 'invalid_status');
     const { rows: [action] } = await pool.query(

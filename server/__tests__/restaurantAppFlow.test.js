@@ -133,8 +133,14 @@ function buildDeviceApp() {
   return app;
 }
 
+const permissionsService = require('../services/permissionsService');
+
 beforeEach(() => {
   resetMocks();
+  // S-08: manage gates and bootstrap resolve permissions through
+  // permissionsService. Clear its cache per test so each scripted chain
+  // deterministically includes the resolver's catalog rows.
+  permissionsService.invalidateCache();
   notifyRefundIssued.mockClear();
 });
 
@@ -185,6 +191,7 @@ describe('restaurant app-flow backend', () => {
   test('returns manager dashboard metrics from live order/inventory/support data', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({ rows: [{ order_count: 4, sales_cents: 8900, tips_cents: 500 }] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, queue_number: 8, is_delayed: true, status: 'preparing' }] })
       .mockResolvedValueOnce({ rows: [{ item_name: 'Burger', quantity: 7, revenue_cents: 6300 }] })
@@ -268,6 +275,7 @@ describe('restaurant app-flow backend', () => {
   test('returns manager report rollups for dashboards', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({ rows: [{ day: '2026-06-30', order_count: 6, sales_cents: 14800 }] })
       .mockResolvedValueOnce({ rows: [{ status: 'completed', payment_status: 'paid', order_count: 5 }] })
       .mockResolvedValueOnce({ rows: [{ station_label: 'Grill', item_count: 12, average_prep_seconds: 420 }] })
@@ -288,6 +296,7 @@ describe('restaurant app-flow backend', () => {
   test('updates full manager publishing controls and primary location', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({
         rows: [accessRow({
           status: 'active',
@@ -358,6 +367,7 @@ describe('restaurant app-flow backend', () => {
           },
         })],
       })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({
         rows: [{
           id: 901,
@@ -422,6 +432,7 @@ describe('restaurant app-flow backend', () => {
   test('creates display pairing code and remotely updates device config', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({ rows: [{ id: 77 }] })
       .mockResolvedValueOnce({
         rows: [{
@@ -499,6 +510,7 @@ describe('restaurant app-flow backend', () => {
   test('rotates a paired device token for a restaurant manager', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({ rows: [{
         id: 801,
         restaurant_id: RESTAURANT_ID,
@@ -1013,6 +1025,7 @@ describe('restaurant app-flow backend', () => {
   test('voids unpaid POS tickets through compatibility route', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({ rows: [{ net_paid_cents: 0 }] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, pos_ticket_state: 'voided', status: 'cancelled', payment_status: 'unpaid' }] });
 
@@ -1040,6 +1053,7 @@ describe('restaurant app-flow backend', () => {
   test('allows managers to void unpaid POS tickets', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager' })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage', allow: true }] })
       .mockResolvedValueOnce({ rows: [{ net_paid_cents: 0 }] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, pos_ticket_state: 'voided', status: 'cancelled', payment_status: 'unpaid' }] });
 
@@ -1164,6 +1178,7 @@ describe('restaurant app-flow backend', () => {
   test('reports POS sync health for device replacement UI', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({
         rows: [{
           id: 801,
@@ -1412,6 +1427,7 @@ describe('restaurant app-flow backend', () => {
   test('configures kitchen station routing and printer jobs', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({ rows: [{ id: 31, name: 'Grill', is_active: true }] });
 
     const stationRes = await request(buildApp())
@@ -1449,6 +1465,7 @@ describe('restaurant app-flow backend', () => {
   test('creates crew task and comment history', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({ rows: [{ id: 701, title: 'Restock pickup shelf', status: 'not_started' }] });
 
     const createRes = await request(buildApp())
@@ -1490,6 +1507,7 @@ describe('restaurant app-flow backend', () => {
 
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({ rows: [{ id: 701, status: 'needs_approval' }] })
       .mockResolvedValueOnce({ rows: [{ id: 701, status: 'completed', approved_by: USER_ID }] })
       .mockResolvedValueOnce({ rows: [] });
@@ -1569,6 +1587,7 @@ describe('restaurant app-flow backend', () => {
   test('reports inventory hook status for menu availability automation', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({
         rows: [{
           mapped_items: 4,

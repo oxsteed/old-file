@@ -13,10 +13,10 @@ const {
   notifyTrainingAssigned,
   applyAutoAssignRules,
 } = require('../services/restaurantTrainingLifecycle');
+const permissionsService = require('../services/permissionsService');
 
 const TRAINING_CATEGORIES = ['general', 'kitchen', 'front_of_house', 'cleaning', 'food_safety', 'customer_service', 'safety'];
 const ASSIGNMENT_STATUSES = ['assigned', 'in_progress', 'completed', 'overdue'];
-const MANAGE_ROLES = new Set(['owner', 'manager']);
 
 function parsePositiveInt(value) {
   const n = Number(value);
@@ -32,8 +32,15 @@ async function requireRestaurantAccess(userId, restaurantId) {
   return resolveRestaurantAccess(userId, restaurantId);
 }
 
-function assertManage(restaurant) {
-  if (!MANAGE_ROLES.has(restaurant.effective_role)) {
+// S-08: manage gates resolve through the permission catalog (role defaults
+// + per-membership overrides) via permissionsService, the single resolver.
+// MANAGE_PERMISSION_CODES reproduces the previous owner/manager-only gate
+// for members without overrides; deny overrides now take effect here too.
+const MANAGE_PERMISSION_CODES = ['crew.manage'];
+
+async function assertManage(restaurant, userId) {
+  const allowed = await permissionsService.hasRestaurantPermission(restaurant, userId, MANAGE_PERMISSION_CODES);
+  if (!allowed) {
     throw new AppError('You do not have permission to manage this restaurant', 403, 'forbidden');
   }
 }
@@ -88,7 +95,7 @@ exports.listModules = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const isManager = MANAGE_ROLES.has(restaurant.effective_role);
+    const isManager = await permissionsService.hasRestaurantPermission(restaurant, req.user.id, ['crew.manage']);
     res.json({ modules: await loadModules(restaurantId, isManager) });
   } catch (err) {
     next(err);
@@ -99,7 +106,7 @@ exports.createModule = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const { title, description, content, category, passScorePct, questions } = req.body || {};
     if (!title || !String(title).trim()) throw new AppError('Title is required', 400, 'title_required');
     if (category && !TRAINING_CATEGORIES.includes(category)) throw new AppError('Invalid category', 400, 'invalid_category');
@@ -160,7 +167,7 @@ exports.updateModule = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const moduleId = parsePositiveInt(req.params.moduleId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const { title, description, content, category, passScorePct, isActive, questions } = req.body || {};
     const validForDays = parseBoundedInt(req.body.validForDays, { min: 1, max: 3650, code: 'invalid_valid_for_days', label: 'Valid-for days' });
     const maxAttempts = parseBoundedInt(req.body.maxAttempts, { min: 1, max: 20, code: 'invalid_max_attempts', label: 'Max attempts' });
@@ -234,7 +241,7 @@ exports.deleteModule = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const moduleId = parsePositiveInt(req.params.moduleId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const { rowCount } = await pool.query(
       `DELETE FROM restaurant_training_modules WHERE id = $1 AND restaurant_id = $2`,
       [moduleId, restaurantId]
@@ -251,7 +258,7 @@ exports.listStaff = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const { rows } = await pool.query(
       `SELECT u.id AS user_id, u.first_name, u.last_name, bm.role
          FROM business_members bm
@@ -272,7 +279,7 @@ exports.assignModule = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const moduleId = parsePositiveInt(req.params.moduleId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const { userId, dueAt } = req.body || {};
     if (!userId) throw new AppError('userId is required', 400, 'user_required');
     const { rows: [module] } = await pool.query(
@@ -335,7 +342,7 @@ exports.listAssignments = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const isManager = MANAGE_ROLES.has(restaurant.effective_role);
+    const isManager = await permissionsService.hasRestaurantPermission(restaurant, req.user.id, ['crew.manage']);
     const mineOnly = req.query.mine === '1' || !isManager;
     // S-12: completions are an attempts log now; surface only the latest
     // attempt per assignment, plus its version and validity expiry.
@@ -506,7 +513,7 @@ exports.listCompletions = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const { rows } = await pool.query(
       `SELECT c.*, m.title AS module_title, u.first_name, u.last_name, a.due_at
          FROM restaurant_training_completions c
