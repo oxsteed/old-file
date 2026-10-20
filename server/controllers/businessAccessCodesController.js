@@ -19,6 +19,9 @@ const { sendError } = require('../utils/apiError');
 const { logBusinessAction } = require('../services/businessAuditLog');
 const { sendNotification } = require('../services/notificationService');
 const permissionsService = require('../services/permissionsService');
+const { withTransaction } = require('../utils/transaction');
+const { applyStaffOffboarding } = require('../services/staffOffboarding');
+const { canActOnRole, resolveActorRole } = require('../utils/teamRanks');
 
 const VALID_ROLES = ['manager', 'representative', 'employee', 'support_agent'];
 
@@ -663,18 +666,37 @@ exports.removeMembership = async (req, res, next) => {
     if (rows[0].member_id === req.user.id) {
       return sendError(res, 400, 'You cannot remove yourself.', 'cannot_remove_self');
     }
-    await pool.query(
-      `UPDATE business_members SET status = 'revoked' WHERE id = $1`,
-      [mid]
-    );
+    // S-09: rank guardrail — a manager cannot remove a peer manager (or
+    // anyone at/above their own rank); manager removals are owner-only in
+    // practice. The route already gates manager+, and requireBusinessAccess
+    // always attaches the actor role in production; when the role cannot
+    // be resolved from the request we fall back to that route gate.
+    const actorRole = resolveActorRole(req, req.business && req.business.owner_id);
+    if (actorRole && !canActOnRole(actorRole, rows[0].role)) {
+      return sendError(res, 403, 'You can only remove members with a role below your own.', 'target_rank_too_high');
+    }
+    // S-11: the revoke and the offboarding cleanup (PIN deactivation,
+    // open-drawer flagging) commit together.
+    const offboarding = await withTransaction(pool, async (client) => {
+      await client.query(
+        `UPDATE business_members SET status = 'revoked' WHERE id = $1`,
+        [mid]
+      );
+      return applyStaffOffboarding(client, {
+        businessId: req.business.id,
+        userId: rows[0].member_id,
+        reason: 'Member removed from the team',
+      });
+    });
     permissionsService.invalidateCache(req.business.id, rows[0].member_id);
     await logBusinessAction(req, {
       action: 'business.member.removed',
       target_type: 'business_member',
       target_id: mid,
       after_state: { status: 'revoked', role: rows[0].role },
+      metadata: { offboarding },
     });
-    res.json({ data: { ok: true } });
+    res.json({ data: { ok: true, offboarding } });
 
     // Fire-and-forget: notify the removed member.
     sendNotification({

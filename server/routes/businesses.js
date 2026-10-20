@@ -37,7 +37,7 @@ const {
 } = require('../controllers/businessInvoiceController');
 
 const {
-  listMembers, inviteMember, revokeMember,
+  listMembers, inviteMember, revokeMember, resendMemberInvite, listJobRoles,
   listMyInvitations, acceptInvitation, declineInvitation,
   listManagedBusinesses,
 } = require('../controllers/businessMembersController');
@@ -156,6 +156,8 @@ router.delete('/:id/clients/:clientId',         authenticate, bizIdAccess('any')
 router.get('/:id/members',                      authenticate, listMembers);
 router.post('/:id/members',                     authenticate, bizIdAccess('manager'), inviteMember);
 router.delete('/:id/members/:memberId',         authenticate, bizIdAccess('manager'), revokeMember);
+router.post('/:id/members/:memberId/resend',    authenticate, bizIdAccess('manager'), resendMemberInvite);
+router.get('/:id/team/job-roles',               authenticate, bizIdAccess('manager'), listJobRoles);
 
 // ── Vortex tokens (per-business) ─────────────────────────────────────────────
 router.get('/:id/vortex-tokens',                authenticate, rejectImpersonated, requireVortexEnabled, bizIdAccess('manager'), listTokens);

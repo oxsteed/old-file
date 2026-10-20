@@ -19,6 +19,7 @@ const pool = require('../db');
 const { sendError } = require('../utils/apiError');
 const permissionsService = require('../services/permissionsService');
 const { logBusinessAction } = require('../services/businessAuditLog');
+const { canActOnRole } = require('../utils/teamRanks');
 
 const VALID_ROLES = ['manager', 'representative', 'employee', 'support_agent'];
 
@@ -85,6 +86,16 @@ exports.changeMembershipRole = async (req, res, next) => {
     if (!Number.isFinite(mid) || !VALID_ROLES.includes(newRole)) {
       return sendError(res, 400, 'Invalid role.', 'invalid_role', { allowed: VALID_ROLES });
     }
+    // S-09: a role change is a deliberate act, not a dropdown side effect.
+    // It requires an explicit confirmation and a reason, and the reason is
+    // recorded in the audit entry below.
+    const reason = String(req.body.reason || '').trim();
+    if (!reason) {
+      return sendError(res, 400, 'A reason is required to change a member\'s role.', 'reason_required');
+    }
+    if (req.body.confirm !== true && req.body.confirmed !== true) {
+      return sendError(res, 400, 'Role changes must be explicitly confirmed.', 'confirmation_required');
+    }
 
     const existing = await pool.query(
       'SELECT id, role, member_id, status FROM business_members WHERE id = $1 AND business_id = $2',
@@ -117,6 +128,7 @@ exports.changeMembershipRole = async (req, res, next) => {
       target_id: mid,
       before_state: { role: existing.rows[0].role },
       after_state:  { role: newRole },
+      metadata:     { reason },
     });
     res.json({ data: rows[0] });
   } catch (err) {
@@ -157,12 +169,24 @@ exports.setMembershipOverrides = async (req, res, next) => {
     await client.query('BEGIN');
 
     const exists = await client.query(
-      'SELECT id, member_id FROM business_members WHERE id = $1 AND business_id = $2',
+      'SELECT id, member_id, role FROM business_members WHERE id = $1 AND business_id = $2',
       [mid, req.business.id]
     );
     if (exists.rowCount === 0) {
       await client.query('ROLLBACK');
       return sendError(res, 404, 'Membership not found.', 'membership_not_found');
+    }
+
+    // S-09: nobody edits their own overrides, and a non-owner may only
+    // edit overrides for members ranked below them — previously a manager
+    // could deny a peer manager's (or their own) permissions.
+    if (exists.rows[0].member_id && exists.rows[0].member_id === req.user.id) {
+      await client.query('ROLLBACK');
+      return sendError(res, 403, 'You cannot change your own permission overrides.', 'cannot_edit_own_overrides');
+    }
+    if (!isOwner && req.businessRole && !canActOnRole(req.businessRole, exists.rows[0].role)) {
+      await client.query('ROLLBACK');
+      return sendError(res, 403, 'You can only edit permissions for members below your own role.', 'target_rank_too_high');
     }
 
     // Filter: managers cannot grant ALLOW for a permission they themselves lack.

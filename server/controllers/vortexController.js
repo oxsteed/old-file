@@ -296,8 +296,10 @@ async function redeemToken(req, res) {
     }
 
     // 6. Notify the business owner
+    // (notifications columns are body/data — the old message/metadata
+    // insert threw and rolled back the whole redemption, S-01.)
     await client.query(
-      `INSERT INTO notifications (user_id, type, title, message, metadata)
+      `INSERT INTO notifications (user_id, type, title, body, data)
        VALUES ($1, 'vortex_redeemed', $2, $3, $4)`,
       [
         record.owner_id,

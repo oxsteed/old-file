@@ -5718,6 +5718,36 @@ exports.validateStaffPin = async (req, res, next) => {
       // Constant-time enough for a short local staff unlock flow; bcrypt does
       // the actual hash comparison.
       if (await bcrypt.compare(pin, row.pin_hash)) {
+        // S-11: a PIN belongs to a person, and offboarding deactivates it —
+        // but never trust that alone. Re-check that the PIN's owner is still
+        // the business owner or an active member; if they are gone, retire
+        // the PIN on the spot and refuse the unlock.
+        if (row.staff_user_id) {
+          const { rows: [restaurantRow] } = await pool.query(
+            'SELECT business_id FROM food_restaurants WHERE id = $1',
+            [restaurantId]
+          );
+          let stillMember = false;
+          if (restaurantRow) {
+            const { rows: memberRows } = await pool.query(
+              `SELECT 1 FROM businesses b
+                WHERE b.id = $1 AND b.user_id = $2
+               UNION ALL
+               SELECT 1 FROM business_members bm
+                WHERE bm.business_id = $1 AND bm.member_id = $2 AND bm.status = 'active'
+               LIMIT 1`,
+              [restaurantRow.business_id, row.staff_user_id]
+            );
+            stillMember = memberRows.length > 0;
+          }
+          if (!stillMember) {
+            await pool.query(
+              'UPDATE restaurant_staff_pins SET is_active = FALSE, updated_at = NOW() WHERE id = $1',
+              [row.id]
+            );
+            return res.status(401).json({ valid: false, error: { code: 'invalid_pin', message: 'Invalid staff PIN' } });
+          }
+        }
         return res.json({
           valid: true,
           staff: {
