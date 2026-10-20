@@ -60,6 +60,24 @@ const SUPPORT_INTRO = "You are Ox, OxSteed's AI product guide. Help users comple
 const NO_ACCOUNT_DATA = 'You have no live account lookup or action tools in this chat. You cannot inspect balances, identity results, tickets or orders, change settings, submit bookings, refund or contact staff. Do not pretend otherwise.';
 const WITH_ACCOUNT_SNAPSHOT = `This turn includes an Account Snapshot: read-only, live summary data for the signed-in user's own records. Use it to answer account questions directly and cite its values. When you mention a record, include its link exactly as given (for example /orders/123) so the user can open it. The snapshot only covers what it lists; for anything else say where to look instead of guessing. You still cannot change settings, submit bookings, move money, refund, approve OxSteed Credit or contact staff from this chat. Do not pretend otherwise.`;
 
+// With confirm-card actions (signed-in users) the capability statement
+// names the one exception instead of contradicting it.
+const WITH_ACCOUNT_SNAPSHOT_ACTIONS = WITH_ACCOUNT_SNAPSHOT.replace(
+  'You still cannot change',
+  'Apart from proposing the confirm-card actions listed under In-chat Actions, you cannot change'
+);
+
+const ACTION_RULES = `## In-chat Actions (signed-in users)
+When the user clearly asks for one of these and you have the record id from the Account Snapshot (ids appear in its links), you may propose exactly ONE action by ending your reply with the marker on its own line. The user must confirm it on a card and the server re-checks it, so describe it as an option ("I can do this for you, confirm below") and never say it is already done.
+- Open a support ticket with this conversation: [[action:{"type":"open_ticket"}]]
+- Reopen the user's resolved or closed ticket: [[action:{"type":"reopen_ticket","ticket_id":"<id>"}]]
+- Reply on the user's open ticket with words the user gave you: [[action:{"type":"reply_ticket","ticket_id":"<id>","message":"<their message>"}]]
+- Resend the email verification link (only when the snapshot says the email is not verified): [[action:{"type":"resend_verification_email"}]]
+- Open cookie preferences: [[action:{"type":"open_cookie_preferences"}]]
+- Open one of the user's records: [[action:{"type":"navigate","target":"order|booking|job|dispute|ticket","id":"<id>"}]]
+- Cancel the user's own pending booking request with no deposit: [[action:{"type":"cancel_booking_request","booking_id":"<id>"}]]
+Never propose or imply any action that moves money, issues or promises a refund, or approves, changes or adjusts OxSteed Credit; explain the normal route or offer a human instead. Never invent ids.`;
+
 // Marker the model appends when it cannot resolve the request itself. The
 // server strips it and offers a human handoff (language independent).
 const HANDOFF_MARKER = '[[handoff]]';
@@ -72,10 +90,13 @@ ${RESPONSE_RULES}`;
 
 /**
  * System prompt for the AI support chat.
- * @param {{ hasSnapshot?: boolean, firstName?: string|null }} [opts]
+ * @param {{ hasSnapshot?: boolean, firstName?: string|null, actions?: boolean }} [opts]
  */
-function buildSupportPrompt({ hasSnapshot = false, firstName = null } = {}) {
-  const parts = [SUPPORT_INTRO, hasSnapshot ? WITH_ACCOUNT_SNAPSHOT : NO_ACCOUNT_DATA, PLATFORM_GUIDE, RESPONSE_RULES, HANDOFF_RULE];
+function buildSupportPrompt({ hasSnapshot = false, firstName = null, actions = false } = {}) {
+  const withActions = Boolean(actions && hasSnapshot);
+  const capability = hasSnapshot ? (withActions ? WITH_ACCOUNT_SNAPSHOT_ACTIONS : WITH_ACCOUNT_SNAPSHOT) : NO_ACCOUNT_DATA;
+  const parts = [SUPPORT_INTRO, capability, PLATFORM_GUIDE, RESPONSE_RULES, HANDOFF_RULE];
+  if (withActions) parts.push(ACTION_RULES);
   if (firstName) {
     parts.push(`## User\nThe signed-in user's first name is ${firstName}. You may use it for a natural greeting or to address them occasionally. Do not repeat it in every reply or sentence; most replies should not include it. Never ask for or mention their surname, email or phone.`);
   }
@@ -101,6 +122,7 @@ module.exports = {
   SUPPORT_PROMPT,
   FINANCIAL_GUIDE,
   HANDOFF_MARKER,
+  ACTION_RULES,
   buildSupportPrompt,
   supportDraftPrompt,
 };

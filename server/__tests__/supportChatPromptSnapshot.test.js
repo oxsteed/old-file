@@ -18,7 +18,7 @@ const chatController = require('../controllers/chatController');
 const USER = '00000000-0000-4000-8000-0000000000d1';
 
 function fullSnapshotRows(sql) {
-  if (/SELECT first_name FROM users/.test(sql)) return { rows: [{ first_name: 'Ana' }] };
+  if (/SELECT first_name, email_verified FROM users/.test(sql)) return { rows: [{ first_name: 'Ana' }] };
   if (/oxsteed_credit_accounts/.test(sql)) return { rows: [{ balance_cents: 1250, currency_code: 'USD', status: 'active' }] };
   if (/oxsteed_credit_customer_entitlements/.test(sql)) return { rows: [{ status: 'active' }] };
   if (/main_app_payout_requests/.test(sql)) return { rows: [{ amount_cents: 4000, currency_code: 'USD', payout_method: 'bank', status: 'failed', requested_at: '2026-10-18', processed_at: null }] };
@@ -91,7 +91,7 @@ describe('item 0: first name only', () => {
     expect(system).toMatch(/first name is Ana/);
     expect(system).not.toMatch(/Ruiz|ana@example\.com|5550100/);
     const usersQuery = mockQuery.mock.calls.find(([sql]) => /FROM users/.test(sql));
-    expect(usersQuery[0]).toBe('SELECT first_name FROM users WHERE id = $1');
+    expect(usersQuery[0]).toBe('SELECT first_name, email_verified FROM users WHERE id = $1');
     delete global.fetch;
   });
 

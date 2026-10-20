@@ -141,8 +141,10 @@ async function getSupportAccountSnapshot(userId, options = {}) {
   // Every section is independent: run them in parallel; each fails open.
   const sections = {
     profile: async () => {
-      const { rows } = await query('SELECT first_name FROM users WHERE id = $1', [userId]);
-      return rows.length ? { firstName: sanitizeFirstName(rows[0].first_name) } : null;
+      const { rows } = await query('SELECT first_name, email_verified FROM users WHERE id = $1', [userId]);
+      return rows.length
+        ? { firstName: sanitizeFirstName(rows[0].first_name), emailVerified: rows[0].email_verified === true }
+        : null;
     },
 
     // OxSteed Credit wallet balance and status (read-only).
@@ -261,6 +263,33 @@ async function getSupportAccountSnapshot(userId, options = {}) {
         [userId]
       );
       return toInt(rows[0]?.n);
+    },
+
+    // Newest pending booking request the user sent, so the assistant can
+    // offer the confirm-to-cancel action (unpaid requests only; see
+    // supportChatActions). Status and payment state only.
+    pendingBookingRequest: async () => {
+      const { rows } = await query(
+        `SELECT br.id, br.payment_status
+           FROM booking_requests br
+          WHERE br.customer_id = $1 AND br.status = 'pending'
+          ORDER BY br.created_at DESC LIMIT 1`,
+        [userId]
+      );
+      return rows.length ? { id: rows[0].id, paymentStatus: rows[0].payment_status || null } : null;
+    },
+
+    // Newest resolved/closed ticket in the last 30 days (reopen action).
+    latestClosedTicket: async () => {
+      const { rows } = await query(
+        `SELECT st.id, st.status
+           FROM support_tickets st
+          WHERE st.user_id = $1 AND st.status IN ('resolved', 'closed')
+            AND st.updated_at > NOW() - INTERVAL '30 days'
+          ORDER BY st.updated_at DESC LIMIT 1`,
+        [userId]
+      );
+      return rows.length ? { id: rows[0].id, status: rows[0].status } : null;
     },
 
     // Helper side: pending bids, assigned jobs, booking requests to answer.
@@ -414,6 +443,10 @@ function formatSnapshotForAI(snapshot) {
   if (typeof snapshot.bookingRequestsSent === 'number' && snapshot.bookingRequestsSent > 0) {
     lines.push(`- Booking requests awaiting a helper's answer: ${snapshot.bookingRequestsSent} (link: /my-bookings)`);
   }
+  if (snapshot.pendingBookingRequest?.id) {
+    lines.push(`- Newest pending booking request: id ${snapshot.pendingBookingRequest.id}` +
+      `, deposit ${snapshot.pendingBookingRequest.paymentStatus || 'none'} (link: /my-bookings)`);
+  }
   if (typeof snapshot.helperBids === 'number' && snapshot.helperBids > 0) {
     lines.push(`- Pending bids as helper: ${snapshot.helperBids} (link: /my-bids)`);
   }
@@ -432,6 +465,12 @@ function formatSnapshotForAI(snapshot) {
       (snapshot.tickets.latestId ? ` (newest: status ${snapshot.tickets.latestStatus}, link: /support/my-tickets/${snapshot.tickets.latestId})` : ''));
   } else if (typeof snapshot.openTickets === 'number') {
     lines.push(`- Open support tickets: ${snapshot.openTickets}`);
+  }
+  if (snapshot.latestClosedTicket?.id) {
+    lines.push(`- Most recently ${snapshot.latestClosedTicket.status} support ticket: id ${snapshot.latestClosedTicket.id} (link: /support/my-tickets/${snapshot.latestClosedTicket.id})`);
+  }
+  if (snapshot.profile && snapshot.profile.emailVerified === false) {
+    lines.push('- Email address: not verified yet');
   }
   if (snapshot.businessQueue) {
     const b = snapshot.businessQueue;
