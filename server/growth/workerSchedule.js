@@ -21,6 +21,12 @@ function entries(env = process.env) {
         60 * 60 * 1000,
         {},
       ],
+      [
+        "growthSuggestions",
+        () => require("../jobs/growthSuggestionProducer").run(),
+        60 * 60 * 1000,
+        {},
+      ],
     );
   if (env.GROWTH_CAMPAIGN_DELIVERY_ENABLED === "true")
     rows.push([
