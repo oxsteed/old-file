@@ -84,7 +84,7 @@ describe('anonymous chat provider selection', () => {
 });
 
 describe('handoff_suggested heuristic', () => {
-  test('is true after several user turns (message-count signal)', async () => {
+  test('long but calm conversations do not suggest handoff (turn count is not a signal)', async () => {
     const req = {
       body: {
         messages: [
@@ -94,7 +94,7 @@ describe('handoff_suggested heuristic', () => {
           { role: 'assistant', content: 'One moment.' },
           { role: 'user', content: 'This is taking too long.' },
           { role: 'assistant', content: 'I understand.' },
-          { role: 'user', content: 'Can someone help me?' },
+          { role: 'user', content: 'What should I check next?' },
         ],
       },
     };
@@ -103,8 +103,24 @@ describe('handoff_suggested heuristic', () => {
     await chatController.chatMessage(req, res, jest.fn());
 
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ handoff_suggested: true })
+      expect.objectContaining({ handoff_suggested: false })
     );
+  });
+
+  test('is true when the model marks the reply as needing a person', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: 'I cannot change that order from here.\n[[handoff]]' } }] }),
+    });
+    const req = { body: { messages: [{ role: 'user', content: 'Change my order address' }] } };
+    const res = responseDouble();
+
+    await chatController.chatMessage(req, res, jest.fn());
+
+    const payload = res.json.mock.calls[0][0];
+    expect(payload.handoff_suggested).toBe(true);
+    expect(payload.handoff_reason).toBe('model_cannot_help');
+    expect(payload.reply).toBe('I cannot change that order from here.');
   });
 
   test('is true on negative sentiment', async () => {

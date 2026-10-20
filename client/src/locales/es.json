@@ -11206,6 +11206,7 @@
     "removeImage": "Quitar imagen",
     "imageTooLarge": "Esa imagen es demasiado grande. Elige una de menos de 2 MB.",
     "requestTooLarge": "Ese mensaje era demasiado grande para enviarlo. Adjunta una imagen de menos de 2 MB o acorta tu mensaje e inténtalo de nuevo.",
+    "rateLimited": "Estás enviando mensajes más rápido de lo que puedo responder. Espera unos minutos e inténtalo de nuevo.",
     "escalated": "Listo. Soporte tiene tu conversación y te contactará por correo.",
     "escalatedWithTicket": "Listo. Soporte tiene tu conversación como el ticket {{ticketNumber}} y te contactará por correo.",
     "escalateFailed": "No se pudo contactar a soporte ahora. Inténtalo de nuevo.",

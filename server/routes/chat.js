@@ -13,7 +13,7 @@ const {
   getProfileContext,
   clearSupportThread,
 } = require('../controllers/chatController');
-const { chatLimiter, profileChatLimiter, authLimiter, paymentsLimiter } = require('../middleware/rateLimiter');
+const { chatLimiter, supportChatLimiter, profileChatLimiter, authLimiter, paymentsLimiter } = require('../middleware/rateLimiter');
 const { authenticate, optionalAuth: sharedOptionalAuth } = require('../middleware/auth');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const checkRestrictions = require('../middleware/checkRestrictions');
@@ -69,7 +69,9 @@ const optionalAuth = async (req, res, next) => {
 // when a valid web cookie or Bearer token is present, so signed-in users get
 // their account snapshot and server-side thread memory. Every caller uses the
 // same OpenRouter -> Ollama provider chain.
-router.post('/message', chatLimiter, optionalAuth, chatMessage);
+// supportChatLimiter runs after optionalAuth so signed-in users are limited
+// per user (40 / 10 min) and guests per IP (20 / 10 min).
+router.post('/message', optionalAuth, supportChatLimiter, chatMessage);
 
 // DELETE /api/chat/support-thread - clear the signed-in user's server-side
 // AI support memory ("Clear conversation" in the widget).

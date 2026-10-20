@@ -12,7 +12,7 @@ const {
   ACTIVE_CUSTOMER_JOBS_SQL,
 } = require('../services/supportAccountSnapshot');
 
-beforeEach(() => resetMocks());
+beforeEach(() => { resetMocks(); require('../services/supportAccountSnapshot')._resetSnapshotCacheForTests(); });
 
 describe('formatMinorAmount', () => {
   test('formats in the currency and locale instead of "$" + code', () => {
