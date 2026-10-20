@@ -35262,6 +35262,15 @@
     "backToKitchen": "Tounen sou ekran kwizin nan"
   },
   "growthInsights": {
+    "offersForYou": "Òf pou ou",
+    "tooManyOffers": "Twòp òf",
+    "offerOptions": "Opsyon òf la",
+    "feedbackRecorded": "Mèsi paske ou di nou.",
+    "pushPromptTitle": "Ou vle notifikasyon òf?",
+    "pushPromptBody": "Aktive notifikasyon push pou òf yo chwazi pou ou. Alèt travay, kòmand ak mesaj rete separe.",
+    "pushPromptAccept": "Aktive",
+    "pushPromptDecline": "Pa kounye a",
+    "offersSettingsDescription": "Chwazi ki òf ou wè ak kijan yo rive jwenn ou.",
     "title": "Enfòmasyon kwasans",
     "privacy": "Vi prive pou aktivite ak òf",
     "privacyDescription": "Chwazi kijan yo itilize aktivite w ak ki kote w resevwa òf. Chwa sa yo pa chanje pri w oswa aksè w sou OxSteed.",

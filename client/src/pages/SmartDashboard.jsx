@@ -22,6 +22,7 @@ import BusinessRepresentativeDashboard from './BusinessRepresentativeDashboard';
 import BusinessEmployeeDashboard from './BusinessEmployeeDashboard';
 import { dashboardKeyForMode } from '../utils/modeAccess';
 import { normalizeLaunchDashboardMode } from '../utils/launchScope';
+import OfferCard from '../growth/OfferCard';
 
 function Spinner() {
   return (
@@ -59,16 +60,27 @@ export default function SmartDashboard() {
   );
   const key = dashboardKeyForMode(effectiveMode);
 
+  // The "Offers for you" card (growth spec 16.1) sits at the top of every
+  // role home; it renders nothing when there is no offer and no prompt.
+  const withOffers = (dashboard) => (
+    <>
+      <div className="px-4 pt-4">
+        <OfferCard />
+      </div>
+      {dashboard}
+    </>
+  );
+
   switch (key) {
-    case 'helper':              return <HelperDashboard />;
-    case 'business_owner':      return <BusinessOwnerDashboard />;
-    case 'consultant':          return <ConsultantContractorDashboard />;
-    case 'tool_owner':          return <ToolOwnerDashboard />;
-    case 'franchise_applicant': return <FranchiseApplicantDashboard />;
-    case 'life':                return <LifeDashboard />;
-    case 'business_manager':    return <BusinessManagerDashboard />;
-    case 'business_representative': return <BusinessRepresentativeDashboard />;
-    case 'business_employee':   return <BusinessEmployeeDashboard />;
+    case 'helper':              return withOffers(<HelperDashboard />);
+    case 'business_owner':      return withOffers(<BusinessOwnerDashboard />);
+    case 'consultant':          return withOffers(<ConsultantContractorDashboard />);
+    case 'tool_owner':          return withOffers(<ToolOwnerDashboard />);
+    case 'franchise_applicant': return withOffers(<FranchiseApplicantDashboard />);
+    case 'life':                return withOffers(<LifeDashboard />);
+    case 'business_manager':    return withOffers(<BusinessManagerDashboard />);
+    case 'business_representative': return withOffers(<BusinessRepresentativeDashboard />);
+    case 'business_employee':   return withOffers(<BusinessEmployeeDashboard />);
     case 'investor':
     case 'logistics':
     case 'support_agent':
@@ -76,6 +88,6 @@ export default function SmartDashboard() {
       // Effect above handles navigation; render spinner while it happens.
       return <Spinner />;
     case 'customer':
-    default:                    return <Dashboard />;
+    default:                    return withOffers(<Dashboard />);
   }
 }

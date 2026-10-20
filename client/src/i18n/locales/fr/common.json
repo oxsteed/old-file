@@ -4850,6 +4850,15 @@
     }
   },
   "growthInsights": {
+    "offersForYou": "Offres pour vous",
+    "tooManyOffers": "Trop d'offres",
+    "offerOptions": "Options de l'offre",
+    "feedbackRecorded": "Merci pour votre retour.",
+    "pushPromptTitle": "Recevoir les notifications d'offres ?",
+    "pushPromptBody": "Activez les notifications push pour les offres choisies pour vous. Les alertes de missions, commandes et messages restent séparées.",
+    "pushPromptAccept": "Activer",
+    "pushPromptDecline": "Pas maintenant",
+    "offersSettingsDescription": "Choisissez les offres que vous voyez et comment elles vous parviennent.",
     "title": "Analyse de croissance",
     "privacy": "Confidentialité de l’activité et des offres",
     "privacyDescription": "Choisissez comment votre activité est utilisée et où recevoir des offres. Vos prix et votre accès à OxSteed restent identiques.",

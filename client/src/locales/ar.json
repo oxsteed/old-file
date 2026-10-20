@@ -35276,6 +35276,15 @@
     "backToKitchen": "العودة إلى شاشة المطبخ"
   },
   "growthInsights": {
+    "offersForYou": "عروض لك",
+    "tooManyOffers": "عروض كثيرة جدا",
+    "offerOptions": "خيارات العرض",
+    "feedbackRecorded": "شكرا لإخبارنا.",
+    "pushPromptTitle": "هل تريد إشعارات العروض؟",
+    "pushPromptBody": "فعّل إشعارات الدفع للعروض المختارة لك. تبقى تنبيهات الوظائف والطلبات والرسائل منفصلة.",
+    "pushPromptAccept": "تفعيل",
+    "pushPromptDecline": "ليس الآن",
+    "offersSettingsDescription": "اختر العروض التي تراها وكيف تصلك.",
     "title": "رؤى النمو",
     "privacy": "خصوصية النشاط والعروض",
     "privacyDescription": "اختر كيفية استخدام نشاطك وأين تتلقى العروض. لا تغيّر هذه الخيارات أسعارك أو وصولك إلى OxSteed.",
