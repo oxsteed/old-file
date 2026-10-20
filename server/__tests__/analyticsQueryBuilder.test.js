@@ -184,9 +184,17 @@ describe('validateBuilderQuery', () => {
       promo_discount_cents: [],
       restaurant_repeat_order_rate: ['restaurant'],
       restaurant_top_items_revenue: ['restaurant'],
+      growth_campaign_recipients: [],
+      growth_offer_ctr_pct: [],
+      growth_offer_optout_rate_pct: [],
+      growth_push_open_rate_pct: [],
+      growth_affiliate_commission_cents: [],
+      growth_promo_redeemed_cents: [],
+      demand_unfilled_rate_pct: [],
+      demand_gap_index: [],
     });
     const meta = getBuilderMeta();
-    expect(meta.metrics).toHaveLength(18);
+    expect(meta.metrics).toHaveLength(26);
     expect(meta.rowCap).toBe(10000);
     const byName = Object.fromEntries(meta.metrics.map((m) => [m.name, m]));
     expect(byName.cancel_rate_pct.dimensions).toEqual(['role']);

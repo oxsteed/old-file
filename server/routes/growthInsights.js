@@ -51,27 +51,43 @@ router.get(
   "/demand",
   grant("view_growth_insights"),
   wrap(async (req, res) => {
-    const boundary = await access.scope(req.user, "view_growth_insights"),
-      params = [];
-    const where = access.predicate(boundary, "g", params);
-    if (req.query.intent) params.push(String(req.query.intent).slice(0, 120));
-    const { rows } = await db.query(
-      `WITH d AS(SELECT postal_ref,node_id,MAX(subjects) AS demand FROM demand_daily
-    WHERE day>=CURRENT_DATE-28 GROUP BY 1,2),s AS(SELECT postal_ref,node_id,MAX(providers) AS supply FROM supply_daily
-    WHERE day>=CURRENT_DATE-28 GROUP BY 1,2)
-    SELECT g.id,g.place_name,g.country,g.postal_code,g.h3_r5,g.h3_r7,n.code,n.labels,d.demand,s.supply,
-      CASE WHEN s.supply IS NOT NULL THEN d.demand::numeric/(s.supply+1) END AS gap
-    FROM d JOIN geo_postal_centroids g ON g.id=d.postal_ref JOIN demand_taxonomy_nodes n ON n.id=d.node_id
-    LEFT JOIN s USING(postal_ref,node_id) WHERE ${where} AND d.demand>=5
-    ${req.query.intent ? `AND n.code=$${params.length}` : ""} ORDER BY gap DESC LIMIT 500`,
-      params,
+    const boundary = await access.scope(req.user, "view_growth_insights");
+    // Exact distinct windows over the daily subject sets (migration 939):
+    // demand is the spec 10.1 weighted score, people is the exact count
+    // of distinct people in the trailing 28 days, trend compares the
+    // prior 28 days. Nothing here sums daily counts.
+    const cells = await require("../growth/insights").computeCells(
+      db,
+      boundary,
+      { intent: req.query.intent || null },
     );
+    const freshness = await require("../growth/insights").freshness(db);
     res.json({
-      rows,
+      rows: cells.slice(0, 500).map((c) => ({
+        id: c.id,
+        place_name: c.place_name,
+        country: c.country,
+        postal_code: c.postal_code,
+        lat: c.lat,
+        lng: c.lng,
+        h3_r5: c.h3_r5,
+        h3_r7: c.h3_r7,
+        code: c.code,
+        labels: c.labels,
+        demand: c.demand,
+        people: c.people,
+        supply: c.supply,
+        gap: c.gap,
+        trend_pct: c.trend_pct,
+        trend_state: c.trend_state,
+        anomaly: c.anomaly,
+      })),
       attribution: "GeoNames CC BY 4.0",
       window_days: 28,
-      counts: "maximum daily distinct subjects; not summed across days",
+      counts:
+        "exact distinct people, trailing 28 days vs prior 28 days; cells below k are hidden",
       k: 5,
+      freshness,
     });
   }),
 );
@@ -119,6 +135,34 @@ router.get(
       },
       "growth_clusters",
     );
+    // Persist finder results under stable ids so segment definitions can
+    // pin a cluster area (spec 11.1). First write wins: a cluster id must
+    // keep meaning the exact area a campaign pinned.
+    try {
+      const day = new Date().toISOString().slice(0, 10);
+      const intentTail = String(req.query.intent || "").split(".").pop();
+      for (const row of rows) {
+        row.cluster_id = `c_${day}_${req.query.country}_${row.anchor_id}_${row.miles}_${intentTail}`;
+        await db.query(
+          `INSERT INTO growth_clusters(id,intent_code,role,country,anchor_postal_ref,miles,postal_refs,member_count,definition,created_by)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10) ON CONFLICT(id) DO NOTHING`,
+          [
+            row.cluster_id,
+            req.query.intent,
+            req.query.role,
+            req.query.country,
+            row.anchor_id,
+            row.miles,
+            row.postal_refs,
+            row.member_count,
+            JSON.stringify({ source: "cluster_finder" }),
+            req.user.id,
+          ],
+        );
+      }
+    } catch {
+      // Persistence is additive; the finder result still returns.
+    }
     res.json({ rows, k: 5, location_basis: "postal_centroids" });
   }),
 );
@@ -266,21 +310,92 @@ router.post(
   }),
 );
 router.post(
+  "/segments/:segmentId/versions",
+  grant("manage_marketing"),
+  wrap(async (req, res) => {
+    // Editing a segment creates version N+1; existing versions are
+    // immutable and campaigns keep pointing at the version they used.
+    segments.validate(req.body.definition);
+    const result = await withTransaction(
+      db,
+      async (conn) => {
+        const {
+          rows: [s],
+        } = await conn.query(
+          "SELECT id,created_by FROM growth_segments WHERE id=$1 FOR UPDATE",
+          [id(req.params.segmentId)],
+        );
+        if (!s)
+          throw Object.assign(new Error("segment_not_found"), { status: 404 });
+        const boundary = await access.scope(req.user, "manage_marketing");
+        if (!boundary.global && s.created_by !== req.user.id)
+          throw Object.assign(new Error("segment_access_denied"), {
+            status: 403,
+          });
+        const {
+          rows: [latest],
+        } = await conn.query(
+          "SELECT COALESCE(MAX(version),0)::int AS v FROM growth_segment_versions WHERE segment_id=$1",
+          [s.id],
+        );
+        const {
+          rows: [v],
+        } = await conn.query(
+          "INSERT INTO growth_segment_versions(segment_id,version,definition,created_by) VALUES($1,$2,$3,$4) RETURNING *",
+          [s.id, latest.v + 1, req.body.definition, req.user.id],
+        );
+        await logAdminAction({
+          adminId: req.user.id,
+          action: "growth_segment_version_created",
+          targetType: "growth_segment",
+          targetKey: s.id,
+          after: { version: v.version },
+          client: conn,
+        });
+        return v;
+      },
+      "growth_segment_version",
+    );
+    res.status(201).json(result);
+  }),
+);
+router.post(
   "/segments/preview",
   grant("manage_marketing"),
   wrap(async (req, res) => {
     const boundary = await access.scope(req.user, "manage_marketing");
-    const rows = await withTransaction(
+    const { rows, overlap } = await withTransaction(
       db,
       async (conn) => {
         await conn.query("SET TRANSACTION READ ONLY");
         await conn.query("SET LOCAL statement_timeout='30s'");
-        return segments.evaluate(
+        const evaluated = await segments.evaluate(
           conn,
           req.body.definition,
           boundary,
           req.body.partner === true ? "partner_offers" : "activity_offers",
         );
+        // Overlap with other active campaigns: how many of these members
+        // are already frozen into a live campaign's audience. Counts
+        // below k are suppressed like every other growth count.
+        let overlapRows = [];
+        if (evaluated.length) {
+          const { rows: ov } = await conn.query(
+            `SELECT r.campaign_id,c.name,COUNT(DISTINCT r.user_id)::int AS shared
+             FROM offer_campaign_recipients r JOIN offer_campaigns c ON c.id=r.campaign_id
+             WHERE r.user_id=ANY($1::uuid[])
+               AND c.status IN ('approved','scheduled','queued','sending')
+             GROUP BY r.campaign_id,c.name ORDER BY shared DESC LIMIT 20`,
+            [evaluated.map((r) => r.id)],
+          );
+          overlapRows = ov.map((o) => ({
+            campaign_id: o.campaign_id,
+            name: o.name,
+            shared: o.shared >= 5 ? o.shared : null,
+            below_k: o.shared < 5,
+          }));
+        }
+        return { rows: evaluated, overlap: overlapRows };
       },
       "growth_preview",
     );
@@ -298,7 +413,75 @@ router.post(
       countries: breakdown("country"),
       languages: breakdown("preferred_language"),
       roles: breakdown("role"),
+      overlap,
     });
+  }),
+);
+router.post(
+  "/segments/members",
+  grant("view_growth_insights"),
+  wrap(async (req, res) => {
+    // Member access is fail-closed (spec 11.2): the reasoned audit row is
+    // written in its own transaction BEFORE any member data is read. If
+    // the audit write fails, the request fails and no data moves.
+    const reason = String(req.body.reason || "").trim();
+    if (!reason || reason.length > 500)
+      return res.status(400).json({ error: "member_access_reason_required" });
+    const versionId = id(req.body.segment_version_id);
+    const limit = Math.min(
+      25,
+      Math.max(1, parseInt(req.body.limit, 10) || 10),
+    );
+    await withTransaction(
+      db,
+      async (conn) => {
+        await logAdminAction({
+          adminId: req.user.id,
+          action: "growth_segment_members_viewed",
+          targetType: "growth_segment_version",
+          targetKey: versionId,
+          after: { reason, limit },
+          client: conn,
+        });
+      },
+      "growth_member_audit",
+    );
+    const boundary = await access.scope(req.user, "view_growth_insights");
+    const members = await withTransaction(
+      db,
+      async (conn) => {
+        await conn.query("SET TRANSACTION READ ONLY");
+        await conn.query("SET LOCAL statement_timeout='30s'");
+        const {
+          rows: [v],
+        } = await conn.query(
+          "SELECT definition FROM growth_segment_versions WHERE id=$1",
+          [versionId],
+        );
+        if (!v)
+          throw Object.assign(new Error("segment_version_not_found"), {
+            status: 404,
+          });
+        const all = await segments.evaluate(
+          conn,
+          v.definition,
+          boundary,
+          req.body.partner === true ? "partner_offers" : "activity_offers",
+        );
+        // Sample only, and only the fields an admin needs to sanity-check
+        // a segment: no names, emails or contact data.
+        return all
+          .slice(0, limit)
+          .map((r) => ({
+            id: r.id,
+            role: r.role,
+            country: r.country,
+            preferred_language: r.preferred_language,
+          }));
+      },
+      "growth_members",
+    );
+    res.json({ members, audited: true });
   }),
 );
 for (const [route, table, permission] of [
@@ -316,7 +499,7 @@ for (const [route, table, permission] of [
           ? "id,code,name,network,status,countries_allowed,allowed_channels,link_domains_allowlist"
           : route === "offers"
             ? "id,type,title,status,intent_codes,countries,currency,value_minor,channels,copy,expires_at,partner_id"
-            : "id,offer_id,segment_version_id,predicted_reach,rationale,status,created_at";
+            : "id,offer_id,segment_version_id,predicted_reach,score,rationale,model,status,rejection_reason,created_at";
       const { rows } = await db.query(
         `SELECT ${columns} FROM ${table} ORDER BY id DESC LIMIT 100`,
       );
@@ -682,6 +865,189 @@ router.post(
         .then((result) => res.json(result))
         .catch(next),
     );
+  }),
+);
+router.post(
+  "/propensity/run",
+  requirePermission("manage_marketing"),
+  wrap(async (req, res) => {
+    // On-demand recompute of the transparent v1 scorecards plus a fresh
+    // calibration report per model (the nightly rollup also runs this).
+    const summary = await require("../growth/propensity").computeAll(db);
+    await withTransaction(
+      db,
+      async (conn) => {
+        await logAdminAction({
+          adminId: req.user.id,
+          action: "growth_propensity_computed",
+          targetType: "propensity",
+          after: summary,
+          client: conn,
+        });
+      },
+      "growth_propensity_audit",
+    );
+    res.json({ summary });
+  }),
+);
+router.get(
+  "/propensity/calibration",
+  grant("view_growth_insights"),
+  wrap(async (req, res) => {
+    const propensity = require("../growth/propensity");
+    const model = String(req.query.model || "");
+    if (!Object.hasOwn(propensity.MODELS, model))
+      return res.status(400).json({ error: "unknown_propensity_model" });
+    const {
+      rows: [latest],
+    } = await db.query(
+      "SELECT report,computed_at FROM propensity_calibration_reports WHERE model=$1 ORDER BY id DESC LIMIT 1",
+      [model],
+    );
+    res.json({
+      report: latest?.report || (await propensity.calibration(db, model)),
+      computed_at: latest?.computed_at || null,
+      models: Object.keys(propensity.MODELS),
+    });
+  }),
+);
+router.post(
+  "/suggestions/produce",
+  requirePermission("manage_marketing"),
+  wrap(async (req, res) => {
+    // On-demand run of the nightly producer (spec 12). Not wrapped in one
+    // transaction: the producer evaluates segments and may call the
+    // self-hosted Ollama re-ranker, which must not hold a transaction open.
+    const summary = await require("../growth/recommend/produce").produce(db, {
+      authorId: req.user.id,
+    });
+    res.json(summary);
+  }),
+);
+router.post(
+  "/suggestions/:suggestionId/reject",
+  requirePermission("manage_marketing"),
+  wrap(async (req, res) => {
+    // Rejection feedback (spec 12.3): a reasoned rejection lowers the
+    // offer x intent pair for 30 days via offer_pair_penalties.
+    const reason = String(req.body.reason || "").trim();
+    if (!reason || reason.length > 500)
+      return res.status(400).json({ error: "rejection_reason_required" });
+    await withTransaction(
+      db,
+      async (conn) => {
+        const {
+          rows: [s],
+        } = await conn.query(
+          "SELECT * FROM offer_suggestions WHERE id=$1 FOR UPDATE",
+          [id(req.params.suggestionId)],
+        );
+        if (!s)
+          throw Object.assign(new Error("suggestion_not_found"), {
+            status: 404,
+          });
+        if (s.status !== "pending_review")
+          throw new Error("suggestion_not_pending");
+        await conn.query(
+          "UPDATE offer_suggestions SET status='rejected',rejection_reason=$2 WHERE id=$1",
+          [s.id, reason],
+        );
+        const {
+          rows: [v],
+        } = await conn.query(
+          "SELECT definition FROM growth_segment_versions WHERE id=$1",
+          [s.segment_version_id],
+        );
+        const code = v?.definition?.intents?.[0]?.code;
+        let nodeId = null;
+        if (code) {
+          const {
+            rows: [n],
+          } = await conn.query(
+            "SELECT id FROM demand_taxonomy_nodes WHERE code=$1",
+            [code],
+          );
+          nodeId = n?.id || null;
+        }
+        await conn.query(
+          `INSERT INTO offer_pair_penalties(offer_id,node_id,segment_version_id,reason,penalty_until,created_by)
+           VALUES($1,$2,$3,$4,NOW()+interval '30 days',$5)`,
+          [s.offer_id, nodeId, s.segment_version_id, reason, req.user.id],
+        );
+        await logAdminAction({
+          adminId: req.user.id,
+          action: "growth_suggestion_rejected",
+          targetType: "offer_suggestion",
+          targetKey: s.id,
+          after: { reason },
+          client: conn,
+        });
+      },
+      "growth_suggestion_reject",
+    );
+    res.sendStatus(204);
+  }),
+);
+router.post(
+  "/suggestions/:suggestionId/accept",
+  requirePermission("manage_marketing"),
+  wrap(async (req, res) => {
+    // Accepting a suggestion creates a draft campaign pinned to the
+    // suggestion's segment version and the offer's reviewed copy.
+    const result = await withTransaction(
+      db,
+      async (conn) => {
+        const {
+          rows: [s],
+        } = await conn.query(
+          "SELECT * FROM offer_suggestions WHERE id=$1 FOR UPDATE",
+          [id(req.params.suggestionId)],
+        );
+        if (!s)
+          throw Object.assign(new Error("suggestion_not_found"), {
+            status: 404,
+          });
+        if (s.status !== "pending_review")
+          throw new Error("suggestion_not_pending");
+        const {
+          rows: [o],
+        } = await conn.query("SELECT * FROM offers WHERE id=$1", [s.offer_id]);
+        if (!o || o.status !== "active")
+          throw new Error("suggestion_offer_not_active");
+        campaigns.validateCopy(o.copy, o.channels, {
+          affiliate: o.type === "affiliate_product",
+        });
+        const {
+          rows: [c],
+        } = await conn.query(
+          `INSERT INTO offer_campaigns(name,offer_id,segment_version_id,channels,copy,holdout_pct,created_by)
+           VALUES($1,$2,$3,$4,$5,10,$6) RETURNING *`,
+          [
+            `Suggestion ${s.id}: ${o.title}`.slice(0, 120),
+            o.id,
+            s.segment_version_id,
+            o.channels,
+            o.copy,
+            req.user.id,
+          ],
+        );
+        await conn.query(
+          "UPDATE offer_suggestions SET status='accepted' WHERE id=$1",
+          [s.id],
+        );
+        await logAdminAction({
+          adminId: req.user.id,
+          action: "growth_suggestion_accepted",
+          targetType: "offer_suggestion",
+          targetKey: s.id,
+          after: { campaign_id: c.id },
+          client: conn,
+        });
+        return c;
+      },
+      "growth_suggestion_accept",
+    );
+    res.status(201).json(result);
   }),
 );
 router.get(
