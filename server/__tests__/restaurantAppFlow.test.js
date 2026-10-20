@@ -171,6 +171,7 @@ describe('restaurant app-flow backend', () => {
       .mockResolvedValueOnce({ rows: [{ id: 1, app_key: 'pos', device_name: 'Front POS', status: 'paired', location_id: 77, location: { id: 77, name: 'Front Counter' } }] })
       .mockResolvedValueOnce({ rows: [{ id: 77, name: 'Front Counter', is_primary: true }] })
       .mockResolvedValueOnce({ rows: [{ id: BUSINESS_ID, business_name: 'Ox Burger Group' }] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [accessRow({ tax_rate_bps: 725, service_fee_bps: 0 })] });
 
     const res = await request(buildApp())
@@ -186,6 +187,7 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.app.settings.taxRateBps).toBe(725);
     expect(res.body.app.enabledModules.pos).toBe(true);
     expect(res.body.devices[0].app_key).toBe('pos');
+    expect(res.body.discountDefinitions).toEqual([]);
   });
 
   test('returns manager dashboard metrics from live order/inventory/support data', async () => {

@@ -3,6 +3,8 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const permissionsService = require('../services/permissionsService');
+const { logBusinessAction } = require('../services/businessAuditLog');
 
 function parsePositiveInt(value) {
   const n = Number.parseInt(value, 10);
@@ -46,7 +48,10 @@ exports.listDiscounts = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     await requireRestaurantAccess(req.user.id, restaurantId);
-    res.json({ discounts: DEFAULT_POS_DISCOUNTS });
+    // F-15: the restaurant's own active discount definitions ride along
+    // with the legacy global codes so the POS picker shows both.
+    const discountDefinitions = await fetchDiscountDefinitions(restaurantId, { activeOnly: true });
+    res.json({ discounts: DEFAULT_POS_DISCOUNTS, discountDefinitions });
   } catch (err) {
     next(err);
   }
@@ -140,6 +145,289 @@ exports.createReceiptEvent = async (req, res, next) => {
     );
 
     res.status(idempotencyKey ? 200 : 201).json({ receiptEvent });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ---------------------------------------------------------------------------
+// F-15: per-restaurant POS discount definitions (migration 953).
+// Merchant-managed (restaurant.manage) and audited through
+// business_audit_log. The POS computes amounts server-side from these
+// rows in createPosOrder; clients never supply a definition's value.
+// ---------------------------------------------------------------------------
+
+function serializeDiscountDefinition(row) {
+  if (!row) return null;
+  const value = Number(row.value);
+  return {
+    id: Number(row.id),
+    restaurant_id: Number(row.restaurant_id),
+    code: row.code,
+    name: row.name,
+    kind: row.kind,
+    discount_type: row.kind,
+    value,
+    value_cents: row.kind === 'fixed' ? value : null,
+    percentOff: row.kind === 'percent' ? value / 100 : 0,
+    max_discount_cents: row.max_discount_cents === null || row.max_discount_cents === undefined
+      ? null
+      : Number(row.max_discount_cents),
+    min_subtotal_cents: Number(row.min_subtotal_cents || 0),
+    requires_approval: row.requires_approval === true,
+    is_active: row.is_active !== false,
+    created_by: row.created_by || null,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+async function fetchDiscountDefinitions(restaurantId, { activeOnly = false } = {}) {
+  const { rows } = await pool.query(
+    `SELECT * FROM restaurant_discount_definitions
+      WHERE restaurant_id = $1 ${activeOnly ? 'AND is_active = TRUE' : ''}
+      ORDER BY code ASC`,
+    [restaurantId]
+  );
+  return rows.map(serializeDiscountDefinition);
+}
+
+exports.fetchDiscountDefinitions = fetchDiscountDefinitions;
+exports.serializeDiscountDefinition = serializeDiscountDefinition;
+
+// Same gate as restaurantAppFlowController.assertManage: the unified
+// permission resolver decides restaurant.manage for this caller.
+async function assertManage(restaurant, userId) {
+  const allowed = await permissionsService.hasRestaurantPermission(restaurant, userId, ['restaurant.manage']);
+  if (!allowed) {
+    throw new AppError('You do not have permission to manage this restaurant', 403, 'forbidden');
+  }
+}
+
+function parseNullableCents(value, field, fields) {
+  if (value === undefined || value === null || value === '') return null;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 0) {
+    fields[field] = 'Must be a non-negative integer number of cents';
+    return undefined;
+  }
+  return n;
+}
+
+function parseDiscountDefinitionFields(body, { partial = false } = {}) {
+  const fields = {};
+  const source = body && typeof body === 'object' ? body : {};
+  const out = {};
+  const has = (key) => source[key] !== undefined;
+
+  if (!partial || has('code')) {
+    const code = normalizeString(source.code, 80);
+    if (!code) fields.code = 'Code is required';
+    else if (!/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(code)) fields.code = 'Code may only contain letters, numbers, dashes and underscores';
+    else out.code = code.toUpperCase();
+  }
+  if (!partial || has('name')) {
+    const name = normalizeString(source.name, 160);
+    if (!name) fields.name = 'Name is required';
+    else out.name = name;
+  }
+  if (!partial || has('kind') || has('value')) {
+    const kind = normalizeString(source.kind, 16);
+    if (kind && kind !== 'percent' && kind !== 'fixed') fields.kind = "Kind must be 'percent' or 'fixed'";
+    else if (!partial && !kind) fields.kind = "Kind must be 'percent' or 'fixed'";
+    else if (kind) out.kind = kind;
+    const value = Number(source.value);
+    if (!Number.isInteger(value)) fields.value = 'Value must be an integer';
+    else if (out.kind === 'percent' && (value < 1 || value > 100)) fields.value = 'Percent value must be between 1 and 100';
+    else if (out.kind === 'fixed' && value < 1) fields.value = 'Fixed value must be at least 1 cent';
+    else if ((out.kind === undefined || out.kind === null) && value < 1) fields.value = 'Value must be at least 1';
+    else out.value = value;
+  }
+  if (!partial || has('max_discount_cents') || has('maxDiscountCents')) {
+    const parsed = parseNullableCents(source.max_discount_cents ?? source.maxDiscountCents, 'max_discount_cents', fields);
+    if (parsed !== undefined) out.max_discount_cents = parsed;
+  }
+  if (!partial || has('min_subtotal_cents') || has('minSubtotalCents')) {
+    const raw = source.min_subtotal_cents ?? source.minSubtotalCents;
+    if (raw === undefined || raw === null || raw === '') out.min_subtotal_cents = 0;
+    else {
+      const parsed = parseNullableCents(raw, 'min_subtotal_cents', fields);
+      if (parsed !== undefined && parsed !== null) out.min_subtotal_cents = parsed;
+    }
+  }
+  if (!partial || has('requires_approval') || has('requiresApproval')) {
+    const raw = source.requires_approval ?? source.requiresApproval;
+    out.requires_approval = raw === true || raw === 'true';
+  }
+  if (has('is_active') || has('isActive')) {
+    const raw = source.is_active ?? source.isActive;
+    out.is_active = !(raw === false || raw === 'false');
+  }
+  if (Object.keys(fields).length) {
+    throw new AppError('Validation failed', 400, 'validation_failed', fields);
+  }
+  return out;
+}
+
+async function loadDiscountDefinition(restaurantId, definitionId) {
+  const { rows: [row] } = await pool.query(
+    'SELECT * FROM restaurant_discount_definitions WHERE id = $1 AND restaurant_id = $2',
+    [definitionId, restaurantId]
+  );
+  if (!row) throw new AppError('Discount definition not found', 404, 'discount_definition_not_found');
+  return row;
+}
+
+exports.listDiscountDefinitions = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertManage(restaurant, req.user.id);
+    const discountDefinitions = await fetchDiscountDefinitions(restaurantId);
+    res.json({ discountDefinitions });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createDiscountDefinition = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertManage(restaurant, req.user.id);
+    const fields = parseDiscountDefinitionFields(req.body);
+    let row;
+    try {
+      const { rows: [created] } = await pool.query(
+        `INSERT INTO restaurant_discount_definitions
+           (restaurant_id, code, name, kind, value, max_discount_cents,
+            min_subtotal_cents, requires_approval, is_active, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+         RETURNING *`,
+        [
+          restaurantId,
+          fields.code,
+          fields.name,
+          fields.kind,
+          fields.value,
+          fields.max_discount_cents ?? null,
+          fields.min_subtotal_cents ?? 0,
+          fields.requires_approval === true,
+          fields.is_active !== false,
+          req.user.id,
+        ]
+      );
+      row = created;
+    } catch (err) {
+      if (err && err.code === '23505') {
+        throw new AppError('A discount with this code already exists for this restaurant', 409, 'discount_definition_code_taken');
+      }
+      throw err;
+    }
+    const discountDefinition = serializeDiscountDefinition(row);
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role || null,
+      action: 'restaurant.discount_definition.created',
+      target_type: 'discount_definition',
+      target_id: discountDefinition.id,
+      after_state: discountDefinition,
+    });
+    res.status(201).json({ discountDefinition });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateDiscountDefinition = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const definitionId = parsePositiveInt(req.params.definitionId);
+    if (!definitionId) throw new AppError('Discount definition not found', 404, 'discount_definition_not_found');
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertManage(restaurant, req.user.id);
+    const existing = await loadDiscountDefinition(restaurantId, definitionId);
+    const fields = parseDiscountDefinitionFields(req.body, { partial: true });
+    // Kind/value validate against the merged record: switching kind
+    // re-checks the value range even when only one of them was sent.
+    const merged = { ...serializeDiscountDefinition(existing), ...fields };
+    if (merged.kind === 'percent' && (merged.value < 1 || merged.value > 100)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { value: 'Percent value must be between 1 and 100' });
+    }
+    if (merged.kind === 'fixed' && merged.value < 1) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { value: 'Fixed value must be at least 1 cent' });
+    }
+    let row;
+    try {
+      const { rows: [updated] } = await pool.query(
+        `UPDATE restaurant_discount_definitions
+            SET code = $3, name = $4, kind = $5, value = $6,
+                max_discount_cents = $7, min_subtotal_cents = $8,
+                requires_approval = $9, is_active = $10, updated_at = NOW()
+          WHERE id = $1 AND restaurant_id = $2
+          RETURNING *`,
+        [
+          definitionId,
+          restaurantId,
+          merged.code,
+          merged.name,
+          merged.kind,
+          merged.value,
+          merged.max_discount_cents ?? null,
+          merged.min_subtotal_cents ?? 0,
+          merged.requires_approval === true,
+          merged.is_active !== false,
+        ]
+      );
+      row = updated;
+    } catch (err) {
+      if (err && err.code === '23505') {
+        throw new AppError('A discount with this code already exists for this restaurant', 409, 'discount_definition_code_taken');
+      }
+      throw err;
+    }
+    const discountDefinition = serializeDiscountDefinition(row);
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role || null,
+      action: 'restaurant.discount_definition.updated',
+      target_type: 'discount_definition',
+      target_id: discountDefinition.id,
+      before_state: serializeDiscountDefinition(existing),
+      after_state: discountDefinition,
+    });
+    res.json({ discountDefinition });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.deactivateDiscountDefinition = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const definitionId = parsePositiveInt(req.params.definitionId);
+    if (!definitionId) throw new AppError('Discount definition not found', 404, 'discount_definition_not_found');
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertManage(restaurant, req.user.id);
+    const existing = await loadDiscountDefinition(restaurantId, definitionId);
+    const { rows: [updated] } = await pool.query(
+      `UPDATE restaurant_discount_definitions
+          SET is_active = FALSE, updated_at = NOW()
+        WHERE id = $1 AND restaurant_id = $2
+        RETURNING *`,
+      [definitionId, restaurantId]
+    );
+    const discountDefinition = serializeDiscountDefinition(updated);
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role || null,
+      action: 'restaurant.discount_definition.deactivated',
+      target_type: 'discount_definition',
+      target_id: discountDefinition.id,
+      before_state: serializeDiscountDefinition(existing),
+      after_state: discountDefinition,
+    });
+    res.json({ discountDefinition });
   } catch (err) {
     next(err);
   }
