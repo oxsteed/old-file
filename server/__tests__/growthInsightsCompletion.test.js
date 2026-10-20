@@ -374,14 +374,14 @@ test("migration 939 is additive and carries the subject sets and support tables"
     "demand_subject_daily",
     "supply_subject_daily",
     "growth_anomaly_flags",
-    "growth_clusters",
     "offer_pair_penalties",
     "propensity_calibration_reports",
     "growth_suggestion_runs",
   ])
     expect(sql).toContain(`CREATE TABLE ${table} (`);
   expect(sql).not.toMatch(/DROP TABLE|DROP COLUMN|DELETE FROM/);
-  expect(sql).toMatch(/member_count>=5/);
+  // growth_clusters is defined canonically in migration 937, not here.
+  expect(sql).not.toContain("CREATE TABLE growth_clusters");
 });
 
 test("demand endpoint serves exact distinct windows, not maximum daily counts", () => {

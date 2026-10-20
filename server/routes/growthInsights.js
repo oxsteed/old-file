@@ -139,26 +139,42 @@ router.get(
     // pin a cluster area (spec 11.1). First write wins: a cluster id must
     // keep meaning the exact area a campaign pinned.
     try {
-      const day = new Date().toISOString().slice(0, 10);
-      const intentTail = String(req.query.intent || "").split(".").pop();
       for (const row of rows) {
-        row.cluster_id = `c_${day}_${req.query.country}_${row.anchor_id}_${row.miles}_${intentTail}`;
-        await db.query(
-          `INSERT INTO growth_clusters(id,intent_code,role,country,anchor_postal_ref,miles,postal_refs,member_count,definition,created_by)
-           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10) ON CONFLICT(id) DO NOTHING`,
+        const key = require("../growth/geo/clusters").clusterKey({
+          intent_code: req.query.intent,
+          role: req.query.role,
+          country: req.query.country,
+          anchor_postal_ref: row.anchor_id,
+          miles: row.miles,
+          postal_refs: row.postal_refs,
+        });
+        let {
+          rows: [savedCluster],
+        } = await db.query(
+          `INSERT INTO growth_clusters(cluster_key,intent_code,role,country,anchor_postal_ref,place_name,member_count,radius_miles,postal_refs,definition,created_by)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11) ON CONFLICT(cluster_key) DO NOTHING RETURNING id`,
           [
-            row.cluster_id,
+            key,
             req.query.intent,
             req.query.role,
             req.query.country,
             row.anchor_id,
+            row.place_name || null,
+            row.member_count,
             row.miles,
             row.postal_refs,
-            row.member_count,
             JSON.stringify({ source: "cluster_finder" }),
             req.user.id,
           ],
         );
+        if (!savedCluster) {
+          const { rows: existing } = await db.query(
+            "SELECT id FROM growth_clusters WHERE cluster_key=$1",
+            [key],
+          );
+          savedCluster = existing[0];
+        }
+        row.cluster_id = String(savedCluster.id);
       }
     } catch {
       // Persistence is additive; the finder result still returns.

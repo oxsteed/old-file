@@ -10,9 +10,9 @@
 --   (k=5) at read time, and erasure deletes a subject's rows (rights.js).
 -- * growth_anomaly_flags stores the spec section 19 daily anomaly check
 --   (cell demand over 5x week over week) computed by the nightly rollup.
--- * growth_clusters persists cluster-finder results under stable ids so a
---   segment definition can pin a cluster area (spec 11.1) and campaigns
---   keep pointing at the exact area they used.
+-- * Cluster-finder results persist into growth_clusters (migration 937)
+--   under stable cluster keys so a segment definition can pin a cluster
+--   area (spec 11.1) and campaigns keep pointing at the exact area used.
 -- * offer_pair_penalties records suggestion rejection feedback: an admin
 --   rejection lowers that offer x intent pair for 30 days (spec 12.3).
 -- * propensity_calibration_reports stores nightly predicted-vs-actual
@@ -41,15 +41,11 @@ CREATE TABLE growth_anomaly_flags (
  ratio NUMERIC NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
  UNIQUE(day,postal_ref,node_id)
 );
-CREATE TABLE growth_clusters (
- id TEXT PRIMARY KEY,
- intent_code TEXT NOT NULL, role TEXT NOT NULL, country CHAR(2) NOT NULL,
- anchor_postal_ref INTEGER REFERENCES geo_postal_centroids(id),
- miles NUMERIC NOT NULL, postal_refs INTEGER[] NOT NULL,
- member_count INTEGER NOT NULL CHECK(member_count>=5),
- definition JSONB NOT NULL DEFAULT '{}',
- created_by UUID REFERENCES users(id), created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+-- growth_clusters is defined canonically in migration 937 (stable
+-- cluster_key, radius in the radius_miles column, hard floor of 3 on
+-- member_count with the finder defaulting to k = 5). Writers from this
+-- track (suggestion producer, cluster finder route) upsert by cluster_key
+-- and pin the returned id in segment definitions.
 CREATE TABLE offer_pair_penalties (
  id BIGSERIAL PRIMARY KEY, offer_id BIGINT NOT NULL REFERENCES offers(id),
  node_id INTEGER REFERENCES demand_taxonomy_nodes(id),

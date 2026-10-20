@@ -206,20 +206,39 @@ async function scanOpportunities(conn) {
       );
       for (const cluster of found.slice(0, 2)) {
         if (opportunities.length >= MAX_OPPORTUNITIES) break;
-        const clusterId = `c_${new Date().toISOString().slice(0, 10)}_${cell.country}_${cluster.anchor_id}_${cell.code.split(".").pop()}`;
-        await conn.query(
-          `INSERT INTO growth_clusters(id,intent_code,role,country,anchor_postal_ref,miles,postal_refs,member_count,definition)
-           VALUES($1,$2,'helper',$3,$4,35,$5,$6,$7::jsonb) ON CONFLICT(id) DO NOTHING`,
+        // growth_clusters is keyed by the deterministic cluster_key from
+        // migration 937; the segment pins the canonical row id.
+        const key = require("../geo/clusters").clusterKey({
+          intent_code: cell.code,
+          role: "helper",
+          country: cell.country,
+          anchor_postal_ref: cluster.anchor_id,
+          miles: 35,
+          postal_refs: cluster.postal_refs,
+        });
+        let {
+          rows: [savedCluster],
+        } = await conn.query(
+          `INSERT INTO growth_clusters(cluster_key,intent_code,role,country,anchor_postal_ref,member_count,radius_miles,postal_refs,definition)
+           VALUES($1,$2,'helper',$3,$4,$5,35,$6,$7::jsonb) ON CONFLICT(cluster_key) DO NOTHING RETURNING id`,
           [
-            clusterId,
+            key,
             cell.code,
             cell.country,
             cluster.anchor_id,
-            cluster.postal_refs,
             cluster.member_count,
+            cluster.postal_refs,
             JSON.stringify({ source: "suggestion_producer" }),
           ],
         );
+        if (!savedCluster) {
+          const { rows } = await conn.query(
+            "SELECT id FROM growth_clusters WHERE cluster_key=$1",
+            [key],
+          );
+          savedCluster = rows[0];
+        }
+        const clusterId = String(savedCluster.id);
         opportunities.push({
           kind: "cluster",
           node_id: cell.node_id,
