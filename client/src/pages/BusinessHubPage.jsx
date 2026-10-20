@@ -19,6 +19,7 @@ const MessagingWorkspace = lazyDefault(() => import('../components/messaging/Mes
 const AppointmentCalendarView = lazyNamed(() => import('../components/businessHub/AppointmentCalendarView'), 'AppointmentCalendarView');
 const BusinessServicesTab = lazyNamed(() => import('../components/businessHub/BusinessServicesTab'), 'BusinessServicesTab');
 import { PricingRulesManager } from '../components/businessHub/PricingRulesManager';
+import MemberPermissionsEditor from '../components/businessHub/MemberPermissionsEditor';
 import { ProductManagement } from '../components/businessHub/ProductManagement';
 import { ProductPricingManager } from '../components/businessHub/ProductPricingManager';
 const CustomerLoyaltyManager = lazyNamed(() => import('../components/businessHub/CustomerLoyaltyManager'), 'CustomerLoyaltyManager');
@@ -221,6 +222,7 @@ function BusinessHubInner() {
 
   // team tab
   const [members, setMembers]             = useState([]);
+  const [permissionsMember, setPermissionsMember] = useState(null); // S-08 overrides editor
   const [membersLoading, setMembersLoading] = useState(false);
   const [invitations, setInvitations]     = useState([]);
   const [managedBiz, setManagedBiz]       = useState([]);
@@ -2115,6 +2117,8 @@ function BusinessHubInner() {
                 onDeny={handleDenyMember}
                 onChangeRole={handleChangeMemberRole}
                 isOwner={currentRole === 'owner'}
+                canEditPermissions={currentRole === 'owner' || currentRole === 'manager'}
+                onEditPermissions={(m) => setPermissionsMember(m)}
                 onAccept={handleAcceptInvitation}
                 onDecline={handleDeclineInvitation}
                 showOnceCode={showOnceCode}
@@ -2404,6 +2408,16 @@ function BusinessHubInner() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* ── S-08: per-member permission overrides editor ──────────── */}
+        {permissionsMember && (
+          <MemberPermissionsEditor
+            businessId={bizId}
+            member={permissionsMember}
+            onClose={() => setPermissionsMember(null)}
+            onSaved={() => { setPermissionsMember(null); loadTeam(); }}
+          />
         )}
 
         {/* ── Service Modal ────────────────────────────────────────────── */}
@@ -3212,7 +3226,7 @@ function TeamTab({
   showVortexAccess = false,
   onInvite, onOpenHiring, businessId,
   onRevoke, onAccept, onDecline, onApprove, onDeny, onChangeRole,
-  isOwner = false,
+  isOwner = false, canEditPermissions = false, onEditPermissions,
   showOnceCode, onDismissShowOnceCode,
 }) {
   const { t } = useTranslation();
@@ -3633,9 +3647,16 @@ function TeamTab({
                         {t('businessHub.btnCancelInvite')}
                       </button>
                     ) : (
-                      <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)} data-track="ui.83b215c0c9.82">
-                        {t('businessHub.btnRemoveMember')}
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        {canEditPermissions && m.status === 'active' && (
+                          <button className="bh-btn" style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => onEditPermissions(m)}>
+                            {t('businessHub.btnPermissions')}
+                          </button>
+                        )}
+                        <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)} data-track="ui.83b215c0c9.82">
+                          {t('businessHub.btnRemoveMember')}
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
