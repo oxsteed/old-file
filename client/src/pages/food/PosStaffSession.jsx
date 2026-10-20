@@ -135,15 +135,15 @@ export default function PosStaffSessionBar({ restaurantId }) {
       {session ? (
         <span className="fd-tag">
           {t('food.pos.actingAs', { name: staffName })}
-          <button type="button" className="fd-btn fd-btn-sm" onClick={() => { endSession('switch_user'); setPinOpen(true); }}>
+          <button type="button" className="fd-btn fd-btn-sm" onClick={() => { endSession('switch_user'); setPinOpen(true); }} data-track="ui.c6969eda7b.1">
             {t('food.pos.switchUser')}
           </button>
-          <button type="button" className="fd-btn fd-btn-sm" onClick={() => endSession('manual_lock')}>
+          <button type="button" className="fd-btn fd-btn-sm" onClick={() => endSession('manual_lock')} data-track="ui.c6969eda7b.2">
             {t('food.pos.lockTerminal')}
           </button>
         </span>
       ) : (
-        <button type="button" className="fd-btn fd-btn-sm" onClick={() => setPinOpen(true)}>
+        <button type="button" className="fd-btn fd-btn-sm" onClick={() => setPinOpen(true)} data-track="ui.c6969eda7b.3">
           {t('food.pos.unlockWithPin')}
         </button>
       )}
@@ -163,10 +163,10 @@ export default function PosStaffSessionBar({ restaurantId }) {
               autoFocus
             />
             <div className="fd-pos-modal-actions">
-              <button type="button" className="fd-btn-secondary" onClick={() => setPinOpen(false)}>
+              <button type="button" className="fd-btn-secondary" onClick={() => setPinOpen(false)} data-track="ui.c6969eda7b.4">
                 {t('food.common.cancel')}
               </button>
-              <button type="button" className="fd-btn" onClick={submitPin} disabled={submitting || pin.length < 4}>
+              <button type="button" className="fd-btn" onClick={submitPin} disabled={submitting || pin.length < 4} data-track="ui.c6969eda7b.5">
                 {t('food.pos.unlock')}
               </button>
             </div>

@@ -438,12 +438,12 @@ function AutoAssignRules({ t, restaurantId, module: m, onChanged }) {
             {r.due_days ? ` · ${t('restaurants.ops.training.autoAssignDue', { days: r.due_days })}` : ''}
             {!r.is_active && ` · ${t('restaurants.ops.training.inactive', 'Inactive')}`}
           </span>
-          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => remove(r.id)}>
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => remove(r.id)} data-track="ui.2265f208ce.28">
             {t('common.delete', 'Delete')}
           </button>
         </div>
       ))}
-      <form onSubmit={add}>
+      <form onSubmit={add} data-track="ui.2265f208ce.29">
         <div className="fd-field">
           <label htmlFor={`tm-rule-role-${m.id}`}>{t('restaurants.ops.training.autoAssignRoleLabel')}</label>
           <select id={`tm-rule-role-${m.id}`} value={role} onChange={(e) => setRole(e.target.value)}>
@@ -458,7 +458,7 @@ function AutoAssignRules({ t, restaurantId, module: m, onChanged }) {
           <input id={`tm-rule-due-${m.id}`} type="number" min="1" max="365" value={dueDays} onChange={(e) => setDueDays(e.target.value)} />
         </div>
         <div className="fd-settings-actions">
-          <button type="submit" className="fd-btn fd-btn-sm" disabled={busy}>
+          <button type="submit" className="fd-btn fd-btn-sm" disabled={busy} data-track="ui.2265f208ce.30">
             {t('restaurants.ops.training.autoAssignAdd')}
           </button>
         </div>
@@ -786,22 +786,22 @@ function ComplianceSection({ t, restaurantId, isManager }) {
                 </div>
                 <div className="fd-ops-checklist-actions">
                   {doc.download_url && (
-                    <a className="fd-btn fd-btn-secondary fd-btn-sm" href={doc.download_url} target="_blank" rel="noreferrer">
+                    <a className="fd-btn fd-btn-secondary fd-btn-sm" href={doc.download_url} target="_blank" rel="noreferrer" data-track="ui.2265f208ce.31">
                       {t('restaurants.ops.documents.download')}
                     </a>
                   )}
                   {isManager && doc.verification_status !== 'verified' && (
-                    <button type="button" className="fd-btn fd-btn-sm" onClick={() => verify(doc, 'verified')}>
+                    <button type="button" className="fd-btn fd-btn-sm" onClick={() => verify(doc, 'verified')} data-track="ui.2265f208ce.32">
                       {t('restaurants.ops.documents.verify')}
                     </button>
                   )}
                   {isManager && doc.verification_status !== 'rejected' && (
-                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => verify(doc, 'rejected')}>
+                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => verify(doc, 'rejected')} data-track="ui.2265f208ce.33">
                       {t('restaurants.ops.documents.reject')}
                     </button>
                   )}
                   {isManager && (
-                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => removeDoc(doc)}>
+                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => removeDoc(doc)} data-track="ui.2265f208ce.34">
                       {t('common.delete', 'Delete')}
                     </button>
                   )}
@@ -812,7 +812,7 @@ function ComplianceSection({ t, restaurantId, isManager }) {
         </div>
       )}
 
-      <form onSubmit={upload} className="fd-ops-form">
+      <form onSubmit={upload} className="fd-ops-form" data-track="ui.2265f208ce.35">
         <h4 className="fd-ops-panel-title">{t('restaurants.ops.documents.uploadTitle')}</h4>
         <div className="fd-settings-field-grid">
           <div className="fd-field">
@@ -850,7 +850,7 @@ function ComplianceSection({ t, restaurantId, isManager }) {
           </div>
         </div>
         <div className="fd-settings-actions">
-          <button type="submit" className="fd-btn fd-btn-sm" disabled={busy || !docFile || !docTitle.trim()}>
+          <button type="submit" className="fd-btn fd-btn-sm" disabled={busy || !docFile || !docTitle.trim()} data-track="ui.2265f208ce.36">
             {t('restaurants.ops.documents.upload')}
           </button>
         </div>
@@ -877,7 +877,7 @@ function ComplianceSection({ t, restaurantId, isManager }) {
                   </div>
                 </div>
                 {!signed && (
-                  <button type="button" className="fd-btn fd-btn-sm" onClick={() => sign(sop)}>
+                  <button type="button" className="fd-btn fd-btn-sm" onClick={() => sign(sop)} data-track="ui.2265f208ce.37">
                     {t('restaurants.ops.documents.signCta')}
                   </button>
                 )}

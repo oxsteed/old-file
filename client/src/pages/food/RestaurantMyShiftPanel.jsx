@@ -206,7 +206,7 @@ export default function RestaurantMyShiftPanel({ restaurant, canManageRestaurant
       <section className="fd-card fd-myshift-section" aria-label={t('food.myShift.announcements')}>
         <h3>{t('food.myShift.announcements')}</h3>
         {canManageRestaurant && (
-          <form onSubmit={postAnnouncement} className="fd-ops-form">
+          <form onSubmit={postAnnouncement} className="fd-ops-form" data-track="ui.44c3bc07ea.1">
             <div className="fd-field">
               <label htmlFor="myshift-ann-title">{t('food.myShift.announcementTitleLabel')}</label>
               <input
@@ -227,7 +227,7 @@ export default function RestaurantMyShiftPanel({ restaurant, canManageRestaurant
               />
             </div>
             <div className="fd-settings-actions">
-              <button type="submit" className="fd-btn fd-btn-sm" disabled={annBusy || !annTitle.trim()}>
+              <button type="submit" className="fd-btn fd-btn-sm" disabled={annBusy || !annTitle.trim()} data-track="ui.44c3bc07ea.2">
                 {t('food.myShift.postAnnouncement')}
               </button>
             </div>
@@ -254,7 +254,7 @@ export default function RestaurantMyShiftPanel({ restaurant, canManageRestaurant
                   <button
                     type="button"
                     className="fd-btn fd-btn-sm"
-                    onClick={() => acknowledge(a)}
+                    onClick={() => acknowledge(a)} data-track="ui.44c3bc07ea.3"
                   >
                     {t('food.myShift.acknowledge')}
                   </button>
@@ -325,7 +325,7 @@ export default function RestaurantMyShiftPanel({ restaurant, canManageRestaurant
                       type="button"
                       className="fd-btn fd-btn-sm"
                       disabled={busyTaskId === task.id}
-                      onClick={() => setTaskStatus(task, 'in_progress')}
+                      onClick={() => setTaskStatus(task, 'in_progress')} data-track="ui.44c3bc07ea.4"
                     >
                       {t('food.myShift.startTask')}
                     </button>
@@ -335,7 +335,7 @@ export default function RestaurantMyShiftPanel({ restaurant, canManageRestaurant
                       type="button"
                       className="fd-btn fd-btn-sm"
                       disabled={busyTaskId === task.id || (task.requires_photo && !proofByTask[task.id])}
-                      onClick={() => setTaskStatus(task, 'needs_approval')}
+                      onClick={() => setTaskStatus(task, 'needs_approval')} data-track="ui.44c3bc07ea.5"
                     >
                       {t('food.myShift.submitForApproval')}
                     </button>
@@ -345,7 +345,7 @@ export default function RestaurantMyShiftPanel({ restaurant, canManageRestaurant
                       type="button"
                       className="fd-btn fd-btn-sm"
                       disabled={busyTaskId === task.id || (task.requires_photo && !proofByTask[task.id])}
-                      onClick={() => setTaskStatus(task, 'completed')}
+                      onClick={() => setTaskStatus(task, 'completed')} data-track="ui.44c3bc07ea.6"
                     >
                       {t('food.myShift.completeTask')}
                     </button>
@@ -388,7 +388,7 @@ export default function RestaurantMyShiftPanel({ restaurant, canManageRestaurant
       <section className="fd-card fd-myshift-section" aria-label={t('food.myShift.logbook')}>
         <h3>{t('food.myShift.logbook')}</h3>
         {canManageRestaurant && (
-          <form onSubmit={addLogEntry} className="fd-ops-form">
+          <form onSubmit={addLogEntry} className="fd-ops-form" data-track="ui.44c3bc07ea.7">
             <div className="fd-field">
               <label htmlFor="myshift-log-body">{t('food.myShift.logbookLabel')}</label>
               <textarea
@@ -401,7 +401,7 @@ export default function RestaurantMyShiftPanel({ restaurant, canManageRestaurant
               />
             </div>
             <div className="fd-settings-actions">
-              <button type="submit" className="fd-btn fd-btn-sm" disabled={logBusy || !logBody.trim()}>
+              <button type="submit" className="fd-btn fd-btn-sm" disabled={logBusy || !logBody.trim()} data-track="ui.44c3bc07ea.8">
                 {t('food.myShift.addLogbookEntry')}
               </button>
             </div>

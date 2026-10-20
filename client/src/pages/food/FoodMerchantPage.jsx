@@ -1543,7 +1543,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
               <label htmlFor="fd-tz">{t('food.merchant.timezone')}</label>
               <TimezoneSelect id="fd-tz" value={timezone} onChange={setTimezone} disabled={saving} />
             </div>
-            <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={() => patch({ timezone })}>
+            <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={() => patch({ timezone })} data-track="ui.17b0c32a57.65">
               {t('food.common.save')}
             </button>
           </div>

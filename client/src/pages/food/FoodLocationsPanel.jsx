@@ -188,7 +188,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
                 {' · '}{t(statusLabelKey(loc.status))}
                 {loc.timezone ? ` · ${loc.timezone}` : ''}
               </span>
-              <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => startEdit(loc)}>
+              <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => startEdit(loc)} data-track="ui.dbbd615872.4">
                 {t('food.merchant.locationEdit')}
               </button>
             </li>
@@ -254,7 +254,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
               <input
                 type="checkbox"
                 checked={form.isPrimary}
-                onChange={(e) => setForm((f) => ({ ...f, isPrimary: e.target.checked }))}
+                onChange={(e) => setForm((f) => ({ ...f, isPrimary: e.target.checked }))} data-track="ui.dbbd615872.5"
               />{' '}
               {t('food.merchant.locationMakePrimary')}
             </span>
@@ -269,7 +269,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
                 <input
                   type="checkbox"
                   checked={day.closed}
-                  onChange={(e) => updateDay(index, { closed: e.target.checked })}
+                  onChange={(e) => updateDay(index, { closed: e.target.checked })} data-track="ui.dbbd615872.6"
                 />{' '}
                 {t('food.merchant.hoursClosed')}
               </label>
@@ -294,7 +294,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
               : editingId ? t('food.merchant.locationSaveChanges') : t('food.merchant.addLocation')}
           </button>
           {editingId && (
-            <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={resetForm} disabled={saving}>
+            <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={resetForm} disabled={saving} data-track="ui.dbbd615872.7">
               {t('food.common.cancel')}
             </button>
           )}

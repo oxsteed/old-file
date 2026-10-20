@@ -90,7 +90,7 @@ export default function OfferPreferencesPanel() {
             id="offer-push-toggle"
             type="checkbox"
             checked={config.choices?.offer_push === true}
-            onChange={(e) => pushChange(e.target.checked)}
+            onChange={(e) => pushChange(e.target.checked)} data-track-private
           />
         </div>
         <div className="notification-settings__preference-row">
@@ -104,7 +104,7 @@ export default function OfferPreferencesPanel() {
             id="offer-in-app-toggle"
             type="checkbox"
             checked={config.preferences?.offer_in_app !== false}
-            onChange={(e) => inAppChange(e.target.checked)}
+            onChange={(e) => inAppChange(e.target.checked)} data-track-private
           />
         </div>
       </fieldset>

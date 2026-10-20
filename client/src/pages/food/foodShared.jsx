@@ -56,10 +56,10 @@ export function ConfirmDialog({ title, message, confirmLabel, cancelLabel, onCon
         </div>
         {message && <p className="fd-card-meta">{message}</p>}
         <div className="fd-ops-modal-actions">
-          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onCancel}>
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onCancel} data-track="ui.a409dd4218.1">
             {cancelLabel}
           </button>
-          <button type="button" className="fd-btn fd-btn-sm" onClick={onConfirm} autoFocus>
+          <button type="button" className="fd-btn fd-btn-sm" onClick={onConfirm} autoFocus data-track="ui.a409dd4218.2">
             {confirmLabel}
           </button>
         </div>

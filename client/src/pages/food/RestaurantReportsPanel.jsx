@@ -171,7 +171,7 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
             type="button"
             className="fd-btn fd-btn-sm fd-btn-secondary"
             onClick={onExportCsv}
-            disabled={exporting}
+            disabled={exporting} data-track="ui.e7f53817fe.3"
           >
             {t('restaurants.ops.reports.downloadCsv')}
           </button>

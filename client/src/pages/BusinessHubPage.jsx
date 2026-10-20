@@ -2516,8 +2516,8 @@ function BusinessHubInner() {
               </div>
               {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
               <div className="bh-modal-actions">
-                <button className="bh-btn" onClick={() => { setRoleChange(null); setFormErr(''); }}>{t('businessHub.btnCancel')}</button>
-                <button className="bh-btn primary" onClick={confirmChangeMemberRole} disabled={saving}>{t('businessHub.btnConfirmChange')}</button>
+                <button className="bh-btn" onClick={() => { setRoleChange(null); setFormErr(''); }} data-track="ui.83b215c0c9.101">{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={confirmChangeMemberRole} disabled={saving} data-track="ui.83b215c0c9.102">{t('businessHub.btnConfirmChange')}</button>
               </div>
             </div>
           </div>
@@ -3758,17 +3758,17 @@ function TeamTab({
                           <span style={{ fontSize: '0.78rem', color: 'var(--muted-text)' }}>
                             {t('businessHub.statusAwaitingApproval')}
                           </span>
-                          <button className="bh-btn" style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => onResend(m)}>
+                          <button className="bh-btn" style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => onResend(m)} data-track="ui.83b215c0c9.103">
                             {t('businessHub.btnResendInvite')}
                           </button>
-                          <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)}>
+                          <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)} data-track="ui.83b215c0c9.104">
                             {t('businessHub.btnCancelInvite')}
                           </button>
                         </div>
                       )
                     ) : m.status === 'pending' ? (
                       <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                        <button className="bh-btn" style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => onResend(m)}>
+                        <button className="bh-btn" style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => onResend(m)} data-track="ui.83b215c0c9.105">
                           {t('businessHub.btnResendInvite')}
                         </button>
                         <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)} data-track="ui.83b215c0c9.81">
@@ -3778,7 +3778,7 @@ function TeamTab({
                     ) : (
                       <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                         {canEditPermissions && m.status === 'active' && (
-                          <button className="bh-btn" style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => onEditPermissions(m)}>
+                          <button className="bh-btn" style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => onEditPermissions(m)} data-track="ui.83b215c0c9.106">
                             {t('businessHub.btnPermissions')}
                           </button>
                         )}

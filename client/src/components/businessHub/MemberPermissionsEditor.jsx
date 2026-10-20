@@ -184,8 +184,8 @@ export default function MemberPermissionsEditor({ businessId, member, onClose, o
 
         {error && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{error}</p>}
         <div className="bh-modal-actions">
-          <button className="bh-btn" onClick={onClose} disabled={saving}>{t('businessHub.btnCancel')}</button>
-          <button className="bh-btn primary" onClick={handleSave} disabled={saving || !catalog}>
+          <button className="bh-btn" onClick={onClose} disabled={saving} data-track="ui.0257a72f45.1">{t('businessHub.btnCancel')}</button>
+          <button className="bh-btn primary" onClick={handleSave} disabled={saving || !catalog} data-track="ui.0257a72f45.2">
             {saving ? t('businessHub.permissionsEditor.saving') : t('businessHub.permissionsEditor.save')}
           </button>
         </div>

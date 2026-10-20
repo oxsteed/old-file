@@ -88,7 +88,7 @@ export default function OfferPushPrompt({ config: providedConfig }) {
           type="button"
           className="rounded bg-orange-700 px-4 py-2 text-white disabled:opacity-50"
           disabled={busy}
-          onClick={() => accept().catch(() => {})}
+          onClick={() => accept().catch(() => {})} data-track-private
         >
           {t("growthInsights.pushPromptAccept")}
         </button>
@@ -96,7 +96,7 @@ export default function OfferPushPrompt({ config: providedConfig }) {
           type="button"
           className="rounded px-4 py-2 underline"
           disabled={busy}
-          onClick={dismiss}
+          onClick={dismiss} data-track-private
         >
           {t("growthInsights.pushPromptDecline")}
         </button>

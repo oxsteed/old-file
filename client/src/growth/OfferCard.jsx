@@ -106,7 +106,7 @@ export default function OfferCard() {
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           aria-label={t("growthInsights.offerOptions")}
-          onClick={() => setMenuOpen((v) => !v)}
+          onClick={() => setMenuOpen((v) => !v)} data-track-private
         >
           ⋯
         </button>
@@ -120,7 +120,7 @@ export default function OfferCard() {
             type="button"
             role="menuitem"
             className="block w-full rounded px-3 py-2 text-start text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
-            onClick={() => feedback("not_relevant")}
+            onClick={() => feedback("not_relevant")} data-track-private
           >
             {t("growthInsights.notRelevant")}
           </button>
@@ -128,7 +128,7 @@ export default function OfferCard() {
             type="button"
             role="menuitem"
             className="block w-full rounded px-3 py-2 text-start text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
-            onClick={() => feedback("too_many")}
+            onClick={() => feedback("too_many")} data-track-private
           >
             {t("growthInsights.tooManyOffers")}
           </button>

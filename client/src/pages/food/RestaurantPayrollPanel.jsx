@@ -233,7 +233,7 @@ export function PayrollPanel({ t, restaurant, from, to }) {
               </table>
             </div>
           )}
-          <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" onClick={onExportPayroll} disabled={exporting}>
+          <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" onClick={onExportPayroll} disabled={exporting} data-track="ui.aa258f5ea1.1">
             {t('restaurants.ops.reports.payroll.exportCsv')}
           </button>
         </>
@@ -247,7 +247,7 @@ export function PayrollPanel({ t, restaurant, from, to }) {
             <input
               type="checkbox"
               checked={!!tipSettings.pooling_enabled}
-              onChange={(e) => setTipSettings((s) => ({ ...s, pooling_enabled: e.target.checked }))}
+              onChange={(e) => setTipSettings((s) => ({ ...s, pooling_enabled: e.target.checked }))} data-track="ui.aa258f5ea1.2"
             />{' '}
             {t('restaurants.ops.reports.tipPool.enablePooling')}
           </label>
@@ -276,17 +276,17 @@ export function PayrollPanel({ t, restaurant, from, to }) {
                 onChange={(e) => setRules((rs) => rs.map((r, i) => (i === idx ? { ...r, percent: e.target.value } : r)))}
               />
               <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary"
-                onClick={() => setRules((rs) => rs.filter((_, i) => i !== idx))}>
+                onClick={() => setRules((rs) => rs.filter((_, i) => i !== idx))} data-track="ui.aa258f5ea1.3">
                 {t('restaurants.ops.reports.tipPool.removeRule')}
               </button>
             </div>
           ))}
           <div className="fd-ops-inventory-row">
             <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary"
-              onClick={() => setRules((rs) => [...rs, { target_type: 'role', target_key: '', percent: '5' }])}>
+              onClick={() => setRules((rs) => [...rs, { target_type: 'role', target_key: '', percent: '5' }])} data-track="ui.aa258f5ea1.4">
               {t('restaurants.ops.reports.tipPool.addRule')}
             </button>
-            <button type="button" className="fd-btn fd-btn-sm" onClick={saveTipSettings} disabled={savingTips}>
+            <button type="button" className="fd-btn fd-btn-sm" onClick={saveTipSettings} disabled={savingTips} data-track="ui.aa258f5ea1.5">
               {t('restaurants.ops.reports.tipPool.save')}
             </button>
           </div>
@@ -294,7 +294,7 @@ export function PayrollPanel({ t, restaurant, from, to }) {
         </div>
       )}
       {labor && employees.length > 0 && (
-        <form onSubmit={submitCashTip} className="fd-card">
+        <form onSubmit={submitCashTip} className="fd-card" data-track="ui.aa258f5ea1.6">
           <p className="fd-card-meta">{t('restaurants.ops.reports.tipPool.cashTitle')}</p>
           <div className="fd-ops-inventory-row">
             <select
@@ -318,7 +318,7 @@ export function PayrollPanel({ t, restaurant, from, to }) {
               placeholder={t('restaurants.ops.reports.tipPool.cashAmount')}
               onChange={(e) => setCashForm((f) => ({ ...f, amount: e.target.value }))}
             />
-            <button type="submit" className="fd-btn fd-btn-sm">{t('restaurants.ops.reports.tipPool.cashAdd')}</button>
+            <button type="submit" className="fd-btn fd-btn-sm" data-track="ui.aa258f5ea1.7">{t('restaurants.ops.reports.tipPool.cashAdd')}</button>
           </div>
         </form>
       )}
