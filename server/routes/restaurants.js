@@ -14,6 +14,7 @@ const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const { requireRestaurantAccess, scopeExempt } = require('../middleware/scopeGates');
 const ops = require('../controllers/restaurantOpsController');
 const training = require('../controllers/restaurantTrainingController');
+const staffDocuments = require('../controllers/restaurantStaffDocumentsController');
 const audits = require('../controllers/restaurantAuditsController');
 const franchiseReports = require('../controllers/restaurantReportsController');
 const inventory = require('../controllers/restaurantInventoryController');
@@ -199,6 +200,27 @@ router.get('/:restaurantId/training/assignments', requireRestaurantAccess(), tra
 router.post('/:restaurantId/training/assignments/:assignmentId/start', requireRestaurantAccess(), training.startAssignment);
 router.post('/:restaurantId/training/assignments/:assignmentId/submit', requireRestaurantAccess(), training.submitQuiz);
 router.get('/:restaurantId/training/completions', requireRestaurantAccess(), training.listCompletions);
+// Auto-assignment rules (S-12)
+router.get('/:restaurantId/training/auto-assign-rules', requireRestaurantAccess(), training.listAutoAssignRules);
+router.post('/:restaurantId/training/modules/:moduleId/auto-assign-rules', requireRestaurantAccess(), training.createAutoAssignRule);
+router.patch('/:restaurantId/training/auto-assign-rules/:ruleId', requireRestaurantAccess(), training.updateAutoAssignRule);
+router.delete('/:restaurantId/training/auto-assign-rules/:ruleId', requireRestaurantAccess(), training.deleteAutoAssignRule);
+router.post('/:restaurantId/training/auto-assign-rules/run', requireRestaurantAccess(), training.runAutoAssign);
+// Staff compliance document vault (S-14). Signed-URL storage only; no
+// public file paths and no tax-form/SSN data by design.
+router.get('/:restaurantId/staff-documents', requireRestaurantAccess(), staffDocuments.listDocuments);
+router.post(
+  '/:restaurantId/staff-documents',
+  authenticate,
+  upload.single('file'),
+  validateFileUpload,
+  requireRestaurantAccess(), staffDocuments.uploadDocument
+);
+router.patch('/:restaurantId/staff-documents/:documentId', requireRestaurantAccess(), staffDocuments.verifyDocument);
+router.delete('/:restaurantId/staff-documents/:documentId', requireRestaurantAccess(), staffDocuments.deleteDocument);
+// SOP read-and-sign acknowledgements (S-14)
+router.post('/:restaurantId/sops/:sopId/acknowledge', requireRestaurantAccess(), staffDocuments.acknowledgeSop);
+router.get('/:restaurantId/sop-acknowledgements', requireRestaurantAccess(), staffDocuments.listSopAcknowledgements);
 
 // Quality audits (franchise system)
 router.get('/:restaurantId/audits/templates', requireRestaurantAccess(), audits.listTemplates);
