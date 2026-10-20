@@ -1,7 +1,20 @@
 "use strict";
-const { v7: uuidv7 } = require("uuid");
+const crypto = require("crypto");
 const gate = require("./gate");
 const { validateEvent } = require("./events/validate");
+// UUIDv7 (spec 5.1/6.3) built from node:crypto: the uuid package's Node
+// dist is ESM-only and cannot be require()d under Jest, and emit.js must
+// load in every runtime that loads the controllers. Same construction
+// as the browser tracker's uuidv7.
+function uuidv7(now = Date.now()) {
+  const bytes = crypto.randomBytes(16);
+  for (let i = 5, n = now; i >= 0; i -= 1, n = Math.floor(n / 256))
+    bytes[i] = n % 256;
+  bytes[6] = (bytes[6] & 15) | 112;
+  bytes[8] = (bytes[8] & 63) | 128;
+  const hex = bytes.toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
 async function emitDomainEvent(client, name, props, { userId, req } = {}) {
   if (process.env.GROWTH_TRACKING_HARD_OFF !== "false") return false;
   if (!client || typeof client.release !== "function")
