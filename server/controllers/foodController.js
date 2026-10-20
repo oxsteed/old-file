@@ -3787,7 +3787,12 @@ exports.createOrder = async (req, res, next) => {
           throw new AppError('The promo discount changed; review your order again', 409, 'promo_changed');
         }
         if (created.payment_status === 'paid') {
-          await promoRedemption.markRedeemed(client, { surface: 'food', referenceId: created.id });
+          const promoOut = {};
+          await promoRedemption.markRedeemed(client, { surface: 'food', referenceId: created.id }, promoOut);
+          const { emitDomainEvent, commerceEventProps } = require('../growth/emit');
+          for (const row of promoOut.transitioned || []) {
+            await emitDomainEvent(client, 'promo.redeemed', commerceEventProps(row), { userId: row.user_id, req });
+          }
         }
       }
 
@@ -3797,6 +3802,17 @@ exports.createOrder = async (req, res, next) => {
           orderId: created.id,
           pointsRedeemed: loyaltyPointsRedeemed,
         });
+      }
+
+      if (created.customer_id) {
+        const { emitDomainEvent, foodEventProps } = require('../growth/emit');
+        const growthProps = foodEventProps(created, {
+          itemCount: normalizedItems.reduce((n, i) => n + (Number(i.quantity) || 0), 0),
+        });
+        await emitDomainEvent(client, 'food.order_placed', growthProps, { userId: created.customer_id, req });
+        if (created.payment_status === 'paid') {
+          await emitDomainEvent(client, 'food.order_paid', growthProps, { userId: created.customer_id, req });
+        }
       }
 
       const runnerTask = await maybeCreateDeliveryRunnerTask(client, {
@@ -4773,6 +4789,16 @@ exports.updateOrderStatus = async (req, res, next) => {
         // M13: claw back loyalty points earned on completion so refunded
         // orders cannot farm points.
         await clawBackFoodLoyaltyOnRefund(client, order);
+      }
+
+      if (order.customer_id) {
+        const { emitDomainEvent, foodEventProps } = require('../growth/emit');
+        if (status === 'cancelled') {
+          await emitDomainEvent(client, 'food.order_cancelled', foodEventProps(order), { userId: order.customer_id, req });
+        }
+        if (previousPaymentStatus === 'paid' && order.payment_status === 'refunded') {
+          await emitDomainEvent(client, 'food.order_refunded', foodEventProps(order), { userId: order.customer_id, req });
+        }
       }
 
       return { order, walletRefund, payment };

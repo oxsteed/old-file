@@ -142,13 +142,18 @@ async function attachProviderReference(db, redemptionId, providerReference) {
     [redemptionId, providerReference]);
 }
 
-/** Mark the live redemption for a reference as redeemed (payment succeeded). */
-async function markRedeemed(db, { surface, referenceId = null, providerReference = null }) {
+/** Mark the live redemption for a reference as redeemed (payment succeeded).
+ *  Returns the number of redemptions transitioned. When `out` is given,
+ *  out.transitioned receives the transitioned rows (id, user_id,
+ *  discount_cents, currency_code) so callers can react per redemption
+ *  without a second query. */
+async function markRedeemed(db, { surface, referenceId = null, providerReference = null }, out = null) {
   const { rows } = await db.query(
     `UPDATE promo_redemptions SET status = 'redeemed', redeemed_at = COALESCE(redeemed_at, NOW())
       WHERE status = 'reserved' AND surface = $1
         AND (($2::TEXT IS NOT NULL AND reference_id = $2) OR ($3::TEXT IS NOT NULL AND provider_reference = $3))
-      RETURNING id`, [surface, referenceId == null ? null : String(referenceId), providerReference]);
+      RETURNING id, user_id, discount_cents, currency_code`, [surface, referenceId == null ? null : String(referenceId), providerReference]);
+  if (out) out.transitioned = rows;
   return rows.length;
 }
 

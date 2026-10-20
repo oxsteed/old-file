@@ -585,6 +585,9 @@ async function createCreditSubscription(req, res, next, plan, userId) {
         req,
         throwOnError: true,
       });
+      // Growth event carries the entity only: this path pays with OxSteed
+      // Credit, so no amount/currency props are emitted.
+      await require('../growth/emit').emitDomainEvent(client, 'subscription.started', require('../growth/emit').commerceEventProps({ id: inserted[0].id }), { userId, req });
       return { subscription: inserted[0], spend };
     }, 'subscription_credit_checkout');
 
@@ -648,6 +651,9 @@ exports.adminCancelSubscription = async (req, res, next) => {
         req,
         throwOnError: true,
       });
+      if (row) {
+        await require('../growth/emit').emitDomainEvent(client, 'subscription.cancelled', require('../growth/emit').commerceEventProps({ id: row.id }), { userId: row.user_id, req });
+      }
       return row || { ...sub, status: 'cancelled' };
     }, 'admin_cancel_subscription');
 

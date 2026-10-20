@@ -473,6 +473,11 @@ exports.createQuoteRequest = async (req, res) => {
 
     const request = result.rows[0];
 
+    if (req.user?.id) {
+      const { emitDomainEvent, serviceEventProps } = require('../growth/emit');
+      await emitDomainEvent(client, 'direct.quote_requested', serviceEventProps({ service_id: catalogServices[0]?.id }), { userId: req.user.id, req });
+    }
+
     if (catalogServices.length) {
       await client.query(
         `INSERT INTO quote_request_services (quote_request_id, service_id, service_name, category_slug)

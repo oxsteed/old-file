@@ -1010,6 +1010,9 @@ async function bookServiceSlot({
       [crew.map((m) => m.id), start.toISOString(), end.toISOString()]
     );
 
+    const { emitDomainEvent, serviceEventProps } = require('../growth/emit');
+    await emitDomainEvent(client, 'appointment.booked', serviceEventProps({ service_id: service.id }), { userId: actorUserId });
+
     await client.query('COMMIT');
     return {
       request: inserted[0],

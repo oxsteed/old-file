@@ -2017,6 +2017,14 @@ exports.updatePublishing = async (req, res, next) => {
         }
       }
 
+      const priorModes = Array.isArray(restaurant.fulfillment_modes) ? restaurant.fulfillment_modes : [];
+      if (fulfillmentModes !== null && fulfillmentModes.includes('delivery') && !priorModes.includes('delivery')) {
+        const ownerId = restaurant.owner_user_id || restaurant.business_owner_id || null;
+        if (ownerId) {
+          await require('../growth/emit').emitDomainEvent(client, 'food.delivery_enabled', { restaurant_id: String(restaurantId), fulfilment: 'delivery' }, { userId: ownerId, req });
+        }
+      }
+
       return { restaurant: updated, primaryLocation };
     });
 

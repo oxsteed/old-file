@@ -1150,6 +1150,8 @@ exports.assignHelper = async (req, res, next) => {
       }
 
       const { rows: finalJobRows } = await client.query('SELECT * FROM jobs WHERE id = $1', [jobResult.rows[0].id]);
+      const { emitDomainEvent, jobEventProps } = require('../growth/emit');
+      await emitDomainEvent(client, 'job.assigned', jobEventProps(finalJobRows[0] || jobResult.rows[0]), { userId: req.user.id, req });
       return { job: finalJobRows[0] || jobResult.rows[0], bid: acceptedBid };
     }, 'assign_helper');
 
@@ -1420,6 +1422,8 @@ async function completeJobCore({ job, jobId, asClient, actorUserId = null }) {
       `, [rows[0].assigned_helper_id]);
     }
 
+    const { emitDomainEvent, jobEventProps } = require('../growth/emit');
+    await emitDomainEvent(client, 'job.completed', jobEventProps(rows[0]), { userId: actorUserId || rows[0].client_id });
     return rows[0];
   }, 'complete_job');
 }

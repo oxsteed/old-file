@@ -202,6 +202,14 @@ async function reconcilePosOrderPayment(client, orderId) {
       [orderId]
     );
   }
+  if (updatedOrder?.customer_id && order.payment_status !== nextPaymentStatus) {
+    const { emitDomainEvent, foodEventProps } = require('../growth/emit');
+    if (nextPaymentStatus === 'paid') {
+      await emitDomainEvent(client, 'food.order_paid', foodEventProps(updatedOrder), { userId: updatedOrder.customer_id });
+    } else if (nextPaymentStatus === 'refunded') {
+      await emitDomainEvent(client, 'food.order_refunded', foodEventProps(updatedOrder), { userId: updatedOrder.customer_id });
+    }
+  }
   return { order: updatedOrder, totals: { ...totals, net_paid_cents: netPaidCents } };
 }
 

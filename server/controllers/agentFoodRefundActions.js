@@ -408,6 +408,10 @@ async function refundFoodOrder(req, res, next) {
         after: afterState,
       });
 
+      if (updated.customer_id) {
+        await require('../growth/emit').emitDomainEvent(client, 'food.order_refunded', require('../growth/emit').foodEventProps(updated), { userId: updated.customer_id, req });
+      }
+
       return { replayed: false, order: updated, paymentMethod, money, beforeState, afterState };
     }, 'agent_food_order_refund');
 

@@ -156,6 +156,9 @@ async function cancelJobTransaction({ jobId, actorId, actorKind = 'auto', reason
           await writeAgentAudit(client, { adminId: actorId, jobId, job, beforeStatus, reason });
         }
 
+        const { emitDomainEvent, jobEventProps } = require('../growth/emit');
+        await emitDomainEvent(client, 'job.cancelled', jobEventProps(updated[0]), { userId: actorId || job.client_id });
+
         return { type: 'pre_acceptance', before_status: beforeStatus, job: updated[0], rejectedBids, cancelled_by: kind };
       }
 
@@ -328,6 +331,9 @@ async function cancelJobTransaction({ jobId, actorId, actorKind = 'auto', reason
       if (isAdmin) {
         await writeAgentAudit(client, { adminId: actorId, jobId, job, beforeStatus, reason });
       }
+
+      const { emitDomainEvent, jobEventProps } = require('../growth/emit');
+      await emitDomainEvent(client, 'job.cancelled', jobEventProps(job), { userId: actorId || job.client_id });
 
       // Return result for post-commit notifications
       return {
