@@ -58,6 +58,8 @@ export const deleteGoal      = (id, goalId)    => api.delete(`/businesses/${id}/
 export const listMembers         = (id)           => api.get(`/businesses/${id}/members`).then(r => r.data?.members || []);
 export const inviteMember        = (id, payload)  => api.post(`/businesses/${id}/members`, payload).then(r => r.data);
 export const revokeMember        = (id, memberId) => api.delete(`/businesses/${id}/members/${memberId}`).then(r => r.data);
+export const resendMemberInvite  = (id, memberId) => api.post(`/businesses/${id}/members/${memberId}/resend`).then(r => r.data);
+export const listJobRoles        = (id)           => api.get(`/businesses/${id}/team/job-roles`).then(r => r.data?.job_roles || []);
 
 // ── Invitations (received by the logged-in user) ──────────────────────────────
 export const listMyInvitations   = ()             => api.get('/businesses/invitations').then(r => r.data?.invitations || []);

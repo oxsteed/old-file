@@ -6034,6 +6034,7 @@ exports.getStaffSession = async (req, res, next) => {
     const session = await resolveStaffSession(req, restaurantId);
     if (!session) {
       return res.status(401).json({ error: { code: 'staff_session_required', message: 'No active staff session' } });
+
     }
     const metadata = safeJson(session.metadata, {});
     return res.json({
