@@ -203,3 +203,12 @@ test('Escape closes the chat only when focus is inside the widget', async () => 
   assert.match(widget, /e\.key === 'Escape' && open && isFocusInside\(panelRef\.current, e\.target\)/);
   assert.match(widget, /ref=\{panelRef\}/);
 });
+
+// ── Improvement 12: clear localized 429 ─────────────────────────────────────
+test('a 429 shows the localized rate-limit message in every locale', async () => {
+  assert.equal(sendErrorMessageKey({ response: { status: 429 } }), 'supportWidget.rateLimited');
+  for (const code of LOCALES) {
+    const copy = (await locale(code)).supportWidget.rateLimited;
+    assert.ok(copy && copy.length > 10, `${code} rateLimited`);
+  }
+});

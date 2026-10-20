@@ -523,6 +523,30 @@ const userChatLimiter = rateLimit({
   },
 });
 
+// AI support chat (POST /api/chat/message). Mounted AFTER optionalAuth so
+// signed-in users get their own per-user bucket instead of sharing one with
+// everyone behind the same IP (offices, campuses, mobile carrier NAT).
+// Guests stay keyed by IP with the original 20 / 10 min budget.
+const SUPPORT_CHAT_WINDOW_MS = 10 * 60 * 1000;
+const SUPPORT_CHAT_MAX_SIGNED_IN = 40;
+const SUPPORT_CHAT_MAX_GUEST = 20;
+function supportChatKey(req) {
+  return req.user?.id ? `user:${req.user.id}` : `ip:${req.ip}`;
+}
+const supportChatLimiter = rateLimit({
+  ...createStoreOption('rl:support_chat:'),
+  windowMs: SUPPORT_CHAT_WINDOW_MS,
+  max: (req) => (req.user?.id ? SUPPORT_CHAT_MAX_SIGNED_IN : SUPPORT_CHAT_MAX_GUEST),
+  keyGenerator: supportChatKey,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many messages sent. Please wait a few minutes before continuing.',
+    code: 'rate_limited',
+    retryAfter: '10 minutes',
+  },
+});
+
 // Review P3-916 / P3-912: per-user upload budget (chat attachments, agreement
 // vault). Redis-backed so the budget holds across replicas.
 const userUploadLimiter = rateLimit({
@@ -869,6 +893,10 @@ module.exports = {
   passwordResetLimiter,
   passwordResetVerifyLimiter,
   chatLimiter,
+  supportChatLimiter,
+  supportChatKey,
+  SUPPORT_CHAT_MAX_SIGNED_IN,
+  SUPPORT_CHAT_MAX_GUEST,
   conversationMessageLimiter,
   channelWebhookLimiter,
   profileChatLimiter,

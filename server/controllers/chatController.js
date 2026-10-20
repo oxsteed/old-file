@@ -69,6 +69,15 @@ function getLanguageInstruction(code) {
 const OLLAMA_URL = resolveOllamaUrl(process.env.OLLAMA_URL, logger);
 
 const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
+
+// Per-call provider timeout (ms). OPENROUTER_TIMEOUT_MS overrides; clamped
+// to 5–60 s so a typo cannot disable the guard or stall requests forever.
+const DEFAULT_PROVIDER_TIMEOUT_MS = 25_000;
+function providerTimeoutMs() {
+  const raw = Number(process.env.OPENROUTER_TIMEOUT_MS);
+  if (!Number.isFinite(raw) || raw <= 0) return DEFAULT_PROVIDER_TIMEOUT_MS;
+  return Math.min(60_000, Math.max(5_000, Math.round(raw)));
+}
 const OPENROUTER_CHAT_MODEL = process.env.OPENROUTER_CHAT_MODEL
   || process.env.OPENROUTER_SUPPORT_MODEL
   || 'openrouter/free';
@@ -86,6 +95,9 @@ async function fetchOpenRouterChat(model, messages) {
     return { ok: false, error: 'OPENROUTER_API_KEY not set' };
   }
   const res = await fetch(OPENROUTER_CHAT_URL, {
+    // A hung provider must not hold the request (and the user) open; on
+    // timeout the fallback chain moves on to the next provider.
+    signal: AbortSignal.timeout(providerTimeoutMs()),
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -122,6 +134,7 @@ async function fetchOllamaChat(messages, options) {
   }
   const model = process.env.OLLAMA_MODEL || 'qwen2.5:3b';
   const res = await fetch(`${OLLAMA_URL}/api/chat`, {
+    signal: AbortSignal.timeout(providerTimeoutMs()),
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -2337,5 +2350,6 @@ exports.createMessengerGuestBooking = async (req, res, next) => {
 exports.createAiBookingFromAction = createAiBookingFromAction;
 exports._shouldSuggestHandoff = shouldSuggestHandoff;
 exports._handoffReason = handoffReason;
+exports._providerTimeoutMs = providerTimeoutMs;
 exports._extractHandoffMarker = extractHandoffMarker;
 exports._businessIdFromPath = businessIdFromPath;

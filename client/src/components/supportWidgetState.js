@@ -6,11 +6,13 @@ export const SUPPORT_CHAT_MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
 /**
  * i18n key for a failed /chat/message send. A 413 means the body (usually the
- * attached image) was too large, which is actionable, so it gets its own copy.
+ * attached image) was too large and a 429 means the user hit the rate limit;
+ * both are actionable, so each gets its own copy.
  */
 export function sendErrorMessageKey(err) {
   const status = err?.response?.status;
   if (status === 413) return 'supportWidget.requestTooLarge';
+  if (status === 429) return 'supportWidget.rateLimited';
   return 'supportWidget.errorMessage';
 }
 
