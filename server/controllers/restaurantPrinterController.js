@@ -24,6 +24,7 @@
 const pool = require('../db');
 const AppError = require('../utils/appError');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const permissionsService = require('../services/permissionsService');
 const { validatePrinterHost } = require('../utils/printerHostValidation');
 const escpos = require('../services/escposPrinter');
 
@@ -33,15 +34,21 @@ function serverPrintingEnabled() {
   return process.env.RESTAURANT_SERVER_PRINTING_ENABLED === 'true';
 }
 
-const MANAGE_ROLES = new Set(['owner', 'manager']);
 
 function parsePositiveInt(value, fallback = null) {
   const n = Number.parseInt(value, 10);
   return Number.isSafeInteger(n) && n > 0 ? n : fallback;
 }
 
-function assertManage(restaurant) {
-  if (!MANAGE_ROLES.has(restaurant.effective_role)) {
+// S-08: manage gates resolve through the permission catalog (role defaults
+// + per-membership overrides) via permissionsService, the single resolver.
+// MANAGE_PERMISSION_CODES reproduces the previous owner/manager-only gate
+// for members without overrides; deny overrides now take effect here too.
+const MANAGE_PERMISSION_CODES = ['settings.manage'];
+
+async function assertManage(restaurant, userId) {
+  const allowed = await permissionsService.hasRestaurantPermission(restaurant, userId, MANAGE_PERMISSION_CODES);
+  if (!allowed) {
     throw new AppError('You do not have permission to manage this restaurant', 403, 'forbidden');
   }
 }
@@ -242,7 +249,7 @@ exports.updatePrinterSettings = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     const restaurant = await resolveRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
 
     const body = req.body || {};
     const enabled = body.enabled === true || body.enabled === 'true';
@@ -334,7 +341,7 @@ exports.printTestPage = async (req, res, next) => {
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     const restaurant = await resolveRestaurantAccess(req.user.id, restaurantId);
     // F-05/F-31: printing is a manager action, not mere membership.
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const settings = await requireEnabledSettings(restaurantId);
     const buffer = escpos.buildTestPage({
       title: restaurant.display_name || 'PRINTER TEST',
@@ -367,7 +374,7 @@ exports.printReceipt = async (req, res, next) => {
     if (!orderId) throw new AppError('order_id is required', 400, 'validation_failed');
     const restaurant = await resolveRestaurantAccess(req.user.id, restaurantId);
     // F-05/F-31: printing is a manager action, not mere membership.
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const settings = await requireEnabledSettings(restaurantId);
     // Read-only snapshot: SELECTs only. Nothing here writes to food_orders,
     // food_order_items, restaurant_pos_payments, or any ledger; the only

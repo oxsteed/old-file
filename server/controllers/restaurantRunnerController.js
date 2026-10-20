@@ -4,6 +4,7 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const permissionsService = require('../services/permissionsService');
 const { withTransaction } = require('../utils/transaction');
 const socketService = require('../services/socketService');
 const smsNotificationService = require('../services/smsNotificationService');
@@ -80,7 +81,6 @@ function parseAmount(value, field = 'amount') {
   return Math.round(n * 100) / 100;
 }
 
-const MANAGE_ROLES = new Set(['owner', 'manager']);
 const TASK_TYPES = new Set(['Delivery', 'Customer pickup', 'Catering', 'Logistics', 'Supplier return']);
 const TASK_STATUSES = new Set(['Queued', 'Assigned', 'Ready', 'Picked up', 'En route', 'Completed', 'Issue', 'Cancelled']);
 const TASK_INITIAL_STATUSES = new Set(['Queued', 'Assigned', 'Ready']);
@@ -140,8 +140,15 @@ async function requireRestaurantAccess(userId, restaurantId) {
   return resolveRestaurantAccess(userId, restaurantId);
 }
 
-function assertManage(restaurant) {
-  if (!MANAGE_ROLES.has(restaurant.effective_role)) {
+// S-08: manage gates resolve through the permission catalog (role defaults
+// + per-membership overrides) via permissionsService, the single resolver.
+// MANAGE_PERMISSION_CODES reproduces the previous owner/manager-only gate
+// for members without overrides; deny overrides now take effect here too.
+const MANAGE_PERMISSION_CODES = ['runner.manage'];
+
+async function assertManage(restaurant, userId) {
+  const allowed = await permissionsService.hasRestaurantPermission(restaurant, userId, MANAGE_PERMISSION_CODES);
+  if (!allowed) {
     throw new AppError('You do not have permission to manage this restaurant', 403, 'forbidden');
   }
 }
@@ -156,8 +163,8 @@ async function assertTask(restaurantId, taskId) {
   return task;
 }
 
-function assertTaskActor(restaurant, task, userId) {
-  if (MANAGE_ROLES.has(restaurant.effective_role)) return true;
+async function assertTaskActor(restaurant, task, userId) {
+  if (await permissionsService.hasRestaurantPermission(restaurant, userId, MANAGE_PERMISSION_CODES)) return true;
   if (!task.assigned_to || String(task.assigned_to) !== String(userId)) {
     throw new AppError('This runner task is assigned to another user', 403, 'runner_task_not_assigned');
   }
@@ -168,7 +175,7 @@ exports.getDashboard = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const canManage = MANAGE_ROLES.has(restaurant.effective_role);
+    const canManage = await permissionsService.hasRestaurantPermission(restaurant, req.user.id, MANAGE_PERMISSION_CODES);
     // Non-managers only see their own tasks.
     const taskScope = canManage ? '' : 'AND assigned_to = $2';
     const taskParams = canManage ? [restaurantId] : [restaurantId, req.user.id];
@@ -236,7 +243,7 @@ exports.createTask = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
 
     const orderReference = normalizeString(req.body.orderReference, 80);
     const stopName = normalizeString(req.body.stopName, 200);
@@ -310,7 +317,7 @@ exports.createContactRule = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
 
     const title = normalizeString(req.body.title, 160);
     const detail = normalizeString(req.body.detail, 2000);
@@ -340,7 +347,7 @@ exports.updateTaskStatus = async (req, res, next) => {
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     const currentTask = await assertTask(restaurantId, taskId);
-    assertTaskActor(restaurant, currentTask, req.user.id);
+    await assertTaskActor(restaurant, currentTask, req.user.id);
 
     const status = TASK_STATUSES.has(req.body.status) ? req.body.status : null;
     if (!status) {
@@ -362,7 +369,7 @@ exports.updateTaskStatus = async (req, res, next) => {
         [restaurantId, taskId]
       );
       if (!lockedTask) throw new AppError('Runner task not found', 404, 'runner_task_not_found');
-      assertTaskActor(restaurant, lockedTask, req.user.id);
+      await assertTaskActor(restaurant, lockedTask, req.user.id);
       if (status !== lockedTask.status && !TASK_TRANSITIONS[lockedTask.status]?.has(status)) {
         throw new AppError(
           `Runner task cannot move from ${lockedTask.status} to ${status}`,
@@ -449,7 +456,7 @@ exports.logProof = async (req, res, next) => {
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     const task = await assertTask(restaurantId, taskId);
-    assertTaskActor(restaurant, task, req.user.id);
+    await assertTaskActor(restaurant, task, req.user.id);
     // M14: logProof completes the task, so it must obey the transition map
     // (only 'En route' -> 'Completed' is legal), not a wider allowlist.
     assertLegalRunnerCompletion(task.status);
@@ -535,7 +542,7 @@ exports.reportIssue = async (req, res, next) => {
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     const task = await assertTask(restaurantId, taskId);
-    assertTaskActor(restaurant, task, req.user.id);
+    await assertTaskActor(restaurant, task, req.user.id);
     if (['Completed', 'Cancelled'].includes(task.status)) {
       throw new AppError('A terminal runner task cannot report a new issue', 409, 'runner_task_terminal');
     }
@@ -574,7 +581,7 @@ exports.logPaymentNote = async (req, res, next) => {
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     const task = await assertTask(restaurantId, taskId);
-    assertTaskActor(restaurant, task, req.user.id);
+    await assertTaskActor(restaurant, task, req.user.id);
 
     const amount = parseAmount(req.body.amount);
     const note = normalizeString(req.body.note, 2000);

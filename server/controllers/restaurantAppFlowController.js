@@ -44,7 +44,8 @@ const { finalizeCreditSpendInTransaction } = require('../services/creditSpendAda
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
 const { nextQueueNumber } = require('../services/restaurantQueueCounter');
-const { getEffectivePermissions } = require('../services/permissionsService');
+const permissionsService = require('../services/permissionsService');
+const { getEffectivePermissions } = permissionsService;
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
 const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
 const { getClientRequestId } = require('../utils/idempotency');
@@ -135,34 +136,6 @@ const LEGACY_PAYMENT_MODE = {
   oxsteed_credit: 'oxsteed_credit',
   direct_payment: 'direct_payment',
 };
-const ROLE_PERMISSIONS = {
-  owner: ['*'],
-  manager: [
-    'restaurant.manage',
-    'orders.manage',
-    'pos.manage',
-    'kitchen.manage',
-    'display.manage',
-    'inventory.manage',
-    'crew.manage',
-    'runner.manage',
-    'support.manage',
-  ],
-  representative: ['orders.view', 'kitchen.view', 'inventory.view', 'display.view', 'support.view'],
-  employee: [
-    'orders.view',
-    'pos.use',
-    'kitchen.view',
-    'kitchen.update',
-    'inventory.view',
-    'inventory.update',
-    'crew.update',
-    'runner.update',
-    'display.view',
-  ],
-  support_agent: ['support.manage'],
-};
-
 function parsePositiveInt(value, fallback = null) {
   const n = Number.parseInt(String(value), 10);
   return Number.isInteger(n) && n > 0 ? n : fallback;
@@ -833,8 +806,13 @@ async function requireRestaurantAccess(userId, restaurantId) {
   return resolveRestaurantAccess(userId, restaurantId);
 }
 
-function assertManage(restaurant) {
-  if (!MANAGE_ROLES.has(restaurant.effective_role)) {
+// S-08: the manage gate resolves through the permission catalog
+// ('restaurant.manage': owners and managers by default) via the single
+// resolver, so per-membership deny overrides close manager surfaces here
+// too. Replaces the role-name-only MANAGE_ROLES check for this gate.
+async function assertManage(restaurant, userId) {
+  const allowed = await permissionsService.hasRestaurantPermission(restaurant, userId, ['restaurant.manage']);
+  if (!allowed) {
     throw new AppError('You do not have permission to manage this restaurant', 403, 'forbidden');
   }
 }
@@ -873,19 +851,13 @@ function normalizeLocationPatch(value) {
   };
 }
 
-function effectivePermissions(role, override = null) {
-  const base = new Set(ROLE_PERMISSIONS[role] || []);
-  const source = safeJson(override, {});
-  for (const permission of source.allow || source.allowed || []) base.add(permission);
-  for (const permission of source.deny || source.denied || []) base.delete(permission);
-  return Array.from(base);
-}
-
 function appModuleFlags(restaurant, role, permissions = []) {
-  const canManage = MANAGE_ROLES.has(role);
-  const allowed = (permission) => canManage || permissions.includes('*') || permissions.includes(permission);
+  // S-08: module visibility is driven by the resolved permission set alone
+  // (role defaults + overrides from the catalog). 'restaurant.manage'
+  // reproduces the old manager flag for owners/managers without overrides.
+  const allowed = (permission) => permissions.includes('*') || permissions.includes(permission);
   return {
-    manager: canManage,
+    manager: allowed('restaurant.manage'),
     pos: restaurant.accepts_in_store_orders !== false && (allowed('pos.use') || allowed('pos.manage')),
     kitchen: restaurant.kitchen_display_enabled !== false && (allowed('kitchen.view') || allowed('kitchen.update') || allowed('kitchen.manage')),
     display: allowed('display.view') || allowed('display.manage'),
@@ -1123,7 +1095,7 @@ async function buildBootstrapPayload(user, restaurantId, query = {}) {
       membershipId: businessMember?.id || null,
     });
     const permissions = Array.from(new Set([
-      ...effectivePermissions(role),
+      ...(role === 'owner' ? ['*'] : []),
       ...teamPermissionResult.permissions,
     ]));
     const enabledModules = appModuleFlags(snapshot, role, permissions);
@@ -1273,7 +1245,7 @@ exports.discoverBootstrap = async (req, res, next) => {
         membershipId: row.membership_id || null,
       });
       const permissions = Array.from(new Set([
-        ...effectivePermissions(row.effective_role),
+        ...(row.effective_role === 'owner' ? ['*'] : []),
         ...teamPermissionResult.permissions,
       ]));
       return {
@@ -1307,7 +1279,7 @@ exports.getManagerDashboard = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const days = Math.min(parsePositiveInt(req.query.days, 7), 90);
     const timezone = normalizeString(restaurant.timezone, 80) || 'UTC';
     const rangeParams = [restaurantId, days, timezone];
@@ -1648,7 +1620,7 @@ exports.getManagerReports = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const days = Math.min(parsePositiveInt(req.query.days, 30), 180);
     const timezone = normalizeString(restaurant.timezone, 80) || 'UTC';
     const params = [restaurantId, days, timezone];
@@ -1795,7 +1767,7 @@ exports.updatePublishing = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
 
     const allowedStatus = new Set(['draft', 'active', 'paused']);
     const status = normalizeString(req.body.status, 24);
@@ -2080,7 +2052,7 @@ exports.getPublishing = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const [{ rows: [publishing] }, { rows: locations }] = await Promise.all([
       pool.query(
         `SELECT id, business_id, display_name, status, accepts_online_orders,
@@ -2109,7 +2081,7 @@ exports.getPrepDeviceConfig = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const { rows: devices } = await pool.query(
       `SELECT d.id, d.restaurant_id, d.app_key, d.device_name, d.mode, d.location_id,
               d.status, d.config, d.last_seen_at, d.last_sync_at, d.sync_status,
@@ -2144,7 +2116,7 @@ exports.updatePrepDeviceConfig = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const prepTimeMin = parseOptionalInteger(req.body.prepTimeMin ?? req.body.prep_time_min, 'prepTimeMin', 1, 240);
     const kitchenDisplayEnabled = parseOptionalBoolean(
       req.body.kitchenDisplayEnabled ?? req.body.kitchen_display_enabled,
@@ -2271,7 +2243,7 @@ exports.createRestaurantLocation = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const location = normalizeLocationPatch(req.body);
     if (!location?.name) {
       throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Location name is required' });
@@ -2335,7 +2307,7 @@ exports.updateRestaurantLocation = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const locationId = parsePositiveInt(req.params.locationId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const normalized = normalizeLocationPatch(req.body);
     validateManagedLocation(normalized);
     const fields = [
@@ -2763,7 +2735,7 @@ exports.createDevicePairingCode = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const appKey = normalizeString(req.body.appKey || req.body.app_key, 32);
     if (!APP_KEYS.has(appKey)) throw new AppError('Validation failed', 400, 'validation_failed', { appKey: 'Unsupported app key' });
     const deviceName = normalizeString(req.body.deviceName || req.body.device_name, 160) || `${appKey} device`;
@@ -2854,7 +2826,7 @@ exports.rotateDeviceToken = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const deviceId = parsePositiveInt(req.params.deviceId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     if (!deviceId) throw new AppError('Device is required', 400, 'invalid_device_scope');
     const deviceToken = crypto.randomBytes(32).toString('base64url');
     const deviceTokenHash = crypto.createHash('sha256').update(deviceToken).digest('hex');
@@ -2996,7 +2968,7 @@ exports.updateDeviceConfig = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const deviceId = parsePositiveInt(req.params.deviceId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const locationId = parsePositiveInt(req.body.locationId || req.body.location_id);
     if (locationId) {
       const { rows: [location] } = await pool.query(
@@ -3949,7 +3921,7 @@ exports.updatePosTicket = async (req, res, next) => {
     // longer suffices; the caller needs pos.use (or orders.manage), which
     // representative and support-agent memberships do not hold.
     if (ticketState === 'voided') {
-      assertManage(restaurant);
+      await assertManage(restaurant, req.user.id);
     } else {
       await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'orders.manage']);
     }
@@ -5375,7 +5347,7 @@ exports.refundPosCardPayment = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const paymentId = parsePositiveInt(req.params.paymentId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const amountCents = parseCents(req.body.amountCents ?? req.body.amount_cents, 'amountCents');
     if (amountCents < 1) {
       throw new AppError('Validation failed', 400, 'validation_failed', { amountCents: 'Amount must be greater than zero' });
@@ -5656,7 +5628,7 @@ exports.setStaffPin = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const pin = normalizeString(req.body.pin, 12);
     if (!pin || !/^\d{4,12}$/.test(pin)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { pin: 'PIN must be 4-12 digits' });
@@ -6507,7 +6479,7 @@ exports.upsertKitchenStation = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const name = normalizeString(req.body.name, 120);
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Station name is required' });
     const deviceId = parsePositiveInt(req.body.deviceId || req.body.device_id);
@@ -6548,7 +6520,7 @@ exports.routeMenuItemToStation = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const menuItemId = parsePositiveInt(req.body.menuItemId || req.body.menu_item_id);
     const stationId = parsePositiveInt(req.body.stationId || req.body.station_id);
     if (!menuItemId || !stationId) {
@@ -6793,7 +6765,7 @@ exports.createCrewShift = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const label = normalizeString(req.body.label, 160);
     const startsAt = req.body.startsAt || req.body.starts_at;
     const endsAt = req.body.endsAt || req.body.ends_at;
@@ -6823,7 +6795,7 @@ exports.updateCrewShift = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const shiftId = parsePositiveInt(req.params.shiftId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const existing = await loadCrewShift(restaurantId, shiftId);
     const status = normalizeString(req.body.status, 24);
     if (status && !CREW_SHIFT_STATUSES.has(status)) {
@@ -6951,7 +6923,7 @@ exports.createCrewTask = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const title = normalizeString(req.body.title, 200);
     if (!title) throw new AppError('Validation failed', 400, 'validation_failed', { title: 'Title is required' });
     const assignedTo = req.body.assignedTo || req.body.assigned_to || null;
@@ -7113,7 +7085,7 @@ exports.reviewCrewTask = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
 
     const approved = req.body.approved === true || req.body.approve === true || req.body.status === 'approved';
     const rejected = req.body.rejected === true || req.body.reject === true || req.body.status === 'rejected';
@@ -8053,7 +8025,7 @@ exports.getInventoryHookStatus = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const [
       { rows: [summary] },
       { rows: affectedMenuItems },
@@ -8129,7 +8101,7 @@ exports.syncMenuAvailability = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const apply = req.body.apply === true || req.query.apply === 'true';
     const result = await withTransaction(pool, async (client) => {
       return syncMappedMenuAvailability(client, restaurantId, {
@@ -8220,7 +8192,7 @@ exports.getPosSyncStatus = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const deviceId = parsePositiveInt(req.query.deviceId || req.query.device_id);
     const params = [restaurantId];
     let deviceFilter = '';
@@ -8376,7 +8348,7 @@ exports.ackPendingOperations = async (req, res, next) => {
 // Shared permission boundary for managed browser screens; no duplicated role rules.
 exports.requireScreenStaff = async (userId, restaurantId, manage = false) => {
  const restaurant = await requireRestaurantAccess(userId, restaurantId);
- if (manage) assertManage(restaurant);
+ if (manage) await assertManage(restaurant, userId);
  else await assertRestaurantPermission(restaurant,userId,['kitchen.view','kitchen.update','orders.view','orders.manage','pos.use','display.manage']);
  return restaurant;
 };

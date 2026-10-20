@@ -6,11 +6,11 @@ const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 // Canonical restaurant access gate (analytics scope model, Phase 1 Item 6).
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const permissionsService = require('../services/permissionsService');
 // Canonical restaurant-level analytics computations (Phase 2, Item 10).
 const restaurantAnalytics = require('../analytics/restaurantAnalytics');
 const { REPEAT_ORDER_WINDOW_DAYS } = restaurantAnalytics;
 
-const MANAGE_ROLES = new Set(['owner', 'manager']);
 const MAX_RANGE_DAYS = 366;
 
 function parsePositiveInt(value) {
@@ -21,10 +21,15 @@ function parsePositiveInt(value) {
 // Restaurant access via the canonical scope-model gate. The fast-fail
 // `!restaurantId` guard and the manager-only reports policy are preserved
 // here: the shared gate resolves standing; this module's 403 stays.
+// S-08: the reports policy itself now resolves through the permission
+// catalog (analytics.view_financial: granted to owners and managers by
+// default) instead of a role-name check, so per-membership deny overrides
+// actually close reports and allow overrides can open them deliberately.
 async function requireRestaurantAccess(userId, restaurantId) {
   if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
   const restaurant = await resolveRestaurantAccess(userId, restaurantId);
-  if (!MANAGE_ROLES.has(restaurant.effective_role)) {
+  const allowed = await permissionsService.hasRestaurantPermission(restaurant, userId, ['analytics.view_financial']);
+  if (!allowed) {
     throw new AppError('You do not have permission to view reports', 403, 'forbidden');
   }
   return restaurant;

@@ -3,6 +3,7 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const permissionsService = require('../services/permissionsService');
 const { withTransaction } = require('../utils/transaction');
 
 function parsePositiveInt(value) {
@@ -42,7 +43,6 @@ function parseNonNegativeInt(value, field = 'attempts', fallback = 0) {
   return n;
 }
 
-const MANAGE_ROLES = new Set(['owner', 'manager']);
 
 // Canonical restaurant access gate (analytics scope model, Phase 1 Item 6).
 // The fast-fail `!restaurantId` guard is preserved here (not inside the
@@ -52,8 +52,15 @@ async function requireRestaurantAccess(userId, restaurantId) {
   return resolveRestaurantAccess(userId, restaurantId);
 }
 
-function assertManage(restaurant) {
-  if (!MANAGE_ROLES.has(restaurant.effective_role)) {
+// S-08: manage gates resolve through the permission catalog (role defaults
+// + per-membership overrides) via permissionsService, the single resolver.
+// MANAGE_PERMISSION_CODES reproduces the previous owner/manager-only gate
+// for members without overrides; deny overrides now take effect here too.
+const MANAGE_PERMISSION_CODES = ['crew.manage'];
+
+async function assertManage(restaurant, userId) {
+  const allowed = await permissionsService.hasRestaurantPermission(restaurant, userId, MANAGE_PERMISSION_CODES);
+  if (!allowed) {
     throw new AppError('You do not have permission to manage this restaurant', 403, 'forbidden');
   }
 }
@@ -124,7 +131,7 @@ exports.bootstrapDefaults = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
 
     await withTransaction(async (client) => {
       const [moduleCount, quizCount, badgeCount] = await Promise.all([
@@ -172,7 +179,7 @@ exports.createModule = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
 
     const title = normalizeString(req.body.title, 200);
     const role = normalizeString(req.body.role, 80);
@@ -237,7 +244,7 @@ exports.createQuizResult = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
 
     const title = normalizeString(req.body.title, 200);
     if (!title) throw new AppError('Validation failed', 400, 'validation_failed', { title: 'Title is required' });
@@ -266,7 +273,7 @@ exports.upsertBadge = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
 
     const title = normalizeString(req.body.title, 160);
     const detail = normalizeString(req.body.detail, 1000);
