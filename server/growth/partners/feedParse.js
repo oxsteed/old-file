@@ -200,6 +200,17 @@ function normalizeItem(record, fieldMapping = {}, defaults = {}) {
       return { error: "invalid_url" };
     }
   }
+  let imageUrl = null;
+  if (mapped.image_url) {
+    try {
+      const parsed = new URL(mapped.image_url);
+      if (parsed.protocol === "https:" && !parsed.username && !parsed.password && (!parsed.port || parsed.port === "443")) {
+        imageUrl = parsed.href;
+      }
+    } catch {
+      // Invalid partner images are omitted; the product remains importable.
+    }
+  }
   const countryCodes = (mapped.country || "")
     .split(/[,\s]+/)
     .map((c) => c.toUpperCase())
@@ -217,11 +228,8 @@ function normalizeItem(record, fieldMapping = {}, defaults = {}) {
       gtin: mapped.gtin ? mapped.gtin.slice(0, 32) : null,
       available: parseAvailability(mapped.availability),
       countryCodes: countryCodes.length ? countryCodes : null,
-      // image_url is deliberately NOT carried into the catalog: partner
-      // images are never hot-linked (spec 13.3). Fetching, scanning via
-      // fileScanService and self-hosting feed images is deferred; imported
-      // products render without an image until that lands.
-      imageDeferred: Boolean(mapped.image_url),
+      imageUrl,
+      imageDeferred: Boolean(mapped.image_url && !imageUrl),
     },
   };
 }

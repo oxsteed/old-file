@@ -200,7 +200,7 @@ async function fetchFeed(rawUrl, options = {}) {
     if (result.status !== 200) throw new Error(`feed_http_${result.status}`);
     if (!result.body || result.body.length > maxBytes)
       throw new Error("feed_too_large");
-    return { body: result.body, finalUrl: url.href };
+    return { body: result.body, finalUrl: url.href, headers: result.headers || {} };
   }
   throw new Error("feed_redirect_invalid");
 }

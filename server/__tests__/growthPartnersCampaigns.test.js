@@ -12,6 +12,8 @@ const crypto = require("crypto");
 const db = require("../db");
 const feedFetch = require("../growth/partners/feedFetch");
 const feedParse = require("../growth/partners/feedParse");
+const { detectImageType, storePartnerImage } = require("../growth/partners/imageStore");
+const { importFeed } = require("../jobs/partnerFeedImport");
 const { resolveCategory } = require("../growth/partners/categoryMap");
 const fraud = require("../growth/partners/fraud");
 const campaigns = require("../growth/campaigns");
@@ -108,6 +110,66 @@ describe("feed fetch SSRF boundaries", () => {
 });
 
 describe("feed parsing and normalization", () => {
+  test("partner images are validated, scanned and stored without hot-linking", async () => {
+    const png = Buffer.from("89504e470d0a1a0a0000", "hex");
+    expect(detectImageType(png, "image/png").contentType).toBe("image/png");
+    const stored = await storePartnerImage("https://cdn.example.com/products/x.png", {
+      allowedHosts: ["cdn.example.com"],
+      fetchImage: async () => ({ body: png, headers: { "content-type": "image/png" } }),
+      scan: async () => ({ clean: true, skipped: true }),
+      upload: async (body, folder, name, contentType) => {
+        expect(body).toBe(png);
+        expect(folder).toBe("partner-products");
+        expect(contentType).toBe("image/png");
+        return "partner-products/stored.png";
+      },
+      publicUrl: (key) => `/api/storage/public/${key}`,
+    });
+    expect(stored.url).toBe("/api/storage/public/partner-products/stored.png");
+    await expect(
+      storePartnerImage("https://cdn.example.com/products/x.png", {
+        allowedHosts: ["cdn.example.com"],
+        fetchImage: async () => ({ body: Buffer.from("not an image"), headers: { "content-type": "image/png" } }),
+      }),
+    ).rejects.toThrow("partner_image_type_invalid");
+  });
+
+  test("feed import persists only the OxSteed image URL", async () => {
+    const calls = [];
+    const query = jest.fn(async (sql, params) => {
+      calls.push([sql, params]);
+      if (/INSERT INTO partner_feed_runs/.test(sql)) return { rows: [{ id: 4, started_at: new Date("2026-10-20T00:00:00Z") }] };
+      if (/SELECT category_path/.test(sql)) return { rows: [] };
+      if (/INSERT INTO marketplace_products/.test(sql)) return { rows: [] };
+      if (/UPDATE marketplace_products SET feed_absent_runs/.test(sql)) return { rowCount: 0 };
+      if (/UPDATE marketplace_products SET is_available/.test(sql)) return { rowCount: 0 };
+      return { rows: [], rowCount: 1 };
+    });
+    const result = await importFeed(
+      { query, tx: async (fn) => fn({ query }) },
+      {
+        id: 9,
+        partner_id: 3,
+        partner_code: "acme",
+        partner_status: "active",
+        link_domains_allowlist: ["shop.example.com", "cdn.example.com"],
+        partner_currencies: ["USD"],
+        url: "https://shop.example.com/feed.csv",
+        format: "csv",
+        field_mapping: {},
+      },
+      {
+        fetchFeed: async () => ({ body: Buffer.from("id,name,price,image_url\nA1,Snake,12.99,https://cdn.example.com/a.png") }),
+        storeImage: async () => ({ url: "https://app.example.com/api/storage/public/partner-products/a.png" }),
+      },
+    );
+    expect(result.status).toBe("succeeded");
+    const insert = calls.find(([sql]) => /INSERT INTO marketplace_products/.test(sql));
+    expect(insert[0]).toContain("product_image_url");
+    expect(insert[1][16]).toBe("https://app.example.com/api/storage/public/partner-products/a.png");
+    expect(insert[1]).not.toContain("https://cdn.example.com/a.png");
+  });
+
   test("CSV handles quoted commas, escaped quotes and CRLF", () => {
     const rows = feedParse.parseCsv(
       'id,name,price\r\n1,"Drain, snake","12.99"\r\n2,"Say ""hi"" wrench",3.5',

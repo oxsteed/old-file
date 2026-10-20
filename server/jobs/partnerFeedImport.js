@@ -8,8 +8,8 @@
 //
 // Safety: fetching goes through growth/partners/feedFetch (HTTPS only,
 // partner allowlist hosts, public DNS only, size/time caps). Prices come
-// only from the feed. Feed images are never hot-linked and are not fetched
-// in this phase (see feedParse.normalizeItem). A failed or empty run never
+// only from the feed. Images are fetched once, scanned, and stored under
+// OxSteed's catalog prefix; partner URLs are never hot-linked. A failed or empty run never
 // touches availability; a successful run marks items it did not see with
 // feed_absent_runs + 1, and items absent for 2 consecutive runs become
 // is_available = false.
@@ -18,6 +18,7 @@ const { withFencedJobLock } = require("./jobLockingService");
 const logger = require("../utils/logger");
 const feedFetch = require("../growth/partners/feedFetch");
 const feedParse = require("../growth/partners/feedParse");
+const { storePartnerImage } = require("../growth/partners/imageStore");
 const { resolveCategory } = require("../growth/partners/categoryMap");
 
 const FORMAT_DEFAULT_MAPPINGS = {
@@ -122,7 +123,29 @@ async function importFeed(runner, feed, deps = {}) {
       const resolved = item.categoryPath
         ? resolveCategory(mappings, item.categoryPath)
         : null;
-      items.push({ ...item, taxonomyNodeId: resolved?.nodeId || null });
+      let productImageUrl = null;
+      if (item.imageUrl) {
+        try {
+          const stored = await (deps.storeImage || storePartnerImage)(item.imageUrl, {
+            allowedHosts: allowedHostsFor(feed),
+            lookup: deps.lookup,
+            transport: deps.transport,
+            timeoutMs: deps.imageTimeoutMs || deps.timeoutMs,
+            fetchImage: deps.fetchImage,
+            scan: deps.scanImage,
+            upload: deps.uploadImage,
+            publicUrl: deps.publicImageUrl,
+          });
+          productImageUrl = stored?.url || null;
+        } catch (imageError) {
+          logger.warn("partner feed image skipped", {
+            feedId: feed.id,
+            feedItemId: item.feedItemId,
+            error: imageError.message,
+          });
+        }
+      }
+      items.push({ ...item, productImageUrl, taxonomyNodeId: resolved?.nodeId || null });
     }
     if (!items.length) throw new Error("feed_no_valid_items");
     let upserted = 0;
@@ -138,8 +161,9 @@ async function importFeed(runner, feed, deps = {}) {
              source, external_id, name, description, category, price_cents,
              currency, affiliate_url, is_active, is_available, partner_id,
              feed_item_id, country_codes, last_seen_at, brand, gtin,
-             category_path, taxonomy_node_id, feed_absent_runs, updated_at)
-           VALUES($1,$2,$3,$4,$5,$6,$7,$8,TRUE,$9,$10,$11,$12,NOW(),$13,$14,$15,$16,0,NOW())
+             category_path, taxonomy_node_id, feed_absent_runs, updated_at,
+             product_image_url)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8,TRUE,$9,$10,$11,$12,NOW(),$13,$14,$15,$16,0,NOW(),$17)
            ON CONFLICT (partner_id, feed_item_id) WHERE partner_id IS NOT NULL
            DO UPDATE SET name=EXCLUDED.name, description=EXCLUDED.description,
              category=EXCLUDED.category, price_cents=EXCLUDED.price_cents,
@@ -147,6 +171,7 @@ async function importFeed(runner, feed, deps = {}) {
              country_codes=EXCLUDED.country_codes, brand=EXCLUDED.brand,
              gtin=EXCLUDED.gtin, category_path=EXCLUDED.category_path,
              taxonomy_node_id=EXCLUDED.taxonomy_node_id,
+             product_image_url=COALESCE(EXCLUDED.product_image_url, marketplace_products.product_image_url),
              is_available=EXCLUDED.is_available, last_seen_at=NOW(),
              feed_absent_runs=0, updated_at=NOW()`,
           [
@@ -166,6 +191,7 @@ async function importFeed(runner, feed, deps = {}) {
             item.gtin,
             item.categoryPath,
             item.taxonomyNodeId,
+            item.productImageUrl,
           ],
         );
         upserted++;
