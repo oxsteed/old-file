@@ -17,6 +17,7 @@ import {
 import {
   toggleRunItemOffline, completeChecklistRunOffline, adjustInventoryItemOffline,
 } from '../../api/restaurantsOffline';
+import { ConfirmDialog } from './foodShared';
 
 function apiErr(err, fallback) {
   const m = err?.response?.data?.error?.message || err?.response?.data?.message;
@@ -42,13 +43,14 @@ const SEED_TASKS = {
 };
 
 // ── Checklists ────────────────────────────────────────────────────────────────
-export function ChecklistsPanel({ t, restaurant, bare, onStats }) {
+export function ChecklistsPanel({ t, restaurant, bare, onStats, staffMode = false }) {
   const restaurantId = restaurant.id;
   const [checklists, setChecklists] = useState([]);
   const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeRun, setActiveRun] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -76,9 +78,9 @@ export function ChecklistsPanel({ t, restaurant, bare, onStats }) {
   };
 
   const remove = async (checklistId) => {
-    if (!window.confirm(t('restaurants.ops.checklists.confirmDelete', 'Delete this checklist?'))) return;
     try {
       await deleteChecklist(restaurantId, checklistId);
+      setConfirmDelete(null);
       load();
     } catch (err) {
       toast.error(apiErr(err, t('common.failedToDelete', 'Failed to delete')));
@@ -100,10 +102,22 @@ export function ChecklistsPanel({ t, restaurant, bare, onStats }) {
 
       <div className={`fd-ops-toolbar${bare ? ' fd-ops-toolbar--end' : ''}`}>
         {!bare && <h3 className="fd-ops-panel-title">{t('restaurants.ops.checklists.title', 'Checklists')}</h3>}
-        <button type="button" className="fd-btn fd-btn-sm" onClick={() => setShowCreate((s) => !s)} data-track="ui.52793f2559.1">
-          {showCreate ? t('food.common.back', 'Back') : t('restaurants.ops.checklists.newChecklist', 'New checklist')}
-        </button>
+        {!staffMode && (
+          <button type="button" className="fd-btn fd-btn-sm" onClick={() => setShowCreate((s) => !s)} data-track="ui.52793f2559.1">
+            {showCreate ? t('food.common.back', 'Back') : t('restaurants.ops.checklists.newChecklist', 'New checklist')}
+          </button>
+        )}
       </div>
+
+      {confirmDelete && (
+        <ConfirmDialog
+          title={t('restaurants.ops.checklists.confirmDelete')}
+          confirmLabel={t('common.delete')}
+          cancelLabel={t('food.common.cancel')}
+          onConfirm={() => remove(confirmDelete.id)}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
 
       {showCreate && (
         <NewChecklistForm
@@ -139,11 +153,13 @@ export function ChecklistsPanel({ t, restaurant, bare, onStats }) {
               <button type="button" className="fd-btn fd-btn-sm" disabled={(c.tasks || []).length === 0} onClick={() => start(c.id)} data-track="ui.52793f2559.2">
                 {t('restaurants.ops.checklists.start', 'Start')}
               </button>
-              <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => remove(c.id)} data-track="ui.52793f2559.3">
-                {t('common.delete', 'Delete')}
-              </button>
+              {!staffMode && (
+                <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setConfirmDelete(c)} data-track="ui.52793f2559.3">
+                  {t('common.delete', 'Delete')}
+                </button>
+              )}
             </div>
-            <ManageTasks t={t} restaurantId={restaurantId} checklist={c} onChanged={load} />
+            {!staffMode && <ManageTasks t={t} restaurantId={restaurantId} checklist={c} onChanged={load} />}
           </div>
         ))}
       </div>
@@ -343,11 +359,12 @@ function RunModal({ t, restaurantId, run: initialRun, onClose }) {
 }
 
 // ── SOP library ─────────────────────────────────────────────────────────────
-export function SopsPanel({ t, restaurant, bare, onStats }) {
+export function SopsPanel({ t, restaurant, bare, onStats, staffMode = false }) {
   const restaurantId = restaurant.id;
   const [sops, setSops] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null); // null | 'new' | sop object
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -369,9 +386,9 @@ export function SopsPanel({ t, restaurant, bare, onStats }) {
     }
   };
   const remove = async (sopId) => {
-    if (!window.confirm(t('restaurants.ops.sops.confirmDelete', 'Delete this SOP?'))) return;
     try {
       await deleteSop(restaurantId, sopId);
+      setConfirmDelete(null);
       load();
     } catch (err) {
       toast.error(apiErr(err, t('common.failedToDelete', 'Failed to delete')));
@@ -388,10 +405,21 @@ export function SopsPanel({ t, restaurant, bare, onStats }) {
     <div>
       <div className={`fd-ops-toolbar${bare ? ' fd-ops-toolbar--end' : ''}`}>
         {!bare && <h3 className="fd-ops-panel-title">{t('restaurants.ops.sops.title', 'SOP library')}</h3>}
-        <button type="button" className="fd-btn fd-btn-sm" onClick={() => setEditing('new')} data-track="ui.52793f2559.14">
-          {t('restaurants.ops.sops.newSop', 'New SOP')}
-        </button>
+        {!staffMode && (
+          <button type="button" className="fd-btn fd-btn-sm" onClick={() => setEditing('new')} data-track="ui.52793f2559.14">
+            {t('restaurants.ops.sops.newSop', 'New SOP')}
+          </button>
+        )}
       </div>
+      {confirmDelete && (
+        <ConfirmDialog
+          title={t('restaurants.ops.sops.confirmDelete')}
+          confirmLabel={t('common.delete')}
+          cancelLabel={t('food.common.cancel')}
+          onConfirm={() => remove(confirmDelete.id)}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
       {sops.length === 0 ? (
         <div className="fd-empty">{t('restaurants.ops.sops.empty', 'No SOPs yet. Document how your team does things.')}</div>
       ) : (
@@ -403,10 +431,12 @@ export function SopsPanel({ t, restaurant, bare, onStats }) {
                   <strong>{s.title}</strong>
                   <span className="fd-tag fd-ops-sop-tag">{t(`restaurants.ops.sops.category.${s.category}`, s.category)}</span>
                 </div>
-                <div className="fd-ops-sop-actions">
-                  <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setEditing(s)} data-track="ui.52793f2559.15">{t('common.edit', 'Edit')}</button>
-                  <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => remove(s.id)} data-track="ui.52793f2559.16">{t('common.delete', 'Delete')}</button>
-                </div>
+                {!staffMode && (
+                  <div className="fd-ops-sop-actions">
+                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setEditing(s)} data-track="ui.52793f2559.15">{t('common.edit', 'Edit')}</button>
+                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setConfirmDelete(s)} data-track="ui.52793f2559.16">{t('common.delete', 'Delete')}</button>
+                  </div>
+                )}
               </div>
               {s.body && <p className="fd-card-meta fd-ops-sop-body">{s.body}</p>}
             </div>

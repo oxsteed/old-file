@@ -4852,8 +4852,86 @@
       }
     }
   },
+  "notifications": {
+    "staff": {
+      "crew_task_assigned": {
+        "title": "مهمة جديدة مسندة",
+        "body": "{{taskTitle}} في {{restaurantName}}"
+      },
+      "training_assigned": {
+        "title": "تدريب جديد مسند",
+        "body": "{{moduleTitle}} في {{restaurantName}}"
+      },
+      "crew_shift_published": {
+        "title": "تم نشر وردية جديدة",
+        "body": "{{shiftLabel}} · {{startsAt}} في {{restaurantName}}"
+      },
+      "crew_shift_cancelled": {
+        "title": "تم إلغاء الوردية",
+        "body": "{{shiftLabel}} · {{startsAt}} في {{restaurantName}}"
+      },
+      "restaurant_announcement": {
+        "title": "إعلان من {{restaurantName}}",
+        "body": "{{announcementTitle}}"
+      }
+    }
+  },
   "food": {
-    "merchant": { "timezone": "المنطقة الزمنية", "timezoneHint": "تُستخدم لساعات العمل وأرقام الانتظار اليومية والتقارير.", "locationEdit": "تعديل", "locationSaveChanges": "حفظ التغييرات", "locationStatus": "الحالة", "locationActive": "نشط", "locationPaused": "متوقف مؤقتًا", "locationClosed": "مغلق", "locationUpdated": "تم تحديث الموقع", "locationMakePrimary": "تعيين كموقع رئيسي", "locationName": "اسم الموقع", "addLocation": "إضافة موقع", "locationCreated": "تمت إضافة الموقع", "locationError": "تعذر حفظ الموقع", "findCoordinates": "البحث عن الإحداثيات", "locationGeocodeEmpty": "تعذر العثور على إحداثيات لهذا الموقع", "locationGeocoded": "تم العثور على الإحداثيات", "locationGeocodeError": "تعذر العثور على الإحداثيات" },
+    "myShift": {
+      "title": "ورديتي",
+      "subtitle": "الإعلانات وجدولك ومهامك وقوائم التحقق والتدريب لهذا المطعم.",
+      "announcements": "الإعلانات",
+      "announcementsEmpty": "لا توجد إعلانات بعد.",
+      "announcementTitleLabel": "العنوان",
+      "announcementBodyLabel": "التفاصيل",
+      "postAnnouncement": "نشر الإعلان",
+      "announcementPosted": "تم نشر الإعلان",
+      "acknowledge": "تأكيد الاستلام",
+      "acknowledged": "تم التأكيد",
+      "ackCount": "{{count}} أكدوا الاستلام",
+      "schedule": "جدولي",
+      "scheduleEmpty": "لا توجد ورديات على اللوحة الآن.",
+      "shiftStatus": {
+        "scheduled": "مجدولة",
+        "open": "مفتوحة",
+        "closed": "مغلقة",
+        "cancelled": "ملغاة"
+      },
+      "tasks": "مهامي",
+      "tasksEmpty": "لا توجد مهام مسندة إليك الآن.",
+      "taskStatus": {
+        "not_started": "لم تبدأ",
+        "in_progress": "قيد التنفيذ",
+        "needs_approval": "تحتاج موافقة",
+        "completed": "مكتملة",
+        "cancelled": "ملغاة"
+      },
+      "taskPriority": {
+        "low": "منخفضة",
+        "normal": "عادية",
+        "high": "عالية",
+        "urgent": "عاجلة"
+      },
+      "startTask": "ابدأ",
+      "completeTask": "وضع علامة منجز",
+      "submitForApproval": "إرسال للموافقة",
+      "waitingApproval": "بانتظار الموافقة",
+      "addProof": "إضافة إثبات",
+      "proofUploaded": "تم رفع الإثبات",
+      "proofRequired": "أضف صورة إثبات قبل إرسال هذه المهمة.",
+      "photoProof": "صورة الإثبات مطلوبة",
+      "dueAt": "يستحق في {{date}}",
+      "checklists": "قوائم للتنفيذ",
+      "training": "تدريبي",
+      "sops": "الإجراءات",
+      "logbook": "سجل المدير",
+      "logbookEmpty": "لا توجد إدخالات في السجل بعد.",
+      "logbookLabel": "ملاحظة الوردية",
+      "logbookPlaceholder": "ما الذي يجب أن تعرفه الوردية التالية؟",
+      "addLogbookEntry": "إضافة إدخال",
+      "logbookAdded": "تمت إضافة الإدخال"
+    },
+    "merchant": { "timezone": "المنطقة الزمنية", "timezoneHint": "تُستخدم لساعات العمل وأرقام الانتظار اليومية والتقارير.", "locationEdit": "تعديل", "locationSaveChanges": "حفظ التغييرات", "locationStatus": "الحالة", "locationActive": "نشط", "locationPaused": "متوقف مؤقتًا", "locationClosed": "مغلق", "locationUpdated": "تم تحديث الموقع", "locationMakePrimary": "تعيين كموقع رئيسي", "locationName": "اسم الموقع", "addLocation": "إضافة موقع", "locationCreated": "تمت إضافة الموقع", "locationError": "تعذر حفظ الموقع", "findCoordinates": "البحث عن الإحداثيات", "locationGeocodeEmpty": "تعذر العثور على إحداثيات لهذا الموقع", "locationGeocoded": "تم العثور على الإحداثيات", "locationGeocodeError": "تعذر العثور على الإحداثيات" , "tab": { "myshift": "ورديتي" } },
     "creditCenter": {
       "recentFallback": "مؤخرًا",
       "oxsteedCustomer": "عميل OxSteed",

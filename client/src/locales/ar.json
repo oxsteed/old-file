@@ -9799,6 +9799,28 @@
     "referredPeople": "الأشخاص الذين أشرت إليهم"
   },
   "notifications": {
+    "staff": {
+      "crew_task_assigned": {
+        "title": "مهمة جديدة مسندة",
+        "body": "{{taskTitle}} في {{restaurantName}}"
+      },
+      "training_assigned": {
+        "title": "تدريب جديد مسند",
+        "body": "{{moduleTitle}} في {{restaurantName}}"
+      },
+      "crew_shift_published": {
+        "title": "تم نشر وردية جديدة",
+        "body": "{{shiftLabel}} · {{startsAt}} في {{restaurantName}}"
+      },
+      "crew_shift_cancelled": {
+        "title": "تم إلغاء الوردية",
+        "body": "{{shiftLabel}} · {{startsAt}} في {{restaurantName}}"
+      },
+      "restaurant_announcement": {
+        "title": "إعلان من {{restaurantName}}",
+        "body": "{{announcementTitle}}"
+      }
+    },
     "title": "إعدادات الإخطار",
     "subtitle": "اختر كيف ومتى تتلقى الإشعارات.",
     "backToSettings": "العودة إلى الإعدادات",
@@ -22942,6 +22964,60 @@
       "paused": "متوقف مؤقتًا",
       "suspended": "موقوف"
     },
+    "myShift": {
+      "title": "ورديتي",
+      "subtitle": "الإعلانات وجدولك ومهامك وقوائم التحقق والتدريب لهذا المطعم.",
+      "announcements": "الإعلانات",
+      "announcementsEmpty": "لا توجد إعلانات بعد.",
+      "announcementTitleLabel": "العنوان",
+      "announcementBodyLabel": "التفاصيل",
+      "postAnnouncement": "نشر الإعلان",
+      "announcementPosted": "تم نشر الإعلان",
+      "acknowledge": "تأكيد الاستلام",
+      "acknowledged": "تم التأكيد",
+      "ackCount": "{{count}} أكدوا الاستلام",
+      "schedule": "جدولي",
+      "scheduleEmpty": "لا توجد ورديات على اللوحة الآن.",
+      "shiftStatus": {
+        "scheduled": "مجدولة",
+        "open": "مفتوحة",
+        "closed": "مغلقة",
+        "cancelled": "ملغاة"
+      },
+      "tasks": "مهامي",
+      "tasksEmpty": "لا توجد مهام مسندة إليك الآن.",
+      "taskStatus": {
+        "not_started": "لم تبدأ",
+        "in_progress": "قيد التنفيذ",
+        "needs_approval": "تحتاج موافقة",
+        "completed": "مكتملة",
+        "cancelled": "ملغاة"
+      },
+      "taskPriority": {
+        "low": "منخفضة",
+        "normal": "عادية",
+        "high": "عالية",
+        "urgent": "عاجلة"
+      },
+      "startTask": "ابدأ",
+      "completeTask": "وضع علامة منجز",
+      "submitForApproval": "إرسال للموافقة",
+      "waitingApproval": "بانتظار الموافقة",
+      "addProof": "إضافة إثبات",
+      "proofUploaded": "تم رفع الإثبات",
+      "proofRequired": "أضف صورة إثبات قبل إرسال هذه المهمة.",
+      "photoProof": "صورة الإثبات مطلوبة",
+      "dueAt": "يستحق في {{date}}",
+      "checklists": "قوائم للتنفيذ",
+      "training": "تدريبي",
+      "sops": "الإجراءات",
+      "logbook": "سجل المدير",
+      "logbookEmpty": "لا توجد إدخالات في السجل بعد.",
+      "logbookLabel": "ملاحظة الوردية",
+      "logbookPlaceholder": "ما الذي يجب أن تعرفه الوردية التالية؟",
+      "addLogbookEntry": "إضافة إدخال",
+      "logbookAdded": "تمت إضافة الإدخال"
+    },
     "merchant": {
       "title": "لوحة تحكم المطعم",
       "oxsteedPayReplacesQr": "يظهر رابط الدفع QR الخاص بـ OxSteed للعملاء هنا بدلاً من صورة QR المرفوعة.",
@@ -22982,7 +23058,8 @@
         "settings": "الإعدادات",
         "operations": "العمليات",
         "payouts": "المدفوعات",
-        "displays": "الشاشات"
+        "displays": "الشاشات",
+        "myshift": "ورديتي"
       },
       "liveOrders": "الطلبات المباشرة",
       "noOrders": "لا توجد طلبات نشطة حاليًا.",

@@ -2209,6 +2209,28 @@
     "referredPeople": "Moun ou te refere"
   },
   "notifications": {
+    "staff": {
+      "crew_task_assigned": {
+        "title": "Yo ba ou yon nouvo tach",
+        "body": "{{taskTitle}} nan {{restaurantName}}"
+      },
+      "training_assigned": {
+        "title": "Yo ba ou yon nouvo fòmasyon",
+        "body": "{{moduleTitle}} nan {{restaurantName}}"
+      },
+      "crew_shift_published": {
+        "title": "Yo pibliye yon nouvo orè",
+        "body": "{{shiftLabel}} · {{startsAt}} nan {{restaurantName}}"
+      },
+      "crew_shift_cancelled": {
+        "title": "Orè a anile",
+        "body": "{{shiftLabel}} · {{startsAt}} nan {{restaurantName}}"
+      },
+      "restaurant_announcement": {
+        "title": "Anons soti nan {{restaurantName}}",
+        "body": "{{announcementTitle}}"
+      }
+    },
     "title": "Preferans Notifikasyon",
     "subtitle": "Chwazi kijan ak kilè ou resevwa notifikasyon",
     "backToSettings": "Tounen nan Paramèt",
@@ -22931,6 +22953,60 @@
       "paused": "An poz",
       "suspended": "Sispann"
     },
+    "myShift": {
+      "title": "Orè mwen",
+      "subtitle": "Anons, orè ou, tach ou, lis verifikasyon ak fòmasyon pou restoran sa a.",
+      "announcements": "Anons",
+      "announcementsEmpty": "Pa gen anons ankò.",
+      "announcementTitleLabel": "Tit",
+      "announcementBodyLabel": "Detay",
+      "postAnnouncement": "Pibliye anons la",
+      "announcementPosted": "Anons la pibliye",
+      "acknowledge": "Konfime m resevwa l",
+      "acknowledged": "Konfime",
+      "ackCount": "{{count}} konfime",
+      "schedule": "Orè mwen",
+      "scheduleEmpty": "Pa gen orè sou tablo a kounye a.",
+      "shiftStatus": {
+        "scheduled": "Pwograme",
+        "open": "Louvri",
+        "closed": "Fèmen",
+        "cancelled": "Anile"
+      },
+      "tasks": "Tach mwen yo",
+      "tasksEmpty": "Pa gen tach yo ba ou kounye a.",
+      "taskStatus": {
+        "not_started": "Pa kòmanse",
+        "in_progress": "Ap fèt",
+        "needs_approval": "Bezwen apwobasyon",
+        "completed": "Fin fèt",
+        "cancelled": "Anile"
+      },
+      "taskPriority": {
+        "low": "Ba",
+        "normal": "Nòmal",
+        "high": "Wo",
+        "urgent": "Ijan"
+      },
+      "startTask": "Kòmanse",
+      "completeTask": "Make l fin fèt",
+      "submitForApproval": "Voye l pou apwobasyon",
+      "waitingApproval": "Ap tann apwobasyon",
+      "addProof": "Ajoute prèv",
+      "proofUploaded": "Prèv la voye",
+      "proofRequired": "Ajoute yon foto prèv anvan ou voye tach sa a.",
+      "photoProof": "Foto prèv obligatwa",
+      "dueAt": "Pou {{date}}",
+      "checklists": "Lis pou w fè",
+      "training": "Fòmasyon mwen",
+      "sops": "Pwosedi yo",
+      "logbook": "Liv jounal manadjè a",
+      "logbookEmpty": "Pa gen anyen nan liv jounal la ankò.",
+      "logbookLabel": "Nòt orè a",
+      "logbookPlaceholder": "Kisa pwochen orè a dwe konnen?",
+      "addLogbookEntry": "Ajoute nan liv la",
+      "logbookAdded": "Yo ajoute l nan liv la"
+    },
     "merchant": {
       "title": "Tablodbò restoran",
       "oxsteedPayReplacesQr": "Lyen peman QR OxSteed ou a parèt pou kliyan yo isit la olye imaj QR ou te telechaje a.",
@@ -22963,7 +23039,8 @@
         "settings": "Paramèt",
         "operations": "Operasyon",
         "payouts": "Peman",
-        "displays": "Ekran"
+        "displays": "Ekran",
+        "myshift": "Orè mwen"
       },
       "liveOrders": "Kòmand an dirèk",
       "noOrders": "Pa gen kòmand aktif kounye a.",

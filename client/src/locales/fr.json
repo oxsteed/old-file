@@ -9799,6 +9799,28 @@
     "referredPeople": "Personnes que vous avez parrainées"
   },
   "notifications": {
+    "staff": {
+      "crew_task_assigned": {
+        "title": "Nouvelle tâche assignée",
+        "body": "{{taskTitle}} chez {{restaurantName}}"
+      },
+      "training_assigned": {
+        "title": "Nouvelle formation assignée",
+        "body": "{{moduleTitle}} chez {{restaurantName}}"
+      },
+      "crew_shift_published": {
+        "title": "Nouveau poste publié",
+        "body": "{{shiftLabel}} · {{startsAt}} chez {{restaurantName}}"
+      },
+      "crew_shift_cancelled": {
+        "title": "Poste annulé",
+        "body": "{{shiftLabel}} · {{startsAt}} chez {{restaurantName}}"
+      },
+      "restaurant_announcement": {
+        "title": "Annonce de {{restaurantName}}",
+        "body": "{{announcementTitle}}"
+      }
+    },
     "title": "Préférences de Notifications",
     "subtitle": "Choisissez comment et quand vous recevez des notifications",
     "backToSettings": "Retour aux Paramètres",
@@ -22931,6 +22953,60 @@
       "paused": "En pause",
       "suspended": "Suspendu"
     },
+    "myShift": {
+      "title": "Mon poste",
+      "subtitle": "Annonces, votre planning, tâches, listes de contrôle et formation pour ce restaurant.",
+      "announcements": "Annonces",
+      "announcementsEmpty": "Aucune annonce pour le moment.",
+      "announcementTitleLabel": "Titre",
+      "announcementBodyLabel": "Détails",
+      "postAnnouncement": "Publier l'annonce",
+      "announcementPosted": "Annonce publiée",
+      "acknowledge": "Accuser réception",
+      "acknowledged": "Confirmé",
+      "ackCount": "{{count}} confirmations",
+      "schedule": "Mon planning",
+      "scheduleEmpty": "Aucun poste au tableau pour le moment.",
+      "shiftStatus": {
+        "scheduled": "Planifié",
+        "open": "Ouvert",
+        "closed": "Fermé",
+        "cancelled": "Annulé"
+      },
+      "tasks": "Mes tâches",
+      "tasksEmpty": "Aucune tâche ne vous est assignée pour le moment.",
+      "taskStatus": {
+        "not_started": "Non commencée",
+        "in_progress": "En cours",
+        "needs_approval": "Approbation requise",
+        "completed": "Terminée",
+        "cancelled": "Annulée"
+      },
+      "taskPriority": {
+        "low": "Basse",
+        "normal": "Normale",
+        "high": "Haute",
+        "urgent": "Urgente"
+      },
+      "startTask": "Commencer",
+      "completeTask": "Marquer comme fait",
+      "submitForApproval": "Soumettre pour approbation",
+      "waitingApproval": "En attente d'approbation",
+      "addProof": "Ajouter une preuve",
+      "proofUploaded": "Preuve envoyée",
+      "proofRequired": "Ajoutez une photo de preuve avant de soumettre cette tâche.",
+      "photoProof": "Photo de preuve requise",
+      "dueAt": "Échéance : {{date}}",
+      "checklists": "Listes à exécuter",
+      "training": "Ma formation",
+      "sops": "Procédures",
+      "logbook": "Journal du manager",
+      "logbookEmpty": "Aucune entrée dans le journal pour le moment.",
+      "logbookLabel": "Note de poste",
+      "logbookPlaceholder": "Que doit savoir le prochain poste ?",
+      "addLogbookEntry": "Ajouter une entrée",
+      "logbookAdded": "Entrée ajoutée"
+    },
     "merchant": {
       "title": "Tableau de bord du restaurant",
       "oxsteedPayReplacesQr": "Votre lien de paiement QR OxSteed est affiché aux clients ici au lieu de l’image QR téléversée.",
@@ -22963,7 +23039,8 @@
         "settings": "Paramètres",
         "operations": "Opérations",
         "payouts": "Paiements",
-        "displays": "Écrans"
+        "displays": "Écrans",
+        "myshift": "Mon poste"
       },
       "liveOrders": "Commandes en direct",
       "noOrders": "Aucune commande active pour le moment.",

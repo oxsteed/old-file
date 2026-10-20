@@ -7,7 +7,7 @@ import { Plus, Trash2, Clock, Users, LogIn, LogOut } from 'lucide-react';
 const TABS = ['shifts', 'time'];
 
 export function StaffScheduler({ businessId }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [tab, setTab] = useState('shifts');
   const [shifts, setShifts] = useState([]);
   const [timeEntries, setTimeEntries] = useState([]);
@@ -148,7 +148,7 @@ export function StaffScheduler({ businessId }) {
           <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.5rem', padding: '0.75rem 1rem', marginBottom: '0.5rem' }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 600 }}>{s.user_name || t('businessHub.staffScheduler.unassigned')}{s.role && ` · ${s.role}`}</div>
-              <div style={{ fontSize: '0.875rem', color: 'var(--muted-text)' }}>{new Date(s.shift_start).toLocaleString()} – {new Date(s.shift_end).toLocaleString()}</div>
+              <div style={{ fontSize: '0.875rem', color: 'var(--muted-text)' }}>{new Date(s.shift_start).toLocaleString(i18n.language)} – {new Date(s.shift_end).toLocaleString(i18n.language)}</div>
             </div>
             <button onClick={() => deleteShift(s.id)} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }} data-track="ui.34ed3b0a4c.6"><Trash2 size={14} /></button>
           </div>
@@ -160,8 +160,8 @@ export function StaffScheduler({ businessId }) {
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 600 }}>{e.user_name}</div>
               <div style={{ fontSize: '0.875rem', color: 'var(--muted-text)' }}>
-                {t('businessHub.staffScheduler.time.in')} {new Date(e.clock_in).toLocaleString()}{' '}
-                {e.clock_out ? `· ${t('businessHub.staffScheduler.time.out')} ${new Date(e.clock_out).toLocaleString()}` : `· ${t('businessHub.staffScheduler.time.stillWorking')}`}
+                {t('businessHub.staffScheduler.time.in')} {new Date(e.clock_in).toLocaleString(i18n.language)}{' '}
+                {e.clock_out ? `· ${t('businessHub.staffScheduler.time.out')} ${new Date(e.clock_out).toLocaleString(i18n.language)}` : `· ${t('businessHub.staffScheduler.time.stillWorking')}`}
               </div>
             </div>
             <div style={{ fontWeight: 600, color: e.clock_out ? '#10b981' : '#f59e0b' }}>{formatDuration(parseFloat(e.hours))}</div>

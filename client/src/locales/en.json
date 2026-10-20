@@ -9799,6 +9799,28 @@
     "referredPeople": "People you've referred"
   },
   "notifications": {
+    "staff": {
+      "crew_task_assigned": {
+        "title": "New task assigned",
+        "body": "{{taskTitle}} at {{restaurantName}}"
+      },
+      "training_assigned": {
+        "title": "New training assigned",
+        "body": "{{moduleTitle}} at {{restaurantName}}"
+      },
+      "crew_shift_published": {
+        "title": "New shift posted",
+        "body": "{{shiftLabel}} · {{startsAt}} at {{restaurantName}}"
+      },
+      "crew_shift_cancelled": {
+        "title": "Shift cancelled",
+        "body": "{{shiftLabel}} · {{startsAt}} at {{restaurantName}}"
+      },
+      "restaurant_announcement": {
+        "title": "Announcement from {{restaurantName}}",
+        "body": "{{announcementTitle}}"
+      }
+    },
     "title": "Notification Settings",
     "subtitle": "Choose how and when you receive notifications.",
     "backToSettings": "Back to Settings",
@@ -22931,6 +22953,60 @@
       "paused": "Paused",
       "suspended": "Suspended"
     },
+    "myShift": {
+      "title": "My shift",
+      "subtitle": "Announcements, your schedule, tasks, checklists and training for this restaurant.",
+      "announcements": "Announcements",
+      "announcementsEmpty": "No announcements yet.",
+      "announcementTitleLabel": "Title",
+      "announcementBodyLabel": "Details",
+      "postAnnouncement": "Post announcement",
+      "announcementPosted": "Announcement posted",
+      "acknowledge": "Acknowledge",
+      "acknowledged": "Acknowledged",
+      "ackCount": "{{count}} acknowledged",
+      "schedule": "My schedule",
+      "scheduleEmpty": "No shifts on the board right now.",
+      "shiftStatus": {
+        "scheduled": "Scheduled",
+        "open": "Open",
+        "closed": "Closed",
+        "cancelled": "Cancelled"
+      },
+      "tasks": "My tasks",
+      "tasksEmpty": "No tasks assigned to you right now.",
+      "taskStatus": {
+        "not_started": "Not started",
+        "in_progress": "In progress",
+        "needs_approval": "Needs approval",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "taskPriority": {
+        "low": "Low",
+        "normal": "Normal",
+        "high": "High",
+        "urgent": "Urgent"
+      },
+      "startTask": "Start",
+      "completeTask": "Mark done",
+      "submitForApproval": "Submit for approval",
+      "waitingApproval": "Waiting for approval",
+      "addProof": "Add proof",
+      "proofUploaded": "Proof uploaded",
+      "proofRequired": "Add a photo proof before submitting this task.",
+      "photoProof": "Photo proof required",
+      "dueAt": "Due {{date}}",
+      "checklists": "Checklists to run",
+      "training": "My training",
+      "sops": "SOPs",
+      "logbook": "Manager log book",
+      "logbookEmpty": "No log book entries yet.",
+      "logbookLabel": "Shift note",
+      "logbookPlaceholder": "What should the next shift know?",
+      "addLogbookEntry": "Add entry",
+      "logbookAdded": "Log entry added"
+    },
     "merchant": {
       "title": "Restaurant dashboard",
       "oxsteedPayReplacesQr": "Your OxSteed QR pay link is shown to customers here instead of the uploaded QR image.",
@@ -22963,7 +23039,8 @@
         "settings": "Settings",
         "operations": "Operations",
         "payouts": "Payouts",
-        "displays": "Displays"
+        "displays": "Displays",
+        "myshift": "My shift"
       },
       "liveOrders": "Live orders",
       "noOrders": "No active orders right now.",

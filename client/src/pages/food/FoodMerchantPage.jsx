@@ -37,6 +37,7 @@ import TimezoneSelect, { DETECTED_TIMEZONE } from './TimezoneSelect.jsx';
 import PromotionsPanel from './FoodPromotionsPanel';
 import { ChecklistsPanel, SopsPanel, InventoryPanel } from './RestaurantOpsPanels';
 import { TrainingPanel } from './RestaurantTrainingPanels';
+import RestaurantMyShiftPanel from './RestaurantMyShiftPanel';
 import { AuditsPanel } from './RestaurantAuditPanels';
 import { ReportsPanel } from './RestaurantReportsPanel';
 import PrinterSettingsPanel from './PrinterSettingsPanel';
@@ -2337,7 +2338,7 @@ function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
 }
 
 // ── Tab icon map ──────────────────────────────────────────────────────────────
-const TAB_ICONS = { home: Home, orders: Receipt, menu: UtensilsCrossed, payouts: Wallet, settings: Settings, operations: ClipboardList, displays: Tv };
+const TAB_ICONS = { home: Home, myshift: UserCheck, orders: Receipt, menu: UtensilsCrossed, payouts: Wallet, settings: Settings, operations: ClipboardList, displays: Tv };
 
 function hasRestaurantPermission(restaurant, requested) {
   if (restaurant?.effective_role === 'owner' || restaurant?.permissions?.includes('*')) return true;
@@ -2366,7 +2367,7 @@ export default function FoodMerchantPage() {
       setTab('settings'); // legacy deep link
       return;
     }
-    if (['home', 'orders', 'menu', 'payouts', 'settings', 'operations'].includes(requestedTab)) {
+    if (['home', 'myshift', 'orders', 'menu', 'payouts', 'settings', 'operations'].includes(requestedTab)) {
       setTab(requestedTab);
     }
   }, [requestedTab]);
@@ -2396,6 +2397,9 @@ export default function FoodMerchantPage() {
     if (!selected) return [];
     const tabs = [];
     if (canManageRestaurant) tabs.push('home');
+    // S-02: every team member gets the "My shift" staff home, regardless of
+    // management permissions.
+    tabs.push('myshift');
     if (hasRestaurantPermission(selected, ['orders.view', 'orders.manage', 'kitchen.view', 'kitchen.update'])) tabs.push('orders');
     if (hasRestaurantPermission(selected, ['menu.view', 'menu.manage'])) tabs.push('menu');
     if (canManagePayouts || canManageCredit) tabs.push('payouts');
@@ -2588,6 +2592,12 @@ export default function FoodMerchantPage() {
                 restaurant={selected}
                 onGoTab={goToTab}
                 onUpdated={(updated) => setRestaurants((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)))}
+              />
+            )}
+            {selected && tab === 'myshift' && (
+              <RestaurantMyShiftPanel
+                restaurant={selected}
+                canManageRestaurant={canManageRestaurant}
               />
             )}
             {selected && tab === 'orders' && <OrdersTab t={t} restaurant={selected} />}

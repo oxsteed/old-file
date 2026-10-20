@@ -96,9 +96,9 @@ suite('S-17/S-19 restaurant team communication', () => {
     );
     restaurantId = rest.id;
     await db.query(
-      `INSERT INTO business_members (business_id, member_id, role, status)
-       VALUES ($1, $2, 'employee', 'active')`,
-      [businessId, staffId]
+      `INSERT INTO business_members (business_id, owner_id, member_id, invite_email, role, status)
+       VALUES ($1, $2, $3, $4, 'employee', 'active')`,
+      [businessId, ownerId, staffId, `st4-Staff-${stamp}@example.test`]
     );
   });
 

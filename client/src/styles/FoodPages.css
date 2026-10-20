@@ -3243,3 +3243,27 @@ input[type="color"].fd-settings-color {
   color: #fbbf24; border-radius: 999px; padding: 0.5rem 0.9rem;
   font-weight: 700; cursor: pointer; font-size: 0.9rem;
 }
+
+/* My shift (S-02): task action cluster + screen-reader-only file input.
+   Logical properties only, so the layout mirrors correctly in RTL. */
+.fd-myshift-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-inline-start: 0.75rem;
+}
+.fd-visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+  padding: 0;
+  margin: -1px;
+}
+.fd-myshift-section { margin-block-end: 1rem; }
+.fd-myshift-section:hover { transform: none; box-shadow: none; }
