@@ -5081,6 +5081,9 @@
     "pos": {
       "creditHoldPlaceholder": "Paste the OxSteed Credit hold ID",
       "staffSessionExpired": "Staff session locked after inactivity.",
+      "discountApprovalRequired": "This discount needs a manager approval. Enter a manager PIN, then review the payment again.",
+      "managerPin": "Manager PIN",
+      "managerPinPlaceholder": "Enter manager PIN",
       "pinLocked": "Too many failed PIN attempts. PIN entry is locked for a few minutes.",
       "pinNotMember": "This PIN no longer belongs to an active team member.",
       "invalidPin": "Invalid staff PIN.",

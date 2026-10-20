@@ -23537,6 +23537,9 @@
     "pos": {
       "creditHoldPlaceholder": "Kole ID retansyon OxSteed Credit la",
       "staffSessionExpired": "Sesyon anplwaye a bloke apre yon moman san aktivite.",
+      "discountApprovalRequired": "Rabè sa a bezwen apwobasyon yon manadjè. Antre PIN yon manadjè, epi verifye peman an ankò.",
+      "managerPin": "PIN manadjè",
+      "managerPinPlaceholder": "Antre PIN manadjè a",
       "pinLocked": "Twòp tantativ PIN echwe. Antre PIN bloke pou kèk minit.",
       "pinNotMember": "PIN sa a pa pou yon manm ekip ki aktif ankò.",
       "invalidPin": "PIN anplwaye a pa valab.",
