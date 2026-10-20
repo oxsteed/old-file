@@ -43,7 +43,7 @@ try {
       (f) =>
         /^9\d\d_.*\.sql$/.test(f) &&
         Number(f.slice(0, 3)) >= 916 &&
-        Number(f.slice(0, 3)) <= 935,
+        Number(f.slice(0, 3)) <= 940,
     )
     .sort();
   const input = [
