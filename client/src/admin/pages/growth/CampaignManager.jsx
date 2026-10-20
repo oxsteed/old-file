@@ -276,24 +276,27 @@ export default function CampaignManager() {
         <section className="space-y-2">
           <h2 className="text-lg font-medium">{label('reviewPreview')}</h2>
           <p>
-            {label('audience')}: {preview.audience}
+            {label('audience')}:{' '}
+            {preview.below_k ? label('belowK') : preview.audience}
           </p>
           {Object.entries(preview.caps_skipped || {}).map(([channel, n]) => (
             <p key={channel}>
-              {label('capsSkipped')} ({channel}): {n}
+              {label('capsSkipped')} ({channel}): {n ?? label('belowK')}
             </p>
           ))}
           <p>
-            {label('quietHeld')}: {preview.quiet_hours_held}
+            {label('quietHeld')}: {preview.quiet_hours_held ?? label('belowK')}
           </p>
           <p>
-            {label('noPushDevice')}: {preview.no_push_device}
+            {label('noPushDevice')}:{' '}
+            {preview.no_push_device ?? label('belowK')}
           </p>
           <p>{label('overlap')}:</p>
           <ul>
             {(preview.overlap || []).map((o) => (
               <li key={o.campaign_id}>
-                {o.name} ({o.status}): {o.shared_recipients}
+                {o.name} ({o.status}):{' '}
+                {o.below_k ? label('belowK') : o.shared_recipients}
               </li>
             ))}
           </ul>

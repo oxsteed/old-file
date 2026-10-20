@@ -35269,6 +35269,7 @@
     "fieldMapping": "Asignación de campos (JSON)",
     "runNow": "Ejecutar ahora",
     "lastRun": "Última ejecución",
+    "feedLastRun": "Última ejecución del feed",
     "categoryMapping": "Asignación de categorías",
     "categoryPath": "Ruta de categoría",
     "unmapped": "Categorías sin asignar",

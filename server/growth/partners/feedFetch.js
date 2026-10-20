@@ -33,18 +33,54 @@ function ipv4Public(ip) {
   return true;
 }
 
+// Expand an IPv6 literal to its eight 16-bit groups, numerically, so
+// prefix checks cannot be dodged with zero padding or hex spellings
+// (2001:0db8::, ::ffff:a00:1). An embedded dotted IPv4 tail becomes the
+// last two groups. Returns null for anything unparseable.
+function ipv6Groups(ip) {
+  let value = String(ip).toLowerCase();
+  let tail = [];
+  const v4 = value.match(/(\d+\.\d+\.\d+\.\d+)$/);
+  if (v4) {
+    const parts = v4[1].split(".").map(Number);
+    if (parts.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return null;
+    tail = [(parts[0] << 8) | parts[1], (parts[2] << 8) | parts[3]];
+    value = value.slice(0, value.length - v4[1].length);
+    if (value.endsWith(":") && !value.endsWith("::")) value = value.slice(0, -1);
+  }
+  const halves = value.split("::");
+  if (halves.length > 2) return null;
+  const parse = (s) =>
+    s === "" ? [] : s.split(":").map((h) => (/^[0-9a-f]{1,4}$/.test(h) ? parseInt(h, 16) : NaN));
+  const head = parse(halves[0]);
+  const end = halves.length === 2 ? parse(halves[1]) : [];
+  if ([...head, ...end].some((g) => !Number.isInteger(g))) return null;
+  if (halves.length === 1) {
+    const groups = [...head, ...tail];
+    return groups.length === 8 ? groups : null;
+  }
+  const missing = 8 - (head.length + end.length + tail.length);
+  if (missing < 0) return null;
+  return [...head, ...Array(missing).fill(0), ...end, ...tail];
+}
+
 function ipv6Public(ip) {
-  const value = String(ip).toLowerCase();
-  if (value === "::1" || value === "::") return false;
-  if (value.startsWith("fe8") || value.startsWith("fe9") || value.startsWith("fea") || value.startsWith("feb"))
-    return false; // link-local fe80::/10
-  if (/^f[cd]/.test(value)) return false; // unique local fc00::/7
-  if (value.startsWith("ff")) return false; // multicast
-  if (value.startsWith("2001:db8:")) return false; // documentation
-  const mapped = value.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-  if (mapped) return ipv4Public(mapped[1]);
-  if (value.includes(".")) return false; // any other embedded IPv4 form: refuse
-  return value.includes(":");
+  const g = ipv6Groups(ip);
+  if (!g) return false;
+  if (g.every((n) => n === 0)) return false; // :: unspecified
+  if (g.slice(0, 7).every((n) => n === 0) && g[7] === 1) return false; // ::1 loopback
+  if ((g[0] & 0xffc0) === 0xfe80) return false; // link-local fe80::/10
+  if ((g[0] & 0xfe00) === 0xfc00) return false; // unique local fc00::/7
+  if ((g[0] & 0xff00) === 0xff00) return false; // multicast ff00::/8
+  if (g[0] === 0x2001 && g[1] === 0x0db8) return false; // documentation 2001:db8::/32
+  // Embedded IPv4 forms are judged by the IPv4 rules: v4-mapped
+  // ::ffff:0:0/96, v4-compatible ::/96, and NAT64 64:ff9b::/96.
+  const embedded = () => ipv4Public(`${g[6] >> 8}.${g[6] & 0xff}.${g[7] >> 8}.${g[7] & 0xff}`);
+  if (g.slice(0, 5).every((n) => n === 0) && g[5] === 0xffff) return embedded();
+  if (g.slice(0, 6).every((n) => n === 0)) return embedded();
+  if (g[0] === 0x0064 && g[1] === 0xff9b && g[2] === 0 && g[3] === 0 && g[4] === 0 && g[5] === 0)
+    return embedded();
+  return true;
 }
 
 function isPublicAddress(ip) {

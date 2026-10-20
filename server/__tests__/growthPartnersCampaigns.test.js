@@ -43,6 +43,15 @@ describe("feed fetch SSRF boundaries", () => {
     ["fd00::1", false],
     ["::ffff:127.0.0.1", false],
     ["::ffff:8.8.8.8", true],
+    ["::ffff:a00:1", false], // hex-spelled v4-mapped 10.0.0.1
+    ["::ffff:808:808", true], // hex-spelled v4-mapped 8.8.8.8
+    ["2001:0db8::1", false], // zero-padded documentation prefix
+    ["2001:db8:1:2::1", false],
+    ["::a00:1", false], // v4-compatible 10.0.0.1
+    ["64:ff9b::a00:1", false], // NAT64-embedded 10.0.0.1
+    ["64:ff9b::808:808", true], // NAT64-embedded 8.8.8.8
+    ["fe90::1", false],
+    ["2606:4700:4700::1111", true],
   ])("isPublicAddress(%s) = %s", (ip, expected) =>
     expect(feedFetch.isPublicAddress(ip)).toBe(expected),
   );

@@ -35269,6 +35269,7 @@
     "fieldMapping": "Correspondance des champs (JSON)",
     "runNow": "Exécuter",
     "lastRun": "Dernière exécution",
+    "feedLastRun": "Dernière exécution du flux",
     "categoryMapping": "Correspondance des catégories",
     "categoryPath": "Chemin de catégorie",
     "unmapped": "Catégories non associées",

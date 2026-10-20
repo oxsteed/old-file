@@ -4857,6 +4857,7 @@
     "fieldMapping": "Kat jaden (JSON)",
     "runNow": "Kouri kounye a",
     "lastRun": "Dènye ekzekisyon",
+    "feedLastRun": "Dènye ekzekisyon flux la",
     "categoryMapping": "Kat kategori",
     "categoryPath": "Chemen kategori",
     "unmapped": "Kategori san kat",

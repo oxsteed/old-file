@@ -272,10 +272,45 @@ describe("writer geography batching", () => {
     { id: 5, country: "US", postal_code: "10001", place_name: "New York", admin1: "NY" },
     { id: 3, country: "US", postal_code: "78701", place_name: "Austin", admin1: "TX" },
     { id: 7, country: "CA", postal_code: "M5V1J1", place_name: "Toronto", admin1: "ON" },
+    // Mixed admin1 storage forms for one city: the raw state input must
+    // win over its alias in BOTH resolvers (resolve() tries the raw input
+    // first), so Springfield/Illinois resolves to the name-form row (19),
+    // never the code-form row (21).
+    { id: 21, country: "US", postal_code: "62701", place_name: "Springfield", admin1: "IL" },
+    { id: 19, country: "US", postal_code: "62702", place_name: "Springfield", admin1: "Illinois" },
+  ];
+  const ADMIN1_ALIASES = [
+    { country: "US", admin1_code: "IL", name: "Illinois", ascii_name: "Illinois" },
+    { country: "US", admin1_code: "TX", name: "Texas", ascii_name: "Texas" },
+    { country: "CA", admin1_code: "ON", name: "Ontario", ascii_name: "Ontario" },
   ];
   function fakeGeoConn() {
     return {
       query: jest.fn(async (sql, params) => {
+        if (sql.includes("to_regclass")) return { rows: [{ reg: "geo_admin1_names" }] };
+        if (sql.includes("FROM geo_admin1_names")) {
+          const rows = ADMIN1_ALIASES.filter(
+            (a) =>
+              a.country === params[0] &&
+              (a.name.toLowerCase() === String(params[1]).toLowerCase() ||
+                a.ascii_name.toLowerCase() === String(params[1]).toLowerCase() ||
+                a.admin1_code.toUpperCase() === String(params[1]).toUpperCase()),
+          );
+          return { rows };
+        }
+        if (sql.includes("WITH keys") && sql.includes("postal_code = ''")) {
+          const rows = [];
+          params[0].forEach((country, i) => {
+            for (const c of CENTROIDS.filter(
+              (x) =>
+                x.country === country &&
+                x.postal_code === "" &&
+                x.place_name.toLowerCase() === String(params[1][i]).toLowerCase(),
+            ).sort((a, b) => a.id - b.id))
+              rows.push({ ord: i + 1, id: c.id, admin1: c.admin1 });
+          });
+          return { rows };
+        }
         if (sql.includes("WITH keys") && sql.includes("postal_code")) {
           const rows = [];
           params[0].forEach((country, i) => {
@@ -298,6 +333,15 @@ describe("writer geography batching", () => {
             if (m.length) rows.push({ ord: i + 1, id: Math.min(...m.map((x) => x.id)) });
           });
           return { rows };
+        }
+        if (sql.includes("postal_code=''")) {
+          const m = CENTROIDS.filter(
+            (c) =>
+              c.country === params[0] &&
+              c.postal_code === "" &&
+              c.place_name.toLowerCase() === String(params[1]).toLowerCase(),
+          ).sort((a, b) => a.id - b.id);
+          return { rows: m };
         }
         if (sql.includes("postal_code=$2")) {
           const m = CENTROIDS.filter(
@@ -326,6 +370,7 @@ describe("writer geography batching", () => {
       { country: "US", postal_code: "00000", city: "Nowhere", state: "ZZ" },
       { country: "US", postal_code: " 78701 ", city: null, state: null },
       {},
+      { country: "US", postal_code: "", city: "Springfield", state: "Illinois" },
     ];
     const batchConn = fakeGeoConn();
     const batched = await resolveBatch(batchConn, places);
@@ -333,7 +378,7 @@ describe("writer geography batching", () => {
     const singles = [];
     for (const place of places) singles.push(await resolve(singleConn, place));
     expect(batched).toEqual(singles);
-    expect(batched).toEqual([5, 3, 7, 0, 0, 3, 0]);
+    expect(batched).toEqual([5, 3, 7, 0, 0, 3, 0, 19]);
     // Bounded passes (postal, place, city) plus one alias probe per
     // distinct (country, state): the count must not grow with batch size.
     const batchCalls = batchConn.query.mock.calls.length;
@@ -342,7 +387,7 @@ describe("writer geography batching", () => {
     for (let i = 0; i < 10; i++) repeated.push(...places);
     const big = await resolveBatch(bigConn, repeated);
     expect(big).toEqual(
-      Array.from({ length: 10 }, () => [5, 3, 7, 0, 0, 3, 0]).flat(),
+      Array.from({ length: 10 }, () => [5, 3, 7, 0, 0, 3, 0, 19]).flat(),
     );
     expect(bigConn.query.mock.calls.length).toBe(batchCalls);
   });

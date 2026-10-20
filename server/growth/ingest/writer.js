@@ -139,8 +139,9 @@ async function writeBatch(
         };
     }
   }
-  // Pass 2b: one batched centroid resolution for the whole batch (at most
-  // two queries, previously up to two per event).
+  // Pass 2b: one batched centroid resolution for the whole batch (one
+  // query per resolution pass plus one alias lookup per distinct
+  // (country, state), previously up to two queries per event).
   const postalRefs = await require("../geo/resolve").resolveBatch(
     pg,
     prepared.map((p) => p.place),

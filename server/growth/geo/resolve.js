@@ -137,56 +137,34 @@ async function resolve(conn, { country, postal_code, city, state }) {
   return 0;
 }
 
-// Batched form of resolve(): identical matching semantics (lowest centroid id
-// wins; postal match first, then place-centroid fallback, then city+state)
-// with a bounded number of queries for any number of places: one per pass
-// plus one alias lookup per distinct (country, state) pair. Returns an array parallel to `places` of centroid
-// ids, with 0 where resolve() would return 0.
+// Batched form of resolve(): identical matching semantics (lowest centroid
+// id wins; postal match first, then place-centroid fallback, then
+// city+state) with a bounded number of queries for any number of places:
+// one per pass plus one alias lookup per distinct (country, state) pair.
+// Keys are kept as objects, never round-tripped through string splitting,
+// so a place name containing a separator character cannot corrupt the
+// mapping. In the city+state pass each place is tried against its admin1
+// candidates in resolve()'s order and the first candidate with a row
+// wins, exactly like resolve() step 4. Returns an array parallel to
+// `places` of centroid ids, with 0 where resolve() would return 0.
 async function resolveBatch(conn, places) {
   const results = new Array(places.length).fill(0);
-  const postalKeys = new Map(); // "country\npostal" -> [place indexes]
-  places.forEach((place, index) => {
-    const { country, postal_code } = place || {};
-    if (!/^[A-Z]{2}$/.test(country || "")) return;
-    const postal = String(postal_code || "")
-      .replace(/\s+/g, "")
-      .toUpperCase();
-    if (!postal) return;
-    const key = `${country}\n${postal}`;
-    if (!postalKeys.has(key)) postalKeys.set(key, []);
-    postalKeys.get(key).push(index);
-  });
-  if (postalKeys.size) {
-    const keys = [...postalKeys.keys()].map((k) => k.split("\n"));
-    const { rows } = await conn.query(
-      `WITH keys AS (
-         SELECT country, postal_code, ord FROM unnest($1::text[], $2::text[]) WITH ORDINALITY AS t(country, postal_code, ord)
-       )
-       SELECT k.ord, MIN(c.id) AS id
-       FROM keys k JOIN geo_postal_centroids c ON c.country = k.country AND c.postal_code = k.postal_code
-       GROUP BY k.ord`,
-      [keys.map((k) => k[0]), keys.map((k) => k[1])],
-    );
-    const found = new Map(rows.map((r) => [Number(r.ord), r.id]));
-    keys.forEach((_, i) => {
-      const id = found.get(i + 1);
-      if (id === undefined) return;
-      for (const index of postalKeys.get(keys[i].join("\n"))) results[index] = id;
-    });
-  }
-  // Place-centroid pass: mirrors resolve() steps 2-3 for places the postal
-  // pass left unresolved. One query fetches every candidate place row for
-  // the distinct (country, city) pairs; admin1 alias widening is done once
-  // per distinct (country, state) pair, never per place.
-  const placeKeys = new Map(); // "country\ncity" -> [place indexes]
-  places.forEach((place, index) => {
-    if (results[index] !== 0) return;
-    const { country, city } = place || {};
-    if (!/^[A-Z]{2}$/.test(country || "") || !city) return;
-    const key = `${country}\n${String(city).slice(0, 120)}`;
-    if (!placeKeys.has(key)) placeKeys.set(key, []);
-    placeKeys.get(key).push(index);
-  });
+  const groupEntries = () => {
+    const byKey = new Map();
+    const entries = [];
+    return {
+      entries,
+      add(parts, index) {
+        const mapKey = JSON.stringify(parts);
+        if (!byKey.has(mapKey)) {
+          const entry = { parts, indexes: [] };
+          byKey.set(mapKey, entry);
+          entries.push(entry);
+        }
+        byKey.get(mapKey).indexes.push(index);
+      },
+    };
+  };
   const candidateCache = new Map();
   const candidatesFor = async (country, stateInput) => {
     const cacheKey = `${country}\n${stateInput}`;
@@ -197,8 +175,47 @@ async function resolveBatch(conn, places) {
       );
     return candidateCache.get(cacheKey);
   };
-  if (placeKeys.size) {
-    const keys = [...placeKeys.keys()].map((k) => k.split("\n"));
+
+  // Pass 1: exact postal rows.
+  const postal = groupEntries();
+  places.forEach((place, index) => {
+    const { country, postal_code } = place || {};
+    if (!/^[A-Z]{2}$/.test(country || "")) return;
+    const code = normalizePostal(postal_code);
+    if (!code) return;
+    postal.add([country, code], index);
+  });
+  if (postal.entries.length) {
+    const { rows } = await conn.query(
+      `WITH keys AS (
+         SELECT country, postal_code, ord FROM unnest($1::text[], $2::text[]) WITH ORDINALITY AS t(country, postal_code, ord)
+       )
+       SELECT k.ord, MIN(c.id) AS id
+       FROM keys k JOIN geo_postal_centroids c ON c.country = k.country AND c.postal_code = k.postal_code
+       GROUP BY k.ord`,
+      [
+        postal.entries.map((e) => e.parts[0]),
+        postal.entries.map((e) => e.parts[1]),
+      ],
+    );
+    const found = new Map(rows.map((r) => [Number(r.ord), r.id]));
+    postal.entries.forEach((entry, i) => {
+      const id = found.get(i + 1);
+      if (id === undefined) return;
+      for (const index of entry.indexes) results[index] = id;
+    });
+  }
+
+  // Pass 2: place centroids (postal_code=''), mirroring resolve() steps
+  // 2-3 for places the postal pass left unresolved.
+  const placePass = groupEntries();
+  places.forEach((place, index) => {
+    if (results[index] !== 0) return;
+    const { country, city } = place || {};
+    if (!/^[A-Z]{2}$/.test(country || "") || !city) return;
+    placePass.add([country, String(city).slice(0, 120)], index);
+  });
+  if (placePass.entries.length) {
     const { rows } = await conn.query(
       `WITH keys AS (
          SELECT country, city, ord FROM unnest($1::text[], $2::text[]) WITH ORDINALITY AS t(country, city, ord)
@@ -207,22 +224,26 @@ async function resolveBatch(conn, places) {
        FROM keys k JOIN geo_postal_centroids c
          ON c.country = k.country AND c.postal_code = '' AND lower(c.place_name) = lower(k.city)
        ORDER BY k.ord, c.id`,
-      [keys.map((k) => k[0]), keys.map((k) => k[1])],
+      [
+        placePass.entries.map((e) => e.parts[0]),
+        placePass.entries.map((e) => e.parts[1]),
+      ],
     );
     const byOrd = new Map();
     for (const row of rows) {
       if (!byOrd.has(Number(row.ord))) byOrd.set(Number(row.ord), []);
       byOrd.get(Number(row.ord)).push(row);
     }
-    for (let i = 0; i < keys.length; i++) {
+    for (let i = 0; i < placePass.entries.length; i++) {
       const candidates = byOrd.get(i + 1) || [];
       if (!candidates.length) continue;
-      for (const index of placeKeys.get(keys[i].join("\n"))) {
+      const [country] = placePass.entries[i].parts;
+      for (const index of placePass.entries[i].indexes) {
         const stateInput = places[index].state
           ? String(places[index].state).slice(0, 120)
           : "";
         if (stateInput) {
-          const widened = await candidatesFor(keys[i][0], stateInput);
+          const widened = await candidatesFor(country, stateInput);
           const match = candidates.find(
             (place) =>
               place.admin1 &&
@@ -241,25 +262,20 @@ async function resolveBatch(conn, places) {
       }
     }
   }
-  // City+state pass covers places with no postal code and places whose
-  // postal code matched no centroid, exactly like resolve(). Each place is
-  // tried against every admin1 candidate (code, name, ascii name), matching
-  // resolve() step 4.
-  const cityKeys = new Map(); // "country\ncity\nstate-candidate" -> [place indexes]
+
+  // Pass 3: postal-row city+state, tried against every admin1 candidate
+  // in order; the first candidate with a row wins (resolve() step 4).
+  const cityPass = groupEntries();
   for (let index = 0; index < places.length; index++) {
     if (results[index] !== 0) continue;
     const place = places[index] || {};
     const { country, city, state } = place;
     if (!/^[A-Z]{2}$/.test(country || "") || !city || !state) continue;
     const widened = await candidatesFor(country, String(state).slice(0, 120));
-    for (const candidate of widened) {
-      const key = `${country}\n${String(city).slice(0, 120)}\n${candidate}`;
-      if (!cityKeys.has(key)) cityKeys.set(key, []);
-      cityKeys.get(key).push(index);
-    }
+    for (const candidate of widened)
+      cityPass.add([country, String(city).slice(0, 120), candidate], index);
   }
-  if (cityKeys.size) {
-    const keys = [...cityKeys.keys()].map((k) => k.split("\n"));
+  if (cityPass.entries.length) {
     const { rows } = await conn.query(
       `WITH keys AS (
          SELECT country, city, state, ord FROM unnest($1::text[], $2::text[], $3::text[]) WITH ORDINALITY AS t(country, city, state, ord)
@@ -268,13 +284,18 @@ async function resolveBatch(conn, places) {
        FROM keys k JOIN geo_postal_centroids c
          ON c.country = k.country AND lower(c.place_name) = lower(k.city) AND lower(c.admin1) = lower(k.state)
        GROUP BY k.ord`,
-      [keys.map((k) => k[0]), keys.map((k) => k[1]), keys.map((k) => k[2])],
+      [
+        cityPass.entries.map((e) => e.parts[0]),
+        cityPass.entries.map((e) => e.parts[1]),
+        cityPass.entries.map((e) => e.parts[2]),
+      ],
     );
     const found = new Map(rows.map((r) => [Number(r.ord), r.id]));
-    keys.forEach((_, i) => {
+    cityPass.entries.forEach((entry, i) => {
       const id = found.get(i + 1);
       if (id === undefined) return;
-      for (const index of cityKeys.get(keys[i].join("\n"))) results[index] = id;
+      for (const index of entry.indexes)
+        if (results[index] === 0) results[index] = id;
     });
   }
   return results;

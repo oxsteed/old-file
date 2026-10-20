@@ -1028,9 +1028,17 @@ router.get(
            JOIN users u ON u.id=r.user_id
            LEFT JOIN geo_postal_centroids g ON g.country=u.country AND g.postal_code=u.zip_code
            ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
-           ORDER BY c.id DESC LIMIT 10000`,
+           ORDER BY c.id DESC LIMIT 10001`,
           params,
         );
+        // Fail explicitly past the export cap, the same standard as the
+        // privacy exports: a silently truncated finance file is worse
+        // than no file.
+        if (data.length > 10000) {
+          const error = new Error("export_result_limit_exceeded");
+          error.code = "EXPORT_RESULT_LIMIT_EXCEEDED";
+          throw error;
+        }
         return data;
       },
       "growth_conversions_export",
@@ -1203,6 +1211,9 @@ router.get(
       id(req.params.id),
     ]);
     if (!c) return res.status(404).json({ error: "campaign_not_found" });
+    const boundary = await access.scope(req.user, "manage_marketing");
+    if (!boundary.global && c.created_by !== req.user.id)
+      return res.status(403).json({ error: "campaign_access_denied" });
     const preview = await withTransaction(
       db,
       async (conn) => {

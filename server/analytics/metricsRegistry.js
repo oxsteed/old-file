@@ -213,10 +213,10 @@ const METRICS = Object.freeze({
   }),
   growth_affiliate_commission_cents: Object.freeze({
     name: 'growth_affiliate_commission_cents',
-    definition: `SUM(commission_minor) for affiliate_conversions status approved/paid minus SUM(commission_minor) for status reversed in the period, grouped by currency`,
+    definition: `SUM(commission_minor) for affiliate_conversions status approved/paid minus SUM(commission_minor) for status reversed in the period, grouped by currency; assisted conversions excluded (spec 13.1)`,
     dimensions: [],
     owner: 'platform/growth',
-    notes: 'Permission view_financials (money metric). Region anchor: recipient user via click -> delivery -> recipient.',
+    notes: 'Permission view_financials (money metric). Region anchor: recipient user via click -> delivery -> recipient. Conversion rows are mutated in place on reversal, so a conversion approved and reversed inside one created_at window nets negative in that window rather than cancelling across windows.',
   }),
   growth_promo_redeemed_cents: Object.freeze({
     name: 'growth_promo_redeemed_cents',

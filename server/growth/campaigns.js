@@ -214,12 +214,11 @@ async function optOutStats(conn, campaignId) {
   const {
     rows: [first],
   } = await conn.query(
-    `SELECT MIN(sent_at) AS first_sent, COUNT(*)::int AS delivered
+    `SELECT MIN(sent_at) AS first_sent
      FROM offer_campaign_deliveries WHERE campaign_id=$1 AND status='sent'`,
     [campaignId],
   );
-  if (!first?.delivered || !first.first_sent)
-    return { delivered: 0, optOuts: 0, rate: 0 };
+  if (!first?.first_sent) return { delivered: 0, optOuts: 0, rate: 0 };
   const { rows: recipients } = await conn.query(
     `SELECT DISTINCT r.user_id FROM offer_campaign_recipients r
      JOIN offer_campaign_deliveries d ON d.recipient_id=r.id
@@ -245,10 +244,13 @@ async function optOutStats(conn, campaignId) {
     ...pushOuts.map((r) => keyByUser.get(r.subject_key)).filter(Boolean),
     ...appOuts.map((r) => r.user_id),
   ]);
+  // Both sides of the rate count distinct people: the delivered side is
+  // the distinct recipients with a sent delivery (a two-channel recipient
+  // is one person), matching growth_offer_optout_rate_pct.
   return {
-    delivered: first.delivered,
+    delivered: userIds.length,
     optOuts: optedOut.size,
-    rate: optedOut.size / first.delivered,
+    rate: userIds.length ? optedOut.size / userIds.length : 0,
   };
 }
 
@@ -387,14 +389,22 @@ async function reviewPreview(conn, campaign, user) {
     offer.type === "affiliate_product" ? "partner_offers" : "activity_offers",
   );
   const userIds = audience.map((r) => r.id);
+  // k-suppression, same rule as POST /segments/preview: an exact sub-k
+  // total is never published, and neither is any count derived from a
+  // sub-k audience (a nonzero derived count would bound the audience).
   const preview = {
-    audience: userIds.length,
+    audience: userIds.length >= 5 ? userIds.length : null,
+    below_k: userIds.length < 5,
     caps_skipped: {},
     quiet_hours_held: 0,
     no_push_device: 0,
     overlap: [],
   };
-  if (!userIds.length) return preview;
+  if (userIds.length < 5) {
+    preview.quiet_hours_held = null;
+    preview.no_push_device = null;
+    return preview;
+  }
   const { rows: settings } = await conn.query(
     "SELECT key,value FROM platform_settings WHERE key IN ('growth.offer_push_weekly_cap','growth.offer_push_monthly_cap','growth.offer_in_app_weekly_cap')",
   );
@@ -413,9 +423,10 @@ async function reviewPreview(conn, campaign, user) {
        WHERE user_id=ANY($1::uuid[]) AND channel=$2 GROUP BY user_id`,
       [userIds, channel],
     );
-    preview.caps_skipped[channel] = rows.filter(
+    const skipped = rows.filter(
       (r) => r.weekly >= weeklyCap || (channel === "push" && r.monthly >= monthlyCap),
     ).length;
+    preview.caps_skipped[channel] = skipped >= 5 ? skipped : null;
   }
   if (campaign.channels.includes("push")) {
     const core = require("../services/delivery/core");
@@ -428,14 +439,18 @@ async function reviewPreview(conn, campaign, user) {
       [userIds],
     );
     const now = new Date();
+    let noDevice = 0,
+      quietHeld = 0;
     for (const person of people) {
-      if (!person.web && !person.mobile) preview.no_push_device++;
+      if (!person.web && !person.mobile) noDevice++;
       const tz = core.resolveTimezone({
         timezone: person.timezone,
         country: person.country,
       });
-      if (core.quietWindow(tz, now, 0).quiet) preview.quiet_hours_held++;
+      if (core.quietWindow(tz, now, 0).quiet) quietHeld++;
     }
+    preview.no_push_device = noDevice >= 5 ? noDevice : null;
+    preview.quiet_hours_held = quietHeld >= 5 ? quietHeld : null;
   }
   const { rows: others } = await conn.query(
     `SELECT c.id, c.name, c.status,
@@ -452,7 +467,8 @@ async function reviewPreview(conn, campaign, user) {
       campaign_id: o.id,
       name: o.name,
       status: o.status,
-      shared_recipients: o.shared_recipients,
+      shared_recipients: o.shared_recipients >= 5 ? o.shared_recipients : null,
+      below_k: o.shared_recipients < 5,
       same_segment: o.same_segment,
     }));
   return preview;
@@ -521,11 +537,38 @@ async function campaignResults(conn, campaign, { finance = false } = {}) {
   const treatedRedemptions =
     redemptionRows.find((g) => !g.is_holdout)?.n || 0;
   const controlRedemptions = redemptionRows.find((g) => g.is_holdout)?.n || 0;
+  // Lift counts distinct converting people per group: a treated recipient
+  // who both clicked through to a conversion and redeemed the campaign
+  // code is one converter, not two (the funnel counts above stay per-row).
+  const { rows: converterRows } = await conn.query(
+    `SELECT DISTINCT grp, user_id FROM (
+       SELECT FALSE AS grp, r.user_id AS user_id
+         FROM affiliate_conversions cv
+         JOIN offer_clicks oc ON oc.click_id=cv.click_id
+         JOIN offer_campaign_deliveries d ON d.id=oc.delivery_id
+         JOIN offer_campaign_recipients r ON r.id=d.recipient_id
+        WHERE d.campaign_id=$1 AND NOT cv.assisted
+          AND cv.status IN ('pending','approved','paid')
+       UNION
+       SELECT r.is_holdout AS grp, pr.user_id AS user_id
+         FROM promo_redemptions pr
+         JOIN discount_codes dc ON dc.id=pr.discount_code_id
+         JOIN offer_campaign_recipients r ON r.user_id=pr.user_id AND r.campaign_id=$1
+        WHERE dc.offer_campaign_id=$1 AND pr.status='redeemed'
+     ) converters`,
+    [campaign.id],
+  );
+  const treatedConverters = new Set(
+    converterRows.filter((r) => !r.grp).map((r) => r.user_id),
+  ).size;
+  const controlConverters = new Set(
+    converterRows.filter((r) => r.grp).map((r) => r.user_id),
+  ).size;
   const lift = holdoutLift({
     treatedN: treated.recipients,
-    treatedC: gross + treatedRedemptions,
+    treatedC: treatedConverters,
     controlN: control.recipients,
-    controlC: controlRedemptions,
+    controlC: controlConverters,
   });
   const optOuts = await optOutStats(conn, campaign.id);
   return {

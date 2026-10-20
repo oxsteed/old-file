@@ -72,12 +72,15 @@ function financialMetricSql(metric, { interval = '30 days', trunc = null } = {})
         columns: ['currency_code', 'promo_discount_cents', 'redemptions', 'platform_funded_cents', 'gross_cents'] };
     case 'growth_affiliate_commission_cents':
       // Demand & Sales Engine spec 21.1: approved commission minus
-      // reversals, per currency, exact minor units from the postback ledger.
+      // reversals, per currency, exact minor units from the postback
+      // ledger. Assisted conversions are excluded (spec 13.1), like every
+      // other finance surface in the branch.
       return { text: `SELECT UPPER(currency) AS currency_code,
           COALESCE(SUM(CASE WHEN status IN ('approved','paid') THEN commission_minor
                             WHEN status='reversed' THEN -commission_minor ELSE 0 END),0)::BIGINT AS growth_affiliate_commission_cents,
           COUNT(*) FILTER (WHERE status IN ('approved','paid'))::INT AS conversions
-        FROM affiliate_conversions WHERE created_at >= NOW() - $1::interval AND created_at < NOW()
+        FROM affiliate_conversions WHERE assisted = FALSE
+          AND created_at >= NOW() - $1::interval AND created_at < NOW()
         GROUP BY 1 ORDER BY 1`, params: [interval],
         columns: ['currency_code', 'growth_affiliate_commission_cents', 'conversions'] };
     case 'growth_promo_redeemed_cents':

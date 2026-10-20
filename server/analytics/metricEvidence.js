@@ -165,14 +165,14 @@ function metricEvidenceSql(query, scope, registry, summary) {
         ORDER BY d.sent_at DESC,d.id`;
       columns = ['delivery_id','recipient_id','campaign_id','sent_at','opened_at']; break;
     case 'growth_affiliate_commission_cents':
-      text = `SELECT id AS conversion_id,partner_id,UPPER(currency) AS currency_code,status,assisted,
+      text = `SELECT id AS conversion_id,partner_id,UPPER(currency) AS currency_code,status,
           CASE WHEN status IN ('approved','paid') THEN commission_minor
                WHEN status='reversed' THEN -commission_minor ELSE 0 END AS commission_cents,
           sale_minor,created_at
         FROM affiliate_conversions
-        WHERE created_at>=NOW()-$1::interval AND created_at<NOW()
+        WHERE assisted=FALSE AND created_at>=NOW()-$1::interval AND created_at<NOW()
         ORDER BY created_at DESC,id`;
-      columns = ['conversion_id','partner_id','currency_code','status','assisted','commission_cents','sale_minor','created_at']; break;
+      columns = ['conversion_id','partner_id','currency_code','status','commission_cents','sale_minor','created_at']; break;
     case 'growth_promo_redeemed_cents':
       text = `SELECT pr.id AS redemption_id,pr.discount_code_id,dc.offer_campaign_id AS campaign_id,pr.code,
           UPPER(pr.currency_code) AS currency_code,pr.gross_cents,pr.discount_cents,pr.funded_by,pr.redeemed_at

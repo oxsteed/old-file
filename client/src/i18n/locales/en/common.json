@@ -4857,6 +4857,7 @@
     "fieldMapping": "Field mapping (JSON)",
     "runNow": "Run now",
     "lastRun": "Last run",
+    "feedLastRun": "Last feed run",
     "categoryMapping": "Category mapping",
     "categoryPath": "Category path",
     "unmapped": "Unmapped categories",

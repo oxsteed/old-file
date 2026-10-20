@@ -169,6 +169,11 @@ async function resolveArea(conn, def) {
     return { adminRegions: boundary ? [boundary] : null };
   }
   if (def.area?.type === "cluster") {
+    // Cluster ids are the numeric row ids pinned by the writers; anything
+    // else is unresolvable and fails closed instead of throwing a pg type
+    // error on the bigint comparison.
+    if (!/^\d+$/.test(String(def.area.cluster_id)))
+      return { clusterPostalRefs: null };
     const {
       rows: [cluster],
     } = await conn.query(

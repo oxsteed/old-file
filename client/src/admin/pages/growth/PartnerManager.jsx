@@ -274,7 +274,7 @@ export default function PartnerManager() {
                     {f.format} · {f.url} · {label('scheduleHours')}:{' '}
                     {f.schedule_hours}
                     {f.last_run
-                      ? ` · ${label('lastRun')}: ${f.last_run.status}`
+                      ? ` · ${label('feedLastRun')}: ${f.last_run.status}`
                       : ''}
                     {f.last_error ? ` · ${f.last_error}` : ''}
                   </span>

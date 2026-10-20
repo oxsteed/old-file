@@ -4857,6 +4857,7 @@
     "fieldMapping": "تعيين الحقول (JSON)",
     "runNow": "تشغيل الآن",
     "lastRun": "آخر تشغيل",
+    "feedLastRun": "آخر تشغيل للموجز",
     "categoryMapping": "تعيين الفئات",
     "categoryPath": "مسار الفئة",
     "unmapped": "فئات غير معينة",
