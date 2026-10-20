@@ -727,6 +727,146 @@ router.get(
     res.json({ rows });
   }),
 );
+// Conversions are finance data (spec 13.5/15.1): the list is visible with
+// manage_affiliate_partners, but money columns are returned only to admins
+// holding view_financials. Assisted conversions (spec 13.1) are listed for
+// reconciliation and never counted in engine totals.
+async function financeVisible(user) {
+  if (user.role === "super_admin") return true;
+  return require("../middleware/adminAuth").hasGlobalGrant(
+    user.id,
+    "view_financials",
+  );
+}
+router.get(
+  "/conversions",
+  requirePermission("manage_affiliate_partners"),
+  wrap(async (req, res) => {
+    const boundary = await access.scope(req.user, "manage_affiliate_partners");
+    const finance = await financeVisible(req.user);
+    const params = [];
+    const where = [];
+    if (req.query.partner_id) {
+      params.push(id(req.query.partner_id));
+      where.push(`c.partner_id=$${params.length}`);
+    }
+    if (
+      ["pending", "approved", "reversed", "paid", "flagged"].includes(
+        req.query.status,
+      )
+    ) {
+      params.push(req.query.status);
+      where.push(`c.status=$${params.length}`);
+    }
+    if (!boundary.global)
+      where.push(access.predicate(boundary, "g", params));
+    const money = finance
+      ? "c.sale_minor, c.commission_minor, c.currency, c.order_ref_hash,"
+      : "";
+    const { rows } = await db.query(
+      `SELECT c.id, c.partner_id, p.code AS partner_code, c.click_id, ${money}
+        c.status, c.assisted, c.fraud_flags, c.created_at, c.updated_at
+       FROM affiliate_conversions c JOIN affiliate_partners p ON p.id=c.partner_id
+       JOIN offer_clicks oc ON oc.click_id=c.click_id
+       JOIN offer_campaign_deliveries d ON d.id=oc.delivery_id
+       JOIN offer_campaign_recipients r ON r.id=d.recipient_id
+       JOIN users u ON u.id=r.user_id
+       LEFT JOIN geo_postal_centroids g ON g.country=u.country AND g.postal_code=u.zip_code
+       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+       ORDER BY c.id DESC LIMIT 200`,
+      params,
+    );
+    const { rows: totals } = await db.query(
+      `SELECT c.currency, c.status, COUNT(*)::int AS n,
+        ${finance ? "SUM(c.sale_minor)::bigint AS sale_minor, SUM(c.commission_minor)::bigint AS commission_minor" : "NULL AS sale_minor, NULL AS commission_minor"}
+       FROM affiliate_conversions c
+       JOIN offer_clicks oc ON oc.click_id=c.click_id
+       JOIN offer_campaign_deliveries d ON d.id=oc.delivery_id
+       JOIN offer_campaign_recipients r ON r.id=d.recipient_id
+       JOIN users u ON u.id=r.user_id
+       LEFT JOIN geo_postal_centroids g ON g.country=u.country AND g.postal_code=u.zip_code
+       WHERE NOT c.assisted ${where.length ? `AND ${where.join(" AND ")}` : ""}
+       GROUP BY c.currency, c.status`,
+      params,
+    );
+    res.json({ rows, totals, finance });
+  }),
+);
+router.get(
+  "/conversions/export",
+  requirePermission("view_financials"),
+  requirePermission("export_data"),
+  wrap(async (req, res) => {
+    const boundary = await access.scope(req.user, "view_financials");
+    const params = [];
+    const where = [];
+    if (req.query.partner_id) {
+      params.push(id(req.query.partner_id));
+      where.push(`c.partner_id=$${params.length}`);
+    }
+    if (!boundary.global)
+      where.push(access.predicate(boundary, "g", params));
+    // Fail-closed: the audit row is written in the same transaction as the
+    // read; if it cannot be written, no data leaves (spec 15.2).
+    const rows = await withTransaction(
+      db,
+      async (conn) => {
+        await logAdminAction({
+          adminId: req.user.id,
+          action: "growth_conversions_exported",
+          targetType: "affiliate_conversions",
+          after: { partner_id: req.query.partner_id || null },
+          client: conn,
+        });
+        const { rows: data } = await conn.query(
+          `SELECT c.id, p.code AS partner_code, c.click_id, c.order_ref_hash,
+            c.sale_minor, c.commission_minor, c.currency, c.status,
+            c.assisted, c.created_at, c.updated_at
+           FROM affiliate_conversions c JOIN affiliate_partners p ON p.id=c.partner_id
+           JOIN offer_clicks oc ON oc.click_id=c.click_id
+           JOIN offer_campaign_deliveries d ON d.id=oc.delivery_id
+           JOIN offer_campaign_recipients r ON r.id=d.recipient_id
+           JOIN users u ON u.id=r.user_id
+           LEFT JOIN geo_postal_centroids g ON g.country=u.country AND g.postal_code=u.zip_code
+           ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+           ORDER BY c.id DESC LIMIT 10000`,
+          params,
+        );
+        return data;
+      },
+      "growth_conversions_export",
+    );
+    const cell = (v) => {
+      const s = v === null || v === undefined ? "" : String(v);
+      // Formula-safe CSV, matching the query builder export convention.
+      return `"${(/^[=+\-@]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
+    };
+    const header = [
+      "id",
+      "partner_code",
+      "click_id",
+      "order_ref_hash",
+      "sale_minor",
+      "commission_minor",
+      "currency",
+      "status",
+      "assisted",
+      "created_at",
+      "updated_at",
+    ];
+    const csv = [
+      header.join(","),
+      ...rows.map((r) => header.map((h) => cell(r[h])).join(",")),
+    ].join("\n");
+    res
+      .set("Content-Type", "text/csv")
+      .set(
+        "Content-Disposition",
+        "attachment; filename=growth-conversions.csv",
+      )
+      .send(csv);
+  }),
+);
 router.get(
   "/campaigns",
   grant("manage_marketing"),
