@@ -118,6 +118,14 @@ const BUILDER_DIMENSIONS = Object.freeze({
   mrr_cents: Object.freeze([]),
   escrow_held_cents: Object.freeze([]),
   promo_discount_cents: Object.freeze([]),
+  growth_campaign_recipients: Object.freeze([]),
+  growth_offer_ctr_pct: Object.freeze([]),
+  growth_offer_optout_rate_pct: Object.freeze([]),
+  growth_push_open_rate_pct: Object.freeze([]),
+  growth_affiliate_commission_cents: Object.freeze([]),
+  growth_promo_redeemed_cents: Object.freeze([]),
+  demand_unfilled_rate_pct: Object.freeze([]),
+  demand_gap_index: Object.freeze([]),
   restaurant_repeat_order_rate: Object.freeze(['restaurant']),
   restaurant_top_items_revenue: Object.freeze(['restaurant']),
 });
@@ -139,6 +147,14 @@ const BUILDER_FILTERS = Object.freeze({
   mrr_cents: Object.freeze([]),
   escrow_held_cents: Object.freeze([]),
   promo_discount_cents: Object.freeze([]),
+  growth_campaign_recipients: Object.freeze([]),
+  growth_offer_ctr_pct: Object.freeze([]),
+  growth_offer_optout_rate_pct: Object.freeze([]),
+  growth_push_open_rate_pct: Object.freeze([]),
+  growth_affiliate_commission_cents: Object.freeze([]),
+  growth_promo_redeemed_cents: Object.freeze([]),
+  demand_unfilled_rate_pct: Object.freeze([]),
+  demand_gap_index: Object.freeze([]),
   restaurant_repeat_order_rate: Object.freeze(['restaurantId']),
   restaurant_top_items_revenue: Object.freeze(['restaurantId']),
 });
@@ -171,6 +187,14 @@ const METRIC_UNITS = Object.freeze({
   consulting_avg_nps: 'average',
   mrr_cents: 'cents',
   promo_discount_cents: 'cents',
+  growth_campaign_recipients: 'count',
+  growth_offer_ctr_pct: 'pct',
+  growth_offer_optout_rate_pct: 'pct',
+  growth_push_open_rate_pct: 'pct',
+  growth_affiliate_commission_cents: 'cents',
+  growth_promo_redeemed_cents: 'cents',
+  demand_unfilled_rate_pct: 'pct',
+  demand_gap_index: 'index',
   escrow_held_cents: 'cents',
   restaurant_repeat_order_rate: 'ratio',
   restaurant_top_items_revenue: 'cents',
@@ -544,6 +568,119 @@ function buildSingleValue(query) {
   }
 }
 
+// Growth engine metrics (Demand & Sales Engine spec 21.1). Money metrics
+// (growth_affiliate_commission_cents, growth_promo_redeemed_cents) are in
+// financialMetrics.js; these six are single-value builders. Definitions
+// are canonical in metricsRegistry.js.
+const GROWTH_METRICS = Object.freeze([
+  'growth_campaign_recipients',
+  'growth_offer_ctr_pct',
+  'growth_offer_optout_rate_pct',
+  'growth_push_open_rate_pct',
+  'demand_unfilled_rate_pct',
+  'demand_gap_index',
+]);
+
+function buildGrowthMetric(query) {
+  const interval = intervalParam(query.period);
+  switch (query.metric) {
+    case 'growth_campaign_recipients':
+      return {
+        text: `SELECT COUNT(DISTINCT r.user_id)::INT AS value,
+                      COUNT(DISTINCT r.campaign_id)::INT AS campaigns
+                 FROM offer_campaign_recipients r
+                 JOIN offer_campaign_deliveries d ON d.recipient_id = r.id
+                WHERE d.status = 'sent' AND d.sent_at >= NOW() - $1::interval AND d.sent_at < NOW()`,
+        params: [interval],
+        columns: ['value', 'campaigns'],
+      };
+    case 'growth_offer_ctr_pct':
+      return {
+        text: `SELECT COUNT(DISTINCT d.recipient_id)::INT AS delivered,
+                      COUNT(DISTINCT d.recipient_id) FILTER (WHERE oc.id IS NOT NULL)::INT AS clickers,
+                      ROUND(100.0 * COUNT(DISTINCT d.recipient_id) FILTER (WHERE oc.id IS NOT NULL)
+                            / NULLIF(COUNT(DISTINCT d.recipient_id), 0), 2)::FLOAT AS value
+                 FROM offer_campaign_deliveries d
+                 LEFT JOIN offer_clicks oc ON oc.delivery_id = d.id
+                WHERE d.status = 'sent' AND d.sent_at >= NOW() - $1::interval AND d.sent_at < NOW()`,
+        params: [interval],
+        columns: ['value', 'delivered', 'clickers'],
+      };
+    case 'growth_offer_optout_rate_pct':
+      return {
+        text: `SELECT COUNT(DISTINCT r.user_id)::INT AS delivered,
+                      COUNT(DISTINCT r.user_id) FILTER (WHERE p.user_id IS NOT NULL)::INT AS opted_out,
+                      ROUND(100.0 * COUNT(DISTINCT r.user_id) FILTER (WHERE p.user_id IS NOT NULL)
+                            / NULLIF(COUNT(DISTINCT r.user_id), 0), 2)::FLOAT AS value
+                 FROM offer_campaign_recipients r
+                 JOIN offer_campaign_deliveries d
+                   ON d.recipient_id = r.id AND d.status = 'sent'
+                  AND d.sent_at >= NOW() - $1::interval AND d.sent_at < NOW()
+                 LEFT JOIN offer_preferences p
+                   ON p.user_id = r.user_id
+                  AND (p.offer_push = FALSE OR p.offer_in_app = FALSE)
+                  AND p.updated_at > d.sent_at
+                  AND p.updated_at <= d.sent_at + INTERVAL '48 hours'`,
+        params: [interval],
+        columns: ['value', 'delivered', 'opted_out'],
+      };
+    case 'growth_push_open_rate_pct':
+      return {
+        text: `SELECT COUNT(*)::INT AS delivered,
+                      COUNT(*) FILTER (WHERE opened_at IS NOT NULL)::INT AS opened,
+                      ROUND(100.0 * COUNT(*) FILTER (WHERE opened_at IS NOT NULL)
+                            / NULLIF(COUNT(*), 0), 2)::FLOAT AS value
+                 FROM offer_campaign_deliveries
+                WHERE channel = 'push' AND status = 'sent'
+                  AND sent_at >= NOW() - $1::interval AND sent_at < NOW()`,
+        params: [interval],
+        columns: ['value', 'delivered', 'opened'],
+      };
+    case 'demand_unfilled_rate_pct':
+      return {
+        text: `SELECT COUNT(*)::INT AS published,
+                      COUNT(*) FILTER (WHERE expires_at IS NOT NULL AND expires_at < NOW()
+                        AND accepted_at IS NULL
+                        AND status IN ('published','matched','negotiating','closed'))::INT AS unfilled,
+                      ROUND(100.0 * COUNT(*) FILTER (WHERE expires_at IS NOT NULL AND expires_at < NOW()
+                        AND accepted_at IS NULL
+                        AND status IN ('published','matched','negotiating','closed'))
+                            / NULLIF(COUNT(*), 0), 2)::FLOAT AS value
+                 FROM jobs
+                WHERE deleted_at IS NULL AND status <> 'draft'
+                  AND created_at >= NOW() - $1::interval AND created_at < NOW()`,
+        params: [interval],
+        columns: ['value', 'published', 'unfilled'],
+      };
+    case 'demand_gap_index':
+      // Trailing 28-day window is part of the definition; the period is
+      // accepted for interface consistency and does not widen it.
+      return {
+        text: `WITH d AS (
+                 SELECT postal_ref, node_id, COUNT(DISTINCT user_id) AS demand
+                   FROM demand_subject_daily
+                  WHERE day > (NOW() - INTERVAL '28 days')::DATE AND day <= (NOW())::DATE
+                  GROUP BY 1, 2
+               ), s AS (
+                 SELECT postal_ref, node_id, COUNT(DISTINCT user_id) AS supply
+                   FROM supply_subject_daily
+                  WHERE day > (NOW() - INTERVAL '28 days')::DATE AND day <= (NOW())::DATE
+                  GROUP BY 1, 2
+               ), cells AS (
+                 SELECT d.demand::NUMERIC / (COALESCE(s.supply, 0) + 1) AS gap
+                   FROM d LEFT JOIN s USING (postal_ref, node_id)
+                  WHERE d.demand >= 5
+               )
+               SELECT (SELECT COUNT(*) FROM cells)::INT AS cells,
+                      (SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY gap) FROM cells)::FLOAT AS value`,
+        params: [],
+        columns: ['value', 'cells'],
+      };
+    default:
+      throw new AppError(`No query builder for metric "${query.metric}"`, 500, 'builder_missing');
+  }
+}
+
 function buildMetricSql(query, scope) {
   if (Object.hasOwn(operationalMetrics, query.metric)) return operationalMetricSql(query.metric, intervalParam(query.period));
   if (MONEY_METRICS.includes(query.metric)) {
@@ -552,6 +689,7 @@ function buildMetricSql(query, scope) {
       trunc: query.dimensions.includes('period') ? registry.PERIOD_INTERVAL[query.period].trunc : null,
     });
   }
+  if (GROWTH_METRICS.includes(query.metric)) return buildGrowthMetric(query);
   switch (query.metric) {
     case 'cancel_rate_pct': return buildCancelRate(query);
     case 'sla_first_response_compliance_pct': return buildSlaCompliance(query);

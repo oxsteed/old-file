@@ -180,6 +180,65 @@ const METRICS = Object.freeze({
     owner: 'platform/growth',
     notes: 'Checkout promo codes (decision 2). Reserved and reversed (refunded/cancelled) redemptions are excluded; platform_funded_cents splits jobs/bookings from restaurant-funded food.',
   }),
+  // Growth engine metrics (Demand & Sales Engine spec 21.1). Executable SQL
+  // lives in queryBuilder.js (buildGrowthMetric) and financialMetrics.js;
+  // permissions are enforced through metricAccess.js METRIC_PERMISSIONS.
+  growth_campaign_recipients: Object.freeze({
+    name: 'growth_campaign_recipients',
+    definition: `COUNT(DISTINCT user_id) over offer_campaign_recipients joined to offer_campaign_deliveries with at least one delivery status 'sent' in the period`,
+    dimensions: [],
+    owner: 'platform/growth',
+    notes: 'Permission view_growth_insights. Region anchor: recipient user address.',
+  }),
+  growth_offer_ctr_pct: Object.freeze({
+    name: 'growth_offer_ctr_pct',
+    definition: `100.0 * distinct recipients with an offer_clicks row on a sent delivery / distinct recipients of a sent delivery in the period`,
+    dimensions: [],
+    owner: 'platform/growth',
+    notes: 'Permission view_growth_insights. Region anchor: recipient user address (via delivery).',
+  }),
+  growth_offer_optout_rate_pct: Object.freeze({
+    name: 'growth_offer_optout_rate_pct',
+    definition: `100.0 * distinct delivered recipients whose offer_preferences turned offer_push or offer_in_app off within 48h after a sent delivery / distinct delivered recipients in the period`,
+    dimensions: [],
+    owner: 'platform/growth',
+    notes: 'Permission view_growth_insights. offer_preferences keeps only the latest preference state, so the 48h window is evaluated against its updated_at; a preference change for another reason inside the window counts. Region anchor: recipient user address.',
+  }),
+  growth_push_open_rate_pct: Object.freeze({
+    name: 'growth_push_open_rate_pct',
+    definition: `100.0 * push deliveries with opened_at set / push deliveries sent in the period`,
+    dimensions: [],
+    owner: 'platform/growth',
+    notes: 'Permission view_growth_insights. Web and updated native apps only; partial until the app update is adopted. Region anchor: recipient user address (via delivery).',
+  }),
+  growth_affiliate_commission_cents: Object.freeze({
+    name: 'growth_affiliate_commission_cents',
+    definition: `SUM(commission_minor) for affiliate_conversions status approved/paid minus SUM(commission_minor) for status reversed in the period, grouped by currency`,
+    dimensions: [],
+    owner: 'platform/growth',
+    notes: 'Permission view_financials (money metric). Region anchor: recipient user via click -> delivery -> recipient.',
+  }),
+  growth_promo_redeemed_cents: Object.freeze({
+    name: 'growth_promo_redeemed_cents',
+    definition: `SUM(discount_cents) FROM promo_redemptions joined to discount_codes with offer_campaign_id set, status redeemed, redeemed_at in the period, grouped by currency`,
+    dimensions: [],
+    owner: 'platform/growth',
+    notes: 'Permission view_financials (money metric). Campaign codes only; the all-codes total is promo_discount_cents. Region anchor: existing promo anchors.',
+  }),
+  demand_unfilled_rate_pct: Object.freeze({
+    name: 'demand_unfilled_rate_pct',
+    definition: `100.0 * jobs published in the period that have since expired unfilled (expires_at passed, accepted_at IS NULL, still in an unfilled status) / jobs published in the period`,
+    dimensions: [],
+    owner: 'platform/growth',
+    notes: 'Permission view_growth_insights. Lagging measure: recent cohorts understate because their jobs have not expired yet. Region anchor: job location (postal).',
+  }),
+  demand_gap_index: Object.freeze({
+    name: 'demand_gap_index',
+    definition: `Median over active cells (postal_ref x intent with exact 28-day distinct demand >= 5) of demand / (supply + 1), exact distinct people from demand_subject_daily / supply_subject_daily over the trailing 28 days`,
+    dimensions: [],
+    owner: 'platform/growth',
+    notes: 'Permission view_growth_insights. Trailing 28-day window is part of the definition (period accepted, window fixed). The admin heatmap applies empirical-Bayes smoothing on top; this governed value is the unsmoothed median. Region anchor: postal centroid.',
+  }),
   // Restaurant-scoped metrics (Phase 2, Item 10). The registry holds the
   // canonical DEFINITION; the computation lives exactly once in
   // server/analytics/restaurantAnalytics.js (never inline in controllers).

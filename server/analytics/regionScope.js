@@ -32,7 +32,17 @@
  *                                defaults to 'US', migration 117) and is reported separately
  *                                via userCountryBreakdown().
  *   support_conversations, support_conversation_reviews  the customer's address
- * Reference tables with no per-row geography (plans, support_sla_targets) pass through.
+ *   demand_subject_daily, supply_subject_daily  the row's postal centroid
+ *                                (geo_postal_centroids place fields)
+ *   user_interest_profiles, offer_campaign_recipients, offer_preferences
+ *                                the user's address
+ *   offer_campaign_deliveries    the recipient's address (via recipient row)
+ *   offer_clicks                 the recipient's address (via delivery)
+ *   affiliate_conversions        the recipient's address (via click ->
+ *                                delivery -> recipient)
+ * Reference tables with no per-row geography (plans, support_sla_targets,
+ * discount_codes) pass through; their rows are reached only through an
+ * anchored table's filter.
  */
 
 const AppError = require('../utils/appError');
@@ -129,6 +139,13 @@ const RESTAURANT_LOC = (a) => ({ zip: `${a}.address_zip`, city: `${a}.address_ci
 const userIn = (col, ref) => `EXISTS (SELECT 1 FROM __rs_users __u ${USER_GEO('__u', '__ug')} WHERE __u.id = ${col} AND ${locationInRegionsSql(USER_LOC('__u', '__ug'), ref)})`;
 const jobIn = (col, ref) => `EXISTS (SELECT 1 FROM __rs_jobs __j WHERE __j.id = ${col} AND ${locationInRegionsSql(JOB_LOC('__j'), ref)})`;
 const restaurantIn = (col, ref) => `EXISTS (SELECT 1 FROM __rs_food_restaurants __r WHERE __r.id = ${col} AND ${locationInRegionsSql(RESTAURANT_LOC('__r'), ref)})`;
+// Growth rollup rows (demand_subject_daily / supply_subject_daily) are
+// located by their postal centroid: the centroid row itself is the anchor.
+const POSTAL_LOC = (a) => ({ zip: `${a}.postal_code`, city: `${a}.place_name`, state: `${a}.admin1`,
+  country: `${a}.country`, lat: `${a}.lat`, lng: `${a}.lng` });
+const postalIn = (col, ref) => `EXISTS (SELECT 1 FROM __rs_geo_postal_centroids __g WHERE __g.id = ${col} AND ${locationInRegionsSql(POSTAL_LOC('__g'), ref)})`;
+const recipientUserIn = (recipientIdCol, ref) =>
+  `EXISTS (SELECT 1 FROM __rs_offer_campaign_recipients __r WHERE __r.id = ${recipientIdCol} AND ${userIn('__r.user_id', ref)})`;
 
 // table -> { needs: base tables used by the predicate, predicate(ref) on alias t }
 const ANCHORS = Object.freeze({
@@ -155,8 +172,23 @@ const ANCHORS = Object.freeze({
        ELSE ${userIn('t.user_id', ref)} END` },
   food_order_items: { needs: ['food_orders', 'food_restaurants'], predicate: (ref) =>
     `EXISTS (SELECT 1 FROM __rs_food_orders __o WHERE __o.id = t.order_id AND ${restaurantIn('__o.restaurant_id', ref)})` },
+  // Growth engine tables (Demand & Sales Engine spec 21.1): rollup rows
+  // anchor on their postal centroid; interest profiles and campaign rows
+  // anchor on the person's address; conversions reach the recipient
+  // through click -> delivery -> recipient.
+  demand_subject_daily: { needs: ['geo_postal_centroids'], predicate: (ref) => postalIn('t.postal_ref', ref) },
+  supply_subject_daily: { needs: ['geo_postal_centroids'], predicate: (ref) => postalIn('t.postal_ref', ref) },
+  user_interest_profiles: { needs: ['users'], predicate: (ref) => userIn('t.user_id', ref) },
+  offer_campaign_recipients: { needs: ['users'], predicate: (ref) => userIn('t.user_id', ref) },
+  offer_preferences: { needs: ['users'], predicate: (ref) => userIn('t.user_id', ref) },
+  offer_campaign_deliveries: { needs: ['offer_campaign_recipients', 'users'], predicate: (ref) =>
+    recipientUserIn('t.recipient_id', ref) },
+  offer_clicks: { needs: ['offer_campaign_deliveries', 'offer_campaign_recipients', 'users'], predicate: (ref) =>
+    `EXISTS (SELECT 1 FROM __rs_offer_campaign_deliveries __d WHERE __d.id = t.delivery_id AND ${recipientUserIn('__d.recipient_id', ref)})` },
+  affiliate_conversions: { needs: ['offer_clicks', 'offer_campaign_deliveries', 'offer_campaign_recipients', 'users'], predicate: (ref) =>
+    `EXISTS (SELECT 1 FROM __rs_offer_clicks __c WHERE __c.click_id = t.click_id AND ${`EXISTS (SELECT 1 FROM __rs_offer_campaign_deliveries __d WHERE __d.id = __c.delivery_id AND ${recipientUserIn('__d.recipient_id', ref)})`})` },
 });
-const PASS_THROUGH = new Set(['plans', 'support_sla_targets']);
+const PASS_THROUGH = new Set(['plans', 'support_sla_targets', 'discount_codes']);
 
 const SQL_WORDS = new Set(['select', 'lateral', 'only', 'unnest', 'jsonb_array_elements', 'jsonb_array_elements_text',
   'generate_series', 'values']);
