@@ -1852,11 +1852,23 @@ exports.updatePublishing = async (req, res, next) => {
     if (locationPatch?.status && !['active', 'paused', 'closed'].includes(locationPatch.status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { locationStatus: 'Status must be active, paused, or closed' });
     }
-    if (locationPatch?.latitude !== null && (locationPatch.latitude < -90 || locationPatch.latitude > 90)) {
+    if (locationPatch?.latitude != null && (locationPatch.latitude < -90 || locationPatch.latitude > 90)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { latitude: 'Must be between -90 and 90' });
     }
-    if (locationPatch?.longitude !== null && (locationPatch.longitude < -180 || locationPatch.longitude > 180)) {
+    if (locationPatch?.longitude != null && (locationPatch.longitude < -180 || locationPatch.longitude > 180)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { longitude: 'Must be between -180 and 180' });
+    }
+    // F-10 (Track F-T1): validate the timezone that will be written below
+    // (locationPatch.timezone wins over the top-level field, mirroring the
+    // resolution inside the transaction). An invalid IANA name is a 400,
+    // never a stored value that later crashes the hours evaluator.
+    const requestedTimezone = locationPatch?.timezone ?? normalizeString(req.body.timezone, 80);
+    if (requestedTimezone) {
+      try {
+        new Intl.DateTimeFormat('en-US', { timeZone: requestedTimezone }).format();
+      } catch (_) {
+        throw new AppError('Validation failed', 400, 'validation_failed', { timezone: 'Must be a valid IANA timezone' });
+      }
     }
 
     const pauseReasonProvided = Object.prototype.hasOwnProperty.call(req.body, 'onlineOrderPauseReason')
