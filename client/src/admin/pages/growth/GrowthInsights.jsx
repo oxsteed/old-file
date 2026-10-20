@@ -1,7 +1,143 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../../../lib/adminApi';
+
+// Demand heatmap on the same MapLibre + AWS Location stack the app already
+// uses (see components/AwsLocationMap.jsx for the key handling rules: the
+// key is public by construction and referer-restricted). Points are postal
+// centroids only, weighted by the demand score; the accessible table view
+// next to it carries the same numbers for screen readers and audits.
+function DemandHeatmap({ rows, label }) {
+  const ref = useRef(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let map = null;
+    let cancelled = false;
+    (async () => {
+      const apiKey = import.meta.env.VITE_AWS_LOCATION_API_KEY;
+      const region = import.meta.env.VITE_AWS_LOCATION_REGION || 'us-east-1';
+      if (!apiKey || !ref.current) {
+        setFailed(true);
+        return;
+      }
+      try {
+        const maplibregl = (await import('maplibre-gl')).default;
+        await import('maplibre-gl/dist/maplibre-gl.css');
+        if (cancelled || !ref.current) return;
+        const features = rows
+          .filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lng))
+          .map((r) => ({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [r.lng, r.lat] },
+            properties: {
+              demand: Number(r.demand) || 0,
+              people: Number(r.people) || 0,
+            },
+          }));
+        const theme =
+          document.documentElement.getAttribute('data-theme') || 'dark';
+        map = new maplibregl.Map({
+          container: ref.current,
+          center: features.length
+            ? features[0].geometry.coordinates
+            : [-98, 39],
+          zoom: features.length ? 4 : 2,
+          style: `https://maps.geo.${region}.amazonaws.com/v2/styles/Standard/descriptor?color-scheme=${theme === 'light' ? 'Light' : 'Dark'}`,
+          transformRequest: (url) => ({
+            url:
+              url.startsWith('https://maps.geo.') ||
+              url.startsWith('https://tiles.geo.')
+                ? `${url}${url.includes('?') ? '&' : '?'}key=${encodeURIComponent(apiKey)}`
+                : url,
+          }),
+          attributionControl: true,
+        });
+        map.addControl(
+          new maplibregl.NavigationControl({ showCompass: false }),
+          'top-right',
+        );
+        map.on('load', () => {
+          map.addSource('demand', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features },
+          });
+          map.addLayer({
+            id: 'demand-heat',
+            type: 'heatmap',
+            source: 'demand',
+            paint: {
+              'heatmap-weight': [
+                'interpolate',
+                ['linear'],
+                ['get', 'demand'],
+                0,
+                0,
+                50,
+                1,
+              ],
+              'heatmap-intensity': 0.8,
+              'heatmap-radius': 42,
+              'heatmap-opacity': 0.75,
+              'heatmap-color': [
+                'interpolate',
+                ['linear'],
+                ['heatmap-density'],
+                0,
+                'rgba(33,102,172,0)',
+                0.2,
+                'rgb(103,169,207)',
+                0.4,
+                'rgb(209,229,240)',
+                0.6,
+                'rgb(253,219,199)',
+                0.8,
+                'rgb(239,138,98)',
+                1,
+                'rgb(178,24,43)',
+              ],
+            },
+          });
+          map.addLayer({
+            id: 'demand-points',
+            type: 'circle',
+            source: 'demand',
+            paint: {
+              'circle-radius': [
+                'interpolate',
+                ['linear'],
+                ['get', 'people'],
+                5,
+                4,
+                100,
+                14,
+              ],
+              'circle-color': '#ea580c',
+              'circle-opacity': 0.65,
+              'circle-stroke-width': 1,
+              'circle-stroke-color': '#ffffff',
+            },
+          });
+        });
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (map) map.remove();
+    };
+  }, [rows]);
+  if (failed) return null;
+  return (
+    <div
+      ref={ref}
+      className="h-96 w-full overflow-hidden rounded border"
+      role="img"
+      aria-label={label}
+    />
+  );
+}
 const LOCALES = ['en', 'es', 'fr', 'ht', 'ar'];
 const SECTIONS = [
   'overview',
@@ -51,6 +187,10 @@ export default function GrowthInsights({ section = 'overview' }) {
     [checklist, setChecklist] = useState({});
   const [miles, setMiles] = useState(35),
     [minimum, setMinimum] = useState(5);
+  const [view, setView] = useState('map'),
+    [snapshots, setSnapshots] = useState(null);
+  const [rejecting, setRejecting] = useState(null),
+    [reason, setReason] = useState('');
   const load = useCallback(async () => {
     setError(false);
     setData(null);
@@ -66,6 +206,33 @@ export default function GrowthInsights({ section = 'overview' }) {
   useEffect(() => {
     load();
   }, [load]);
+  useEffect(() => {
+    if (section !== 'demand') return;
+    let active = true;
+    const lastValue = (payload) => {
+      const points = payload?.points || payload?.rows || [];
+      const values = points
+        .map((p) => p.value)
+        .filter((v) => v != null && Number.isFinite(Number(v)));
+      return values.length ? Number(values[values.length - 1]) : null;
+    };
+    Promise.all([
+      api.get('/admin/analytics/query-builder/trend', {
+        params: { metric: 'demand_gap_index', days: 30 },
+      }),
+      api.get('/admin/analytics/query-builder/trend', {
+        params: { metric: 'demand_unfilled_rate_pct', days: 30 },
+      }),
+    ])
+      .then(([g, u]) => {
+        if (active)
+          setSnapshots({ gap: lastValue(g.data), unfilled: lastValue(u.data) });
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [section]);
   useEffect(() => {
     if (section !== 'campaigns') return;
     let active = true;
@@ -145,7 +312,12 @@ export default function GrowthInsights({ section = 'overview' }) {
           <td className="p-3">
             {row.labels?.[i18n.resolvedLanguage] || row.labels?.en}
           </td>
-          <td className="p-3">{row.demand}</td>
+          <td className="p-3">{row.people}</td>
+          <td className="p-3">
+            {Number(row.demand).toLocaleString(i18n.resolvedLanguage, {
+              maximumFractionDigits: 1,
+            })}
+          </td>
           <td className="p-3">{row.supply ?? '—'}</td>
           <td className="p-3">
             {row.gap == null
@@ -153,6 +325,18 @@ export default function GrowthInsights({ section = 'overview' }) {
               : Number(row.gap).toLocaleString(i18n.resolvedLanguage, {
                   maximumFractionDigits: 2,
                 })}
+          </td>
+          <td className="p-3">
+            {row.trend_state === 'new'
+              ? label('trendNew')
+              : row.trend_pct == null
+                ? '—'
+                : `${row.trend_pct > 0 ? '+' : ''}${row.trend_pct}%`}
+          </td>
+          <td className="p-3">
+            {row.anomaly
+              ? `${label('anomalyFlag')} x${Number(row.anomaly.ratio).toFixed(1)}`
+              : '—'}
           </td>
         </>
       );
@@ -169,6 +353,34 @@ export default function GrowthInsights({ section = 'overview' }) {
         <td className="p-3">{row.status || ''}</td>
         <td className="p-3">
           {section === 'suggestions' && row.rationale}
+          {section === 'suggestions' && row.status === 'pending_review' && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                className={button}
+                disabled={busy}
+                onClick={() =>
+                  run(async () => {
+                    await api.post(
+                      `/admin/growth/suggestions/${row.id}/accept`,
+                    );
+                    await load();
+                  })
+                }
+              >
+                {label('accept')}
+              </button>
+              <button
+                className="rounded border px-3 py-2"
+                disabled={busy}
+                onClick={() => {
+                  setRejecting(row);
+                  setReason('');
+                }}
+              >
+                {label('reject')}
+              </button>
+            </div>
+          )}
           {section === 'segments' && row.version}
           {section === 'campaigns' && (
             <div className="flex flex-wrap gap-2">
@@ -422,6 +634,21 @@ export default function GrowthInsights({ section = 'overview' }) {
                   {r.place_name}: {r.member_count}
                 </p>
               )))}
+          {preview.overlap?.length > 0 && (
+            <div className="mt-3">
+              <h3 className="font-semibold">{label('overlap')}</h3>
+              <ul>
+                {preview.overlap.map((o) => (
+                  <li key={o.campaign_id}>
+                    {o.name}:{' '}
+                    {o.below_k
+                      ? label('belowK')
+                      : `${o.shared} ${label('shared')}`}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
       {section === 'campaigns' && (
@@ -623,15 +850,164 @@ export default function GrowthInsights({ section = 'overview' }) {
           </button>
         </section>
       )}
+      {section === 'demand' && data?.freshness && (
+        <section className="space-y-3 rounded border p-4">
+          <h3 className="font-semibold">{label('freshness')}</h3>
+          <dl className="grid gap-3 sm:grid-cols-3">
+            <div>
+              <dt>{label('demandThrough')}</dt>
+              <dd>
+                {data.freshness.demand_through
+                  ? new Date(
+                      data.freshness.demand_through,
+                    ).toLocaleDateString(i18n.resolvedLanguage)
+                  : '—'}
+              </dd>
+            </div>
+            <div>
+              <dt>{label('supplyThrough')}</dt>
+              <dd>
+                {data.freshness.supply_through
+                  ? new Date(
+                      data.freshness.supply_through,
+                    ).toLocaleDateString(i18n.resolvedLanguage)
+                  : '—'}
+              </dd>
+            </div>
+            <div>
+              <dt>{label('lastRun')}</dt>
+              <dd>
+                {data.freshness.last_run
+                  ? `${new Date(data.freshness.last_run.day).toLocaleDateString(i18n.resolvedLanguage)} · ${data.freshness.last_run.status}`
+                  : '—'}
+              </dd>
+            </div>
+          </dl>
+          <p className="text-sm">{label('anchorNote')}</p>
+          {snapshots && (snapshots.gap != null || snapshots.unfilled != null) && (
+            <dl className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <dt>
+                  {label('snapshots')} · {label('gapIndex')}
+                </dt>
+                <dd>
+                  {snapshots.gap == null
+                    ? '—'
+                    : snapshots.gap.toLocaleString(i18n.resolvedLanguage, {
+                        maximumFractionDigits: 2,
+                      })}
+                </dd>
+              </div>
+              <div>
+                <dt>
+                  {label('snapshots')} · {label('unfilledRate')}
+                </dt>
+                <dd>
+                  {snapshots.unfilled == null
+                    ? '—'
+                    : `${snapshots.unfilled.toLocaleString(i18n.resolvedLanguage, { maximumFractionDigits: 1 })}%`}
+                </dd>
+              </div>
+            </dl>
+          )}
+          <div className="flex gap-2" role="group" aria-label={label('demand')}>
+            {['map', 'table'].map((v) => (
+              <button
+                key={v}
+                className={
+                  view === v ? button : 'rounded border px-4 py-2'
+                }
+                aria-pressed={view === v}
+                onClick={() => setView(v)}
+              >
+                {label(v === 'map' ? 'mapView' : 'tableView')}
+              </button>
+            ))}
+          </div>
+          {view === 'map' &&
+            (data.rows?.length > 0 ? (
+              <DemandHeatmap rows={data.rows} label={label('mapView')} />
+            ) : (
+              <p>{label('empty')}</p>
+            ))}
+        </section>
+      )}
+      {section === 'suggestions' && (
+        <div>
+          <button
+            className={button}
+            disabled={busy}
+            onClick={() =>
+              run(async () => {
+                await api.post('/admin/growth/suggestions/produce');
+                await load();
+              })
+            }
+          >
+            {label('produce')}
+          </button>
+        </div>
+      )}
+      {rejecting && (
+        <form
+          className="space-y-3 rounded border p-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            run(async () => {
+              await api.post(
+                `/admin/growth/suggestions/${rejecting.id}/reject`,
+                { reason },
+              );
+              setRejecting(null);
+              setReason('');
+              await load();
+            });
+          }}
+        >
+          <label className="block">
+            {label('rejectReason')}
+            <input
+              required
+              maxLength={500}
+              className={input}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </label>
+          <div className="flex gap-2">
+            <button className={button} disabled={busy || !reason.trim()}>
+              {label('reject')}
+            </button>
+            <button
+              type="button"
+              className="rounded border px-4 py-2"
+              onClick={() => setRejecting(null)}
+            >
+              {label('cancel')}
+            </button>
+          </div>
+        </form>
+      )}
       {data?.rows &&
         section !== 'clusters' &&
+        (section !== 'demand' || view === 'table') &&
         (data.rows.length ? (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr>
                   {(section === 'demand'
-                    ? ['place', 'country', 'intent', 'count', 'supply', 'gap']
+                    ? [
+                        'place',
+                        'country',
+                        'intent',
+                        'count',
+                        'demandScore',
+                        'supply',
+                        'gap',
+                        'trend',
+                        'anomaly',
+                      ]
                     : [
                         'name',
                         'status',
