@@ -121,6 +121,7 @@ function mockKioskCreateOrderQueries(orderOverrides = {}) {
     .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (pre-lock)
     .mockResolvedValueOnce({ rows: [restaurantRow()] })
     .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (post-lock recheck)
+    .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations -> restaurant fallback)
     .mockResolvedValueOnce({
       rows: [{
         id: MENU_ITEM_ID,
@@ -181,6 +182,7 @@ describe('food order loop E2E (F7)', () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [restaurantRow()] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations)
       .mockResolvedValueOnce({
         rows: [{
           id: MENU_ITEM_ID,

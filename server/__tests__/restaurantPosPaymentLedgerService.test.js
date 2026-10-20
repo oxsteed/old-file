@@ -28,6 +28,7 @@ describe('restaurant POS wallet payment idempotency', () => {
   test('rejects a payment retry that changes the order or amount', async () => {
     const client = {
       query: jest.fn()
+        .mockResolvedValueOnce({ rows: [{ location_id: 21 }] }) // F-02: order store lookup
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [existingPayment()] }),
     };
@@ -44,12 +45,15 @@ describe('restaurant POS wallet payment idempotency', () => {
       metadata: { customerId: 'customer-1' },
     })).rejects.toMatchObject({ code: 'pos_payment_idempotency_conflict', status: 409 });
 
-    expect(client.query).toHaveBeenCalledTimes(2);
+    expect(client.query).toHaveBeenCalledTimes(3);
+    // The insert attempt carried the order's store as its last parameter.
+    expect(client.query.mock.calls[1][1][11]).toBe(21);
   });
 
   test('rejects a refund retry that changes the original payment identity', async () => {
     const client = {
       query: jest.fn()
+        .mockResolvedValueOnce({ rows: [{ location_id: 21 }] }) // F-02: order store lookup
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({
           rows: [existingPayment({
@@ -79,6 +83,6 @@ describe('restaurant POS wallet payment idempotency', () => {
       metadata: { originalPaymentId: '900' },
     })).rejects.toMatchObject({ code: 'pos_payment_idempotency_conflict', status: 409 });
 
-    expect(client.query).toHaveBeenCalledTimes(2);
+    expect(client.query).toHaveBeenCalledTimes(3);
   });
 });

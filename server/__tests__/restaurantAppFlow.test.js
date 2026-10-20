@@ -738,6 +738,7 @@ describe('restaurant app-flow backend', () => {
       .mockResolvedValueOnce({ rows: [accessRow()] })
       .mockResolvedValueOnce({ rows: [{ id: 55, restaurant_id: RESTAURANT_ID, status: 'open', staff_user_id: USER_ID }] })
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations -> restaurant fallback)
       .mockResolvedValueOnce({ rows: [{ id: 11, name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }] })
       .mockResolvedValueOnce({ rows: [{ last_queue_number: 12 }] })
       .mockResolvedValueOnce({
@@ -777,6 +778,7 @@ describe('restaurant app-flow backend', () => {
       .mockResolvedValueOnce({ rows: [accessRow()] })
       .mockResolvedValueOnce({ rows: [{ id: 55, restaurant_id: RESTAURANT_ID, status: 'open', staff_user_id: USER_ID }] })
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations -> restaurant timezone)
       .mockResolvedValueOnce({
         rows: [{
           id: 11, name: 'Breakfast Plate', price_cents: 899, currency_code: 'USD',
@@ -803,6 +805,7 @@ describe('restaurant app-flow backend', () => {
       .mockResolvedValueOnce({ rows: [accessRow()] })
       .mockResolvedValueOnce({ rows: [{ id: 55, restaurant_id: RESTAURANT_ID, status: 'open', staff_user_id: USER_ID }] })
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations)
       .mockResolvedValueOnce({ rows: [{
         id: 11,
         name: 'Classic Burger',
@@ -1242,6 +1245,7 @@ describe('restaurant app-flow backend', () => {
       .mockResolvedValueOnce({ rows: [{ id: 101, queue_number: 13 }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // F-02: split reservations UPDATE is its own statement now (parameterized queries cannot batch)
       .mockResolvedValueOnce({ rows: [{ subtotal_cents: 399 }] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, subtotal_cents: 399, total_cents: 399 }] })
       .mockResolvedValueOnce({ rows: [{ subtotal_cents: 500 }] })
@@ -1452,6 +1456,7 @@ describe('restaurant app-flow backend', () => {
       .mockResolvedValueOnce({ rows: [accessRow()] })
       .mockResolvedValueOnce({ rows: [{ id: 31 }] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID }] })
+      .mockResolvedValueOnce({ rows: [{ id: 77 }] }) // F-02: order has no store -> primary location resolution
       .mockResolvedValueOnce({ rows: [{ id: 51, status: 'queued', job_type: 'kitchen_ticket' }] });
 
     const printRes = await request(buildApp())
@@ -1460,6 +1465,8 @@ describe('restaurant app-flow backend', () => {
 
     expect(printRes.status).toBe(201);
     expect(printRes.body.job.status).toBe('queued');
+    const jobInsert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO restaurant_printer_jobs/.test(sql));
+    expect(jobInsert[1]).toContain(77);
   });
 
   test('creates crew task and comment history', async () => {

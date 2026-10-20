@@ -164,6 +164,7 @@ describe('F-11 daypart enforcement', () => {
       .mockResolvedValueOnce({ rows: [] }) // idempotency lookup
       .mockResolvedValueOnce({ rows: [restaurantRow()] }) // restaurant FOR UPDATE
       .mockResolvedValueOnce({ rows: [] }) // idempotency recheck
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations -> restaurant fallback)
       .mockResolvedValueOnce({ rows: [menuItemRow({ availability_schedule: NEVER_AVAILABLE })] });
     mockQuery.mockResolvedValue({ rows: [] });
 
@@ -183,6 +184,7 @@ describe('F-11 daypart enforcement', () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [restaurantRow()] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations)
       .mockResolvedValueOnce({ rows: [menuItemRow({ availability_schedule: ALWAYS_AVAILABLE })] });
     mockOrderSuccess();
 
@@ -221,6 +223,7 @@ describe('F-11 scheduled orders', () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [restaurantRow({ operating_hours: hoursClosedTomorrow() })] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations)
       .mockResolvedValueOnce({ rows: [menuItemRow()] });
     mockQuery.mockResolvedValue({ rows: [] });
 
@@ -242,6 +245,7 @@ describe('F-11 scheduled orders', () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [restaurantRow({ operating_hours: openWeekly })] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations)
       .mockResolvedValueOnce({ rows: [menuItemRow()] });
     mockOrderSuccess();
 
@@ -262,6 +266,7 @@ describe('F-33 order pacing', () => {
         rows: [restaurantRow({ settings: { onlineOrderPacingMaxPer15Min: 2 } })],
       }) // restaurant FOR UPDATE
       .mockResolvedValueOnce({ rows: [] }) // idempotency recheck
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations)
       .mockResolvedValueOnce({ rows: [countRow] }); // pacing count
   }
 
@@ -300,6 +305,7 @@ describe('F-33 order pacing', () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [restaurantRow({ settings: {} })] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations)
       .mockResolvedValueOnce({ rows: [menuItemRow()] });
     mockOrderSuccess();
 

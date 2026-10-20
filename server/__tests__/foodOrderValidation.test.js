@@ -108,6 +108,7 @@ function mockPreInsert(restaurantOverrides = {}, menuOverrides = {}) {
     .mockResolvedValueOnce({ rows: [] }) // idempotency replay lookup (pre-lock)
     .mockResolvedValueOnce({ rows: [restaurantRow(restaurantOverrides)] }) // restaurant FOR UPDATE
     .mockResolvedValueOnce({ rows: [] }) // idempotency replay recheck (post-lock)
+    .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations -> restaurant fallback)
     .mockResolvedValueOnce({ rows: [menuItemRow(menuOverrides)] }); // menu items
 }
 

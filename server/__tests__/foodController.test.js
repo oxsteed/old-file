@@ -496,6 +496,7 @@ describe('food controller', () => {
         }],
       })
       .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (post-lock recheck)
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations -> restaurant fallback)
       .mockResolvedValueOnce({
         rows: [{ id: '11', name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }],
       })
@@ -544,7 +545,8 @@ describe('food controller', () => {
           prep_time_min: 12,
         }],
       })
-      .mockResolvedValueOnce({ rows: [] }); // H12 replay lookup (post-lock recheck)
+      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (post-lock recheck)
+      .mockResolvedValueOnce({ rows: [] }); // F-02 location resolution (no locations)
 
     const res = await request(buildApp())
       .post('/api/food/restaurants/3/orders')
@@ -559,7 +561,7 @@ describe('food controller', () => {
     expect(res.body.code).toBe('restaurant_card_payments_unavailable');
     expect(res.body.error).toMatch(/connected Stripe/i);
     expect(mockQuery.mock.calls[1][0]).toMatch(/LEFT JOIN businesses b ON b.id = fr.business_id/);
-    expect(mockQuery.mock.calls).toHaveLength(3);
+    expect(mockQuery.mock.calls).toHaveLength(4);
   });
 
   test('creates a hosted Stripe checkout session for pay_now orders when the restaurant is connected', async () => {
@@ -586,6 +588,7 @@ describe('food controller', () => {
         }],
       })
       .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (post-lock recheck)
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations)
       .mockResolvedValueOnce({
         rows: [{ id: '11', name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }],
       })
@@ -658,6 +661,7 @@ describe('food controller', () => {
         }],
       })
       .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (post-lock recheck)
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations)
       .mockResolvedValueOnce({
         rows: [{ id: '11', name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }],
       })
