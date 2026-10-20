@@ -10,19 +10,25 @@
  *   - GET /:restaurantId/printer-settings: defaults when no row exists.
  *   - PUT /:restaurantId/printer-settings: owner/manager upsert; 403 for
  *     non-managers; 400 when enabling without a host; 400 on bad port.
- *   - POST /:restaurantId/printer-test: 409 when printing disabled; on
- *     success the transport is stubbed and the exact bytes asserted.
+ *   - POST /:restaurantId/printer-test: 409 when printing disabled.
+ *   - F-05: with RESTAURANT_SERVER_PRINTING_ENABLED unset (the default),
+ *     printer-test and print-receipt ENQUEUE a restaurant_printer_jobs
+ *     row for paired in-store devices and the API server opens no socket
+ *     (net connect is spied on); the queued payload carries the exact
+ *     ESC/POS bytes. Print endpoints are manager-only (403 for staff).
+ *     Only with the flag explicitly 'true' does the controller dial, via
+ *     the stubbed transport.
  *   - POST /:restaurantId/print-receipt: 400 without order_id; 404 for an
  *     order at another restaurant; builds the receipt from a read-only
- *     order snapshot and sends it without touching order/payment tables.
+ *     order snapshot without touching order/payment tables.
  *
  * The scope-model ownership gate is stubbed (its own suite covers the real
  * gate); the transport layer is stubbed so no real printer is touched.
- * Printing is verified fire-and-forget: the order row is byte-identical
+ * Printing never mutates the order: the order row is byte-identical
  * before and after a print.
  *
  * Run with e.g.
- *   STATEMENT_TEST_DATABASE_URL=postgresql://oxsteed:statement-test-password@127.0.0.1:5432/credit_statement_test \
+ *   RESTAURANT_PRINTER_TEST_DATABASE_URL=<loopback disposable db url> \
  *     npx jest __tests__/restaurantPrinterSettings.db.test.js
  * Without it, the DB describes skip (fail closed) instead of touching a DB.
  */
@@ -30,14 +36,29 @@ jest.unmock('pg');
 
 const crypto = require('crypto');
 
-const { disposableDatabaseOptIn, isDisposableDatabase } = require('./helpers/statementTestDatabase');
-const RAW_URL = disposableDatabaseOptIn('RESTAURANT_PRINTER_TEST_DATABASE_URL');
+// Disposable-database opt-in for this suite: a loopback Postgres whose
+// database is one of the allowlisted throwaway names (the shared
+// statement helper only allows credit_statement_test; this suite also
+// runs against the franchise-track fr_t3 database). Anything else fails
+// closed: the suite skips instead of touching a real database.
+function isDisposablePrinterDb(value) {
+  try {
+    const url = new URL(value);
+    return ['postgres:', 'postgresql:'].includes(url.protocol)
+      && ['127.0.0.1', 'localhost', '::1', '[::1]'].includes(url.hostname)
+      && ['/credit_statement_test', '/fr_t3'].includes(url.pathname);
+  } catch { return false; }
+}
+const RAW_URL = process.env.RESTAURANT_PRINTER_TEST_DATABASE_URL || '';
+if (RAW_URL && !isDisposablePrinterDb(RAW_URL)) {
+  throw new Error('Printer DB tests require an explicit loopback disposable database');
+}
 
-const CAN_RUN_DB = isDisposableDatabase(RAW_URL);
+const CAN_RUN_DB = isDisposablePrinterDb(RAW_URL);
 const ddescribe = CAN_RUN_DB ? describe : describe.skip;
 
-test('suite targets only the disposable credit_statement_test database', () => {
-  expect(isDisposableDatabase(RAW_URL)).toBe(CAN_RUN_DB);
+test('suite targets only a disposable loopback database', () => {
+  expect(isDisposablePrinterDb(RAW_URL)).toBe(CAN_RUN_DB);
 });
 
 if (CAN_RUN_DB) {
@@ -262,18 +283,91 @@ ddescribe('restaurant_printer_settings (migration 912)', () => {
     expect(sentBuffers.length).toBe(0);
   });
 
-  test('print-test sends a test page when enabled', async () => {
+  async function jobsFor(restaurantId) {
+    const { rows } = await pool.query(
+      'SELECT * FROM restaurant_printer_jobs WHERE restaurant_id = $1 ORDER BY id ASC',
+      [restaurantId]
+    );
+    return rows;
+  }
+  function jobBytes(job) {
+    return Buffer.from(job.payload.escpos_base64, 'base64');
+  }
+
+  test('print-test queues a test page job when enabled and opens no socket', async () => {
     await enablePrinting();
+    const before = await jobsFor(fx.restaurantId);
+    const net = require('net');
+    const connectSpy = jest.spyOn(net.Socket.prototype, 'connect');
     const res = mockRes();
-    await controller.printTestPage(mockReq({ params: { restaurantId: String(fx.restaurantId) } }), res, jest.fn());
-    expect(res.payload).toEqual({ ok: true, error: null });
+    try {
+      await controller.printTestPage(mockReq({ params: { restaurantId: String(fx.restaurantId) }, user: { id: fx.userId } }), res, jest.fn());
+    } finally {
+      expect(connectSpy).not.toHaveBeenCalled();
+      connectSpy.mockRestore();
+    }
+    // F-05: the API server never dials the printer on the default path.
+    expect(sentBuffers.length).toBe(0);
+    expect(res.statusCode).toBe(202);
+    expect(res.payload.ok).toBe(true);
+    expect(res.payload.queued).toBe(true);
+    expect(res.payload.jobStatus).toBe('queued');
+
+    const jobs = await jobsFor(fx.restaurantId);
+    expect(jobs.length).toBe(before.length + 1);
+    const job = jobs[jobs.length - 1];
+    expect(Number(job.id)).toBe(Number(res.payload.jobId));
+    expect(job.job_type).toBe('receipt');
+    expect(job.food_order_id).toBeNull();
+    expect(job.payload.kind).toBe('test_page');
+    expect(job.payload.printer).toEqual({ host: '192.168.1.50', port: 9100 });
+    const text = jobBytes(job).toString('latin1');
+    expect(text).toContain('Printer Diner');
+    // Test page never kicks the drawer.
+    expect(jobBytes(job).includes(Buffer.from([0x1b, 0x70]))).toBe(false);
+  });
+
+  test('print endpoints refuse non-managers', async () => {
+    await enablePrinting();
+    const orderId = await newOrder(fx.restaurantId, fx.businessId);
+    staffAccess();
+    const before = await jobsFor(fx.restaurantId);
+
+    const next1 = jest.fn();
+    await controller.printTestPage(mockReq({ params: { restaurantId: String(fx.restaurantId) }, user: { id: fx.userId } }), mockRes(), next1);
+    expect(next1).toHaveBeenCalled();
+    expect(next1.mock.calls[0][0].statusCode).toBe(403);
+
+    const next2 = jest.fn();
+    await controller.printReceipt(
+      mockReq({ params: { restaurantId: String(fx.restaurantId) }, body: { order_id: orderId }, user: { id: fx.userId } }),
+      mockRes(),
+      next2
+    );
+    expect(next2).toHaveBeenCalled();
+    expect(next2.mock.calls[0][0].statusCode).toBe(403);
+
+    expect(sentBuffers.length).toBe(0);
+    const after = await jobsFor(fx.restaurantId);
+    expect(after.length).toBe(before.length);
+  });
+
+  test('with RESTAURANT_SERVER_PRINTING_ENABLED=true the controller dials and queues nothing', async () => {
+    await enablePrinting();
+    const before = await jobsFor(fx.restaurantId);
+    process.env.RESTAURANT_SERVER_PRINTING_ENABLED = 'true';
+    try {
+      const res = mockRes();
+      await controller.printTestPage(mockReq({ params: { restaurantId: String(fx.restaurantId) }, user: { id: fx.userId } }), res, jest.fn());
+      expect(res.payload).toEqual({ ok: true, error: null });
+    } finally {
+      delete process.env.RESTAURANT_SERVER_PRINTING_ENABLED;
+    }
     expect(sentBuffers.length).toBe(1);
     expect(sentBuffers[0].host).toBe('192.168.1.50');
     expect(sentBuffers[0].port).toBe(9100);
-    const text = sentBuffers[0].buffer.toString('latin1');
-    expect(text).toContain('Printer Diner');
-    // Test page never kicks the drawer.
-    expect(sentBuffers[0].buffer.includes(Buffer.from([0x1b, 0x70]))).toBe(false);
+    const after = await jobsFor(fx.restaurantId);
+    expect(after.length).toBe(before.length);
   });
 
   test('print-receipt requires order_id and is scoped to the restaurant', async () => {
@@ -298,22 +392,33 @@ ddescribe('restaurant_printer_settings (migration 912)', () => {
     // Fixtures stay in the disposable DB (see afterAll note).
   });
 
-  test('print-receipt prints from a read-only snapshot and never mutates the order', async () => {
+  test('print-receipt queues a receipt job from a read-only snapshot and never mutates the order', async () => {
     await enablePrinting();
     const orderId = await newOrder(fx.restaurantId, fx.businessId);
     const before = await orderRowJson(orderId);
 
     const res = mockRes();
     await controller.printReceipt(
-      mockReq({ params: { restaurantId: String(fx.restaurantId) }, body: { order_id: orderId } }),
+      mockReq({ params: { restaurantId: String(fx.restaurantId) }, body: { order_id: orderId }, user: { id: fx.userId } }),
       res,
       jest.fn()
     );
+    expect(res.statusCode).toBe(202);
     expect(res.payload.ok).toBe(true);
+    expect(res.payload.queued).toBe(true);
+    expect(res.payload.jobStatus).toBe('queued');
     expect(res.payload.orderId).toBe(Number(orderId));
-    expect(sentBuffers.length).toBe(1);
+    // Nothing was dialed: the job waits for a paired in-store device.
+    expect(sentBuffers.length).toBe(0);
 
-    const text = sentBuffers[0].buffer.toString('latin1');
+    const jobs = await jobsFor(fx.restaurantId);
+    const job = jobs[jobs.length - 1];
+    expect(Number(job.id)).toBe(Number(res.payload.jobId));
+    expect(job.job_type).toBe('receipt');
+    expect(Number(job.food_order_id)).toBe(Number(orderId));
+    expect(job.payload.kind).toBe('receipt');
+
+    const text = jobBytes(job).toString('latin1');
     expect(text).toContain('Printer Diner');
     expect(text).toContain('2 x Burger');
     expect(text).toContain('No onions');
@@ -326,7 +431,7 @@ ddescribe('restaurant_printer_settings (migration 912)', () => {
     expect(items[0].n).toBe(1);
   });
 
-  test('drawer kicks only for cash payments when the setting is on', async () => {
+  test('queued receipt kicks the drawer only for cash payments when the setting is on', async () => {
     await enablePrinting({ drawerKickOnCash: true });
     const orderId = await newOrder(fx.restaurantId, fx.businessId);
     await pool.query(
@@ -335,12 +440,13 @@ ddescribe('restaurant_printer_settings (migration 912)', () => {
       [fx.restaurantId, orderId]
     );
     await controller.printReceipt(
-      mockReq({ params: { restaurantId: String(fx.restaurantId) }, body: { order_id: orderId } }),
+      mockReq({ params: { restaurantId: String(fx.restaurantId) }, body: { order_id: orderId }, user: { id: fx.userId } }),
       mockRes(),
       jest.fn()
     );
-    const buf = sentBuffers[sentBuffers.length - 1].buffer;
-    expect(buf.includes(Buffer.from([0x1b, 0x70]))).toBe(true); // ESC p drawer kick present
+    let jobs = await jobsFor(fx.restaurantId);
+    expect(jobBytes(jobs[jobs.length - 1]).includes(Buffer.from([0x1b, 0x70]))).toBe(true); // ESC p drawer kick present
+    expect(jobs[jobs.length - 1].payload.kick_drawer).toBe(true);
 
     // Card-only payment: no kick even with the setting on.
     const cardOrder = await newOrder(fx.restaurantId, fx.businessId);
@@ -350,11 +456,12 @@ ddescribe('restaurant_printer_settings (migration 912)', () => {
       [fx.restaurantId, cardOrder]
     );
     await controller.printReceipt(
-      mockReq({ params: { restaurantId: String(fx.restaurantId) }, body: { order_id: cardOrder } }),
+      mockReq({ params: { restaurantId: String(fx.restaurantId) }, body: { order_id: cardOrder }, user: { id: fx.userId } }),
       mockRes(),
       jest.fn()
     );
-    const cardBuf = sentBuffers[sentBuffers.length - 1].buffer;
-    expect(cardBuf.includes(Buffer.from([0x1b, 0x70]))).toBe(false);
+    jobs = await jobsFor(fx.restaurantId);
+    expect(jobBytes(jobs[jobs.length - 1]).includes(Buffer.from([0x1b, 0x70]))).toBe(false);
+    expect(jobs[jobs.length - 1].payload.kick_drawer).toBe(false);
   });
 });

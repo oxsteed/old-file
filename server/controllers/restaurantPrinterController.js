@@ -1,22 +1,37 @@
 'use strict';
 
-// Restaurant network receipt printer (ESC/POS over TCP) — settings and
-// fire-and-forget printing.
+// Restaurant network receipt printer (ESC/POS) — settings and printing.
+//
+// F-05: the API server no longer dials restaurant LAN printers. A cloud
+// server cannot reach a printer on the restaurant's private network, and
+// dialing owner-configured private addresses from the API host is an SSRF
+// surface. printTestPage / printReceipt instead enqueue a job into the
+// claim-based restaurant_printer_jobs queue; a paired in-store device
+// claims the job and prints on the local network. A direct server-side
+// dial remains available ONLY behind the explicit operator opt-in
+// RESTAURANT_SERVER_PRINTING_ENABLED=true (default off).
 //
 // HARD RULE: printing never touches order, payment, or ledger state.
 // - getPrinterSettings / updatePrinterSettings read/write only the
 //   restaurant_printer_settings configuration row.
-// - printTestPage / printReceipt read settings + an order snapshot and send
-//   bytes to the printer. They perform zero INSERT/UPDATE/DELETE on
-//   food_orders, food_order_items, restaurant_pos_payments, or any money
-//   table. A printer failure returns { ok: false, error } and can never
-//   block, alter, or void an order or payment.
+// - printTestPage / printReceipt read settings + an order snapshot and
+//   insert one restaurant_printer_jobs row (or, under the opt-in flag,
+//   send bytes to the configured printer). They perform zero
+//   INSERT/UPDATE/DELETE on food_orders, food_order_items,
+//   restaurant_pos_payments, or any money table. A printer failure can
+//   never block, alter, or void an order or payment.
 
 const pool = require('../db');
 const AppError = require('../utils/appError');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
 const { validatePrinterHost } = require('../utils/printerHostValidation');
 const escpos = require('../services/escposPrinter');
+
+// Direct server-side dialing is an explicit operator opt-in for trusted
+// single-host deployments. Off by default everywhere, production included.
+function serverPrintingEnabled() {
+  return process.env.RESTAURANT_SERVER_PRINTING_ENABLED === 'true';
+}
 
 const MANAGE_ROLES = new Set(['owner', 'manager']);
 
@@ -177,14 +192,16 @@ function buildOrderReceipt({ restaurant, settings, snapshot }) {
   }
 
   const hasCashPayment = paidTypes.some((p) => p.payment_type === 'cash');
-  return escpos.buildReceipt({
+  const kickDrawer = Boolean(settings.drawerKickOnCash) && hasCashPayment;
+  const buffer = escpos.buildReceipt({
     headerLines,
     metaLines,
     items: receiptItems,
     totals,
     footerLines: ['Thank you for your business!'],
-    kickDrawer: Boolean(settings.drawerKickOnCash) && hasCashPayment,
+    kickDrawer,
   });
+  return { buffer, kickDrawer };
 }
 
 // ── handlers ────────────────────────────────────────────────────────────────
@@ -218,10 +235,11 @@ exports.updatePrinterSettings = async (req, res, next) => {
       throw new AppError('A printer host is required when printing is enabled', 400, 'validation_failed');
     }
 
-    // SSRF guard: the transport dials this host, so it must be a LAN address
-    // (RFC1918 IPv4 or IPv6 unique-local). Validated again at print time.
-    // The original hostname is stored (DHCP-friendly); print time dials the
-    // validated resolved address to close the DNS-rebinding window.
+    // The stored host configures the restaurant's in-store printer and is
+    // the dial target on the opt-in server-printing path, so it must be a
+    // LAN address (RFC1918 IPv4 or IPv6 unique-local). This save-time
+    // check is the only validation point; the queued print path never
+    // resolves or dials the host from the API server.
     const { host: validatedHost } = host ? await validatePrinterHost(host) : { host: null };
 
     const { rows: [saved] } = await pool.query(
@@ -252,13 +270,43 @@ async function requireEnabledSettings(restaurantId) {
   if (!settings.host) {
     throw new AppError('No printer host configured', 409, 'printer_not_configured');
   }
-  // Re-validate on every print: DNS records can change after save, and rows
-  // written before the save-time check must never dial arbitrary hosts.
-  // The dial uses the validated resolved address (dialHost), not the
-  // hostname, so DNS cannot be flipped between validation and connect.
-  // Validation only gates the TCP dial destination; it touches no money state.
-  const { host, dialHost } = await validatePrinterHost(settings.host);
-  return { ...settings, host, dialHost };
+  // Host validation happens once, at settings-save time (see
+  // updatePrinterSettings). The stored host now describes the in-store
+  // printer for the paired device that claims the job; the API server
+  // does not resolve or dial it on the queued path.
+  return settings;
+}
+
+// Enqueue one receipt job for the restaurant's paired in-store devices.
+// The payload carries the exact ESC/POS bytes (base64) plus the target
+// printer from settings, so the claiming device prints on the LAN
+// without the API server ever opening a socket to it.
+async function enqueuePrintJob({ restaurantId, orderId, kind, buffer, kickDrawer, settings, createdBy }) {
+  const payload = {
+    kind,
+    printer: { host: settings.host, port: settings.port },
+    escpos_base64: buffer.toString('base64'),
+    kick_drawer: Boolean(kickDrawer),
+  };
+  const { rows: [job] } = await pool.query(
+    `INSERT INTO restaurant_printer_jobs
+       (restaurant_id, station_id, food_order_id, job_type, payload, created_by)
+     VALUES ($1, NULL, $2, 'receipt', $3, $4)
+     RETURNING id, status`,
+    [restaurantId, orderId || null, JSON.stringify(payload), createdBy || null]
+  );
+  return job;
+}
+
+// Direct-dial path, reachable only when the operator explicitly opts in
+// via RESTAURANT_SERVER_PRINTING_ENABLED=true. The host is re-validated
+// here because this path still opens a socket from the API server: the
+// dial uses the validated resolved address, never the raw hostname.
+// Raw socket errors never reach the client.
+async function dialPrinter(settings, buffer) {
+  const { dialHost } = await validatePrinterHost(settings.host);
+  const result = await escpos.sendToPrinter(dialHost || settings.host, settings.port, buffer);
+  return result.ok ? { ok: true, error: null } : { ok: false, error: 'printer_unreachable' };
 }
 
 exports.printTestPage = async (req, res, next) => {
@@ -266,16 +314,27 @@ exports.printTestPage = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     const restaurant = await resolveRestaurantAccess(req.user.id, restaurantId);
+    // F-05/F-31: printing is a manager action, not mere membership.
+    assertManage(restaurant);
     const settings = await requireEnabledSettings(restaurantId);
-    // Fire-and-forget: escpos.sendToPrinter never throws; the result is
-    // reported to the caller and never touches order/payment state.
     const buffer = escpos.buildTestPage({
       title: restaurant.display_name || 'PRINTER TEST',
       lines: [`${settings.host}:${settings.port}`],
     });
-    // Dial the validated resolved address, never the raw hostname.
-    const result = await escpos.sendToPrinter(settings.dialHost || settings.host, settings.port, buffer);
-    res.json({ ok: result.ok, error: result.ok ? null : result.error });
+    if (serverPrintingEnabled()) {
+      const result = await dialPrinter(settings, buffer);
+      return res.json({ ok: result.ok, error: result.error });
+    }
+    const job = await enqueuePrintJob({
+      restaurantId,
+      orderId: null,
+      kind: 'test_page',
+      buffer,
+      kickDrawer: false,
+      settings,
+      createdBy: req.user.id,
+    });
+    return res.status(202).json({ ok: true, queued: true, jobId: job.id, jobStatus: job.status });
   } catch (err) {
     next(err);
   }
@@ -288,14 +347,28 @@ exports.printReceipt = async (req, res, next) => {
     const orderId = parsePositiveInt(req.body && (req.body.order_id ?? req.body.orderId));
     if (!orderId) throw new AppError('order_id is required', 400, 'validation_failed');
     const restaurant = await resolveRestaurantAccess(req.user.id, restaurantId);
+    // F-05/F-31: printing is a manager action, not mere membership.
+    assertManage(restaurant);
     const settings = await requireEnabledSettings(restaurantId);
     // Read-only snapshot: SELECTs only. Nothing here writes to food_orders,
-    // food_order_items, restaurant_pos_payments, or any ledger.
+    // food_order_items, restaurant_pos_payments, or any ledger; the only
+    // write is the printer job row itself.
     const snapshot = await loadOrderSnapshot(restaurantId, orderId);
-    const buffer = buildOrderReceipt({ restaurant, settings, snapshot });
-    // Dial the validated resolved address, never the raw hostname.
-    const result = await escpos.sendToPrinter(settings.dialHost || settings.host, settings.port, buffer);
-    res.json({ ok: result.ok, error: result.ok ? null : result.error, orderId });
+    const { buffer, kickDrawer } = buildOrderReceipt({ restaurant, settings, snapshot });
+    if (serverPrintingEnabled()) {
+      const result = await dialPrinter(settings, buffer);
+      return res.json({ ok: result.ok, error: result.error, orderId });
+    }
+    const job = await enqueuePrintJob({
+      restaurantId,
+      orderId,
+      kind: 'receipt',
+      buffer,
+      kickDrawer,
+      settings,
+      createdBy: req.user.id,
+    });
+    return res.status(202).json({ ok: true, queued: true, jobId: job.id, jobStatus: job.status, orderId });
   } catch (err) {
     next(err);
   }

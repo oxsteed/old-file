@@ -4702,6 +4702,28 @@
   "restaurants": {
     "ops": {
       "reports": {
+        "downloadCsv": "Telechaje CSV",
+        "exportError": "Pa t kapab telechaje rapò lavant lan.",
+        "breakdown": "Detay",
+        "gross": "Vant brit",
+        "discounts": "Rabè",
+        "netSales": "Vant nèt",
+        "tax": "Taks",
+        "tips": "Poubwa",
+        "serviceFees": "Frè sèvis",
+        "deliveryFees": "Frè livrezon",
+        "refunds": "Ranbousman",
+        "netCollected": "Kòb resevwa nèt",
+        "paymentMethods": "Metòd peman",
+        "paymentsCount": "{{count}} peman",
+        "paymentType": {
+          "cash": "Lajan kach",
+          "card": "Kat",
+          "mobile": "Mobil",
+          "wallet_credit": "Kredi bous",
+          "oxsteed_credit": "OxSteed Credit",
+          "other": "Lòt"
+        },
         "loyalty": {
           "title": "Fidelite kliyan",
           "repeatRate": "To retou kòmann",

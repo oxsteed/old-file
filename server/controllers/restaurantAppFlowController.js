@@ -5054,16 +5054,23 @@ exports.createPosTerminalConnectionToken = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    // F-06: a connection token registers card readers, so it requires POS
+    // permission (pos.use), not mere restaurant membership, and the token
+    // is minted on the restaurant's Connect account.
+    await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage']);
     const settings = safeJson(restaurant.settings);
     const location = normalizeString(
       settings.stripeTerminalLocationId || settings.stripe_terminal_location_id,
       255
     );
-    const token = await posTerminal.createConnectionToken(location);
+    const token = await posTerminal.createConnectionToken(location, { restaurantId });
     res.json({ secret: token.secret, location: location || null });
   } catch (err) {
     if (err.code === 'stripe_not_configured') {
       return next(new AppError('Stripe Terminal is not configured', 503, 'stripe_not_configured'));
+    }
+    if (err.code === 'restaurant_connect_account_missing') {
+      return next(new AppError('This restaurant has not connected a Stripe account for POS Terminal', 409, 'restaurant_connect_account_missing'));
     }
     next(err);
   }

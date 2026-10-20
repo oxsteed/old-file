@@ -52,87 +52,350 @@ function parseRange90(query) {
 }
 
 // ── Sales ────────────────────────────────────────────────────────────────────
-// Revenue counts completed orders only; volume counts everything not
-// cancelled/refunded.
+// F-07: one trustworthy sales report. The previous implementation parsed
+// ranges as UTC days, grouped by the database session zone, counted every
+// 'completed' order's total as revenue (including unpaid ones), summed
+// across currencies under one label, and divided by all non-cancelled
+// orders for the average ticket. This version:
+// - resolves from/to as LOCAL dates in the restaurant's timezone and
+//   groups by local business date;
+// - defines revenue as NET COLLECTED, mirroring getManagerReports in
+//   restaurantAppFlowController: per order, recorded/captured POS
+//   payments minus refund payments when the order has payments, else the
+//   order total when payment_status = 'paid', else 0. Unpaid completed
+//   orders contribute nothing;
+// - never mixes currencies: every figure is computed per currency and
+//   the top-level fields mirror the highest-revenue currency;
+// - avg ticket = net collected / paid orders in the same currency;
+// - carries a full breakdown (gross, discounts, net sales, tax, tips,
+//   fees, refunds) plus a payment-method mix, and a CSV export with the
+//   same facts (salesExportCsv below).
+
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function resolveReportTimezone(restaurant) {
+  const tz = restaurant && restaurant.timezone ? String(restaurant.timezone) : 'UTC';
+  try {
+    // Throws RangeError for anything that is not a valid IANA zone.
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return tz;
+  } catch {
+    return 'UTC';
+  }
+}
+
+function localDateString(date, timezone) {
+  // en-CA formats as YYYY-MM-DD.
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(date);
+}
+
+function shiftDateString(dateStr, days) {
+  const d = new Date(`${dateStr}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function isRealDateString(value) {
+  if (!DATE_ONLY_RE.test(value)) return false;
+  const d = new Date(`${value}T12:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
+}
+
+// from/to are local calendar dates (YYYY-MM-DD) in the restaurant's
+// timezone, matching what the reports panel sends. Defaults: the last 30
+// local days including today.
+function parseSalesRange(query, timezone) {
+  if ((query.from && !isRealDateString(query.from)) || (query.to && !isRealDateString(query.to))) {
+    throw new AppError('Invalid date range', 400, 'invalid_range');
+  }
+  const toDate = query.to || localDateString(new Date(), timezone);
+  const fromDate = query.from || shiftDateString(toDate, -29);
+  if (fromDate > toDate) {
+    throw new AppError('Invalid date range', 400, 'invalid_range');
+  }
+  const days = Math.round(
+    (new Date(`${toDate}T12:00:00Z`) - new Date(`${fromDate}T12:00:00Z`)) / 86400000
+  ) + 1;
+  if (days > MAX_RANGE_DAYS) {
+    throw new AppError(`Date range capped at ${MAX_RANGE_DAYS} days`, 400, 'range_too_wide');
+  }
+  return { fromDate, toDate };
+}
+
+// Per-order financials, mirroring the net-collected definition in
+// getManagerReports (restaurantAppFlowController) exactly. $1 restaurant,
+// $2 from local date, $3 to local date, $4 timezone.
+const ORDER_FINANCIALS_CTE = `
+  WITH order_financials AS (
+    SELECT fo.*,
+           CASE
+             WHEN COALESCE(pos.payment_count, 0) > 0
+               THEN GREATEST(0, pos.collected_cents - pos.refunded_cents)
+             WHEN fo.payment_status = 'paid' THEN fo.total_cents
+             ELSE 0
+           END::int AS net_collected_cents,
+           COALESCE(pos.collected_cents, 0)::int AS collected_cents,
+           COALESCE(pos.refunded_cents, 0)::int AS refunded_cents
+      FROM food_orders fo
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*) FILTER (
+                 WHERE payment_type <> 'refund' AND status IN ('recorded','captured')
+               )::int AS payment_count,
+               COALESCE(SUM(amount_cents) FILTER (
+                 WHERE payment_type <> 'refund' AND status IN ('recorded','captured')
+               ), 0)::int AS collected_cents,
+               COALESCE(SUM(amount_cents) FILTER (
+                 WHERE payment_type = 'refund' AND status IN ('recorded','captured','refunded')
+               ), 0)::int AS refunded_cents
+          FROM restaurant_pos_payments p
+         WHERE p.food_order_id = fo.id
+      ) pos ON TRUE
+     WHERE fo.restaurant_id = $1
+       AND fo.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
+       AND fo.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
+  )`;
+
+const SALES_COMPONENT_SUMS = `
+  COUNT(*) FILTER (WHERE status NOT IN ('cancelled', 'refunded'))::int AS orders,
+  COUNT(*) FILTER (WHERE net_collected_cents > 0)::int AS paid_orders,
+  COALESCE(SUM(net_collected_cents), 0)::int AS revenue_cents,
+  COALESCE(SUM(subtotal_cents) FILTER (WHERE net_collected_cents > 0), 0)::int AS gross_cents,
+  COALESCE(SUM(discount_cents) FILTER (WHERE net_collected_cents > 0), 0)::int AS discount_cents,
+  COALESCE(SUM(tax_cents) FILTER (WHERE net_collected_cents > 0), 0)::int AS tax_cents,
+  COALESCE(SUM(tip_cents) FILTER (WHERE net_collected_cents > 0), 0)::int AS tips_cents,
+  COALESCE(SUM(service_fee_cents) FILTER (WHERE net_collected_cents > 0), 0)::int AS service_fee_cents,
+  COALESCE(SUM(delivery_fee_cents) FILTER (WHERE net_collected_cents > 0), 0)::int AS delivery_fee_cents,
+  COALESCE(SUM(collected_cents), 0)::int AS collected_cents,
+  COALESCE(SUM(refunded_cents), 0)::int AS refunds_cents`;
+
+function salesTotalsShape(row) {
+  const revenue = Number(row.revenue_cents || 0);
+  const paidOrders = Number(row.paid_orders || 0);
+  const gross = Number(row.gross_cents || 0);
+  const discounts = Number(row.discount_cents || 0);
+  return {
+    orders: Number(row.orders || 0),
+    paid_orders: paidOrders,
+    revenue_cents: revenue,
+    avg_ticket_cents: paidOrders > 0 ? Math.round(revenue / paidOrders) : 0,
+    cancelled: Number(row.cancelled || 0),
+    refunded: Number(row.refunded || 0),
+    gross_cents: gross,
+    discount_cents: discounts,
+    net_sales_cents: gross - discounts,
+    tax_cents: Number(row.tax_cents || 0),
+    tips_cents: Number(row.tips_cents || 0),
+    service_fee_cents: Number(row.service_fee_cents || 0),
+    delivery_fee_cents: Number(row.delivery_fee_cents || 0),
+    collected_cents: Number(row.collected_cents || 0),
+    refunds_cents: Number(row.refunds_cents || 0),
+  };
+}
+
+function salesDayShape(row) {
+  const revenue = Number(row.revenue_cents || 0);
+  const paidOrders = Number(row.paid_orders || 0);
+  const gross = Number(row.gross_cents || 0);
+  const discounts = Number(row.discount_cents || 0);
+  return {
+    day: row.day,
+    orders: Number(row.orders || 0),
+    paid_orders: paidOrders,
+    revenue_cents: revenue,
+    avg_ticket_cents: paidOrders > 0 ? Math.round(revenue / paidOrders) : 0,
+    gross_cents: gross,
+    discount_cents: discounts,
+    net_sales_cents: gross - discounts,
+    tax_cents: Number(row.tax_cents || 0),
+    tips_cents: Number(row.tips_cents || 0),
+    service_fee_cents: Number(row.service_fee_cents || 0),
+    delivery_fee_cents: Number(row.delivery_fee_cents || 0),
+    refunds_cents: Number(row.refunds_cents || 0),
+  };
+}
+
+async function computeSalesReport(restaurantId, restaurant, query) {
+  const timezone = resolveReportTimezone(restaurant);
+  const { fromDate, toDate } = parseSalesRange(query || {}, timezone);
+  const params = [restaurantId, fromDate, toDate, timezone];
+  const [bounds, totals, daily, byFulfillment, bySource, paymentMethods] = await Promise.all([
+    pool.query(
+      `SELECT (($1::date)::timestamp AT TIME ZONE $3) AS from_instant,
+              ((($2::date + 1))::timestamp AT TIME ZONE $3) AS to_instant`,
+      [fromDate, toDate, timezone]
+    ),
+    pool.query(
+      `${ORDER_FINANCIALS_CTE}
+       SELECT COALESCE(NULLIF(currency_code, ''), 'USD') AS currency,
+              ${SALES_COMPONENT_SUMS},
+              COUNT(*) FILTER (WHERE status = 'cancelled')::int AS cancelled,
+              COUNT(*) FILTER (WHERE status = 'refunded')::int AS refunded
+         FROM order_financials
+        GROUP BY 1
+        ORDER BY revenue_cents DESC`,
+      params
+    ),
+    pool.query(
+      `${ORDER_FINANCIALS_CTE}
+       SELECT COALESCE(NULLIF(currency_code, ''), 'USD') AS currency,
+              to_char((created_at AT TIME ZONE $4)::date, 'YYYY-MM-DD') AS day,
+              ${SALES_COMPONENT_SUMS}
+         FROM order_financials
+        GROUP BY 1, 2
+        ORDER BY 2 ASC`,
+      params
+    ),
+    pool.query(
+      `${ORDER_FINANCIALS_CTE}
+       SELECT COALESCE(NULLIF(currency_code, ''), 'USD') AS currency,
+              fulfillment_type,
+              COUNT(*) FILTER (WHERE status NOT IN ('cancelled', 'refunded'))::int AS orders,
+              COUNT(*) FILTER (WHERE net_collected_cents > 0)::int AS paid_orders,
+              COALESCE(SUM(net_collected_cents), 0)::int AS revenue_cents
+         FROM order_financials
+        GROUP BY 1, 2
+        ORDER BY revenue_cents DESC`,
+      params
+    ),
+    pool.query(
+      `${ORDER_FINANCIALS_CTE}
+       SELECT COALESCE(NULLIF(currency_code, ''), 'USD') AS currency,
+              order_source,
+              COUNT(*) FILTER (WHERE status NOT IN ('cancelled', 'refunded'))::int AS orders,
+              COUNT(*) FILTER (WHERE net_collected_cents > 0)::int AS paid_orders,
+              COALESCE(SUM(net_collected_cents), 0)::int AS revenue_cents
+         FROM order_financials
+        GROUP BY 1, 2
+        ORDER BY revenue_cents DESC`,
+      params
+    ),
+    pool.query(
+      `SELECT COALESCE(NULLIF(fo.currency_code, ''), 'USD') AS currency,
+              p.payment_type,
+              COUNT(*)::int AS payments,
+              COALESCE(SUM(p.amount_cents), 0)::int AS amount_cents
+         FROM restaurant_pos_payments p
+         JOIN food_orders fo ON fo.id = p.food_order_id
+        WHERE p.restaurant_id = $1
+          AND p.payment_type <> 'refund'
+          AND p.status IN ('recorded', 'captured')
+          AND fo.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
+          AND fo.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
+        GROUP BY 1, 2
+        ORDER BY amount_cents DESC`,
+      params
+    ),
+  ]);
+
+  const byCurrency = new Map();
+  const entryFor = (currency) => {
+    if (!byCurrency.has(currency)) {
+      byCurrency.set(currency, {
+        currency,
+        totals: null,
+        daily: [],
+        by_fulfillment: [],
+        by_source: [],
+        payment_methods: [],
+      });
+    }
+    return byCurrency.get(currency);
+  };
+  for (const row of totals.rows) entryFor(row.currency).totals = salesTotalsShape(row);
+  for (const row of daily.rows) entryFor(row.currency).daily.push(salesDayShape(row));
+  for (const row of byFulfillment.rows) {
+    entryFor(row.currency).by_fulfillment.push({
+      fulfillment_type: row.fulfillment_type,
+      orders: Number(row.orders),
+      paid_orders: Number(row.paid_orders),
+      revenue_cents: Number(row.revenue_cents),
+    });
+  }
+  for (const row of bySource.rows) {
+    entryFor(row.currency).by_source.push({
+      order_source: row.order_source,
+      orders: Number(row.orders),
+      paid_orders: Number(row.paid_orders),
+      revenue_cents: Number(row.revenue_cents),
+    });
+  }
+  for (const row of paymentMethods.rows) {
+    entryFor(row.currency).payment_methods.push({
+      payment_type: row.payment_type,
+      payments: Number(row.payments),
+      amount_cents: Number(row.amount_cents),
+    });
+  }
+  const currencies = [...byCurrency.values()].filter((c) => c.totals);
+  currencies.sort((a, b) => b.totals.revenue_cents - a.totals.revenue_cents);
+
+  const primary = currencies[0] || null;
+  const emptyTotals = salesTotalsShape({});
+  const bound = bounds.rows[0] || {};
+  return {
+    from: bound.from_instant ? new Date(bound.from_instant).toISOString() : null,
+    to: bound.to_instant ? new Date(bound.to_instant).toISOString() : null,
+    from_date: fromDate,
+    to_date: toDate,
+    timezone,
+    currency: primary ? primary.currency : (restaurant.currency_code || 'USD'),
+    totals: primary ? primary.totals : emptyTotals,
+    daily: primary ? primary.daily : [],
+    by_fulfillment: primary ? primary.by_fulfillment : [],
+    by_source: primary ? primary.by_source : [],
+    payment_methods: primary ? primary.payment_methods : [],
+    currencies,
+  };
+}
+
 exports.salesSummary = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
-    const { from, to } = parseRange(req.query);
-    const [daily, totals, byFulfillment, bySource, currencyRow] = await Promise.all([
-      pool.query(
-        `SELECT DATE(created_at) AS day,
-                COUNT(*) FILTER (WHERE status NOT IN ('cancelled', 'refunded')) AS orders,
-                COALESCE(SUM(total_cents) FILTER (WHERE status = 'completed'), 0) AS revenue_cents
-           FROM food_orders
-          WHERE restaurant_id = $1 AND created_at BETWEEN $2 AND $3
-          GROUP BY DATE(created_at)
-          ORDER BY day ASC`,
-        [restaurantId, from, to]
-      ),
-      pool.query(
-        `SELECT COUNT(*) FILTER (WHERE status NOT IN ('cancelled', 'refunded')) AS orders,
-                COALESCE(SUM(total_cents) FILTER (WHERE status = 'completed'), 0) AS revenue_cents,
-                COUNT(*) FILTER (WHERE status = 'cancelled') AS cancelled,
-                COUNT(*) FILTER (WHERE status = 'refunded') AS refunded
-           FROM food_orders
-          WHERE restaurant_id = $1 AND created_at BETWEEN $2 AND $3`,
-        [restaurantId, from, to]
-      ),
-      pool.query(
-        `SELECT fulfillment_type,
-                COUNT(*) FILTER (WHERE status NOT IN ('cancelled', 'refunded')) AS orders,
-                COALESCE(SUM(total_cents) FILTER (WHERE status = 'completed'), 0) AS revenue_cents
-           FROM food_orders
-          WHERE restaurant_id = $1 AND created_at BETWEEN $2 AND $3
-          GROUP BY fulfillment_type
-          ORDER BY revenue_cents DESC`,
-        [restaurantId, from, to]
-      ),
-      pool.query(
-        `SELECT order_source,
-                COUNT(*) FILTER (WHERE status NOT IN ('cancelled', 'refunded')) AS orders,
-                COALESCE(SUM(total_cents) FILTER (WHERE status = 'completed'), 0) AS revenue_cents
-           FROM food_orders
-          WHERE restaurant_id = $1 AND created_at BETWEEN $2 AND $3
-          GROUP BY order_source
-          ORDER BY revenue_cents DESC`,
-        [restaurantId, from, to]
-      ),
-      pool.query(
-        `SELECT currency_code FROM food_orders
-          WHERE restaurant_id = $1 AND created_at BETWEEN $2 AND $3
-          GROUP BY currency_code ORDER BY COUNT(*) DESC LIMIT 1`,
-        [restaurantId, from, to]
-      ),
-    ]);
-    const t = totals.rows[0];
-    res.json({
-      from, to,
-      currency: currencyRow.rows[0]?.currency_code || 'USD',
-      totals: {
-        orders: Number(t.orders),
-        revenue_cents: Number(t.revenue_cents),
-        avg_ticket_cents: t.orders > 0 ? Math.round(Number(t.revenue_cents) / Number(t.orders)) : 0,
-        cancelled: Number(t.cancelled),
-        refunded: Number(t.refunded),
-      },
-      daily: daily.rows.map((r) => ({
-        day: r.day,
-        orders: Number(r.orders),
-        revenue_cents: Number(r.revenue_cents),
-      })),
-      by_fulfillment: byFulfillment.rows.map((r) => ({
-        fulfillment_type: r.fulfillment_type,
-        orders: Number(r.orders),
-        revenue_cents: Number(r.revenue_cents),
-      })),
-      by_source: bySource.rows.map((r) => ({
-        order_source: r.order_source,
-        orders: Number(r.orders),
-        revenue_cents: Number(r.revenue_cents),
-      })),
-    });
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const report = await computeSalesReport(restaurantId, restaurant, req.query);
+    res.json(report);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// CSV export with exactly the facts computeSalesReport produces: one row
+// per local business day per currency, plus a TOTAL row per currency.
+const SALES_CSV_COLUMNS = [
+  'date', 'currency', 'orders', 'paid_orders', 'gross_cents', 'discounts_cents',
+  'net_sales_cents', 'tax_cents', 'tips_cents', 'service_fees_cents',
+  'delivery_fees_cents', 'refunds_cents', 'net_collected_cents', 'avg_ticket_cents',
+];
+
+function salesCsvRow(date, currency, s) {
+  return [
+    date, currency, s.orders, s.paid_orders, s.gross_cents, s.discount_cents,
+    s.net_sales_cents, s.tax_cents, s.tips_cents, s.service_fee_cents,
+    s.delivery_fee_cents, s.refunds_cents, s.revenue_cents, s.avg_ticket_cents,
+  ].join(',');
+}
+
+exports.salesExportCsv = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const report = await computeSalesReport(restaurantId, restaurant, req.query);
+    const lines = [SALES_CSV_COLUMNS.join(',')];
+    if (report.currencies.length === 0) {
+      lines.push(salesCsvRow('TOTAL', report.currency, report.totals));
+    }
+    for (const c of report.currencies) {
+      for (const d of c.daily) lines.push(salesCsvRow(d.day, c.currency, d));
+      lines.push(salesCsvRow('TOTAL', c.currency, c.totals));
+    }
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="sales-report-${report.from_date}-to-${report.to_date}.csv"`
+    );
+    res.send(`${lines.join('\n')}\n`);
   } catch (err) {
     next(err);
   }

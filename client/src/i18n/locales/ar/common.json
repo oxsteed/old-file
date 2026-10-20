@@ -4702,6 +4702,28 @@
   "restaurants": {
     "ops": {
       "reports": {
+        "downloadCsv": "تنزيل CSV",
+        "exportError": "تعذر تنزيل تقرير المبيعات.",
+        "breakdown": "التفاصيل",
+        "gross": "المبيعات الإجمالية",
+        "discounts": "الخصومات",
+        "netSales": "صافي المبيعات",
+        "tax": "الضرائب",
+        "tips": "الإكراميات",
+        "serviceFees": "رسوم الخدمة",
+        "deliveryFees": "رسوم التوصيل",
+        "refunds": "المبالغ المستردة",
+        "netCollected": "صافي المحصل",
+        "paymentMethods": "طرق الدفع",
+        "paymentsCount": "{{count}} دفعة",
+        "paymentType": {
+          "cash": "نقدًا",
+          "card": "بطاقة",
+          "mobile": "الجوال",
+          "wallet_credit": "رصيد المحفظة",
+          "oxsteed_credit": "OxSteed Credit",
+          "other": "أخرى"
+        },
         "loyalty": {
           "title": "ولاء العملاء",
           "repeatRate": "معدل الطلبات المتكررة",

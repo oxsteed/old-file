@@ -4702,6 +4702,28 @@
   "restaurants": {
     "ops": {
       "reports": {
+        "downloadCsv": "Télécharger le CSV",
+        "exportError": "Impossible de télécharger le rapport de ventes.",
+        "breakdown": "Détail",
+        "gross": "Ventes brutes",
+        "discounts": "Remises",
+        "netSales": "Ventes nettes",
+        "tax": "Taxes",
+        "tips": "Pourboires",
+        "serviceFees": "Frais de service",
+        "deliveryFees": "Frais de livraison",
+        "refunds": "Remboursements",
+        "netCollected": "Encaissé net",
+        "paymentMethods": "Moyens de paiement",
+        "paymentsCount": "{{count}} paiements",
+        "paymentType": {
+          "cash": "Espèces",
+          "card": "Carte",
+          "mobile": "Mobile",
+          "wallet_credit": "Crédit portefeuille",
+          "oxsteed_credit": "OxSteed Credit",
+          "other": "Autre"
+        },
         "loyalty": {
           "title": "Fidélité client",
           "repeatRate": "Taux de commandes répétées",

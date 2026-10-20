@@ -152,6 +152,9 @@ export const updateCorrectiveAction = (restaurantId, actionId, payload) =>
 export const getSalesReport = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/reports/sales`, { params }).then((r) => r.data);
 
+export const downloadSalesReportCsv = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/sales/export.csv`, { params, responseType: 'blob' }).then((r) => r.data);
+
 export const getInventoryReport = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/reports/inventory`, { params }).then((r) => r.data);
 

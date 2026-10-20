@@ -22,6 +22,7 @@ function app() {
     next();
   });
   server.get('/api/restaurants/:restaurantId/reports/sales', reports.salesSummary);
+  server.get('/api/restaurants/:restaurantId/reports/sales/export.csv', reports.salesExportCsv);
   server.get('/api/restaurants/:restaurantId/reports/inventory', reports.inventorySummary);
   server.get('/api/restaurants/:restaurantId/reports/operations', reports.operationsSummary);
   server.use(errorHandler);
@@ -37,22 +38,53 @@ describe('franchise reports backend', () => {
     expect(res.status).toBe(403);
   });
 
-  test('salesSummary returns daily rows, totals, and breakdowns', async () => {
+  // F-07: salesSummary runs bounds + totals + daily + fulfillment +
+  // source + payment-method queries (in that order) over an
+  // order-financials CTE; revenue is net collected per currency.
+  function mockSalesQueries() {
+    const money = {
+      orders: '12', paid_orders: '10', revenue_cents: '4800',
+      gross_cents: '5000', discount_cents: '200', tax_cents: '300',
+      tips_cents: '150', service_fee_cents: '0', delivery_fee_cents: '0',
+      collected_cents: '4800', refunds_cents: '0',
+    };
     mockQuery
       .mockResolvedValueOnce({ rows: [access('manager')] })
-      .mockResolvedValueOnce({ rows: [{ day: '2026-10-01', orders: '12', revenue_cents: '4800' }] })
-      .mockResolvedValueOnce({ rows: [{ orders: '12', revenue_cents: '4800', cancelled: '1', refunded: '0' }] })
-      .mockResolvedValueOnce({ rows: [{ fulfillment_type: 'pickup', orders: '12', revenue_cents: '4800' }] })
-      .mockResolvedValueOnce({ rows: [{ order_source: 'mobile', orders: '12', revenue_cents: '4800' }] })
-      .mockResolvedValueOnce({ rows: [{ currency_code: 'USD' }] });
+      .mockResolvedValueOnce({ rows: [{ from_instant: '2026-10-01T00:00:00.000Z', to_instant: '2026-10-04T00:00:00.000Z' }] })
+      .mockResolvedValueOnce({ rows: [{ currency: 'USD', ...money, cancelled: '1', refunded: '0' }] })
+      .mockResolvedValueOnce({ rows: [{ currency: 'USD', day: '2026-10-01', ...money }] })
+      .mockResolvedValueOnce({ rows: [{ currency: 'USD', fulfillment_type: 'pickup', orders: '12', paid_orders: '10', revenue_cents: '4800' }] })
+      .mockResolvedValueOnce({ rows: [{ currency: 'USD', order_source: 'mobile', orders: '12', paid_orders: '10', revenue_cents: '4800' }] })
+      .mockResolvedValueOnce({ rows: [{ currency: 'USD', payment_type: 'cash', payments: '10', amount_cents: '4800' }] });
+  }
+
+  test('salesSummary returns daily rows, totals, and breakdowns', async () => {
+    mockSalesQueries();
     const res = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/reports/sales?from=2026-10-01&to=2026-10-03`);
     expect(res.status).toBe(200);
     expect(res.body.totals.orders).toBe(12);
     expect(res.body.totals.revenue_cents).toBe(4800);
-    expect(res.body.totals.avg_ticket_cents).toBe(400);
+    // Avg ticket divides net collected by PAID orders (10), not all orders.
+    expect(res.body.totals.avg_ticket_cents).toBe(480);
+    expect(res.body.totals.net_sales_cents).toBe(4800); // 5000 gross - 200 discounts
+    expect(res.body.totals.tax_cents).toBe(300);
     expect(res.body.daily).toHaveLength(1);
     expect(res.body.by_fulfillment[0].fulfillment_type).toBe('pickup');
     expect(res.body.currency).toBe('USD');
+    expect(res.body.currencies).toHaveLength(1);
+    expect(res.body.payment_methods[0]).toEqual({ payment_type: 'cash', payments: 10, amount_cents: 4800 });
+  });
+
+  test('salesExportCsv streams the same facts as CSV', async () => {
+    mockSalesQueries();
+    const res = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/reports/sales/export.csv?from=2026-10-01&to=2026-10-03`);
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('text/csv');
+    expect(res.headers['content-disposition']).toContain('sales-report-2026-10-01-to-2026-10-03.csv');
+    const lines = res.text.trim().split('\n');
+    expect(lines[0]).toContain('net_collected_cents');
+    expect(lines).toContain('2026-10-01,USD,12,10,5000,200,4800,300,150,0,0,0,4800,480');
+    expect(lines).toContain('TOTAL,USD,12,10,5000,200,4800,300,150,0,0,0,4800,480');
   });
 
   test('salesSummary rejects invalid ranges', async () => {

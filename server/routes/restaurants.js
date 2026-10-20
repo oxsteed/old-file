@@ -217,6 +217,7 @@ router.patch('/:restaurantId/audits/corrective-actions/:actionId', requireRestau
 
 // Franchise reports (manager-only)
 router.get('/:restaurantId/reports/sales', requireRestaurantAccess(), franchiseReports.salesSummary);
+router.get('/:restaurantId/reports/sales/export.csv', requireRestaurantAccess(), franchiseReports.salesExportCsv);
 router.get('/:restaurantId/reports/inventory', requireRestaurantAccess(), franchiseReports.inventorySummary);
 router.get('/:restaurantId/reports/operations', requireRestaurantAccess(), franchiseReports.operationsSummary);
 // Loyalty: repeat-order rate + top items (analytics platform, Phase 2 Item 10)
@@ -308,9 +309,11 @@ router.get('/:restaurantId/pos/payments/:paymentId', requireRestaurantAccess(), 
 router.post('/:restaurantId/pos/payments/:paymentId/capture', requireRestaurantAccess(), appFlow.capturePosCardPayment);
 router.post('/:restaurantId/pos/payments/:paymentId/refund', requireRestaurantAccess(), appFlow.refundPosCardPayment);
 router.post('/:restaurantId/pos/orders/:orderId/reprint-receipt', requireRestaurantAccess(), appFlow.reprintReceipt);
-// Network receipt printer (ESC/POS) + cash drawer. Fire-and-forget: printing
-// never writes to order/payment tables, so it cannot alter order or payment
-// state.
+// Network receipt printer (ESC/POS) + cash drawer. F-05: prints are queued
+// as restaurant_printer_jobs for paired in-store devices; the API server
+// does not dial the printer (direct dial only behind
+// RESTAURANT_SERVER_PRINTING_ENABLED=true). Printing never writes to
+// order/payment tables, so it cannot alter order or payment state.
 router.get('/:restaurantId/printer-settings', requireRestaurantAccess(), printer.getPrinterSettings);
 router.put('/:restaurantId/printer-settings', requireRestaurantAccess(), printer.updatePrinterSettings);
 router.post('/:restaurantId/printer-test', requireRestaurantAccess(), printer.printTestPage);

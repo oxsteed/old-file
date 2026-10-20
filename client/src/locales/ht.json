@@ -23881,6 +23881,28 @@
         }
       },
       "reports": {
+        "downloadCsv": "Telechaje CSV",
+        "exportError": "Pa t kapab telechaje rapò lavant lan.",
+        "breakdown": "Detay",
+        "gross": "Vant brit",
+        "discounts": "Rabè",
+        "netSales": "Vant nèt",
+        "tax": "Taks",
+        "tips": "Poubwa",
+        "serviceFees": "Frè sèvis",
+        "deliveryFees": "Frè livrezon",
+        "refunds": "Ranbousman",
+        "netCollected": "Kòb resevwa nèt",
+        "paymentMethods": "Metòd peman",
+        "paymentsCount": "{{count}} peman",
+        "paymentType": {
+          "cash": "Lajan kach",
+          "card": "Kat",
+          "mobile": "Mobil",
+          "wallet_credit": "Kredi bous",
+          "oxsteed_credit": "OxSteed Credit",
+          "other": "Lòt"
+        },
         "loadError": "Pa t kapab chaje rapò yo",
         "title": "Rapò",
         "rangeLabel": "Peryòd dat",
@@ -35206,6 +35228,7 @@
       "loadError": "Pa t kapab chaje paramèt enprimant lan.",
       "saveError": "Pa t kapab anrejistre paramèt enprimant lan.",
       "testSuccess": "Paj tès la voye. Tcheke enprimant lan.",
+      "testQueued": "Paj tès la nan liy. Yon aparèy ki konekte nan magazen an ap enprime li.",
       "testFailed": "Enpresyon an echwe. Tcheke koneksyon an epi eseye ankò.",
       "enableFirst": "Aktive enpresyon resi a epi anrejistre anvan.",
       "hostNotLocal": "Host enprimant lan dwe yon adrès rezo lokal."

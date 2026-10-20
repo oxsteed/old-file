@@ -94,7 +94,11 @@ export default function PrinterSettingsPanel({ t, restaurant }) {
     setTestResult(null);
     try {
       const res = await api.post(`/restaurants/${restaurantId}/printer-test`);
-      if (res.data?.ok) {
+      if (res.data?.queued) {
+        // F-05: the print waits in the printer-jobs queue for a paired
+        // in-store device; nothing was dialed from the server.
+        setTestResult({ ok: true, message: t('printer.testQueued') });
+      } else if (res.data?.ok) {
         setTestResult({ ok: true, message: t('printer.testSuccess') });
       } else {
         setTestResult({ ok: false, message: res.data?.error || t('printer.testFailed') });

@@ -23881,6 +23881,28 @@
         }
       },
       "reports": {
+        "downloadCsv": "Télécharger le CSV",
+        "exportError": "Impossible de télécharger le rapport de ventes.",
+        "breakdown": "Détail",
+        "gross": "Ventes brutes",
+        "discounts": "Remises",
+        "netSales": "Ventes nettes",
+        "tax": "Taxes",
+        "tips": "Pourboires",
+        "serviceFees": "Frais de service",
+        "deliveryFees": "Frais de livraison",
+        "refunds": "Remboursements",
+        "netCollected": "Encaissé net",
+        "paymentMethods": "Moyens de paiement",
+        "paymentsCount": "{{count}} paiements",
+        "paymentType": {
+          "cash": "Espèces",
+          "card": "Carte",
+          "mobile": "Mobile",
+          "wallet_credit": "Crédit portefeuille",
+          "oxsteed_credit": "OxSteed Credit",
+          "other": "Autre"
+        },
         "loadError": "Impossible de charger les rapports",
         "title": "Rapports",
         "rangeLabel": "Plage de dates",
@@ -35206,6 +35228,7 @@
       "loadError": "Impossible de charger les paramètres de l'imprimante.",
       "saveError": "Impossible d'enregistrer les paramètres de l'imprimante.",
       "testSuccess": "Page de test envoyée. Vérifiez l'imprimante.",
+      "testQueued": "Page de test mise en file. Un appareil jumelé en magasin l'imprimera.",
       "testFailed": "Échec d'impression. Vérifiez la connexion et réessayez.",
       "enableFirst": "Activez d'abord l'impression des reçus et enregistrez.",
       "hostNotLocal": "L'hôte de l'imprimante doit être une adresse de réseau local."

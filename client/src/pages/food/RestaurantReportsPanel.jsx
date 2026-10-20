@@ -13,6 +13,7 @@ import { Receipt, Activity } from 'lucide-react';
 import EmptyState from '../../components/EmptyState';
 import {
   getSalesReport,
+  downloadSalesReportCsv,
   getInventoryReport,
   getOperationsReport,
   getLoyaltyReport,
@@ -121,6 +122,26 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
   const onFromChange = (value) => { setPreset(null); setFrom(value); };
   const onToChange = (value) => { setPreset(null); setTo(value); };
 
+  const [exporting, setExporting] = useState(false);
+  const onExportCsv = async () => {
+    setExporting(true);
+    try {
+      const blob = await downloadSalesReportCsv(restaurantId, { from, to });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `sales-report-${from}-to-${to}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.exportError')));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const toolbar = (withControls) => (
     <div className={`fd-ops-toolbar${bare ? ' fd-ops-toolbar--end' : ''}`}>
       {!bare && <h3 className="fd-ops-panel-title">{t('restaurants.ops.reports.title', 'Reports')}</h3>}
@@ -145,6 +166,14 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
             <label htmlFor="rpt-to">{t('restaurants.ops.reports.toLabel', 'To')}</label>
             <input id="rpt-to" type="date" value={to} min={from} onChange={(e) => onToChange(e.target.value)} />
           </div>
+          <button
+            type="button"
+            className="fd-btn fd-btn-sm fd-btn-secondary"
+            onClick={onExportCsv}
+            disabled={exporting}
+          >
+            {t('restaurants.ops.reports.downloadCsv')}
+          </button>
         </div>
       )}
     </div>
@@ -168,12 +197,21 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
     );
   }
 
-  const totals = sales?.totals || {};
   const currency = sales?.currency || 'USD';
-  const daily = Array.isArray(sales?.daily) ? sales.daily : [];
-  const maxRevenue = daily.reduce((m, d) => Math.max(m, Number(d.revenue_cents) || 0), 0);
-  const fulfillment = Array.isArray(sales?.by_fulfillment) ? sales.by_fulfillment : [];
-  const sources = Array.isArray(sales?.by_source) ? sales.by_source : [];
+  // F-07: the sales report is per currency; figures are never summed
+  // across currencies. Fall back to the legacy top-level shape if an
+  // older API response has no currencies array.
+  const currencySections = Array.isArray(sales?.currencies) && sales.currencies.length > 0
+    ? sales.currencies
+    : (sales ? [{
+        currency,
+        totals: sales.totals || {},
+        daily: Array.isArray(sales.daily) ? sales.daily : [],
+        by_fulfillment: Array.isArray(sales.by_fulfillment) ? sales.by_fulfillment : [],
+        by_source: Array.isArray(sales.by_source) ? sales.by_source : [],
+        payment_methods: Array.isArray(sales.payment_methods) ? sales.payment_methods : [],
+      }] : []);
+  const hasSalesOrders = currencySections.some((s) => (s.totals?.orders || 0) > 0);
   const adjustments = Array.isArray(inventory?.by_type) ? inventory.by_type : [];
   const waste = Array.isArray(inventory?.top_waste) ? inventory.top_waste : [];
   const ops = operations || {};
@@ -181,12 +219,148 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
   const audits = ops.audits || {};
   const training = ops.training || {};
 
-  const dayLabel = (iso) => {
+  const dayLabel = (iso, dayCount) => {
     const d = new Date(`${iso}T00:00:00`);
     if (Number.isNaN(d.getTime())) return iso;
-    return daily.length > 14
+    return dayCount > 14
       ? d.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })
       : d.toLocaleDateString(undefined, { weekday: 'short' });
+  };
+
+  const KNOWN_PAYMENT_TYPES = ['cash', 'card', 'mobile', 'wallet_credit', 'oxsteed_credit'];
+
+  const renderSalesSection = (section) => {
+    const ccy = section.currency || 'USD';
+    const totals = section.totals || {};
+    const daily = Array.isArray(section.daily) ? section.daily : [];
+    const maxRevenue = daily.reduce((m, d) => Math.max(m, Number(d.revenue_cents) || 0), 0);
+    const fulfillment = Array.isArray(section.by_fulfillment) ? section.by_fulfillment : [];
+    const sources = Array.isArray(section.by_source) ? section.by_source : [];
+    const methods = Array.isArray(section.payment_methods) ? section.payment_methods : [];
+    const breakdownRows = [
+      ['gross', totals.gross_cents],
+      ['discounts', totals.discount_cents],
+      ['netSales', totals.net_sales_cents],
+      ['tax', totals.tax_cents],
+      ['tips', totals.tips_cents],
+      ['serviceFees', totals.service_fee_cents],
+      ['deliveryFees', totals.delivery_fee_cents],
+      ['refunds', totals.refunds_cents],
+      ['netCollected', totals.revenue_cents],
+    ];
+    return (
+      <div key={ccy}>
+        {currencySections.length > 1 && (
+          <h3 className="fd-ops-subhead">{ccy}</h3>
+        )}
+        <div className="fd-ops-checklists-grid">
+          <div className="fd-ops-checklist-card">
+            <strong>{formatFoodMoney(totals.revenue_cents || 0, ccy)}</strong>
+            <p className="fd-card-meta">{t('restaurants.ops.reports.revenue', 'Revenue')}</p>
+          </div>
+          <div className="fd-ops-checklist-card">
+            <strong>{totals.orders || 0}</strong>
+            <p className="fd-card-meta">{t('restaurants.ops.reports.orders', 'Orders')}</p>
+          </div>
+          <div className="fd-ops-checklist-card">
+            <strong>{formatFoodMoney(totals.avg_ticket_cents || 0, ccy)}</strong>
+            <p className="fd-card-meta">{t('restaurants.ops.reports.avgTicket', 'Avg ticket')}</p>
+          </div>
+          <div className="fd-ops-checklist-card">
+            <strong>{totals.cancelled || 0}</strong>
+            <p className="fd-card-meta">{t('restaurants.ops.reports.cancelled', 'Cancelled')}</p>
+          </div>
+        </div>
+
+        <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.breakdown')}</h3>
+        <div className="fd-ops-inventory-list">
+          {breakdownRows.map(([key, cents]) => (
+            <div key={key} className="fd-ops-inventory-row">
+              <span>{t(`restaurants.ops.reports.${key}`)}</span>
+              <span className="fd-card-meta">{formatFoodMoney(cents || 0, ccy)}</span>
+            </div>
+          ))}
+        </div>
+
+        {methods.length > 0 && (
+          <>
+            <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.paymentMethods')}</h3>
+            <div className="fd-ops-inventory-list">
+              {methods.map((m) => (
+                <div key={m.payment_type} className="fd-ops-inventory-row">
+                  <span>
+                    {t(`restaurants.ops.reports.paymentType.${KNOWN_PAYMENT_TYPES.includes(m.payment_type) ? m.payment_type : 'other'}`)}
+                  </span>
+                  <span className="fd-card-meta">
+                    {t('restaurants.ops.reports.paymentsCount', { count: m.payments || 0 })} · {formatFoodMoney(m.amount_cents || 0, ccy)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {daily.length > 0 && maxRevenue > 0 && (
+          <>
+            <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.dailyRevenue', 'Daily revenue')}</h3>
+            <div
+              role="img"
+              aria-label={t('restaurants.ops.reports.dailyRevenue', 'Daily revenue')}
+              style={{ display: 'flex', alignItems: 'flex-end', gap: '0.25rem', height: '8rem', overflowX: 'auto', padding: '0.5rem 0' }}
+            >
+              {daily.map((d) => {
+                const rev = Number(d.revenue_cents) || 0;
+                const heightPct = maxRevenue > 0 ? Math.max(2, Math.round((rev / maxRevenue) * 100)) : 0;
+                return (
+                  <div
+                    key={d.day}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%', flex: '1 0 auto', minWidth: '1.5rem' }}
+                  >
+                    <div
+                      title={`${d.day}: ${formatFoodMoney(rev, ccy)}`}
+                      style={{ height: `${heightPct}%`, width: '100%', maxWidth: '2.25rem', borderRadius: '4px 4px 0 0', background: 'var(--color-primary, #f97316)' }}
+                    />
+                    <span className="fd-card-meta">{dayLabel(d.day, daily.length)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {fulfillment.length > 0 && (
+          <>
+            <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.byFulfillment', 'By fulfillment')}</h3>
+            <div className="fd-ops-inventory-list">
+              {fulfillment.map((f) => (
+                <div key={f.fulfillment_type} className="fd-ops-inventory-row">
+                  <span>{t(`restaurants.ops.reports.fulfillment.${f.fulfillment_type}`, f.fulfillment_type)}</span>
+                  <span className="fd-card-meta">
+                    {t('restaurants.ops.reports.ordersCount', '{{count}} orders', { count: f.orders || 0 })} · {formatFoodMoney(f.revenue_cents || 0, ccy)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {sources.length > 0 && (
+          <>
+            <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.bySource', 'By order source')}</h3>
+            <div className="fd-ops-inventory-list">
+              {sources.map((s) => (
+                <div key={s.order_source} className="fd-ops-inventory-row">
+                  <span>{t(`restaurants.ops.reports.source.${s.order_source}`, s.order_source)}</span>
+                  <span className="fd-card-meta">
+                    {t('restaurants.ops.reports.ordersCount', '{{count}} orders', { count: s.orders || 0 })} · {formatFoodMoney(s.revenue_cents || 0, ccy)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -195,89 +369,10 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
 
       {/* ── Sales ── */}
       <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.salesTitle', 'Sales')}</h3>
-      {(totals.orders || 0) === 0 ? (
+      {!hasSalesOrders ? (
         <EmptyState icon={Receipt} title={t('restaurants.ops.reports.noOrders', 'No orders in this period.')} />
       ) : (
-        <>
-          <div className="fd-ops-checklists-grid">
-            <div className="fd-ops-checklist-card">
-              <strong>{formatFoodMoney(totals.revenue_cents || 0, currency)}</strong>
-              <p className="fd-card-meta">{t('restaurants.ops.reports.revenue', 'Revenue')}</p>
-            </div>
-            <div className="fd-ops-checklist-card">
-              <strong>{totals.orders || 0}</strong>
-              <p className="fd-card-meta">{t('restaurants.ops.reports.orders', 'Orders')}</p>
-            </div>
-            <div className="fd-ops-checklist-card">
-              <strong>{formatFoodMoney(totals.avg_ticket_cents || 0, currency)}</strong>
-              <p className="fd-card-meta">{t('restaurants.ops.reports.avgTicket', 'Avg ticket')}</p>
-            </div>
-            <div className="fd-ops-checklist-card">
-              <strong>{totals.cancelled || 0}</strong>
-              <p className="fd-card-meta">{t('restaurants.ops.reports.cancelled', 'Cancelled')}</p>
-            </div>
-          </div>
-
-          {daily.length > 0 && maxRevenue > 0 && (
-            <>
-              <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.dailyRevenue', 'Daily revenue')}</h3>
-              <div
-                role="img"
-                aria-label={t('restaurants.ops.reports.dailyRevenue', 'Daily revenue')}
-                style={{ display: 'flex', alignItems: 'flex-end', gap: '0.25rem', height: '8rem', overflowX: 'auto', padding: '0.5rem 0' }}
-              >
-                {daily.map((d) => {
-                  const rev = Number(d.revenue_cents) || 0;
-                  const heightPct = maxRevenue > 0 ? Math.max(2, Math.round((rev / maxRevenue) * 100)) : 0;
-                  return (
-                    <div
-                      key={d.day}
-                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%', flex: '1 0 auto', minWidth: '1.5rem' }}
-                    >
-                      <div
-                        title={`${d.day}: ${formatFoodMoney(rev, currency)}`}
-                        style={{ height: `${heightPct}%`, width: '100%', maxWidth: '2.25rem', borderRadius: '4px 4px 0 0', background: 'var(--color-primary, #f97316)' }}
-                      />
-                      <span className="fd-card-meta">{dayLabel(d.day)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-
-          {fulfillment.length > 0 && (
-            <>
-              <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.byFulfillment', 'By fulfillment')}</h3>
-              <div className="fd-ops-inventory-list">
-                {fulfillment.map((f) => (
-                  <div key={f.fulfillment_type} className="fd-ops-inventory-row">
-                    <span>{t(`restaurants.ops.reports.fulfillment.${f.fulfillment_type}`, f.fulfillment_type)}</span>
-                    <span className="fd-card-meta">
-                      {t('restaurants.ops.reports.ordersCount', '{{count}} orders', { count: f.orders || 0 })} · {formatFoodMoney(f.revenue_cents || 0, currency)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          {sources.length > 0 && (
-            <>
-              <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.bySource', 'By order source')}</h3>
-              <div className="fd-ops-inventory-list">
-                {sources.map((s) => (
-                  <div key={s.order_source} className="fd-ops-inventory-row">
-                    <span>{t(`restaurants.ops.reports.source.${s.order_source}`, s.order_source)}</span>
-                    <span className="fd-card-meta">
-                      {t('restaurants.ops.reports.ordersCount', '{{count}} orders', { count: s.orders || 0 })} · {formatFoodMoney(s.revenue_cents || 0, currency)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </>
+        currencySections.map((section) => renderSalesSection(section))
       )}
 
       {/* ── Customer loyalty (Phase 2, Item 10) ── */}

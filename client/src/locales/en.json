@@ -23883,6 +23883,28 @@
         }
       },
       "reports": {
+        "downloadCsv": "Download CSV",
+        "exportError": "Could not download the sales report.",
+        "breakdown": "Breakdown",
+        "gross": "Gross sales",
+        "discounts": "Discounts",
+        "netSales": "Net sales",
+        "tax": "Tax",
+        "tips": "Tips",
+        "serviceFees": "Service fees",
+        "deliveryFees": "Delivery fees",
+        "refunds": "Refunds",
+        "netCollected": "Net collected",
+        "paymentMethods": "Payment methods",
+        "paymentsCount": "{{count}} payments",
+        "paymentType": {
+          "cash": "Cash",
+          "card": "Card",
+          "mobile": "Mobile",
+          "wallet_credit": "Wallet credit",
+          "oxsteed_credit": "OxSteed Credit",
+          "other": "Other"
+        },
         "loadError": "Could not load reports",
         "title": "Reports",
         "rangeLabel": "Date range",
@@ -35206,6 +35228,7 @@
       "loadError": "Could not load printer settings.",
       "saveError": "Could not save printer settings.",
       "testSuccess": "Test page sent. Check the printer.",
+      "testQueued": "Test page queued. A paired in-store device will print it.",
       "testFailed": "Print failed. Check the printer connection and try again.",
       "enableFirst": "Enable receipt printing and save first.",
       "hostNotLocal": "Printer host must be a local network address."
