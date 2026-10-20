@@ -165,3 +165,27 @@ export const getOperationsReport = (restaurantId, params = {}) =>
 // Repeat-order rate + top items by revenue. Fixed 90-day window server-side.
 export const getLoyaltyReport = (restaurantId) =>
   api.get(`/restaurants/${restaurantId}/reports/loyalty`).then((r) => r.data);
+
+// ── Payroll, tips, labor + team activity (S-04/S-15/S-16) ───────────────────
+// Labor and payroll endpoints require the payroll.view permission on the
+// server (fail closed); team activity requires audit.view.
+export const getLaborReport = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/labor`, { params }).then((r) => r.data);
+
+export const downloadPayrollCsv = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/payroll/export.csv`, { params, responseType: 'blob' }).then((r) => r.data);
+
+export const getExceptionsReport = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/exceptions`, { params }).then((r) => r.data);
+
+export const getTeamActivity = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/team/activity`, { params }).then((r) => r.data);
+
+export const getTipPoolSettings = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/tip-pool`).then((r) => r.data?.settings);
+
+export const updateTipPoolSettings = (restaurantId, payload) =>
+  api.put(`/restaurants/${restaurantId}/tip-pool`, payload).then((r) => r.data?.settings);
+
+export const declareCashTip = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/tips/cash-declarations`, payload).then((r) => r.data?.declaration);

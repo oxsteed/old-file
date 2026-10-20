@@ -18,6 +18,7 @@ import {
   getOperationsReport,
   getLoyaltyReport,
 } from '../../api/restaurants';
+import { PayrollPanel } from './RestaurantPayrollPanel';
 import { formatFoodMoney } from '../../api/food';
 
 function apiErr(err, fallback) {
@@ -543,6 +544,9 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
           </p>
         </div>
       </div>
+
+      {/* ── Payroll, tips, labor + team activity (S-04/S-15/S-16) ── */}
+      <PayrollPanel t={t} restaurant={restaurant} from={from} to={to} />
     </div>
   );
 }
