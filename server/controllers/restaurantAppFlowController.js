@@ -3994,16 +3994,19 @@ exports.updatePosTicket = async (req, res, next) => {
     const actingStaff = await resolveActingStaff(req, restaurantId);
     let voidApprovalRequested = false;
     if (ticketState === 'voided') {
-      if (!MANAGE_ROLES.has(restaurant.effective_role)) {
-        const approvalPin = normalizeString(
-          req.body.approvalPin || req.body.approval_pin || req.body.managerPin || req.body.manager_pin,
-          12
-        );
-        // S-07 + S-08: without a manager approval PIN, the caller must hold
-        // restaurant.manage through the unified resolver (role or override);
-        // with one, the approval is consumed inside the write transaction.
-        if (!approvalPin) await assertManage(restaurant, req.user.id);
-        else voidApprovalRequested = true;
+      const approvalPin = normalizeString(
+        req.body.approvalPin || req.body.approval_pin || req.body.managerPin || req.body.manager_pin,
+        12
+      );
+      // S-07 + S-08: a non-manager with a manager approval PIN voids via
+      // the approval, consumed inside the write transaction. Everyone
+      // else (owners and managers included, so a deny override on
+      // restaurant.manage actually closes this gate) must hold
+      // restaurant.manage through the unified resolver.
+      if (approvalPin && !MANAGE_ROLES.has(restaurant.effective_role)) {
+        voidApprovalRequested = true;
+      } else {
+        await assertManage(restaurant, req.user.id);
       }
     } else {
       await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'orders.manage']);
