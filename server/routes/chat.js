@@ -11,6 +11,7 @@ const {
   financialAdvisor,
   transcribeAudio,
   getProfileContext,
+  clearSupportThread,
 } = require('../controllers/chatController');
 const { chatLimiter, profileChatLimiter, authLimiter, paymentsLimiter } = require('../middleware/rateLimiter');
 const { authenticate, optionalAuth: sharedOptionalAuth } = require('../middleware/auth');
@@ -68,6 +69,10 @@ const optionalAuth = async (req, res, next) => {
 // when a valid web cookie or Bearer token is present so signed-in users keep
 // the Meta-first provider chain; anonymous requests skip Meta entirely.
 router.post('/message', chatLimiter, optionalAuth, chatMessage);
+
+// DELETE /api/chat/support-thread - clear the signed-in user's server-side
+// AI support memory ("Clear conversation" in the widget).
+router.delete('/support-thread', chatLimiter, authenticate, clearSupportThread);
 
 // POST /api/chat/financial-advisor
 // Personalized financial advice - requires authentication

@@ -4,9 +4,11 @@ import api from '../api/axios';
 import { useTranslation } from 'react-i18next';
 import SpeechToTextInput from './SpeechToTextInput';
 import { useCapabilities } from '../hooks/useCapabilities';
+import { useAuth } from '../context/AuthContext';
+import { chatHistoryKey, chatStorageScope, pruneSupportChatStorage } from '../lib/supportChatStorage';
 import { SUPPORT_CHAT_MAX_IMAGE_BYTES, sendErrorMessageKey } from './supportWidgetState';
 
-const STORAGE_KEY = 'oxsteed_chat_history';
+// History lives under a per-user (or guest) key; see lib/supportChatStorage.
 const MAX_HISTORY = 40;
 // Server-side context window for /chat/message: never send more than this.
 const MAX_CONTEXT_MESSAGES = 12;
@@ -28,9 +30,9 @@ function formatTime(iso, locale) {
   return d.toLocaleTimeString(locale || undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
-function loadHistory() {
+function loadHistory(storageKey) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) return null;
@@ -38,12 +40,12 @@ function loadHistory() {
   } catch { return null; }
 }
 
-function saveHistory(msgs) {
+function saveHistory(storageKey, msgs) {
   try {
     // Gap #3: image data URLs are display-only; persisting them would blow
     // the localStorage quota, so they are stripped from saved history.
     const slim = msgs.slice(-MAX_HISTORY).map(({ image, ...rest }) => rest);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(slim));
+    localStorage.setItem(storageKey, JSON.stringify(slim));
   } catch { /* storage full */ }
 }
 
@@ -195,7 +197,8 @@ function exportTranscript(messages, locale, labels) {
 }
 
 // ── Main widget ───────────────────────────────────────────────────────────────
-function AISupportWidget() {
+function AISupportWidget({ storageScope, signedIn }) {
+  const storageKey = chatHistoryKey(storageScope);
   const location = useLocation();
   const isMediaPage = /^\/media(?:\/|$)/.test(location.pathname);
   const hideOnHelperProfile = isHelperPublicProfilePath(location.pathname);
@@ -203,7 +206,7 @@ function AISupportWidget() {
   const navigate = useNavigate();
 
   // 8. Welcome-back: show different greeting if prior history exists
-  const existingHistory = loadHistory();
+  const [existingHistory] = useState(() => loadHistory(storageKey));
   const initialMsg = existingHistory
     ? { role: 'assistant', content: t('supportWidget.welcomeBack'), ts: new Date().toISOString() }
     : { role: 'assistant', content: t('supportWidget.aiGreeting'), ts: new Date().toISOString() };
@@ -338,8 +341,12 @@ function markProactiveDismissed() {
     return () => clearTimeout(timer);
   }, [open, location.pathname, t]);
 
-  // Persist history
-  useEffect(() => { saveHistory(messages); }, [messages]);
+  // Persist history under this user's (or the guest) key.
+  useEffect(() => { saveHistory(storageKey, messages); }, [storageKey, messages]);
+
+  // Drop the unscoped pre-fix history (it may belong to anyone) and, once
+  // signed in, the guest bucket left by the signed-out session.
+  useEffect(() => { pruneSupportChatStorage(storageScope); }, [storageScope]);
 
   // Custom open event from other components. The event may carry a
   // `detail.prefill` string (e.g. the Learn page's per-step support prompt);
@@ -574,7 +581,14 @@ function markProactiveDismissed() {
   const handleClearChat = () => {
     const fresh = [{ ...initialMsg, ts: new Date().toISOString() }];
     setMessages(fresh);
-    saveHistory(fresh);
+    saveHistory(storageKey, fresh);
+    // Signed-in users also have server-side memory; clear it so the
+    // assistant does not keep using a conversation the user just erased.
+    if (signedIn) {
+      Promise.resolve()
+        .then(() => api.delete('/chat/support-thread'))
+        .catch(() => { /* best-effort */ });
+    }
   };
 
   const showSuggestions = messages.length <= 1 && !loading;
@@ -988,6 +1002,7 @@ export default function SupportWidget() {
   const isMediaPage = /^\/media(?:\/|$)/.test(pathname);
   const { t } = useTranslation();
   const { isAvailable, loading } = useCapabilities();
+  const { user, loading: authLoading } = useAuth();
 
   if (loading) return null;
   if (!isAvailable('aiSupport')) {
@@ -1003,5 +1018,9 @@ export default function SupportWidget() {
     );
   }
 
-  return <AISupportWidget />;
+  // Wait for auth so history is never read from or written to the wrong
+  // user's key. Keying by scope remounts the widget on login/logout.
+  if (authLoading) return null;
+  const scope = chatStorageScope(user);
+  return <AISupportWidget key={scope} storageScope={scope} signedIn={Boolean(user)} />;
 }

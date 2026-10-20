@@ -440,6 +440,21 @@ exports.chatMessage = async (req, res, next) => {
 };
 
 /**
+ * DELETE /api/chat/support-thread
+ * Clears the caller's server-side AI support memory. Identity comes from the
+ * session only, so a user can only clear their own thread.
+ */
+exports.clearSupportThread = async (req, res, next) => {
+  try {
+    if (!req.user?.id) throw new AppError('Sign in required', 401, 'unauthorized');
+    await supportChatThreads.clearSupportThread(req.user.id);
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * POST /api/chat/financial-advisor
  * Personalized financial advice based on user's real data.
  * Requires authentication. Includes pulse score, expenses, income, goals, planned needs.

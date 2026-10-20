@@ -7,6 +7,26 @@ import {
   SUPPORT_CHAT_MAX_IMAGE_BYTES,
   sendErrorMessageKey,
 } from '../src/components/supportWidgetState.js';
+import {
+  LEGACY_CHAT_HISTORY_KEY,
+  chatHistoryKey,
+  chatStorageScope,
+  clearSupportChatStorage,
+  escalationKey,
+  pruneSupportChatStorage,
+} from '../src/lib/supportChatStorage.js';
+
+function memoryStorage(initial = {}) {
+  const map = new Map(Object.entries(initial));
+  return {
+    get length() { return map.size; },
+    key: (i) => [...map.keys()][i] ?? null,
+    getItem: (k) => (map.has(k) ? map.get(k) : null),
+    setItem: (k, v) => { map.set(k, String(v)); },
+    removeItem: (k) => { map.delete(k); },
+    keys: () => [...map.keys()].sort(),
+  };
+}
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const repo = join(root, '..');
@@ -31,4 +51,53 @@ test('a 413 shows the localized too-large message; other failures stay generic',
     const copy = (await locale(code)).supportWidget.requestTooLarge;
     assert.ok(copy && copy.length > 10, `${code} requestTooLarge`);
   }
+});
+
+// ── Bug 3: chat history scoped per user and cleared on logout ───────────────
+test('history keys are per user, with a separate guest bucket', () => {
+  assert.equal(chatStorageScope({ id: 42 }), 'user:42');
+  assert.equal(chatStorageScope({ id: 'abc' }), 'user:abc');
+  assert.equal(chatStorageScope(null), 'guest');
+  assert.equal(chatStorageScope({}), 'guest');
+  assert.notEqual(chatHistoryKey('user:1'), chatHistoryKey('user:2'));
+  assert.notEqual(chatHistoryKey('user:1'), chatHistoryKey('guest'));
+  assert.notEqual(chatHistoryKey('guest'), LEGACY_CHAT_HISTORY_KEY);
+});
+
+test('logout storage clear removes every support-chat record and nothing else', () => {
+  const storage = memoryStorage({
+    [LEGACY_CHAT_HISTORY_KEY]: '[]',
+    [chatHistoryKey('user:1')]: '[]',
+    [chatHistoryKey('guest')]: '[]',
+    [escalationKey('user:1')]: '{}',
+    'oxs:language': 'fr',
+  });
+  clearSupportChatStorage(storage);
+  assert.deepEqual(storage.keys(), ['oxs:language']);
+});
+
+test('signing in prunes the legacy key and guest bucket but keeps the user history', () => {
+  const storage = memoryStorage({
+    [LEGACY_CHAT_HISTORY_KEY]: '[]',
+    [chatHistoryKey('user:1')]: '[1]',
+    [chatHistoryKey('guest')]: '[2]',
+    [escalationKey('guest')]: '{}',
+  });
+  pruneSupportChatStorage('user:1', storage);
+  assert.deepEqual(storage.keys(), [chatHistoryKey('user:1')]);
+  const guestStorage = memoryStorage({ [LEGACY_CHAT_HISTORY_KEY]: '[]', [chatHistoryKey('guest')]: '[2]' });
+  pruneSupportChatStorage('guest', guestStorage);
+  assert.deepEqual(guestStorage.keys(), [chatHistoryKey('guest')]);
+});
+
+test('clearStoredSession wipes support chat storage and the widget is scoped by user', async () => {
+  const auth = await src('src/api/auth.js');
+  const clearFn = auth.slice(auth.indexOf('function clearStoredSession'), auth.indexOf('function persistSessionPayload'));
+  assert.match(clearFn, /clearSupportChatStorage\(\)/);
+  const widget = await src('src/components/SupportWidget.jsx');
+  assert.ok(!widget.includes("'oxsteed_chat_history'"), 'no unscoped history key');
+  assert.match(widget, /chatHistoryKey\(storageScope\)/);
+  assert.match(widget, /<AISupportWidget key=\{scope\} storageScope=\{scope\}/);
+  assert.match(widget, /if \(authLoading\) return null;/);
+  assert.match(widget, /api\.delete\('\/chat\/support-thread'\)/);
 });

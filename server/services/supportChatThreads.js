@@ -61,4 +61,18 @@ async function appendSupportThread(userId, userContent, assistantReply) {
   }
 }
 
-module.exports = { getSupportThread, appendSupportThread };
+/**
+ * Deletes the user's server-side support-chat memory. Called on logout and
+ * when the user clears the conversation, so the assistant never reuses a
+ * conversation the user ended. Never throws.
+ */
+async function clearSupportThread(userId) {
+  if (!userId || !redis) return;
+  try {
+    await redis.del(threadKey(userId));
+  } catch (err) {
+    logger.warn('[supportChatThreads] clear failed', { error: err.message });
+  }
+}
+
+module.exports = { getSupportThread, appendSupportThread, clearSupportThread, threadKey };
