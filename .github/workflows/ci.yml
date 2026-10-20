@@ -75,6 +75,10 @@ jobs:
         working-directory: client
         run: node --test scripts/*.test.mjs
 
+      - name: Growth instrumentation coverage check
+        working-directory: client
+        run: node scripts/growthInstrumentation.mjs --check
+
       - name: Client localization, type, and production build checks
         working-directory: client
         run: npm run build:ci
