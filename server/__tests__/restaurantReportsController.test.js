@@ -6,6 +6,7 @@ const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
 
 const reports = require('../controllers/restaurantReportsController');
+const permissionsService = require('../services/permissionsService');
 
 const USER_ID = '00000000-0000-4000-8000-000000000123';
 const RESTAURANT_ID = 9;
@@ -29,7 +30,9 @@ function app() {
   return server;
 }
 
-beforeEach(() => resetMocks());
+// S-08: report gates resolve through permissionsService; clear its cache
+// per test so each scripted chain includes the resolver's catalog rows.
+beforeEach(() => { resetMocks(); permissionsService.invalidateCache(); });
 
 describe('franchise reports backend', () => {
   test('non-managers cannot view reports', async () => {
@@ -50,6 +53,7 @@ describe('franchise reports backend', () => {
     };
     mockQuery
       .mockResolvedValueOnce({ rows: [access('manager')] })
+      .mockResolvedValueOnce({ rows: [{ code: 'analytics.view_financial', allow: true }] })
       .mockResolvedValueOnce({ rows: [{ from_instant: '2026-10-01T00:00:00.000Z', to_instant: '2026-10-04T00:00:00.000Z' }] })
       .mockResolvedValueOnce({ rows: [{ currency: 'USD', ...money, cancelled: '1', refunded: '0' }] })
       .mockResolvedValueOnce({ rows: [{ currency: 'USD', day: '2026-10-01', ...money }] })
@@ -88,7 +92,9 @@ describe('franchise reports backend', () => {
   });
 
   test('salesSummary rejects invalid ranges', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [access('owner')] });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access('owner')] })
+      .mockResolvedValueOnce({ rows: [{ code: 'analytics.view_financial' }] });
     const res = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/reports/sales?from=2026-10-05&to=2026-10-01`);
     expect(res.status).toBe(400);
   });
@@ -96,6 +102,7 @@ describe('franchise reports backend', () => {
   test('inventorySummary returns adjustment breakdown and waste leaders', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [access('owner')] })
+      .mockResolvedValueOnce({ rows: [{ code: 'analytics.view_financial' }] })
       .mockResolvedValueOnce({ rows: [{ adjustment_type: 'waste', events: '4', total_qty: '9.5' }] })
       .mockResolvedValueOnce({ rows: [{ item_name: 'Milk', events: '3', wasted_qty: '6' }] })
       .mockResolvedValueOnce({ rows: [{ low_count: '2', out_count: '1' }] });
@@ -110,6 +117,7 @@ describe('franchise reports backend', () => {
   test('operationsSummary aggregates checklists, audits, and training', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [access('owner')] })
+      .mockResolvedValueOnce({ rows: [{ code: 'analytics.view_financial' }] })
       .mockResolvedValueOnce({ rows: [{ runs: '20', completed: '18', avg_completion: '0.95' }] })
       .mockResolvedValueOnce({ rows: [{ completed: '3', in_progress: '1', avg_score: '0.82', open_actions: '2' }] })
       .mockResolvedValueOnce({ rows: [{ assigned: '10', completed: '8', avg_score: '88', passed: '7' }] });

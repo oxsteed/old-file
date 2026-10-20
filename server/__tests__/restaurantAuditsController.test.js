@@ -6,6 +6,7 @@ const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
 
 const audits = require('../controllers/restaurantAuditsController');
+const permissionsService = require('../services/permissionsService');
 
 const USER_ID = '00000000-0000-4000-8000-000000000123';
 const RESTAURANT_ID = 9;
@@ -32,11 +33,15 @@ function app() {
   return server;
 }
 
-beforeEach(() => resetMocks());
+// S-08: audit gates resolve through permissionsService; clear its cache
+// per test so each scripted chain includes the resolver's catalog rows.
+beforeEach(() => { resetMocks(); permissionsService.invalidateCache(); });
 
 describe('restaurant audits backend', () => {
   test('createTemplate requires a name; employees are blocked', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [access('owner')] });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access('owner')] })
+      .mockResolvedValueOnce({ rows: [{ code: 'audit.view' }] });
     const noName = await request(app()).post(`/api/restaurants/${RESTAURANT_ID}/audits/templates`).send({});
     expect(noName.status).toBe(400);
 
@@ -122,6 +127,7 @@ describe('restaurant audits backend', () => {
     // Assignee (non-manager) tries to verify -> 403.
     mockQuery
       .mockResolvedValueOnce({ rows: [access('employee')] })
+      .mockResolvedValueOnce({ rows: [] }) // role defaults: no audit.view
       .mockResolvedValueOnce({ rows: [action] });
     const blocked = await request(app())
       .patch(`/api/restaurants/${RESTAURANT_ID}/audits/corrective-actions/3`)
@@ -131,6 +137,7 @@ describe('restaurant audits backend', () => {
     // Manager verifies -> ok.
     mockQuery
       .mockResolvedValueOnce({ rows: [access('manager')] })
+      .mockResolvedValueOnce({ rows: [{ code: 'audit.view', allow: true }] })
       .mockResolvedValueOnce({ rows: [action] })
       .mockResolvedValueOnce({ rows: [{ ...action, status: 'verified' }] });
     const ok = await request(app())
@@ -144,6 +151,7 @@ describe('restaurant audits backend', () => {
     const action = { id: 4, restaurant_id: RESTAURANT_ID, assignee_id: 'someone-else', status: 'open' };
     mockQuery
       .mockResolvedValueOnce({ rows: [access('employee')] })
+      .mockResolvedValueOnce({ rows: [] }) // role defaults: no audit.view
       .mockResolvedValueOnce({ rows: [action] });
     const res = await request(app())
       .patch(`/api/restaurants/${RESTAURANT_ID}/audits/corrective-actions/4`)
