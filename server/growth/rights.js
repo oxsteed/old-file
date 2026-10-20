@@ -14,6 +14,8 @@ async function erase(conn, userId, reason = "account_erasure") {
     "user_interest_profiles",
     "propensity_scores",
     "growth_intent_dismissals",
+    "demand_subject_daily",
+    "supply_subject_daily",
   ]) {
     await conn.query(`DELETE FROM ${table} WHERE user_id=$1`, [userId]);
   }
