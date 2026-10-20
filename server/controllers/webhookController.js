@@ -764,6 +764,14 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
                WHERE id = $2`,
               [userTier, userId]
             );
+            {
+              // Growth tier mapping: pro -> pro, basic (the free plan) ->
+              // starter; 'broker' is a role in the schema, not a tier, so
+              // broker checkouts emit the event with no tier prop.
+              const growthTier = userTier === 'pro' ? 'pro' : userTier === 'basic' ? 'starter' : null;
+              const { emitDomainEvent } = require('../growth/emit');
+              await emitDomainEvent(client, 'account.tier_changed', growthTier ? { tier: growthTier } : {}, { userId });
+            }
             if (inserted[0]) {
               const { logAdminAction } = require('../services/auditService');
               await logAdminAction({

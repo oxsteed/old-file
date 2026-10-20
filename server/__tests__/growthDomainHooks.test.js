@@ -61,6 +61,16 @@ const REQUIRED_HOOKS = {
     "controllers/subscriptionController.js": 1,
     "workers/subscriptionCreditWorkers.js": 1,
   },
+  "account.signed_up": { "controllers/helperRegistrationController.js": 1 },
+  "account.role_added": {
+    "controllers/authController.js": 1,
+    "controllers/vortexController.js": 1,
+    "controllers/businessAccessCodesController.js": 1,
+    "controllers/businessController.js": 1,
+    "controllers/careerController.js": 1,
+    "controllers/superAdminUserController.js": 1,
+  },
+  "account.tier_changed": { "controllers/webhookController.js": 1 },
 };
 
 describe("spec 5.3 guard: required domain hooks exist", () => {
@@ -69,7 +79,7 @@ describe("spec 5.3 guard: required domain hooks exist", () => {
       test(`${event} is emitted from ${rel} (>= ${min} site${min > 1 ? "s" : ""})`, () => {
         const src = fs.readFileSync(path.join(SERVER_ROOT, rel), "utf8");
         const pattern = new RegExp(
-          `emitDomainEvent\\(client,\\s*'${event.replace(/\./g, "\\.")}'`,
+          `emitDomainEvent\\(\\s*[A-Za-z_$][\\w$]*\\s*,\\s*'${event.replace(/\./g, "\\.")}'`,
           "g",
         );
         const matches = src.match(pattern) || [];
@@ -87,6 +97,7 @@ const {
   serviceEventProps,
   foodEventProps,
   commerceEventProps,
+  accountRoleForMode,
 } = require("../growth/emit");
 
 const USER_ID = "00000000-0000-4000-8000-000000000001";
@@ -240,6 +251,18 @@ describe("guarded prop builders omit anything that would fail validation", () =>
     expect(commerceEventProps({ id: 5, amount_minor: -1, currency: "usd" })).toEqual({
       entity_id: "5",
     });
+  });
+
+  test("accountRoleForMode derives business/restaurant from the mode prefix", () => {
+    expect(accountRoleForMode("business_owner")).toBe("business");
+    expect(accountRoleForMode("business_employee")).toBe("business");
+    expect(accountRoleForMode("restaurant_owner")).toBe("restaurant");
+    expect(accountRoleForMode("restaurant_runner")).toBe("restaurant");
+    expect(accountRoleForMode("helper")).toBe("helper");
+    expect(accountRoleForMode("consultant")).toBe("helper");
+    expect(accountRoleForMode("customer")).toBe("customer");
+    expect(accountRoleForMode("admin")).toBe(null);
+    expect(accountRoleForMode(undefined)).toBe(null);
   });
 });
 

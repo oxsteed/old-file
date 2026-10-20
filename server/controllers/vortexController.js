@@ -312,6 +312,10 @@ async function redeemToken(req, res) {
       ]
     );
 
+    // Member roles (manager/representative) are not schema enum values;
+    // the grant itself is a business role addition.
+    await require('../growth/emit').emitDomainEvent(client, 'account.role_added', { role: 'business' }, { userId: req.user.id, req });
+
     await client.query('COMMIT');
     // ── End transaction ───────────────────────────────────────────────────────
 

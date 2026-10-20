@@ -4794,10 +4794,10 @@ exports.updateOrderStatus = async (req, res, next) => {
       if (order.customer_id) {
         const { emitDomainEvent, foodEventProps } = require('../growth/emit');
         if (status === 'cancelled') {
-          await emitDomainEvent(client, 'food.order_cancelled', foodEventProps(order), { userId: order.customer_id, req });
+          await emitDomainEvent(client, 'food.order_cancelled', foodEventProps(order), { userId: order.customer_id });
         }
         if (previousPaymentStatus === 'paid' && order.payment_status === 'refunded') {
-          await emitDomainEvent(client, 'food.order_refunded', foodEventProps(order), { userId: order.customer_id, req });
+          await emitDomainEvent(client, 'food.order_refunded', foodEventProps(order), { userId: order.customer_id });
         }
       }
 

@@ -327,7 +327,7 @@ async function refundFoodOrder(req, res) {
       })]
     );
     if (newStatus === 'refunded' && order.customer_id) {
-      await require('../growth/emit').emitDomainEvent(client, 'food.order_refunded', require('../growth/emit').foodEventProps(order), { userId: order.customer_id, req });
+      await require('../growth/emit').emitDomainEvent(client, 'food.order_refunded', require('../growth/emit').foodEventProps(order), { userId: order.customer_id });
     }
     await client.query('COMMIT');
 

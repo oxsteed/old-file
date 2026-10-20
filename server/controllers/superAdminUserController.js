@@ -587,6 +587,18 @@ exports.editUserFull = async (req, res) => {
         values
       );
 
+      // Growth: an admin role grant/change is an account.role_added for the
+      // target user (helper_pro maps to helper; staff roles have no schema
+      // value and are skipped). No req: the actor is the admin, not the
+      // subject.
+      const roleChange = changes.find((c) => c.field === 'role');
+      const growthRole = roleChange
+        ? { customer: 'customer', helper: 'helper', helper_pro: 'helper', broker: 'broker' }[roleChange.newValue]
+        : null;
+      if (growthRole) {
+        await require('../growth/emit').emitDomainEvent(client, 'account.role_added', { role: growthRole }, { userId });
+      }
+
       // ── Per-field audit rows ────────────────────────────────────────────
       for (const c of changes) {
         await logUserAction({

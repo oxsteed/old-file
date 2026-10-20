@@ -137,10 +137,26 @@ function commerceEventProps(source) {
     props.currency = currency;
   return props;
 }
+// Maps a product mode (utils/modeRole MODE_ROLE_MAP keys) to the schema's
+// account role enum. users.role only ever stores customer/helper, so the
+// business/restaurant roles are derived from the mode prefix; modes with
+// no enum representation (admin) return null.
+function accountRoleForMode(mode) {
+  if (typeof mode !== "string") return null;
+  if (mode.startsWith("business_")) return "business";
+  if (mode.startsWith("restaurant_")) return "restaurant";
+  if (["helper", "consultant", "tool_owner"].includes(mode)) return "helper";
+  if (
+    ["customer", "investor", "logistics", "franchise_applicant", "life_only"].includes(mode)
+  )
+    return "customer";
+  return null;
+}
 module.exports = {
   emitDomainEvent,
   jobEventProps,
   serviceEventProps,
   foodEventProps,
   commerceEventProps,
+  accountRoleForMode,
 };
