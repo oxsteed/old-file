@@ -75,7 +75,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         <button
           onClick={() => onChange('')}
           className="absolute end-3 p-1 rounded-full text-gray-500 hover:text-white transition-colors"
-          aria-label={t('toolRentalsDir.clearSearch')}
+          aria-label={t('toolRentalsDir.clearSearch')} data-track="ui.a392911c62.1"
         >
           <X className="w-3.5 h-3.5" aria-hidden="true" />
         </button>

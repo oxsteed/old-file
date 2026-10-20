@@ -154,7 +154,7 @@ const FilterDrawer = ({ open, onClose, children, activeCount }) => {
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
-            aria-label={t('common.close')}
+            aria-label={t('common.close')} data-track="ui.0302836077.1"
           >
             <X className="w-5 h-5" aria-hidden="true" />
           </button>
@@ -165,7 +165,7 @@ const FilterDrawer = ({ open, onClose, children, activeCount }) => {
         <div className="px-4 py-3 border-t border-gray-800 flex-shrink-0">
           <button
             onClick={onClose}
-            className="w-full py-3 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-xl transition-colors"
+            className="w-full py-3 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-xl transition-colors" data-track="ui.0302836077.2"
           >
             {t('jobsDir.showResults')}
           </button>
@@ -197,7 +197,7 @@ const SkillTileGrid = ({ tiles, selectedId, onSelect }) => {
                   active
                     ? 'bg-brand-500/20 border-brand-500 text-brand-300 shadow-sm shadow-brand-500/20'
                     : 'bg-gray-800/60 border-gray-700 text-gray-400 hover:bg-gray-800 hover:border-gray-600 hover:text-gray-200'
-                }`}
+                }`} data-track="ui.0302836077.3"
               >
                 <span className="text-xl leading-none" aria-hidden="true">{tile.icon}</span>
                 <span className="text-xs font-medium leading-tight">{tile.label}</span>
@@ -237,7 +237,7 @@ const SubSkillStrip = ({ tile, selectedSkills, onToggleSkill, onClearTile }) => 
                   active
                     ? 'bg-brand-500 border-brand-500 text-white'
                     : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200'
-                }`}
+                }`} data-track="ui.0302836077.4"
               >
                 {displayLabel}
               </button>
@@ -247,7 +247,7 @@ const SubSkillStrip = ({ tile, selectedSkills, onToggleSkill, onClearTile }) => 
         <button
           onClick={onClearTile}
           className="ml-auto text-xs text-gray-600 hover:text-gray-400 flex items-center gap-1 transition-colors whitespace-nowrap"
-          aria-label={t('jobsDir.clearFilter')}
+          aria-label={t('jobsDir.clearFilter')} data-track="ui.0302836077.5"
         >
           <X className="w-3 h-3" aria-hidden="true" />
           {t('jobsDir.clearFilter')}
@@ -314,7 +314,7 @@ const DirectoryHero = ({ searchValue, onSearch, categoryLabels, suggestTiles, fi
                 key={key}
                 type="button"
                 onClick={() => onSearch(key)}
-                className="min-h-[44px] px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 hover:text-white transition-colors"
+                className="min-h-[44px] px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 hover:text-white transition-colors" data-track="ui.0302836077.6"
               >
                 {label}
               </button>
@@ -560,7 +560,7 @@ export default function JobListPage() {
             <button
               type="button"
               onClick={() => updateFilters({ state: '' })}
-              className="ml-auto text-brand-400 hover:text-brand-300"
+              className="ml-auto text-brand-400 hover:text-brand-300" data-track="ui.0302836077.7"
             >
               {t('jobsDir.showAllStates')}
             </button>
@@ -573,7 +573,7 @@ export default function JobListPage() {
         <button
           onClick={() => setDrawerOpen(true)}
           className="flex min-h-[44px] shrink-0 items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-sm text-gray-200 hover:bg-gray-700 transition-colors"
-          aria-label={`${t('jobsDir.filters')}${activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}`}
+          aria-label={`${t('jobsDir.filters')}${activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}`} data-track="ui.0302836077.8"
         >
           <SlidersHorizontal className="w-4 h-4" aria-hidden="true" />
           {t('jobsDir.filters')}
@@ -649,7 +649,7 @@ export default function JobListPage() {
                 <p className="text-sm mb-4">{t('jobsDir.loadError')}</p>
                 <button
                   onClick={() => fetchJobs(buildServerParams(filters, sort, 1))}
-                  className="px-6 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-medium text-sm transition-colors"
+                  className="px-6 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-medium text-sm transition-colors" data-track="ui.0302836077.9"
                 >
                   {t('common.retry')}
                 </button>
@@ -687,7 +687,7 @@ export default function JobListPage() {
                     <button
                       onClick={handleShowMore}
                       disabled={loading}
-                      className="flex items-center gap-2 px-8 py-3 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors text-sm font-medium disabled:opacity-50"
+                      className="flex items-center gap-2 px-8 py-3 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors text-sm font-medium disabled:opacity-50" data-track="ui.0302836077.10"
                     >
                       {loading ? t('common.loading') : t('jobsDir.showMore')}
                       <ChevronDown className="w-4 h-4" aria-hidden="true" />

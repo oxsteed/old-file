@@ -222,7 +222,7 @@ export function SuggestDropdown({
                   className={`sd-item${i === activeIndex ? ' is-active' : ''}`}
                   onMouseDown={(e) => e.preventDefault()}
                   onMouseEnter={() => setActiveIndex(i)}
-                  onClick={() => selectItem(item)}
+                  onClick={() => selectItem(item)} data-track="ui.c0cd7014d6.1"
                 >
                   <span className="sd-item-icon" aria-hidden="true">
                     {renderIcon(item, !typedEnough)}

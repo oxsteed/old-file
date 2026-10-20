@@ -89,7 +89,7 @@ export default function FoodOrderConfirmation({
                 type="button"
                 className={`fd-star-btn${star <= rating ? ' fd-star-on' : ''}`}
                 onClick={() => setRating(star)}
-                aria-pressed={star <= rating}
+                aria-pressed={star <= rating} data-track="ui.bd869f102b.1"
               >
                 ★
               </button>
@@ -107,7 +107,7 @@ export default function FoodOrderConfirmation({
             type="button"
             className="fd-btn"
             disabled={submitting}
-            onClick={submitReview}
+            onClick={submitReview} data-track="ui.bd869f102b.2"
           >
             {submitting ? t('food.common.saving') : t('food.order.submitReview')}
           </button>
@@ -118,7 +118,7 @@ export default function FoodOrderConfirmation({
 
       {onDismiss && (
         <p style={{ fontSize: '0.95rem', color: '#94a3b8', marginTop: '1rem' }}>
-          <button type="button" className="fd-btn fd-btn-secondary" onClick={onDismiss}>
+          <button type="button" className="fd-btn fd-btn-secondary" onClick={onDismiss} data-track="ui.bd869f102b.3">
             {dismissLabel || t('food.order.orderAgain')}
           </button>
         </p>

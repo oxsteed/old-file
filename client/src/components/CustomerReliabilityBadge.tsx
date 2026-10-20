@@ -104,7 +104,7 @@ const CustomerReliabilityBadge: React.FC<CustomerReliabilityBadgeProps> = ({
           onMouseLeave={() => setShowTooltip(false)}
           onClick={() => setShowTooltip(!showTooltip)}
           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-semibold transition-colors ${getBadgeColor()}`}
-          aria-label={t('customerReliability.ariaLabel', { level: getLabel() })}
+          aria-label={t('customerReliability.ariaLabel', { level: getLabel() })} data-track="ui.7646f46a87.1"
         >
           {getIcon()}
           <span className="hidden sm:inline">{getLabel()}</span>

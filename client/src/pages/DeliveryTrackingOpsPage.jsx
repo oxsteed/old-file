@@ -191,7 +191,7 @@ export default function DeliveryTrackingOpsPage() {
         </div>
         <div className="delivery-dispatch-actions">
           <span className="delivery-status" role="status">{connected ? t(`${T}.health.live`) : t(`${T}.health.${connectionState === 'reconnecting' ? 'reconnecting' : 'offline'}`)}</span>
-          <button className="delivery-button delivery-button--secondary" disabled={loading || busy} onClick={() => loadTracking()}>{t(`${T}.refresh`)}</button>
+          <button className="delivery-button delivery-button--secondary" disabled={loading || busy} onClick={() => loadTracking()} data-track="ui.c237fe248f.1">{t(`${T}.refresh`)}</button>
         </div>
       </header>
       {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
@@ -218,7 +218,7 @@ export default function DeliveryTrackingOpsPage() {
         </Section>
 
         <nav className="delivery-dispatch-actions" aria-label={t(`${T}.title`)}>
-          {TABS.map((key) => <button key={key} className={`delivery-button ${tab === key ? 'delivery-button--primary' : 'delivery-button--secondary'}`} aria-pressed={tab === key} onClick={() => setTab(key)}>{t(`${T}.tabs.${key}`)}</button>)}
+          {TABS.map((key) => <button key={key} className={`delivery-button ${tab === key ? 'delivery-button--primary' : 'delivery-button--secondary'}`} aria-pressed={tab === key} onClick={() => setTab(key)} data-track="ui.c237fe248f.2">{t(`${T}.tabs.${key}`)}</button>)}
         </nav>
 
         {tab === 'location' && <Section title={t(`${T}.location.title`)}>
@@ -236,7 +236,7 @@ export default function DeliveryTrackingOpsPage() {
         </Section>}
 
         {tab === 'eta' && <Section title={t(`${T}.eta.title`)}>
-          <div className="delivery-dispatch-actions"><button className="delivery-button delivery-button--primary" disabled={busy} onClick={() => run(() => refreshTrackingEta(id), `${T}.eta.refreshed`)}>{busy ? t(`${T}.eta.refreshing`) : t(`${T}.eta.refreshEta`)}</button></div>
+          <div className="delivery-dispatch-actions"><button className="delivery-button delivery-button--primary" disabled={busy} onClick={() => run(() => refreshTrackingEta(id), `${T}.eta.refreshed`)} data-track="ui.c237fe248f.3">{busy ? t(`${T}.eta.refreshing`) : t(`${T}.eta.refreshEta`)}</button></div>
           {!etaHistory.length && <p>{t(`${T}.eta.empty`)}</p>}
           {!!etaHistory.length && <div className="delivery-table-wrap"><table className="delivery-table"><thead><tr>
             {['etaAt', 'source', 'confidence', 'basis', 'createdAt'].map((key) => <th key={key}>{t(`${T}.eta.columns.${key}`)}</th>)}
@@ -303,14 +303,14 @@ export default function DeliveryTrackingOpsPage() {
               <input className="delivery-input" maxLength={2000} disabled={busy} value={notes[point.id] || ''} placeholder={t(`${T}.review.notesPlaceholder`)} onChange={(event) => setNotes({ ...notes, [point.id]: event.target.value })} />
             </label>
             <div className="delivery-dispatch-actions">
-              <button className="delivery-button delivery-button--primary" disabled={busy} onClick={() => run(() => reviewTrackingPoint(point.id, { validationState: 'valid', notes: notes[point.id] || '' }), `${T}.review.reviewed`)}>{busy ? t(`${T}.review.reviewing`) : t(`${T}.review.validate`)}</button>
-              <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => run(() => reviewTrackingPoint(point.id, { validationState: 'rejected', notes: notes[point.id] || '' }), `${T}.review.reviewed`)}>{t(`${T}.review.reject`)}</button>
+              <button className="delivery-button delivery-button--primary" disabled={busy} onClick={() => run(() => reviewTrackingPoint(point.id, { validationState: 'valid', notes: notes[point.id] || '' }), `${T}.review.reviewed`)} data-track="ui.c237fe248f.4">{busy ? t(`${T}.review.reviewing`) : t(`${T}.review.validate`)}</button>
+              <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => run(() => reviewTrackingPoint(point.id, { validationState: 'rejected', notes: notes[point.id] || '' }), `${T}.review.reviewed`)} data-track="ui.c237fe248f.5">{t(`${T}.review.reject`)}</button>
             </div>
           </article>)}
         </Section>}
 
         {tab === 'provider' && <Section title={t(`${T}.provider.title`)}>
-          <label><input type="checkbox" checked={showAllConnections} onChange={(event) => setShowAllConnections(event.target.checked)} /> {t(`${T}.provider.showAll`)}</label>
+          <label><input type="checkbox" checked={showAllConnections} onChange={(event) => setShowAllConnections(event.target.checked)} data-track="ui.c237fe248f.6" /> {t(`${T}.provider.showAll`)}</label>
           {!showAllConnections && vehicleId && <p>{t(`${T}.provider.forVehicle`)}</p>}
           {!visibleConnections.length && <p>{t(`${T}.provider.empty`)}</p>}
           {visibleConnections.map((conn) => <article key={conn.id} className="delivery-review-item">
@@ -318,20 +318,20 @@ export default function DeliveryTrackingOpsPage() {
             <p>{t(`${T}.provider.columns.cursor`)}: {conn.cursor ?? '—'} · {t(`${T}.provider.columns.lastSync`)}: {date(conn.lastSyncAt)} · {t(`${T}.provider.columns.errors`)}: {conn.errorCount ?? 0}</p>
             {conn.lastError && <p>{t(`${T}.provider.columns.lastError`)}: {conn.lastError}</p>}
             <div className="delivery-dispatch-actions">
-              <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => run(() => pauseTelematicsConnection(conn.id), `${T}.provider.updated`)}>{t(`${T}.provider.pause`)}</button>
-              <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => run(() => resumeTelematicsConnection(conn.id), `${T}.provider.updated`)}>{t(`${T}.provider.resume`)}</button>
-              <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => { if (window.confirm(t(`${T}.provider.confirmRevoke`))) run(() => revokeTelematicsConnection(conn.id), `${T}.provider.updated`); }}>{t(`${T}.provider.revoke`)}</button>
+              <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => run(() => pauseTelematicsConnection(conn.id), `${T}.provider.updated`)} data-track="ui.c237fe248f.7">{t(`${T}.provider.pause`)}</button>
+              <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => run(() => resumeTelematicsConnection(conn.id), `${T}.provider.updated`)} data-track="ui.c237fe248f.8">{t(`${T}.provider.resume`)}</button>
+              <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => { if (window.confirm(t(`${T}.provider.confirmRevoke`))) run(() => revokeTelematicsConnection(conn.id), `${T}.provider.updated`); }} data-track="ui.c237fe248f.9">{t(`${T}.provider.revoke`)}</button>
             </div>
-            <form className="delivery-form" onSubmit={(event) => { event.preventDefault(); run(() => reconcileTelematicsConnection(conn.id, cursorInputs[conn.id] || ''), `${T}.provider.updated`); }}>
+            <form className="delivery-form" onSubmit={(event) => { event.preventDefault(); run(() => reconcileTelematicsConnection(conn.id, cursorInputs[conn.id] || ''), `${T}.provider.updated`); }} data-track="ui.c237fe248f.10">
               <label className="delivery-field">{t(`${T}.provider.reconcile`)}
                 <input className="delivery-input" disabled={busy} required value={cursorInputs[conn.id] || ''} placeholder={t(`${T}.provider.reconcilePlaceholder`)} onChange={(event) => setCursorInputs({ ...cursorInputs, [conn.id]: event.target.value })} />
               </label>
-              <button className="delivery-button delivery-button--secondary" disabled={busy || !(cursorInputs[conn.id] || '').trim()}>{t(`${T}.provider.reconcile`)}</button>
+              <button className="delivery-button delivery-button--secondary" disabled={busy || !(cursorInputs[conn.id] || '').trim()} data-track="ui.c237fe248f.11">{t(`${T}.provider.reconcile`)}</button>
             </form>
           </article>)}
           <h3>{t(`${T}.provider.createTitle`)}</h3>
           <p>{t(`${T}.provider.refsHint`)}</p>
-          <form onSubmit={(event) => { event.preventDefault(); run(() => createTelematicsConnection({ provider: newConnection.provider.trim(), vehicleId: newConnection.vehicleId.trim() || null, credentialRef: newConnection.credentialRef.trim() || null, webhookSecretRef: newConnection.webhookSecretRef.trim() || null }).then((result) => { if (result) setNewConnection({ provider: '', vehicleId: '', credentialRef: '', webhookSecretRef: '' }); }), `${T}.provider.created`); }}>
+          <form onSubmit={(event) => { event.preventDefault(); run(() => createTelematicsConnection({ provider: newConnection.provider.trim(), vehicleId: newConnection.vehicleId.trim() || null, credentialRef: newConnection.credentialRef.trim() || null, webhookSecretRef: newConnection.webhookSecretRef.trim() || null }).then((result) => { if (result) setNewConnection({ provider: '', vehicleId: '', credentialRef: '', webhookSecretRef: '' }); }), `${T}.provider.created`); }} data-track="ui.c237fe248f.12">
             <fieldset className="delivery-form-fields" disabled={busy}>
               <div className="delivery-stop-grid">
                 <label className="delivery-field">{t(`${T}.provider.providerLabel`)}<input className="delivery-input" required maxLength={60} value={newConnection.provider} placeholder={t(`${T}.provider.providerPlaceholder`)} onChange={(event) => setNewConnection({ ...newConnection, provider: event.target.value })} /></label>
@@ -339,7 +339,7 @@ export default function DeliveryTrackingOpsPage() {
                 <label className="delivery-field">{t(`${T}.provider.credentialRefLabel`)}<input className="delivery-input" maxLength={200} value={newConnection.credentialRef} onChange={(event) => setNewConnection({ ...newConnection, credentialRef: event.target.value })} /></label>
                 <label className="delivery-field">{t(`${T}.provider.webhookSecretRefLabel`)}<input className="delivery-input" maxLength={200} value={newConnection.webhookSecretRef} onChange={(event) => setNewConnection({ ...newConnection, webhookSecretRef: event.target.value })} /></label>
               </div>
-              <button className="delivery-button delivery-button--primary" disabled={!newConnection.provider.trim()}>{busy ? t(`${T}.provider.creating`) : t(`${T}.provider.create`)}</button>
+              <button className="delivery-button delivery-button--primary" disabled={!newConnection.provider.trim()} data-track="ui.c237fe248f.13">{busy ? t(`${T}.provider.creating`) : t(`${T}.provider.create`)}</button>
             </fieldset>
           </form>
         </Section>}
@@ -353,17 +353,17 @@ export default function DeliveryTrackingOpsPage() {
             <td>{link.token_prefix || '—'}</td><td>{date(link.expires_at)}</td>
             <td>{link.use_count ?? 0}</td><td>{date(link.last_used_at)}</td><td>{date(link.created_at)}</td>
             <td>{t(`${T}.links.status.${linkStatus(link)}`)}</td>
-            <td>{!link.revoked_at && <form className="delivery-form" onSubmit={(event) => { event.preventDefault(); if (window.confirm(t(`${T}.links.confirmRevoke`))) run(() => revokeTrackingLink(id, link.id, revokeReason[link.id] || ''), `${T}.links.revoked`); }}>
+            <td>{!link.revoked_at && <form className="delivery-form" onSubmit={(event) => { event.preventDefault(); if (window.confirm(t(`${T}.links.confirmRevoke`))) run(() => revokeTrackingLink(id, link.id, revokeReason[link.id] || ''), `${T}.links.revoked`); }} data-track="ui.c237fe248f.14">
               <input className="delivery-input" disabled={busy} maxLength={500} value={revokeReason[link.id] || ''} placeholder={t(`${T}.links.revokeReasonPlaceholder`)} onChange={(event) => setRevokeReason({ ...revokeReason, [link.id]: event.target.value })} />
-              <button className="delivery-button delivery-button--secondary" disabled={busy}>{t(`${T}.links.revoke`)}</button>
+              <button className="delivery-button delivery-button--secondary" disabled={busy} data-track="ui.c237fe248f.15">{t(`${T}.links.revoke`)}</button>
             </form>}</td>
           </tr>)}</tbody></table></div>}
           <h3>{t(`${T}.links.createTitle`)}</h3>
-          <form className="delivery-form" onSubmit={(event) => { event.preventDefault(); run(async () => { const result = await createTrackingLink(id, ttlHours ? { ttlHours: Number(ttlHours) } : {}); if (result?.link) setNewToken(result.link); }, null); }}>
+          <form className="delivery-form" onSubmit={(event) => { event.preventDefault(); run(async () => { const result = await createTrackingLink(id, ttlHours ? { ttlHours: Number(ttlHours) } : {}); if (result?.link) setNewToken(result.link); }, null); }} data-track="ui.c237fe248f.16">
             <fieldset className="delivery-form-fields" disabled={busy}>
               <label className="delivery-field">{t(`${T}.links.ttlLabel`)}<input className="delivery-input" type="number" min="1" max="720" value={ttlHours} onChange={(event) => setTtlHours(event.target.value)} /></label>
               <p>{t(`${T}.links.ttlHint`)}</p>
-              <button className="delivery-button delivery-button--primary">{busy ? t(`${T}.links.creating`) : t(`${T}.links.create`)}</button>
+              <button className="delivery-button delivery-button--primary" data-track="ui.c237fe248f.17">{busy ? t(`${T}.links.creating`) : t(`${T}.links.create`)}</button>
             </fieldset>
           </form>
           {newToken && <article className="delivery-review-item">
@@ -371,9 +371,9 @@ export default function DeliveryTrackingOpsPage() {
             <p>{t(`${T}.links.newTokenHint`)}</p>
             <p><code>{newToken.token}</code></p>
             <div className="delivery-dispatch-actions">
-              <button className="delivery-button delivery-button--secondary" type="button" onClick={copyToken}>{copied ? t(`${T}.links.copied`) : t(`${T}.links.copy`)}</button>
-              <a className="delivery-button delivery-button--secondary" href={trackingLinkUrl(newToken.token)} target="_blank" rel="noreferrer">{t(`${T}.links.openLink`)}</a>
-              <button className="delivery-button delivery-button--secondary" type="button" onClick={() => setNewToken(null)}>{t(`${T}.common.close`)}</button>
+              <button className="delivery-button delivery-button--secondary" type="button" onClick={copyToken} data-track="ui.c237fe248f.18">{copied ? t(`${T}.links.copied`) : t(`${T}.links.copy`)}</button>
+              <a className="delivery-button delivery-button--secondary" href={trackingLinkUrl(newToken.token)} target="_blank" rel="noreferrer" data-track="ui.c237fe248f.19">{t(`${T}.links.openLink`)}</a>
+              <button className="delivery-button delivery-button--secondary" type="button" onClick={() => setNewToken(null)} data-track="ui.c237fe248f.20">{t(`${T}.common.close`)}</button>
             </div>
           </article>}
         </Section>}

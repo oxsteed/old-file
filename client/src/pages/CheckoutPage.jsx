@@ -65,7 +65,7 @@ function CheckoutPageContent() {
           <p className="text-red-700 mb-4">{error}</p>
           <button
             onClick={() => navigate(cartId ? `/cart/${cartId}` : '/products')}
-            className="w-full bg-primary text-white py-2.5 rounded-xl hover:bg-primary-dark"
+            className="w-full bg-primary text-white py-2.5 rounded-xl hover:bg-primary-dark" data-track="ui.137ad6cada.1"
           >
             {t('common.backToCart')}
           </button>
@@ -94,7 +94,7 @@ function CheckoutPageContent() {
               </div>
               <button
                 onClick={() => navigate(cartId ? `/cart/${cartId}` : '/products')}
-                className="shrink-0 bg-[var(--color-surface-2)] text-[var(--color-text)] px-4 py-2 rounded-xl hover:bg-[var(--color-surface-3)]"
+                className="shrink-0 bg-[var(--color-surface-2)] text-[var(--color-text)] px-4 py-2 rounded-xl hover:bg-[var(--color-surface-3)]" data-track="ui.137ad6cada.2"
               >
                 {t('common.back', { defaultValue: 'Back' })}
               </button>
@@ -148,13 +148,13 @@ function CheckoutPageContent() {
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => setPaymentRecordOpen(true)}
-                className="bg-primary text-white px-5 py-3 rounded-xl font-semibold hover:bg-primary-dark"
+                className="bg-primary text-white px-5 py-3 rounded-xl font-semibold hover:bg-primary-dark" data-track="ui.137ad6cada.3"
               >
                 {t('checkout.recordPaymentProof')}
               </button>
               <button
                 onClick={() => navigate(cartId ? `/cart/${cartId}` : '/products')}
-                className="bg-[var(--color-surface-2)] text-[var(--color-text)] px-5 py-3 rounded-xl font-semibold hover:bg-[var(--color-surface-3)]"
+                className="bg-[var(--color-surface-2)] text-[var(--color-text)] px-5 py-3 rounded-xl font-semibold hover:bg-[var(--color-surface-3)]" data-track="ui.137ad6cada.4"
               >
                 {t('checkout.returnToCart')}
               </button>

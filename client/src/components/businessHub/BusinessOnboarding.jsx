@@ -87,7 +87,7 @@ export default function BusinessOnboarding({ businessId, onAttentionAction }) {
 
   if (state !== 'ready') return <section className="business-onboarding" dir={i18n.dir()}>
     <p role={state === 'loading' ? 'status' : 'alert'}>{text(state)}</p>
-    {state !== 'unavailable' && state !== 'loading' && <button type="button" onClick={load}>{t('list.retry')}</button>}
+    {state !== 'unavailable' && state !== 'loading' && <button type="button" onClick={load} data-track="ui.bbda5d079e.1">{t('list.retry')}</button>}
   </section>;
 
   const business = data.business;
@@ -114,18 +114,18 @@ export default function BusinessOnboarding({ businessId, onAttentionAction }) {
       <div><strong>{text(`checks.${check.id}`)}</strong><span>{text(check.complete ? 'done' : 'todo')}</span></div>
       {!check.complete && <Link to={nextRoute(check)} onClick={navigateSafely}>{text('manage')}</Link>}
     </li>)}</ul>
-    <form onSubmit={event => { event.preventDefault(); act(); }}>
+    <form onSubmit={event => { event.preventDefault(); act(); }} data-track="ui.bbda5d079e.2">
       <h2>{text('details')}</h2>
       {fields.map(key => <label key={key} htmlFor={`setup-${businessId}-${key}`}>
         {text(`fields.${key}`)}
         {key === 'description' ? <textarea id={`setup-${businessId}-${key}`} value={form[key]} disabled={busy} onChange={event => setForm(current => ({ ...current, [key]: event.target.value }))} />
           : <input id={`setup-${businessId}-${key}`} required maxLength={key === 'business_name' ? 200 : 100} value={form[key]} disabled={busy} onChange={event => setForm(current => ({ ...current, [key]: event.target.value }))} />}
       </label>)}
-      <button type="submit" disabled={busy || !dirty}>{text(busy ? 'saving' : 'save')}</button>
+      <button type="submit" disabled={busy || !dirty} data-track="ui.bbda5d079e.3">{text(busy ? 'saving' : 'save')}</button>
     </form>
     <div className="business-onboarding-actions">
-      <button type="button" onClick={load} disabled={busy || dirty}>{text('refresh')}</button>
-      {!published && data.permissions?.canPublish && <button type="button" onClick={() => act(true)} disabled={busy || dirty || !data.readyToPublish}>{text('publish')}</button>}
+      <button type="button" onClick={load} disabled={busy || dirty} data-track="ui.bbda5d079e.4">{text('refresh')}</button>
+      {!published && data.permissions?.canPublish && <button type="button" onClick={() => act(true)} disabled={busy || dirty || !data.readyToPublish} data-track="ui.bbda5d079e.5">{text('publish')}</button>}
       {!published && !data.permissions?.canPublish && <p>{text('ownerOnly')}</p>}
       <Link to={base} onClick={navigateSafely}>{text('workspace')}</Link>
     </div>

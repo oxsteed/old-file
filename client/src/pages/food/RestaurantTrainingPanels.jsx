@@ -155,7 +155,7 @@ export function TrainingPanel({ t, restaurant, bare, onStats, isManager }) {
       <div className={`fd-ops-toolbar${bare ? ' fd-ops-toolbar--end' : ''}`}>
         {!bare && <h3 className="fd-ops-panel-title">{t('restaurants.ops.training.title', 'Staff training')}</h3>}
         {isManager && (
-          <button type="button" className="fd-btn fd-btn-sm" onClick={() => setEditing('new')}>
+          <button type="button" className="fd-btn fd-btn-sm" onClick={() => setEditing('new')} data-track="ui.2265f208ce.1">
             {t('restaurants.ops.training.newModule', 'New module')}
           </button>
         )}
@@ -188,7 +188,7 @@ function ManagerTraining({ t, restaurantId, modules, assignments, completions, o
           icon={GraduationCap}
           title={t('restaurants.ops.training.empty', 'No training modules yet. Create your first module to onboard staff.')}
           actions={(
-            <button type="button" className="fd-btn" onClick={() => onEdit('new')}>
+            <button type="button" className="fd-btn" onClick={() => onEdit('new')} data-track="ui.2265f208ce.2">
               {t('restaurants.ops.training.newModule', 'New module')}
             </button>
           )}
@@ -312,14 +312,14 @@ function ModuleCard({ t, restaurantId, module: m, assignments, onEdit, onDelete,
       )}
       {m.description && <p className="fd-card-meta">{m.description}</p>}
       <div className="fd-ops-checklist-actions">
-        <button type="button" className="fd-btn fd-btn-sm" onClick={() => onEdit(m)}>{t('common.edit', 'Edit')}</button>
-        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={toggleAssign}>
+        <button type="button" className="fd-btn fd-btn-sm" onClick={() => onEdit(m)} data-track="ui.2265f208ce.3">{t('common.edit', 'Edit')}</button>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={toggleAssign} data-track="ui.2265f208ce.4">
           {assignOpen ? t('food.common.back', 'Back') : t('restaurants.ops.training.assign', 'Assign')}
         </button>
-        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => onDelete(m.id)}>{t('common.delete', 'Delete')}</button>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => onDelete(m.id)} data-track="ui.2265f208ce.5">{t('common.delete', 'Delete')}</button>
       </div>
       {assignOpen && (
-        <form onSubmit={assign} className="fd-ops-form">
+        <form onSubmit={assign} className="fd-ops-form" data-track="ui.2265f208ce.6">
           <h3 className="fd-ops-form-title">{t('restaurants.ops.training.assignTitle', 'Assign module')}</h3>
           <div className="fd-field">
             <label htmlFor={`tm-assign-staff-${m.id}`}>{t('restaurants.ops.training.staffLabel', 'Staff member')}</label>
@@ -337,10 +337,10 @@ function ModuleCard({ t, restaurantId, module: m, assignments, onEdit, onDelete,
             <input id={`tm-assign-due-${m.id}`} type="date" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
           </div>
           <div className="fd-settings-actions">
-            <button type="submit" className="fd-btn fd-btn-sm" disabled={busy || !userId}>
+            <button type="submit" className="fd-btn fd-btn-sm" disabled={busy || !userId} data-track="ui.2265f208ce.7">
               {t('restaurants.ops.training.assignCta', 'Assign')}
             </button>
-            <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setAssignOpen(false)}>
+            <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setAssignOpen(false)} data-track="ui.2265f208ce.8">
               {t('food.common.back', 'Back')}
             </button>
           </div>
@@ -420,12 +420,12 @@ function ModuleForm({ t, module, onSave, onCancel }) {
   };
 
   return (
-    <form onSubmit={submit} className="fd-ops-form">
+    <form onSubmit={submit} className="fd-ops-form" data-track="ui.2265f208ce.9">
       <div className="fd-ops-toolbar">
         <h3 className="fd-ops-form-title">
           {module ? t('restaurants.ops.training.editTitle', 'Edit module') : t('restaurants.ops.training.newTitle', 'New module')}
         </h3>
-        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={useStarter}>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={useStarter} data-track="ui.2265f208ce.10">
           {t('restaurants.ops.training.useStarter', 'Use starter: Food safety basics')}
         </button>
       </div>
@@ -463,7 +463,7 @@ function ModuleForm({ t, module, onSave, onCancel }) {
         <div key={i} className="fd-ops-form">
           <div className="fd-ops-toolbar">
             <h4 className="fd-ops-panel-title">{t('restaurants.ops.training.questionLabel', 'Question {{n}}', { n: i + 1 })}</h4>
-            <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => removeQuestion(i)} aria-label={t('restaurants.ops.training.removeQuestion', 'Remove question')}>
+            <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => removeQuestion(i)} aria-label={t('restaurants.ops.training.removeQuestion', 'Remove question')} data-track="ui.2265f208ce.11">
               {t('common.delete', 'Delete')}
             </button>
           </div>
@@ -479,7 +479,7 @@ function ModuleForm({ t, module, onSave, onCancel }) {
                   type="radio"
                   name={`tm-correct-${i}`}
                   checked={q.correct_index === oi}
-                  onChange={() => setQ(i, { correct_index: oi })}
+                  onChange={() => setQ(i, { correct_index: oi })} data-track="ui.2265f208ce.12"
                 />
               </label>
               <input
@@ -494,29 +494,29 @@ function ModuleForm({ t, module, onSave, onCancel }) {
                 className="fd-btn fd-btn-secondary fd-btn-sm"
                 onClick={() => removeOption(i, oi)}
                 disabled={q.options.length <= 2}
-                aria-label={t('restaurants.ops.training.removeOption', 'Remove option')}
+                aria-label={t('restaurants.ops.training.removeOption', 'Remove option')} data-track="ui.2265f208ce.13"
               >
                 ×
               </button>
             </div>
           ))}
           <div className="fd-settings-actions">
-            <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => addOption(i)}>
+            <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => addOption(i)} data-track="ui.2265f208ce.14">
               {t('restaurants.ops.training.addOption', 'Add option')}
             </button>
           </div>
         </div>
       ))}
       <div className="fd-settings-actions">
-        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={addQuestion}>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={addQuestion} data-track="ui.2265f208ce.15">
           {t('restaurants.ops.training.addQuestion', 'Add question')}
         </button>
       </div>
       <div className="fd-settings-actions">
-        <button type="submit" className="fd-btn fd-btn-sm" disabled={saving || !valid}>
+        <button type="submit" className="fd-btn fd-btn-sm" disabled={saving || !valid} data-track="ui.2265f208ce.16">
           {t('food.common.save', 'Save')}
         </button>
-        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onCancel}>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onCancel} data-track="ui.2265f208ce.17">
           {t('food.common.back', 'Back')}
         </button>
       </div>
@@ -553,7 +553,7 @@ function StaffTraining({ t, assignments, onStart }) {
             type="button"
             className="fd-btn fd-btn-sm"
             onClick={() => onStart(a)}
-            disabled={a.status === 'completed' && a.passed}
+            disabled={a.status === 'completed' && a.passed} data-track="ui.2265f208ce.18"
           >
             {t('restaurants.ops.training.start', 'Start')}
           </button>
@@ -607,7 +607,7 @@ function TrainingFlow({ t, restaurantId, taking, setTaking, onDone }) {
             {t('restaurants.ops.offline.queued', 'Saved offline. Will sync when back online.')}
           </p>
           <div className="fd-settings-actions">
-            <button type="button" className="fd-btn fd-btn-sm" onClick={close}>
+            <button type="button" className="fd-btn fd-btn-sm" onClick={close} data-track="ui.2265f208ce.19">
               {t('restaurants.ops.training.done', 'Done')}
             </button>
           </div>
@@ -628,7 +628,7 @@ function TrainingFlow({ t, restaurantId, taking, setTaking, onDone }) {
           {t('restaurants.ops.training.passNeeded', 'Pass mark: {{pct}}%', { pct: threshold ?? 0 })}
         </p>
         <div className="fd-settings-actions">
-          <button type="button" className="fd-btn fd-btn-sm" onClick={close}>
+          <button type="button" className="fd-btn fd-btn-sm" onClick={close} data-track="ui.2265f208ce.20">
             {t('restaurants.ops.training.done', 'Done')}
           </button>
         </div>
@@ -640,12 +640,12 @@ function TrainingFlow({ t, restaurantId, taking, setTaking, onDone }) {
     const questions = module?.questions || [];
     const answered = questions.filter((_, i) => Number.isInteger(answers[i])).length;
     return (
-      <form onSubmit={submit}>
+      <form onSubmit={submit} data-track="ui.2265f208ce.21">
         <div className="fd-ops-toolbar">
           <h3 className="fd-ops-panel-title">
             {t('restaurants.ops.training.quizTitle', 'Quiz')}: {module?.title || assignment.module_title}
           </h3>
-          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setTaking((prev) => ({ ...prev, step: 'lesson' }))}>
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setTaking((prev) => ({ ...prev, step: 'lesson' }))} data-track="ui.2265f208ce.22">
             {t('food.common.back', 'Back')}
           </button>
         </div>
@@ -659,7 +659,7 @@ function TrainingFlow({ t, restaurantId, taking, setTaking, onDone }) {
                     type="radio"
                     name={`tm-quiz-${assignment.id}-${i}`}
                     checked={answers[i] === oi}
-                    onChange={() => setAnswers((a) => ({ ...a, [i]: oi }))}
+                    onChange={() => setAnswers((a) => ({ ...a, [i]: oi }))} data-track="ui.2265f208ce.23"
                   />
                   {opt}
                 </label>
@@ -671,12 +671,12 @@ function TrainingFlow({ t, restaurantId, taking, setTaking, onDone }) {
           {t('restaurants.ops.training.answeredCount', '{{done}} of {{total}} answered', { done: answered, total: questions.length })}
         </p>
         <div className="fd-settings-actions">
-          <button type="submit" className="fd-btn fd-btn-sm" disabled={busy || questions.length === 0}>
+          <button type="submit" className="fd-btn fd-btn-sm" disabled={busy || questions.length === 0} data-track="ui.2265f208ce.24">
             {busy
               ? t('restaurants.ops.training.submittingQuiz', 'Submitting...')
               : t('restaurants.ops.training.submitQuiz', 'Submit quiz')}
           </button>
-          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={close}>
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={close} data-track="ui.2265f208ce.25">
             {t('food.common.back', 'Back')}
           </button>
         </div>
@@ -690,7 +690,7 @@ function TrainingFlow({ t, restaurantId, taking, setTaking, onDone }) {
     <div>
       <div className="fd-ops-toolbar">
         <h3 className="fd-ops-panel-title">{module?.title || assignment.module_title}</h3>
-        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={close}>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={close} data-track="ui.2265f208ce.26">
           {t('food.common.back', 'Back')}
         </button>
       </div>
@@ -699,7 +699,7 @@ function TrainingFlow({ t, restaurantId, taking, setTaking, onDone }) {
         <p key={i}>{p}</p>
       ))}
       <div className="fd-settings-actions">
-        <button type="button" className="fd-btn fd-btn-sm" onClick={() => setTaking((prev) => ({ ...prev, step: 'quiz' }))}>
+        <button type="button" className="fd-btn fd-btn-sm" onClick={() => setTaking((prev) => ({ ...prev, step: 'quiz' }))} data-track="ui.2265f208ce.27">
           {t('restaurants.ops.training.takeQuiz', 'Take quiz')}
         </button>
       </div>

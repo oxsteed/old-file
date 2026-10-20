@@ -33543,5 +33543,9 @@
   "adminCreditApprovalGraceEnds": "Carência termina em",
   "adminCreditApprovalRevokedAt": "Revogado em",
   "adminCreditApprovalMigratedAt": "Saldos migrados",
-  "adminCreditApprovalGrandfathered": "Aprovado (sem registro de aprovação)"
+  "adminCreditApprovalGrandfathered": "Aprovado (sem registro de aprovação)",
+  "growthInsights": {
+    "analyticsStorage": "Google Analytics e armazenamento no dispositivo",
+    "analyticsStorageDescription": "No EEE, Reino Unido, Suíça e Quebec, o rastreamento e as ofertas baseadas na atividade exigem consentimentos separados e revogáveis. Os estados americanos aplicáveis permitem recusar venda ou compartilhamento e respeitam Global Privacy Control. Nas demais regiões, a opção de análise controla Google Analytics e armazenamento persistente; este aviso cobre a atividade."
+  }
 }

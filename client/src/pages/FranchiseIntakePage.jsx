@@ -266,7 +266,7 @@ export default function FranchiseIntakePage() {
             </aside>
           </section>
 
-          <form onSubmit={handleSubmit} style={{ marginTop: '1.5rem', border: '1px solid rgba(148,163,184,0.16)', borderRadius: '32px', background: 'rgba(15,23,42,0.88)', padding: '1.5rem' }}>
+          <form onSubmit={handleSubmit} style={{ marginTop: '1.5rem', border: '1px solid rgba(148,163,184,0.16)', borderRadius: '32px', background: 'rgba(15,23,42,0.88)', padding: '1.5rem' }} data-track="ui.ecc5611e10.1">
             <div style={{ display: 'grid', gap: '1.5rem' }}>
               <section>
                 <h2 style={sectionTitleStyle}>{t('franchiseIntakePage.sections.applicantInformation')}</h2>
@@ -342,7 +342,7 @@ export default function FranchiseIntakePage() {
                   <Link to="/franchise/status" style={{ padding: '0.95rem 1.15rem', borderRadius: '999px', border: '1px solid rgba(148,163,184,0.16)', color: 'var(--app-text)', textDecoration: 'none', fontWeight: 700 }}>
                     {t('franchiseIntakePage.footer.viewStatus')}
                   </Link>
-                  <button type="submit" disabled={loading} style={{ padding: '0.95rem 1.25rem', borderRadius: '999px', border: 'none', background: loading ? '#fb923c' : '#f97316', color: '#fff', fontWeight: 800, cursor: loading ? 'wait' : 'pointer' }}>
+                  <button type="submit" disabled={loading} style={{ padding: '0.95rem 1.25rem', borderRadius: '999px', border: 'none', background: loading ? '#fb923c' : '#f97316', color: '#fff', fontWeight: 800, cursor: loading ? 'wait' : 'pointer' }} data-track="ui.ecc5611e10.2">
                     {loading ? t('franchiseIntakePage.buttons.submitting') : t('franchiseIntakePage.buttons.submit')}
                   </button>
                 </div>

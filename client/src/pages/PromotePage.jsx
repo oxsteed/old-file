@@ -315,7 +315,7 @@ function CopyBlock({ title, icon: Icon, value, onCopy }) {
           onClick={() => {
             copyToClipboard(value, `${title} copied`);
             if (onCopy) onCopy();
-          }}
+          }} data-track="ui.f0fa5d1ae5.1"
         >
           <Copy size={15} />
           Copy
@@ -369,7 +369,7 @@ function PrintStudio({ target, qrSrc, printLayout, setPrintLayout, onPrint }) {
           <h2>{t('promotePage.print.heading', { defaultValue: 'Ready-to-print marketing materials' })}</h2>
           <p>{t('promotePage.print.body', { defaultValue: 'Print a flyer, QR handout, or business-card sheet. Use the browser print dialog to print directly or save as a PDF.' })}</p>
         </div>
-        <button type="button" className="promote-btn primary" onClick={onPrint}>
+        <button type="button" className="promote-btn primary" onClick={onPrint} data-track="ui.f0fa5d1ae5.2">
           <Printer size={16} />
           {t('promotePage.print.printOrSave', { defaultValue: 'Print or save PDF' })}
         </button>
@@ -385,7 +385,7 @@ function PrintStudio({ target, qrSrc, printLayout, setPrintLayout, onPrint }) {
             key={id}
             type="button"
             className={printLayout === id ? 'active' : ''}
-            onClick={() => setPrintLayout(id)}
+            onClick={() => setPrintLayout(id)} data-track="ui.f0fa5d1ae5.3"
           >
             <strong>{label}</strong>
             <span>{description}</span>
@@ -452,8 +452,8 @@ function StudioTab({
             <h2>{t('promotePage.studio.choose', { defaultValue: 'Choose what you want to promote' })}</h2>
           </div>
           <div className="promote-segmented" role="tablist" aria-label={t('promotePage.studio.targetLabel', { defaultValue: 'Promotion target' })}>
-            <button className={targetType === 'helper' ? 'active' : ''} onClick={() => setTargetType('helper')} type="button">{t('promotePage.studio.helperProfile', { defaultValue: 'Helper profile' })}</button>
-            <button className={targetType === 'business' ? 'active' : ''} onClick={() => setTargetType('business')} disabled={businesses.length === 0} type="button">{t('promotePage.studio.businessPage', { defaultValue: 'Business page' })}</button>
+            <button className={targetType === 'helper' ? 'active' : ''} onClick={() => setTargetType('helper')} type="button" data-track="ui.f0fa5d1ae5.4">{t('promotePage.studio.helperProfile', { defaultValue: 'Helper profile' })}</button>
+            <button className={targetType === 'business' ? 'active' : ''} onClick={() => setTargetType('business')} disabled={businesses.length === 0} type="button" data-track="ui.f0fa5d1ae5.5">{t('promotePage.studio.businessPage', { defaultValue: 'Business page' })}</button>
           </div>
           {targetType === 'business' && (
             <label className="promote-field">
@@ -490,15 +490,15 @@ function StudioTab({
               {qrSrc && <img src={qrSrc} alt="Profile QR code" />}
               <div className="promote-link-row">
                 <span>{target.profileUrl}</span>
-                <button type="button" onClick={() => { copyToClipboard(target.profileUrl, 'Profile link copied'); onTrackedClick('profile_link', 'copy'); }} aria-label="Copy profile link">
+                <button type="button" onClick={() => { copyToClipboard(target.profileUrl, 'Profile link copied'); onTrackedClick('profile_link', 'copy'); }} aria-label="Copy profile link" data-track="ui.f0fa5d1ae5.6">
                   <Copy size={15} />
                 </button>
               </div>
               <div className="promote-card-actions">
-                <a href={target.profilePath} target="_blank" rel="noopener noreferrer" className="promote-btn secondary" onClick={() => onTrackedClick('profile_link', 'open')}>
+                <a href={target.profilePath} target="_blank" rel="noopener noreferrer" className="promote-btn secondary" onClick={() => onTrackedClick('profile_link', 'open')} data-track="ui.f0fa5d1ae5.7">
                   {t('promotePage.studio.viewPublicPage', { defaultValue: 'View public page' })} <ExternalLink size={14} />
                 </a>
-                <button type="button" className="promote-btn primary" onClick={() => { copyToClipboard(target.bookingUrl, 'Booking link copied'); onTrackedClick('booking_link', 'copy'); }}>
+                <button type="button" className="promote-btn primary" onClick={() => { copyToClipboard(target.bookingUrl, 'Booking link copied'); onTrackedClick('booking_link', 'copy'); }} data-track="ui.f0fa5d1ae5.8">
                   {t('promotePage.studio.copyBookingLink', { defaultValue: 'Copy booking link' })}
                 </button>
               </div>
@@ -540,7 +540,7 @@ function StudioTab({
               onClick={() => {
                 const idx = ANGLES.findIndex((a) => a.id === angle);
                 setAngle(ANGLES[(idx + 1) % ANGLES.length].id);
-              }}
+              }} data-track="ui.f0fa5d1ae5.9"
             >
               <RefreshCw size={14} /> Try another angle
             </button>
@@ -555,7 +555,7 @@ function StudioTab({
                 key={a.id}
                 type="button"
                 className={'promote-angle-pill' + (angle === a.id ? ' active' : '')}
-                onClick={() => setAngle(a.id)}
+                onClick={() => setAngle(a.id)} data-track="ui.f0fa5d1ae5.10"
               >
                 <Icon size={14} />
                 <span>{a.label}</span>
@@ -573,7 +573,7 @@ function StudioTab({
                 key={c.id}
                 type="button"
                 className={'promote-channel-pill' + (channel === c.id ? ' active' : '')}
-                onClick={() => setChannel(c.id)}
+                onClick={() => setChannel(c.id)} data-track="ui.f0fa5d1ae5.11"
               >
                 <Icon size={14} />
                 <span>{c.label}</span>
@@ -595,14 +595,14 @@ function StudioTab({
             <button
               type="button"
               className="promote-btn primary block"
-              onClick={() => { copyToClipboard(generated, 'Copy ready to paste'); onTrackedClick(`studio_${channel}`, angle); }}
+              onClick={() => { copyToClipboard(generated, 'Copy ready to paste'); onTrackedClick(`studio_${channel}`, angle); }} data-track="ui.f0fa5d1ae5.12"
             >
               <Copy size={15} /> {t('promotePage.studio.copyThisPost', { defaultValue: 'Copy this post' })}
             </button>
             <button
               type="button"
               className="promote-btn secondary block"
-              onClick={() => { copyToClipboard(trackedShareUrl, 'Tracked link copied'); onTrackedClick(`studio_${channel}`, 'link_only'); }}
+              onClick={() => { copyToClipboard(trackedShareUrl, 'Tracked link copied'); onTrackedClick(`studio_${channel}`, 'link_only'); }} data-track="ui.f0fa5d1ae5.13"
             >
               <LinkIcon size={15} /> {t('promotePage.studio.copyTrackedLinkOnly', { defaultValue: 'Copy tracked link only' })}
             </button>
@@ -664,7 +664,7 @@ function CampaignsTab({ target, tone, onTrackedClick }) {
       <p className="promote-campaign-hook">{c.hook}</p>
       <p className="promote-campaign-body">{c.body}</p>
       <div className="promote-campaign-actions">
-        <button type="button" className="promote-btn secondary" onClick={() => activateCampaign(c)}>
+        <button type="button" className="promote-btn secondary" onClick={() => activateCampaign(c)} data-track="ui.f0fa5d1ae5.14">
           <Copy size={14} /> Copy campaign
         </button>
         <button
@@ -674,7 +674,7 @@ function CampaignsTab({ target, tone, onTrackedClick }) {
             const post = buildAngleCopy('seasonal', 'facebook', { ...target, serviceText: c.title.toLowerCase() }, tone);
             copyToClipboard(`${c.emoji} ${c.title}\n\n${post}`, 'Ready-to-post version copied');
             onTrackedClick(`campaign_${c.id}`, 'social_post');
-          }}
+          }} data-track="ui.f0fa5d1ae5.15"
         >
           <Wand2 size={14} /> Generate post
         </button>
@@ -838,7 +838,7 @@ function SlotsTab({ target, tone, onTrackedClick }) {
                     <button
                       type="button"
                       className="promote-btn secondary"
-                      onClick={() => { copyToClipboard(slotCopy(day.date), 'Slot promo copied'); onTrackedClick('slot_filler', day.key); }}
+                      onClick={() => { copyToClipboard(slotCopy(day.date), 'Slot promo copied'); onTrackedClick('slot_filler', day.key); }} data-track="ui.f0fa5d1ae5.16"
                     >
                       <Copy size={14} /> {t('promotePage.common.copy', { defaultValue: 'Copy' })}
                     </button>
@@ -849,7 +849,7 @@ function SlotsTab({ target, tone, onTrackedClick }) {
                         const smsBody = encodeURIComponent(slotCopy(day.date));
                         window.open(`sms:?&body=${smsBody}`, '_blank');
                         onTrackedClick('slot_filler', `sms_${day.key}`);
-                      }}
+                      }} data-track="ui.f0fa5d1ae5.17"
                     >
                       <Send size={14} /> {t('promotePage.slots.sendAsText', { defaultValue: 'Send as text' })}
                     </button>
@@ -938,7 +938,7 @@ ${target.providerName}`
                 key={ch}
                 type="button"
                 className={'promote-channel-pill' + (channel === ch ? ' active' : '')}
-                onClick={() => setChannel(ch)}
+                onClick={() => setChannel(ch)} data-track="ui.f0fa5d1ae5.18"
               >
                 <span>{ch}</span>
               </button>
@@ -947,7 +947,7 @@ ${target.providerName}`
 
           <div className="promote-link-row tracked">
             <span>{trackedLink}</span>
-            <button type="button" onClick={() => { copyToClipboard(trackedLink, 'Tracked referral link copied'); onTrackedClick(`referral_${channel}`, campaignName); }} aria-label="Copy tracked link">
+            <button type="button" onClick={() => { copyToClipboard(trackedLink, 'Tracked referral link copied'); onTrackedClick(`referral_${channel}`, campaignName); }} aria-label="Copy tracked link" data-track="ui.f0fa5d1ae5.19">
               <Copy size={14} />
             </button>
           </div>
@@ -972,14 +972,14 @@ ${target.providerName}`
             <button
               type="button"
               className="promote-btn secondary"
-              onClick={() => { copyToClipboard(cardText, 'Referral card text copied'); onTrackedClick('referral_card', 'copy'); }}
+              onClick={() => { copyToClipboard(cardText, 'Referral card text copied'); onTrackedClick('referral_card', 'copy'); }} data-track="ui.f0fa5d1ae5.20"
             >
               <Copy size={14} /> {t('promotePage.referrals.copyCardText', { defaultValue: 'Copy card text' })}
             </button>
             <button
               type="button"
               className="promote-btn primary"
-              onClick={() => { window.print(); onTrackedClick('referral_card', 'print'); }}
+              onClick={() => { window.print(); onTrackedClick('referral_card', 'print'); }} data-track="ui.f0fa5d1ae5.21"
             >
               <Printer size={14} /> {t('promotePage.referrals.printHandOut', { defaultValue: 'Print and hand out' })}
             </button>
@@ -1064,7 +1064,7 @@ export function PerformanceTab({ target }) {
       {state === 'error' && (
         <div className="promote-empty-small" role="alert">
           {t('promotePage.performance.loadError')}{' '}
-          <button type="button" className="promote-btn secondary" onClick={() => setReload((n) => n + 1)}>
+          <button type="button" className="promote-btn secondary" onClick={() => setReload((n) => n + 1)} data-track="ui.f0fa5d1ae5.22">
             <RefreshCw size={14} /> {t('promotePage.performance.retry')}
           </button>
         </div>
@@ -1312,10 +1312,10 @@ function ToolkitTab({ target, qrSrc, tone, seoChecks, setSeoChecks, onTrackedCli
           </div>
           <div className="promote-signature-preview" dangerouslySetInnerHTML={{ __html: signatureHtml }} />
           <div className="promote-tool-actions">
-            <button type="button" className="promote-btn secondary" onClick={() => { copyToClipboard(signatureHtml, 'Signature HTML copied'); onTrackedClick('signature', 'html'); }}>
+            <button type="button" className="promote-btn secondary" onClick={() => { copyToClipboard(signatureHtml, 'Signature HTML copied'); onTrackedClick('signature', 'html'); }} data-track="ui.f0fa5d1ae5.23">
               <Code size={14} /> {t('promotePage.common.copyHtml', { defaultValue: 'Copy HTML' })}
             </button>
-            <button type="button" className="promote-btn primary" onClick={() => { copyToClipboard(`${sigName}\n${sigLine}\n${target.profileUrl}\nBook: ${target.bookingUrl}`, 'Plain-text signature copied'); onTrackedClick('signature', 'text'); }}>
+            <button type="button" className="promote-btn primary" onClick={() => { copyToClipboard(`${sigName}\n${sigLine}\n${target.profileUrl}\nBook: ${target.bookingUrl}`, 'Plain-text signature copied'); onTrackedClick('signature', 'text'); }} data-track="ui.f0fa5d1ae5.24">
               <Copy size={14} /> {t('promotePage.toolkit.copyPlainText', { defaultValue: 'Copy plain text' })}
             </button>
           </div>
@@ -1333,10 +1333,10 @@ function ToolkitTab({ target, qrSrc, tone, seoChecks, setSeoChecks, onTrackedCli
           </div>
           <pre className="promote-code-block"><code>{embedCode}</code></pre>
           <div className="promote-tool-actions">
-            <button type="button" className="promote-btn primary" onClick={() => { copyToClipboard(embedCode, 'Embed code copied'); onTrackedClick('embed_widget', 'copy'); }}>
+            <button type="button" className="promote-btn primary" onClick={() => { copyToClipboard(embedCode, 'Embed code copied'); onTrackedClick('embed_widget', 'copy'); }} data-track="ui.f0fa5d1ae5.25">
               <Code size={14} /> {t('promotePage.toolkit.copyEmbedCode', { defaultValue: 'Copy embed code' })}
             </button>
-            <a className="promote-btn secondary" href={target.bookingUrl} target="_blank" rel="noopener noreferrer">
+            <a className="promote-btn secondary" href={target.bookingUrl} target="_blank" rel="noopener noreferrer" data-track="ui.f0fa5d1ae5.26">
               {t('promotePage.toolkit.preview', { defaultValue: 'Preview' })} <ExternalLink size={14} />
             </a>
           </div>
@@ -1354,7 +1354,7 @@ function ToolkitTab({ target, qrSrc, tone, seoChecks, setSeoChecks, onTrackedCli
               <div key={idx} className="promote-drip-step">
                 <strong>{t('promotePage.toolkit.step', { defaultValue: 'Step' })} {idx + 1}</strong>
                 <textarea readOnly value={line} />
-                <button type="button" className="promote-btn secondary" onClick={() => { copyToClipboard(line, `Step ${idx + 1} copied`); onTrackedClick('drip', `step_${idx + 1}`); }}>
+                <button type="button" className="promote-btn secondary" onClick={() => { copyToClipboard(line, `Step ${idx + 1} copied`); onTrackedClick('drip', `step_${idx + 1}`); }} data-track="ui.f0fa5d1ae5.27">
                   <Copy size={14} /> {t('promotePage.common.copy', { defaultValue: 'Copy' })}
                 </button>
               </div>
@@ -1386,7 +1386,7 @@ function ToolkitTab({ target, qrSrc, tone, seoChecks, setSeoChecks, onTrackedCli
           </div>
           <textarea readOnly value={reviewText} className="promote-studio-textarea" />
           <div className="promote-tool-actions">
-            <button type="button" className="promote-btn secondary" onClick={() => { copyToClipboard(reviewText, 'Review request copied'); onTrackedClick('review_request', reviewPlatform); }}>
+            <button type="button" className="promote-btn secondary" onClick={() => { copyToClipboard(reviewText, 'Review request copied'); onTrackedClick('review_request', reviewPlatform); }} data-track="ui.f0fa5d1ae5.28">
               <Copy size={14} /> {t('promotePage.common.copy', { defaultValue: 'Copy' })}
             </button>
             <button
@@ -1395,7 +1395,7 @@ function ToolkitTab({ target, qrSrc, tone, seoChecks, setSeoChecks, onTrackedCli
               onClick={() => {
                 window.open(`sms:?&body=${encodeURIComponent(reviewText)}`, '_blank');
                 onTrackedClick('review_request', `sms_${reviewPlatform}`);
-              }}
+              }} data-track="ui.f0fa5d1ae5.29"
             >
               <Send size={14} /> {t('promotePage.toolkit.sendAsText', { defaultValue: 'Send as text' })}
             </button>
@@ -1415,7 +1415,7 @@ function ToolkitTab({ target, qrSrc, tone, seoChecks, setSeoChecks, onTrackedCli
               const Icon = done ? CheckCircle2 : Plus;
               return (
                 <li key={w.id} className={done ? 'done' : ''}>
-                  <button type="button" className="promote-seo-toggle" onClick={() => toggleSeo(w.id)} aria-label={done ? t('promotePage.toolkit.markIncomplete', { defaultValue: 'Mark incomplete' }) : t('promotePage.toolkit.markComplete', { defaultValue: 'Mark complete' })}>
+                  <button type="button" className="promote-seo-toggle" onClick={() => toggleSeo(w.id)} aria-label={done ? t('promotePage.toolkit.markIncomplete', { defaultValue: 'Mark incomplete' }) : t('promotePage.toolkit.markComplete', { defaultValue: 'Mark complete' })} data-track="ui.f0fa5d1ae5.30">
                     <Icon size={18} />
                   </button>
                   <div>
@@ -1429,7 +1429,7 @@ function ToolkitTab({ target, qrSrc, tone, seoChecks, setSeoChecks, onTrackedCli
                   {w.url?.startsWith('/') ? (
                     <Link to={w.url} className="promote-seo-link">{t('promotePage.common.open', { defaultValue: 'Open' })} <ChevronRight size={14} /></Link>
                   ) : (
-                    <a href={w.url} target="_blank" rel="noopener noreferrer" className="promote-seo-link">{t('promotePage.common.open', { defaultValue: 'Open' })} <ExternalLink size={14} /></a>
+                    <a href={w.url} target="_blank" rel="noopener noreferrer" className="promote-seo-link" data-track="ui.f0fa5d1ae5.31">{t('promotePage.common.open', { defaultValue: 'Open' })} <ExternalLink size={14} /></a>
                   )}
                 </li>
               );
@@ -1460,7 +1460,7 @@ function ToolkitTab({ target, qrSrc, tone, seoChecks, setSeoChecks, onTrackedCli
               type="button"
               className="promote-btn primary"
               onClick={requestFeaturedPlacement}
-              disabled={requestingPlacement || !target.businessId}
+              disabled={requestingPlacement || !target.businessId} data-track="ui.f0fa5d1ae5.32"
             >
               <TrendingUp size={14} /> {requestingPlacement ? t('promotePage.common.sending', { defaultValue: 'Sending...' }) : t('promotePage.toolkit.requestReview', { defaultValue: 'Request review' })}
             </button>
@@ -1468,7 +1468,7 @@ function ToolkitTab({ target, qrSrc, tone, seoChecks, setSeoChecks, onTrackedCli
               <button
                 type="button"
                 className="promote-btn secondary"
-                onClick={() => toast(t('promotePage.toolkit.chooseBusinessPageFirst', { defaultValue: 'Choose a business page in the Studio tab before requesting featured placement.' }))}
+                onClick={() => toast(t('promotePage.toolkit.chooseBusinessPageFirst', { defaultValue: 'Choose a business page in the Studio tab before requesting featured placement.' }))} data-track="ui.f0fa5d1ae5.33"
               >
                 {t('promotePage.toolkit.chooseBusinessPage', { defaultValue: 'Choose business page' })}
               </button>
@@ -1671,7 +1671,7 @@ export default function PromotePage() {
                     role="tab"
                     aria-selected={activeTab === tabItem.id}
                     className={'promote-tab' + (activeTab === tabItem.id ? ' active' : '')}
-                    onClick={() => setActiveTab(tabItem.id)}
+                    onClick={() => setActiveTab(tabItem.id)} data-track="ui.f0fa5d1ae5.34"
                   >
                     <Icon size={15} />
                     <span>{tabItem.label}</span>

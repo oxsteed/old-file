@@ -28,6 +28,10 @@ test('anonymizes users with OxSteed Credit records instead of deleting financial
   mockQuery
     .mockResolvedValueOnce({ rows: [user] })
     .mockResolvedValueOnce({ rows: [] })
+    // Account privacy cleanup: site visits, Discover searches, own Promote rows.
+    .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+    .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+    .mockResolvedValueOnce({ rows: [], rowCount: 0 })
     .mockResolvedValueOnce({ rows: [{ exists: true }] })
     .mockResolvedValueOnce({ rows: [{ exists: true }] })
     .mockResolvedValueOnce({ rows: [{ exists: true }] })

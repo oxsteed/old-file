@@ -1,0 +1,27 @@
+{
+  "$id": "account.verified.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "role": {
+      "enum": [
+        "customer",
+        "helper",
+        "business",
+        "restaurant",
+        "broker"
+      ]
+    },
+    "tier": {
+      "enum": [
+        "starter",
+        "pro",
+        "elite"
+      ]
+    },
+    "country": {
+      "type": "string",
+      "pattern": "^[A-Z]{2}$"
+    }
+  }
+}

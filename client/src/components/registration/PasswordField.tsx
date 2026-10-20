@@ -80,7 +80,7 @@ export default function PasswordField({ value, onChange, error, signupPolicy = f
           type="button"
           onClick={() => setShow(!show)}
           className="absolute end-0 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-700 hover:text-gray-300 transition-colors"
-          aria-label={show ? t('register.hidePassword') : t('register.showPassword')}
+          aria-label={show ? t('register.hidePassword') : t('register.showPassword')} data-track-private
         >
           {show ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>

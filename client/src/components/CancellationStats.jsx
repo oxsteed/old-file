@@ -112,7 +112,7 @@ export default function CancellationStats({ userId, type = 'customer', showDetai
                 setExpanded((previous) => !previous);
               }}
               className="cs-expand-btn"
-              aria-label={expanded ? t('cancellationStats.collapseDetails') : t('cancellationStats.expandDetails')}
+              aria-label={expanded ? t('cancellationStats.collapseDetails') : t('cancellationStats.expandDetails')} data-track="ui.8deb9cdb35.1"
             >
               {expanded ? '−' : '+'}
             </button>

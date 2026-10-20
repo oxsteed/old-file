@@ -156,7 +156,7 @@ export default function LogisticsModal({
               type="button"
               className="lxm-close-btn"
               onClick={() => onClose?.()}
-              aria-label={tx('logistics.modal.close', 'Close')}
+              aria-label={tx('logistics.modal.close', 'Close')} data-track="ui.72908cf3d0.1"
             >
               <span aria-hidden="true">×</span>
             </button>
@@ -191,7 +191,7 @@ export function LogisticsModalError({ message, onRetry }) {
       <div className="lxm-state-icon" aria-hidden="true">⚠️</div>
       <p>{message || tx('logistics.modal.loadError', "Couldn't load this preview.")}</p>
       {onRetry && (
-        <button type="button" className="lx-btn-secondary lxm-retry-btn" onClick={onRetry}>
+        <button type="button" className="lx-btn-secondary lxm-retry-btn" onClick={onRetry} data-track="ui.72908cf3d0.2">
           {tx('logistics.modal.retry', 'Retry')}
         </button>
       )}

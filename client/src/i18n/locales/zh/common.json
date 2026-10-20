@@ -3592,5 +3592,9 @@
       "empty": "没有待处理项目",
       "reviewHint": "记录审核不会转移资金或放行货物。"
     }
+  },
+  "growthInsights": {
+    "analyticsStorage": "Google Analytics 和设备存储",
+    "analyticsStorageDescription": "在欧洲经济区、英国、瑞士和魁北克，活动追踪及基于活动的优惠各需单独同意，可在设置中撤回。适用的美国州提供“不出售或共享”选项并尊重 Global Privacy Control。其他地区的分析开关仅控制 Google Analytics 和设备持久存储，平台活动按本通知处理。"
   }
 }

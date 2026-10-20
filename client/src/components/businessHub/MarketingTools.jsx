@@ -96,7 +96,7 @@ export function MarketingTools({ businessId }) {
 
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>
         {[['broadcasts', t('businessHub.marketing.tabs.broadcasts'), <Megaphone size={14} />], ['promos', t('businessHub.marketing.tabs.promoCodes'), <Tag size={14} />]].map(([id, label, icon]) => (
-          <button key={id} onClick={() => setTab(id)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.25rem', border: 'none', background: 'transparent', cursor: 'pointer', color: tab === id ? '#f97316' : 'var(--muted-text)', borderBottom: tab === id ? '2px solid #f97316' : '2px solid transparent', fontWeight: tab === id ? 600 : 400, fontSize: '0.875rem' }}>
+          <button key={id} onClick={() => setTab(id)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.25rem', border: 'none', background: 'transparent', cursor: 'pointer', color: tab === id ? '#f97316' : 'var(--muted-text)', borderBottom: tab === id ? '2px solid #f97316' : '2px solid transparent', fontWeight: tab === id ? 600 : 400, fontSize: '0.875rem' }} data-track="ui.015cd5099b.1">
             {icon} {label}
           </button>
         ))}
@@ -105,7 +105,7 @@ export function MarketingTools({ businessId }) {
       {tab === 'broadcasts' && (
         <>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-            <button onClick={() => setShowBroadcastForm(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.6rem 1.2rem', cursor: 'pointer', fontWeight: 600 }}><Plus size={16} /> {t('businessHub.marketing.newBroadcast')}</button>
+            <button onClick={() => setShowBroadcastForm(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.6rem 1.2rem', cursor: 'pointer', fontWeight: 600 }} data-track="ui.015cd5099b.2"><Plus size={16} /> {t('businessHub.marketing.newBroadcast')}</button>
           </div>
           {showBroadcastForm && (
             <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.75rem', padding: '1.25rem', marginBottom: '1.5rem' }}>
@@ -129,8 +129,8 @@ export function MarketingTools({ businessId }) {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
-                <button onClick={() => setShowBroadcastForm(false)} style={{ padding: '0.5rem 1rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'transparent', color: 'var(--app-text)', cursor: 'pointer' }}>{t('common.cancel')}</button>
-                <button onClick={createBroadcast} style={{ padding: '0.5rem 1rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>{t('businessHub.marketing.saveDraft')}</button>
+                <button onClick={() => setShowBroadcastForm(false)} style={{ padding: '0.5rem 1rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'transparent', color: 'var(--app-text)', cursor: 'pointer' }} data-track="ui.015cd5099b.3">{t('common.cancel')}</button>
+                <button onClick={createBroadcast} style={{ padding: '0.5rem 1rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }} data-track="ui.015cd5099b.4">{t('businessHub.marketing.saveDraft')}</button>
               </div>
             </div>
           )}
@@ -150,8 +150,8 @@ export function MarketingTools({ businessId }) {
                 {b.delivery && <BroadcastDeliveryStats channels={b.delivery.channels} unsubscribes={b.delivery.unsubscribes} compact testId={`broadcast-stats-${b.id}`} />}
                 {b.status === 'sent' && !b.delivery_tracked && <div style={{ fontSize: '0.7rem', color: 'var(--muted-text)', marginTop: '0.25rem' }}>{t('businessHub.marketing.delivery.legacyUntracked')}</div>}
               </div>
-              {EDITABLE.includes(b.status) && <button onClick={() => sendBroadcast(b.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.4rem 0.75rem', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}><Send size={12} /> {t('businessHub.marketing.send')}</button>}
-              {EDITABLE.includes(b.status) && <button onClick={() => deleteBroadcast(b.id)} aria-label={t('businessHub.marketing.deleteBroadcast')} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={14} /></button>}
+              {EDITABLE.includes(b.status) && <button onClick={() => sendBroadcast(b.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.4rem 0.75rem', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }} data-track="ui.015cd5099b.5"><Send size={12} /> {t('businessHub.marketing.send')}</button>}
+              {EDITABLE.includes(b.status) && <button onClick={() => deleteBroadcast(b.id)} aria-label={t('businessHub.marketing.deleteBroadcast')} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }} data-track="ui.015cd5099b.6"><Trash2 size={14} /></button>}
             </div>
           ))}
         </>
@@ -160,7 +160,7 @@ export function MarketingTools({ businessId }) {
       {tab === 'promos' && (
         <>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-            <button onClick={() => setShowPromoForm(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.6rem 1.2rem', cursor: 'pointer', fontWeight: 600 }}><Plus size={16} /> {t('businessHub.marketing.newCode')}</button>
+            <button onClick={() => setShowPromoForm(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.6rem 1.2rem', cursor: 'pointer', fontWeight: 600 }} data-track="ui.015cd5099b.7"><Plus size={16} /> {t('businessHub.marketing.newCode')}</button>
           </div>
           {showPromoForm && (
             <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.75rem', padding: '1.25rem', marginBottom: '1.5rem' }}>
@@ -191,8 +191,8 @@ export function MarketingTools({ businessId }) {
                 ))}
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
-                <button onClick={() => setShowPromoForm(false)} style={{ padding: '0.5rem 1rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'transparent', color: 'var(--app-text)', cursor: 'pointer' }}>{t('common.cancel')}</button>
-                <button onClick={createPromo} style={{ padding: '0.5rem 1rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>{t('businessHub.marketing.create')}</button>
+                <button onClick={() => setShowPromoForm(false)} style={{ padding: '0.5rem 1rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'transparent', color: 'var(--app-text)', cursor: 'pointer' }} data-track="ui.015cd5099b.8">{t('common.cancel')}</button>
+                <button onClick={createPromo} style={{ padding: '0.5rem 1rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }} data-track="ui.015cd5099b.9">{t('businessHub.marketing.create')}</button>
               </div>
             </div>
           )}
@@ -209,8 +209,8 @@ export function MarketingTools({ businessId }) {
                 {p.description && <div style={{ fontSize: '0.75rem', color: 'var(--muted-text)', marginTop: '0.2rem' }}>{p.description}</div>}
               </div>
               <div style={{ fontSize: '0.75rem', color: 'var(--muted-text)' }}>{t('businessHub.marketing.uses', { count: p.use_count || 0, max: p.max_uses ? `/${p.max_uses}` : '' })}</div>
-              <button onClick={() => togglePromo(p.id)} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: p.is_active ? '#10b981' : '#94a3b8' }}>{p.is_active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}</button>
-              <button onClick={() => deletePromo(p.id)} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={14} /></button>
+              <button onClick={() => togglePromo(p.id)} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: p.is_active ? '#10b981' : '#94a3b8' }} data-track="ui.015cd5099b.10">{p.is_active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}</button>
+              <button onClick={() => deletePromo(p.id)} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }} data-track="ui.015cd5099b.11"><Trash2 size={14} /></button>
             </div>
           ))}
         </>

@@ -74,9 +74,9 @@ export default function CreditRefundPanel({
     <div className="messenger-share-panel credit-refund-panel" role="dialog" aria-label={t('messages.creditRefund.title')}>
       <header>
         <h3>{t('messages.creditRefund.title')}</h3>
-        <button type="button" onClick={onClose}>{t('common.close')}</button>
+        <button type="button" onClick={onClose} data-track-private>{t('common.close')}</button>
       </header>
-      <form onSubmit={submit}>
+      <form onSubmit={submit} data-track-private>
         <label>
           {t('messages.creditRefund.amount')} ({currency})
           <input
@@ -99,8 +99,8 @@ export default function CreditRefundPanel({
           />
         </label>
         <div className="messenger-share-actions">
-          <button type="button" onClick={onClose} disabled={busy}>{t('common.cancel')}</button>
-          <button type="submit" disabled={busy}>
+          <button type="button" onClick={onClose} disabled={busy} data-track-private>{t('common.cancel')}</button>
+          <button type="submit" disabled={busy} data-track-private>
             {busy ? t('common.saving') : t('messages.creditRefund.submit')}
           </button>
         </div>

@@ -542,7 +542,7 @@ export default function EditProfileTab() {
       href={publicHref}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition border border-orange-500/30 text-sm font-semibold whitespace-nowrap"
+      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition border border-orange-500/30 text-sm font-semibold whitespace-nowrap" data-track="ui.c78adb519b.1"
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/>
@@ -579,7 +579,7 @@ export default function EditProfileTab() {
             e.preventDefault();
             if (!saving && coreDirty) saveCore();
           }
-        }}
+        }} data-track="ui.c78adb519b.2"
       >
         <Input label={t('helperDashboard.tagline')} value={core.profile_headline}
           onChange={e => setCore({ ...core, profile_headline: e.target.value })}
@@ -610,7 +610,7 @@ export default function EditProfileTab() {
         <div className="flex items-center gap-2">
           <input type="checkbox" id="avail-now" checked={!!core.is_available_now}
             onChange={e => setCore({ ...core, is_available_now: e.target.checked })}
-            className="accent-orange-500" />
+            className="accent-orange-500" data-track="ui.c78adb519b.3" />
           <label htmlFor="avail-now" className="text-sm text-gray-300">{t('helperDashboard.availableNow')}</label>
         </div>
       </form>
@@ -633,7 +633,7 @@ export default function EditProfileTab() {
           {services.map(s => (
             <div key={s.id} className="p-3 bg-gray-800 rounded-xl border border-gray-700">
               {editingServiceId === s.id ? (
-                <form onSubmit={saveEditService} className="space-y-3">
+                <form onSubmit={saveEditService} className="space-y-3" data-track="ui.c78adb519b.4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-xs font-semibold text-orange-400 uppercase tracking-wider">{t('helperDashboard.editServiceHeader')}</p>
                     <div className="flex gap-2">
@@ -665,7 +665,7 @@ export default function EditProfileTab() {
                       onChange={e => setEditSvc({ ...editSvc, category: e.target.value })} placeholder={t('helperDashboard.categoryPlaceholder')} />
                     <div className="flex items-center gap-2 pt-5">
                       <input type="checkbox" id={`popular-edit-${s.id}`} checked={editSvc.popular}
-                        onChange={e => setEditSvc({ ...editSvc, popular: e.target.checked })} className="accent-orange-500" />
+                        onChange={e => setEditSvc({ ...editSvc, popular: e.target.checked })} className="accent-orange-500" data-track="ui.c78adb519b.5" />
                       <label htmlFor={`popular-edit-${s.id}`} className="text-sm text-gray-300">{t('helperDashboard.markPopular')}</label>
                     </div>
                   </div>
@@ -686,7 +686,7 @@ export default function EditProfileTab() {
             </div>
           ))}
         </div>
-        <form onSubmit={addService} className="space-y-3 border-t border-gray-800 pt-4">
+        <form onSubmit={addService} className="space-y-3 border-t border-gray-800 pt-4" data-track="ui.c78adb519b.6">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('helperDashboard.addServiceHeader')}</p>
           <Input label={t('helperDashboard.serviceName')} value={newSvc.name}
             onChange={e => setNewSvc({ ...newSvc, name: e.target.value })}
@@ -712,7 +712,7 @@ export default function EditProfileTab() {
               onChange={e => setNewSvc({ ...newSvc, category: e.target.value })} placeholder={t('helperDashboard.categoryPlaceholder')} />
             <div className="flex items-center gap-2 pt-5">
               <input type="checkbox" id="popular" checked={newSvc.popular}
-                onChange={e => setNewSvc({ ...newSvc, popular: e.target.checked })} className="accent-orange-500" />
+                onChange={e => setNewSvc({ ...newSvc, popular: e.target.checked })} className="accent-orange-500" data-track="ui.c78adb519b.7" />
               <label htmlFor="popular" className="text-sm text-gray-300">{t('helperDashboard.markPopular')}</label>
             </div>
           </div>
@@ -728,7 +728,7 @@ export default function EditProfileTab() {
           {faqs.map(f => (
             <div key={f.id} className="p-3 bg-gray-800 rounded-xl border border-gray-700">
               {editingFaqId === f.id ? (
-                <form onSubmit={saveEditFaq} className="space-y-3">
+                <form onSubmit={saveEditFaq} className="space-y-3" data-track="ui.c78adb519b.8">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-xs font-semibold text-orange-400 uppercase tracking-wider">{t('helperDashboard.editFaqHeader')}</p>
                     <div className="flex gap-2">
@@ -757,7 +757,7 @@ export default function EditProfileTab() {
             </div>
           ))}
         </div>
-        <form onSubmit={addFaq} className="space-y-3 border-t border-gray-800 pt-4">
+        <form onSubmit={addFaq} className="space-y-3 border-t border-gray-800 pt-4" data-track="ui.c78adb519b.9">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('helperDashboard.addFaqHeader')}</p>
           <Input label={t('helperDashboard.questionLabel')} value={newFaq.question}
             onChange={e => setNewFaq({ ...newFaq, question: e.target.value })}
@@ -776,7 +776,7 @@ export default function EditProfileTab() {
           {policies.map(p => (
             <div key={p.id} className="p-3 bg-gray-800 rounded-xl border border-gray-700">
               {editingPolicyId === p.id ? (
-                <form onSubmit={saveEditPolicy} className="space-y-3">
+                <form onSubmit={saveEditPolicy} className="space-y-3" data-track="ui.c78adb519b.10" data-track-private>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-xs font-semibold text-orange-400 uppercase tracking-wider">{t('helperDashboard.editPolicyHeader')}</p>
                     <div className="flex gap-2">
@@ -812,7 +812,7 @@ export default function EditProfileTab() {
             </div>
           ))}
         </div>
-        <form onSubmit={addPolicy} className="space-y-3 border-t border-gray-800 pt-4">
+        <form onSubmit={addPolicy} className="space-y-3 border-t border-gray-800 pt-4" data-track="ui.c78adb519b.11" data-track-private>
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('helperDashboard.addPolicyHeader')}</p>
           <Input label={t('helperDashboard.policyTitle')} value={newPol.title}
             onChange={e => setNewPol({ ...newPol, title: e.target.value })}
@@ -848,7 +848,7 @@ export default function EditProfileTab() {
                 </div>
               )}
               <button onClick={() => deleteImage(g.id)}
-                className="absolute top-1.5 end-1.5 opacity-0 group-hover:opacity-100 transition w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold z-10">
+                className="absolute top-1.5 end-1.5 opacity-0 group-hover:opacity-100 transition w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold z-10" data-track="ui.c78adb519b.12">
                 ×
               </button>
               {g.caption && (
@@ -857,7 +857,7 @@ export default function EditProfileTab() {
             </div>
           ))}
         </div>
-        <form onSubmit={addImage} className="space-y-3 border-t border-gray-800 pt-4">
+        <form onSubmit={addImage} className="space-y-3 border-t border-gray-800 pt-4" data-track="ui.c78adb519b.13">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('helperDashboard.addPhotoHeader')}</p>
           <Input label={t('helperDashboard.imageUrl')} type="url" value={newImg.url}
             onChange={e => setNewImg({ ...newImg, url: e.target.value })}
@@ -889,7 +889,7 @@ export default function EditProfileTab() {
               aria-label={t('helperDashboard.listProfilePublicly')}
               className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${
                 isListed ? 'bg-emerald-600' : 'bg-gray-700'
-              } ${listingSaving ? 'opacity-50 cursor-wait' : ''}`}
+              } ${listingSaving ? 'opacity-50 cursor-wait' : ''}`} data-track="ui.c78adb519b.14"
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -929,7 +929,7 @@ export default function EditProfileTab() {
                 onClick={() => toggleVisibility(key)}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   visibility[key] ? 'bg-emerald-600' : 'bg-gray-700'
-                }`}
+                }`} data-track="ui.c78adb519b.15"
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${

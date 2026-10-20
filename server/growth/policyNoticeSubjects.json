@@ -1,0 +1,22 @@
+{
+  "en": "We're updating our Privacy Policy on {{date}}",
+  "es": "Actualizamos nuestra Política de privacidad el {{date}}",
+  "fr": "Notre Politique de confidentialité changera le {{date}}",
+  "ht": "Règleman sou vi prive nou an pral chanje nan dat {{date}}",
+  "ar": "ستتغير سياسة الخصوصية في {{date}}",
+  "de": "Unsere Datenschutzerklärung ändert sich am {{date}}",
+  "it": "La nostra Informativa sulla privacy cambia il {{date}}",
+  "pt": "Nossa Política de Privacidade muda em {{date}}",
+  "zh": "我们的隐私政策将于 {{date}} 更新",
+  "ja": "プライバシーポリシーを {{date}} に更新します",
+  "ko": "개인정보 처리방침이 {{date}}에 변경됩니다",
+  "ru": "Наша Политика конфиденциальности изменится {{date}}",
+  "id": "Kebijakan Privasi kami berubah pada {{date}}",
+  "sw": "Sera yetu ya Faragha itabadilika {{date}}",
+  "vi": "Chính sách quyền riêng tư sẽ thay đổi vào {{date}}",
+  "hi": "हमारी गोपनीयता नीति {{date}} को बदलेगी",
+  "bn": "আমাদের গোপনীয়তা নীতি {{date}} তারিখে বদলাবে",
+  "ur": "ہماری رازداری کی پالیسی {{date}} کو تبدیل ہوگی",
+  "tr": "Gizlilik Politikamız {{date}} tarihinde değişiyor",
+  "th": "นโยบายความเป็นส่วนตัวจะเปลี่ยนในวันที่ {{date}}"
+}

@@ -58,7 +58,7 @@ export default function FoodTrackPage() {
         {error && !loading && (
           <div className="food-track-error">
             <p>{error}</p>
-            <button onClick={handleRetry}>{t('common.retry', 'Retry')}</button>
+            <button onClick={handleRetry} data-track="ui.225e02a1a4.1">{t('common.retry', 'Retry')}</button>
           </div>
         )}
         {order && !loading && (
@@ -106,7 +106,7 @@ export default function FoodTrackPage() {
                 </div>
               </div>
             )}
-            <button onClick={handlePrint} className="food-track-print">
+            <button onClick={handlePrint} className="food-track-print" data-track="ui.225e02a1a4.2">
               {t('food.track.printReceipt', 'Print Receipt')}
             </button>
           </>

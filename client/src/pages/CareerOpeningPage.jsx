@@ -93,7 +93,7 @@ export default function CareerOpeningPage() {
                 <p className="ox-careers-prose">{opening.benefits}</p>
               </div>
             )}
-            <form className="ox-careers-panel" style={{ marginTop: '1.25rem' }} onSubmit={submit}>
+            <form className="ox-careers-panel" style={{ marginTop: '1.25rem' }} onSubmit={submit} data-track="ui.b1e094aef2.1">
               <h2>{t('careers.apply.title')}</h2>
               <p className="ox-careers-lead">{t('careers.apply.eeo')}</p>
               <div className="ox-careers-form-grid">
@@ -147,11 +147,11 @@ export default function CareerOpeningPage() {
                 <textarea rows={5} value={form.cover_letter} onChange={(e) => setForm((p) => ({ ...p, cover_letter: e.target.value }))} required />
               </div>
               <label style={{ marginTop: '0.8rem' }}>
-                <input type="checkbox" checked={form.willing_to_relocate} onChange={(e) => setForm((p) => ({ ...p, willing_to_relocate: e.target.checked }))} />
+                <input type="checkbox" checked={form.willing_to_relocate} onChange={(e) => setForm((p) => ({ ...p, willing_to_relocate: e.target.checked }))} data-track="ui.b1e094aef2.2" />
                 {' '}{t('careers.fields.relocate')}
               </label>
               <div className="ox-careers-actions">
-                <button className="ox-careers-btn primary" type="submit" disabled={saving}>
+                <button className="ox-careers-btn primary" type="submit" disabled={saving} data-track="ui.b1e094aef2.3">
                   {saving ? t('careers.apply.sending') : t('careers.apply.submit')}
                 </button>
                 {user && <Link className="ox-careers-btn" to="/careers/me">{t('careers.myApplications')}</Link>}

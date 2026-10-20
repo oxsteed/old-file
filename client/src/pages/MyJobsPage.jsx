@@ -287,7 +287,7 @@ export default function MyJobsPage() {
               activeTab === 'jobs'
                 ? 'text-white border-orange-500'
                 : 'text-gray-400 border-transparent hover:text-gray-300'
-            }`}
+            }`} data-track="ui.d96328887d.1"
           >
             {t('dashboard.myJobs')} ({jobs.length})
           </button>
@@ -297,7 +297,7 @@ export default function MyJobsPage() {
               activeTab === 'bookings'
                 ? 'text-white border-orange-500'
                 : 'text-gray-400 border-transparent hover:text-gray-300'
-            }`}
+            }`} data-track="ui.d96328887d.2"
           >
             {t('myJobs.bookingRequests', { defaultValue: 'Booking Requests' })} ({bookingRequests.length})
           </button>
@@ -307,7 +307,7 @@ export default function MyJobsPage() {
               activeTab === 'calendar'
                 ? 'text-white border-orange-500'
                 : 'text-gray-400 border-transparent hover:text-gray-300'
-            }`}
+            }`} data-track="ui.d96328887d.3"
           >
             {t('myJobs.calendar', { defaultValue: 'Calendar' })}
           </button>
@@ -317,7 +317,7 @@ export default function MyJobsPage() {
               activeTab === 'assigned'
                 ? 'text-white border-orange-500'
                 : 'text-gray-400 border-transparent hover:text-gray-300'
-            }`}
+            }`} data-track="ui.d96328887d.4"
           >
             {t('myJobs.assignedTab')}
           </button>
@@ -336,7 +336,7 @@ export default function MyJobsPage() {
                   filter === s
                     ? 'bg-orange-500 text-white'
                     : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700'
-                }`}
+                }`} data-track="ui.d96328887d.5"
               >
                 {s === 'all'
                   ? `${t('dashboard.jobs.all', { defaultValue: 'All' })} (${counts.all})`
@@ -355,7 +355,7 @@ export default function MyJobsPage() {
         {error && (
           <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 flex items-center justify-between">
             <span>{t('myJobs.loadError', { defaultValue: 'Failed to load jobs.' })}</span>
-            <button onClick={fetchJobs} className="text-orange-400 hover:text-orange-300 font-medium">
+            <button onClick={fetchJobs} className="text-orange-400 hover:text-orange-300 font-medium" data-track="ui.d96328887d.6">
               {t('dashboard.pulse.retry')}
             </button>
           </div>
@@ -473,7 +473,7 @@ export default function MyJobsPage() {
                       {(isOpen || job.status === 'in_progress') && (
                         <button
                           onClick={() => setCancelModal({ type: 'job', id: job.id, isOpen: true })}
-                          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 transition text-center"
+                          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 transition text-center" data-track="ui.d96328887d.7"
                         >
                           {t('myJobs.cancel', { defaultValue: 'Cancel' })}
                         </button>
@@ -510,7 +510,7 @@ export default function MyJobsPage() {
                   calendarViewMode === 'month'
                     ? 'bg-orange-500 text-white'
                     : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700'
-                }`}
+                }`} data-track="ui.d96328887d.8"
               >
                 {t('calendar.month', { defaultValue: 'Month' })}
               </button>
@@ -520,7 +520,7 @@ export default function MyJobsPage() {
                   calendarViewMode === 'week'
                     ? 'bg-orange-500 text-white'
                     : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700'
-                }`}
+                }`} data-track="ui.d96328887d.9"
               >
                 {t('calendar.week', { defaultValue: 'Week' })}
               </button>
@@ -530,7 +530,7 @@ export default function MyJobsPage() {
                   calendarViewMode === 'day'
                     ? 'bg-orange-500 text-white'
                     : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700'
-                }`}
+                }`} data-track="ui.d96328887d.10"
               >
                 {t('calendar.day', { defaultValue: 'Day' })}
               </button>
@@ -540,7 +540,7 @@ export default function MyJobsPage() {
                   calendarViewMode === 'agenda'
                     ? 'bg-orange-500 text-white'
                     : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700'
-                }`}
+                }`} data-track="ui.d96328887d.11"
               >
                 {t('calendar.agenda', { defaultValue: 'Agenda' })}
               </button>
@@ -600,7 +600,7 @@ export default function MyJobsPage() {
                     </div>
                     <button
                       onClick={() => setSelectedEvent(null)}
-                      className="text-gray-400 hover:text-white transition"
+                      className="text-gray-400 hover:text-white transition" data-track="ui.d96328887d.12"
                     >
                       ✕
                     </button>
@@ -666,7 +666,7 @@ export default function MyJobsPage() {
                     </Link>
                     <button
                       onClick={() => setSelectedEvent(null)}
-                      className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold rounded-xl transition"
+                      className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold rounded-xl transition" data-track="ui.d96328887d.13"
                     >
                       {t('common.close', { defaultValue: 'Close' })}
                     </button>
@@ -771,14 +771,14 @@ export default function MyJobsPage() {
                             <button
                               type="button"
                               onClick={() => handleCounterRespond(booking.id, 'accept')}
-                              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 transition"
+                              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 transition" data-track="ui.d96328887d.14"
                             >
                               {t('myJobs.acceptCounter', { defaultValue: 'Accept time' })}
                             </button>
                             <button
                               type="button"
                               onClick={() => handleCounterRespond(booking.id, 'decline')}
-                              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 transition"
+                              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 transition" data-track="ui.d96328887d.15"
                             >
                               {t('myJobs.declineCounter', { defaultValue: 'Decline time' })}
                             </button>
@@ -787,7 +787,7 @@ export default function MyJobsPage() {
                         {(booking.status === 'pending' || booking.status === 'accepted') && (
                           <button
                             onClick={() => setCancelModal({ type: 'booking', id: booking.id, isOpen: true })}
-                            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 transition"
+                            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 transition" data-track="ui.d96328887d.16"
                           >
                             {t('myJobs.cancel', { defaultValue: 'Cancel' })}
                           </button>
@@ -841,13 +841,13 @@ export default function MyJobsPage() {
                     setCancelModal({ type: null, id: null, isOpen: false });
                     setCancelReason('');
                   }}
-                  className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold rounded-lg transition"
+                  className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold rounded-lg transition" data-track="ui.d96328887d.17"
                 >
                   {t('common.keepCancel', { defaultValue: 'Keep it' })}
                 </button>
                 <button
                   onClick={cancelModal.type === 'job' ? handleCancelJob : handleCancelBooking}
-                  className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg transition"
+                  className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg transition" data-track="ui.d96328887d.18"
                 >
                   {t('myJobs.confirmCancel', { defaultValue: 'Yes, cancel' })}
                 </button>

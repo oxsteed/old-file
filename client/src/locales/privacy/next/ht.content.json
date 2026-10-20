@@ -1,0 +1,220 @@
+{
+  "sections": {
+    "1": {
+      "search": "1. Entwodiksyon OxSteed LLC ofri lis sèvis lokal, travay ak òf, espas biznis, kòmann manje, livrezon, medya, ak zouti kont ak peman. Règleman sa a dekri enfòmasyon nou trete lè ou itilize fonksyon sa yo, tankou kontak envite ak sipò. Disponiblite depann de fonksyon, kont, rejyon ak founisè a.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "1. Entwodiksyon"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed LLC ofri lis sèvis lokal, travay ak òf, espas biznis, kòmann manje, livrezon, medya, ak zouti kont ak peman. Règleman sa a dekri enfòmasyon nou trete lè ou itilize fonksyon sa yo, tankou kontak envite ak sipò. Disponiblite depann de fonksyon, kont, rejyon ak founisè a."
+        }
+      ]
+    },
+    "2": {
+      "search": "2. Enfòmasyon nou kolekte Nou trete enfòmasyon ou bay: kontak ak kont, pwofil ak biznis, travay ak kòmann, mesaj, demann sipò, kòmantè, medya, dosye peman ak verifikasyon lè sa nesesè. Nou trete tou adrès IP, detay navigatè, jounal sekirite ak evènman itilizasyon ou otorize. Kote ou ye ka soti nan adrès ou antre, pwofil ou oswa pèmisyon aparèy la. Founisè peman yo ka resevwa enfòmasyon peman dirèkteman.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "2. Enfòmasyon nou kolekte"
+        },
+        {
+          "type": "p",
+          "text": "Nou trete enfòmasyon ou bay: kontak ak kont, pwofil ak biznis, travay ak kòmann, mesaj, demann sipò, kòmantè, medya, dosye peman ak verifikasyon lè sa nesesè. Nou trete tou adrès IP, detay navigatè, jounal sekirite ak evènman itilizasyon ou otorize. Kote ou ye ka soti nan adrès ou antre, pwofil ou oswa pèmisyon aparèy la. Founisè peman yo ka resevwa enfòmasyon peman dirèkteman."
+        }
+      ]
+    },
+    "3": {
+      "search": "3. Kijan Nou Itilize Enfòmasyon Ou Nou itilize done yo pou kont, espas biznis, travay, sèvis, kòmann, mesaj, notifikasyon, peman, sipò, litij, demann vi prive, prevansyon abi ak obligasyon legal. Analiz opsyonèl ede nou konprann itilizasyon. Fonksyon IA yo ka voye demann ou ak kontèks ki nesesè bay founisè ki konfigire a. Pa voye done sansib ki pa nesesè; repons IA yo ka pa egzak.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "3. Kijan Nou Itilize Enfòmasyon Ou"
+        },
+        {
+          "type": "p",
+          "text": "Nou itilize done yo pou kont, espas biznis, travay, sèvis, kòmann, mesaj, notifikasyon, peman, sipò, litij, demann vi prive, prevansyon abi ak obligasyon legal. Analiz opsyonèl ede nou konprann itilizasyon. Fonksyon IA yo ka voye demann ou ak kontèks ki nesesè bay founisè ki konfigire a. Pa voye done sansib ki pa nesesè; repons IA yo ka pa egzak."
+        }
+      ]
+    },
+    "4": {
+      "search": "4. Kijan nou pataje enfòmasyon ou yo Nou pataje enfòmasyon ak patisipan ak biznis ki nesesè pou sèvis ou mande a, pèsonèl otorize ak founisè peman, ebèjman, depo, distribisyon, sekirite, notifikasyon, kat ak IA. Entegrasyon yo gen ladan Stripe ak Cloudflare; lòt yo depann de fonksyon ak konfigirasyon. Pwofil piblik, anons, kòmantè ak medya pibliye vizib pou piblik yo vize a. Obligasyon legal oswa transfè biznis ka mande pataj tou. Règleman sou bonbon yo dekri analiz ak piblisite opsyonèl.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "4. Kijan nou pataje enfòmasyon ou yo"
+        },
+        {
+          "type": "p",
+          "text": "Nou pataje enfòmasyon ak patisipan ak biznis ki nesesè pou sèvis ou mande a, pèsonèl otorize ak founisè peman, ebèjman, depo, distribisyon, sekirite, notifikasyon, kat ak IA. Entegrasyon yo gen ladan Stripe ak Cloudflare; lòt yo depann de fonksyon ak konfigirasyon. Pwofil piblik, anons, kòmantè ak medya pibliye vizib pou piblik yo vize a. Obligasyon legal oswa transfè biznis ka mande pataj tou. Règleman sou bonbon yo dekri analiz ak piblisite opsyonèl."
+        }
+      ]
+    },
+    "5": {
+      "search": "5. Adrese Konfidansyalite ak Maske Done yo Vizibilite kote travay la depann de wòl, moun ki asiyen, orè ak kontwòl aksè. Nou pataje detay kòmann ak livrezon ak moun ki bezwen yo. Deskripsyon, foto, kòmantè oswa medya piblik ka revele yon adrès menm si chan adrès la limite. Pa pibliye adrès prive oswa enstriksyon aksè.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "5. Adrese Konfidansyalite ak Maske Done yo"
+        },
+        {
+          "type": "p",
+          "text": "Vizibilite kote travay la depann de wòl, moun ki asiyen, orè ak kontwòl aksè. Nou pataje detay kòmann ak livrezon ak moun ki bezwen yo. Deskripsyon, foto, kòmantè oswa medya piblik ka revele yon adrès menm si chan adrès la limite. Pa pibliye adrès prive oswa enstriksyon aksè."
+        }
+      ]
+    },
+    "6": {
+      "search": "6. Retansyon Done Dire konsèvasyon depann de dosye a ak objektif li. Kont, kòmann, mesaj, sekirite ak medya gen sik diferan. Liv finansye, peman, règleman, prèv konsantman ak odit ka rete apre kont lan fèmen pou kontablite, litij, prevansyon fwod ak obligasyon legal. Travay aktif, lajan bloke, litij, odit oswa sovgad ka retade efasman. Fèmen yon kont pa efase tout dosye oswa kopi lòt moun touswit.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "6. Retansyon Done"
+        },
+        {
+          "type": "p",
+          "text": "Dire konsèvasyon depann de dosye a ak objektif li. Kont, kòmann, mesaj, sekirite ak medya gen sik diferan. Liv finansye, peman, règleman, prèv konsantman ak odit ka rete apre kont lan fèmen pou kontablite, litij, prevansyon fwod ak obligasyon legal. Travay aktif, lajan bloke, litij, odit oswa sovgad ka retade efasman. Fèmen yon kont pa efase tout dosye oswa kopi lòt moun touswit."
+        }
+      ]
+    },
+    "7": {
+      "search": "7. Dwa Ou Dapre lwa ki aplikab, ou ka mande aksè, koreksyon, efasman, transfè done, limit sou done sansib, oswa refize vant, pataj ak piblisite sible. Kontakte privacy@oxsteed.com oswa itilize /do-not-sell san konekte. Nou ka verifye idantite pou aksè oswa efasman epi eksplike eksepsyon yo. Nou trete demann nan delè legal san diskriminasyon pou egzèsis dwa ou.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "7. Dwa Ou"
+        },
+        {
+          "type": "p",
+          "text": "Dapre lwa ki aplikab, ou ka mande aksè, koreksyon, efasman, transfè done, limit sou done sansib, oswa refize vant, pataj ak piblisite sible. Kontakte privacy@oxsteed.com oswa itilize /do-not-sell san konekte. Nou ka verifye idantite pou aksè oswa efasman epi eksplike eksepsyon yo. Nou trete demann nan delè legal san diskriminasyon pou egzèsis dwa ou."
+        }
+      ]
+    },
+    "8": {
+      "search": "8. Bonbon ak Teknoloji Suivi Bonbon esansyèl ak depo navigatè sèvi pou koneksyon, sekirite, chwa ak fonksyon ou mande. Jere bonbon kontwole analiz, maketing ak entegrasyon fonksyonèl opsyonèl nan navigatè sa a. Analiz ka gen vizit paj pa nou ak Google Analytics; maketing ka gen Meta Pixel si li konfigire. Reglaj debaz ak bouyon ka estoke endepandamman. Gade Règleman sou bonbon yo.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "8. Bonbon ak Teknoloji Suivi"
+        },
+        {
+          "type": "p",
+          "text": "Bonbon esansyèl ak depo navigatè sèvi pou koneksyon, sekirite, chwa ak fonksyon ou mande. Jere bonbon kontwole analiz, maketing ak entegrasyon fonksyonèl opsyonèl nan navigatè sa a. Analiz ka gen vizit paj pa nou ak Google Analytics; maketing ka gen Meta Pixel si li konfigire. Reglaj debaz ak bouyon ka estoke endepandamman. Gade Règleman sou bonbon yo."
+        }
+      ]
+    },
+    "9": {
+      "search": "9. Sekirite Done ak Notifikasyon Vyolasyon Nou itilize kontwòl aksè, hachaj modpas, pwoteksyon sesyon, validasyon, limit demann ak jounal sekirite. Okenn sistèm pa totalman an sekirite. Pwoteksyon depann de sèvis ak konfigirasyon; règleman sa a pa sètifye chak depo oswa founisè. Nou avèti moun ak otorite ki konsène lè lalwa egzije sa. Gade /security pou rapòte yon pwoblèm.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "9. Sekirite Done ak Notifikasyon Vyolasyon"
+        },
+        {
+          "type": "p",
+          "text": "Nou itilize kontwòl aksè, hachaj modpas, pwoteksyon sesyon, validasyon, limit demann ak jounal sekirite. Okenn sistèm pa totalman an sekirite. Pwoteksyon depann de sèvis ak konfigirasyon; règleman sa a pa sètifye chak depo oswa founisè. Nou avèti moun ak otorite ki konsène lè lalwa egzije sa. Gade /security pou rapòte yon pwoblèm."
+        }
+      ]
+    },
+    "10": {
+      "search": "10. Efase Kont Mande efasman kont nan reglaj ki disponib oswa nan privacy@oxsteed.com. Done pèsonèl yo ka efase oswa anonimize pandan tranzaksyon ak odit nesesè rete. Obligasyon aktif ka bezwen regle anvan. Kopi lòt itilizatè oswa founisè resevwa depann de pwòp obligasyon yo. Kontakte nou pou detay ak estati demann ou.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "10. Efase Kont"
+        },
+        {
+          "type": "p",
+          "text": "Mande efasman kont nan reglaj ki disponib oswa nan privacy@oxsteed.com. Done pèsonèl yo ka efase oswa anonimize pandan tranzaksyon ak odit nesesè rete. Obligasyon aktif ka bezwen regle anvan. Kopi lòt itilizatè oswa founisè resevwa depann de pwòp obligasyon yo. Kontakte nou pou detay ak estati demann ou."
+        }
+      ]
+    },
+    "11": {
+      "search": "11 timoun vi prive ki poko gen 18 minè",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "11. Konfidansyalite Timoun yo"
+        },
+        {
+          "type": "p",
+          "segments": [
+            "OxSteed pa fèt pou itilize pa nenpòt moun ki poko gen 18 an. Nou pa fè espre kolekte enfòmasyon pèsonèl nan men timoun ki poko gen 18 an. Si nou dekouvri ke nou te kolekte enfòmasyon pèsonèl nan men yon timoun ki poko gen 18 an, nou pral efase li imedyatman. Si ou kwè yon timoun ki poko gen 18 an te ba nou enfòmasyon pèsonèl, kontakte nou nan",
+            {
+              "mailto": "legal@oxsteed.com"
+            },
+            null
+          ]
+        }
+      ]
+    },
+    "12": {
+      "search": "12 chanjman imel politik konfidansyalite 14 jou mete ajou",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "12. Chanjman nan Règleman sou enfòmasyon prive sa a"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed ka mete ajou Règleman sou enfòmasyon prive sa a nenpòt ki lè. Nou pral fè itilizatè yo konnen chanjman materyèl yo pa imèl omwen 14 jou anvan chanjman yo pran efè. Dat \"Dènye mete ajou\" ki anlè paj sa a reflete revizyon ki pi resan an."
+        }
+      ]
+    },
+    "13": {
+      "search": "13 kontakte nou springfield legal@oxsteed.com",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "13. Kontakte nou"
+        },
+        {
+          "type": "p",
+          "text": "Pou kesyon sou Règ sou Konfidansyalite sa a oswa pou w egzèse dwa w sou enfòmasyon prive, kontakte nou nan:"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed LLC"
+        },
+        {
+          "type": "p",
+          "text": "Springfield, Ohio"
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "mailto": "legal@oxsteed.com"
+            }
+          ]
+        }
+      ]
+    },
+    "14": {
+      "search": "Aktivite, òf ak lyen patnè Apre delè avi a, nou anrejistre paj, bouton yo chwazi, rechèch ak aksyon sou mache a. Nou itilize sant kòd postal, pa kowòdone pèsonèl, pou konprann demann epi chwazi òf. Anplwaye apwouve chak kanpay. IA analiz sa a mache sèlman sou sèvè OxSteed kontwole. Nan EEE, Wayòm Ini, Swis ak Kebèk, swivi ak òf ki baze sou aktivite bezwen konsantman separe; ou ka retire yo nan Anviwònman. Eta ameriken ki konsène yo gen kontwòl Pa vann ni pataje ak Global Privacy Control. Lòt kote, bouton analiz la kontwole Google Analytics ak depo pèmanan; avi sa a kouvri aktivite. Nou kenbe aktivite detaye jiska 90 jou, oswa 30 jou anba konsantman; rezime kont yo jiska 13 mwa. Patnè yo resevwa sèlman yon kòd klik o aza, pa non, imel oswa aktivite w. Règleman patnè a aplike lè w achte lakay li. Notifikasyon òf bezwen yon konsantman separe epi ou ka etenn yo nan Anviwònman → Vi prive. Òf pa chanje pri, aksè oswa klasman rechèch ou. Promote ka konekte vizitè ki konekte ak yon kòd kont pandan sèt jou. Pou aksè, koreksyon oswa efasman: privacy@oxsteed.com.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "14. Aktivite, òf ak lyen patnè"
+        },
+        {
+          "type": "p",
+          "text": "Apre delè avi a, nou anrejistre paj, bouton yo chwazi, rechèch ak aksyon sou mache a. Nou itilize sant kòd postal, pa kowòdone pèsonèl, pou konprann demann epi chwazi òf. Anplwaye apwouve chak kanpay. IA analiz sa a mache sèlman sou sèvè OxSteed kontwole."
+        },
+        {
+          "type": "p",
+          "text": "Nan EEE, Wayòm Ini, Swis ak Kebèk, swivi ak òf ki baze sou aktivite bezwen konsantman separe; ou ka retire yo nan Anviwònman. Eta ameriken ki konsène yo gen kontwòl Pa vann ni pataje ak Global Privacy Control. Lòt kote, bouton analiz la kontwole Google Analytics ak depo pèmanan; avi sa a kouvri aktivite."
+        },
+        {
+          "type": "p",
+          "text": "Nou kenbe aktivite detaye jiska 90 jou, oswa 30 jou anba konsantman; rezime kont yo jiska 13 mwa. Patnè yo resevwa sèlman yon kòd klik o aza, pa non, imel oswa aktivite w. Règleman patnè a aplike lè w achte lakay li."
+        },
+        {
+          "type": "p",
+          "text": "Notifikasyon òf bezwen yon konsantman separe epi ou ka etenn yo nan Anviwònman → Vi prive. Òf pa chanje pri, aksè oswa klasman rechèch ou. Promote ka konekte vizitè ki konekte ak yon kòd kont pandan sèt jou. Pou aksè, koreksyon oswa efasman: privacy@oxsteed.com."
+        }
+      ]
+    }
+  }
+}

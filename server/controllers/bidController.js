@@ -125,6 +125,7 @@ exports.createBid = async (req, res, next) => {
 
       // Job status intentionally NOT changed here - jobs remain 'published'
       // until the customer accepts a bid via assignHelper().
+      await require('../growth/emit').emitDomainEvent(client,'job.bid_placed',{job_id:String(job_id)},{userId:req.user.id,req});
       return bidResult.rows[0];
     });
 

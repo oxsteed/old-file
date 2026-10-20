@@ -80,7 +80,7 @@ export default function DistributionPage() {
                 <h2>{tx('logistics.workspace.dataError.title', 'Data unavailable')}</h2>
                 <p>{tx('logistics.distribution.error', "We couldn't load distribution data right now. Please try again.")}</p>
               </div>
-              <button type="button" className="lx-btn-secondary" onClick={load}>
+              <button type="button" className="lx-btn-secondary" onClick={load} data-track="ui.fe5427f8a4.1">
                 {tx('logistics.workspace.dataError.retry', 'Try again')}
               </button>
             </div>
@@ -114,7 +114,7 @@ export default function DistributionPage() {
                         <button
                           type="button"
                           className="lx-action-ghost"
-                          onClick={() => setPreviewId(a.id)}
+                          onClick={() => setPreviewId(a.id)} data-track="ui.fe5427f8a4.2"
                         >
                           {t('logistics.tables.preview')}
                         </button>

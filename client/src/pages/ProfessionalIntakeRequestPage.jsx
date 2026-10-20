@@ -126,7 +126,7 @@ export default function ProfessionalIntakeRequestPage() {
           </div>
         </section>
 
-        <form className="mrq-grid" onSubmit={handleSubmit}>
+        <form className="mrq-grid" onSubmit={handleSubmit} data-track="ui.cdaaef1e4c.1">
           <section className="mrq-panel">
             <h2><Icon size={18} /> {t('professionalIntakePage.form.sections.context')}</h2>
             <div className="mrq-field">
@@ -190,7 +190,7 @@ export default function ProfessionalIntakeRequestPage() {
                 <option value="message">{t('professionalIntakePage.form.contactChannel.options.message')}</option>
               </select>
             </div>
-            <button className="mrq-btn primary" type="submit" disabled={submitting}>
+            <button className="mrq-btn primary" type="submit" disabled={submitting} data-track="ui.cdaaef1e4c.2">
               {submitting ? t('professionalIntakePage.form.actions.sending') : t('professionalIntakePage.form.actions.submit')}
             </button>
           </section>

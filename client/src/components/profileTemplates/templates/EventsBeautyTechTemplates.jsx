@@ -902,7 +902,7 @@ export function WebAppDevTemplate({ profileData }) {
               {website && (
                 <a href={website} target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold"
-                  style={{ background: '#6366f1', color: '#fff' }}>
+                  style={{ background: '#6366f1', color: '#fff' }} data-track="ui.eb90950469.1">
                   <Globe size={14} />Portfolio
                 </a>
               )}

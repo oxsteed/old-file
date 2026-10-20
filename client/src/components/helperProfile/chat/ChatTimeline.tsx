@@ -129,14 +129,14 @@ const ChatTimeline: React.FC<ChatTimelineProps> = ({
                   <button
                     onClick={onEditSave}
                     className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-xs font-medium transition-colors"
-                    aria-label={t('common.save') || 'Save'}
+                    aria-label={t('common.save') || 'Save'} data-track-private
                   >
                     <Check className="w-3 h-3" /> {t('common.save') || 'Save'}
                   </button>
                   <button
                     onClick={onEditCancel}
                     className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs font-medium transition-colors"
-                    aria-label={t('common.cancel') || 'Cancel'}
+                    aria-label={t('common.cancel') || 'Cancel'} data-track-private
                   >
                     <X className="w-3 h-3" /> {t('common.cancel') || 'Cancel'}
                   </button>

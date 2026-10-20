@@ -56,7 +56,7 @@ export default function ProfilePreviewCard({
       className="ppc-link"
       href={publicHref}
       target="_blank"
-      rel="noopener noreferrer"
+      rel="noopener noreferrer" data-track="ui.92914e2896.1"
     >
       {publicLabel || t('profileStudio.viewPublic')}
     </a>

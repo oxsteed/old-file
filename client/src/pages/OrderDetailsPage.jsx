@@ -263,10 +263,10 @@ function OrderDetailsPageContent() {
             <h1>{order ? t('common.error') : t('orders.notFound')}</h1>
             <p>{error || t('orders.notFound')}</p>
             <div className="order-details-error-actions">
-              <button type="button" className="orders-btn orders-btn-primary" onClick={loadOrder}>
+              <button type="button" className="orders-btn orders-btn-primary" onClick={loadOrder} data-track="ui.74ee342991.1">
                 <RefreshCw size={16} /> {t('common.retry', 'Retry')}
               </button>
-              <button type="button" className="orders-btn" onClick={handleBackToOrders}>
+              <button type="button" className="orders-btn" onClick={handleBackToOrders} data-track="ui.74ee342991.2">
                 <ArrowLeft size={16} /> {t('orders.backToOrders')}
               </button>
             </div>
@@ -289,8 +289,8 @@ function OrderDetailsPageContent() {
       <div className="order-details-page">
         <div className="order-details-wrap">
           <div className="order-details-topbar">
-            <button type="button" className="order-details-back" onClick={handleBackToOrders}><ArrowLeft size={16} /> {t('orders.backToOrders')}</button>
-            <button type="button" className="orders-btn" onClick={loadOrder} disabled={loading}><RefreshCw size={16} className={loading ? 'orders-spin' : ''} /> {t('common.refresh')}</button>
+            <button type="button" className="order-details-back" onClick={handleBackToOrders} data-track="ui.74ee342991.3"><ArrowLeft size={16} /> {t('orders.backToOrders')}</button>
+            <button type="button" className="orders-btn" onClick={loadOrder} disabled={loading} data-track="ui.74ee342991.4"><RefreshCw size={16} className={loading ? 'orders-spin' : ''} /> {t('common.refresh')}</button>
           </div>
 
           <header className="order-details-hero">
@@ -305,7 +305,7 @@ function OrderDetailsPageContent() {
             </div>
           </header>
 
-          {error && <div role="alert" className="order-details-alert"><XCircle size={17} /> {error}<button type="button" onClick={loadOrder}>{t('common.tryAgain')}</button></div>}
+          {error && <div role="alert" className="order-details-alert"><XCircle size={17} /> {error}<button type="button" onClick={loadOrder} data-track="ui.74ee342991.5">{t('common.tryAgain')}</button></div>}
 
           <section className="order-details-summary" aria-label={t('orders.summaryAriaLabel', { defaultValue: 'Order summary' })}>
             <SummaryCard icon={ShoppingBag} label={t('orders.items')} value={totalItems || '—'} detail={`${items.length} ${items.length === 1 ? 'line item' : 'line items'}`} />
@@ -371,11 +371,11 @@ function OrderDetailsPageContent() {
               )}
 
               <section className="order-details-actions">
-                {canCancel && <button type="button" className="orders-btn orders-btn-danger" onClick={handleCancel} disabled={cancelLoading}><XCircle size={16} /> {cancelLoading ? t('common.processing') : t('orders.cancelOrder')}</button>}
-                {isFoodOrder && order?.tracking_token && <button type="button" className="orders-btn orders-btn-primary" onClick={() => navigate(`/food/track/${order.tracking_token}`)}><RefreshCw size={16} /> {t('food.order.liveStatus', { defaultValue: 'Track order live' })}</button>}
-                <button type="button" className="orders-btn" onClick={() => setHelpOpen(true)}><HelpCircle size={16} /> {t('orders.getHelp', { defaultValue: 'Get help with this order' })}</button>
-                {isFoodOrder && !['cancelled', 'refunded'].includes(String(order.status || '').toLowerCase()) && <button type="button" className="orders-btn" onClick={handleOrderAgain}><RotateCcw size={16} /> {t('food.restaurant.orderAgain', { defaultValue: 'Order again' })}</button>}
-                <button type="button" className="orders-btn" onClick={handleBackToOrders}><ArrowLeft size={16} /> {t('orders.backToOrders')}</button>
+                {canCancel && <button type="button" className="orders-btn orders-btn-danger" onClick={handleCancel} disabled={cancelLoading} data-track="ui.74ee342991.6"><XCircle size={16} /> {cancelLoading ? t('common.processing') : t('orders.cancelOrder')}</button>}
+                {isFoodOrder && order?.tracking_token && <button type="button" className="orders-btn orders-btn-primary" onClick={() => navigate(`/food/track/${order.tracking_token}`)} data-track="ui.74ee342991.7"><RefreshCw size={16} /> {t('food.order.liveStatus', { defaultValue: 'Track order live' })}</button>}
+                <button type="button" className="orders-btn" onClick={() => setHelpOpen(true)} data-track="ui.74ee342991.8"><HelpCircle size={16} /> {t('orders.getHelp', { defaultValue: 'Get help with this order' })}</button>
+                {isFoodOrder && !['cancelled', 'refunded'].includes(String(order.status || '').toLowerCase()) && <button type="button" className="orders-btn" onClick={handleOrderAgain} data-track="ui.74ee342991.9"><RotateCcw size={16} /> {t('food.restaurant.orderAgain', { defaultValue: 'Order again' })}</button>}
+                <button type="button" className="orders-btn" onClick={handleBackToOrders} data-track="ui.74ee342991.10"><ArrowLeft size={16} /> {t('orders.backToOrders')}</button>
               </section>
             </aside>
           </div>
@@ -387,7 +387,7 @@ function OrderDetailsPageContent() {
           <div className="order-help-panel" onClick={e => e.stopPropagation()}>
             <div className="order-help-head">
               <h3>{t('orders.helpTitle')}</h3>
-              <button type="button" className="order-help-close" onClick={() => setHelpOpen(false)} aria-label={t('common.close')}>×</button>
+              <button type="button" className="order-help-close" onClick={() => setHelpOpen(false)} aria-label={t('common.close')} data-track="ui.74ee342991.11">×</button>
             </div>
             {isFoodOrder && order && (
               <div className="order-help-context">
@@ -401,7 +401,7 @@ function OrderDetailsPageContent() {
             {helpSent ? (
               <div className="order-help-sent">
                 <p>{t('orders.helpSent')}</p>
-                <button type="button" className="orders-btn orders-btn-primary" onClick={() => { setHelpOpen(false); setHelpSent(false); }}>
+                <button type="button" className="orders-btn orders-btn-primary" onClick={() => { setHelpOpen(false); setHelpSent(false); }} data-track="ui.74ee342991.12">
                   {t('common.done', { defaultValue: 'Done' })}
                 </button>
               </div>
@@ -415,14 +415,14 @@ function OrderDetailsPageContent() {
                   className="order-help-textarea"
                 />
                 <div className="order-help-actions">
-                  <button type="button" className="orders-btn" onClick={() => setHelpOpen(false)}>
+                  <button type="button" className="orders-btn" onClick={() => setHelpOpen(false)} data-track="ui.74ee342991.13">
                     {t('common.cancel')}
                   </button>
                   <button
                     type="button"
                     className="orders-btn orders-btn-primary"
                     onClick={handleHelpSubmit}
-                    disabled={helpSending || !helpMessage.trim()}
+                    disabled={helpSending || !helpMessage.trim()} data-track="ui.74ee342991.14"
                   >
                     {helpSending ? t('common.sending', { defaultValue: 'Sending...' }) : t('common.send', { defaultValue: 'Send' })}
                   </button>

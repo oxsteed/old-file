@@ -84,7 +84,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ bookingId, isOpen, onClose,
       >
         <div className="invoice-modal-header">
           <h2 id="invoice-modal-title">{t('toolRentals.sendInvoice')}</h2>
-          <button onClick={onClose} className="invoice-modal-close" aria-label={t('toolRentals.closeInvoiceModal')}>
+          <button onClick={onClose} className="invoice-modal-close" aria-label={t('toolRentals.closeInvoiceModal')} data-track="ui.285a008b5f.1">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -102,7 +102,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ bookingId, isOpen, onClose,
                 value="in_platform"
                 checked={deliveryMethod === 'in_platform'}
                 onChange={e => setDeliveryMethod(e.target.value as 'in_platform' | 'email')}
-                disabled={loading}
+                disabled={loading} data-track="ui.285a008b5f.2"
               />
               <div className="invoice-delivery-content">
                 <div className="invoice-delivery-title">
@@ -122,7 +122,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ bookingId, isOpen, onClose,
                 value="email"
                 checked={deliveryMethod === 'email'}
                 onChange={e => setDeliveryMethod(e.target.value as 'in_platform' | 'email')}
-                disabled={loading}
+                disabled={loading} data-track="ui.285a008b5f.3"
               />
               <div className="invoice-delivery-content">
                 <div className="invoice-delivery-title">
@@ -158,10 +158,10 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ bookingId, isOpen, onClose,
         </div>
 
         <div className="invoice-modal-footer">
-          <button onClick={onClose} disabled={loading} className="invoice-btn-cancel">
+          <button onClick={onClose} disabled={loading} className="invoice-btn-cancel" data-track="ui.285a008b5f.4">
             {t('common.cancel')}
           </button>
-          <button onClick={handleSend} disabled={loading} className="invoice-btn-send">
+          <button onClick={handleSend} disabled={loading} className="invoice-btn-send" data-track="ui.285a008b5f.5">
             {loading ? t('common.sending') : t('toolRentals.sendInvoice')}
           </button>
         </div>

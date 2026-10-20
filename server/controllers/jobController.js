@@ -265,6 +265,7 @@ exports.createJob = async (req, res, next) => {
     );
     if (inserted[0]?.id && ['published', 'matched'].includes(inserted[0].status)) {
       await enqueueJobEvent(client, { jobId: inserted[0].id, eventType: EVENT_TYPES.PUBLISHED, coalesce: false });
+      await require('../growth/emit').emitDomainEvent(client,'job.posted',{job_id:String(inserted[0].id)}, {userId:req.user.id,req});
     }
     return inserted;
     }, 'create_job');

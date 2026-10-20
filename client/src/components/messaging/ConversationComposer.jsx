@@ -108,7 +108,7 @@ export default function ConversationComposer({
               <button
                 key={starter}
                 type="button"
-                onClick={() => onSend({ content: starter, attachments: [] })}
+                onClick={() => onSend({ content: starter, attachments: [] })} data-track="ui.ed6bf3c432.1"
               >
                 {starter}
               </button>
@@ -124,7 +124,7 @@ export default function ConversationComposer({
               key={`${index}-${reply}`}
               type="button"
               className="messages-quick-reply"
-              onClick={() => insertQuickReply(reply)}
+              onClick={() => insertQuickReply(reply)} data-track="ui.ed6bf3c432.2"
             >
               {reply}
             </button>
@@ -143,7 +143,7 @@ export default function ConversationComposer({
           <button
             type="button"
             onClick={() => setPendingAttachment(null)}
-            aria-label={t('common.remove')}
+            aria-label={t('common.remove')} data-track="ui.ed6bf3c432.3"
           >
             <X size={14} />
           </button>
@@ -173,7 +173,7 @@ export default function ConversationComposer({
           onClick={() => imageInputRef.current?.click()}
           disabled={disabled || uploading || !conversationId}
           aria-label={t('messages.attachImage')}
-          title={t('messages.attachImage')}
+          title={t('messages.attachImage')} data-track="ui.ed6bf3c432.4"
         >
           {uploading ? <Loader2 size={16} className="animate-spin" /> : <Image size={16} />}
         </button>
@@ -182,7 +182,7 @@ export default function ConversationComposer({
           onClick={() => fileInputRef.current?.click()}
           disabled={disabled || uploading || !conversationId}
           aria-label={t('messages.attachFile')}
-          title={t('messages.attachFile')}
+          title={t('messages.attachFile')} data-track="ui.ed6bf3c432.5"
         >
           <Paperclip size={16} />
         </button>
@@ -199,7 +199,7 @@ export default function ConversationComposer({
         onSubmit={(event) => {
           event.preventDefault();
           submit();
-        }}
+        }} data-track="ui.ed6bf3c432.6"
       >
         <textarea
           ref={textareaRef}
@@ -215,7 +215,7 @@ export default function ConversationComposer({
           aria-label={t('messages.messageInput')}
           aria-multiline="true"
         />
-        <button type="submit" disabled={!canSend} aria-label={t('messages.sendMessage')}>
+        <button type="submit" disabled={!canSend} aria-label={t('messages.sendMessage')} data-track="ui.ed6bf3c432.7">
           {sending || uploading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
         </button>
       </form>

@@ -130,7 +130,7 @@ function OrderHistoryPageContent() {
               <ShoppingBag size={16} />
               {t('orders.browseRestaurants')}
             </Link>
-            <button type="button" className="orders-btn" onClick={loadOrders} disabled={loading}>
+            <button type="button" className="orders-btn" onClick={loadOrders} disabled={loading} data-track="ui.c49051010e.1">
               <RefreshCw size={16} />
               {t('common.refresh')}
             </button>
@@ -155,7 +155,7 @@ function OrderHistoryPageContent() {
                   key={status}
                   type="button"
                   onClick={() => setFilter(status)}
-                  className={filter === status ? 'active' : ''}
+                  className={filter === status ? 'active' : ''} data-track="ui.c49051010e.2"
                 >
                   {statusLabel(status, t)}
                 </button>
@@ -171,7 +171,7 @@ function OrderHistoryPageContent() {
           ) : error ? (
             <div className="orders-error">
               <p>{error}</p>
-              <button type="button" className="orders-btn" onClick={loadOrders}>{t('common.tryAgain')}</button>
+              <button type="button" className="orders-btn" onClick={loadOrders} data-track="ui.c49051010e.3">{t('common.tryAgain')}</button>
             </div>
           ) : visibleOrders.length === 0 ? (
             <EmptyOrders filter={filter} t={t} />
@@ -199,12 +199,12 @@ function OrderHistoryPageContent() {
                   </span>
                   <div className="orders-row-actions">
                     {isPastOrder(order) && (
-                      <button type="button" onClick={() => handleReorder(order)}>
+                      <button type="button" onClick={() => handleReorder(order)} data-track="ui.c49051010e.4">
                         <RotateCcw size={15} />
                         {t('food.restaurant.reorder')}
                       </button>
                     )}
-                    <button type="button" onClick={() => navigate(`/food/orders/${order.id}`)}>
+                    <button type="button" onClick={() => navigate(`/food/orders/${order.id}`)} data-track="ui.c49051010e.5">
                       {t('common.view')}
                       <ArrowRight size={15} />
                     </button>

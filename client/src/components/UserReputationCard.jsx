@@ -209,7 +209,7 @@ const UserReputationCard = ({ userId, businessId = null, showFeeHistory = false,
                 className="rep-fee-toggle"
                 onClick={() => setShowFeeList(v => !v)}
                 aria-expanded={showFeeList}
-                type="button"
+                type="button" data-track="ui.883940e7c8.1"
               >
                 {showFeeList ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 {showFeeList

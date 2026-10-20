@@ -146,7 +146,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
           <button
             onClick={() => setPendingAttachment(null)}
             className="p-0.5 rounded text-gray-500 hover:text-red-400 transition-colors"
-            aria-label={t('common.remove') || 'Remove'}
+            aria-label={t('common.remove') || 'Remove'} data-track-private
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -180,7 +180,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
           disabled={isDisabled || uploading || !conversationId}
           title={conversationId ? t('messages.attachFile') : (t('messages.attachNeedsConversation') || 'Send a message first')}
           onClick={() => fileInputRef.current?.click()}
-          type="button"
+          type="button" data-track-private
         >
           {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" aria-hidden="true" />}
         </button>
@@ -190,7 +190,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
           disabled={isDisabled || uploading || !conversationId}
           title={conversationId ? t('messages.attachImage') : (t('messages.attachNeedsConversation') || 'Send a message first')}
           onClick={() => imageInputRef.current?.click()}
-          type="button"
+          type="button" data-track-private
         >
           <Image className="w-4 h-4" aria-hidden="true" />
         </button>
@@ -218,7 +218,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
           onClick={submit}
           disabled={(!text.trim() && !pendingAttachment) || isDisabled || uploading}
           className="flex-shrink-0 w-10 h-10 rounded-xl bg-brand-500 hover:bg-brand-600 disabled:bg-gray-700 disabled:text-gray-500 text-white flex items-center justify-center transition-colors"
-          aria-label={t('messages.sendMessage')}
+          aria-label={t('messages.sendMessage')} data-track-private
         >
           {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" aria-hidden="true" />}
         </button>

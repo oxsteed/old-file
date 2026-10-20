@@ -54,7 +54,7 @@ export default function ConversationContactDrawer({
     <aside className="conversation-contact-drawer" role="dialog" aria-label={t('messages.contactDrawer.title')}>
       <header className="conversation-contact-drawer-head">
         <h3>{t('messages.contactDrawer.title')}</h3>
-        <button type="button" onClick={onClose} aria-label={t('common.close')}>
+        <button type="button" onClick={onClose} aria-label={t('common.close')} data-track="ui.4942202b29.1">
           <X size={16} aria-hidden />
         </button>
       </header>

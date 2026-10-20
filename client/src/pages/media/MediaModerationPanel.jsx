@@ -49,12 +49,12 @@ export default function MediaModerationPanel({ postId, onUnavailable }) {
       {appeal && <p>{t(`media.moderation.appealStatus.${appeal.status}`, { defaultValue: appeal.status })}</p>}
       {appeal?.review_note && <p>{appeal.review_note}</p>}
       {canAppeal && (
-        <form onSubmit={submit} className="media-moderation-appeal">
+        <form onSubmit={submit} className="media-moderation-appeal" data-track="ui.23552ab6dc.1">
           <label htmlFor="media-appeal-reason">{t('media.moderation.appealLabel')}</label>
           <textarea id="media-appeal-reason" value={reason} maxLength={2000} rows={4}
             onChange={(e) => setReason(e.target.value)} />
           {error && <p role="alert">{error}</p>}
-          <button type="submit" disabled={sending}>{t('media.moderation.appealSubmit')}</button>
+          <button type="submit" disabled={sending} data-track="ui.23552ab6dc.2">{t('media.moderation.appealSubmit')}</button>
         </form>
       )}
     </section>

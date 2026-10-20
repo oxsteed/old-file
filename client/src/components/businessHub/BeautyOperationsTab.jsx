@@ -231,7 +231,7 @@ export default function BeautyOperationsTab({ businessId, workspace, currency = 
         <Section
           title={copy('intakePipeline')}
           subtitle={copy('intakePipelineSubtitle')}
-          actions={<button type="button" className="bh-btn" onClick={() => onJumpTab?.('calendar')}>{copy('openSchedule')}</button>}
+          actions={<button type="button" className="bh-btn" onClick={() => onJumpTab?.('calendar')} data-track="ui.22cc39afed.1">{copy('openSchedule')}</button>}
         >
           <div className="space-y-4">
             {intakeRequests.slice(0, 12).map((item) => (
@@ -249,8 +249,8 @@ export default function BeautyOperationsTab({ businessId, workspace, currency = 
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateIntake(item.id, { status: 'booked', workflow_stage: 'booking' })}>{copy('markBooked')}</button>
-                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateIntake(item.id, { status: 'rebooked', workflow_stage: 'closed' })}>{copy('rebooked')}</button>
+                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateIntake(item.id, { status: 'booked', workflow_stage: 'booking' })} data-track="ui.22cc39afed.2">{copy('markBooked')}</button>
+                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateIntake(item.id, { status: 'rebooked', workflow_stage: 'closed' })} data-track="ui.22cc39afed.3">{copy('rebooked')}</button>
                   </div>
                 </div>
               </div>
@@ -262,7 +262,7 @@ export default function BeautyOperationsTab({ businessId, workspace, currency = 
         <Section
           title={copy('queueSnapshot')}
           subtitle={copy('queueSnapshotSubtitle')}
-          actions={<button type="button" className="bh-btn" onClick={() => onRefresh?.()}>{copy('refresh')}</button>}
+          actions={<button type="button" className="bh-btn" onClick={() => onRefresh?.()} data-track="ui.22cc39afed.4">{copy('refresh')}</button>}
         >
           <div className="space-y-4">
             <div className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4">
@@ -284,7 +284,7 @@ export default function BeautyOperationsTab({ businessId, workspace, currency = 
       <Section
         title={copy('settingsTitle')}
         subtitle={copy('settingsSubtitle')}
-        actions={<button type="button" className="bh-btn primary" onClick={saveSettings} disabled={savingSettings}>{savingSettings ? t('common.saving') : copy('saveSettings')}</button>}
+        actions={<button type="button" className="bh-btn primary" onClick={saveSettings} disabled={savingSettings} data-track="ui.22cc39afed.5">{savingSettings ? t('common.saving') : copy('saveSettings')}</button>}
       >
         <div className="grid gap-4 md:grid-cols-2">
           <Input label={copy('responsePromise')}><TextInput type="number" min="1" value={settingsForm.response_promise_hours} onChange={(e) => setSettingsForm((current) => ({ ...current, response_promise_hours: e.target.value }))} /></Input>
@@ -307,7 +307,7 @@ export default function BeautyOperationsTab({ businessId, workspace, currency = 
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         <Section title={copy('packagesTitle')} subtitle={copy('packagesSubtitle')}>
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={savePackage}>
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={savePackage} data-track="ui.22cc39afed.6">
             <Input label={copy('packageName')}><TextInput value={packageForm.package_name} onChange={(e) => setPackageForm((current) => ({ ...current, package_name: e.target.value }))} /></Input>
             <Input label={copy('type')}><Select value={packageForm.package_type} onChange={(e) => setPackageForm((current) => ({ ...current, package_type: e.target.value }))}><option value="membership">{copy('membership')}</option><option value="series">{copy('series')}</option><option value="single">{copy('single')}</option><option value="bridal">{copy('bridal')}</option></Select></Input>
             <Input label={copy('priceCents')}><TextInput type="number" min="0" value={packageForm.price_cents} onChange={(e) => setPackageForm((current) => ({ ...current, price_cents: e.target.value }))} /></Input>
@@ -316,8 +316,8 @@ export default function BeautyOperationsTab({ businessId, workspace, currency = 
             <Input label={copy('perks')} wide><TextInput value={packageForm.perks} onChange={(e) => setPackageForm((current) => ({ ...current, perks: e.target.value }))} placeholder={copy('perksPlaceholder')} /></Input>
             <Input label={copy('descriptionLabel')} wide><TextArea rows={2} value={packageForm.description} onChange={(e) => setPackageForm((current) => ({ ...current, description: e.target.value }))} /></Input>
             <div className="md:col-span-2 flex gap-3">
-              <button className="bh-btn primary" type="submit">{editingPackageId ? copy('updatePackage') : copy('addPackage')}</button>
-              {editingPackageId ? <button className="bh-btn" type="button" onClick={() => { setEditingPackageId(null); setPackageForm(EMPTY_PACKAGE); }}>{t('common.cancel')}</button> : null}
+              <button className="bh-btn primary" type="submit" data-track="ui.22cc39afed.7">{editingPackageId ? copy('updatePackage') : copy('addPackage')}</button>
+              {editingPackageId ? <button className="bh-btn" type="button" onClick={() => { setEditingPackageId(null); setPackageForm(EMPTY_PACKAGE); }} data-track="ui.22cc39afed.8">{t('common.cancel')}</button> : null}
             </div>
           </form>
           <div className="mt-5 space-y-3">
@@ -345,8 +345,8 @@ export default function BeautyOperationsTab({ businessId, workspace, currency = 
                         perks: (item.perks || []).join(', '),
                         active: item.active !== false,
                       });
-                    }}>{t('common.edit')}</button>
-                    <button className="bh-btn sm" type="button" onClick={async () => { await deleteBeautyPackage(businessId, item.id); toast.success(copy('packageDeleted')); await onRefresh?.(); }}>{t('common.delete')}</button>
+                    }} data-track="ui.22cc39afed.9">{t('common.edit')}</button>
+                    <button className="bh-btn sm" type="button" onClick={async () => { await deleteBeautyPackage(businessId, item.id); toast.success(copy('packageDeleted')); await onRefresh?.(); }} data-track="ui.22cc39afed.10">{t('common.delete')}</button>
                   </div>
                 </div>
               </div>
@@ -355,7 +355,7 @@ export default function BeautyOperationsTab({ businessId, workspace, currency = 
         </Section>
 
         <Section title={copy('trustTitle')} subtitle={copy('trustSubtitle')}>
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={saveTrustRecord}>
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={saveTrustRecord} data-track="ui.22cc39afed.11">
             <Input label={copy('recordType')}><TextInput value={trustForm.record_type} onChange={(e) => setTrustForm((current) => ({ ...current, record_type: e.target.value }))} /></Input>
             <Input label={copy('titleLabel')}><TextInput value={trustForm.title} onChange={(e) => setTrustForm((current) => ({ ...current, title: e.target.value }))} /></Input>
             <Input label={copy('issuer')}><TextInput value={trustForm.issuer} onChange={(e) => setTrustForm((current) => ({ ...current, issuer: e.target.value }))} /></Input>
@@ -364,8 +364,8 @@ export default function BeautyOperationsTab({ businessId, workspace, currency = 
             <Input label={copy('documentUrl')}><TextInput value={trustForm.document_url} onChange={(e) => setTrustForm((current) => ({ ...current, document_url: e.target.value }))} /></Input>
             <Input label={copy('notesLabel')} wide><TextArea rows={2} value={trustForm.notes} onChange={(e) => setTrustForm((current) => ({ ...current, notes: e.target.value }))} /></Input>
             <div className="md:col-span-2 flex gap-3">
-              <button className="bh-btn primary" type="submit">{editingTrustId ? copy('updateTrustRecord') : copy('addTrustRecord')}</button>
-              {editingTrustId ? <button className="bh-btn" type="button" onClick={() => { setEditingTrustId(null); setTrustForm(EMPTY_TRUST); }}>{t('common.cancel')}</button> : null}
+              <button className="bh-btn primary" type="submit" data-track="ui.22cc39afed.12">{editingTrustId ? copy('updateTrustRecord') : copy('addTrustRecord')}</button>
+              {editingTrustId ? <button className="bh-btn" type="button" onClick={() => { setEditingTrustId(null); setTrustForm(EMPTY_TRUST); }} data-track="ui.22cc39afed.13">{t('common.cancel')}</button> : null}
             </div>
           </form>
           <div className="mt-5 space-y-3">
@@ -392,8 +392,8 @@ export default function BeautyOperationsTab({ businessId, workspace, currency = 
                         document_url: item.document_url || '',
                         notes: item.notes || '',
                       });
-                    }}>{t('common.edit')}</button>
-                    <button className="bh-btn sm" type="button" onClick={async () => { await deleteBeautyTrustRecord(businessId, item.id); toast.success(copy('trustRecordDeleted')); await onRefresh?.(); }}>{t('common.delete')}</button>
+                    }} data-track="ui.22cc39afed.14">{t('common.edit')}</button>
+                    <button className="bh-btn sm" type="button" onClick={async () => { await deleteBeautyTrustRecord(businessId, item.id); toast.success(copy('trustRecordDeleted')); await onRefresh?.(); }} data-track="ui.22cc39afed.15">{t('common.delete')}</button>
                   </div>
                 </div>
               </div>
@@ -405,7 +405,7 @@ export default function BeautyOperationsTab({ businessId, workspace, currency = 
       <Section
         title={copy('upcomingTitle')}
         subtitle={copy('upcomingSubtitle')}
-        actions={<button type="button" className="bh-btn" onClick={() => onJumpTab?.('calendar')}>{copy('openCalendar')}</button>}
+        actions={<button type="button" className="bh-btn" onClick={() => onJumpTab?.('calendar')} data-track="ui.22cc39afed.16">{copy('openCalendar')}</button>}
       >
         <div className="space-y-3">
           {upcomingAppointments.length === 0 ? (

@@ -9,7 +9,7 @@ export default function UndoToast({ message, undoLabel, onUndo }) {
       <button
         type="button"
         onClick={onUndo}
-        className="shrink-0 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+        className="shrink-0 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60" data-track="ui.9e2ebba156.1"
       >
         {undoLabel}
       </button>

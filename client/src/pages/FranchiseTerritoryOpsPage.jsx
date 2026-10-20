@@ -147,7 +147,7 @@ export default function FranchiseTerritoryOpsPage() {
             </div>
             <button
               onClick={load}
-              className="self-start flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-800 bg-gray-900 text-gray-400 hover:text-white text-sm transition"
+              className="self-start flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-800 bg-gray-900 text-gray-400 hover:text-white text-sm transition" data-track="ui.35001a967e.1"
             >
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
               {t('franchiseTerritoryPage.actions.refresh')}

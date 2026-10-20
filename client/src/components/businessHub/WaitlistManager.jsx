@@ -58,7 +58,7 @@ export function WaitlistManager({ businessId }) {
 
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
         {['waiting','notified','booked','removed'].map(s => (
-          <button key={s} onClick={() => setFilter(s)} style={{ padding: '0.4rem 0.9rem', borderRadius: '999px', border: '1px solid var(--border-color)', background: filter === s ? STATUS_COLOR[s] : 'transparent', color: filter === s ? '#fff' : 'var(--app-text)', cursor: 'pointer', fontSize: '0.875rem', fontWeight: filter === s ? 600 : 400 }}>{STATUS_LABEL[s]}</button>
+          <button key={s} onClick={() => setFilter(s)} style={{ padding: '0.4rem 0.9rem', borderRadius: '999px', border: '1px solid var(--border-color)', background: filter === s ? STATUS_COLOR[s] : 'transparent', color: filter === s ? '#fff' : 'var(--app-text)', cursor: 'pointer', fontSize: '0.875rem', fontWeight: filter === s ? 600 : 400 }} data-track="ui.22e8b9b070.1">{STATUS_LABEL[s]}</button>
         ))}
       </div>
 
@@ -82,8 +82,8 @@ export function WaitlistManager({ businessId }) {
               </div>
               <span style={{ fontSize: '0.75rem', padding: '0.1rem 0.5rem', borderRadius: '999px', background: STATUS_COLOR[e.status] + '22', color: STATUS_COLOR[e.status], fontWeight: 600 }}>{STATUS_LABEL[e.status]}</span>
               <div style={{ display: 'flex', gap: '0.25rem' }}>
-                {e.status === 'waiting' && <button onClick={() => update(e.id, 'notified')} title={t('businessHub.waitlist.markNotified')} style={{ padding: '0.35rem', background: '#3b82f622', border: 'none', borderRadius: '0.35rem', cursor: 'pointer', color: '#3b82f6' }}><Check size={14} /></button>}
-                {e.status !== 'removed' && <button onClick={() => remove(e.id)} title={t('businessHub.waitlist.remove')} style={{ padding: '0.35rem', background: '#ef444422', border: 'none', borderRadius: '0.35rem', cursor: 'pointer', color: '#ef4444' }}><X size={14} /></button>}
+                {e.status === 'waiting' && <button onClick={() => update(e.id, 'notified')} title={t('businessHub.waitlist.markNotified')} style={{ padding: '0.35rem', background: '#3b82f622', border: 'none', borderRadius: '0.35rem', cursor: 'pointer', color: '#3b82f6' }} data-track="ui.22e8b9b070.2"><Check size={14} /></button>}
+                {e.status !== 'removed' && <button onClick={() => remove(e.id)} title={t('businessHub.waitlist.remove')} style={{ padding: '0.35rem', background: '#ef444422', border: 'none', borderRadius: '0.35rem', cursor: 'pointer', color: '#ef4444' }} data-track="ui.22e8b9b070.3"><X size={14} /></button>}
               </div>
             </div>
           ))}

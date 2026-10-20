@@ -104,12 +104,12 @@ export default function ProductDetailModal({ product, onClose, onAddToCart }) {
     return (
       <div className="pdm-overlay" onClick={onClose}>
         <div className="pdm-modal" onClick={(e) => e.stopPropagation()}>
-          <button onClick={onClose} className="pdm-close-btn" aria-label={t('common.close')}>
+          <button onClick={onClose} className="pdm-close-btn" aria-label={t('common.close')} data-track="ui.31e98355d6.1">
             <X size={24} />
           </button>
           <div className="pdm-error">
             <p>{error || t('common.errorLoading')}</p>
-            <button onClick={onClose} className="pdm-error-close-btn">
+            <button onClick={onClose} className="pdm-error-close-btn" data-track="ui.31e98355d6.2">
               {t('common.close')}
             </button>
           </div>
@@ -137,7 +137,7 @@ export default function ProductDetailModal({ product, onClose, onAddToCart }) {
   return (
     <div className="pdm-overlay" onClick={onClose}>
       <div className="pdm-modal" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="pdm-close-btn" aria-label={t('common.close')}>
+        <button onClick={onClose} className="pdm-close-btn" aria-label={t('common.close')} data-track="ui.31e98355d6.3">
           <X size={24} />
         </button>
 
@@ -242,7 +242,7 @@ export default function ProductDetailModal({ product, onClose, onAddToCart }) {
                   href={fullProduct.affiliate_url || fullProduct.external_url || '#'}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="pdm-affiliate-link"
+                  className="pdm-affiliate-link" data-track="ui.31e98355d6.4"
                 >
                   <ExternalLink size={16} />
                   {t('marketplace.buyOnHomeDepot')}
@@ -266,7 +266,7 @@ export default function ProductDetailModal({ product, onClose, onAddToCart }) {
                   className="pdm-quantity-input"
                 />
               </div>
-              <button onClick={handleAddToCart} className="pdm-add-to-cart-btn">
+              <button onClick={handleAddToCart} className="pdm-add-to-cart-btn" data-track="ui.31e98355d6.5">
                 {t('marketplace.addToCart')}
               </button>
             </div>

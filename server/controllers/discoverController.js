@@ -47,14 +47,12 @@ async function logDiscoverQuery({ req, query, radius, latNum, lngNum, resultCoun
   try {
     const ipHash = hashIP(req.ip || '');
     await pool.query(
-      `INSERT INTO discover_search_log (query_normalized, result_count, radius_miles, lat, lng, ip_hash, user_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      `INSERT INTO discover_search_log (query_normalized, result_count, radius_miles, ip_hash, user_id)
+       VALUES ($1, $2, $3, $4, $5)`,
       [
-        normalizeQuery(query).toLowerCase().slice(0, 200),
+        require('../growth/events/validate').scrubQuery(normalizeQuery(query)),
         resultCount,
         radius,
-        latNum,
-        lngNum,
         (ipHash || '').slice(0, 64),
         req.user?.id || null,
       ],

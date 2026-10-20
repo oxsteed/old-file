@@ -44,12 +44,12 @@ export default function JobImageViewer({ images, index, onIndexChange, onClose }
     <div className="jdp-lightbox" role="dialog" aria-modal="true" aria-labelledby={titleId} ref={dialogRef}
       onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
       <h2 id={titleId} className="jdp-sr-only">{t('jobDetail.imageViewer')}</h2>
-      <button type="button" className="jdp-lightbox-close" aria-label={t('common.aria.closeButton')} onClick={onClose}>✕</button>
+      <button type="button" className="jdp-lightbox-close" aria-label={t('common.aria.closeButton')} onClick={onClose} data-track="ui.6f20fbbd69.1">✕</button>
       <button type="button" className="jdp-lightbox-prev" aria-label={t('jobDetail.previousImage')}
-        disabled={index === 0} onClick={() => onIndexChange(index - 1)}>‹</button>
+        disabled={index === 0} onClick={() => onIndexChange(index - 1)} data-track="ui.6f20fbbd69.2">‹</button>
       <img src={images[index]} alt={t('jobDetail.jobMedia', { number: index + 1 })} />
       <button type="button" className="jdp-lightbox-next" aria-label={t('jobDetail.nextImage')}
-        disabled={index === images.length - 1} onClick={() => onIndexChange(index + 1)}>›</button>
+        disabled={index === images.length - 1} onClick={() => onIndexChange(index + 1)} data-track="ui.6f20fbbd69.3">›</button>
       <p className="jdp-lightbox-counter" aria-live="polite">{t('jobDetail.imagePosition', { current: index + 1, total: images.length })}</p>
     </div>, document.body,
   );

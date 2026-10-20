@@ -213,7 +213,7 @@ export default function SharedCartPage() {
               {!showApprovalForm ? (
                 <button
                   onClick={() => setShowApprovalForm(true)}
-                  className="scp-page-approve-btn"
+                  className="scp-page-approve-btn" data-track="ui.5f3bf66385.1"
                 >
                   {t('marketplace.approveAndProceed')}
                 </button>
@@ -230,14 +230,14 @@ export default function SharedCartPage() {
                   <div className="scp-page-form-actions">
                     <button
                       onClick={() => setShowApprovalForm(false)}
-                      className="scp-page-form-btn-cancel"
+                      className="scp-page-form-btn-cancel" data-track="ui.5f3bf66385.2"
                     >
                       {t('common.cancel')}
                     </button>
                     <button
                       onClick={handleApproveCart}
                       disabled={isApproving}
-                      className="scp-page-form-btn-approve"
+                      className="scp-page-form-btn-approve" data-track="ui.5f3bf66385.3"
                     >
                       {isApproving ? t('common.loading') : t('common.approve')}
                     </button>

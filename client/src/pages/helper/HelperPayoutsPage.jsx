@@ -75,7 +75,7 @@ export default function HelperPayoutsPage() {
         {state.status === 'error' && (
           <div role="alert" className="text-gray-300">
             <p>{t('helperPayouts.loadFailed')}</p>
-            <button type="button" onClick={load} className="mt-2 text-orange-400">{t('helperPayouts.retry')}</button>
+            <button type="button" onClick={load} className="mt-2 text-orange-400" data-track="ui.ac312e2612.1">{t('helperPayouts.retry')}</button>
           </div>
         )}
         {state.status === 'success' && !d?.connected && (
@@ -98,7 +98,7 @@ export default function HelperPayoutsPage() {
             <p className="text-xs text-gray-500">{t('helperPayouts.limitNote', { max: cents(d.instant_payout_max_cents || 50000) })}</p>
             <button type="button" onClick={requestInstant}
               disabled={paying || !d.payouts_enabled || d.configured === false || !(d.instant_payout_amount_cents > 0)}
-              className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+              className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" data-track="ui.ac312e2612.2">
               {paying ? t('helperPayouts.requesting') : t('helperPayouts.instantButton', { amount: cents(d.instant_payout_amount_cents) })}
             </button>
           </div>

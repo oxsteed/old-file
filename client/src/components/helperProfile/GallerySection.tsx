@@ -78,7 +78,7 @@ const GallerySection: React.FC<GallerySectionProps> = ({ images }) => {
               <button
                 onClick={() => openLightbox(i)}
                 className="absolute inset-0"
-                aria-label={t('helperProfile.gallery.viewPhoto', { alt: img.alt })}
+                aria-label={t('helperProfile.gallery.viewPhoto', { alt: img.alt })} data-track="ui.5d6a7a306e.1"
               />
             </div>
           ))}
@@ -100,7 +100,7 @@ const GallerySection: React.FC<GallerySectionProps> = ({ images }) => {
           <button
             onClick={closeLightbox}
             className="absolute top-4 end-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-            aria-label={t('helperProfile.gallery.closeLightbox')}
+            aria-label={t('helperProfile.gallery.closeLightbox')} data-track="ui.5d6a7a306e.2"
           >
             <X className="w-5 h-5" />
           </button>
@@ -110,7 +110,7 @@ const GallerySection: React.FC<GallerySectionProps> = ({ images }) => {
             <button
               onClick={(e) => { e.stopPropagation(); prev(); }}
               className="absolute start-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-              aria-label={t('helperProfile.gallery.prevPhoto')}
+              aria-label={t('helperProfile.gallery.prevPhoto')} data-track="ui.5d6a7a306e.3"
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
@@ -142,7 +142,7 @@ const GallerySection: React.FC<GallerySectionProps> = ({ images }) => {
             <button
               onClick={(e) => { e.stopPropagation(); next(); }}
               className="absolute end-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-              aria-label={t('helperProfile.gallery.nextPhoto')}
+              aria-label={t('helperProfile.gallery.nextPhoto')} data-track="ui.5d6a7a306e.4"
             >
               <ChevronRight className="w-6 h-6" />
             </button>

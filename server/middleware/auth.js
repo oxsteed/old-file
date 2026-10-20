@@ -429,6 +429,8 @@ const optionalAuth = async (req, res, next) => {
 
     if (decoded.impersonation) {
       // Ended impersonation sessions must not authenticate, even optionally.
+      req.isImpersonated = true;
+      req.impersonatedBy = decoded.impersonated_by || null;
       if (await tokenRevocationService.isImpersonationSessionRevoked(decoded.jti)) return next();
     } else {
       const tokenId = crypto.createHash('sha256').update(token).digest('hex');

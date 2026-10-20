@@ -114,7 +114,7 @@ export function MessageTemplatesManager({ businessId }) {
             padding: '0.6rem 1.2rem',
             cursor: 'pointer',
             fontWeight: 600,
-          }}
+          }} data-track-private
         >
           <Plus size={16} /> {t('businessMessageTemplates.newTemplate')}
         </button>
@@ -131,7 +131,7 @@ export function MessageTemplatesManager({ businessId }) {
             color: filter === '' ? '#fff' : 'var(--app-text)',
             cursor: 'pointer',
             fontSize: '0.8rem',
-          }}
+          }} data-track-private
         >
           {t('businessMessageTemplates.all')}
         </button>
@@ -147,7 +147,7 @@ export function MessageTemplatesManager({ businessId }) {
               color: filter === c ? '#fff' : 'var(--app-text)',
               cursor: 'pointer',
               fontSize: '0.8rem',
-            }}
+            }} data-track-private
           >
             {categoryLabel(c)}
           </button>
@@ -214,7 +214,7 @@ export function MessageTemplatesManager({ businessId }) {
                       background: 'var(--app-bg)',
                       color: 'var(--muted-text)',
                       cursor: 'pointer',
-                    }}
+                    }} data-track-private
                   >
                     {v}
                   </button>
@@ -253,7 +253,7 @@ export function MessageTemplatesManager({ businessId }) {
                 background: 'transparent',
                 color: 'var(--app-text)',
                 cursor: 'pointer',
-              }}
+              }} data-track-private
             >
               {t('businessMessageTemplates.cancel')}
             </button>
@@ -267,7 +267,7 @@ export function MessageTemplatesManager({ businessId }) {
                 borderRadius: '0.5rem',
                 cursor: 'pointer',
                 fontWeight: 600,
-              }}
+              }} data-track-private
             >
               {t('businessMessageTemplates.saveTemplate')}
             </button>
@@ -346,7 +346,7 @@ function TemplateRow({ template, copied, onCopy, onEdit, onDelete }) {
             onCopy(template);
           }}
           title={t('businessMessageTemplates.copy')}
-          style={{ padding: '0.35rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)' }}
+          style={{ padding: '0.35rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)' }} data-track-private
         >
           {copied === template.id ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
         </button>
@@ -356,7 +356,7 @@ function TemplateRow({ template, copied, onCopy, onEdit, onDelete }) {
             onEdit(template);
           }}
           title={t('businessMessageTemplates.edit')}
-          style={{ padding: '0.35rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)' }}
+          style={{ padding: '0.35rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)' }} data-track-private
         >
           <Edit2 size={14} />
         </button>
@@ -366,7 +366,7 @@ function TemplateRow({ template, copied, onCopy, onEdit, onDelete }) {
             onDelete(template.id);
           }}
           title={t('businessMessageTemplates.delete')}
-          style={{ padding: '0.35rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }}
+          style={{ padding: '0.35rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }} data-track-private
         >
           <Trash2 size={14} />
         </button>

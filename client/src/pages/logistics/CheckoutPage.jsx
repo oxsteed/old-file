@@ -293,7 +293,7 @@ function CheckoutFlow({ context, returnPath, returnLabel, onQuoteAccepted }) {
         </div>
 
         {activeAttempt && <div className="lx-card" role="status"><p>{tx('logistics.staff.resume','Resume payment')}</p>
-          <button className="lx-btn-secondary" type="button" disabled={submitting} onClick={async()=>{setSubmitting(true);try{await cancelLogisticsPayment(activeAttempt.id);onQuoteAccepted(null,true);}catch(e){setSubmitError(tx('logistics.checkout.errors.generic','Please try again'));}finally{setSubmitting(false);}}}>{tx('logistics.staff.cancelPayment','Cancel unconfirmed payment')}</button></div>}
+          <button className="lx-btn-secondary" type="button" disabled={submitting} onClick={async()=>{setSubmitting(true);try{await cancelLogisticsPayment(activeAttempt.id);onQuoteAccepted(null,true);}catch(e){setSubmitError(tx('logistics.checkout.errors.generic','Please try again'));}finally{setSubmitting(false);}}} data-track="ui.09102903a3.1">{tx('logistics.staff.cancelPayment','Cancel unconfirmed payment')}</button></div>}
         {step === 'method' && (
           <section className="lx-card" aria-labelledby="lx-method-title">
             <h2 id="lx-method-title" className="lx-card-title lx-mb-4">
@@ -336,7 +336,7 @@ function CheckoutFlow({ context, returnPath, returnLabel, onQuoteAccepted }) {
                   name="lx-checkout-method"
                   value="stripe"
                   checked={method === 'stripe'}
-                  disabled={Boolean(activeAttempt && activeAttempt.method!=='stripe')} onChange={() => setMethod('stripe')}
+                  disabled={Boolean(activeAttempt && activeAttempt.method!=='stripe')} onChange={() => setMethod('stripe')} data-track="ui.09102903a3.2" data-track-private
                 />
                 <span className="lx-method-body">
                   <span className="lx-method-title">{tx('logistics.checkout.method.stripe', 'Card via Stripe')}</span>
@@ -358,7 +358,7 @@ function CheckoutFlow({ context, returnPath, returnLabel, onQuoteAccepted }) {
                   checked={method === 'credit'}
                   disabled={creditBlocked || (activeAttempt && activeAttempt.method!=='credit')}
                   onChange={() => setMethod('credit')}
-                  aria-describedby="lx-credit-method-note"
+                  aria-describedby="lx-credit-method-note" data-track="ui.09102903a3.3" data-track-private
                 />
                 <span className="lx-method-body">
                   <span className="lx-method-title">
@@ -417,7 +417,7 @@ function CheckoutFlow({ context, returnPath, returnLabel, onQuoteAccepted }) {
                   {tx('logistics.checkout.method.creditTopUpHint', 'Top up your Credit balance or continue with a card instead.')}
                 </p>
                 <div className="lx-btn-row lx-mt-6">
-                  <button type="button" className="lx-action-secondary" onClick={() => setMethod('stripe')}>
+                  <button type="button" className="lx-action-secondary" onClick={() => setMethod('stripe')} data-track="ui.09102903a3.4">
                     {tx('logistics.checkout.method.payWithCardInstead', 'Pay with card instead')}
                   </button>
                 </div>
@@ -431,7 +431,7 @@ function CheckoutFlow({ context, returnPath, returnLabel, onQuoteAccepted }) {
                 type="button"
                 className="lx-action-primary"
                 onClick={startConfirm}
-                disabled={!method || (method === 'credit' && shortfallCents > 0)}
+                disabled={!method || (method === 'credit' && shortfallCents > 0)} data-track="ui.09102903a3.5" data-track-private
               >
                 {tx('logistics.checkout.confirm.continue', 'Continue to confirmation')}
               </button>
@@ -465,7 +465,7 @@ function CheckoutFlow({ context, returnPath, returnLabel, onQuoteAccepted }) {
                   type="checkbox"
                   checked={confirmed}
                   onChange={(e) => { setConfirmed(e.target.checked); setMustCheckError(false); }}
-                  aria-describedby={mustCheckError ? 'lx-confirm-error' : undefined}
+                  aria-describedby={mustCheckError ? 'lx-confirm-error' : undefined} data-track="ui.09102903a3.6"
                 />
                 <span>
                   {tx(
@@ -496,7 +496,7 @@ function CheckoutFlow({ context, returnPath, returnLabel, onQuoteAccepted }) {
                   className="lx-action-primary"
                   onClick={submitPayment}
                   disabled={submitting || (method === 'credit' && shortfallCents > 0)}
-                  aria-busy={submitting}
+                  aria-busy={submitting} data-track="ui.09102903a3.7" data-track-private
                 >
                   {submitting
                     ? tx('logistics.checkout.confirm.submitting', 'Submitting payment…')
@@ -506,7 +506,7 @@ function CheckoutFlow({ context, returnPath, returnLabel, onQuoteAccepted }) {
                   type="button"
                   className="lx-action-secondary"
                   onClick={() => setStep('method')}
-                  disabled={submitting}
+                  disabled={submitting} data-track="ui.09102903a3.8"
                 >
                   {tx('logistics.checkout.confirm.back', 'Back to payment method')}
                 </button>
@@ -714,7 +714,7 @@ function CheckoutPageInner() {
         <div className="lx-empty" role="alert">
           <p>{error || tx('logistics.checkout.loadError', 'We could not load this checkout. Please try again.')}</p>
           <div className="lx-btn-row lx-mt-6" style={{ justifyContent: 'center' }}>
-            <button type="button" onClick={load} className="lx-action-secondary">
+            <button type="button" onClick={load} className="lx-action-secondary" data-track="ui.09102903a3.9">
               {tx('logistics.workspace.dataError.retry', 'Try again')}
             </button>
             <Link to="/logistics/buyer" className="lx-action-ghost">
@@ -750,7 +750,7 @@ function CheckoutPageInner() {
             )}
           </p>
           <div className="lx-btn-row lx-mt-6" style={{ justifyContent: 'center' }}>
-            <button type="button" onClick={load} className="lx-action-secondary">
+            <button type="button" onClick={load} className="lx-action-secondary" data-track="ui.09102903a3.10">
               {tx('logistics.workspace.dataError.retry', 'Try again')}
             </button>
             <Link to="/logistics/buyer" className="lx-action-ghost">

@@ -81,7 +81,7 @@ export default function HelperStripeConnectBanner({ className = '' }) {
             : t('invoices.helperStripeConnectBody')}
         </p>
       </div>
-      <button type="button" className="invoice-helper-stripe-cta" onClick={handleClick} disabled={connecting}>
+      <button type="button" className="invoice-helper-stripe-cta" onClick={handleClick} disabled={connecting} data-track="ui.cf491daf90.1">
         {connecting
           ? t('businessHub.integrations.saving')
           : (needsContinue

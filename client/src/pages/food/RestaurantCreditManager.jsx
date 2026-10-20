@@ -221,12 +221,12 @@ export default function RestaurantCreditManager({ restaurant }) {
           <p className="fd-card-meta">Approve credit only after matching the customer’s receipt or confirmation number.</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={load} disabled={loading}>{financeT('merchantFinance.refresh')}</button>
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={load} disabled={loading} data-track-private>{financeT('merchantFinance.refresh')}</button>
           <span className="fd-credit-manager-count">{loading || loadError ? '—' : financeT('merchantFinance.pendingRequests', { count: requests.length })}</span>
-          <button type="button" className="fd-btn fd-btn-sm" onClick={() => { setGrantOpen((v) => !v); setGrantConfirming(false); }}>
+          <button type="button" className="fd-btn fd-btn-sm" onClick={() => { setGrantOpen((v) => !v); setGrantConfirming(false); }} data-track-private>
             {grantOpen ? 'Close' : 'Grant credit'}
           </button>
-          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => { setRefundOpen((v) => !v); setRefundConfirming(false); }}>
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => { setRefundOpen((v) => !v); setRefundConfirming(false); }} data-track-private>
             {refundOpen ? 'Close' : 'Refund credit'}
           </button>
         </div>
@@ -273,8 +273,8 @@ export default function RestaurantCreditManager({ restaurant }) {
           {grantConfirming ? (
             <div className="fd-credit-confirm-row">
               <strong>Grant {grantAmount.trim()} {restaurant.currency_code || 'USD'} to {grantEmail.trim()}?</strong>
-              <button type="button" className="fd-btn fd-btn-sm" disabled={grantWorking} onClick={submitGrant}>{grantWorking ? 'Granting…' : 'Yes, grant credit'}</button>
-              <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setGrantConfirming(false)}>Cancel</button>
+              <button type="button" className="fd-btn fd-btn-sm" disabled={grantWorking} onClick={submitGrant} data-track-private>{grantWorking ? 'Granting…' : 'Yes, grant credit'}</button>
+              <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setGrantConfirming(false)} data-track-private>Cancel</button>
             </div>
           ) : (
             <div>
@@ -282,7 +282,7 @@ export default function RestaurantCreditManager({ restaurant }) {
                 type="button"
                 className="fd-btn fd-btn-sm"
                 disabled={!grantEmail.trim() || !grantAmount.trim() || !grantNote.trim()}
-                onClick={() => setGrantConfirming(true)}
+                onClick={() => setGrantConfirming(true)} data-track-private
               >
                 Review grant
               </button>
@@ -307,8 +307,8 @@ export default function RestaurantCreditManager({ restaurant }) {
           {refundConfirming ? (
             <div className="fd-credit-confirm-row">
               <strong>Refund {refundAmount.trim()} {restaurant.currency_code || 'USD'} to {refundEmail.trim() || 'customer'}?</strong>
-              <button type="button" className="fd-btn fd-btn-sm" disabled={refundWorking} onClick={submitRefund}>{refundWorking ? 'Refunding…' : 'Yes, refund'}</button>
-              <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setRefundConfirming(false)}>Cancel</button>
+              <button type="button" className="fd-btn fd-btn-sm" disabled={refundWorking} onClick={submitRefund} data-track-private>{refundWorking ? 'Refunding…' : 'Yes, refund'}</button>
+              <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setRefundConfirming(false)} data-track-private>Cancel</button>
             </div>
           ) : (
             <div>
@@ -316,7 +316,7 @@ export default function RestaurantCreditManager({ restaurant }) {
                 type="button"
                 className="fd-btn fd-btn-sm"
                 disabled={!refundEmail.trim() || !refundAmount.trim()}
-                onClick={() => setRefundConfirming(true)}
+                onClick={() => setRefundConfirming(true)} data-track-private
               >
                 Review refund
               </button>
@@ -328,7 +328,7 @@ export default function RestaurantCreditManager({ restaurant }) {
       {loading ? (
         <div className="fd-empty">Loading credit requests…</div>
       ) : loadError ? (
-        <div className="fd-finance-notice fd-finance-error" role="alert"><p>{financeT('merchantFinance.requestsUnavailable')}</p><button type="button" className="fd-btn fd-btn-secondary" onClick={load}>{financeT('merchantFinance.retry')}</button></div>
+        <div className="fd-finance-notice fd-finance-error" role="alert"><p>{financeT('merchantFinance.requestsUnavailable')}</p><button type="button" className="fd-btn fd-btn-secondary" onClick={load} data-track-private>{financeT('merchantFinance.retry')}</button></div>
       ) : requests.length === 0 ? (
         <div className="fd-credit-manager-empty">
           <strong>No credit requests to review</strong>
@@ -350,7 +350,7 @@ export default function RestaurantCreditManager({ restaurant }) {
                 </div>
                 <div className="fd-credit-proof-row">
                   {proof.reference && <span><small>Confirmation</small><strong>{proof.reference}</strong></span>}
-                  {proof.attachmentUrl && <a href={proof.attachmentUrl} target="_blank" rel="noreferrer">View receipt</a>}
+                  {proof.attachmentUrl && <a href={proof.attachmentUrl} target="_blank" rel="noreferrer" data-track-private>View receipt</a>}
                   {!proof.reference && !proof.attachmentUrl && <span className="fd-card-meta">No receipt or confirmation attached.</span>}
                 </div>
                 {request.note && <p className="fd-credit-request-note">{request.note}</p>}
@@ -358,20 +358,20 @@ export default function RestaurantCreditManager({ restaurant }) {
                 {decliningId === request.id ? (
                   <div className="fd-credit-decline-form">
                     <input autoFocus value={declineReason} onChange={(event) => setDeclineReason(event.target.value)} maxLength={500} placeholder="Reason, for example: receipt amount does not match" />
-                    <button type="button" className="fd-btn fd-btn-danger fd-btn-sm" disabled={isWorking} onClick={() => decline(request)}>{isWorking ? 'Declining…' : 'Decline request'}</button>
-                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => { setDecliningId(null); setDeclineReason(''); }}>Cancel</button>
+                    <button type="button" className="fd-btn fd-btn-danger fd-btn-sm" disabled={isWorking} onClick={() => decline(request)} data-track-private>{isWorking ? 'Declining…' : 'Decline request'}</button>
+                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => { setDecliningId(null); setDeclineReason(''); }} data-track-private>Cancel</button>
                   </div>
                 ) : confirmingId === request.id ? (
                   <div className="fd-credit-confirm-row">
                     <strong>Payment matched?</strong>
-                    <button type="button" className="fd-btn fd-btn-sm" disabled={isWorking} onClick={() => approve(request)}>{isWorking ? 'Adding credit…' : 'Yes, add credit'}</button>
-                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setConfirmingId(null)}>Cancel</button>
+                    <button type="button" className="fd-btn fd-btn-sm" disabled={isWorking} onClick={() => approve(request)} data-track-private>{isWorking ? 'Adding credit…' : 'Yes, add credit'}</button>
+                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setConfirmingId(null)} data-track-private>Cancel</button>
                   </div>
                 ) : (
                   <div className="fd-credit-request-actions">
-                    <button type="button" className="fd-btn fd-btn-sm" onClick={() => { setConfirmingId(request.id); setDecliningId(null); }}>Approve credit</button>
-                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => { setDecliningId(request.id); setConfirmingId(null); }}>Decline</button>
-                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => openRefundForRequest(request)}>Refund</button>
+                    <button type="button" className="fd-btn fd-btn-sm" onClick={() => { setConfirmingId(request.id); setDecliningId(null); }} data-track-private>Approve credit</button>
+                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => { setDecliningId(request.id); setConfirmingId(null); }} data-track-private>Decline</button>
+                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => openRefundForRequest(request)} data-track-private>Refund</button>
                   </div>
                 )}
               </article>

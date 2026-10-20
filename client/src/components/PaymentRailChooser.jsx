@@ -65,7 +65,7 @@ export default function PaymentRailChooser({ bid, options, helperPolicies, onCha
           <div key={r.rail} className={`border-2 rounded-lg p-4 ${selected ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20' : 'border-gray-300 dark:border-gray-600'} ${r.available ? '' : 'opacity-60'}`}>
             <label htmlFor={id} className="flex items-start gap-3 cursor-pointer">
               <input id={id} type="radio" name="payment-rail" value={r.rail} checked={selected} disabled={!r.available}
-                onChange={() => { setRail(r.rail); setQuote(null); }} className="mt-1" />
+                onChange={() => { setRail(r.rail); setQuote(null); }} className="mt-1" data-track-private />
               <span className="flex-1">
                 <span className="block font-semibold">{t(`paymentRail.rails.${r.rail}.title`)}</span>
                 <span className="block text-sm text-gray-600 dark:text-gray-400">
@@ -87,7 +87,7 @@ export default function PaymentRailChooser({ bid, options, helperPolicies, onCha
             {selected && r.rail === 'credit' && r.mode === 'payment' && (
               <div className="mt-3 text-sm" aria-live="polite">
                 {!quote && (
-                  <button type="button" className="px-3 py-2 border rounded" onClick={getQuote} disabled={quoting}>
+                  <button type="button" className="px-3 py-2 border rounded" onClick={getQuote} disabled={quoting} data-track-private>
                     {quoting ? t('paymentRail.quoting') : t('paymentRail.getEstimate')}
                   </button>
                 )}
@@ -104,7 +104,7 @@ export default function PaymentRailChooser({ bid, options, helperPolicies, onCha
                     })}</p>
                     <p className="text-xs">{t('paymentRail.fxRecordCurrency', { currency })}</p>
                     {quoteExpired && (
-                      <button type="button" className="mt-2 px-3 py-2 border rounded" onClick={getQuote}>{t('paymentRail.refreshEstimate')}</button>
+                      <button type="button" className="mt-2 px-3 py-2 border rounded" onClick={getQuote} data-track-private>{t('paymentRail.refreshEstimate')}</button>
                     )}
                   </div>
                 )}
@@ -116,7 +116,7 @@ export default function PaymentRailChooser({ bid, options, helperPolicies, onCha
               <div className="mt-3 text-sm">
                 {helperPolicies?.custom_policy?.terms && <p className="mb-2">{helperPolicies.custom_policy.terms}</p>}
                 <label className="flex items-start gap-2">
-                  <input type="checkbox" checked={offlineAck} onChange={(e) => setOfflineAck(e.target.checked)} />
+                  <input type="checkbox" checked={offlineAck} onChange={(e) => setOfflineAck(e.target.checked)} data-track-private />
                   <span>{t('paymentRail.offlineAck')}</span>
                 </label>
               </div>

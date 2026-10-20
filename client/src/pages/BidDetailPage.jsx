@@ -123,7 +123,7 @@ export default function BidDetailPage() {
               <button
                 type="button"
                 onClick={loadBid}
-                className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-3 font-semibold text-white transition hover:bg-orange-600"
+                className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-3 font-semibold text-white transition hover:bg-orange-600" data-track="ui.c97643727d.1"
               >
                 <RefreshCw size={16} />
                 {t('common.retry', { defaultValue: 'Retry' })}
@@ -131,7 +131,7 @@ export default function BidDetailPage() {
               <button
                 type="button"
                 onClick={() => navigate('/my-bids')}
-                className="inline-flex items-center gap-2 rounded-full bg-white/5 px-5 py-3 font-semibold text-slate-200 transition hover:bg-white/10"
+                className="inline-flex items-center gap-2 rounded-full bg-white/5 px-5 py-3 font-semibold text-slate-200 transition hover:bg-white/10" data-track="ui.c97643727d.2"
               >
                 <ArrowLeft size={16} />
                 {t('myBids.title', { defaultValue: 'My Bids' })}
@@ -156,7 +156,7 @@ export default function BidDetailPage() {
           <button
             type="button"
             onClick={() => navigate('/my-bids')}
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/10"
+            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/10" data-track="ui.c97643727d.3"
           >
             <ArrowLeft size={16} />
             {t('common.back', { defaultValue: 'Back' })}
@@ -265,7 +265,7 @@ export default function BidDetailPage() {
                     type="button"
                     onClick={handleWithdraw}
                     disabled={withdrawing}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60" data-track="ui.c97643727d.4"
                   >
                     {withdrawing ? <RefreshCw size={15} className="animate-spin" /> : null}
                     {withdrawing

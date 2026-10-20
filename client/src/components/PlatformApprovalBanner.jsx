@@ -73,7 +73,7 @@ export default function PlatformApprovalBanner({ mode }) {
         <button
           type="button"
           onClick={() => setModalOpen(true)}
-          className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md ${isPending ? 'border border-gray-600 hover:bg-white/5 text-gray-300' : 'bg-orange-500 hover:bg-orange-600 text-white'}`}
+          className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md ${isPending ? 'border border-gray-600 hover:bg-white/5 text-gray-300' : 'bg-orange-500 hover:bg-orange-600 text-white'}`} data-track="ui.b778c88832.1"
         >
           {isPending
             ? t('platformApproval.banner.viewStatus', { defaultValue: 'View status' })

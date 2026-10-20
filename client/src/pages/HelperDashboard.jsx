@@ -115,7 +115,7 @@ const Modal = ({open,onClose,title,children})=>{
     return()=>{document.body.style.overflow='';document.removeEventListener('keydown',onKey);};
   },[open,onClose]);
   if(!open)return null;
-  return(<div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}><div className="absolute inset-0 bg-black/60 backdrop-blur-sm"/><div className="relative bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}><div className="flex items-center justify-between mb-5"><h3 className="font-bold text-white">{title}</h3><button onClick={onClose} aria-label="Close" className="p-2 -mr-1 text-gray-500 hover:text-white transition rounded-lg hover:bg-gray-800"><IcoX size={18}/></button></div>{children}</div></div>);
+  return(<div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}><div className="absolute inset-0 bg-black/60 backdrop-blur-sm"/><div className="relative bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}><div className="flex items-center justify-between mb-5"><h3 className="font-bold text-white">{title}</h3><button onClick={onClose} aria-label="Close" className="p-2 -mr-1 text-gray-500 hover:text-white transition rounded-lg hover:bg-gray-800" data-track="ui.2144c8cfa1.1"><IcoX size={18}/></button></div>{children}</div></div>);
 };
 
 // Format a Date as YYYY-MM-DD in local time (avoids UTC-shift from toISOString())
@@ -1331,7 +1331,7 @@ export default function HelperDashboard() {
           {/* Dashboard tabs sit directly below the welcome and customer panels. */}
           {tabs.length>1&&(
             <div className="helper-dashboard-overview-area__tabs grid grid-cols-2 sm:flex gap-1.5 my-6 bg-gray-900/80 rounded-xl p-1.5 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
-              {tabs.map(tb=>(<button key={tb.id} onClick={()=>{setTab(tb.id); if(tb.id==='bids') onActivityOpen('bids');}} className={`w-full sm:flex-1 sm:min-w-0 px-3 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all sm:whitespace-nowrap text-center flex-shrink-0 ${tab===tb.id?'bg-orange-500 text-white':'text-gray-500 hover:text-gray-300'}`}>{tb.label}</button>))}
+              {tabs.map(tb=>(<button key={tb.id} onClick={()=>{setTab(tb.id); if(tb.id==='bids') onActivityOpen('bids');}} className={`w-full sm:flex-1 sm:min-w-0 px-3 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all sm:whitespace-nowrap text-center flex-shrink-0 ${tab===tb.id?'bg-orange-500 text-white':'text-gray-500 hover:text-gray-300'}`} data-track="ui.2144c8cfa1.2">{tb.label}</button>))}
             </div>
           )}
 
@@ -1362,7 +1362,7 @@ export default function HelperDashboard() {
             {error && (
               <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 flex items-center gap-2">
                 <span>⚠</span>
-                <span>{t('helperDashboard.someDataFailed')} <button onClick={retryLoad} className="underline hover:text-red-300">{t('common.retry')}</button></span>
+                <span>{t('helperDashboard.someDataFailed')} <button onClick={retryLoad} className="underline hover:text-red-300" data-track="ui.2144c8cfa1.3">{t('common.retry')}</button></span>
               </div>
             )}
 
@@ -1526,7 +1526,7 @@ export default function HelperDashboard() {
               {backgroundChecksAvailable && <Card>
                 <div className="flex items-center gap-2 mb-3"><IcoShield size={16} cls="text-orange-400"/><span className="text-sm font-semibold">{t('helperDashboard.backgroundCheck')}</span></div>
                 {verification.backgroundCheck?<Tag text={verification.backgroundCheck.status} color={verification.backgroundCheck.status==='passed'?'green':'orange'}/>
-                :(<><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.bgCheckHint')} Available on every account, with or without Pro.</p><button onClick={startBackgroundCheck} className="bg-action hover:bg-action-hover text-on-action text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.startCheck')}</button></>)}
+                :(<><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.bgCheckHint')} Available on every account, with or without Pro.</p><button onClick={startBackgroundCheck} className="bg-action hover:bg-action-hover text-on-action text-xs font-semibold px-4 py-2 rounded-lg transition" data-track="ui.2144c8cfa1.4">{t('helperDashboard.startCheck')}</button></>)}
               </Card>}
               </div>
 
@@ -1539,9 +1539,9 @@ export default function HelperDashboard() {
             {nearbyStatus==='loading'
               ? <p className="text-gray-500 text-sm text-center py-6" role="status">{t('helperDashboard.nearbyLoading')}</p>
               : nearbyStatus==='location-unavailable'
-              ? <div className="text-center py-6"><p className="text-gray-500 text-sm">{t('helperDashboard.nearbyLocationUnavailable')}</p><button type="button" onClick={retryNearbyJobs} className="text-orange-400 text-sm font-semibold mt-3">{t('helperDashboard.nearbyRetryLocation')}</button></div>
+              ? <div className="text-center py-6"><p className="text-gray-500 text-sm">{t('helperDashboard.nearbyLocationUnavailable')}</p><button type="button" onClick={retryNearbyJobs} className="text-orange-400 text-sm font-semibold mt-3" data-track="ui.2144c8cfa1.5">{t('helperDashboard.nearbyRetryLocation')}</button></div>
               : nearbyStatus==='error'
-              ? <div className="text-center py-6" role="alert"><p className="text-gray-500 text-sm">{t('helperDashboard.nearbyLoadFailed')}</p><button type="button" onClick={retryNearbyJobs} className="text-orange-400 text-sm font-semibold mt-3">{t('helperDashboard.nearbyRetry')}</button></div>
+              ? <div className="text-center py-6" role="alert"><p className="text-gray-500 text-sm">{t('helperDashboard.nearbyLoadFailed')}</p><button type="button" onClick={retryNearbyJobs} className="text-orange-400 text-sm font-semibold mt-3" data-track="ui.2144c8cfa1.6">{t('helperDashboard.nearbyRetry')}</button></div>
               : nearbyStatus==='setup'
               ? <p className="text-gray-500 text-sm text-center py-6">{t('helperDashboard.nearbySetup')}</p>
               : nearbyJobs.length===0
@@ -1582,7 +1582,7 @@ export default function HelperDashboard() {
             {SHOW_HELPER_SUBSCRIPTIONS && !hasProAccess && (
               <div className="bg-gradient-to-r from-orange-500/10 via-orange-600/5 to-transparent border border-orange-500/20 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div><div className="flex items-center gap-2 mb-1"><IcoZap size={18} cls="text-orange-400"/><h3 className="text-lg font-bold text-white">{t('helperDashboard.upgradeToPro')}</h3></div><p className="text-sm text-gray-400">{t('helperDashboard.upgradeProDesc')}</p></div>
-                <button onClick={()=>navigate('/upgrade')} className="bg-action hover:bg-action-hover text-on-action font-semibold px-6 py-2.5 rounded-xl transition whitespace-nowrap text-sm">{t('helperDashboard.viewPlans')}</button>
+                <button onClick={()=>navigate('/upgrade')} className="bg-action hover:bg-action-hover text-on-action font-semibold px-6 py-2.5 rounded-xl transition whitespace-nowrap text-sm" data-track="ui.2144c8cfa1.7">{t('helperDashboard.viewPlans')}</button>
               </div>
             )}
           </>)}
@@ -1690,7 +1690,7 @@ export default function HelperDashboard() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`text-sm font-bold ${e.type==='income'?'text-emerald-400':'text-red-400'}`}>{signedMoney(e.amount, e.type)}</span>
-                    <button onClick={async()=>{await life.deleteExpense(e.id);life.fetchSummary();life.fetchExpenses();toast.success(t('helperDashboard.deleted'));}} className="opacity-0 group-hover:opacity-100 transition"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button>
+                    <button onClick={async()=>{await life.deleteExpense(e.id);life.fetchSummary();life.fetchExpenses();toast.success(t('helperDashboard.deleted'));}} className="opacity-0 group-hover:opacity-100 transition" data-track="ui.2144c8cfa1.8"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button>
                   </div>
                 </div>
               ))}</div>)}
@@ -1766,7 +1766,7 @@ export default function HelperDashboard() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`text-sm font-bold ${e.type==='income'?'text-emerald-400':'text-red-400'}`}>{e.type==='income'?'+':'-'}${parseFloat(e.amount).toFixed(2)}</span>
-                        <button onClick={async()=>{await life.deleteExpense(e.id);life.fetchSummary();life.fetchExpenses();toast.success(t('helperDashboard.deleted'));}} className="opacity-0 group-hover:opacity-100 transition"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button>
+                        <button onClick={async()=>{await life.deleteExpense(e.id);life.fetchSummary();life.fetchExpenses();toast.success(t('helperDashboard.deleted'));}} className="opacity-0 group-hover:opacity-100 transition" data-track="ui.2144c8cfa1.9"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button>
                       </div>
                     </div>
                   ))}
@@ -1854,7 +1854,7 @@ export default function HelperDashboard() {
               />
               <button onClick={lookupHomeAddress}
                 disabled={homeLookupLoading||homeAddrInput.trim().length<5}
-                className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">
+                className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap" data-track="ui.2144c8cfa1.10">
                 {homeLookupLoading?t('dashboard.home.lookingUp'):t('dashboard.home.lookUp')}
               </button>
             </div>
@@ -1887,7 +1887,7 @@ export default function HelperDashboard() {
                     onChange={e=>setHomeNickname(e.target.value)}
                     className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
                   <button onClick={addHome} disabled={homeAdding}
-                    className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-1.5 rounded-lg transition whitespace-nowrap">
+                    className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-1.5 rounded-lg transition whitespace-nowrap" data-track="ui.2144c8cfa1.11">
                     {homeAdding?t('dashboard.carCare.saving'):t('dashboard.home.saveProperty')}
                   </button>
                 </div>
@@ -1910,7 +1910,7 @@ export default function HelperDashboard() {
                         {h.osm_building_levels&&<span className="text-[10px] text-gray-500">{h.osm_building_levels}fl</span>}
                       </div>
                     </div>
-                    <button onClick={()=>setHomeDeleteTarget(h)} className="text-gray-700 hover:text-red-400 transition ml-1 flex-shrink-0"><IcoX size={12}/></button>
+                    <button onClick={()=>setHomeDeleteTarget(h)} className="text-gray-700 hover:text-red-400 transition ml-1 flex-shrink-0" data-track="ui.2144c8cfa1.12"><IcoX size={12}/></button>
                   </div>
                 ))}
               </div>
@@ -1920,8 +1920,8 @@ export default function HelperDashboard() {
               <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-between gap-3">
                 <p className="text-sm text-red-300">{t('dashboard.home.removeConfirm', { name: homeDeleteTarget.nickname||homeDeleteTarget.address })}</p>
                 <div className="flex gap-2">
-                  <button onClick={()=>setHomeDeleteTarget(null)} className="text-xs text-gray-400 hover:text-white transition px-2 py-1 rounded-lg">{t('common.cancel')}</button>
-                  <button onClick={()=>deleteHome(homeDeleteTarget.id)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg transition">{t('common.remove')}</button>
+                  <button onClick={()=>setHomeDeleteTarget(null)} className="text-xs text-gray-400 hover:text-white transition px-2 py-1 rounded-lg" data-track="ui.2144c8cfa1.13">{t('common.cancel')}</button>
+                  <button onClick={()=>deleteHome(homeDeleteTarget.id)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg transition" data-track="ui.2144c8cfa1.14">{t('common.remove')}</button>
                 </div>
               </div>
             )}
@@ -1955,7 +1955,7 @@ export default function HelperDashboard() {
                     const overdue=task.due_date&&new Date(task.due_date)<new Date()&&!task.is_completed;
                     return(
                       <div key={task.id} className={`flex items-center gap-3 p-3 rounded-xl border transition ${task.is_completed?'opacity-40 border-gray-800':overdue?'border-red-500/30 bg-red-500/5':'border-gray-800 hover:border-gray-700'}`}>
-                        <button onClick={()=>toggleHomeTask(task)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${task.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>
+                        <button onClick={()=>toggleHomeTask(task)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${task.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`} data-track="ui.2144c8cfa1.15">
                           {task.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}
                         </button>
                         <div className="flex-1 min-w-0">
@@ -1992,7 +1992,7 @@ export default function HelperDashboard() {
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <Link to={`/helpers/${h.helper_id}`} className="text-xs text-orange-400 font-medium">View</Link>
-                        <button onClick={async()=>{await life.removeSavedHelper(h.id);toast.success(t('helperDashboard.removed'));}} className="opacity-0 group-hover:opacity-100 transition"><IcoTrash size={13} cls="text-gray-600 hover:text-red-400"/></button>
+                        <button onClick={async()=>{await life.removeSavedHelper(h.id);toast.success(t('helperDashboard.removed'));}} className="opacity-0 group-hover:opacity-100 transition" data-track="ui.2144c8cfa1.16"><IcoTrash size={13} cls="text-gray-600 hover:text-red-400"/></button>
                       </div>
                     </div>
                   ))}
@@ -2013,7 +2013,7 @@ export default function HelperDashboard() {
                   <div className="flex items-center gap-2 mb-2"><span className="text-lg">{g.icon||'🎯'}</span><span className="font-semibold text-sm text-white flex-1">{g.title}</span>{g.is_completed?<Tag text="Done" color="green"/>:<span className="text-sm font-bold text-orange-400">{Math.round(pct)}%</span>}</div>
                   {g.target_value>0&&!g.is_completed&&(<><ProgressBar pct={pct} color="bg-orange-500"/><div className="flex justify-between items-center mt-2"><span className="text-xs text-gray-500">${formatNumber(parseFloat(g.current_value), { maximumFractionDigits: 0 })} of ${formatNumber(parseFloat(g.target_value), { maximumFractionDigits: 0 })}</span>
                     {/* Uses proper modal instead of window.prompt */}
-                    <button onClick={()=>{setUpdatingGoal(g);setGoalUpdateValue(g.current_value||'');setShowGoalUpdateModal(true);}} className="text-[10px] text-orange-400 font-semibold">{t('dashboard.goals.updateProgress')}</button>
+                    <button onClick={()=>{setUpdatingGoal(g);setGoalUpdateValue(g.current_value||'');setShowGoalUpdateModal(true);}} className="text-[10px] text-orange-400 font-semibold" data-track="ui.2144c8cfa1.17">{t('dashboard.goals.updateProgress')}</button>
                   </div></>)}
                 </div>
               );})}</div>)}
@@ -2024,9 +2024,9 @@ export default function HelperDashboard() {
               {(life.checklist || []).length===0?<p className="text-gray-600 text-sm text-center py-8">{t('dashboard.goals.noChecklist')}</p>
               :(<div className="space-y-1.5 max-h-96 overflow-y-auto">{(life.checklist || []).map(item=>(
                 <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800/30 transition group">
-                  <button onClick={()=>toggleChecklist(item)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${item.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>{item.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}</button>
+                  <button onClick={()=>toggleChecklist(item)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${item.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`} data-track="ui.2144c8cfa1.18">{item.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}</button>
                   <div className="flex-1 min-w-0"><p className={`text-sm ${item.is_completed?'line-through text-gray-600':'text-white'}`}>{item.title}</p>{item.due_date&&<p className={`text-xs mt-0.5 ${new Date(item.due_date)<new Date()&&!item.is_completed?'text-red-400':'text-gray-600'}`}>{new Date(item.due_date).toLocaleDateString()}</p>}</div>
-                  <button onClick={async()=>{await life.deleteChecklistItem(item.id);life.fetchSummary();toast.success(t('helperDashboard.removed'));}} className="opacity-0 group-hover:opacity-100 transition"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button>
+                  <button onClick={async()=>{await life.deleteChecklistItem(item.id);life.fetchSummary();toast.success(t('helperDashboard.removed'));}} className="opacity-0 group-hover:opacity-100 transition" data-track="ui.2144c8cfa1.19"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button>
                 </div>
               ))}</div>)}
             </Card>
@@ -2051,7 +2051,7 @@ export default function HelperDashboard() {
                   {title:'Haircut',             category:'Grooming',      urgency:'low',    recurrence_days:30},
                   {title:'Prescription Refill', category:'Pharmacy',      urgency:'high',   recurrence_days:30},
                 ].map((t,i)=>(
-                  <button key={i} onClick={()=>quickAddPcTask(t)} className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded-lg transition border border-gray-700 hover:border-orange-500/40">+ {t.title}</button>
+                  <button key={i} onClick={()=>quickAddPcTask(t)} className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded-lg transition border border-gray-700 hover:border-orange-500/40" data-track="ui.2144c8cfa1.20">+ {t.title}</button>
                 ))}
               </div>
             </div>
@@ -2059,9 +2059,9 @@ export default function HelperDashboard() {
             :personalCareTasks.length===0?<Card className="p-12 text-center"><IcoHeart size={36} cls="text-gray-700 mx-auto mb-4"/><p className="text-gray-500">{t('dashboard.personalCare.noAppointments')}</p></Card>
             :<div className="space-y-2">{personalCareTasks.map(task=>{const overdue=task.due_date&&new Date(task.due_date)<new Date()&&!task.is_completed;return(
               <div key={task.id} className={`flex items-center gap-3 p-4 border rounded-2xl transition ${overdue?'border-red-500/30 bg-red-500/5':'border-gray-800 hover:border-gray-700'}`}>
-                <button onClick={()=>togglePcTask(task)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${task.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>{task.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}</button>
+                <button onClick={()=>togglePcTask(task)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${task.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`} data-track="ui.2144c8cfa1.21">{task.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}</button>
                 <div className="flex-1 min-w-0"><p className={`text-sm font-medium ${task.is_completed?'line-through text-gray-600':'text-white'}`}>{task.title}</p><p className={`text-xs mt-0.5 ${overdue?'text-red-400':'text-gray-500'}`}>{task.description}{task.due_date?` · ${overdue?'Overdue · ':''}${new Date(task.due_date).toLocaleDateString()}`:''}{task.recurrence_days?` · Every ${task.recurrence_days}d`:''}{task.estimated_cost?` · $${parseFloat(task.estimated_cost).toFixed(0)} est.`:''}{task.home_name?` · ${task.home_name}`:''}</p></div>
-                <div className="flex items-center gap-2"><Tag text={task.urgency} color={task.urgency==='high'?'red':task.urgency==='medium'?'orange':'gray'}/><button onClick={()=>deletePcTask(task.id)} className="opacity-0 hover:opacity-100 transition"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button></div>
+                <div className="flex items-center gap-2"><Tag text={task.urgency} color={task.urgency==='high'?'red':task.urgency==='medium'?'orange':'gray'}/><button onClick={()=>deletePcTask(task.id)} className="opacity-0 hover:opacity-100 transition" data-track="ui.2144c8cfa1.22"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button></div>
               </div>
             );})}</div>}
           </div>
@@ -2074,7 +2074,7 @@ export default function HelperDashboard() {
             <Card>
               <CardHeader icon={IcoCar} title={t('dashboard.carCare.myGarage')} right={<span className="text-[10px] text-gray-600">{t('dashboard.carCare.nhtsaData')}</span>}/>
               <div className="flex gap-2 mb-4">
-                {['search','vin'].map(m=><button key={m} onClick={()=>setGarageMode(m)} className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition ${garageMode===m?'bg-action text-on-action':'bg-gray-800 text-gray-400 hover:text-gray-200'}`}>{m==='search'?t('dashboard.carCare.garageModeSummary'):t('dashboard.carCare.garageModeVin')}</button>)}
+                {['search','vin'].map(m=><button key={m} onClick={()=>setGarageMode(m)} className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition ${garageMode===m?'bg-action text-on-action':'bg-gray-800 text-gray-400 hover:text-gray-200'}`} data-track="ui.2144c8cfa1.23">{m==='search'?t('dashboard.carCare.garageModeSummary'):t('dashboard.carCare.garageModeVin')}</button>)}
               </div>
               {garageMode==='search'?(
                 <div className="space-y-3">
@@ -2087,7 +2087,7 @@ export default function HelperDashboard() {
                       {showMakeDD && garageForm.makeSearch && allMakes.filter(m=>m.name.toLowerCase().includes(garageForm.makeSearch.toLowerCase())).length>0&&(
                         <div className="absolute z-10 mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
                           {allMakes.filter(m=>m.name.toLowerCase().includes(garageForm.makeSearch.toLowerCase())).slice(0,8).map(m=>(
-                            <button key={m.id} type="button" onClick={()=>{setGarageForm(p=>({...p,makeSearch:m.name,selectedMake:m,modelSearch:'',selectedModel:null}));setShowMakeDD(false);loadModelsForGarage(m.name);}} className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 transition">{m.name}</button>
+                            <button key={m.id} type="button" onClick={()=>{setGarageForm(p=>({...p,makeSearch:m.name,selectedMake:m,modelSearch:'',selectedModel:null}));setShowMakeDD(false);loadModelsForGarage(m.name);}} className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 transition" data-track="ui.2144c8cfa1.24">{m.name}</button>
                           ))}
                         </div>
                       )}
@@ -2099,7 +2099,7 @@ export default function HelperDashboard() {
                       {showModelDD && garageForm.modelSearch && garageModels.filter(m=>m.modelName.toLowerCase().includes(garageForm.modelSearch.toLowerCase())).length>0&&(
                         <div className="absolute z-10 mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
                           {garageModels.filter(m=>m.modelName.toLowerCase().includes(garageForm.modelSearch.toLowerCase())).slice(0,8).map(m=>(
-                            <button key={m.modelId} type="button" onClick={()=>{setGarageForm(p=>({...p,modelSearch:m.modelName,selectedModel:m}));setShowModelDD(false);}} className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 transition">{m.modelName}</button>
+                            <button key={m.modelId} type="button" onClick={()=>{setGarageForm(p=>({...p,modelSearch:m.modelName,selectedModel:m}));setShowModelDD(false);}} className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 transition" data-track="ui.2144c8cfa1.25">{m.modelName}</button>
                           ))}
                         </div>
                       )}
@@ -2108,14 +2108,14 @@ export default function HelperDashboard() {
                   <div className="grid grid-cols-3 gap-3">
                     <input type="number" placeholder={t('dashboard.carCare.yearOptional')} min="1900" max={new Date().getFullYear()+1} value={garageForm.year} onChange={e=>setGarageForm(p=>({...p,year:e.target.value}))} className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
                     <input placeholder={t('dashboard.carCare.nickname')} value={garageForm.nickname} onChange={e=>setGarageForm(p=>({...p,nickname:e.target.value}))} className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
-                    <button onClick={addToGarage} disabled={!garageForm.selectedMake||!garageForm.selectedModel||garageAdding} className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-2 rounded-lg transition">{garageAdding?t('dashboard.carCare.adding'):t('dashboard.carCare.addToGarageShort')}</button>
+                    <button onClick={addToGarage} disabled={!garageForm.selectedMake||!garageForm.selectedModel||garageAdding} className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-2 rounded-lg transition" data-track="ui.2144c8cfa1.26">{garageAdding?t('dashboard.carCare.adding'):t('dashboard.carCare.addToGarageShort')}</button>
                   </div>
                 </div>
               ):(
                 <div className="space-y-3">
                   <div className="flex gap-2">
                     <input placeholder={t('dashboard.carCare.vinPlaceholder')} value={vinInput} onChange={e=>setVinInput(e.target.value)} maxLength={17} className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
-                    <button onClick={decodeVin} disabled={vinDecoding||vinInput.trim().length!==17} className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">{vinDecoding?t('dashboard.carCare.decoding'):t('dashboard.carCare.decode')}</button>
+                    <button onClick={decodeVin} disabled={vinDecoding||vinInput.trim().length!==17} className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap" data-track="ui.2144c8cfa1.27">{vinDecoding?t('dashboard.carCare.decoding'):t('dashboard.carCare.decode')}</button>
                   </div>
                   {vinError&&<p className="text-xs text-red-400">{vinError}</p>}
                   {vinResult&&(
@@ -2123,7 +2123,7 @@ export default function HelperDashboard() {
                       <p className="text-sm font-semibold text-white">{vinResult.year} {vinResult.make} {vinResult.model}</p>
                       <div className="flex gap-2">
                         <input placeholder={t('dashboard.carCare.nickname')} value={garageForm.nickname} onChange={e=>setGarageForm(p=>({...p,nickname:e.target.value}))} className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
-                        <button onClick={addVinVehicle} disabled={garageAdding} className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-1.5 rounded-lg transition whitespace-nowrap">{garageAdding?t('dashboard.carCare.adding'):t('dashboard.carCare.addVinSave')}</button>
+                        <button onClick={addVinVehicle} disabled={garageAdding} className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-1.5 rounded-lg transition whitespace-nowrap" data-track="ui.2144c8cfa1.28">{garageAdding?t('dashboard.carCare.adding'):t('dashboard.carCare.addVinSave')}</button>
                       </div>
                     </div>
                   )}
@@ -2138,7 +2138,7 @@ export default function HelperDashboard() {
                         <span className="text-sm text-white font-medium truncate block">{v.nickname||`${v.make_name} ${v.model_name}`}</span>
                         {v.nickname&&<span className="text-[10px] text-gray-500">{v.make_name} {v.model_name}{v.year?` · ${v.year}`:''}</span>}
                       </div>
-                      <button onClick={()=>setGarageDeleteTarget(v)} className="text-gray-700 hover:text-red-400 transition ml-1"><IcoX size={12}/></button>
+                      <button onClick={()=>setGarageDeleteTarget(v)} className="text-gray-700 hover:text-red-400 transition ml-1" data-track="ui.2144c8cfa1.29"><IcoX size={12}/></button>
                     </div>
                   ))}
                 </div>
@@ -2147,8 +2147,8 @@ export default function HelperDashboard() {
                 <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-between gap-3">
                   <p className="text-sm text-red-300">{t('dashboard.carCare.removeConfirm',{name:garageDeleteTarget.nickname||`${garageDeleteTarget.make_name} ${garageDeleteTarget.model_name}`})}</p>
                   <div className="flex gap-2">
-                    <button onClick={()=>setGarageDeleteTarget(null)} className="text-xs text-gray-400 hover:text-white px-2 py-1 rounded-lg transition">{t('dashboard.carCare.keepIt')}</button>
-                    <button onClick={()=>deleteFromGarage(garageDeleteTarget.id)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg transition">{t('dashboard.carCare.removeBtn')}</button>
+                    <button onClick={()=>setGarageDeleteTarget(null)} className="text-xs text-gray-400 hover:text-white px-2 py-1 rounded-lg transition" data-track="ui.2144c8cfa1.30">{t('dashboard.carCare.keepIt')}</button>
+                    <button onClick={()=>deleteFromGarage(garageDeleteTarget.id)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg transition" data-track="ui.2144c8cfa1.31">{t('dashboard.carCare.removeBtn')}</button>
                   </div>
                 </div>
               )}
@@ -2168,7 +2168,7 @@ export default function HelperDashboard() {
                   {title:'State Inspection', category:'Inspection',  urgency:'medium', recurrence_days:365},
                   {title:'Car Wash',         category:'Detailing',   urgency:'low',    recurrence_days:14},
                 ].map((t,i)=>(
-                  <button key={i} onClick={()=>quickAddCcTask(t)} className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded-lg transition border border-gray-700 hover:border-orange-500/40">+ {t.title}</button>
+                  <button key={i} onClick={()=>quickAddCcTask(t)} className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded-lg transition border border-gray-700 hover:border-orange-500/40" data-track="ui.2144c8cfa1.32">+ {t.title}</button>
                 ))}
               </div>
             </div>
@@ -2176,9 +2176,9 @@ export default function HelperDashboard() {
             :carCareTasks.length===0?<Card className="p-12 text-center"><IcoCar size={36} cls="text-gray-700 mx-auto mb-4"/><p className="text-gray-500">{t('dashboard.carCare.noTasksYet')}</p></Card>
             :<div className="space-y-2">{carCareTasks.map(task=>{const overdue=task.due_date&&new Date(task.due_date)<new Date()&&!task.is_completed;return(
               <div key={task.id} className={`flex items-center gap-3 p-4 border rounded-2xl transition ${overdue?'border-red-500/30 bg-red-500/5':'border-gray-800 hover:border-gray-700'}`}>
-                <button onClick={()=>toggleCcTask(task)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${task.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>{task.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}</button>
+                <button onClick={()=>toggleCcTask(task)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${task.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`} data-track="ui.2144c8cfa1.33">{task.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}</button>
                 <div className="flex-1 min-w-0"><p className={`text-sm font-medium ${task.is_completed?'line-through text-gray-600':'text-white'}`}>{task.title}</p><p className={`text-xs mt-0.5 ${overdue?'text-red-400':'text-gray-500'}`}>{task.description}{task.due_date?` · ${overdue?'Overdue · ':''}${new Date(task.due_date).toLocaleDateString()}`:''}{task.recurrence_days?` · Every ${task.recurrence_days}d`:''}{task.estimated_cost?` · $${parseFloat(task.estimated_cost).toFixed(0)} est.`:''}{task.vehicle_name?` · ${task.vehicle_name}`:''}{task.home_name?` · ${task.home_name}`:''}</p></div>
-                <div className="flex items-center gap-2"><Tag text={task.urgency} color={task.urgency==='high'?'red':task.urgency==='medium'?'orange':'gray'}/><button onClick={()=>deleteCcTask(task.id)} className="opacity-0 hover:opacity-100 transition"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button></div>
+                <div className="flex items-center gap-2"><Tag text={task.urgency} color={task.urgency==='high'?'red':task.urgency==='medium'?'orange':'gray'}/><button onClick={()=>deleteCcTask(task.id)} className="opacity-0 hover:opacity-100 transition" data-track="ui.2144c8cfa1.34"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button></div>
               </div>
             );})}</div>}
           </div>
@@ -2229,11 +2229,11 @@ export default function HelperDashboard() {
                           <div className="flex flex-col gap-1 flex-shrink-0">
                             <button
                               onClick={() => handleToggleProductAvailability(p)}
-                              className={`text-[10px] px-2 py-0.5 rounded-full font-semibold transition ${p.is_available ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/30' : 'bg-gray-700/40 text-gray-500 hover:bg-gray-700'}`}
+                              className={`text-[10px] px-2 py-0.5 rounded-full font-semibold transition ${p.is_available ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/30' : 'bg-gray-700/40 text-gray-500 hover:bg-gray-700'}`} data-track="ui.2144c8cfa1.35"
                             >{p.is_available ? t('dashboard.skillsTools.available') : t('dashboard.skillsTools.unavailable')}</button>
                             <div className="flex gap-1 justify-end mt-1">
-                              <button onClick={() => openEditProduct(p)} className="text-xs text-gray-500 hover:text-white transition px-2 py-1 rounded hover:bg-gray-800">{t('common.edit')}</button>
-                              <button onClick={() => handleDeleteProduct(p.id)} className="text-xs text-red-500 hover:text-red-400 transition px-2 py-1 rounded hover:bg-red-500/10">{t('helperDashboard.delete')}</button>
+                              <button onClick={() => openEditProduct(p)} className="text-xs text-gray-500 hover:text-white transition px-2 py-1 rounded hover:bg-gray-800" data-track="ui.2144c8cfa1.36">{t('common.edit')}</button>
+                              <button onClick={() => handleDeleteProduct(p.id)} className="text-xs text-red-500 hover:text-red-400 transition px-2 py-1 rounded hover:bg-red-500/10" data-track="ui.2144c8cfa1.37">{t('helperDashboard.delete')}</button>
                             </div>
                           </div>
                         </div>
@@ -2281,17 +2281,17 @@ export default function HelperDashboard() {
                               <button
                                 onClick={() => handleSendInvoice(inv.id)}
                                 disabled={sendingInvoiceId === inv.id}
-                                className="text-xs bg-action hover:bg-action-hover disabled:opacity-50 text-on-action font-semibold px-3 py-1 rounded-lg transition whitespace-nowrap"
+                                className="text-xs bg-action hover:bg-action-hover disabled:opacity-50 text-on-action font-semibold px-3 py-1 rounded-lg transition whitespace-nowrap" data-track="ui.2144c8cfa1.38"
                               >
                                 {sendingInvoiceId === inv.id ? 'Sending...' : t('helperDashboard.invoices.send')}
                               </button>
                             )}
                             <div className="flex gap-1 justify-end">
                               {inv.status === 'draft' && (
-                                <button onClick={() => openEditInvoice(inv)} className="text-xs text-gray-500 hover:text-white transition px-2 py-1 rounded hover:bg-gray-800">{t('common.edit')}</button>
+                                <button onClick={() => openEditInvoice(inv)} className="text-xs text-gray-500 hover:text-white transition px-2 py-1 rounded hover:bg-gray-800" data-track="ui.2144c8cfa1.39">{t('common.edit')}</button>
                               )}
-                              <button onClick={() => window.open(`/invoice/p/${inv.public_token}`, '_blank', 'noopener,noreferrer')} className="text-xs text-blue-500 hover:text-blue-400 transition px-2 py-1 rounded hover:bg-blue-500/10">{t('common.view')}</button>
-                              <button onClick={() => handleDeleteInvoice(inv.id)} className="text-xs text-red-500 hover:text-red-400 transition px-2 py-1 rounded hover:bg-red-500/10">{t('helperDashboard.delete')}</button>
+                              <button onClick={() => window.open(`/invoice/p/${inv.public_token}`, '_blank', 'noopener,noreferrer')} className="text-xs text-blue-500 hover:text-blue-400 transition px-2 py-1 rounded hover:bg-blue-500/10" data-track="ui.2144c8cfa1.40">{t('common.view')}</button>
+                              <button onClick={() => handleDeleteInvoice(inv.id)} className="text-xs text-red-500 hover:text-red-400 transition px-2 py-1 rounded hover:bg-red-500/10" data-track="ui.2144c8cfa1.41">{t('helperDashboard.delete')}</button>
                             </div>
                           </div>
                         </div>
@@ -2337,7 +2337,7 @@ export default function HelperDashboard() {
 
       {/* Log Transaction - with recurring support */}
       <Modal open={showExpenseModal} onClose={()=>setShowExpenseModal(false)} title={t('dashboard.money.modalLogTransaction')}>
-        <form onSubmit={handleAddExpense} className="space-y-4">
+        <form onSubmit={handleAddExpense} className="space-y-4" data-track="ui.2144c8cfa1.42">
           <Select label={t('dashboard.money.typeLabel')} value={expenseForm.type} onChange={e=>setExpenseForm(p=>({...p,type:e.target.value}))}>
             <option value="expense">{t('dashboard.money.expenseOption')}</option><option value="income">{t('dashboard.money.incomeOption')}</option>
           </Select>
@@ -2356,7 +2356,7 @@ export default function HelperDashboard() {
           <div className="flex items-center gap-3">
             <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">{t('dashboard.money.recurringLabel')}</label>
             <button type="button" onClick={()=>setExpenseForm(p=>({...p,is_recurring:!p.is_recurring,frequency:!p.is_recurring&&p.frequency==='one_time'?'monthly':p.frequency}))}
-              className={`w-10 h-5 rounded-full transition-colors relative ${expenseForm.is_recurring?'bg-orange-500':'bg-gray-700'}`}>
+              className={`w-10 h-5 rounded-full transition-colors relative ${expenseForm.is_recurring?'bg-orange-500':'bg-gray-700'}`} data-track="ui.2144c8cfa1.43">
               <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${expenseForm.is_recurring?'translate-x-5':'translate-x-0.5'}`}/>
             </button>
             <span className="text-xs text-gray-400">{expenseForm.is_recurring?t('common.yes'):t('common.no')}</span>
@@ -2373,7 +2373,7 @@ export default function HelperDashboard() {
 
       {/* New Goal */}
       <Modal open={showGoalModal} onClose={()=>setShowGoalModal(false)} title={t('dashboard.goals.modalNewGoal')}>
-        <form onSubmit={handleAddGoal} className="space-y-4">
+        <form onSubmit={handleAddGoal} className="space-y-4" data-track="ui.2144c8cfa1.44">
           <Input label={t('dashboard.goals.goalTitleLabel')} required placeholder={t('dashboard.goals.goalTitlePlaceholder')} value={goalForm.title} onChange={e=>setGoalForm(p=>({...p,title:e.target.value}))}/>
           <Select label={t('dashboard.goals.goalTypeLabel')} value={goalForm.goal_type} onChange={e=>setGoalForm(p=>({...p,goal_type:e.target.value}))}>
             <option value="financial">{t('dashboard.goals.goalTypeFinancial')}</option><option value="task">{t('dashboard.goals.goalTypeTask')}</option><option value="career">{t('dashboard.goals.goalTypeCareer')}</option>
@@ -2387,7 +2387,7 @@ export default function HelperDashboard() {
       {/* Goal Update Modal - replaces window.prompt */}
       <Modal open={showGoalUpdateModal} onClose={()=>{setShowGoalUpdateModal(false);setUpdatingGoal(null);}} title={t('dashboard.goals.modalUpdateProgress')}>
         {updatingGoal&&(
-          <form onSubmit={async(e)=>{e.preventDefault();await updateGoalProgress(updatingGoal,goalUpdateValue);setShowGoalUpdateModal(false);setUpdatingGoal(null);}} className="space-y-4">
+          <form onSubmit={async(e)=>{e.preventDefault();await updateGoalProgress(updatingGoal,goalUpdateValue);setShowGoalUpdateModal(false);setUpdatingGoal(null);}} className="space-y-4" data-track="ui.2144c8cfa1.45">
             <p className="text-sm text-gray-400 bg-gray-800/50 px-3 py-2 rounded-lg">{updatingGoal.icon} {updatingGoal.title}</p>
             <Input label={t('dashboard.goals.currentAmountLabel')} type="number" step="0.01" min="0" required autoFocus value={goalUpdateValue} onChange={e=>setGoalUpdateValue(e.target.value)} placeholder={`Was: $${formatNumber(parseFloat(updatingGoal.current_value||0), { maximumFractionDigits: 0 })}`}/>
             {updatingGoal.target_value&&<p className="text-xs text-gray-500">{t('dashboard.goals.targetProgress',{target:formatNumber(parseFloat(updatingGoal.target_value), { maximumFractionDigits: 0 }),pct:Math.round(Math.min((parseFloat(goalUpdateValue||0)/parseFloat(updatingGoal.target_value))*100,100))})}</p>}
@@ -2401,7 +2401,7 @@ export default function HelperDashboard() {
 
       {/* Product Modal */}
       <Modal open={showProductModal} onClose={()=>{setShowProductModal(false);setEditingProduct(null);setProductForm(emptyProduct);}} title={editingProduct ? t('dashboard.products.editProductTitle') : t('dashboard.products.listProductTitle')}>
-        <form onSubmit={handleSaveProduct} className="space-y-4">
+        <form onSubmit={handleSaveProduct} className="space-y-4" data-track="ui.2144c8cfa1.46">
           <Input label={t('dashboard.products.productNameLabel')} required placeholder={t('dashboard.products.productNamePlaceholder')} value={productForm.name} onChange={e=>setProductForm(p=>({...p,name:e.target.value}))}/>
           <div>
             <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.money.categoryLabel')}</label>
@@ -2416,7 +2416,7 @@ export default function HelperDashboard() {
           <div className="flex items-center gap-3">
             <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">{t('dashboard.products.availableNowLabel')}</label>
             <button type="button" onClick={()=>setProductForm(p=>({...p,is_available:!p.is_available}))}
-              className={`w-10 h-5 rounded-full transition-colors relative ${productForm.is_available?'bg-orange-500':'bg-gray-700'}`}>
+              className={`w-10 h-5 rounded-full transition-colors relative ${productForm.is_available?'bg-orange-500':'bg-gray-700'}`} data-track="ui.2144c8cfa1.47">
               <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${productForm.is_available?'translate-x-5':'translate-x-0.5'}`}/>
             </button>
             <span className="text-xs text-gray-400">{productForm.is_available?t('common.yes'):t('common.no')}</span>
@@ -2426,7 +2426,7 @@ export default function HelperDashboard() {
       </Modal>
       {/* Home Task */}
       <Modal open={showHomeTaskModal} onClose={()=>setShowHomeTaskModal(false)} title={t('dashboard.goals.addHomeTaskModal')}>
-        <form onSubmit={handleAddHomeTask} className="space-y-4">
+        <form onSubmit={handleAddHomeTask} className="space-y-4" data-track="ui.2144c8cfa1.48">
           <Input label={t('dashboard.goals.taskLabel')} required placeholder={t('dashboard.goals.taskPlaceholder')} value={homeTaskForm.title} onChange={e=>setHomeTaskForm(p=>({...p,title:e.target.value}))}/>
           <Input label={t('dashboard.goals.dueDateLabel')} type="date" value={homeTaskForm.due_date} onChange={e=>setHomeTaskForm(p=>({...p,due_date:e.target.value}))}/>
           <Select label={t('dashboard.goals.urgencyLabel')} value={homeTaskForm.urgency} onChange={e=>setHomeTaskForm(p=>({...p,urgency:e.target.value}))}>
@@ -2457,7 +2457,7 @@ export default function HelperDashboard() {
 
       {/* Checklist Item */}
       <Modal open={showChecklistModal} onClose={()=>setShowChecklistModal(false)} title={t('dashboard.goals.addChecklistModal')}>
-        <form onSubmit={handleAddChecklist} className="space-y-4">
+        <form onSubmit={handleAddChecklist} className="space-y-4" data-track="ui.2144c8cfa1.49">
           <Input label={t('dashboard.goals.checklistItemLabel')} required placeholder={t('dashboard.goals.checklistItemPlaceholder')} value={checklistForm.title} onChange={e=>setChecklistForm(p=>({...p,title:e.target.value}))}/>
           <Input label={t('dashboard.goals.dueDateOptLabel')} type="date" value={checklistForm.due_date} onChange={e=>setChecklistForm(p=>({...p,due_date:e.target.value}))}/>
           <Btn className="w-full py-3" type="submit">{t('dashboard.goals.addItemBtn')}</Btn>
@@ -2466,7 +2466,7 @@ export default function HelperDashboard() {
 
       {/* Budget Modal - replaces window.prompt */}
       <Modal open={showBudgetModal} onClose={()=>{setShowBudgetModal(false);setBudgetForm({category:'',period_amount:'',period:'monthly'})}} title={t('dashboard.money.modalSetBudget')}>
-        <form onSubmit={async(e)=>{e.preventDefault();try{await life.upsertBudget({category:budgetForm.category,period_amount:parseFloat(budgetForm.period_amount),period:budgetForm.period});life.fetchBudgets();toast.success(t('dashboard.money.budgetSaved'));setShowBudgetModal(false);setBudgetForm({category:'',period_amount:'',period:'monthly'});}catch{toast.error(t('dashboard.money.budgetSaveFailed'));}}} className="space-y-4">
+        <form onSubmit={async(e)=>{e.preventDefault();try{await life.upsertBudget({category:budgetForm.category,period_amount:parseFloat(budgetForm.period_amount),period:budgetForm.period});life.fetchBudgets();toast.success(t('dashboard.money.budgetSaved'));setShowBudgetModal(false);setBudgetForm({category:'',period_amount:'',period:'monthly'});}catch{toast.error(t('dashboard.money.budgetSaveFailed'));}}} className="space-y-4" data-track="ui.2144c8cfa1.50">
           <Select label={t('dashboard.money.categoryLabel')} required value={budgetForm.category} onChange={e=>setBudgetForm(p=>({...p,category:e.target.value}))}>
             <option value="">{t('dashboard.money.selectCategoryPlaceholder')}</option>
             {['Housing / Rent','Food & Dining','Transportation','Utilities','Healthcare','Entertainment','Shopping','Personal Care','Auto','Education','Subscriptions','Savings','Other'].map(c=><option key={c} value={c}>{c}</option>)}
@@ -2493,7 +2493,7 @@ export default function HelperDashboard() {
 
       {/* Personal Care Task Modal */}
       <Modal open={showPcModal} onClose={()=>setShowPcModal(false)} title={t('dashboard.personalCare.addModal')}>
-        <form onSubmit={addPcTask} className="space-y-4">
+        <form onSubmit={addPcTask} className="space-y-4" data-track="ui.2144c8cfa1.51">
           <Input label={t('dashboard.personalCare.apptServiceLabel')} required placeholder={t('dashboard.personalCare.apptServicePlaceholder')} value={pcForm.title} onChange={e=>setPcForm(p=>({...p,title:e.target.value}))}/>
           <Select label={t('dashboard.personalCare.categoryLabel')} value={pcForm.category} onChange={e=>setPcForm(p=>({...p,category:e.target.value}))}>
             <option value="Medical">{t('dashboard.personalCare.catMedical')}</option><option value="Dental">{t('dashboard.personalCare.catDental')}</option><option value="Vision">{t('dashboard.personalCare.catVision')}</option><option value="Mental Health">{t('dashboard.personalCare.catMentalHealth')}</option><option value="Grooming">{t('dashboard.personalCare.catGrooming')}</option><option value="Fitness">{t('dashboard.personalCare.catFitness')}</option><option value="Pharmacy">{t('dashboard.personalCare.catPharmacy')}</option><option value="Other">{t('dashboard.personalCare.catOther')}</option>
@@ -2510,7 +2510,7 @@ export default function HelperDashboard() {
           <div className="flex items-center gap-3">
             <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">{t('dashboard.personalCare.recurringLabel')}</label>
             <button type="button" onClick={()=>setPcForm(p=>({...p,is_recurring:!p.is_recurring,frequency:!p.is_recurring&&!p.frequency?'monthly':p.frequency}))}
-              className={`w-10 h-5 rounded-full transition-colors relative ${pcForm.is_recurring?'bg-orange-500':'bg-gray-700'}`}>
+              className={`w-10 h-5 rounded-full transition-colors relative ${pcForm.is_recurring?'bg-orange-500':'bg-gray-700'}`} data-track="ui.2144c8cfa1.52">
               <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${pcForm.is_recurring?'translate-x-5':'translate-x-0.5'}`}/>
             </button>
             <span className="text-xs text-gray-400">{pcForm.is_recurring?t('common.yes'):t('common.no')}</span>
@@ -2528,7 +2528,7 @@ export default function HelperDashboard() {
 
       {/* Car Care Task Modal */}
       <Modal open={showCcModal} onClose={()=>setShowCcModal(false)} title={t('dashboard.carCare.addModal')}>
-        <form onSubmit={addCcTask} className="space-y-4">
+        <form onSubmit={addCcTask} className="space-y-4" data-track="ui.2144c8cfa1.53">
           {garage.length > 0 && (
             <div>
               <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.carCare.vehicleOptLabel')}</label>
@@ -2557,7 +2557,7 @@ export default function HelperDashboard() {
           <div className="flex items-center gap-3">
             <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">{t('dashboard.carCare.recurringLabel')}</label>
             <button type="button" onClick={()=>setCcForm(p=>({...p,is_recurring:!p.is_recurring,frequency:!p.is_recurring&&!p.frequency?'monthly':p.frequency}))}
-              className={`w-10 h-5 rounded-full transition-colors relative ${ccForm.is_recurring?'bg-orange-500':'bg-gray-700'}`}>
+              className={`w-10 h-5 rounded-full transition-colors relative ${ccForm.is_recurring?'bg-orange-500':'bg-gray-700'}`} data-track="ui.2144c8cfa1.54">
               <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${ccForm.is_recurring?'translate-x-5':'translate-x-0.5'}`}/>
             </button>
             <span className="text-xs text-gray-400">{ccForm.is_recurring?t('common.yes'):t('common.no')}</span>
@@ -2579,7 +2579,7 @@ export default function HelperDashboard() {
 
       {/* Add / Edit Skill Modal */}
       <Modal open={showSkillModal} onClose={()=>{setShowSkillModal(false);setEditingSkill(null);setSkillLookup([]);}} title={editingSkill ? t('dashboard.skillsTools.modalEditSkill') : t('dashboard.skillsTools.modalAddSkill')}>
-        <form onSubmit={handleSaveSkill} className="space-y-4">
+        <form onSubmit={handleSaveSkill} className="space-y-4" data-track="ui.2144c8cfa1.55">
           <div>
             <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.skillsTools.skillNameLabel')}</label>
             <input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"
@@ -2589,7 +2589,7 @@ export default function HelperDashboard() {
               <div className="mt-1 bg-gray-800 border border-gray-700 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
                 {skillLookup.map(s=>(
                   <button key={s.id||s.name} type="button" className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700/60 hover:text-white transition"
-                    onClick={()=>{setSkillForm(p=>({...p,skill_name:s.name||s.skill_name,category:s.category_name||s.category||p.category}));setSkillSearch(s.name||s.skill_name);setSkillLookup([]);}}>
+                    onClick={()=>{setSkillForm(p=>({...p,skill_name:s.name||s.skill_name,category:s.category_name||s.category||p.category}));setSkillSearch(s.name||s.skill_name);setSkillLookup([]);}} data-track="ui.2144c8cfa1.56">
                     <span className="font-medium">{s.name||s.skill_name}</span>
                     {(s.category_name||s.category)&&<span className="text-[10px] text-gray-500 ml-2">{s.category_name||s.category}</span>}
                   </button>
@@ -2605,7 +2605,7 @@ export default function HelperDashboard() {
               onBlur={()=>setTimeout(()=>setCatLookup([]),150)}/>
             {catLookup.length>0&&(
               <div className="mt-1 bg-gray-800 border border-gray-700 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
-                {catLookup.map(c=><button key={c} type="button" onClick={()=>{setSkillForm(p=>({...p,category:c}));setCatLookup([]);}} className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 transition">{c}</button>)}
+                {catLookup.map(c=><button key={c} type="button" onClick={()=>{setSkillForm(p=>({...p,category:c}));setCatLookup([]);}} className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 transition" data-track="ui.2144c8cfa1.57">{c}</button>)}
               </div>
             )}
           </div>
@@ -2618,7 +2618,7 @@ export default function HelperDashboard() {
           <div className="flex items-center gap-3">
             <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">{t('dashboard.skillsTools.availableForHireToggle')}</label>
             <button type="button" onClick={()=>setSkillForm(p=>({...p,is_available:!p.is_available}))}
-              className={`w-10 h-5 rounded-full transition-colors relative ${skillForm.is_available?'bg-orange-500':'bg-gray-700'}`}>
+              className={`w-10 h-5 rounded-full transition-colors relative ${skillForm.is_available?'bg-orange-500':'bg-gray-700'}`} data-track="ui.2144c8cfa1.58">
               <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${skillForm.is_available?'translate-x-5':'translate-x-0.5'}`}/>
             </button>
             <span className="text-xs text-gray-400">{skillForm.is_available?t('common.yes'):t('common.no')}</span>
@@ -2629,7 +2629,7 @@ export default function HelperDashboard() {
 
       {/* Add / Edit Tool Modal - upgraded with richer fields */}
       <Modal open={showToolModal} onClose={()=>{setShowToolModal(false);setEditingTool(null);setToolCatLookup([]);setToolImageFile(null);setToolImagePreview('');}} title={editingTool ? t('dashboard.skillsTools.modalEditTool') : t('dashboard.skillsTools.modalAddTool')}>
-        <form onSubmit={handleSaveTool} className="space-y-4">
+        <form onSubmit={handleSaveTool} className="space-y-4" data-track="ui.2144c8cfa1.59">
           <Input label={t('dashboard.skillsTools.toolNameLabel')} required maxLength={200} placeholder={t('dashboard.skillsTools.toolNamePlaceholder')} value={toolForm.name} onChange={e=>setToolForm(p=>({...p,name:e.target.value}))}/>
           <div>
             <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">
@@ -2654,7 +2654,7 @@ export default function HelperDashboard() {
                   {t('dashboard.skillsTools.toolPhotoHint', { defaultValue: 'Add a clear photo so renters can inspect the tool before booking.' })}
                 </p>
                 {toolImagePreview&&(
-                  <button type="button" onClick={()=>{setToolImageFile(null);setToolImagePreview('');setToolForm(p=>({...p,image_url:''}));}} className="text-xs text-red-400 hover:text-red-300 mt-2">
+                  <button type="button" onClick={()=>{setToolImageFile(null);setToolImagePreview('');setToolForm(p=>({...p,image_url:''}));}} className="text-xs text-red-400 hover:text-red-300 mt-2" data-track="ui.2144c8cfa1.60">
                     {t('common.remove', { defaultValue: 'Remove' })}
                   </button>
                 )}
@@ -2670,7 +2670,7 @@ export default function HelperDashboard() {
               onBlur={()=>setTimeout(()=>setToolCatLookup([]),150)}/>
             {toolCatLookup.length>0&&(
               <div className="mt-1 bg-gray-800 border border-gray-700 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
-                {toolCatLookup.map(c=><button key={c} type="button" onClick={()=>{setToolForm(p=>({...p,category:c}));setToolCatLookup([]);}} className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 transition">{c}</button>)}
+                {toolCatLookup.map(c=><button key={c} type="button" onClick={()=>{setToolForm(p=>({...p,category:c}));setToolCatLookup([]);}} className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 transition" data-track="ui.2144c8cfa1.61">{c}</button>)}
               </div>
             )}
           </div>
@@ -2715,7 +2715,7 @@ export default function HelperDashboard() {
               <div key={key} className="flex items-center gap-3">
                 <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500 flex-1">{label}</label>
                 <button type="button" onClick={()=>setToolForm(p=>({...p,[key]:!p[key]}))}
-                  className={`w-10 h-5 rounded-full transition-colors relative ${toolForm[key]?'bg-orange-500':'bg-gray-700'}`}>
+                  className={`w-10 h-5 rounded-full transition-colors relative ${toolForm[key]?'bg-orange-500':'bg-gray-700'}`} data-track="ui.2144c8cfa1.62">
                   <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${toolForm[key]?'translate-x-5':'translate-x-0.5'}`}/>
                 </button>
                 <span className="text-xs text-gray-400 w-6">{toolForm[key]?t('common.yes'):t('common.no')}</span>
@@ -2727,7 +2727,7 @@ export default function HelperDashboard() {
               type="checkbox"
               className="mt-1 accent-orange-500"
               checked={toolForm.owner_attestation_accepted}
-              onChange={e=>setToolForm(p=>({...p,owner_attestation_accepted:e.target.checked}))}
+              onChange={e=>setToolForm(p=>({...p,owner_attestation_accepted:e.target.checked}))} data-track="ui.2144c8cfa1.63"
             />
             <span>
               {t('dashboard.skillsTools.ownerAttestationText', {
@@ -2741,7 +2741,7 @@ export default function HelperDashboard() {
 
       {/* Invoice Modal */}
       <Modal open={showInvoiceModal} onClose={() => setShowInvoiceModal(false)} title={editingInvoice ? t('helperDashboard.invoices.editTitle') : t('helperDashboard.invoices.createTitle')}>
-        <form onSubmit={handleSaveInvoice} className="space-y-4">
+        <form onSubmit={handleSaveInvoice} className="space-y-4" data-track="ui.2144c8cfa1.64">
           <Input label={t('helperDashboard.invoices.clientName')} placeholder={t('helperDashboard.invoices.clientNamePlaceholder')} value={invoiceForm.client_name} onChange={e => setInvoiceForm(p => ({...p, client_name: e.target.value}))} required />
           <Input label={t('helperDashboard.invoices.clientEmail')} type="email" placeholder={t('helperDashboard.invoices.clientEmailPlaceholder')} value={invoiceForm.client_email} onChange={e => setInvoiceForm(p => ({...p, client_email: e.target.value}))} required />
 
@@ -2755,7 +2755,7 @@ export default function HelperDashboard() {
                       <p className="text-white truncate">{item.description}</p>
                       <p className="text-gray-400">{item.quantity} × ${item.unit_price.toFixed(2)} = ${item.total.toFixed(2)}</p>
                     </div>
-                    <button type="button" onClick={() => removeLineItem(idx)} className="text-red-500 hover:text-red-400 ml-2 flex-shrink-0">✕</button>
+                    <button type="button" onClick={() => removeLineItem(idx)} className="text-red-500 hover:text-red-400 ml-2 flex-shrink-0" data-track="ui.2144c8cfa1.65">✕</button>
                   </div>
                 ))}
               </div>
@@ -2765,7 +2765,7 @@ export default function HelperDashboard() {
               <div className="grid grid-cols-3 gap-2">
                 <Input label={t('helperDashboard.invoices.qty')} type="number" step="0.01" min="0.01" placeholder="1" value={lineItemInput.quantity} onChange={e => setLineItemInput(p => ({...p, quantity: e.target.value}))} />
                 <Input label={t('helperDashboard.invoices.unitPrice')} type="number" step="0.01" min="0" placeholder="0.00" value={lineItemInput.unit_price} onChange={e => setLineItemInput(p => ({...p, unit_price: e.target.value}))} />
-                <button type="button" onClick={addLineItem} className="bg-gray-700 hover:bg-gray-600 text-white text-xs font-semibold px-3 py-2 rounded-lg transition align-bottom self-end">{t('helperDashboard.invoices.addItem')}</button>
+                <button type="button" onClick={addLineItem} className="bg-gray-700 hover:bg-gray-600 text-white text-xs font-semibold px-3 py-2 rounded-lg transition align-bottom self-end" data-track="ui.2144c8cfa1.66">{t('helperDashboard.invoices.addItem')}</button>
               </div>
             </div>
           </div>
@@ -2794,8 +2794,8 @@ export default function HelperDashboard() {
           <textarea rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder={t('helperDashboard.invoices.memo')} value={invoiceForm.memo} onChange={e => setInvoiceForm(p => ({...p, memo: e.target.value}))} />
 
           <div className="flex gap-2">
-            <button type="button" onClick={() => setShowInvoiceModal(false)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-semibold py-2 rounded-lg transition">{t('common.cancel')}</button>
-            <button type="submit" className="flex-1 bg-action hover:bg-action-hover text-on-action font-semibold py-2 rounded-lg transition">{editingInvoice ? t('helperDashboard.invoices.editTitle') : t('helperDashboard.invoices.createTitle')}</button>
+            <button type="button" onClick={() => setShowInvoiceModal(false)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-semibold py-2 rounded-lg transition" data-track="ui.2144c8cfa1.67">{t('common.cancel')}</button>
+            <button type="submit" className="flex-1 bg-action hover:bg-action-hover text-on-action font-semibold py-2 rounded-lg transition" data-track="ui.2144c8cfa1.68">{editingInvoice ? t('helperDashboard.invoices.editTitle') : t('helperDashboard.invoices.createTitle')}</button>
           </div>
         </form>
       </Modal>

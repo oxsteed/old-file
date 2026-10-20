@@ -94,10 +94,10 @@ export function StaffScheduler({ businessId }) {
           <p style={{ margin: '0.25rem 0 0', color: 'var(--muted-text)', fontSize: '0.875rem' }}>{t('businessHub.staffScheduler.subtitle')}</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button onClick={clockIn} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#10b981', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.6rem 1rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem' }}>
+          <button onClick={clockIn} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#10b981', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.6rem 1rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem' }} data-track="ui.34ed3b0a4c.1">
             <LogIn size={14} /> {t('businessHub.staffScheduler.clockIn')}
           </button>
-          {tab === 'shifts' && <button onClick={() => setShowForm(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.6rem 1rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem' }}>
+          {tab === 'shifts' && <button onClick={() => setShowForm(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.6rem 1rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem' }} data-track="ui.34ed3b0a4c.2">
             <Plus size={14} /> {t('businessHub.staffScheduler.addShift')}
           </button>}
         </div>
@@ -105,7 +105,7 @@ export function StaffScheduler({ businessId }) {
 
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>
         {[['shifts', t('businessHub.staffScheduler.tabs.shifts'), <Users size={14} />], ['time', t('businessHub.staffScheduler.tabs.timeEntries'), <Clock size={14} />]].map(([id, label, icon]) => (
-          <button key={id} onClick={() => setTab(id)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.25rem', border: 'none', background: 'transparent', cursor: 'pointer', color: tab === id ? '#f97316' : 'var(--muted-text)', borderBottom: tab === id ? '2px solid #f97316' : '2px solid transparent', fontWeight: tab === id ? 600 : 400, fontSize: '0.875rem' }}>
+          <button key={id} onClick={() => setTab(id)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.25rem', border: 'none', background: 'transparent', cursor: 'pointer', color: tab === id ? '#f97316' : 'var(--muted-text)', borderBottom: tab === id ? '2px solid #f97316' : '2px solid transparent', fontWeight: tab === id ? 600 : 400, fontSize: '0.875rem' }} data-track="ui.34ed3b0a4c.3">
             {icon} {label}
           </button>
         ))}
@@ -136,8 +136,8 @@ export function StaffScheduler({ businessId }) {
             ))}
           </div>
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
-            <button onClick={() => setShowForm(false)} style={{ padding: '0.5rem 1rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'transparent', color: 'var(--app-text)', cursor: 'pointer' }}>{t('common.cancel')}</button>
-            <button onClick={saveShift} style={{ padding: '0.5rem 1rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>{t('common.save')}</button>
+            <button onClick={() => setShowForm(false)} style={{ padding: '0.5rem 1rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'transparent', color: 'var(--app-text)', cursor: 'pointer' }} data-track="ui.34ed3b0a4c.4">{t('common.cancel')}</button>
+            <button onClick={saveShift} style={{ padding: '0.5rem 1rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }} data-track="ui.34ed3b0a4c.5">{t('common.save')}</button>
           </div>
         </div>
       )}
@@ -150,7 +150,7 @@ export function StaffScheduler({ businessId }) {
               <div style={{ fontWeight: 600 }}>{s.user_name || t('businessHub.staffScheduler.unassigned')}{s.role && ` · ${s.role}`}</div>
               <div style={{ fontSize: '0.875rem', color: 'var(--muted-text)' }}>{new Date(s.shift_start).toLocaleString()} – {new Date(s.shift_end).toLocaleString()}</div>
             </div>
-            <button onClick={() => deleteShift(s.id)} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={14} /></button>
+            <button onClick={() => deleteShift(s.id)} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }} data-track="ui.34ed3b0a4c.6"><Trash2 size={14} /></button>
           </div>
         ))
       ) : (
@@ -165,7 +165,7 @@ export function StaffScheduler({ businessId }) {
               </div>
             </div>
             <div style={{ fontWeight: 600, color: e.clock_out ? '#10b981' : '#f59e0b' }}>{formatDuration(parseFloat(e.hours))}</div>
-            {!e.clock_out && <button onClick={() => clockOut(e.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.4rem 0.75rem', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}><LogOut size={12} /> {t('businessHub.staffScheduler.time.clockOut')}</button>}
+            {!e.clock_out && <button onClick={() => clockOut(e.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.4rem 0.75rem', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }} data-track="ui.34ed3b0a4c.7"><LogOut size={12} /> {t('businessHub.staffScheduler.time.clockOut')}</button>}
           </div>
         ))
       )}

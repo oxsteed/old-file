@@ -187,7 +187,7 @@ function ReferralCard({ referral, onSave, savingId, tx }) {
           <button
             onClick={() => onSave(referral.id, draft)}
             disabled={savingId === referral.id}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50" data-track="ui.c62ffb2364.1"
           >
             {savingId === referral.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             {savingId === referral.id ? tx('consultantContractorDashboard.actions.saving', 'Saving') : tx('consultantContractorDashboard.referral.saveUpdate', 'Save update')}
@@ -459,7 +459,7 @@ export default function ConsultantContractorDashboard() {
                       type="checkbox"
                       checked={profileForm[key]}
                       onChange={(event) => setProfileForm((prev) => ({ ...prev, [key]: event.target.checked }))}
-                      className="h-4 w-4 accent-orange-500"
+                      className="h-4 w-4 accent-orange-500" data-track="ui.c62ffb2364.2"
                     />
                   </label>
                 ))}
@@ -469,14 +469,14 @@ export default function ConsultantContractorDashboard() {
                 <button
                   onClick={saveProfile}
                   disabled={savingProfile}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50" data-track="ui.c62ffb2364.3"
                 >
                   {savingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                   {savingProfile ? tx('consultantContractorDashboard.actions.savingProfile', 'Saving profile') : tx('consultantContractorDashboard.actions.saveProfile', 'Save profile')}
                 </button>
                 <a
                   href="/consultant-availability"
-                  className="inline-flex items-center gap-2 rounded-2xl border border-gray-700 bg-gray-900 px-4 py-2.5 text-sm font-semibold text-gray-200 transition hover:border-gray-500 hover:text-white"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-gray-700 bg-gray-900 px-4 py-2.5 text-sm font-semibold text-gray-200 transition hover:border-gray-500 hover:text-white" data-track="ui.c62ffb2364.4"
                 >
                   <CalendarClock className="h-4 w-4" />
                   {tx('consultantContractorDashboard.actions.manageAvailability', 'Manage availability')}

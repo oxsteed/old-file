@@ -444,8 +444,8 @@ export default function InventoryHelpCenterPage({ appKey }) {
                   {guide.description}
                 </p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 26 }}>
-                  <a href="#setup" style={primaryCtaStyle}>{t('inventoryHelpCenter.startSetup', { defaultValue: 'Start setup' })} <ArrowRight size={18} /></a>
-                  <a href="#workflows" style={secondaryCtaStyle}>{t('inventoryHelpCenter.viewWorkflows', { defaultValue: 'View workflows' })}</a>
+                  <a href="#setup" style={primaryCtaStyle} data-track="ui.c0f4a72296.1">{t('inventoryHelpCenter.startSetup', { defaultValue: 'Start setup' })} <ArrowRight size={18} /></a>
+                  <a href="#workflows" style={secondaryCtaStyle} data-track="ui.c0f4a72296.2">{t('inventoryHelpCenter.viewWorkflows', { defaultValue: 'View workflows' })}</a>
                 </div>
               </div>
             </div>
@@ -550,7 +550,7 @@ export default function InventoryHelpCenterPage({ appKey }) {
                 padding: '12px 16px',
                 fontWeight: 900,
                 textDecoration: 'none',
-              }}>
+              }} data-track="ui.c0f4a72296.3">
                 {t('inventoryHelpCenter.contactSupport')} <ArrowRight size={18} />
               </a>
             </div>

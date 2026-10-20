@@ -77,7 +77,7 @@ export function QuoteBuilder({ businessId }) {
   if (view === 'form') return (
     <div style={{ padding: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-        <button onClick={() => { setView('list'); setEditing(null); resetForm(); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted-text)', fontSize: '1.5rem', lineHeight: 1 }}>←</button>
+        <button onClick={() => { setView('list'); setEditing(null); resetForm(); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted-text)', fontSize: '1.5rem', lineHeight: 1 }} data-track="ui.2ef93d209d.1">←</button>
         <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{editing ? t('businessQuotes.form.edit') : t('businessQuotes.form.new')}</h3>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
@@ -95,10 +95,10 @@ export function QuoteBuilder({ businessId }) {
           <input value={line.description} onChange={e => updateLine(i, 'description', e.target.value)} placeholder={t('businessQuotes.form.lineItemDesc')} style={{ padding: '0.5rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)' }} />
           <input type="number" min="1" value={line.quantity} onChange={e => updateLine(i, 'quantity', parseInt(e.target.value) || 1)} placeholder={t('businessQuotes.form.lineItemQty')} style={{ padding: '0.5rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)', textAlign: 'center' }} />
           <input type="number" step="0.01" value={line.unit_price_cents} onChange={e => updateLine(i, 'unit_price_cents', e.target.value)} placeholder={t('businessQuotes.form.lineItemUnitPrice')} style={{ padding: '0.5rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)' }} />
-          <button onClick={() => removeLine(i)} disabled={form.line_items.length === 1} style={{ padding: '0.5rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={14} /></button>
+          <button onClick={() => removeLine(i)} disabled={form.line_items.length === 1} style={{ padding: '0.5rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }} data-track="ui.2ef93d209d.2"><Trash2 size={14} /></button>
         </div>
       ))}
-      <button onClick={addLine} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', border: '1px dashed var(--border-color)', borderRadius: '0.5rem', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)', marginBottom: '1rem' }}>
+      <button onClick={addLine} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', border: '1px dashed var(--border-color)', borderRadius: '0.5rem', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)', marginBottom: '1rem' }} data-track="ui.2ef93d209d.3">
         <Plus size={14} /> {t('businessQuotes.form.addLine')}
       </button>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '2rem', marginBottom: '1rem' }}>
@@ -113,8 +113,8 @@ export function QuoteBuilder({ businessId }) {
         </div>
       </div>
       <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-        <button onClick={() => { setView('list'); setEditing(null); resetForm(); }} style={{ padding: '0.6rem 1.2rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'transparent', color: 'var(--app-text)', cursor: 'pointer' }}>{t('businessQuotes.form.cancel')}</button>
-        <button onClick={save} style={{ padding: '0.6rem 1.2rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>{editing ? t('businessQuotes.form.saveChanges') : t('businessQuotes.form.createQuote')}</button>
+        <button onClick={() => { setView('list'); setEditing(null); resetForm(); }} style={{ padding: '0.6rem 1.2rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'transparent', color: 'var(--app-text)', cursor: 'pointer' }} data-track="ui.2ef93d209d.4">{t('businessQuotes.form.cancel')}</button>
+        <button onClick={save} style={{ padding: '0.6rem 1.2rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }} data-track="ui.2ef93d209d.5">{editing ? t('businessQuotes.form.saveChanges') : t('businessQuotes.form.createQuote')}</button>
       </div>
     </div>
   );
@@ -126,7 +126,7 @@ export function QuoteBuilder({ businessId }) {
           <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{t('businessQuotes.title')}</h3>
           <p style={{ margin: '0.25rem 0 0', color: 'var(--muted-text)', fontSize: '0.875rem' }}>{t('businessQuotes.emptyBody')}</p>
         </div>
-        <button onClick={() => setView('form')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.6rem 1.2rem', cursor: 'pointer', fontWeight: 600 }}>
+        <button onClick={() => setView('form')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.6rem 1.2rem', cursor: 'pointer', fontWeight: 600 }} data-track="ui.2ef93d209d.6">
           <Plus size={16} /> {t('businessQuotes.form.new')}
         </button>
       </div>
@@ -149,10 +149,10 @@ export function QuoteBuilder({ businessId }) {
               </div>
               <div style={{ fontWeight: 700, fontSize: '1.1rem', whiteSpace: 'nowrap' }}>${(q.total_cents / 100).toFixed(2)}</div>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                {q.status === 'draft' && <button onClick={() => sendQuote(q.id)} title={t('businessQuotes.actions.send')} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#3b82f6' }}><Send size={16} /></button>}
-                {q.token && <button onClick={() => copyLink(q.token)} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)' }}>{copied === q.token ? <Check size={16} color="#10b981" /> : <Copy size={16} />}</button>}
-                <button onClick={() => { setEditing(q); const items = (q.line_items || []).map(l => ({ ...l, unit_price_cents: (l.unit_price_cents / 100).toFixed(2) })); setForm({ client_name: q.client_name, client_email: q.client_email || '', title: q.title, line_items: items.length ? items : [emptyLine()], tax_rate: q.tax_rate || 0, valid_until: q.valid_until?.split('T')[0] || '' }); setView('form'); }} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)' }}><FileText size={16} /></button>
-                <button onClick={() => deleteQuote(q.id)} title={t('businessQuotes.deleteConfirm')} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={16} /></button>
+                {q.status === 'draft' && <button onClick={() => sendQuote(q.id)} title={t('businessQuotes.actions.send')} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#3b82f6' }} data-track="ui.2ef93d209d.7"><Send size={16} /></button>}
+                {q.token && <button onClick={() => copyLink(q.token)} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)' }} data-track="ui.2ef93d209d.8">{copied === q.token ? <Check size={16} color="#10b981" /> : <Copy size={16} />}</button>}
+                <button onClick={() => { setEditing(q); const items = (q.line_items || []).map(l => ({ ...l, unit_price_cents: (l.unit_price_cents / 100).toFixed(2) })); setForm({ client_name: q.client_name, client_email: q.client_email || '', title: q.title, line_items: items.length ? items : [emptyLine()], tax_rate: q.tax_rate || 0, valid_until: q.valid_until?.split('T')[0] || '' }); setView('form'); }} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)' }} data-track="ui.2ef93d209d.9"><FileText size={16} /></button>
+                <button onClick={() => deleteQuote(q.id)} title={t('businessQuotes.deleteConfirm')} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }} data-track="ui.2ef93d209d.10"><Trash2 size={16} /></button>
               </div>
             </div>
           ))}

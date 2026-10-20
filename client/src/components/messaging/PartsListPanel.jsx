@@ -249,7 +249,7 @@ export default function PartsListPanel({
           <ShoppingCart className="w-4 h-4" aria-hidden />
           {step === 'pick' ? t('partsList.title') : t('partsList.reviewTitle')}
         </h3>
-        <button type="button" className="quote-share-panel__close" onClick={onClose} aria-label={t('common.close')}>
+        <button type="button" className="quote-share-panel__close" onClick={onClose} aria-label={t('common.close')} data-track="ui.36964654c6.1">
           <X className="w-4 h-4" />
         </button>
       </header>
@@ -277,7 +277,7 @@ export default function PartsListPanel({
                           name="parts-kit-pick"
                           checked={selectedJobType === kit.jobType}
                           disabled={disabled}
-                          onChange={() => setSelectedJobType(kit.jobType)}
+                          onChange={() => setSelectedJobType(kit.jobType)} data-track="ui.36964654c6.2"
                         />
                         <span className="quote-share-panel__pick-main">
                           <strong>{label}</strong>
@@ -323,7 +323,7 @@ export default function PartsListPanel({
                         type="button"
                         onClick={() => updateQuantity(item, -1)}
                         disabled={mutating}
-                        aria-label={t('partsList.decrease')}
+                        aria-label={t('partsList.decrease')} data-track="ui.36964654c6.3"
                       >
                         <Minus className="w-3.5 h-3.5" />
                       </button>
@@ -332,7 +332,7 @@ export default function PartsListPanel({
                         type="button"
                         onClick={() => updateQuantity(item, 1)}
                         disabled={mutating}
-                        aria-label={t('partsList.increase')}
+                        aria-label={t('partsList.increase')} data-track="ui.36964654c6.4"
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </button>
@@ -345,7 +345,7 @@ export default function PartsListPanel({
                       className="parts-list-panel__remove"
                       onClick={() => removeItem(item)}
                       disabled={mutating}
-                      aria-label={t('partsList.remove')}
+                      aria-label={t('partsList.remove')} data-track="ui.36964654c6.5"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -375,7 +375,7 @@ export default function PartsListPanel({
                   ariaLabel={t('partsList.searchPlaceholder')}
                   className="parts-list-panel__suggest"
                 />
-                <button type="button" onClick={() => search()} disabled={searching || !searchQuery.trim()} aria-label={t('common.search')}>
+                <button type="button" onClick={() => search()} disabled={searching || !searchQuery.trim()} aria-label={t('common.search')} data-track="ui.36964654c6.6">
                   {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                 </button>
               </div>
@@ -387,7 +387,7 @@ export default function PartsListPanel({
                         {product.name}
                         <small>{formatMoney(product.price_cents, product.currency || draft?.currency, locale)}</small>
                       </span>
-                      <button type="button" onClick={() => addProduct(product)} disabled={addingId === product.id}>
+                      <button type="button" onClick={() => addProduct(product)} disabled={addingId === product.id} data-track="ui.36964654c6.7">
                         {addingId === product.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                         {t('partsList.addItem')}
                       </button>
@@ -407,11 +407,11 @@ export default function PartsListPanel({
       )}
 
       <footer className="quote-share-panel__foot">
-        <button type="button" className="quote-share-panel__cancel" onClick={onClose} disabled={building || sharing}>
+        <button type="button" className="quote-share-panel__cancel" onClick={onClose} disabled={building || sharing} data-track="ui.36964654c6.8">
           {t('common.cancel')}
         </button>
         {step === 'pick' ? (
-          <button type="button" className="quote-share-panel__send" onClick={buildDraft} disabled={building || !selectedJobType}>
+          <button type="button" className="quote-share-panel__send" onClick={buildDraft} disabled={building || !selectedJobType} data-track="ui.36964654c6.9">
             {building ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
             {t('partsList.build')}
           </button>
@@ -420,7 +420,7 @@ export default function PartsListPanel({
             type="button"
             className="quote-share-panel__send"
             onClick={share}
-            disabled={sharing || !draft || draft.items.length === 0}
+            disabled={sharing || !draft || draft.items.length === 0} data-track="ui.36964654c6.10"
           >
             {sharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             {sharing ? t('partsList.sharing') : t('partsList.share')}

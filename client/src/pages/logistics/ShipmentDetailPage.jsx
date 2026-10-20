@@ -47,7 +47,7 @@ export default function ShipmentDetailPage() {
       return (
         <div className="lx-empty" role="alert">
           <p>{error}</p>
-          <button type="button" onClick={load} className="lx-action-secondary">
+          <button type="button" onClick={load} className="lx-action-secondary" data-track="ui.d47697dc72.1">
             {tx('logistics.workspace.dataError.retry', 'Try again')}
           </button>
         </div>
@@ -106,7 +106,7 @@ export default function ShipmentDetailPage() {
             {!!shipment.documents?.length && (
               <div className="lx-compact-stack">
                 {shipment.documents.map((doc) => (
-                  <a key={doc.id} href={doc.file_url} target="_blank" rel="noreferrer" className="lx-item-card" style={{ textDecoration: 'none', padding: 'var(--space-3)' }}>
+                  <a key={doc.id} href={doc.file_url} target="_blank" rel="noreferrer" className="lx-item-card" style={{ textDecoration: 'none', padding: 'var(--space-3)' }} data-track="ui.d47697dc72.2">
                     <div className="lx-t-semibold lx-t-small" style={{ color: 'var(--color-text)' }}>{doc.doc_type || tx('logistics.shipmentDetail.defaults.document', 'Document')}</div>
                     <div className="lx-t-xs lx-t-faint">{doc.filename}</div>
                   </a>

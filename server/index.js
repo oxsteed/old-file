@@ -377,6 +377,7 @@ app.use('/api/privacy/export', strictLimiter);
 // so only that route gets a larger limit. It runs first; the global parser
 // below then skips the already-parsed body. Everything else stays at 1 MB.
 require('./middleware/chatMessageBodyParser').mountChatMessageBodyParser(app);
+app.use('/api/partners', express.json({limit:'64kb',verify:(req,res,buffer)=>{req.growthRawBody=buffer;}}));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
@@ -558,6 +559,12 @@ app.use('/api/admin', agentJobActionsRoutes);
 app.use('/api/admin/statements', statementAdminRoutes);
 app.use('/api/statement-issuance', statementIssuanceRoutes);
 app.use('/api/consent', consentRoutes);
+app.use('/api/activity', require('./routes/activity'));
+app.use('/api/partners', require('./routes/partners'));
+app.use('/api/o', require('./routes/offerLinks'));
+app.post('/api/consent/tracking', require('./middleware/rateLimiter').strictLimiter,
+  authenticate, require('./routes/activity').sameOrigin, require('./routes/activity').trackingConsent);
+app.use('/api/admin/growth', require('./routes/growthInsights'));
 app.use('/api/privacy', privacyRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/price-guidance', priceGuidanceRoutes);

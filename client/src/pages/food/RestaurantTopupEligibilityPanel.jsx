@@ -107,7 +107,7 @@ export default function RestaurantTopupEligibilityPanel({ t: tProp, restaurant, 
       {!loading && error && (
         <div className="fd-order-feed-error" role="alert">
           {error}{' '}
-          <button type="button" onClick={load}>{t('food.common.retry', 'Retry')}</button>
+          <button type="button" onClick={load} data-track="ui.1e695069a0.1">{t('food.common.retry', 'Retry')}</button>
         </div>
       )}
 
@@ -137,7 +137,7 @@ export default function RestaurantTopupEligibilityPanel({ t: tProp, restaurant, 
 
           {(status === 'not_applied' || status === 'rejected' || status === 'suspended') && (
             <div className="fd-row" style={{ gap: '0.5rem', marginTop: '0.75rem' }}>
-              <button type="button" className="fd-btn fd-btn-sm" onClick={apply} disabled={applying}>
+              <button type="button" className="fd-btn fd-btn-sm" onClick={apply} disabled={applying} data-track="ui.1e695069a0.2">
                 {applying
                   ? t('restaurantTopups.merchant.applying', 'Submitting…')
                   : status === 'not_applied'
@@ -157,7 +157,7 @@ export default function RestaurantTopupEligibilityPanel({ t: tProp, restaurant, 
                   ? t('restaurantTopups.merchant.payoutsRequiredCopy', 'Customer top-ups send money into a wallet the restaurant must be able to withdraw. Connect a payout account before applying.')
                   : t('restaurantTopups.merchant.payoutsNotReadyCopy', 'Your payout account is connected but onboarding is not complete. Finish the Stripe onboarding steps, then apply again.')}
               </span>{' '}
-              <button type="button" onClick={() => onGoToPayouts && onGoToPayouts()}>
+              <button type="button" onClick={() => onGoToPayouts && onGoToPayouts()} data-track="ui.1e695069a0.3">
                 {t('restaurantTopups.merchant.goToPayouts', 'Go to Payouts')}
               </button>
             </div>

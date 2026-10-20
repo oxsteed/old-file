@@ -91,7 +91,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
           ))}
         </ul>
       )}
-      <form onSubmit={submit} className="fd-row" style={{ flexWrap: 'wrap', gap: '0.75rem', marginTop: '0.75rem' }}>
+      <form onSubmit={submit} className="fd-row" style={{ flexWrap: 'wrap', gap: '0.75rem', marginTop: '0.75rem' }} data-track="ui.dbbd615872.1">
         <div className="fd-field" style={{ flex: '1 1 160px' }}>
           <label htmlFor="fd-loc-name">{t('food.merchant.locationName', 'Location name')} *</label>
           <input id="fd-loc-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
@@ -118,10 +118,10 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
           <label htmlFor="fd-loc-lat">{t('food.merchant.latitude')}</label>
           <input id="fd-loc-lat" value={form.latitude} onChange={(e) => setForm((f) => ({ ...f, latitude: e.target.value }))} />
         </div>
-        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={resolveCoordinates} disabled={geocoding} style={{ alignSelf: 'flex-end' }}>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={resolveCoordinates} disabled={geocoding} style={{ alignSelf: 'flex-end' }} data-track="ui.dbbd615872.2">
           {geocoding ? t('food.common.loading') : t('food.merchant.findCoordinates', 'Find coordinates')}
         </button>
-        <button type="submit" className="fd-btn fd-btn-sm" disabled={saving} style={{ alignSelf: 'flex-end' }}>
+        <button type="submit" className="fd-btn fd-btn-sm" disabled={saving} style={{ alignSelf: 'flex-end' }} data-track="ui.dbbd615872.3">
           {saving ? t('food.common.saving') : t('food.merchant.addLocation', 'Add location')}
         </button>
       </form>

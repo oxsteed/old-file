@@ -158,12 +158,12 @@ export default function NewWorkAgreementPage() {
 
             {error && <p className="wa-error" role="alert">{error}</p>}
             <div className="wa-actions">
-              <button type="button" className="wa-secondary" onClick={draftWithAi} disabled={drafting || creating || !user}>
+              <button type="button" className="wa-secondary" onClick={draftWithAi} disabled={drafting || creating || !user} data-track="ui.eded2e51d3.1">
                 {drafting
                   ? t('workAgreement.drafting', { defaultValue: 'Drafting…' })
                   : t('workAgreement.draftCta', { defaultValue: 'Draft terms with AI' })}
               </button>
-              <button type="button" className="wa-primary" onClick={create} disabled={creating || drafting || !user || !scope.trim()}>
+              <button type="button" className="wa-primary" onClick={create} disabled={creating || drafting || !user || !scope.trim()} data-track="ui.eded2e51d3.2">
                 {creating
                   ? t('workAgreement.creating', { defaultValue: 'Creating…' })
                   : t('workAgreement.createCta', { defaultValue: 'Create agreement' })}

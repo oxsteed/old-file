@@ -68,7 +68,7 @@ export default function ExperienceGuidePage() {
             <div className="experience-section-heading"><div><p className="experience-eyebrow">{t('experienceGuides.roleKicker', { defaultValue: 'Make it yours' })}</p><h2 id="experience-role-title">{t('experienceGuides.chooseRole', { defaultValue: 'Choose the view that fits you' })}</h2></div><p>{t('experienceGuides.roleHint', { defaultValue: 'See the actions available for each role.' })}</p></div>
             <div className="experience-role-tabs" role="tablist" aria-label={t('experienceGuides.roleChooserAria', { defaultValue: 'Choose a role' })}>
               {guide.supportedRoles.map((role) => (
-                <button key={role} type="button" role="tab" aria-selected={guide.role === role} className={`experience-role-tab${guide.role === role ? ' is-selected' : ''}`} onClick={() => chooseRole(role)}>
+                <button key={role} type="button" role="tab" aria-selected={guide.role === role} className={`experience-role-tab${guide.role === role ? ' is-selected' : ''}`} onClick={() => chooseRole(role)} data-track="ui.b1f79dfa8b.1">
                   <strong>{t(`experienceGuides.roles.${role}.label`, { defaultValue: role })}</strong><span>{t(`experienceGuides.roles.${role}.short`, { defaultValue: '' })}</span><ChevronRight size={16} aria-hidden="true" />
                 </button>
               ))}

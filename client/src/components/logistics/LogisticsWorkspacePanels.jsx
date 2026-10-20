@@ -15,7 +15,7 @@ export function WorkspaceDataErrorBanner({ onRetry }) {
         <p>{t('logistics.workspace.dataError.body')}</p>
       </div>
       {onRetry && (
-        <button type="button" className="lx-btn-secondary" onClick={onRetry}>
+        <button type="button" className="lx-btn-secondary" onClick={onRetry} data-track="ui.582dd473f8.1">
           {t('logistics.workspace.dataError.retry')}
         </button>
       )}
@@ -54,7 +54,7 @@ export default function WorkspaceOverviewStrip({
           <button
             type="button"
             className="lx-btn-primary lx-next-step-action"
-            onClick={nextStep.onClick}
+            onClick={nextStep.onClick} data-track="ui.582dd473f8.2"
           >
             {nextStep.label}
           </button>

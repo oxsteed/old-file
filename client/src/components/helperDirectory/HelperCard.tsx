@@ -326,7 +326,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
           <button
             onClick={() => onMessage?.(helper.id)}
             className="flex items-center justify-center gap-1.5 flex-1 py-2 rounded-xl border border-gray-700 text-gray-300 text-xs font-medium hover:bg-gray-800 hover:text-white transition-colors"
-            aria-label={t('helpersDir.messageHelperAria', { name: helper.businessName })}
+            aria-label={t('helpersDir.messageHelperAria', { name: helper.businessName })} data-track="ui.4f6ace4fb4.1"
           >
             <MessageCircle className="w-3.5 h-3.5" aria-hidden="true" />
             {t('helpersDir.message')}

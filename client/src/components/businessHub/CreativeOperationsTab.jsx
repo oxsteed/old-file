@@ -226,7 +226,7 @@ export default function CreativeOperationsTab({ businessId, workspace, currency 
         <Section
           title={copy('intakePipeline')}
           subtitle={copy('intakePipelineSubtitle')}
-          actions={<button type="button" className="bh-btn" onClick={() => onJumpTab?.('quotes')}>{copy('openQuotes')}</button>}
+          actions={<button type="button" className="bh-btn" onClick={() => onJumpTab?.('quotes')} data-track="ui.ca2e1f5f4d.1">{copy('openQuotes')}</button>}
         >
           <div className="space-y-4">
             {intakeRequests.slice(0, 12).map((item) => (
@@ -241,8 +241,8 @@ export default function CreativeOperationsTab({ businessId, workspace, currency 
                     <p className="mt-1 text-sm text-gray-400">{item.package_interest || copy('customScope')}{item.contact_name ? ` · ${item.contact_name}` : ''}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateIntake(item.id, { status: 'proposal_sent', workflow_stage: 'proposal' })}>{copy('proposalSent')}</button>
-                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateIntake(item.id, { status: 'delivered', workflow_stage: 'follow_up' })}>{copy('delivered')}</button>
+                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateIntake(item.id, { status: 'proposal_sent', workflow_stage: 'proposal' })} data-track="ui.ca2e1f5f4d.2">{copy('proposalSent')}</button>
+                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateIntake(item.id, { status: 'delivered', workflow_stage: 'follow_up' })} data-track="ui.ca2e1f5f4d.3">{copy('delivered')}</button>
                   </div>
                 </div>
               </div>
@@ -254,7 +254,7 @@ export default function CreativeOperationsTab({ businessId, workspace, currency 
         <Section
           title={copy('queueSnapshot')}
           subtitle={copy('queueSnapshotSubtitle')}
-          actions={<button type="button" className="bh-btn" onClick={() => onRefresh?.()}>{copy('refresh')}</button>}
+          actions={<button type="button" className="bh-btn" onClick={() => onRefresh?.()} data-track="ui.ca2e1f5f4d.4">{copy('refresh')}</button>}
         >
           <div className="space-y-4">
             <div className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4">
@@ -276,7 +276,7 @@ export default function CreativeOperationsTab({ businessId, workspace, currency 
       <Section
         title={copy('settingsTitle')}
         subtitle={copy('settingsSubtitle')}
-        actions={<button type="button" className="bh-btn primary" onClick={saveSettings} disabled={savingSettings}>{savingSettings ? t('common.saving') : copy('saveSettings')}</button>}
+        actions={<button type="button" className="bh-btn primary" onClick={saveSettings} disabled={savingSettings} data-track="ui.ca2e1f5f4d.5">{savingSettings ? t('common.saving') : copy('saveSettings')}</button>}
       >
         <div className="grid gap-4 md:grid-cols-2">
           <Input label={copy('responsePromise')}><TextInput type="number" min="1" value={settingsForm.response_promise_hours} onChange={(e) => setSettingsForm((current) => ({ ...current, response_promise_hours: e.target.value }))} /></Input>
@@ -296,7 +296,7 @@ export default function CreativeOperationsTab({ businessId, workspace, currency 
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         <Section title={copy('packagesTitle')} subtitle={copy('packagesSubtitle')}>
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={savePackage}>
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={savePackage} data-track="ui.ca2e1f5f4d.6">
             <Input label={copy('packageName')}><TextInput value={packageForm.package_name} onChange={(e) => setPackageForm((current) => ({ ...current, package_name: e.target.value }))} /></Input>
             <Input label={copy('type')}><Select value={packageForm.package_type} onChange={(e) => setPackageForm((current) => ({ ...current, package_type: e.target.value }))}>{['project', 'session', 'campaign', 'retainer'].map((type) => <option key={type} value={type}>{copy(`packageTypes.${type}`)}</option>)}</Select></Input>
             <Input label={copy('priceCents')}><TextInput type="number" min="0" value={packageForm.price_cents} onChange={(e) => setPackageForm((current) => ({ ...current, price_cents: e.target.value }))} /></Input>
@@ -305,8 +305,8 @@ export default function CreativeOperationsTab({ businessId, workspace, currency 
             <Input label={copy('deliverables')} wide><TextInput value={packageForm.deliverables} onChange={(e) => setPackageForm((current) => ({ ...current, deliverables: e.target.value }))} placeholder={copy('deliverablesPlaceholder')} /></Input>
             <Input label={copy('descriptionField')} wide><TextArea rows={2} value={packageForm.description} onChange={(e) => setPackageForm((current) => ({ ...current, description: e.target.value }))} /></Input>
             <div className="md:col-span-2 flex gap-3">
-              <button className="bh-btn primary" type="submit">{editingPackageId ? copy('updatePackage') : copy('addPackage')}</button>
-              {editingPackageId ? <button className="bh-btn" type="button" onClick={() => { setEditingPackageId(null); setPackageForm(EMPTY_PACKAGE); }}>{copy('cancel')}</button> : null}
+              <button className="bh-btn primary" type="submit" data-track="ui.ca2e1f5f4d.7">{editingPackageId ? copy('updatePackage') : copy('addPackage')}</button>
+              {editingPackageId ? <button className="bh-btn" type="button" onClick={() => { setEditingPackageId(null); setPackageForm(EMPTY_PACKAGE); }} data-track="ui.ca2e1f5f4d.8">{copy('cancel')}</button> : null}
             </div>
           </form>
           <div className="mt-5 space-y-3">
@@ -334,8 +334,8 @@ export default function CreativeOperationsTab({ businessId, workspace, currency 
                         deliverables: (item.deliverables || []).join(', '),
                         active: item.active !== false,
                       });
-                    }}>{copy('edit')}</button>
-                    <button className="bh-btn sm" type="button" onClick={async () => { await deleteCreativePackage(businessId, item.id); toast.success(copy('packageDeleted')); await onRefresh?.(); }}>{copy('delete')}</button>
+                    }} data-track="ui.ca2e1f5f4d.9">{copy('edit')}</button>
+                    <button className="bh-btn sm" type="button" onClick={async () => { await deleteCreativePackage(businessId, item.id); toast.success(copy('packageDeleted')); await onRefresh?.(); }} data-track="ui.ca2e1f5f4d.10">{copy('delete')}</button>
                   </div>
                 </div>
               </div>
@@ -344,7 +344,7 @@ export default function CreativeOperationsTab({ businessId, workspace, currency 
         </Section>
 
         <Section title={copy('recordsTitle')} subtitle={copy('recordsSubtitle')}>
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={saveRecord}>
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={saveRecord} data-track="ui.ca2e1f5f4d.11">
             <Input label={copy('intakeRequest')}><Select value={recordForm.intake_request_id} onChange={(e) => setRecordForm((current) => ({ ...current, intake_request_id: e.target.value }))}><option value="">{copy('unlinked')}</option>{intakeRequests.map((item) => <option key={item.id} value={item.id}>{item.project_type}</option>)}</Select></Input>
             <Input label={copy('recordType')}><Select value={recordForm.record_type} onChange={(e) => setRecordForm((current) => ({ ...current, record_type: e.target.value }))}>{['approval', 'brief', 'proof', 'delivery', 'usage_rights', 'testimonial'].map((type) => <option key={type} value={type}>{copy(`recordTypes.${type}`)}</option>)}</Select></Input>
             <Input label={copy('titleField')}><TextInput value={recordForm.title} onChange={(e) => setRecordForm((current) => ({ ...current, title: e.target.value }))} /></Input>
@@ -353,8 +353,8 @@ export default function CreativeOperationsTab({ businessId, workspace, currency 
             <Input label={copy('assetUrl')}><TextInput value={recordForm.asset_url} onChange={(e) => setRecordForm((current) => ({ ...current, asset_url: e.target.value }))} /></Input>
             <Input label={copy('notesField')} wide><TextArea rows={2} value={recordForm.notes} onChange={(e) => setRecordForm((current) => ({ ...current, notes: e.target.value }))} /></Input>
             <div className="md:col-span-2 flex gap-3">
-              <button className="bh-btn primary" type="submit">{editingRecordId ? copy('updateRecord') : copy('addRecord')}</button>
-              {editingRecordId ? <button className="bh-btn" type="button" onClick={() => { setEditingRecordId(null); setRecordForm(EMPTY_RECORD); }}>{copy('cancel')}</button> : null}
+              <button className="bh-btn primary" type="submit" data-track="ui.ca2e1f5f4d.12">{editingRecordId ? copy('updateRecord') : copy('addRecord')}</button>
+              {editingRecordId ? <button className="bh-btn" type="button" onClick={() => { setEditingRecordId(null); setRecordForm(EMPTY_RECORD); }} data-track="ui.ca2e1f5f4d.13">{copy('cancel')}</button> : null}
             </div>
           </form>
           <div className="mt-5 space-y-3">
@@ -381,8 +381,8 @@ export default function CreativeOperationsTab({ businessId, workspace, currency 
                         asset_url: item.asset_url || '',
                         notes: item.notes || '',
                       });
-                    }}>{copy('edit')}</button>
-                    <button className="bh-btn sm" type="button" onClick={async () => { await deleteCreativeApprovalRecord(businessId, item.id); toast.success(copy('recordDeleted')); await onRefresh?.(); }}>{copy('delete')}</button>
+                    }} data-track="ui.ca2e1f5f4d.14">{copy('edit')}</button>
+                    <button className="bh-btn sm" type="button" onClick={async () => { await deleteCreativeApprovalRecord(businessId, item.id); toast.success(copy('recordDeleted')); await onRefresh?.(); }} data-track="ui.ca2e1f5f4d.15">{copy('delete')}</button>
                   </div>
                 </div>
               </div>

@@ -133,6 +133,7 @@ const ConsultingPayments = lazyWithRetry(() => import('./pages/ConsultingPayment
 const ConsultingScheduler = lazyWithRetry(() => import('./pages/ConsultingScheduler'));
 const ConsultingAnalyticsDashboard = lazyWithRetry(() => import('./pages/ConsultingAnalyticsDashboard'));
 const AdminQueryBuilderPage = lazyWithRetry(() => import('../pages/admin/AdminQueryBuilderPage'));
+const GrowthInsights = lazyWithRetry(() => import('./pages/growth/GrowthInsights'));
 const BusinessLaunchAdmin = lazyWithRetry(() => import('./pages/BusinessLaunchAdmin'));
 const ConsultingSessionsAdmin = lazyWithRetry(() => import('./pages/ConsultingSessionsAdmin'));
 const OrderManagement = lazyWithRetry(() => import('./pages/OrderManagement'));
@@ -287,6 +288,15 @@ export default function AdminApp() {
           <Route path={adminRoute('scheduling').relative} element={<ConsultingScheduler />} />
           <Route path={adminRoute('consultingAnalytics').relative} element={<ConsultingAnalyticsDashboard />} />
           <Route path={adminRoute('queryBuilder').relative} element={<AdminQueryBuilderPage />} />
+          <Route path={adminRoute('growthOverview').relative} element={<GrantGuard grant={adminRoute('growthOverview').grant}><GrowthInsights section="overview" /></GrantGuard>} />
+          <Route path={adminRoute('growthDemand').relative} element={<GrantGuard grant={adminRoute('growthDemand').grant}><GrowthInsights section="demand" /></GrantGuard>} />
+          <Route path={adminRoute('growthClusters').relative} element={<GrantGuard grant={adminRoute('growthClusters').grant}><GrowthInsights section="clusters" /></GrantGuard>} />
+          <Route path={adminRoute('growthSegments').relative} element={<GrantGuard grant={adminRoute('growthSegments').grant}><GrowthInsights section="segments" /></GrantGuard>} />
+          <Route path={adminRoute('growthSuggestions').relative} element={<GrantGuard grant={adminRoute('growthSuggestions').grant}><GrowthInsights section="suggestions" /></GrantGuard>} />
+          <Route path={adminRoute('growthCampaigns').relative} element={<GrantGuard grant={adminRoute('growthCampaigns').grant}><GrowthInsights section="campaigns" /></GrantGuard>} />
+          <Route path={adminRoute('growthPartners').relative} element={<GrantGuard grant={adminRoute('growthPartners').grant}><GrowthInsights section="partners" /></GrantGuard>} />
+          <Route path={adminRoute('growthTaxonomy').relative} element={<GrantGuard grant={adminRoute('growthTaxonomy').grant}><GrowthInsights section="taxonomy" /></GrantGuard>} />
+          <Route path={adminRoute('growthSettings').relative} element={<GrantGuard grant={adminRoute('growthSettings').grant}><GrowthInsights section="settings" /></GrantGuard>} />
           <Route path={adminRoute('businessLaunch').relative} element={<BusinessLaunchAdmin />} />
           <Route path={adminRoute('consultingSessions').relative} element={<ConsultingSessionsAdmin />} />
           <Route path={adminRoute('supportAgentDashboard').relative} element={<SupportAgentDashboard />} />

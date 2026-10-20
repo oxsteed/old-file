@@ -48,15 +48,15 @@ function RailSwitchSection({ job, onChanged }) {
           {!mine && (
             <div className="flex flex-col gap-2 mt-2">
               {pending.to_rail === 'offline' && (
-                <label className="flex gap-2"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} />{t('paymentRail.offlineAck')}</label>
+                <label className="flex gap-2"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} data-track-private />{t('paymentRail.offlineAck')}</label>
               )}
               <div className="flex gap-2">
                 <button type="button" className="px-3 py-2 bg-orange-500 text-white rounded" disabled={busy || (pending.to_rail === 'offline' && !ack)}
-                  onClick={() => run(() => api.post(`/payment-layers/jobs/${job.id}/rail-switch/${pending.id}/respond`, { accept: true, offline_ack: ack }))}>
+                  onClick={() => run(() => api.post(`/payment-layers/jobs/${job.id}/rail-switch/${pending.id}/respond`, { accept: true, offline_ack: ack }))} data-track-private>
                   {t('paymentRail.switch.accept')}
                 </button>
                 <button type="button" className="px-3 py-2 border rounded" disabled={busy}
-                  onClick={() => run(() => api.post(`/payment-layers/jobs/${job.id}/rail-switch/${pending.id}/respond`, { accept: false }))}>
+                  onClick={() => run(() => api.post(`/payment-layers/jobs/${job.id}/rail-switch/${pending.id}/respond`, { accept: false }))} data-track-private>
                   {t('paymentRail.switch.decline')}
                 </button>
               </div>
@@ -76,10 +76,10 @@ function RailSwitchSection({ job, onChanged }) {
             <p className="text-xs">{t('paymentRail.switch.lessProtected')}</p>
           )}
           {target === 'offline' && (
-            <label className="flex gap-2"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} />{t('paymentRail.offlineAck')}</label>
+            <label className="flex gap-2"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} data-track-private />{t('paymentRail.offlineAck')}</label>
           )}
           <button type="button" className="px-3 py-2 border rounded self-start" disabled={busy || !target || (target === 'offline' && !ack)}
-            onClick={() => run(() => api.post(`/payment-layers/jobs/${job.id}/rail-switch`, { to_rail: target, offline_ack: ack }))}>
+            onClick={() => run(() => api.post(`/payment-layers/jobs/${job.id}/rail-switch`, { to_rail: target, offline_ack: ack }))} data-track-private>
             {t('paymentRail.switch.request')}
           </button>
           <p className="text-xs">{t('paymentRail.switch.consentNote')}</p>
@@ -112,8 +112,8 @@ function OfflineConfirmSection({ job }) {
         customer: confirmation?.customer_confirmed_at ? t('paymentRail.offline.yes') : t('paymentRail.offline.no'),
         helper: confirmation?.helper_confirmed_at ? t('paymentRail.offline.yes') : t('paymentRail.offline.no'),
       })}</p>
-      <label className="flex gap-2 mt-2"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} />{t('paymentRail.offlineAck')}</label>
-      <button type="button" className="mt-2 px-3 py-2 border rounded" disabled={busy || !ack} onClick={confirm}>{t('paymentRail.offline.confirm')}</button>
+      <label className="flex gap-2 mt-2"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} data-track-private />{t('paymentRail.offlineAck')}</label>
+      <button type="button" className="mt-2 px-3 py-2 border rounded" disabled={busy || !ack} onClick={confirm} data-track-private>{t('paymentRail.offline.confirm')}</button>
     </section>
   );
 }
@@ -158,7 +158,7 @@ function TipSection({ job, currency }) {
         <p className="text-xs mt-1">{t('paymentRail.tips.breakdown', { cost: fmt(quote.processing_cost_minor), helper: fmt(quote.helper_receives_minor) })}</p>
       )}
       <p className="text-xs">{t('paymentRail.tips.noPlatformFee')}</p>
-      <button type="button" className="mt-2 px-3 py-2 border rounded" disabled={busy || !minor || minor <= 0 || quote?.tippable === false} onClick={send}>{t('paymentRail.tips.send')}</button>
+      <button type="button" className="mt-2 px-3 py-2 border rounded" disabled={busy || !minor || minor <= 0 || quote?.tippable === false} onClick={send} data-track-private>{t('paymentRail.tips.send')}</button>
       {tips.length > 0 && (
         <ul className="mt-2">
           {tips.map((tip) => <li key={tip.id}>{fmt(tip.amount_minor)} · {t(`paymentRail.tips.status.${tip.status}`, { defaultValue: tip.status })}</li>)}

@@ -72,7 +72,7 @@ function ModifierModal({ item, currency, onConfirm, onClose }) {
               const sel = (selections[g.group_id] || []).includes(m.modifier_id);
               return (
                 <label key={m.modifier_id} className={`fd-modoption${sel ? ' fd-selected' : ''}`}>
-                  <input type="checkbox" checked={sel} onChange={() => toggle(g.group_id, m.modifier_id, g.max_select)} />
+                  <input type="checkbox" checked={sel} onChange={() => toggle(g.group_id, m.modifier_id, g.max_select)} data-track="ui.c952aceb7c.1" />
                   {m.modifier_name}
                   {m.price_delta_cents > 0 && <span className="fd-pos-mod-delta"> +{formatFoodMoney(m.price_delta_cents, currency)}</span>}
                 </label>
@@ -87,14 +87,14 @@ function ModifierModal({ item, currency, onConfirm, onClose }) {
         </div>
 
         <div className="fd-qty-row">
-          <button className="fd-qty-btn" onClick={() => setQty((q) => Math.max(1, q - 1))}>−</button>
+          <button className="fd-qty-btn" onClick={() => setQty((q) => Math.max(1, q - 1))} data-track="ui.c952aceb7c.2">−</button>
           <strong>{qty}</strong>
-          <button className="fd-qty-btn" onClick={() => setQty((q) => q + 1)}>+</button>
+          <button className="fd-qty-btn" onClick={() => setQty((q) => q + 1)} data-track="ui.c952aceb7c.3">+</button>
           <span className="fd-price">{formatFoodMoney(unitCents * qty, currency)}</span>
         </div>
         <div className="fd-pos-modal-actions">
-          <button className="fd-btn-secondary" onClick={onClose}>{t('food.common.cancel')}</button>
-          <button className="fd-btn" onClick={handleConfirm}>{t('food.pos.addToTicket')}</button>
+          <button className="fd-btn-secondary" onClick={onClose} data-track="ui.c952aceb7c.4">{t('food.common.cancel')}</button>
+          <button className="fd-btn" onClick={handleConfirm} data-track="ui.c952aceb7c.5">{t('food.pos.addToTicket')}</button>
         </div>
       </div>
     </div>
@@ -162,7 +162,7 @@ function PaymentModal({ total, currency, discounts, onPay, onClose }) {
 
         <div className="fd-pos-pay-methods">
           {['cash', 'mobile', 'oxsteed_credit'].map((m) => (
-            <button key={m} className={`fd-pos-pay-method${method === m ? ' fd-active' : ''}`} onClick={() => setMethod(m)}>
+            <button key={m} className={`fd-pos-pay-method${method === m ? ' fd-active' : ''}`} onClick={() => setMethod(m)} data-track="ui.c952aceb7c.6" data-track-private>
               {t(`food.pos.method_${m}`, { defaultValue: m === 'oxsteed_credit' ? 'OxSteed Credit' : undefined })}
             </button>
           ))}
@@ -205,8 +205,8 @@ function PaymentModal({ total, currency, discounts, onPay, onClose }) {
         {discountCents > 0 && <div className="fd-pos-discount-line">− {formatFoodMoney(discountCents, currency)} {selectedDiscount?.name}</div>}
 
         <div className="fd-pos-modal-actions">
-          <button className="fd-btn-secondary" onClick={onClose}>{t('food.common.cancel')}</button>
-          <button className="fd-btn" onClick={handlePay} disabled={loading}>
+          <button className="fd-btn-secondary" onClick={onClose} data-track="ui.c952aceb7c.7">{t('food.common.cancel')}</button>
+          <button className="fd-btn" onClick={handlePay} disabled={loading} data-track="ui.c952aceb7c.8">
             {loading ? t('food.common.saving') : t('food.pos.confirmPay')}
           </button>
         </div>
@@ -495,7 +495,7 @@ export default function RestaurantPOSPage() {
           </div>
           <div className="fd-pos-fulfillment">
             {FULFILLMENT_TYPES.map((f) => (
-              <button key={f.value} className={`fd-pos-ftype${fulfillment === f.value ? ' fd-active' : ''}`} onClick={() => setFulfillment(f.value)}>
+              <button key={f.value} className={`fd-pos-ftype${fulfillment === f.value ? ' fd-active' : ''}`} onClick={() => setFulfillment(f.value)} data-track="ui.c952aceb7c.9">
                 {t(`food.pos.fulfillment_${f.label}`)}
               </button>
             ))}
@@ -510,7 +510,7 @@ export default function RestaurantPOSPage() {
                 <span className="fd-tag">
                   {t('food.pos.shiftRequired', { defaultValue: 'Open POS shift required' })}
                 </span>
-                <button type="button" className="fd-btn fd-btn-sm" onClick={handleOpenShift} disabled={submitting}>
+                <button type="button" className="fd-btn fd-btn-sm" onClick={handleOpenShift} disabled={submitting} data-track="ui.c952aceb7c.10">
                   {submitting ? t('food.common.saving') : t('food.merchant.posOpenShift', 'Open shift')}
                 </button>
               </>
@@ -527,7 +527,7 @@ export default function RestaurantPOSPage() {
             {/* Category rail */}
             <div className="fd-pos-cat-rail">
               {categories.map((c) => (
-                <button key={c.id} className={`fd-pos-cat${activeCat === c.id ? ' fd-active' : ''}`} onClick={() => setActiveCat(c.id)}>
+                <button key={c.id} className={`fd-pos-cat${activeCat === c.id ? ' fd-active' : ''}`} onClick={() => setActiveCat(c.id)} data-track="ui.c952aceb7c.11">
                   {c.name}
                 </button>
               ))}
@@ -542,7 +542,7 @@ export default function RestaurantPOSPage() {
                   key={item.id}
                   className={`fd-pos-item${!item.is_available ? ' fd-unavailable' : ''}`}
                   onClick={() => handleItemClick(item)}
-                  disabled={!item.is_available}
+                  disabled={!item.is_available} data-track="ui.c952aceb7c.12"
                 >
                   {item.image_url && <img src={item.image_url} alt={item.name} className="fd-pos-item-img" />}
                   <span className="fd-pos-item-name">{item.name}</span>
@@ -558,7 +558,7 @@ export default function RestaurantPOSPage() {
             <div className="fd-pos-ticket-head">
               <span>{t('food.pos.ticket')}</span>
               {ticket.length > 0 && (
-                <button className="fd-pos-clear" onClick={() => setTicket([])}>
+                <button className="fd-pos-clear" onClick={() => setTicket([])} data-track="ui.c952aceb7c.13">
                   {t('food.pos.clear')}
                 </button>
               )}
@@ -577,9 +577,9 @@ export default function RestaurantPOSPage() {
                     {line.note && <div className="fd-pos-line-note">🗒 {line.note}</div>}
                   </div>
                   <div className="fd-pos-line-qty">
-                    <button className="fd-qty-btn" onClick={() => adjustQty(idx, -1)}>−</button>
+                    <button className="fd-qty-btn" onClick={() => adjustQty(idx, -1)} data-track="ui.c952aceb7c.14">−</button>
                     <span>{line.qty}</span>
-                    <button className="fd-qty-btn" onClick={() => adjustQty(idx, 1)}>+</button>
+                    <button className="fd-qty-btn" onClick={() => adjustQty(idx, 1)} data-track="ui.c952aceb7c.15">+</button>
                   </div>
                   <div className="fd-price">{formatFoodMoney(line.unitCents * line.qty, currency)}</div>
                 </div>
@@ -593,14 +593,14 @@ export default function RestaurantPOSPage() {
                   <span>{formatFoodMoney(totalCents, currency)}</span>
                 </div>
                 <div className="fd-pos-actions">
-                  <button className="fd-btn-secondary" onClick={handleSendToKitchen} disabled={submitting}>
+                  <button className="fd-btn-secondary" onClick={handleSendToKitchen} disabled={submitting} data-track="ui.c952aceb7c.16">
                     {t('food.pos.sendKitchen')}
                   </button>
                   <button
                     className="fd-btn"
                     onClick={() => setShowPay(true)}
                     disabled={submitting || !canManage}
-                    title={canManage ? undefined : t('food.pos.payManagerOnly')}
+                    title={canManage ? undefined : t('food.pos.payManagerOnly')} data-track="ui.c952aceb7c.17"
                   >
                     {t('food.pos.payNow')}
                   </button>
@@ -615,7 +615,7 @@ export default function RestaurantPOSPage() {
               <div className="fd-pos-order-done">
                 <div className="fd-pos-done-num">#{completedOrder.queue_number || completedOrder.id}</div>
                 <div>{t('food.pos.orderDone')}</div>
-                <button className="fd-btn-sm fd-btn-secondary" onClick={() => setCompletedOrder(null)}>
+                <button className="fd-btn-sm fd-btn-secondary" onClick={() => setCompletedOrder(null)} data-track="ui.c952aceb7c.18">
                   {t('food.pos.newOrder')}
                 </button>
               </div>

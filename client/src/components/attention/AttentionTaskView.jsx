@@ -25,7 +25,7 @@ function TaskErrorFallback({ task, onRetry, onRequestOpenFullPage }) {
       <p className="attention-state__title">{t('taskView.loadFailed')}</p>
       <p className="attention-state__text">{t('taskView.loadFailedBody')}</p>
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-        <button type="button" className="attention-btn" onClick={onRetry}>
+        <button type="button" className="attention-btn" onClick={onRetry} data-track="ui.3a141f846f.1">
           {t('list.retry')}
         </button>
         <OpenFullPageButton task={task} onOpenFullPage={onRequestOpenFullPage} />
@@ -122,7 +122,7 @@ export function OpenFullPageButton({ task, onOpenFullPage }) {
         } else {
           navigate(buildFullPageUrl(destination));
         }
-      }}
+      }} data-track="ui.3a141f846f.2"
     >
       <ExternalLink size={16} aria-hidden="true" /> {t('actions.openFullPage')}
     </button>
@@ -144,7 +144,7 @@ function ResolvedTaskState({ onBack }) {
         <CheckCircle2 size={32} className="text-green-500" aria-hidden="true" />
         <p className="attention-state__title">{t('taskView.resolvedTitle')}</p>
         <p className="attention-state__text">{t('taskView.resolvedBody')}</p>
-        <button type="button" className="attention-btn" onClick={onBack}>
+        <button type="button" className="attention-btn" onClick={onBack} data-track="ui.3a141f846f.3">
           <ArrowLeft size={16} aria-hidden="true" /> {t('actions.backToAttention')}
         </button>
       </div>
@@ -176,7 +176,7 @@ export default function AttentionTaskView({
   return (
       <div className="attention-task">
         <div className="attention-task__header">
-          <button type="button" className="attention-btn" onClick={onBack}>
+          <button type="button" className="attention-btn" onClick={onBack} data-track="ui.3a141f846f.4">
             <ArrowLeft size={16} aria-hidden="true" /> {t('actions.backToAttention')}
           </button>
           <div className="attention-task__crumbs" title={`${crumbs} — ${taskTitle(task, t, i18n)}`}>
@@ -188,7 +188,7 @@ export default function AttentionTaskView({
             type="button"
             className="attention-btn attention-btn--icon"
             onClick={onRequestClose}
-            aria-label={t('actions.close')}
+            aria-label={t('actions.close')} data-track="ui.3a141f846f.5"
           >
             <X size={18} aria-hidden="true" />
           </button>

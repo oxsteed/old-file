@@ -157,6 +157,10 @@ describe('GET /api/privacy/export', () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       // consume export authorization
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ started: false }] })
       .mockResolvedValueOnce({ rows: [{ id: 'verification-1' }] });
 
     const response = await request(buildApp())
@@ -232,6 +236,10 @@ describe('GET /api/privacy/export (extended sections)', () => {
         .mockResolvedValueOnce({ rows: [{ id: 7, business_name: 'Acme' }] })
         .mockResolvedValueOnce({ rows: [{ id: 9, tier: 'pro' }] })
         .mockResolvedValueOnce({ rows: [{ id: 11, type: 'test' }] })
+        .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ started: false }] })
         .mockResolvedValueOnce({ rows: [{ id: 'verification-1' }] });
 
       const response = await request(buildApp())

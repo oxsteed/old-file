@@ -103,7 +103,7 @@ export default function MediaLinkModal({ url, title, onClose }) {
               type="button"
               className="media-legal-close"
               onClick={onClose}
-              aria-label={t('media.shell.close')}
+              aria-label={t('media.shell.close')} data-track="ui.1105b04846.1"
             >
               ×
             </button>

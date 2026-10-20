@@ -194,7 +194,7 @@ export default function ScreenControlCenter({
             {f("openControl")}
           </Link>
         ) : (
-          <button className="fd-btn fd-btn-secondary" onClick={load}>
+          <button className="fd-btn fd-btn-secondary" onClick={load} data-track="ui.e3c1ee3cf7.1">
             <RefreshCw size={18} />
             {f("refresh")}
           </button>
@@ -203,7 +203,7 @@ export default function ScreenControlCenter({
       {error && (
         <div className="rs-notice" role="alert">
           {f(error)}{" "}
-          <button className="fd-btn fd-btn-secondary" onClick={load}>
+          <button className="fd-btn fd-btn-secondary" onClick={load} data-track="ui.e3c1ee3cf7.2">
             {f("retry")}
           </button>
         </div>
@@ -262,7 +262,7 @@ export default function ScreenControlCenter({
                     setPair(null);
                     setEdit(null);
                     setName("");
-                  }}
+                  }} data-track="ui.e3c1ee3cf7.3"
                 >
                   <Plus size={18} />
                   {f("pairScreen")}
@@ -273,7 +273,7 @@ export default function ScreenControlCenter({
                   disabled={busy}
                   onClick={() =>
                     perform(() => enableScreens(id, !data.enabled))
-                  }
+                  } data-track="ui.e3c1ee3cf7.4"
                 >
                   {f(data.enabled ? "disableSync" : "enableSync")}
                 </button>
@@ -296,7 +296,7 @@ export default function ScreenControlCenter({
                   onSubmit={(e) => {
                     e.preventDefault();
                     edit ? saveEdit() : makePair();
-                  }}
+                  }} data-track="ui.e3c1ee3cf7.5"
                 >
                   <h3>{f(edit ? "configureScreen" : "pairScreen")}</h3>
                   <p>{f("pairInstructions")}</p>
@@ -355,7 +355,7 @@ export default function ScreenControlCenter({
                     </label>
                   )}
                   <div className="rs-toolbar">
-                    <button type="submit" className="fd-btn" disabled={busy}>
+                    <button type="submit" className="fd-btn" disabled={busy} data-track="ui.e3c1ee3cf7.6">
                       {f(edit ? "save" : "generateCode")}
                     </button>
                     <button
@@ -365,7 +365,7 @@ export default function ScreenControlCenter({
                         setShowPair(false);
                         setEdit(null);
                         setPair(null);
-                      }}
+                      }} data-track="ui.e3c1ee3cf7.7"
                     >
                       {f("close")}
                     </button>
@@ -380,7 +380,7 @@ export default function ScreenControlCenter({
                       <a
                         href={viewUrl(id, "pair")}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noreferrer" data-track="ui.e3c1ee3cf7.8"
                       >
                         {
                           new URL(viewUrl(id, "pair"), window.location.origin)
@@ -451,7 +451,7 @@ export default function ScreenControlCenter({
                     <div className="rs-toolbar">
                       <button
                         className="fd-btn fd-btn-secondary"
-                        onClick={() => openEdit(d)}
+                        onClick={() => openEdit(d)} data-track="ui.e3c1ee3cf7.9"
                       >
                         {f("configure")}
                       </button>
@@ -459,7 +459,7 @@ export default function ScreenControlCenter({
                         className="fd-btn fd-btn-secondary"
                         href={viewUrl(id, roleFor(d)) + "?preview=1"}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noreferrer" data-track="ui.e3c1ee3cf7.10"
                       >
                         {f("preview")}
                       </a>
@@ -472,7 +472,7 @@ export default function ScreenControlCenter({
                               perform(() =>
                                 updateDevice(id, d.id, { status: "disabled" }),
                               );
-                          }}
+                          }} data-track="ui.e3c1ee3cf7.11"
                         >
                           {f("revoke")}
                         </button>
@@ -517,7 +517,7 @@ export default function ScreenControlCenter({
                       <button
                         className="fd-btn"
                         disabled={busy}
-                        onClick={() => reviewTicket(ticket)}
+                        onClick={() => reviewTicket(ticket)} data-track="ui.e3c1ee3cf7.12"
                       >
                         {f("reviewTicket")}
                       </button>
@@ -527,7 +527,7 @@ export default function ScreenControlCenter({
                         onClick={() => {
                           if (window.confirm(f("dismissConfirm")))
                             perform(() => dismissTicket(id, ticket.id));
-                        }}
+                        }} data-track="ui.e3c1ee3cf7.13"
                       >
                         {f("dismiss")}
                       </button>
@@ -586,13 +586,13 @@ export default function ScreenControlCenter({
                           );
                           setReview(null);
                         })
-                      }
+                      } data-track="ui.e3c1ee3cf7.14"
                     >
                       {f("acceptUnpaid")}
                     </button>
                     <button
                       className="fd-btn fd-btn-secondary"
-                      onClick={() => setReview(null)}
+                      onClick={() => setReview(null)} data-track="ui.e3c1ee3cf7.15"
                     >
                       {f("close")}
                     </button>

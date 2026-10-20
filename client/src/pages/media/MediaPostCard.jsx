@@ -38,7 +38,7 @@ function MediaVideo({ asset, label, mutedLabel, unmutedLabel }) {
       <video src={asset.url} poster={asset.thumbnail_url || undefined} controls muted={muted} playsInline preload="metadata" aria-label={label} crossOrigin={asset.caption_url ? 'anonymous' : undefined}>
         {asset.caption_url && <track kind="captions" src={asset.caption_url} srcLang={asset.caption_language || 'en'} label={asset.caption_language || 'en'} default />}
       </video>
-      <button type="button" className="media-video-mute" aria-label={muted ? mutedLabel : unmutedLabel} onClick={() => setMuted((value) => !value)}>
+      <button type="button" className="media-video-mute" aria-label={muted ? mutedLabel : unmutedLabel} onClick={() => setMuted((value) => !value)} data-track="ui.2db63f7c96.1">
         {muted ? mutedLabel : unmutedLabel}
         <span className="sr-only">{label}</span>
       </button>
@@ -52,7 +52,7 @@ function WarnedMedia({ warning, children }) {
   if (!warning) return children;
   return <section className="media-content-warning">
     <strong>{t('media.post.contentWarning')}</strong><p>{warning}</p>
-    <button type="button" className="media-secondary-button" aria-expanded={revealed} onClick={() => setRevealed(value => !value)}>{t(revealed ? 'media.post.hideMedia' : 'media.post.showMedia')}</button>
+    <button type="button" className="media-secondary-button" aria-expanded={revealed} onClick={() => setRevealed(value => !value)} data-track="ui.2db63f7c96.2">{t(revealed ? 'media.post.hideMedia' : 'media.post.showMedia')}</button>
     {revealed && children}
   </section>;
 }
@@ -312,7 +312,7 @@ export default function MediaPostCard({
           {shouldTruncateBody ? `${bodyText.slice(0, bodyTruncateAt)}…` : bodyText}
         </Link>
         {shouldTruncateBody && (
-          <button type="button" className="media-text-button media-show-more" onClick={() => setBodyExpanded(true)}>
+          <button type="button" className="media-text-button media-show-more" onClick={() => setBodyExpanded(true)} data-track="ui.2db63f7c96.3">
             {t('media.post.showMore', { defaultValue: 'Show more' })}
           </button>
         )}
@@ -417,20 +417,20 @@ export default function MediaPostCard({
           <Link to={`/media/post/${post.id}`} className="media-action" aria-label={t('media.post.reply', { defaultValue: 'Reply' })}>
             💬 {formatCount(replyCount)}
           </Link>
-          <button onClick={handleRepost} disabled={Boolean(actionPending)} className={`media-action ${reposted ? 'active' : ''}`} aria-label={t('media.post.repost')} aria-pressed={reposted}>
+          <button onClick={handleRepost} disabled={Boolean(actionPending)} className={`media-action ${reposted ? 'active' : ''}`} aria-label={t('media.post.repost')} aria-pressed={reposted} data-track="ui.2db63f7c96.4">
             🔁 {formatCount(repostCount)}
           </button>
-          <button onClick={handleLike} disabled={Boolean(actionPending)} className={`media-action ${liked ? 'active' : ''}`} aria-label={t('media.post.like', { defaultValue: 'Like' })} aria-pressed={liked}>
+          <button onClick={handleLike} disabled={Boolean(actionPending)} className={`media-action ${liked ? 'active' : ''}`} aria-label={t('media.post.like', { defaultValue: 'Like' })} aria-pressed={liked} data-track="ui.2db63f7c96.5">
             {liked ? '❤️' : '🤍'} {formatCount(likeCount)}
           </button>
-          <button onClick={handleBookmark} disabled={Boolean(actionPending)} className={`media-action ${bookmarked ? 'active' : ''}`} aria-label={t('media.post.bookmark', { defaultValue: 'Bookmark' })} aria-pressed={bookmarked}>
+          <button onClick={handleBookmark} disabled={Boolean(actionPending)} className={`media-action ${bookmarked ? 'active' : ''}`} aria-label={t('media.post.bookmark', { defaultValue: 'Bookmark' })} aria-pressed={bookmarked} data-track="ui.2db63f7c96.6">
             {bookmarked ? '🔖' : '📑'} {formatCount(bookmarkCount)}
           </button>
-          <button onClick={handleShare} disabled={Boolean(actionPending)} className="media-action" aria-label={t('media.post.share')}>
+          <button onClick={handleShare} disabled={Boolean(actionPending)} className="media-action" aria-label={t('media.post.share')} data-track="ui.2db63f7c96.7">
             ↗️ {t('media.post.share')} {formatCount(shareCount)}
           </button>
           {user && String(post.owner_user_id) === String(user.id) && post.visibility === 'public' && (
-            <button ref={boostTriggerRef} type="button" onClick={() => { setBoostAmount(''); setBoostMessage(''); setBoostComplete(false); setBoostIdempotencyKey(`media-boost-${post.id}-${Date.now()}-${Math.random().toString(16).slice(2)}`); setBoostOpen(true); }} className="media-action" aria-label={t('media.post.boost')}>
+            <button ref={boostTriggerRef} type="button" onClick={() => { setBoostAmount(''); setBoostMessage(''); setBoostComplete(false); setBoostIdempotencyKey(`media-boost-${post.id}-${Date.now()}-${Math.random().toString(16).slice(2)}`); setBoostOpen(true); }} className="media-action" aria-label={t('media.post.boost')} data-track="ui.2db63f7c96.8">
               ✨ {t('media.post.boost')}
             </button>
           )}
@@ -444,7 +444,7 @@ export default function MediaPostCard({
                 <option value="unsafe">{t('media.post.reportUnsafe', { defaultValue: 'Unsafe content' })}</option>
                 <option value="copyright">{t('media.post.reportCopyright', { defaultValue: 'Copyright' })}</option>
               </select>
-              <button type="button" onClick={handleReport} disabled={reporting}>{reporting ? t('media.post.reporting', { defaultValue: 'Sending…' }) : t('media.post.reportSubmit', { defaultValue: 'Report' })}</button>
+              <button type="button" onClick={handleReport} disabled={reporting} data-track="ui.2db63f7c96.9">{reporting ? t('media.post.reporting', { defaultValue: 'Sending…' }) : t('media.post.reportSubmit', { defaultValue: 'Report' })}</button>
               {reportMessage && <span role="status">{reportMessage}</span>}
             </div>
           </details>
@@ -452,8 +452,8 @@ export default function MediaPostCard({
         {actionMessage && <p className="media-action-status" role="status" aria-live="polite">{actionMessage}</p>}
       </div>
       {boostOpen && <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setBoostOpen(false); }}>
-        <form ref={boostDialogRef} className="media-verification-form" onSubmit={handleBoost} role="dialog" aria-modal="true" aria-labelledby={`media-boost-title-${post.id}`}>
-          <button type="button" className="media-dialog-close" onClick={() => setBoostOpen(false)} aria-label={t('media.shell.close')}><span aria-hidden="true">×</span></button>
+        <form ref={boostDialogRef} className="media-verification-form" onSubmit={handleBoost} role="dialog" aria-modal="true" aria-labelledby={`media-boost-title-${post.id}`} data-track="ui.2db63f7c96.10">
+          <button type="button" className="media-dialog-close" onClick={() => setBoostOpen(false)} aria-label={t('media.shell.close')} data-track="ui.2db63f7c96.11"><span aria-hidden="true">×</span></button>
           <h2 id={`media-boost-title-${post.id}`}>{t('media.post.boost')}</h2>
           {boostMessage && <p role="status">{boostMessage}</p>}
           <>
@@ -463,7 +463,7 @@ export default function MediaPostCard({
             <input id={`media-boost-amount-${post.id}`} disabled={boosting || boostComplete} inputMode="decimal" value={boostAmount} onChange={(event) => setBoostAmount(event.target.value)} required />
             <p className="media-form-hint">{t('media.post.boostNotice')}</p>
             {parseCreditMajorAmount(boostAmount, boostCurrency) !== null && <p className="media-form-hint" role="status">{t('media.post.boostPrice', { amount: new Intl.NumberFormat(i18n.language || 'en', { style: 'currency', currency: boostCurrency }).format(parseCreditMajorAmount(boostAmount, boostCurrency) / 10 ** getCreditMinorUnits(boostCurrency)) })}</p>}
-            <button type="submit" className="media-primary-button" disabled={boosting || boostComplete}>{boosting ? t('media.compose.posting') : t('media.post.boostConfirm')}</button>
+            <button type="submit" className="media-primary-button" disabled={boosting || boostComplete} data-track="ui.2db63f7c96.12">{boosting ? t('media.compose.posting') : t('media.post.boostConfirm')}</button>
           </>
         </form>
       </div>}

@@ -17,7 +17,7 @@ function Modal({ title, subtitle, onClose, children }) {
   return (
     <div className="credit-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className="credit-modal" role="dialog" aria-modal="true" aria-label={title}>
-        <button type="button" className="credit-modal-close" onClick={onClose} aria-label={t('restaurantWallet.close')}>
+        <button type="button" className="credit-modal-close" onClick={onClose} aria-label={t('restaurantWallet.close')} data-track-private>
           <X size={20} />
         </button>
         <p className="credit-eyebrow">{t('restaurantWallet.restaurantCredit')}</p>
@@ -130,17 +130,17 @@ export default function RequestCreditModal({ restaurantId, restaurantName, curre
           {referenceHint && <p className="credit-payment-hint">{referenceHint}</p>}
         </div>
       )}
-      <form className="credit-form" onSubmit={submit}>
+      <form className="credit-form" onSubmit={submit} data-track-private>
         <label><span>{t('restaurantWallet.amountPaid')}</span><div className="credit-money-input"><span>{currency}</span><input autoFocus inputMode="decimal" required value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" /></div></label>
         <div className="credit-proof-choice" role="group" aria-label={t('restaurantWallet.proofMethod')}>
-          <button type="button" className={proofMethod === 'upload' ? 'active' : ''} onClick={() => { setProofMethod('upload'); setReference(''); }}>{t('restaurantWallet.uploadReceipt')}</button>
-          <button type="button" className={proofMethod === 'reference' ? 'active' : ''} onClick={() => { setProofMethod('reference'); setProof(null); }}>{t('restaurantWallet.enterConfirmation')}</button>
+          <button type="button" className={proofMethod === 'upload' ? 'active' : ''} onClick={() => { setProofMethod('upload'); setReference(''); }} data-track-private>{t('restaurantWallet.uploadReceipt')}</button>
+          <button type="button" className={proofMethod === 'reference' ? 'active' : ''} onClick={() => { setProofMethod('reference'); setProof(null); }} data-track-private>{t('restaurantWallet.enterConfirmation')}</button>
         </div>
         {proofMethod === 'upload' ? (
           proof?.name ? (
             <div className="credit-proof-attached">
               <span><CheckCircle2 size={17} /><strong>{proof.name}</strong></span>
-              <button type="button" onClick={() => setProof(null)}>{t('restaurantWallet.remove')}</button>
+              <button type="button" onClick={() => setProof(null)} data-track-private>{t('restaurantWallet.remove')}</button>
             </div>
           ) : (
             <label className="credit-proof-upload"><span>{uploading ? t('restaurantWallet.uploading') : t('restaurantWallet.chooseProof')}</span><input type="file" accept="image/*,application/pdf" onChange={uploadProof} disabled={uploading} /></label>
@@ -152,7 +152,7 @@ export default function RequestCreditModal({ restaurantId, restaurantName, curre
           <summary>{t('restaurantWallet.noteOptional')}</summary>
           <label><span>{t('restaurantWallet.noteLabel')}</span><textarea value={note} onChange={(event) => setNote(event.target.value)} maxLength={255} placeholder={t('restaurantWallet.notePlaceholder')} /></label>
         </details>
-        <button type="submit" className="credit-primary" disabled={submitting || uploading}>{uploading ? t('restaurantWallet.uploading') : submitting ? t('restaurantWallet.sending') : t('restaurantWallet.sendApproval')}</button>
+        <button type="submit" className="credit-primary" disabled={submitting || uploading} data-track-private>{uploading ? t('restaurantWallet.uploading') : submitting ? t('restaurantWallet.sending') : t('restaurantWallet.sendApproval')}</button>
       </form>
       </>
       )}

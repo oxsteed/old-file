@@ -60,7 +60,7 @@ export default function ShipmentsPage() {
                   type="button"
                   className="lx-filter-chip"
                   aria-pressed={status === s}
-                  onClick={() => toggleStatus(s)}
+                  onClick={() => toggleStatus(s)} data-track="ui.6044c8feb6.1"
                 >
                   {tx(`logistics.status.${s}`, s.replace(/_/g, ' '))}
                 </button>
@@ -84,7 +84,7 @@ export default function ShipmentsPage() {
                 <h2>{tx('logistics.workspace.dataError.title', 'Data unavailable')}</h2>
                 <p>{tx('logistics.shipments.error', "We couldn't load your shipments right now. Please try again.")}</p>
               </div>
-              <button type="button" className="lx-btn-secondary" onClick={load}>
+              <button type="button" className="lx-btn-secondary" onClick={load} data-track="ui.6044c8feb6.2">
                 {tx('logistics.workspace.dataError.retry', 'Try again')}
               </button>
             </div>
@@ -95,7 +95,7 @@ export default function ShipmentsPage() {
               <div className="lx-empty-icon" aria-hidden="true">🚢</div>
               <p>{tx('logistics.shipments.empty', 'No shipments found.')}</p>
               {status && (
-                <button type="button" className="lx-action-secondary" onClick={() => setStatus('')}>
+                <button type="button" className="lx-action-secondary" onClick={() => setStatus('')} data-track="ui.6044c8feb6.3">
                   {tx('logistics.hub.clearFilters', 'Clear filters')}
                 </button>
               )}
@@ -145,7 +145,7 @@ export default function ShipmentsPage() {
                     <button
                       type="button"
                       className="lx-action-ghost lx-mt-6"
-                      onClick={(e) => { e.stopPropagation(); setPreviewId(s.id); }}
+                      onClick={(e) => { e.stopPropagation(); setPreviewId(s.id); }} data-track="ui.6044c8feb6.4"
                     >
                       {t('logistics.tables.preview')}
                     </button>

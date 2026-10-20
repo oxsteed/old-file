@@ -35,7 +35,7 @@ export function MediaGuestGateProvider({ children }) {
       {open && (
         <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
           <div className="media-verification-form" role="dialog" aria-modal="true" aria-labelledby="media-guest-sign-in-title">
-            <button type="button" className="media-dialog-close" onClick={() => setOpen(false)} aria-label={t('media.shell.close')}>
+            <button type="button" className="media-dialog-close" onClick={() => setOpen(false)} aria-label={t('media.shell.close')} data-track="ui.58c7594604.1">
               <span aria-hidden="true">×</span>
             </button>
             <h2 id="media-guest-sign-in-title">{t('media.guestSignIn.title')}</h2>
@@ -44,7 +44,7 @@ export function MediaGuestGateProvider({ children }) {
               <Link to="/login" state={{ from: returnTo }} className="media-primary-button" onClick={() => setOpen(false)}>
                 {t('media.guestSignIn.signIn')}
               </Link>
-              <button type="button" className="media-text-button" onClick={() => setOpen(false)}>
+              <button type="button" className="media-text-button" onClick={() => setOpen(false)} data-track="ui.58c7594604.2">
                 {t('media.guestSignIn.cancel')}
               </button>
             </div>

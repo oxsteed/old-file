@@ -137,25 +137,25 @@ export default function EscrowPolicyPage() {
                 {t(pk('onThisPage'))}
               </p>
               <nav className="flex flex-col gap-2 text-sm">
-                <a href="#mechanism" className="text-gray-400 hover:text-emerald-400 transition">
+                <a href="#mechanism" className="text-gray-400 hover:text-emerald-400 transition" data-track="ui.83bc429df3.1">
                   {t(pk('sections.mechanism'))}
                 </a>
-                <a href="#authorization" className="text-gray-400 hover:text-emerald-400 transition">
+                <a href="#authorization" className="text-gray-400 hover:text-emerald-400 transition" data-track="ui.83bc429df3.2">
                   {t(pk('sections.authorization'))}
                 </a>
-                <a href="#ownership" className="text-gray-400 hover:text-emerald-400 transition">
+                <a href="#ownership" className="text-gray-400 hover:text-emerald-400 transition" data-track="ui.83bc429df3.3">
                   {t(pk('sections.ownership'))}
                 </a>
-                <a href="#liability" className="text-gray-400 hover:text-emerald-400 transition">
+                <a href="#liability" className="text-gray-400 hover:text-emerald-400 transition" data-track="ui.83bc429df3.4">
                   {t(pk('sections.liability'))}
                 </a>
-                <a href="#release" className="text-gray-400 hover:text-emerald-400 transition">
+                <a href="#release" className="text-gray-400 hover:text-emerald-400 transition" data-track="ui.83bc429df3.5">
                   {t(pk('sections.release'))}
                 </a>
-                <a href="#timeline" className="text-gray-400 hover:text-emerald-400 transition">
+                <a href="#timeline" className="text-gray-400 hover:text-emerald-400 transition" data-track="ui.83bc429df3.6">
                   {t(pk('sections.timeline'))}
                 </a>
-                <a href="#faqs" className="text-gray-400 hover:text-emerald-400 transition">
+                <a href="#faqs" className="text-gray-400 hover:text-emerald-400 transition" data-track="ui.83bc429df3.7">
                   {t(pk('sections.faqs'))}
                 </a>
               </nav>
@@ -414,7 +414,7 @@ export default function EscrowPolicyPage() {
                     >
                       <button
                         onClick={() => setExpandedFAQ(expandedFAQ === index ? null : index)}
-                        className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-800/50 transition text-left"
+                        className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-800/50 transition text-left" data-track="ui.83bc429df3.8"
                       >
                         <h4 className="font-semibold text-white">
                           {highlightText(faq.q)}
@@ -450,7 +450,7 @@ export default function EscrowPolicyPage() {
                       type="checkbox"
                       checked={acceptanceChecked}
                       onChange={(e) => setAcceptanceChecked(e.target.checked)}
-                      className="w-5 h-5 rounded border-gray-600 text-emerald-600 focus:ring-2 focus:ring-emerald-400 mt-0.5"
+                      className="w-5 h-5 rounded border-gray-600 text-emerald-600 focus:ring-2 focus:ring-emerald-400 mt-0.5" data-track="ui.83bc429df3.9"
                     />
                     <span className="text-gray-300">
                       {highlightText(t(pk('acceptance.checkbox')))}
@@ -460,14 +460,14 @@ export default function EscrowPolicyPage() {
                   {acceptanceChecked && !showSignature && (
                     <button
                       onClick={() => setShowSignature(true)}
-                      className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition w-full"
+                      className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition w-full" data-track="ui.83bc429df3.10"
                     >
                       {t(pk('acceptance.signBtn'))}
                     </button>
                   )}
 
                   {showSignature && (
-                    <form onSubmit={handleSignatureSubmit} className="space-y-4 p-6 bg-gray-800/50 rounded-lg border border-gray-700">
+                    <form onSubmit={handleSignatureSubmit} className="space-y-4 p-6 bg-gray-800/50 rounded-lg border border-gray-700" data-track="ui.83bc429df3.11">
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">
                           {t(pk('acceptance.form.signature'))}
@@ -487,14 +487,14 @@ export default function EscrowPolicyPage() {
                       <div className="flex gap-3">
                         <button
                           type="submit"
-                          className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-semibold transition"
+                          className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-semibold transition" data-track="ui.83bc429df3.12"
                         >
                           {t(pk('acceptance.form.submit'))}
                         </button>
                         <button
                           type="button"
                           onClick={() => setShowSignature(false)}
-                          className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded font-semibold transition"
+                          className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded font-semibold transition" data-track="ui.83bc429df3.13"
                         >
                           {t('common.cancel')}
                         </button>
@@ -522,7 +522,7 @@ export default function EscrowPolicyPage() {
                 </p>
                 <a
                   href="/support/escalation"
-                  className="inline-block px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition"
+                  className="inline-block px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition" data-track="ui.83bc429df3.14"
                 >
                   {t(pk('contactSupport.btn'))}
                 </a>

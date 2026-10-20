@@ -1,0 +1,220 @@
+{
+  "sections": {
+    "1": {
+      "search": "1. Giriş OxSteed LLC, yerel hizmet listeleri, iş ve teklifler, işletme çalışma alanları, yemek siparişi, teslimat, medya ve ilgili hesap ve ödeme araçları sunar. Bu politika, misafir iletişimi ve destek dahil olmak üzere bu özellikleri kullanırken işlenen bilgileri açıklar. Kullanılabilirlik; özelliğe, hesaba, bölgeye ve hizmet sağlayıcıya bağlıdır.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "1. Giriş"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed LLC, yerel hizmet listeleri, iş ve teklifler, işletme çalışma alanları, yemek siparişi, teslimat, medya ve ilgili hesap ve ödeme araçları sunar. Bu politika, misafir iletişimi ve destek dahil olmak üzere bu özellikleri kullanırken işlenen bilgileri açıklar. Kullanılabilirlik; özelliğe, hesaba, bölgeye ve hizmet sağlayıcıya bağlıdır."
+        }
+      ]
+    },
+    "2": {
+      "search": "2. Topladığımız Bilgiler Sağladığınız bilgileri işleriz: iletişim ve hesap bilgileri, profil ve işletme bilgileri, iş ve sipariş detayları, mesajlar, destek talepleri, incelemeler, yüklenen medya, ödeme kayıtları ve gerektiğinde doğrulama bilgileri. Ayrıca; IP adresleri, tarayıcı bilgileri, güvenlik günlükleri ve onaylanmış kullanım olayları gibi cihaz ve istek bilgilerini de işleriz. Konum; girdiğiniz bir adresten, profilinizden veya cihaz izninden gelebilir. Ödeme sağlayıcıları ödeme kimlik bilgilerini doğrudan toplayabilir.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "2. Topladığımız Bilgiler"
+        },
+        {
+          "type": "p",
+          "text": "Sağladığınız bilgileri işleriz: iletişim ve hesap bilgileri, profil ve işletme bilgileri, iş ve sipariş detayları, mesajlar, destek talepleri, incelemeler, yüklenen medya, ödeme kayıtları ve gerektiğinde doğrulama bilgileri. Ayrıca; IP adresleri, tarayıcı bilgileri, güvenlik günlükleri ve onaylanmış kullanım olayları gibi cihaz ve istek bilgilerini de işleriz. Konum; girdiğiniz bir adresten, profilinizden veya cihaz izninden gelebilir. Ödeme sağlayıcıları ödeme kimlik bilgilerini doğrudan toplayabilir."
+        }
+      ]
+    },
+    "3": {
+      "search": "3. Bilgilerinizi Nasıl Kullanıyoruz Bilgileri; hesapları ve çalışma alanlarını işletmek; işleri ve hizmetleri eşleştirmek; siparişleri yerine getirmek; mesajları ve bildirimleri iletmek; ödemeleri işlemek ve mutabakatını yapmak; destek, uyuşmazlık ve gizlilik taleplerini ele almak; kötüye kullanımı önlemek; ve yasal yükümlülükleri yerine getirmek için kullanırız. İsteğe bağlı analitik, kullanımı anlamamıza yardımcı olur. Yapay zeka destekli özellikleri kullanırsanız, isteminiz ve ilgili özellik bağlamı bir yanıt üretmek üzere yapılandırılmış yapay zeka sağlayıcısına gönderilebilir. Gereksiz hassas bilgi göndermekten kaçının; yapay zeka çıktısı yanlış olabilir.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "3. Bilgilerinizi Nasıl Kullanıyoruz"
+        },
+        {
+          "type": "p",
+          "text": "Bilgileri; hesapları ve çalışma alanlarını işletmek; işleri ve hizmetleri eşleştirmek; siparişleri yerine getirmek; mesajları ve bildirimleri iletmek; ödemeleri işlemek ve mutabakatını yapmak; destek, uyuşmazlık ve gizlilik taleplerini ele almak; kötüye kullanımı önlemek; ve yasal yükümlülükleri yerine getirmek için kullanırız. İsteğe bağlı analitik, kullanımı anlamamıza yardımcı olur. Yapay zeka destekli özellikleri kullanırsanız, isteminiz ve ilgili özellik bağlamı bir yanıt üretmek üzere yapılandırılmış yapay zeka sağlayıcısına gönderilebilir. Gereksiz hassas bilgi göndermekten kaçının; yapay zeka çıktısı yanlış olabilir."
+        }
+      ]
+    },
+    "4": {
+      "search": "4. Bilgilerinizi Nasıl Paylaşıyoruz Bilgiler; talep ettiğiniz hizmeti sağlamak için gerekli katılımcılara ve işletmelere, yetkili personele ve ödemeler, barındırma ve depolama, içerik dağıtımı ve güvenlik, e-posta veya diğer bildirimler, haritalar ve yapay zeka özellikleri için hizmet sağlayıcılara açıklanır. Entegrasyonlar Stripe ve Cloudflare'i içerir; diğer sağlayıcılar özelliğe ve yapılandırmaya bağlıdır. Herkese açık profiller, ilanlar, incelemeler ve yayınlanan medya, amaçlanan hedef kitlesine görünür. Yasal açıklamalar ve ticari devirler de paylaşmayı gerektirebilir. İsteğe bağlı analitik veya reklam entegrasyonları Çerez Politikasında açıklanmıştır.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "4. Bilgilerinizi Nasıl Paylaşıyoruz"
+        },
+        {
+          "type": "p",
+          "text": "Bilgiler; talep ettiğiniz hizmeti sağlamak için gerekli katılımcılara ve işletmelere, yetkili personele ve ödemeler, barındırma ve depolama, içerik dağıtımı ve güvenlik, e-posta veya diğer bildirimler, haritalar ve yapay zeka özellikleri için hizmet sağlayıcılara açıklanır. Entegrasyonlar Stripe ve Cloudflare'i içerir; diğer sağlayıcılar özelliğe ve yapılandırmaya bağlıdır. Herkese açık profiller, ilanlar, incelemeler ve yayınlanan medya, amaçlanan hedef kitlesine görünür. Yasal açıklamalar ve ticari devirler de paylaşmayı gerektirebilir. İsteğe bağlı analitik veya reklam entegrasyonları Çerez Politikasında açıklanmıştır."
+        }
+      ]
+    },
+    "5": {
+      "search": "5. Adres Gizliliği ve Veri Maskeleme İş konumu görünürlüğü; rolünüze, atamanıza, programınıza ve geçerli erişim kontrollerine bağlıdır. Sipariş ve teslimat detayları, yerine getirme için bunlara ihtiyaç duyan işletme ve katılımcılarla paylaşılır. Herkese açık açıklamalara, fotoğraflara, incelemelere veya medyaya koyduğunuz bilgiler, yapılandırılmış adres alanları kısıtlanmış olsa bile bir adresi ortaya çıkarabilir. Herkese açık içerikte özel adresler veya erişim talimatları yayınlamayın.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "5. Adres Gizliliği ve Veri Maskeleme"
+        },
+        {
+          "type": "p",
+          "text": "İş konumu görünürlüğü; rolünüze, atamanıza, programınıza ve geçerli erişim kontrollerine bağlıdır. Sipariş ve teslimat detayları, yerine getirme için bunlara ihtiyaç duyan işletme ve katılımcılarla paylaşılır. Herkese açık açıklamalara, fotoğraflara, incelemelere veya medyaya koyduğunuz bilgiler, yapılandırılmış adres alanları kısıtlanmış olsa bile bir adresi ortaya çıkarabilir. Herkese açık içerikte özel adresler veya erişim talimatları yayınlamayın."
+        }
+      ]
+    },
+    "6": {
+      "search": "6. Veri Saklama Saklama süresi kayda ve amaca göre değişir. Hesap, sipariş, mesaj, güvenlik ve medya kayıtlarının yaşam döngüleri farklıdır. Finansal defterler, ödeme ve mutabakat kayıtları, onay kanıtları ve denetim geçmişi; muhasebe, uyuşmazlıklar, dolandırıcılık önleme ve yasal yükümlülükler için hesap kapatıldıktan sonra da kalabilir. Silme; aktif işler, tutulan fonlar, uyuşmazlıklar, gerekli denetim kanıtları veya yedekleme yaşam döngüleri nedeniyle gecikebilir. Bir hesabın kapatılmasının her kaydı veya üçüncü taraf kopyasını derhal sileceğini taahhüt etmiyoruz.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "6. Veri Saklama"
+        },
+        {
+          "type": "p",
+          "text": "Saklama süresi kayda ve amaca göre değişir. Hesap, sipariş, mesaj, güvenlik ve medya kayıtlarının yaşam döngüleri farklıdır. Finansal defterler, ödeme ve mutabakat kayıtları, onay kanıtları ve denetim geçmişi; muhasebe, uyuşmazlıklar, dolandırıcılık önleme ve yasal yükümlülükler için hesap kapatıldıktan sonra da kalabilir. Silme; aktif işler, tutulan fonlar, uyuşmazlıklar, gerekli denetim kanıtları veya yedekleme yaşam döngüleri nedeniyle gecikebilir. Bir hesabın kapatılmasının her kaydı veya üçüncü taraf kopyasını derhal sileceğini taahhüt etmiyoruz."
+        }
+      ]
+    },
+    "7": {
+      "search": "7. Haklarınız Geçerli yasaya bağlı olarak; erişim, düzeltme, silme, taşınabilirlik, hassas bilgilerin kullanımına sınırlama veya satış, paylaşım veya hedefli reklamcılıktan vazgeçme talebinde bulunabilirsiniz. privacy@oxsteed.com adresiyle iletişime geçebilir veya oturum açmadan /do-not-sell sayfasını kullanabilirsiniz. Erişim veya silme için kimliğinizi doğrulayabilir ve geçerli istisnaları açıklayabiliriz. Talepleri geçerli yasal süreler içinde ele alacağız ve gizlilik haklarınızı kullandığınız için ayrımcılık yapmayacağız.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "7. Haklarınız"
+        },
+        {
+          "type": "p",
+          "text": "Geçerli yasaya bağlı olarak; erişim, düzeltme, silme, taşınabilirlik, hassas bilgilerin kullanımına sınırlama veya satış, paylaşım veya hedefli reklamcılıktan vazgeçme talebinde bulunabilirsiniz. privacy@oxsteed.com adresiyle iletişime geçebilir veya oturum açmadan /do-not-sell sayfasını kullanabilirsiniz. Erişim veya silme için kimliğinizi doğrulayabilir ve geçerli istisnaları açıklayabiliriz. Talepleri geçerli yasal süreler içinde ele alacağız ve gizlilik haklarınızı kullandığınız için ayrımcılık yapmayacağız."
+        }
+      ]
+    },
+    "8": {
+      "search": "8. Çerezler ve İzleme Teknolojileri Temel çerezler ve tarayıcı depolaması; oturum açmayı, güvenliği, onay seçimlerini ve talep edilen özellikleri destekler. Çerezleri Yönet, bu tarayıcıdaki isteğe bağlı analitik, pazarlama ve ek işlevsel entegrasyonları kontrol eder. Analitik; birinci taraf sayfa görüntüleme olaylarını ve Google Analytics'i içerebilir; pazarlama, yapılandırıldığında Meta Pixel'i içerebilir. Temel ayarlar ve taslaklar, isteğe bağlı entegrasyonlardan bağımsız olarak tarayıcı depolamasını kullanabilir. Kontroller ve sınırlamalar için Çerez Politikasına bakın.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "8. Çerezler ve İzleme Teknolojileri"
+        },
+        {
+          "type": "p",
+          "text": "Temel çerezler ve tarayıcı depolaması; oturum açmayı, güvenliği, onay seçimlerini ve talep edilen özellikleri destekler. Çerezleri Yönet, bu tarayıcıdaki isteğe bağlı analitik, pazarlama ve ek işlevsel entegrasyonları kontrol eder. Analitik; birinci taraf sayfa görüntüleme olaylarını ve Google Analytics'i içerebilir; pazarlama, yapılandırıldığında Meta Pixel'i içerebilir. Temel ayarlar ve taslaklar, isteğe bağlı entegrasyonlardan bağımsız olarak tarayıcı depolamasını kullanabilir. Kontroller ve sınırlamalar için Çerez Politikasına bakın."
+        }
+      ]
+    },
+    "9": {
+      "search": "9. Veri Güvenliği ve İhlal Bildirimi Erişim kontrolleri, parola özetleme, oturum korumaları, doğrulama, hız sınırları ve güvenlik günlük kaydı kullanırız. Hiçbir sistem tamamen güvenli değildir. Kapsam; hizmete ve yapılandırmaya bağlıdır; bu politika her veri deposunu veya üçüncü taraf hizmetini onaylamaz. Bir olay bildirim gerektiriyorsa, etkilenen kişileri ve yetkilileri geçerli yasanın gerektirdiği şekilde bilgilendireceğiz. Raporlama rehberi için /security sayfasına bakın.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "9. Veri Güvenliği ve İhlal Bildirimi"
+        },
+        {
+          "type": "p",
+          "text": "Erişim kontrolleri, parola özetleme, oturum korumaları, doğrulama, hız sınırları ve güvenlik günlük kaydı kullanırız. Hiçbir sistem tamamen güvenli değildir. Kapsam; hizmete ve yapılandırmaya bağlıdır; bu politika her veri deposunu veya üçüncü taraf hizmetini onaylamaz. Bir olay bildirim gerektiriyorsa, etkilenen kişileri ve yetkilileri geçerli yasanın gerektirdiği şekilde bilgilendireceğiz. Raporlama rehberi için /security sayfasına bakın."
+        }
+      ]
+    },
+    "10": {
+      "search": "10. Hesap Silme Hesabınızın silinmesini mevcut hesap ayarları veya privacy@oxsteed.com üzerinden talep edin. Silme; gerekli işlem ve denetim kayıtları saklanırken kişisel alanları kaldırabilir veya anonimleştirebilir. Aktif yükümlülüklerin önce çözülmesi gerekebilir. Diğer kullanıcılar veya sağlayıcılar tarafından zaten alınmış kopyalar kendi yükümlülüklerine tabidir. Talebinizin kapsamı ve durumu için bizimle iletişime geçin.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "10. Hesap Silme"
+        },
+        {
+          "type": "p",
+          "text": "Hesabınızın silinmesini mevcut hesap ayarları veya privacy@oxsteed.com üzerinden talep edin. Silme; gerekli işlem ve denetim kayıtları saklanırken kişisel alanları kaldırabilir veya anonimleştirebilir. Aktif yükümlülüklerin önce çözülmesi gerekebilir. Diğer kullanıcılar veya sağlayıcılar tarafından zaten alınmış kopyalar kendi yükümlülüklerine tabidir. Talebinizin kapsamı ve durumu için bizimle iletişime geçin."
+        }
+      ]
+    },
+    "11": {
+      "search": "11 çocuk gizliliği 18 yaş altı küçükler",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "11. Çocukların Gizliliği"
+        },
+        {
+          "type": "p",
+          "segments": [
+            "OxSteed, 18 yaşından küçük herhangi biri tarafından kullanılmak üzere tasarlanmamıştır. Bilerek 18 yaşından küçük çocuklardan kişisel bilgi toplamıyoruz. 18 yaşından küçük bir çocuktan kişisel bilgi topladığımızı fark edersek, bunları derhal sileceğiz. 18 yaşından küçük bir çocuğun bize kişisel bilgi verdiğine inanıyorsanız, ",
+            {
+              "mailto": "legal@oxsteed.com"
+            },
+            " adresinden bizimle iletişime geçin."
+          ]
+        }
+      ]
+    },
+    "12": {
+      "search": "12 değişiklikler gizlilik politikası e-posta 14 gün güncellendi",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "12. Bu Gizlilik Politikasında Yapılacak Değişiklikler"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed bu Gizlilik Politikasını herhangi bir zamanda güncelleyebilir. Esaslı değişikliklerden kullanıcıları, değişiklikler yürürlüğe girmeden en az 14 gün önce e-posta ile bilgilendireceğiz. Bu sayfanın üst kısmındaki \"Son güncelleme\" tarihi en son revizyonu yansıtır."
+        }
+      ]
+    },
+    "13": {
+      "search": "13 bize ulaşın springfield legal@oxsteed.com",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "13. Bize Ulaşın"
+        },
+        {
+          "type": "p",
+          "text": "Bu Gizlilik Politikası hakkında sorularınız için veya gizlilik haklarınızı kullanmak için bizimle şu adresten iletişime geçin:"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed LLC"
+        },
+        {
+          "type": "p",
+          "text": "Springfield, Ohio"
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "mailto": "legal@oxsteed.com"
+            }
+          ]
+        }
+      ]
+    },
+    "14": {
+      "search": "Etkinlik, teklifler ve iş ortağı bağlantıları Bildirim süresinden sonra sayfa görüntüleme, düğme seçimi, arama ve pazar işlemlerini kaydederiz. Talebi anlamak ve teklif seçmek için kişisel koordinatlar yerine posta kodu merkezlerini kullanırız. Personel her kampanyayı onaylar. Yapay zekâ yalnızca OxSteed denetimindeki sunucularda çalışır. AEA, Birleşik Krallık, İsviçre ve Québec’te izleme ile etkinliğe dayalı teklifler için ayrı, ayarlardan geri alınabilir izinler gerekir. İlgili ABD eyaletlerinde satış veya paylaşımı reddetme ve Global Privacy Control geçerlidir. Diğer bölgelerde analiz ayarı Google Analytics ve kalıcı cihaz depolamasını kontrol eder; etkinlik bu bildirim kapsamındadır. Ayrıntılı etkinlik en fazla 90 gün, izne dayalıysa 30 gün; hesap özetleri 13 ay saklanır. Ortaklar yalnızca rastgele tıklama kodu alır; ad, e-posta veya etkinlik almaz. Oradaki alımlara ortağın politikası uygulanır. Teklif bildirimleri ayrı izin gerektirir ve Ayarlar → Gizlilik’ten kapatılabilir. Fiyatlar, erişim ve arama sıralaması değişmez. Promote giriş yapmış ziyaretçiyi hesap koduyla yedi gün ilişkilendirebilir. Erişim, düzeltme veya silme: privacy@oxsteed.com.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "14. Etkinlik, teklifler ve iş ortağı bağlantıları"
+        },
+        {
+          "type": "p",
+          "text": "Bildirim süresinden sonra sayfa görüntüleme, düğme seçimi, arama ve pazar işlemlerini kaydederiz. Talebi anlamak ve teklif seçmek için kişisel koordinatlar yerine posta kodu merkezlerini kullanırız. Personel her kampanyayı onaylar. Yapay zekâ yalnızca OxSteed denetimindeki sunucularda çalışır."
+        },
+        {
+          "type": "p",
+          "text": "AEA, Birleşik Krallık, İsviçre ve Québec’te izleme ile etkinliğe dayalı teklifler için ayrı, ayarlardan geri alınabilir izinler gerekir. İlgili ABD eyaletlerinde satış veya paylaşımı reddetme ve Global Privacy Control geçerlidir. Diğer bölgelerde analiz ayarı Google Analytics ve kalıcı cihaz depolamasını kontrol eder; etkinlik bu bildirim kapsamındadır."
+        },
+        {
+          "type": "p",
+          "text": "Ayrıntılı etkinlik en fazla 90 gün, izne dayalıysa 30 gün; hesap özetleri 13 ay saklanır. Ortaklar yalnızca rastgele tıklama kodu alır; ad, e-posta veya etkinlik almaz. Oradaki alımlara ortağın politikası uygulanır."
+        },
+        {
+          "type": "p",
+          "text": "Teklif bildirimleri ayrı izin gerektirir ve Ayarlar → Gizlilik’ten kapatılabilir. Fiyatlar, erişim ve arama sıralaması değişmez. Promote giriş yapmış ziyaretçiyi hesap koduyla yedi gün ilişkilendirebilir. Erişim, düzeltme veya silme: privacy@oxsteed.com."
+        }
+      ]
+    }
+  }
+}

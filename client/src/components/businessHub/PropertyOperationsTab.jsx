@@ -261,7 +261,7 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
         <Section
           title={t('businessHub.propertyOps.followUpQueue.title')}
           subtitle={t('businessHub.propertyOps.followUpQueue.subtitle')}
-          actions={<button type="button" className="bh-btn" onClick={() => onRefresh?.()}>{t('businessHub.propertyOps.common.refresh')}</button>}
+          actions={<button type="button" className="bh-btn" onClick={() => onRefresh?.()} data-track="ui.4e4f008510.1">{t('businessHub.propertyOps.common.refresh')}</button>}
         >
           {followUps.length === 0 ? (
             <div className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4 text-sm text-gray-400">
@@ -290,7 +290,7 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
           title={t('businessHub.propertyOps.recentWorkflow.title')}
           subtitle={t('businessHub.propertyOps.recentWorkflow.subtitle')}
           actions={(
-            <button type="button" className="bh-btn" onClick={() => onJumpTab?.('maintenance')}>
+            <button type="button" className="bh-btn" onClick={() => onJumpTab?.('maintenance')} data-track="ui.4e4f008510.2">
               {t('businessHub.propertyOps.recentWorkflow.openMaintenance')}
             </button>
           )}
@@ -320,7 +320,7 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
       <Section
         title={t('businessHub.propertyOps.settings.title')}
         subtitle={t('businessHub.propertyOps.settings.subtitle')}
-        actions={<button type="button" className="bh-btn primary" onClick={handleSaveSettings} disabled={savingSettings}>{savingSettings ? t('businessHub.propertyOps.common.saving') : t('businessHub.propertyOps.common.saveSettings')}</button>}
+        actions={<button type="button" className="bh-btn primary" onClick={handleSaveSettings} disabled={savingSettings} data-track="ui.4e4f008510.3">{savingSettings ? t('businessHub.propertyOps.common.saving') : t('businessHub.propertyOps.common.saveSettings')}</button>}
       >
         <div className="grid gap-4 md:grid-cols-2">
           <Input label={t('businessHub.propertyOps.settings.emergencyPhone')}>
@@ -363,7 +363,7 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         <Section title={t('businessHub.propertyOps.units.title')} subtitle={t('businessHub.propertyOps.units.subtitle')}>
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSaveUnit}>
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSaveUnit} data-track="ui.4e4f008510.4">
             <Input label={t('businessHub.propertyOps.units.propertyLabel')}><TextInput value={unitForm.property_label} onChange={(e) => setUnitForm((current) => ({ ...current, property_label: e.target.value }))} /></Input>
             <Input label={t('businessHub.propertyOps.units.unit')}><TextInput value={unitForm.unit_label} onChange={(e) => setUnitForm((current) => ({ ...current, unit_label: e.target.value }))} /></Input>
             <Input label={t('businessHub.propertyOps.units.propertyType')}><TextInput value={unitForm.property_type} onChange={(e) => setUnitForm((current) => ({ ...current, property_type: e.target.value }))} /></Input>
@@ -381,8 +381,8 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
             <Input label={t('businessHub.propertyOps.units.accessSummary')} wide><TextArea rows={2} value={unitForm.access_summary} onChange={(e) => setUnitForm((current) => ({ ...current, access_summary: e.target.value }))} /></Input>
             <Input label={t('businessHub.propertyOps.units.notes')} wide><TextArea rows={2} value={unitForm.notes} onChange={(e) => setUnitForm((current) => ({ ...current, notes: e.target.value }))} /></Input>
             <div className="md:col-span-2 flex gap-3">
-              <button className="bh-btn primary" type="submit">{editingUnitId ? t('businessHub.propertyOps.units.updateUnit') : t('businessHub.propertyOps.units.addUnit')}</button>
-              {editingUnitId ? <button className="bh-btn" type="button" onClick={() => { setEditingUnitId(null); setUnitForm(EMPTY_UNIT); }}>{t('businessHub.propertyOps.common.cancel')}</button> : null}
+              <button className="bh-btn primary" type="submit" data-track="ui.4e4f008510.5">{editingUnitId ? t('businessHub.propertyOps.units.updateUnit') : t('businessHub.propertyOps.units.addUnit')}</button>
+              {editingUnitId ? <button className="bh-btn" type="button" onClick={() => { setEditingUnitId(null); setUnitForm(EMPTY_UNIT); }} data-track="ui.4e4f008510.6">{t('businessHub.propertyOps.common.cancel')}</button> : null}
             </div>
           </form>
           <div className="mt-5 space-y-3">
@@ -395,8 +395,8 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
                     {unit.access_summary ? <p className="mt-2 text-sm leading-6 text-gray-400">{unit.access_summary}</p> : null}
                   </div>
                   <div className="flex gap-2">
-                    <button className="bh-btn sm" type="button" onClick={() => { setEditingUnitId(unit.id); setUnitForm({ ...EMPTY_UNIT, ...unit }); }}>{t('businessHub.propertyOps.common.edit')}</button>
-                    <button className="bh-btn sm danger" type="button" onClick={async () => { if (!window.confirm(t('businessHub.propertyOps.confirms.deleteUnit'))) return; await deletePropertyUnit(businessId, unit.id); toast.success(t('businessHub.propertyOps.toasts.unitDeleted')); await onRefresh?.(); }}>{t('businessHub.propertyOps.common.delete')}</button>
+                    <button className="bh-btn sm" type="button" onClick={() => { setEditingUnitId(unit.id); setUnitForm({ ...EMPTY_UNIT, ...unit }); }} data-track="ui.4e4f008510.7">{t('businessHub.propertyOps.common.edit')}</button>
+                    <button className="bh-btn sm danger" type="button" onClick={async () => { if (!window.confirm(t('businessHub.propertyOps.confirms.deleteUnit'))) return; await deletePropertyUnit(businessId, unit.id); toast.success(t('businessHub.propertyOps.toasts.unitDeleted')); await onRefresh?.(); }} data-track="ui.4e4f008510.8">{t('businessHub.propertyOps.common.delete')}</button>
                   </div>
                 </div>
               </div>
@@ -405,7 +405,7 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
         </Section>
 
         <Section title={t('businessHub.propertyOps.packages.title')} subtitle={t('businessHub.propertyOps.packages.subtitle')}>
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSavePackage}>
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSavePackage} data-track="ui.4e4f008510.9">
             <Input label={t('businessHub.propertyOps.packages.packageName')}><TextInput value={packageForm.name} onChange={(e) => setPackageForm((current) => ({ ...current, name: e.target.value }))} /></Input>
             <Input label={t('businessHub.propertyOps.packages.pricingModel')}><Select value={packageForm.pricing_model} onChange={(e) => setPackageForm((current) => ({ ...current, pricing_model: e.target.value }))}><option value="flat">{t('businessHub.propertyOps.options.pricingModel.flat')}</option><option value="hourly">{t('businessHub.propertyOps.options.pricingModel.hourly')}</option><option value="inspection">{t('businessHub.propertyOps.options.pricingModel.inspection')}</option><option value="turnover">{t('businessHub.propertyOps.options.pricingModel.turnover')}</option><option value="retainer">{t('businessHub.propertyOps.options.pricingModel.retainer')}</option></Select></Input>
             <Input label={t('businessHub.propertyOps.packages.billTo')}><Select value={packageForm.bill_to_party} onChange={(e) => setPackageForm((current) => ({ ...current, bill_to_party: e.target.value }))}><option value="owner">{t('businessHub.propertyOps.options.billTo.owner')}</option><option value="tenant">{t('businessHub.propertyOps.options.billTo.tenant')}</option><option value="hoa">HOA</option><option value="internal">{t('businessHub.propertyOps.options.billTo.internal')}</option></Select></Input>
@@ -415,8 +415,8 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
             <Input label={t('businessHub.propertyOps.packages.descriptionLabel')} wide><TextArea rows={2} value={packageForm.description} onChange={(e) => setPackageForm((current) => ({ ...current, description: e.target.value }))} /></Input>
             <Input label={t('businessHub.propertyOps.packages.includes')} wide><TextInput value={packageForm.includes} onChange={(e) => setPackageForm((current) => ({ ...current, includes: e.target.value }))} placeholder={t('businessHub.propertyOps.packages.includesPlaceholder')} /></Input>
             <div className="md:col-span-2 flex gap-3">
-              <button className="bh-btn primary" type="submit">{editingPackageId ? t('businessHub.propertyOps.packages.updatePackage') : t('businessHub.propertyOps.packages.addPackage')}</button>
-              {editingPackageId ? <button className="bh-btn" type="button" onClick={() => { setEditingPackageId(null); setPackageForm(EMPTY_PACKAGE); }}>{t('businessHub.propertyOps.common.cancel')}</button> : null}
+              <button className="bh-btn primary" type="submit" data-track="ui.4e4f008510.10">{editingPackageId ? t('businessHub.propertyOps.packages.updatePackage') : t('businessHub.propertyOps.packages.addPackage')}</button>
+              {editingPackageId ? <button className="bh-btn" type="button" onClick={() => { setEditingPackageId(null); setPackageForm(EMPTY_PACKAGE); }} data-track="ui.4e4f008510.11">{t('businessHub.propertyOps.common.cancel')}</button> : null}
             </div>
           </form>
           <div className="mt-5 space-y-3">
@@ -433,8 +433,8 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
                     {item.description ? <p className="mt-2 text-sm leading-6 text-gray-400">{item.description}</p> : null}
                   </div>
                   <div className="flex gap-2">
-                    <button className="bh-btn sm" type="button" onClick={() => { setEditingPackageId(item.id); setPackageForm({ ...EMPTY_PACKAGE, ...item, includes: (item.includes || []).join(', ') }); }}>{t('businessHub.propertyOps.common.edit')}</button>
-                    <button className="bh-btn sm danger" type="button" onClick={async () => { if (!window.confirm(t('businessHub.propertyOps.confirms.deletePackage'))) return; await deletePropertyPackage(businessId, item.id); toast.success(t('businessHub.propertyOps.toasts.packageDeleted')); await onRefresh?.(); }}>{t('businessHub.propertyOps.common.delete')}</button>
+                    <button className="bh-btn sm" type="button" onClick={() => { setEditingPackageId(item.id); setPackageForm({ ...EMPTY_PACKAGE, ...item, includes: (item.includes || []).join(', ') }); }} data-track="ui.4e4f008510.12">{t('businessHub.propertyOps.common.edit')}</button>
+                    <button className="bh-btn sm danger" type="button" onClick={async () => { if (!window.confirm(t('businessHub.propertyOps.confirms.deletePackage'))) return; await deletePropertyPackage(businessId, item.id); toast.success(t('businessHub.propertyOps.toasts.packageDeleted')); await onRefresh?.(); }} data-track="ui.4e4f008510.13">{t('businessHub.propertyOps.common.delete')}</button>
                   </div>
                 </div>
               </div>
@@ -444,7 +444,7 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
       </div>
 
       <Section title={t('businessHub.propertyOps.compliance.title')} subtitle={t('businessHub.propertyOps.compliance.subtitle')}>
-        <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSaveCompliance}>
+        <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSaveCompliance} data-track="ui.4e4f008510.14">
           <Input label={t('businessHub.propertyOps.compliance.unit')}><Select value={complianceForm.unit_id} onChange={(e) => setComplianceForm((current) => ({ ...current, unit_id: e.target.value }))}><option value="">{t('businessHub.propertyOps.compliance.generalWholeProperty')}</option>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.property_label}{unit.unit_label ? ` · ${unit.unit_label}` : ''}</option>)}</Select></Input>
           <Input label={t('businessHub.propertyOps.compliance.recordType')}><TextInput value={complianceForm.record_type} onChange={(e) => setComplianceForm((current) => ({ ...current, record_type: e.target.value }))} /></Input>
           <Input label={t('businessHub.propertyOps.compliance.titleLabel')}><TextInput value={complianceForm.title} onChange={(e) => setComplianceForm((current) => ({ ...current, title: e.target.value }))} /></Input>
@@ -454,8 +454,8 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
           <Input label={t('businessHub.propertyOps.compliance.documentUrl')} wide><TextInput value={complianceForm.document_url} onChange={(e) => setComplianceForm((current) => ({ ...current, document_url: e.target.value }))} /></Input>
           <Input label={t('businessHub.propertyOps.compliance.notes')} wide><TextArea rows={2} value={complianceForm.notes} onChange={(e) => setComplianceForm((current) => ({ ...current, notes: e.target.value }))} /></Input>
           <div className="md:col-span-2 flex gap-3">
-            <button className="bh-btn primary" type="submit">{editingComplianceId ? t('businessHub.propertyOps.compliance.updateRecord') : t('businessHub.propertyOps.compliance.addRecord')}</button>
-            {editingComplianceId ? <button className="bh-btn" type="button" onClick={() => { setEditingComplianceId(null); setComplianceForm(EMPTY_COMPLIANCE); }}>{t('businessHub.propertyOps.common.cancel')}</button> : null}
+            <button className="bh-btn primary" type="submit" data-track="ui.4e4f008510.15">{editingComplianceId ? t('businessHub.propertyOps.compliance.updateRecord') : t('businessHub.propertyOps.compliance.addRecord')}</button>
+            {editingComplianceId ? <button className="bh-btn" type="button" onClick={() => { setEditingComplianceId(null); setComplianceForm(EMPTY_COMPLIANCE); }} data-track="ui.4e4f008510.16">{t('businessHub.propertyOps.common.cancel')}</button> : null}
           </div>
         </form>
         <div className="mt-5 space-y-3">
@@ -471,8 +471,8 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
                   <p className="mt-1 text-sm text-gray-400">{record.unit_property_label || t('businessHub.propertyOps.compliance.generalRecord')}{record.due_date ? ` · ${t('businessHub.propertyOps.compliance.duePrefix')} ${new Date(record.due_date).toLocaleDateString(locale)}` : ''}</p>
                 </div>
                 <div className="flex gap-2">
-                  <button className="bh-btn sm" type="button" onClick={() => { setEditingComplianceId(record.id); setComplianceForm({ ...EMPTY_COMPLIANCE, ...record, due_date: record.due_date ? String(record.due_date).slice(0, 10) : '' }); }}>{t('businessHub.propertyOps.common.edit')}</button>
-                  <button className="bh-btn sm danger" type="button" onClick={async () => { if (!window.confirm(t('businessHub.propertyOps.confirms.deleteRecord'))) return; await deletePropertyComplianceRecord(businessId, record.id); toast.success(t('businessHub.propertyOps.toasts.complianceDeleted')); await onRefresh?.(); }}>{t('businessHub.propertyOps.common.delete')}</button>
+                  <button className="bh-btn sm" type="button" onClick={() => { setEditingComplianceId(record.id); setComplianceForm({ ...EMPTY_COMPLIANCE, ...record, due_date: record.due_date ? String(record.due_date).slice(0, 10) : '' }); }} data-track="ui.4e4f008510.17">{t('businessHub.propertyOps.common.edit')}</button>
+                  <button className="bh-btn sm danger" type="button" onClick={async () => { if (!window.confirm(t('businessHub.propertyOps.confirms.deleteRecord'))) return; await deletePropertyComplianceRecord(businessId, record.id); toast.success(t('businessHub.propertyOps.toasts.complianceDeleted')); await onRefresh?.(); }} data-track="ui.4e4f008510.18">{t('businessHub.propertyOps.common.delete')}</button>
                 </div>
               </div>
             </div>

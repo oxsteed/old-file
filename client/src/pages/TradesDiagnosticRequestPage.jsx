@@ -177,7 +177,7 @@ export default function TradesDiagnosticRequestPage() {
           </div>
         </section>
 
-        <form className="mrq-grid" onSubmit={handleSubmit}>
+        <form className="mrq-grid" onSubmit={handleSubmit} data-track="ui.fde50c2e74.1">
           <section className="mrq-panel">
             <h2><Wrench size={18} /> {t('tradesRequest.sections.problemDetails')}</h2>
             <div className="mrq-field">
@@ -200,7 +200,7 @@ export default function TradesDiagnosticRequestPage() {
               <label>{t('tradesRequest.fields.urgency')}</label>
               <div className="mrq-segments">
                 {['emergency', 'urgent', 'normal', 'low'].map((value) => (
-                  <button key={value} type="button" className={form.urgency === value ? 'active' : ''} onClick={() => updateField('urgency', value)}>
+                  <button key={value} type="button" className={form.urgency === value ? 'active' : ''} onClick={() => updateField('urgency', value)} data-track="ui.fde50c2e74.2">
                     {t(`tradesRequest.urgency.${value}`)}
                   </button>
                 ))}
@@ -307,7 +307,7 @@ export default function TradesDiagnosticRequestPage() {
                   : t('tradesRequest.notes.emergencyFallback')}
               </p>
             </div>
-            <button className="mrq-btn primary submit" type="submit" disabled={submitting}>
+            <button className="mrq-btn primary submit" type="submit" disabled={submitting} data-track="ui.fde50c2e74.3">
               {submitting ? t('tradesRequest.actions.sending') : t('tradesRequest.actions.sendRequest')}
             </button>
           </section>

@@ -19,7 +19,7 @@ const FAQItem: React.FC<{ faq: FAQ; isOpen: boolean; onToggle: () => void }> = (
       onClick={onToggle}
       className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-start bg-gray-800/40 hover:bg-gray-800/70 transition-colors"
       aria-expanded={isOpen}
-      aria-controls={`faq-body-${faq.id}`}
+      aria-controls={`faq-body-${faq.id}`} data-track="ui.b781893181.1"
     >
       <span className="text-sm font-medium text-white">{faq.question}</span>
       <ChevronDown

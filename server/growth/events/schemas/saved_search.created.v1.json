@@ -1,0 +1,19 @@
+{
+  "$id": "saved_search.created.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "category": {
+      "type": "string",
+      "pattern": "^[a-z0-9_.-]{1,80}$"
+    },
+    "due_month": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}$"
+    },
+    "postal_ref": {
+      "type": "integer",
+      "minimum": 1
+    }
+  }
+}

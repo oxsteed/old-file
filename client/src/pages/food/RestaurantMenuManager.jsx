@@ -263,7 +263,7 @@ export default function RestaurantMenuManager({ t, restaurant }) {
           <Link className="fd-btn fd-btn-secondary" to={`/restaurants/r/${restaurant.id}`} target="_blank" rel="noreferrer">
             {t('food.menuManager.preview', 'Preview customer menu')}
           </Link>
-          <button type="button" className="fd-btn" onClick={() => setItemEditor({ item: null, form: blankItem() })}>
+          <button type="button" className="fd-btn" onClick={() => setItemEditor({ item: null, form: blankItem() })} data-track="ui.e0bc80ad9e.1">
             + {t('food.menuManager.addItem', 'Add item')}
           </button>
         </div>
@@ -276,17 +276,17 @@ export default function RestaurantMenuManager({ t, restaurant }) {
       </div>
 
       <div className="fd-menu-manager-tools">
-        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setCategoryEditor({ id: null, name: '', description: '', isActive: true })}>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setCategoryEditor({ id: null, name: '', description: '', isActive: true })} data-track="ui.e0bc80ad9e.2">
           + {t('food.merchant.addCategory', 'Add category')}
         </button>
-        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => csvInputRef.current?.click()}>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => csvInputRef.current?.click()} data-track="ui.e0bc80ad9e.3">
           {t('food.menuManager.importCsv', 'Import CSV')}
         </button>
-        <button type="button" className="fd-btn fd-btn-ghost fd-btn-sm" onClick={downloadTemplate}>
+        <button type="button" className="fd-btn fd-btn-ghost fd-btn-sm" onClick={downloadTemplate} data-track="ui.e0bc80ad9e.4">
           {t('food.menuManager.csvTemplate', 'Download template')}
         </button>
         <label className="fd-menu-manager-toggle">
-          <input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} />
+          <input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} data-track="ui.e0bc80ad9e.5" />
           {t('food.menuManager.showArchived', 'Show archived')}
         </label>
         <input ref={csvInputRef} type="file" accept=".csv,text/csv" hidden onChange={handleCsvImport} />
@@ -295,10 +295,10 @@ export default function RestaurantMenuManager({ t, restaurant }) {
       {selectedIds.size > 0 && (
         <div className="fd-menu-bulkbar" role="region" aria-label={t('food.menuManager.bulkActions', 'Bulk actions')}>
           <strong>{t('food.menuManager.selectedCount', '{{count}} selected', { count: selectedIds.size })}</strong>
-          <button type="button" onClick={() => applyBulk({ publicationStatus: 'published' }, t('food.menuManager.published', 'Items published'))}>{t('food.menuManager.publish', 'Publish')}</button>
-          <button type="button" onClick={() => applyBulk({ isAvailable: false }, t('food.menuManager.soldOutUpdated', 'Items marked sold out'))}>{t('food.merchant.markSoldOut', 'Mark sold out')}</button>
-          <button type="button" onClick={() => applyBulk({ archived: true }, t('food.menuManager.archived', 'Items archived'))}>{t('food.menuManager.archive', 'Archive')}</button>
-          <button type="button" onClick={() => setSelectedIds(new Set())}>{t('food.common.cancel', 'Cancel')}</button>
+          <button type="button" onClick={() => applyBulk({ publicationStatus: 'published' }, t('food.menuManager.published', 'Items published'))} data-track="ui.e0bc80ad9e.6">{t('food.menuManager.publish', 'Publish')}</button>
+          <button type="button" onClick={() => applyBulk({ isAvailable: false }, t('food.menuManager.soldOutUpdated', 'Items marked sold out'))} data-track="ui.e0bc80ad9e.7">{t('food.merchant.markSoldOut', 'Mark sold out')}</button>
+          <button type="button" onClick={() => applyBulk({ archived: true }, t('food.menuManager.archived', 'Items archived'))} data-track="ui.e0bc80ad9e.8">{t('food.menuManager.archive', 'Archive')}</button>
+          <button type="button" onClick={() => setSelectedIds(new Set())} data-track="ui.e0bc80ad9e.9">{t('food.common.cancel', 'Cancel')}</button>
         </div>
       )}
 
@@ -307,7 +307,7 @@ export default function RestaurantMenuManager({ t, restaurant }) {
           <span aria-hidden>🍽️</span>
           <h3>{t('food.menuManager.emptyTitle', 'Build your first menu')}</h3>
           <p>{t('food.menuManager.emptyBody', 'Create a category or add an item. Only the name and price are required.')}</p>
-          <button type="button" className="fd-btn" onClick={() => setItemEditor({ item: null, form: blankItem() })}>{t('food.menuManager.addFirst', 'Add first item')}</button>
+          <button type="button" className="fd-btn" onClick={() => setItemEditor({ item: null, form: blankItem() })} data-track="ui.e0bc80ad9e.10">{t('food.menuManager.addFirst', 'Add first item')}</button>
         </div>
       ) : sections.map((section, sectionIndex) => (
         <article key={section.id ?? 'uncategorized'} className={`fd-menu-category${section.is_active === false ? ' fd-menu-category--archived' : ''}`}>
@@ -318,9 +318,9 @@ export default function RestaurantMenuManager({ t, restaurant }) {
             </div>
             {section.category && (
               <div className="fd-menu-category-actions">
-                <button type="button" disabled={working || sectionIndex === 0} onClick={() => moveCategory(section, -1)} aria-label={t('food.menuManager.moveCategoryUp', 'Move category up')}>↑</button>
-                <button type="button" disabled={working || sectionIndex === sections.length - 1} onClick={() => moveCategory(section, 1)} aria-label={t('food.menuManager.moveCategoryDown', 'Move category down')}>↓</button>
-                <button type="button" onClick={() => setCategoryEditor({ id: section.id, name: section.name, description: section.description || '', isActive: section.is_active !== false, itemCount: section.items.length })}>{t('food.common.edit', 'Edit')}</button>
+                <button type="button" disabled={working || sectionIndex === 0} onClick={() => moveCategory(section, -1)} aria-label={t('food.menuManager.moveCategoryUp', 'Move category up')} data-track="ui.e0bc80ad9e.11">↑</button>
+                <button type="button" disabled={working || sectionIndex === sections.length - 1} onClick={() => moveCategory(section, 1)} aria-label={t('food.menuManager.moveCategoryDown', 'Move category down')} data-track="ui.e0bc80ad9e.12">↓</button>
+                <button type="button" onClick={() => setCategoryEditor({ id: section.id, name: section.name, description: section.description || '', isActive: section.is_active !== false, itemCount: section.items.length })} data-track="ui.e0bc80ad9e.13">{t('food.common.edit', 'Edit')}</button>
               </div>
             )}
           </header>
@@ -330,7 +330,7 @@ export default function RestaurantMenuManager({ t, restaurant }) {
             {section.items.map((item, itemIndex) => (
               <div key={item.id} className={`fd-menu-owner-item${item.archived_at ? ' fd-menu-owner-item--archived' : ''}`}>
                 <label className="fd-menu-owner-select" aria-label={t('food.menuManager.selectItem', 'Select {{name}}', { name: item.name })}>
-                  <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} />
+                  <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} data-track="ui.e0bc80ad9e.14" />
                 </label>
                 <div className="fd-menu-owner-thumb">
                   {item.image_url ? <img src={item.image_url} alt="" /> : <span aria-hidden>🍴</span>}
@@ -349,11 +349,11 @@ export default function RestaurantMenuManager({ t, restaurant }) {
                   </div>
                 </div>
                 <div className="fd-menu-owner-actions">
-                  <button type="button" disabled={working || itemIndex === 0} onClick={() => moveItem(item, section.items, -1)} aria-label={t('food.menuManager.moveItemUp', 'Move item up')}>↑</button>
-                  <button type="button" disabled={working || itemIndex === section.items.length - 1} onClick={() => moveItem(item, section.items, 1)} aria-label={t('food.menuManager.moveItemDown', 'Move item down')}>↓</button>
-                  <button type="button" onClick={() => setItemEditor({ item, form: itemToForm(item) })}>{t('food.common.edit', 'Edit')}</button>
-                  <button type="button" onClick={() => mutate(() => duplicateFoodMenuItem(restaurant.id, item.id), t('food.menuManager.duplicated', 'Draft copy created'))}>{t('food.menuManager.duplicate', 'Duplicate')}</button>
-                  <button type="button" onClick={() => mutate(() => updateFoodMenuItem(restaurant.id, item.id, { archived: !item.archived_at }), item.archived_at ? t('food.menuManager.restored', 'Item restored') : t('food.menuManager.archived', 'Item archived'))}>
+                  <button type="button" disabled={working || itemIndex === 0} onClick={() => moveItem(item, section.items, -1)} aria-label={t('food.menuManager.moveItemUp', 'Move item up')} data-track="ui.e0bc80ad9e.15">↑</button>
+                  <button type="button" disabled={working || itemIndex === section.items.length - 1} onClick={() => moveItem(item, section.items, 1)} aria-label={t('food.menuManager.moveItemDown', 'Move item down')} data-track="ui.e0bc80ad9e.16">↓</button>
+                  <button type="button" onClick={() => setItemEditor({ item, form: itemToForm(item) })} data-track="ui.e0bc80ad9e.17">{t('food.common.edit', 'Edit')}</button>
+                  <button type="button" onClick={() => mutate(() => duplicateFoodMenuItem(restaurant.id, item.id), t('food.menuManager.duplicated', 'Draft copy created'))} data-track="ui.e0bc80ad9e.18">{t('food.menuManager.duplicate', 'Duplicate')}</button>
+                  <button type="button" onClick={() => mutate(() => updateFoodMenuItem(restaurant.id, item.id, { archived: !item.archived_at }), item.archived_at ? t('food.menuManager.restored', 'Item restored') : t('food.menuManager.archived', 'Item archived'))} data-track="ui.e0bc80ad9e.19">
                     {item.archived_at ? t('food.menuManager.restore', 'Restore') : t('food.menuManager.archive', 'Archive')}
                   </button>
                 </div>
@@ -515,8 +515,8 @@ function ItemEditor({ t, restaurant, categories, editor, working, onClose, onSav
   };
   return (<>
     <div className="fd-owner-editor-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <form className="fd-owner-editor" onSubmit={(event) => { event.preventDefault(); if (canSave) onSave({ ...form, modifierGroups: pendingGroups }); }}>
-        <header><div><p>{editor.item ? t('food.menuManager.editItem', 'Edit item') : t('food.menuManager.newItem', 'New item')}</p><h3>{form.name || t('food.menuManager.untitledItem', 'Untitled item')}</h3></div><button type="button" onClick={onClose} aria-label={t('food.common.close', 'Close')}>×</button></header>
+      <form className="fd-owner-editor" onSubmit={(event) => { event.preventDefault(); if (canSave) onSave({ ...form, modifierGroups: pendingGroups }); }} data-track="ui.e0bc80ad9e.20">
+        <header><div><p>{editor.item ? t('food.menuManager.editItem', 'Edit item') : t('food.menuManager.newItem', 'New item')}</p><h3>{form.name || t('food.menuManager.untitledItem', 'Untitled item')}</h3></div><button type="button" onClick={onClose} aria-label={t('food.common.close', 'Close')} data-track="ui.e0bc80ad9e.21">×</button></header>
         <div className="fd-owner-editor-body">
           <div className="fd-menu-editor-grid">
             <div className="fd-field"><label htmlFor="menu-item-name">{t('food.merchant.itemName', 'Item name')} *</label><input id="menu-item-name" value={form.name} onChange={set('name')} maxLength={160} autoFocus /></div>
@@ -525,7 +525,7 @@ function ItemEditor({ t, restaurant, categories, editor, working, onClose, onSav
               {showHighPriceWarning && (
                 <span className="fd-price-warning">
                   <small>{t('food.merchant.highPriceWarning', 'That price looks like a typo. Did you mean {{suggested}}?', { suggested: formatFoodMoney(Math.round(priceValue / 100) * 100, restaurant.currency_code) })}</small>
-                  <label className="fd-menu-manager-toggle"><input type="checkbox" checked={highPriceConfirmed} onChange={(event) => setHighPriceConfirmed(event.target.checked)} />{t('food.merchant.highPriceConfirm', 'The price is correct')}</label>
+                  <label className="fd-menu-manager-toggle"><input type="checkbox" checked={highPriceConfirmed} onChange={(event) => setHighPriceConfirmed(event.target.checked)} data-track="ui.e0bc80ad9e.22" />{t('food.merchant.highPriceConfirm', 'The price is correct')}</label>
                 </span>
               )}
             </div>
@@ -537,16 +537,16 @@ function ItemEditor({ t, restaurant, categories, editor, working, onClose, onSav
           </div>
           <div className="fd-menu-image-field">
             <div className="fd-menu-image-preview">{form.imageUrl ? <img src={form.imageUrl} alt="" /> : <span aria-hidden>📷</span>}</div>
-            <div><label className="fd-btn fd-btn-secondary fd-btn-sm">{uploading ? t('food.common.saving', 'Uploading…') : t('food.menuManager.uploadPhoto', 'Upload photo')}<input type="file" accept="image/*" onChange={uploadImage} hidden disabled={uploading} /></label>{form.imageUrl && <button type="button" className="fd-btn fd-btn-ghost fd-btn-sm" onClick={() => setForm((current) => ({ ...current, imageUrl: '' }))}>{t('food.common.remove', 'Remove')}</button>}</div>
+            <div><label className="fd-btn fd-btn-secondary fd-btn-sm">{uploading ? t('food.common.saving', 'Uploading…') : t('food.menuManager.uploadPhoto', 'Upload photo')}<input type="file" accept="image/*" onChange={uploadImage} hidden disabled={uploading} /></label>{form.imageUrl && <button type="button" className="fd-btn fd-btn-ghost fd-btn-sm" onClick={() => setForm((current) => ({ ...current, imageUrl: '' }))} data-track="ui.e0bc80ad9e.23">{t('food.common.remove', 'Remove')}</button>}</div>
           </div>
           <details className="fd-menu-editor-advanced"><summary>{t('food.menuManager.dietaryDetails', 'Dietary details')}</summary><div className="fd-menu-editor-grid"><div className="fd-field"><label htmlFor="menu-item-tags">{t('food.menuManager.tags', 'Tags')}</label><input id="menu-item-tags" value={form.tags} onChange={set('tags')} placeholder="vegan, spicy, popular" /></div><div className="fd-field"><label htmlFor="menu-item-allergens">{t('food.menuManager.allergens', 'Allergens')}</label><input id="menu-item-allergens" value={form.allergens} onChange={set('allergens')} placeholder="milk, peanuts, wheat" /></div></div></details>
-          <label className="fd-owner-switch"><input type="checkbox" checked={form.isAvailable} onChange={set('isAvailable')} /><span><strong>{t('food.menuManager.availableNow', 'Available for ordering')}</strong><small>{t('food.menuManager.availableHint', 'Turn this off to mark the item sold out without removing it.')}</small></span></label>
-          {editor.item && <section className="fd-modifier-summary"><div className="fd-modifier-summary-head"><div><h4>{t('food.menuManager.optionsTitle', 'Options and modifiers')}</h4><p>{t('food.menuManager.optionsHint', 'Sizes, add-ons, sides, preparation choices, and extras.')}</p></div><button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => onModifier(null)}>+ {t('food.menuManager.addOptionGroup', 'Add group')}</button></div>{(editor.item.modifierGroups || []).map((group) => <div className="fd-modifier-summary-row" key={group.id}><div><strong>{group.name}</strong><span>{t('food.menuManager.optionsCount', '{{count}} options', { count: group.options?.length || 0 })}{group.isRequired ? ` · ${t('food.menuManager.required', 'Required')}` : ''}</span></div><div><button type="button" onClick={() => onModifier(group)}>{t('food.common.edit', 'Edit')}</button><button type="button" onClick={() => onDeleteModifier(group.id)}>{t('food.common.delete', 'Delete')}</button></div></div>)}</section>}
+          <label className="fd-owner-switch"><input type="checkbox" checked={form.isAvailable} onChange={set('isAvailable')} data-track="ui.e0bc80ad9e.24" /><span><strong>{t('food.menuManager.availableNow', 'Available for ordering')}</strong><small>{t('food.menuManager.availableHint', 'Turn this off to mark the item sold out without removing it.')}</small></span></label>
+          {editor.item && <section className="fd-modifier-summary"><div className="fd-modifier-summary-head"><div><h4>{t('food.menuManager.optionsTitle', 'Options and modifiers')}</h4><p>{t('food.menuManager.optionsHint', 'Sizes, add-ons, sides, preparation choices, and extras.')}</p></div><button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => onModifier(null)} data-track="ui.e0bc80ad9e.25">+ {t('food.menuManager.addOptionGroup', 'Add group')}</button></div>{(editor.item.modifierGroups || []).map((group) => <div className="fd-modifier-summary-row" key={group.id}><div><strong>{group.name}</strong><span>{t('food.menuManager.optionsCount', '{{count}} options', { count: group.options?.length || 0 })}{group.isRequired ? ` · ${t('food.menuManager.required', 'Required')}` : ''}</span></div><div><button type="button" onClick={() => onModifier(group)} data-track="ui.e0bc80ad9e.26">{t('food.common.edit', 'Edit')}</button><button type="button" onClick={() => onDeleteModifier(group.id)} data-track="ui.e0bc80ad9e.27">{t('food.common.delete', 'Delete')}</button></div></div>)}</section>}
           {!editor.item && (
             <section className="fd-modifier-summary">
               <div className="fd-modifier-summary-head">
                 <div><h4>{t('food.menuManager.optionsTitle', 'Options and modifiers')}</h4><p>{t('food.menuManager.optionsHint', 'Sizes, add-ons, sides, preparation choices, and extras.')}</p></div>
-                <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setPendingEditor({ index: null, form: blankModifier() })}>
+                <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setPendingEditor({ index: null, form: blankModifier() })} data-track="ui.e0bc80ad9e.28">
                   + {t('food.menuManager.addOptionGroup', 'Add group')}
                 </button>
               </div>
@@ -554,8 +554,8 @@ function ItemEditor({ t, restaurant, categories, editor, working, onClose, onSav
                 <div className="fd-modifier-summary-row" key={index}>
                   <div><strong>{group.name || t('food.menuManager.newOptionGroup', 'New option group')}</strong><span>{t('food.menuManager.optionsCount', '{{count}} options', { count: group.options.filter((option) => option.name.trim()).length })}{group.required ? ` · ${t('food.menuManager.required', 'Required')}` : ''}</span></div>
                   <div>
-                    <button type="button" onClick={() => setPendingEditor({ index, form: group })}>{t('food.common.edit', 'Edit')}</button>
-                    <button type="button" onClick={() => setPendingGroups((current) => current.filter((_, i) => i !== index))}>{t('food.common.delete', 'Delete')}</button>
+                    <button type="button" onClick={() => setPendingEditor({ index, form: group })} data-track="ui.e0bc80ad9e.29">{t('food.common.edit', 'Edit')}</button>
+                    <button type="button" onClick={() => setPendingGroups((current) => current.filter((_, i) => i !== index))} data-track="ui.e0bc80ad9e.30">{t('food.common.delete', 'Delete')}</button>
                   </div>
                 </div>
               ))}
@@ -563,7 +563,7 @@ function ItemEditor({ t, restaurant, categories, editor, working, onClose, onSav
             </section>
           )}
         </div>
-        <footer><button type="button" className="fd-btn fd-btn-secondary" onClick={onClose}>{t('food.common.cancel', 'Cancel')}</button><button className="fd-btn" type="submit" disabled={!canSave || working || uploading}>{working ? t('food.common.saving', 'Saving…') : t('food.common.save', 'Save item')}</button></footer>
+        <footer><button type="button" className="fd-btn fd-btn-secondary" onClick={onClose} data-track="ui.e0bc80ad9e.31">{t('food.common.cancel', 'Cancel')}</button><button className="fd-btn" type="submit" disabled={!canSave || working || uploading} data-track="ui.e0bc80ad9e.32">{working ? t('food.common.saving', 'Saving…') : t('food.common.save', 'Save item')}</button></footer>
       </form>
     </div>
     {pendingEditor && (
@@ -586,12 +586,12 @@ function ItemEditor({ t, restaurant, categories, editor, working, onClose, onSav
 
 function CategoryEditor({ t, editor, working, onClose, onSave, onDelete }) {
   const [form, setForm] = useState(editor);
-  return <div className="fd-modal-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><form className="fd-modal" onSubmit={(event) => { event.preventDefault(); if (form.name.trim()) onSave(form); }}><h3>{form.id ? t('food.menuManager.editCategory', 'Edit category') : t('food.menuManager.newCategory', 'New category')}</h3><div className="fd-field"><label htmlFor="menu-category-name">{t('food.menuManager.categoryName', 'Category name')} *</label><input id="menu-category-name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} autoFocus maxLength={120} /></div><div className="fd-field"><label htmlFor="menu-category-description">{t('food.menuManager.categoryDescription', 'Description')}</label><textarea id="menu-category-description" value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} rows={2} /></div>{form.id && <label className="fd-owner-switch"><input type="checkbox" checked={form.isActive} onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.checked }))} /><span><strong>{t('food.menuManager.categoryVisible', 'Category visible')}</strong><small>{t('food.menuManager.categoryVisibleHint', 'Hidden categories and their items do not appear to customers.')}</small></span></label>}{form.id && form.itemCount > 0 && <p className="fd-helper-text">{t('food.menuManager.categoryDeleteHint', 'This category contains items. Hide it to remove it from the customer menu, or move its items before deleting it.')}</p>}<div className="fd-row" style={{ justifyContent: 'space-between' }}>{form.id && form.itemCount === 0 ? <button type="button" className="fd-btn fd-btn-danger" onClick={() => onDelete(form.id)}>{t('food.menuManager.deleteEmptyCategory', 'Delete empty category')}</button> : <span />}<span className="fd-row"><button type="button" className="fd-btn fd-btn-secondary" onClick={onClose}>{t('food.common.cancel', 'Cancel')}</button><button className="fd-btn" disabled={!form.name.trim() || working}>{t('food.common.save', 'Save')}</button></span></div></form></div>;
+  return <div className="fd-modal-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><form className="fd-modal" onSubmit={(event) => { event.preventDefault(); if (form.name.trim()) onSave(form); }} data-track="ui.e0bc80ad9e.33"><h3>{form.id ? t('food.menuManager.editCategory', 'Edit category') : t('food.menuManager.newCategory', 'New category')}</h3><div className="fd-field"><label htmlFor="menu-category-name">{t('food.menuManager.categoryName', 'Category name')} *</label><input id="menu-category-name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} autoFocus maxLength={120} /></div><div className="fd-field"><label htmlFor="menu-category-description">{t('food.menuManager.categoryDescription', 'Description')}</label><textarea id="menu-category-description" value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} rows={2} /></div>{form.id && <label className="fd-owner-switch"><input type="checkbox" checked={form.isActive} onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.checked }))} data-track="ui.e0bc80ad9e.34" /><span><strong>{t('food.menuManager.categoryVisible', 'Category visible')}</strong><small>{t('food.menuManager.categoryVisibleHint', 'Hidden categories and their items do not appear to customers.')}</small></span></label>}{form.id && form.itemCount > 0 && <p className="fd-helper-text">{t('food.menuManager.categoryDeleteHint', 'This category contains items. Hide it to remove it from the customer menu, or move its items before deleting it.')}</p>}<div className="fd-row" style={{ justifyContent: 'space-between' }}>{form.id && form.itemCount === 0 ? <button type="button" className="fd-btn fd-btn-danger" onClick={() => onDelete(form.id)} data-track="ui.e0bc80ad9e.35">{t('food.menuManager.deleteEmptyCategory', 'Delete empty category')}</button> : <span />}<span className="fd-row"><button type="button" className="fd-btn fd-btn-secondary" onClick={onClose} data-track="ui.e0bc80ad9e.36">{t('food.common.cancel', 'Cancel')}</button><button className="fd-btn" disabled={!form.name.trim() || working} data-track="ui.e0bc80ad9e.37">{t('food.common.save', 'Save')}</button></span></div></form></div>;
 }
 
 function ModifierEditor({ t, editor, currency, working, onClose, onSave }) {
   const [form, setForm] = useState(editor.form);
   const updateOption = (index, patch) => setForm((current) => ({ ...current, options: current.options.map((option, optionIndex) => optionIndex === index ? { ...option, ...patch } : option) }));
   const valid = form.name.trim() && form.options.some((option) => option.name.trim());
-  return <div className="fd-owner-editor-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><form className="fd-owner-editor fd-modifier-editor" onSubmit={(event) => { event.preventDefault(); if (valid) onSave(form); }}><header><div><p>{t('food.menuManager.optionGroup', 'Option group')}</p><h3>{form.name || t('food.menuManager.newOptionGroup', 'New option group')}</h3></div><button type="button" onClick={onClose}>×</button></header><div className="fd-owner-editor-body"><div className="fd-field"><label htmlFor="modifier-name">{t('food.menuManager.groupName', 'Group name')} *</label><input id="modifier-name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="Choose a size" autoFocus /></div><div className="fd-menu-editor-grid"><label className="fd-owner-switch"><input type="checkbox" checked={form.required} onChange={(event) => setForm((current) => ({ ...current, required: event.target.checked }))} /><span><strong>{t('food.menuManager.customerMustChoose', 'Customer must choose')}</strong><small>{t('food.menuManager.requiredChoiceHint', 'At least one option will be required.')}</small></span></label><div className="fd-field"><label htmlFor="modifier-max">{t('food.merchant.maxSelect', 'Maximum selections')}</label><input id="modifier-max" type="number" min="1" max="30" value={form.maxSelect} onChange={(event) => setForm((current) => ({ ...current, maxSelect: event.target.value }))} /></div></div><div className="fd-modifier-options-head"><h4>{t('food.menuManager.optionRows', 'Options')}</h4><button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setForm((current) => ({ ...current, options: [...current.options, { name: '', price: '', isAvailable: true }] }))}>+ {t('food.menuManager.addOption', 'Add option')}</button></div><div className="fd-modifier-option-list">{form.options.map((option, index) => <div className="fd-modifier-option-row" key={index}><input aria-label={t('food.menuManager.optionName', 'Option name')} value={option.name} onChange={(event) => updateOption(index, { name: event.target.value })} placeholder="Large" /><div className="fd-modifier-price-input"><span>{currency}</span><input aria-label={t('food.menuManager.extraPrice', 'Extra price')} type="number" step="0.01" value={option.price} onChange={(event) => updateOption(index, { price: event.target.value })} placeholder="0.00" /></div><label title={t('food.menuManager.optionAvailable', 'Available')}><input type="checkbox" checked={option.isAvailable} onChange={(event) => updateOption(index, { isAvailable: event.target.checked })} /></label><button type="button" aria-label={t('food.common.remove', 'Remove')} onClick={() => setForm((current) => ({ ...current, options: current.options.filter((_, optionIndex) => optionIndex !== index) }))}>×</button></div>)}</div></div><footer><button type="button" className="fd-btn fd-btn-secondary" onClick={onClose}>{t('food.common.cancel', 'Cancel')}</button><button className="fd-btn" disabled={!valid || working}>{working ? t('food.common.saving', 'Saving…') : t('food.common.save', 'Save group')}</button></footer></form></div>;
+  return <div className="fd-owner-editor-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><form className="fd-owner-editor fd-modifier-editor" onSubmit={(event) => { event.preventDefault(); if (valid) onSave(form); }} data-track="ui.e0bc80ad9e.38"><header><div><p>{t('food.menuManager.optionGroup', 'Option group')}</p><h3>{form.name || t('food.menuManager.newOptionGroup', 'New option group')}</h3></div><button type="button" onClick={onClose} data-track="ui.e0bc80ad9e.39">×</button></header><div className="fd-owner-editor-body"><div className="fd-field"><label htmlFor="modifier-name">{t('food.menuManager.groupName', 'Group name')} *</label><input id="modifier-name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="Choose a size" autoFocus /></div><div className="fd-menu-editor-grid"><label className="fd-owner-switch"><input type="checkbox" checked={form.required} onChange={(event) => setForm((current) => ({ ...current, required: event.target.checked }))} data-track="ui.e0bc80ad9e.40" /><span><strong>{t('food.menuManager.customerMustChoose', 'Customer must choose')}</strong><small>{t('food.menuManager.requiredChoiceHint', 'At least one option will be required.')}</small></span></label><div className="fd-field"><label htmlFor="modifier-max">{t('food.merchant.maxSelect', 'Maximum selections')}</label><input id="modifier-max" type="number" min="1" max="30" value={form.maxSelect} onChange={(event) => setForm((current) => ({ ...current, maxSelect: event.target.value }))} /></div></div><div className="fd-modifier-options-head"><h4>{t('food.menuManager.optionRows', 'Options')}</h4><button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setForm((current) => ({ ...current, options: [...current.options, { name: '', price: '', isAvailable: true }] }))} data-track="ui.e0bc80ad9e.41">+ {t('food.menuManager.addOption', 'Add option')}</button></div><div className="fd-modifier-option-list">{form.options.map((option, index) => <div className="fd-modifier-option-row" key={index}><input aria-label={t('food.menuManager.optionName', 'Option name')} value={option.name} onChange={(event) => updateOption(index, { name: event.target.value })} placeholder="Large" /><div className="fd-modifier-price-input"><span>{currency}</span><input aria-label={t('food.menuManager.extraPrice', 'Extra price')} type="number" step="0.01" value={option.price} onChange={(event) => updateOption(index, { price: event.target.value })} placeholder="0.00" /></div><label title={t('food.menuManager.optionAvailable', 'Available')}><input type="checkbox" checked={option.isAvailable} onChange={(event) => updateOption(index, { isAvailable: event.target.checked })} data-track="ui.e0bc80ad9e.42" /></label><button type="button" aria-label={t('food.common.remove', 'Remove')} onClick={() => setForm((current) => ({ ...current, options: current.options.filter((_, optionIndex) => optionIndex !== index) }))} data-track="ui.e0bc80ad9e.43">×</button></div>)}</div></div><footer><button type="button" className="fd-btn fd-btn-secondary" onClick={onClose} data-track="ui.e0bc80ad9e.44">{t('food.common.cancel', 'Cancel')}</button><button className="fd-btn" disabled={!valid || working} data-track="ui.e0bc80ad9e.45">{working ? t('food.common.saving', 'Saving…') : t('food.common.save', 'Save group')}</button></footer></form></div>;
 }

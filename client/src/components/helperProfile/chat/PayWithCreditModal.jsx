@@ -124,7 +124,7 @@ export default function PayWithCreditModal({
           type="button"
           className="messenger-share-close"
           onClick={onClose}
-          aria-label={t('common.close', { defaultValue: 'Close' })}
+          aria-label={t('common.close', { defaultValue: 'Close' })} data-track-private
         >
           <X size={16} />
         </button>
@@ -157,7 +157,7 @@ export default function PayWithCreditModal({
         ) : null}
         <div className="artifact-card-actions" style={{ marginTop: 12 }}>
           {!gate.ok ? (
-            <button type="button" className="artifact-btn primary" onClick={() => onRequestSignIn?.()}>
+            <button type="button" className="artifact-btn primary" onClick={() => onRequestSignIn?.()} data-track-private>
               {t('helperProfile.messenger.creditPaySignInCta')}
             </button>
           ) : (
@@ -165,13 +165,13 @@ export default function PayWithCreditModal({
               type="button"
               className="artifact-btn primary"
               disabled={busy || hint?.partnerEligible === false || !amountCheck.ok}
-              onClick={pay}
+              onClick={pay} data-track-private
             >
               {busy ? <Loader2 className="spin" size={14} /> : <Wallet size={14} />}{' '}
               {t('helperProfile.messenger.creditPayConfirm', { method: CREDIT_PAY_METHOD })}
             </button>
           )}
-          <button type="button" className="artifact-btn" onClick={onClose} disabled={busy}>
+          <button type="button" className="artifact-btn" onClick={onClose} disabled={busy} data-track-private>
             {t('common.cancel', { defaultValue: 'Cancel' })}
           </button>
         </div>

@@ -305,7 +305,7 @@ export default function BookServicePage() {
                 <button
                   key={date}
                   onClick={() => setSelectedDate(date)}
-                  className={`bsp-date-btn ${selectedDate === date ? 'active' : ''}`}
+                  className={`bsp-date-btn ${selectedDate === date ? 'active' : ''}`} data-track="ui.dbe3b23828.1"
                 >
                   <div className="date">{formatDate(`${date}T12:00:00`, { year: undefined })}</div>
                   <div className="day">{formatDate(`${date}T12:00:00`, { weekday: 'short', month: undefined, day: undefined, year: undefined })}</div>
@@ -324,7 +324,7 @@ export default function BookServicePage() {
                     <button
                       key={idx}
                       onClick={() => setSelectedSlot(slot)}
-                      className={`bsp-time-btn ${selectedSlot === slot ? 'active' : ''}`}
+                      className={`bsp-time-btn ${selectedSlot === slot ? 'active' : ''}`} data-track="ui.dbe3b23828.2"
                     >
                       {slot.start_time} - {slot.end_time}
                     </button>
@@ -386,7 +386,7 @@ export default function BookServicePage() {
           </div>
 
           {/* Customer Info Form */}
-          <form className="bsp-form">
+          <form className="bsp-form" data-track="ui.dbe3b23828.3">
             <h3>{t('bookService.form.title')}</h3>
 
             <div className="bsp-form-group">
@@ -451,7 +451,7 @@ export default function BookServicePage() {
                 type="checkbox"
                 id="agree"
                 checked={formData.agree_to_terms}
-                onChange={(e) => setFormData({ ...formData, agree_to_terms: e.target.checked })}
+                onChange={(e) => setFormData({ ...formData, agree_to_terms: e.target.checked })} data-track="ui.dbe3b23828.4"
               />
               <label htmlFor="agree">{t('bookService.form.termsText')}</label>
             </div>
@@ -460,7 +460,7 @@ export default function BookServicePage() {
               type="button"
               onClick={handleBooking}
               disabled={!selectedDate || !selectedSlot || !formData.customer_email || loading}
-              className="bsp-btn-book"
+              className="bsp-btn-book" data-track="ui.dbe3b23828.5"
             >
               {loading
                 ? t('bookService.buttons.booking')

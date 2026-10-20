@@ -82,7 +82,7 @@ export default function ProfileStudioShell({
               role="tab"
               aria-selected={s.id === activeSection}
               className={`ps-chip${s.id === activeSection ? ' active' : ''}`}
-              onClick={() => onSectionChange?.(s.id)}
+              onClick={() => onSectionChange?.(s.id)} data-track="ui.8457554ab9.1"
             >
               {s.label}
             </button>
@@ -113,7 +113,7 @@ export default function ProfileStudioShell({
                   type="button"
                   className={`ps-nav-btn${s.id === activeSection ? ' active' : ''}`}
                   onClick={() => onSectionChange?.(s.id)}
-                  aria-current={s.id === activeSection ? 'page' : undefined}
+                  aria-current={s.id === activeSection ? 'page' : undefined} data-track="ui.8457554ab9.2"
                 >
                   <span>{s.label}</span>
                   {typeof s.complete === 'boolean' ? (
@@ -163,7 +163,7 @@ export default function ProfileStudioShell({
                   type="button"
                   className="ps-btn ghost"
                   onClick={onDiscard}
-                  disabled={saving}
+                  disabled={saving} data-track="ui.8457554ab9.3"
                 >
                   {t('profileStudio.discard')}
                 </button>
@@ -172,7 +172,7 @@ export default function ProfileStudioShell({
                 type="button"
                 className="ps-btn primary"
                 onClick={onSave}
-                disabled={saving || !dirty}
+                disabled={saving || !dirty} data-track="ui.8457554ab9.4"
               >
                 {resolvedSaveLabel}
               </button>

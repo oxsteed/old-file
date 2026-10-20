@@ -67,7 +67,7 @@ export default function WarehousingPage() {
                 type="button"
                 className="lx-tab"
                 aria-selected={tab === tb.key}
-                onClick={() => setTab(tb.key)}
+                onClick={() => setTab(tb.key)} data-track="ui.9f86c46ca2.1"
               >
                 {tb.label}
               </button>
@@ -87,7 +87,7 @@ export default function WarehousingPage() {
                 <h2>{tx('logistics.workspace.dataError.title', 'Data unavailable')}</h2>
                 <p>{tx('logistics.warehousing.error', "We couldn't load warehousing data right now. Please try again.")}</p>
               </div>
-              <button type="button" className="lx-btn-secondary" onClick={load}>
+              <button type="button" className="lx-btn-secondary" onClick={load} data-track="ui.9f86c46ca2.2">
                 {tx('logistics.workspace.dataError.retry', 'Try again')}
               </button>
             </div>

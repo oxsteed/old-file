@@ -77,7 +77,7 @@ export default function DisplayInstallPrompt() {
         className="fd-display-install-fab"
         aria-label={t('display.install.title')}
         title={t('display.install.title')}
-        onClick={() => setExpanded(true)}
+        onClick={() => setExpanded(true)} data-track="ui.726bd2c264.1"
       >
         <span aria-hidden="true">⤓</span>
       </button>
@@ -105,7 +105,7 @@ export default function DisplayInstallPrompt() {
         type="button"
         className="fd-display-install-close"
         aria-label={t('common.close')}
-        onClick={() => setExpanded(false)}
+        onClick={() => setExpanded(false)} data-track="ui.726bd2c264.2"
       >
         <span aria-hidden="true">×</span>
       </button>
@@ -119,11 +119,11 @@ export default function DisplayInstallPrompt() {
       )}
       <div className="fd-display-install-actions">
         {deferredPrompt && (
-          <button type="button" className="fd-btn fd-btn-sm" onClick={installNow}>
+          <button type="button" className="fd-btn fd-btn-sm" onClick={installNow} data-track="ui.726bd2c264.3">
             {t('display.install.installNow')}
           </button>
         )}
-        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={dismiss}>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={dismiss} data-track="ui.726bd2c264.4">
           {t('display.install.dismiss')}
         </button>
       </div>

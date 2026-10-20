@@ -75,7 +75,7 @@ const Btn = ({ children, onClick, variant = 'primary', className = '', disabled 
   return (
     <button onClick={onClick} disabled={disabled}
       className={`text-xs font-semibold px-4 py-2 rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed ${v[variant]} ${className}`}
-      {...rest}>{children}</button>
+      {...rest} data-track="ui.911eb77e84.1">{children}</button>
   );
 };
 const Badge = ({ text, color = 'orange' }) => {
@@ -147,7 +147,7 @@ function Modal({ open, onClose, title, children }) {
       <div className="relative bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h3 className="font-bold text-white">{title}</h3>
-          <button onClick={onClose} aria-label={t('common.close', { defaultValue: 'Close' })} className="p-2 text-gray-500 hover:text-white transition rounded-lg hover:bg-gray-800"><IcoX size={16} aria-hidden="true" /></button>
+          <button onClick={onClose} aria-label={t('common.close', { defaultValue: 'Close' })} className="p-2 text-gray-500 hover:text-white transition rounded-lg hover:bg-gray-800" data-track="ui.911eb77e84.2"><IcoX size={16} aria-hidden="true" /></button>
         </div>
         {children}
       </div>
@@ -352,7 +352,7 @@ export default function AffiliateDashboardPage() {
                 <div className="flex gap-1 bg-gray-800 rounded-lg p-1">
                   {[7, 30, 90].map((d) => (
                     <button key={d} onClick={() => setDays(d)}
-                      className={`px-3 py-1.5 rounded-md text-xs font-semibold transition ${days === d ? 'bg-orange-500 text-white' : 'text-gray-400 hover:text-white'}`}>
+                      className={`px-3 py-1.5 rounded-md text-xs font-semibold transition ${days === d ? 'bg-orange-500 text-white' : 'text-gray-400 hover:text-white'}`} data-track="ui.911eb77e84.3">
                       {t('affiliateDashboard.chart.periodButton', { days: d })}
                     </button>
                   ))}
@@ -502,7 +502,7 @@ export default function AffiliateDashboardPage() {
                             <button
                               onClick={() => copyLink(p.id, p.affiliate_id)}
                               className="p-2 text-gray-500 hover:text-orange-400 transition rounded-lg hover:bg-gray-700"
-                              title={t('affiliateDashboard.referral.copyLink')}
+                              title={t('affiliateDashboard.referral.copyLink')} data-track="ui.911eb77e84.4"
                             >
                               <IcoCopy size={14} />
                             </button>

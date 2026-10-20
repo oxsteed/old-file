@@ -61,7 +61,7 @@ const TermsAcceptanceModal: React.FC<TermsAcceptanceModalProps> = ({
       <div className="terms-modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="terms-modal-header">
           <h2>{t('toolRentals.termsTitle') || 'Tool Rental Agreement'}</h2>
-          <button onClick={onClose} className="terms-modal-close">
+          <button onClick={onClose} className="terms-modal-close" data-track="ui.856764f161.1">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -118,7 +118,7 @@ const TermsAcceptanceModal: React.FC<TermsAcceptanceModalProps> = ({
               type="checkbox"
               checked={accepted}
               onChange={(e) => setAccepted(e.target.checked)}
-              disabled={loading}
+              disabled={loading} data-track="ui.856764f161.2"
             />
             <span>
               {t('toolRentals.acknowledgment') || 'I have read and agree to the Tool Rental Agreement'}
@@ -127,13 +127,13 @@ const TermsAcceptanceModal: React.FC<TermsAcceptanceModalProps> = ({
         </div>
 
         <div className="terms-modal-footer">
-          <button onClick={onClose} disabled={loading} className="terms-btn-cancel">
+          <button onClick={onClose} disabled={loading} className="terms-btn-cancel" data-track="ui.856764f161.3">
             {t('common.cancel') || 'Cancel'}
           </button>
           <button
             onClick={handleAccept}
             disabled={loading || !accepted}
-            className="terms-btn-accept"
+            className="terms-btn-accept" data-track="ui.856764f161.4"
           >
             {loading ? t('common.saving') : t('toolRentals.acceptTerms') || 'Accept & Continue'}
           </button>

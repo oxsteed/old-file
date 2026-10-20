@@ -56,7 +56,7 @@ export default function LanguageSelector({ menuAlign = 'end', appearance }) {
           color: 'var(--color-text)',
           fontSize: appearance === 'media' ? '1rem' : '0.8rem',
           fontWeight: 600,
-        }}
+        }} data-track="ui.558a86d57e.1"
       >
         {appearance === 'media' ? <svg aria-hidden="true" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></svg> : <span style={{ fontSize: '1rem' }}>{current.flag}</span>}
         <span style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>{current.code}</span>
@@ -134,7 +134,7 @@ export default function LanguageSelector({ menuAlign = 'end', appearance }) {
                 color: lang.code === language ? 'var(--color-primary)' : 'var(--color-text)',
                 fontWeight: lang.code === language ? 700 : 400,
                 fontSize: '0.875rem', textAlign: 'start',
-              }}
+              }} data-track="ui.558a86d57e.2"
             >
               <span style={{ fontSize: '1.1rem' }}>{lang.flag}</span>
               <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.1rem', flex: 1 }}>
@@ -155,7 +155,7 @@ export default function LanguageSelector({ menuAlign = 'end', appearance }) {
                 title={t('languageSelector.setPreferred', { language: lang.nativeName || lang.name })}
                 onClick={(e) => { e.stopPropagation(); setPreferredLanguage(lang.code); }}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setPreferredLanguage(lang.code); } }}
-                style={{ display: 'flex', alignItems: 'center', padding: '0.25rem', cursor: 'pointer' }}
+                style={{ display: 'flex', alignItems: 'center', padding: '0.25rem', cursor: 'pointer' }} data-track="ui.558a86d57e.3"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24"
                   fill={isPreferred ? 'var(--color-primary)' : 'none'}

@@ -80,7 +80,7 @@ export default function PaymentRequestSharePanel({
           type="button"
           className="messenger-share-close"
           onClick={onClose}
-          aria-label={t('common.close', { defaultValue: 'Close' })}
+          aria-label={t('common.close', { defaultValue: 'Close' })} data-track-private
         >
           <X size={16} />
         </button>
@@ -106,7 +106,7 @@ export default function PaymentRequestSharePanel({
           />
         </label>
         {error ? <p className="artifact-error">{error}</p> : null}
-        <button type="button" className="artifact-btn primary" disabled={sharing} onClick={share}>
+        <button type="button" className="artifact-btn primary" disabled={sharing} onClick={share} data-track-private>
           {sharing ? <Loader2 className="spin" size={14} /> : <Send size={14} />}{' '}
           {t('messages.paymentRequestShare.send')}
         </button>

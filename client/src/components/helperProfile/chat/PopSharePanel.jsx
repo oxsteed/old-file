@@ -68,7 +68,7 @@ export default function PopSharePanel({
       <div className="messenger-share-panel-head">
         <Receipt size={16} aria-hidden />
         <strong>{t('messages.popShare.title')}</strong>
-        <button type="button" className="messenger-share-close" onClick={onClose} aria-label={t('common.close', { defaultValue: 'Close' })}>
+        <button type="button" className="messenger-share-close" onClick={onClose} aria-label={t('common.close', { defaultValue: 'Close' })} data-track-private>
           <X size={16} />
         </button>
       </div>
@@ -100,7 +100,7 @@ export default function PopSharePanel({
         {error ? <p className="artifact-error">{error}</p> : null}
       </div>
       <div className="messenger-share-panel-foot">
-        <button type="button" className="artifact-btn primary" disabled={sharing} onClick={share}>
+        <button type="button" className="artifact-btn primary" disabled={sharing} onClick={share} data-track-private>
           {sharing ? <Loader2 className="spin" size={14} /> : <Send size={14} />} {t('messages.popShare.send')}
         </button>
       </div>

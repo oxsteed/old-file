@@ -58,7 +58,7 @@ export function HealthAlertsDashboard({ businessId }) {
             {t('healthAlertsDashboard.subtitle', 'Automated insights to keep your business on track')}
           </p>
         </div>
-        <button onClick={generate} disabled={generating} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '0.5rem', padding: '0.6rem 1rem', cursor: 'pointer', color: 'var(--app-text)', fontSize: '0.875rem' }}>
+        <button onClick={generate} disabled={generating} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '0.5rem', padding: '0.6rem 1rem', cursor: 'pointer', color: 'var(--app-text)', fontSize: '0.875rem' }} data-track="ui.df2c7a827d.1">
           <RefreshCw size={14} style={{ animation: generating ? 'spin 1s linear infinite' : 'none' }} /> {generating ? t('healthAlertsDashboard.scanning', 'Scanning...') : t('healthAlertsDashboard.scanNow', 'Scan Now')}
         </button>
       </div>
@@ -79,7 +79,7 @@ export function HealthAlertsDashboard({ businessId }) {
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', cursor: 'pointer', color: 'var(--muted-text)' }}>
-          <input type="checkbox" checked={showDismissed} onChange={e => setShowDismissed(e.target.checked)} /> {t('healthAlertsDashboard.showDismissed', 'Show dismissed')}
+          <input type="checkbox" checked={showDismissed} onChange={e => setShowDismissed(e.target.checked)} data-track="ui.df2c7a827d.2" /> {t('healthAlertsDashboard.showDismissed', 'Show dismissed')}
         </label>
       </div>
 
@@ -109,7 +109,7 @@ export function HealthAlertsDashboard({ businessId }) {
                     <p style={{ margin: 0, fontSize: '0.875rem', lineHeight: 1.5 }}>{alert.message}</p>
                   </div>
                   {!alert.is_dismissed && (
-                    <button onClick={() => dismiss(alert.id)} style={{ padding: '0.25rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)', flexShrink: 0 }}>
+                    <button onClick={() => dismiss(alert.id)} style={{ padding: '0.25rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)', flexShrink: 0 }} data-track="ui.df2c7a827d.3">
                       <X size={16} />
                     </button>
                   )}

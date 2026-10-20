@@ -80,14 +80,14 @@ export default function MediaActorPage() {
         </div>
         {user && String(actor.owner_user_id) !== String(user.id) ? (
           <button type="button" className={`media-primary-button media-actor-follow ${actor.following ? 'is-following' : ''}`}
-            onClick={handleFollow} disabled={followLoading} aria-pressed={Boolean(actor.following)}>
+            onClick={handleFollow} disabled={followLoading} aria-pressed={Boolean(actor.following)} data-track="ui.5468aad24e.1">
             {followLoading ? t('media.actor.followingAction') : actor.following ? t('media.actor.unfollow') : t('media.actor.follow')}
           </button>
         ) : !user ? (
           <button
             type="button"
             className="media-secondary-button media-actor-follow"
-            onClick={() => requireLogin(`/media/@${handle}`)}
+            onClick={() => requireLogin(`/media/@${handle}`)} data-track="ui.5468aad24e.2"
           >
             {t('media.actor.signInToFollow')}
           </button>

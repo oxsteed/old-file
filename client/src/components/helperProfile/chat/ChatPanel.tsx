@@ -1305,7 +1305,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 aria-label={t('messages.quoteHistory.button')}
                 title={t('messages.quoteHistory.button')}
                 type="button"
-                aria-pressed={showGuestQuoteHistory}
+                aria-pressed={showGuestQuoteHistory} data-track-private
               >
                 <FileText className="w-4 h-4" aria-hidden="true" />
                 <span className="visually-hidden">{t('messages.quoteHistory.button')}</span>
@@ -1317,7 +1317,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               aria-label={t('helperProfile.chat.searchPlaceholder')}
               title={t('helperProfile.chat.searchPlaceholder')}
               type="button"
-              aria-pressed={searchOpen}
+              aria-pressed={searchOpen} data-track-private
             >
               <Search className="w-4 h-4" aria-hidden="true" />
               <span className="visually-hidden">{t('helperProfile.chat.searchPlaceholder')}</span>
@@ -1328,7 +1328,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 className="messages-thread-action-icon"
                 aria-label={t('helperProfile.chat.expandChat')}
                 title={t('helperProfile.chat.expandChat')}
-                type="button"
+                type="button" data-track-private
               >
                 <Maximize2 className="w-4 h-4" aria-hidden="true" />
                 <span className="visually-hidden">{t('helperProfile.chat.expandChat')}</span>
@@ -1347,7 +1347,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               className="messages-thread-action-icon"
               aria-label={t('messages.clearChat') || 'Clear chat'}
               title={t('messages.clearChat')}
-              type="button"
+              type="button" data-track-private
             >
               <Trash2 className="w-4 h-4" aria-hidden="true" />
               <span className="visually-hidden">{t('messages.clearChat') || 'Clear chat'}</span>
@@ -1358,7 +1358,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 className="messages-thread-action-icon"
                 aria-label={t('messages.closeChat')}
                 title={t('messages.closeChat')}
-                type="button"
+                type="button" data-track-private
               >
                 <X className="w-4 h-4" aria-hidden="true" />
                 <span className="visually-hidden">{t('messages.closeChat')}</span>
@@ -1399,7 +1399,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 type="button"
                 onClick={clearSearch}
                 className="p-1 text-gray-400 hover:text-white"
-                aria-label={t('helperProfile.chat.clearSearch')}
+                aria-label={t('helperProfile.chat.clearSearch')} data-track-private
               >
                 <X className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -1457,7 +1457,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           <button
             type="button"
             className="text-sky-300 underline shrink-0"
-            onClick={() => setRoutingNotice(null)}
+            onClick={() => setRoutingNotice(null)} data-track-private
           >
             {t('common.dismiss')}
           </button>
@@ -1476,7 +1476,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               handleDestinationChange('helper');
               setRoutingNotice(null);
               toast.success(t('helperProfile.chat.connectedLiveToast', { name: helperName }));
-            }}
+            }} data-track-private
           >
             {t('helperProfile.chat.connectLiveCta', { name: helperName })}
           </button>
@@ -1513,7 +1513,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           <button
             type="button"
             className="block text-violet-300/80 underline"
-            onClick={() => { setEscalationOpen(false); setRoutingNotice(null); }}
+            onClick={() => { setEscalationOpen(false); setRoutingNotice(null); }} data-track-private
           >
             {t('helperProfile.chat.dismissHandoff')}
           </button>
@@ -1557,7 +1557,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               <button
                 type="button"
                 onClick={saveGuestContact}
-                className="w-full py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold transition-colors"
+                className="w-full py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold transition-colors" data-track-private
               >
                 {t('messages.guestSaveContact')}
               </button>
@@ -1580,7 +1580,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                     setGuestContactSaved(false);
                     try { sessionStorage.removeItem(guestStorageKey); } catch { /* ignore */ }
                   }}
-                  className="text-[11px] text-emerald-400/90 underline mt-1.5 hover:text-emerald-300"
+                  className="text-[11px] text-emerald-400/90 underline mt-1.5 hover:text-emerald-300" data-track-private
                 >
                   {t('messages.guestEditContact')}
                 </button>
@@ -1752,7 +1752,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 container?.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
               }}
               className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full border border-gray-600 bg-gray-800 px-3.5 py-2 text-xs font-medium text-white shadow-lg hover:bg-gray-700"
-              aria-label={`${t('messages.jumpToLatest')}${unreadCount ? ` (${unreadCount})` : ''}`}
+              aria-label={`${t('messages.jumpToLatest')}${unreadCount ? ` (${unreadCount})` : ''}`} data-track-private
             >
               <span aria-hidden="true">↓</span>
               {t('messages.jumpToLatest')}
@@ -1772,7 +1772,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             type="button"
             className={`messenger-availability-toggle${showAvailability ? ' is-open' : ''}`}
             onClick={() => setShowAvailability((v) => !v)}
-            aria-expanded={showAvailability}
+            aria-expanded={showAvailability} data-track-private
           >
             <Calendar className="w-3.5 h-3.5" aria-hidden="true" />
             {t('helperProfile.messenger.availabilityToggle')}

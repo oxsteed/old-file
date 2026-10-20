@@ -340,7 +340,7 @@ export default function DriverTrackingControls({ job, userId }) {
           <button
             className="delivery-button delivery-button--primary"
             disabled={busy || !deviceId}
-            onClick={handleGrantConsent}
+            onClick={handleGrantConsent} data-track="ui.5f4e3d8edc.1"
           >
             {t('delivery.tracking.consentGrant')}
           </button>
@@ -356,7 +356,7 @@ export default function DriverTrackingControls({ job, userId }) {
               <button
                 className="delivery-button delivery-button--secondary"
                 disabled={busy}
-                onClick={() => { if (trackingState === 'active') beginCapture(); }}
+                onClick={() => { if (trackingState === 'active') beginCapture(); }} data-track="ui.5f4e3d8edc.2"
               >
                 {t('delivery.tracking.retryGps')}
               </button>
@@ -375,16 +375,16 @@ export default function DriverTrackingControls({ job, userId }) {
 
           <div className="delivery-tracking-controls">
             {trackingState === 'none' && (
-              <button className="delivery-button delivery-button--primary" disabled={busy || !deviceId} onClick={handleStart}>
+              <button className="delivery-button delivery-button--primary" disabled={busy || !deviceId} onClick={handleStart} data-track="ui.5f4e3d8edc.3">
                 {t('delivery.tracking.start')}
               </button>
             )}
             {trackingState === 'active' && (
               <>
-                <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={handlePause}>
+                <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={handlePause} data-track="ui.5f4e3d8edc.4">
                   {t('delivery.tracking.pause')}
                 </button>
-                <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={handleStop}>
+                <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={handleStop} data-track="ui.5f4e3d8edc.5">
                   {t('delivery.tracking.stop')}
                 </button>
                 <label className="delivery-field">
@@ -401,10 +401,10 @@ export default function DriverTrackingControls({ job, userId }) {
             )}
             {trackingState === 'paused' && (
               <>
-                <button className="delivery-button delivery-button--primary" disabled={busy} onClick={handleResume}>
+                <button className="delivery-button delivery-button--primary" disabled={busy} onClick={handleResume} data-track="ui.5f4e3d8edc.6">
                   {t('delivery.tracking.resume')}
                 </button>
-                <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={handleStop}>
+                <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={handleStop} data-track="ui.5f4e3d8edc.7">
                   {t('delivery.tracking.stop')}
                 </button>
               </>
@@ -419,7 +419,7 @@ export default function DriverTrackingControls({ job, userId }) {
                   key={scanType}
                   className="delivery-button delivery-button--secondary"
                   disabled={busy}
-                  onClick={() => handleScan(scanType)}
+                  onClick={() => handleScan(scanType)} data-track="ui.5f4e3d8edc.8"
                 >
                   {t(`delivery.tracking.scan${scanType[0].toUpperCase()}${scanType.slice(1)}`)}
                 </button>
@@ -427,7 +427,7 @@ export default function DriverTrackingControls({ job, userId }) {
             </div>
           </div>
 
-          <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={handleRevokeConsent}>
+          <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={handleRevokeConsent} data-track="ui.5f4e3d8edc.9">
             {t('delivery.tracking.consentRevoke')}
           </button>
         </>

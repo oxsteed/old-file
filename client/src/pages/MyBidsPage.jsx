@@ -170,7 +170,7 @@ export default function MyBidsPage() {
                 filter === s
                   ? 'bg-orange-500 text-white'
                   : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700'
-              }`}
+              }`} data-track="ui.e0c430728e.1"
             >
               {s === 'all'
                 ? `${t('dashboard.jobs.all', { defaultValue: 'All' })} (${counts.all})`
@@ -184,7 +184,7 @@ export default function MyBidsPage() {
         {error && (
           <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 flex items-center justify-between">
             <span>{t('myBids.loadError', { defaultValue: 'Failed to load bids.' })}</span>
-            <button onClick={fetchBids} className="text-orange-400 hover:text-orange-300 font-medium">
+            <button onClick={fetchBids} className="text-orange-400 hover:text-orange-300 font-medium" data-track="ui.e0c430728e.2">
               {t('dashboard.pulse.retry')}
             </button>
           </div>
@@ -307,7 +307,7 @@ export default function MyBidsPage() {
                         <button
                           type="button"
                           onClick={() => setEditingBid(bid)}
-                          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-orange-300 transition text-center"
+                          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-orange-300 transition text-center" data-track="ui.e0c430728e.3"
                         >
                           {t('myBids.edit')}
                         </button>
@@ -316,7 +316,7 @@ export default function MyBidsPage() {
                         <button
                           onClick={() => handleWithdraw(bid.id)}
                           disabled={withdrawing === bid.id}
-                          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-900/40 hover:bg-red-800/60 text-red-400 hover:text-red-300 border border-red-800/40 hover:border-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed text-center"
+                          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-900/40 hover:bg-red-800/60 text-red-400 hover:text-red-300 border border-red-800/40 hover:border-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed text-center" data-track="ui.e0c430728e.4"
                         >
                           {withdrawing === bid.id
                             ? t('myBids.withdrawing', { defaultValue: 'Withdrawing…' })

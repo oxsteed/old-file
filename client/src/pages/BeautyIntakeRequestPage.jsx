@@ -143,7 +143,7 @@ export default function BeautyIntakeRequestPage() {
           </div>
         </section>
 
-        <form className="mrq-grid" onSubmit={handleSubmit}>
+        <form className="mrq-grid" onSubmit={handleSubmit} data-track="ui.81dbbd09a6.1">
           <section className="mrq-panel">
             <h2><Sparkles size={18} /> {t('beautyIntakePage.sections.serviceGoals')}</h2>
             <div className="mrq-field">
@@ -235,19 +235,19 @@ export default function BeautyIntakeRequestPage() {
           <section className="mrq-panel">
             <h2><ShieldCheck size={18} /> {t('beautyIntakePage.sections.policyAndConsent')}</h2>
             <div className="mrq-checklist">
-              <label><input type="checkbox" checked={form.patch_test} onChange={(e) => updateField('patch_test', e.target.checked)} /> {t('beautyIntakePage.form.consent.patchTest')}</label>
-              <label><input type="checkbox" checked={form.photo_release} onChange={(e) => updateField('photo_release', e.target.checked)} /> {t('beautyIntakePage.form.consent.photoRelease')}</label>
-              <label><input type="checkbox" checked={form.fragrance_sensitivity} onChange={(e) => updateField('fragrance_sensitivity', e.target.checked)} /> {t('beautyIntakePage.form.consent.fragranceSensitivity')}</label>
+              <label><input type="checkbox" checked={form.patch_test} onChange={(e) => updateField('patch_test', e.target.checked)} data-track="ui.81dbbd09a6.2" /> {t('beautyIntakePage.form.consent.patchTest')}</label>
+              <label><input type="checkbox" checked={form.photo_release} onChange={(e) => updateField('photo_release', e.target.checked)} data-track="ui.81dbbd09a6.3" /> {t('beautyIntakePage.form.consent.photoRelease')}</label>
+              <label><input type="checkbox" checked={form.fragrance_sensitivity} onChange={(e) => updateField('fragrance_sensitivity', e.target.checked)} data-track="ui.81dbbd09a6.4" /> {t('beautyIntakePage.form.consent.fragranceSensitivity')}</label>
             </div>
             <div className="mt-4 rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-4 text-sm text-gray-300">
               <p><strong>{t('beautyIntakePage.form.labels.depositPolicy')}</strong> {workspace?.settings?.deposit_policy || configuredFallback}</p>
               <p className="mt-3"><strong>{t('beautyIntakePage.form.labels.prepGuidance')}</strong> {workspace?.settings?.prep_instructions || configuredFallback}</p>
             </div>
             <div className="mrq-checklist mt-4">
-              <label><input type="checkbox" checked={form.prep_acknowledged} onChange={(e) => updateField('prep_acknowledged', e.target.checked)} /> {t('beautyIntakePage.form.acknowledgement.prep')}</label>
-              <label><input type="checkbox" checked={form.no_show_acknowledged} onChange={(e) => updateField('no_show_acknowledged', e.target.checked)} /> {t('beautyIntakePage.form.acknowledgement.noShow')}</label>
+              <label><input type="checkbox" checked={form.prep_acknowledged} onChange={(e) => updateField('prep_acknowledged', e.target.checked)} data-track="ui.81dbbd09a6.5" /> {t('beautyIntakePage.form.acknowledgement.prep')}</label>
+              <label><input type="checkbox" checked={form.no_show_acknowledged} onChange={(e) => updateField('no_show_acknowledged', e.target.checked)} data-track="ui.81dbbd09a6.6" /> {t('beautyIntakePage.form.acknowledgement.noShow')}</label>
             </div>
-            <button className="mrq-btn primary" type="submit" disabled={submitting}>
+            <button className="mrq-btn primary" type="submit" disabled={submitting} data-track="ui.81dbbd09a6.7">
               {submitting ? t('beautyIntakePage.form.actions.sending') : t('beautyIntakePage.form.actions.submit')}
             </button>
           </section>

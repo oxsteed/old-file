@@ -2026,7 +2026,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                   type="button"
                   aria-label={t('food.restaurant.dismissOrderStatus')}
                   onClick={() => { clearActiveOrder(restaurantId); setRecoveredOrder(null); }}
-                  style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'var(--color-surface-2)', color: 'var(--color-text-muted)', fontSize: 15, cursor: 'pointer', lineHeight: 1, flexShrink: 0 }}
+                  style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'var(--color-surface-2)', color: 'var(--color-text-muted)', fontSize: 15, cursor: 'pointer', lineHeight: 1, flexShrink: 0 }} data-track="ui.a612ceb6f0.1"
                 >
                   ×
                 </button>
@@ -2071,15 +2071,15 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                   : emoji}
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button onClick={handleMessageClick} aria-label={t('food.restaurant.messageAria')} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', color: '#0f172a', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                <button onClick={handleMessageClick} aria-label={t('food.restaurant.messageAria')} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', color: '#0f172a', fontSize: 13, fontWeight: 600, cursor: 'pointer' }} data-track="ui.a612ceb6f0.2">
                   {`✉ ${t('food.restaurant.message')}`}
                 </button>
-                <button onClick={handleSaveToggle} disabled={saveSaving} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', color: saved ? accent : '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                <button onClick={handleSaveToggle} disabled={saveSaving} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', color: saved ? accent : '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }} data-track="ui.a612ceb6f0.3">
                   {saved ? `♥ ${t('food.common.saved')}` : `♡ ${t('food.common.save')}`}
                 </button>
-                <button onClick={onShare} aria-label={t('food.restaurant.share')} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>{`↗ ${t('food.restaurant.share')}`}</button>
+                <button onClick={onShare} aria-label={t('food.restaurant.share')} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }} data-track="ui.a612ceb6f0.4">{`↗ ${t('food.restaurant.share')}`}</button>
                 {user && (
-                  <button onClick={() => setCreditModalOpen(true)} aria-label={t('food.restaurant.requestCredit')} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#0f172a' }}>{t('food.restaurant.requestCredit')}</button>
+                  <button onClick={() => setCreditModalOpen(true)} aria-label={t('food.restaurant.requestCredit')} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#0f172a' }} data-track="ui.a612ceb6f0.5">{t('food.restaurant.requestCredit')}</button>
                 )}
               </div>
             </div>
@@ -2103,9 +2103,9 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
             {/* Fulfillment toggle */}
             <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: 10, padding: 3, marginBottom: 12 }}>
               {supportsDelivery && (
-                <button onClick={() => setDeliveryMode('delivery')} style={{ flex: 1, height: 36, borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', background: !isPickup ? '#fff' : 'transparent', color: !isPickup ? '#0f172a' : '#94a3b8', boxShadow: !isPickup ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>🛵 {t('food.fulfillment.delivery')}</button>
+                <button onClick={() => setDeliveryMode('delivery')} style={{ flex: 1, height: 36, borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', background: !isPickup ? '#fff' : 'transparent', color: !isPickup ? '#0f172a' : '#94a3b8', boxShadow: !isPickup ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }} data-track="ui.a612ceb6f0.6">🛵 {t('food.fulfillment.delivery')}</button>
               )}
-              <button onClick={() => setDeliveryMode('pickup')} style={{ flex: 1, height: 36, borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', background: isPickup ? '#fff' : 'transparent', color: isPickup ? '#0f172a' : '#94a3b8', boxShadow: isPickup ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>🏪 {t('food.order.pickup')}</button>
+              <button onClick={() => setDeliveryMode('pickup')} style={{ flex: 1, height: 36, borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', background: isPickup ? '#fff' : 'transparent', color: isPickup ? '#0f172a' : '#94a3b8', boxShadow: isPickup ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }} data-track="ui.a612ceb6f0.7">🏪 {t('food.order.pickup')}</button>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingBottom: 14 }}>
               {[['🕐', delivTime], ['💳', delivFee], ['📦', delivMin]].map(([ic, label]) => (
@@ -2123,16 +2123,16 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
             {/* ── Sidebar (desktop) ── */}
             <div className="rp-sidebar">
               <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 14, marginBottom: 14 }}>
-                <button onClick={handleStartOrder} style={{ width: '100%', height: 48, background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 8 }}>
+                <button onClick={handleStartOrder} style={{ width: '100%', height: 48, background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 8 }} data-track="ui.a612ceb6f0.8">
                   {hasCart ? t('food.restaurant.orderItems', { count: cartCount }) : t('food.restaurant.startOrder')}
                 </button>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={handleMessageClick} aria-label={t('food.restaurant.messageAria')} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#0f172a', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{`✉ ${t('food.restaurant.message')}`}</button>
-                  <button onClick={handleSaveToggle} disabled={saveSaving} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: saved ? accent : '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{saved ? `♥ ${t('food.common.saved')}` : `♡ ${t('food.common.save')}`}</button>
-                  <button onClick={onShare} aria-label={t('food.restaurant.share')} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{`↗ ${t('food.restaurant.share')}`}</button>
+                  <button onClick={handleMessageClick} aria-label={t('food.restaurant.messageAria')} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#0f172a', fontSize: 13, fontWeight: 600, cursor: 'pointer' }} data-track="ui.a612ceb6f0.9">{`✉ ${t('food.restaurant.message')}`}</button>
+                  <button onClick={handleSaveToggle} disabled={saveSaving} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: saved ? accent : '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }} data-track="ui.a612ceb6f0.10">{saved ? `♥ ${t('food.common.saved')}` : `♡ ${t('food.common.save')}`}</button>
+                  <button onClick={onShare} aria-label={t('food.restaurant.share')} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: 13, fontWeight: 600, cursor: 'pointer' }} data-track="ui.a612ceb6f0.11">{`↗ ${t('food.restaurant.share')}`}</button>
                 </div>
                 {user && (
-                  <button onClick={() => setCreditModalOpen(true)} aria-label={t('food.restaurant.requestCredit')} style={{ width: '100%', height: 40, marginTop: 8, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#0f172a', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{t('food.restaurant.requestCredit')}</button>
+                  <button onClick={() => setCreditModalOpen(true)} aria-label={t('food.restaurant.requestCredit')} style={{ width: '100%', height: 40, marginTop: 8, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#0f172a', fontSize: 13, fontWeight: 600, cursor: 'pointer' }} data-track="ui.a612ceb6f0.12">{t('food.restaurant.requestCredit')}</button>
                 )}
               </div>
               {hours.length > 0 && (
@@ -2163,13 +2163,13 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                     {restaurant.phone && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <span style={{ width: 30, height: 30, background: '#f1f5f9', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>📞</span>
-                        <a href={`tel:${restaurant.phone}`} style={{ fontSize: 13, color: '#0f172a', textDecoration: 'none' }}>{restaurant.phone}</a>
+                        <a href={`tel:${restaurant.phone}`} style={{ fontSize: 13, color: '#0f172a', textDecoration: 'none' }} data-track="ui.a612ceb6f0.13">{restaurant.phone}</a>
                       </div>
                     )}
                     {website && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <span style={{ width: 30, height: 30, background: '#f1f5f9', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>🌐</span>
-                        <a href={website.startsWith('http') ? website : `https://${website}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: accent, textDecoration: 'none' }}>{website.replace(/^https?:\/\//, '')}</a>
+                        <a href={website.startsWith('http') ? website : `https://${website}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: accent, textDecoration: 'none' }} data-track="ui.a612ceb6f0.14">{website.replace(/^https?:\/\//, '')}</a>
                       </div>
                     )}
                   </div>
@@ -2197,7 +2197,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                     <button
                       onClick={() => setSearchQuery('')}
                       aria-label={t('food.restaurant.clearSearch')}
-                      className="rp-menu-search-clear"
+                      className="rp-menu-search-clear" data-track="ui.a612ceb6f0.15"
                     >
                       ×
                     </button>
@@ -2207,7 +2207,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                   {dietaryChips.map((chip) => {
                     const on = dietaryFilter === chip.key;
                     return (
-                      <button key={chip.key} onClick={() => setDietaryFilter(chip.key)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 13px', borderRadius: 9999, border: `1.5px solid ${on ? accent : '#e2e8f0'}`, background: on ? accentBg : '#fff', color: on ? accent : '#475569', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', minHeight: 34, cursor: 'pointer', flexShrink: 0 }}>{chip.label}</button>
+                      <button key={chip.key} onClick={() => setDietaryFilter(chip.key)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 13px', borderRadius: 9999, border: `1.5px solid ${on ? accent : '#e2e8f0'}`, background: on ? accentBg : '#fff', color: on ? accent : '#475569', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', minHeight: 34, cursor: 'pointer', flexShrink: 0 }} data-track="ui.a612ceb6f0.16">{chip.label}</button>
                     );
                   })}
                 </div>
@@ -2218,7 +2218,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                 {tabs.map((tab) => {
                   const on = activeTab === tab.key;
                   return (
-                    <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{ padding: '12px 22px', border: 'none', background: 'none', fontSize: 14, fontWeight: on ? 700 : 500, color: on ? '#0f172a' : '#94a3b8', cursor: 'pointer', whiteSpace: 'nowrap', borderBottom: on ? `2px solid ${accent}` : '2px solid transparent', minHeight: 44, flexShrink: 0 }}>{tab.label}</button>
+                    <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{ padding: '12px 22px', border: 'none', background: 'none', fontSize: 14, fontWeight: on ? 700 : 500, color: on ? '#0f172a' : '#94a3b8', cursor: 'pointer', whiteSpace: 'nowrap', borderBottom: on ? `2px solid ${accent}` : '2px solid transparent', minHeight: 44, flexShrink: 0 }} data-track="ui.a612ceb6f0.17">{tab.label}</button>
                   );
                 })}
               </div>
@@ -2231,7 +2231,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                       {sections.map((sec) => {
                         const on = String(sec.id) === String(validCatId);
                         return (
-                          <button key={sec.id} onClick={() => { setActiveCategory(String(sec.id)); setSearchQuery(''); }} style={{ padding: '5px 15px', borderRadius: 9999, border: `1.5px solid ${on ? accent : '#e2e8f0'}`, background: on ? accent : '#fff', color: on ? '#fff' : '#475569', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', minHeight: 34, flexShrink: 0 }}>{sec.name}</button>
+                          <button key={sec.id} onClick={() => { setActiveCategory(String(sec.id)); setSearchQuery(''); }} style={{ padding: '5px 15px', borderRadius: 9999, border: `1.5px solid ${on ? accent : '#e2e8f0'}`, background: on ? accent : '#fff', color: on ? '#fff' : '#475569', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', minHeight: 34, flexShrink: 0 }} data-track="ui.a612ceb6f0.18">{sec.name}</button>
                         );
                       })}
                     </div>
@@ -2248,7 +2248,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                             <p style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{po.summary}</p>
                             <p style={{ fontSize: 13, color: '#94a3b8' }}>{po.date} · {po.total}</p>
                           </div>
-                          <button onClick={() => reorder(po)} style={{ height: 36, padding: '0 16px', borderRadius: 9999, background: accentBg, border: `1.5px solid ${accent}`, color: accent, fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>{t('food.restaurant.reorder')}</button>
+                          <button onClick={() => reorder(po)} style={{ height: 36, padding: '0 16px', borderRadius: 9999, background: accentBg, border: `1.5px solid ${accent}`, color: accent, fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }} data-track="ui.a612ceb6f0.19">{t('food.restaurant.reorder')}</button>
                         </div>
                       ))}
                     </div>
@@ -2282,7 +2282,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                             <div style={{ padding: '0 10px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <span style={{ fontSize: 14, fontWeight: 700, color: accent }}>{item.priceStr}</span>
                               {item.canOrder && (
-                                <button onClick={() => quickAdd(item)} style={{ width: 30, height: 30, borderRadius: 8, background: accent, color: '#fff', border: 'none', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300, lineHeight: 1 }}>+</button>
+                                <button onClick={() => quickAdd(item)} style={{ width: 30, height: 30, borderRadius: 8, background: accent, color: '#fff', border: 'none', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300, lineHeight: 1 }} data-track="ui.a612ceb6f0.20">+</button>
                               )}
                             </div>
                           </div>
@@ -2313,7 +2313,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
                             <div onClick={() => item.canOrder && openModal(item)} style={{ width: 64, height: 64, borderRadius: 10, background: item.image_url ? `center/cover url(${item.image_url})` : item.photoGrad, cursor: item.canOrder ? 'pointer' : 'default' }} />
                             {item.canOrder && (
-                              <button onClick={() => quickAdd(item)} style={{ width: 32, height: 32, borderRadius: 8, background: accent, color: '#fff', border: 'none', fontSize: 19, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300, lineHeight: 1 }}>+</button>
+                              <button onClick={() => quickAdd(item)} style={{ width: 32, height: 32, borderRadius: 8, background: accent, color: '#fff', border: 'none', fontSize: 19, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300, lineHeight: 1 }} data-track="ui.a612ceb6f0.21">+</button>
                             )}
                           </div>
                         </div>
@@ -2354,13 +2354,13 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                       {restaurant.phone && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                           <span style={{ width: 36, height: 36, background: '#f1f5f9', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>📞</span>
-                          <a href={`tel:${restaurant.phone}`} style={{ fontSize: 14, color: '#0f172a', textDecoration: 'none' }}>{restaurant.phone}</a>
+                          <a href={`tel:${restaurant.phone}`} style={{ fontSize: 14, color: '#0f172a', textDecoration: 'none' }} data-track="ui.a612ceb6f0.22">{restaurant.phone}</a>
                         </div>
                       )}
                       {website && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                           <span style={{ width: 36, height: 36, background: '#f1f5f9', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🌐</span>
-                          <a href={website.startsWith('http') ? website : `https://${website}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: accent, textDecoration: 'none' }}>{website.replace(/^https?:\/\//, '')}</a>
+                          <a href={website.startsWith('http') ? website : `https://${website}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: accent, textDecoration: 'none' }} data-track="ui.a612ceb6f0.23">{website.replace(/^https?:\/\//, '')}</a>
                         </div>
                       )}
                       {!restaurant.phone && !website && <p style={{ fontSize: 13, color: '#94a3b8' }}>{t('food.restaurant.noContact')}</p>}
@@ -2459,7 +2459,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
         {/* ── Floating cart ── */}
         {hasCart && !cartOpen && !modalItem && (
           <div className="rp-float-cart">
-            <button onClick={() => { setCartOpen(true); setCartStep('cart'); }} style={{ display: 'flex', alignItems: 'center', gap: 14, background: accent, color: '#fff', border: 'none', borderRadius: 16, padding: '14px 22px', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: `0 8px 28px ${accentShadow}`, minWidth: 240, justifyContent: 'space-between' }}>
+            <button onClick={() => { setCartOpen(true); setCartStep('cart'); }} style={{ display: 'flex', alignItems: 'center', gap: 14, background: accent, color: '#fff', border: 'none', borderRadius: 16, padding: '14px 22px', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: `0 8px 28px ${accentShadow}`, minWidth: 240, justifyContent: 'space-between' }} data-track="ui.a612ceb6f0.24">
               <span style={{ background: 'rgba(0,0,0,0.18)', borderRadius: 8, padding: '3px 10px', fontSize: 13, fontWeight: 700 }}>{cartCount}</span>
               <span>{t('food.restaurant.viewCart')}</span>
               <span>{formatFoodMoney(subtotalCents, currency)}</span>
@@ -2480,12 +2480,12 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
               {cartStep === 'cart' && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 20px 12px', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>
                   <div><h2 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>{t('food.order.yourOrder')}</h2><p style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>{restaurant.display_name}</p></div>
-                  <button onClick={() => setCartOpen(false)} aria-label={t('food.common.close')} style={closeBtn}>×</button>
+                  <button onClick={() => setCartOpen(false)} aria-label={t('food.common.close')} style={closeBtn} data-track="ui.a612ceb6f0.25">×</button>
                 </div>
               )}
               {(cartStep === 'details' || cartStep === 'payment') && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 20px 12px', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>
-                  <button onClick={() => setCartStep(cartStep === 'payment' ? 'details' : 'cart')} aria-label={t('food.common.back')} style={{ width: 36, height: 36, borderRadius: '50%', background: '#f1f5f9', border: 'none', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0f172a', flexShrink: 0 }}>←</button>
+                  <button onClick={() => setCartStep(cartStep === 'payment' ? 'details' : 'cart')} aria-label={t('food.common.back')} style={{ width: 36, height: 36, borderRadius: '50%', background: '#f1f5f9', border: 'none', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0f172a', flexShrink: 0 }} data-track="ui.a612ceb6f0.26">←</button>
                   <div style={{ flex: 1 }}>
                     <h2 style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>{cartStep === 'payment' ? t('food.restaurant.payment') : detailsTitle}</h2>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
@@ -2493,7 +2493,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                       <div style={{ width: 20, height: 3, borderRadius: 2, background: cartStep === 'payment' ? accent : '#e2e8f0' }} />
                     </div>
                   </div>
-                  <button onClick={() => setCartOpen(false)} aria-label={t('food.common.close')} style={closeBtn}>×</button>
+                  <button onClick={() => setCartOpen(false)} aria-label={t('food.common.close')} style={closeBtn} data-track="ui.a612ceb6f0.27">×</button>
                 </div>
               )}
 
@@ -2503,7 +2503,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                   <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, marginBottom: 14 }}>🛒</div>
                   <p style={{ fontSize: 16, fontWeight: 600, color: '#0f172a', marginBottom: 6 }}>{t('food.restaurant.emptyCart')}</p>
                   <p style={{ fontSize: 14, color: '#64748b', textAlign: 'center', lineHeight: 1.5 }}>{t('food.restaurant.emptyCartHelp')}</p>
-                  <button onClick={() => setCartOpen(false)} style={{ marginTop: 20, height: 44, padding: '0 28px', background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{t('food.restaurant.browseMenu')}</button>
+                  <button onClick={() => setCartOpen(false)} style={{ marginTop: 20, height: 44, padding: '0 28px', background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' }} data-track="ui.a612ceb6f0.28">{t('food.restaurant.browseMenu')}</button>
                 </div>
               )}
 
@@ -2522,9 +2522,9 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                           <p style={{ fontSize: 13, fontWeight: 700, color: accent }}>{formatFoodMoney(ci.unitCents * ci.qty, currency)}</p>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                          <button onClick={() => decLine(ci.id)} style={{ width: 28, height: 28, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', lineHeight: 1 }}>−</button>
+                          <button onClick={() => decLine(ci.id)} style={{ width: 28, height: 28, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', lineHeight: 1 }} data-track="ui.a612ceb6f0.29">−</button>
                           <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', minWidth: 18, textAlign: 'center' }}>{ci.qty}</span>
-                          <button onClick={() => incLine(ci.id)} style={{ width: 28, height: 28, borderRadius: 8, background: accent, border: 'none', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', lineHeight: 1 }}>+</button>
+                          <button onClick={() => incLine(ci.id)} style={{ width: 28, height: 28, borderRadius: 8, background: accent, border: 'none', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', lineHeight: 1 }} data-track="ui.a612ceb6f0.30">+</button>
                         </div>
                       </div>
                     ))}
@@ -2538,7 +2538,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                         </span>
                       </div>
                     ))}
-                      <button onClick={() => { setCartOpen(true); setCartStep('details'); }} style={{ width: '100%', height: 52, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>{t('food.restaurant.checkoutTotal', { total: formatFoodMoney(displayTotalCents, currency) })}</button>
+                      <button onClick={() => { setCartOpen(true); setCartStep('details'); }} style={{ width: '100%', height: 52, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer' }} data-track="ui.a612ceb6f0.31">{t('food.restaurant.checkoutTotal', { total: formatFoodMoney(displayTotalCents, currency) })}</button>
                   </div>
                 </>
               )}
@@ -2590,7 +2590,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                           {timeSlots.map((slot) => {
                             const on = deliverySlot === slot.id;
                             return (
-                              <button key={slot.id} onClick={() => setDeliverySlot(slot.id)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderRadius: 10, border: `1.5px solid ${on ? accent : '#e2e8f0'}`, background: on ? accentBg : '#fff', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
+                              <button key={slot.id} onClick={() => setDeliverySlot(slot.id)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderRadius: 10, border: `1.5px solid ${on ? accent : '#e2e8f0'}`, background: on ? accentBg : '#fff', cursor: 'pointer', textAlign: 'left', width: '100%' }} data-track="ui.a612ceb6f0.32">
                                 <div>
                                   <p style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', marginBottom: 2 }}>{slot.label}</p>
                                   <p style={{ fontSize: 12, color: '#94a3b8' }}>{slot.sub}</p>
@@ -2612,7 +2612,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                                     key={day}
                                     type="button"
                                     onClick={() => { setScheduleDay(day); setScheduleTime(''); }}
-                                    style={{ flex: 1, height: 44, borderRadius: 10, border: `1.5px solid ${on ? accent : '#e2e8f0'}`, background: on ? accentBg : '#fff', color: on ? accent : '#475569', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+                                    style={{ flex: 1, height: 44, borderRadius: 10, border: `1.5px solid ${on ? accent : '#e2e8f0'}`, background: on ? accentBg : '#fff', color: on ? accent : '#475569', fontSize: 14, fontWeight: 700, cursor: 'pointer' }} data-track="ui.a612ceb6f0.33"
                                   >
                                     {day === 'today' ? t('food.restaurant.scheduleToday') : t('food.restaurant.scheduleTomorrow')}
                                   </button>
@@ -2674,7 +2674,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                           fontSize: 16,
                           fontWeight: 700,
                           cursor: 'pointer',
-                        }}
+                        }} data-track="ui.a612ceb6f0.34"
                       >
                         {t('food.restaurant.signInToCheckout')}
                       </button>
@@ -2700,7 +2700,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                           fontSize: 16,
                           fontWeight: 700,
                           cursor: 'pointer',
-                        }}
+                        }} data-track="ui.a612ceb6f0.35"
                       >
                         {t('food.restaurant.continueToPayment')}
                       </button>
@@ -2739,7 +2739,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                         fontWeight: 700,
                         cursor: 'pointer',
                         marginBottom: 10,
-                      }}
+                      }} data-track="ui.a612ceb6f0.36"
                     >
                       {t('food.restaurant.signInContinue')}
                     </button>
@@ -2755,7 +2755,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                         fontSize: 14,
                         fontWeight: 600,
                         cursor: 'pointer',
-                      }}
+                      }} data-track="ui.a612ceb6f0.37"
                     >
                       {t('food.restaurant.backToCart')}
                     </button>
@@ -2773,7 +2773,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                         const on = paymentMethod === pm.id;
                         const disabled = Boolean(pm.disabled);
                         return (
-                          <button key={pm.id} disabled={disabled} onClick={() => !disabled && setPaymentMethod(pm.id)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 12, border: `1.5px solid ${on ? accent : '#e2e8f0'}`, background: on ? accentBg : '#fff', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.55 : 1, textAlign: 'left', width: '100%' }}>
+                          <button key={pm.id} disabled={disabled} onClick={() => !disabled && setPaymentMethod(pm.id)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 12, border: `1.5px solid ${on ? accent : '#e2e8f0'}`, background: on ? accentBg : '#fff', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.55 : 1, textAlign: 'left', width: '100%' }} data-track="ui.a612ceb6f0.38">
                             <span style={{ fontSize: 24, flexShrink: 0 }}>{pm.icon}</span>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <p style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', marginBottom: 2 }}>{pm.label}</p>
@@ -2805,7 +2805,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                         <button
                           type="button"
                           onClick={() => setCreditSheetOpen(true)}
-                          style={{ flexShrink: 0, color: accent, fontSize: 12, fontWeight: 800, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                          style={{ flexShrink: 0, color: accent, fontSize: 12, fontWeight: 800, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }} data-track="ui.a612ceb6f0.39"
                         >
                           {t('food.restaurant.manageCredit')}
                         </button>
@@ -2850,7 +2850,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                                   toast.error(t('food.restaurant.paymentAccountCopyError'));
                                 }
                               }}
-                              style={{ border: 0, borderRadius: 9, padding: '7px 10px', color: accent, background: accentBg, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}
+                              style={{ border: 0, borderRadius: 9, padding: '7px 10px', color: accent, background: accentBg, fontSize: 12, fontWeight: 800, cursor: 'pointer' }} data-track="ui.a612ceb6f0.40"
                             >
                               {t('food.restaurant.copy')}
                             </button>
@@ -2867,7 +2867,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                               href={oxsteedPayUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              style={{ display: 'block', textAlign: 'center', padding: '13px 16px', borderRadius: 12, background: accent, color: '#fff', fontSize: 15, fontWeight: 800, textDecoration: 'none' }}
+                              style={{ display: 'block', textAlign: 'center', padding: '13px 16px', borderRadius: 12, background: accent, color: '#fff', fontSize: 15, fontWeight: 800, textDecoration: 'none' }} data-track="ui.a612ceb6f0.41"
                             >
                               {t('food.restaurant.payWithOxsteed')}
                             </a>
@@ -2889,14 +2889,14 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                           <button
                             type="button"
                             onClick={() => { setProofMethod('upload'); setPaymentReference(''); }}
-                            style={{ minHeight: 42, border: `1.5px solid ${proofMethod === 'upload' ? accent : '#dbe2e8'}`, borderRadius: 11, color: proofMethod === 'upload' ? accent : '#475569', background: proofMethod === 'upload' ? accentBg : '#fff', fontWeight: 800, cursor: 'pointer' }}
+                            style={{ minHeight: 42, border: `1.5px solid ${proofMethod === 'upload' ? accent : '#dbe2e8'}`, borderRadius: 11, color: proofMethod === 'upload' ? accent : '#475569', background: proofMethod === 'upload' ? accentBg : '#fff', fontWeight: 800, cursor: 'pointer' }} data-track="ui.a612ceb6f0.42"
                           >
                             {t('food.restaurant.uploadReceipt')}
                           </button>
                           <button
                             type="button"
                             onClick={() => { setProofMethod('reference'); setPaymentProof(null); }}
-                            style={{ minHeight: 42, border: `1.5px solid ${proofMethod === 'reference' ? accent : '#dbe2e8'}`, borderRadius: 11, color: proofMethod === 'reference' ? accent : '#475569', background: proofMethod === 'reference' ? accentBg : '#fff', fontWeight: 800, cursor: 'pointer' }}
+                            style={{ minHeight: 42, border: `1.5px solid ${proofMethod === 'reference' ? accent : '#dbe2e8'}`, borderRadius: 11, color: proofMethod === 'reference' ? accent : '#475569', background: proofMethod === 'reference' ? accentBg : '#fff', fontWeight: 800, cursor: 'pointer' }} data-track="ui.a612ceb6f0.43"
                           >
                             {t('food.restaurant.enterConfirmation')}
                           </button>
@@ -2907,9 +2907,9 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                               <span style={{ fontSize: 18 }}>✓</span>
                               <div style={{ minWidth: 0, flex: 1 }}>
                                 <strong style={{ display: 'block', fontSize: 13, color: '#166534' }}>{paymentProof.name || t('food.restaurant.receiptAttached')}</strong>
-                                <a href={paymentProof.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#15803d', textDecoration: 'none' }}>{t('food.restaurant.viewReceipt')}</a>
+                                <a href={paymentProof.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#15803d', textDecoration: 'none' }} data-track="ui.a612ceb6f0.44">{t('food.restaurant.viewReceipt')}</a>
                               </div>
-                              <button type="button" onClick={() => setPaymentProof(null)} style={{ border: 0, background: 'transparent', color: '#b91c1c', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>{t('food.common.remove')}</button>
+                              <button type="button" onClick={() => setPaymentProof(null)} style={{ border: 0, background: 'transparent', color: '#b91c1c', fontSize: 12, fontWeight: 800, cursor: 'pointer' }} data-track="ui.a612ceb6f0.45">{t('food.common.remove')}</button>
                             </div>
                           ) : (
                             <label style={{ display: 'grid', placeItems: 'center', minHeight: 82, border: '1.5px dashed #cbd5e1', borderRadius: 12, background: '#fff', color: '#475569', fontSize: 13, fontWeight: 800, cursor: proofUploading ? 'wait' : 'pointer' }}>
@@ -2981,7 +2981,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                             type="button"
                             onClick={() => setLoyaltyPointsText(loyaltyBalance ? String(Math.max(0, loyaltyBalance.pointsBalance)) : '')}
                             disabled={!loyaltyBalance || loyaltyBalance.pointsBalance < (loyaltyBalance.minRedeemPoints || 100)}
-                            style={{ height: 40, padding: '0 14px', borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#fff', color: '#475569', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                            style={{ height: 40, padding: '0 14px', borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#fff', color: '#475569', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }} data-track="ui.a612ceb6f0.46"
                           >
                             {t('food.restaurant.loyaltyUseMax')}
                           </button>
@@ -3011,7 +3011,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                             key={String(opt.id)}
                             type="button"
                             onClick={() => setTipPreset(opt.id)}
-                            style={{ height: 40, padding: '0 16px', borderRadius: 9999, border: `1.5px solid ${on ? accent : '#e2e8f0'}`, background: on ? accentBg : '#fff', color: on ? accent : '#475569', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                            style={{ height: 40, padding: '0 16px', borderRadius: 9999, border: `1.5px solid ${on ? accent : '#e2e8f0'}`, background: on ? accentBg : '#fff', color: on ? accent : '#475569', fontSize: 13, fontWeight: 700, cursor: 'pointer' }} data-track="ui.a612ceb6f0.47"
                           >
                             {opt.label}
                           </button>
@@ -3045,7 +3045,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                         type="button"
                         onClick={() => setItemsExpanded((v) => !v)}
                         aria-expanded={itemsExpanded}
-                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', background: 'none', border: 'none', padding: 0, marginBottom: itemsExpanded ? 8 : 10, cursor: 'pointer', fontSize: 14, color: '#64748b' }}
+                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', background: 'none', border: 'none', padding: 0, marginBottom: itemsExpanded ? 8 : 10, cursor: 'pointer', fontSize: 14, color: '#64748b' }} data-track="ui.a612ceb6f0.48"
                       >
                         <span style={{ fontWeight: 600 }}>{t('food.restaurant.itemsRecap', { count: cartCount })}</span>
                         <span style={{ fontSize: 11, color: '#94a3b8' }}>{itemsExpanded ? '▲' : '▼'}</span>
@@ -3089,7 +3089,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                     <button
                       onClick={submitOrder}
                       disabled={placing || proofUploading || (paymentMethod === 'direct_payment' && requireExternalPaymentProof && !externalPaymentHasSubmission)}
-                      style={{ width: '100%', height: 52, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: placing || proofUploading ? 'wait' : 'pointer', opacity: placing || proofUploading || (paymentMethod === 'direct_payment' && requireExternalPaymentProof && !externalPaymentHasSubmission) ? 0.7 : 1 }}
+                      style={{ width: '100%', height: 52, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: placing || proofUploading ? 'wait' : 'pointer', opacity: placing || proofUploading || (paymentMethod === 'direct_payment' && requireExternalPaymentProof && !externalPaymentHasSubmission) ? 0.7 : 1 }} data-track="ui.a612ceb6f0.49"
                     >
                       {placing ? t('food.restaurant.placingOrder') : t('food.restaurant.placeOrderTotal', { total: formatFoodMoney(displayTotalCents, currency) })}
                     </button>
@@ -3133,7 +3133,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                     </div>
                     <div style={{ display: 'flex', gap: 10, width: '100%' }}>
                       <Link to={`/restaurants/queue/${restaurant.id}`} style={{ flex: 1, textAlign: 'center', height: 44, lineHeight: '44px', background: '#f1f5f9', color: '#0f172a', borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>{t('food.order.watchQueue')}</Link>
-                      <button onClick={() => { setCartOpen(false); setCartStep('cart'); setPlacedOrder(null); setPlacedTrackingToken(null); setRecoveredOrder(loadActiveOrder(restaurantId)); setPaymentReference(''); setPaymentNote(''); setKitchenNotes(''); setScheduledFor(null); setScheduleDay('today'); setScheduleTime(''); setItemsExpanded(false); setCardError(''); setPaymentProof(null); setProofMethod('upload'); setPaymentMethod('pay_at_restaurant'); }} style={{ flex: 1, height: 44, background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>{t('food.restaurant.backToMenu')}</button>
+                      <button onClick={() => { setCartOpen(false); setCartStep('cart'); setPlacedOrder(null); setPlacedTrackingToken(null); setRecoveredOrder(loadActiveOrder(restaurantId)); setPaymentReference(''); setPaymentNote(''); setKitchenNotes(''); setScheduledFor(null); setScheduleDay('today'); setScheduleTime(''); setItemsExpanded(false); setCardError(''); setPaymentProof(null); setProofMethod('upload'); setPaymentMethod('pay_at_restaurant'); }} style={{ flex: 1, height: 44, background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }} data-track="ui.a612ceb6f0.50">{t('food.restaurant.backToMenu')}</button>
                     </div>
                   </div>
                 );
@@ -3168,7 +3168,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
             <div className="rp-sheet" role="dialog" aria-modal="true" aria-label={t('food.restaurant.messageTitle', { name: restaurant.display_name })}>
               <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #f1f5f9', position: 'relative', flexShrink: 0 }}>
                 <div style={{ position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', width: 36, height: 4, borderRadius: 2, background: '#e2e8f0' }} />
-                <button onClick={() => !sendingMessage && setMessageOpen(false)} aria-label={t('food.common.close')} style={{ position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: '50%', background: '#f1f5f9', color: '#64748b', border: 'none', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>×</button>
+                <button onClick={() => !sendingMessage && setMessageOpen(false)} aria-label={t('food.common.close')} style={{ position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: '50%', background: '#f1f5f9', color: '#64748b', border: 'none', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }} data-track="ui.a612ceb6f0.51">×</button>
                 <h2 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', marginBottom: 4, paddingRight: 44 }}>{t('food.restaurant.messageTitle', { name: restaurant.display_name })}</h2>
                 <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>{t('food.restaurant.messageInboxNote')}</p>
               </div>
@@ -3195,8 +3195,8 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
               </div>
               <div style={{ padding: '12px 20px 20px', borderTop: '1px solid #f1f5f9', flexShrink: 0, background: '#fff' }}>
                 <div style={{ display: 'flex', gap: 10 }}>
-                  <button onClick={() => setMessageOpen(false)} disabled={sendingMessage} style={{ flex: 1, height: 50, background: '#fff', color: '#0f172a', border: '1.5px solid #e2e8f0', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: sendingMessage ? 'not-allowed' : 'pointer', opacity: sendingMessage ? 0.5 : 1 }}>{t('food.common.cancel')}</button>
-                  <button onClick={handleSendMessage} disabled={sendingMessage} style={{ flex: 2, height: 50, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: sendingMessage ? 'not-allowed' : 'pointer', opacity: sendingMessage ? 0.6 : 1 }}>{sendingMessage ? t('food.restaurant.sendingMessage') : t('food.restaurant.sendMessage')}</button>
+                  <button onClick={() => setMessageOpen(false)} disabled={sendingMessage} style={{ flex: 1, height: 50, background: '#fff', color: '#0f172a', border: '1.5px solid #e2e8f0', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: sendingMessage ? 'not-allowed' : 'pointer', opacity: sendingMessage ? 0.5 : 1 }} data-track="ui.a612ceb6f0.52">{t('food.common.cancel')}</button>
+                  <button onClick={handleSendMessage} disabled={sendingMessage} style={{ flex: 2, height: 50, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: sendingMessage ? 'not-allowed' : 'pointer', opacity: sendingMessage ? 0.6 : 1 }} data-track="ui.a612ceb6f0.53">{sendingMessage ? t('food.restaurant.sendingMessage') : t('food.restaurant.sendMessage')}</button>
                 </div>
               </div>
             </div>
@@ -3211,13 +3211,13 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
               <div style={{ height: 190, background: modalItem.image_url ? `center/cover url(${modalItem.image_url})` : (modalItem.photoGrad || gradFor(modalItem.sectionName)), position: 'relative', flexShrink: 0 }}>
                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.55) 100%)' }} />
                 <div style={{ position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', width: 36, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.4)' }} />
-                <button onClick={() => setModalItem(null)} aria-label={t('food.common.close')} style={{ position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.35)', color: '#fff', border: 'none', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, backdropFilter: 'blur(8px)' }}>×</button>
+                <button onClick={() => setModalItem(null)} aria-label={t('food.common.close')} style={{ position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.35)', color: '#fff', border: 'none', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, backdropFilter: 'blur(8px)' }} data-track="ui.a612ceb6f0.54">×</button>
                 <button
                   onClick={handleItemFavoriteToggle}
                   disabled={itemFavSaving}
                   aria-label={isModalItemFavorited(modalItem) ? t('food.restaurant.unfavoriteDishAria') : t('food.restaurant.favoriteDishAria')}
                   aria-pressed={isModalItemFavorited(modalItem)}
-                  style={{ position: 'absolute', top: 14, left: 14, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.35)', color: isModalItemFavorited(modalItem) ? '#f87171' : '#fff', border: 'none', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, backdropFilter: 'blur(8px)' }}
+                  style={{ position: 'absolute', top: 14, left: 14, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.35)', color: isModalItemFavorited(modalItem) ? '#f87171' : '#fff', border: 'none', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, backdropFilter: 'blur(8px)' }} data-track="ui.a612ceb6f0.55"
                 >{isModalItemFavorited(modalItem) ? '♥' : '♡'}</button>
                 <div style={{ position: 'absolute', bottom: 14, left: 20, right: 20 }}>
                   <h2 style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 400, color: '#fff', lineHeight: 1.2, marginBottom: 2 }}>{modalItem.name}</h2>
@@ -3236,13 +3236,13 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                     <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 10 }}>{group.name}{group.isRequired && <span style={{ color: accent, marginLeft: 6, textTransform: 'none', letterSpacing: 0 }}>{t('food.restaurant.required')}</span>}</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                       {group.isRadio && group.radioOptions.map((opt) => (
-                        <button key={opt.id} onClick={opt.onSelect} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 14px', borderRadius: 10, border: `1.5px solid ${opt.isSelected ? accent : '#e2e8f0'}`, background: opt.isSelected ? accentBg : '#fff', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
+                        <button key={opt.id} onClick={opt.onSelect} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 14px', borderRadius: 10, border: `1.5px solid ${opt.isSelected ? accent : '#e2e8f0'}`, background: opt.isSelected ? accentBg : '#fff', cursor: 'pointer', textAlign: 'left', width: '100%' }} data-track="ui.a612ceb6f0.56">
                           <span style={{ fontSize: 14, color: '#0f172a', fontWeight: opt.isSelected ? 600 : 400 }}>{opt.label}{opt.priceCents ? <span style={{ color: '#64748b', fontWeight: 400 }}> +{formatFoodMoney(opt.priceCents, currency)}</span> : null}</span>
                           <Radio on={opt.isSelected} accent={accent} />
                         </button>
                       ))}
                       {group.isCheckbox && group.checkboxOptions.map((opt) => (
-                        <button key={opt.id} onClick={opt.onToggle} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 14px', borderRadius: 10, border: `1.5px solid ${opt.isChecked ? accent : '#e2e8f0'}`, background: opt.isChecked ? accentBg : '#fff', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
+                        <button key={opt.id} onClick={opt.onToggle} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 14px', borderRadius: 10, border: `1.5px solid ${opt.isChecked ? accent : '#e2e8f0'}`, background: opt.isChecked ? accentBg : '#fff', cursor: 'pointer', textAlign: 'left', width: '100%' }} data-track="ui.a612ceb6f0.57">
                           <span style={{ fontSize: 14, color: '#0f172a', fontWeight: opt.isChecked ? 600 : 400 }}>{opt.label}{opt.priceCents ? <span style={{ color: '#64748b', fontWeight: 400 }}> +{formatFoodMoney(opt.priceCents, currency)}</span> : null}</span>
                           <span style={{ width: 20, height: 20, borderRadius: 5, border: `2px solid ${opt.isChecked ? accent : '#cbd5e1'}`, background: opt.isChecked ? accent : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                             {opt.isChecked && <span style={{ color: '#fff', fontSize: 12, fontWeight: 700, lineHeight: 1 }}>✓</span>}
@@ -3262,11 +3262,11 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
               <div style={{ padding: '12px 20px 20px', borderTop: '1px solid #f1f5f9', flexShrink: 0, background: '#fff' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f1f5f9', borderRadius: 12, padding: 4 }}>
-                    <button onClick={() => setModalQty((q) => Math.max(1, q - 1))} style={{ width: 38, height: 38, borderRadius: 9, border: 'none', background: '#fff', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', lineHeight: 1, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>−</button>
+                    <button onClick={() => setModalQty((q) => Math.max(1, q - 1))} style={{ width: 38, height: 38, borderRadius: 9, border: 'none', background: '#fff', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', lineHeight: 1, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }} data-track="ui.a612ceb6f0.58">−</button>
                     <span style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', minWidth: 26, textAlign: 'center' }}>{modalQty}</span>
-                    <button onClick={() => setModalQty((q) => Math.min(99, q + 1))} style={{ width: 38, height: 38, borderRadius: 9, border: 'none', background: accent, fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', lineHeight: 1 }}>+</button>
+                    <button onClick={() => setModalQty((q) => Math.min(99, q + 1))} style={{ width: 38, height: 38, borderRadius: 9, border: 'none', background: accent, fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', lineHeight: 1 }} data-track="ui.a612ceb6f0.59">+</button>
                   </div>
-                  <button onClick={modalAddToCart} disabled={modalMissingRequired} style={{ flex: 1, height: 50, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: modalMissingRequired ? 'not-allowed' : 'pointer', opacity: modalMissingRequired ? 0.5 : 1, whiteSpace: 'nowrap' }}>{t('food.restaurant.addQuantity', { count: modalQty, total: modalLineTotal })}</button>
+                  <button onClick={modalAddToCart} disabled={modalMissingRequired} style={{ flex: 1, height: 50, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: modalMissingRequired ? 'not-allowed' : 'pointer', opacity: modalMissingRequired ? 0.5 : 1, whiteSpace: 'nowrap' }} data-track="ui.a612ceb6f0.60">{t('food.restaurant.addQuantity', { count: modalQty, total: modalLineTotal })}</button>
                 </div>
               </div>
             </div>
@@ -3363,7 +3363,7 @@ const CheckoutCardForm = React.forwardRef(function CheckoutCardForm({ onExpressC
                 type="radio"
                 name="saved-card"
                 checked={selectedMethod === pm.id}
-                onChange={() => setSelectedMethod(pm.id)}
+                onChange={() => setSelectedMethod(pm.id)} data-track="ui.a612ceb6f0.61"
               />
               <span style={{ fontWeight: 700, textTransform: 'capitalize' }}>{pm.brand}</span>
               <span style={{ color: '#64748b' }}>•••• {pm.last4}</span>
@@ -3385,7 +3385,7 @@ const CheckoutCardForm = React.forwardRef(function CheckoutCardForm({ onExpressC
               type="radio"
               name="saved-card"
               checked={selectedMethod === 'new'}
-              onChange={() => setSelectedMethod('new')}
+              onChange={() => setSelectedMethod('new')} data-track="ui.a612ceb6f0.62"
             />
             <span style={{ fontWeight: 600 }}>{t('food.restaurant.useNewCard')}</span>
           </label>
@@ -3584,7 +3584,7 @@ function CreditTopupSheet({ restaurantId, restaurantName, currency, wallet, onCl
       <div className="rp-sheet" role="dialog" aria-modal="true" aria-label={t('food.restaurant.creditSheetTitle')}>
         <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #f1f5f9', position: 'relative', flexShrink: 0 }}>
           <div style={{ position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', width: 36, height: 4, borderRadius: 2, background: '#e2e8f0' }} />
-          <button onClick={close} aria-label={t('food.common.close')} style={{ position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: '50%', background: '#f1f5f9', color: '#64748b', border: 'none', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>×</button>
+          <button onClick={close} aria-label={t('food.common.close')} style={{ position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: '50%', background: '#f1f5f9', color: '#64748b', border: 'none', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }} data-track="ui.a612ceb6f0.63">×</button>
           <h2 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', marginBottom: 4, paddingRight: 44 }}>{t('food.restaurant.creditSheetTitle')}</h2>
           <p style={{ fontSize: 13, color: '#64748b' }}>{restaurantName}</p>
         </div>
@@ -3596,7 +3596,7 @@ function CreditTopupSheet({ restaurantId, restaurantName, currency, wallet, onCl
           {terminal ? (
             <div>
               <p role={terminal.tone === 'error' ? 'alert' : 'status'} style={{ fontSize: 14, color: terminal.tone === 'error' ? '#b91c1c' : '#475569', lineHeight: 1.6, marginBottom: 12 }}>{terminal.message}</p>
-              <button type="button" onClick={close} style={{ width: '100%', height: 48, background: '#f1f5f9', color: '#0f172a', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>{t('food.common.close')}</button>
+              <button type="button" onClick={close} style={{ width: '100%', height: 48, background: '#f1f5f9', color: '#0f172a', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer' }} data-track="ui.a612ceb6f0.64">{t('food.common.close')}</button>
             </div>
           ) : step === 'main' ? (
             <>
@@ -3611,14 +3611,14 @@ function CreditTopupSheet({ restaurantId, restaurantName, currency, wallet, onCl
                   {t('food.restaurant.creditSheetStripeUnavailable')}
                 </p>
               )}
-              <form onSubmit={submitAmount}>
+              <form onSubmit={submitAmount} data-track="ui.a612ceb6f0.65">
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
                   {CREDIT_TOPUP_QUICK_AMOUNTS.map((quick) => (
                     <button
                       key={quick}
                       type="button"
                       onClick={() => { setAmountText(String(quick)); setAmountError(''); }}
-                      style={{ height: 40, padding: '0 16px', borderRadius: 9999, border: `1.5px solid ${amountText === String(quick) ? '#ff8c00' : '#e2e8f0'}`, background: amountText === String(quick) ? 'rgba(255,140,0,0.12)' : '#fff', color: amountText === String(quick) ? '#ff8c00' : '#475569', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                      style={{ height: 40, padding: '0 16px', borderRadius: 9999, border: `1.5px solid ${amountText === String(quick) ? '#ff8c00' : '#e2e8f0'}`, background: amountText === String(quick) ? 'rgba(255,140,0,0.12)' : '#fff', color: amountText === String(quick) ? '#ff8c00' : '#475569', fontSize: 13, fontWeight: 700, cursor: 'pointer' }} data-track="ui.a612ceb6f0.66"
                     >
                       {formatFoodMoney(quick * 100, currency)}
                     </button>
@@ -3642,14 +3642,14 @@ function CreditTopupSheet({ restaurantId, restaurantName, currency, wallet, onCl
                 <button
                   type="submit"
                   disabled={submitting || eligible === false || !stripePromise}
-                  style={{ width: '100%', height: 50, background: '#ff8c00', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', opacity: submitting || eligible === false || !stripePromise ? 0.6 : 1 }}
+                  style={{ width: '100%', height: 50, background: '#ff8c00', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', opacity: submitting || eligible === false || !stripePromise ? 0.6 : 1 }} data-track="ui.a612ceb6f0.67"
                 >
                   {submitting ? tCredit('restaurantTopups.processing') : t('food.restaurant.creditSheetTopup')}
                 </button>
               </form>
             </>
           ) : step === 'stepup' ? (
-            <form onSubmit={submitStepup}>
+            <form onSubmit={submitStepup} data-track="ui.a612ceb6f0.68">
               <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.6, marginBottom: 12 }}>
                 <strong style={{ color: '#0f172a' }}>{tCredit('restaurantTopups.stepupTitle')}</strong><br />
                 {tCredit('restaurantTopups.stepupCopy')}
@@ -3665,13 +3665,13 @@ function CreditTopupSheet({ restaurantId, restaurantName, currency, wallet, onCl
               <button
                 type="submit"
                 disabled={submitting}
-                style={{ width: '100%', height: 50, background: '#ff8c00', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', opacity: submitting ? 0.6 : 1 }}
+                style={{ width: '100%', height: 50, background: '#ff8c00', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', opacity: submitting ? 0.6 : 1 }} data-track="ui.a612ceb6f0.69"
               >
                 {submitting ? tCredit('restaurantTopups.processing') : tCredit('restaurantTopups.verifyAndContinue')}
               </button>
             </form>
           ) : step === 'card' && intent?.clientSecret ? (
-            <form onSubmit={confirmTopupCard}>
+            <form onSubmit={confirmTopupCard} data-track="ui.a612ceb6f0.70">
               <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.6, marginBottom: 12 }}>
                 {tCredit('restaurantTopups.cardCopy', { amount: formatFoodMoney(amountCents, currency) })}
               </p>
@@ -3683,7 +3683,7 @@ function CreditTopupSheet({ restaurantId, restaurantName, currency, wallet, onCl
               <button
                 type="submit"
                 disabled={submitting}
-                style={{ width: '100%', height: 50, background: '#ff8c00', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', opacity: submitting ? 0.6 : 1, marginTop: 12 }}
+                style={{ width: '100%', height: 50, background: '#ff8c00', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', opacity: submitting ? 0.6 : 1, marginTop: 12 }} data-track="ui.a612ceb6f0.71"
               >
                 {submitting ? tCredit('restaurantTopups.processing') : tCredit('restaurantTopups.pay', { amount: formatFoodMoney(amountCents, currency) })}
               </button>
@@ -3691,7 +3691,7 @@ function CreditTopupSheet({ restaurantId, restaurantName, currency, wallet, onCl
           ) : (
             <div>
               <p role="status" style={{ fontSize: 14, color: '#475569', marginBottom: 12 }}>⏳ {tCredit('restaurantTopups.confirming')}</p>
-              <button type="button" onClick={close} style={{ width: '100%', height: 48, background: '#f1f5f9', color: '#0f172a', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>{t('food.common.close')}</button>
+              <button type="button" onClick={close} style={{ width: '100%', height: 48, background: '#f1f5f9', color: '#0f172a', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer' }} data-track="ui.a612ceb6f0.72">{t('food.common.close')}</button>
             </div>
           )}
         </div>
@@ -3743,7 +3743,7 @@ export function ItemModal({ item, currency = 'USD', onClose, onAdd, t }) {
       <div className="rp-sheet" role="dialog" aria-modal="true" aria-label={item.name}>
         <div style={{ height: 170, background: item.image_url ? `center/cover url(${item.image_url})` : 'linear-gradient(135deg,#92400e,#d97706)', position: 'relative', flexShrink: 0 }}>
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.55) 100%)' }} />
-          <button onClick={onClose} aria-label={tr('food.common.close', { defaultValue: 'Close' })} style={{ position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.35)', color: '#fff', border: 'none', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
+          <button onClick={onClose} aria-label={tr('food.common.close', { defaultValue: 'Close' })} style={{ position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.35)', color: '#fff', border: 'none', fontSize: 20, cursor: 'pointer', lineHeight: 1 }} data-track="ui.a612ceb6f0.73">×</button>
           <div style={{ position: 'absolute', bottom: 14, left: 20, right: 20 }}>
             <h2 style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 400, color: '#fff', marginBottom: 2 }}>{item.name}</h2>
             <span style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{formatFoodMoney(item.price_cents, currency)}</span>
@@ -3761,7 +3761,7 @@ export function ItemModal({ item, currency = 'USD', onClose, onAdd, t }) {
                   const radio = (group.maxSelect || group.max_select) === 1;
                   const on = selected[group.id]?.has(option.id);
                   return (
-                    <button key={option.id} onClick={() => toggle(group, option)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 14px', borderRadius: 10, border: `1.5px solid ${on ? accent : '#e2e8f0'}`, background: on ? accentBg : '#fff', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
+                    <button key={option.id} onClick={() => toggle(group, option)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 14px', borderRadius: 10, border: `1.5px solid ${on ? accent : '#e2e8f0'}`, background: on ? accentBg : '#fff', cursor: 'pointer', textAlign: 'left', width: '100%' }} data-track="ui.a612ceb6f0.74">
                       <span style={{ fontSize: 14, color: '#0f172a', fontWeight: on ? 600 : 400 }}>{option.name}{Number(option.priceDeltaCents) ? <span style={{ color: '#64748b', fontWeight: 400 }}> +{formatFoodMoney(option.priceDeltaCents, currency)}</span> : null}</span>
                       <span style={{ width: radio ? 18 : 20, height: radio ? 18 : 20, borderRadius: radio ? '50%' : 5, border: `2px solid ${on ? accent : '#cbd5e1'}`, background: on && !radio ? accent : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         {on && radio && <span style={{ width: 8, height: 8, borderRadius: '50%', background: accent }} />}
@@ -3782,9 +3782,9 @@ export function ItemModal({ item, currency = 'USD', onClose, onAdd, t }) {
         <div style={{ padding: '12px 20px 20px', borderTop: '1px solid #f1f5f9', flexShrink: 0, background: '#fff' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f1f5f9', borderRadius: 12, padding: 4 }}>
-              <button onClick={() => setQuantity((q) => Math.max(1, q - 1))} style={{ width: 38, height: 38, borderRadius: 9, border: 'none', background: '#fff', fontSize: 22, cursor: 'pointer', color: '#64748b', lineHeight: 1, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>−</button>
+              <button onClick={() => setQuantity((q) => Math.max(1, q - 1))} style={{ width: 38, height: 38, borderRadius: 9, border: 'none', background: '#fff', fontSize: 22, cursor: 'pointer', color: '#64748b', lineHeight: 1, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }} data-track="ui.a612ceb6f0.75">−</button>
               <span style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', minWidth: 26, textAlign: 'center' }}>{quantity}</span>
-              <button onClick={() => setQuantity((q) => Math.min(99, q + 1))} style={{ width: 38, height: 38, borderRadius: 9, border: 'none', background: accent, fontSize: 22, cursor: 'pointer', color: '#fff', lineHeight: 1 }}>+</button>
+              <button onClick={() => setQuantity((q) => Math.min(99, q + 1))} style={{ width: 38, height: 38, borderRadius: 9, border: 'none', background: accent, fontSize: 22, cursor: 'pointer', color: '#fff', lineHeight: 1 }} data-track="ui.a612ceb6f0.76">+</button>
             </div>
             <button
               type="button"
@@ -3798,7 +3798,7 @@ export function ItemModal({ item, currency = 'USD', onClose, onAdd, t }) {
                 unitTotalCents,
                 specialInstructions: instructions.trim() || undefined,
               })}
-              style={{ flex: 1, height: 50, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: missingRequired ? 'not-allowed' : 'pointer', opacity: missingRequired ? 0.5 : 1, whiteSpace: 'nowrap' }}
+              style={{ flex: 1, height: 50, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: missingRequired ? 'not-allowed' : 'pointer', opacity: missingRequired ? 0.5 : 1, whiteSpace: 'nowrap' }} data-track="ui.a612ceb6f0.77"
             >
               {tr('food.order.addToOrder', { defaultValue: `Add · ${formatFoodMoney(lineTotal, currency)}`, total: formatFoodMoney(lineTotal, currency) })}
             </button>

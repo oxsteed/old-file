@@ -192,7 +192,7 @@ export default function DisplayPairingCode() {
           color: '#fff', fontSize: '1.25rem', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           opacity: open ? 1 : 0.55,
-        }}
+        }} data-track="ui.ac8f65ba03.1"
       >
         {paired ? '✓' : '⌁'}
       </button>
@@ -218,7 +218,7 @@ export default function DisplayPairingCode() {
               type="button"
               onClick={() => setOpen(false)}
               aria-label={t('displayPairing.close')}
-              style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: '1.25rem', cursor: 'pointer' }}
+              style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: '1.25rem', cursor: 'pointer' }} data-track="ui.ac8f65ba03.2"
             >
               ×
             </button>
@@ -267,7 +267,7 @@ export default function DisplayPairingCode() {
                   border: '1px solid rgba(255,255,255,0.25)',
                   background: busy ? 'rgba(75,85,99,0.8)' : 'rgba(37,99,235,0.9)',
                   color: '#fff', fontSize: '0.95rem', cursor: busy ? 'wait' : 'pointer',
-                }}
+                }} data-track="ui.ac8f65ba03.3"
               >
                 {busy ? t('displayPairing.working') : t('displayPairing.newCode')}
               </button>

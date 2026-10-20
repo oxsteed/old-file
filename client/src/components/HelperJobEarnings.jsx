@@ -41,7 +41,7 @@ function HelperEarningsWorkspace({ userId }) {
   return <section className="helper-job-earnings" lang={i18n.language} aria-labelledby="helper-earnings-title" aria-busy={!data && !error}>
     <h2 id="helper-earnings-title">{oldCopy('title')}</h2>
     {!data && !error && <p role="status">{oldCopy('loading')}</p>}
-    {error && <div role="alert"><p>{oldCopy('loadFailed')}</p><button onClick={() => setRetry(value => value + 1)}>{oldCopy('retry')}</button></div>}
+    {error && <div role="alert"><p>{oldCopy('loadFailed')}</p><button onClick={() => setRetry(value => value + 1)} data-track="ui.ebd0443089.1">{oldCopy('retry')}</button></div>}
     {data && <>
       <label>{copy('currency')} <select aria-label={copy('currency')} value={summary.currencyCode} onChange={event => { setCurrency(event.target.value); setOffset(0); }}>
         {(data.accounts?.length ? data.accounts : [{ currencyCode: summary.currencyCode }]).map(account =>
@@ -68,9 +68,9 @@ function HelperEarningsWorkspace({ userId }) {
         <strong>{job.amountCents == null ? copy('notRecorded') : money(job.amountCents)}</strong>
       </li>)}</ul>
       <nav aria-label={copy('pagination')}>
-        <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - 20))}>{copy('previous')}</button>
+        <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - 20))} data-track="ui.ebd0443089.2">{copy('previous')}</button>
         <span>{data.pagination?.total || 0} · {summary.currencyCode}</span>
-        <button disabled={!data.pagination?.hasMore} onClick={() => setOffset(offset + 20)}>{copy('next')}</button>
+        <button disabled={!data.pagination?.hasMore} onClick={() => setOffset(offset + 20)} data-track="ui.ebd0443089.3">{copy('next')}</button>
       </nav>
     </>}
   </section>;

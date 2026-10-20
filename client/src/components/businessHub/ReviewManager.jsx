@@ -72,7 +72,7 @@ export function ReviewManager({ businessId }) {
           ['unreplied', t('businessHub.reviews.filters.needsReply')],
           ['replied', t('businessHub.reviews.filters.replied')],
         ].map(([v, l]) => (
-          <button key={v} onClick={() => setFilter(v)} style={{ padding: '0.4rem 0.9rem', borderRadius: '999px', border: '1px solid var(--border-color)', background: filter === v ? '#f97316' : 'transparent', color: filter === v ? '#fff' : 'var(--app-text)', cursor: 'pointer', fontSize: '0.875rem', fontWeight: filter === v ? 600 : 400 }}>{l}</button>
+          <button key={v} onClick={() => setFilter(v)} style={{ padding: '0.4rem 0.9rem', borderRadius: '999px', border: '1px solid var(--border-color)', background: filter === v ? '#f97316' : 'transparent', color: filter === v ? '#fff' : 'var(--app-text)', cursor: 'pointer', fontSize: '0.875rem', fontWeight: filter === v ? 600 : 400 }} data-track="ui.77a051a8d7.1">{l}</button>
         ))}
       </div>
 
@@ -104,7 +104,7 @@ export function ReviewManager({ businessId }) {
                   <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#f97316', marginBottom: '0.25rem' }}>{t('businessHub.reviews.yourReply')}</div>
                   <p style={{ margin: 0, fontSize: '0.875rem' }}>{r.response}</p>
                 </div>
-                <button onClick={() => deleteReply(r.id)} style={{ padding: '0.25rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={12} /></button>
+                <button onClick={() => deleteReply(r.id)} style={{ padding: '0.25rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }} data-track="ui.77a051a8d7.2"><Trash2 size={12} /></button>
               </div>
             </div>
           ) : (
@@ -116,7 +116,7 @@ export function ReviewManager({ businessId }) {
                 rows={2}
                 style={{ flex: 1, padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)', resize: 'vertical', fontSize: '0.875rem' }}
               />
-              <button onClick={() => submitReply(r.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.6rem 1rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
+              <button onClick={() => submitReply(r.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.6rem 1rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap' }} data-track="ui.77a051a8d7.3">
                 <Send size={14} /> {t('businessHub.reviews.reply')}
               </button>
             </div>

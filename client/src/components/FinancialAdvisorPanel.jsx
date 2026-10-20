@@ -86,7 +86,7 @@ export default function FinancialAdvisorPanel({ isOpen, onClose }) {
         <button
           onClick={onClose}
           className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-700 transition"
-          aria-label={t('common.close')}
+          aria-label={t('common.close')} data-track="ui.b1654d4001.1"
         >
           <X className="w-4 h-4" />
         </button>
@@ -97,7 +97,7 @@ export default function FinancialAdvisorPanel({ isOpen, onClose }) {
         <button
           onClick={() => setDisclaimerOpen(v => !v)}
           className="w-full flex items-center gap-2 px-4 py-2 bg-amber-900/30 border-b border-amber-800/30 hover:bg-amber-900/40 transition text-start"
-          aria-expanded={disclaimerOpen}
+          aria-expanded={disclaimerOpen} data-track="ui.b1654d4001.2"
         >
           <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" aria-hidden="true" />
           <span className="text-xs text-amber-300 font-medium flex-1">
@@ -158,7 +158,7 @@ export default function FinancialAdvisorPanel({ isOpen, onClose }) {
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSend} className="flex gap-2 px-3 py-3 border-t border-gray-800 flex-shrink-0">
+      <form onSubmit={handleSend} className="flex gap-2 px-3 py-3 border-t border-gray-800 flex-shrink-0" data-track="ui.b1654d4001.3">
         <input
           ref={inputRef}
           type="text"
@@ -173,7 +173,7 @@ export default function FinancialAdvisorPanel({ isOpen, onClose }) {
           type="submit"
           disabled={!input.trim() || sending}
           className="w-9 h-9 flex-shrink-0 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-700 disabled:text-gray-500 text-white flex items-center justify-center transition"
-          aria-label={t('messages.sendMessage')}
+          aria-label={t('messages.sendMessage')} data-track="ui.b1654d4001.4"
         >
           <Send className="w-4 h-4" />
         </button>

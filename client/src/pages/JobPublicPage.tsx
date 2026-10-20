@@ -153,7 +153,7 @@ export default function JobPublicPage() {
         {/* Back */}
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white mb-6 transition"
+          className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white mb-6 transition" data-track="ui.2dfd4d852d.1"
         >
           <ArrowLeft className="w-4 h-4" /> {t('jobPublicPage.back', { defaultValue: 'Back' })}
         </button>
@@ -243,7 +243,7 @@ export default function JobPublicPage() {
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {job.media.filter((m) => m.type?.startsWith('image') || m.url?.match(/\.(jpg|jpeg|png|webp)/i)).map((m, i) => (
-                    <a key={i} href={m.url} target="_blank" rel="noopener noreferrer">
+                    <a key={i} href={m.url} target="_blank" rel="noopener noreferrer" data-track="ui.2dfd4d852d.2">
                       <img
                         src={m.url}
                         alt={t('jobPublicPage.jobPhotoAlt', { index: i + 1, defaultValue: `Job photo ${i + 1}` })}
@@ -260,7 +260,7 @@ export default function JobPublicPage() {
               <button
                 onClick={handleBid}
                 className="w-full py-4 rounded-2xl bg-orange-500 hover:bg-orange-400 text-white
-                           font-bold text-base transition active:scale-[0.98]"
+                           font-bold text-base transition active:scale-[0.98]" data-track="ui.2dfd4d852d.3"
               >
                 {t('jobPublicPage.submitBid', { defaultValue: 'Submit a Bid' })}
               </button>

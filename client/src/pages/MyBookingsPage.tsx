@@ -292,14 +292,14 @@ const MyBookingsPage = () => {
         <div className="booking-card-actions">
           <button
             onClick={() => handleSendInvoice(booking)}
-            className="booking-action-btn booking-action-invoice"
+            className="booking-action-btn booking-action-invoice" data-track="ui.5655b990ea.1"
           >
             <FileText className="w-4 h-4" />
             {t('toolRentals.sendInvoice') || 'Send Invoice'}
           </button>
           <button
             onClick={() => handleStatusUpdate(booking.id, 'cancelled')}
-            className="booking-action-btn booking-action-decline"
+            className="booking-action-btn booking-action-decline" data-track="ui.5655b990ea.2"
           >
             {t('toolRentals.decline') || 'Decline'}
           </button>
@@ -318,10 +318,10 @@ const MyBookingsPage = () => {
           )}
           {isOwner && booking.deposit_status === 'held' && (
             <div className="booking-card-actions">
-              <button onClick={() => handleResolveDeposit(booking, 'return')} className="booking-action-btn booking-action-approve">
+              <button onClick={() => handleResolveDeposit(booking, 'return')} className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.3">
                 {t('toolRentals.depositReturn')}
               </button>
-              <button onClick={() => handleResolveDeposit(booking, 'withhold')} className="booking-action-btn booking-action-decline">
+              <button onClick={() => handleResolveDeposit(booking, 'withhold')} className="booking-action-btn booking-action-decline" data-track="ui.5655b990ea.4">
                 {t('toolRentals.depositWithhold')}
               </button>
             </div>
@@ -333,13 +333,13 @@ const MyBookingsPage = () => {
         <div className="booking-card-actions">
           <button
             onClick={() => handleConfirmReturn(booking)}
-            className="booking-action-btn booking-action-approve"
+            className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.5"
           >
             {t('toolRentals.confirmReturnReceived') || 'Confirm return received'}
           </button>
           <button
             onClick={() => handleStatusUpdate(booking.id, 'cancelled')}
-            className="booking-action-btn booking-action-cancel"
+            className="booking-action-btn booking-action-cancel" data-track="ui.5655b990ea.6"
           >
             {t('toolRentals.cancelBooking') || 'Cancel Booking'}
           </button>
@@ -350,7 +350,7 @@ const MyBookingsPage = () => {
         <div className="booking-card-actions">
           <button
             onClick={() => handleStatusUpdate(booking.id, 'completed')}
-            className="booking-action-btn booking-action-approve"
+            className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.7"
           >
             {t('toolRentals.markCompleted') || 'Mark completed'}
           </button>
@@ -361,13 +361,13 @@ const MyBookingsPage = () => {
         <div className="booking-card-actions">
           <button
             onClick={() => handleConfirmReturn(booking)}
-            className="booking-action-btn booking-action-approve"
+            className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.8"
           >
             {t('toolRentals.confirmReturn') || 'Confirm return'}
           </button>
           <button
             onClick={() => handleStatusUpdate(booking.id, 'cancelled')}
-            className="booking-action-btn booking-action-cancel"
+            className="booking-action-btn booking-action-cancel" data-track="ui.5655b990ea.9"
           >
             {t('toolRentals.cancelBooking') || 'Cancel Booking'}
           </button>
@@ -378,7 +378,7 @@ const MyBookingsPage = () => {
         <div className="booking-card-actions">
           <button
             onClick={() => handleStatusUpdate(booking.id, 'cancelled')}
-            className="booking-action-btn booking-action-cancel"
+            className="booking-action-btn booking-action-cancel" data-track="ui.5655b990ea.10"
           >
             {t('toolRentals.cancelBooking') || 'Cancel Booking'}
           </button>
@@ -399,7 +399,7 @@ const MyBookingsPage = () => {
               setReportOwnerId(booking.owner_id);
               setReportModalOpen(true);
             }}
-            className="booking-action-btn booking-action-report"
+            className="booking-action-btn booking-action-report" data-track="ui.5655b990ea.11"
           >
             <Flag className="w-4 h-4" />
             {t('toolRentals.reportUser') || 'Report User'}
@@ -453,7 +453,7 @@ const MyBookingsPage = () => {
         <div className="booking-card-actions">
           <button
             onClick={() => handleBookAgain(b)}
-            className="booking-action-btn booking-action-approve"
+            className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.12"
           >
             {t('booking.bookAgain')}
           </button>
@@ -473,7 +473,7 @@ const MyBookingsPage = () => {
           {canConvert && (
             <button
               onClick={() => handleConvertHelperBookingToJob(b.id)}
-              className="booking-action-btn booking-action-approve"
+              className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.13"
             >
               {t('booking.postAsJob')}
             </button>
@@ -481,7 +481,7 @@ const MyBookingsPage = () => {
           {canCancel && (
             <button
               onClick={() => handleCancelHelperBooking(b.id)}
-              className="booking-action-btn booking-action-cancel"
+              className="booking-action-btn booking-action-cancel" data-track="ui.5655b990ea.14"
             >
               {t('common.cancel')}
             </button>
@@ -577,19 +577,19 @@ const MyBookingsPage = () => {
         <div className="my-bookings-tabs">
           <button
             onClick={() => setActiveTab('helper-bookings')}
-            className={`my-bookings-tab ${activeTab === 'helper-bookings' ? 'active' : ''}`}
+            className={`my-bookings-tab ${activeTab === 'helper-bookings' ? 'active' : ''}`} data-track="ui.5655b990ea.15"
           >
             {t('booking.tabTitle') || 'Service Bookings'} ({helperBookingsCount})
           </button>
           <button
             onClick={() => setActiveTab('my-rentals')}
-            className={`my-bookings-tab ${activeTab === 'my-rentals' ? 'active' : ''}`}
+            className={`my-bookings-tab ${activeTab === 'my-rentals' ? 'active' : ''}`} data-track="ui.5655b990ea.16"
           >
             {t('toolRentals.toolsRented') || 'Tools I Rented'} ({myRentalsCount})
           </button>
           <button
             onClick={() => setActiveTab('my-tools')}
-            className={`my-bookings-tab ${activeTab === 'my-tools' ? 'active' : ''}`}
+            className={`my-bookings-tab ${activeTab === 'my-tools' ? 'active' : ''}`} data-track="ui.5655b990ea.17"
           >
             {t('toolRentals.toolsLent') || 'My Tools Rented'} ({myToolsCount})
           </button>

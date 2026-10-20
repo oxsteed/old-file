@@ -242,7 +242,7 @@ export default function FoodKitchenPage() {
         {pendingOffline > 0 && (
           <div className="fd-kds-sync-warning">
             {t('food.kds.pendingSync', { count: pendingOffline })}
-            {online && <button type="button" onClick={replay}>{t('food.kds.syncNow')}</button>}
+            {online && <button type="button" onClick={replay} data-track="ui.c0077c088e.1">{t('food.kds.syncNow')}</button>}
           </div>
         )}
       </div>
@@ -287,13 +287,13 @@ export default function FoodKitchenPage() {
                             </div>
                             <div className="fd-kds-item-actions">
                               {['queued', 'held', 'delayed', 'problem'].includes(item.kitchenStatus || 'queued') && (
-                                <button disabled={itemBusy} onClick={() => performItemAction(order, item, 'start')}>{t('food.kds.startItem')}</button>
+                                <button disabled={itemBusy} onClick={() => performItemAction(order, item, 'start')} data-track="ui.c0077c088e.2">{t('food.kds.startItem')}</button>
                               )}
                               {['preparing', 'delayed', 'problem'].includes(item.kitchenStatus) && (
-                                <button disabled={itemBusy} onClick={() => performItemAction(order, item, 'ready')}>{t('food.kds.finishItem')}</button>
+                                <button disabled={itemBusy} onClick={() => performItemAction(order, item, 'ready')} data-track="ui.c0077c088e.3">{t('food.kds.finishItem')}</button>
                               )}
                               {['ready', 'bumped'].includes(item.kitchenStatus) && order.status !== 'ready' && (
-                                <button disabled={itemBusy} onClick={() => performItemAction(order, item, 'recall')}>{t('food.kds.recallItem')}</button>
+                                <button disabled={itemBusy} onClick={() => performItemAction(order, item, 'recall')} data-track="ui.c0077c088e.4">{t('food.kds.recallItem')}</button>
                               )}
                               {['queued', 'preparing', 'held'].includes(item.kitchenStatus || 'queued') && (
                                 <button
@@ -302,7 +302,7 @@ export default function FoodKitchenPage() {
                                   onClick={() => {
                                     const reason = askForReason('food.kds.delayReasonPrompt');
                                     if (reason) performItemAction(order, item, 'delay', reason);
-                                  }}
+                                  }} data-track="ui.c0077c088e.5"
                                 >{t('food.kds.delay')}</button>
                               )}
                             </div>
@@ -317,21 +317,21 @@ export default function FoodKitchenPage() {
                     </div>
                     <div className="fd-kds-order-actions">
                       {order.status === 'received' && (
-                        <button disabled={orderBusy} onClick={() => performOrderAction(order, 'acknowledge')}>{t('food.kds.acknowledge')}</button>
+                        <button disabled={orderBusy} onClick={() => performOrderAction(order, 'acknowledge')} data-track="ui.c0077c088e.6">{t('food.kds.acknowledge')}</button>
                       )}
                       {order.status === 'accepted' && (
-                        <button disabled={orderBusy} onClick={() => performOrderAction(order, 'start')}>{t('food.kds.startPreparing')}</button>
+                        <button disabled={orderBusy} onClick={() => performOrderAction(order, 'start')} data-track="ui.c0077c088e.7">{t('food.kds.startPreparing')}</button>
                       )}
                       {order.status === 'preparing' && order.kitchen_stage !== 'quality_check' && allItemsFinished && workflow.requireQualityCheck && (
-                        <button disabled={orderBusy} onClick={() => performOrderAction(order, 'ready_for_check')}>{t('food.kds.sendToQuality')}</button>
+                        <button disabled={orderBusy} onClick={() => performOrderAction(order, 'ready_for_check')} data-track="ui.c0077c088e.8">{t('food.kds.sendToQuality')}</button>
                       )}
                       {order.status === 'preparing' && allItemsFinished && (!workflow.requireQualityCheck || order.kitchen_stage === 'quality_check') && (
-                        <button disabled={orderBusy} onClick={() => changeOrderStatus(order, 'ready', 'mark_ready')}>{t('food.kds.markReady')}</button>
+                        <button disabled={orderBusy} onClick={() => changeOrderStatus(order, 'ready', 'mark_ready')} data-track="ui.c0077c088e.9">{t('food.kds.markReady')}</button>
                       )}
                       {order.status === 'ready' && order.fulfillment_type !== 'delivery' && (
                         <button
                           disabled={orderBusy}
-                          onClick={() => window.confirm(t('food.kds.handoffConfirm')) && changeOrderStatus(order, 'completed', 'handoff')}
+                          onClick={() => window.confirm(t('food.kds.handoffConfirm')) && changeOrderStatus(order, 'completed', 'handoff')} data-track="ui.c0077c088e.10"
                         >{t('food.kds.confirmHandoff')}</button>
                       )}
                       {order.status === 'ready' && order.fulfillment_type === 'delivery' && (
@@ -344,7 +344,7 @@ export default function FoodKitchenPage() {
                           onClick={() => {
                             const reason = askForReason('food.kds.reopenReasonPrompt');
                             if (reason) performOrderAction(order, 'reopen', { reason });
-                          }}
+                          }} data-track="ui.c0077c088e.11"
                         >{t('food.kds.reopen')}</button>
                       )}
                     </div>

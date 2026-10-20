@@ -23,6 +23,7 @@ const ADMIN_NAV_MODE_KEY = 'oxsteed:admin-nav-mode';
 const routePath = (key) => adminRoute(key).path;
 
 export const REGULAR_NAV = [
+  { tabKey: 'growthOverview', to: routePath('growthOverview'), icon: TrendingUp, labelKey: 'growthInsights.title', grant: adminRoute('growthOverview').grant },
   { tabKey: 'dashboard', to: routePath('dashboard'),        icon: LayoutDashboard, labelKey: 'adminNav.dashboard', grant: adminRoute('dashboard').grant },
   { tabKey: 'operations', to: routePath('operations'),       icon: Activity,        labelKey: 'adminNav.operationsOverview', grant: adminRoute('operations').grant },
   { tabKey: 'users', to: routePath('users'),            icon: Users,           labelKey: 'adminNav.users', grant: adminRoute('users').grant },

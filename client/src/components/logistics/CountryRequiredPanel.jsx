@@ -37,7 +37,7 @@ export default function CountryRequiredPanel({ onSaved }) {
     <section className="lx-card lx-country-required" aria-labelledby="lx-country-required-title">
       <h2 id="lx-country-required-title">{t('logistics.checkout.countryRequired.title')}</h2>
       <p className="lx-t-small lx-t-muted">{t('logistics.checkout.countryRequired.body')}</p>
-      <form onSubmit={submit} noValidate>
+      <form onSubmit={submit} noValidate data-track="ui.afb0fcd742.1">
         <label htmlFor="lx-country-required-select" className="lx-label">{t('logistics.checkout.countryRequired.label')}</label>
         <CountrySelect
           id="lx-country-required-select"
@@ -50,7 +50,7 @@ export default function CountryRequiredPanel({ onSaved }) {
         />
         {error && <p id="lx-country-required-error" role="alert" className="lx-t-small lx-mt-6 lx-country-required-error">{error}</p>}
         <div className="lx-btn-row lx-mt-6">
-          <button type="submit" className="lx-action-primary" disabled={saving}>
+          <button type="submit" className="lx-action-primary" disabled={saving} data-track="ui.afb0fcd742.2">
             {saving ? t('logistics.checkout.countryRequired.saving') : t('logistics.checkout.countryRequired.save')}
           </button>
         </div>

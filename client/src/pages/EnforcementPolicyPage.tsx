@@ -122,7 +122,7 @@ const EnforcementPolicyPage: React.FC = () => {
                           setSelectedRestriction(restriction);
                           setShowAppealForm(true);
                         }}
-                        className="text-sm text-brand-400 hover:text-brand-300 font-semibold mt-2"
+                        className="text-sm text-brand-400 hover:text-brand-300 font-semibold mt-2" data-track="ui.c11508de8d.1"
                       >
                         {t('enforcementPolicy.submitAppeal')}
                       </button>

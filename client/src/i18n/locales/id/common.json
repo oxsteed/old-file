@@ -3592,5 +3592,9 @@
       "empty": "Tidak ada item terbuka",
       "reviewHint": "Mencatat tinjauan tidak memindahkan dana atau melepas barang."
     }
+  },
+  "growthInsights": {
+    "analyticsStorage": "Google Analytics dan penyimpanan perangkat",
+    "analyticsStorageDescription": "Di EEA, Inggris, Swiss dan Québec, pelacakan serta penawaran berdasarkan aktivitas memerlukan persetujuan terpisah yang dapat dicabut di Pengaturan. Negara bagian AS yang berlaku menyediakan pilihan menolak penjualan atau pembagian dan menghormati Global Privacy Control. Di wilayah lain, pengaturan analitik mengontrol Google Analytics dan penyimpanan persisten; aktivitas dicakup pemberitahuan ini."
   }
 }

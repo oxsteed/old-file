@@ -137,7 +137,7 @@ export function ProductManagement({ businessId }) {
       {/* Header */}
       <div className="pm-header">
         <h2>{t('products.management', { defaultValue: 'Product Management' })}</h2>
-        <button className="pm-btn-primary" onClick={() => setShowNewProductModal(true)}>
+        <button className="pm-btn-primary" onClick={() => setShowNewProductModal(true)} data-track="ui.4585c3174b.1">
           + {t('products.addProduct', { defaultValue: 'Add Product' })}
         </button>
       </div>
@@ -164,7 +164,7 @@ export function ProductManagement({ businessId }) {
         ) : products.length === 0 ? (
           <div className="pm-empty">
             <p>{t('products.noProducts', { defaultValue: 'No products yet' })}</p>
-            <button className="pm-btn-secondary" onClick={() => setShowNewProductModal(true)}>
+            <button className="pm-btn-secondary" onClick={() => setShowNewProductModal(true)} data-track="ui.4585c3174b.2">
               {t('products.createFirst', { defaultValue: 'Create your first product' })}
             </button>
           </div>
@@ -193,9 +193,9 @@ export function ProductManagement({ businessId }) {
                     </span>
                   </td>
                   <td className="pm-actions">
-                    <button className="pm-btn-small" onClick={() => setSelectedProduct(product)} title={t('common.view')}>👁️</button>
-                    <button className="pm-btn-small" onClick={() => { setSelectedProduct(product); setShowVariantModal(true); }} title={t('products.addVariant', { defaultValue: 'Add Variant' })}>➕</button>
-                    <button className="pm-btn-small pm-btn-delete" onClick={() => handleDeleteProduct(product.id)} title={t('common.delete')}>🗑️</button>
+                    <button className="pm-btn-small" onClick={() => setSelectedProduct(product)} title={t('common.view')} data-track="ui.4585c3174b.3">👁️</button>
+                    <button className="pm-btn-small" onClick={() => { setSelectedProduct(product); setShowVariantModal(true); }} title={t('products.addVariant', { defaultValue: 'Add Variant' })} data-track="ui.4585c3174b.4">➕</button>
+                    <button className="pm-btn-small pm-btn-delete" onClick={() => handleDeleteProduct(product.id)} title={t('common.delete')} data-track="ui.4585c3174b.5">🗑️</button>
                   </td>
                 </tr>
               ))}
@@ -209,7 +209,7 @@ export function ProductManagement({ businessId }) {
         <div className="pm-modal-overlay" onClick={() => setShowNewProductModal(false)}>
           <div className="pm-modal" onClick={e => e.stopPropagation()}>
             <h3>{t('products.createNew', { defaultValue: 'New Product' })}</h3>
-            <form onSubmit={handleCreateProduct}>
+            <form onSubmit={handleCreateProduct} data-track="ui.4585c3174b.6">
               <input type="text" placeholder={`${t('common.name')} *`} value={productForm.name} onChange={e => setProductForm({ ...productForm, name: e.target.value })} required />
               <input type="text" placeholder={`${t('products.category', { defaultValue: 'Category' })} *`} value={productForm.category} onChange={e => setProductForm({ ...productForm, category: e.target.value })} required />
               <input type="text" placeholder={`${t('products.sku', { defaultValue: 'SKU' })} *`} value={productForm.sku} onChange={e => setProductForm({ ...productForm, sku: e.target.value })} required />
@@ -217,8 +217,8 @@ export function ProductManagement({ businessId }) {
               <input type="number" placeholder={t('products.cost', { defaultValue: 'Cost (optional)' })} value={productForm.cost} onChange={e => setProductForm({ ...productForm, cost: e.target.value })} step="0.01" min="0" />
               <textarea placeholder={t('common.description')} value={productForm.description} onChange={e => setProductForm({ ...productForm, description: e.target.value })} rows="3" />
               <div className="pm-modal-actions">
-                <button type="button" onClick={() => setShowNewProductModal(false)}>{t('common.cancel')}</button>
-                <button type="submit" className="pm-btn-primary">{t('common.create')}</button>
+                <button type="button" onClick={() => setShowNewProductModal(false)} data-track="ui.4585c3174b.7">{t('common.cancel')}</button>
+                <button type="submit" className="pm-btn-primary" data-track="ui.4585c3174b.8">{t('common.create')}</button>
               </div>
             </form>
           </div>
@@ -230,15 +230,15 @@ export function ProductManagement({ businessId }) {
         <div className="pm-modal-overlay" onClick={() => setShowVariantModal(false)}>
           <div className="pm-modal" onClick={e => e.stopPropagation()}>
             <h3>{t('products.addVariant', { defaultValue: 'Add Variant' })}: {selectedProduct.name}</h3>
-            <form onSubmit={handleCreateVariant}>
+            <form onSubmit={handleCreateVariant} data-track="ui.4585c3174b.9">
               <input type="text" placeholder={`${t('products.variantName', { defaultValue: 'Variant Name' })} *`} value={variantForm.variantName} onChange={e => setVariantForm({ ...variantForm, variantName: e.target.value })} required />
               <input type="text" placeholder={`${t('products.sku', { defaultValue: 'SKU' })} *`} value={variantForm.sku} onChange={e => setVariantForm({ ...variantForm, sku: e.target.value })} required />
               <input type="number" placeholder={t('products.priceAdjustment', { defaultValue: 'Price Adjustment ($)' })} value={variantForm.priceAdjustment} onChange={e => setVariantForm({ ...variantForm, priceAdjustment: e.target.value })} step="0.01" />
               <input type="number" placeholder={`${t('inventory.initialStock', { defaultValue: 'Initial Stock' })} *`} value={variantForm.stock} onChange={e => setVariantForm({ ...variantForm, stock: e.target.value })} min="0" required />
               <input type="number" placeholder={t('inventory.reorderLevel', { defaultValue: 'Reorder Level' })} value={variantForm.reorderLevel} onChange={e => setVariantForm({ ...variantForm, reorderLevel: e.target.value })} min="0" />
               <div className="pm-modal-actions">
-                <button type="button" onClick={() => setShowVariantModal(false)}>{t('common.cancel')}</button>
-                <button type="submit" className="pm-btn-primary">{t('common.create')}</button>
+                <button type="button" onClick={() => setShowVariantModal(false)} data-track="ui.4585c3174b.10">{t('common.cancel')}</button>
+                <button type="submit" className="pm-btn-primary" data-track="ui.4585c3174b.11">{t('common.create')}</button>
               </div>
             </form>
           </div>
@@ -250,7 +250,7 @@ export function ProductManagement({ businessId }) {
         <div className="pm-detail">
           <div className="pm-detail-header">
             <h3>{selectedProduct.name}</h3>
-            <button className="pm-btn-close" onClick={() => setSelectedProduct(null)}>✕</button>
+            <button className="pm-btn-close" onClick={() => setSelectedProduct(null)} data-track="ui.4585c3174b.12">✕</button>
           </div>
           {selectedProduct.variants && selectedProduct.variants.length > 0 && (
             <div className="pm-detail-section">

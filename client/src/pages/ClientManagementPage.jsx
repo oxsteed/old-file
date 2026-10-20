@@ -241,7 +241,7 @@ function ClientCard({ client, onOpen, t }) {
       </div>
       <div className="client-management__card-action">
         {hasConversation ? (
-          <button type="button" className="client-management__open" onClick={() => onOpen(client)}>
+          <button type="button" className="client-management__open" onClick={() => onOpen(client)} data-track="ui.2ab31226f1.1">
             {t('clientManagement.openConversation')} <ArrowRight size={16} />
           </button>
         ) : (
@@ -369,13 +369,13 @@ export default function ClientManagementPage() {
                     type="button"
                     key={value}
                     className={filter === value ? 'is-active' : ''}
-                    onClick={() => setFilter(value)}
+                    onClick={() => setFilter(value)} data-track="ui.2ab31226f1.2"
                   >
                     {label}
                   </button>
                 ))}
               </div>
-              <button type="button" className="client-management__refresh" onClick={loadClients} disabled={loading}>
+              <button type="button" className="client-management__refresh" onClick={loadClients} disabled={loading} data-track="ui.2ab31226f1.3">
                 <RefreshCw size={16} className={loading ? 'is-spinning' : ''} />
                 <span>{t('clientManagement.refresh')}</span>
               </button>
@@ -400,7 +400,7 @@ export default function ClientManagementPage() {
                 <div className="client-management__empty-icon client-management__empty-icon--error"><Briefcase size={22} /></div>
                 <h3>{t('clientManagement.loadFailed')}</h3>
                 <p>{t('clientManagement.loadFailedDescription')}</p>
-                <button type="button" className="client-management__primary-action" onClick={loadClients}>{t('clientManagement.tryAgain')}</button>
+                <button type="button" className="client-management__primary-action" onClick={loadClients} data-track="ui.2ab31226f1.4">{t('clientManagement.tryAgain')}</button>
               </div>
             ) : filteredClients.length ? (
               <div className="client-management__cards">

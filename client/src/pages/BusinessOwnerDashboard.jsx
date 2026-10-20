@@ -568,7 +568,7 @@ export default function BusinessOwnerDashboard() {
               borderColor: (attentionSummary?.total > 0 || attentionStatus === 'error') ? 'rgba(249,115,22,0.4)' : 'var(--color-border)',
               background: (attentionSummary?.total > 0 || attentionStatus === 'error') ? 'rgba(249,115,22,0.08)' : 'var(--color-surface)',
             }}
-            aria-haspopup="dialog"
+            aria-haspopup="dialog" data-track="ui.5b334e1ca4.1"
           >
             <div className="text-[10px] uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
               <AlertCircle size={11} /> {t('dashboards.businessOwner.needsAttention', { defaultValue: 'Needs attention' })}

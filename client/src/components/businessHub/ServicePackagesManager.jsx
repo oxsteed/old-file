@@ -66,12 +66,12 @@ export function ServicePackagesManager({ businessId }) {
           <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{t('businessHub.packages.title')}</h3>
           <p style={{ margin: '0.25rem 0 0', color: 'var(--muted-text)', fontSize: '0.875rem' }}>{t('businessHub.packages.subtitle')}</p>
         </div>
-        {tab === 'packages' && <button onClick={() => { setEditing(null); setShowForm(true); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.6rem 1.2rem', cursor: 'pointer', fontWeight: 600 }}><Plus size={16} /> {t('businessHub.packages.newPackage')}</button>}
+        {tab === 'packages' && <button onClick={() => { setEditing(null); setShowForm(true); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.6rem 1.2rem', cursor: 'pointer', fontWeight: 600 }} data-track="ui.42ab1645d2.1"><Plus size={16} /> {t('businessHub.packages.newPackage')}</button>}
       </div>
 
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>
         {[['packages', t('businessHub.packages.tabs.packages'), <Package size={14} />], ['clients', t('businessHub.packages.tabs.clientPackages'), <Gift size={14} />]].map(([id,label,icon]) => (
-          <button key={id} onClick={() => setTab(id)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.25rem', border: 'none', background: 'transparent', cursor: 'pointer', color: tab === id ? '#f97316' : 'var(--muted-text)', borderBottom: tab === id ? '2px solid #f97316' : '2px solid transparent', fontWeight: tab === id ? 600 : 400, fontSize: '0.875rem' }}>
+          <button key={id} onClick={() => setTab(id)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.25rem', border: 'none', background: 'transparent', cursor: 'pointer', color: tab === id ? '#f97316' : 'var(--muted-text)', borderBottom: tab === id ? '2px solid #f97316' : '2px solid transparent', fontWeight: tab === id ? 600 : 400, fontSize: '0.875rem' }} data-track="ui.42ab1645d2.2">
             {icon} {label}
           </button>
         ))}
@@ -110,11 +110,11 @@ export function ServicePackagesManager({ businessId }) {
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
                 <button
                   onClick={() => { setShowForm(false); setEditing(null); }}
-                  style={{ padding: '0.5rem 1rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'transparent', color: 'var(--app-text)', cursor: 'pointer' }}
+                  style={{ padding: '0.5rem 1rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'transparent', color: 'var(--app-text)', cursor: 'pointer' }} data-track="ui.42ab1645d2.3"
                 >
                   {t('common.cancel')}
                 </button>
-                <button onClick={save} style={{ padding: '0.5rem 1rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>
+                <button onClick={save} style={{ padding: '0.5rem 1rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }} data-track="ui.42ab1645d2.4">
                   {t('common.save')}
                 </button>
               </div>
@@ -129,8 +129,8 @@ export function ServicePackagesManager({ businessId }) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
                     <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>{p.name}</h4>
                     <div style={{ display: 'flex', gap: '0.25rem' }}>
-                      <button onClick={() => { setEditing(p); setForm({ name: p.name, description: p.description || '', total_sessions: p.total_sessions, price_cents: (p.price_cents/100).toFixed(2), validity_days: p.validity_days || 90 }); setShowForm(true); }} style={{ padding: '0.25rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)' }}><Edit2 size={14} /></button>
-                      <button onClick={() => deletePackage(p.id)} style={{ padding: '0.25rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={14} /></button>
+                      <button onClick={() => { setEditing(p); setForm({ name: p.name, description: p.description || '', total_sessions: p.total_sessions, price_cents: (p.price_cents/100).toFixed(2), validity_days: p.validity_days || 90 }); setShowForm(true); }} style={{ padding: '0.25rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)' }} data-track="ui.42ab1645d2.5"><Edit2 size={14} /></button>
+                      <button onClick={() => deletePackage(p.id)} style={{ padding: '0.25rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }} data-track="ui.42ab1645d2.6"><Trash2 size={14} /></button>
                     </div>
                   </div>
                   {p.description && <p style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: 'var(--muted-text)' }}>{p.description}</p>}
@@ -160,7 +160,7 @@ export function ServicePackagesManager({ businessId }) {
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                   <div style={{ fontSize: '0.875rem', background: cp.sessions_remaining > 0 ? '#10b98122' : '#94a3b822', color: cp.sessions_remaining > 0 ? '#10b981' : '#94a3b8', padding: '0.25rem 0.6rem', borderRadius: '999px', fontWeight: 600 }}>{cp.sessions_remaining}/{cp.sessions_used + cp.sessions_remaining} {t('businessHub.packages.sessions')}</div>
-                  {cp.sessions_remaining > 0 && cp.status === 'active' && <button onClick={() => redeem(cp.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.4rem 0.75rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}><Minus size={12} /> {t('businessHub.packages.useSession')}</button>}
+                  {cp.sessions_remaining > 0 && cp.status === 'active' && <button onClick={() => redeem(cp.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.4rem 0.75rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }} data-track="ui.42ab1645d2.7"><Minus size={12} /> {t('businessHub.packages.useSession')}</button>}
                 </div>
               </div>
             ))}

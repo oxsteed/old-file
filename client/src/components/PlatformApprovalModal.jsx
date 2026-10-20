@@ -191,7 +191,7 @@ export default function PlatformApprovalModal({
               })}
             </p>
           </div>
-          <button type="button" onClick={onClose} aria-label={t('common.close', { defaultValue: 'Close' })} className="p-1 rounded-md hover:bg-white/5">
+          <button type="button" onClick={onClose} aria-label={t('common.close', { defaultValue: 'Close' })} className="p-1 rounded-md hover:bg-white/5" data-track="ui.979b18d47a.1">
             <X size={18} className="text-gray-400" />
           </button>
         </header>
@@ -219,7 +219,7 @@ export default function PlatformApprovalModal({
               )}
 
               {canEditForm && fields.length > 0 && (
-                <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
+                <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4" data-track="ui.979b18d47a.2">
                   {fields.map((f) => (
                     <div key={f.name} className="flex flex-col gap-1">
                       <label htmlFor={`pa-${f.name}`} className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
@@ -249,7 +249,7 @@ export default function PlatformApprovalModal({
           <button
             type="button"
             onClick={onClose}
-            className="text-sm px-3 py-2 rounded-md text-gray-300 hover:bg-white/5"
+            className="text-sm px-3 py-2 rounded-md text-gray-300 hover:bg-white/5" data-track="ui.979b18d47a.3"
           >
             {status === 'approved' ? t('common.done', { defaultValue: 'Done' }) : t('common.close', { defaultValue: 'Close' })}
           </button>
@@ -258,7 +258,7 @@ export default function PlatformApprovalModal({
               type="button"
               onClick={handleSubmit}
               disabled={submitting}
-              className="text-sm px-4 py-2 rounded-md bg-orange-500 hover:bg-orange-600 text-white font-semibold disabled:opacity-60"
+              className="text-sm px-4 py-2 rounded-md bg-orange-500 hover:bg-orange-600 text-white font-semibold disabled:opacity-60" data-track="ui.979b18d47a.4"
             >
               {submitting
                 ? t('platformApproval.submitting', { defaultValue: 'Submitting...' })

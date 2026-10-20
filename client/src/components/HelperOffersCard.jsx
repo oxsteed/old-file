@@ -91,7 +91,7 @@ export default function HelperOffersCard() {
                   background: '#16a34a', color: 'white', border: 'none',
                   borderRadius: '6px', padding: '6px 14px', cursor: 'pointer',
                   fontSize: '13px', fontWeight: 600,
-                }}
+                }} data-track="ui.5f0480923e.1"
               >{t('helperOffers.accept')}</button>
               <button
                 onClick={() => handleDecline(offer.id)}
@@ -99,7 +99,7 @@ export default function HelperOffersCard() {
                   background: 'white', color: '#dc2626', border: '1px solid #fca5a5',
                   borderRadius: '6px', padding: '6px 14px', cursor: 'pointer',
                   fontSize: '13px', fontWeight: 600,
-                }}
+                }} data-track="ui.5f0480923e.2"
               >{t('helperOffers.decline')}</button>
             </div>
           </div>

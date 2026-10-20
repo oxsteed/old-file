@@ -99,7 +99,7 @@ const ProfileShareControls: React.FC<ProfileShareControlsProps> = ({
         type="button"
         onClick={handleCopy}
         aria-label={tk('copyLinkAria')}
-        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-700 text-gray-200 text-sm font-medium hover:bg-gray-800 transition-colors"
+        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-700 text-gray-200 text-sm font-medium hover:bg-gray-800 transition-colors" data-track="ui.37949a98da.1"
       >
         <Link2 className="w-4 h-4 flex-shrink-0" aria-hidden />
         {copied ? tk('copied') : tk('copyLink')}
@@ -109,7 +109,7 @@ const ProfileShareControls: React.FC<ProfileShareControlsProps> = ({
           type="button"
           onClick={handleShare}
           aria-label={tk('shareAria')}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-700 text-gray-200 text-sm font-medium hover:bg-gray-800 transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-700 text-gray-200 text-sm font-medium hover:bg-gray-800 transition-colors" data-track="ui.37949a98da.2"
         >
           <Share2 className="w-4 h-4 flex-shrink-0" aria-hidden />
           {tk('share')}
@@ -122,7 +122,7 @@ const ProfileShareControls: React.FC<ProfileShareControlsProps> = ({
             onClick={() => setQrOpen((v) => !v)}
             aria-expanded={qrOpen}
             aria-label={tk('qrCodeAria')}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-700 text-gray-200 text-sm font-medium hover:bg-gray-800 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-700 text-gray-200 text-sm font-medium hover:bg-gray-800 transition-colors" data-track="ui.37949a98da.3"
           >
             <QrCode className="w-4 h-4 flex-shrink-0" aria-hidden />
             {tk('qrCode')}
@@ -137,7 +137,7 @@ const ProfileShareControls: React.FC<ProfileShareControlsProps> = ({
                 type="button"
                 onClick={() => setQrOpen(false)}
                 aria-label={tk('qrClose')}
-                className="absolute top-2 right-2 p-1 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800"
+                className="absolute top-2 right-2 p-1 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800" data-track="ui.37949a98da.4"
               >
                 <X className="w-4 h-4" aria-hidden />
               </button>
@@ -151,7 +151,7 @@ const ProfileShareControls: React.FC<ProfileShareControlsProps> = ({
               <a
                 href={qrImageUrl}
                 download={`${shareTitle}-qr.png`}
-                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 transition-colors"
+                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 transition-colors" data-track="ui.37949a98da.5"
               >
                 <Download className="w-4 h-4" aria-hidden />
                 {tk('qrDownload')}

@@ -65,7 +65,7 @@ export default function MessengerLauncher({
         .join(' ')}
       style={style}
       onClick={onOpen}
-      aria-label={t('helperProfile.messenger.openAria', { name: displayName || '' })}
+      aria-label={t('helperProfile.messenger.openAria', { name: displayName || '' })} data-track-private
     >
       <Avatar src={avatarUrl} name={displayName} shape={avatarShape} />
       <span className="messenger-launcher__label">

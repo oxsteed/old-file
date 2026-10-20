@@ -525,7 +525,7 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
                 <button
                   onClick={() => setReportModalOpen(true)}
                   className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl border border-red-600/30 text-red-400 font-medium text-sm hover:bg-red-950/20 transition-colors"
-                  aria-label={t('reportModal.reportUser', { name: helper.businessName })}
+                  aria-label={t('reportModal.reportUser', { name: helper.businessName })} data-track="ui.62d44cb5c8.1"
                 >
                   <Flag size={16} />
                   {t('reportModal.report')}
@@ -551,14 +551,14 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
         <button
           onClick={bookingAllowed ? handleBookNow : handleMessageHelper}
           className="flex-1 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition-colors shadow-lg shadow-green-600/20 active:bg-green-800"
-          aria-label={bookingAllowed ? t('businessProfile.bookBusinessAria') : t('helperProfile.cta.contactForPricing')}
+          aria-label={bookingAllowed ? t('businessProfile.bookBusinessAria') : t('helperProfile.cta.contactForPricing')} data-track="ui.62d44cb5c8.2"
         >
           {bookingAllowed ? t('businessProfile.bookNow') : t('helperProfile.cta.contactForPricing')}
         </button>
         <button
           onClick={handleOpenChat}
           className="flex-1 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 active:bg-brand-700"
-          aria-label={t('helperProfile.cta.messageHelperAria')}
+          aria-label={t('helperProfile.cta.messageHelperAria')} data-track="ui.62d44cb5c8.3"
         >
           {t('helperProfile.cta.contactForPricing')}
         </button>
@@ -612,7 +612,7 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
             <button
               type="button"
               onClick={() => setGuestSignInModalOpen(false)}
-              className="mt-4 w-full text-sm text-gray-500 hover:text-gray-300"
+              className="mt-4 w-full text-sm text-gray-500 hover:text-gray-300" data-track="ui.62d44cb5c8.4"
             >
               {t('common.cancel')}
             </button>

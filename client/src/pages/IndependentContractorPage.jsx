@@ -242,7 +242,7 @@ export default function IndependentContractorPage() {
                     searchMatches.includes(section.id) ? 'highlighted' : ''
                   }`}
                   onClick={() => setExpandedSection(section.id)}
-                  aria-current={expandedSection === section.id ? 'true' : 'false'}
+                  aria-current={expandedSection === section.id ? 'true' : 'false'} data-track="ui.29428ebf2d.1"
                 >
                   <span className="toc-icon">{section.icon}</span>
                   <span className="toc-text">{section.title}</span>
@@ -254,7 +254,7 @@ export default function IndependentContractorPage() {
             <button
               className="version-history-btn"
               onClick={() => setShowVersionHistory(!showVersionHistory)}
-              aria-expanded={showVersionHistory}
+              aria-expanded={showVersionHistory} data-track="ui.29428ebf2d.2"
             >
               {t('contractorAgreement.viewVersionHistory')}
             </button>
@@ -294,7 +294,7 @@ export default function IndependentContractorPage() {
                 <button
                   className="section-header"
                   onClick={() => setExpandedSection(expandedSection === 'intro' ? null : 'intro')}
-                  aria-expanded={expandedSection === 'intro'}
+                  aria-expanded={expandedSection === 'intro'} data-track="ui.29428ebf2d.3"
                 >
                   <span className="section-icon">📋</span>
                   <h2>{t('contractorAgreement.introTitle')}</h2>
@@ -325,7 +325,7 @@ export default function IndependentContractorPage() {
                 <button
                   className="section-header"
                   onClick={() => setExpandedSection(expandedSection === 'control' ? null : 'control')}
-                  aria-expanded={expandedSection === 'control'}
+                  aria-expanded={expandedSection === 'control'} data-track="ui.29428ebf2d.4"
                 >
                   <span className="section-icon">🎯</span>
                   <h2>{t('contractorAgreement.controlTitle')}</h2>
@@ -370,7 +370,7 @@ export default function IndependentContractorPage() {
                 <button
                   className="section-header"
                   onClick={() => setExpandedSection(expandedSection === 'income' ? null : 'income')}
-                  aria-expanded={expandedSection === 'income'}
+                  aria-expanded={expandedSection === 'income'} data-track="ui.29428ebf2d.5"
                 >
                   <span className="section-icon">💰</span>
                   <h2>{t('contractorAgreement.incomeTitle')}</h2>
@@ -425,7 +425,7 @@ export default function IndependentContractorPage() {
                 <button
                   className="section-header"
                   onClick={() => setExpandedSection(expandedSection === 'tools' ? null : 'tools')}
-                  aria-expanded={expandedSection === 'tools'}
+                  aria-expanded={expandedSection === 'tools'} data-track="ui.29428ebf2d.6"
                 >
                   <span className="section-icon">🛠️</span>
                   <h2>{t('contractorAgreement.toolsTitle')}</h2>
@@ -458,7 +458,7 @@ export default function IndependentContractorPage() {
                 <button
                   className="section-header"
                   onClick={() => setExpandedSection(expandedSection === 'training' ? null : 'training')}
-                  aria-expanded={expandedSection === 'training'}
+                  aria-expanded={expandedSection === 'training'} data-track="ui.29428ebf2d.7"
                 >
                   <span className="section-icon">📚</span>
                   <h2>{t('contractorAgreement.trainingTitle')}</h2>
@@ -486,7 +486,7 @@ export default function IndependentContractorPage() {
                 <button
                   className="section-header"
                   onClick={() => setExpandedSection(expandedSection === 'termination' ? null : 'termination')}
-                  aria-expanded={expandedSection === 'termination'}
+                  aria-expanded={expandedSection === 'termination'} data-track="ui.29428ebf2d.8"
                 >
                   <span className="section-icon">⏹️</span>
                   <h2>{t('contractorAgreement.terminationTitle')}</h2>
@@ -518,7 +518,7 @@ export default function IndependentContractorPage() {
                 <button
                   className="section-header"
                   onClick={() => setExpandedSection(expandedSection === 'taxes' ? null : 'taxes')}
-                  aria-expanded={expandedSection === 'taxes'}
+                  aria-expanded={expandedSection === 'taxes'} data-track="ui.29428ebf2d.9"
                 >
                   <span className="section-icon">🧾</span>
                   <h2>{t('contractorAgreement.taxesTitle')}</h2>
@@ -554,7 +554,7 @@ export default function IndependentContractorPage() {
                 <button
                   className="section-header"
                   onClick={() => setExpandedSection(expandedSection === '1099' ? null : '1099')}
-                  aria-expanded={expandedSection === '1099'}
+                  aria-expanded={expandedSection === '1099'} data-track="ui.29428ebf2d.10"
                 >
                   <span className="section-icon">📄</span>
                   <h2>{t('contractorAgreement.1099Title')}</h2>
@@ -594,7 +594,7 @@ export default function IndependentContractorPage() {
             </div>
 
             {/* E-Signature Form */}
-            <form className="signature-form" onSubmit={handleAcceptance}>
+            <form className="signature-form" onSubmit={handleAcceptance} data-track="ui.29428ebf2d.11">
               <h3>{t('contractorAgreement.acceptanceTitle')}</h3>
 
               <div className="form-group">
@@ -634,7 +634,7 @@ export default function IndependentContractorPage() {
                   checked={formData.agreed}
                   onChange={(e) => setFormData({ ...formData, agreed: e.target.checked })}
                   disabled={scrollProgress < 95}
-                  aria-required="true"
+                  aria-required="true" data-track="ui.29428ebf2d.12"
                 />
                 <label htmlFor="agreed">
                   {scrollProgress < 95
@@ -656,7 +656,7 @@ export default function IndependentContractorPage() {
                 type="submit"
                 className={`submit-btn ${canAccept ? 'enabled' : 'disabled'}`}
                 disabled={!canAccept || isLoading}
-                aria-busy={isLoading}
+                aria-busy={isLoading} data-track="ui.29428ebf2d.13"
               >
                 {isLoading
                   ? t('contractorAgreement.signingPlease')

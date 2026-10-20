@@ -41,7 +41,7 @@ const FaqItem = ({ q, a }) => {
     <div className="border border-gray-700/40 rounded-xl overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between p-5 text-left hover:bg-gray-900/40 transition"
+        className="w-full flex items-center justify-between p-5 text-left hover:bg-gray-900/40 transition" data-track="ui.4c1d70b573.1"
       >
         <span className="font-semibold text-white text-sm pr-4">{q}</span>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -208,7 +208,7 @@ export default function UpgradePage() {
                               href={inv.hostedInvoiceUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-orange-400 hover:text-orange-300 text-xs font-semibold"
+                              className="text-orange-400 hover:text-orange-300 text-xs font-semibold" data-track="ui.4c1d70b573.2"
                             >
                               {t('upgrade.viewReceipt')}
                             </a>
@@ -217,7 +217,7 @@ export default function UpgradePage() {
                               href={inv.invoicePdf}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-orange-400 hover:text-orange-300 text-xs font-semibold"
+                              className="text-orange-400 hover:text-orange-300 text-xs font-semibold" data-track="ui.4c1d70b573.3"
                             >
                               {t('upgrade.viewReceipt')}
                             </a>
@@ -244,13 +244,13 @@ export default function UpgradePage() {
                 onClick={() => setBilling('monthly')}
                 className={`px-5 py-2 rounded-lg text-sm font-semibold transition ${
                   billing === 'monthly' ? 'bg-gray-800 text-white' : 'text-gray-500 hover:text-gray-300'
-                }`}
+                }`} data-track="ui.4c1d70b573.4"
               >{t('upgrade.monthly')}</button>
               <button
                 onClick={() => setBilling('yearly')}
                 className={`px-5 py-2 rounded-lg text-sm font-semibold transition relative ${
                   billing === 'yearly' ? 'bg-gray-800 text-white' : 'text-gray-500 hover:text-gray-300'
-                }`}
+                }`} data-track="ui.4c1d70b573.5"
               >
                 {t('upgrade.yearly')}
                 <span className="absolute -top-2.5 -right-12 bg-emerald-500 text-gray-950 text-[10px] font-bold px-2 py-0.5 rounded-full">

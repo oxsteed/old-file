@@ -150,7 +150,7 @@ export default function ConfirmPaymentReceiptModal({
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '1rem' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '1rem' }} data-track-private>
           <label style={{ display: 'grid', gap: 6 }}>
             <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--color-text)' }}>{t('payment.confirmationReference', 'Confirmation number or reference')}</span>
             <input
@@ -191,7 +191,7 @@ export default function ConfirmPaymentReceiptModal({
               <button
                 type="button"
                 onClick={() => setProofAttachment(null)}
-                style={{ width: 'fit-content', padding: '0.45rem 0.7rem', borderRadius: 999, border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', fontSize: '0.82rem', fontWeight: 700 }}
+                style={{ width: 'fit-content', padding: '0.45rem 0.7rem', borderRadius: 999, border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', fontSize: '0.82rem', fontWeight: 700 }} data-track-private
               >
                 {t('payment.removeAttachment', 'Remove attachment')}
               </button>
@@ -216,10 +216,10 @@ export default function ConfirmPaymentReceiptModal({
           )}
 
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.25rem' }}>
-            <button type="button" onClick={onClose} disabled={loading} style={{ padding: '0.8rem 1rem', borderRadius: 10, border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', fontWeight: 700 }}>
+            <button type="button" onClick={onClose} disabled={loading} style={{ padding: '0.8rem 1rem', borderRadius: 10, border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', fontWeight: 700 }} data-track-private>
               {t('common.cancel')}
             </button>
-            <button type="submit" disabled={loading} style={{ padding: '0.8rem 1rem', borderRadius: 10, border: 'none', background: 'var(--color-primary)', color: '#fff', fontWeight: 800 }}>
+            <button type="submit" disabled={loading} style={{ padding: '0.8rem 1rem', borderRadius: 10, border: 'none', background: 'var(--color-primary)', color: '#fff', fontWeight: 800 }} data-track-private>
               {loading ? t('payment.confirming', 'Confirming…') : t('payment.confirmReceiptTitle', 'Confirm receipt')}
             </button>
           </div>

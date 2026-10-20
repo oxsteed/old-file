@@ -14,7 +14,7 @@ function Toggle({ checked, onChange, disabled, ariaLabel }) {
       aria-label={ariaLabel}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`notification-settings__toggle ${checked ? 'is-on' : 'is-off'}`}
+      className={`notification-settings__toggle ${checked ? 'is-on' : 'is-off'}`} data-track="ui.58eace89d8.1"
     >
       <span className="notification-settings__toggle-thumb" />
     </button>
@@ -89,7 +89,7 @@ export function BrowserPushPanel() {
               type="button"
               onClick={handleTest}
               disabled={wp.loading}
-              className="notification-settings__secondary-button"
+              className="notification-settings__secondary-button" data-track="ui.58eace89d8.2"
             >
               {t('notifications.webPush.sendTest')}
             </button>
@@ -108,7 +108,7 @@ export function BrowserPushPanel() {
               type="button"
               onClick={wp.refresh}
               disabled={wp.loading}
-              className="notification-settings__secondary-button"
+              className="notification-settings__secondary-button" data-track="ui.58eace89d8.3"
             >
               {t('notifications.webPush.checkAgain', { defaultValue: 'Check again' })}
             </button>

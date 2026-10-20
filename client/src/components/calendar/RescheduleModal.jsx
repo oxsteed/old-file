@@ -112,7 +112,7 @@ export default function RescheduleModal({ appointment, isCustomer, onClose, onRe
       <div className="rsm-modal" onClick={e => e.stopPropagation()}>
         <div className="rsm-header">
           <h2>{t('reschedule.title', { defaultValue: 'Propose a new time' })}</h2>
-          <button className="rsm-close" onClick={onClose} aria-label={t('common.aria.closeButton')}>✕</button>
+          <button className="rsm-close" onClick={onClose} aria-label={t('common.aria.closeButton')} data-track="ui.1d13efaf89.1">✕</button>
         </div>
 
         {/* Pending request from the other party */}
@@ -136,10 +136,10 @@ export default function RescheduleModal({ appointment, isCustomer, onClose, onRe
               )}
             </div>
             <div className="rsm-pending-actions">
-              <button className="rsm-btn-accept" onClick={() => handleRespond('accept')} disabled={loading}>
+              <button className="rsm-btn-accept" onClick={() => handleRespond('accept')} disabled={loading} data-track="ui.1d13efaf89.2">
                 {t('reschedule.accept', { defaultValue: 'Accept' })}
               </button>
-              <button className="rsm-btn-decline" onClick={() => handleRespond('decline')} disabled={loading}>
+              <button className="rsm-btn-decline" onClick={() => handleRespond('decline')} disabled={loading} data-track="ui.1d13efaf89.3">
                 {t('reschedule.decline', { defaultValue: 'Decline' })}
               </button>
             </div>
@@ -147,7 +147,7 @@ export default function RescheduleModal({ appointment, isCustomer, onClose, onRe
         )}
 
         {/* Propose a new time form */}
-        <form className="rsm-form" onSubmit={handleSubmit}>
+        <form className="rsm-form" onSubmit={handleSubmit} data-track="ui.1d13efaf89.4">
           <p className="rsm-hint">
             {t('reschedule.hint', { defaultValue: 'Your proposed time will be sent to the other party for approval.' })}
           </p>
@@ -189,10 +189,10 @@ export default function RescheduleModal({ appointment, isCustomer, onClose, onRe
           </div>
 
           <div className="rsm-footer">
-            <button type="button" className="rsm-btn-secondary" onClick={onClose} disabled={loading}>
+            <button type="button" className="rsm-btn-secondary" onClick={onClose} disabled={loading} data-track="ui.1d13efaf89.5">
               {t('common.cancel', { defaultValue: 'Cancel' })}
             </button>
-            <button type="submit" className="rsm-btn-primary" disabled={loading}>
+            <button type="submit" className="rsm-btn-primary" disabled={loading} data-track="ui.1d13efaf89.6">
               {loading
                 ? t('reschedule.sending', { defaultValue: 'Sending…' })
                 : t('reschedule.send', { defaultValue: 'Send Request' })}

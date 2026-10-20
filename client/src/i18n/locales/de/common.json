@@ -3592,5 +3592,9 @@
       "empty": "Keine offenen Einträge",
       "reviewHint": "Eine Prüfung bewegt kein Geld und gibt keine Waren frei."
     }
+  },
+  "growthInsights": {
+    "analyticsStorage": "Google Analytics und Gerätespeicher",
+    "analyticsStorageDescription": "Im EWR, Vereinigten Königreich, der Schweiz und Québec erfordern Aktivitätserfassung und personalisierte Angebote getrennte, widerrufbare Einwilligungen. Betroffene US-Staaten bieten Widerspruch gegen Verkauf oder Weitergabe einschließlich Global Privacy Control. Andernorts steuert die Analyse-Einstellung Google Analytics und dauerhaften Gerätespeicher; diese Mitteilung deckt die Aktivität ab."
   }
 }

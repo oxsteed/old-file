@@ -121,7 +121,7 @@ export default function CustomsAdmin() {
                 <td>
                   {s.status !== 'customs_cleared' && (
                     <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }}
-                      onClick={() => { setSelected(s); setForm({ action:'', notes:'' }); }}>
+                      onClick={() => { setSelected(s); setForm({ action:'', notes:'' }); }} data-track-private>
 {t('adminCustoms.review')}
                     </button>
                   )}
@@ -171,10 +171,10 @@ export default function CustomsAdmin() {
                 placeholder={t('adminCustoms.modal.notesPlaceholder')} />
             </div>
             <div style={{ display:'flex', gap:'.75rem' }}>
-              <button className="lx-btn-primary" onClick={applyAction} disabled={saving}>
+              <button className="lx-btn-primary" onClick={applyAction} disabled={saving} data-track-private>
                 {saving ? t('common.saving') : t('adminCustoms.modal.apply')}
               </button>
-              <button className="lx-btn-secondary" onClick={() => setSelected(null)}>{t('common.cancel')}</button>
+              <button className="lx-btn-secondary" onClick={() => setSelected(null)} data-track-private>{t('common.cancel')}</button>
             </div>
           </>
         )}

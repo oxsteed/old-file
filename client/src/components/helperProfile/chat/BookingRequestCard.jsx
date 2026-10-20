@@ -235,7 +235,7 @@ export default function BookingRequestCard({
             type="button"
             className="messenger-booking-card__btn messenger-booking-card__btn--primary"
             disabled={busy}
-            onClick={() => respond('accept')}
+            onClick={() => respond('accept')} data-track-private
           >
             {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> : <Check className="w-3.5 h-3.5" aria-hidden />}
             {t('helperProfile.messenger.bookingAccept')}
@@ -244,7 +244,7 @@ export default function BookingRequestCard({
             type="button"
             className="messenger-booking-card__btn messenger-booking-card__btn--secondary"
             disabled={busy}
-            onClick={() => setShowReason((v) => !v)}
+            onClick={() => setShowReason((v) => !v)} data-track-private
           >
             <X className="w-3.5 h-3.5" aria-hidden />
             {t('helperProfile.messenger.bookingDecline')}
@@ -254,7 +254,7 @@ export default function BookingRequestCard({
               type="button"
               className="messenger-booking-card__btn messenger-booking-card__btn--ghost"
               disabled={busy}
-              onClick={() => onProposeTime({ booking, conversationId })}
+              onClick={() => onProposeTime({ booking, conversationId })} data-track-private
             >
               <Calendar className="w-3.5 h-3.5" aria-hidden />
               {t('helperProfile.messenger.bookingProposeTime')}
@@ -268,7 +268,7 @@ export default function BookingRequestCard({
           <button
             type="button"
             className="messenger-booking-card__btn messenger-booking-card__btn--primary"
-            onClick={() => onRequestVerify?.()}
+            onClick={() => onRequestVerify?.()} data-track-private
           >
             {t('helperProfile.messenger.bookingVerifyToRespond')}
           </button>
@@ -292,7 +292,7 @@ export default function BookingRequestCard({
             type="button"
             className="messenger-booking-card__btn messenger-booking-card__btn--secondary"
             disabled={busy}
-            onClick={() => respond('decline')}
+            onClick={() => respond('decline')} data-track-private
           >
             {t('helperProfile.messenger.bookingConfirmDecline')}
           </button>

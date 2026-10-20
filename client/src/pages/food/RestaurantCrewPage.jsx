@@ -52,8 +52,8 @@ function ChecklistModal({ restaurantId, onSaved, onClose }) {
           </select>
         </div>
         <div className="fd-pos-modal-actions">
-          <button className="fd-btn-secondary" onClick={onClose}>{t('food.common.cancel')}</button>
-          <button className="fd-btn" onClick={handle} disabled={saving || !title.trim()}>
+          <button className="fd-btn-secondary" onClick={onClose} data-track="ui.41429311b1.1">{t('food.common.cancel')}</button>
+          <button className="fd-btn" onClick={handle} disabled={saving || !title.trim()} data-track="ui.41429311b1.2">
             {saving ? t('food.common.saving') : t('food.crew.create')}
           </button>
         </div>
@@ -104,8 +104,8 @@ function SOPModal({ restaurantId, onSaved, onClose }) {
           <textarea rows={5} value={form.content} onChange={(e) => set('content', e.target.value)} />
         </div>
         <div className="fd-pos-modal-actions">
-          <button className="fd-btn-secondary" onClick={onClose}>{t('food.common.cancel')}</button>
-          <button className="fd-btn" onClick={handle} disabled={saving || !form.title.trim()}>
+          <button className="fd-btn-secondary" onClick={onClose} data-track="ui.41429311b1.3">{t('food.common.cancel')}</button>
+          <button className="fd-btn" onClick={handle} disabled={saving || !form.title.trim()} data-track="ui.41429311b1.4">
             {saving ? t('food.common.saving') : t('food.crew.create')}
           </button>
         </div>
@@ -217,7 +217,7 @@ export default function RestaurantCrewPage() {
         {/* Tab nav */}
         <div className="fd-inv-tabs">
           {TABS.map((tb) => (
-            <button key={tb} className={`fd-inv-tab${tab === tb ? ' fd-active' : ''}`} onClick={() => setTab(tb)}>
+            <button key={tb} className={`fd-inv-tab${tab === tb ? ' fd-active' : ''}`} onClick={() => setTab(tb)} data-track="ui.41429311b1.5">
               {t(`food.crew.tab_${tb}`)}
             </button>
           ))}
@@ -262,7 +262,7 @@ export default function RestaurantCrewPage() {
                       {task.assigned_to && <span className="fd-card-meta">{task.assigned_to}</span>}
                     </div>
                     {task.priority && <span className={`fd-tag fd-crew-prio-${task.priority}`}>{task.priority}</span>}
-                    <button className="fd-btn-sm fd-btn" onClick={() => completeTask(task.id)}>
+                    <button className="fd-btn-sm fd-btn" onClick={() => completeTask(task.id)} data-track="ui.41429311b1.6">
                       ✓
                     </button>
                   </div>
@@ -290,14 +290,14 @@ export default function RestaurantCrewPage() {
         {tab === 'checklists' && (
           <div className="fd-crew-section">
             <div className="fd-inv-bar">
-              <button className="fd-btn" onClick={() => setShowChecklist(true)}>{t('food.crew.newChecklist')}</button>
+              <button className="fd-btn" onClick={() => setShowChecklist(true)} data-track="ui.41429311b1.7">{t('food.crew.newChecklist')}</button>
             </div>
             {checklists.length === 0 && (
               <EmptyState
                 icon={ClipboardList}
                 title={t('food.crew.noChecklists')}
                 actions={(
-                  <button type="button" className="fd-btn" onClick={() => setShowChecklist(true)}>
+                  <button type="button" className="fd-btn" onClick={() => setShowChecklist(true)} data-track="ui.41429311b1.8">
                     {t('food.crew.newChecklist')}
                   </button>
                 )}
@@ -322,14 +322,14 @@ export default function RestaurantCrewPage() {
         {tab === 'sops' && (
           <div className="fd-crew-section">
             <div className="fd-inv-bar">
-              <button className="fd-btn" onClick={() => setShowSOP(true)}>{t('food.crew.newSOP')}</button>
+              <button className="fd-btn" onClick={() => setShowSOP(true)} data-track="ui.41429311b1.9">{t('food.crew.newSOP')}</button>
             </div>
             {sops.length === 0 && (
               <EmptyState
                 icon={BookOpen}
                 title={t('food.crew.noSOPs')}
                 actions={(
-                  <button type="button" className="fd-btn" onClick={() => setShowSOP(true)}>
+                  <button type="button" className="fd-btn" onClick={() => setShowSOP(true)} data-track="ui.41429311b1.10">
                     {t('food.crew.newSOP')}
                   </button>
                 )}

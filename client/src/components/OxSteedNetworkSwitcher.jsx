@@ -94,7 +94,7 @@ export default function OxSteedNetworkSwitcher({ showSupportWorkspace = false, o
         aria-expanded={open}
         aria-controls="nav-network-menu"
         onClick={() => setOpen((o) => !o)}
-        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: open ? 'var(--color-primary)' : 'var(--color-nav-link)' }}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: open ? 'var(--color-primary)' : 'var(--color-nav-link)' }} data-track="ui.d3b75192b3.1"
       >
         <GridGlyph size={15} />
         {t('nav.network', 'OxSteed Network')}

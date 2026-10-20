@@ -288,7 +288,7 @@ export default function CampaignBrowser() {
           <input
             type="checkbox"
             checked={openOnly}
-            onChange={(e) => setFilter({ open: e.target.checked })}
+            onChange={(e) => setFilter({ open: e.target.checked })} data-track="ui.cae85ba4cb.1"
           />
           <span>{t('logistics.campaigns.openOnly', 'Open only')}</span>
         </label>
@@ -312,7 +312,7 @@ export default function CampaignBrowser() {
         {error && !loading && (
           <div className="lx-cb-error" role="alert">
             <p>{t('logistics.hub.error')}</p>
-            <button type="button" className="lx-cb-btn-secondary" onClick={retry}>
+            <button type="button" className="lx-cb-btn-secondary" onClick={retry} data-track="ui.cae85ba4cb.2">
               {t('logistics.hub.retry')}
             </button>
           </div>
@@ -331,7 +331,7 @@ export default function CampaignBrowser() {
                 <button
                   type="button"
                   className="lx-cb-btn-secondary"
-                  onClick={() => setFilter({ q: '', status: '', lane_id: '', open: false })}
+                  onClick={() => setFilter({ q: '', status: '', lane_id: '', open: false })} data-track="ui.cae85ba4cb.3"
                 >
                   {t('logistics.hub.clearFilters')}
                 </button>
@@ -400,7 +400,7 @@ export default function CampaignBrowser() {
                     <button
                       type="button"
                       className="lx-cb-btn-ghost"
-                      onClick={() => setPreviewId(c.id)}
+                      onClick={() => setPreviewId(c.id)} data-track="ui.cae85ba4cb.4"
                     >
                       {t('logistics.tables.preview')}
                     </button>
@@ -418,7 +418,7 @@ export default function CampaignBrowser() {
               type="button"
               className="lx-cb-btn-secondary"
               disabled={page <= 1}
-              onClick={() => setPage(page - 1)}
+              onClick={() => setPage(page - 1)} data-track="ui.cae85ba4cb.5"
             >
               ← {t('logistics.hub.prevPage')}
             </button>
@@ -429,7 +429,7 @@ export default function CampaignBrowser() {
               type="button"
               className="lx-cb-btn-secondary"
               disabled={page >= totalPages}
-              onClick={() => setPage(page + 1)}
+              onClick={() => setPage(page + 1)} data-track="ui.cae85ba4cb.6"
             >
               {t('logistics.hub.nextPage')} →
             </button>

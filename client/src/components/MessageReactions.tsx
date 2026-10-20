@@ -94,7 +94,7 @@ export default function MessageReactions({
         onClick={() => setShowPicker(true)}
         className="mt-2 p-1 text-gray-500 hover:text-orange-500 transition-colors"
         title={t('messages.addReaction')}
-        disabled={loading}
+        disabled={loading} data-track-private
       >
         <SmilePlus size={16} />
       </button>
@@ -132,7 +132,7 @@ export default function MessageReactions({
           onClick={() => setShowPicker(!showPicker)}
           className="p-1 text-gray-500 hover:text-orange-500 transition-colors"
           title={t('messages.addReaction')}
-          disabled={loading}
+          disabled={loading} data-track-private
         >
           <SmilePlus size={16} />
         </button>
@@ -146,7 +146,7 @@ export default function MessageReactions({
                 onClick={() => handleAddReaction(reaction)}
                 className="text-lg hover:scale-125 transition-transform p-1 rounded hover:bg-gray-700"
                 title={t(`messages.reactions.${reaction}`)}
-                disabled={loading}
+                disabled={loading} data-track-private
               >
                 {REACTION_EMOJI[reaction]}
               </button>

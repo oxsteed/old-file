@@ -595,14 +595,14 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
               <button
                 type="button"
                 className={filter === 'all' ? 'active' : ''}
-                onClick={() => setFilter('all')}
+                onClick={() => setFilter('all')} data-track="ui.ff5a46a66a.1"
               >
                 {t('messages.allFilter')}
               </button>
               <button
                 type="button"
                 className={filter === 'unread' ? 'active' : ''}
-                onClick={() => setFilter('unread')}
+                onClick={() => setFilter('unread')} data-track="ui.ff5a46a66a.2"
               >
                 {t('messages.unreadFilter')}
                 {unreadCount > 0 && <em>{unreadCount}</em>}
@@ -617,7 +617,7 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
                     setShowQuoteHistory(next);
                     setShowArchived(false);
                     if (next && hasThread) closeThread();
-                  }}
+                  }} data-track="ui.ff5a46a66a.3"
                 >
                   <FileText size={14} aria-hidden />
                   {t('messages.quoteHistory.button')}
@@ -626,13 +626,13 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
             </div>
             {dualRole && (
               <div className="messages-filter" role="group" aria-label={t('messages.sideFilterAriaLabel')}>
-                <button type="button" className={sideFilter === 'all' ? 'active' : ''} onClick={() => setSideFilter('all')}>
+                <button type="button" className={sideFilter === 'all' ? 'active' : ''} onClick={() => setSideFilter('all')} data-track="ui.ff5a46a66a.4">
                   {t('messages.sideAll')}
                 </button>
-                <button type="button" className={sideFilter === 'helper' ? 'active' : ''} onClick={() => setSideFilter('helper')}>
+                <button type="button" className={sideFilter === 'helper' ? 'active' : ''} onClick={() => setSideFilter('helper')} data-track="ui.ff5a46a66a.5">
                   {t('messages.sideHelper')}
                 </button>
-                <button type="button" className={sideFilter === 'customer' ? 'active' : ''} onClick={() => setSideFilter('customer')}>
+                <button type="button" className={sideFilter === 'customer' ? 'active' : ''} onClick={() => setSideFilter('customer')} data-track="ui.ff5a46a66a.6">
                   {t('messages.sideCustomer')}
                 </button>
               </div>
@@ -663,12 +663,12 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
                 if (next) fetchArchived();
               }}
               aria-pressed={showArchived}
-              title={t('messages.viewArchived')}
+              title={t('messages.viewArchived')} data-track="ui.ff5a46a66a.7"
             >
               <Archive size={15} />
               {t('messages.viewArchived')}
             </button>
-            <button type="button" onClick={fetchConversations} disabled={loading}>
+            <button type="button" onClick={fetchConversations} disabled={loading} data-track="ui.ff5a46a66a.8">
               <RefreshCw size={15} />
               {t('messages.refresh')}
             </button>
@@ -695,7 +695,7 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
                   <h2>{t('messages.loadFailedTitle')}</h2>
                   <p>{t('messages.loadFailedHint')}</p>
                   <div className="messages-empty-actions">
-                    <button type="button" onClick={fetchConversations} disabled={loading}>
+                    <button type="button" onClick={fetchConversations} disabled={loading} data-track="ui.ff5a46a66a.9">
                       <RefreshCw size={16} aria-hidden />
                       {t('messages.retry')}
                     </button>
@@ -719,7 +719,7 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
             {loadError && (
               <div className="messages-inline-alert" role="alert">
                 <p>{loadError}</p>
-                <button type="button" onClick={() => fetchConversations()} disabled={loading}>
+                <button type="button" onClick={() => fetchConversations()} disabled={loading} data-track="ui.ff5a46a66a.10">
                   <RefreshCw size={14} />
                   {t('messages.retry')}
                 </button>
@@ -736,7 +736,7 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
                   <Archive size={30} />
                   <h2>{t('messages.loadFailedTitle')}</h2>
                   <p>{archivedError}</p>
-                  <button type="button" onClick={() => fetchArchived()} disabled={archivedLoading}>
+                  <button type="button" onClick={() => fetchArchived()} disabled={archivedLoading} data-track="ui.ff5a46a66a.11">
                     <RefreshCw size={15} aria-hidden />
                     {t('messages.retry')}
                   </button>
@@ -762,7 +762,7 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
                       type="button"
                       className="messages-archive-more"
                       onClick={() => fetchArchived({ append: true })}
-                      disabled={archivedLoading}
+                      disabled={archivedLoading} data-track="ui.ff5a46a66a.12"
                     >
                       {archivedLoading ? t('common.loading') : t('messages.loadMoreArchived', { defaultValue: 'Load more archived conversations' })}
                     </button>
@@ -817,7 +817,7 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
                       type="button"
                       onClick={() => handleOpen(conv)}
                       className={`messages-row sms-conversation-row${unread ? ' unread' : ''}${isActive ? ' active' : ''}`}
-                      aria-current={isActive ? 'page' : undefined}
+                      aria-current={isActive ? 'page' : undefined} data-track="ui.ff5a46a66a.13"
                     >
                       <div className={`messages-avatar${helperSide ? ' helper' : ''}`}>
                         {(conv.other_user_name || '?').charAt(0).toUpperCase()}
@@ -857,7 +857,7 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
                   type="button"
                   className="messages-archive-more"
                   onClick={() => fetchConversations({ append: true })}
-                  disabled={convLoadingMore}
+                  disabled={convLoadingMore} data-track="ui.ff5a46a66a.14"
                 >
                   {convLoadingMore ? t('common.loading') : t('messages.loadMoreConversations')}
                 </button>
@@ -965,7 +965,7 @@ function ConversationRailEmpty({ t, onClose }) {
           defaultValue: 'Your selected conversation is open beside this inbox.',
         })}
       </p>
-      <button type="button" onClick={onClose}>
+      <button type="button" onClick={onClose} data-track="ui.ff5a46a66a.15">
         {t('messages.backToInbox', { defaultValue: 'Back to inbox' })}
       </button>
     </div>

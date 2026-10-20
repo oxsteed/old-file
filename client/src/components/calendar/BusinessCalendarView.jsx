@@ -79,7 +79,7 @@ function EventModal({ open, initial, onClose, onSave, onDelete, canManage, t }) 
       <div className="bcv-modal">
         <div className="bcv-modal-head">
           <h3>{draft.raw_id ? t('calendar.business.editEvent') : t('calendar.business.newEvent')}</h3>
-          <button type="button" onClick={onClose} aria-label={t('common.close')}><X size={18} /></button>
+          <button type="button" onClick={onClose} aria-label={t('common.close')} data-track="ui.bd7361465a.1"><X size={18} /></button>
         </div>
 
         <div className="bcv-modal-body">
@@ -186,14 +186,14 @@ function EventModal({ open, initial, onClose, onSave, onDelete, canManage, t }) 
 
         <div className="bcv-modal-foot">
           {canManage && draft.raw_id ? (
-            <button type="button" className="bcv-btn danger" onClick={() => onDelete(draft)}>
+            <button type="button" className="bcv-btn danger" onClick={() => onDelete(draft)} data-track="ui.bd7361465a.2">
               <Trash2 size={14} /> {t('common.delete')}
             </button>
           ) : <span />}
           <div className="bcv-modal-actions">
-            <button type="button" className="bcv-btn ghost" onClick={onClose}>{t('common.cancel')}</button>
+            <button type="button" className="bcv-btn ghost" onClick={onClose} data-track="ui.bd7361465a.3">{t('common.cancel')}</button>
             {canManage && (
-              <button type="button" className="bcv-btn primary" onClick={() => onSave(draft)}>
+              <button type="button" className="bcv-btn primary" onClick={() => onSave(draft)} data-track="ui.bd7361465a.4">
                 {draft.raw_id ? t('calendar.business.saveChanges') : t('calendar.business.createEvent')}
               </button>
             )}
@@ -345,17 +345,17 @@ export default function BusinessCalendarView({ bizId, canManage = true }) {
     <div className="bcv-root">
       <div className="bcv-toolbar">
         <div className="bcv-toolbar-nav">
-          <button type="button" className="bcv-btn ghost" onClick={goPrev} aria-label={t('calendar.business.previousWeek')}><ChevronLeft size={16} /></button>
-          <button type="button" className="bcv-btn ghost" onClick={goToday}>{t('calendar.today')}</button>
-          <button type="button" className="bcv-btn ghost" onClick={goNext} aria-label={t('calendar.business.nextWeek')}><ChevronRight size={16} /></button>
+          <button type="button" className="bcv-btn ghost" onClick={goPrev} aria-label={t('calendar.business.previousWeek')} data-track="ui.bd7361465a.5"><ChevronLeft size={16} /></button>
+          <button type="button" className="bcv-btn ghost" onClick={goToday} data-track="ui.bd7361465a.6">{t('calendar.today')}</button>
+          <button type="button" className="bcv-btn ghost" onClick={goNext} aria-label={t('calendar.business.nextWeek')} data-track="ui.bd7361465a.7"><ChevronRight size={16} /></button>
           <span className="bcv-range-label">
             {formatDay(weekStart, locale)} - {formatDay(addDays(weekStart, 6), locale)}
           </span>
         </div>
         <div className="bcv-toolbar-right">
           <div className="bcv-view-switch" role="tablist" aria-label={t('calendar.business.calendarView')}>
-            <button type="button" className={viewMode === 'week' ? 'active' : ''} onClick={() => setViewMode('week')}>{t('calendar.week')}</button>
-            <button type="button" className={viewMode === 'agenda' ? 'active' : ''} onClick={() => setViewMode('agenda')}>{t('calendar.agenda')}</button>
+            <button type="button" className={viewMode === 'week' ? 'active' : ''} onClick={() => setViewMode('week')} data-track="ui.bd7361465a.8">{t('calendar.week')}</button>
+            <button type="button" className={viewMode === 'agenda' ? 'active' : ''} onClick={() => setViewMode('agenda')} data-track="ui.bd7361465a.9">{t('calendar.agenda')}</button>
           </div>
           <label className="bcv-filter">
             <Filter size={14} />
@@ -365,7 +365,7 @@ export default function BusinessCalendarView({ bizId, canManage = true }) {
             </select>
           </label>
           {canManage && (
-            <button type="button" className="bcv-btn primary" onClick={() => openNewEvent(new Date())}>
+            <button type="button" className="bcv-btn primary" onClick={() => openNewEvent(new Date())} data-track="ui.bd7361465a.10">
               <Plus size={14} /> {t('calendar.business.newEvent')}
             </button>
           )}
@@ -428,7 +428,7 @@ function WeekView({ days, items, onOpen, onCreate, locale, t }) {
                   type="button"
                   className="bcv-day-add"
                   aria-label={t('calendar.business.addEventOn', { date: formatDay(day, locale) })}
-                  onClick={() => onCreate(new Date(day))}
+                  onClick={() => onCreate(new Date(day))} data-track="ui.bd7361465a.11"
                 ><Plus size={12} /></button>
               )}
             </header>
@@ -441,7 +441,7 @@ function WeekView({ days, items, onOpen, onCreate, locale, t }) {
                   type="button"
                   className="bcv-event-chip"
                   style={{ borderLeftColor: i._color }}
-                  onClick={() => onOpen(i)}
+                  onClick={() => onOpen(i)} data-track="ui.bd7361465a.12"
                 >
                   <span className="bcv-event-time">{formatTime(new Date(i.starts_at), locale)}</span>
                   <span className="bcv-event-title">{i.title}</span>
@@ -476,7 +476,7 @@ function AgendaView({ items, onOpen, locale, t }) {
           <ul>
             {dayItems.map((i) => (
               <li key={i.id}>
-                <button type="button" className="bcv-agenda-item" onClick={() => onOpen(i)}>
+                <button type="button" className="bcv-agenda-item" onClick={() => onOpen(i)} data-track="ui.bd7361465a.13">
                   <span className="bcv-agenda-dot" style={{ background: i._color }} />
                   <span className="bcv-agenda-time">
                     <Clock size={12} /> {formatTime(new Date(i.starts_at), locale)} - {formatTime(new Date(i.ends_at), locale)}

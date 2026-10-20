@@ -159,7 +159,7 @@ function PublicInvoiceView() {
               <div className="piv-business-meta">
                 {business?.phone && <span>{business.phone}</span>}
                 {websiteHref && (
-                  <a href={websiteHref} target="_blank" rel="noopener noreferrer">
+                  <a href={websiteHref} target="_blank" rel="noopener noreferrer" data-track="ui.cdc6e7bd9b.1">
                     {business.website}
                   </a>
                 )}
@@ -325,7 +325,7 @@ function PublicInvoiceView() {
             <section className="piv-panel piv-question-card">
               <h2>{t('publicInvoice.needClarity')}</h2>
               <p>{t('publicInvoice.clarityBody', { business: business?.business_name || t('publicInvoice.fallbackBusiness') })}</p>
-              {business?.phone && <a href={`tel:${business.phone}`}>{business.phone}</a>}
+              {business?.phone && <a href={`tel:${business.phone}`} data-track="ui.cdc6e7bd9b.2">{business.phone}</a>}
             </section>
           </aside>
         </div>

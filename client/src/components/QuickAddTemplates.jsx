@@ -47,7 +47,7 @@ export default function QuickAddTemplates({ onSelect }) {
               flexShrink: 0, padding: '6px 14px', background: 'white',
               border: '1px solid #fca5a5', borderRadius: '6px', cursor: 'pointer',
               fontSize: '12px', fontWeight: 600, color: '#991b1b',
-            }}
+            }} data-track="ui.c89089e923.1"
           >
             {t('common.retry', 'Retry')}
           </button>
@@ -83,7 +83,7 @@ export default function QuickAddTemplates({ onSelect }) {
               transition: 'border-color 0.15s',
             }}
             onMouseOver={e => e.currentTarget.style.borderColor = '#3b82f6'}
-            onMouseOut={e => e.currentTarget.style.borderColor = '#e5e7eb'}
+            onMouseOut={e => e.currentTarget.style.borderColor = '#e5e7eb'} data-track="ui.c89089e923.2"
           >
             <span style={{ fontSize: '20px', marginBottom: '4px' }}>
               {ICONS[t.icon] || '\u{1F4CB}'}

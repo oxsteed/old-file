@@ -131,7 +131,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
         {/* Header */}
         <div className="booking-modal-header">
           <h2 className="booking-modal-title">{t('toolRentals.booking')}</h2>
-          <button onClick={onClose} className="booking-modal-close-btn" aria-label={t('common.aria.closeButton')}>
+          <button onClick={onClose} className="booking-modal-close-btn" aria-label={t('common.aria.closeButton')} data-track="ui.043dee9378.1">
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -146,7 +146,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="booking-form">
+          <form onSubmit={handleSubmit} className="booking-form" data-track="ui.043dee9378.2">
             <div className="booking-form-group">
               <label htmlFor="start-date">{t('toolRentals.startDate')}</label>
               <div className="booking-date-input">
@@ -230,7 +230,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
                   type="checkbox"
                   checked={agreementAccepted}
                   onChange={(e) => setAgreementAccepted(e.target.checked)}
-                  disabled={loading}
+                  disabled={loading} data-track="ui.043dee9378.3"
                 />
                 <span>{t('toolRentals.peerAgreementAccept')}</span>
               </label>
@@ -239,7 +239,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
             <button
               type="submit"
               disabled={loading || !startDate || !endDate || !agreementAccepted}
-              className="booking-submit-btn"
+              className="booking-submit-btn" data-track="ui.043dee9378.4"
             >
               {loading ? t('common.loading') : t('toolRentals.confirmBooking')}
             </button>

@@ -156,7 +156,7 @@ export default function CalendarAppointmentDetailPage() {
               <button
                 type="button"
                 onClick={loadAppointment}
-                className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-3 font-semibold text-white transition hover:bg-orange-600"
+                className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-3 font-semibold text-white transition hover:bg-orange-600" data-track="ui.5cb56f180c.1"
               >
                 <RefreshCw size={16} />
                 {t('common.retry', { defaultValue: 'Retry' })}
@@ -164,7 +164,7 @@ export default function CalendarAppointmentDetailPage() {
               <button
                 type="button"
                 onClick={() => navigate('/calendar')}
-                className="inline-flex items-center gap-2 rounded-full bg-white/5 px-5 py-3 font-semibold text-slate-200 transition hover:bg-white/10"
+                className="inline-flex items-center gap-2 rounded-full bg-white/5 px-5 py-3 font-semibold text-slate-200 transition hover:bg-white/10" data-track="ui.5cb56f180c.2"
               >
                 <ArrowLeft size={16} />
                 {t('nav.calendar', { defaultValue: 'Calendar' })}
@@ -189,7 +189,7 @@ export default function CalendarAppointmentDetailPage() {
           <button
             type="button"
             onClick={() => navigate('/calendar')}
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/10"
+            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/10" data-track="ui.5cb56f180c.3"
           >
             <ArrowLeft size={16} />
             {t('common.back', { defaultValue: 'Back' })}
@@ -280,7 +280,7 @@ export default function CalendarAppointmentDetailPage() {
                       <button
                         type="button"
                         onClick={() => { setShowCancel(false); setCancelReason(''); }}
-                        className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-white/10"
+                        className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-white/10" data-track="ui.5cb56f180c.4"
                       >
                         {t('common.close', { defaultValue: 'Close' })}
                       </button>
@@ -288,7 +288,7 @@ export default function CalendarAppointmentDetailPage() {
                         type="button"
                         onClick={handleCancel}
                         disabled={saving}
-                        className="rounded-full bg-rose-500 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-600 disabled:opacity-60"
+                        className="rounded-full bg-rose-500 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-600 disabled:opacity-60" data-track="ui.5cb56f180c.5"
                       >
                         {saving ? t('common.saving', { defaultValue: 'Saving…' }) : t('calendar.cancelAppointment', { defaultValue: 'Cancel appointment' })}
                       </button>
@@ -307,7 +307,7 @@ export default function CalendarAppointmentDetailPage() {
                     type="button"
                     onClick={handleConfirm}
                     disabled={saving}
-                    className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-60"
+                    className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-60" data-track="ui.5cb56f180c.6"
                   >
                     <CheckCircle2 size={15} />
                     {saving ? t('common.saving', { defaultValue: 'Saving…' }) : t('calendar.confirmAppointment', { defaultValue: 'Confirm' })}
@@ -317,7 +317,7 @@ export default function CalendarAppointmentDetailPage() {
                   <button
                     type="button"
                     onClick={() => setShowCancel(true)}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-white/10"
+                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-white/10" data-track="ui.5cb56f180c.7"
                   >
                     <XCircle size={15} />
                     {t('calendar.cancelAppointment', { defaultValue: 'Cancel' })}
@@ -327,7 +327,7 @@ export default function CalendarAppointmentDetailPage() {
                   <button
                     type="button"
                     onClick={() => setShowReschedule(true)}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-white/10"
+                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-white/10" data-track="ui.5cb56f180c.8"
                   >
                     <Clock3 size={15} />
                     {t('calendar.reschedule', { defaultValue: 'Reschedule' })}
@@ -350,7 +350,7 @@ export default function CalendarAppointmentDetailPage() {
                 <a
                   href={icalUrl}
                   download={`oxsteed-appointment-${appointment.id}.ics`}
-                  className="inline-flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/10"
+                  className="inline-flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/10" data-track="ui.5cb56f180c.9"
                 >
                   <span>{t('calendar.downloadIcal', { defaultValue: 'Download .ics' })}</span>
                   <ExternalLink size={15} />
@@ -359,7 +359,7 @@ export default function CalendarAppointmentDetailPage() {
                   href={googleUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/10"
+                  className="inline-flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/10" data-track="ui.5cb56f180c.10"
                 >
                   <span>{t('calendar.addToGoogle', { defaultValue: 'Add to Google Calendar' })}</span>
                   <ExternalLink size={15} />

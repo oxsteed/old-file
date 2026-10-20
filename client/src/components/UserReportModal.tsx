@@ -79,7 +79,7 @@ const UserReportModal: React.FC<UserReportModalProps> = ({
       <div className="report-modal-content" onClick={e => e.stopPropagation()}>
         <div className="report-modal-header">
           <h2>{t('toolRentals.reportUser') || 'Report User'}</h2>
-          <button onClick={onClose} className="report-modal-close">
+          <button onClick={onClose} className="report-modal-close" data-track="ui.a6aedec7fd.1">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -135,10 +135,10 @@ const UserReportModal: React.FC<UserReportModalProps> = ({
         </div>
 
         <div className="report-modal-footer">
-          <button onClick={onClose} disabled={loading} className="report-btn-cancel">
+          <button onClick={onClose} disabled={loading} className="report-btn-cancel" data-track="ui.a6aedec7fd.2">
             {t('common.cancel') || 'Cancel'}
           </button>
-          <button onClick={handleSubmit} disabled={loading} className="report-btn-submit">
+          <button onClick={handleSubmit} disabled={loading} className="report-btn-submit" data-track="ui.a6aedec7fd.3">
             {loading ? t('common.submitting') : t('toolRentals.submitReport')}
           </button>
         </div>

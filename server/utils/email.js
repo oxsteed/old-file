@@ -1337,7 +1337,21 @@ async function sendEmailOrThrow(options) {
   return result;
 }
 
+async function sendEmailBatch(messages,{idempotencyKey}={}) {
+  if(!Array.isArray(messages)||!messages.length||messages.length>100||!idempotencyKey)throw new Error('invalid_email_batch');
+  if(!emailConfigured)throw new Error('email_not_configured');
+  const response=await fetch('https://api.resend.com/emails/batch',{
+    method:'POST',redirect:'error',signal:AbortSignal.timeout(10000),
+    headers:{Authorization:`Bearer ${RESEND_API_KEY}`,'Content-Type':'application/json','Idempotency-Key':idempotencyKey},
+    body:JSON.stringify(messages.map(m=>({...m,from:`${FROM_NAME} <${FROM_EMAIL}>`}))),
+  });
+  if(!response.ok)throw new Error('email_batch_unavailable');
+  const result=await response.json();
+  if(!Array.isArray(result.data)||result.data.length!==messages.length||result.data.some(m=>!m.id))throw new Error('email_batch_response_invalid');
+  return result.data;
+}
 module.exports = {
+  sendEmailBatch,
   sendEmail,
   sendEmailOrThrow,
   EmailDeliveryError,

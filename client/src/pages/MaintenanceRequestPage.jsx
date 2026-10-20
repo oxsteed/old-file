@@ -178,7 +178,7 @@ export default function MaintenanceRequestPage() {
           </div>
         </section>
 
-        <form className="mrq-grid" onSubmit={handleSubmit}>
+        <form className="mrq-grid" onSubmit={handleSubmit} data-track="ui.bc430134f8.1">
           <section className="mrq-panel">
             <h2><Home size={18} /> {t('maintenanceRequestPage.sections.issueDetails')}</h2>
             <div className="mrq-field">
@@ -218,7 +218,7 @@ export default function MaintenanceRequestPage() {
                     key={value}
                     type="button"
                     className={form.urgency === value ? 'active' : ''}
-                    onClick={() => updateField('urgency', value)}
+                    onClick={() => updateField('urgency', value)} data-track="ui.bc430134f8.2"
                   >
                     {label}
                   </button>
@@ -313,7 +313,7 @@ export default function MaintenanceRequestPage() {
               <input
                 type="checkbox"
                 checked={form.permission_to_enter}
-                onChange={(e) => updateField('permission_to_enter', e.target.checked)}
+                onChange={(e) => updateField('permission_to_enter', e.target.checked)} data-track="ui.bc430134f8.3"
               />
               <span>{t('maintenanceRequestPage.checks.permissionToEnter')}</span>
             </label>
@@ -321,7 +321,7 @@ export default function MaintenanceRequestPage() {
               <input
                 type="checkbox"
                 checked={form.resident_present_required}
-                onChange={(e) => updateField('resident_present_required', e.target.checked)}
+                onChange={(e) => updateField('resident_present_required', e.target.checked)} data-track="ui.bc430134f8.4"
               />
               <span>{t('maintenanceRequestPage.checks.residentPresentRequired')}</span>
             </label>
@@ -329,7 +329,7 @@ export default function MaintenanceRequestPage() {
               <input
                 type="checkbox"
                 checked={form.pets_on_site}
-                onChange={(e) => updateField('pets_on_site', e.target.checked)}
+                onChange={(e) => updateField('pets_on_site', e.target.checked)} data-track="ui.bc430134f8.5"
               />
               <span>{t('maintenanceRequestPage.checks.petsOnSite')}</span>
             </label>
@@ -379,7 +379,7 @@ export default function MaintenanceRequestPage() {
                 })}
               </p>
             </div>
-            <button className="mrq-btn primary submit" type="submit" disabled={submitting}>
+            <button className="mrq-btn primary submit" type="submit" disabled={submitting} data-track="ui.bc430134f8.6">
               {submitting ? t('maintenanceRequestPage.buttons.sending') : t('maintenanceRequestPage.buttons.send')}
             </button>
           </section>

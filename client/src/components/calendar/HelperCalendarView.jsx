@@ -232,7 +232,7 @@ export default function HelperCalendarView({
     <div className="hcv-container">
       <div className="hcv-header">
         {showNav ? (
-          <button className="hcv-nav-btn" onClick={() => navigate(-1)}>
+          <button className="hcv-nav-btn" onClick={() => navigate(-1)} data-track="ui.3b6451616c.1">
             ← {t('calendar.previous')}
           </button>
         ) : (
@@ -243,14 +243,14 @@ export default function HelperCalendarView({
           <h2 className="hcv-date">{getHeaderLabel()}</h2>
           <button
             className="hcv-today-btn"
-            onClick={() => onDateChange(new Date())}
+            onClick={() => onDateChange(new Date())} data-track="ui.3b6451616c.2"
           >
             {t('calendar.today', { defaultValue: 'Today' })}
           </button>
         </div>
 
         {showNav ? (
-          <button className="hcv-nav-btn" onClick={() => navigate(1)}>
+          <button className="hcv-nav-btn" onClick={() => navigate(1)} data-track="ui.3b6451616c.3">
             {t('calendar.next')} →
           </button>
         ) : (
@@ -800,7 +800,7 @@ function AgendaView({ appointments, onSelectAppointment, t, locale }) {
                   key={apt.id}
                   className="hcv-agenda-event"
                   onClick={() => onSelectAppointment(apt)}
-                  style={{ borderLeftColor: color }}
+                  style={{ borderLeftColor: color }} data-track="ui.3b6451616c.4"
                 >
                   <div className="hcv-agenda-event-time">
                     {start.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}

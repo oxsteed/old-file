@@ -326,7 +326,7 @@ export default function Navbar() {
                     aria-expanded={resourcesMenuOpen}
                     aria-controls="nav-resources-menu"
                     onClick={() => setResourcesMenuOpen((o) => !o)}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: resourcesMenuOpen ? 'var(--color-primary)' : 'var(--color-nav-link)' }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: resourcesMenuOpen ? 'var(--color-primary)' : 'var(--color-nav-link)' }} data-track="ui.0b9e115b87.1"
                   >
                     {t('nav.resources')}
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
@@ -442,7 +442,7 @@ export default function Navbar() {
               aria-label={mobileOpen ? t('nav.closeMenu') : t('nav.openMenu')}
               aria-expanded={mobileOpen}
               className="ox-btn-icon"
-              style={{ color: 'var(--color-nav-link)' }}
+              style={{ color: 'var(--color-nav-link)' }} data-track="ui.0b9e115b87.2"
             >
               <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round">
                 {mobileOpen ? (
@@ -479,7 +479,7 @@ export default function Navbar() {
                       {t(item.labelKey)}
                     </MobileNavLink>
                   ))}
-                  <button type="button" className="ox-nav-signout" onClick={() => { logout(); setMobileOpen(false); }}>{t('nav.signOut')}</button>
+                  <button type="button" className="ox-nav-signout" onClick={() => { logout(); setMobileOpen(false); }} data-track="ui.0b9e115b87.3">{t('nav.signOut')}</button>
                 </div>
                 {SHOW_LEGACY_NAV_RESOURCES && (
                   <>
@@ -616,7 +616,7 @@ function AccountDisclosure({ items, mode, logout }) {
   const { open, setOpen, containerRef, triggerRef, panelId } = useNavDisclosure(mode);
   return (
     <div ref={containerRef} data-nav-disclosure className="ox-nav-account">
-      <button ref={triggerRef} type="button" className="ox-btn ox-btn-ghost ox-btn-sm ox-nav-account-trigger" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(value => !value)}>
+      <button ref={triggerRef} type="button" className="ox-btn ox-btn-ghost ox-btn-sm ox-nav-account-trigger" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(value => !value)} data-track="ui.0b9e115b87.4">
         {t('nav.account')} <span aria-hidden="true">⌄</span>
       </button>
       {open && (
@@ -624,7 +624,7 @@ function AccountDisclosure({ items, mode, logout }) {
           {items.map(item => (
             <NavLink key={item.id} to={item.to} active={navbarLinkActive(item, location.pathname)}>{t(item.labelKey)}</NavLink>
           ))}
-          <button type="button" className="ox-nav-signout" onClick={logout}>{t('nav.signOut')}</button>
+          <button type="button" className="ox-nav-signout" onClick={logout} data-track="ui.0b9e115b87.5">{t('nav.signOut')}</button>
         </div>
       )}
     </div>

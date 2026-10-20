@@ -255,7 +255,7 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
   return (
     <div className={`messages-guest-panel${embedded ? ' embedded' : ''}`}>
       {!embedded && (
-        <button type="button" className="messages-back" onClick={goBack}>
+        <button type="button" className="messages-back" onClick={goBack} data-track="ui.ad1a37c5b3.1">
           <ArrowLeft size={16} aria-hidden />
           {t('messages.backToInbox')}
         </button>
@@ -270,7 +270,7 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
           <h1>{t('messages.guestInquiryUnavailable')}</h1>
           <p>{fetchError === 'error' ? t('messages.loadFailed') : t('messages.guestInquiryUnavailableHint')}</p>
           {fetchError === 'error' && (
-            <button type="button" onClick={() => setRetryNonce((value) => value + 1)}>
+            <button type="button" onClick={() => setRetryNonce((value) => value + 1)} data-track="ui.ad1a37c5b3.2">
               {t('messages.retry')}
             </button>
           )}
@@ -288,7 +288,7 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
               <p className="messages-guest-live-hint">{t('messages.guestInquiryLiveHint')}</p>
             </div>
             {mailto && (
-              <a href={mailto} className="messages-guest-mail">
+              <a href={mailto} className="messages-guest-mail" data-track="ui.ad1a37c5b3.3">
                 <Mail size={16} aria-hidden />
                 {t('messages.replyByEmail')}
               </a>
@@ -353,7 +353,7 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
                               <button
                                 type="button"
                                 className="messages-quote-share-btn"
-                                onClick={() => { setFollowUpIntakeId(intakeParsed.id); setShowIntakeShare(true); }}
+                                onClick={() => { setFollowUpIntakeId(intakeParsed.id); setShowIntakeShare(true); }} data-track="ui.ad1a37c5b3.4"
                               >
                                 {t('messages.clientIntake.followUpButton')}
                               </button>
@@ -367,7 +367,7 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
                               <button
                                 type="button"
                                 className="messages-quote-share-btn"
-                                onClick={() => { setFollowUpIntakeId(intakeResponseParsed.id); setShowIntakeShare(true); }}
+                                onClick={() => { setFollowUpIntakeId(intakeResponseParsed.id); setShowIntakeShare(true); }} data-track="ui.ad1a37c5b3.5"
                               >
                                 {t('messages.clientIntake.followUpButton')}
                               </button>
@@ -387,7 +387,7 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
             <button
               type="button"
               className="messages-quote-share-btn"
-              onClick={() => setShowQuoteShare(true)}
+              onClick={() => setShowQuoteShare(true)} data-track="ui.ad1a37c5b3.6"
             >
               <FileText size={14} aria-hidden />
               {t('messages.quoteShare.button')}
@@ -395,7 +395,7 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
             <button
               type="button"
               className="messages-quote-share-btn"
-              onClick={() => setShowPopShare(true)}
+              onClick={() => setShowPopShare(true)} data-track="ui.ad1a37c5b3.7"
             >
               <Receipt size={14} aria-hidden />
               {t('messages.popShare.button')}
@@ -403,7 +403,7 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
             <button
               type="button"
               className="messages-quote-share-btn"
-              onClick={() => setShowAgreementShare(true)}
+              onClick={() => setShowAgreementShare(true)} data-track="ui.ad1a37c5b3.8"
             >
               <ScrollText size={14} aria-hidden />
               {t('messages.agreementShare.button')}
@@ -411,7 +411,7 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
             <button
               type="button"
               className="messages-quote-share-btn"
-              onClick={() => setShowIntakeShare(true)}
+              onClick={() => setShowIntakeShare(true)} data-track="ui.ad1a37c5b3.9"
             >
               <ClipboardList size={14} aria-hidden />
               {t('messages.clientIntake.button')}
@@ -514,7 +514,7 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
               }}
             />
           )}
-          <form className="messages-guest-composer" onSubmit={sendReply}>
+          <form className="messages-guest-composer" onSubmit={sendReply} data-track="ui.ad1a37c5b3.10">
             {sendError ? (
               <p className="messages-guest-send-error" role="alert">{sendError}</p>
             ) : null}
@@ -530,7 +530,7 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
             <button
               type="submit"
               className="messages-guest-composer-send"
-              disabled={sending || !draft.trim()}
+              disabled={sending || !draft.trim()} data-track="ui.ad1a37c5b3.11"
             >
               {sending ? (
                 <Loader2 size={16} className="animate-spin" aria-hidden />

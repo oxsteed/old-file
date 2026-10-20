@@ -428,7 +428,7 @@ function JobDetailContent() {
   if (!job || error) return (
     <><Navbar /><main className="jdp-page jdp-state" aria-busy={loading || (!job && !error)}>
       {error ? <><h1>{t('jobDetail.loadFailed')}</h1><p>{t('jobDetail.loadFailedHelp')}</p>
-        <button className="jdp-btn-primary" onClick={() => fetchJob(id)} disabled={loading}>{t('jobDetail.retry')}</button>
+        <button className="jdp-btn-primary" onClick={() => fetchJob(id)} disabled={loading} data-track="ui.573dfef74b.1">{t('jobDetail.retry')}</button>
         <Link className="jdp-btn-ghost" to="/jobs">{t('jobDetail.browseJobs')}</Link></>
         : <p role="status">{t('jobDetail.loadingJob')}</p>}
     </main><Footer /></>
@@ -500,7 +500,7 @@ function JobDetailContent() {
       {partialBids && <p className="jdp-count">{t('jobDetail.partialBids', { visible: visibleBids.length, total: totalBids })}</p>}
       {bidsStatus === 'loading' && <p role="status">{t('jobDetail.loadingBids')}</p>}
       {bidsStatus === 'error' && <div role="alert"><p>{t('jobDetail.bidsFailed')}</p>
-        <button type="button" className="jdp-btn-ghost" onClick={loadBids}>{t('jobDetail.retry')}</button></div>}
+        <button type="button" className="jdp-btn-ghost" onClick={loadBids} data-track="ui.573dfef74b.2">{t('jobDetail.retry')}</button></div>}
       {bidsStatus === 'success' && (visibleBids.length === 0 ? <p className="jdp-empty-bids">{t(`jobDetail.${!isOwner ? 'noOwnBid' : totalBids > 0 ? 'noVisibleBids' : job.status === 'published' ? 'noBidsOpen' : 'noBidsClosed'}`)}</p> : (
                 <div className="jdp-bids-list">
                   {visibleBids.map(bid => (
@@ -554,7 +554,7 @@ function JobDetailContent() {
                             className="jdp-btn-accept"
                             onClick={() => handleAcceptClick(bid)}
                             disabled={actionLoading || loading || loadingPolicies || Boolean(bid.needs_reconfirm)}
-                            title={bid.needs_reconfirm ? t('jobEdit.acceptNeedsReconfirm') : undefined}
+                            title={bid.needs_reconfirm ? t('jobEdit.acceptNeedsReconfirm') : undefined} data-track="ui.573dfef74b.3"
                           >
                             {t('jobDetail.acceptBid', { defaultValue: 'Accept & Schedule' })}
                           </button>
@@ -594,7 +594,7 @@ function JobDetailContent() {
           <h2 id={`${fieldId}-next-step`} className="jdp-section-title">{t('jobDetail.nextStep')}</h2>
           {action ? <><p>{t(`jobDetail.${actionHelp[action] || 'reviewHelp'}`)}</p>
             {action === 'review' ? <ReviewModal jobId={id} revieweeName={isOwner ? (formatNameForPrivacy(job.helper_name) || t('jobDetail.yourHelper')) : (formatNameForPrivacy(job.client_name) || t('jobDetail.yourCustomer'))} onComplete={() => setReviewEligible(false)} />
-              : <button type="button" className="jdp-btn-primary" onClick={runNextStep} disabled={actionLoading || loading}>{actionLoading ? t('jobDetail.processing') : t(`jobDetail.${actionLabels[action]}`)}</button>}
+              : <button type="button" className="jdp-btn-primary" onClick={runNextStep} disabled={actionLoading || loading} data-track="ui.573dfef74b.4">{actionLoading ? t('jobDetail.processing') : t(`jobDetail.${actionLabels[action]}`)}</button>}
           </> : <p role="status">{t(`jobDetail.${['loading', 'idle'].includes(bidsStatus) && user && ['published', 'matched', 'negotiating'].includes(job.status) ? 'checkingBids' : 'noNextStep'}`)}</p>}
           {view.expiryDaysLeft !== null && <JobAutoExpiryWarning status={job.status} acceptedAt={job.accepted_at} daysUntilExpiry={view.expiryDaysLeft} />}
           {view.completionPending && <p role="status" className="jdp-completion-pending">
@@ -609,20 +609,20 @@ function JobDetailContent() {
               </Link>
             : <Link className="jdp-btn-ghost" to={`/agreements/new?jobId=${encodeURIComponent(id)}`}>{t('jobDetail.createWorkAgreement')}</Link>)}
           {isOwner && canEditJob(job, user) && <Link className="jdp-btn-ghost" to={`/jobs/${id}/edit`}>{t('jobEdit.editJob')}</Link>}
-          {(isOwner || isAssignedHelper) && job.assigned_helper_id && action !== 'messages' && <button type="button" className="jdp-btn-ghost" onClick={openJobChat} disabled={chatOpening}>{t('jobDetail.openJobChat')}</button>}
+          {(isOwner || isAssignedHelper) && job.assigned_helper_id && action !== 'messages' && <button type="button" className="jdp-btn-ghost" onClick={openJobChat} disabled={chatOpening} data-track="ui.573dfef74b.5">{t('jobDetail.openJobChat')}</button>}
           {(view.canCancelBeforeAcceptance || view.canCancelAfterAcceptance) && <div className="jdp-secondary-action">
-            <button type="button" className="jdp-btn-danger" onClick={() => view.canCancelBeforeAcceptance ? setShowCancelModal(true) : setShowJobCancellationModal(true)} disabled={actionLoading || loading || (view.canCancelAfterAcceptance && !acceptedBid)}>{t('jobDetail.cancelJob')}</button>
-            {view.canCancelAfterAcceptance && !acceptedBid && bidsStatus === 'error' && <button type="button" className="jdp-btn-ghost" onClick={loadBids}>{t('jobDetail.retryBids')}</button>}
+            <button type="button" className="jdp-btn-danger" onClick={() => view.canCancelBeforeAcceptance ? setShowCancelModal(true) : setShowJobCancellationModal(true)} disabled={actionLoading || loading || (view.canCancelAfterAcceptance && !acceptedBid)} data-track="ui.573dfef74b.6">{t('jobDetail.cancelJob')}</button>
+            {view.canCancelAfterAcceptance && !acceptedBid && bidsStatus === 'error' && <button type="button" className="jdp-btn-ghost" onClick={loadBids} data-track="ui.573dfef74b.7">{t('jobDetail.retryBids')}</button>}
           </div>}
           {view.canHelperComplete && <div className="jdp-secondary-action jdp-helper-complete-action">
-            <button type="button" className="jdp-btn-ghost" onClick={handleComplete} disabled={actionLoading || loading}>{t('jobDetail.helperMarkDone')}</button>
+            <button type="button" className="jdp-btn-ghost" onClick={handleComplete} disabled={actionLoading || loading} data-track="ui.573dfef74b.8">{t('jobDetail.helperMarkDone')}</button>
           </div>}
           {view.canClose && <div className="jdp-secondary-action jdp-close-action">
-            <button type="button" className="jdp-btn-ghost" onClick={handleClose} disabled={actionLoading || loading}>{t('jobDetail.closeJob')}</button>
+            <button type="button" className="jdp-btn-ghost" onClick={handleClose} disabled={actionLoading || loading} data-track="ui.573dfef74b.9">{t('jobDetail.closeJob')}</button>
           </div>}
           {/* P3-818: either party to an assigned job can open a dispute. */}
           {(isOwner || isAssignedHelper) && job.assigned_helper_id && DISPUTABLE_JOB_STATUSES.includes(job.status) && <div className="jdp-secondary-action jdp-dispute-action">
-            <button type="button" className="jdp-btn-ghost" onClick={() => setDisputeModalOpen(true)}>{t('jobDetail.openDispute')}</button>
+            <button type="button" className="jdp-btn-ghost" onClick={() => setDisputeModalOpen(true)} data-track="ui.573dfef74b.10">{t('jobDetail.openDispute')}</button>
           </div>}
         </section>
         <div className="jdp-main">
@@ -634,7 +634,7 @@ function JobDetailContent() {
             <p>{t('jobEdit.reconfirmHelp')}</p>
             {ownBidToReconfirm.expires_at && <p className="jdp-count">{t('jobEdit.reconfirmBy', { date: formatDate(ownBidToReconfirm.expires_at, { month: 'long', hour: 'numeric', minute: '2-digit' }) })}</p>}
             <div className="jdp-modal-actions">
-              <button type="button" className="jdp-btn-primary" onClick={() => handleReconfirm(ownBidToReconfirm)} disabled={reconfirmLoading}>
+              <button type="button" className="jdp-btn-primary" onClick={() => handleReconfirm(ownBidToReconfirm)} disabled={reconfirmLoading} data-track="ui.573dfef74b.11">
                 {reconfirmLoading ? t('jobDetail.processing') : t('jobEdit.reconfirmButton')}</button>
               <Link className="jdp-btn-ghost" to="/my-bids">{t('jobEdit.reviseBid')}</Link>
             </div>
@@ -644,7 +644,7 @@ function JobDetailContent() {
           {view.canSubmitBid && <section className="jdp-card jdp-bid-form-card" aria-labelledby={`${fieldId}-bid-form`}>
             <h2 id={`${fieldId}-bid-form`} className="jdp-section-title" tabIndex={-1}>{t('jobDetail.submitYourBid')}</h2>
             {bidError && <p className="jdp-bid-error" role="alert">{bidError}</p>}
-              <form onSubmit={handleBidSubmit} className="jdp-bid-form">
+              <form onSubmit={handleBidSubmit} className="jdp-bid-form" data-track="ui.573dfef74b.12">
                 <div className="jdp-bid-form-row">
                   <div className="jdp-field">
                     <label htmlFor={`${fieldId}-amount`}>{t('jobDetail.bidPrice')}</label>
@@ -675,7 +675,7 @@ function JobDetailContent() {
                     placeholder={t('jobDetail.bidMessagePlaceholder')} />
                   <span className="jdp-char-count">{bidForm.message.length} / 500</span>
                 </div>
-                <button type="submit" className="jdp-btn-primary jdp-bid-submit" disabled={bidLoading}>
+                <button type="submit" className="jdp-btn-primary jdp-bid-submit" disabled={bidLoading} data-track="ui.573dfef74b.13">
                   {bidLoading ? t('jobDetail.submittingBid') : `💼 ${t('jobDetail.submitBid')}`}
                 </button>
               </form>
@@ -687,7 +687,7 @@ function JobDetailContent() {
             <div className="jdp-media-grid">{mediaUrls.map((url, i) => jobMediaType(url) === 'audio' ?
               <audio key={i} src={url} controls aria-label={t('jobDetail.jobMedia', { number: i + 1 })} /> : jobMediaType(url) === 'video' ?
               <video key={i} src={url} controls playsInline aria-label={t('jobDetail.jobMedia', { number: i + 1 })} /> :
-              <button key={i} type="button" className="jdp-media-thumb" onClick={() => setMediaIndex(imageUrls.indexOf(url))} aria-label={t('jobDetail.viewImage', { number: i + 1 })}>
+              <button key={i} type="button" className="jdp-media-thumb" onClick={() => setMediaIndex(imageUrls.indexOf(url))} aria-label={t('jobDetail.viewImage', { number: i + 1 })} data-track="ui.573dfef74b.14">
                 <img src={url} alt={t('jobDetail.jobMedia', { number: i + 1 })} loading="lazy" /></button>)}</div>
           </section>}
         </div>
@@ -705,7 +705,7 @@ function JobDetailContent() {
           </section>
           {job.client_id && !isOwner && <CancellationStats userId={job.client_id} type="customer" showDetails={false} />}
           {job.assigned_helper_id && <><UserReputationCard userId={job.assigned_helper_id} />
-            {user && !isOwner && <button className="jdp-btn-danger" onClick={() => setReportModalOpen(true)}>{t('jobDetail.reportHelper')}</button>}</>}
+            {user && !isOwner && <button className="jdp-btn-danger" onClick={() => setReportModalOpen(true)} data-track="ui.573dfef74b.15">{t('jobDetail.reportHelper')}</button>}</>}
           {LAUNCH_VISIBILITY.jobMaterialsLogistics && isHelper && job.category_name && <JobMaterialsPanel category={job.category_name} jobId={id} />}
         </aside>
       </div>
@@ -725,8 +725,8 @@ function JobDetailContent() {
               onChange={e => setCancelReason(e.target.value)}
             />
             <div className="jdp-modal-actions">
-              <button className="jdp-btn-ghost" onClick={() => setShowCancelModal(false)}>{t('jobDetail.keepJob')}</button>
-              <button className="jdp-btn-danger" onClick={handleCancel} disabled={actionLoading}>
+              <button className="jdp-btn-ghost" onClick={() => setShowCancelModal(false)} data-track="ui.573dfef74b.16">{t('jobDetail.keepJob')}</button>
+              <button className="jdp-btn-danger" onClick={handleCancel} disabled={actionLoading} data-track="ui.573dfef74b.17">
                 {actionLoading ? t('jobDetail.cancelling') : t('jobDetail.cancelJob')}
               </button>
             </div>

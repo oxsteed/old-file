@@ -92,7 +92,7 @@ export default function RestaurantCreditExposurePanel({ restaurant }) {
           </p>
         </div>
         {trialCapApplies && (
-          <button type="button" className="fd-btn fd-btn-sm" onClick={() => { setDeriskOpen((v) => !v); setDeriskConfirming(false); }}>
+          <button type="button" className="fd-btn fd-btn-sm" onClick={() => { setDeriskOpen((v) => !v); setDeriskConfirming(false); }} data-track-private>
             {deriskOpen ? 'Close' : 'Derisk'}
           </button>
         )}
@@ -158,14 +158,14 @@ export default function RestaurantCreditExposurePanel({ restaurant }) {
               {deriskConfirming ? (
                 <div className="fd-credit-confirm-row">
                   <strong>Derisk {formatFoodMoney(deriskCents, currency)} of oldest balances?</strong>
-                  <button type="button" className="fd-btn fd-btn-sm" disabled={deriskWorking || deriskCents <= 0} onClick={submitDerisk}>
+                  <button type="button" className="fd-btn fd-btn-sm" disabled={deriskWorking || deriskCents <= 0} onClick={submitDerisk} data-track-private>
                     {deriskWorking ? 'Derisking…' : 'Yes, derisk'}
                   </button>
-                  <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setDeriskConfirming(false)}>Cancel</button>
+                  <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setDeriskConfirming(false)} data-track-private>Cancel</button>
                 </div>
               ) : (
                 <div>
-                  <button type="button" className="fd-btn fd-btn-sm" disabled={deriskCents <= 0} onClick={() => setDeriskConfirming(true)}>
+                  <button type="button" className="fd-btn fd-btn-sm" disabled={deriskCents <= 0} onClick={() => setDeriskConfirming(true)} data-track-private>
                     Review derisk
                   </button>
                 </div>

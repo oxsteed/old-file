@@ -167,7 +167,7 @@ export default function BusinessCreationWizard({ initialCountry = 'US', initialK
             <p className="bcw-eyebrow">{t('businessCreation.eyebrow', 'Business setup')}</p>
             <h2 id="bcw-title">{t('businessCreation.title', 'Create your business')}</h2>
           </div>
-          <button type="button" className="bcw-close" onClick={onCancel} aria-label={t('common.close', 'Close')}>×</button>
+          <button type="button" className="bcw-close" onClick={onCancel} aria-label={t('common.close', 'Close')} data-track="ui.f3339d3a09.1">×</button>
         </header>
 
         <div className="bcw-progress" aria-label={t('businessCreation.progress', 'Setup progress')}>
@@ -190,7 +190,7 @@ export default function BusinessCreationWizard({ initialCountry = 'US', initialK
                     type="button"
                     key={model.id}
                     className={`bcw-kind-card ${draft.business_kind === model.id ? 'selected' : ''}`}
-                    onClick={() => chooseKind(model.id)}
+                    onClick={() => chooseKind(model.id)} data-track="ui.f3339d3a09.2"
                   >
                     <span className="bcw-kind-icon" aria-hidden>{model.id === 'restaurant' ? '🍽' : '🛠'}</span>
                     <strong>{model.id === 'restaurant'
@@ -220,7 +220,7 @@ export default function BusinessCreationWizard({ initialCountry = 'US', initialK
                         type="button"
                         key={category.id}
                         className={`bcw-category-card ${draft.industry_category === category.id ? 'selected' : ''}`}
-                        onClick={() => patch({ industry_category: category.id, business_type: '' })}
+                        onClick={() => patch({ industry_category: category.id, business_type: '' })} data-track="ui.f3339d3a09.3"
                       >
                         <strong>{category.title}</strong>
                         <small>{category.tagline}</small>
@@ -330,15 +330,15 @@ export default function BusinessCreationWizard({ initialCountry = 'US', initialK
         </div>
 
         <footer className="bcw-footer">
-          <button type="button" className="bcw-secondary" onClick={back} disabled={saving}>
+          <button type="button" className="bcw-secondary" onClick={back} disabled={saving} data-track="ui.f3339d3a09.4">
             {draft.step === 0 ? t('common.cancel', 'Cancel') : t('common.back', 'Back')}
           </button>
           {draft.step < STEPS.length - 1 ? (
-            <button type="button" className="bcw-primary" onClick={next} disabled={loadingCatalog && draft.step === 1}>
+            <button type="button" className="bcw-primary" onClick={next} disabled={loadingCatalog && draft.step === 1} data-track="ui.f3339d3a09.5">
               {t('common.continue', 'Continue')}
             </button>
           ) : (
-            <button type="button" className="bcw-primary" onClick={create} disabled={saving}>
+            <button type="button" className="bcw-primary" onClick={create} disabled={saving} data-track="ui.f3339d3a09.6">
               {saving ? t('businessCreation.creating', 'Creating...') : t('businessCreation.create', 'Create private business')}
             </button>
           )}

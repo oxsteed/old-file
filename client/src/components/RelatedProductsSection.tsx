@@ -130,7 +130,7 @@ export default function RelatedProductsSection({
         <button
           className="rps-add-btn"
           onClick={(e) => handleAddToCart(product, e)}
-          aria-label={t('marketplace.addToCart') || 'Add to cart'}
+          aria-label={t('marketplace.addToCart') || 'Add to cart'} data-track="ui.6c3a9e2d93.1"
         >
           <ShoppingCart size={16} />
           <span>{t('marketplace.addToCart') || 'Add'}</span>

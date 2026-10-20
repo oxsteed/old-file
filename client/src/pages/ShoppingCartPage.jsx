@@ -97,7 +97,7 @@ export default function ShoppingCartPage() {
     return (
       <div className="scp-empty">
         <p>{t('marketplace.cartNotFound')}</p>
-        <button onClick={() => navigate('/products')} className="scp-back-btn">
+        <button onClick={() => navigate('/products')} className="scp-back-btn" data-track="ui.21ecd8206a.1">
           <ArrowLeft size={16} />
           {t('common.goBack')}
         </button>
@@ -112,7 +112,7 @@ export default function ShoppingCartPage() {
       <div className="scp-container">
         {/* Header */}
         <div className="scp-header">
-          <button onClick={() => navigate(-1)} className="scp-back-btn">
+          <button onClick={() => navigate(-1)} className="scp-back-btn" data-track="ui.21ecd8206a.2">
             <ArrowLeft size={20} />
           </button>
           <div className="scp-header-content">
@@ -135,13 +135,13 @@ export default function ShoppingCartPage() {
                 <div className="scp-edit-actions">
                   <button
                     onClick={() => setIsEditing(false)}
-                    className="scp-edit-btn-cancel"
+                    className="scp-edit-btn-cancel" data-track="ui.21ecd8206a.3"
                   >
                     {t('common.cancel')}
                   </button>
                   <button
                     onClick={handleUpdateCart}
-                    className="scp-edit-btn-save"
+                    className="scp-edit-btn-save" data-track="ui.21ecd8206a.4"
                   >
                     {t('common.save')}
                   </button>
@@ -157,7 +157,7 @@ export default function ShoppingCartPage() {
                 </div>
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="scp-edit-btn"
+                  className="scp-edit-btn" data-track="ui.21ecd8206a.5"
                 >
                   {t('common.edit')}
                 </button>
@@ -197,7 +197,7 @@ export default function ShoppingCartPage() {
                         onClick={() =>
                           updateItem(item.id, Math.max(1, item.quantity - 1))
                         }
-                        className="scp-qty-btn"
+                        className="scp-qty-btn" data-track="ui.21ecd8206a.6"
                       >
                         −
                       </button>
@@ -212,7 +212,7 @@ export default function ShoppingCartPage() {
                       />
                       <button
                         onClick={() => updateItem(item.id, item.quantity + 1)}
-                        className="scp-qty-btn"
+                        className="scp-qty-btn" data-track="ui.21ecd8206a.7"
                       >
                         +
                       </button>
@@ -229,7 +229,7 @@ export default function ShoppingCartPage() {
                     <button
                       onClick={() => removeItem(item.id)}
                       className="scp-item-delete"
-                      title={t('common.delete')}
+                      title={t('common.delete')} data-track="ui.21ecd8206a.8"
                     >
                       <Trash2 size={18} />
                     </button>
@@ -263,7 +263,7 @@ export default function ShoppingCartPage() {
                 <button
                   onClick={() => navigate(`/checkout/${cartId}`)}
                   className="scp-action-btn scp-action-checkout"
-                  style={{ width: '100%', marginBottom: '0.75rem', background: '#ea580c', color: '#fff', fontWeight: 600 }}
+                  style={{ width: '100%', marginBottom: '0.75rem', background: '#ea580c', color: '#fff', fontWeight: 600 }} data-track="ui.21ecd8206a.9"
                 >
                   {t('marketplace.proceedToCheckout', { defaultValue: 'Proceed to Checkout' })}
                 </button>
@@ -272,7 +272,7 @@ export default function ShoppingCartPage() {
               <div className="scp-actions">
                 <button
                   onClick={handleShareCart}
-                  className="scp-action-btn scp-action-share"
+                  className="scp-action-btn scp-action-share" data-track="ui.21ecd8206a.10"
                 >
                   <Share2 size={18} />
                   {t('marketplace.shareCart')}
@@ -280,7 +280,7 @@ export default function ShoppingCartPage() {
 
                 <button
                   onClick={() => setShowTemplateModal(true)}
-                  className="scp-action-btn scp-action-template"
+                  className="scp-action-btn scp-action-template" data-track="ui.21ecd8206a.11"
                 >
                   <Save size={18} />
                   {t('marketplace.saveAsTemplate')}
@@ -304,7 +304,7 @@ export default function ShoppingCartPage() {
                   readOnly
                   className="scp-share-link-input"
                 />
-                <button onClick={copyShareLink} className="scp-copy-btn">
+                <button onClick={copyShareLink} className="scp-copy-btn" data-track="ui.21ecd8206a.12">
                   <Copy size={18} />
                   {t('common.copy')}
                 </button>
@@ -312,7 +312,7 @@ export default function ShoppingCartPage() {
 
               <button
                 onClick={() => setShowShareModal(false)}
-                className="scp-modal-close-btn"
+                className="scp-modal-close-btn" data-track="ui.21ecd8206a.13"
               >
                 {t('common.close')}
               </button>
@@ -336,13 +336,13 @@ export default function ShoppingCartPage() {
               <div className="scp-modal-actions">
                 <button
                   onClick={() => setShowTemplateModal(false)}
-                  className="scp-modal-btn-cancel"
+                  className="scp-modal-btn-cancel" data-track="ui.21ecd8206a.14"
                 >
                   {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleSaveAsTemplate}
-                  className="scp-modal-btn-save"
+                  className="scp-modal-btn-save" data-track="ui.21ecd8206a.15"
                 >
                   {t('common.save')}
                 </button>

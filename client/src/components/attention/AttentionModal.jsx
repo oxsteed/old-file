@@ -74,10 +74,10 @@ function ConfirmDiscardDialog({ onDiscard, onKeep }) {
       <div className="attention-confirm" role="alertdialog" aria-modal="true" aria-labelledby={`${dialogId}-title`}>
         <p className="attention-confirm__title" id={`${dialogId}-title`}>{t('actions.confirmDiscard')}</p>
         <div className="attention-confirm__actions">
-          <button type="button" className="attention-btn" ref={keepRef} onClick={onKeep}>
+          <button type="button" className="attention-btn" ref={keepRef} onClick={onKeep} data-track="ui.eb29fcce7d.1">
             {t('actions.keepEditing')}
           </button>
-          <button type="button" className="attention-btn attention-btn--danger" data-attention-discard onClick={onDiscard}>
+          <button type="button" className="attention-btn attention-btn--danger" data-attention-discard onClick={onDiscard} data-track="ui.eb29fcce7d.2">
             {t('actions.discardChanges')}
           </button>
         </div>
@@ -280,7 +280,7 @@ function ModalContent({
                 type="button"
                 className="attention-btn attention-btn--icon"
                 onClick={() => attemptNav('close')}
-                aria-label={t('actions.close')}
+                aria-label={t('actions.close')} data-track="ui.eb29fcce7d.3"
               >
                 <X size={18} aria-hidden="true" />
               </button>
@@ -289,7 +289,7 @@ function ModalContent({
               <div className="attention-state" role="alert">
                 <ShieldAlert size={32} className="text-red-500" aria-hidden="true" />
                 <p className="attention-state__title">{t('actions.accessRevoked')}</p>
-                <button type="button" className="attention-btn" onClick={() => attemptNav('close')}>
+                <button type="button" className="attention-btn" onClick={() => attemptNav('close')} data-track="ui.eb29fcce7d.4">
                   {t('actions.close')}
                 </button>
               </div>
@@ -306,7 +306,7 @@ function ModalContent({
                 type="button"
                 className="attention-btn attention-btn--icon"
                 onClick={() => attemptNav('close')}
-                aria-label={t('actions.close')}
+                aria-label={t('actions.close')} data-track="ui.eb29fcce7d.5"
               >
                 <X size={18} aria-hidden="true" />
               </button>

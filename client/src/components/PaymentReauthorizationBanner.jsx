@@ -42,7 +42,7 @@ function CardConfirmForm({ intent, amountLabel, onDone, onCancel }) {
   };
 
   return (
-    <form onSubmit={submit} aria-label={t('jobPaymentReauth.cardFormLabel')}>
+    <form onSubmit={submit} aria-label={t('jobPaymentReauth.cardFormLabel')} data-track-private>
       <label className="prb-card-field">
         <span>{t('jobPaymentReauth.cardLabel')}</span>
         <div className="prb-card-element"><CardElement options={{ hidePostalCode: false, style: { base: { fontSize: '16px' } } }} /></div>
@@ -50,10 +50,10 @@ function CardConfirmForm({ intent, amountLabel, onDone, onCancel }) {
       <p className="prb-muted">{t('jobPaymentReauth.cardHelp')}</p>
       {cardError && <p className="prb-error" role="alert">{cardError}</p>}
       <div className="prb-actions">
-        <button type="submit" className="prb-btn prb-btn-primary" disabled={submitting || !stripe}>
+        <button type="submit" className="prb-btn prb-btn-primary" disabled={submitting || !stripe} data-track-private>
           {submitting ? t('jobPaymentReauth.processing') : t('jobPaymentReauth.confirmCard', { amount: amountLabel })}
         </button>
-        <button type="button" className="prb-btn" onClick={onCancel} disabled={submitting}>{t('jobPaymentReauth.cancel')}</button>
+        <button type="button" className="prb-btn" onClick={onCancel} disabled={submitting} data-track-private>{t('jobPaymentReauth.cancel')}</button>
       </div>
     </form>
   );
@@ -151,14 +151,14 @@ export default function PaymentReauthorizationBanner({ jobId, job = null, always
       )}
       {!intent && model.mode !== 'waiting' && (
         <div className="prb-actions">
-          {model.mode === 'card' && <button type="button" className="prb-btn prb-btn-primary" onClick={() => start('card')} disabled={busy}>
+          {model.mode === 'card' && <button type="button" className="prb-btn prb-btn-primary" onClick={() => start('card')} disabled={busy} data-track-private>
             {busy ? t('jobPaymentReauth.processing') : t('jobPaymentReauth.authorizeCard', { amount })}</button>}
-          {model.mode === 'renew' && <button type="button" className="prb-btn prb-btn-primary" onClick={() => start('card')} disabled={busy}>
+          {model.mode === 'renew' && <button type="button" className="prb-btn prb-btn-primary" onClick={() => start('card')} disabled={busy} data-track-private>
             {busy ? t('jobPaymentReauth.processing') : t('paymentRail.renewHold', { amount })}</button>}
-          {model.mode === 'reprice' && <button type="button" className="prb-btn prb-btn-primary" onClick={() => start('card')} disabled={busy}>
+          {model.mode === 'reprice' && <button type="button" className="prb-btn prb-btn-primary" onClick={() => start('card')} disabled={busy} data-track-private>
             {busy ? t('jobPaymentReauth.processing') : t('jobPaymentReauth.updateAmount', { amount })}</button>}
           {model.mode === 'credit' && <>
-            <button type="button" className="prb-btn prb-btn-primary" onClick={() => start('credit')} disabled={busy}>
+            <button type="button" className="prb-btn prb-btn-primary" onClick={() => start('credit')} disabled={busy} data-track-private>
               {busy ? t('jobPaymentReauth.processing') : t('jobPaymentReauth.holdCredit', { amount })}</button>
             <Link className="prb-btn" to="/wallet">{t('jobPaymentReauth.addCredit')}</Link>
           </>}

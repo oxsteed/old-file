@@ -96,8 +96,8 @@ export default function SourcingOpsAdmin() {
                   <td>{request.quote_count || 0}</td>
                   <td>{request.assigned_operator || '—'}</td>
                   <td>
-                    <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem', marginInlineEnd:'.4rem' }} onClick={() => setPreviewId(request.id)}>{t('logistics.tables.preview')}</button>
-                    <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }} onClick={() => setSelected(request)}>{t('adminSourcingOps.manage')}</button>
+                    <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem', marginInlineEnd:'.4rem' }} onClick={() => setPreviewId(request.id)} data-track-private>{t('logistics.tables.preview')}</button>
+                    <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }} onClick={() => setSelected(request)} data-track-private>{t('adminSourcingOps.manage')}</button>
                   </td>
                 </tr>
               ))}
@@ -151,8 +151,8 @@ export default function SourcingOpsAdmin() {
               <textarea className="lx-textarea" rows={3} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
             </div>
             <div style={{ display:'flex', gap:'.75rem' }}>
-              <button className="lx-btn-primary" onClick={apply}>{t('adminSourcingOps.modal.apply')}</button>
-              <button className="lx-btn-secondary" onClick={() => setSelected(null)}>{t('common.cancel')}</button>
+              <button className="lx-btn-primary" onClick={apply} data-track-private>{t('adminSourcingOps.modal.apply')}</button>
+              <button className="lx-btn-secondary" onClick={() => setSelected(null)} data-track-private>{t('common.cancel')}</button>
             </div>
           </>
         )}

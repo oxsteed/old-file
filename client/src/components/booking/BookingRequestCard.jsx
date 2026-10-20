@@ -190,7 +190,7 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
         </div>
 
         {live.description && (
-          <button type="button" onClick={() => setExpanded(!expanded)} className="booking-expand-btn">
+          <button type="button" onClick={() => setExpanded(!expanded)} className="booking-expand-btn" data-track="ui.474702b501.1">
             <ChevronDown size={18} style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} />
             {t('booking.additionalDetails')}
           </button>
@@ -212,7 +212,7 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
               >
                 {t('booking.contactHelper')}
               </Link>
-              <button type="button" className="booking-btn-secondary" onClick={refresh}>
+              <button type="button" className="booking-btn-secondary" onClick={refresh} data-track="ui.474702b501.2">
                 <RefreshCw size={16} />
                 {t('booking.refreshStatus')}
               </button>
@@ -232,7 +232,7 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
                 <a
                   href={payUrl}
                   className="booking-btn-primary"
-                  style={{ textDecoration: 'none' }}
+                  style={{ textDecoration: 'none' }} data-track="ui.474702b501.3"
                 >
                   {t('booking.payNow', { defaultValue: 'Pay now' })}
                 </a>
@@ -251,7 +251,7 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
               {t('booking.viewPublicJob')}
             </Link>
           ) : shouldShowConvertOption && (
-            <button type="button" onClick={onConvertToJob} className="booking-btn-primary">
+            <button type="button" onClick={onConvertToJob} className="booking-btn-primary" data-track="ui.474702b501.4">
               {t('booking.postAsJob')}
             </button>
           )}

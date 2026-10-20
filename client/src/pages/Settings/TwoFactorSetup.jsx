@@ -125,7 +125,7 @@ export default function TwoFactorSetup({ adminSetup = false }) {
                   <p className="text-sm text-muted">{t('twoFactor.notEnabledSub')}</p>
                 </div>
               </div>
-              <button onClick={handleSetup} className="w-full rounded-xl bg-action px-4 py-3 font-semibold text-on-action transition hover:bg-action-hover">
+              <button onClick={handleSetup} className="w-full rounded-xl bg-action px-4 py-3 font-semibold text-on-action transition hover:bg-action-hover" data-track="ui.079fe581f9.1">
                 {t('twoFactor.enableBtn')}
               </button>
             </div>
@@ -152,12 +152,12 @@ export default function TwoFactorSetup({ adminSetup = false }) {
                       <code key={i} className="rounded bg-surface-2 px-3 py-1.5 text-center font-mono text-sm text-content">{code}</code>
                     ))}
                   </div>
-                  <button onClick={copyBackupCodes} className="flex items-center gap-2 text-sm text-primary hover:opacity-90">
+                  <button onClick={copyBackupCodes} className="flex items-center gap-2 text-sm text-primary hover:opacity-90" data-track="ui.079fe581f9.2">
                     <Copy size={14} /> {t('twoFactor.copyAllCodes')}
                   </button>
                 </div>
               )}
-              <form onSubmit={handleVerify} className="space-y-4">
+              <form onSubmit={handleVerify} className="space-y-4" data-track="ui.079fe581f9.3">
                 <div>
                   <label className="mb-1.5 block text-sm text-muted">{t('twoFactor.codeLabel')}</label>
                   <input
@@ -170,7 +170,7 @@ export default function TwoFactorSetup({ adminSetup = false }) {
                     autoFocus
                   />
                 </div>
-                <button type="submit" disabled={verifyCode.length !== 6} className="w-full rounded-xl bg-action py-3 font-semibold text-on-action transition hover:bg-action-hover disabled:opacity-50">
+                <button type="submit" disabled={verifyCode.length !== 6} className="w-full rounded-xl bg-action py-3 font-semibold text-on-action transition hover:bg-action-hover disabled:opacity-50" data-track="ui.079fe581f9.4">
                   {t('twoFactor.verifyEnableBtn')}
                 </button>
               </form>
@@ -193,7 +193,7 @@ export default function TwoFactorSetup({ adminSetup = false }) {
               </div>
               <div className="space-y-3">
                 <h3 className="font-medium text-content">{t('twoFactor.manage')}</h3>
-                <form onSubmit={handleDisable} className="space-y-3">
+                <form onSubmit={handleDisable} className="space-y-3" data-track="ui.079fe581f9.5">
                   <input
                     type="text"
                     value={disableCode}
@@ -203,10 +203,10 @@ export default function TwoFactorSetup({ adminSetup = false }) {
                     maxLength={6}
                   />
                   <div className="flex gap-3">
-                    <button type="submit" disabled={disableCode.length !== 6} className="flex-1 rounded-xl py-2.5 text-sm font-medium text-on-solid transition disabled:opacity-50" style={{ background: 'var(--color-error)' }}>
+                    <button type="submit" disabled={disableCode.length !== 6} className="flex-1 rounded-xl py-2.5 text-sm font-medium text-on-solid transition disabled:opacity-50" style={{ background: 'var(--color-error)' }} data-track="ui.079fe581f9.6">
                       {t('twoFactor.disableBtn')}
                     </button>
-                    <button type="button" onClick={handleRegenBackup} disabled={disableCode.length !== 6} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-surface-3 py-2.5 text-sm font-medium text-content transition hover:opacity-90 disabled:opacity-50">
+                    <button type="button" onClick={handleRegenBackup} disabled={disableCode.length !== 6} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-surface-3 py-2.5 text-sm font-medium text-content transition hover:opacity-90 disabled:opacity-50" data-track="ui.079fe581f9.7">
                       <RefreshCw size={14} /> {t('twoFactor.newBackupCodesBtn')}
                     </button>
                   </div>
@@ -225,11 +225,11 @@ export default function TwoFactorSetup({ adminSetup = false }) {
                     <code key={i} className="rounded bg-surface-2 px-3 py-1.5 text-center font-mono text-sm text-content">{code}</code>
                   ))}
                 </div>
-                <button onClick={copyBackupCodes} className="flex items-center gap-2 text-sm text-primary hover:opacity-90">
+                <button onClick={copyBackupCodes} className="flex items-center gap-2 text-sm text-primary hover:opacity-90" data-track="ui.079fe581f9.8">
                   <Copy size={14} /> {t('twoFactor.copyAllCodes')}
                 </button>
               </div>
-              <button onClick={() => setStep('enabled')} className="w-full rounded-xl bg-surface-3 py-3 font-medium text-content transition hover:opacity-90">
+              <button onClick={() => setStep('enabled')} className="w-full rounded-xl bg-surface-3 py-3 font-medium text-content transition hover:opacity-90" data-track="ui.079fe581f9.9">
                 {t('twoFactor.doneBtn')}
               </button>
             </div>

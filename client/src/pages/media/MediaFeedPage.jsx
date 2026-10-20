@@ -68,7 +68,7 @@ export default function MediaFeedPage() {
     setParams(next);
   };
   const composeTo = user ? '/media/compose' : '/login';
-  const refresh = <button type="button" className="media-feed-refresh" disabled={loading} onClick={() => load(null)} aria-label={t('media.feed.refresh')}><RefreshCw size={21} aria-hidden="true" /></button>;
+  const refresh = <button type="button" className="media-feed-refresh" disabled={loading} onClick={() => load(null)} aria-label={t('media.feed.refresh')} data-track="ui.d87d0e5b40.1"><RefreshCw size={21} aria-hidden="true" /></button>;
 
   return <div className="media-feed media-feed-page media-reference-feed">
     <PageMeta title={t('media.feed.metaTitle')} description={t('media.feed.metaDescription')} />
@@ -91,16 +91,16 @@ export default function MediaFeedPage() {
       <div className="media-guest-action-row"><Link to={composeTo} state={{ from: '/media/compose' }}><Plus size={24} />{t('media.landing.shareUpdate')}</Link><Link to="/media/creator"><Briefcase size={24} /><span className="media-desktop-label">{t('media.creator.title')}</span><span className="media-mobile-label">{t('media.landing.marketplace')}</span></Link></div>
     </>}
     <div className="media-reference-tabs" role="group" aria-label={t('media.landing.feedTabs')}>
-      <button type="button" className={tab === 'home' ? 'active' : ''} aria-pressed={tab === 'home'} onClick={() => selectTab('home')}><span className={user ? 'media-desktop-label' : ''}>{t('media.feed.latest')}</span>{user && <span className="media-mobile-label">{t('media.landing.forYou')}</span>}</button>
-      {user && <button type="button" className={tab === 'following' ? 'active' : ''} aria-pressed={tab === 'following'} onClick={() => selectTab('following')}>{t('media.feed.following')}</button>}
-      {user && <button type="button" className={`media-nearby-tab ${tab === 'nearby' ? 'active' : ''}`} aria-pressed={tab === 'nearby'} onClick={() => selectTab('nearby')}>{t('media.landing.nearby')}</button>}
+      <button type="button" className={tab === 'home' ? 'active' : ''} aria-pressed={tab === 'home'} onClick={() => selectTab('home')} data-track="ui.d87d0e5b40.2"><span className={user ? 'media-desktop-label' : ''}>{t('media.feed.latest')}</span>{user && <span className="media-mobile-label">{t('media.landing.forYou')}</span>}</button>
+      {user && <button type="button" className={tab === 'following' ? 'active' : ''} aria-pressed={tab === 'following'} onClick={() => selectTab('following')} data-track="ui.d87d0e5b40.3">{t('media.feed.following')}</button>}
+      {user && <button type="button" className={`media-nearby-tab ${tab === 'nearby' ? 'active' : ''}`} aria-pressed={tab === 'nearby'} onClick={() => selectTab('nearby')} data-track="ui.d87d0e5b40.4">{t('media.landing.nearby')}</button>}
       {tab === 'mine' && <span className="media-mine-label">{t('media.landing.myPosts')}</span>}
       {!user && refresh}
     </div>
-    {error && <div className="media-error" role="alert"><p>{error}</p><button type="button" onClick={() => load(null)}>{t('common.retry', { defaultValue: 'Retry' })}</button></div>}
+    {error && <div className="media-error" role="alert"><p>{error}</p><button type="button" onClick={() => load(null)} data-track="ui.d87d0e5b40.5">{t('common.retry', { defaultValue: 'Retry' })}</button></div>}
     {posts.map(post => <MediaPostCard key={post.id} post={post} />)}
     {loading && <div className="media-skeleton" role="status" aria-label={t('media.landing.loadingFeed')}><div className="skeleton-line" /><div className="skeleton-line" /></div>}
-    {!loading && !error && hasMore && posts.length > 0 && <button type="button" onClick={() => load(before)} className="media-load-more">{t('media.feed.loadMore')}</button>}
+    {!loading && !error && hasMore && posts.length > 0 && <button type="button" onClick={() => load(before)} className="media-load-more" data-track="ui.d87d0e5b40.6">{t('media.feed.loadMore')}</button>}
     {!loading && !error && !posts.length && <section className={`media-reference-card media-welcome-card ${!user ? 'media-guest-welcome' : ''}`}>
       <MediaNeighborhoodArt className="media-welcome-homes" />
       {!user && <MediaNeighborhoodArt kind="people" className="media-welcome-people" />}
@@ -112,7 +112,7 @@ export default function MediaFeedPage() {
           : <><span className="media-desktop-label">{t('media.landing.discoverUpdates')}</span><span className="media-mobile-label">{t('media.landing.welcomeGuestPhoneDescription')}</span></>}</p>
         <div className="media-welcome-actions">
           <Link className={user ? 'media-primary-button' : 'media-outline-button'} to={user ? composeTo : '/join'}>{user ? <><span className="media-desktop-label">{t('media.landing.shareFirstUpdate')}</span><span className="media-mobile-label">{t('media.landing.shareUpdate')}</span></> : t('nav.joinOxsteed')}</Link>
-          {user ? <button type="button" className="media-explore-nearby" onClick={() => selectTab('nearby')}>{t('media.landing.exploreNearby')}</button> : <Link className="media-welcome-signin" to="/login" state={{ from: '/media' }}>{t('nav.signIn')}</Link>}
+          {user ? <button type="button" className="media-explore-nearby" onClick={() => selectTab('nearby')} data-track="ui.d87d0e5b40.7">{t('media.landing.exploreNearby')}</button> : <Link className="media-welcome-signin" to="/login" state={{ from: '/media' }}>{t('nav.signIn')}</Link>}
         </div>
       </div>
     </section>}

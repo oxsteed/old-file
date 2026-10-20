@@ -35,6 +35,8 @@ function assertEnabled() {
 
 async function requestErasure(user) {
   assertEnabled();
+  if(process.env.GROWTH_SUBJECT_PEPPER)await require('../utils/transaction').withTransaction(pool,
+    conn=>require('../growth/rights').erase(conn,user.id),'growth_erasure_request');
   const { rows } = await pool.query(
     `INSERT INTO privacy_erasure_requests (user_id) VALUES ($1)
      ON CONFLICT (user_id) WHERE status IN ('requested', 'processing') DO NOTHING
@@ -78,7 +80,8 @@ function stripSql(column) {
 }
 
 async function eraseUser(client, userId) {
-  const summary = {};
+  const summary = await require('./privacyActivityData').erase(client,userId);
+  if(process.env.GROWTH_SUBJECT_PEPPER)await require('../growth/rights').erase(client,userId);
   // Review P3-6-F03: capture the profile photo before it is cleared so the
   // storage object can be queued for deletion instead of orphaned.
   let oldPhotoUrl = null;

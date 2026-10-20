@@ -132,7 +132,7 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
               type="button"
               className={`fd-btn fd-btn-sm${preset === days ? '' : ' fd-btn-secondary'}`}
               aria-pressed={preset === days}
-              onClick={() => applyPreset(days)}
+              onClick={() => applyPreset(days)} data-track="ui.e7f53817fe.1"
             >
               {t(`restaurants.ops.reports.range${days}`, `${days} days`)}
             </button>
@@ -301,7 +301,7 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
                   setLoyaltyError(true);
                 })
                 .finally(() => setLoyaltyLoading(false));
-            }}
+            }} data-track="ui.e7f53817fe.2"
           >
             {t('food.common.retry')}
           </button>

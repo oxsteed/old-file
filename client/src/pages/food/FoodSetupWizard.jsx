@@ -51,7 +51,7 @@ export default function SetupWizard({ restaurant, t, onGoTab, onStartGuide }) {
               <button
                 type="button"
                 className="fd-btn fd-btn-sm fd-btn-secondary"
-                onClick={() => onGoTab(step.id === 'menu' ? 'menu' : 'settings')}
+                onClick={() => onGoTab(step.id === 'menu' ? 'menu' : 'settings')} data-track="ui.35dfc9cb47.1"
               >
                 {t('food.merchant.setupWizardFix', 'Fix')}
               </button>
@@ -66,7 +66,7 @@ export default function SetupWizard({ restaurant, t, onGoTab, onStartGuide }) {
         <p className="fd-pay-note">{t('food.merchant.setupWizardReady', 'All setup steps are done, you can go live from Settings.')}</p>
       )}
       {onStartGuide && (
-        <button type="button" className="fd-btn fd-btn-primary fd-btn-sm" onClick={onStartGuide}>
+        <button type="button" className="fd-btn fd-btn-primary fd-btn-sm" onClick={onStartGuide} data-track="ui.35dfc9cb47.2">
           {t('food.merchant.setupWizardContinue', 'Continue setup guide')}
         </button>
       )}

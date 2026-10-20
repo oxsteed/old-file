@@ -27,7 +27,7 @@ export default function AssignedJobsPanel({ onCount }) {
     return (
       <div role="alert" className="text-gray-300">
         <p>{t('myJobs.assignedFailed')}</p>
-        <button type="button" onClick={load} className="mt-2 text-orange-400">{t('myJobs.assignedRetry')}</button>
+        <button type="button" onClick={load} className="mt-2 text-orange-400" data-track="ui.eb799ca7d4.1">{t('myJobs.assignedRetry')}</button>
       </div>
     );
   }

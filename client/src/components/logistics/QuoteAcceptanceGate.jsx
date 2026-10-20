@@ -141,14 +141,14 @@ export default function QuoteAcceptanceGate({ quote, onAccepted, onDecline }) {
           className="lx-action-primary"
           onClick={accept}
           disabled={accepting}
-          aria-busy={accepting}
+          aria-busy={accepting} data-track="ui.7d46cf6dd7.1"
         >
           {accepting
             ? tx('logistics.quotes.accept.accepting', 'Accepting…')
             : tx('logistics.quotes.accept.button', 'Accept quote version {{version}}', { version: pending.version })}
         </button>
         {onDecline && (
-          <button type="button" className="lx-action-ghost" onClick={onDecline} disabled={accepting}>
+          <button type="button" className="lx-action-ghost" onClick={onDecline} disabled={accepting} data-track="ui.7d46cf6dd7.2">
             {tx('logistics.quotes.accept.decline', 'Not now')}
           </button>
         )}

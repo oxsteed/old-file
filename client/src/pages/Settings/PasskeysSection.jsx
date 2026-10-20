@@ -139,7 +139,7 @@ export default function PasskeysSection({ adminSetup = false, className = '' }) 
                 onClick={() => setRevokeTarget(passkey)}
                 disabled={passkeyBusy}
                 className="shrink-0 text-xs hover:opacity-90 disabled:opacity-50"
-                style={{ color: 'var(--color-error)' }}
+                style={{ color: 'var(--color-error)' }} data-track="ui.466cb5eab3.1"
               >
                 {t('twoFactor.passkeyRevokeBtn')}
               </button>
@@ -152,7 +152,7 @@ export default function PasskeysSection({ adminSetup = false, className = '' }) 
         type="button"
         onClick={openRegisterModal}
         disabled={passkeyBusy || !passkeySupported}
-        className="w-full rounded-xl border border-primary/60 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary-bg disabled:opacity-50"
+        className="w-full rounded-xl border border-primary/60 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary-bg disabled:opacity-50" data-track="ui.466cb5eab3.2"
       >
         {passkeyBusy && !registerOpen && !revokeTarget
           ? t('twoFactor.passkeyWorking')
@@ -175,7 +175,7 @@ export default function PasskeysSection({ adminSetup = false, className = '' }) 
             <h2 id="passkey-register-title" className="text-lg font-semibold text-content">
               {t('twoFactor.passkeyRegisterTitle')}
             </h2>
-            <form onSubmit={submitRegisterPasskey} className="mt-4 space-y-4">
+            <form onSubmit={submitRegisterPasskey} className="mt-4 space-y-4" data-track="ui.466cb5eab3.3" data-track-private>
               <div>
                 <label htmlFor="passkey-device-name" className="mb-1.5 block text-sm text-muted">
                   {t('twoFactor.passkeyDeviceNameLabel')}
@@ -222,14 +222,14 @@ export default function PasskeysSection({ adminSetup = false, className = '' }) 
                   type="button"
                   onClick={closeRegisterModal}
                   disabled={passkeyBusy}
-                  className="flex-1 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-content hover:bg-surface-2 disabled:opacity-50"
+                  className="flex-1 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-content hover:bg-surface-2 disabled:opacity-50" data-track="ui.466cb5eab3.4"
                 >
                   {t('twoFactor.passkeyRegisterCancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={passkeyBusy}
-                  className="flex-1 rounded-xl bg-action px-4 py-2.5 text-sm font-semibold text-on-action hover:bg-action-hover disabled:opacity-50"
+                  className="flex-1 rounded-xl bg-action px-4 py-2.5 text-sm font-semibold text-on-action hover:bg-action-hover disabled:opacity-50" data-track="ui.466cb5eab3.5"
                 >
                   {passkeyBusy ? t('twoFactor.passkeyWorking') : t('twoFactor.passkeyRegisterSubmit')}
                 </button>
@@ -265,7 +265,7 @@ export default function PasskeysSection({ adminSetup = false, className = '' }) 
                 type="button"
                 onClick={() => setRevokeTarget(null)}
                 disabled={passkeyBusy}
-                className="flex-1 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-content hover:bg-surface-2 disabled:opacity-50"
+                className="flex-1 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-content hover:bg-surface-2 disabled:opacity-50" data-track="ui.466cb5eab3.6"
               >
                 {t('twoFactor.passkeyRevokeCancel')}
               </button>
@@ -274,7 +274,7 @@ export default function PasskeysSection({ adminSetup = false, className = '' }) 
                 onClick={confirmRevokePasskey}
                 disabled={passkeyBusy}
                 className="flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-on-solid hover:opacity-90 disabled:opacity-50"
-                style={{ background: 'var(--color-error)' }}
+                style={{ background: 'var(--color-error)' }} data-track="ui.466cb5eab3.7"
               >
                 {passkeyBusy ? t('twoFactor.passkeyWorking') : t('twoFactor.passkeyRevokeConfirmBtn')}
               </button>

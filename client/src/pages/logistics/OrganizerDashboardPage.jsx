@@ -363,7 +363,7 @@ export default function OrganizerDashboardPage() {
                           className="lx-action-secondary"
                           style={{ fontSize: '.78rem', padding: '.35rem .8rem' }}
                           disabled={submitting === campaign.id}
-                          onClick={() => handleSubmitForReview(campaign)}
+                          onClick={() => handleSubmitForReview(campaign)} data-track="ui.2bf9d4fd33.1"
                         >
                           {submitting === campaign.id
                             ? tx('logistics.campaigns.approval.submitting', 'Submitting…')

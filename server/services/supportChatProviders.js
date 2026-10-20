@@ -15,6 +15,7 @@ const OLLAMA_ALLOWED_HOSTS = [
   '127.0.0.1',
   '::1',
   'ollama-api',
+  'growth-ollama',
   'ollama-api-p116fo3uwyxytib7ph3yleei',
 ];
 

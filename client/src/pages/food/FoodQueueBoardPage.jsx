@@ -89,7 +89,7 @@ export default function FoodQueueBoardPage({managedBoard=null,managedStatus='onl
           <button
             type="button"
             className="fd-display-sound-blocked"
-            onClick={enableSound}
+            onClick={enableSound} data-track="ui.409dd8845b.1"
           >
             {t('display.sound.blocked')}
           </button>
@@ -97,7 +97,7 @@ export default function FoodQueueBoardPage({managedBoard=null,managedStatus='onl
           <button
             type="button"
             className="fd-queue-sound-toggle"
-            onClick={() => (soundEnabled ? disableSound() : enableSound())}
+            onClick={() => (soundEnabled ? disableSound() : enableSound())} data-track="ui.409dd8845b.2"
           >
             {soundEnabled ? t('food.queue.soundOn') : t('food.queue.enableSound')}
           </button>

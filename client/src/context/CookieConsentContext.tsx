@@ -3,6 +3,7 @@ import { useCookieConsent } from '../hooks/useCookieConsent';
 import type { CookiePreferences } from '../hooks/useCookieConsent';
 
 interface CookieConsentContextValue {
+  growthPolicyEffective?: boolean;
   preferences: CookiePreferences | null;
   showBanner: boolean;
   showSettings: boolean;

@@ -29,6 +29,7 @@ function buildSchedule() {
   const { processRevocationGracePeriods } = require('../services/restaurantCreditRevocationService');
 
   return [
+    ...require('../growth/workerSchedule').entries(),
     // [name, workerFn, intervalMs, options]
     ['normalizeLocations', normalizeLocations, 2 * 60 * 1000, { limit: 200 }],
     ['refreshEtas', refreshEtas, 60 * 1000, { limit: 100 }],

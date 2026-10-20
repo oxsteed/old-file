@@ -40,7 +40,7 @@ export function ProfileError({ message, onRetry, headline = undefined }) {
       </div>
       <button
         onClick={onRetry}
-        className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium rounded-xl transition-colors"
+        className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium rounded-xl transition-colors" data-track="ui.99bc830115.1"
       >
         {t('helperProfile.chrome.tryAgain')}
       </button>
@@ -61,7 +61,7 @@ export function BackToTopButton() {
     <button
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       className="fixed bottom-24 start-4 z-30 lg:bottom-8 lg:start-auto lg:end-4 w-10 h-10 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shadow-lg flex items-center justify-center"
-      aria-label={t('helperProfile.chrome.backToTop')}
+      aria-label={t('helperProfile.chrome.backToTop')} data-track="ui.99bc830115.2"
     >
       <ArrowUp className="w-4 h-4" aria-hidden="true" />
     </button>
@@ -86,7 +86,7 @@ export function SectionNav({ visibleSections }) {
             <li key={s.id} role="listitem">
               <button
                 onClick={() => scrollTo(s.id)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors whitespace-nowrap"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors whitespace-nowrap" data-track="ui.99bc830115.3"
               >
                 {s.label}
               </button>

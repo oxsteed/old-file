@@ -174,7 +174,7 @@ export default function CampaignDraftForm({
         <p className="lx-page-sub">{subheading}</p>
       </div>
 
-      <form className="lx-card" onSubmit={handleSubmit}>
+      <form className="lx-card" onSubmit={handleSubmit} data-track="ui.49286a6942.1">
         <div className="lx-form-group">
           <label className="lx-label">{tx('logistics.campaigns.new.fieldTitle', 'Campaign title')} *</label>
           <input className="lx-input" value={form.title} maxLength={300}
@@ -289,7 +289,7 @@ export default function CampaignDraftForm({
         </div>
 
         <div style={{ display: 'flex', gap: '.75rem', marginTop: '1rem' }}>
-          <button type="submit" className="lx-btn-primary" disabled={saving}>
+          <button type="submit" className="lx-btn-primary" disabled={saving} data-track="ui.49286a6942.2">
             {saving
               ? tx('logistics.campaigns.new.saving', 'Saving…')
               : submitLabel}

@@ -3592,5 +3592,9 @@
       "empty": "Açık öğe yok",
       "reviewHint": "İnceleme kaydı para taşımaz veya malları serbest bırakmaz."
     }
+  },
+  "growthInsights": {
+    "analyticsStorage": "Google Analytics ve cihaz depolaması",
+    "analyticsStorageDescription": "AEA, Birleşik Krallık, İsviçre ve Québec’te izleme ile etkinliğe dayalı teklifler için ayrı, ayarlardan geri alınabilir izinler gerekir. İlgili ABD eyaletlerinde satış veya paylaşımı reddetme ve Global Privacy Control geçerlidir. Diğer bölgelerde analiz ayarı Google Analytics ve kalıcı cihaz depolamasını kontrol eder; etkinlik bu bildirim kapsamındadır."
   }
 }

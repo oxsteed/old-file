@@ -17,7 +17,7 @@ function Switch({ checked, onChange, disabled, label }) {
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`fd-switch${checked ? ' fd-switch--on' : ''}`}
+      className={`fd-switch${checked ? ' fd-switch--on' : ''}`} data-track="ui.e34bf5675e.1"
     >
       <span className="fd-switch-knob" aria-hidden="true" />
     </button>
@@ -180,7 +180,7 @@ export default function PrinterSettingsPanel({ t, restaurant }) {
         )}
 
         <div className="fd-settings-actions">
-          <button type="button" className="fd-btn" disabled={saving} onClick={save}>
+          <button type="button" className="fd-btn" disabled={saving} onClick={save} data-track="ui.e34bf5675e.2">
             {saving ? t('food.common.saving') : t('printer.save')}
           </button>
           <button
@@ -188,7 +188,7 @@ export default function PrinterSettingsPanel({ t, restaurant }) {
             className="fd-btn-secondary"
             disabled={testing || !enabled}
             onClick={printTest}
-            title={!enabled ? t('printer.enableFirst') : undefined}
+            title={!enabled ? t('printer.enableFirst') : undefined} data-track="ui.e34bf5675e.3"
           >
             {testing ? t('printer.testing') : t('printer.printTest')}
           </button>

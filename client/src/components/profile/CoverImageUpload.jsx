@@ -202,7 +202,7 @@ export default function CoverImageUpload({
               onClick={handleRemove}
               disabled={loading}
               className="cover-preview-remove"
-              title={t('common.delete')}
+              title={t('common.delete')} data-track="ui.9912d4e1d4.1"
             >
               <X size={20} />
             </button>

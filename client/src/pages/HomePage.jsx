@@ -456,14 +456,14 @@ function HomeSearch() {
         <button
           type="button" role="tab" aria-selected={mode === 'helpers'}
           className={`hp-search-tab${mode === 'helpers' ? ' hp-search-tab--active' : ''}`}
-          onClick={() => setMode('helpers')}
+          onClick={() => setMode('helpers')} data-track="ui.5679b5a524.1"
         >
           {t('homePage.search.findHelper')}
         </button>
         <button
           type="button" role="tab" aria-selected={mode === 'jobs'}
           className={`hp-search-tab${mode === 'jobs' ? ' hp-search-tab--active' : ''}`}
-          onClick={() => setMode('jobs')}
+          onClick={() => setMode('jobs')} data-track="ui.5679b5a524.2"
         >
           {t('homePage.search.browseJobs')}
         </button>
@@ -471,7 +471,7 @@ function HomeSearch() {
           <button
             type="button" role="tab" aria-selected={mode === 'discover'}
             className={`hp-search-tab${mode === 'discover' ? ' hp-search-tab--active' : ''}`}
-            onClick={() => setMode('discover')}
+            onClick={() => setMode('discover')} data-track="ui.5679b5a524.3"
           >
             {t('homePage.search.discoverAll')}
           </button>
@@ -479,7 +479,7 @@ function HomeSearch() {
       </div>
 
       {/* ── Search form ───────────────────────────────────────────────────── */}
-      <form className="hp-search-form" onSubmit={handleSubmit} autoComplete="off">
+      <form className="hp-search-form" onSubmit={handleSubmit} autoComplete="off" data-track="ui.5679b5a524.4">
 
         {/* Query field */}
         <div className="hp-search-field hp-search-field--query">
@@ -514,7 +514,7 @@ function HomeSearch() {
           />
           {query && (
             <button type="button" className="hp-search-clear" aria-label={t('homePage.search.clearSearch')}
-              onClick={() => { setQuery(''); setSkillsOpen(false); queryRef.current?.focus(); }}>
+              onClick={() => { setQuery(''); setSkillsOpen(false); queryRef.current?.focus(); }} data-track="ui.5679b5a524.5">
               {CLEAR_ICON}
             </button>
           )}
@@ -539,7 +539,7 @@ function HomeSearch() {
             />
             {locInput && (
               <button type="button" className="hp-search-clear" aria-label={t('homePage.search.clearLocation')}
-                onClick={() => { setLocInput(''); setLocCoords({ lat: null, lng: null }); setLocSugg([]); setLocOpen(false); locInputRef.current?.focus(); }}>
+                onClick={() => { setLocInput(''); setLocCoords({ lat: null, lng: null }); setLocSugg([]); setLocOpen(false); locInputRef.current?.focus(); }} data-track="ui.5679b5a524.6">
                 {CLEAR_ICON}
               </button>
             )}
@@ -565,14 +565,14 @@ function HomeSearch() {
             className={`hp-avail-toggle${availToday ? ' hp-avail-toggle--on' : ''}`}
             onClick={() => setAvailToday((t) => !t)}
             aria-pressed={availToday}
-            title={t('homePage.search.availTodayTitle')}
+            title={t('homePage.search.availTodayTitle')} data-track="ui.5679b5a524.7"
           >
             <span className={`hp-avail-dot${availToday ? ' hp-avail-dot--on' : ''}`} aria-hidden="true" />
             {t('homePage.search.availToday')}
           </button>
         )}
 
-        <button type="submit" className="hp-btn hp-btn-primary hp-search-btn">
+        <button type="submit" className="hp-btn hp-btn-primary hp-search-btn" data-track="ui.5679b5a524.8">
           {mode === 'jobs'
             ? t('homePage.search.findJobs')
             : mode === 'discover'
@@ -694,7 +694,7 @@ export default function HomePage() {
               className="hp-skills-toggle"
               onClick={() => setSkillsExpanded(e => !e)}
               aria-expanded={skillsExpanded}
-              aria-controls="hp-skills-overflow"
+              aria-controls="hp-skills-overflow" data-track="ui.5679b5a524.9"
             >
               {skillsExpanded ? t('homePage.skills.showFewer') : t('homePage.skills.showMore', { count: SKILL_TILES.length - 4 })}
               <svg

@@ -71,7 +71,7 @@ export default function HelperCapabilitiesCatalog({
     <section className="helper-capabilities" aria-label={t('dashboard.skillsTools.skillsTitle')}>
       <div className="helper-capabilities__top">
         <p>{t('dashboard.skillsTools.skillsSub')}</p>
-        <button type="button" onClick={onViewProfile}>{t('helperDashboard.viewPublicProfile')}</button>
+        <button type="button" onClick={onViewProfile} data-track="ui.9751dba441.1">{t('helperDashboard.viewPublicProfile')}</button>
       </div>
 
       <div className={`helper-capabilities__grid${showTools ? '' : ' helper-capabilities__grid--two'}`}>
@@ -91,7 +91,7 @@ export default function HelperCapabilitiesCatalog({
           <div className="helper-capabilities__scroll" role="group" aria-label={t('directCatalog.skillCategories')}>
             {shownCategories.map((name) => (
               <button key={name} type="button" className={`helper-capabilities__category${name === selectedCategory ? ' is-active' : ''}`}
-                aria-pressed={name === selectedCategory} onClick={() => { setCategory(name); setServiceSearch(''); setToolSearch(''); }}>
+                aria-pressed={name === selectedCategory} onClick={() => { setCategory(name); setServiceSearch(''); setToolSearch(''); }} data-track="ui.9751dba441.2">
                 <Wrench size={17} aria-hidden="true" /><span>{name}</span>
                 <small>{skills.filter((skill) => (String(skill.category || '').trim() || t('common.other')) === name).length}</small>
               </button>
@@ -104,7 +104,7 @@ export default function HelperCapabilitiesCatalog({
           <div className="helper-capabilities__panel-head">
             <div><p className="helper-capabilities__eyebrow">{selectedCategory || t('dashboard.skillsTools.skillsTitle')}</p>
               <h2 id="helper-capability-services">{t('directCatalog.availableServices')}</h2></div>
-            <button type="button" className="helper-capabilities__add" onClick={onAddSkill}>{t('dashboard.skillsTools.addSkill')}</button>
+            <button type="button" className="helper-capabilities__add" onClick={onAddSkill} data-track="ui.9751dba441.3">{t('dashboard.skillsTools.addSkill')}</button>
           </div>
           <SuggestDropdown
             id="hcc-service-search"
@@ -127,8 +127,8 @@ export default function HelperCapabilitiesCatalog({
                   {skill.description && <p>{skill.description}</p>}
                   <div className="helper-capabilities__item-foot">
                     <span>{skill.hourly_rate ? `${formatMoney(skill.hourly_rate)}${t('helpersDir.perHour')}` : t('dashboard.skillsTools.contactForPricing')}</span>
-                    <div><button type="button" onClick={() => onEditSkill(skill)}>{t('common.edit')}</button>
-                      <button type="button" onClick={() => onDeleteSkill(skill.id)}>{t('helperDashboard.delete')}</button></div>
+                    <div><button type="button" onClick={() => onEditSkill(skill)} data-track="ui.9751dba441.4">{t('common.edit')}</button>
+                      <button type="button" onClick={() => onDeleteSkill(skill.id)} data-track="ui.9751dba441.5">{t('helperDashboard.delete')}</button></div>
                   </div>
                 </article>)}
             {!skillsLoading && !shownSkills.length && <p className="helper-capabilities__empty">{t('dashboard.skillsTools.noSkills')}</p>}
@@ -138,7 +138,7 @@ export default function HelperCapabilitiesCatalog({
         {showTools && <section className="helper-capabilities__panel" aria-labelledby="helper-capability-tools">
           <div className="helper-capabilities__panel-head"><div><p className="helper-capabilities__eyebrow">{t('directCatalog.equipment')}</p>
             <h2 id="helper-capability-tools">{t('directCatalog.toolsEquipment')}</h2></div>
-            <button type="button" className="helper-capabilities__add" onClick={onAddTool}>{t('dashboard.skillsTools.listToolBtn')}</button></div>
+            <button type="button" className="helper-capabilities__add" onClick={onAddTool} data-track="ui.9751dba441.6">{t('dashboard.skillsTools.listToolBtn')}</button></div>
           <SuggestDropdown
             id="hcc-tool-search"
             items={toolItems}
@@ -160,9 +160,9 @@ export default function HelperCapabilitiesCatalog({
                     </span></div>
                     {tool.description && <p>{tool.description}</p>}
                     <div className="helper-capabilities__item-foot"><span>{tool.daily_rate ? `${formatMoney(tool.daily_rate)} ${t('toolRentals.perDay')}` : t('dashboard.skillsTools.contactForPricing')}</span>
-                      <div>{tool.is_available && <button type="button" onClick={() => onViewTool(tool)}>{t('common.view')}</button>}
-                        <button type="button" onClick={() => onEditTool(tool)}>{t('common.edit')}</button>
-                        <button type="button" onClick={() => onDeleteTool(tool.id)}>{t('helperDashboard.delete')}</button></div></div>
+                      <div>{tool.is_available && <button type="button" onClick={() => onViewTool(tool)} data-track="ui.9751dba441.7">{t('common.view')}</button>}
+                        <button type="button" onClick={() => onEditTool(tool)} data-track="ui.9751dba441.8">{t('common.edit')}</button>
+                        <button type="button" onClick={() => onDeleteTool(tool.id)} data-track="ui.9751dba441.9">{t('helperDashboard.delete')}</button></div></div>
                   </div>
                 </article>)}
             {!toolsLoading && !shownTools.length && <p className="helper-capabilities__empty">{t('dashboard.skillsTools.noTools')}</p>}

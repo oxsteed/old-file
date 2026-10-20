@@ -51,7 +51,7 @@ export default function InvestorEvidencePanel({ period }) {
             type="button"
             onClick={() => setMetric(m)}
             aria-pressed={metric === m}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${metric === m ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300' : 'bg-gray-950 border-gray-800 text-gray-400 hover:text-white'}`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${metric === m ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300' : 'bg-gray-950 border-gray-800 text-gray-400 hover:text-white'}`} data-track="ui.2aa8c9f551.1"
           >
             {t(`investorDashboard.evidence.metrics.${m}`)}
           </button>

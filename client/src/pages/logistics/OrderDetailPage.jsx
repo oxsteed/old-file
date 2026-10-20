@@ -47,7 +47,7 @@ export default function OrderDetailPage() {
       return (
         <div className="lx-empty" role="alert">
           <p>{error}</p>
-          <button type="button" onClick={load} className="lx-action-secondary">
+          <button type="button" onClick={load} className="lx-action-secondary" data-track="ui.94a881f4b4.1">
             {tx('logistics.workspace.dataError.retry', 'Try again')}
           </button>
         </div>

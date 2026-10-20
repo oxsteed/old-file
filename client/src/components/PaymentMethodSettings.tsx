@@ -141,14 +141,14 @@ const PaymentMethodSettings: React.FC = () => {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="payment-settings-btn save"
+            className="payment-settings-btn save" data-track-private
           >
             <Save className="w-4 h-4" />
             {saving ? t('common.saving') : t('common.save')}
           </button>
 
           {method && (
-            <button onClick={handleDelete} disabled={saving} className="payment-settings-btn delete">
+            <button onClick={handleDelete} disabled={saving} className="payment-settings-btn delete" data-track-private>
               <Trash2 className="w-4 h-4" />
               {t('common.delete')}
             </button>

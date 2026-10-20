@@ -33572,5 +33572,9 @@
   "wsWorkforce": {
     "colTwoFactor": "2FA",
     "totpOn": "TOTP"
+  },
+  "growthInsights": {
+    "analyticsStorage": "Google Analytics และที่จัดเก็บบนอุปกรณ์",
+    "analyticsStorageDescription": "ใน EEA สหราชอาณาจักร สวิตเซอร์แลนด์และควิเบก การติดตามและข้อเสนอตามกิจกรรมต้องมีความยินยอมแยกกันและถอนในตั้งค่าได้ รัฐสหรัฐฯ ที่เกี่ยวข้องมีตัวเลือกไม่ขายหรือแชร์และรองรับ Global Privacy Control พื้นที่อื่นตัวเลือกวิเคราะห์ควบคุม Google Analytics และการจัดเก็บถาวรบนอุปกรณ์ ส่วนกิจกรรมอยู่ภายใต้ประกาศนี้"
   }
 }

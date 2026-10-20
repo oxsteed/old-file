@@ -138,7 +138,7 @@ export default function CreativeIntakeRequestPage() {
           </div>
         </section>
 
-        <form className="mrq-grid" onSubmit={handleSubmit}>
+        <form className="mrq-grid" onSubmit={handleSubmit} data-track="ui.5c37097bed.1">
           <section className="mrq-panel">
             <h2><Palette size={18} /> {t('creativeIntakePage.sections.projectBrief')}</h2>
             <div className="mrq-field">
@@ -220,7 +220,7 @@ export default function CreativeIntakeRequestPage() {
               <p><strong>{t('creativeIntakePage.form.labels.revisionPolicy')}</strong> {workspace?.settings?.revision_policy || configuredFallback}</p>
               <p className="mt-3"><strong>{t('creativeIntakePage.form.labels.approvalPolicy')}</strong> {workspace?.settings?.approval_policy || configuredFallback}</p>
             </div>
-            <button className="mrq-btn primary" type="submit" disabled={submitting}>
+            <button className="mrq-btn primary" type="submit" disabled={submitting} data-track="ui.5c37097bed.2">
               {submitting ? t('creativeIntakePage.form.actions.sending') : t('creativeIntakePage.form.actions.submit')}
             </button>
           </section>

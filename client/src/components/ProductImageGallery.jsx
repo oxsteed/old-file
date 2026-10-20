@@ -78,14 +78,14 @@ export default function ProductImageGallery({ images = [], productName = 'Produc
             <button
               onClick={handlePrevious}
               className="pig-nav-button pig-nav-prev"
-              aria-label={t('productGallery.previousImage')}
+              aria-label={t('productGallery.previousImage')} data-track="ui.a1d467ab4d.1"
             >
               <ChevronLeft size={24} />
             </button>
             <button
               onClick={handleNext}
               className="pig-nav-button pig-nav-next"
-              aria-label={t('productGallery.nextImage')}
+              aria-label={t('productGallery.nextImage')} data-track="ui.a1d467ab4d.2"
             >
               <ChevronRight size={24} />
             </button>
@@ -107,7 +107,7 @@ export default function ProductImageGallery({ images = [], productName = 'Produc
                 index === activeImageIndex ? 'pig-thumbnail-active' : ''
               }`}
               aria-label={t('productGallery.viewImage', { index: index + 1 })}
-              aria-current={index === activeImageIndex}
+              aria-current={index === activeImageIndex} data-track="ui.a1d467ab4d.3"
             >
               <img src={image} alt={t('productGallery.thumbnailAlt', { productName, index: index + 1 })} />
             </button>
@@ -122,7 +122,7 @@ export default function ProductImageGallery({ images = [], productName = 'Produc
             <button
               onClick={closeLightbox}
               className="pig-lightbox-close"
-              aria-label={t('productGallery.closeLightbox')}
+              aria-label={t('productGallery.closeLightbox')} data-track="ui.a1d467ab4d.4"
             >
               <X size={28} />
             </button>
@@ -136,14 +136,14 @@ export default function ProductImageGallery({ images = [], productName = 'Produc
                 <button
                 onClick={handlePrevious}
                   className="pig-lightbox-nav pig-lightbox-prev"
-                  aria-label={t('productGallery.previousImage')}
+                  aria-label={t('productGallery.previousImage')} data-track="ui.a1d467ab4d.5"
                 >
                   <ChevronLeft size={32} />
                 </button>
                 <button
                 onClick={handleNext}
                   className="pig-lightbox-nav pig-lightbox-next"
-                  aria-label={t('productGallery.nextImage')}
+                  aria-label={t('productGallery.nextImage')} data-track="ui.a1d467ab4d.6"
                 >
                   <ChevronRight size={32} />
                 </button>

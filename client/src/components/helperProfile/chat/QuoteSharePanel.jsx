@@ -130,7 +130,7 @@ export default function QuoteSharePanel({
           <FileText className="w-4 h-4" aria-hidden />
           {t('messages.quoteShare.title')}
         </h3>
-        <button type="button" className="quote-share-panel__close" onClick={onClose} aria-label={t('common.close')}>
+        <button type="button" className="quote-share-panel__close" onClick={onClose} aria-label={t('common.close')} data-track-private>
           <X className="w-4 h-4" />
         </button>
       </header>
@@ -141,7 +141,7 @@ export default function QuoteSharePanel({
           role="tab"
           aria-selected={tab === 'pick'}
           className={tab === 'pick' ? 'is-active' : ''}
-          onClick={() => setTab('pick')}
+          onClick={() => setTab('pick')} data-track-private
         >
           {t('messages.quoteShare.pickTab')}
         </button>
@@ -150,7 +150,7 @@ export default function QuoteSharePanel({
           role="tab"
           aria-selected={tab === 'build'}
           className={tab === 'build' ? 'is-active' : ''}
-          onClick={() => setTab('build')}
+          onClick={() => setTab('build')} data-track-private
         >
           {t('messages.quoteShare.buildTab')}
         </button>
@@ -165,7 +165,7 @@ export default function QuoteSharePanel({
           ) : quotes.length === 0 ? (
             <p className="quote-share-panel__muted">
               {t('messages.quoteShare.empty')}
-              <button type="button" className="quote-share-panel__link" onClick={() => setTab('build')}>
+              <button type="button" className="quote-share-panel__link" onClick={() => setTab('build')} data-track-private>
                 {t('messages.quoteShare.buildInstead')}
               </button>
             </p>
@@ -178,7 +178,7 @@ export default function QuoteSharePanel({
                       type="radio"
                       name="quote-pick"
                       checked={selectedId === q.id}
-                      onChange={() => setSelectedId(q.id)}
+                      onChange={() => setSelectedId(q.id)} data-track-private
                     />
                     <span className="quote-share-panel__pick-main">
                       <strong>{q.title || t('messages.quoteShare.defaultTitle')}</strong>
@@ -242,7 +242,7 @@ export default function QuoteSharePanel({
                   <button
                     type="button"
                     onClick={() => setLines(lines.filter((_, i) => i !== idx))}
-                    aria-label={t('common.remove')}
+                    aria-label={t('common.remove')} data-track-private
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -252,7 +252,7 @@ export default function QuoteSharePanel({
             <button
               type="button"
               className="quote-share-panel__add-line"
-              onClick={() => setLines([...lines, { ...EMPTY_LINE }])}
+              onClick={() => setLines([...lines, { ...EMPTY_LINE }])} data-track-private
             >
               <Plus className="w-3.5 h-3.5" />
               {t('messages.quoteShare.addLine')}
@@ -281,10 +281,10 @@ export default function QuoteSharePanel({
       )}
 
       <footer className="quote-share-panel__foot">
-        <button type="button" className="quote-share-panel__cancel" onClick={onClose} disabled={sharing}>
+        <button type="button" className="quote-share-panel__cancel" onClick={onClose} disabled={sharing} data-track-private>
           {t('common.cancel')}
         </button>
-        <button type="button" className="quote-share-panel__send" onClick={share} disabled={sharing}>
+        <button type="button" className="quote-share-panel__send" onClick={share} disabled={sharing} data-track-private>
           {sharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           {t('messages.quoteShare.send')}
         </button>

@@ -134,7 +134,7 @@ export default function PublicTrackingPage() {
           <p>{t('delivery.tracking.public.supportHint')}</p>
           {support.email && (
             <p>
-              <a href={`mailto:${support.email}`}>
+              <a href={`mailto:${support.email}`} data-track="ui.3a05735646.1">
                 <Mail size={14} aria-hidden="true" /> {support.email}
               </a>
             </p>

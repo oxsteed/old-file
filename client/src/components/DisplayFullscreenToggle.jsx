@@ -20,7 +20,7 @@ export default function DisplayFullscreenToggle({ targetRef }) {
       onClick={(event) => {
         event.stopPropagation();
         toggle();
-      }}
+      }} data-track="ui.48f4fff886.1"
     >
       {isFullscreen ? '⤡' : '⛶'}
     </button>

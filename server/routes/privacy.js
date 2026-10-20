@@ -33,6 +33,15 @@ const EXPORT_CSV_COLUMNS = {
   bids: ['id', 'job_id', 'amount', 'message', 'status', 'created_at'],
   reviews: ['id', 'job_id', 'rating', 'comment', 'created_at'],
   consents: ['consent_type', 'version', 'accepted_at'],
+  site_visits: ['visited_at','path','referrer','country_code','region_name','city','device_type'],
+  discover_search_log: ['created_at','query_normalized','result_count','radius_miles'],
+  promotion_link_events: ['event_type','source','medium','campaign','content','occurred_at'],
+  segments: ['name'],
+  propensity_scores: ['model','score','reasons','model_version','computed_at'],
+  tracking_consents: ['purpose','granted','jurisdiction','source','consent_text_version','recorded_at'],
+  interests: ['labels','score','last_seen'],
+  offers: ['name','title','channel','status','sent_at','opened_at','clicked_at'],
+  activity_events: ['event_name','occurred_at','route','props'],
   messages: ['id', 'sender_id', 'receiver_id', 'conversation_id', 'content', 'created_at'],
   payments: ['id', 'job_id', 'payer_id', 'payee_id', 'amount', 'status', 'created_at', 'updated_at'],
   invoices: ['id', 'business_id', 'invoice_number', 'client_name', 'client_email', 'status', 'due_date', 'total', 'amount_paid', 'created_at', 'updated_at'],
@@ -76,7 +85,7 @@ function buildExportArchive(exportData) {
     archive.append(rowsToCsv(exportData.user ? [exportData.user] : [], EXPORT_CSV_COLUMNS.user), { name: 'user.csv' });
     for (const [name, columns] of Object.entries(EXPORT_CSV_COLUMNS)) {
       if (name === 'user') continue;
-      archive.append(rowsToCsv(exportData[name], columns), { name: `${name}.csv` });
+      archive.append(rowsToCsv(exportData[name] || [], columns), { name: `${name}.csv` });
     }
     archive.append(
       [
@@ -448,6 +457,8 @@ router.get('/export', authenticate, async (req, res) => {
       helper_profiles: helperProfiles,
       notifications: userNotifications,
     };
+    Object.assign(exportData,await require('../services/privacyActivityData').exportData(pool,userId));
+    Object.assign(exportData,await require('../growth/rights').exportData(pool,userId));
     const archiveBuffer = await buildExportArchive(exportData);
     const consumed = await pool.query(
       `UPDATE privacy_export_verifications
@@ -681,10 +692,11 @@ router.delete('/delete-account', strictLimiter, authenticate, async (req, res) =
       params.push(originalEmailHash);
     }
 
-    await pool.query(
-      `UPDATE users SET ${baseSets.join(', ')} WHERE ${userIdEq('id')}`,
-      params
-    );
+    await require('../utils/transaction').withTransaction(pool,async conn=>{
+      await require('../services/privacyActivityData').erase(conn,userId);
+      if(process.env.GROWTH_SUBJECT_PEPPER)await require('../growth/rights').erase(conn,userId);
+      await conn.query(`UPDATE users SET ${baseSets.join(', ')} WHERE ${userIdEq('id')}`,params);
+    },'privacy_delete_growth');
 
     // Retain the deletion decision in the legal audit trail. user_consents is
     // intentionally deleted by scheduled cleanup and is not an audit log.
@@ -717,6 +729,7 @@ router.get('/data-categories', strictLimiter, (req, res) => {
       { category: 'Professional Information', examples: 'Skills, hourly rate, availability, bio', purpose: 'Helper profile and job matching' },
       { category: 'Internet Activity', examples: 'IP address, browser type, pages visited', purpose: 'Analytics and security' },
       { category: 'Geolocation', examples: 'City, state, zip code', purpose: 'Location-based job matching' },
+      { category: 'Growth Insights', examples: 'Permitted activity events, inferred interests, offer history, segment memberships and consent choices', purpose: 'Demand analysis and optional offers after the reviewed policy effective date' },
       { category: 'Background Check', examples: 'Pass/fail status from Checkr', purpose: 'Verified badge eligibility' },
     ],
     thirdParties: [

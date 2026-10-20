@@ -58,7 +58,7 @@ export default function MediaNotificationsPage() {
           className="media-icon-button"
           onClick={refresh}
           disabled={loading}
-          aria-label={t('media.notifications.refresh')}
+          aria-label={t('media.notifications.refresh')} data-track="ui.5c2c9cae6c.1"
         >
           <RefreshCw size={18} aria-hidden="true" />
         </button>
@@ -69,7 +69,7 @@ export default function MediaNotificationsPage() {
           {t('media.notifications.unread', { count: mediaUnread })}
         </span>
         {mediaUnread > 0 && (
-          <button type="button" className="media-text-button" onClick={markAllAsRead}>
+          <button type="button" className="media-text-button" onClick={markAllAsRead} data-track="ui.5c2c9cae6c.2">
             <Check size={15} aria-hidden="true" />
             {t('media.notifications.markAllRead')}
           </button>
@@ -103,7 +103,7 @@ export default function MediaNotificationsPage() {
                   className={`media-notification-row${unread ? ' unread' : ''}`}
                   aria-label={notification.title}
                   aria-describedby={notification.body ? bodyId : undefined}
-                  onClick={activateNotification}
+                  onClick={activateNotification} data-track="ui.5c2c9cae6c.3"
                 >
                   <span className="media-notification-icon" aria-hidden="true">
                     {ICONS[notification.type] || '🔔'}

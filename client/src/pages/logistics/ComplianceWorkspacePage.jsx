@@ -108,7 +108,7 @@ export default function ComplianceWorkspacePage() {
                 <h2>{t('logistics.workspace.dataError.title')}</h2>
                 <p>{t('logistics.workspace.dataError.body')}</p>
               </div>
-              <button type="button" className="lx-btn-secondary" onClick={load}>
+              <button type="button" className="lx-btn-secondary" onClick={load} data-track="ui.735361ee07.1">
                 {t('logistics.workspace.dataError.retry')}
               </button>
             </div>

@@ -154,7 +154,7 @@ export function BusinessServicesTab({ businessId }) {
     <div className="bst-services-container">
       <div className="bst-header">
         <h3>{t('businessServices.title')}</h3>
-        <button onClick={resetForm} className="bst-btn-new">
+        <button onClick={resetForm} className="bst-btn-new" data-track="ui.b1627ffe61.1">
           <Plus size={18} /> {t('businessServices.btnNew')}
         </button>
       </div>
@@ -246,8 +246,8 @@ export function BusinessServicesTab({ businessId }) {
             </div>
           </div>
           <div className="bst-form-buttons">
-            <button onClick={() => setShowForm(false)} className="bst-btn-cancel">{t('businessServices.btnCancel')}</button>
-            <button onClick={handleSaveService} className="bst-btn-save">{t('businessServices.btnSave')}</button>
+            <button onClick={() => setShowForm(false)} className="bst-btn-cancel" data-track="ui.b1627ffe61.2">{t('businessServices.btnCancel')}</button>
+            <button onClick={handleSaveService} className="bst-btn-save" data-track="ui.b1627ffe61.3">{t('businessServices.btnSave')}</button>
           </div>
         </div>
       ) : (
@@ -257,7 +257,7 @@ export function BusinessServicesTab({ businessId }) {
           ) : services.length === 0 ? (
             <div className="bst-empty">
               <p>{t('businessServices.emptyTitle')}</p>
-              <button onClick={resetForm} className="bst-btn-new-large">
+              <button onClick={resetForm} className="bst-btn-new-large" data-track="ui.b1627ffe61.4">
                 {t('businessServices.btnCreateFirst')}
               </button>
             </div>
@@ -273,14 +273,14 @@ export function BusinessServicesTab({ businessId }) {
                     <button
                       onClick={() => handleEditService(service)}
                       className="bst-btn-action"
-                      aria-label={t('businessServices.ariaEdit')}
+                      aria-label={t('businessServices.ariaEdit')} data-track="ui.b1627ffe61.5"
                     >
                       <Edit2 size={16} />
                     </button>
                     <button
                       onClick={() => handleDeleteService(service.id)}
                       className="bst-btn-action delete"
-                      aria-label={t('businessServices.ariaDelete')}
+                      aria-label={t('businessServices.ariaDelete')} data-track="ui.b1627ffe61.6"
                     >
                       <Trash2 size={16} />
                     </button>

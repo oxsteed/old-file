@@ -88,7 +88,7 @@ const ToolDetailModal: React.FC<ToolDetailModalProps> = ({
         {/* Header */}
         <div className="tool-modal-header">
           <h2 className="tool-modal-title">{tool.name}</h2>
-          <button onClick={onClose} className="tool-modal-close-btn" aria-label="Close modal">
+          <button onClick={onClose} className="tool-modal-close-btn" aria-label="Close modal" data-track="ui.4e0d6dfc95.1">
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -195,14 +195,14 @@ const ToolDetailModal: React.FC<ToolDetailModalProps> = ({
                 <div className="tool-modal-owner-actions-horizontal">
                   <button
                     onClick={() => tool.owner_id && onMessage(tool.owner_id)}
-                    className="tool-modal-action-btn tool-modal-message-btn"
+                    className="tool-modal-action-btn tool-modal-message-btn" data-track="ui.4e0d6dfc95.2"
                   >
                     <MessageCircle className="w-4 h-4" />
                     {t('toolRentals.inquireAboutRental')}
                   </button>
                   <button
                     onClick={() => tool.owner_id && onViewProfile(tool.owner_id)}
-                    className="tool-modal-action-btn tool-modal-profile-btn"
+                    className="tool-modal-action-btn tool-modal-profile-btn" data-track="ui.4e0d6dfc95.3"
                   >
                     <User className="w-4 h-4" />
                     {t('toolRentals.viewProfile')}
@@ -222,7 +222,7 @@ const ToolDetailModal: React.FC<ToolDetailModalProps> = ({
                 <button
                   onClick={() => setIsBookingModalOpen(true)}
                   className="tool-modal-booking-btn"
-                  disabled={!tool.is_available}
+                  disabled={!tool.is_available} data-track="ui.4e0d6dfc95.4"
                 >
                   <Calendar className="w-4 h-4" />
                   {t('toolRentals.booking')}

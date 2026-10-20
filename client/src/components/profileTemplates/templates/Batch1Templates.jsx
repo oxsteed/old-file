@@ -65,7 +65,7 @@ export function ElectricianTemplate({ profileData }) {
               <div className="flex flex-wrap items-center gap-4 mt-3">
                 <LocationChip city={helper.city} state={helper.state} className="text-slate-400" />
                 {phone && (
-                  <a href={`tel:${phone}`} className="flex items-center gap-1 text-sm font-bold" style={{ color: YELLOW }}>
+                  <a href={`tel:${phone}`} className="flex items-center gap-1 text-sm font-bold" style={{ color: YELLOW }} data-track="ui.783d14a6bc.1">
                     <Phone size={13} /> {phone}
                   </a>
                 )}
@@ -159,7 +159,7 @@ export function ElectricianTemplate({ profileData }) {
           {phone && (
             <a href={`tel:${phone}`}
               className="inline-block px-6 py-3 rounded-xl font-black text-sm"
-              style={{ background: YELLOW, color: NAVY }}>
+              style={{ background: YELLOW, color: NAVY }} data-track="ui.783d14a6bc.2">
               Call Now: {phone}
             </a>
           )}
@@ -421,7 +421,7 @@ export function MassageTherapistTemplate({ profileData }) {
           <div className="text-center">
             <a href={`tel:${phone}`}
               className="inline-block px-8 py-4 rounded-2xl font-black text-white text-sm shadow-lg"
-              style={{ background: `linear-gradient(135deg, ${BROWN}, ${WARM})` }}>
+              style={{ background: `linear-gradient(135deg, ${BROWN}, ${WARM})` }} data-track="ui.783d14a6bc.3">
               Book Your Session: {phone}
             </a>
           </div>
@@ -591,7 +591,7 @@ export function AutoMechanicTemplate({ profileData }) {
           {phone && (
             <a href={`tel:${phone}`}
               className="block text-center py-3 rounded-xl font-black text-sm"
-              style={{ background: ORANGE, color: '#fff' }}>
+              style={{ background: ORANGE, color: '#fff' }} data-track="ui.783d14a6bc.4">
               📞 Schedule Repair
             </a>
           )}
@@ -749,7 +749,7 @@ export function DogWalkerTemplate({ profileData }) {
           <div className="text-center py-4">
             <a href={`tel:${phone}`}
               className="inline-block px-8 py-4 rounded-2xl font-black text-white text-sm"
-              style={{ background: GREEN }}>
+              style={{ background: GREEN }} data-track="ui.783d14a6bc.5">
               Book a Walk: {phone}
             </a>
           </div>
@@ -905,7 +905,7 @@ export function PrivateChefTemplate({ profileData }) {
           <div className="text-center py-4">
             <a href={`tel:${phone}`}
               className="inline-block px-8 py-4 rounded-xl font-black text-white text-sm"
-              style={{ background: BURGUNDY }}>
+              style={{ background: BURGUNDY }} data-track="ui.783d14a6bc.6">
               Reserve Your Dinner: {phone}
             </a>
           </div>
@@ -960,7 +960,7 @@ export function HairStylistTemplate({ profileData }) {
               {phone && (
                 <a href={`tel:${phone}`}
                   className="px-5 py-2.5 rounded-xl text-xs font-black"
-                  style={{ background: ROSE_DARK, color: '#fff' }}>
+                  style={{ background: ROSE_DARK, color: '#fff' }} data-track="ui.783d14a6bc.7">
                   Book Now
                 </a>
               )}
@@ -1049,7 +1049,7 @@ export function HairStylistTemplate({ profileData }) {
           {phone && (
             <a href={`tel:${phone}`}
               className="flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm text-white"
-              style={{ background: ROSE_DARK }}>
+              style={{ background: ROSE_DARK }} data-track="ui.783d14a6bc.8">
               <Scissors size={14} /> Book Appointment
             </a>
           )}
@@ -1117,7 +1117,7 @@ export function AccountantTemplate({ profileData }) {
               <p className="text-sm mt-1 text-blue-300">{helper.tagline}</p>
               <div className="flex flex-wrap gap-3 mt-3">
                 <LocationChip city={helper.city} state={helper.state} className="text-blue-300" />
-                {phone && <a href={`tel:${phone}`} className="text-sm font-bold flex items-center gap-1" style={{ color: GOLD }}><Phone size={13}/> {phone}</a>}
+                {phone && <a href={`tel:${phone}`} className="text-sm font-bold flex items-center gap-1" style={{ color: GOLD }} data-track="ui.783d14a6bc.9"><Phone size={13}/> {phone}</a>}
               </div>
             </div>
             <div className="hidden md:flex gap-5 text-center">
@@ -1224,7 +1224,7 @@ export function AccountantTemplate({ profileData }) {
           {phone && (
             <a href={`tel:${phone}`}
               className="block text-center py-3 rounded-xl font-black text-sm"
-              style={{ background: GOLD, color: NAVY }}>
+              style={{ background: GOLD, color: NAVY }} data-track="ui.783d14a6bc.10">
               Schedule Consultation
             </a>
           )}
@@ -1379,7 +1379,7 @@ export function MathTutorTemplate({ profileData }) {
           {phone && (
             <a href={`tel:${phone}`}
               className="inline-block px-6 py-3 rounded-xl font-black text-sm"
-              style={{ background: '#fff', color: INDIGO }}>
+              style={{ background: '#fff', color: INDIGO }} data-track="ui.783d14a6bc.11">
               Book Free Session: {phone}
             </a>
           )}
@@ -1575,7 +1575,7 @@ export function PartyEntertainerTemplate({ profileData }) {
           {phone && (
             <a href={`tel:${phone}`}
               className="inline-block px-8 py-4 rounded-2xl font-black text-sm"
-              style={{ background: '#FACC15', color: PURPLE }}>
+              style={{ background: '#FACC15', color: PURPLE }} data-track="ui.783d14a6bc.12">
               Book My Party: {phone}
             </a>
           )}
@@ -1698,14 +1698,14 @@ export function CarDealershipTemplate({ profileData }) {
               {phone && (
                 <a href={`tel:${phone}`}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-black"
-                  style={{ background: RED, color: '#fff' }}>
+                  style={{ background: RED, color: '#fff' }} data-track="ui.783d14a6bc.13">
                   <Phone size={13} /> Call Dealer
                 </a>
               )}
               {website && (
                 <a href={website} target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold"
-                  style={{ background: '#1E293B', color: SILVER, border: `1px solid #334155` }}>
+                  style={{ background: '#1E293B', color: SILVER, border: `1px solid #334155` }} data-track="ui.783d14a6bc.14">
                   <Globe size={13} /> Website
                 </a>
               )}
@@ -1851,7 +1851,7 @@ export function CarDealershipTemplate({ profileData }) {
             {phone && (
               <a href={`tel:${phone}`}
                 className="flex items-center gap-2 py-3 px-4 rounded-xl font-black text-sm mb-3"
-                style={{ background: RED, color: '#fff' }}>
+                style={{ background: RED, color: '#fff' }} data-track="ui.783d14a6bc.15">
                 <Phone size={14} /> {phone}
               </a>
             )}
@@ -1883,7 +1883,7 @@ export function CarDealershipTemplate({ profileData }) {
               <p className="text-xs text-red-200 mb-3">No commitment, just come in</p>
               <a href={`tel:${phone}`}
                 className="block py-2.5 px-4 rounded-xl text-xs font-black"
-                style={{ background: '#fff', color: RED }}>
+                style={{ background: '#fff', color: RED }} data-track="ui.783d14a6bc.16">
                 Book Now
               </a>
             </div>

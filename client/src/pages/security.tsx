@@ -56,7 +56,7 @@ export default function SecurityPolicy({ embedded = false }: { embedded?: boolea
           {t('securityPolicyPage.section4Text')}
         </p>
         <p className="mb-3">
-          <a href="mailto:security@oxsteed.com" className="text-orange-400 underline">
+          <a href="mailto:security@oxsteed.com" className="text-orange-400 underline" data-track="ui.006bbf9fdf.1">
             security@oxsteed.com
           </a>
         </p>
@@ -116,7 +116,7 @@ export default function SecurityPolicy({ embedded = false }: { embedded?: boolea
           OxSteed LLC<br />
           {t('securityPolicyPage.section7Attention')}<br />
           Springfield, Ohio<br />
-          <a href="mailto:legal@oxsteed.com" className="text-orange-400 underline">legal@oxsteed.com</a>
+          <a href="mailto:legal@oxsteed.com" className="text-orange-400 underline" data-track="ui.006bbf9fdf.2">legal@oxsteed.com</a>
         </p>
       </section>
     </LegalPageLayout>

@@ -144,25 +144,25 @@ export default function BackgroundCheckPage() {
                 {t(pk('onThisPage'))}
               </p>
               <nav className="flex flex-col gap-2 text-sm">
-                <a href="#what-we-check" className="text-gray-400 hover:text-blue-400 transition">
+                <a href="#what-we-check" className="text-gray-400 hover:text-blue-400 transition" data-track="ui.ae3dbb1007.1">
                   {t(pk('sections.whatWeCheck'))}
                 </a>
-                <a href="#disqualifying" className="text-gray-400 hover:text-blue-400 transition">
+                <a href="#disqualifying" className="text-gray-400 hover:text-blue-400 transition" data-track="ui.ae3dbb1007.2">
                   {t(pk('sections.disqualifying'))}
                 </a>
-                <a href="#our-process" className="text-gray-400 hover:text-blue-400 transition">
+                <a href="#our-process" className="text-gray-400 hover:text-blue-400 transition" data-track="ui.ae3dbb1007.3">
                   {t(pk('sections.ourProcess'))}
                 </a>
-                <a href="#if-denied" className="text-gray-400 hover:text-blue-400 transition">
+                <a href="#if-denied" className="text-gray-400 hover:text-blue-400 transition" data-track="ui.ae3dbb1007.4">
                   {t(pk('sections.ifDenied'))}
                 </a>
-                <a href="#appeal" className="text-gray-400 hover:text-blue-400 transition">
+                <a href="#appeal" className="text-gray-400 hover:text-blue-400 transition" data-track="ui.ae3dbb1007.5">
                   {t(pk('sections.appeal'))}
                 </a>
-                <a href="#timeline" className="text-gray-400 hover:text-blue-400 transition">
+                <a href="#timeline" className="text-gray-400 hover:text-blue-400 transition" data-track="ui.ae3dbb1007.6">
                   {t(pk('sections.timeline'))}
                 </a>
-                <a href="#faqs" className="text-gray-400 hover:text-blue-400 transition">
+                <a href="#faqs" className="text-gray-400 hover:text-blue-400 transition" data-track="ui.ae3dbb1007.7">
                   {t(pk('sections.faqs'))}
                 </a>
               </nav>
@@ -323,7 +323,7 @@ export default function BackgroundCheckPage() {
                       href="https://www.checkr.com"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition"
+                      className="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition" data-track="ui.ae3dbb1007.8"
                     >
                       {t(pk('ifDenied.viewCheckr'))}
                     </a>
@@ -366,14 +366,14 @@ export default function BackgroundCheckPage() {
                   {!showAppealForm && !appealSubmitted && (
                     <button
                       onClick={() => setShowAppealForm(true)}
-                      className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition"
+                      className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition" data-track="ui.ae3dbb1007.9"
                     >
                       {t(pk('appeal.submitBtn'))}
                     </button>
                   )}
 
                   {showAppealForm && (
-                    <form onSubmit={handleAppealSubmit} className="mt-6 space-y-4 p-6 bg-gray-800/50 rounded-lg border border-gray-700">
+                    <form onSubmit={handleAppealSubmit} className="mt-6 space-y-4 p-6 bg-gray-800/50 rounded-lg border border-gray-700" data-track="ui.ae3dbb1007.10">
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">
                           {t(pk('appeal.form.email'))}
@@ -415,14 +415,14 @@ export default function BackgroundCheckPage() {
                       <div className="flex gap-3">
                         <button
                           type="submit"
-                          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition"
+                          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition" data-track="ui.ae3dbb1007.11"
                         >
                           {t(pk('appeal.form.submit'))}
                         </button>
                         <button
                           type="button"
                           onClick={() => setShowAppealForm(false)}
-                          className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded font-semibold transition"
+                          className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded font-semibold transition" data-track="ui.ae3dbb1007.12"
                         >
                           {t('common.cancel')}
                         </button>
@@ -483,7 +483,7 @@ export default function BackgroundCheckPage() {
                     >
                       <button
                         onClick={() => setExpandedFAQ(expandedFAQ === index ? null : index)}
-                        className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-800/50 transition text-left"
+                        className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-800/50 transition text-left" data-track="ui.ae3dbb1007.13"
                       >
                         <h4 className="font-semibold text-white">
                           {highlightText(faq.q)}
@@ -511,7 +511,7 @@ export default function BackgroundCheckPage() {
                 </p>
                 <a
                   href="/support/escalation"
-                  className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition"
+                  className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition" data-track="ui.ae3dbb1007.14"
                 >
                   {t(pk('contactSupport.btn'))}
                 </a>

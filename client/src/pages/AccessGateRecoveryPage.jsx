@@ -76,14 +76,14 @@ export default function AccessGateRecoveryPage() {
           <button
             type="button"
           onClick={() => navigate('/admin/login')}
-          className="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 rounded-lg"
+          className="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 rounded-lg" data-track="ui.7c1f1ce816.1"
         >
           {t('accessGateRecovery.cta.adminLogin')}
           </button>
           <button
             type="button"
             onClick={() => navigate('/logistics')}
-            className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-100 font-semibold py-2 rounded-lg"
+            className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-100 font-semibold py-2 rounded-lg" data-track="ui.7c1f1ce816.2"
           >
             {t('accessGateRecovery.cta.logisticsHome')}
           </button>

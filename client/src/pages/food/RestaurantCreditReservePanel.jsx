@@ -105,7 +105,7 @@ function ReserveCardForm({ clientSecret, amountCents, currency, onConfirmed }) {
   };
 
   return (
-    <form onSubmit={submit}>
+    <form onSubmit={submit} data-track-private>
       <p className="fd-card-meta" style={{ marginBottom: '0.75rem' }}>
         Pay {formatFoodMoney(amountCents, currency)} by card. The reserve is credited only after the payment succeeds.
       </p>
@@ -116,7 +116,7 @@ function ReserveCardForm({ clientSecret, amountCents, currency, onConfirmed }) {
         </div>
       </label>
       {cardError && <p role="alert" style={{ color: '#b42318', fontSize: '0.9rem' }}>{cardError}</p>}
-      <button type="submit" className="fd-btn" disabled={submitting || !stripe} style={{ width: '100%' }}>
+      <button type="submit" className="fd-btn" disabled={submitting || !stripe} style={{ width: '100%' }} data-track-private>
         {submitting ? 'Processing…' : `Pay ${formatFoodMoney(amountCents, currency)}`}
       </button>
     </form>
@@ -201,11 +201,11 @@ function ReservePurchaseModal({ restaurantId, currency, onClose, onPurchased }) 
       <section style={modalStyle} role="dialog" aria-modal="true" aria-label="Buy credit reserve">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
           <strong style={{ fontSize: '1.05rem' }}>Buy credit reserve</strong>
-          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={close}>Close</button>
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={close} data-track-private>Close</button>
         </div>
 
         {step === 'amount' && (
-          <form onSubmit={beginIntent}>
+          <form onSubmit={beginIntent} data-track-private>
             <p className="fd-card-meta" style={{ marginBottom: '0.75rem' }}>
               Pre-pay for the credit you plan to issue to customers. A 2.5% platform fee applies; the rest lands in your reserve.
             </p>
@@ -227,7 +227,7 @@ function ReservePurchaseModal({ restaurantId, currency, onClose, onPurchased }) 
                 Fee (2.5%): {formatFoodMoney(feePreview, currency)} · Added to reserve: {formatFoodMoney(cents - feePreview, currency)}
               </p>
             )}
-            <button type="submit" className="fd-btn" disabled={submitting} style={{ width: '100%' }}>
+            <button type="submit" className="fd-btn" disabled={submitting} style={{ width: '100%' }} data-track-private>
               {submitting ? 'Starting…' : 'Continue to payment'}
             </button>
           </form>
@@ -247,7 +247,7 @@ function ReservePurchaseModal({ restaurantId, currency, onClose, onPurchased }) 
         {step === 'card' && (!intent?.clientSecret || !stripePromise) && (
           <div>
             <p className="fd-card-meta">Card payments are unavailable right now. The purchase was recorded as pending; retry once payments are back.</p>
-            <button type="button" className="fd-btn fd-btn-secondary" onClick={close} style={{ width: '100%', marginTop: '0.75rem' }}>Close</button>
+            <button type="button" className="fd-btn fd-btn-secondary" onClick={close} style={{ width: '100%', marginTop: '0.75rem' }} data-track-private>Close</button>
           </div>
         )}
 
@@ -261,7 +261,7 @@ function ReservePurchaseModal({ restaurantId, currency, onClose, onPurchased }) 
         {step === 'done' && (
           <div>
             <p className="fd-card-meta">Your credit reserve is funded. New customer credit issuance draws down from this balance.</p>
-            <button type="button" className="fd-btn" onClick={onClose} style={{ width: '100%', marginTop: '0.75rem' }}>Done</button>
+            <button type="button" className="fd-btn" onClick={onClose} style={{ width: '100%', marginTop: '0.75rem' }} data-track-private>Done</button>
           </div>
         )}
       </section>
@@ -308,7 +308,7 @@ export default function RestaurantCreditReservePanel({ restaurant }) {
             Pre-pay for customer credit before you issue it. Once enrolled, every credit grant is capped at this balance.
           </p>
         </div>
-        <button type="button" className="fd-btn fd-btn-sm" onClick={() => setPurchaseOpen(true)}>
+        <button type="button" className="fd-btn fd-btn-sm" onClick={() => setPurchaseOpen(true)} data-track-private>
           Buy credit reserve
         </button>
       </div>

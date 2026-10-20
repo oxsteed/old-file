@@ -331,7 +331,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     href={att.url}
                     className="flex items-center gap-2 text-xs underline opacity-80 hover:opacity-100"
                     target="_blank"
-                    rel="noopener noreferrer"
+                    rel="noopener noreferrer" data-track-private
                   >
                     📎 {att.name}
                   </a>
@@ -352,7 +352,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 <button
                   type="button"
                   onClick={() => onRetry(message.id)}
-                  className="font-medium text-brand-400 underline underline-offset-2 hover:text-brand-300"
+                  className="font-medium text-brand-400 underline underline-offset-2 hover:text-brand-300" data-track-private
                 >
                   {t('chatLiveStatus.retry', { ns: 'common' })}
                 </button>
@@ -382,7 +382,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300'
                 }`}
                 title={t('helperProfile.chat.helpful')}
-                aria-label={t('helperProfile.chat.helpfulLabel')}
+                aria-label={t('helperProfile.chat.helpfulLabel')} data-track-private
               >
                 <ThumbsUp className="w-3.5 h-3.5" />
               </button>
@@ -395,7 +395,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300'
                 }`}
                 title={t('helperProfile.chat.notHelpful')}
-                aria-label={t('helperProfile.chat.notHelpfulLabel')}
+                aria-label={t('helperProfile.chat.notHelpfulLabel')} data-track-private
               >
                 <ThumbsDown className="w-3.5 h-3.5" />
               </button>
@@ -408,7 +408,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300'
                 }`}
                 title={t('helperProfile.chat.quickReplies')}
-                aria-label={t('helperProfile.chat.quickReplies')}
+                aria-label={t('helperProfile.chat.quickReplies')} data-track-private
               >
                 <MessageSquare className="w-3.5 h-3.5" />
               </button>
@@ -434,7 +434,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                   onQuickReply?.(reply);
                   setShowQuickRepliesMenu(false);
                 }}
-                className="inline-block px-2.5 py-1 text-xs rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/60 transition-colors"
+                className="inline-block px-2.5 py-1 text-xs rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/60 transition-colors" data-track-private
               >
                 {reply}
               </button>

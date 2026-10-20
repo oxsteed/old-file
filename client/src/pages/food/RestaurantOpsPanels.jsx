@@ -100,7 +100,7 @@ export function ChecklistsPanel({ t, restaurant, bare, onStats }) {
 
       <div className={`fd-ops-toolbar${bare ? ' fd-ops-toolbar--end' : ''}`}>
         {!bare && <h3 className="fd-ops-panel-title">{t('restaurants.ops.checklists.title', 'Checklists')}</h3>}
-        <button type="button" className="fd-btn fd-btn-sm" onClick={() => setShowCreate((s) => !s)}>
+        <button type="button" className="fd-btn fd-btn-sm" onClick={() => setShowCreate((s) => !s)} data-track="ui.52793f2559.1">
           {showCreate ? t('food.common.back', 'Back') : t('restaurants.ops.checklists.newChecklist', 'New checklist')}
         </button>
       </div>
@@ -136,10 +136,10 @@ export function ChecklistsPanel({ t, restaurant, bare, onStats }) {
               {t('restaurants.ops.checklists.taskCount', '{{count}} tasks', { count: (c.tasks || []).length })}
             </p>
             <div className="fd-ops-checklist-actions">
-              <button type="button" className="fd-btn fd-btn-sm" disabled={(c.tasks || []).length === 0} onClick={() => start(c.id)}>
+              <button type="button" className="fd-btn fd-btn-sm" disabled={(c.tasks || []).length === 0} onClick={() => start(c.id)} data-track="ui.52793f2559.2">
                 {t('restaurants.ops.checklists.start', 'Start')}
               </button>
-              <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => remove(c.id)}>
+              <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => remove(c.id)} data-track="ui.52793f2559.3">
                 {t('common.delete', 'Delete')}
               </button>
             </div>
@@ -183,7 +183,7 @@ function NewChecklistForm({ t, onCreate, onCancel }) {
   };
 
   return (
-    <form onSubmit={submit} className="fd-ops-form">
+    <form onSubmit={submit} className="fd-ops-form" data-track="ui.52793f2559.4">
       <div className="fd-settings-field-grid">
         <div className="fd-field">
           <label htmlFor="cl-name">{t('restaurants.ops.checklists.nameLabel', 'Checklist name')}</label>
@@ -199,14 +199,14 @@ function NewChecklistForm({ t, onCreate, onCancel }) {
         </div>
       </div>
       <label className="fd-ops-check">
-        <input type="checkbox" checked={seed} onChange={(e) => setSeed(e.target.checked)} />
+        <input type="checkbox" checked={seed} onChange={(e) => setSeed(e.target.checked)} data-track="ui.52793f2559.5" />
         {t('restaurants.ops.checklists.seedTasks', 'Add suggested starter tasks')}
       </label>
       <div className="fd-settings-actions">
-        <button type="submit" className="fd-btn fd-btn-sm" disabled={saving || !name.trim()}>
+        <button type="submit" className="fd-btn fd-btn-sm" disabled={saving || !name.trim()} data-track="ui.52793f2559.6">
           {t('food.common.save', 'Save')}
         </button>
-        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onCancel}>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onCancel} data-track="ui.52793f2559.7">
           {t('food.common.back', 'Back')}
         </button>
       </div>
@@ -239,7 +239,7 @@ function ManageTasks({ t, restaurantId, checklist, onChanged }) {
 
   return (
     <div className="fd-ops-tasks">
-      <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setOpen((o) => !o)} data-track="ui.52793f2559.8">
         {open ? t('food.common.back', 'Hide') : t('restaurants.ops.checklists.manageTasks', 'Tasks')}
       </button>
       {open && (
@@ -248,13 +248,13 @@ function ManageTasks({ t, restaurantId, checklist, onChanged }) {
             {(checklist.tasks || []).map((tk) => (
               <li key={tk.id} className="fd-ops-task-row">
                 <span>{tk.label}</span>
-                <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => removeTask(tk.id)} aria-label={t('common.delete', 'Delete')}>×</button>
+                <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => removeTask(tk.id)} aria-label={t('common.delete', 'Delete')} data-track="ui.52793f2559.9">×</button>
               </li>
             ))}
           </ul>
           <div className="fd-ops-task-add">
             <input value={newTask} onChange={(e) => setNewTask(e.target.value)} placeholder={t('restaurants.ops.checklists.taskPlaceholder', 'Add a task…')} />
-            <button type="button" className="fd-btn fd-btn-sm" onClick={add} disabled={!newTask.trim()}>{t('common.add', 'Add')}</button>
+            <button type="button" className="fd-btn fd-btn-sm" onClick={add} disabled={!newTask.trim()} data-track="ui.52793f2559.10">{t('common.add', 'Add')}</button>
           </div>
         </div>
       )}
@@ -325,15 +325,15 @@ function RunModal({ t, restaurantId, run: initialRun, onClose }) {
           {(run.items || []).map((item) => (
             <li key={item.id} className="fd-ops-run-item">
               <label>
-                <input type="checkbox" checked={item.is_done} disabled={busy} onChange={() => toggle(item)} />
+                <input type="checkbox" checked={item.is_done} disabled={busy} onChange={() => toggle(item)} data-track="ui.52793f2559.11" />
                 <span className={item.is_done ? 'fd-ops-run-item--done' : ''}>{item.label}</span>
               </label>
             </li>
           ))}
         </ul>
         <div className="fd-ops-modal-actions">
-          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onClose}>{t('food.common.back', 'Close')}</button>
-          <button type="button" className="fd-btn fd-btn-sm" onClick={finish} disabled={busy}>
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onClose} data-track="ui.52793f2559.12">{t('food.common.back', 'Close')}</button>
+          <button type="button" className="fd-btn fd-btn-sm" onClick={finish} disabled={busy} data-track="ui.52793f2559.13">
             {t('restaurants.ops.checklists.markComplete', 'Mark complete')}
           </button>
         </div>
@@ -388,7 +388,7 @@ export function SopsPanel({ t, restaurant, bare, onStats }) {
     <div>
       <div className={`fd-ops-toolbar${bare ? ' fd-ops-toolbar--end' : ''}`}>
         {!bare && <h3 className="fd-ops-panel-title">{t('restaurants.ops.sops.title', 'SOP library')}</h3>}
-        <button type="button" className="fd-btn fd-btn-sm" onClick={() => setEditing('new')}>
+        <button type="button" className="fd-btn fd-btn-sm" onClick={() => setEditing('new')} data-track="ui.52793f2559.14">
           {t('restaurants.ops.sops.newSop', 'New SOP')}
         </button>
       </div>
@@ -404,8 +404,8 @@ export function SopsPanel({ t, restaurant, bare, onStats }) {
                   <span className="fd-tag fd-ops-sop-tag">{t(`restaurants.ops.sops.category.${s.category}`, s.category)}</span>
                 </div>
                 <div className="fd-ops-sop-actions">
-                  <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setEditing(s)}>{t('common.edit', 'Edit')}</button>
-                  <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => remove(s.id)}>{t('common.delete', 'Delete')}</button>
+                  <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setEditing(s)} data-track="ui.52793f2559.15">{t('common.edit', 'Edit')}</button>
+                  <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => remove(s.id)} data-track="ui.52793f2559.16">{t('common.delete', 'Delete')}</button>
                 </div>
               </div>
               {s.body && <p className="fd-card-meta fd-ops-sop-body">{s.body}</p>}
@@ -432,7 +432,7 @@ function SopForm({ t, sop, onSave, onCancel }) {
   };
 
   return (
-    <form onSubmit={submit} className="fd-ops-form">
+    <form onSubmit={submit} className="fd-ops-form" data-track="ui.52793f2559.17">
       <h3 className="fd-ops-form-title">{sop ? t('restaurants.ops.sops.editTitle', 'Edit SOP') : t('restaurants.ops.sops.newSop', 'New SOP')}</h3>
       <div className="fd-settings-field-grid">
         <div className="fd-field">
@@ -453,8 +453,8 @@ function SopForm({ t, sop, onSave, onCancel }) {
         <textarea id="sop-body" rows={8} value={body} onChange={(e) => setBody(e.target.value)} placeholder={t('restaurants.ops.sops.bodyPlaceholder', 'Step-by-step instructions…')} />
       </div>
       <div className="fd-settings-actions">
-        <button type="submit" className="fd-btn fd-btn-sm" disabled={saving || !title.trim()}>{t('food.common.save', 'Save')}</button>
-        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onCancel}>{t('food.common.back', 'Back')}</button>
+        <button type="submit" className="fd-btn fd-btn-sm" disabled={saving || !title.trim()} data-track="ui.52793f2559.18">{t('food.common.save', 'Save')}</button>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onCancel} data-track="ui.52793f2559.19">{t('food.common.back', 'Back')}</button>
       </div>
     </form>
   );
@@ -523,7 +523,7 @@ export function InventoryPanel({ t, restaurant, bare, onStats }) {
 
       <div className={`fd-ops-toolbar${bare ? ' fd-ops-toolbar--end' : ''}`}>
         {!bare && <h3 className="fd-ops-panel-title">{t('restaurants.ops.inventory.title', 'Inventory')}</h3>}
-        <button type="button" className="fd-btn fd-btn-sm" onClick={() => setShowCreate((s) => !s)}>
+        <button type="button" className="fd-btn fd-btn-sm" onClick={() => setShowCreate((s) => !s)} data-track="ui.52793f2559.20">
           {showCreate ? t('food.common.back', 'Back') : t('restaurants.ops.inventory.newItem', 'New item')}
         </button>
       </div>
@@ -552,8 +552,8 @@ export function InventoryPanel({ t, restaurant, bare, onStats }) {
               </div>
               <div className="fd-ops-inventory-actions">
                 <span className="fd-card-meta">{fmtQty(it.quantity)} {it.unit}</span>
-                <button type="button" className="fd-btn fd-btn-sm" onClick={() => setAdjusting(it)}>{t('restaurants.ops.inventory.adjust', 'Adjust')}</button>
-                <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => remove(it.id)} aria-label={t('common.delete', 'Delete')}>×</button>
+                <button type="button" className="fd-btn fd-btn-sm" onClick={() => setAdjusting(it)} data-track="ui.52793f2559.21">{t('restaurants.ops.inventory.adjust', 'Adjust')}</button>
+                <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => remove(it.id)} aria-label={t('common.delete', 'Delete')} data-track="ui.52793f2559.22">×</button>
               </div>
             </div>
           ))}
@@ -580,7 +580,7 @@ function NewItemForm({ t, onCreate, onCancel }) {
   };
 
   return (
-    <form onSubmit={submit} className="fd-ops-form">
+    <form onSubmit={submit} className="fd-ops-form" data-track="ui.52793f2559.23">
       <div className="fd-settings-field-grid">
         <div className="fd-field">
           <label htmlFor="inv-name">{t('restaurants.ops.inventory.nameLabel', 'Item name')}</label>
@@ -608,8 +608,8 @@ function NewItemForm({ t, onCreate, onCancel }) {
         </div>
       </div>
       <div className="fd-settings-actions">
-        <button type="submit" className="fd-btn fd-btn-sm" disabled={saving || !form.name.trim()}>{t('food.common.save', 'Save')}</button>
-        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onCancel}>{t('food.common.back', 'Back')}</button>
+        <button type="submit" className="fd-btn fd-btn-sm" disabled={saving || !form.name.trim()} data-track="ui.52793f2559.24">{t('food.common.save', 'Save')}</button>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onCancel} data-track="ui.52793f2559.25">{t('food.common.back', 'Back')}</button>
       </div>
     </form>
   );
@@ -637,7 +637,7 @@ function AdjustModal({ t, item, onClose, onApply }) {
       className="fd-ops-modal-overlay"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <form onSubmit={submit} className="fd-ops-modal fd-ops-modal--narrow">
+      <form onSubmit={submit} className="fd-ops-modal fd-ops-modal--narrow" data-track="ui.52793f2559.26">
         <h3 className="fd-ops-form-title">{t('restaurants.ops.inventory.adjustTitle', 'Adjust stock')}: {item.name}</h3>
         <p className="fd-card-meta">{t('restaurants.ops.inventory.onHand', 'On hand')}: {fmtQty(item.quantity)} {item.unit}</p>
         <div className="fd-field">
@@ -657,8 +657,8 @@ function AdjustModal({ t, item, onClose, onApply }) {
           <input id="adj-note" value={note} onChange={(e) => setNote(e.target.value)} />
         </div>
         <div className="fd-ops-modal-actions">
-          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onClose}>{t('food.common.back', 'Cancel')}</button>
-          <button type="submit" className="fd-btn fd-btn-sm" disabled={busy}>{t('restaurants.ops.inventory.apply', 'Apply')}</button>
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onClose} data-track="ui.52793f2559.27">{t('food.common.back', 'Cancel')}</button>
+          <button type="submit" className="fd-btn fd-btn-sm" disabled={busy} data-track="ui.52793f2559.28">{t('restaurants.ops.inventory.apply', 'Apply')}</button>
         </div>
       </form>
     </div>

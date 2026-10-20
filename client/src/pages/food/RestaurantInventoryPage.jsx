@@ -50,8 +50,8 @@ function AdjustModal({ item, onSave, onClose }) {
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('food.inv.notePlaceholder')} />
         </div>
         <div className="fd-pos-modal-actions">
-          <button className="fd-btn-secondary" onClick={onClose}>{t('food.common.cancel')}</button>
-          <button className="fd-btn" onClick={handle} disabled={saving || !qty}>
+          <button className="fd-btn-secondary" onClick={onClose} data-track="ui.a4070f708e.1">{t('food.common.cancel')}</button>
+          <button className="fd-btn" onClick={handle} disabled={saving || !qty} data-track="ui.a4070f708e.2">
             {saving ? t('food.common.saving') : t('food.inv.adjust')}
           </button>
         </div>
@@ -101,8 +101,8 @@ function RequestModal({ restaurantId, onSaved, onClose }) {
           <textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} rows={2} />
         </div>
         <div className="fd-pos-modal-actions">
-          <button className="fd-btn-secondary" onClick={onClose}>{t('food.common.cancel')}</button>
-          <button className="fd-btn" onClick={handle} disabled={saving || !form.item_name}>
+          <button className="fd-btn-secondary" onClick={onClose} data-track="ui.a4070f708e.3">{t('food.common.cancel')}</button>
+          <button className="fd-btn" onClick={handle} disabled={saving || !form.item_name} data-track="ui.a4070f708e.4">
             {saving ? t('food.common.saving') : t('food.inv.submit')}
           </button>
         </div>
@@ -154,8 +154,8 @@ function IssueModal({ restaurantId, onSaved, onClose }) {
           </select>
         </div>
         <div className="fd-pos-modal-actions">
-          <button className="fd-btn-secondary" onClick={onClose}>{t('food.common.cancel')}</button>
-          <button className="fd-btn" onClick={handle} disabled={saving || !form.description}>
+          <button className="fd-btn-secondary" onClick={onClose} data-track="ui.a4070f708e.5">{t('food.common.cancel')}</button>
+          <button className="fd-btn" onClick={handle} disabled={saving || !form.description} data-track="ui.a4070f708e.6">
             {saving ? t('food.common.saving') : t('food.inv.submit')}
           </button>
         </div>
@@ -275,7 +275,7 @@ export default function RestaurantInventoryPage() {
         {/* Tab nav */}
         <div className="fd-inv-tabs">
           {TABS.map((tb) => (
-            <button key={tb} className={`fd-inv-tab${tab === tb ? ' fd-active' : ''}`} onClick={() => setTab(tb)}>
+            <button key={tb} className={`fd-inv-tab${tab === tb ? ' fd-active' : ''}`} onClick={() => setTab(tb)} data-track="ui.a4070f708e.7">
               {t(`food.inv.tab_${tb}`)}
             </button>
           ))}
@@ -308,7 +308,7 @@ export default function RestaurantInventoryPage() {
                       <span className={isLow ? 'fd-inv-low-text' : ''}>{item.current_stock ?? '—'} {item.unit}</span>
                       {item.par_level != null && <span className="fd-inv-par"> / par {item.par_level}</span>}
                     </div>
-                    <button className="fd-btn-sm fd-btn-secondary" onClick={() => setAdjustItem(item)}>
+                    <button className="fd-btn-sm fd-btn-secondary" onClick={() => setAdjustItem(item)} data-track="ui.a4070f708e.8">
                       {t('food.inv.adjust')}
                     </button>
                   </div>
@@ -322,7 +322,7 @@ export default function RestaurantInventoryPage() {
         {tab === 'requests' && (
           <div>
             <div className="fd-inv-bar">
-              <button className="fd-btn" onClick={() => setShowRequest(true)}>{t('food.inv.newRequest')}</button>
+              <button className="fd-btn" onClick={() => setShowRequest(true)} data-track="ui.a4070f708e.9">{t('food.inv.newRequest')}</button>
             </div>
             <div className="fd-inv-list">
               {requests.length === 0 && (
@@ -330,7 +330,7 @@ export default function RestaurantInventoryPage() {
                   icon={FileText}
                   title={t('food.inv.noRequests')}
                   actions={(
-                    <button type="button" className="fd-btn" onClick={() => setShowRequest(true)}>
+                    <button type="button" className="fd-btn" onClick={() => setShowRequest(true)} data-track="ui.a4070f708e.10">
                       {t('food.inv.newRequest')}
                     </button>
                   )}
@@ -354,7 +354,7 @@ export default function RestaurantInventoryPage() {
         {tab === 'issues' && (
           <div>
             <div className="fd-inv-bar">
-              <button className="fd-btn" onClick={() => setShowIssue(true)}>{t('food.inv.newIssue')}</button>
+              <button className="fd-btn" onClick={() => setShowIssue(true)} data-track="ui.a4070f708e.11">{t('food.inv.newIssue')}</button>
             </div>
             <div className="fd-inv-list">
               {issues.length === 0 && (
@@ -362,7 +362,7 @@ export default function RestaurantInventoryPage() {
                   icon={AlertTriangle}
                   title={t('food.inv.noIssues')}
                   actions={(
-                    <button type="button" className="fd-btn" onClick={() => setShowIssue(true)}>
+                    <button type="button" className="fd-btn" onClick={() => setShowIssue(true)} data-track="ui.a4070f708e.12">
                       {t('food.inv.newIssue')}
                     </button>
                   )}
@@ -399,7 +399,7 @@ export default function RestaurantInventoryPage() {
                   </div>
                   <button
                     className="fd-btn-sm fd-btn-danger"
-                    onClick={() => { setAdjustItem({ ...item, _forceType: 'waste' }); }}
+                    onClick={() => { setAdjustItem({ ...item, _forceType: 'waste' }); }} data-track="ui.a4070f708e.13"
                   >
                     {t('food.inv.logWaste')}
                   </button>

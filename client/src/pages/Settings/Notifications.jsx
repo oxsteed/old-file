@@ -61,7 +61,7 @@ function Toggle({ checked, onChange, disabled, ariaLabel }) {
       aria-label={ariaLabel}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`notification-settings__toggle ${checked ? 'is-on' : 'is-off'}`}
+      className={`notification-settings__toggle ${checked ? 'is-on' : 'is-off'}`} data-track="ui.1a983f2bdd.1"
     >
       <span className="notification-settings__toggle-thumb" />
     </button>

@@ -1,0 +1,220 @@
+{
+  "sections": {
+    "1": {
+      "search": "1. Introducción OxSteed LLC ofrece servicios locales, trabajos y ofertas, espacios de empresas, pedidos de comida, entregas, contenido multimedia y herramientas de cuenta y pago. Esta política describe la información tratada al usar estas funciones, incluidos el contacto de invitados y la asistencia. La disponibilidad depende de la función, la cuenta, la región y el proveedor.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "1. Introducción"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed LLC ofrece servicios locales, trabajos y ofertas, espacios de empresas, pedidos de comida, entregas, contenido multimedia y herramientas de cuenta y pago. Esta política describe la información tratada al usar estas funciones, incluidos el contacto de invitados y la asistencia. La disponibilidad depende de la función, la cuenta, la región y el proveedor."
+        }
+      ]
+    },
+    "2": {
+      "search": "2. Información que recopilamos Tratamos datos que proporciona: contacto y cuenta, perfiles y empresas, trabajos y pedidos, mensajes, solicitudes de asistencia, reseñas, archivos, registros de pago y verificación cuando sea necesaria. También tratamos direcciones IP, datos del navegador, registros de seguridad y eventos de uso consentidos. La ubicación puede proceder de una dirección, del perfil o de permisos del dispositivo. Los proveedores de pago pueden recoger las credenciales directamente.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "2. Información que recopilamos"
+        },
+        {
+          "type": "p",
+          "text": "Tratamos datos que proporciona: contacto y cuenta, perfiles y empresas, trabajos y pedidos, mensajes, solicitudes de asistencia, reseñas, archivos, registros de pago y verificación cuando sea necesaria. También tratamos direcciones IP, datos del navegador, registros de seguridad y eventos de uso consentidos. La ubicación puede proceder de una dirección, del perfil o de permisos del dispositivo. Los proveedores de pago pueden recoger las credenciales directamente."
+        }
+      ]
+    },
+    "3": {
+      "search": "3. Cómo utilizamos su información Usamos los datos para cuentas y empresas, trabajos y servicios, pedidos, mensajes, avisos, pagos, asistencia, disputas, solicitudes de privacidad, prevención del abuso y obligaciones legales. La analítica opcional ayuda a comprender el uso. Al usar funciones de IA, su consulta y el contexto pertinente pueden enviarse al proveedor configurado. Evite datos sensibles innecesarios; las respuestas pueden ser inexactas.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "3. Cómo utilizamos su información"
+        },
+        {
+          "type": "p",
+          "text": "Usamos los datos para cuentas y empresas, trabajos y servicios, pedidos, mensajes, avisos, pagos, asistencia, disputas, solicitudes de privacidad, prevención del abuso y obligaciones legales. La analítica opcional ayuda a comprender el uso. Al usar funciones de IA, su consulta y el contexto pertinente pueden enviarse al proveedor configurado. Evite datos sensibles innecesarios; las respuestas pueden ser inexactas."
+        }
+      ]
+    },
+    "4": {
+      "search": "4. Cómo compartimos su información Compartimos información con participantes y empresas necesarios para el servicio solicitado, personal autorizado y proveedores de pagos, alojamiento, almacenamiento, distribución y seguridad, notificaciones, mapas e IA. Las integraciones incluyen Stripe y Cloudflare; otras dependen de la función y configuración. Los perfiles públicos, anuncios, reseñas y medios publicados son visibles para su audiencia. También puede haber comunicaciones legales o transferencias empresariales. La Política de cookies explica las integraciones opcionales de análisis y publicidad.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "4. Cómo compartimos su información"
+        },
+        {
+          "type": "p",
+          "text": "Compartimos información con participantes y empresas necesarios para el servicio solicitado, personal autorizado y proveedores de pagos, alojamiento, almacenamiento, distribución y seguridad, notificaciones, mapas e IA. Las integraciones incluyen Stripe y Cloudflare; otras dependen de la función y configuración. Los perfiles públicos, anuncios, reseñas y medios publicados son visibles para su audiencia. También puede haber comunicaciones legales o transferencias empresariales. La Política de cookies explica las integraciones opcionales de análisis y publicidad."
+        }
+      ]
+    },
+    "5": {
+      "search": "5. Abordar la privacidad y el enmascaramiento de datos La visibilidad de la ubicación depende del rol, la asignación, el horario y los controles de acceso. Los datos de pedidos y entrega se comparten con quienes los necesitan. Las descripciones, fotos, reseñas o medios públicos pueden revelar una dirección aunque el campo de dirección esté restringido. No publique direcciones privadas ni instrucciones de acceso.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "5. Abordar la privacidad y el enmascaramiento de datos"
+        },
+        {
+          "type": "p",
+          "text": "La visibilidad de la ubicación depende del rol, la asignación, el horario y los controles de acceso. Los datos de pedidos y entrega se comparten con quienes los necesitan. Las descripciones, fotos, reseñas o medios públicos pueden revelar una dirección aunque el campo de dirección esté restringido. No publique direcciones privadas ni instrucciones de acceso."
+        }
+      ]
+    },
+    "6": {
+      "search": "6. Retención de datos La conservación varía según el registro y su finalidad. Cuentas, pedidos, mensajes, seguridad y medios tienen ciclos distintos. Los libros financieros, pagos, liquidaciones, consentimientos y auditorías pueden conservarse tras cerrar una cuenta por contabilidad, disputas, fraude u obligaciones legales. El trabajo activo, fondos retenidos, litigios, auditorías o copias de seguridad pueden retrasar el borrado. Cerrar la cuenta no elimina inmediatamente todos los registros ni copias de terceros.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "6. Retención de datos"
+        },
+        {
+          "type": "p",
+          "text": "La conservación varía según el registro y su finalidad. Cuentas, pedidos, mensajes, seguridad y medios tienen ciclos distintos. Los libros financieros, pagos, liquidaciones, consentimientos y auditorías pueden conservarse tras cerrar una cuenta por contabilidad, disputas, fraude u obligaciones legales. El trabajo activo, fondos retenidos, litigios, auditorías o copias de seguridad pueden retrasar el borrado. Cerrar la cuenta no elimina inmediatamente todos los registros ni copias de terceros."
+        }
+      ]
+    },
+    "7": {
+      "search": "7. Tus derechos Según la ley aplicable, puede solicitar acceso, corrección, eliminación, portabilidad, límites al uso de datos sensibles o exclusión de venta, intercambio o publicidad dirigida. Contacte privacy@oxsteed.com o use /do-not-sell sin iniciar sesión. Podemos verificar la identidad para acceso o eliminación y explicar excepciones. Atenderemos las solicitudes dentro de los plazos legales sin discriminar por ejercer sus derechos.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "7. Tus derechos"
+        },
+        {
+          "type": "p",
+          "text": "Según la ley aplicable, puede solicitar acceso, corrección, eliminación, portabilidad, límites al uso de datos sensibles o exclusión de venta, intercambio o publicidad dirigida. Contacte privacy@oxsteed.com o use /do-not-sell sin iniciar sesión. Podemos verificar la identidad para acceso o eliminación y explicar excepciones. Atenderemos las solicitudes dentro de los plazos legales sin discriminar por ejercer sus derechos."
+        }
+      ]
+    },
+    "8": {
+      "search": "8. Cookies y tecnologías de seguimiento Las cookies esenciales y el almacenamiento del navegador permiten acceso, seguridad, consentimiento y funciones solicitadas. Gestionar cookies controla análisis, marketing e integraciones funcionales opcionales en este navegador. El análisis puede incluir visitas propias y Google Analytics; el marketing puede incluir Meta Pixel si está configurado. Ajustes básicos y borradores pueden almacenarse independientemente. Consulte la Política de cookies.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "8. Cookies y tecnologías de seguimiento"
+        },
+        {
+          "type": "p",
+          "text": "Las cookies esenciales y el almacenamiento del navegador permiten acceso, seguridad, consentimiento y funciones solicitadas. Gestionar cookies controla análisis, marketing e integraciones funcionales opcionales en este navegador. El análisis puede incluir visitas propias y Google Analytics; el marketing puede incluir Meta Pixel si está configurado. Ajustes básicos y borradores pueden almacenarse independientemente. Consulte la Política de cookies."
+        }
+      ]
+    },
+    "9": {
+      "search": "9. Seguridad de los datos y notificación de infracciones Usamos controles de acceso, hash de contraseñas, protección de sesiones, validación, límites de solicitudes y registros de seguridad. Ningún sistema es completamente seguro. La cobertura depende del servicio y la configuración; esta política no certifica cada almacén ni proveedor. Notificaremos incidentes a afectados y autoridades cuando lo exija la ley. Consulte /security para informar problemas.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "9. Seguridad de los datos y notificación de infracciones"
+        },
+        {
+          "type": "p",
+          "text": "Usamos controles de acceso, hash de contraseñas, protección de sesiones, validación, límites de solicitudes y registros de seguridad. Ningún sistema es completamente seguro. La cobertura depende del servicio y la configuración; esta política no certifica cada almacén ni proveedor. Notificaremos incidentes a afectados y autoridades cuando lo exija la ley. Consulte /security para informar problemas."
+        }
+      ]
+    },
+    "10": {
+      "search": "10. Eliminación de cuenta Solicite eliminar la cuenta en los ajustes disponibles o en privacy@oxsteed.com. Se pueden eliminar o anonimizar datos personales conservando transacciones y auditorías necesarias. Las obligaciones activas pueden requerir resolución previa. Las copias recibidas por otros usuarios o proveedores están sujetas a sus obligaciones. Consúltenos sobre el alcance y estado de su solicitud.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "10. Eliminación de cuenta"
+        },
+        {
+          "type": "p",
+          "text": "Solicite eliminar la cuenta en los ajustes disponibles o en privacy@oxsteed.com. Se pueden eliminar o anonimizar datos personales conservando transacciones y auditorías necesarias. Las obligaciones activas pueden requerir resolución previa. Las copias recibidas por otros usuarios o proveedores están sujetas a sus obligaciones. Consúltenos sobre el alcance y estado de su solicitud."
+        }
+      ]
+    },
+    "11": {
+      "search": "11 niños privacidad menores de 18 menores",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "11. Privacidad de los niños"
+        },
+        {
+          "type": "p",
+          "segments": [
+            "OxSteed no está diseñado para que lo utilicen menores de 18 años. No recopilamos intencionalmente información personal de niños menores de 18 años. Si descubrimos que hemos recopilado información personal de un niño menor de 18 años, la eliminaremos de inmediato. Si cree que un niño menor de 18 años nos ha proporcionado información personal, contáctenos en",
+            {
+              "mailto": "legal@oxsteed.com"
+            },
+            null
+          ]
+        }
+      ]
+    },
+    "12": {
+      "search": "12 cambios política de privacidad correo electrónico 14 días actualizado",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "12. Cambios a esta Política de Privacidad"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed puede actualizar esta Política de Privacidad en cualquier momento. Notificaremos a los usuarios sobre cambios materiales por correo electrónico al menos 14 días antes de que los cambios entren en vigor. La fecha de \"Última actualización\" en la parte superior de esta página refleja la revisión más reciente."
+        }
+      ]
+    },
+    "13": {
+      "search": "13 contáctenos springfield legal@oxsteed.com",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "13. Contáctenos"
+        },
+        {
+          "type": "p",
+          "text": "Si tiene preguntas sobre esta Política de privacidad o para ejercer sus derechos de privacidad, contáctenos en:"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed LLC"
+        },
+        {
+          "type": "p",
+          "text": "Springfield, Ohio"
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "mailto": "legal@oxsteed.com"
+            }
+          ]
+        }
+      ]
+    },
+    "14": {
+      "search": "Actividad, ofertas y enlaces de socios Tras el plazo de aviso, registramos páginas, botones seleccionados, búsquedas y acciones del mercado. Usamos centros de códigos postales, nunca coordenadas personales, para entender la demanda y elegir ofertas. El personal aprueba cada campaña. La IA de este análisis funciona solo en servidores controlados por OxSteed. En el EEE, Reino Unido, Suiza y Quebec, el seguimiento y las ofertas basadas en la actividad requieren consentimientos separados, revocables en Configuración. Los estados estadounidenses aplicables disponen del control No vender ni compartir y de Global Privacy Control. En otras regiones, el ajuste de analítica controla Google Analytics y el almacenamiento persistente; la actividad está cubierta por este aviso. Guardamos la actividad detallada hasta 90 días, o 30 días con consentimiento, y los resúmenes de cuenta hasta 13 meses. Los socios solo reciben un código de clic aleatorio, nunca tu nombre, correo o actividad. Sus políticas se aplican a las compras en sus sitios. Las notificaciones de ofertas requieren autorización separada y pueden desactivarse en Configuración → Privacidad. Las ofertas no cambian precios, acceso ni posición en búsquedas. Promote puede vincular visitantes conectados con un código de cuenta durante siete días. Para acceso, corrección o eliminación: privacy@oxsteed.com.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "14. Actividad, ofertas y enlaces de socios"
+        },
+        {
+          "type": "p",
+          "text": "Tras el plazo de aviso, registramos páginas, botones seleccionados, búsquedas y acciones del mercado. Usamos centros de códigos postales, nunca coordenadas personales, para entender la demanda y elegir ofertas. El personal aprueba cada campaña. La IA de este análisis funciona solo en servidores controlados por OxSteed."
+        },
+        {
+          "type": "p",
+          "text": "En el EEE, Reino Unido, Suiza y Quebec, el seguimiento y las ofertas basadas en la actividad requieren consentimientos separados, revocables en Configuración. Los estados estadounidenses aplicables disponen del control No vender ni compartir y de Global Privacy Control. En otras regiones, el ajuste de analítica controla Google Analytics y el almacenamiento persistente; la actividad está cubierta por este aviso."
+        },
+        {
+          "type": "p",
+          "text": "Guardamos la actividad detallada hasta 90 días, o 30 días con consentimiento, y los resúmenes de cuenta hasta 13 meses. Los socios solo reciben un código de clic aleatorio, nunca tu nombre, correo o actividad. Sus políticas se aplican a las compras en sus sitios."
+        },
+        {
+          "type": "p",
+          "text": "Las notificaciones de ofertas requieren autorización separada y pueden desactivarse en Configuración → Privacidad. Las ofertas no cambian precios, acceso ni posición en búsquedas. Promote puede vincular visitantes conectados con un código de cuenta durante siete días. Para acceso, corrección o eliminación: privacy@oxsteed.com."
+        }
+      ]
+    }
+  }
+}

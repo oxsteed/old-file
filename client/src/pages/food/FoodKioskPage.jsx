@@ -324,7 +324,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
         <button
           type="button"
           className="fd-btn fd-btn-secondary fd-btn-sm"
-          onClick={resetAll}
+          onClick={resetAll} data-track="ui.e23c624842.1"
         >
           {t("food.kiosk.startOver")}
         </button>
@@ -366,7 +366,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
             e.preventDefault();
             setStep("mode");
           }
-        }}
+        }} data-track="ui.e23c624842.2"
       >
         <FoodBrand size={84} />
         <h1>{data.restaurant.display_name}</h1>
@@ -386,7 +386,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
           <button
             type="button"
             className="fd-btn fd-btn-secondary fd-btn-sm"
-            onClick={resetAll}
+            onClick={resetAll} data-track="ui.e23c624842.3"
           >
             {t("food.kiosk.startOver")}
           </button>
@@ -398,7 +398,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
             onClick={() => {
               setFulfillment("dine_in");
               setStep("menu");
-            }}
+            }} data-track="ui.e23c624842.4"
           >
             🍽️ {t("food.kiosk.eatIn")}
           </button>
@@ -408,7 +408,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
             onClick={() => {
               setFulfillment("pickup");
               setStep("menu");
-            }}
+            }} data-track="ui.e23c624842.5"
           >
             🥡 {t("food.kiosk.takeOut")}
           </button>
@@ -443,7 +443,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
         <button
           type="button"
           className="fd-btn fd-btn-secondary fd-btn-sm"
-          onClick={resetAll}
+          onClick={resetAll} data-track="ui.e23c624842.6"
         >
           {t("food.kiosk.startOver")}
         </button>
@@ -475,7 +475,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
                             e.preventDefault();
                             setActiveItem(item);
                           }
-                        }}
+                        }} data-track="ui.e23c624842.7"
                       >
                         <h4>{item.name}</h4>
                         <strong style={{ color: "var(--primary-color)" }}>
@@ -526,7 +526,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
                     aria-label={t("food.common.remove")}
                     onClick={() =>
                       setCart((prev) => prev.filter((_, i) => i !== index))
-                    }
+                    } data-track="ui.e23c624842.8"
                   >
                     ×
                   </button>
@@ -574,7 +574,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
               <button
                 type="button"
                 className="fd-btn fd-btn-secondary"
-                onClick={() => setStep("menu")}
+                onClick={() => setStep("menu")} data-track="ui.e23c624842.9"
               >
                 {t("food.kiosk.addMore")}
               </button>
@@ -588,7 +588,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
                   cart.length === 0 ||
                   !quoted
                 }
-                onClick={submit}
+                onClick={submit} data-track="ui.e23c624842.10"
               >
                 {placing ? t("food.order.placing") : t("food.order.placeOrder")}
               </button>
@@ -629,7 +629,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
           <button
             type="button"
             className="fd-btn"
-            onClick={() => setStep("review")}
+            onClick={() => setStep("review")} data-track="ui.e23c624842.11"
           >
             {t("food.order.reviewOrder")}
           </button>

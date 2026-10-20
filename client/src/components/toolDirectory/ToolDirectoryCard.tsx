@@ -119,7 +119,7 @@ const ToolDirectoryCard: React.FC<ToolDirectoryCardProps> = ({
           <div className="min-w-0">
             <button
               onClick={() => onViewDetails(tool)}
-              className="text-start font-semibold text-white text-base hover:text-brand-400 transition-colors line-clamp-1"
+              className="text-start font-semibold text-white text-base hover:text-brand-400 transition-colors line-clamp-1" data-track="ui.8326ed7c64.1"
             >
               {tool.name}
             </button>
@@ -259,7 +259,7 @@ const ToolDirectoryCard: React.FC<ToolDirectoryCardProps> = ({
             onClick={() => tool.owner_id && onMessage?.(tool.owner_id)}
             disabled={!tool.owner_id}
             className="flex items-center justify-center gap-1.5 flex-1 py-2 rounded-xl border border-gray-700 text-gray-300 text-xs font-medium hover:bg-gray-800 hover:text-white transition-colors disabled:opacity-50"
-            aria-label={t('toolRentalsDir.messageOwnerAria', { name: ownerName })}
+            aria-label={t('toolRentalsDir.messageOwnerAria', { name: ownerName })} data-track="ui.8326ed7c64.2"
           >
             <MessageCircle className="w-3.5 h-3.5" aria-hidden="true" />
             {t('toolRentalsDir.message')}
@@ -268,7 +268,7 @@ const ToolDirectoryCard: React.FC<ToolDirectoryCardProps> = ({
             onClick={() => onViewDetails(tool)}
             disabled={!tool.is_available}
             className="flex items-center justify-center gap-1.5 flex-[2] py-2 rounded-xl text-white text-xs font-semibold transition-colors bg-brand-500 hover:bg-brand-600 disabled:opacity-50"
-            aria-label={t('toolRentalsDir.viewAndBookAria', { name: tool.name })}
+            aria-label={t('toolRentalsDir.viewAndBookAria', { name: tool.name })} data-track="ui.8326ed7c64.3"
           >
             <CalendarCheck className="w-3.5 h-3.5" aria-hidden="true" />
             {tool.is_available ? t('toolRentalsDir.viewAndBook') : t('toolRentalsDir.unavailableBadge')}

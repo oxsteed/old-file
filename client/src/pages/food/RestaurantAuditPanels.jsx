@@ -169,7 +169,7 @@ export function AuditsPanel({ t, restaurant, bare, onStats, isManager }) {
           <button
             type="button"
             className="fd-btn fd-btn-sm"
-            onClick={() => { setEditing(null); setShowCreate((s) => !s); }}
+            onClick={() => { setEditing(null); setShowCreate((s) => !s); }} data-track="ui.0bf8f8ca2a.1"
           >
             {showCreate ? t('food.common.back', 'Back') : t('restaurants.ops.audits.newTemplate', 'New template')}
           </button>
@@ -198,7 +198,7 @@ export function AuditsPanel({ t, restaurant, bare, onStats, isManager }) {
           icon={ClipboardList}
           title={t('restaurants.ops.audits.templatesEmpty', 'No audit templates yet. Create one or use a starter.')}
           actions={(
-            <button type="button" className="fd-btn" onClick={() => { setEditing(null); setShowCreate(true); }}>
+            <button type="button" className="fd-btn" onClick={() => { setEditing(null); setShowCreate(true); }} data-track="ui.0bf8f8ca2a.2">
               {t('restaurants.ops.audits.newTemplate', 'New template')}
             </button>
           )}
@@ -215,20 +215,20 @@ export function AuditsPanel({ t, restaurant, bare, onStats, isManager }) {
                 {t('restaurants.ops.audits.itemCount', '{{count}} items', { count: (tmpl.items || []).length })}
               </p>
               <div className="fd-ops-checklist-actions">
-                <button type="button" className="fd-btn fd-btn-sm" onClick={() => start(tmpl.id)}>
+                <button type="button" className="fd-btn fd-btn-sm" onClick={() => start(tmpl.id)} data-track="ui.0bf8f8ca2a.3">
                   {t('restaurants.ops.audits.start', 'Start audit')}
                 </button>
                 {isManager && (
                   <button
                     type="button"
                     className="fd-btn fd-btn-secondary fd-btn-sm"
-                    onClick={() => { setShowCreate(false); setEditing(tmpl); }}
+                    onClick={() => { setShowCreate(false); setEditing(tmpl); }} data-track="ui.0bf8f8ca2a.4"
                   >
                     {t('common.edit', 'Edit')}
                   </button>
                 )}
                 {isManager && (
-                  <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => remove(tmpl.id)}>
+                  <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => remove(tmpl.id)} data-track="ui.0bf8f8ca2a.5">
                     {t('common.delete', 'Delete')}
                   </button>
                 )}
@@ -308,17 +308,17 @@ function AuditTemplateForm({ t, template, onCancel, onSave }) {
   };
 
   return (
-    <form onSubmit={submit} className="fd-ops-form">
+    <form onSubmit={submit} className="fd-ops-form" data-track="ui.0bf8f8ca2a.6">
       <h3 className="fd-ops-form-title">
         {template
           ? t('restaurants.ops.audits.editTitle', 'Edit template')
           : t('restaurants.ops.audits.newTitle', 'New audit template')}
       </h3>
       <div className="fd-settings-actions">
-        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => useStarter('kitchen')}>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => useStarter('kitchen')} data-track="ui.0bf8f8ca2a.7">
           {t('restaurants.ops.audits.useStarterKitchen', 'Use starter: Kitchen inspection')}
         </button>
-        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => useStarter('foodSafety')}>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => useStarter('foodSafety')} data-track="ui.0bf8f8ca2a.8">
           {t('restaurants.ops.audits.useStarterFoodSafety', 'Use starter: Food safety check')}
         </button>
       </div>
@@ -403,7 +403,7 @@ function AuditTemplateForm({ t, template, onCancel, onSave }) {
                 type="button"
                 className="fd-btn fd-btn-secondary fd-btn-sm"
                 onClick={() => removeItem(idx)}
-                aria-label={t('restaurants.ops.audits.removeItem', 'Remove item')}
+                aria-label={t('restaurants.ops.audits.removeItem', 'Remove item')} data-track="ui.0bf8f8ca2a.9"
               >
                 ×
               </button>
@@ -412,15 +412,15 @@ function AuditTemplateForm({ t, template, onCancel, onSave }) {
         ))}
       </div>
       <div className="fd-settings-actions">
-        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={addItem}>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={addItem} data-track="ui.0bf8f8ca2a.10">
           {t('restaurants.ops.audits.addItem', 'Add item')}
         </button>
       </div>
       <div className="fd-settings-actions">
-        <button type="submit" className="fd-btn fd-btn-sm" disabled={saving || !name.trim()}>
+        <button type="submit" className="fd-btn fd-btn-sm" disabled={saving || !name.trim()} data-track="ui.0bf8f8ca2a.11">
           {t('food.common.save', 'Save')}
         </button>
-        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onCancel}>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onCancel} data-track="ui.0bf8f8ca2a.12">
           {t('food.common.back', 'Back')}
         </button>
       </div>
@@ -446,7 +446,7 @@ function AuditRunRow({ t, run, onView }) {
         {` · ${t('restaurants.ops.audits.findingsCount', '{{count}} findings', { count: run.finding_count || 0 })}`}
         {` · ${t('restaurants.ops.audits.openActionsCount', '{{count}} open actions', { count: run.open_action_count || 0 })}`}
       </span>
-      <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onView}>
+      <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onView} data-track="ui.0bf8f8ca2a.13">
         {t('restaurants.ops.audits.view', 'View')}
       </button>
     </div>
@@ -541,7 +541,7 @@ function AuditRunView({ t, restaurantId, auditId, templateItems, staff, isManage
         <h3 className="fd-ops-panel-title">
           {t('restaurants.ops.audits.conductingTitle', 'Conducting audit')}: {audit.template_name}
         </h3>
-        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onClose}>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onClose} data-track="ui.0bf8f8ca2a.14">
           {t('food.common.back', 'Back')}
         </button>
       </div>
@@ -582,7 +582,7 @@ function AuditRunView({ t, restaurantId, auditId, templateItems, staff, isManage
                       className="fd-btn fd-btn-secondary fd-btn-sm"
                       onClick={() => setScore(item.item_id, e.score - 1, max)}
                       disabled={e.score <= 0}
-                      aria-label={t('restaurants.ops.audits.decreaseScore', 'Decrease score')}
+                      aria-label={t('restaurants.ops.audits.decreaseScore', 'Decrease score')} data-track="ui.0bf8f8ca2a.15"
                     >
                       −
                     </button>
@@ -600,7 +600,7 @@ function AuditRunView({ t, restaurantId, auditId, templateItems, staff, isManage
                       className="fd-btn fd-btn-secondary fd-btn-sm"
                       onClick={() => setScore(item.item_id, e.score + 1, max)}
                       disabled={e.score >= max}
-                      aria-label={t('restaurants.ops.audits.increaseScore', 'Increase score')}
+                      aria-label={t('restaurants.ops.audits.increaseScore', 'Increase score')} data-track="ui.0bf8f8ca2a.16"
                     >
                       +
                     </button>
@@ -619,7 +619,7 @@ function AuditRunView({ t, restaurantId, auditId, templateItems, staff, isManage
                       type="button"
                       className="fd-btn fd-btn-sm"
                       disabled={savingId === item.item_id}
-                      onClick={() => saveScore(item)}
+                      onClick={() => saveScore(item)} data-track="ui.0bf8f8ca2a.17"
                     >
                       {t('food.common.save', 'Save')}
                     </button>
@@ -639,7 +639,7 @@ function AuditRunView({ t, restaurantId, auditId, templateItems, staff, isManage
       <h3 className="fd-ops-subhead">{t('restaurants.ops.audits.findingsTitle', 'Findings')}</h3>
       {!completed && (
         <div className="fd-settings-actions">
-          <button type="button" className="fd-btn fd-btn-sm" onClick={() => setShowFinding((s) => !s)}>
+          <button type="button" className="fd-btn fd-btn-sm" onClick={() => setShowFinding((s) => !s)} data-track="ui.0bf8f8ca2a.18">
             {showFinding ? t('food.common.back', 'Back') : t('restaurants.ops.audits.addFinding', 'Add finding')}
           </button>
         </div>
@@ -696,7 +696,7 @@ function AuditRunView({ t, restaurantId, auditId, templateItems, staff, isManage
             />
           </div>
           <div className="fd-settings-actions">
-            <button type="button" className="fd-btn fd-btn-sm" disabled={completing} onClick={complete}>
+            <button type="button" className="fd-btn fd-btn-sm" disabled={completing} onClick={complete} data-track="ui.0bf8f8ca2a.19">
               {t('restaurants.ops.audits.completeAudit', 'Complete audit')}
             </button>
           </div>
@@ -728,7 +728,7 @@ function FindingForm({ t, items, onCancel, onAdd }) {
   };
 
   return (
-    <form onSubmit={submit} className="fd-ops-form">
+    <form onSubmit={submit} className="fd-ops-form" data-track="ui.0bf8f8ca2a.20">
       <div className="fd-settings-field-grid">
         <div className="fd-field">
           <label htmlFor="finding-item">{t('restaurants.ops.audits.findingItemLabel', 'Related item')}</label>
@@ -768,10 +768,10 @@ function FindingForm({ t, items, onCancel, onAdd }) {
         />
       </div>
       <div className="fd-settings-actions">
-        <button type="submit" className="fd-btn fd-btn-sm" disabled={saving || !note.trim()}>
+        <button type="submit" className="fd-btn fd-btn-sm" disabled={saving || !note.trim()} data-track="ui.0bf8f8ca2a.21">
           {t('common.add', 'Add')}
         </button>
-        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onCancel}>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onCancel} data-track="ui.0bf8f8ca2a.22">
           {t('food.common.back', 'Back')}
         </button>
       </div>
@@ -807,7 +807,7 @@ function FindingCard({ t, restaurantId, finding, items, staff, isManager, onActi
       )}
       {finding.photo_url && (
         <p className="fd-card-meta fd-ops-sop-body">
-          <a href={finding.photo_url} target="_blank" rel="noreferrer">
+          <a href={finding.photo_url} target="_blank" rel="noreferrer" data-track="ui.0bf8f8ca2a.23">
             {t('restaurants.ops.audits.viewPhoto', 'View photo')}
           </a>
         </p>
@@ -817,7 +817,7 @@ function FindingCard({ t, restaurantId, finding, items, staff, isManager, onActi
           <button
             type="button"
             className="fd-btn fd-btn-secondary fd-btn-sm"
-            onClick={() => setShowAction((s) => !s)}
+            onClick={() => setShowAction((s) => !s)} data-track="ui.0bf8f8ca2a.24"
           >
             {showAction ? t('food.common.back', 'Back') : t('restaurants.ops.audits.actionFromFinding', 'Create action')}
           </button>
@@ -863,7 +863,7 @@ function CorrectiveActionForm({ t, staff, onCancel, onCreate }) {
   };
 
   return (
-    <form onSubmit={submit} className="fd-ops-form">
+    <form onSubmit={submit} className="fd-ops-form" data-track="ui.0bf8f8ca2a.25">
       <div className="fd-field">
         <label htmlFor="action-desc">{t('restaurants.ops.audits.actionDescriptionLabel', 'Action description')}</label>
         <input
@@ -891,10 +891,10 @@ function CorrectiveActionForm({ t, staff, onCancel, onCreate }) {
         </div>
       </div>
       <div className="fd-settings-actions">
-        <button type="submit" className="fd-btn fd-btn-sm" disabled={saving || !description.trim()}>
+        <button type="submit" className="fd-btn fd-btn-sm" disabled={saving || !description.trim()} data-track="ui.0bf8f8ca2a.26">
           {t('common.add', 'Add')}
         </button>
-        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onCancel}>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onCancel} data-track="ui.0bf8f8ca2a.27">
           {t('food.common.back', 'Back')}
         </button>
       </div>
@@ -947,14 +947,14 @@ function CorrectiveActions({ t, restaurantId, actions, isManager, onChanged }) {
             </p>
             <div className="fd-ops-sop-actions">
               {next && (
-                <button type="button" className="fd-btn fd-btn-sm" onClick={() => advance(a, next)}>
+                <button type="button" className="fd-btn fd-btn-sm" onClick={() => advance(a, next)} data-track="ui.0bf8f8ca2a.28">
                   {next === 'in_progress'
                     ? t('restaurants.ops.audits.startWork', 'Start')
                     : t('restaurants.ops.audits.resolveAction', 'Resolve')}
                 </button>
               )}
               {isManager && a.status === 'resolved' && (
-                <button type="button" className="fd-btn fd-btn-sm" onClick={() => advance(a, 'verified')}>
+                <button type="button" className="fd-btn fd-btn-sm" onClick={() => advance(a, 'verified')} data-track="ui.0bf8f8ca2a.29">
                   {t('restaurants.ops.audits.verifyAction', 'Verify')}
                 </button>
               )}
@@ -992,7 +992,7 @@ function AuditRunDetail({ t, restaurantId, auditId, onClose }) {
           {' · '}
           {new Date(audit.started_at).toLocaleDateString()}
         </h3>
-        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onClose}>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onClose} data-track="ui.0bf8f8ca2a.30">
           {t('food.common.back', 'Back')}
         </button>
       </div>

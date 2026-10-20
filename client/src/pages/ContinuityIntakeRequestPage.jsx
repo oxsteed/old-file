@@ -155,7 +155,7 @@ export default function ContinuityIntakeRequestPage() {
           </div>
         </section>
 
-        <form className="mrq-grid" onSubmit={handleSubmit}>
+        <form className="mrq-grid" onSubmit={handleSubmit} data-track="ui.2a82c32982.1">
           <section className="mrq-panel">
             <h2><Icon size={18} /> {t('continuityIntakePage.sections.goalContext')}</h2>
             <div className="mrq-field">
@@ -318,11 +318,11 @@ export default function ContinuityIntakeRequestPage() {
               />
             </div>
             <div className="mrq-checklist mt-4">
-              <label><input type="checkbox" checked={form.guardian_acknowledged} onChange={(e) => updateField('guardian_acknowledged', e.target.checked)} /> {t('continuityIntakePage.form.acknowledgement.guardian')}</label>
-              <label><input type="checkbox" checked={form.safety_acknowledged} onChange={(e) => updateField('safety_acknowledged', e.target.checked)} /> {t('continuityIntakePage.form.acknowledgement.safety')}</label>
-              <label><input type="checkbox" checked={form.policy_acknowledged} onChange={(e) => updateField('policy_acknowledged', e.target.checked)} /> {t('continuityIntakePage.form.acknowledgement.policy')}</label>
+              <label><input type="checkbox" checked={form.guardian_acknowledged} onChange={(e) => updateField('guardian_acknowledged', e.target.checked)} data-track="ui.2a82c32982.2" /> {t('continuityIntakePage.form.acknowledgement.guardian')}</label>
+              <label><input type="checkbox" checked={form.safety_acknowledged} onChange={(e) => updateField('safety_acknowledged', e.target.checked)} data-track="ui.2a82c32982.3" /> {t('continuityIntakePage.form.acknowledgement.safety')}</label>
+              <label><input type="checkbox" checked={form.policy_acknowledged} onChange={(e) => updateField('policy_acknowledged', e.target.checked)} data-track="ui.2a82c32982.4" /> {t('continuityIntakePage.form.acknowledgement.policy')}</label>
             </div>
-            <button className="mrq-btn primary" type="submit" disabled={submitting}>
+            <button className="mrq-btn primary" type="submit" disabled={submitting} data-track="ui.2a82c32982.5">
               {submitting ? t('continuityIntakePage.form.actions.sending') : t('continuityIntakePage.form.actions.submit')}
             </button>
           </section>

@@ -63,7 +63,7 @@ export default function BusinessMediaTab({ businessId }) {
     return (
       <div className="media-error">
         <p>{error}</p>
-        <button type="button" onClick={load}>
+        <button type="button" onClick={load} data-track="ui.73f730e834.1">
           <RefreshCw size={16} /> {t('common.retry', 'Retry')}
         </button>
       </div>
@@ -83,7 +83,7 @@ export default function BusinessMediaTab({ businessId }) {
           type="button"
           onClick={handlePost}
           disabled={composing || !draft.trim()}
-          className="business-media-post-btn"
+          className="business-media-post-btn" data-track="ui.73f730e834.2"
         >
           <Plus size={16} /> {t('businessMedia.post')}
         </button>

@@ -521,7 +521,7 @@ export default function ConsultingIntakePage() {
                     fontWeight: 600,
                     cursor: 'pointer',
                   }}
-                  disabled={loading}
+                  disabled={loading} data-track="ui.b0ba1057d1.1"
                 >
                   {t('consulting.intake.buttons.back')}
                 </button>
@@ -538,7 +538,7 @@ export default function ConsultingIntakePage() {
                   fontWeight: 600,
                   cursor: 'pointer',
                 }}
-                disabled={loading}
+                disabled={loading} data-track="ui.b0ba1057d1.2"
               >
                 {t('consulting.intake.buttons.cancel')}
               </button>
@@ -556,7 +556,7 @@ export default function ConsultingIntakePage() {
                   opacity: loading ? 0.7 : 1,
                   transition: 'all 0.2s',
                 }}
-                disabled={loading}
+                disabled={loading} data-track="ui.b0ba1057d1.3"
               >
                 {loading ? t('consulting.intake.buttons.submitting') : step === 5 ? t('consulting.intake.buttons.submit') : t('consulting.intake.buttons.next')}
               </button>
@@ -818,7 +818,7 @@ function Step2SkillOffer({ form, handleInputChange, t }) {
                 name="has_revenue"
                 value={opt.value}
                 checked={form.has_revenue === opt.value}
-                onChange={handleInputChange}
+                onChange={handleInputChange} data-track="ui.b0ba1057d1.4"
               />
               <span style={{ fontSize: '0.95rem' }}>{t(opt.labelKey)}</span>
             </label>
@@ -836,7 +836,7 @@ function Step2SkillOffer({ form, handleInputChange, t }) {
                 name="business_name_decided"
                 value={opt.value}
                 checked={form.business_name_decided === opt.value}
-                onChange={handleInputChange}
+                onChange={handleInputChange} data-track="ui.b0ba1057d1.5"
               />
               <span style={{ fontSize: '0.95rem' }}>{t(opt.labelKey)}</span>
             </label>
@@ -929,7 +929,7 @@ function Step3SetupNeeds({ form, handleInputChange, handleCheckbox, handleSelect
           type="checkbox"
           checked={form.select_all_chosen}
           onChange={handleSelectAll}
-          style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+          style={{ cursor: 'pointer', width: '18px', height: '18px' }} data-track="ui.b0ba1057d1.6"
         />
         <label style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.95rem' }}>
           {t('consulting.intake.selectAll')} ({form.setup_items_selected.length} / {allSetupItems.length} items)
@@ -947,7 +947,7 @@ function Step3SetupNeeds({ form, handleInputChange, handleCheckbox, handleSelect
                   type="checkbox"
                   checked={form.setup_items_selected.includes(item.id)}
                   onChange={() => handleCheckbox(item.id)}
-                  style={{ marginTop: '3px', cursor: 'pointer', width: '18px', height: '18px', minWidth: '18px' }}
+                  style={{ marginTop: '3px', cursor: 'pointer', width: '18px', height: '18px', minWidth: '18px' }} data-track="ui.b0ba1057d1.7"
                 />
                 <span style={{ fontSize: '0.95rem', lineHeight: 1.5 }}>{item.label}</span>
               </label>
@@ -994,7 +994,7 @@ function Step3SetupNeeds({ form, handleInputChange, handleCheckbox, handleSelect
                 name="urgency"
                 value={opt.value}
                 checked={form.urgency === opt.value}
-                onChange={handleInputChange}
+                onChange={handleInputChange} data-track="ui.b0ba1057d1.8"
               />
               <span style={{ fontSize: '0.95rem' }}>{t(opt.labelKey)}</span>
             </label>
