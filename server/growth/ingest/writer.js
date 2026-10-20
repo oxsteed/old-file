@@ -16,6 +16,10 @@ async function writeBatch(
   const values = [],
     ack = [];
   const decisions = new Map();
+  // Pass 1: parse, gate and validate each entry. Geography (job projection
+  // and centroid resolution) is deferred so pass 2 can batch those lookups
+  // instead of issuing per-event queries.
+  const prepared = [];
   for (const [id, fields] of entries) {
     let row;
     try {
@@ -78,28 +82,73 @@ async function writeBatch(
       continue;
     }
     const ctx = permission.context;
-    let place = {
-      country: ctx.user.country_confirmed ? ctx.user.country : null,
-      postal_code: ctx.user.zip_code,
-      city: ctx.user.city,
-      state: ctx.user.state,
-    };
-    if (row.domain && event.name.startsWith("job.") && event.props.job_id) {
-      const {
-        rows: [job],
-      } = await pg.query(
-        "SELECT location_zip,location_country_code,location_city,location_state FROM jobs WHERE id=$1",
-        [event.props.job_id],
-      );
+    prepared.push({
+      id,
+      row,
+      permission,
+      event,
+      place: {
+        country: ctx.user.country_confirmed ? ctx.user.country : null,
+        postal_code: ctx.user.zip_code,
+        city: ctx.user.city,
+        state: ctx.user.state,
+      },
+    });
+  }
+  // Pass 2a: one batched projection for every distinct job referenced by a
+  // domain job event (previously one query per event).
+  const jobIds = [
+    ...new Set(
+      prepared
+        .filter(
+          (p) =>
+            p.row.domain &&
+            p.event.name.startsWith("job.") &&
+            p.event.props.job_id,
+        )
+        .map((p) => p.event.props.job_id)
+        .filter((jobId) =>
+          /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(
+            jobId,
+          ),
+        ),
+    ),
+  ];
+  if (jobIds.length) {
+    const { rows: jobs } = await pg.query(
+      "SELECT id, location_zip, location_country_code, location_city, location_state FROM jobs WHERE id = ANY($1::uuid[])",
+      [jobIds],
+    );
+    const byId = new Map(jobs.map((job) => [String(job.id), job]));
+    for (const p of prepared) {
+      if (
+        !(
+          p.row.domain &&
+          p.event.name.startsWith("job.") &&
+          p.event.props.job_id
+        )
+      )
+        continue;
+      const job = byId.get(String(p.event.props.job_id));
       if (job)
-        place = {
+        p.place = {
           country: job.location_country_code,
           postal_code: job.location_zip,
           city: job.location_city,
           state: job.location_state,
         };
     }
-    const postal = await require("../geo/resolve").resolve(pg, place);
+  }
+  // Pass 2b: one batched centroid resolution for the whole batch (at most
+  // two queries, previously up to two per event).
+  const postalRefs = await require("../geo/resolve").resolveBatch(
+    pg,
+    prepared.map((p) => p.place),
+  );
+  prepared.forEach((p, i) => {
+    const { row, permission, event } = p;
+    const ctx = permission.context;
+    const postal = postalRefs[i];
     values.push({
       day: event.occurred_at.slice(0, 10),
       event_id: event.event_id,
@@ -127,8 +176,8 @@ async function writeBatch(
       is_bot: Boolean(row.is_bot),
       is_internal: false,
     });
-    ack.push(id);
-  }
+    ack.push(p.id);
+  });
   fence?.assertActive();
   if (values.length)
     await store.insert({
@@ -149,8 +198,9 @@ async function writeBatch(
     const pipe = conn.multi();
     pipe.xack(queue.STREAM, GROUP, ...ack);
     pipe.xdel(queue.STREAM, ...ack);
+    const acked = new Set(ack);
     for (const [id, fields] of entries)
-      if (ack.includes(id))
+      if (acked.has(id))
         try {
           pipe.srem?.(
             `activity:subject:${key("subject", JSON.parse(fields[1]).userId)}`,

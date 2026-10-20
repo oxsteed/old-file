@@ -15,6 +15,8 @@ import {
   routeTemplate,
   uuidv7,
   safeProps,
+  readSession,
+  touchSession,
 } from "./tracker.mjs";
 import eventProps from "./eventProps.json";
 import routes from "./routes.json";
@@ -29,8 +31,7 @@ export default function ActivityTracker({ children }) {
   const location = useLocation(),
     queue = useRef([]),
     config = useRef(null),
-    session = useRef(null),
-    lastActive = useRef(0);
+    session = useRef(null);
   const metadata = useRef({});
   const flush = useCallback(() => {
     if (!config.current?.enabled || !queue.current.length) return;
@@ -52,9 +53,9 @@ export default function ActivityTracker({ children }) {
       if (!config.current?.enabled) return;
       props = safeProps(name, props, eventProps, routes);
       if (!props) return;
-      if (Date.now() - lastActive.current > 30 * 60 * 1000)
-        session.current = uuidv7();
-      lastActive.current = Date.now();
+      // Session id lives in sessionStorage with 30-minute idle rotation
+      // (spec 5.2); touchSession persists it and never throws.
+      session.current = touchSession(window.sessionStorage);
       metadata.current.session = session.current;
       queue.current = appendBounded(queue.current, {
         event_id: uuidv7(),
@@ -110,7 +111,8 @@ export default function ActivityTracker({ children }) {
       surface: "web",
       app_version: "1.0.0",
       locale: (i18n.resolvedLanguage || "en").split("-")[0],
-      session: session.current || uuidv7(),
+      session:
+        readSession(window.sessionStorage) || session.current || uuidv7(),
     };
     session.current = metadata.current.session;
   }, [i18n.resolvedLanguage]);

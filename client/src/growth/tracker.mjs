@@ -7,6 +7,43 @@ export function uuidv7(now = Date.now()) {
   const hex = [...bytes].map((v) => v.toString(16).padStart(2, "0")).join("");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
+export const SESSION_STORAGE_KEY = "oxsteed.session";
+export const SESSION_IDLE_MS = 30 * 60 * 1000;
+function parseStoredSession(raw) {
+  try {
+    const parsed = JSON.parse(raw || "");
+    if (
+      parsed &&
+      typeof parsed.id === "string" &&
+      /^[a-f0-9-]{36}$/i.test(parsed.id) &&
+      Number.isFinite(parsed.last)
+    )
+      return parsed;
+  } catch {}
+  return null;
+}
+// Returns the persisted session id when one exists and has been active
+// within the idle window; null otherwise. Never writes and never throws:
+// sessionStorage can be unavailable (blocked cookies, private modes).
+export function readSession(storage, now = Date.now()) {
+  try {
+    const stored = parseStoredSession(storage?.getItem(SESSION_STORAGE_KEY));
+    if (stored && now - stored.last <= SESSION_IDLE_MS) return stored.id;
+  } catch {}
+  return null;
+}
+// Returns the live session id for an activity event, rotating to a fresh
+// UUIDv7 after 30 minutes idle and persisting {id, last} so the session
+// survives reloads within the same tab. Storage failures degrade to an
+// unpersisted in-memory rotation and never throw.
+export function touchSession(storage, now = Date.now()) {
+  const existing = readSession(storage, now);
+  const id = existing || uuidv7(now);
+  try {
+    storage?.setItem(SESSION_STORAGE_KEY, JSON.stringify({ id, last: now }));
+  } catch {}
+  return id;
+}
 export function routeTemplate(pathname, routes) {
   return (
     [...routes]

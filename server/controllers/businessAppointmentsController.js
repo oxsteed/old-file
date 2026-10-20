@@ -290,6 +290,10 @@ async function createAppointment(req, res, next) {
          customer_email || null, customer_phone || null, customer_notes || null,
          start_time, end_time, base_price_cents, base_price_cents]
       );
+      if (!req.staffCreated && effectiveCustomerId) {
+        const { emitDomainEvent, serviceEventProps } = require('../growth/emit');
+        await emitDomainEvent(client, 'appointment.booked', serviceEventProps({ service_id }), { userId: effectiveCustomerId, req });
+      }
       return appointmentResult.rows[0];
     });
 

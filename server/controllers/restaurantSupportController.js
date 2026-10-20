@@ -778,12 +778,15 @@ exports.acceptResolution = async (req, res, next) => {
         [supportCase.id, processorRefundId]
       );
       if (processorRefundId && supportCase.final_resolution === 'refund' && supportCase.order_id) {
-        await client.query(
+        const refundUpdate = await client.query(
           `UPDATE food_orders
               SET status = 'refunded', payment_status = 'refunded', updated_at = NOW()
             WHERE id = $1 AND payment_status = 'paid'`,
           [supportCase.order_id]
         );
+        if (refundUpdate.rowCount > 0) {
+          await require('../growth/emit').emitDomainEvent(client, 'food.order_refunded', require('../growth/emit').foodEventProps({ restaurant_id: supportCase.restaurant_id }), { userId: req.user.id, req });
+        }
       }
       await logEvent(client, supportCase.id, {
         actorUserId: req.user.id,

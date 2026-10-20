@@ -8,6 +8,10 @@ import {
   takeBatch,
   scrubQuery,
   safeProps,
+  readSession,
+  touchSession,
+  SESSION_STORAGE_KEY,
+  SESSION_IDLE_MS,
 } from '../src/growth/tracker.mjs';
 test('routes expose templates and never identifiers or private routes', () => {
   const routes = JSON.parse(
@@ -55,4 +59,55 @@ test('client props reject unregistered fields, private routes and oversized valu
   assert.equal(safeProps('unknown',{},fields,['/jobs']),null);
   assert.equal(safeProps('ui.click',{element_key:'x'.repeat(5000)},fields,['/jobs']),null);
   assert.deepEqual(safeProps('search.performed',{query_norm:'drain private@example.test'},fields,[]),{query_norm:'drain'});
+});
+function fakeStorage() {
+  const map = new Map();
+  return {
+    getItem: (k) => (map.has(k) ? map.get(k) : null),
+    setItem: (k, v) => map.set(k, String(v)),
+    removeItem: (k) => map.delete(k),
+  };
+}
+test('session persists in sessionStorage across reloads within the idle window', () => {
+  const storage = fakeStorage();
+  const t0 = 1700000000000;
+  const id = touchSession(storage, t0);
+  assert.match(id, /^[a-f0-9]{8}-[a-f0-9]{4}-7[a-f0-9]{3}-[89ab]/);
+  // A reload reads back the same id without creating a new one.
+  assert.equal(readSession(storage, t0 + 60000), id);
+  assert.equal(touchSession(storage, t0 + 60000), id);
+  // Activity inside the window keeps the session alive past 30 minutes
+  // from its creation.
+  assert.equal(touchSession(storage, t0 + 60000 + SESSION_IDLE_MS - 1), id);
+  assert.equal(
+    readSession(storage, t0 + 60000 + 2 * SESSION_IDLE_MS - 2),
+    id,
+  );
+});
+test('session rotates to a fresh UUIDv7 after 30 minutes idle', () => {
+  const storage = fakeStorage();
+  const t0 = 1700000000000;
+  const id = touchSession(storage, t0);
+  assert.equal(readSession(storage, t0 + SESSION_IDLE_MS), id);
+  assert.equal(readSession(storage, t0 + SESSION_IDLE_MS + 1), null);
+  const rotated = touchSession(storage, t0 + SESSION_IDLE_MS + 1);
+  assert.notEqual(rotated, id);
+  assert.equal(readSession(storage, t0 + SESSION_IDLE_MS + 2), rotated);
+});
+test('session helpers never throw on blocked or corrupt storage', () => {
+  const throwing = {
+    getItem() { throw new Error('blocked'); },
+    setItem() { throw new Error('blocked'); },
+  };
+  assert.equal(readSession(throwing), null);
+  assert.match(touchSession(throwing), /^[a-f0-9-]{36}$/);
+  assert.equal(readSession(null), null);
+  assert.match(touchSession(undefined), /^[a-f0-9-]{36}$/);
+  const corrupt = fakeStorage();
+  corrupt.setItem(SESSION_STORAGE_KEY, 'not json');
+  assert.equal(readSession(corrupt), null);
+  const fresh = touchSession(corrupt);
+  assert.equal(readSession(corrupt), fresh);
+  corrupt.setItem(SESSION_STORAGE_KEY, JSON.stringify({ id: 42, last: 'x' }));
+  assert.equal(readSession(corrupt), null);
 });

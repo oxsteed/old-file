@@ -301,6 +301,10 @@ async function addBusiness(req, res, next) {
           JSON.stringify({ source: 'business_setup_v2', idempotencyKey }),
         ]
       );
+      await require('../growth/emit').emitDomainEvent(client, 'account.role_added', {
+        role: category.businessKind === 'restaurant' ? 'restaurant' : 'business',
+        ...(/^[A-Z]{2}$/.test(country) ? { country } : {}),
+      }, { userId: req.user.id, req });
       return { biz: createdBusiness, reused: false };
     }, 'business_create');
 

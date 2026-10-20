@@ -650,6 +650,11 @@ async function hireIntoBusiness(actor, application, openingMeta, dbClient = pool
       [biz.id, biz.user_id, application.user_id || null, role, application.applicant_email]
     );
   }
+  if (!existing.length && application.user_id && typeof dbClient.release === 'function') {
+    // The grantee is the hired applicant, not the acting employer; no req
+    // is available in this helper.
+    await require('../growth/emit').emitDomainEvent(dbClient, 'account.role_added', { role: 'business' }, { userId: application.user_id });
+  }
   if (application.user_id) {
     await dbClient.query(
       `INSERT INTO notifications (user_id, type, title, body, data)

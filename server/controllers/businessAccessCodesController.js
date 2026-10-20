@@ -498,6 +498,10 @@ exports.redeemCode = async (req, res, next) => {
     const notifBusinessName = bizRes.rows[0].business_name;
     const notifJoinerName = [req.user.first_name, req.user.last_name].filter(Boolean).join(' ') || 'Someone';
 
+    if (isNewJoin && desiredStatus === 'active') {
+      await require('../growth/emit').emitDomainEvent(client, 'account.role_added', { role: 'business' }, { userId: req.user.id, req });
+    }
+
     await client.query('COMMIT');
 
     // Fire-and-forget audit (post-commit)

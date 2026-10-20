@@ -2372,6 +2372,16 @@ async function switchRole(req, res) {
       "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')",
       [updatedUser.id, hashedRefresh, crypto.createHash('sha256').update(tokens.accessToken).digest('hex')],
     );
+    {
+      const { emitDomainEvent, accountRoleForMode } = require('../growth/emit');
+      const growthRole = accountRoleForMode(newMode);
+      if (growthRole && growthRole !== accountRoleForMode(currentMode)) {
+        await emitDomainEvent(client, 'account.role_added', {
+          role: growthRole,
+          ...(typeof updatedUser.country === 'string' && /^[A-Z]{2}$/.test(updatedUser.country) ? { country: updatedUser.country } : {}),
+        }, { userId, req });
+      }
+    }
     await client.query('COMMIT');
 
     logger.info('Mode switch', { userId, fromMode: currentMode, toMode: newMode, fromRole: currentRole, toRole: updatedUser.role });
