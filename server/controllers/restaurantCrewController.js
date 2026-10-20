@@ -131,7 +131,9 @@ exports.bootstrapDefaults = async (req, res, next) => {
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     assertManage(restaurant);
 
-    await withTransaction(async (client) => {
+    // NOTE: this call previously omitted the pool argument, so
+    // withTransaction threw before seeding anything (S-13 track fix).
+    await withTransaction(pool, async (client) => {
       const [moduleCount, quizCount, badgeCount] = await Promise.all([
         client.query(`SELECT COUNT(*)::int AS count FROM restaurant_crew_training_modules WHERE restaurant_id = $1`, [restaurantId]),
         client.query(`SELECT COUNT(*)::int AS count FROM restaurant_crew_quiz_results WHERE restaurant_id = $1`, [restaurantId]),
