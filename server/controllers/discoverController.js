@@ -921,6 +921,13 @@ Open OxSteed to see more: ${process.env.APP_URL || process.env.CLIENT_URL || 'ht
         `UPDATE discover_search_alerts SET last_signature = $2, last_sent_at = NOW() WHERE id = $1`,
         [a.id, contentSignature],
       );
+      // Global marketing caps (growth spec 17.2): the Discover digest is a
+      // platform marketing send and counts toward the same per-person caps.
+      await require('../growth/marketingLog').recordMarketingContact(pool, {
+        userId: a.user_id,
+        source: 'discover_digest',
+        channel: 'email',
+      });
       sent++;
     } catch (e) {
       logger.error('[discover] digest row failed', { alertId: a.id, err: e.message });
