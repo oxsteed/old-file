@@ -441,13 +441,19 @@ suite('staff membership lifecycle (S-01/S-03/S-09/S-10/S-11/S-13)', () => {
     );
     expect(pin).toBeTruthy();
     // EMPLOYEE's membership was revoked by the previous test.
-    const { res, error } = await call(appFlowCtrl.validateStaffPin, {
+    // Integrated contract: PIN validation runs through the S-06 staff
+    // identity service, so the refusal surfaces as an AppError
+    // (403 staff_not_member) via next(err) instead of the old handler's
+    // inline 401, and the service retires the PIN once non-membership
+    // is confirmed.
+    const { error } = await call(appFlowCtrl.validateStaffPin, {
       user: { id: OWNER },
       params: { restaurantId: String(restaurantId) },
       body: { pin: '9876' },
     });
-    expect(error).toBeNull();
-    expect(res.statusCode).toBe(401);
+    expect(error).toBeTruthy();
+    expect(error.code).toBe('staff_not_member');
+    expect(error.statusCode).toBe(403);
     const { rows: [after] } = await db.query(
       `SELECT is_active FROM restaurant_staff_pins WHERE id = $1`, [pin.id]
     );

@@ -217,7 +217,7 @@ exports.updateModule = async (req, res, next) => {
     // every other crew write in this controller asserts manage; this one
     // previously let any member (even a support agent) do it.
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
 
     const sets = [];
     const vals = [];

@@ -566,7 +566,7 @@ exports.listAutoAssignRules = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const { rows } = await pool.query(
       `SELECT r.*, m.title AS module_title
          FROM restaurant_training_auto_assign_rules r
@@ -586,7 +586,7 @@ exports.createAutoAssignRule = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const moduleId = parsePositiveInt(req.params.moduleId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const { targetRole, onHire, dueDays } = validateRuleBody(req.body);
     const { rows: [module] } = await pool.query(
       `SELECT id FROM restaurant_training_modules WHERE id = $1 AND restaurant_id = $2`,
@@ -615,7 +615,7 @@ exports.updateAutoAssignRule = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const ruleId = parsePositiveInt(req.params.ruleId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const { targetRole, onHire, dueDays } = validateRuleBody(req.body);
     const { rows: [existing] } = await pool.query(
       `SELECT * FROM restaurant_training_auto_assign_rules WHERE id = $1 AND restaurant_id = $2`,
@@ -650,7 +650,7 @@ exports.deleteAutoAssignRule = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const ruleId = parsePositiveInt(req.params.ruleId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const { rowCount } = await pool.query(
       `DELETE FROM restaurant_training_auto_assign_rules WHERE id = $1 AND restaurant_id = $2`,
       [ruleId, restaurantId]
@@ -668,7 +668,7 @@ exports.runAutoAssign = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const created = await applyAutoAssignRules(pool, {
       restaurantId,
       businessId: restaurant.business_id,

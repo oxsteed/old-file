@@ -644,7 +644,7 @@ ddescribe('S-16 exceptions, activity and time-entry audit (fxC)', () => {
     );
     expect(rows.map((r) => r.action)).toEqual([
       'business.time_entry.logged',
-      'business.time_entry.deleted',
+      'business.time_entry.voided',
     ]);
     expect(Number(rows[1].before_state.hours_worked)).toBe(3.5);
   });

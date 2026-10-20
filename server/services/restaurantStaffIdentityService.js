@@ -220,6 +220,36 @@ async function validateStaffPinForRestaurant({ restaurantId, pin, deviceId = nul
       staffAccess = await resolveRestaurantAccess(pinRow.staff_user_id, restaurantId);
     } catch (err) {
       await recordPinAttempt({ restaurantId, deviceId, staffPinId: pinRow.id, success: false });
+      // S-11: retire the PIN when membership is CONFIRMED gone (the owner
+      // is neither the business owner nor an active member). A resolution
+      // error alone does not retire it: the refusal above already fails
+      // closed for this attempt, and a transient error must not destroy
+      // a valid PIN.
+      try {
+        const { rows: [restaurantRow] } = await pool.query(
+          'SELECT business_id FROM food_restaurants WHERE id = $1',
+          [restaurantId]
+        );
+        if (restaurantRow) {
+          const { rows: memberRows } = await pool.query(
+            `SELECT 1 FROM businesses b
+              WHERE b.id = $1 AND b.user_id = $2
+             UNION ALL
+             SELECT 1 FROM business_members bm
+              WHERE bm.business_id = $1 AND bm.member_id = $2 AND bm.status = 'active'
+             LIMIT 1`,
+            [restaurantRow.business_id, pinRow.staff_user_id]
+          );
+          if (!memberRows.length) {
+            await pool.query(
+              'UPDATE restaurant_staff_pins SET is_active = FALSE, updated_at = NOW() WHERE id = $1',
+              [pinRow.id]
+            );
+          }
+        }
+      } catch (retireErr) {
+        // Retirement is best-effort; the refusal stands either way.
+      }
       throw new AppError('This staff PIN no longer belongs to an active team member', 403, 'staff_not_member');
     }
   }
