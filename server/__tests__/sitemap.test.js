@@ -27,6 +27,8 @@ describe('public sitemap coverage', () => {
 
     expect(res.status).toBe(200);
     expect(res.text).toContain('<loc>https://oxsteed.com/direct/service-area</loc>');
+    expect(res.text).toContain('<loc>https://oxsteed.com/privacy/upcoming</loc>');
+    expect(res.text).toContain('hreflang="fr" href="https://oxsteed.com/privacy/upcoming?lang=fr"');
     expect(res.text).toContain('hreflang="es" href="https://oxsteed.com/direct/service-area?lang=es"');
     expect(res.text).not.toContain('<loc>https://oxsteed.com/direct/view-quote</loc>');
     expect(res.text).toContain('<loc>https://oxsteed.com/tool-rentals/41</loc>');

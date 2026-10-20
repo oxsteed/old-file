@@ -113,6 +113,7 @@ const REFERENCE_CHECKS = [
   ['helper_profiles', 'profile_photo_url'],
   ['users', 'profile_photo_url'],
   ['users', 'avatar_url'],
+  ['marketplace_products', 'product_image_url'],
   ['qr_codes', 'logo_url'],
   ['support_conversation_messages', 'attachment_url'],
 ];
@@ -185,6 +186,7 @@ const ORPHAN_SWEEP_PREFIXES = [
   'public-uploads/cover',
   'public-uploads/helper-cover',
   'public-uploads/helper-covers',
+  'partner-products',
 ];
 
 // Orphan-scanning sweeper (P3-6-F03): finds storage objects under the

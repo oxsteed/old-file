@@ -96,6 +96,16 @@ describe('localized marketing SEO shell', () => {
     expect(res.text).toContain('"@type":"CollectionPage"');
   });
 
+  test('exposes the upcoming privacy policy as a crawlable canonical page', async () => {
+    const res = await request(buildApp()).get('/privacy/upcoming?lang=fr');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-language']).toBe('fr');
+    expect(res.text).toContain('<title data-rh="true">Prochaine Politique de confidentialité | OxSteed</title>');
+    expect(res.text).toContain('rel="canonical" href="https://oxsteed.com/privacy/upcoming?lang=fr"');
+    expect(res.text).toContain('hreflang="x-default"');
+  });
+
   test('localizes Media landing metadata for share previews', async () => {
     const res = await request(buildApp()).get('/media?lang=es');
 

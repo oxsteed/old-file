@@ -98,6 +98,7 @@ test('listObjectsByPrefix reports keys with last-modified times (P3-6-F19)', asy
   expect(storage.isPublicKeyAllowed('creative-intakes/x.jpg')).toBe(false);
   expect(storage.isPublicKeyAllowed('trades-diagnostics/x.jpg')).toBe(false);
   expect(storage.isPublicKeyAllowed('jobs/x.jpg')).toBe(true);
+  expect(storage.isPublicKeyAllowed('partner-products/x.png')).toBe(true);
   await storage.deleteFile(key);
 });
 
