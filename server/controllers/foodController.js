@@ -4394,6 +4394,22 @@ exports.updateOrderStatus = async (req, res, next) => {
       refunded: 'cancelled_at',
     }[status];
 
+    // F-16: an order may be completed only once it is paid (or comped).
+    // A manager may override with an explicit complete_unpaid_reason;
+    // the override and its reason are written to the kitchen event log
+    // when the transition succeeds. Device credentials (managed screens,
+    // paired displays) have no user and can never override.
+    const completeUnpaidReason = normalizeString(
+      req.body.completeUnpaidReason || req.body.complete_unpaid_reason,
+      1000
+    );
+    let unpaidCompletionOverride = false;
+    if (status === 'completed' && completeUnpaidReason && req.user
+      && !req.screenDevice && !req.displayDevice) {
+      unpaidCompletionOverride = ['owner', 'manager'].includes(restaurant.effective_role)
+        || await hasRestaurantPermission(restaurant, ['orders.manage']);
+    }
+
     const transitionResult = await withTransaction(pool, async (client) => {
       if (idempotencyKey) {
         await client.query(
@@ -4481,6 +4497,7 @@ exports.updateOrderStatus = async (req, res, next) => {
             AND NOT ($1 IN ('accepted','preparing','ready','completed')
                      AND COALESCE(current.metadata->>'paymentMode', '') = 'pay_now'
                      AND current.payment_status = 'requires_payment')
+            AND ($1 <> 'completed' OR current.payment_status IN ('paid','comped') OR $8 = TRUE)
             AND ($1 <> 'completed' OR current.fulfillment_type <> 'delivery'
                  OR EXISTS (SELECT 1 FROM restaurant_runner_tasks WHERE food_order_id = current.id AND status = 'Completed' AND handoff_at IS NOT NULL))
             AND (
@@ -4508,6 +4525,7 @@ exports.updateOrderStatus = async (req, res, next) => {
           req.user?.id || null,
           qualityCheckRequired,
           enforceKitchenReadiness,
+          unpaidCompletionOverride,
         ]
       );
       if (!order) {
@@ -4521,6 +4539,11 @@ exports.updateOrderStatus = async (req, res, next) => {
           && existing[0].payment_status === 'requires_payment'
           && existing[0].metadata?.paymentMode === 'pay_now') {
           throw new AppError('This order has not been paid yet', 409, 'order_payment_pending');
+        }
+        if (status === 'completed'
+          && !['paid', 'comped'].includes(existing[0].payment_status)
+          && !unpaidCompletionOverride) {
+          throw new AppError('Record payment before completing this order', 409, 'order_unpaid');
         }
         if (status === 'completed' && existing[0].fulfillment_type === 'delivery') {
           throw new AppError(
@@ -4576,6 +4599,11 @@ exports.updateOrderStatus = async (req, res, next) => {
         );
       }
 
+      // F-16 audit: a manager override that completes an unpaid order is
+      // recorded on the kitchen event with its reason, so the leakage
+      // exception is always attributable.
+      const usedUnpaidOverride = status === 'completed' && unpaidCompletionOverride
+        && !['paid', 'comped'].includes(order.payment_status);
       await client.query(
         `INSERT INTO restaurant_kitchen_events
            (restaurant_id, food_order_id, event_type, from_status, to_status,
@@ -4588,12 +4616,15 @@ exports.updateOrderStatus = async (req, res, next) => {
           order.previous_status,
           status,
           stationLabel,
-          reason,
+          usedUnpaidOverride ? completeUnpaidReason : reason,
           JSON.stringify({
             fromKitchenStage: order.previous_kitchen_stage || null,
             toKitchenStage: order.kitchen_stage || null,
             source: 'food_order_status',
             actorRole: restaurant.effective_role || null,
+            ...(usedUnpaidOverride
+              ? { completeUnpaidOverride: true, completeUnpaidReason }
+              : {}),
           }),
           idempotencyKey,
           req.user?.id || null,
