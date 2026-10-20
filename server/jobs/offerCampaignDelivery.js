@@ -142,11 +142,28 @@ async function deliver(conn, d, deps = {}) {
       ctx.web_push_enabled === false
     )
       return skip("push_opted_out");
-    if (core.quietHours(ctx.timezone))
+    // Precise quiet hours (spec 16.2): a held push is rescheduled to 08:00
+    // recipient-local plus 0-30 minutes of jitter, and dropped when the
+    // offer expires before that next attempt.
+    const quiet = core.quietWindow(
+      core.resolveTimezone({
+        timezone: ctx.timezone,
+        country: permission.context.user.country,
+      }),
+      new Date(),
+      Math.floor(Math.random() * 31),
+    );
+    if (quiet.quiet) {
+      if (new Date(ctx.expires_at) <= quiet.nextAttemptAt)
+        return skip("quiet_hours_offer_expired");
       return core.finishOffer(conn, d, {
         status: "pending",
-        deferSeconds: 3601,
+        deferSeconds: Math.max(
+          60,
+          Math.ceil((quiet.nextAttemptAt.getTime() - Date.now()) / 1000),
+        ),
       });
+    }
     // A displayed in-app card for this campaign suppresses the follow-up push.
     const {
       rows: [seen],
@@ -196,12 +213,75 @@ async function deliver(conn, d, deps = {}) {
     [ctx.user_id, d.campaign_id, d.channel],
   );
 }
+async function promoteScheduled(fence) {
+  const { rows } = await fence.db.query(
+    `SELECT * FROM offer_campaigns WHERE status='scheduled' AND scheduled_at IS NOT NULL
+     AND scheduled_at<=NOW() ORDER BY scheduled_at LIMIT 20`,
+  );
+  const campaigns = require("../growth/campaigns");
+  for (const campaign of rows) {
+    try {
+      await fence.fencedTransaction((conn) =>
+        campaigns.queue(conn, campaign, { id: campaign.approved_by }),
+      );
+    } catch (error) {
+      // A campaign that can no longer queue (offer expired, approver grant
+      // revoked) stays scheduled and is retried next tick; the failure is
+      // visible in logs instead of silently dropping the campaign.
+      require("../utils/logger").warn("growth scheduled campaign not queued", {
+        campaignId: campaign.id,
+        error: error.message,
+      });
+    }
+  }
+  return rows.length;
+}
+async function autoPause(fence) {
+  const campaigns = require("../growth/campaigns");
+  const { logAdminAction } = require("../services/auditService");
+  const { rows } = await fence.db.query(
+    `SELECT DISTINCT c.id, c.approved_by FROM offer_campaigns c
+     JOIN offer_campaign_deliveries d ON d.campaign_id=c.id AND d.status='sent'
+     WHERE c.status IN ('queued','sending')`,
+  );
+  let paused = 0;
+  for (const row of rows) {
+    const stats = await campaigns.optOutStats(fence.db, row.id);
+    // Spec 21.3: auto-pause above 1% offer opt-outs. The 100-delivered
+    // floor keeps a single opt-out in a tiny send from pausing a campaign
+    // on noise; the rate itself is the spec rule.
+    if (stats.delivered >= 100 && stats.rate > 0.01) {
+      const { rowCount } = await fence.db.query(
+        `UPDATE offer_campaigns SET status='paused', updated_at=NOW()
+         WHERE id=$1 AND status IN ('queued','sending')`,
+        [row.id],
+      );
+      if (rowCount) {
+        paused++;
+        await logAdminAction({
+          adminId: row.approved_by,
+          action: "growth_campaign_auto_paused",
+          targetType: "offer_campaign",
+          targetKey: row.id,
+          after: {
+            system_rule: "offer_optout_rate_above_1pct",
+            delivered: stats.delivered,
+            opt_outs: stats.optOuts,
+            rate: stats.rate,
+          },
+        });
+      }
+    }
+  }
+  return paused;
+}
 async function run() {
   if (process.env.GROWTH_CAMPAIGN_DELIVERY_ENABLED !== "true")
     return { skipped: true };
   return withFencedJobLock(
     "growth-campaign-delivery",
     async (fence) => {
+      await promoteScheduled(fence);
       const batch = await core.claimOffers(fence.db, 100);
       for (const d of batch) {
         fence.assertActive();
@@ -218,12 +298,19 @@ async function run() {
       await fence.db
         .query(`UPDATE offer_campaign_deliveries SET status='failed',lease_token=NULL,lease_expires_at=NULL,skip_reason='attempts_exhausted'
       WHERE status='sending' AND lease_expires_at<NOW() AND attempts>=5`);
+      // Terminal state for exhausted retries: claimOffers only takes rows
+      // with attempts<5, so without this sweep a pending row at the attempt
+      // ceiling would sit forever and its campaign could never complete.
+      await fence.db
+        .query(`UPDATE offer_campaign_deliveries SET status='failed',skip_reason='attempts_exhausted'
+      WHERE status='pending' AND attempts>=5`);
+      const paused = await autoPause(fence);
       await fence.db
         .query(`UPDATE offer_campaigns c SET status='sent',updated_at=NOW() WHERE status IN ('queued','sending')
       AND NOT EXISTS(SELECT 1 FROM offer_campaign_deliveries d WHERE d.campaign_id=c.id AND d.status IN ('pending','sending'))`);
-      return { processed: batch.length };
+      return { processed: batch.length, paused };
     },
     300,
   );
 }
-module.exports = { run, deliver };
+module.exports = { run, deliver, promoteScheduled, autoPause };

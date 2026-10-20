@@ -45,6 +45,108 @@ function quietHours(timezone, now = new Date()) {
     return true;
   }
 }
+// Main IANA zone per country, used only when the user has not set a profile
+// time zone (spec 16.2 fallback chain: profile tz -> city/postal zone ->
+// country main zone -> 12:00-18:00 UTC window).
+const COUNTRY_MAIN_TZ = {
+  US: "America/New_York",
+  CA: "America/Toronto",
+  MX: "America/Mexico_City",
+  DO: "America/Santo_Domingo",
+  HT: "America/Port-au-Prince",
+  BR: "America/Sao_Paulo",
+  GB: "Europe/London",
+  IE: "Europe/Dublin",
+  FR: "Europe/Paris",
+  ES: "Europe/Madrid",
+  DE: "Europe/Berlin",
+  IT: "Europe/Rome",
+  NL: "Europe/Amsterdam",
+  PT: "Europe/Lisbon",
+  EG: "Africa/Cairo",
+  MA: "Africa/Casablanca",
+  SN: "Africa/Dakar",
+  CI: "Africa/Abidjan",
+  NG: "Africa/Lagos",
+  KE: "Africa/Nairobi",
+  ZA: "Africa/Johannesburg",
+  AE: "Asia/Dubai",
+  IN: "Asia/Kolkata",
+  AU: "Australia/Sydney",
+  NZ: "Pacific/Auckland",
+};
+function resolveTimezone({ timezone, country } = {}) {
+  if (timezone) {
+    try {
+      new Intl.DateTimeFormat("en", { timeZone: timezone });
+      return timezone;
+    } catch {
+      /* fall through to the country zone */
+    }
+  }
+  return COUNTRY_MAIN_TZ[String(country || "").toUpperCase()] || null;
+}
+function zonedParts(timezone, now) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const get = (type) => Number(parts.find((p) => p.type === type).value);
+  return {
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
+    hour: get("hour"),
+    minute: get("minute"),
+    second: get("second"),
+  };
+}
+// UTC instant for a wall-clock time in a zone, resolved by offset iteration.
+function zonedTimeToUtc(timezone, year, month, day, hour, minute) {
+  let guess = Date.UTC(year, month - 1, day, hour, minute, 0);
+  for (let i = 0; i < 3; i++) {
+    const p = zonedParts(timezone, new Date(guess));
+    const seen = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+    const want = Date.UTC(year, month - 1, day, hour, minute, 0);
+    if (seen === want) break;
+    guess += want - seen;
+  }
+  return new Date(guess);
+}
+// Precise quiet-hours decision (spec 16.2): quiet is 21:00-08:00 recipient
+// local; a held push is rescheduled to 08:00 local plus jitter. With no
+// resolvable zone, only the 12:00-18:00 UTC window may send.
+function quietWindow(timezone, now = new Date(), jitterMinutes = 0) {
+  const jitterMs = Math.min(30, Math.max(0, jitterMinutes)) * 60000;
+  if (!timezone) {
+    const hour = now.getUTCHours();
+    if (hour >= 12 && hour < 18) return { quiet: false, nextAttemptAt: null };
+    const next = new Date(now);
+    next.setUTCHours(12, 0, 0, 0);
+    if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
+    return { quiet: true, nextAttemptAt: new Date(next.getTime() + jitterMs) };
+  }
+  const p = zonedParts(timezone, now);
+  const quiet = p.hour >= 21 || p.hour < 8;
+  if (!quiet) return { quiet: false, nextAttemptAt: null };
+  const dayShift = p.hour >= 21 ? 1 : 0;
+  const base = new Date(Date.UTC(p.year, p.month - 1, p.day + dayShift));
+  const next = zonedTimeToUtc(
+    timezone,
+    base.getUTCFullYear(),
+    base.getUTCMonth() + 1,
+    base.getUTCDate(),
+    8,
+    0,
+  );
+  return { quiet: true, nextAttemptAt: new Date(next.getTime() + jitterMs) };
+}
 async function sendInApp(
   conn,
   { userId, type, title, body, data, url, deliveryKey },
@@ -93,6 +195,9 @@ module.exports = {
   claimOffers,
   finishOffer,
   quietHours,
+  quietWindow,
+  resolveTimezone,
+  COUNTRY_MAIN_TZ,
   sendInApp,
   sendPush,
 };

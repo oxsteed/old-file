@@ -938,13 +938,94 @@ router.post(
     res.status(201).json(result);
   }),
 );
+router.patch(
+  "/campaigns/:id",
+  grant("manage_marketing"),
+  wrap(async (req, res) => {
+    const result = await withTransaction(
+      db,
+      async (conn) => {
+        const {
+          rows: [c],
+        } = await conn.query(
+          "SELECT * FROM offer_campaigns WHERE id=$1 FOR UPDATE",
+          [id(req.params.id)],
+        );
+        if (!c)
+          throw Object.assign(new Error("campaign_not_found"), {
+            status: 404,
+          });
+        const boundary = await access.scope(req.user, "manage_marketing");
+        if (!boundary.global && c.created_by !== req.user.id)
+          throw Object.assign(new Error("campaign_access_denied"), {
+            status: 403,
+          });
+        const offerId = req.body?.offer_id || c.offer_id;
+        const {
+          rows: [offer],
+        } = await conn.query("SELECT type FROM offers WHERE id=$1", [
+          offerId,
+        ]);
+        if (!offer) throw new Error("offer_not_found");
+        return campaigns.editCampaign(conn, c, req.user, req.body, {
+          affiliate: offer.type === "affiliate_product",
+        });
+      },
+      "growth_campaign_edit",
+    );
+    res.json(result);
+  }),
+);
+router.get(
+  "/campaigns/:id/results",
+  grant("manage_marketing"),
+  wrap(async (req, res) => {
+    const {
+      rows: [c],
+    } = await db.query("SELECT * FROM offer_campaigns WHERE id=$1", [
+      id(req.params.id),
+    ]);
+    if (!c) return res.status(404).json({ error: "campaign_not_found" });
+    const boundary = await access.scope(req.user, "manage_marketing");
+    if (!boundary.global && c.created_by !== req.user.id)
+      return res.status(403).json({ error: "campaign_access_denied" });
+    const finance = await financeVisible(req.user);
+    const results = await campaigns.campaignResults(db, c, { finance });
+    res.json({ campaign: { id: c.id, name: c.name, status: c.status }, ...results });
+  }),
+);
+router.get(
+  "/campaigns/:id/review-preview",
+  grant("manage_marketing"),
+  wrap(async (req, res) => {
+    const {
+      rows: [c],
+    } = await db.query("SELECT * FROM offer_campaigns WHERE id=$1", [
+      id(req.params.id),
+    ]);
+    if (!c) return res.status(404).json({ error: "campaign_not_found" });
+    const preview = await withTransaction(
+      db,
+      async (conn) => {
+        await conn.query("SET TRANSACTION READ ONLY");
+        return campaigns.reviewPreview(conn, c, req.user);
+      },
+      "growth_campaign_preview",
+    );
+    res.json(preview);
+  }),
+);
 router.post(
   "/campaigns/:id/:action",
   wrap(async (req, res, next) => {
     const action = req.params.action;
-    if (!["review", "approve", "queue", "cancel", "pause"].includes(action))
+    if (
+      !["review", "approve", "queue", "cancel", "pause", "schedule", "changes"].includes(
+        action,
+      )
+    )
       return res.sendStatus(404);
-    const permission = ["approve", "queue"].includes(action)
+    const permission = ["approve", "queue", "schedule"].includes(action)
       ? "approve_growth_campaigns"
       : "manage_marketing";
     return grant(permission)(req, res, () =>
@@ -980,14 +1061,38 @@ router.post(
                 req.body.checklist,
               );
             if (action === "queue") return campaigns.queue(conn, c, req.user);
+            if (action === "schedule") {
+              if (c.status !== "approved")
+                throw new Error("invalid_campaign_transition");
+              const when = Date.parse(req.body?.scheduled_at || "");
+              if (!Number.isFinite(when) || when <= Date.now())
+                throw new Error("invalid_campaign_schedule");
+              await conn.query(
+                "UPDATE offer_campaigns SET status='scheduled',scheduled_at=$2,updated_at=NOW() WHERE id=$1",
+                [c.id, new Date(when).toISOString()],
+              );
+              await logAdminAction({
+                adminId: req.user.id,
+                action: "growth_campaign_scheduled",
+                targetType: "offer_campaign",
+                targetKey: c.id,
+                after: { scheduled_at: new Date(when).toISOString() },
+                client: conn,
+              });
+              return { status: "scheduled" };
+            }
             if (action === "review") {
               if (!["draft", "changes_requested"].includes(c.status))
                 throw new Error("invalid_campaign_transition");
               campaigns.validateCopy(c.copy, c.channels);
+            } else if (action === "changes") {
+              if (c.status !== "in_review")
+                throw new Error("invalid_campaign_transition");
             } else if (["sent", "cancelled"].includes(c.status))
               throw new Error("invalid_campaign_transition");
             const status = {
               review: "in_review",
+              changes: "changes_requested",
               cancel: "cancelled",
               pause: "paused",
             }[action];
