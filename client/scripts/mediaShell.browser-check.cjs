@@ -98,7 +98,7 @@ async function fixture() {
         login:async payload=>{window.loginCalls=(window.loginCalls||[]).concat(payload); if(window.rejectLogin)throw new Error('Synthetic rejected login'); const result={user:{id:'viewer',display_name:'Signed in helper',email_verified:true,didit_status:'verified'}};setUser(result.user);return result;},
         logout:async()=>{window.signouts+=1;setUser(null);} });`,
     '../hooks/useAuth': `export {useAuth} from 'fixture-auth'; import {useAuth as ua} from 'fixture-auth'; export default ua;`,
-    '../api/auth': `export const persistSessionPayload = () => {};`,
+    '../api/auth': `export const persistSessionPayload = () => {}; export default { get: async () => ({ data: {} }), post: async () => ({ data: {} }), put: async () => ({ data: {} }) };`,
     '../components/AuthNavbar': `import React from 'react';import {Link} from 'react-router-dom';export default ({cta}) => <nav><Link to={cta.to}>{cta.label}</Link></nav>;`,
     'react-i18next': `export const useTranslation = () => ({ t: window.translate, i18n: { language: window.language } });`,
     '../../context/AuthContext': `import React from 'react'; export {useAuth} from 'fixture-auth'; export const AuthContext = React.createContext(null);`,
