@@ -1,6 +1,7 @@
 // Pure helpers for in-chat actions, handoff context and server memory in the
 // AI support widget. Free of React and browser globals (node --test).
 
+import { displayRoute, displayRoutesInText } from './supportChatLinks.js';
 import { formatTicketNumberForCopy } from './supportWidgetState.js';
 
 export const SUPPORT_ACTION_TYPES = Object.freeze([
@@ -115,17 +116,22 @@ export function conversationTurns(messages) {
  * Guest handoff (item 3): the transcript travels to /support/escalation as
  * the prefilled first message, so a guest never retypes the conversation.
  */
-export function buildGuestHandoffPrefill(messages, { header, pageLabel, recentLabel, you, assistant, page } = {}) {
+export function buildGuestHandoffPrefill(messages, { header, pageLabel, recentLabel, you, assistant, page, host } = {}) {
+  // Routes read as the full site address (oxsteed.com/post-job) like in the chat.
+  const show = (text) => (host ? displayRoutesInText(text, { host }) : text);
   const all = conversationTurns(messages);
   // The opening greeting is chrome, not conversation.
   const turns = (all[0]?.role === 'assistant' ? all.slice(1) : all).slice(-8);
   const lines = [header || '[AI support chat]'];
-  if (page) lines.push(pageLabel ? pageLabel.replace('{{page}}', page) : `Page: ${page}`);
+  if (page) {
+    const shownPage = host ? displayRoute(page, host) : page;
+    lines.push(pageLabel ? pageLabel.replace('{{page}}', shownPage) : `Page: ${shownPage}`);
+  }
   if (turns.length) {
     lines.push('', recentLabel || 'Recent messages:');
     for (const m of turns) {
       const who = m.role === 'user' ? (you || 'You') : (assistant || 'Ox');
-      lines.push(`${who}: ${m.content.replace(/\s+/g, ' ').trim().slice(0, 400)}`);
+      lines.push(`${who}: ${show(m.content.replace(/\s+/g, ' ').trim()).slice(0, 400)}`);
     }
   }
   return lines.join('\n').slice(0, 5000);
