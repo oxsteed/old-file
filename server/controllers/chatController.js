@@ -296,7 +296,7 @@ exports.chatMessage = async (req, res, next) => {
     // balances, payout, disputes, jobs and tickets so money answers cite
     // real values instead of guessing. Each section fails open.
     if (req.user?.id) {
-      const snapshot = await getSupportAccountSnapshot(req.user.id);
+      const snapshot = await getSupportAccountSnapshot(req.user.id, { language });
       const formatted = formatSnapshotForAI(snapshot);
       if (formatted) systemPrompt += `\n\n${formatted}`;
     }
