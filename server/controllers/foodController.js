@@ -122,6 +122,7 @@ const {
 } = require('../services/restaurantPosPaymentLedgerService');
 const {
   evaluateOperatingHours,
+  isValidIanaTimezone,
   normalizeBrandAccentHex,
   normalizeHoursInput,
 } = require('../utils/foodOperatingHours');
@@ -358,6 +359,35 @@ function normalizeString(value, max = 255) {
   const trimmed = value.trim();
   return trimmed ? trimmed.slice(0, max) : null;
 }
+
+// F-01/F-10: timezones are validated on every write. An invalid IANA name
+// used to be stored verbatim (web creation stored 'UTC' only because the
+// form never sent one) and a bad value later crashed Intl.DateTimeFormat
+// inside the hours evaluator. Empty means "not provided" and returns null
+// so each caller applies its own fallback.
+function normalizeIanaTimezone(value) {
+  const timezone = normalizeString(value, 80);
+  if (!timezone) return null;
+  if (!isValidIanaTimezone(timezone)) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      timezone: 'Must be a valid IANA timezone',
+    });
+  }
+  return timezone;
+}
+
+// F-28: Number(null) and Number('') are both 0, which silently turned a
+// missing coordinate into a point in the Atlantic. Absent stays absent.
+function parseOptionalCoordinate(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+const LOCATION_STATUSES = new Set(['active', 'paused', 'closed']);
+
+// F-12: the fulfillment set the database itself defaults to (migration 305).
+const DEFAULT_FULFILLMENT_MODES = ['pickup', 'dine_in', 'kiosk'];
 
 function canonicalIdempotencyAmount(value) {
   const amount = Number(value);
@@ -2349,17 +2379,23 @@ exports.createRestaurant = async (req, res, next) => {
       });
     }
 
+    // F-01: validate the timezone once, before any write. An invalid value
+    // is a 400, never a silently stored string.
+    const requestedTimezone = normalizeIanaTimezone(req.body.timezone);
+
     const result = await withTransaction(pool, async (client) => {
       const { getOrMintEntityId, grantLink } = require('../lib/entityIds');
       let businessId = parsePositiveInt(req.body.businessId || req.body.business_id);
       let businessCreatedHere = false;
+      let businessTimezone = null;
       if (businessId) {
         const { rows } = await client.query(
-          `SELECT id, business_kind, business_mode
+          `SELECT id, business_kind, business_mode, timezone
              FROM businesses
             WHERE id = $1 AND user_id = $2`,
           [businessId, req.user.id]
         );
+        businessTimezone = rows[0]?.timezone || null;
         if (!rows[0]) throw new AppError('Business not found', 404, 'business_not_found');
         if (
           (rows[0].business_kind && rows[0].business_kind !== 'restaurant')
@@ -2374,7 +2410,7 @@ exports.createRestaurant = async (req, res, next) => {
         if (existingRestaurant) return existingRestaurant;
       } else {
         const country = normalizeCountry(req.body.addressCountry || req.body.address_country);
-        const timezone = normalizeString(req.body.timezone, 80) || 'UTC';
+        const timezone = requestedTimezone || 'UTC';
         const currencyCode = normalizeCurrency(req.body.currencyCode || req.body.currency_code);
         const { rows } = await client.query(
           `INSERT INTO businesses
@@ -2407,6 +2443,13 @@ exports.createRestaurant = async (req, res, next) => {
         businessCreatedHere = true;
       }
 
+      // F-12: no modes sent means the database default set, never an empty
+      // array (an empty array made the POS reject every order while online
+      // ordering silently fell back to pickup only).
+      const requestedModes = normalizeTextArray(req.body.fulfillmentModes || req.body.fulfillment_modes, 4)
+        .filter((mode) => VALID_FULFILLMENT.has(mode));
+      const fulfillmentModes = requestedModes.length ? requestedModes : [...DEFAULT_FULFILLMENT_MODES];
+
       const { rows: [restaurant] } = await client.query(
         `INSERT INTO food_restaurants
            (business_id, owner_user_id, display_name, cuisine_tags, description, phone, website,
@@ -2435,9 +2478,9 @@ exports.createRestaurant = async (req, res, next) => {
           normalizeCountry(req.body.addressCountry || req.body.address_country),
           Number.isFinite(Number(req.body.latitude)) ? Number(req.body.latitude) : null,
           Number.isFinite(Number(req.body.longitude)) ? Number(req.body.longitude) : null,
-          normalizeString(req.body.timezone, 80) || 'UTC',
+          requestedTimezone || businessTimezone || 'UTC',
           normalizeCurrency(req.body.currencyCode || req.body.currency_code),
-          normalizeTextArray(req.body.fulfillmentModes || req.body.fulfillment_modes, 4).filter((mode) => VALID_FULFILLMENT.has(mode)),
+          fulfillmentModes,
           req.body.acceptsOnlineOrders !== false,
           req.body.acceptsInStoreOrders !== false,
           req.body.kitchenDisplayEnabled !== false,
@@ -5158,7 +5201,7 @@ const RESTAURANT_PATCH_FIELDS = {
   addressCountry: { column: 'address_country', value: (v) => normalizeCountry(v) },
   latitude: { column: 'latitude', value: (v) => (Number.isFinite(Number(v)) ? Number(v) : null) },
   longitude: { column: 'longitude', value: (v) => (Number.isFinite(Number(v)) ? Number(v) : null) },
-  timezone: { column: 'timezone', value: (v) => normalizeString(v, 80) || 'UTC' },
+  timezone: { column: 'timezone', value: (v) => normalizeIanaTimezone(v) || 'UTC' },
   currencyCode: { column: 'currency_code', value: (v) => normalizeCurrency(v) },
   cuisineTags: { column: 'cuisine_tags', value: (v) => normalizeTextArray(v) },
   dietaryTags: { column: 'dietary_tags', value: (v) => normalizeDietaryTags(v) },
@@ -7197,36 +7240,50 @@ exports.createRestaurantLocation = async (req, res, next) => {
     if (!name) {
       throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Location name is required' });
     }
-    const isPrimary = req.body.isPrimary === true || req.body.is_primary === true;
-    if (isPrimary) {
-      await pool.query(
-        `UPDATE restaurant_locations SET is_primary = FALSE, updated_at = NOW() WHERE restaurant_id = $1`,
-        [restaurantId]
-      );
+    // F-28: validate before any write. An unknown status used to reach the
+    // CHECK constraint as a 500 after the primary flag had been cleared.
+    const status = normalizeString(req.body.status, 24) || 'active';
+    if (!LOCATION_STATUSES.has(status)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        status: 'Status must be active, paused, or closed',
+      });
     }
-    const { rows: [location] } = await pool.query(
-      `INSERT INTO restaurant_locations
-         (restaurant_id, name, address_street, address_city, address_state, address_zip,
-          address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-       RETURNING *`,
-      [
-        restaurantId,
-        name,
-        normalizeString(req.body.addressStreet || req.body.address_street, 255),
-        normalizeString(req.body.addressCity || req.body.address_city, 120),
-        normalizeString(req.body.addressState || req.body.address_state, 120),
-        normalizeString(req.body.addressZip || req.body.address_zip, 40),
-        normalizeCountry(req.body.addressCountry || req.body.address_country),
-        Number.isFinite(Number(req.body.latitude)) ? Number(req.body.latitude) : null,
-        Number.isFinite(Number(req.body.longitude)) ? Number(req.body.longitude) : null,
-        normalizeString(req.body.timezone, 80) || 'UTC',
-        normalizeString(req.body.phone, 40),
-        isPrimary,
-        normalizeString(req.body.status, 24) || 'active',
-        normalizeHoursInput(req.body.operatingHours || req.body.operating_hours),
-      ]
-    );
+    const timezone = normalizeIanaTimezone(req.body.timezone) || 'UTC';
+    const isPrimary = req.body.isPrimary === true || req.body.is_primary === true;
+    // F-28: the primary flip and the insert are one transaction, so a failed
+    // insert can no longer leave the restaurant with no primary location.
+    const location = await withTransaction(pool, async (client) => {
+      if (isPrimary) {
+        await client.query(
+          `UPDATE restaurant_locations SET is_primary = FALSE, updated_at = NOW() WHERE restaurant_id = $1`,
+          [restaurantId]
+        );
+      }
+      const { rows: [created] } = await client.query(
+        `INSERT INTO restaurant_locations
+           (restaurant_id, name, address_street, address_city, address_state, address_zip,
+            address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+         RETURNING *`,
+        [
+          restaurantId,
+          name,
+          normalizeString(req.body.addressStreet || req.body.address_street, 255),
+          normalizeString(req.body.addressCity || req.body.address_city, 120),
+          normalizeString(req.body.addressState || req.body.address_state, 120),
+          normalizeString(req.body.addressZip || req.body.address_zip, 40),
+          normalizeCountry(req.body.addressCountry || req.body.address_country),
+          parseOptionalCoordinate(req.body.latitude),
+          parseOptionalCoordinate(req.body.longitude),
+          timezone,
+          normalizeString(req.body.phone, 40),
+          isPrimary,
+          status,
+          normalizeHoursInput(req.body.operatingHours || req.body.operating_hours),
+        ]
+      );
+      return created;
+    }, 'food_create_location');
     res.status(201).json({ location: attachRestaurantHours(location) });
   } catch (err) {
     if (isMissingRelationError(err)) {
@@ -7242,55 +7299,70 @@ exports.updateRestaurantLocation = async (req, res, next) => {
     const locationId = parsePositiveInt(req.params.locationId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantManage(restaurant);
-    const { rows: existing } = await pool.query(
-      `SELECT * FROM restaurant_locations WHERE id = $1 AND restaurant_id = $2`,
-      [locationId, restaurantId]
-    );
-    if (!existing[0]) throw new AppError('Location not found', 404, 'location_not_found');
-
-    if (req.body.isPrimary === true || req.body.is_primary === true) {
-      await pool.query(
-        `UPDATE restaurant_locations SET is_primary = FALSE, updated_at = NOW() WHERE restaurant_id = $1`,
-        [restaurantId]
-      );
+    // F-28: validate before any write, then read + primary flip + update in
+    // one transaction. The old flow cleared every primary flag on the pool
+    // before the update ran, so a rejected update lost the primary location.
+    const status = normalizeString(req.body.status, 24);
+    if (status && !LOCATION_STATUSES.has(status)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        status: 'Status must be active, paused, or closed',
+      });
     }
+    const timezone = normalizeIanaTimezone(req.body.timezone);
+    const makePrimary = req.body.isPrimary === true || req.body.is_primary === true;
 
-    const { rows: [location] } = await pool.query(
-      `UPDATE restaurant_locations
-          SET name = COALESCE($1, name),
-              address_street = COALESCE($2, address_street),
-              address_city = COALESCE($3, address_city),
-              address_state = COALESCE($4, address_state),
-              address_zip = COALESCE($5, address_zip),
-              address_country = COALESCE($6, address_country),
-              latitude = COALESCE($7, latitude),
-              longitude = COALESCE($8, longitude),
-              timezone = COALESCE($9, timezone),
-              phone = COALESCE($10, phone),
-              is_primary = COALESCE($11, is_primary),
-              status = COALESCE($12, status),
-              operating_hours = COALESCE($13, operating_hours),
-              updated_at = NOW()
-        WHERE id = $14 AND restaurant_id = $15
-        RETURNING *`,
-      [
-        normalizeString(req.body.name, 160),
-        normalizeString(req.body.addressStreet || req.body.address_street, 255),
-        normalizeString(req.body.addressCity || req.body.address_city, 120),
-        normalizeString(req.body.addressState || req.body.address_state, 120),
-        normalizeString(req.body.addressZip || req.body.address_zip, 40),
-        req.body.addressCountry || req.body.address_country ? normalizeCountry(req.body.addressCountry || req.body.address_country) : null,
-        Number.isFinite(Number(req.body.latitude)) ? Number(req.body.latitude) : null,
-        Number.isFinite(Number(req.body.longitude)) ? Number(req.body.longitude) : null,
-        normalizeString(req.body.timezone, 80),
-        normalizeString(req.body.phone, 40),
-        typeof (req.body.isPrimary ?? req.body.is_primary) === 'boolean' ? (req.body.isPrimary ?? req.body.is_primary) : null,
-        normalizeString(req.body.status, 24),
-        req.body.operatingHours || req.body.operating_hours ? normalizeHoursInput(req.body.operatingHours || req.body.operating_hours) : null,
-        locationId,
-        restaurantId,
-      ]
-    );
+    const location = await withTransaction(pool, async (client) => {
+      const { rows: existing } = await client.query(
+        `SELECT * FROM restaurant_locations WHERE id = $1 AND restaurant_id = $2`,
+        [locationId, restaurantId]
+      );
+      if (!existing[0]) throw new AppError('Location not found', 404, 'location_not_found');
+
+      if (makePrimary) {
+        await client.query(
+          `UPDATE restaurant_locations SET is_primary = FALSE, updated_at = NOW() WHERE restaurant_id = $1`,
+          [restaurantId]
+        );
+      }
+
+      const { rows: [updated] } = await client.query(
+        `UPDATE restaurant_locations
+            SET name = COALESCE($1, name),
+                address_street = COALESCE($2, address_street),
+                address_city = COALESCE($3, address_city),
+                address_state = COALESCE($4, address_state),
+                address_zip = COALESCE($5, address_zip),
+                address_country = COALESCE($6, address_country),
+                latitude = COALESCE($7, latitude),
+                longitude = COALESCE($8, longitude),
+                timezone = COALESCE($9, timezone),
+                phone = COALESCE($10, phone),
+                is_primary = COALESCE($11, is_primary),
+                status = COALESCE($12, status),
+                operating_hours = COALESCE($13, operating_hours),
+                updated_at = NOW()
+          WHERE id = $14 AND restaurant_id = $15
+          RETURNING *`,
+        [
+          normalizeString(req.body.name, 160),
+          normalizeString(req.body.addressStreet || req.body.address_street, 255),
+          normalizeString(req.body.addressCity || req.body.address_city, 120),
+          normalizeString(req.body.addressState || req.body.address_state, 120),
+          normalizeString(req.body.addressZip || req.body.address_zip, 40),
+          req.body.addressCountry || req.body.address_country ? normalizeCountry(req.body.addressCountry || req.body.address_country) : null,
+          parseOptionalCoordinate(req.body.latitude),
+          parseOptionalCoordinate(req.body.longitude),
+          timezone,
+          normalizeString(req.body.phone, 40),
+          typeof (req.body.isPrimary ?? req.body.is_primary) === 'boolean' ? (req.body.isPrimary ?? req.body.is_primary) : null,
+          status,
+          req.body.operatingHours || req.body.operating_hours ? normalizeHoursInput(req.body.operatingHours || req.body.operating_hours) : null,
+          locationId,
+          restaurantId,
+        ]
+      );
+      return updated;
+    }, 'food_update_location');
     res.json({ location: attachRestaurantHours(location) });
   } catch (err) {
     if (isMissingRelationError(err)) {

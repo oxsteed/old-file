@@ -33,6 +33,7 @@ import RestaurantMenuManager from './RestaurantMenuManager';
 import RestaurantFinanceWorkspace from './RestaurantFinanceWorkspace';
 import ScreenControlCenter from '../../restaurantScreens/ControlCenter';
 import LocationsPanel from './FoodLocationsPanel';
+import TimezoneSelect, { DETECTED_TIMEZONE } from './TimezoneSelect.jsx';
 import PromotionsPanel from './FoodPromotionsPanel';
 import { ChecklistsPanel, SopsPanel, InventoryPanel } from './RestaurantOpsPanels';
 import { TrainingPanel } from './RestaurantTrainingPanels';
@@ -57,7 +58,7 @@ function CreateRestaurantForm({ t, onCreated }) {
   const [form, setForm] = useState({
     displayName: '', description: '', phone: '', cuisine: '',
     addressStreet: '', addressCity: '', addressState: '', addressZip: '', addressCountry: 'US',
-    latitude: '', longitude: '', currencyCode: 'USD',
+    latitude: '', longitude: '', currencyCode: 'USD', timezone: DETECTED_TIMEZONE,
   });
   const [saving, setSaving] = useState(false);
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -80,6 +81,7 @@ function CreateRestaurantForm({ t, onCreated }) {
         latitude: form.latitude !== '' ? Number(form.latitude) : undefined,
         longitude: form.longitude !== '' ? Number(form.longitude) : undefined,
         currencyCode: form.currencyCode.trim() || 'USD',
+        timezone: form.timezone || undefined,
       });
       toast.success(t('food.merchant.created'));
       onCreated(restaurant);
@@ -165,6 +167,11 @@ function CreateRestaurantForm({ t, onCreated }) {
           <label htmlFor="fd-r-lng">{t('food.merchant.longitude')}</label>
           <input id="fd-r-lng" value={form.longitude} onChange={set('longitude')} inputMode="decimal" />
         </div>
+      </div>
+      <div className="fd-field">
+        <label htmlFor="fd-r-tz">{t('food.merchant.timezone')}</label>
+        <TimezoneSelect id="fd-r-tz" value={form.timezone} onChange={(value) => setForm((f) => ({ ...f, timezone: value }))} />
+        <p className="fd-card-meta">{t('food.merchant.timezoneHint')}</p>
       </div>
       <button type="submit" className="fd-btn" disabled={saving} data-track="ui.17b0c32a57.2">
         {saving ? t('food.common.saving') : t('food.merchant.createBtn')}
@@ -1212,6 +1219,7 @@ function SettingsCard({ icon: Icon, title, desc, cardKey, registerRef, wide, bar
 function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
   const [saving, setSaving] = useState(false);
   const [prep, setPrep] = useState(restaurant.prep_time_min || 15);
+  const [timezone, setTimezone] = useState(restaurant.timezone || DETECTED_TIMEZONE);
   const [dayHours, setDayHours] = useState(() => dayHoursFromRestaurant(restaurant));
   const [brandHex, setBrandHex] = useState(restaurant.brand_accent_hex || '');
   const [taxRatePct, setTaxRatePct] = useState(() => {
@@ -1262,6 +1270,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
     const nextSettings = restaurant.settings && typeof restaurant.settings === 'object' ? restaurant.settings : {};
     const nextTaxBps = Number(restaurant.tax_rate_bps);
     setTaxRatePct(Number.isFinite(nextTaxBps) && nextTaxBps > 0 ? String(nextTaxBps / 100) : '');
+    setTimezone(restaurant.timezone || DETECTED_TIMEZONE);
     setDayHours(dayHoursFromRestaurant(restaurant));
     setRequirePickupGuestName(nextSettings.requireGuestNameForPickup ?? nextSettings.require_guest_name_for_pickup ?? true);
     setRequireContactForUpdates(nextSettings.requireContactForUpdates ?? nextSettings.require_contact_for_updates ?? false);
@@ -1528,6 +1537,16 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
               {t('food.common.save')}
             </button>
           </div>
+          <div className="fd-settings-field-row">
+            <div className="fd-field">
+              <label htmlFor="fd-tz">{t('food.merchant.timezone')}</label>
+              <TimezoneSelect id="fd-tz" value={timezone} onChange={setTimezone} disabled={saving} />
+            </div>
+            <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={() => patch({ timezone })}>
+              {t('food.common.save')}
+            </button>
+          </div>
+          <p className="fd-card-meta">{t('food.merchant.timezoneHint')}</p>
         </SettingsCard>
 
         <SettingsCard

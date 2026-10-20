@@ -4853,6 +4853,7 @@
     }
   },
   "food": {
+    "merchant": { "timezone": "المنطقة الزمنية", "timezoneHint": "تُستخدم لساعات العمل وأرقام الانتظار اليومية والتقارير.", "locationEdit": "تعديل", "locationSaveChanges": "حفظ التغييرات", "locationStatus": "الحالة", "locationActive": "نشط", "locationPaused": "متوقف مؤقتًا", "locationClosed": "مغلق", "locationUpdated": "تم تحديث الموقع", "locationMakePrimary": "تعيين كموقع رئيسي", "locationName": "اسم الموقع", "addLocation": "إضافة موقع", "locationCreated": "تمت إضافة الموقع", "locationError": "تعذر حفظ الموقع", "findCoordinates": "البحث عن الإحداثيات", "locationGeocodeEmpty": "تعذر العثور على إحداثيات لهذا الموقع", "locationGeocoded": "تم العثور على الإحداثيات", "locationGeocodeError": "تعذر العثور على الإحداثيات" },
     "restaurant": {
       "promoErrors": {
         "generic": "لا يمكن استخدام رمز الترويج هذا في هذا الطلب.",

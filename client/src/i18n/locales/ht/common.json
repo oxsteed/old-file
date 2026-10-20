@@ -4853,6 +4853,7 @@
     }
   },
   "food": {
+    "merchant": { "timezone": "Zòn lè", "timezoneHint": "Yo itilize l pou lè ouvèti, nimewo fil chak jou, ak rapò yo.", "locationEdit": "Modifye", "locationSaveChanges": "Anrejistre chanjman yo", "locationStatus": "Estati", "locationActive": "Aktif", "locationPaused": "An poz", "locationClosed": "Fèmen", "locationUpdated": "Lokasyon an mete ajou", "locationMakePrimary": "Mete li kòm lokasyon prensipal", "locationName": "Non lokasyon an", "addLocation": "Ajoute lokasyon", "locationCreated": "Lokasyon an ajoute", "locationError": "Pa t kapab anrejistre lokasyon an", "findCoordinates": "Chèche kowòdone", "locationGeocodeEmpty": "Nou pa t jwenn kowòdone pou lokasyon sa a", "locationGeocoded": "Nou jwenn kowòdone yo", "locationGeocodeError": "Nou pa t kapab jwenn kowòdone yo" },
     "restaurant": {
       "promoErrors": {
         "generic": "Ou pa ka itilize kòd pwomo sa a sou kòmand sa a.",
