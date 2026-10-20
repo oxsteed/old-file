@@ -27,7 +27,13 @@ function getClient(role) {
     password: process.env[`${prefix}_PASSWORD`],
     request_timeout: role === "writer" ? 20000 : 65000,
     log: { level: "OFF" },
-    clickhouse_settings: { max_execution_time: 60, max_result_rows: "1000000" },
+    // Result caps must fail explicitly: with result_overflow_mode 'throw' a
+    // capped query errors instead of silently returning a truncated export.
+    clickhouse_settings: {
+      max_execution_time: 60,
+      max_result_rows: "1000000",
+      result_overflow_mode: "throw",
+    },
   });
   clients.set(role, client);
   return client;

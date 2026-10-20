@@ -173,6 +173,18 @@ async function queryOptional(sql, params = []) {
   }
 }
 
+// Capped export sections fetch cap+1 rows; one row over the cap fails the
+// export explicitly instead of silently truncating the subject's archive.
+function enforceExportCap(section, rows, cap) {
+  if (rows.length > cap) {
+    const error = new Error('export_section_limit_exceeded');
+    error.code = 'EXPORT_RESULT_LIMIT_EXCEEDED';
+    error.section = section;
+    throw error;
+  }
+  return rows;
+}
+
 // POST /api/privacy/export/verification/request
 // Password verification happens before an email code is issued.
 router.post('/export/verification/request', authenticate, async (req, res) => {
@@ -348,23 +360,23 @@ router.get('/export', authenticate, async (req, res) => {
         queryOptional(
           `SELECT id, sender_id, receiver_id, conversation_id, content, created_at
            FROM messages WHERE ${userIdEq('sender_id')} OR ${userIdEq('receiver_id')}
-           ORDER BY created_at DESC LIMIT 10000`,
+           ORDER BY created_at DESC LIMIT 10001`,
           [String(userId)],
-        ),
+        ).then((rows) => enforceExportCap('messages', rows, 10000)),
         queryOptional(
           `SELECT id, job_id, payer_id, payee_id, amount, status, created_at, updated_at
            FROM payments WHERE ${userIdEq('payer_id')} OR ${userIdEq('payee_id')}
-           ORDER BY created_at DESC LIMIT 5000`,
+           ORDER BY created_at DESC LIMIT 5001`,
           [String(userId)],
-        ),
+        ).then((rows) => enforceExportCap('payments', rows, 5000)),
         queryOptional(
           `SELECT id, business_id, invoice_number, client_name, client_email, status,
                   due_date, total, amount_paid, created_at, updated_at
            FROM business_invoices
            WHERE ${userIdEq('user_id')} OR lower(client_email) = lower((SELECT email FROM users WHERE ${userIdEq('id')}))
-           ORDER BY created_at DESC LIMIT 5000`,
+           ORDER BY created_at DESC LIMIT 5001`,
           [String(userId), String(userId)],
-        ),
+        ).then((rows) => enforceExportCap('invoices', rows, 5000)),
       ]);
     // P3-11-F05: the export previously omitted whole product surfaces.
     // Provider secrets stay out: Stripe subscription/customer ids are not
@@ -396,17 +408,17 @@ router.get('/export', authenticate, async (req, res) => {
            WHERE debit_account_id IN (SELECT id FROM oxsteed_credit_accounts WHERE ${userIdEq('customer_id')})
               OR credit_account_id IN (SELECT id FROM oxsteed_credit_accounts WHERE ${userIdEq('customer_id')})
               OR ${userIdEq('actor_user_id')}
-           ORDER BY created_at DESC LIMIT 5000`,
+           ORDER BY created_at DESC LIMIT 5001`,
           [String(userId)],
-        ),
+        ).then((rows) => enforceExportCap('credit_transactions', rows, 5000)),
         queryOptional(
           `SELECT id, restaurant_id, fulfillment_type, status, payment_status,
                   subtotal_cents, tax_cents, tip_cents, total_cents, currency_code, created_at
            FROM food_orders
            WHERE ${userIdEq('customer_id')}
-           ORDER BY created_at DESC LIMIT 5000`,
+           ORDER BY created_at DESC LIMIT 5001`,
           [String(userId)],
-        ),
+        ).then((rows) => enforceExportCap('food_orders', rows, 5000)),
         queryOptional(
           `SELECT id, plan_id, status, current_period_start, current_period_end,
                   cancelled_at, cancel_at_period_end, created_at, updated_at
@@ -434,9 +446,9 @@ router.get('/export', authenticate, async (req, res) => {
           `SELECT id, type, title, body, is_read, created_at
            FROM notifications
            WHERE ${userIdEq('user_id')}
-           ORDER BY created_at DESC LIMIT 10000`,
+           ORDER BY created_at DESC LIMIT 10001`,
           [String(userId)],
-        ),
+        ).then((rows) => enforceExportCap('notifications', rows, 10000)),
       ]);
     const exportData = {
       exportDate: new Date().toISOString(),

@@ -1,5 +1,8 @@
 "use strict";
 const { key, consentLock } = require("./identity");
+// A subject export that exceeds the row cap fails explicitly instead of
+// shipping a silently truncated archive (spec 18.1: 90 days of events).
+const ACTIVITY_EXPORT_ROW_CAP = 100000;
 async function erase(conn, userId, reason = "account_erasure") {
   const subject = key("subject", userId);
   await conn.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
@@ -76,11 +79,15 @@ async function exportData(conn, userId) {
     const rows = await client.query({
       query: `SELECT event_name,occurred_at,route,props FROM growth.activity_events FINAL
       WHERE (subject_key={subject:String} OR device_key IN {devices:Array(String)}) AND day>=today()-90
-      ORDER BY occurred_at`,
+      ORDER BY occurred_at LIMIT ${ACTIVITY_EXPORT_ROW_CAP + 1}`,
       query_params: { subject, devices: links },
       format: "JSONEachRow",
     });
     result.activity_events = await rows.json();
+    if (result.activity_events.length > ACTIVITY_EXPORT_ROW_CAP)
+      throw Object.assign(new Error("growth_export_result_limit_exceeded"), {
+        code: "EXPORT_RESULT_LIMIT_EXCEEDED",
+      });
   } else {
     const { rows } = await conn.query(
       "SELECT EXISTS(SELECT 1 FROM activity_tracking_rollout WHERE id=1 AND first_notice_sent_at IS NOT NULL) AS started",
@@ -116,4 +123,4 @@ async function exportData(conn, userId) {
       result.segments.push({ name: def.name });
   return result;
 }
-module.exports = { erase, exportData };
+module.exports = { erase, exportData, ACTIVITY_EXPORT_ROW_CAP };
