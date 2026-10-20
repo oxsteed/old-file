@@ -41,7 +41,7 @@ async function snapshotModuleVersion(client, module, createdBy) {
 
 // Best-effort assignment notification (S-12: assignments used to be
 // silent). Failures are logged, never thrown into the write path.
-async function notifyTrainingAssigned(userId, { assignmentId, moduleId, moduleTitle, restaurantId, dueAt, recertification = false }) {
+async function notifyTrainingAssigned(userId, { assignmentId, moduleId, moduleTitle, restaurantId, restaurantName = null, dueAt, recertification = false }) {
   try {
     await sendNotification({
       userId,
@@ -56,8 +56,14 @@ async function notifyTrainingAssigned(userId, { assignmentId, moduleId, moduleTi
         restaurant_id: restaurantId,
         due_at: dueAt || null,
         recertification,
+        // S-19: clients localize from type + params rather than the
+        // English title/body above (kept as the fallback rendering).
+        params: {
+          restaurantName,
+          moduleTitle,
+        },
       },
-      action_url: '/food/merchant',
+      action_url: '/restaurants/merchant?tab=myshift',
       idempotencyKey: `${recertification ? 'training-recert' : 'training-assigned'}:${assignmentId}:${userId}`,
     });
   } catch (err) {
