@@ -127,6 +127,86 @@ function metricEvidenceSql(query, scope, registry, summary) {
       }
       break;
     }
+    // Growth engine metrics (spec 21.1). Projections mirror each governed
+    // aggregate's cohort exactly; identifiers only, never contact details.
+    case 'growth_campaign_recipients':
+      text = `SELECT r.id AS recipient_id,r.campaign_id,r.user_id,r.is_holdout,
+          MIN(d.sent_at) AS first_sent_at
+        FROM offer_campaign_recipients r
+        JOIN offer_campaign_deliveries d ON d.recipient_id=r.id AND d.status='sent'
+        WHERE d.sent_at>=NOW()-$1::interval AND d.sent_at<NOW()
+        GROUP BY r.id,r.campaign_id,r.user_id,r.is_holdout
+        ORDER BY first_sent_at DESC,r.id`;
+      columns = ['recipient_id','campaign_id','user_id','is_holdout','first_sent_at']; break;
+    case 'growth_offer_ctr_pct':
+      text = `SELECT d.id AS delivery_id,d.recipient_id,d.campaign_id,d.channel,
+          EXISTS(SELECT 1 FROM offer_clicks oc WHERE oc.delivery_id=d.id) AS clicked,d.sent_at
+        FROM offer_campaign_deliveries d
+        WHERE d.status='sent' AND d.sent_at>=NOW()-$1::interval AND d.sent_at<NOW()
+        ORDER BY d.sent_at DESC,d.id`;
+      columns = ['delivery_id','recipient_id','campaign_id','channel','clicked','sent_at']; break;
+    case 'growth_offer_optout_rate_pct':
+      text = `SELECT r.id AS recipient_id,r.campaign_id,r.user_id,
+          BOOL_OR(p.user_id IS NOT NULL) AS opted_out,MAX(d.sent_at) AS last_sent_at
+        FROM offer_campaign_recipients r
+        JOIN offer_campaign_deliveries d ON d.recipient_id=r.id AND d.status='sent'
+          AND d.sent_at>=NOW()-$1::interval AND d.sent_at<NOW()
+        LEFT JOIN offer_preferences p ON p.user_id=r.user_id
+          AND (p.offer_push=FALSE OR p.offer_in_app=FALSE)
+          AND p.updated_at>d.sent_at AND p.updated_at<=d.sent_at+INTERVAL '48 hours'
+        GROUP BY r.id,r.campaign_id,r.user_id
+        ORDER BY last_sent_at DESC,r.id`;
+      columns = ['recipient_id','campaign_id','user_id','opted_out','last_sent_at']; break;
+    case 'growth_push_open_rate_pct':
+      text = `SELECT d.id AS delivery_id,d.recipient_id,d.campaign_id,d.sent_at,d.opened_at
+        FROM offer_campaign_deliveries d
+        WHERE d.channel='push' AND d.status='sent'
+          AND d.sent_at>=NOW()-$1::interval AND d.sent_at<NOW()
+        ORDER BY d.sent_at DESC,d.id`;
+      columns = ['delivery_id','recipient_id','campaign_id','sent_at','opened_at']; break;
+    case 'growth_affiliate_commission_cents':
+      text = `SELECT id AS conversion_id,partner_id,UPPER(currency) AS currency_code,status,assisted,
+          CASE WHEN status IN ('approved','paid') THEN commission_minor
+               WHEN status='reversed' THEN -commission_minor ELSE 0 END AS commission_cents,
+          sale_minor,created_at
+        FROM affiliate_conversions
+        WHERE created_at>=NOW()-$1::interval AND created_at<NOW()
+        ORDER BY created_at DESC,id`;
+      columns = ['conversion_id','partner_id','currency_code','status','assisted','commission_cents','sale_minor','created_at']; break;
+    case 'growth_promo_redeemed_cents':
+      text = `SELECT pr.id AS redemption_id,pr.discount_code_id,dc.offer_campaign_id AS campaign_id,pr.code,
+          UPPER(pr.currency_code) AS currency_code,pr.gross_cents,pr.discount_cents,pr.funded_by,pr.redeemed_at
+        FROM promo_redemptions pr JOIN discount_codes dc ON dc.id=pr.discount_code_id
+        WHERE pr.status='redeemed' AND dc.offer_campaign_id IS NOT NULL
+          AND pr.redeemed_at>=NOW()-$1::interval AND pr.redeemed_at<NOW()
+        ORDER BY pr.redeemed_at DESC,pr.id`;
+      columns = ['redemption_id','discount_code_id','campaign_id','code','currency_code','gross_cents','discount_cents','funded_by','redeemed_at']; break;
+    case 'demand_unfilled_rate_pct':
+      text = `SELECT j.id AS job_id,j.status,j.expires_at,j.accepted_at,j.created_at
+        FROM jobs j
+        WHERE j.deleted_at IS NULL AND j.status<>'draft'
+          AND j.created_at>=NOW()-$1::interval AND j.created_at<NOW()
+        ORDER BY j.created_at DESC,j.id`;
+      columns = ['job_id','status','expires_at','accepted_at','created_at']; break;
+    case 'demand_gap_index': {
+      // Fixed trailing 28-day window, like the aggregate. Cells under the
+      // supply floor are counted in the governed median but withheld here:
+      // demand plus an exact sub-k supply count would identify the cell.
+      params.length = 0;
+      text = `WITH d AS (
+          SELECT postal_ref,node_id,COUNT(DISTINCT user_id) AS demand FROM demand_subject_daily
+          WHERE day>(NOW()-INTERVAL '28 days')::DATE AND day<=(NOW())::DATE GROUP BY 1,2
+        ), s AS (
+          SELECT postal_ref,node_id,COUNT(DISTINCT user_id) AS supply FROM supply_subject_daily
+          WHERE day>(NOW()-INTERVAL '28 days')::DATE AND day<=(NOW())::DATE GROUP BY 1,2
+        )
+        SELECT d.postal_ref,d.node_id,d.demand,COALESCE(s.supply,0) AS supply,
+          (d.demand::NUMERIC/(COALESCE(s.supply,0)+1))::FLOAT AS gap
+        FROM d LEFT JOIN s USING (postal_ref,node_id)
+        WHERE d.demand>=5 AND COALESCE(s.supply,0)>=5
+        ORDER BY gap DESC,d.postal_ref,d.node_id`;
+      columns = ['postal_ref','node_id','demand','supply','gap']; break;
+    }
     default: throw new Error('No evidence projection for this metric');
   }
   return { text,params,columns };

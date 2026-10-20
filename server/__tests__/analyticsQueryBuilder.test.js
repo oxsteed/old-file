@@ -524,7 +524,7 @@ describeDb('query builder routes', () => {
   test('admin gets meta and can run a query', async () => {
     const metaRes = await request(app).get('/api/admin/analytics/query-builder/meta')
       .set(adminHeaders).expect(200);
-    expect(metaRes.body.metrics).toHaveLength(18);
+    expect(metaRes.body.metrics).toHaveLength(26);
     const runRes = await request(app).post('/api/admin/analytics/query-builder/run')
       .set(adminHeaders).send({ metric: 'open_disputes' }).expect(200);
     expect(runRes.body.rows).toEqual([{ value: 2 }]);
