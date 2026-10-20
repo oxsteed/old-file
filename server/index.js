@@ -373,6 +373,10 @@ app.use('/api/privacy/delete-account', strictLimiter);
 app.use('/api/privacy/export', strictLimiter);
 
 // ── BODY PARSING ─────────────────────────────────────────────
+// The AI support chat carries one base64 image (≤2 MB file) in its JSON body,
+// so only that route gets a larger limit. It runs first; the global parser
+// below then skips the already-parsed body. Everything else stays at 1 MB.
+require('./middleware/chatMessageBodyParser').mountChatMessageBodyParser(app);
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 

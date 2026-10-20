@@ -24,6 +24,7 @@ const { sendNotification } = require('../services/notificationService');
 const { enqueueConversationMessageNotifications } = require('../services/messageNotificationService');
 const redis = require('../utils/redis');
 const { getCachedGuideReply, setCachedGuideReply } = require('../services/guideHelpCache');
+const { MAX_IMAGE_BASE64_CHARS } = require('../constants/supportChatLimits');
 
 function isUuid(value) {
   return typeof value === 'string'
@@ -319,8 +320,9 @@ exports.chatMessage = async (req, res, next) => {
       for (const img of images.slice(0, 1)) {
         const m = typeof img === 'string'
           && /^data:image\/(png|jpe?g|webp);base64,([A-Za-z0-9+/=]+)$/.exec(img);
-        // ~2.8M base64 chars ~= 2MB; larger images are ignored, not rejected.
-        if (m && m[2].length <= 2800000) { visionImageUrl = img; break; }
+        // MAX_IMAGE_BASE64_CHARS matches the 2 MB client limit; larger images
+        // are ignored, not rejected.
+        if (m && m[2].length <= MAX_IMAGE_BASE64_CHARS) { visionImageUrl = img; break; }
       }
     }
 

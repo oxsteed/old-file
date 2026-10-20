@@ -4,6 +4,7 @@ import api from '../api/axios';
 import { useTranslation } from 'react-i18next';
 import SpeechToTextInput from './SpeechToTextInput';
 import { useCapabilities } from '../hooks/useCapabilities';
+import { SUPPORT_CHAT_MAX_IMAGE_BYTES, sendErrorMessageKey } from './supportWidgetState';
 
 const STORAGE_KEY = 'oxsteed_chat_history';
 const MAX_HISTORY = 40;
@@ -449,7 +450,7 @@ function markProactiveDismissed() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    if (!/^image\/(png|jpe?g|webp)$/.test(file.type) || file.size > 2 * 1024 * 1024) {
+    if (!/^image\/(png|jpe?g|webp)$/.test(file.type) || file.size > SUPPORT_CHAT_MAX_IMAGE_BYTES) {
       setImageError(t('supportWidget.imageTooLarge'));
       return;
     }
@@ -532,10 +533,10 @@ function markProactiveDismissed() {
         // 9. Play ping when window is not focused
         if (!windowFocused.current) playPing();
       }
-    } catch {
+    } catch (err) {
       setMessages(prev => [...prev, {
         role:      'assistant',
-        content:   t('supportWidget.errorMessage'),
+        content:   t(sendErrorMessageKey(err)),
         ts:        new Date().toISOString(),
         isError:   true,
         retryText: text.trim(), // 5. Store for retry

@@ -1,0 +1,34 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+import {
+  SUPPORT_CHAT_MAX_IMAGE_BYTES,
+  sendErrorMessageKey,
+} from '../src/components/supportWidgetState.js';
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const repo = join(root, '..');
+const src = (rel) => readFile(join(root, rel), 'utf8');
+const LOCALES = ['en', 'es', 'fr', 'ht', 'ar'];
+const locale = async (code) => JSON.parse(await src(`src/locales/${code}.json`));
+
+// ── Bug 2: image size limit end to end ──────────────────────────────────────
+test('client and server agree on the 2 MB image limit', async () => {
+  const server = await readFile(join(repo, 'server/constants/supportChatLimits.js'), 'utf8');
+  assert.match(server, /MAX_IMAGE_BYTES = 2 \* 1024 \* 1024/);
+  assert.equal(SUPPORT_CHAT_MAX_IMAGE_BYTES, 2 * 1024 * 1024);
+  const widget = await src('src/components/SupportWidget.jsx');
+  assert.match(widget, /file\.size > SUPPORT_CHAT_MAX_IMAGE_BYTES/);
+});
+
+test('a 413 shows the localized too-large message; other failures stay generic', async () => {
+  assert.equal(sendErrorMessageKey({ response: { status: 413 } }), 'supportWidget.requestTooLarge');
+  assert.equal(sendErrorMessageKey({ response: { status: 502 } }), 'supportWidget.errorMessage');
+  assert.equal(sendErrorMessageKey(new Error('network')), 'supportWidget.errorMessage');
+  for (const code of LOCALES) {
+    const copy = (await locale(code)).supportWidget.requestTooLarge;
+    assert.ok(copy && copy.length > 10, `${code} requestTooLarge`);
+  }
+});
