@@ -31,6 +31,11 @@ const ENTRIES = [
   },
   // ── Caches (TTL-bounded, DB/provider-backed; safe in-process) ──────────
   {
+    file: 'services/supportAccountSnapshot.js', name: 'snapshotCache',
+    classification: 'cache', shared: 'none',
+    rationale: 'AI support chat account snapshot: 30s TTL, 2000-entry cap, keyed by user/language/business. Backing truth is PostgreSQL; staleness is bounded by the TTL and in-chat actions invalidate it.',
+  },
+  {
     file: 'controllers/geoController.js', name: 'cache',
     classification: 'cache', shared: 'redis',
     rationale: 'Geocode result cache: 24h TTL, size-capped, backed by a Redis shared-cache layer (geo-cache:v1:) with in-memory L1. Backing store is the geo provider.',

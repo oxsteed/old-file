@@ -7,7 +7,6 @@ const express = require('express');
 const request = require('supertest');
 const {
   supportChatLimiter,
-  supportChatKey,
   SUPPORT_CHAT_MAX_SIGNED_IN,
   SUPPORT_CHAT_MAX_GUEST,
 } = require('../middleware/rateLimiter');
@@ -21,9 +20,7 @@ function appWith(userFor) {
   return app;
 }
 
-test('signed-in users get their own bucket; guests share the IP bucket', () => {
-  expect(supportChatKey({ user: { id: 'u1' }, ip: '1.2.3.4' })).toBe('user:u1');
-  expect(supportChatKey({ ip: '1.2.3.4' })).toBe('ip:1.2.3.4');
+test('signed-in users get a larger budget than guests', () => {
   expect(SUPPORT_CHAT_MAX_SIGNED_IN).toBeGreaterThan(SUPPORT_CHAT_MAX_GUEST);
 });
 

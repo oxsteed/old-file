@@ -530,14 +530,11 @@ const userChatLimiter = rateLimit({
 const SUPPORT_CHAT_WINDOW_MS = 10 * 60 * 1000;
 const SUPPORT_CHAT_MAX_SIGNED_IN = 40;
 const SUPPORT_CHAT_MAX_GUEST = 20;
-function supportChatKey(req) {
-  return req.user?.id ? `user:${req.user.id}` : `ip:${req.ip}`;
-}
 const supportChatLimiter = rateLimit({
   ...createStoreOption('rl:support_chat:'),
   windowMs: SUPPORT_CHAT_WINDOW_MS,
   max: (req) => (req.user?.id ? SUPPORT_CHAT_MAX_SIGNED_IN : SUPPORT_CHAT_MAX_GUEST),
-  keyGenerator: supportChatKey,
+  keyGenerator: (req) => (req.user?.id ? `user:${req.user.id}` : `ip:${req.ip}`),
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -894,7 +891,6 @@ module.exports = {
   passwordResetVerifyLimiter,
   chatLimiter,
   supportChatLimiter,
-  supportChatKey,
   SUPPORT_CHAT_MAX_SIGNED_IN,
   SUPPORT_CHAT_MAX_GUEST,
   conversationMessageLimiter,
