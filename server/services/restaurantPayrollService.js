@@ -7,8 +7,9 @@
  * Scope is deliberately the DATA FOUNDATION the review asks to build
  * in-house:
  *   - tip attribution: order tips are attributed to the acting staff
- *     member through the POS shift recorded on the order
- *     (food_orders.metadata.shiftId -> restaurant_pos_shifts.staff_user_id);
+ *     member stamped on the order (food_orders.acting_staff_user_id,
+ *     migration 948), falling back to the POS shift recorded on the
+ *     order (food_orders.metadata.shiftId -> restaurant_pos_shifts.staff_user_id);
  *     declared cash tips are recorded per person in
  *     restaurant_declared_cash_tips (migration 951).
  *   - tip pools / tip-out rules per restaurant (restaurant_tip_pool_settings).
@@ -206,7 +207,13 @@ async function getRoster(businessId) {
                      u.email) AS name,
             bm.role AS membership_role,
             bm.job_role,
-            bm.hourly_wage_cents
+            -- Wage of record (951) wins; otherwise the hourly pay rate
+            -- captured at invite time (946) is the wage until one is set.
+            -- Non-hourly invite rates (week/month/year) are not hourly
+            -- wages and stay unset here, so salaried staff surface in
+            -- missing_wage_user_ids instead of being silently misconverted.
+            COALESCE(bm.hourly_wage_cents,
+                     CASE WHEN bm.pay_rate_period = 'hour' THEN bm.pay_rate_cents END) AS hourly_wage_cents
        FROM business_members bm
        JOIN users u ON u.id = bm.member_id
       WHERE bm.business_id = $1 AND bm.status = 'active' AND bm.member_id IS NOT NULL
@@ -346,13 +353,17 @@ function distributeCents(amount, entries) {
 
 async function getOrderTips(restaurantId, fromDate, toDate, timezone) {
   // Tips count only on orders that actually collected money (the F-07
-  // rule), excluding cancelled/refunded orders. Attribution: the staff
+  // rule), excluding cancelled/refunded orders. Attribution: the acting
+  // staff member stamped on the order (S-06), falling back to the staff
   // member who owned the POS shift recorded on the order; orders with
-  // no shift (online, kiosk without a shift) are unattributed.
+  // neither (online, kiosk without a shift) are unattributed.
   const { rows } = await pool.query(
     `${ORDER_FINANCIALS_CTE}
      SELECT COALESCE(NULLIF(fo.currency_code, ''), 'USD') AS currency,
-            s.staff_user_id AS staff_user_id,
+            -- S-06: the acting staff member stamped on the order is the
+            -- precise attribution; the POS shift owner is the fallback
+            -- for orders placed before PIN sessions existed.
+            COALESCE(fo.acting_staff_user_id, s.staff_user_id) AS staff_user_id,
             COALESCE(SUM(fo.tip_cents), 0)::int AS tips_cents
        FROM order_financials fo
        LEFT JOIN restaurant_pos_shifts s
@@ -670,7 +681,7 @@ async function computeExceptions({ restaurant, fromDate, toDate }) {
       params
     ),
     pool.query(
-      `SELECT s.staff_user_id AS user_id,
+      `SELECT COALESCE(fo.acting_staff_user_id, s.staff_user_id) AS user_id,
               COUNT(*)::int AS discounted_orders,
               COALESCE(SUM(fo.discount_cents), 0)::int AS discount_cents
          FROM food_orders fo
@@ -680,10 +691,10 @@ async function computeExceptions({ restaurant, fromDate, toDate }) {
         WHERE fo.restaurant_id = $1
           AND fo.discount_cents > 0
           AND fo.status NOT IN ('cancelled', 'refunded')
-          AND s.staff_user_id IS NOT NULL
+          AND COALESCE(fo.acting_staff_user_id, s.staff_user_id) IS NOT NULL
           AND fo.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
           AND fo.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
-        GROUP BY s.staff_user_id`,
+        GROUP BY COALESCE(fo.acting_staff_user_id, s.staff_user_id)`,
       params
     ),
     pool.query(
