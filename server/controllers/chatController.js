@@ -25,6 +25,7 @@ const { enqueueConversationMessageNotifications } = require('../services/message
 const redis = require('../utils/redis');
 const { getCachedGuideReply, setCachedGuideReply } = require('../services/guideHelpCache');
 const { MAX_IMAGE_BASE64_CHARS } = require('../constants/supportChatLimits');
+const { resolveOllamaUrl } = require('../services/supportChatProviders');
 
 function isUuid(value) {
   return typeof value === 'string'
@@ -64,33 +65,8 @@ function getLanguageInstruction(code) {
   return `\n\n## Language Requirement\nThe user has selected ${name} as their preferred language. You MUST respond entirely in ${name} for all your replies, regardless of what language the user writes in. Only switch languages if the user explicitly asks you to.`;
 }
 
-// Validate OLLAMA_URL at startup to prevent SSRF via misconfigured env
-const OLLAMA_URL = (() => {
-  const raw = process.env.OLLAMA_URL || '';
-  if (!raw) return '';
-  try {
-    const u = new URL(raw);
-    const allowedHosts = [
-      'localhost',
-      '127.0.0.1',
-      '::1',
-      'ollama-api',
-      'ollama-api-p116fo3uwyxytib7ph3yleei',
-    ];
-    if (!['http:', 'https:'].includes(u.protocol)) {
-      logger.warn('[Chat] OLLAMA_URL has unsupported protocol - ignoring', { url: raw });
-      return '';
-    }
-    if (!allowedHosts.includes(u.hostname)) {
-      logger.warn('[Chat] OLLAMA_URL hostname is not localhost - ignoring to prevent SSRF', { hostname: u.hostname });
-      return '';
-    }
-    return raw;
-  } catch {
-    logger.warn('[Chat] OLLAMA_URL is not a valid URL - ignoring', { url: raw });
-    return '';
-  }
-})();
+// Validate OLLAMA_URL at startup to prevent SSRF via misconfigured env.
+const OLLAMA_URL = resolveOllamaUrl(process.env.OLLAMA_URL, logger);
 
 const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const OPENROUTER_CHAT_MODEL = process.env.OPENROUTER_CHAT_MODEL
@@ -168,14 +144,13 @@ async function fetchOllamaChat(messages, options) {
 }
 
 /**
- * Multi-provider fallback: Meta (Muse Spark) → OpenRouter → Ollama.
- * Meta is only attempted when options.allowMeta is true: Meta tokens must
- * never be spent on unauthenticated requests, so anonymous callers get the
- * free-tier chain (OpenRouter → Ollama) with identical UX.
+ * Multi-provider fallback: OpenRouter → Ollama. These are the only providers
+ * the chat paths call; services/supportChatProviders mirrors this chain for
+ * the `aiSupport` capability.
  * @param {Array<{role:string,content:string}>} messages - full message list including system
  * @param {object} ollamaOptions - passed to Ollama `options` (temperature, num_predict, etc.)
  * @param {string} logTag - prefix for structured logs e.g. '[Chat]' or '[ProfileChat]'
- * @param {object} options - reserved for future use
+ * @param {object} options - { openRouterModel } overrides the OpenRouter model (vision turns)
  */
 async function callWithFallback(messages, ollamaOptions, logTag, options = {}) {
   const openRouterModel = options.openRouterModel || OPENROUTER_CHAT_MODEL;
@@ -420,10 +395,8 @@ exports.chatMessage = async (req, res, next) => {
         repeat_penalty: 1.1,
       },
       '[Chat]',
-      // Meta tokens are never spent on unauthenticated requests: anonymous
-      // callers get the free-tier chain with the same UX.
       // Vision turns use the vision-capable model instead of the text model.
-      { allowMeta: Boolean(req.user), openRouterModel: visionImageUrl ? OPENROUTER_VISION_MODEL : undefined }
+      { openRouterModel: visionImageUrl ? OPENROUTER_VISION_MODEL : undefined }
     );
 
     if (!ai.ok) {
@@ -520,9 +493,7 @@ ${getLanguageInstruction(language)}`;
         top_p: 0.9,
         repeat_penalty: 1.1,
       },
-      '[FinancialAdvisor]',
-      // Route requires authentication, so the Meta-first chain is allowed.
-      { allowMeta: true }
+      '[FinancialAdvisor]'
     );
 
     if (!ai.ok) {
@@ -1147,9 +1118,7 @@ exports.profileChatMessage = async (req, res, next) => {
     const ai = await callWithFallback(
       ollamaMessages,
       { temperature: 0.6, num_predict: 350, top_p: 0.9 },
-      '[ProfileChat]',
-      // Same rule as the main chat path: Meta tokens only for signed-in users.
-      { allowMeta: Boolean(userId) }
+      '[ProfileChat]'
     );
 
     if (!ai.ok) {
