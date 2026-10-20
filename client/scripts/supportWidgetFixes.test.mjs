@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import {
   SUPPORT_CHAT_MAX_IMAGE_BYTES,
   formatTicketNumberForCopy,
+  isFocusInside,
   prepareRetry,
   sendErrorMessageKey,
 } from '../src/components/supportWidgetState.js';
@@ -167,4 +168,38 @@ test('widget sends the idempotency key and language and shows the ticket number'
     const copy = (await locale(code)).supportWidget.escalatedWithTicket;
     assert.ok(copy.includes('{{ticketNumber}}'), `${code} escalatedWithTicket has the placeholder`);
   }
+});
+
+// ── Bug 8: small fixes ─────────────────────────────────────────────────────
+test('timestamps use the current i18n language', async () => {
+  const widget = await src('src/components/SupportWidget.jsx');
+  assert.ok(!/formatTime\(m\.ts\)/.test(widget), 'no locale-less formatTime calls');
+  assert.equal((widget.match(/formatTime\(m\.ts, i18n\.language\)/g) || []).length, 2);
+});
+
+test('the handoff card closes its action row on its own line', async () => {
+  const widget = await src('src/components/SupportWidget.jsx');
+  assert.ok(!/<\/span>\s+<\/div>/.test(widget.split('\n').find((l) => l.includes('formatTime(m.ts')) || ''), 'no </div> glued after the timestamp');
+  assert.ok(!widget.includes('</span>                            </div>'));
+});
+
+test('Escape closes the chat only when focus is inside the widget', async () => {
+  const inner = { id: 'inner' };
+  const outside = { id: 'outside' };
+  const body = { id: 'body' };
+  const panel = { contains: (node) => node === inner || node === panel };
+  const prevDocument = globalThis.document;
+  globalThis.document = { body, activeElement: body };
+  try {
+    assert.equal(isFocusInside(panel, inner), true);
+    assert.equal(isFocusInside(panel, outside), false);
+    assert.equal(isFocusInside(panel, body, body), false, 'nothing focused');
+    assert.equal(isFocusInside(panel, body, inner), true, 'falls back to the focused element');
+    assert.equal(isFocusInside(null, inner), false);
+  } finally {
+    globalThis.document = prevDocument;
+  }
+  const widget = await src('src/components/SupportWidget.jsx');
+  assert.match(widget, /e\.key === 'Escape' && open && isFocusInside\(panelRef\.current, e\.target\)/);
+  assert.match(widget, /ref=\{panelRef\}/);
 });

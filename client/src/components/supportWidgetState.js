@@ -38,3 +38,13 @@ export function formatTicketNumberForCopy(ticketNumber) {
   if (ticketNumber === undefined || ticketNumber === null || ticketNumber === '') return '';
   return `\u2068#${String(ticketNumber)}\u2069`;
 }
+
+/**
+ * True when the key event's target (or, failing that, the focused element)
+ * is inside the widget panel.
+ */
+export function isFocusInside(panel, target, activeElement = globalThis.document?.activeElement) {
+  if (!panel || typeof panel.contains !== 'function') return false;
+  const node = target && target !== globalThis.document?.body ? target : activeElement;
+  return Boolean(node) && panel.contains(node);
+}

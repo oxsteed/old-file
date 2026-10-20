@@ -15,7 +15,13 @@ import {
   writeEscalation,
 } from '../lib/supportChatStorage';
 import { createMessageRequestId } from '../lib/messageRequestId';
-import { SUPPORT_CHAT_MAX_IMAGE_BYTES, formatTicketNumberForCopy, prepareRetry, sendErrorMessageKey } from './supportWidgetState';
+import {
+  SUPPORT_CHAT_MAX_IMAGE_BYTES,
+  formatTicketNumberForCopy,
+  isFocusInside,
+  prepareRetry,
+  sendErrorMessageKey,
+} from './supportWidgetState';
 
 // History lives under a per-user (or guest) key; see lib/supportChatStorage.
 const MAX_HISTORY = 40;
@@ -402,10 +408,12 @@ function markProactiveDismissed() {
     }
   }, [open, minimized]);
 
-  // Escape to close
+  // Escape closes the chat only while focus is inside the widget, so Escape
+  // in another dialog, menu or field on the page never closes it as well.
+  const panelRef = useRef(null);
   useEffect(() => {
     const handler = (e) => {
-      if (e.key === 'Escape' && open) {
+      if (e.key === 'Escape' && open && isFocusInside(panelRef.current, e.target)) {
         markProactiveDismissed();
         setOpen(false);
       }
@@ -668,9 +676,13 @@ function markProactiveDismissed() {
           onClick={isFullScreen ? undefined : (e => { if (e.target === e.currentTarget) { markProactiveDismissed(); setOpen(false); } })}
         >
           <div
+            ref={panelRef}
+            // Focusable container: a click on non-interactive chat content
+            // keeps focus inside the widget, so Escape still closes it.
+            tabIndex={-1}
             className={isFullScreen
-              ? 'w-full h-full bg-gray-900 flex flex-col'
-              : 'pointer-events-auto bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-sm flex flex-col transition-all'
+              ? 'w-full h-full bg-gray-900 flex flex-col focus:outline-none'
+              : 'pointer-events-auto bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-sm flex flex-col transition-all focus:outline-none'
             }
             style={isFullScreen ? {} : { maxHeight: minimized ? 'auto' : '82vh' }}
           >
@@ -803,7 +815,8 @@ function markProactiveDismissed() {
                               >
                                 {escalating ? t('supportWidget.escalating') : t('supportWidget.handoffTitle')}
                               </button>
-                              <span className="text-[10px] text-gray-600">{formatTime(m.ts)}</span>                            </div>
+                              <span className="text-[10px] text-gray-600">{formatTime(m.ts, i18n.language)}</span>
+                            </div>
                           </div>
                         ) : (
                         <>
@@ -831,7 +844,7 @@ function markProactiveDismissed() {
 
                         {/* Meta row: timestamp + actions */}
                         <div className={`flex items-center gap-2 flex-wrap ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                          <span className="text-[10px] text-gray-600">{formatTime(m.ts)}</span>
+                          <span className="text-[10px] text-gray-600">{formatTime(m.ts, i18n.language)}</span>
 
                           {/* 5. Retry button on error */}
                           {m.isError && m.retryable && i === messages.length - 1 && (
