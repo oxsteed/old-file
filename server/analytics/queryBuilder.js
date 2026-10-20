@@ -597,8 +597,8 @@ function buildGrowthMetric(query) {
     case 'growth_offer_ctr_pct':
       return {
         text: `SELECT COUNT(DISTINCT d.recipient_id)::INT AS delivered,
-                      COUNT(DISTINCT d.recipient_id) FILTER (WHERE oc.id IS NOT NULL)::INT AS clickers,
-                      ROUND(100.0 * COUNT(DISTINCT d.recipient_id) FILTER (WHERE oc.id IS NOT NULL)
+                      COUNT(DISTINCT d.recipient_id) FILTER (WHERE oc.click_id IS NOT NULL)::INT AS clickers,
+                      ROUND(100.0 * COUNT(DISTINCT d.recipient_id) FILTER (WHERE oc.click_id IS NOT NULL)
                             / NULLIF(COUNT(DISTINCT d.recipient_id), 0), 2)::FLOAT AS value
                  FROM offer_campaign_deliveries d
                  LEFT JOIN offer_clicks oc ON oc.delivery_id = d.id
