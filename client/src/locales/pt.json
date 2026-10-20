@@ -33546,6 +33546,10 @@
   "adminCreditApprovalGrandfathered": "Aprovado (sem registro de aprovação)",
   "growthInsights": {
     "analyticsStorage": "Google Analytics e armazenamento no dispositivo",
-    "analyticsStorageDescription": "No EEE, Reino Unido, Suíça e Quebec, o rastreamento e as ofertas baseadas na atividade exigem consentimentos separados e revogáveis. Os estados americanos aplicáveis permitem recusar venda ou compartilhamento e respeitam Global Privacy Control. Nas demais regiões, a opção de análise controla Google Analytics e armazenamento persistente; este aviso cobre a atividade."
+    "analyticsStorageDescription": "No EEE, Reino Unido, Suíça e Quebec, o rastreamento e as ofertas baseadas na atividade exigem consentimentos separados e revogáveis. Os estados americanos aplicáveis permitem recusar venda ou compartilhamento e respeitam Global Privacy Control. Nas demais regiões, a opção de análise controla Google Analytics e armazenamento persistente; este aviso cobre a atividade.",
+    "policy": "Política de Privacidade",
+    "changedOn": "Nossa Política de Privacidade mudou em {{date}}.",
+    "changesOn": "Nossa Política de Privacidade mudará em {{date}}.",
+    "dismiss": "Dispensar"
   }
 }

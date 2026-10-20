@@ -6,12 +6,14 @@ The engine uses the `growthInsights` UI namespace. The existing `growth` copy an
 
 Developer continuation instructions: [HANDOFF-2026-10-20.md](HANDOFF-2026-10-20.md). This is an incomplete, default-off checkpoint, not a merge/deployment candidate.
 
+Track 1 continuation (2026-10-20, branch `growth-finish-t1`): the privacy foundation items from handoff section 1 are implemented and covered by `server/__tests__/growthPrivacyFoundation.test.js` (mocked stores only; no live Postgres/Redis/ClickHouse rehearsal). The consent ledger records IP-HMAC evidence (migration 936), export and ClickHouse result caps fail explicitly, and English upcoming-policy sections 2/3/4/6/7/8 now match spec 4.1. The fifteen notice-banner locales that lacked their own copy (bn, de, hi, id, it, ja, ko, pt, ru, sw, th, tr, ur, vi, zh) now carry **machine-draft** banner labels (`growthInsights` policy/changedOn/changesOn/dismiss) in both catalog trees. These drafts are pending professional translation review and must not be represented as reviewed copy.
+
 ## Working requirements matrix
 
 | Area | Current source | Required next verification / implementation |
 | --- | --- | --- |
-| Rollout and controls | Additive Postgres schema; reviewed jurisdiction rules, server consent ledger, default-off switches; effective date is max(last accepted send + 14 days, date quoted in notices) | Legal/DPIA/LIA and jurisdiction review, adult eligibility evidence; finish launch acceptance checks before enabling |
-| Notices | Immutable batch payloads and idempotency keys; twenty-language draft copy; notices require an explicit scheduled/start action and review references | Verify bounded late retries, suppression and webhook races with fixtures; production quota and deliverability review; professional translations |
+| Rollout and controls | Additive Postgres schema; reviewed jurisdiction rules, server consent ledger (with IP-HMAC evidence since migration 936), default-off switches; effective date is max(last accepted send + 14 days, date quoted in notices) | Legal/DPIA/LIA and jurisdiction review, adult eligibility evidence; finish launch acceptance checks before enabling |
+| Notices | Immutable batch payloads and idempotency keys; twenty-language draft copy; notices require an explicit scheduled/start action and review references | Production quota and deliverability review; professional translations |
 | Tracking | Versioned schemas, signed-in eligible subjects only, route/key allowlists, bounded client queue, delegated capture; private controls excluded | Native client implementation, end-to-end load and privacy audit |
 | Event store | Redis Streams, transactional domain outbox, fenced relay/writer, official ClickHouse client, replicated table migrations, aggregate distinct states | Two replicas / three Keeper members, dedicated Redis persistence and replica, backup/restore and load rehearsal |
 | Domain events | Job creation and bid hooks; full schema catalog | Remaining domain hooks and source-projection allowlists |
@@ -19,7 +21,7 @@ Developer continuation instructions: [HANDOFF-2026-10-20.md](HANDOFF-2026-10-20.
 | Insights | Job-event nightly rollup path; k-suppressed demand table; profile-based clusters; validated segment rules and immutable versions; statistical primitives | Other vertical rollups, demand/supply windows and trend, propensity v1, full segment clauses, suggestion producer, governed metrics, map |
 | Campaigns | Five-language copy validation, explicit review/approval/queue, fresh TOTP, creator may approve, current grants/territory checked, frozen recipients, deterministic holdout, delivery leases and send-time checks | Campaign editing/scheduling/results and end-to-end workflow verification; finish UI forms and shared delivery extraction |
 | Partners | Partner/offer create and activate APIs, signed links, domain allowlist, HMAC postbacks and replay ledger, exact minor-unit amounts by currency | Feed adapters, reconciliation, partner UI and attribution acceptance tests |
-| Rights | Tracking consent export, interest and offer export, queue erasure plus synchronous ClickHouse mutations; no forced terms re-acceptance | Verify the added existing-analytics, segment and propensity exports and cleanup against populated predecessor stores; finish streaming, erasure audit counts, all deletion paths and backup rehearsal |
+| Rights | Tracking consent export, interest and offer export, queue erasure plus synchronous ClickHouse mutations; no forced terms re-acceptance; export/ClickHouse result caps fail explicitly (EXPORT_RESULT_LIMIT_EXCEEDED) and deletion cleanup is regression-covered against financial retention | Verify the added existing-analytics, segment and propensity exports and cleanup against populated predecessor stores; finish streaming, erasure audit counts, all deletion paths and backup rehearsal |
 | Deferred by design | Offer email, owned catalog, propensity v2 | Phases 6-8 and their explicit entry criteria |
 
 ## Verification at the pushed handoff checkpoint (2026-10-20)

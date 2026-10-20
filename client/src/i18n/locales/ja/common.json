@@ -3595,6 +3595,10 @@
   },
   "growthInsights": {
     "analyticsStorage": "Google Analyticsと端末ストレージ",
-    "analyticsStorageDescription": "EEA、英国、スイス、ケベックでは、追跡と活動に基づくオファーに別々の同意が必要で、設定から撤回できます。対象の米国州では販売・共有の拒否とGlobal Privacy Controlに対応します。他地域の分析設定はGoogle Analyticsと端末の永続保存を制御し、活動は本通知に基づき処理します。"
+    "analyticsStorageDescription": "EEA、英国、スイス、ケベックでは、追跡と活動に基づくオファーに別々の同意が必要で、設定から撤回できます。対象の米国州では販売・共有の拒否とGlobal Privacy Controlに対応します。他地域の分析設定はGoogle Analyticsと端末の永続保存を制御し、活動は本通知に基づき処理します。",
+    "policy": "プライバシーポリシー",
+    "changedOn": "プライバシーポリシーは{{date}}に変更されました。",
+    "changesOn": "プライバシーポリシーは{{date}}に変更されます。",
+    "dismiss": "閉じる"
   }
 }
