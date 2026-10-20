@@ -11207,6 +11207,7 @@
     "imageTooLarge": "That image is too large. Please choose one under 2 MB.",
     "requestTooLarge": "That message was too large to send. Attach an image under 2 MB or shorten your message, then try again.",
     "escalated": "Done. Support has your chat and will follow up by email.",
+    "escalatedWithTicket": "Done. Support has your chat as ticket {{ticketNumber}} and will follow up by email.",
     "escalateFailed": "Couldn't reach support just now. Please try again.",
     "escalating": "Handing off..."
   },

@@ -5,8 +5,17 @@ import { useTranslation } from 'react-i18next';
 import SpeechToTextInput from './SpeechToTextInput';
 import { useCapabilities } from '../hooks/useCapabilities';
 import { useAuth } from '../context/AuthContext';
-import { chatHistoryKey, chatStorageScope, pruneSupportChatStorage } from '../lib/supportChatStorage';
-import { SUPPORT_CHAT_MAX_IMAGE_BYTES, prepareRetry, sendErrorMessageKey } from './supportWidgetState';
+import {
+  chatHistoryKey,
+  chatStorageScope,
+  clearEscalation,
+  ensureEscalationRequest,
+  pruneSupportChatStorage,
+  readEscalation,
+  writeEscalation,
+} from '../lib/supportChatStorage';
+import { createMessageRequestId } from '../lib/messageRequestId';
+import { SUPPORT_CHAT_MAX_IMAGE_BYTES, formatTicketNumberForCopy, prepareRetry, sendErrorMessageKey } from './supportWidgetState';
 
 // History lives under a per-user (or guest) key; see lib/supportChatStorage.
 const MAX_HISTORY = 40;
@@ -223,9 +232,10 @@ function AISupportWidget({ storageScope, signedIn }) {
   const [pendingImage, setPendingImage] = useState(null);
   const [imageError,   setImageError]   = useState(null);
   const fileInputRef = useRef(null);
-  // Gap #8: one-click handoff state.
+  // Gap #8: one-click handoff state. The handoff record (idempotency key and
+  // ticket number) survives reloads, so one conversation opens one ticket.
   const [escalating,   setEscalating]   = useState(false);
-  const escalatedRef = useRef(false);
+  const [escalation,   setEscalation]   = useState(() => readEscalation(storageScope));
   // Gap #7: suggestion chips follow the page instead of one-size-fits-all.
   const SUGGESTION_KEYS_BY_PATH = [
     { match: (p) => p.startsWith('/post-job'), keys: ['suggestionPostJob', 'suggestionBidding', 'suggestionPayments'] },
@@ -418,24 +428,40 @@ function markProactiveDismissed() {
   // Gap #8: one-click handoff that carries the transcript. Signed-in users
   // get a ticket instantly; guests fall back to the escalation page.
   const handleChatEscalation = useCallback(async () => {
-    if (escalating || escalatedRef.current) return;
+    if (escalating) return;
+    const handedOffMessage = (ticketNumber) => ({
+      role: 'assistant',
+      content: ticketNumber
+        ? t('supportWidget.escalatedWithTicket', { ticketNumber: formatTicketNumberForCopy(ticketNumber) })
+        : t('supportWidget.escalated'),
+      ts: new Date().toISOString(),
+    });
+    // Already handed off: repeat the ticket number instead of opening another.
+    if (escalation?.ticketNumber) {
+      setMessages(prev => [...prev, handedOffMessage(escalation.ticketNumber)]);
+      return;
+    }
     setEscalating(true);
+    // Persisted before the request so a reload or retry reuses the same key.
+    const record = ensureEscalationRequest(storageScope, createMessageRequestId);
+    setEscalation(record);
     try {
       const transcript = messages
         .filter(m => !m.handoff && !m.isError)
         .slice(-20)
         .map(m => ({ role: m.role, content: String(m.content || '').slice(0, 1500) }));
-      await api.post('/support/chat-escalation', {
+      const { data } = await api.post('/support/chat-escalation', {
         subject: `Chat escalation from ${window.location.pathname}`,
         transcript,
         page: window.location.pathname,
+        clientRequestId: record.requestId,
+        sender_language: i18n.language || localStorage.getItem('oxs:language') || 'en',
       });
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: t('supportWidget.escalated'),
-        ts: new Date().toISOString(),
-      }]);
-      escalatedRef.current = true;
+      const ticketNumber = data?.ticket_number ?? null;
+      const next = { ...record, ticketNumber };
+      writeEscalation(storageScope, next);
+      setEscalation(next);
+      setMessages(prev => [...prev, handedOffMessage(ticketNumber)]);
     } catch (err) {
       if (err?.response?.status === 401) {
         navigate('/support/escalation');
@@ -450,7 +476,7 @@ function markProactiveDismissed() {
     } finally {
       setEscalating(false);
     }
-  }, [messages, escalating, navigate, t]);
+  }, [messages, escalating, escalation, storageScope, navigate, t, i18n.language]);
 
   // Gap #3: attach a screenshot or photo to the next message.
   const handleImageSelect = useCallback((e) => {
@@ -592,6 +618,9 @@ function markProactiveDismissed() {
     const fresh = [{ ...initialMsg, ts: new Date().toISOString() }];
     setMessages(fresh);
     saveHistory(storageKey, fresh);
+    // A cleared conversation is a new conversation: its handoff opens a new ticket.
+    clearEscalation(storageScope);
+    setEscalation(null);
     // Signed-in users also have server-side memory; clear it so the
     // assistant does not keep using a conversation the user just erased.
     if (signedIn) {

@@ -29,3 +29,12 @@ export function prepareRetry(messages) {
   if (!failedUser || failedUser.role !== 'user') return null;
   return { base, failedUser };
 }
+
+/**
+ * Ticket number for display inside translated copy. First-strong isolates
+ * keep "#1234" intact inside Arabic (RTL) sentences.
+ */
+export function formatTicketNumberForCopy(ticketNumber) {
+  if (ticketNumber === undefined || ticketNumber === null || ticketNumber === '') return '';
+  return `\u2068#${String(ticketNumber)}\u2069`;
+}

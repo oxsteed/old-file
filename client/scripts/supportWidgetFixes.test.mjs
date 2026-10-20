@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
   SUPPORT_CHAT_MAX_IMAGE_BYTES,
+  formatTicketNumberForCopy,
   prepareRetry,
   sendErrorMessageKey,
 } from '../src/components/supportWidgetState.js';
@@ -13,8 +14,12 @@ import {
   chatHistoryKey,
   chatStorageScope,
   clearSupportChatStorage,
+  clearEscalation,
+  ensureEscalationRequest,
   escalationKey,
   pruneSupportChatStorage,
+  readEscalation,
+  writeEscalation,
 } from '../src/lib/supportChatStorage.js';
 
 function memoryStorage(initial = {}) {
@@ -129,4 +134,37 @@ test('widget retries in place and keeps error bubbles out of the model history',
   assert.match(widget, /outgoingImage = retry\.failedUser\.image/);
   assert.ok(!widget.includes('retryText'), 'retry no longer re-appends the text');
   assert.match(widget, /filter\(m => !m\.handoff && !m\.isError\)/);
+});
+
+// ── Bug 5: idempotent handoff with the ticket number in chat ────────────────
+test('the handoff request id is created once per conversation and survives reload', () => {
+  const storage = memoryStorage();
+  let n = 0;
+  const create = () => `id-${++n}`;
+  const first = ensureEscalationRequest('user:1', create, storage);
+  const again = ensureEscalationRequest('user:1', create, storage);
+  assert.equal(first.requestId, 'id-1');
+  assert.equal(again.requestId, 'id-1', 'reload/double click reuses the key');
+  writeEscalation('user:1', { requestId: 'id-1', ticketNumber: 'OX-7' }, storage);
+  assert.deepEqual(readEscalation('user:1', storage), { requestId: 'id-1', ticketNumber: 'OX-7' });
+  assert.equal(readEscalation('user:2', storage), null, 'scoped per user');
+  clearEscalation('user:1', storage);
+  assert.equal(ensureEscalationRequest('user:1', create, storage).requestId, 'id-2', 'new conversation, new key');
+});
+
+test('ticket numbers are bidi-isolated for RTL copy', () => {
+  assert.equal(formatTicketNumberForCopy('OX-7'), '\u2068#OX-7\u2069');
+  assert.equal(formatTicketNumberForCopy(null), '');
+});
+
+test('widget sends the idempotency key and language and shows the ticket number', async () => {
+  const widget = await src('src/components/SupportWidget.jsx');
+  assert.match(widget, /clientRequestId: record\.requestId/);
+  assert.match(widget, /sender_language: i18n\.language/);
+  assert.match(widget, /supportWidget\.escalatedWithTicket/);
+  assert.ok(!widget.includes('escalatedRef'), 'handoff state is persisted, not a per-mount ref');
+  for (const code of LOCALES) {
+    const copy = (await locale(code)).supportWidget.escalatedWithTicket;
+    assert.ok(copy.includes('{{ticketNumber}}'), `${code} escalatedWithTicket has the placeholder`);
+  }
 });

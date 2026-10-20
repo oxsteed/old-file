@@ -11207,6 +11207,7 @@
     "imageTooLarge": "Imaj sa a twò gwo. Chwazi youn ki pi piti pase 2 MB.",
     "requestTooLarge": "Mesaj sa a te twò gwo pou voye. Mete yon imaj ki pi piti pase 2 MB oswa fè mesaj ou a pi kout, epi eseye ankò.",
     "escalated": "Fèt. Sipò gen konvèsasyon ou a epi l ap kontakte ou pa imèl.",
+    "escalatedWithTicket": "Fèt. Sipò gen konvèsasyon ou a kòm tikè {{ticketNumber}} epi l ap kontakte ou pa imèl.",
     "escalateFailed": "Nou pa t ka jwenn sipò kounye a. Eseye ankò.",
     "escalating": "Ap transfere..."
   },

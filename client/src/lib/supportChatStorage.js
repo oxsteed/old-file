@@ -52,3 +52,35 @@ export function pruneSupportChatStorage(scope, storage = defaultStorage()) {
   removeMatching(storage, (key) => key === LEGACY_CHAT_HISTORY_KEY
     || (scope !== GUEST_SCOPE && (key === chatHistoryKey(GUEST_SCOPE) || key === escalationKey(GUEST_SCOPE))));
 }
+
+/**
+ * Chat handoff record for the current conversation: { requestId, ticketNumber }.
+ * The requestId is persisted BEFORE the request is sent, so a double click,
+ * a retry or a reload re-sends the same idempotency key and the server
+ * returns the existing ticket instead of opening another one.
+ */
+export function readEscalation(scope, storage = defaultStorage()) {
+  try {
+    const raw = storage?.getItem(escalationKey(scope));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed.requestId === 'string' ? parsed : null;
+  } catch { return null; }
+}
+
+export function writeEscalation(scope, record, storage = defaultStorage()) {
+  try { storage?.setItem(escalationKey(scope), JSON.stringify(record)); } catch { /* storage unavailable */ }
+}
+
+export function clearEscalation(scope, storage = defaultStorage()) {
+  try { storage?.removeItem(escalationKey(scope)); } catch { /* storage unavailable */ }
+}
+
+/** Returns the conversation's handoff record, creating its requestId once. */
+export function ensureEscalationRequest(scope, createId, storage = defaultStorage()) {
+  const existing = readEscalation(scope, storage);
+  if (existing) return existing;
+  const record = { requestId: createId() };
+  writeEscalation(scope, record, storage);
+  return record;
+}
