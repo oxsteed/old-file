@@ -27,6 +27,7 @@ const { resolveRestaurantAccess } = require('../services/scopeModel');
 const permissionsService = require('../services/permissionsService');
 const { validatePrinterHost } = require('../utils/printerHostValidation');
 const escpos = require('../services/escposPrinter');
+const restaurantLocationService = require('../services/restaurantLocationService');
 
 // Direct server-side dialing is an explicit operator opt-in for trusted
 // single-host deployments. Off by default everywhere, production included.
@@ -314,12 +315,25 @@ async function enqueuePrintJob({ restaurantId, orderId, kind, buffer, kickDrawer
     escpos_base64: buffer.toString('base64'),
     kick_drawer: Boolean(kickDrawer),
   };
+  // F-02 phase 1: a receipt job belongs to the order's store; an
+  // order-less job (test page) belongs to the primary store.
+  let jobLocationId = null;
+  if (orderId) {
+    const { rows: [order] } = await pool.query(
+      `SELECT location_id FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
+      [orderId, restaurantId]
+    );
+    jobLocationId = order?.location_id || null;
+  }
+  if (jobLocationId === null) {
+    jobLocationId = await restaurantLocationService.resolveLocationId(pool, { restaurantId });
+  }
   const { rows: [job] } = await pool.query(
     `INSERT INTO restaurant_printer_jobs
-       (restaurant_id, station_id, food_order_id, job_type, payload, created_by)
-     VALUES ($1, NULL, $2, 'receipt', $3, $4)
+       (restaurant_id, station_id, food_order_id, job_type, payload, created_by, location_id)
+     VALUES ($1, NULL, $2, 'receipt', $3, $4, $5)
      RETURNING id, status`,
-    [restaurantId, orderId || null, JSON.stringify(payload), createdBy || null]
+    [restaurantId, orderId || null, JSON.stringify(payload), createdBy || null, jobLocationId]
   );
   return job;
 }

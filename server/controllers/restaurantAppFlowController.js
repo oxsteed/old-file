@@ -44,6 +44,7 @@ const { finalizeCreditSpendInTransaction } = require('../services/creditSpendAda
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
 const { nextQueueNumber } = require('../services/restaurantQueueCounter');
+const restaurantLocationService = require('../services/restaurantLocationService');
 const permissionsService = require('../services/permissionsService');
 const { getEffectivePermissions } = permissionsService;
 const {
@@ -3250,10 +3251,25 @@ exports.openShift = async (req, res, next) => {
         staffUserId: 'Staff member must be active at this restaurant',
       });
     }
+    // F-02 phase 1: a drawer belongs to a store. The request's device
+    // (explicit device id, or the acting staff session's device) pins it;
+    // otherwise the restaurant's primary location.
+    const shiftActingStaff = await resolveActingStaff(req, restaurantId);
+    const shiftDeviceId = parsePositiveInt(req.body.deviceId || req.body.device_id)
+      || shiftActingStaff?.deviceId
+      || null;
+    const shiftDeviceLocationId = shiftDeviceId
+      ? await restaurantLocationService.deviceLocationId(pool, { restaurantId, deviceId: shiftDeviceId })
+      : null;
+    const shiftLocationId = await restaurantLocationService.resolveLocationId(pool, {
+      restaurantId,
+      requestedLocationId: parsePositiveInt(req.body.locationId || req.body.location_id),
+      deviceLocationId: shiftDeviceLocationId,
+    });
     const { rows: [shift] } = await pool.query(
       `INSERT INTO restaurant_pos_shifts
-         (restaurant_id, staff_user_id, staff_label, drawer_name, opening_cash_cents, metadata)
-       VALUES ($1,$2,$3,$4,$5,$6)
+         (restaurant_id, staff_user_id, staff_label, drawer_name, opening_cash_cents, metadata, location_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
        ON CONFLICT (restaurant_id, staff_user_id)
          WHERE status = 'open' AND staff_user_id IS NOT NULL
        DO NOTHING
@@ -3265,6 +3281,7 @@ exports.openShift = async (req, res, next) => {
         normalizeString(req.body.drawerName || req.body.drawer_name, 120),
         parseCents(req.body.openingCashCents ?? req.body.opening_cash_cents, 'openingCashCents'),
         safeJson(req.body.metadata),
+        shiftLocationId,
       ]
     );
     if (!shift) throw new AppError('Staff member already has an open POS shift', 409, 'pos_shift_already_open');
@@ -3677,6 +3694,20 @@ exports.createPosOrder = async (req, res, next) => {
       if (!fulfillmentModes.includes(fulfillment)) {
         throw new AppError('This fulfillment mode is not available', 409, 'fulfillment_mode_unavailable');
       }
+      // F-02 phase 1: stamp the store this ticket belongs to (explicit
+      // request, else the acting terminal's store, else primary) and run
+      // daypart checks in that store's timezone. The queue counter is
+      // per store since migration 952, keyed on the resolved location.
+      const posDeviceLocationId = actingStaff?.deviceId
+        ? await restaurantLocationService.deviceLocationId(client, { restaurantId, deviceId: actingStaff.deviceId })
+        : null;
+      const posLocation = await restaurantLocationService.resolveLocationRow(client, {
+        restaurantId,
+        requestedLocationId: parsePositiveInt(req.body.locationId || req.body.location_id),
+        deviceLocationId: posDeviceLocationId,
+      });
+      const posLocationId = posLocation ? Number(posLocation.id) : null;
+      const posTimezone = posLocation?.timezone || restaurantRow.timezone;
       const ids = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
       const { rows: menuRows } = await client.query(
         `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
@@ -3721,8 +3752,8 @@ exports.createPosOrder = async (req, res, next) => {
           throw new AppError('Validation failed', 400, 'validation_failed', { [`items.${index}.menuItemId`]: 'Menu item is unavailable' });
         }
         // F-11: POS orders are immediate, so dayparts are enforced at the
-        // current time in the restaurant's timezone, same as online orders.
-        if (!isItemAvailableAt(item, new Date(), restaurantRow.timezone)) {
+        // current time in the store's timezone, same as online orders.
+        if (!isItemAvailableAt(item, new Date(), posTimezone)) {
           throw new AppError('Validation failed', 400, 'validation_failed', { [`items.${index}.menuItemId`]: 'Menu item is not available at this time of day' });
         }
         const quantity = Math.min(parsePositiveInt(line.quantity, 1), 99);
@@ -3832,7 +3863,7 @@ exports.createPosOrder = async (req, res, next) => {
         );
       }
       const total = taxableSubtotal + tax + serviceFeeCents + deliveryFeeCents + tip;
-      const queueNumber = await nextQueueNumber(client, restaurantId, restaurantRow.timezone);
+      const queueNumber = await nextQueueNumber(client, restaurantId, posTimezone, new Date(), posLocationId);
       const requestedPaymentStatus = normalizeString(req.body.paymentStatus || req.body.payment_status, 24);
       if (requestedPaymentStatus && requestedPaymentStatus !== 'unpaid') {
         throw new AppError(
@@ -3864,8 +3895,8 @@ exports.createPosOrder = async (req, res, next) => {
             order_source, fulfillment_type, payment_status, subtotal_cents, tax_cents,
             service_fee_cents, delivery_fee_cents, tax_rate_bps, service_fee_bps,
             tip_cents, discount_cents, total_cents, currency_code, table_label,
-            queue_number, promised_at, notes, metadata, client_order_id, acting_staff_user_id)
-         VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW() + ($21 || ' minutes')::interval,$22,$23,$24,$25)
+            queue_number, promised_at, notes, metadata, client_order_id, acting_staff_user_id, location_id)
+         VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW() + ($21 || ' minutes')::interval,$22,$23,$24,$25,$26)
          RETURNING *`,
         [
           restaurantId,
@@ -3897,6 +3928,7 @@ exports.createPosOrder = async (req, res, next) => {
           metadata,
           clientOrderId,
           actingStaff?.staffUserId || null,
+          posLocationId,
         ]
       );
       const createdOrderItems = [];
@@ -4207,15 +4239,15 @@ exports.splitPosOrder = async (req, res, next) => {
         `SELECT timezone FROM food_restaurants WHERE id = $1`,
         [restaurantId]
       );
-      const queueNumber = await nextQueueNumber(client, restaurantId, restaurantTz?.timezone);
+      const queueNumber = await nextQueueNumber(client, restaurantId, restaurantTz?.timezone, new Date(), source.location_id || null);
       const { rows: [child] } = await client.query(
         `INSERT INTO food_orders
          (restaurant_id, business_id, customer_id, guest_name, guest_phone, guest_email,
             order_source, fulfillment_type, status, payment_status, subtotal_cents, tax_cents,
             service_fee_cents, delivery_fee_cents, tax_rate_bps, service_fee_bps,
             tip_cents, discount_cents, total_cents, currency_code, table_label, queue_number,
-            promised_at, notes, metadata, pos_ticket_state, pos_parent_order_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'unpaid',$10,0,0,0,$11,$12,$13,$14,0,$15,$16,$17,$18,$19,$20,'open',$21)
+            promised_at, notes, metadata, pos_ticket_state, pos_parent_order_id, location_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'unpaid',$10,0,0,0,$11,$12,$13,$14,0,$15,$16,$17,$18,$19,$20,'open',$21,$22)
          RETURNING *`,
         [
           restaurantId,
@@ -4239,6 +4271,8 @@ exports.splitPosOrder = async (req, res, next) => {
           normalizeString(req.body.notes, 1000) || source.notes,
           JSON.stringify({ ...(source.metadata || {}), splitFromOrderId: source.id }),
           source.id,
+          // F-02 phase 1: a split child stays in the source ticket's store.
+          source.location_id || null,
         ]
       );
       await client.query(
@@ -4249,14 +4283,22 @@ exports.splitPosOrder = async (req, res, next) => {
           WHERE id = $3`,
         [childTip, childDiscount, sourceOrderId]
       );
+      // Issued as two statements: a parameterized pg query cannot batch
+      // multiple commands (the combined form always failed on a real
+      // database with "cannot insert multiple commands into a prepared
+      // statement", which made every split 500 — found by the F-02
+      // location plumbing DB suite).
       await client.query(
         `UPDATE food_order_items
             SET order_id = $1
-          WHERE order_id = $2 AND id = ANY($3::bigint[]);
-         UPDATE restaurant_inventory_order_reservations
+          WHERE order_id = $2 AND id = ANY($3::bigint[])`,
+        [child.id, sourceOrderId, itemIds]
+      );
+      await client.query(
+        `UPDATE restaurant_inventory_order_reservations
             SET food_order_id = $1
-          WHERE restaurant_id = $4 AND food_order_item_id = ANY($3::bigint[])`,
-        [child.id, sourceOrderId, itemIds, restaurantId]
+          WHERE restaurant_id = $2 AND food_order_item_id = ANY($3::bigint[])`,
+        [child.id, restaurantId, itemIds]
       );
       const updatedSource = await recalcOrderTotals(client, sourceOrderId);
       const updatedChild = await recalcOrderTotals(client, child.id);
@@ -4306,12 +4348,17 @@ exports.mergePosOrders = async (req, res, next) => {
           WHERE id = $4`,
         [source.tip_cents, source.discount_cents, source.delivery_fee_cents, targetOrderId]
       );
+      // Two statements for the same reason as splitPosOrder above:
+      // parameterized queries cannot batch multiple commands.
       await client.query(
-        `UPDATE food_order_items SET order_id = $1 WHERE order_id = $2;
-         UPDATE restaurant_inventory_order_reservations
+        `UPDATE food_order_items SET order_id = $1 WHERE order_id = $2`,
+        [targetOrderId, sourceOrderId]
+      );
+      await client.query(
+        `UPDATE restaurant_inventory_order_reservations
             SET food_order_id = $1
-          WHERE restaurant_id = $3 AND food_order_id = $2`,
-        [targetOrderId, sourceOrderId, restaurantId]
+          WHERE restaurant_id = $2 AND food_order_id = $3`,
+        [targetOrderId, restaurantId, sourceOrderId]
       );
       await client.query(
         `UPDATE food_orders
@@ -4487,8 +4534,8 @@ async function recordPosOxsteedCreditPayment(client, {
   const { rows: [payment] } = await client.query(
     `INSERT INTO restaurant_pos_payments
        (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
-        provider, reference, note, metadata, idempotency_key, created_by)
-     VALUES ($1,$2,$3,'oxsteed_credit',$4,'captured','oxsteed_credit',$5,$6,$7::jsonb,$8,$9)
+        provider, reference, note, metadata, idempotency_key, created_by, location_id)
+     VALUES ($1,$2,$3,'oxsteed_credit',$4,'captured','oxsteed_credit',$5,$6,$7::jsonb,$8,$9,$10)
      RETURNING *`,
     [
       restaurantId,
@@ -4508,6 +4555,7 @@ async function recordPosOxsteedCreditPayment(client, {
       }),
       idempotencyKey,
       createdByUserId,
+      order.location_id ?? null,
     ]
   );
   const reconciliation = await reconcilePosOrderPayment(client, orderId);
@@ -4624,8 +4672,8 @@ async function refundPosOxsteedCreditPayment(client, {
     const { rows: [recordedRefund] } = await client.query(
       `INSERT INTO restaurant_pos_payments
          (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
-          provider, reference, note, metadata, idempotency_key, created_by)
-       VALUES ($1,$2,$3,'refund',$4,'refunded','oxsteed_credit',$5,$6,$7::jsonb,$8,$9)
+          provider, reference, note, metadata, idempotency_key, created_by, location_id)
+       VALUES ($1,$2,$3,'refund',$4,'refunded','oxsteed_credit',$5,$6,$7::jsonb,$8,$9,$10)
        RETURNING *`,
       [
         restaurantId,
@@ -4644,6 +4692,7 @@ async function refundPosOxsteedCreditPayment(client, {
         }),
         `${idempotencyKey}:${original.id}`,
         createdByUserId,
+        order.location_id ?? null,
       ]
     );
     refunds.push({ payment: recordedRefund, originalPayment: refundPayment, transactionId: refundTransactionId, amountCents: portionCents });
@@ -5200,8 +5249,8 @@ exports.recordPosPayment = async (req, res, next) => {
       const { rows: [payment] } = await client.query(
         `INSERT INTO restaurant_pos_payments
            (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
-            reference, note, metadata, idempotency_key, created_by, acting_staff_user_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+            reference, note, metadata, idempotency_key, created_by, acting_staff_user_id, location_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
          RETURNING *`,
         [
           restaurantId,
@@ -5229,6 +5278,7 @@ exports.recordPosPayment = async (req, res, next) => {
           idempotencyKey,
           req.user.id,
           actingStaff?.staffUserId || null,
+          order.location_id ?? null,
         ]
       );
       if (paymentApproval) {
@@ -5376,8 +5426,8 @@ exports.createPosCardIntent = async (req, res, next) => {
       const { rows: [payment] } = await client.query(
         `INSERT INTO restaurant_pos_payments
            (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
-            provider, idempotency_key, metadata, created_by)
-         VALUES ($1,$2,$3,'card',$4,'pending','stripe_terminal',$5,$6,$7)
+            provider, idempotency_key, metadata, created_by, location_id)
+         VALUES ($1,$2,$3,'card',$4,'pending','stripe_terminal',$5,$6,$7,$8)
          RETURNING *`,
         [
           restaurantId,
@@ -5390,6 +5440,7 @@ exports.createPosCardIntent = async (req, res, next) => {
             paymentContract: paymentContractMetadata(paymentContract, { source: 'pos_card_intent' }),
           },
           req.user.id,
+          order.location_id ?? null,
         ]
       );
       await reconcilePosOrderPayment(client, orderId);
@@ -5565,8 +5616,8 @@ exports.refundPosCardPayment = async (req, res, next) => {
       const { rows: [refundPayment] } = await client.query(
         `INSERT INTO restaurant_pos_payments
            (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
-            provider, provider_payment_intent_id, idempotency_key, note, metadata, created_by)
-         VALUES ($1,$2,$3,'refund',$4,'pending','stripe_terminal',$5,$6,$7,$8,$9)
+            provider, provider_payment_intent_id, idempotency_key, note, metadata, created_by, location_id)
+         VALUES ($1,$2,$3,'refund',$4,'pending','stripe_terminal',$5,$6,$7,$8,$9,$10)
          RETURNING *`,
         [
           restaurantId,
@@ -5578,6 +5629,7 @@ exports.refundPosCardPayment = async (req, res, next) => {
           normalizeString(req.body.reason || req.body.note, 1000),
           JSON.stringify({ originalPaymentId: original.id }),
           req.user.id,
+          original.location_id ?? null,
         ]
       );
       return { original, refundPayment, replayed: false };
@@ -6901,17 +6953,24 @@ exports.createPrinterJob = async (req, res, next) => {
       );
       if (!station) throw new AppError('Kitchen station not found', 404, 'kitchen_station_not_found');
     }
+    let jobLocationId = null;
     if (orderId) {
       const { rows: [order] } = await pool.query(
-        `SELECT id FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
+        `SELECT id, location_id FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
         [orderId, restaurantId]
       );
       if (!order) throw new AppError('Order not found', 404, 'order_not_found');
+      jobLocationId = order.location_id || null;
+    }
+    if (jobLocationId === null) {
+      // F-02 phase 1: order-less jobs (test prints, manual tickets) belong
+      // to the restaurant's primary store when it has one.
+      jobLocationId = await restaurantLocationService.resolveLocationId(pool, { restaurantId });
     }
     const { rows: [job] } = await pool.query(
       `INSERT INTO restaurant_printer_jobs
-         (restaurant_id, station_id, food_order_id, job_type, payload, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6)
+         (restaurant_id, station_id, food_order_id, job_type, payload, created_by, location_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
        RETURNING *`,
       [
         restaurantId,
@@ -6920,6 +6979,7 @@ exports.createPrinterJob = async (req, res, next) => {
         jobType,
         safeJson(req.body.payload),
         req.user.id,
+        jobLocationId,
       ]
     );
     res.status(201).json({ job });

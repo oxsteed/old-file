@@ -21,6 +21,7 @@ const { scheduleSupportMessageNotifications } = require('../services/supportNoti
 const { getClientRequestId } = require('../utils/idempotency');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
 const { nextQueueNumber } = require('../services/restaurantQueueCounter');
+const { resolveLocationRow } = require('../services/restaurantLocationService');
 const {
   reserveInventoryForOrder,
   releaseInventoryForOrder,
@@ -1702,8 +1703,8 @@ async function refundFoodOrderStripePayment(client, { order, restaurantId, creat
     `INSERT INTO restaurant_pos_payments
        (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
         provider, provider_payment_intent_id, provider_charge_id, idempotency_key,
-        reference, note, metadata)
-     VALUES ($1, $2, NULL, 'refund', $3, 'refunded', 'stripe_checkout', $4, $5, $6, $5, $7, $8::jsonb)
+        reference, note, metadata, location_id)
+     VALUES ($1, $2, NULL, 'refund', $3, 'refunded', 'stripe_checkout', $4, $5, $6, $5, $7, $8::jsonb, $9)
      ON CONFLICT (restaurant_id, idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
      RETURNING *`,
     [
@@ -1715,6 +1716,7 @@ async function refundFoodOrderStripePayment(client, { order, restaurantId, creat
       `food-order-refund:${order.id}`,
       'Card refund for cancelled order',
       JSON.stringify({ stripeRefundId: refund.id, orderStatus: status, createdByUserId }),
+      order.location_id ?? null,
     ]
   );
   return { refund, chargeId, posPayment: posRows[0] || null };
@@ -3131,6 +3133,26 @@ exports.createOrder = async (req, res, next) => {
           };
         }
       }
+      // F-02 phase 1: resolve the store this order belongs to (explicit
+      // request, else the paired device / screen ticket's store, else the
+      // primary location) and evaluate hours and dayparts against THAT
+      // store's hours and timezone. The evaluator already takes raw
+      // (hours, timezone) values, so a location's own values drop in
+      // directly; a location without its own hours or timezone inherits
+      // the restaurant's. The queue counter below is per store since
+      // migration 952: it keys on this resolved location and the
+      // store's timezone, falling back to the restaurant-wide counter
+      // when the restaurant has no locations.
+      const orderLocation = await resolveLocationRow(client, {
+        restaurantId,
+        requestedLocationId: req.screenTicket
+          ? null
+          : parsePositiveInt(req.body.locationId || req.body.location_id),
+        deviceLocationId: req.screenTicket?.location_id ?? req.screenLocationId ?? null,
+      });
+      const orderLocationId = orderLocation ? Number(orderLocation.id) : null;
+      const orderTimezone = orderLocation?.timezone || restaurant.timezone;
+      const orderOperatingHours = orderLocation?.operating_hours ?? restaurant.operating_hours;
       const stripeStatus = getRestaurantStripeStatus(restaurant);
       if (['pay_now', 'card'].includes(paymentContract.canonical) && !stripeStatus.readyForCheckout) {
         throw new AppError(
@@ -3167,7 +3189,7 @@ exports.createOrder = async (req, res, next) => {
             'restaurant_not_accepting_orders'
           );
         }
-        const hoursStatus = evaluateOperatingHours(restaurant.operating_hours, restaurant.timezone);
+        const hoursStatus = evaluateOperatingHours(orderOperatingHours, orderTimezone);
         if (!hoursStatus.isOpen) {
           throw new AppError(
             hoursStatus.message || 'Restaurant is closed',
@@ -3322,8 +3344,8 @@ exports.createOrder = async (req, res, next) => {
         // now any future time within 48h was accepted, including 3 AM for a
         // lunch-only kitchen.
         const scheduledHours = evaluateOperatingHours(
-          restaurant.operating_hours,
-          restaurant.timezone,
+          orderOperatingHours,
+          orderTimezone,
           new Date(scheduledFor)
         );
         if (!scheduledHours.isOpen) {
@@ -3336,7 +3358,7 @@ exports.createOrder = async (req, res, next) => {
       // time for later orders, otherwise now), mirroring quoteOrder.
       const daypartInstant = scheduledFor ? new Date(scheduledFor) : new Date();
       normalizedItems.forEach((entry, index) => {
-        if (!isItemAvailableAt(entry.menuItem, daypartInstant, restaurant.timezone)) {
+        if (!isItemAvailableAt(entry.menuItem, daypartInstant, orderTimezone)) {
           throw new AppError('Validation failed', 400, 'validation_failed', {
             [`items.${index}.menuItemId`]: 'Menu item is not available at this time of day',
           });
@@ -3732,7 +3754,7 @@ exports.createOrder = async (req, res, next) => {
           };
         }
       }
-      const queueNumber = await nextQueueNumber(client, restaurantId, restaurant.timezone);
+      const queueNumber = await nextQueueNumber(client, restaurantId, orderTimezone, new Date(), orderLocationId);
 
       const { rows: [created] } = await client.query(
         `INSERT INTO food_orders
@@ -3742,8 +3764,8 @@ exports.createOrder = async (req, res, next) => {
             tip_cents, discount_cents, total_cents, currency_code, table_label,
             queue_number, promised_at, notes, metadata,
             kitchen_notes, pickup_contact_name, pickup_contact_phone, scheduled_for,
-            stripe_payment_intent_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW() + ($22 || ' minutes')::interval,$23,$24,$25,$26,$27,$28,$29)
+            stripe_payment_intent_id, location_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW() + ($22 || ' minutes')::interval,$23,$24,$25,$26,$27,$28,$29,$30)
          RETURNING *`,
         [
           restaurantId,
@@ -3775,6 +3797,7 @@ exports.createOrder = async (req, res, next) => {
           pickupContactPhone,
           scheduledFor,
           cardPaymentIntentId,
+          orderLocationId,
         ]
       );
 

@@ -19,6 +19,7 @@ const { withTransaction } = require('../utils/transaction');
 const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
 const { getEffectivePermissions, hasAny } = require('../services/permissionsService');
 const { logInventoryAudit } = require('../services/restaurantInventoryAuditService');
+const restaurantLocationService = require('../services/restaurantLocationService');
 
 function parsePositiveInt(value) {
   const n = Number.parseInt(value, 10);
@@ -192,12 +193,18 @@ exports.createItem = async (req, res, next) => {
     }
 
     const item = await withTransaction(pool, async (client) => {
+      // F-02 phase 1: stock belongs to a store (explicit request, else
+      // the restaurant's primary location).
+      const itemLocationId = await restaurantLocationService.resolveLocationId(client, {
+        restaurantId,
+        requestedLocationId: parsePositiveInt(req.body.locationId || req.body.location_id),
+      });
       const { rows: [created] } = await client.query(
         `INSERT INTO restaurant_inventory_items
            (restaurant_id, name, category, unit, quantity, low_stock_threshold,
             reorder_point, critical_level, par_level, sku, supplier_name,
-            supplier_id, storage_area_id, unit_cost, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+            supplier_id, storage_area_id, unit_cost, created_by, location_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
          RETURNING *`,
         [
           restaurantId, name, category,
@@ -212,6 +219,7 @@ exports.createItem = async (req, res, next) => {
           storageAreaId,
           unitCost,
           req.user.id,
+          itemLocationId,
         ]
       );
       await logInventoryAudit(client, auditEntry(restaurant, 'item_created', 'item', created.id, req, {
