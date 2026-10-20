@@ -739,6 +739,334 @@ router.post(
   }),
 );
 router.get(
+  "/partners/:id/feeds",
+  requirePermission("manage_affiliate_partners"),
+  wrap(async (req, res) => {
+    const partnerId = id(req.params.id);
+    const { rows } = await db.query(
+      `SELECT f.*, (SELECT row_to_json(r) FROM partner_feed_runs r
+        WHERE r.feed_id=f.id ORDER BY r.started_at DESC LIMIT 1) AS last_run
+       FROM partner_feeds f WHERE f.partner_id=$1 ORDER BY f.id`,
+      [partnerId],
+    );
+    res.json({ rows });
+  }),
+);
+router.post(
+  "/partners/:id/feeds",
+  requirePermission("manage_affiliate_partners"),
+  wrap(async (req, res) => {
+    const partnerId = id(req.params.id);
+    const b = req.body || {};
+    let host = null;
+    try {
+      const url = new URL(b.url);
+      if (url.protocol === "https:" && !url.username && !url.password)
+        host = url.hostname.toLowerCase();
+    } catch {
+      host = null;
+    }
+    if (
+      !host ||
+      !["csv", "json", "xml", "google_merchant"].includes(b.format) ||
+      (b.field_mapping !== undefined &&
+        (typeof b.field_mapping !== "object" ||
+          b.field_mapping === null ||
+          Array.isArray(b.field_mapping) ||
+          Object.entries(b.field_mapping).some(
+            ([k, v]) =>
+              !require("../growth/partners/feedParse").CANONICAL_FIELDS.includes(k) ||
+              typeof v !== "string" ||
+              !v ||
+              v.length > 120,
+          ))) ||
+      (b.schedule_hours !== undefined &&
+        (!Number.isInteger(b.schedule_hours) ||
+          b.schedule_hours < 1 ||
+          b.schedule_hours > 168))
+    )
+      return res.status(400).json({ error: "invalid_feed" });
+    const result = await withTransaction(
+      db,
+      async (conn) => {
+        const {
+          rows: [partner],
+        } = await conn.query(
+          "SELECT link_domains_allowlist FROM affiliate_partners WHERE id=$1",
+          [partnerId],
+        );
+        if (!partner) throw new Error("partner_not_found");
+        // The feed host must be the partner's own allowlisted domain (or be
+        // added to it by a partner edit first): feeds are never fetched from
+        // arbitrary hosts.
+        if (!partner.link_domains_allowlist.includes(host))
+          throw Object.assign(new Error("feed_host_not_allowlisted"), {
+            status: 400,
+          });
+        const {
+          rows: [feed],
+        } = await conn.query(
+          `INSERT INTO partner_feeds(partner_id,url,format,field_mapping,schedule_hours)
+           VALUES($1,$2,$3,$4,$5) RETURNING *`,
+          [
+            partnerId,
+            b.url,
+            b.format,
+            b.field_mapping || {},
+            b.schedule_hours || 24,
+          ],
+        );
+        await logAdminAction({
+          adminId: req.user.id,
+          action: "growth_partner_feed_created",
+          targetType: "partner_feed",
+          targetKey: feed.id,
+          after: { partner_id: partnerId, format: b.format, host },
+          client: conn,
+        });
+        return feed;
+      },
+      "growth_partner_feed_create",
+    );
+    res.status(201).json(result);
+  }),
+);
+router.post(
+  "/partners/feeds/:id/run",
+  requirePermission("manage_affiliate_partners"),
+  wrap(async (req, res) => {
+    const feedId = id(req.params.id);
+    const result = await require("../jobs/partnerFeedImport").runFeed(
+      Number(feedId),
+    );
+    await logAdminAction({
+      adminId: req.user.id,
+      action: "growth_partner_feed_run",
+      targetType: "partner_feed",
+      targetKey: feedId,
+      after: result?.skipped ? { skipped: true } : { status: result?.status },
+    });
+    res.json(result);
+  }),
+);
+router.get(
+  "/partners/category-map",
+  requirePermission("manage_affiliate_partners"),
+  wrap(async (req, res) => {
+    const partnerId = id(req.query.partner_id);
+    const { rows } = await db.query(
+      `SELECT m.*, n.code AS node_code FROM partner_category_map m
+       JOIN demand_taxonomy_nodes n ON n.id=m.node_id
+       WHERE m.partner_id=$1 ORDER BY m.category_path`,
+      [partnerId],
+    );
+    res.json({ rows });
+  }),
+);
+router.post(
+  "/partners/category-map",
+  requirePermission("manage_affiliate_partners"),
+  wrap(async (req, res) => {
+    const b = req.body || {};
+    const partnerId = id(b.partner_id),
+      nodeId = id(b.node_id);
+    if (
+      typeof b.category_path !== "string" ||
+      !b.category_path.trim() ||
+      b.category_path.length > 500
+    )
+      return res.status(400).json({ error: "invalid_category_map" });
+    await withTransaction(
+      db,
+      async (conn) => {
+        const { rows } = await conn.query(
+          `SELECT 1 FROM affiliate_partners WHERE id=$1
+           UNION ALL SELECT 1 FROM demand_taxonomy_nodes WHERE id=$2`,
+          [partnerId, nodeId],
+        );
+        if (rows.length < 2) throw new Error("category_map_target_missing");
+        await conn.query(
+          `INSERT INTO partner_category_map(partner_id,category_path,node_id,approved_by)
+           VALUES($1,$2,$3,$4)
+           ON CONFLICT(partner_id,category_path,node_id) DO NOTHING`,
+          [partnerId, b.category_path.trim(), nodeId, req.user.id],
+        );
+        await logAdminAction({
+          adminId: req.user.id,
+          action: "growth_partner_category_mapped",
+          targetType: "affiliate_partner",
+          targetKey: partnerId,
+          after: { category_path: b.category_path.trim(), node_id: nodeId },
+          client: conn,
+        });
+      },
+      "growth_partner_category_map",
+    );
+    res.sendStatus(204);
+  }),
+);
+router.get(
+  "/partners/unmapped-categories",
+  requirePermission("manage_affiliate_partners"),
+  wrap(async (req, res) => {
+    const partnerId = id(req.query.partner_id);
+    // Raw feed categories with no reviewed mapping (exact or parent). They
+    // stay unmapped for admin review; nothing is guessed live (spec 13.3).
+    const { rows } = await db.query(
+      `SELECT p.category_path, COUNT(*)::int AS products
+       FROM marketplace_products p
+       WHERE p.partner_id=$1 AND p.category_path IS NOT NULL
+         AND NOT EXISTS(
+           SELECT 1 FROM partner_category_map m WHERE m.partner_id=$1
+             AND (p.category_path=m.category_path
+               OR p.category_path LIKE m.category_path || ' > %'))
+       GROUP BY p.category_path ORDER BY products DESC LIMIT 200`,
+      [partnerId],
+    );
+    res.json({ rows });
+  }),
+);
+// Conversions are finance data (spec 13.5/15.1): the list is visible with
+// manage_affiliate_partners, but money columns are returned only to admins
+// holding view_financials. Assisted conversions (spec 13.1) are listed for
+// reconciliation and never counted in engine totals.
+async function financeVisible(user) {
+  if (user.role === "super_admin") return true;
+  return require("../middleware/adminAuth").hasGlobalGrant(
+    user.id,
+    "view_financials",
+  );
+}
+router.get(
+  "/conversions",
+  requirePermission("manage_affiliate_partners"),
+  wrap(async (req, res) => {
+    const boundary = await access.scope(req.user, "manage_affiliate_partners");
+    const finance = await financeVisible(req.user);
+    const params = [];
+    const where = [];
+    if (req.query.partner_id) {
+      params.push(id(req.query.partner_id));
+      where.push(`c.partner_id=$${params.length}`);
+    }
+    if (
+      ["pending", "approved", "reversed", "paid", "flagged"].includes(
+        req.query.status,
+      )
+    ) {
+      params.push(req.query.status);
+      where.push(`c.status=$${params.length}`);
+    }
+    if (!boundary.global)
+      where.push(access.predicate(boundary, "g", params));
+    const money = finance
+      ? "c.sale_minor, c.commission_minor, c.currency, c.order_ref_hash,"
+      : "";
+    const { rows } = await db.query(
+      `SELECT c.id, c.partner_id, p.code AS partner_code, c.click_id, ${money}
+        c.status, c.assisted, c.fraud_flags, c.created_at, c.updated_at
+       FROM affiliate_conversions c JOIN affiliate_partners p ON p.id=c.partner_id
+       JOIN offer_clicks oc ON oc.click_id=c.click_id
+       JOIN offer_campaign_deliveries d ON d.id=oc.delivery_id
+       JOIN offer_campaign_recipients r ON r.id=d.recipient_id
+       JOIN users u ON u.id=r.user_id
+       LEFT JOIN geo_postal_centroids g ON g.country=u.country AND g.postal_code=u.zip_code
+       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+       ORDER BY c.id DESC LIMIT 200`,
+      params,
+    );
+    const { rows: totals } = await db.query(
+      `SELECT c.currency, c.status, COUNT(*)::int AS n,
+        ${finance ? "SUM(c.sale_minor)::bigint AS sale_minor, SUM(c.commission_minor)::bigint AS commission_minor" : "NULL AS sale_minor, NULL AS commission_minor"}
+       FROM affiliate_conversions c
+       JOIN offer_clicks oc ON oc.click_id=c.click_id
+       JOIN offer_campaign_deliveries d ON d.id=oc.delivery_id
+       JOIN offer_campaign_recipients r ON r.id=d.recipient_id
+       JOIN users u ON u.id=r.user_id
+       LEFT JOIN geo_postal_centroids g ON g.country=u.country AND g.postal_code=u.zip_code
+       WHERE NOT c.assisted ${where.length ? `AND ${where.join(" AND ")}` : ""}
+       GROUP BY c.currency, c.status`,
+      params,
+    );
+    res.json({ rows, totals, finance });
+  }),
+);
+router.get(
+  "/conversions/export",
+  requirePermission("view_financials"),
+  requirePermission("export_data"),
+  wrap(async (req, res) => {
+    const boundary = await access.scope(req.user, "view_financials");
+    const params = [];
+    const where = [];
+    if (req.query.partner_id) {
+      params.push(id(req.query.partner_id));
+      where.push(`c.partner_id=$${params.length}`);
+    }
+    if (!boundary.global)
+      where.push(access.predicate(boundary, "g", params));
+    // Fail-closed: the audit row is written in the same transaction as the
+    // read; if it cannot be written, no data leaves (spec 15.2).
+    const rows = await withTransaction(
+      db,
+      async (conn) => {
+        await logAdminAction({
+          adminId: req.user.id,
+          action: "growth_conversions_exported",
+          targetType: "affiliate_conversions",
+          after: { partner_id: req.query.partner_id || null },
+          client: conn,
+        });
+        const { rows: data } = await conn.query(
+          `SELECT c.id, p.code AS partner_code, c.click_id, c.order_ref_hash,
+            c.sale_minor, c.commission_minor, c.currency, c.status,
+            c.assisted, c.created_at, c.updated_at
+           FROM affiliate_conversions c JOIN affiliate_partners p ON p.id=c.partner_id
+           JOIN offer_clicks oc ON oc.click_id=c.click_id
+           JOIN offer_campaign_deliveries d ON d.id=oc.delivery_id
+           JOIN offer_campaign_recipients r ON r.id=d.recipient_id
+           JOIN users u ON u.id=r.user_id
+           LEFT JOIN geo_postal_centroids g ON g.country=u.country AND g.postal_code=u.zip_code
+           ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+           ORDER BY c.id DESC LIMIT 10000`,
+          params,
+        );
+        return data;
+      },
+      "growth_conversions_export",
+    );
+    const cell = (v) => {
+      const s = v === null || v === undefined ? "" : String(v);
+      // Formula-safe CSV, matching the query builder export convention.
+      return `"${(/^[=+\-@]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
+    };
+    const header = [
+      "id",
+      "partner_code",
+      "click_id",
+      "order_ref_hash",
+      "sale_minor",
+      "commission_minor",
+      "currency",
+      "status",
+      "assisted",
+      "created_at",
+      "updated_at",
+    ];
+    const csv = [
+      header.join(","),
+      ...rows.map((r) => header.map((h) => cell(r[h])).join(",")),
+    ].join("\n");
+    res
+      .set("Content-Type", "text/csv")
+      .set(
+        "Content-Disposition",
+        "attachment; filename=growth-conversions.csv",
+      )
+      .send(csv);
+  }),
+);
+router.get(
   "/campaigns",
   grant("manage_marketing"),
   wrap(async (req, res) => {
@@ -809,13 +1137,94 @@ router.post(
     res.status(201).json(result);
   }),
 );
+router.patch(
+  "/campaigns/:id",
+  grant("manage_marketing"),
+  wrap(async (req, res) => {
+    const result = await withTransaction(
+      db,
+      async (conn) => {
+        const {
+          rows: [c],
+        } = await conn.query(
+          "SELECT * FROM offer_campaigns WHERE id=$1 FOR UPDATE",
+          [id(req.params.id)],
+        );
+        if (!c)
+          throw Object.assign(new Error("campaign_not_found"), {
+            status: 404,
+          });
+        const boundary = await access.scope(req.user, "manage_marketing");
+        if (!boundary.global && c.created_by !== req.user.id)
+          throw Object.assign(new Error("campaign_access_denied"), {
+            status: 403,
+          });
+        const offerId = req.body?.offer_id || c.offer_id;
+        const {
+          rows: [offer],
+        } = await conn.query("SELECT type FROM offers WHERE id=$1", [
+          offerId,
+        ]);
+        if (!offer) throw new Error("offer_not_found");
+        return campaigns.editCampaign(conn, c, req.user, req.body, {
+          affiliate: offer.type === "affiliate_product",
+        });
+      },
+      "growth_campaign_edit",
+    );
+    res.json(result);
+  }),
+);
+router.get(
+  "/campaigns/:id/results",
+  grant("manage_marketing"),
+  wrap(async (req, res) => {
+    const {
+      rows: [c],
+    } = await db.query("SELECT * FROM offer_campaigns WHERE id=$1", [
+      id(req.params.id),
+    ]);
+    if (!c) return res.status(404).json({ error: "campaign_not_found" });
+    const boundary = await access.scope(req.user, "manage_marketing");
+    if (!boundary.global && c.created_by !== req.user.id)
+      return res.status(403).json({ error: "campaign_access_denied" });
+    const finance = await financeVisible(req.user);
+    const results = await campaigns.campaignResults(db, c, { finance });
+    res.json({ campaign: { id: c.id, name: c.name, status: c.status }, ...results });
+  }),
+);
+router.get(
+  "/campaigns/:id/review-preview",
+  grant("manage_marketing"),
+  wrap(async (req, res) => {
+    const {
+      rows: [c],
+    } = await db.query("SELECT * FROM offer_campaigns WHERE id=$1", [
+      id(req.params.id),
+    ]);
+    if (!c) return res.status(404).json({ error: "campaign_not_found" });
+    const preview = await withTransaction(
+      db,
+      async (conn) => {
+        await conn.query("SET TRANSACTION READ ONLY");
+        return campaigns.reviewPreview(conn, c, req.user);
+      },
+      "growth_campaign_preview",
+    );
+    res.json(preview);
+  }),
+);
 router.post(
   "/campaigns/:id/:action",
   wrap(async (req, res, next) => {
     const action = req.params.action;
-    if (!["review", "approve", "queue", "cancel", "pause"].includes(action))
+    if (
+      !["review", "approve", "queue", "cancel", "pause", "schedule", "changes"].includes(
+        action,
+      )
+    )
       return res.sendStatus(404);
-    const permission = ["approve", "queue"].includes(action)
+    const permission = ["approve", "queue", "schedule"].includes(action)
       ? "approve_growth_campaigns"
       : "manage_marketing";
     return grant(permission)(req, res, () =>
@@ -851,14 +1260,38 @@ router.post(
                 req.body.checklist,
               );
             if (action === "queue") return campaigns.queue(conn, c, req.user);
+            if (action === "schedule") {
+              if (c.status !== "approved")
+                throw new Error("invalid_campaign_transition");
+              const when = Date.parse(req.body?.scheduled_at || "");
+              if (!Number.isFinite(when) || when <= Date.now())
+                throw new Error("invalid_campaign_schedule");
+              await conn.query(
+                "UPDATE offer_campaigns SET status='scheduled',scheduled_at=$2,updated_at=NOW() WHERE id=$1",
+                [c.id, new Date(when).toISOString()],
+              );
+              await logAdminAction({
+                adminId: req.user.id,
+                action: "growth_campaign_scheduled",
+                targetType: "offer_campaign",
+                targetKey: c.id,
+                after: { scheduled_at: new Date(when).toISOString() },
+                client: conn,
+              });
+              return { status: "scheduled" };
+            }
             if (action === "review") {
               if (!["draft", "changes_requested"].includes(c.status))
                 throw new Error("invalid_campaign_transition");
               campaigns.validateCopy(c.copy, c.channels);
+            } else if (action === "changes") {
+              if (c.status !== "in_review")
+                throw new Error("invalid_campaign_transition");
             } else if (["sent", "cancelled"].includes(c.status))
               throw new Error("invalid_campaign_transition");
             const status = {
               review: "in_review",
+              changes: "changes_requested",
               cancel: "cancelled",
               pause: "paused",
             }[action];

@@ -351,6 +351,65 @@ router.post(
     res.sendStatus(204);
   }),
 );
+// Offer card telemetry (spec 16.1): an impression counts only after the
+// card has been visible for at least a second (enforced client-side; the
+// server records at most one impression per delivery). Feedback carries
+// the card menu choices; "not_relevant" also applies the 30-day intent
+// dismissal, exactly like the dismiss endpoint.
+router.post(
+  "/offers/:id/impression",
+  strictLimiter,
+  authenticate,
+  sameOrigin,
+  handled(async (req, res) => {
+    if (!/^[1-9]\d{0,15}$/.test(req.params.id)) return res.sendStatus(404);
+    await db.query(
+      `INSERT INTO offer_feedback_events(delivery_id,user_id,kind)
+       SELECT d.id,$1,'impression' FROM offer_campaign_deliveries d
+       JOIN offer_campaign_recipients r ON r.id=d.recipient_id
+       WHERE d.id=$2 AND r.user_id=$1 AND d.status='sent'
+         AND NOT EXISTS(SELECT 1 FROM offer_feedback_events e
+           WHERE e.delivery_id=d.id AND e.user_id=$1 AND e.kind='impression')`,
+      [req.user.id, req.params.id],
+    );
+    res.sendStatus(204);
+  }),
+);
+router.post(
+  "/offers/:id/feedback",
+  strictLimiter,
+  authenticate,
+  sameOrigin,
+  handled(async (req, res) => {
+    if (!/^[1-9]\d{0,15}$/.test(req.params.id)) return res.sendStatus(404);
+    const reason = req.body?.reason;
+    if (!["not_relevant", "too_many"].includes(reason))
+      return res.status(400).json({ error: "invalid_feedback_reason" });
+    const {
+      rows: [delivery],
+    } = await db.query(
+      `SELECT d.id FROM offer_campaign_deliveries d
+       JOIN offer_campaign_recipients r ON r.id=d.recipient_id
+       WHERE d.id=$1 AND r.user_id=$2 AND d.status='sent'`,
+      [req.params.id, req.user.id],
+    );
+    if (!delivery) return res.sendStatus(404);
+    await db.query(
+      "INSERT INTO offer_feedback_events(delivery_id,user_id,kind,reason) VALUES($1,$2,'feedback',$3)",
+      [delivery.id, req.user.id, reason],
+    );
+    if (reason === "not_relevant")
+      await db.query(
+        `INSERT INTO growth_intent_dismissals(user_id,node_id,expires_at)
+      SELECT $1,m.node_id,NOW()+interval '30 days' FROM offer_campaign_deliveries d
+      JOIN offer_campaign_recipients r ON r.id=d.recipient_id JOIN offer_campaigns c ON c.id=d.campaign_id
+      JOIN offer_intent_map m ON m.offer_id=c.offer_id WHERE d.id=$2 AND r.user_id=$1
+      ON CONFLICT(user_id,node_id) DO UPDATE SET expires_at=EXCLUDED.expires_at`,
+        [req.user.id, delivery.id],
+      );
+    res.sendStatus(204);
+  }),
+);
 module.exports = router;
 module.exports.trackingConsent = handled(trackingConsent);
 module.exports.sameOrigin = sameOrigin;

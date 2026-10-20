@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { BrowserPushPanel } from '../../components/NotificationPreferences';
+import OfferPreferencesPanel from '../../growth/OfferPreferencesPanel';
 
 // Master toggles gate whole channels: push_notifications covers every push
 // channel (Expo, Web Push, native), sms_notifications covers all SMS.
@@ -257,6 +258,8 @@ export default function NotificationSettings() {
           </div>
 
           <BrowserPushPanel />
+
+          <OfferPreferencesPanel />
 
           <QuietHoursPanel />
 

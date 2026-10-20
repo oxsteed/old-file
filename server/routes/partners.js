@@ -4,6 +4,7 @@ const router = require("express").Router();
 const db = require("../db");
 const { withTransaction } = require("../utils/transaction");
 const { strictLimiter } = require("../middleware/rateLimiter");
+const fraud = require("../growth/partners/fraud");
 router.post("/:code/postback", strictLimiter, async (req, res) => {
   try {
     if (process.env.GROWTH_PARTNER_OFFERS_ENABLED !== "true")
@@ -46,6 +47,8 @@ router.post("/:code/postback", strictLimiter, async (req, res) => {
             "commission_minor",
             "currency",
             "status",
+            "assisted",
+            "helper_id",
           ].includes(k),
       ) ||
       !/^[a-zA-Z0-9_-]{1,100}$/.test(b.event_id || "") ||
@@ -57,6 +60,10 @@ router.post("/:code/postback", strictLimiter, async (req, res) => {
       ) ||
       b.commission_minor > b.sale_minor ||
       !["pending", "approved", "paid", "reversed"].includes(b.status) ||
+      (b.assisted !== undefined && typeof b.assisted !== "boolean") ||
+      (b.helper_id !== undefined &&
+        b.helper_id !== null &&
+        !/^[a-f0-9-]{36}$/i.test(b.helper_id)) ||
       !/^[A-Z]{3}$/.test(b.currency || "")
     )
       return res.sendStatus(400);
@@ -74,18 +81,22 @@ router.post("/:code/postback", strictLimiter, async (req, res) => {
         const {
           rows: [click],
         } = await conn.query(
-          `SELECT c.offer_id,c.created_at FROM offer_clicks c JOIN offers o ON o.id=c.offer_id
-        WHERE c.click_id=$1 AND o.partner_id=$2 AND o.currency=$3`,
+          `SELECT c.offer_id,c.created_at,r.user_id AS recipient_user_id
+           FROM offer_clicks c JOIN offers o ON o.id=c.offer_id
+           JOIN offer_campaign_deliveries d ON d.id=c.delivery_id
+           JOIN offer_campaign_recipients r ON r.id=d.recipient_id
+           WHERE c.click_id=$1 AND o.partner_id=$2 AND o.currency=$3`,
           [b.click_id, partner.id, b.currency],
         );
         if (!click) throw new Error("click_unknown");
+        const orderHash = require("../growth/identity").key(
+          `order:${code}`,
+          b.order_ref,
+        );
         const existing = (
           await conn.query(
-            "SELECT click_id FROM affiliate_conversions WHERE partner_id=$1 AND order_ref_hash=$2 FOR UPDATE",
-            [
-              partner.id,
-              require("../growth/identity").key(`order:${code}`, b.order_ref),
-            ],
+            "SELECT * FROM affiliate_conversions WHERE partner_id=$1 AND order_ref_hash=$2 FOR UPDATE",
+            [partner.id, orderHash],
           )
         ).rows[0];
         if (existing && existing.click_id !== b.click_id)
@@ -96,31 +107,107 @@ router.post("/:code/postback", strictLimiter, async (req, res) => {
             partner.cookie_window_days * 86400000
         )
           throw new Error("attribution_window_expired");
+        // A reversal or status update for an order never recorded cannot be
+        // applied; the partner must send the original conversion first.
+        if (!existing && b.status === "reversed")
+          throw new Error("conversion_unknown");
         const { rowCount } = await conn.query(
           "INSERT INTO growth_partner_receipts(partner_id,event_id) VALUES($1,$2) ON CONFLICT DO NOTHING",
           [partner.id, b.event_id],
         );
         if (!rowCount) return;
-        const orderHash = require("../growth/identity").key(
-          `order:${code}`,
-          b.order_ref,
-        );
+        // Helper-assisted attribution (spec 13.1): a sale through a helper's
+        // shared cart belongs to the helper program. The engine records it
+        // as assisted only; finance views never count it as an engine
+        // conversion, so the sale is never double-counted.
+        let assisted = existing?.assisted === true,
+          assistedHelperId = existing?.assisted_helper_id || null;
+        if (b.assisted === true) {
+          assisted = true;
+          if (b.helper_id) {
+            const {
+              rows: [helper],
+            } = await conn.query(
+              "SELECT id FROM users WHERE id=$1 AND is_active=TRUE",
+              [b.helper_id],
+            );
+            if (!helper) throw new Error("assisted_helper_unknown");
+            assistedHelperId = helper.id;
+          }
+        }
+        if (!existing) {
+          const flags = await fraud.screenConversion(conn, {
+            partnerId: partner.id,
+            clickId: b.click_id,
+            recipientUserId: click.recipient_user_id,
+            saleMinor: b.sale_minor,
+            commissionMinor: b.commission_minor,
+          });
+          const status = fraud.shouldHold(flags) ? "flagged" : b.status;
+          await conn.query(
+            `INSERT INTO affiliate_conversions(partner_id,click_id,order_ref_hash,sale_minor,commission_minor,currency,status,assisted,assisted_helper_id,fraud_flags)
+             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+            [
+              partner.id,
+              b.click_id,
+              orderHash,
+              b.sale_minor,
+              b.commission_minor,
+              b.currency,
+              status,
+              assisted,
+              assistedHelperId,
+              JSON.stringify(flags),
+            ],
+          );
+          return;
+        }
+        // Late status updates, adjustments and reversals on an existing
+        // conversion. Currency is pinned to the click's offer (checked
+        // above); amounts may only move as a pre-approval correction or a
+        // partial reversal (fraud.amountsChangeAllowed).
+        if (existing.currency !== b.currency)
+          throw new Error("conversion_currency_mismatch");
+        if (
+          !fraud.amountsChangeAllowed(existing, {
+            sale_minor: b.sale_minor,
+            commission_minor: b.commission_minor,
+            status: b.status,
+          })
+        )
+          throw new Error("conversion_amount_change_denied");
+        if (!fraud.transitionAllowed(existing.status, b.status))
+          throw new Error("conversion_transition_denied");
+        const amountsChanged =
+          Number(existing.sale_minor) !== b.sale_minor ||
+          Number(existing.commission_minor) !== b.commission_minor;
+        let flags = JSON.parse(JSON.stringify(existing.fraud_flags || []));
+        if (amountsChanged && b.status !== "reversed") {
+          flags = await fraud.screenConversion(conn, {
+            partnerId: partner.id,
+            clickId: b.click_id,
+            recipientUserId: click.recipient_user_id,
+            saleMinor: b.sale_minor,
+            commissionMinor: b.commission_minor,
+          });
+        }
+        const status =
+          b.status !== "reversed" && fraud.shouldHold(flags)
+            ? "flagged"
+            : b.status;
         await conn.query(
-          `INSERT INTO affiliate_conversions(partner_id,click_id,order_ref_hash,sale_minor,commission_minor,currency,status)
-        VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(partner_id,order_ref_hash) DO UPDATE
-        SET status=EXCLUDED.status,updated_at=NOW()
-        WHERE affiliate_conversions.currency=EXCLUDED.currency AND affiliate_conversions.sale_minor=EXCLUDED.sale_minor
-        AND affiliate_conversions.commission_minor=EXCLUDED.commission_minor AND affiliate_conversions.status<>'reversed'
-        AND (EXCLUDED.status='reversed' OR (affiliate_conversions.status='pending' AND EXCLUDED.status IN ('approved','paid'))
-          OR (affiliate_conversions.status='approved' AND EXCLUDED.status='paid'))`,
+          `UPDATE affiliate_conversions SET sale_minor=$3,commission_minor=$4,
+             status=$5,assisted=$6,assisted_helper_id=$7,fraud_flags=$8,updated_at=NOW()
+           WHERE partner_id=$1 AND order_ref_hash=$2`,
           [
             partner.id,
-            b.click_id,
             orderHash,
             b.sale_minor,
             b.commission_minor,
-            b.currency,
-            b.status,
+            status,
+            assisted,
+            assistedHelperId,
+            JSON.stringify(flags),
           ],
         );
       },
