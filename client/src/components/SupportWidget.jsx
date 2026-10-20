@@ -6,7 +6,7 @@ import SpeechToTextInput from './SpeechToTextInput';
 import { useCapabilities } from '../hooks/useCapabilities';
 import { useAuth } from '../context/AuthContext';
 import { chatHistoryKey, chatStorageScope, pruneSupportChatStorage } from '../lib/supportChatStorage';
-import { SUPPORT_CHAT_MAX_IMAGE_BYTES, sendErrorMessageKey } from './supportWidgetState';
+import { SUPPORT_CHAT_MAX_IMAGE_BYTES, prepareRetry, sendErrorMessageKey } from './supportWidgetState';
 
 // History lives under a per-user (or guest) key; see lib/supportChatStorage.
 const MAX_HISTORY = 40;
@@ -469,36 +469,46 @@ function markProactiveDismissed() {
   }, [t]);
 
   const send = useCallback(async (text, isRetry = false) => {
-    if ((!text.trim() && !pendingImage) || loading) return;
+    if (loading) return;
 
-    // One-shot Learn guide tag: when this send carries the prefill the Learn
-    // page set, tell the server which guide+step it is about so the cached
-    // per-guide AI answer can be served instead of calling the provider again.
-    // Cleared on every send so follow-up messages are never cached.
-    const pendingGuideHelp = guideHelpRef.current;
-    guideHelpRef.current = null;
-    const trimmed = text.trim() || (pendingImage ? '[image]' : '');
-    const guideHelpPayload = (
-      pendingGuideHelp?.guide_id &&
-      pendingGuideHelp.prefill.trim() &&
-      trimmed.startsWith(pendingGuideHelp.prefill.trim())
-    ) ? { guide_help: { guide_id: pendingGuideHelp.guide_id, step: pendingGuideHelp.step ?? 0 } } : {};
+    let updated;
+    let outgoingImage;
+    let guideHelpPayload = {};
+    if (isRetry) {
+      // 5. Retry re-sends the failed message (and its image) in place: only
+      // the error bubble is removed, so the user turn is never duplicated
+      // and the server's repeated-question handoff signal is not tripped.
+      const retry = prepareRetry(messages);
+      if (!retry) return;
+      updated = retry.base;
+      outgoingImage = retry.failedUser.image || null;
+    } else {
+      if (!text.trim() && !pendingImage) return;
 
-    // Gap #3: the image rides on the dedicated field and renders from the
-    // message record; it is never duplicated into the text history.
-    const outgoingImage = pendingImage;
-    const userMsg = { role: 'user', content: trimmed, image: outgoingImage, ts: new Date().toISOString() };
+      // One-shot Learn guide tag: when this send carries the prefill the Learn
+      // page set, tell the server which guide+step it is about so the cached
+      // per-guide AI answer can be served instead of calling the provider again.
+      // Cleared on every send so follow-up messages are never cached.
+      const pendingGuideHelp = guideHelpRef.current;
+      guideHelpRef.current = null;
+      const trimmed = text.trim() || (pendingImage ? '[image]' : '');
+      guideHelpPayload = (
+        pendingGuideHelp?.guide_id &&
+        pendingGuideHelp.prefill.trim() &&
+        trimmed.startsWith(pendingGuideHelp.prefill.trim())
+      ) ? { guide_help: { guide_id: pendingGuideHelp.guide_id, step: pendingGuideHelp.step ?? 0 } } : {};
 
-    // 5. On retry, strip the last error message before re-sending
-    const base = isRetry
-      ? messages.slice(0, -1)
-      : messages;
+      // Gap #3: the image rides on the dedicated field and renders from the
+      // message record; it is never duplicated into the text history.
+      outgoingImage = pendingImage;
+      const userMsg = { role: 'user', content: trimmed, image: outgoingImage, ts: new Date().toISOString() };
+      updated = [...messages, userMsg];
+      setInput('');
+      setPendingImage(null);
+      setImageError(null);
+    }
 
-    const updated = [...base, userMsg];
     setMessages(updated);
-    setInput('');
-    setPendingImage(null);
-    setImageError(null);
     setLoading(true);
     atBottomRef.current = true;
 
@@ -511,8 +521,8 @@ function markProactiveDismissed() {
     try {
       const { data } = await api.post('/chat/message', {
         // Cap the history per turn to the server's context window. The
-        // handoff card is UI chrome, not conversation, so it stays out.
-        messages:    updated.filter(m => !m.handoff).slice(-MAX_CONTEXT_MESSAGES).map(m => ({ role: m.role, content: m.content })),
+        // handoff card and error bubbles are UI chrome, not conversation.
+        messages:    updated.filter(m => !m.handoff && !m.isError).slice(-MAX_CONTEXT_MESSAGES).map(m => ({ role: m.role, content: m.content })),
         images:      outgoingImage ? [outgoingImage] : undefined,
         pageContext,
         language:    localStorage.getItem('oxs:language') || 'en',
@@ -546,7 +556,7 @@ function markProactiveDismissed() {
         content:   t(sendErrorMessageKey(err)),
         ts:        new Date().toISOString(),
         isError:   true,
-        retryText: text.trim(), // 5. Store for retry
+        retryable: true, // 5. Retry re-sends the failed message in place
       }]);
     } finally {
       setLoading(false);
@@ -795,9 +805,9 @@ function markProactiveDismissed() {
                           <span className="text-[10px] text-gray-600">{formatTime(m.ts)}</span>
 
                           {/* 5. Retry button on error */}
-                          {m.isError && m.retryText && (
+                          {m.isError && m.retryable && i === messages.length - 1 && (
                             <button
-                              onClick={() => send(m.retryText, true)}
+                              onClick={() => send('', true)}
                               className="text-[10px] text-orange-400 hover:text-orange-300 transition flex items-center gap-1"
                             >
                               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

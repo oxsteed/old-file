@@ -13,3 +13,19 @@ export function sendErrorMessageKey(err) {
   if (status === 413) return 'supportWidget.requestTooLarge';
   return 'supportWidget.errorMessage';
 }
+
+/**
+ * Retry plan for a failed send. The failed user message is still in the
+ * list (followed by the error bubble), so a retry drops only the error and
+ * re-sends that same message, image included, instead of appending a copy.
+ * Returns null when the last message is not a retryable error.
+ */
+export function prepareRetry(messages) {
+  if (!Array.isArray(messages) || messages.length < 2) return null;
+  const last = messages[messages.length - 1];
+  if (!last?.isError) return null;
+  const base = messages.slice(0, -1);
+  const failedUser = base[base.length - 1];
+  if (!failedUser || failedUser.role !== 'user') return null;
+  return { base, failedUser };
+}

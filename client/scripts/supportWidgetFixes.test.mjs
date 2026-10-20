@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
   SUPPORT_CHAT_MAX_IMAGE_BYTES,
+  prepareRetry,
   sendErrorMessageKey,
 } from '../src/components/supportWidgetState.js';
 import {
@@ -100,4 +101,32 @@ test('clearStoredSession wipes support chat storage and the widget is scoped by 
   assert.match(widget, /<AISupportWidget key=\{scope\} storageScope=\{scope\}/);
   assert.match(widget, /if \(authLoading\) return null;/);
   assert.match(widget, /api\.delete\('\/chat\/support-thread'\)/);
+});
+
+// ── Bug 4: retry re-sends in place ──────────────────────────────────────────
+test('retry drops only the error bubble and keeps the failed message and image', () => {
+  const failed = { role: 'user', content: 'see screenshot', image: 'data:image/png;base64,AAAA' };
+  const messages = [
+    { role: 'assistant', content: 'Hi' },
+    failed,
+    { role: 'assistant', content: 'Sorry', isError: true, retryable: true },
+  ];
+  const plan = prepareRetry(messages);
+  assert.deepEqual(plan.base, [messages[0], failed]);
+  assert.equal(plan.failedUser.image, failed.image);
+  assert.equal(plan.base.filter((m) => m.role === 'user').length, 1, 'user turn is not duplicated');
+});
+
+test('retry is refused when the last message is not a retryable error', () => {
+  assert.equal(prepareRetry([{ role: 'user', content: 'x' }, { role: 'assistant', content: 'ok' }]), null);
+  assert.equal(prepareRetry([{ role: 'assistant', content: 'Sorry', isError: true }]), null);
+  assert.equal(prepareRetry([]), null);
+});
+
+test('widget retries in place and keeps error bubbles out of the model history', async () => {
+  const widget = await src('src/components/SupportWidget.jsx');
+  assert.match(widget, /const retry = prepareRetry\(messages\)/);
+  assert.match(widget, /outgoingImage = retry\.failedUser\.image/);
+  assert.ok(!widget.includes('retryText'), 'retry no longer re-appends the text');
+  assert.match(widget, /filter\(m => !m\.handoff && !m\.isError\)/);
 });

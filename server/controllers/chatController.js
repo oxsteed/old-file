@@ -219,11 +219,25 @@ async function callWithFallback(messages, ollamaOptions, logTag, options = {}) {
  */
 const HANDOFF_NEGATIVE_SIGNALS = /\b(frustrat|annoy|angry|upset|terrible|awful|horrible|useless|stupid|hate|worst|disappoint|complain|speak to (a )?human|real person|live agent|talk to (a )?(person|someone|human)|not helping|doesn'?t work|still not working|give up|escalat)/i;
 
+function normalizeHandoffText(message) {
+  return message.toLowerCase().replace(/\s+/g, ' ').slice(0, 300);
+}
+
 function shouldSuggestHandoff(history) {
-  const userMessages = history
-    .filter((m) => m.role === 'user')
-    .map((m) => String(m.content || '').trim())
-    .filter(Boolean);
+  // Consecutive identical user turns with no assistant reply between them
+  // are retries of a failed send, not a user repeating themselves, so they
+  // collapse into one turn before any signal is evaluated.
+  const userMessages = [];
+  let previous = null;
+  for (const m of history) {
+    if (m.role !== 'user') { previous = null; continue; }
+    const text = String(m.content || '').trim();
+    if (!text) continue;
+    const normalized = normalizeHandoffText(text);
+    if (previous === normalized) continue;
+    userMessages.push(text);
+    previous = normalized;
+  }
   // Same signal as checkNeedsHandoff: more than a few back-and-forth turns.
   if (userMessages.length > 3) return true;
   // Negative sentiment in the recent user turns.
@@ -231,7 +245,7 @@ function shouldSuggestHandoff(history) {
   // Repeated question: the same normalized message sent more than once.
   const seen = new Set();
   for (const message of userMessages) {
-    const normalized = message.toLowerCase().replace(/\s+/g, ' ').slice(0, 300);
+    const normalized = normalizeHandoffText(message);
     if (seen.has(normalized)) return true;
     seen.add(normalized);
   }
@@ -2294,3 +2308,4 @@ exports.createMessengerGuestBooking = async (req, res, next) => {
 };
 
 exports.createAiBookingFromAction = createAiBookingFromAction;
+exports._shouldSuggestHandoff = shouldSuggestHandoff;
