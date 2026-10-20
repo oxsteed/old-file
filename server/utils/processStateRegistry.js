@@ -31,6 +31,16 @@ const ENTRIES = [
   },
   // ── Caches (TTL-bounded, DB/provider-backed; safe in-process) ──────────
   {
+    file: 'services/supportKnowledge.js', name: 'guideCache',
+    classification: 'cache', shared: 'none',
+    rationale: 'AI support chat retrieval: published Learn guides, 10 min TTL, single entry. Backing truth is PostgreSQL; staleness only delays a new guide reaching chat answers.',
+  },
+  {
+    file: 'services/supportKnowledge.js', name: 'kbCache',
+    classification: 'cache', shared: 'none',
+    rationale: 'AI support chat retrieval: published public knowledge-base articles per business+language, 10 min TTL, 500-entry cap. Backing truth is PostgreSQL.',
+  },
+  {
     file: 'services/supportAccountSnapshot.js', name: 'snapshotCache',
     classification: 'cache', shared: 'none',
     rationale: 'AI support chat account snapshot: 30s TTL, 2000-entry cap, keyed by user/language/business. Backing truth is PostgreSQL; staleness is bounded by the TTL and in-chat actions invalidate it.',

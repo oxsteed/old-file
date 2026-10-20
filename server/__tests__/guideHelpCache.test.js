@@ -34,19 +34,19 @@ describe('guideHelpCache', () => {
 
   test('key encodes guide, step, and language', () => {
     const key = buildGuideCacheKey('guide-123', 3, 'es');
-    expect(key).toBe('ox:ai:guide:v2-2026-10-14:guide-123:step:3:lang:es');
+    expect(key).toBe('ox:ai:guide:v2-2026-10-19:guide-123:step:3:lang:es');
   });
 
   test('key sanitizes hostile input and defaults sensibly', () => {
     // Path traversal, spaces, and SQL-ish punctuation are stripped.
     expect(buildGuideCacheKey('../../etc', 'x', 'en; DROP')).toBe(
-      'ox:ai:guide:v2-2026-10-14:etc:step:0:lang:enDROP'
+      'ox:ai:guide:v2-2026-10-19:etc:step:0:lang:enDROP'
     );
     const key = buildGuideCacheKey('a/b\\c', NaN, '');
     expect(key).not.toMatch(/[/\\;]/);
     expect(key).toContain(':lang:en');
     // Empty guide id falls back to 'unknown' rather than producing a broken key.
-    expect(buildGuideCacheKey('', 0, 'en')).toBe('ox:ai:guide:v2-2026-10-14:unknown:step:0:lang:en');
+    expect(buildGuideCacheKey('', 0, 'en')).toBe('ox:ai:guide:v2-2026-10-19:unknown:step:0:lang:en');
   });
 
   test('miss returns null, hit returns the cached reply', async () => {

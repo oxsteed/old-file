@@ -105,7 +105,9 @@ describe('item 0: first name only', () => {
     const system = JSON.parse(global.fetch.mock.calls[0][1].body).messages[0].content;
     expect(system).not.toMatch(/first name is/);
     expect(system).not.toMatch(/## Account Snapshot/);
-    expect(mockQuery).not.toHaveBeenCalled();
+    // The only database write is the reply-metadata row (item 5); no snapshot read.
+    const sqls = mockQuery.mock.calls.map(([sql]) => String(sql));
+    expect(sqls.every((sql) => /INSERT INTO support_chat_replies/.test(sql))).toBe(true);
     delete global.fetch;
   });
 });

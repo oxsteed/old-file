@@ -227,6 +227,19 @@ const BLOCKER_TOPICS = {
   credit_account_restricted: /(credit|wallet|balance|crédito|saldo|crédit|solde|kredi|balans|رصيد|ائتمان|محفظة)/i,
 };
 
+// Item 7: the same signals in Spanish, French, Haitian Creole and Arabic, so
+// a frustrated non-English user is offered a person just as quickly.
+const HANDOFF_NEGATIVE_SIGNALS_I18N = [
+  /(hablar con (una |un )?(persona|humano|agente)|agente humano|no funciona|no sirve|sigue sin funcionar|frustrad|molest[oa]|p[ée]simo|in[úu]til|me rindo)/i,
+  /(parler (à|a) (un|une) (humain|personne|agent|conseiller)|ne (marche|fonctionne) (pas|toujours pas)|inutile|[ée]nerv[ée]|frustr[ée]|j'abandonne|horrible)/i,
+  /(pale (ak|avè) (yon )?(moun|ajan)|pa mache|toujou pa mache|fache|frustre|initil|mwen bouke)/i,
+  /(التحدث (مع|إلى) (شخص|موظف|إنسان)|موظف حقيقي|لا يعمل|ما زال لا يعمل|غاضب|محبط|سيئ|عديم الفائدة)/,
+];
+
+function hasNegativeSignal(text) {
+  return HANDOFF_NEGATIVE_SIGNALS.test(text) || HANDOFF_NEGATIVE_SIGNALS_I18N.some((re) => re.test(text));
+}
+
 function normalizeHandoffText(message) {
   return message.toLowerCase().replace(/\s+/g, ' ').slice(0, 300);
 }
@@ -253,7 +266,7 @@ function collapsedUserTurns(history) {
 function handoffReason(history, { blockers = [] } = {}) {
   const userMessages = collapsedUserTurns(history);
   if (!userMessages.length) return null;
-  if (HANDOFF_NEGATIVE_SIGNALS.test(userMessages.slice(-2).join('\n'))) return 'sentiment';
+  if (hasNegativeSignal(userMessages.slice(-2).join('\n'))) return 'sentiment';
   const seen = new Set();
   for (const message of userMessages) {
     const normalized = normalizeHandoffText(message);

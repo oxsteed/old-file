@@ -32,7 +32,7 @@ const HELP_PAGES = Object.freeze([
   { route: '/help/kitchen', title: 'Kitchen display help', keywords: ['kitchen', 'tickets', 'display', 'cocina', 'cuisine', 'kizin', 'مطبخ'], text: 'Use the kitchen display to receive, start and complete order tickets. A display must be paired with the kitchen role before it can show kitchen tickets.' },
   { route: '/help/pos', title: 'Point of sale help', keywords: ['pos', 'register', 'checkout', 'caja', 'caisse', 'kès', 'نقطة', 'بيع'], text: 'Point of sale help for business staff: ringing up orders, payment methods shown at checkout, and receipts.' },
   { route: '/help/inventory', title: 'Inventory help', keywords: ['inventory', 'stock', 'inventario', 'inventaire', 'envantè', 'مخزون'], text: 'Track stock items, counts and low-stock alerts for a business.' },
-  { route: '/how-it-works', title: 'How OxSteed works', keywords: ['works', 'guide', 'guides', 'start', 'getting', 'started', 'funciona', 'fonctionne', 'mache'], text: 'Product guides for customers, helpers and businesses: posting jobs, bidding, booking, food ordering and payments.' },
+  { route: '/how-it-works', title: 'How OxSteed works', keywords: ['works', 'guide', 'guides', 'start', 'getting', 'started'], text: 'Product guides for customers, helpers and businesses: posting jobs, bidding, booking, food ordering and payments.' },
   { route: '/support', title: 'Support', keywords: ['support', 'help', 'ticket', 'contact', 'ayuda', 'soporte', 'aide', 'assistance', 'èd', 'sipò', 'دعم', 'مساعدة'], text: 'Contact OxSteed support for account-specific problems. Include the displayed error and the step that failed; never send passwords, codes or identity documents.' },
   { route: '/terms', title: 'Terms of service', keywords: ['terms', 'conditions', 'rules', 'términos', 'conditions', 'kondisyon', 'شروط'], text: 'The rules for using OxSteed, including payments, cancellations, refunds and disputes between customers and helpers.' },
   { route: '/privacy', title: 'Privacy policy', keywords: ['privacy', 'data', 'personal', 'privacidad', 'datos', 'confidentialité', 'données', 'vi prive', 'done', 'خصوصية', 'بيانات'], text: 'What personal data OxSteed collects, why, how long it is kept and how to make a privacy request.' },
@@ -51,8 +51,13 @@ function normalize(text) {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+// Arabic: drop the definite article so "الخصوصية" matches "خصوصية".
+function stem(w) {
+  return /^ال[\u0600-\u06ff]{3,}$/.test(w) ? w.slice(2) : w;
+}
+
 function tokens(text) {
-  return [...new Set(normalize(text).split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 3 && !STOPWORDS.has(w)))];
+  return [...new Set(normalize(text).split(/[^\p{L}\p{N}]+/u).map(stem).filter((w) => w.length >= 3 && !STOPWORDS.has(w)))];
 }
 
 /** Keyword overlap: title x3, keywords x2, body x1. */
