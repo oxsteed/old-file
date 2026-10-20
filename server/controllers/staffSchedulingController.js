@@ -1,5 +1,6 @@
 const pool = require('../db');
 const { businessScopeSatisfies } = require('../middleware/scopeGates');
+const { logBusinessAction } = require('../services/businessAuditLog');
 
 async function checkAccess(businessId, userId) {
   const { rows } = await pool.query(
@@ -139,6 +140,17 @@ exports.logHours = async (req, res, next) => {
        VALUES ($1,$2,$3,$4,$5) RETURNING *`,
       [businessId, user_id, entry_date || new Date().toISOString().split('T')[0], hours, description || null]
     );
+    // S-16: time entries feed payroll; creating one is an auditable
+    // staff action (deletion below was previously unaudited entirely).
+    await logBusinessAction(req, {
+      business_id: Number(businessId),
+      action: 'business.time_entry.logged',
+      target_type: 'time_entry',
+      target_id: rows[0].id,
+      after_state: {
+        user_id, entry_date: rows[0].entry_date, hours_worked: rows[0].hours_worked,
+      },
+    });
     res.status(201).json({ entry: rows[0] });
   } catch (err) {
     next(err);
@@ -190,11 +202,31 @@ exports.deleteTimeEntry = async (req, res, next) => {
 
     if (!(businessScopeSatisfies(req, businessId, 'manager') || await checkAccess(businessId, userId))) return res.status(403).json({ error: 'Access denied' });
 
+    const { rows: existing } = await pool.query(
+      'SELECT id, user_id, entry_date, hours_worked, description FROM business_time_entries WHERE id=$1 AND business_id=$2',
+      [id, businessId]
+    );
+    if (!existing.length) return res.status(404).json({ error: 'Entry not found' });
+
     const { rows } = await pool.query(
       'DELETE FROM business_time_entries WHERE id=$1 AND business_id=$2 RETURNING id',
       [id, businessId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Entry not found' });
+    // S-16: deleting a time entry erases payroll evidence; keep the
+    // before-state in the audit log so the deletion itself is visible.
+    await logBusinessAction(req, {
+      business_id: Number(businessId),
+      action: 'business.time_entry.deleted',
+      target_type: 'time_entry',
+      target_id: id,
+      before_state: {
+        user_id: existing[0].user_id,
+        entry_date: existing[0].entry_date,
+        hours_worked: existing[0].hours_worked,
+        description: existing[0].description,
+      },
+    });
     res.json({ success: true });
   } catch (err) {
     next(err);

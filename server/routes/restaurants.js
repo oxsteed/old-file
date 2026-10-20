@@ -16,6 +16,7 @@ const ops = require('../controllers/restaurantOpsController');
 const training = require('../controllers/restaurantTrainingController');
 const audits = require('../controllers/restaurantAuditsController');
 const franchiseReports = require('../controllers/restaurantReportsController');
+const payrollReports = require('../controllers/restaurantPayrollController');
 const inventory = require('../controllers/restaurantInventoryController');
 const inventoryOperations = require('../controllers/restaurantInventoryOperationsController');
 const runner = require('../controllers/restaurantRunnerController');
@@ -222,6 +223,16 @@ router.get('/:restaurantId/reports/inventory', requireRestaurantAccess(), franch
 router.get('/:restaurantId/reports/operations', requireRestaurantAccess(), franchiseReports.operationsSummary);
 // Loyalty: repeat-order rate + top items (analytics platform, Phase 2 Item 10)
 router.get('/:restaurantId/reports/loyalty', requireRestaurantAccess(), franchiseReports.loyaltySummary);
+// Payroll, tips, labor + team activity (S-04/S-15/S-16). Wage-bearing
+// endpoints additionally require payroll.view inside the controller
+// (fail closed); team activity requires audit.view.
+router.get('/:restaurantId/reports/labor', requireRestaurantAccess(), payrollReports.laborSummary);
+router.get('/:restaurantId/reports/payroll/export.csv', requireRestaurantAccess(), payrollReports.payrollExportCsv);
+router.get('/:restaurantId/reports/exceptions', requireRestaurantAccess(), payrollReports.exceptionsReport);
+router.get('/:restaurantId/team/activity', requireRestaurantAccess(), payrollReports.teamActivity);
+router.get('/:restaurantId/tip-pool', requireRestaurantAccess(), payrollReports.getTipPoolSettings);
+router.put('/:restaurantId/tip-pool', requireRestaurantAccess(), payrollReports.updateTipPoolSettings);
+router.post('/:restaurantId/tips/cash-declarations', requireRestaurantAccess(), payrollReports.declareCashTip);
 router.delete('/:restaurantId/inventory/mappings/:mappingId', requireRestaurantAccess(), inventory.deleteMapping);
 router.post('/:restaurantId/inventory/mappings/bootstrap-defaults', requireRestaurantAccess(), inventory.bootstrapMappings);
 router.get('/:restaurantId/inventory/purchase-requests', requireRestaurantAccess(), inventory.listPurchaseRequests);
