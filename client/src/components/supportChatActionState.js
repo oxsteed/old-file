@@ -154,3 +154,101 @@ export function mergeServerThread(localMessages, serverTurns, welcomeMessage) {
     ...server.map((m) => ({ role: m.role, content: m.content, ts: m.ts || now, fromServer: true })),
   ];
 }
+
+// ── Item 5: thumbs feedback ────────────────────────────────────────────────
+
+export const FEEDBACK_REASONS = Object.freeze(['incorrect', 'not_helpful', 'unclear', 'wrong_language', 'unsafe', 'other']);
+
+/** Next feedback value for a click: same value again un-toggles (null). */
+export function nextFeedback(current, clicked) {
+  return current === clicked ? null : clicked;
+}
+
+/** Newest assistant reply id in the conversation (for handoff_followed). */
+export function latestReplyId(messages) {
+  if (!Array.isArray(messages)) return null;
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const m = messages[i];
+    if (m?.role === 'assistant' && typeof m.replyId === 'string') return m.replyId;
+  }
+  return null;
+}
+
+// ── Item 9: state-based nudges (frequency cap + per-trigger dismissal) ────
+
+export const NUDGE_TRIGGERS = Object.freeze(['payment_failed', 'dispute_waiting', 'verification_stalled', 'email_unverified', 'job_no_bids']);
+export const NUDGE_MIN_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const MAX_DISMISSED = 50;
+
+function nudgeKeys(scope) {
+  const s = String(scope || 'guest');
+  return { last: `oxs:support-nudge:${s}:last-shown`, dismissed: `oxs:support-nudge:${s}:dismissed` };
+}
+
+function readDismissed(storage, scope) {
+  try {
+    const raw = storage?.getItem(nudgeKeys(scope).dismissed);
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list.filter((k) => typeof k === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The nudge to show now, or null: at most one per NUDGE_MIN_INTERVAL_MS per
+ * user on this device, never one the user dismissed, known triggers only.
+ * Uses functional storage only; independent of analytics consent.
+ */
+export function pickNudge(nudges, { storage, scope, now = Date.now() } = {}) {
+  if (!Array.isArray(nudges) || !nudges.length) return null;
+  try {
+    const last = Number(storage?.getItem(nudgeKeys(scope).last));
+    if (Number.isFinite(last) && last > 0 && now - last < NUDGE_MIN_INTERVAL_MS) return null;
+  } catch { /* storage unavailable: still respect dismissals below */ }
+  const dismissed = new Set(readDismissed(storage, scope));
+  return nudges.find((n) => n && NUDGE_TRIGGERS.includes(n.trigger) && typeof n.key === 'string'
+    && typeof n.path === 'string' && n.path.startsWith('/') && !n.path.startsWith('//') && !dismissed.has(n.key)) || null;
+}
+
+export function markNudgeShown({ storage, scope, now = Date.now() } = {}) {
+  try { storage?.setItem(nudgeKeys(scope).last, String(now)); } catch { /* ignore */ }
+}
+
+export function dismissNudge(key, { storage, scope } = {}) {
+  if (typeof key !== 'string') return;
+  const list = readDismissed(storage, scope).filter((k) => k !== key);
+  list.push(key);
+  try { storage?.setItem(nudgeKeys(scope).dismissed, JSON.stringify(list.slice(-MAX_DISMISSED))); } catch { /* ignore */ }
+}
+
+// ── Item 8: focus trap ────────────────────────────────────────────────────
+
+const FOCUSABLE = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Keep Tab / Shift+Tab inside the dialog. Returns true when it moved focus.
+ * `elements` is the ordered list of focusable, visible nodes.
+ */
+export function trapFocus(event, elements, active) {
+  if (event?.key !== 'Tab' || !Array.isArray(elements) || !elements.length) return false;
+  const first = elements[0];
+  const last = elements[elements.length - 1];
+  const inside = elements.includes(active);
+  if (event.shiftKey && (active === first || !inside)) {
+    event.preventDefault();
+    last.focus();
+    return true;
+  }
+  if (!event.shiftKey && (active === last || !inside)) {
+    event.preventDefault();
+    first.focus();
+    return true;
+  }
+  return false;
+}
+
+export function focusableWithin(container) {
+  if (!container?.querySelectorAll) return [];
+  return [...container.querySelectorAll(FOCUSABLE)].filter((el) => !el.hasAttribute('aria-hidden') && el.offsetParent !== null);
+}

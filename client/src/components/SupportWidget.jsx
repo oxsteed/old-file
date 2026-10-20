@@ -23,14 +23,22 @@ import {
   sendErrorMessageKey,
 } from './supportWidgetState';
 import {
+  FEEDBACK_REASONS,
   actionLabel,
   actionStatusKey,
   buildGuestHandoffPrefill,
   confirmErrorState,
+  dismissNudge,
+  focusableWithin,
   isRenderableAction,
+  latestReplyId,
   latestUserImage,
+  markNudgeShown,
   mergeServerThread,
+  nextFeedback,
+  pickNudge,
   runActionPlan,
+  trapFocus,
 } from './supportChatActionState';
 import { CookieConsentContext } from '../context/CookieConsentContext';
 
@@ -249,6 +257,11 @@ function AISupportWidget({ storageScope, signedIn }) {
   const [pendingImage, setPendingImage] = useState(null);
   const [imageError,   setImageError]   = useState(null);
   const fileInputRef = useRef(null);
+  // Item 8: voice input through SpeechToTextInput (browser Web Speech).
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [voiceError, setVoiceError] = useState(null);
+  const webSpeechSupported = typeof window !== 'undefined'
+    && Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
   // Gap #8: one-click handoff state. The handoff record (idempotency key and
   // ticket number) survives reloads, so one conversation opens one ticket.
   const [escalating,   setEscalating]   = useState(false);
@@ -393,6 +406,38 @@ function markProactiveDismissed() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signedIn, storageScope]);
 
+  // Item 9: proactive nudges from the user's own state (failed payment,
+  // dispute waiting on them, stalled verification, job with no bids). At
+  // most one per day per user on this device, each dismissible for good.
+  // Uses functional storage only, so it never depends on analytics consent.
+  useEffect(() => {
+    if (!signedIn) return undefined;
+    let cancelled = false;
+    Promise.resolve()
+      .then(() => api.get('/chat/nudges'))
+      .then(({ data }) => {
+        if (cancelled) return;
+        const nudge = pickNudge(data?.nudges, { storage: window.localStorage, scope: storageScope });
+        if (!nudge) return;
+        markNudgeShown({ storage: window.localStorage, scope: storageScope });
+        setMessages(prev => (prev.some(m => m.nudge?.key === nudge.key) ? prev : [...prev, {
+          role: 'assistant',
+          content: t(`supportWidget.nudge_${nudge.trigger}`, { days: nudge.days ?? 3 }),
+          ts: new Date().toISOString(),
+          nudge,
+        }]));
+        setUnread(n => n + 1);
+      })
+      .catch(() => { /* nudges are optional */ });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signedIn, storageScope]);
+
+  const handleDismissNudge = useCallback((key) => {
+    dismissNudge(key, { storage: window.localStorage, scope: storageScope });
+    setMessages(prev => prev.filter(m => m.nudge?.key !== key));
+  }, [storageScope]);
+
   // Drop the unscoped pre-fix history (it may belong to anyone) and, once
   // signed in, the guest bucket left by the signed-out session.
   useEffect(() => { pruneSupportChatStorage(storageScope); }, [storageScope]);
@@ -449,10 +494,31 @@ function markProactiveDismissed() {
       if (e.key === 'Escape' && open && isFocusInside(panelRef.current, e.target)) {
         markProactiveDismissed();
         setOpen(false);
+        return;
+      }
+      // Item 8: Tab and Shift+Tab stay inside the open dialog.
+      if (e.key === 'Tab' && open && !minimized && isFocusInside(panelRef.current, e.target)) {
+        trapFocus(e, focusableWithin(panelRef.current), document.activeElement);
       }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
+  }, [open, minimized]);
+
+  // Item 8: focus returns to whatever opened the chat (usually the FAB).
+  const returnFocusRef = useRef(null);
+  useEffect(() => {
+    if (open) {
+      const active = document.activeElement;
+      if (active && active !== document.body && !isFocusInside(panelRef.current, active)) returnFocusRef.current = active;
+      return undefined;
+    }
+    const target = returnFocusRef.current;
+    returnFocusRef.current = null;
+    if (target && typeof target.focus === 'function' && document.contains(target)) {
+      setTimeout(() => target.focus(), 0);
+    }
+    return undefined;
   }, [open]);
 
   // Item 3: the escalation page opens with this conversation prefilled, so
@@ -486,7 +552,10 @@ function markProactiveDismissed() {
     if (escalating) return false;
     // Guests cannot open a ticket from here: hand the transcript to the
     // escalation page instead of losing it.
+    const fromReplyId = latestReplyId(messages);
     if (!signedIn) {
+      // Item 5: count the guest handoff for the reply it followed.
+      if (fromReplyId) api.post('/chat/feedback', { reply_id: fromReplyId, handoff_followed: true }).catch(() => {});
       navigate('/support/escalation', { state: escalationState() });
       return true;
     }
@@ -517,6 +586,7 @@ function markProactiveDismissed() {
         page: window.location.pathname,
         // Item 3: the newest screenshot from this chat rides along (≤2 MB).
         image: latestUserImage(messages) || undefined,
+        reply_id: fromReplyId || undefined,
         clientRequestId: record.requestId,
         sender_language: i18n.language || localStorage.getItem('oxs:language') || 'en',
       });
@@ -658,6 +728,8 @@ function markProactiveDismissed() {
         ...guideHelpPayload,
       });
       const reply = { role: 'assistant', content: data.reply || '', ts: new Date().toISOString() };
+      // Item 5: the server's reply id ties thumbs feedback to its log row.
+      if (typeof data?.reply_id === 'string') reply.replyId = data.reply_id;
       // Item 4: a server-validated action proposal renders as a confirm card.
       if (isRenderableAction(data?.proposed_action)) {
         reply.action = data.proposed_action;
@@ -700,6 +772,18 @@ function markProactiveDismissed() {
 
   const handleSubmit = (e) => { e.preventDefault(); send(input); };
 
+  const appendTranscript = useCallback((text) => {
+    const clean = String(text || '').trim();
+    if (!clean) return;
+    setInput(prev => (prev && prev.trim() ? `${prev.trim()} ${clean}` : clean).slice(0, 1000));
+    setVoiceOpen(false);
+    setVoiceError(null);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }, []);
+  // /api/chat/transcribe is still a server stub (utils/speechToText.js), so
+  // browsers without Web Speech get no mic rather than a button that fails.
+  const voiceAvailable = webSpeechSupported;
+
   const handleCopy = (content, idx) => {
     navigator.clipboard.writeText(content).then(() => {
       setCopied(idx);
@@ -707,19 +791,23 @@ function markProactiveDismissed() {
     });
   };
 
-  // 2. Thumbs feedback - toggle off if same value clicked again
-  const handleFeedback = async (idx, value) => {
-    const next = messages[idx]?.feedback === value ? null : value;
-    setMessages(prev => prev.map((m, i) => i === idx ? { ...m, feedback: next } : m));
-    if (next) {
-      try {
-        await api.post('/chat/feedback', {
-          value,
-          messageContent: messages[idx]?.content?.slice(0, 500),
-          pageContext: { path: window.location.pathname },
-        });
-      } catch { /* non-critical */ }
-    }
+  // 2. Thumbs feedback (item 5): stored per reply; clicking the same thumb
+  // again removes it; thumbs-down offers an optional reason.
+  const sendFeedback = (replyId, value, reason) => {
+    if (!replyId) return;
+    api.post('/chat/feedback', { reply_id: replyId, value, ...(reason ? { reason } : {}) })
+      .catch(() => { /* non-critical */ });
+  };
+  const handleFeedback = (idx, value) => {
+    const msg = messages[idx];
+    const next = nextFeedback(msg?.feedback, value);
+    setMessages(prev => prev.map((m, i) => i === idx ? { ...m, feedback: next, feedbackReason: null } : m));
+    sendFeedback(msg?.replyId, next);
+  };
+  const handleFeedbackReason = (idx, reason) => {
+    const msg = messages[idx];
+    setMessages(prev => prev.map((m, i) => i === idx ? { ...m, feedbackReason: reason } : m));
+    sendFeedback(msg?.replyId, 'down', reason);
   };
 
   const handleClearChat = () => {
@@ -777,6 +865,10 @@ function markProactiveDismissed() {
         >
           <div
             ref={panelRef}
+            // Item 8: a labelled modal dialog with a focus trap.
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="support-widget-title"
             // Focusable container: a click on non-interactive chat content
             // keeps focus inside the widget, so Escape still closes it.
             tabIndex={-1}
@@ -798,7 +890,7 @@ function markProactiveDismissed() {
                   <span className="absolute -bottom-0.5 -end-0.5 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-gray-900"/>
                 </div>
                 <div>
-                  <p className="font-semibold text-white text-sm leading-none">{t('supportWidget.assistantTitle')}</p>
+                  <p id="support-widget-title" className="font-semibold text-white text-sm leading-none">{t('supportWidget.assistantTitle')}</p>
                   <p className="text-[10px] text-green-400 mt-0.5">{t('supportWidget.assistantStatus')}</p>
                 </div>
               </div>
@@ -888,6 +980,10 @@ function markProactiveDismissed() {
                 <div
                   ref={scrollRef}
                   onScroll={handleScroll}
+                  role="log"
+                  aria-live="polite"
+                  aria-relevant="additions"
+                  aria-label={t('supportWidget.messageLog')}
                   className="flex-1 overflow-y-auto px-4 py-3 space-y-4"
                   style={isFullScreen ? {} : { minHeight: '260px', maxHeight: '52vh' }}
                 >
@@ -933,7 +1029,7 @@ function markProactiveDismissed() {
                           {m.role === 'user' && m.image && (
                             <img
                               src={m.image}
-                              alt=""
+                              alt={t('supportWidget.userImageAlt')}
                               className="mb-1.5 max-w-full rounded-lg max-h-40 object-contain bg-black/20"
                             />
                           )}
@@ -942,6 +1038,26 @@ function markProactiveDismissed() {
                             : m.content
                           }
                         </div>
+                        )}
+
+                        {/* Item 9: state nudge with its record link and a per-trigger dismiss. */}
+                        {m.role === 'assistant' && m.nudge && (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => navigate(m.nudge.path)}
+                              className="px-3 py-1.5 bg-action hover:bg-action-hover text-on-action rounded-full text-xs font-semibold transition active:scale-95"
+                            >
+                              {t('supportWidget.nudgeOpen')}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDismissNudge(m.nudge.key)}
+                              className="px-3 py-1.5 rounded-full text-xs text-gray-300 border border-gray-600 hover:bg-gray-800 transition"
+                            >
+                              {t('supportWidget.nudgeDismiss')}
+                            </button>
+                          </div>
                         )}
 
                         {/* Item 4: confirm card for a proposed in-chat action. */}
@@ -1009,7 +1125,7 @@ function markProactiveDismissed() {
                             <>
                               <button
                                 onClick={() => handleCopy(m.content, i)}
-                                className="opacity-0 group-hover:opacity-100 text-[10px] text-gray-500 hover:text-gray-300 transition flex items-center gap-1"
+                                className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 text-[10px] text-gray-500 hover:text-gray-300 transition flex items-center gap-1"
                                 title={t('supportWidget.copyResponse')}
                               >
                                 {copied === i
@@ -1023,7 +1139,8 @@ function markProactiveDismissed() {
                                 onClick={() => handleFeedback(i, 'up')}
                                 title={t('supportWidget.helpful')}
                                 aria-label={t('supportWidget.helpful')}
-                                className={`transition flex items-center ${m.feedback === 'up' ? 'text-green-400' : 'opacity-0 group-hover:opacity-100 text-gray-600 hover:text-green-400'}`}
+                                aria-pressed={m.feedback === 'up'}
+                                className={`transition flex items-center ${m.feedback === 'up' ? 'text-green-400' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 text-gray-600 hover:text-green-400'}`}
                               >
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill={m.feedback === 'up' ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
                                   <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/>
@@ -1036,7 +1153,8 @@ function markProactiveDismissed() {
                                 onClick={() => handleFeedback(i, 'down')}
                                 title={t('supportWidget.notHelpful')}
                                 aria-label={t('supportWidget.notHelpful')}
-                                className={`transition flex items-center ${m.feedback === 'down' ? 'text-red-400' : 'opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400'}`}
+                                aria-pressed={m.feedback === 'down'}
+                                className={`transition flex items-center ${m.feedback === 'down' ? 'text-red-400' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 text-gray-600 hover:text-red-400'}`}
                               >
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill={m.feedback === 'down' ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
                                   <path d="M10 15v4a3 3 0 003 3l4-9V2H5.72a2 2 0 00-2 1.7l-1.38 9a2 2 0 002 2.3H10z"/>
@@ -1046,6 +1164,24 @@ function markProactiveDismissed() {
                             </>
                           )}
                         </div>
+
+                        {/* Item 5: optional reason after a thumbs-down. */}
+                        {m.role === 'assistant' && m.feedback === 'down' && m.replyId && (
+                          <div role="group" aria-label={t('supportWidget.feedbackReasonPrompt')} className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-[10px] text-gray-500">{t('supportWidget.feedbackReasonPrompt')}</span>
+                            {FEEDBACK_REASONS.map((r) => (
+                              <button
+                                key={r}
+                                type="button"
+                                onClick={() => handleFeedbackReason(i, r)}
+                                aria-pressed={m.feedbackReason === r}
+                                className={`text-[10px] px-2 py-0.5 rounded-full border transition ${m.feedbackReason === r ? 'border-red-400 text-red-300' : 'border-gray-700 text-gray-400 hover:border-gray-500'}`}
+                              >
+                                {t(`supportWidget.feedbackReason_${r}`)}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                         </>
                       )}
                       </div>
@@ -1054,7 +1190,7 @@ function markProactiveDismissed() {
 
                   {/* Typing indicator */}
                   {loading && (
-                    <div className="flex items-end gap-2">
+                    <div className="flex items-end gap-2" role="status" aria-label={t('supportWidget.typing')}>
                       <div className="w-6 h-6 bg-orange-500/20 rounded-full flex-shrink-0 flex items-center justify-center">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-orange-400">
                           <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
@@ -1091,7 +1227,7 @@ function markProactiveDismissed() {
                 {pendingImage && (
                   <div className="px-4 pt-2 flex-shrink-0">
                     <div className="relative inline-block">
-                      <img src={pendingImage} alt="" className="h-16 rounded-lg object-contain bg-black/20 border border-gray-700" />
+                      <img src={pendingImage} alt={t('supportWidget.pendingImageAlt')} className="h-16 rounded-lg object-contain bg-black/20 border border-gray-700" />
                       <button
                         type="button"
                         onClick={() => setPendingImage(null)}
@@ -1106,6 +1242,20 @@ function markProactiveDismissed() {
                 {imageError && (
                   <div className="px-4 pt-1 flex-shrink-0">
                     <p className="text-[11px] text-red-400">{imageError}</p>
+                  </div>
+                )}
+
+                {/* Item 8: voice input panel. */}
+                {voiceOpen && voiceAvailable && (
+                  <div className="px-4 pt-2 flex-shrink-0" aria-label={t('supportWidget.voiceInput')} role="group">
+                    <SpeechToTextInput
+                      language={(i18n.language || 'en').slice(0, 2)}
+                      onTranscriptReady={appendTranscript}
+                      onError={(msg) => setVoiceError(msg)}
+                    />
+                    {voiceError && (
+                      <p role="status" className="mt-1 text-[11px] text-red-400">{voiceError}</p>
+                    )}
                   </div>
                 )}
 
@@ -1132,9 +1282,26 @@ function markProactiveDismissed() {
                       <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
                     </svg>
                   </button>
+                  {voiceAvailable && (
+                    <button
+                      type="button"
+                      onClick={() => { setVoiceOpen(v => !v); setVoiceError(null); }}
+                      disabled={loading}
+                      aria-label={t('supportWidget.voiceInput')}
+                      aria-pressed={voiceOpen}
+                      title={t('supportWidget.voiceInput')}
+                      className={`flex-shrink-0 p-2.5 rounded-xl transition disabled:opacity-40 active:scale-95 ${voiceOpen ? 'text-orange-400' : 'text-gray-500 hover:text-orange-400'}`}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <rect x="9" y="2" width="6" height="12" rx="3"/>
+                        <path d="M5 10a7 7 0 0014 0M12 17v5"/>
+                      </svg>
+                    </button>
+                  )}
                   <div className="flex-1 relative">
                     <textarea
                       ref={inputRef}
+                      aria-label={t('supportWidget.messageInput')}
                       value={input}
                       onChange={e => setInput(e.target.value)}
                       onKeyDown={e => {

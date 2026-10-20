@@ -1,0 +1,27 @@
+{
+  "_doc": "Deterministic per-locale eval set for the AI support chat (item 7). Each case runs chatMessage with a mocked provider (no network) and checks the language directive, per-locale model and token budget, retrieval grounding, handoff signal and marker stripping.",
+  "cases": [
+    { "id": "en-cookies", "locale": "en", "question": "How do I change my cookie preferences?", "expectRoute": "/cookie-policy", "expectHandoff": null,
+      "modelReply": "Open Manage Cookies in the footer (/cookie-policy explains each category)." },
+    { "id": "en-frustrated", "locale": "en", "question": "This is useless, I want to talk to a person", "expectRoute": null, "expectHandoff": "sentiment",
+      "modelReply": "I'm sorry. I can connect you with support." },
+    { "id": "en-cannot-help", "locale": "en", "question": "Can you reverse the charge on my card?", "expectRoute": null, "expectHandoff": "model_cannot_help",
+      "modelReply": "I can't change charges from this chat; support can review it.\n[[handoff]]" },
+    { "id": "es-cookies", "locale": "es", "question": "¿Dónde gestiono las cookies?", "expectRoute": "/cookie-policy", "expectHandoff": null,
+      "modelReply": "Abre Gestionar cookies en el pie de página (/cookie-policy)." },
+    { "id": "es-frustrated", "locale": "es", "question": "Esto no funciona, quiero hablar con una persona", "expectRoute": null, "expectHandoff": "sentiment",
+      "modelReply": "Lo siento. Puedo conectarte con soporte." },
+    { "id": "fr-privacy", "locale": "fr", "question": "Comment demander mes données personnelles ? confidentialité", "expectRoute": "/privacy", "expectHandoff": null,
+      "modelReply": "Consultez la politique de confidentialité (/privacy)." },
+    { "id": "fr-frustrated", "locale": "fr", "question": "Ça ne marche toujours pas, je veux parler à un humain", "expectRoute": null, "expectHandoff": "sentiment",
+      "modelReply": "Je suis désolé. Je peux vous mettre en relation avec l'assistance." },
+    { "id": "ht-support", "locale": "ht", "question": "Kijan pou m kontakte sipò pou yon tikè?", "expectRoute": "/support", "expectHandoff": null,
+      "modelReply": "Ale sou /support pou louvri yon tikè." },
+    { "id": "ht-frustrated", "locale": "ht", "question": "Li toujou pa mache, mwen vle pale ak yon moun", "expectRoute": null, "expectHandoff": "sentiment",
+      "modelReply": "Mwen regrèt sa. Mwen ka konekte w ak sipò." },
+    { "id": "ar-privacy", "locale": "ar", "question": "أين سياسة الخصوصية وبيانات حسابي؟", "expectRoute": "/privacy", "expectHandoff": null,
+      "modelReply": "راجع سياسة الخصوصية (/privacy)." },
+    { "id": "ar-frustrated", "locale": "ar", "question": "التطبيق لا يعمل وأريد التحدث مع موظف", "expectRoute": null, "expectHandoff": "sentiment",
+      "modelReply": "أعتذر عن ذلك. يمكنني توصيلك بالدعم." }
+  ]
+}

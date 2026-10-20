@@ -69,7 +69,7 @@ export default function SpeechToTextInput({
 
     recognition.continuous = false;
     recognition.interimResults = true;
-    recognition.language = language;
+    recognition.lang = language;
 
     recognition.onstart = () => {
       setIsRecording(true);

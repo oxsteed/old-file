@@ -1,4 +1,4 @@
-const { SUPPORT_PROMPT, FINANCIAL_GUIDE, HANDOFF_MARKER, buildSupportPrompt } = require('../services/assistantGuide');
+const { SUPPORT_PROMPT, FINANCIAL_GUIDE, HANDOFF_MARKER, GUIDE_REVISION, buildSupportPrompt } = require('../services/assistantGuide');
 const logger        = require('../utils/logger');
 const { ROLES }     = require('../constants/roles');
 const { AppError } = require('../middleware/errorHandler');
@@ -25,7 +25,9 @@ const { enqueueConversationMessageNotifications } = require('../services/message
 const redis = require('../utils/redis');
 const { getCachedGuideReply, setCachedGuideReply } = require('../services/guideHelpCache');
 const { MAX_IMAGE_BASE64_CHARS } = require('../constants/supportChatLimits');
-const { resolveOllamaUrl } = require('../services/supportChatProviders');
+const { resolveOllamaUrl, supportChatModelForLocale, supportChatMaxTokens } = require('../services/supportChatProviders');
+const supportChatFeedback = require('../services/supportChatFeedback');
+const supportKnowledge = require('../services/supportKnowledge');
 const supportChatActions = require('../services/supportChatActions');
 
 function isUuid(value) {
@@ -90,7 +92,7 @@ const OPENROUTER_VISION_MODEL = process.env.OPENROUTER_VISION_MODEL
 /**
  * Try OpenRouter (OpenAI-compatible chat completions). Requires OPENROUTER_API_KEY.
  */
-async function fetchOpenRouterChat(model, messages) {
+async function fetchOpenRouterChat(model, messages, maxTokens = 400) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     return { ok: false, error: 'OPENROUTER_API_KEY not set' };
@@ -108,7 +110,7 @@ async function fetchOpenRouterChat(model, messages) {
       model,
       messages,
       temperature: 0.65,
-      max_tokens: 400,
+      max_tokens: maxTokens,
     }),
   });
   if (!res.ok) {
@@ -168,13 +170,18 @@ async function fetchOllamaChat(messages, options) {
  */
 async function callWithFallback(messages, ollamaOptions, logTag, options = {}) {
   const openRouterModel = options.openRouterModel || OPENROUTER_CHAT_MODEL;
+  const ollamaModel = process.env.OLLAMA_MODEL || 'qwen2.5:3b';
   const attempts = [
     {
       name: `OpenRouter (${openRouterModel})`,
-      run: () => fetchOpenRouterChat(openRouterModel, messages),
+      provider: 'openrouter',
+      model: openRouterModel,
+      run: () => fetchOpenRouterChat(openRouterModel, messages, options.maxTokens || 400),
     },
     {
-      name: `Ollama (${process.env.OLLAMA_MODEL || 'qwen2.5:3b'})`,
+      name: `Ollama (${ollamaModel})`,
+      provider: 'ollama',
+      model: ollamaModel,
       run: () => fetchOllamaChat(messages, ollamaOptions),
       skip: () => !OLLAMA_URL,
     },
@@ -186,7 +193,7 @@ async function callWithFallback(messages, ollamaOptions, logTag, options = {}) {
       const result = await step.run();
       if (result.ok) {
         logger.info(`${logTag} AI provider succeeded`, { provider: step.name });
-        return { ok: true, reply: result.reply };
+        return { ok: true, reply: result.reply, provider: step.provider, model: step.model };
       }
       logger.warn(`${logTag} AI provider failed`, { provider: step.name, error: result.error });
     } catch (err) {
@@ -220,6 +227,19 @@ const BLOCKER_TOPICS = {
   credit_account_restricted: /(credit|wallet|balance|crédito|saldo|crédit|solde|kredi|balans|رصيد|ائتمان|محفظة)/i,
 };
 
+// Item 7: the same signals in Spanish, French, Haitian Creole and Arabic, so
+// a frustrated non-English user is offered a person just as quickly.
+const HANDOFF_NEGATIVE_SIGNALS_I18N = [
+  /(hablar con (una |un )?(persona|humano|agente)|agente humano|no funciona|no sirve|sigue sin funcionar|frustrad|molest[oa]|p[ée]simo|in[úu]til|me rindo)/i,
+  /(parler (à|a) (un|une) (humain|personne|agent|conseiller)|ne (marche|fonctionne) (pas|toujours pas)|inutile|[ée]nerv[ée]|frustr[ée]|j'abandonne|horrible)/i,
+  /(pale (ak|avè) (yon )?(moun|ajan)|pa mache|toujou pa mache|fache|frustre|initil|mwen bouke)/i,
+  /(التحدث (مع|إلى) (شخص|موظف|إنسان)|موظف حقيقي|لا يعمل|ما زال لا يعمل|غاضب|محبط|سيئ|عديم الفائدة)/,
+];
+
+function hasNegativeSignal(text) {
+  return HANDOFF_NEGATIVE_SIGNALS.test(text) || HANDOFF_NEGATIVE_SIGNALS_I18N.some((re) => re.test(text));
+}
+
 function normalizeHandoffText(message) {
   return message.toLowerCase().replace(/\s+/g, ' ').slice(0, 300);
 }
@@ -246,7 +266,7 @@ function collapsedUserTurns(history) {
 function handoffReason(history, { blockers = [] } = {}) {
   const userMessages = collapsedUserTurns(history);
   if (!userMessages.length) return null;
-  if (HANDOFF_NEGATIVE_SIGNALS.test(userMessages.slice(-2).join('\n'))) return 'sentiment';
+  if (hasNegativeSignal(userMessages.slice(-2).join('\n'))) return 'sentiment';
   const seen = new Set();
   for (const message of userMessages) {
     const normalized = normalizeHandoffText(message);
@@ -363,6 +383,20 @@ exports.chatMessage = async (req, res, next) => {
       else snapshot = snapshot ? { ...snapshot, empty: true } : null;
     }
     const hasSnapshot = Boolean(snapshot && !snapshot.empty);
+
+    // Knowledge retrieval (item 6): help/policy pages, Learn guides and the
+    // current business's published articles, fenced as untrusted reference.
+    // Guide-help turns already carry their guide and stay cache-stable.
+    if (!isGuideHelp) {
+      const latestUserText = [...messages].reverse().find((m) => m && m.role === 'user')?.content;
+      const snippets = await supportKnowledge.retrieveKnowledge({
+        text: typeof latestUserText === 'string' ? latestUserText.slice(0, 1500) : '',
+        language,
+        page: pageContext?.path,
+      });
+      const knowledge = supportKnowledge.formatKnowledgeForAI(snippets);
+      if (knowledge) systemPrompt += `\n\n${knowledge}`;
+    }
     systemPrompt = buildSupportPrompt({
       hasSnapshot,
       firstName: isGuideHelp ? null : snapshot?.profile?.firstName || null,
@@ -451,7 +485,12 @@ exports.chatMessage = async (req, res, next) => {
       const hit = await getCachedGuideReply(redis, guideCacheCtx.guide_id, guideCacheCtx.step, guideCacheCtx.language);
       if (hit) {
         logger.info('[Chat] guide help cache hit', { guide_id: String(guideCacheCtx.guide_id).slice(0, 64) });
-        return res.json({ reply: hit, cached: true, handoff_suggested: Boolean(userHandoffReason), handoff_reason: userHandoffReason });
+        const replyId = supportChatFeedback.recordReply({
+          userId: req.user?.id, page: pageContext?.path, language, provider: 'cache', model: null,
+          guideRevision: GUIDE_REVISION, cached: true, handoffSuggested: Boolean(userHandoffReason),
+          handoffReason: userHandoffReason, reply: hit,
+        });
+        return res.json({ reply: hit, reply_id: replyId, cached: true, handoff_suggested: Boolean(userHandoffReason), handoff_reason: userHandoffReason });
       }
     }
 
@@ -459,13 +498,17 @@ exports.chatMessage = async (req, res, next) => {
       ollamaMessages,
       {
         temperature: 0.65,
-        num_predict: 400,
+        num_predict: supportChatMaxTokens(language),
         top_p: 0.9,
         repeat_penalty: 1.1,
       },
       '[Chat]',
-      // Vision turns use the vision-capable model instead of the text model.
-      { openRouterModel: visionImageUrl ? OPENROUTER_VISION_MODEL : undefined }
+      // Item 7: per-locale model (OPENROUTER_CHAT_MODEL_<LOCALE>) and a
+      // locale-aware max_tokens. Vision turns use the vision-capable model.
+      {
+        openRouterModel: visionImageUrl ? OPENROUTER_VISION_MODEL : supportChatModelForLocale(language),
+        maxTokens: supportChatMaxTokens(language),
+      }
     );
 
     if (!ai.ok) {
@@ -502,8 +545,16 @@ exports.chatMessage = async (req, res, next) => {
       setCachedGuideReply(redis, guideCacheCtx.guide_id, guideCacheCtx.step, guideCacheCtx.language, reply);
     }
 
+    // Item 5: reply log for quality metrics (short preview only).
+    const replyId = supportChatFeedback.recordReply({
+      userId: req.user?.id, page: pageContext?.path, language,
+      provider: ai.provider || null, model: ai.model || null, guideRevision: GUIDE_REVISION,
+      cached: false, handoffSuggested: Boolean(handoffReasonValue), handoffReason: handoffReasonValue, reply,
+    });
+
     res.json({
       reply,
+      reply_id: replyId,
       handoff_suggested: Boolean(handoffReasonValue),
       handoff_reason: handoffReasonValue,
       ...(proposedAction ? { proposed_action: proposedAction } : {}),
@@ -523,6 +574,54 @@ exports.clearSupportThread = async (req, res, next) => {
     if (!req.user?.id) throw new AppError('Sign in required', 401, 'unauthorized');
     await supportChatThreads.clearSupportThread(req.user.id);
     res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * POST /api/chat/feedback
+ * Item 5: thumbs up/down (with an optional reason) on one reply, or null to
+ * remove it; `handoff_followed: true` records that the user handed off.
+ * Guests can only touch guest replies, users only their own.
+ */
+exports.supportChatFeedback = async (req, res, next) => {
+  try {
+    const { reply_id: replyId, value, reason, handoff_followed: handoffFollowed } = req.body || {};
+    const userId = req.user?.id || null;
+    if (handoffFollowed === true) {
+      const ok = await supportChatFeedback.markHandoffFollowed({ replyId, userId });
+      return res.json({ ok });
+    }
+    if (!replyId) {
+      // Legacy client without reply ids: accept but store nothing.
+      return res.json({ ok: true, stored: false });
+    }
+    const result = await supportChatFeedback.applyFeedback({
+      replyId, userId, value: value === undefined ? null : value, reason,
+    });
+    return res.status(result.status).json(result.body);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/** GET /api/chat/nudges — state-based proactive nudges (item 9). */
+exports.getSupportNudges = async (req, res, next) => {
+  try {
+    if (!req.user?.id) throw new AppError('Sign in required', 401, 'unauthorized');
+    const nudges = await require('../services/supportChatNudges').getSupportNudges(req.user.id);
+    res.set('Cache-Control', 'no-store');
+    res.json({ nudges });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/** GET /api/admin/support/ai-chat-metrics */
+exports.supportChatMetrics = async (req, res, next) => {
+  try {
+    res.json(await supportChatFeedback.adminMetrics({ days: req.query?.days }));
   } catch (err) {
     next(err);
   }
