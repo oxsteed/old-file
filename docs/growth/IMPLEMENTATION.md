@@ -51,6 +51,14 @@ Track 1 continuation (2026-10-20, branch `growth-finish-t1`): the privacy founda
 - **Client:** `npm --prefix client run build:ci` passed on the final tree. New `growthInsights` strings were added to en/es/fr/ht/ar in both the legacy and namespaced catalogs with key parity verified; sharded catalogs regenerate at build time. No visual browser QA or human screen-reader pass was performed; the heatmap ships with the accessible table view as the equivalent path.
 - Everything remains default-off: the nightly rollups, the suggestion producer and the metrics serve only inside the existing rollout and permission gates.
 
+## Verification at integration (2026-10-20, `codex/demand-sales-engine`, not pushed)
+
+- **Migration history:** all 916 migration files through 940 applied cleanly to a fresh local PostgreSQL 16 + PostGIS database (the complete production history, not a predecessor fixture). The local test database was rebuilt from the same history after track work polluted it.
+- **Server:** the full Jest suite on the integrated tree passed **8,631 tests, 0 failed** (99 skipped, environment-gated), including all six growth suites (278 tests) and the database-backed evidence, threshold-alert, region-scope and statement suites against the migrated test database. The first integrated run failed 13 tests in 5 suites, all traced to the governed metrics being registered without evidence projections, alert-evaluator entries and NL vocabulary, plus one meta count; fixed and re-verified (see the integration commit history).
+- **Reviews:** two independent passes over the integrated diff. Spec compliance (pass B): handoff sections 1-5 complete except the items named in the completion notes above; no deferred phase was built or half-enabled; all switches default-off. Correctness (pass A): one medium defect (the governed commission metric counted assisted conversions) and three low defects (batch resolver candidate priority, unsuppressed campaign preview counts, silent export truncation) plus small items, all fixed in the follow-up commit and re-tested.
+- **Client:** `npm --prefix client run build:ci` passed on the final tree (1,022 emitted assets verified); tracker tests 8/8; instrumentation check at 100% (2,453 of 2,453 named controls, 878 eligible files).
+- No visual browser QA or human screen-reader pass was performed; no production deployment or activation was attempted.
+
 ## Rehearsal commands
 
 Use the existing disposable Compose harness, with distinct `oxsteed-growth-*` project/volume names, for Postgres and Redis. Do not target production or use the legacy production-placeholder Compose file. `verifyGrowthSchema.js` refuses container names outside the dedicated growth test naming pattern and creates/drops only its own randomly named database.
