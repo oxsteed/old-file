@@ -2521,6 +2521,7 @@ function BusinessHubInner() {
               </div>
             </div>
           </div>
+        )}
         {/* ── S-08: per-member permission overrides editor ──────────── */}
         {permissionsMember && (
           <MemberPermissionsEditor
