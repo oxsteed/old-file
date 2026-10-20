@@ -5,6 +5,13 @@ import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+const ROLE_LABEL_KEYS = {
+  manager: 'businessHub.roleManager',
+  representative: 'businessHub.roleRepresentative',
+  employee: 'businessHub.roleEmployee',
+  support_agent: 'businessHub.roleSupportAgent',
+};
+
 const lazyDefault = (loader) => lazy(loader);
 const lazyNamed = (loader, exportName) => lazy(() => loader().then((module) => ({ default: module[exportName] })));
 
@@ -50,7 +57,7 @@ import {
   listInvoices, createInvoice, updateInvoice, markInvoicePaid, deleteInvoice, sendInvoice,
   getTax, refreshTax, markTaxPaid,
   listGoals, createGoal, updateGoal, deleteGoal,
-  inviteMember, revokeMember,
+  inviteMember, revokeMember, resendMemberInvite, listJobRoles,
   listMyInvitations, acceptInvitation, declineInvitation,
   listManagedBusinesses,
   listVortexTokens, generateVortexToken, revokeVortexToken,
@@ -181,6 +188,8 @@ function BusinessHubInner() {
 
   // modal state
   const [modal, setModal]     = useState(null); // 'add-biz' | 'add-inv' | 'edit-inv' | 'pay-inv' | 'add-goal' | 'edit-goal' | 'pay-tax'
+  const [jobRoles, setJobRoles] = useState([]);
+  const [roleChange, setRoleChange] = useState(null); // { member, newRole, reason } — S-09 confirmation
   const [selected, setSelected] = useState(null);
   const [form, setForm]       = useState({});
   const [saving, setSaving]   = useState(false);
@@ -529,13 +538,15 @@ function BusinessHubInner() {
     if (!bizId) return;
     setMembersLoading(true);
     try {
-      const [m, inv, managed, tokens, codes] = await Promise.all([
+      const [m, inv, managed, tokens, codes, roles] = await Promise.all([
         listMemberships(bizId),
         listMyInvitations(),
         listManagedBusinesses(),
         LAUNCH_VISIBILITY.businessHubVortexAccess ? listVortexTokens(bizId).catch(() => []) : Promise.resolve([]),
         LAUNCH_VISIBILITY.businessHubVortexAccess ? listAccessCodes(bizId).catch(() => []) : Promise.resolve([]),
+        listJobRoles(bizId).catch(() => []),
       ]);
+      setJobRoles(roles);
       // listMemberships returns user_email; the team table expects member_email.
       setMembers(m.map((row) => ({ ...row, member_email: row.member_email || row.user_email })));
       setInvitations(inv);
@@ -908,9 +919,22 @@ function BusinessHubInner() {
   async function handleInviteMember() {
     if (!form.invite_email?.trim()) { setFormErr(t('businessHub.errEmailRequired')); return; }
     if (!form.invite_role) { setFormErr(t('businessHub.errRoleRequired')); return; }
+    // S-03: optional pay rate, entered in major units, stored as cents.
+    let payRateCents;
+    if (form.invite_pay_rate !== undefined && form.invite_pay_rate !== '') {
+      const parsed = Number(form.invite_pay_rate);
+      if (!Number.isFinite(parsed) || parsed < 0) { setFormErr(t('businessHub.errPayRateInvalid')); return; }
+      payRateCents = Math.round(parsed * 100);
+    }
     setSaving(true);
     try {
-      const result = await inviteMember(bizId, { email: form.invite_email.trim(), role: form.invite_role });
+      const result = await inviteMember(bizId, {
+        email: form.invite_email.trim(),
+        role: form.invite_role,
+        job_role: form.invite_job_role || undefined,
+        pay_rate_cents: payRateCents,
+        pay_rate_period: payRateCents !== undefined ? (form.invite_pay_period || 'hour') : undefined,
+      });
       toast.success(result.user_found ? t('businessHub.toastInviteSent') : t('businessHub.toastInviteRecorded'));
       closeModal();
       await loadTeam();
@@ -919,25 +943,34 @@ function BusinessHubInner() {
   }
 
   async function handleRevokeMember(member) {
-    const isCodePending = member.status === 'pending' && member.member_id;
     const isActive = member.status === 'active';
     const label = isActive
       ? t('businessHub.confirmRemoveMember', { name: member.first_name || member.invite_email })
       : t('businessHub.confirmCancelInvite', { email: member.invite_email });
     if (!window.confirm(label)) return;
     try {
-      // Active members are kicked via the dedicated remove endpoint (deny is
-      // pending-only). Pending email invites cancel via revokeMember.
+      // Active members are kicked via the dedicated remove endpoint.
+      // Pending invites — including invites sent to existing users — are
+      // cancelled through revokeMember (S-10): the Vortex-gated deny
+      // endpoint 503s while Vortex is launch-hidden, which left owners
+      // unable to withdraw an invite sent to the wrong person.
       if (isActive) {
         await removeMembership(bizId, member.id);
-      } else if (!isCodePending) {
-        await revokeMember(bizId, member.id);
       } else {
-        await denyMembership(bizId, member.id);
+        await revokeMember(bizId, member.id);
       }
       toast.success(t('businessHub.toastMemberRemoved'));
       await loadTeam();
     } catch { toast.error(t('businessHub.toastMemberRemoveFail')); }
+  }
+
+  async function handleResendInvite(member) {
+    if (!bizId) return;
+    try {
+      await resendMemberInvite(bizId, member.id);
+      toast.success(t('businessHub.toastInviteResent'));
+      await loadTeam();
+    } catch { toast.error(t('businessHub.toastInviteResendFail')); }
   }
 
   async function handleApproveMember(member) {
@@ -959,14 +992,29 @@ function BusinessHubInner() {
     } catch { toast.error(t('businessHub.toastMemberDenyFail')); }
   }
 
-  async function handleChangeMemberRole(member, newRole) {
+  // S-09: a role change no longer fires straight from the dropdown. It
+  // opens a confirmation that requires a reason; the server records the
+  // reason in the audit log and rejects unconfirmed changes.
+  function handleChangeMemberRole(member, newRole) {
     if (!bizId) return;
     if (newRole === member.role) return;
+    setFormErr('');
+    setRoleChange({ member, newRole, reason: '' });
+  }
+
+  async function confirmChangeMemberRole() {
+    if (!roleChange) return;
+    const reason = roleChange.reason.trim();
+    if (!reason) { setFormErr(t('businessHub.errReasonRequired')); return; }
+    setSaving(true);
     try {
-      await changeMembershipRole(bizId, member.id, newRole);
+      await changeMembershipRole(bizId, roleChange.member.id, roleChange.newRole, { reason, confirm: true });
       toast.success(t('businessHub.toastRoleChanged'));
+      setRoleChange(null);
+      setFormErr('');
       await loadTeam();
     } catch { toast.error(t('businessHub.toastRoleChangeFail')); }
+    finally { setSaving(false); }
   }
 
   async function handleAcceptInvitation(inv) {
@@ -2111,6 +2159,7 @@ function BusinessHubInner() {
                 onOpenHiring={canEditBizProfile ? () => setTab('hiring') : null}
                 businessId={bizId}
                 onRevoke={handleRevokeMember}
+                onResend={handleResendInvite}
                 onApprove={handleApproveMember}
                 onDeny={handleDenyMember}
                 onChangeRole={handleChangeMemberRole}
@@ -2393,14 +2442,78 @@ function BusinessHubInner() {
               <div className="bh-field">
                 <label>{t('businessHub.fieldRoleRequired')}</label>
                 <select name="invite_role" value={form.invite_role || 'representative'} onChange={fc}>
+                  <option value="employee">{t('businessHub.roleEmployeeDesc')}</option>
                   <option value="representative">{t('businessHub.roleRepresentativeDesc')}</option>
-                  <option value="manager">{t('businessHub.roleManagerDesc')}</option>
+                  <option value="support_agent">{t('businessHub.roleSupportAgentDesc')}</option>
+                  {/* S-09: only owners can create managers. */}
+                  {currentRole === 'owner' && (
+                    <option value="manager">{t('businessHub.roleManagerDesc')}</option>
+                  )}
                 </select>
+              </div>
+              <div className="bh-field">
+                <label>{t('businessHub.fieldJobRole')}</label>
+                <select name="invite_job_role" value={form.invite_job_role || ''} onChange={fc}>
+                  <option value="">{t('businessHub.jobRoleNone')}</option>
+                  {jobRoles.map((jr) => (
+                    <option key={jr.code} value={jr.code}>{jr.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="bh-field">
+                <label>{t('businessHub.fieldPayRate')}</label>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    name="invite_pay_rate"
+                    value={form.invite_pay_rate || ''}
+                    onChange={fc}
+                    placeholder={t('businessHub.placeholderPayRate')}
+                  />
+                  <select name="invite_pay_period" value={form.invite_pay_period || 'hour'} onChange={fc}>
+                    <option value="hour">{t('businessHub.payPeriodHour')}</option>
+                    <option value="week">{t('businessHub.payPeriodWeek')}</option>
+                    <option value="month">{t('businessHub.payPeriodMonth')}</option>
+                    <option value="year">{t('businessHub.payPeriodYear')}</option>
+                  </select>
+                </div>
               </div>
               {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
               <div className="bh-modal-actions">
                 <button className="bh-btn" onClick={closeModal} data-track="ui.83b215c0c9.24">{t('businessHub.btnCancel')}</button>
                 <button className="bh-btn primary" onClick={handleInviteMember} disabled={saving} data-track="ui.83b215c0c9.25">{saving ? t('businessHub.btnSending') : t('businessHub.btnSendInvite')}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Modal: Confirm Role Change (S-09: confirmation + reason) ── */}
+        {roleChange && (
+          <div className="bh-modal-overlay" onClick={e => e.target === e.currentTarget && setRoleChange(null)}>
+            <div className="bh-modal">
+              <h2>{t('businessHub.modalChangeRole')}</h2>
+              <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)', marginBottom: '1rem' }}>
+                {t('businessHub.changeRoleDesc', {
+                  name: roleChange.member.first_name || roleChange.member.invite_email,
+                  from: t(ROLE_LABEL_KEYS[roleChange.member.role] || 'businessHub.roleEmployee'),
+                  to: t(ROLE_LABEL_KEYS[roleChange.newRole] || 'businessHub.roleEmployee'),
+                })}
+              </p>
+              <div className="bh-field">
+                <label>{t('businessHub.fieldChangeReason')}</label>
+                <textarea
+                  value={roleChange.reason}
+                  onChange={e => setRoleChange({ ...roleChange, reason: e.target.value })}
+                  placeholder={t('businessHub.placeholderChangeReason')}
+                  rows={3}
+                />
+              </div>
+              {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
+              <div className="bh-modal-actions">
+                <button className="bh-btn" onClick={() => { setRoleChange(null); setFormErr(''); }}>{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={confirmChangeMemberRole} disabled={saving}>{t('businessHub.btnConfirmChange')}</button>
               </div>
             </div>
           </div>
@@ -3211,7 +3324,7 @@ function TeamTab({
   onRevokeToken, onRevokeAccessCode, onRotateAccessCode,
   showVortexAccess = false,
   onInvite, onOpenHiring, businessId,
-  onRevoke, onAccept, onDecline, onApprove, onDeny, onChangeRole,
+  onRevoke, onResend, onAccept, onDecline, onApprove, onDeny, onChangeRole,
   isOwner = false,
   showOnceCode, onDismissShowOnceCode,
 }) {
@@ -3610,6 +3723,9 @@ function TeamTab({
                       // Code-join approvals are a Vortex code flow: the
                       // approve/deny APIs 503 while VORTEX_ENABLED is off, so
                       // the buttons only render when the feature is launched.
+                      // Email invites to existing users also land in this
+                      // state; those are managed through resend/cancel
+                      // (revokeMember), which never depends on Vortex (S-10).
                       showVortexAccess ? (
                       <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                         <button
@@ -3624,14 +3740,27 @@ function TeamTab({
                         </button>
                       </div>
                       ) : (
-                        <span style={{ fontSize: '0.78rem', color: 'var(--muted-text)' }}>
-                          {t('businessHub.statusAwaitingApproval')}
-                        </span>
+                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--muted-text)' }}>
+                            {t('businessHub.statusAwaitingApproval')}
+                          </span>
+                          <button className="bh-btn" style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => onResend(m)}>
+                            {t('businessHub.btnResendInvite')}
+                          </button>
+                          <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)}>
+                            {t('businessHub.btnCancelInvite')}
+                          </button>
+                        </div>
                       )
                     ) : m.status === 'pending' ? (
-                      <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)} data-track="ui.83b215c0c9.81">
-                        {t('businessHub.btnCancelInvite')}
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <button className="bh-btn" style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => onResend(m)}>
+                          {t('businessHub.btnResendInvite')}
+                        </button>
+                        <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)} data-track="ui.83b215c0c9.81">
+                          {t('businessHub.btnCancelInvite')}
+                        </button>
+                      </div>
                     ) : (
                       <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)} data-track="ui.83b215c0c9.82">
                         {t('businessHub.btnRemoveMember')}
