@@ -103,7 +103,7 @@ async function checkAction(userId, type, params, query = db.query.bind(db)) {
         order: 'SELECT id FROM food_orders WHERE id::text = $1 AND customer_id = $2',
         booking: 'SELECT id FROM booking_requests WHERE id::text = $1 AND (customer_id = $2 OR helper_id = $2)',
         job: 'SELECT id FROM jobs WHERE id::text = $1 AND (client_id = $2 OR assigned_helper_id = $2) AND deleted_at IS NULL',
-        dispute: 'SELECT id FROM disputes WHERE id::text = $1 AND opened_by = $2',
+        dispute: 'SELECT id FROM disputes WHERE id::text = $1 AND (opened_by = $2 OR against_user = $2)',
         ticket: 'SELECT id FROM support_tickets WHERE id::text = $1 AND user_id = $2',
       }[target];
       const { rows } = await query(sql, [id, userId]);

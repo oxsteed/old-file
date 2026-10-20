@@ -557,6 +557,11 @@ exports.createChatEscalation = async (req, res, next) => {
       client.release();
     }
 
+    // Item 5: mark the reply the user handed off from (quality metrics).
+    if (typeof req.body?.reply_id === 'string') {
+      require('../services/supportChatFeedback').markHandoffFollowed({ replyId: req.body.reply_id, userId });
+    }
+
     // The screenshot is stored after commit (a replay never re-uploads it)
     // and linked from the ticket metadata; staff get a signed URL.
     if (image) {

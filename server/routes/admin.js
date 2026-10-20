@@ -411,6 +411,9 @@ router.get('/export/:type',          requireAdmin, requirePermission('export_dat
 // ══════════════════════════════════════════════════════════════
 
 router.get('/support/stats',                          requireAdmin, requirePermission('manage_support'), supportCtrl.getStats);
+// AI support chat quality: deflection, handoff and thumbs-down rates by page
+// and locale (aggregates only; no user data).
+router.get('/support/ai-chat-metrics',                requireAdmin, requirePermission('manage_support'), require('../controllers/chatController').supportChatMetrics);
 // E05: ticket list/detail are region-scoped server-side (fail closed).
 router.get('/support/tickets',                        requireAdmin, requirePermission('manage_support'), loadAssignedRegions, supportCtrl.listTickets);
 router.get('/support/tickets/:ticketId',              requireAdmin, requirePermission('manage_support'), loadAssignedRegions, supportCtrl.getTicketAdmin);

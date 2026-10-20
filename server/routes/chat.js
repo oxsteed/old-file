@@ -16,6 +16,8 @@ const {
   confirmSupportAction,
   recordSupportActionResult,
   dismissSupportAction,
+  supportChatFeedback,
+  getSupportNudges,
 } = require('../controllers/chatController');
 const { chatLimiter, supportChatLimiter, profileChatLimiter, authLimiter, paymentsLimiter } = require('../middleware/rateLimiter');
 const { authenticate, optionalAuth: sharedOptionalAuth } = require('../middleware/auth');
@@ -82,6 +84,8 @@ router.post('/message', optionalAuth, supportChatLimiter, chatMessage);
 router.delete('/support-thread', chatLimiter, authenticate, clearSupportThread);
 // GET /api/chat/support-thread - the saved server conversation (item 10).
 router.get('/support-thread', chatLimiter, authenticate, getSupportThread);
+// GET /api/chat/nudges - proactive nudges from the user's own state (item 9).
+router.get('/nudges', chatLimiter, authenticate, getSupportNudges);
 // In-chat actions (item 4): confirm re-checks ownership/state server-side and
 // returns the existing endpoint to call with the user's session; result and
 // dismiss complete the audit row (support_chat_actions, migration 914).
@@ -197,20 +201,8 @@ router.get('/profile-context/:type/:id', chatLimiter, authenticate, getProfileCo
 // Requires authentication.
 router.post('/transcribe', chatLimiter, authenticate, upload.single('audio'), validateFileUpload, transcribeAudio);
 
-// POST /api/chat/feedback - thumbs up/down on AI replies (best-effort logging)
-router.post('/feedback', chatLimiter, (req, res) => {
-  const { value, messageContent, pageContext } = req.body;
-  if (value === 'up' || value === 'down') {
-    // Sanitize path - only accept relative paths to prevent log injection
-    const rawPath = String(pageContext?.path || '');
-    const safePath = rawPath.startsWith('/') ? rawPath.slice(0, 200) : null;
-    logger.info('[Chat] Feedback received', {
-      value,
-      path:    safePath,
-      preview: String(messageContent || '').slice(0, 80),
-    });
-  }
-  res.json({ ok: true });
-});
+// POST /api/chat/feedback - thumbs up/down (+ reason, un-toggle) on one AI
+// reply, stored for quality metrics (item 5, migration 915).
+router.post('/feedback', chatLimiter, optionalAuth, supportChatFeedback);
 
 module.exports = router;
