@@ -186,6 +186,8 @@ function normalizeItem(record, fieldMapping = {}, defaults = {}) {
   if (!mapped.id) return { error: "missing_id" };
   if (!mapped.name) return { error: "missing_name" };
   if (!price) return { error: "invalid_price" };
+  // marketplace_products.price_cents is INTEGER; refuse absurd feed values.
+  if (price.minor > 2147483647) return { error: "invalid_price" };
   const currency = (mapped.currency || price.currency || defaults.currency || "").toUpperCase();
   if (!/^[A-Z]{3}$/.test(currency)) return { error: "invalid_currency" };
   let url = null;

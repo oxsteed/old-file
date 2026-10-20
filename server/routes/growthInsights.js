@@ -540,6 +540,194 @@ router.post(
   }),
 );
 router.get(
+  "/partners/:id/feeds",
+  requirePermission("manage_affiliate_partners"),
+  wrap(async (req, res) => {
+    const partnerId = id(req.params.id);
+    const { rows } = await db.query(
+      `SELECT f.*, (SELECT row_to_json(r) FROM partner_feed_runs r
+        WHERE r.feed_id=f.id ORDER BY r.started_at DESC LIMIT 1) AS last_run
+       FROM partner_feeds f WHERE f.partner_id=$1 ORDER BY f.id`,
+      [partnerId],
+    );
+    res.json({ rows });
+  }),
+);
+router.post(
+  "/partners/:id/feeds",
+  requirePermission("manage_affiliate_partners"),
+  wrap(async (req, res) => {
+    const partnerId = id(req.params.id);
+    const b = req.body || {};
+    let host = null;
+    try {
+      const url = new URL(b.url);
+      if (url.protocol === "https:" && !url.username && !url.password)
+        host = url.hostname.toLowerCase();
+    } catch {
+      host = null;
+    }
+    if (
+      !host ||
+      !["csv", "json", "xml", "google_merchant"].includes(b.format) ||
+      (b.field_mapping !== undefined &&
+        (typeof b.field_mapping !== "object" ||
+          b.field_mapping === null ||
+          Array.isArray(b.field_mapping) ||
+          Object.entries(b.field_mapping).some(
+            ([k, v]) =>
+              !require("../growth/partners/feedParse").CANONICAL_FIELDS.includes(k) ||
+              typeof v !== "string" ||
+              !v ||
+              v.length > 120,
+          ))) ||
+      (b.schedule_hours !== undefined &&
+        (!Number.isInteger(b.schedule_hours) ||
+          b.schedule_hours < 1 ||
+          b.schedule_hours > 168))
+    )
+      return res.status(400).json({ error: "invalid_feed" });
+    const result = await withTransaction(
+      db,
+      async (conn) => {
+        const {
+          rows: [partner],
+        } = await conn.query(
+          "SELECT link_domains_allowlist FROM affiliate_partners WHERE id=$1",
+          [partnerId],
+        );
+        if (!partner) throw new Error("partner_not_found");
+        // The feed host must be the partner's own allowlisted domain (or be
+        // added to it by a partner edit first): feeds are never fetched from
+        // arbitrary hosts.
+        if (!partner.link_domains_allowlist.includes(host))
+          throw Object.assign(new Error("feed_host_not_allowlisted"), {
+            status: 400,
+          });
+        const {
+          rows: [feed],
+        } = await conn.query(
+          `INSERT INTO partner_feeds(partner_id,url,format,field_mapping,schedule_hours)
+           VALUES($1,$2,$3,$4,$5) RETURNING *`,
+          [
+            partnerId,
+            b.url,
+            b.format,
+            b.field_mapping || {},
+            b.schedule_hours || 24,
+          ],
+        );
+        await logAdminAction({
+          adminId: req.user.id,
+          action: "growth_partner_feed_created",
+          targetType: "partner_feed",
+          targetKey: feed.id,
+          after: { partner_id: partnerId, format: b.format, host },
+          client: conn,
+        });
+        return feed;
+      },
+      "growth_partner_feed_create",
+    );
+    res.status(201).json(result);
+  }),
+);
+router.post(
+  "/partners/feeds/:id/run",
+  requirePermission("manage_affiliate_partners"),
+  wrap(async (req, res) => {
+    const feedId = id(req.params.id);
+    const result = await require("../jobs/partnerFeedImport").runFeed(
+      Number(feedId),
+    );
+    await logAdminAction({
+      adminId: req.user.id,
+      action: "growth_partner_feed_run",
+      targetType: "partner_feed",
+      targetKey: feedId,
+      after: result?.skipped ? { skipped: true } : { status: result?.status },
+    });
+    res.json(result);
+  }),
+);
+router.get(
+  "/partners/category-map",
+  requirePermission("manage_affiliate_partners"),
+  wrap(async (req, res) => {
+    const partnerId = id(req.query.partner_id);
+    const { rows } = await db.query(
+      `SELECT m.*, n.code AS node_code FROM partner_category_map m
+       JOIN demand_taxonomy_nodes n ON n.id=m.node_id
+       WHERE m.partner_id=$1 ORDER BY m.category_path`,
+      [partnerId],
+    );
+    res.json({ rows });
+  }),
+);
+router.post(
+  "/partners/category-map",
+  requirePermission("manage_affiliate_partners"),
+  wrap(async (req, res) => {
+    const b = req.body || {};
+    const partnerId = id(b.partner_id),
+      nodeId = id(b.node_id);
+    if (
+      typeof b.category_path !== "string" ||
+      !b.category_path.trim() ||
+      b.category_path.length > 500
+    )
+      return res.status(400).json({ error: "invalid_category_map" });
+    await withTransaction(
+      db,
+      async (conn) => {
+        const { rows } = await conn.query(
+          `SELECT 1 FROM affiliate_partners WHERE id=$1
+           UNION ALL SELECT 1 FROM demand_taxonomy_nodes WHERE id=$2`,
+          [partnerId, nodeId],
+        );
+        if (rows.length < 2) throw new Error("category_map_target_missing");
+        await conn.query(
+          `INSERT INTO partner_category_map(partner_id,category_path,node_id,approved_by)
+           VALUES($1,$2,$3,$4)
+           ON CONFLICT(partner_id,category_path,node_id) DO NOTHING`,
+          [partnerId, b.category_path.trim(), nodeId, req.user.id],
+        );
+        await logAdminAction({
+          adminId: req.user.id,
+          action: "growth_partner_category_mapped",
+          targetType: "affiliate_partner",
+          targetKey: partnerId,
+          after: { category_path: b.category_path.trim(), node_id: nodeId },
+          client: conn,
+        });
+      },
+      "growth_partner_category_map",
+    );
+    res.sendStatus(204);
+  }),
+);
+router.get(
+  "/partners/unmapped-categories",
+  requirePermission("manage_affiliate_partners"),
+  wrap(async (req, res) => {
+    const partnerId = id(req.query.partner_id);
+    // Raw feed categories with no reviewed mapping (exact or parent). They
+    // stay unmapped for admin review; nothing is guessed live (spec 13.3).
+    const { rows } = await db.query(
+      `SELECT p.category_path, COUNT(*)::int AS products
+       FROM marketplace_products p
+       WHERE p.partner_id=$1 AND p.category_path IS NOT NULL
+         AND NOT EXISTS(
+           SELECT 1 FROM partner_category_map m WHERE m.partner_id=$1
+             AND (p.category_path=m.category_path
+               OR p.category_path LIKE m.category_path || ' > %'))
+       GROUP BY p.category_path ORDER BY products DESC LIMIT 200`,
+      [partnerId],
+    );
+    res.json({ rows });
+  }),
+);
+router.get(
   "/campaigns",
   grant("manage_marketing"),
   wrap(async (req, res) => {

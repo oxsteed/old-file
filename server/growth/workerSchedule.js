@@ -29,6 +29,13 @@ function entries(env = process.env) {
       30000,
       {},
     ]);
+  if (env.GROWTH_PARTNER_OFFERS_ENABLED === "true")
+    rows.push([
+      "growthPartnerFeeds",
+      () => require("../jobs/partnerFeedImport").run(),
+      60 * 60 * 1000,
+      {},
+    ]);
   if (env.GROWTH_POLICY_NOTICE_DELIVERY_ENABLED === "true")
     rows.push(
       [

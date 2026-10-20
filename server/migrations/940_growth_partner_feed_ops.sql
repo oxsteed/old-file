@@ -40,7 +40,9 @@ CREATE INDEX IF NOT EXISTS partner_feed_runs_feed_idx
   ON partner_feed_runs(feed_id, started_at DESC);
 
 ALTER TABLE marketplace_products
-  ADD COLUMN IF NOT EXISTS feed_absent_runs INTEGER NOT NULL DEFAULT 0;
+  ADD COLUMN IF NOT EXISTS feed_absent_runs INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS taxonomy_node_id INTEGER
+    REFERENCES demand_taxonomy_nodes(id);
 
 ALTER TABLE affiliate_conversions
   ADD COLUMN IF NOT EXISTS assisted BOOLEAN NOT NULL DEFAULT FALSE,
