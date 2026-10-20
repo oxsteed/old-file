@@ -316,7 +316,7 @@ describe("writer geography batching", () => {
     };
   }
 
-  test("resolveBatch matches resolve() semantics with at most two queries", async () => {
+  test("resolveBatch matches resolve() semantics with a bounded query count", async () => {
     const { resolve, resolveBatch } = require("../growth/geo/resolve");
     const places = [
       { country: "US", postal_code: "10001", city: "New York", state: "NY" },
@@ -334,7 +334,17 @@ describe("writer geography batching", () => {
     for (const place of places) singles.push(await resolve(singleConn, place));
     expect(batched).toEqual(singles);
     expect(batched).toEqual([5, 3, 7, 0, 0, 3, 0]);
-    expect(batchConn.query.mock.calls.length).toBeLessThanOrEqual(2);
+    // Bounded passes (postal, place, city) plus one alias probe per
+    // distinct (country, state): the count must not grow with batch size.
+    const batchCalls = batchConn.query.mock.calls.length;
+    const bigConn = fakeGeoConn();
+    const repeated = [];
+    for (let i = 0; i < 10; i++) repeated.push(...places);
+    const big = await resolveBatch(bigConn, repeated);
+    expect(big).toEqual(
+      Array.from({ length: 10 }, () => [5, 3, 7, 0, 0, 3, 0]).flat(),
+    );
+    expect(bigConn.query.mock.calls.length).toBe(batchCalls);
   });
 
   test("writeBatch projects jobs and resolves centroids in a constant number of queries", async () => {
@@ -394,8 +404,9 @@ describe("writer geography batching", () => {
     });
     const result = await writeBatch(entries, { conn, store, allow, db: pg });
     expect(result).toEqual({ stored: 30, discarded: 0 });
-    // 1 batched jobs query + 1 postal batch + 1 city batch for 30 events.
-    expect(pg.query.mock.calls.length).toBe(3);
+    // Bounded for 30 events: 1 batched jobs query + postal, place and
+    // city passes + at most one alias probe per distinct (country, state).
+    expect(pg.query.mock.calls.length).toBeLessThanOrEqual(6);
     expect(store.insert).toHaveBeenCalledTimes(1);
     const values = store.insert.mock.calls[0][0].values;
     expect(values).toHaveLength(30);

@@ -187,6 +187,16 @@ async function resolveBatch(conn, places) {
     if (!placeKeys.has(key)) placeKeys.set(key, []);
     placeKeys.get(key).push(index);
   });
+  const candidateCache = new Map();
+  const candidatesFor = async (country, stateInput) => {
+    const cacheKey = `${country}\n${stateInput}`;
+    if (!candidateCache.has(cacheKey))
+      candidateCache.set(
+        cacheKey,
+        await admin1Candidates(conn, country, stateInput),
+      );
+    return candidateCache.get(cacheKey);
+  };
   if (placeKeys.size) {
     const keys = [...placeKeys.keys()].map((k) => k.split("\n"));
     const { rows } = await conn.query(
@@ -204,16 +214,6 @@ async function resolveBatch(conn, places) {
       if (!byOrd.has(Number(row.ord))) byOrd.set(Number(row.ord), []);
       byOrd.get(Number(row.ord)).push(row);
     }
-    const candidateCache = new Map();
-    const candidatesFor = async (country, stateInput) => {
-      const cacheKey = `${country}\n${stateInput}`;
-      if (!candidateCache.has(cacheKey))
-        candidateCache.set(
-          cacheKey,
-          await admin1Candidates(conn, country, stateInput),
-        );
-      return candidateCache.get(cacheKey);
-    };
     for (let i = 0; i < keys.length; i++) {
       const candidates = byOrd.get(i + 1) || [];
       if (!candidates.length) continue;
@@ -246,19 +246,13 @@ async function resolveBatch(conn, places) {
   // tried against every admin1 candidate (code, name, ascii name), matching
   // resolve() step 4.
   const cityKeys = new Map(); // "country\ncity\nstate-candidate" -> [place indexes]
-  const cityCandidateCache = new Map();
   for (let index = 0; index < places.length; index++) {
     if (results[index] !== 0) continue;
     const place = places[index] || {};
     const { country, city, state } = place;
     if (!/^[A-Z]{2}$/.test(country || "") || !city || !state) continue;
-    const cacheKey = `${country}\n${String(state).slice(0, 120)}`;
-    if (!cityCandidateCache.has(cacheKey))
-      cityCandidateCache.set(
-        cacheKey,
-        await admin1Candidates(conn, country, String(state).slice(0, 120)),
-      );
-    for (const candidate of cityCandidateCache.get(cacheKey)) {
+    const widened = await candidatesFor(country, String(state).slice(0, 120));
+    for (const candidate of widened) {
       const key = `${country}\n${String(city).slice(0, 120)}\n${candidate}`;
       if (!cityKeys.has(key)) cityKeys.set(key, []);
       cityKeys.get(key).push(index);
