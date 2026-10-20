@@ -93,6 +93,7 @@ router.get(
             source: "gpc",
             jurisdiction: ctx.jurisdiction.code,
             version: ctx.rollout.policy_version,
+            ip: req.ip,
           }),
         "growth_gpc",
       );
@@ -169,6 +170,7 @@ router.post("/batch", optionalAuth, async (req, res) => {
             source: "gpc",
             jurisdiction: latest.context.jurisdiction.code,
             version: latest.context.rollout.policy_version,
+            ip: req.ip,
           });
         await require("../growth/queue").enqueue(
           events.map((event) => ({
@@ -211,6 +213,7 @@ async function trackingConsent(req, res) {
         source,
         jurisdiction: ctx.jurisdiction.code,
         version: ctx.rollout.policy_version,
+        ip: req.ip,
       }),
     "growth_consent",
   );

@@ -30,6 +30,7 @@ async function emitDomainEvent(client, name, props, { userId, req } = {}) {
       source: "gpc",
       jurisdiction: permission.context.jurisdiction.code,
       version: permission.context.rollout.policy_version,
+      ip: req?.ip,
     });
   const event = validateEvent(
     {

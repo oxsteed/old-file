@@ -1,5 +1,5 @@
 "use strict";
-const { key, consentLock } = require("./identity");
+const { key, ipHash, consentLock } = require("./identity");
 const PURPOSES = new Set([
   "activity",
   "activity_offers",
@@ -17,7 +17,7 @@ const SOURCES = new Set([
 ]);
 async function record(
   conn,
-  { userId, purpose, granted, source, jurisdiction, version },
+  { userId, purpose, granted, source, jurisdiction, version, ip },
 ) {
   if (
     !PURPOSES.has(purpose) ||
@@ -31,9 +31,9 @@ async function record(
     consentLock(subject),
   ]);
   const { rows } = await conn.query(
-    `INSERT INTO tracking_consents(subject_key,purpose,granted,jurisdiction,source,consent_text_version)
-    VALUES($1,$2,$3,$4,$5,$6) RETURNING id`,
-    [subject, purpose, granted, jurisdiction, source, version],
+    `INSERT INTO tracking_consents(subject_key,purpose,granted,jurisdiction,source,consent_text_version,ip_hash)
+    VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+    [subject, purpose, granted, jurisdiction, source, version, ipHash(ip)],
   );
   await conn.query(
     `INSERT INTO tracking_consent_current(subject_key,purpose,consent_id,granted) VALUES($1,$2,$3,$4)
