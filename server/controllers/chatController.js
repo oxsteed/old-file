@@ -1,4 +1,4 @@
-const { SUPPORT_PROMPT, FINANCIAL_GUIDE } = require('../services/assistantGuide');
+const { SUPPORT_PROMPT, FINANCIAL_GUIDE, HANDOFF_MARKER, buildSupportPrompt } = require('../services/assistantGuide');
 const logger        = require('../utils/logger');
 const { ROLES }     = require('../constants/roles');
 const { AppError } = require('../middleware/errorHandler');
@@ -185,20 +185,32 @@ async function callWithFallback(messages, ollamaOptions, logTag, options = {}) {
 
 
 /**
- * Cheap handoff heuristic for the main AI support chat path. Mirrors the
- * signals in aiChatbotController.checkNeedsHandoff (message count, negative
- * sentiment) plus repeated questions. When it fires, the chat response
- * carries handoff_suggested: true so the client can render a human-handoff
- * nudge. Kept allocation-light: a regex over recent user turns and a small
- * Set for duplicate detection.
+ * Handoff signals for the main AI support chat path. The chat response
+ * carries handoff_suggested (plus handoff_reason) so the client can render
+ * a human-handoff nudge. Turn count is deliberately NOT a signal: long but
+ * productive conversations should not be pushed to a person. Signals:
+ *  - the model says it cannot resolve the request (HANDOFF_MARKER),
+ *  - negative sentiment or an explicit ask for a person,
+ *  - the same question asked again after an answer,
+ *  - the user asks about an account blocker from the snapshot (failed
+ *    payout or payment, open dispute, restricted Credit account).
  */
 const HANDOFF_NEGATIVE_SIGNALS = /\b(frustrat|annoy|angry|upset|terrible|awful|horrible|useless|stupid|hate|worst|disappoint|complain|speak to (a )?human|real person|live agent|talk to (a )?(person|someone|human)|not helping|doesn'?t work|still not working|give up|escalat)/i;
+
+// Topic words per blocker, in the five supported languages. Matched against
+// the latest user turn only.
+const BLOCKER_TOPICS = {
+  payout_failed: /(payout|withdraw|cash ?out|pago|retiro|paiement|virement|retrait|peman|retrè|سحب|دفعة|تحويل)/i,
+  payment_failed: /(payment|pay|charge|card|order|pago|tarjeta|pedido|paiement|carte|commande|peman|kat|kòmand|دفع|بطاقة|طلب)/i,
+  open_dispute: /(dispute|claim|refund|disputa|reclamo|reembolso|litige|réclamation|remboursement|diskisyon|ranbousman|نزاع|شكوى|استرداد)/i,
+  credit_account_restricted: /(credit|wallet|balance|crédito|saldo|crédit|solde|kredi|balans|رصيد|ائتمان|محفظة)/i,
+};
 
 function normalizeHandoffText(message) {
   return message.toLowerCase().replace(/\s+/g, ' ').slice(0, 300);
 }
 
-function shouldSuggestHandoff(history) {
+function collapsedUserTurns(history) {
   // Consecutive identical user turns with no assistant reply between them
   // are retries of a failed send, not a user repeating themselves, so they
   // collapse into one turn before any signal is evaluated.
@@ -213,18 +225,43 @@ function shouldSuggestHandoff(history) {
     userMessages.push(text);
     previous = normalized;
   }
-  // Same signal as checkNeedsHandoff: more than a few back-and-forth turns.
-  if (userMessages.length > 3) return true;
-  // Negative sentiment in the recent user turns.
-  if (HANDOFF_NEGATIVE_SIGNALS.test(userMessages.slice(-2).join('\n'))) return true;
-  // Repeated question: the same normalized message sent more than once.
+  return userMessages;
+}
+
+/** @returns {string|null} the reason a handoff should be offered, or null. */
+function handoffReason(history, { blockers = [] } = {}) {
+  const userMessages = collapsedUserTurns(history);
+  if (!userMessages.length) return null;
+  if (HANDOFF_NEGATIVE_SIGNALS.test(userMessages.slice(-2).join('\n'))) return 'sentiment';
   const seen = new Set();
   for (const message of userMessages) {
     const normalized = normalizeHandoffText(message);
-    if (seen.has(normalized)) return true;
+    if (seen.has(normalized)) return 'repeated_question';
     seen.add(normalized);
   }
-  return false;
+  const latest = userMessages[userMessages.length - 1];
+  for (const blocker of blockers) {
+    if (BLOCKER_TOPICS[blocker]?.test(latest)) return `account_blocker:${blocker}`;
+  }
+  return null;
+}
+
+function shouldSuggestHandoff(history, options) {
+  return handoffReason(history, options) !== null;
+}
+
+/** Strips the model's handoff marker; reports whether it was present. */
+function extractHandoffMarker(reply) {
+  const text = String(reply || '');
+  if (!text.toLowerCase().includes(HANDOFF_MARKER)) return { text, cannotHelp: false };
+  const escaped = HANDOFF_MARKER.replace(/[[\]]/g, '\\$&');
+  return { text: text.replace(new RegExp(`\\s*${escaped}\\s*`, 'gi'), '\n').trim(), cannotHelp: true };
+}
+
+// /business/:id/workspace pages scope the snapshot's business queue counts.
+function businessIdFromPath(path) {
+  const m = /^\/business\/(\d+)\/workspace(?:\/|$)/.exec(String(path || ''));
+  return m ? Number(m[1]) : null;
 }
 
 exports.chatMessage = async (req, res, next) => {
@@ -234,11 +271,16 @@ exports.chatMessage = async (req, res, next) => {
       throw new AppError('messages array is required', 400, 'validation_failed', { messages: 'messages array is required' });
     }
 
-    // Page context awareness - append current page info to system prompt
-    let systemPrompt = SUPPORT_PROMPT + getLanguageInstruction(language);
+    // Learn guide help turns are cached and served to every user, so they
+    // must never carry personal context (first name, account snapshot).
+    const isGuideHelp = Boolean(guide_help?.guide_id);
+
+    // Context sections appended after the base prompt, which is chosen once
+    // we know whether an Account Snapshot is present.
+    let systemPrompt = getLanguageInstruction(language);
     if (typeof pageContext?.path === 'string') {
       const pathHint = pageContext.path === '/verify-identity' || pageContext.path === '/media/verify-identity'
-        ? 'The user is on the identity verification page. Explain Start Verification and the matching recovery step; their actual verification status is unknown.'
+        ? 'The user is on the identity verification page. Explain Start Verification and the matching recovery step. Use the Account Snapshot identity status when present; otherwise their actual verification status is unknown.'
         : pageContext.path.startsWith('/helper-dashboard')
         ? 'The user is on My Work / Helper Dashboard. Help with onboarding, work and profile steps without assuming eligibility.'
         : pageContext.path.startsWith('/business-hub') || /^\/business\/[^/]+\/workspace(?:\/|$)/.test(pageContext.path)
@@ -293,13 +335,24 @@ exports.chatMessage = async (req, res, next) => {
     }
 
     // Live account snapshot (gaps #1 and #9): signed-in users get their own
-    // balances, payout, disputes, jobs and tickets so money answers cite
-    // real values instead of guessing. Each section fails open.
-    if (req.user?.id) {
-      const snapshot = await getSupportAccountSnapshot(req.user.id, { language });
+    // balances, payouts, disputes, jobs, orders, bookings, bids, identity and
+    // tickets (plus the current business workspace queue when they pass the
+    // business access check) so answers cite real values. Fails open.
+    let snapshot = null;
+    if (req.user?.id && !isGuideHelp) {
+      snapshot = await getSupportAccountSnapshot(req.user.id, {
+        language,
+        businessId: businessIdFromPath(pageContext?.path),
+      });
       const formatted = formatSnapshotForAI(snapshot);
       if (formatted) systemPrompt += `\n\n${formatted}`;
+      else snapshot = snapshot ? { ...snapshot, empty: true } : null;
     }
+    const hasSnapshot = Boolean(snapshot && !snapshot.empty);
+    systemPrompt = buildSupportPrompt({
+      hasSnapshot,
+      firstName: isGuideHelp ? null : snapshot?.profile?.firstName || null,
+    }) + systemPrompt;
 
     // Image attachments (gap #3): one image per message, validated data URL.
     // When present, the vision model handles this turn instead of the text model.
@@ -364,8 +417,8 @@ exports.chatMessage = async (req, res, next) => {
       ...visionHistory,
     ];
 
-    // Handoff heuristic runs on the sanitized history for every AI turn.
-    const handoffSuggested = shouldSuggestHandoff(history);
+    // Handoff signals from the user side (sentiment, repeats, blockers).
+    const userHandoffReason = handoffReason(history, { blockers: snapshot?.blockers || [] });
 
     // Learn guide help cache: the first user to ask about a guide+step in a
     // language triggers the provider call; identical requests are then served
@@ -382,7 +435,7 @@ exports.chatMessage = async (req, res, next) => {
       const hit = await getCachedGuideReply(redis, guideCacheCtx.guide_id, guideCacheCtx.step, guideCacheCtx.language);
       if (hit) {
         logger.info('[Chat] guide help cache hit', { guide_id: String(guideCacheCtx.guide_id).slice(0, 64) });
-        return res.json({ reply: hit, cached: true, handoff_suggested: handoffSuggested });
+        return res.json({ reply: hit, cached: true, handoff_suggested: Boolean(userHandoffReason), handoff_reason: userHandoffReason });
       }
     }
 
@@ -403,6 +456,11 @@ exports.chatMessage = async (req, res, next) => {
       throw new AppError('AI service temporarily unavailable', 502, 'external_service_error');
     }
 
+    // The model marks replies it cannot resolve; the marker never reaches
+    // the user, the thread memory or the guide cache.
+    const { text: reply, cannotHelp } = extractHandoffMarker(ai.reply);
+    const handoffReasonValue = userHandoffReason || (cannotHelp ? 'model_cannot_help' : null);
+
     // Persist the turn for signed-in users (gap #5). Fire-and-forget by
     // design: the helper never throws and the reply must not wait on Redis.
     if (req.user?.id) {
@@ -412,15 +470,15 @@ exports.chatMessage = async (req, res, next) => {
         : Array.isArray(lastUser?.content)
           ? String(lastUser.content.find(p => p?.type === 'text')?.text || '')
           : '';
-      supportChatThreads.appendSupportThread(req.user.id, lastUserText, ai.reply);
+      supportChatThreads.appendSupportThread(req.user.id, lastUserText, reply);
     }
 
     if (guideCacheCtx) {
       // Fire-and-forget: the reply is already ready, never block it on Redis.
-      setCachedGuideReply(redis, guideCacheCtx.guide_id, guideCacheCtx.step, guideCacheCtx.language, ai.reply);
+      setCachedGuideReply(redis, guideCacheCtx.guide_id, guideCacheCtx.step, guideCacheCtx.language, reply);
     }
 
-    res.json({ reply: ai.reply, handoff_suggested: handoffSuggested });
+    res.json({ reply, handoff_suggested: Boolean(handoffReasonValue), handoff_reason: handoffReasonValue });
   } catch (err) {
     next(err);
   }
@@ -2278,3 +2336,6 @@ exports.createMessengerGuestBooking = async (req, res, next) => {
 
 exports.createAiBookingFromAction = createAiBookingFromAction;
 exports._shouldSuggestHandoff = shouldSuggestHandoff;
+exports._handoffReason = handoffReason;
+exports._extractHandoffMarker = extractHandoffMarker;
+exports._businessIdFromPath = businessIdFromPath;

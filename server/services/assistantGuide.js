@@ -53,10 +53,34 @@ const RESPONSE_RULES = `## How to help
 - Reply in the requested language (including English, Spanish, French, Haitian Creole or Arabic). Translate prose and labels, preserve route paths and product names. Use concise paragraphs or bullets, no HTML. Use page names followed by paths for navigation.
 `;
 
-const SUPPORT_PROMPT = `You are Ox, OxSteed's AI product guide. Help users complete their next step using the current workflows below.
-You have no live account lookup or action tools in this chat. You cannot inspect balances, identity results, tickets or orders, change settings, submit bookings, refund or contact staff. Do not pretend otherwise.
+const SUPPORT_INTRO = "You are Ox, OxSteed's AI product guide. Help users complete their next step using the current workflows below.";
+
+// Capability statements. Exactly one is used per turn so the prompt never
+// says "you cannot see their account" next to a live Account Snapshot.
+const NO_ACCOUNT_DATA = 'You have no live account lookup or action tools in this chat. You cannot inspect balances, identity results, tickets or orders, change settings, submit bookings, refund or contact staff. Do not pretend otherwise.';
+const WITH_ACCOUNT_SNAPSHOT = `This turn includes an Account Snapshot: read-only, live summary data for the signed-in user's own records. Use it to answer account questions directly and cite its values. When you mention a record, include its link exactly as given (for example /orders/123) so the user can open it. The snapshot only covers what it lists; for anything else say where to look instead of guessing. You still cannot change settings, submit bookings, move money, refund, approve OxSteed Credit or contact staff from this chat. Do not pretend otherwise.`;
+
+// Marker the model appends when it cannot resolve the request itself. The
+// server strips it and offers a human handoff (language independent).
+const HANDOFF_MARKER = '[[handoff]]';
+const HANDOFF_RULE = `- If you cannot resolve the request with the supplied facts (it needs a person to inspect, decide or change something), say so briefly and end your reply with ${HANDOFF_MARKER} on its own line. Never write ${HANDOFF_MARKER} otherwise.`;
+
+const SUPPORT_PROMPT = `${SUPPORT_INTRO}
+${NO_ACCOUNT_DATA}
 ${PLATFORM_GUIDE}
 ${RESPONSE_RULES}`;
+
+/**
+ * System prompt for the AI support chat.
+ * @param {{ hasSnapshot?: boolean, firstName?: string|null }} [opts]
+ */
+function buildSupportPrompt({ hasSnapshot = false, firstName = null } = {}) {
+  const parts = [SUPPORT_INTRO, hasSnapshot ? WITH_ACCOUNT_SNAPSHOT : NO_ACCOUNT_DATA, PLATFORM_GUIDE, RESPONSE_RULES, HANDOFF_RULE];
+  if (firstName) {
+    parts.push(`## User\nThe signed-in user's first name is ${firstName}. You may use it for a natural greeting or to address them occasionally. Do not repeat it in every reply or sentence; most replies should not include it. Never ask for or mention their surname, email or phone.`);
+  }
+  return parts.join('\n');
+}
 
 function supportDraftPrompt(language) {
   const languages = { en: 'English', es: 'Spanish', fr: 'French', ht: 'Haitian Creole', ar: 'Arabic' };
@@ -70,4 +94,13 @@ const FINANCIAL_GUIDE = `You are OxSteed's budgeting assistant. Explain the supp
 - Offer a practical budgeting next step with /planned-needs, /invoices, /statements or /dashboard when relevant. You cannot transfer, invest, refund or approve money movements. No personalized investment, lending, legal or tax advice or guaranteed outcomes.
 ${RESPONSE_RULES}`;
 
-module.exports = { GUIDE_REVISION, PLATFORM_GUIDE, RESPONSE_RULES, SUPPORT_PROMPT, FINANCIAL_GUIDE, supportDraftPrompt };
+module.exports = {
+  GUIDE_REVISION,
+  PLATFORM_GUIDE,
+  RESPONSE_RULES,
+  SUPPORT_PROMPT,
+  FINANCIAL_GUIDE,
+  HANDOFF_MARKER,
+  buildSupportPrompt,
+  supportDraftPrompt,
+};

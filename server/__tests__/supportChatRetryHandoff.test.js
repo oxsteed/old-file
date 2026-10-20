@@ -34,9 +34,9 @@ test('asking the same thing again after an answer still suggests handoff', () =>
   ])).toBe(true);
 });
 
-test('negative sentiment and long conversations still suggest handoff', () => {
+test('negative sentiment still suggests handoff; turn count alone does not', () => {
   expect(shouldSuggestHandoff([{ role: 'user', content: 'this is useless' }])).toBe(true);
   const long = [];
-  for (let i = 0; i < 4; i += 1) long.push({ role: 'user', content: `q${i}` }, { role: 'assistant', content: 'a' });
-  expect(shouldSuggestHandoff(long)).toBe(true);
+  for (let i = 0; i < 6; i += 1) long.push({ role: 'user', content: `q${i}` }, { role: 'assistant', content: 'a' });
+  expect(shouldSuggestHandoff(long)).toBe(false);
 });
