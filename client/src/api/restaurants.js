@@ -108,6 +108,46 @@ export const submitTrainingQuiz = (restaurantId, assignmentId, payload) =>
 export const listTrainingCompletions = (restaurantId) =>
   api.get(`/restaurants/${restaurantId}/training/completions`).then((r) => r.data?.completions || []);
 
+// Auto-assignment rules (S-12)
+export const listTrainingAutoAssignRules = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/training/auto-assign-rules`).then((r) => r.data?.rules || []);
+
+export const createTrainingAutoAssignRule = (restaurantId, moduleId, payload) =>
+  api.post(`/restaurants/${restaurantId}/training/modules/${moduleId}/auto-assign-rules`, payload).then((r) => r.data);
+
+export const updateTrainingAutoAssignRule = (restaurantId, ruleId, payload) =>
+  api.patch(`/restaurants/${restaurantId}/training/auto-assign-rules/${ruleId}`, payload).then((r) => r.data);
+
+export const deleteTrainingAutoAssignRule = (restaurantId, ruleId) =>
+  api.delete(`/restaurants/${restaurantId}/training/auto-assign-rules/${ruleId}`);
+
+// Staff compliance document vault (S-14). Files are served only through
+// short-lived signed URLs minted by the server.
+export const listStaffDocuments = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/staff-documents`, { params }).then((r) => r.data?.documents || []);
+
+export const uploadStaffDocument = (restaurantId, fields, file) => {
+  const form = new FormData();
+  Object.entries(fields || {}).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') form.append(k, v); });
+  if (file) form.append('file', file);
+  return api.post(`/restaurants/${restaurantId}/staff-documents`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then((r) => r.data?.document);
+};
+
+export const verifyStaffDocument = (restaurantId, documentId, payload) =>
+  api.patch(`/restaurants/${restaurantId}/staff-documents/${documentId}`, payload).then((r) => r.data?.document);
+
+export const deleteStaffDocument = (restaurantId, documentId) =>
+  api.delete(`/restaurants/${restaurantId}/staff-documents/${documentId}`);
+
+// SOP read-and-sign acknowledgements (S-14)
+export const acknowledgeSop = (restaurantId, sopId) =>
+  api.post(`/restaurants/${restaurantId}/sops/${sopId}/acknowledge`).then((r) => r.data);
+
+export const listSopAcknowledgements = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/sop-acknowledgements`, { params }).then((r) => r.data?.acknowledgements || []);
+
 // ── Quality audits (franchise system) ────────────────────────────────────────
 export const listAuditTemplates = (restaurantId) =>
   api.get(`/restaurants/${restaurantId}/audits/templates`).then((r) => r.data?.templates || []);

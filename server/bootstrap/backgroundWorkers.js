@@ -29,6 +29,7 @@ const { startDirectCalendarReminderJob } = require('../jobs/directCalendarRemind
 const { startAffiliateCommissionBatchJob } = require('../jobs/affiliateCommissionBatch');
 const { startTemplateExpiryJob } = require('../jobs/templateExpiryJob');
 const { startAcceptedJobExpiryJob } = require('../jobs/acceptedJobExpiryJob');
+const { startRestaurantTrainingOverdueJob } = require('../jobs/restaurantTrainingOverdueJob'); // S-12/S-14
 const { startChatQuoteExpiryJob } = require('../jobs/chatQuoteExpiryJob');
 const { startSupportTicketSlaJob } = require('../jobs/supportTicketSlaJob');
 const { startHelperCompletionAutoConfirmJob } = require('../jobs/helperCompletionAutoConfirm');
@@ -116,6 +117,7 @@ class BackgroundWorkers {
       startScheduledDeletionJob();
       startTemplateExpiryJob();
       startAcceptedJobExpiryJob();
+      startRestaurantTrainingOverdueJob();
       startChatQuoteExpiryJob();
       startSupportTicketSlaJob();
       startHelperCompletionAutoConfirmJob();

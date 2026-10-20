@@ -14,6 +14,10 @@ import {
   listRestaurantStaff, assignTrainingModule,
   listTrainingAssignments, startTrainingAssignment,
   listTrainingCompletions,
+  listTrainingAutoAssignRules, createTrainingAutoAssignRule, deleteTrainingAutoAssignRule,
+  listSops,
+  listStaffDocuments, uploadStaffDocument, verifyStaffDocument, deleteStaffDocument,
+  acknowledgeSop, listSopAcknowledgements,
 } from '../../api/restaurants';
 import { submitTrainingQuizOffline } from '../../api/restaurantsOffline';
 
@@ -175,6 +179,8 @@ export function TrainingPanel({ t, restaurant, bare, onStats, isManager }) {
       ) : (
         <StaffTraining t={t} assignments={assignments} onStart={beginTraining} />
       )}
+
+      <ComplianceSection t={t} restaurantId={restaurantId} isManager={isManager} />
     </div>
   );
 }
@@ -225,6 +231,8 @@ function ManagerTraining({ t, restaurantId, modules, assignments, completions, o
                   ? t('restaurants.ops.training.dueOn', 'Due {{date}}', { date: fmtDate(a.due_at) })
                   : t('restaurants.ops.training.dueNone', 'No due date')}
                 {a.score_pct != null && ` · ${a.score_pct}%`}
+                {a.max_attempts != null && ` · ${t('restaurants.ops.training.attemptsUsed', { used: a.attempts_used || 0, max: a.max_attempts })}`}
+                {a.completion_expires_at && ` · ${t('restaurants.ops.training.validUntil', { date: fmtDate(a.completion_expires_at) })}`}
               </span>
             </div>
           ))}
@@ -243,6 +251,9 @@ function ManagerTraining({ t, restaurantId, modules, assignments, completions, o
                 <span className="fd-tag">{c.passed ? t('restaurants.ops.training.passed', 'Passed') : t('restaurants.ops.training.failed', 'Failed')}</span>
                 {c.score_pct != null && ` ${c.score_pct}%`}
                 {` · ${fmtDate(c.completed_at) || ''}`}
+                {c.attempt_number != null && ` · ${t('restaurants.ops.training.attemptNumber', { n: c.attempt_number })}`}
+                {c.module_version != null && ` · ${t('restaurants.ops.training.moduleVersion', { n: c.module_version })}`}
+                {c.expires_at && ` · ${t('restaurants.ops.training.validUntil', { date: fmtDate(c.expires_at) })}`}
               </span>
             </div>
           ))}
@@ -306,6 +317,9 @@ function ModuleCard({ t, restaurantId, module: m, assignments, onEdit, onDelete,
         {t('restaurants.ops.training.passScore', 'Pass {{pct}}%', { pct: m.pass_score_pct })}
         {' · '}
         {t('restaurants.ops.training.activeCount', '{{count}} active', { count: activeCount })}
+        {m.current_version != null && ` · ${t('restaurants.ops.training.moduleVersion', { n: m.current_version })}`}
+        {m.valid_for_days != null && ` · ${t('restaurants.ops.training.validForDays', { days: m.valid_for_days })}`}
+        {m.max_attempts != null && ` · ${t('restaurants.ops.training.maxAttempts', { count: m.max_attempts })}`}
       </p>
       {!m.is_active && (
         <p className="fd-card-meta"><span className="fd-tag">{t('restaurants.ops.training.inactive', 'Inactive')}</span></p>
@@ -346,6 +360,97 @@ function ModuleCard({ t, restaurantId, module: m, assignments, onEdit, onDelete,
           </div>
         </form>
       )}
+      <AutoAssignRules t={t} restaurantId={restaurantId} module={m} onChanged={onAssigned} />
+    </div>
+  );
+}
+
+// Automatic assignment rules for one module (S-12): new hires and staff in
+// the chosen role receive the module without a manual assign step.
+const MEMBER_ROLE_KEYS = ['manager', 'representative', 'employee', 'support_agent'];
+
+function AutoAssignRules({ t, restaurantId, module: m, onChanged }) {
+  const [rules, setRules] = useState(null);
+  const [role, setRole] = useState('');
+  const [dueDays, setDueDays] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(() => {
+    listTrainingAutoAssignRules(restaurantId)
+      .then((all) => setRules(all.filter((r) => Number(r.module_id) === Number(m.id))))
+      .catch(() => setRules([]));
+  }, [restaurantId, m.id]);
+  useEffect(() => { load(); }, [load]);
+
+  if (rules === null) return null;
+
+  const add = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const data = await createTrainingAutoAssignRule(restaurantId, m.id, {
+        targetRole: role || null,
+        dueDays: dueDays ? Number(dueDays) : undefined,
+      });
+      toast.success(t('restaurants.ops.training.autoAssignAdded', { count: data?.assignedCount || 0 }));
+      setRole('');
+      setDueDays('');
+      load();
+      onChanged();
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.training.autoAssignError')));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (ruleId) => {
+    try {
+      await deleteTrainingAutoAssignRule(restaurantId, ruleId);
+      load();
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.training.autoAssignError')));
+    }
+  };
+
+  return (
+    <div className="fd-ops-form">
+      <h4 className="fd-ops-panel-title">{t('restaurants.ops.training.autoAssignTitle')}</h4>
+      <p className="fd-card-meta">{t('restaurants.ops.training.autoAssignHint')}</p>
+      {rules.map((r) => (
+        <div key={r.id} className="fd-ops-run-row">
+          <span>
+            {r.target_role
+              ? t('restaurants.ops.training.autoAssignRole', { role: r.target_role })
+              : t('restaurants.ops.training.autoAssignAll')}
+            {r.due_days ? ` · ${t('restaurants.ops.training.autoAssignDue', { days: r.due_days })}` : ''}
+            {!r.is_active && ` · ${t('restaurants.ops.training.inactive', 'Inactive')}`}
+          </span>
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => remove(r.id)}>
+            {t('common.delete', 'Delete')}
+          </button>
+        </div>
+      ))}
+      <form onSubmit={add}>
+        <div className="fd-field">
+          <label htmlFor={`tm-rule-role-${m.id}`}>{t('restaurants.ops.training.autoAssignRoleLabel')}</label>
+          <select id={`tm-rule-role-${m.id}`} value={role} onChange={(e) => setRole(e.target.value)}>
+            <option value="">{t('restaurants.ops.training.autoAssignAll')}</option>
+            {MEMBER_ROLE_KEYS.map((r) => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+        </div>
+        <div className="fd-field">
+          <label htmlFor={`tm-rule-due-${m.id}`}>{t('restaurants.ops.training.autoAssignDueLabel')}</label>
+          <input id={`tm-rule-due-${m.id}`} type="number" min="1" max="365" value={dueDays} onChange={(e) => setDueDays(e.target.value)} />
+        </div>
+        <div className="fd-settings-actions">
+          <button type="submit" className="fd-btn fd-btn-sm" disabled={busy}>
+            {t('restaurants.ops.training.autoAssignAdd')}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
@@ -357,6 +462,8 @@ function ModuleForm({ t, module, onSave, onCancel }) {
   const [description, setDescription] = useState(module?.description || '');
   const [content, setContent] = useState(module?.content || '');
   const [passScorePct, setPassScorePct] = useState(module?.pass_score_pct ?? 80);
+  const [validForDays, setValidForDays] = useState(module?.valid_for_days ?? '');
+  const [maxAttempts, setMaxAttempts] = useState(module?.max_attempts ?? 3);
   const [questions, setQuestions] = useState(
     (module?.questions || []).map((q) => ({
       question: q.question || '',
@@ -410,6 +517,8 @@ function ModuleForm({ t, module, onSave, onCancel }) {
       content,
       category,
       passScorePct: Math.max(0, Math.min(100, Number(passScorePct) || 0)),
+      validForDays: validForDays === '' ? null : Math.max(1, Number(validForDays) || 1),
+      maxAttempts: Math.max(1, Math.min(20, Number(maxAttempts) || 3)),
       questions: questions.map((q) => ({
         question: q.question.trim(),
         options: q.options.map((o) => o.trim()),
@@ -456,7 +565,20 @@ function ModuleForm({ t, module, onSave, onCancel }) {
           <label htmlFor="tm-pass">{t('restaurants.ops.training.passScoreLabel', 'Pass score (%)')}</label>
           <input id="tm-pass" type="number" min="0" max="100" value={passScorePct} onChange={(e) => setPassScorePct(e.target.value)} />
         </div>
+        <div className="fd-field">
+          <label htmlFor="tm-attempts">{t('restaurants.ops.training.maxAttemptsLabel')}</label>
+          <input id="tm-attempts" type="number" min="1" max="20" value={maxAttempts} onChange={(e) => setMaxAttempts(e.target.value)} />
+        </div>
+        <div className="fd-field">
+          <label htmlFor="tm-valid">{t('restaurants.ops.training.validForDaysLabel')}</label>
+          <input id="tm-valid" type="number" min="1" max="3650" value={validForDays} onChange={(e) => setValidForDays(e.target.value)} placeholder="365" />
+        </div>
       </div>
+      {module && (
+        <p className="fd-card-meta">
+          {t('restaurants.ops.training.versionNote', { n: (module.current_version || 1) + 1 })}
+        </p>
+      )}
 
       <h3 className="fd-ops-subhead">{t('restaurants.ops.training.questionsTitle', 'Quiz questions')}</h3>
       {questions.map((q, i) => (
@@ -524,6 +646,238 @@ function ModuleForm({ t, module, onSave, onCancel }) {
   );
 }
 
+// ── Compliance: document vault + SOP sign-off (S-14) ─────────────────────────
+const DOC_TYPE_KEYS = [
+  'certificate_food_handler', 'certificate_allergen', 'certificate_manager',
+  'certificate_other', 'id_document', 'policy_handbook', 'sop_document', 'other',
+];
+
+function ComplianceSection({ t, restaurantId, isManager }) {
+  const [documents, setDocuments] = useState([]);
+  const [sops, setSops] = useState([]);
+  const [acks, setAcks] = useState([]);
+  const [staff, setStaff] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [docType, setDocType] = useState('certificate_food_handler');
+  const [docTitle, setDocTitle] = useState('');
+  const [docUserId, setDocUserId] = useState('');
+  const [docExpires, setDocExpires] = useState('');
+  const [docFile, setDocFile] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    const fetches = [
+      listStaffDocuments(restaurantId),
+      listSops(restaurantId),
+      listSopAcknowledgements(restaurantId),
+    ];
+    if (isManager) fetches.push(listRestaurantStaff(restaurantId));
+    Promise.all(fetches)
+      .then(([docs, sopList, ackList, staffList]) => {
+        setDocuments(docs);
+        setSops((sopList || []).filter((s) => s.is_published !== false));
+        setAcks(ackList || []);
+        setStaff(staffList || []);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [restaurantId, isManager]);
+  useEffect(() => { load(); }, [load]);
+
+  const upload = async (e) => {
+    e.preventDefault();
+    if (!docFile || !docTitle.trim()) return;
+    setBusy(true);
+    try {
+      await uploadStaffDocument(restaurantId, {
+        docType,
+        title: docTitle.trim(),
+        userId: isManager && docUserId ? docUserId : undefined,
+        expiresOn: docExpires || undefined,
+      }, docFile);
+      toast.success(t('restaurants.ops.documents.uploaded'));
+      setDocTitle('');
+      setDocExpires('');
+      setDocFile(null);
+      load();
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.documents.uploadError')));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const verify = async (doc, status) => {
+    try {
+      await verifyStaffDocument(restaurantId, doc.id, { verificationStatus: status });
+      load();
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.documents.verifyError')));
+    }
+  };
+
+  const removeDoc = async (doc) => {
+    if (!window.confirm(t('restaurants.ops.documents.confirmDelete'))) return;
+    try {
+      await deleteStaffDocument(restaurantId, doc.id);
+      load();
+    } catch (err) {
+      toast.error(apiErr(err, t('common.failedToDelete', 'Failed to delete')));
+    }
+  };
+
+  const sign = async (sop) => {
+    try {
+      await acknowledgeSop(restaurantId, sop.id);
+      toast.success(t('restaurants.ops.documents.signed'));
+      load();
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.documents.signError')));
+    }
+  };
+
+  if (loading) return null;
+
+  const now = Date.now();
+  const expiryState = (doc) => {
+    if (!doc.expires_on) return null;
+    const days = Math.ceil((new Date(doc.expires_on).getTime() - now) / 86400000);
+    if (days < 0) return { label: t('restaurants.ops.documents.expired', { date: fmtDate(doc.expires_on) }), warn: true };
+    if (days <= 30) return { label: t('restaurants.ops.documents.expiresSoon', { date: fmtDate(doc.expires_on) }), warn: true };
+    return { label: t('restaurants.ops.documents.expiresOn', { date: fmtDate(doc.expires_on) }), warn: false };
+  };
+  const myAckFor = (sop) => acks.find((a) => Number(a.sop_id) === Number(sop.id) && a.is_current);
+
+  return (
+    <div>
+      <h3 className="fd-ops-subhead">{t('restaurants.ops.documents.title')}</h3>
+      <p className="fd-card-meta">{t('restaurants.ops.documents.noTaxData')}</p>
+
+      {documents.length === 0 ? (
+        <p className="fd-card-meta">{t('restaurants.ops.documents.empty')}</p>
+      ) : (
+        <div className="fd-ops-run-list">
+          {documents.map((doc) => {
+            const expiry = expiryState(doc);
+            return (
+              <div key={doc.id} className="fd-ops-run-row">
+                <div>
+                  <strong>{doc.title}</strong>
+                  <div className="fd-card-meta">
+                    {isManager && `${staffName(doc)} · `}
+                    {t(`restaurants.ops.documents.type.${doc.doc_type}`)}
+                    {' · '}
+                    <span className="fd-tag">{t(`restaurants.ops.documents.status.${doc.verification_status}`)}</span>
+                    {expiry && <span className={expiry.warn ? ' fd-ops-notice--warn' : ''}>{` · ${expiry.label}`}</span>}
+                  </div>
+                </div>
+                <div className="fd-ops-checklist-actions">
+                  {doc.download_url && (
+                    <a className="fd-btn fd-btn-secondary fd-btn-sm" href={doc.download_url} target="_blank" rel="noreferrer">
+                      {t('restaurants.ops.documents.download')}
+                    </a>
+                  )}
+                  {isManager && doc.verification_status !== 'verified' && (
+                    <button type="button" className="fd-btn fd-btn-sm" onClick={() => verify(doc, 'verified')}>
+                      {t('restaurants.ops.documents.verify')}
+                    </button>
+                  )}
+                  {isManager && doc.verification_status !== 'rejected' && (
+                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => verify(doc, 'rejected')}>
+                      {t('restaurants.ops.documents.reject')}
+                    </button>
+                  )}
+                  {isManager && (
+                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => removeDoc(doc)}>
+                      {t('common.delete', 'Delete')}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <form onSubmit={upload} className="fd-ops-form">
+        <h4 className="fd-ops-panel-title">{t('restaurants.ops.documents.uploadTitle')}</h4>
+        <div className="fd-settings-field-grid">
+          <div className="fd-field">
+            <label htmlFor="sd-type">{t('restaurants.ops.documents.typeLabel')}</label>
+            <select id="sd-type" value={docType} onChange={(e) => setDocType(e.target.value)}>
+              {DOC_TYPE_KEYS.map((k) => (
+                <option key={k} value={k}>{t(`restaurants.ops.documents.type.${k}`)}</option>
+              ))}
+            </select>
+          </div>
+          <div className="fd-field">
+            <label htmlFor="sd-title">{t('restaurants.ops.documents.titleLabel')}</label>
+            <input id="sd-title" value={docTitle} onChange={(e) => setDocTitle(e.target.value)} placeholder={t('restaurants.ops.documents.titlePlaceholder')} />
+          </div>
+          {isManager && (
+            <div className="fd-field">
+              <label htmlFor="sd-staff">{t('restaurants.ops.documents.staffLabel')}</label>
+              <select id="sd-staff" value={docUserId} onChange={(e) => setDocUserId(e.target.value)}>
+                <option value="">{t('restaurants.ops.documents.staffSelf')}</option>
+                {staff.map((s) => (
+                  <option key={s.user_id} value={s.user_id}>
+                    {[s.first_name, s.last_name].filter(Boolean).join(' ') || s.user_id} ({s.role})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="fd-field">
+            <label htmlFor="sd-expires">{t('restaurants.ops.documents.expiresLabel')}</label>
+            <input id="sd-expires" type="date" value={docExpires} onChange={(e) => setDocExpires(e.target.value)} />
+          </div>
+          <div className="fd-field">
+            <label htmlFor="sd-file">{t('restaurants.ops.documents.fileLabel')}</label>
+            <input id="sd-file" type="file" onChange={(e) => setDocFile(e.target.files?.[0] || null)} />
+          </div>
+        </div>
+        <div className="fd-settings-actions">
+          <button type="submit" className="fd-btn fd-btn-sm" disabled={busy || !docFile || !docTitle.trim()}>
+            {t('restaurants.ops.documents.upload')}
+          </button>
+        </div>
+      </form>
+
+      <h3 className="fd-ops-subhead">{t('restaurants.ops.documents.sopTitle')}</h3>
+      {sops.length === 0 ? (
+        <p className="fd-card-meta">{t('restaurants.ops.documents.sopEmpty')}</p>
+      ) : (
+        <div className="fd-ops-run-list">
+          {sops.map((sop) => {
+            // For staff the ack list is their own; managers get every
+            // sign-off, so their personal state is not derived from it.
+            const signed = isManager ? null : myAckFor(sop);
+            const signedCount = isManager ? acks.filter((a) => Number(a.sop_id) === Number(sop.id) && a.is_current).length : null;
+            return (
+              <div key={sop.id} className="fd-ops-run-row">
+                <div>
+                  <strong>{sop.title}</strong>
+                  <div className="fd-card-meta">
+                    {t('restaurants.ops.training.moduleVersion', { n: sop.version || 1 })}
+                    {signed && ` · ${t('restaurants.ops.documents.signedOn', { date: fmtDate(signed.acknowledged_at) })}`}
+                    {isManager && ` · ${t('restaurants.ops.documents.signatures', { count: signedCount })}`}
+                  </div>
+                </div>
+                {!signed && (
+                  <button type="button" className="fd-btn fd-btn-sm" onClick={() => sign(sop)}>
+                    {t('restaurants.ops.documents.signCta')}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Staff view ────────────────────────────────────────────────────────────────
 function StaffTraining({ t, assignments, onStart }) {
   if (assignments.length === 0) {
@@ -547,6 +901,8 @@ function StaffTraining({ t, assignments, onStart }) {
                 ? t('restaurants.ops.training.dueOn', 'Due {{date}}', { date: fmtDate(a.due_at) })
                 : t('restaurants.ops.training.dueNone', 'No due date')}
               {a.score_pct != null && ` · ${a.score_pct}%`}
+              {a.max_attempts != null && (a.attempts_used || 0) > 0 && ` · ${t('restaurants.ops.training.attemptsUsed', { used: a.attempts_used || 0, max: a.max_attempts })}`}
+              {a.completion_expires_at && ` · ${t('restaurants.ops.training.validUntil', { date: fmtDate(a.completion_expires_at) })}`}
             </div>
           </div>
           <button
@@ -583,7 +939,12 @@ function TrainingFlow({ t, restaurantId, taking, setTaking, onDone }) {
         setTaking((prev) => ({
           ...prev,
           step: 'result',
-          result: { passed: data?.passed, scorePct: data?.scorePct ?? data?.completion?.score_pct },
+          result: {
+            passed: data?.passed,
+            scorePct: data?.scorePct ?? data?.completion?.score_pct,
+            attemptsRemaining: data?.attemptsRemaining,
+            expiresAt: data?.completion?.expires_at,
+          },
         }));
       }
       onDone();
@@ -626,6 +987,8 @@ function TrainingFlow({ t, restaurantId, taking, setTaking, onDone }) {
           {t('restaurants.ops.training.yourScore', 'Your score: {{score}}%', { score: scorePct ?? 0 })}
           {' · '}
           {t('restaurants.ops.training.passNeeded', 'Pass mark: {{pct}}%', { pct: threshold ?? 0 })}
+          {!passed && taking.result?.attemptsRemaining != null && ` · ${t('restaurants.ops.training.attemptsRemaining', { count: taking.result.attemptsRemaining })}`}
+          {passed && taking.result?.expiresAt && ` · ${t('restaurants.ops.training.validUntil', { date: fmtDate(taking.result.expiresAt) })}`}
         </p>
         <div className="fd-settings-actions">
           <button type="button" className="fd-btn fd-btn-sm" onClick={close} data-track="ui.2265f208ce.20">
