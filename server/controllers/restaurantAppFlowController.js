@@ -42,6 +42,7 @@ const {
 const { finalizeCreditSpendInTransaction } = require('../services/creditSpendAdapter');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
+const { nextQueueNumber } = require('../services/restaurantQueueCounter');
 const { getEffectivePermissions } = require('../services/permissionsService');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
 const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
@@ -3561,15 +3562,21 @@ exports.createPosOrder = async (req, res, next) => {
       if (shiftId) {
         await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, MANAGE_ROLES.has(restaurant.effective_role));
       }
-      const { rows: [lockedRestaurant] } = await client.query(
-        `SELECT * FROM food_restaurants WHERE id = $1 FOR UPDATE`,
+      // Read WITHOUT the row lock (F-18). This SELECT used to take
+      // FOR UPDATE, which held the restaurant row across the external
+      // routing call below (and every other POS order for the restaurant
+      // queued behind it). In this flow the lock guarded only the
+      // MAX(queue_number) allocation, which now comes from the atomic
+      // per-day counter, so no lock is needed here at all.
+      const { rows: [restaurantRow] } = await client.query(
+        `SELECT * FROM food_restaurants WHERE id = $1`,
         [restaurantId]
       );
-      if (!lockedRestaurant || lockedRestaurant.status !== 'active' || !lockedRestaurant.accepts_in_store_orders) {
+      if (!restaurantRow || restaurantRow.status !== 'active' || !restaurantRow.accepts_in_store_orders) {
         throw new AppError('Restaurant is not accepting in-store orders', 409, 'restaurant_not_accepting_orders');
       }
-      if (!Array.isArray(lockedRestaurant.fulfillment_modes)
-        || !lockedRestaurant.fulfillment_modes.includes(fulfillment)) {
+      if (!Array.isArray(restaurantRow.fulfillment_modes)
+        || !restaurantRow.fulfillment_modes.includes(fulfillment)) {
         throw new AppError('This fulfillment mode is not available', 409, 'fulfillment_mode_unavailable');
       }
       const ids = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
@@ -3651,8 +3658,8 @@ exports.createPosOrder = async (req, res, next) => {
         allowManual: MANAGE_ROLES.has(restaurant.effective_role),
       });
       const taxableSubtotal = Math.max(0, subtotal - discount);
-      const taxRateBps = Math.max(0, Math.min(10000, Number(lockedRestaurant.tax_rate_bps || 0)));
-      const serviceFeeBps = Math.max(0, Math.min(10000, Number(lockedRestaurant.service_fee_bps || 0)));
+      const taxRateBps = Math.max(0, Math.min(10000, Number(restaurantRow.tax_rate_bps || 0)));
+      const serviceFeeBps = Math.max(0, Math.min(10000, Number(restaurantRow.service_fee_bps || 0)));
       const tax = Math.round(taxableSubtotal * taxRateBps / 10000);
       const serviceFeeCents = Math.round(taxableSubtotal * serviceFeeBps / 10000);
       let deliveryAddress = null;
@@ -3688,47 +3695,40 @@ exports.createPosOrder = async (req, res, next) => {
           lat,
           lng,
         };
-        if (Number(lockedRestaurant.delivery_radius_meters || 0) > 0) {
-          if (![lockedRestaurant.latitude, lockedRestaurant.longitude, lat, lng]
+        if (Number(restaurantRow.delivery_radius_meters || 0) > 0) {
+          if (![restaurantRow.latitude, restaurantRow.longitude, lat, lng]
             .every((coordinate) => Number.isFinite(Number(coordinate)))) {
             throw new AppError('Delivery coordinates are required to verify the delivery area', 400, 'delivery_coordinates_required');
           }
           const routedDelivery = await calculateGeoRoute({
-            origin: [Number(lockedRestaurant.longitude), Number(lockedRestaurant.latitude)],
+            origin: [Number(restaurantRow.longitude), Number(restaurantRow.latitude)],
             destination: [Number(lng), Number(lat)],
             travelMode: 'Car',
           });
           const deliveryDistanceMeters = Number.isFinite(Number(routedDelivery?.distanceMeters))
             ? Number(routedDelivery.distanceMeters)
             : geoDistanceMeters(
-              Number(lockedRestaurant.latitude),
-              Number(lockedRestaurant.longitude),
+              Number(restaurantRow.latitude),
+              Number(restaurantRow.longitude),
               Number(lat),
               Number(lng)
             );
-          if (deliveryDistanceMeters > Number(lockedRestaurant.delivery_radius_meters)) {
+          if (deliveryDistanceMeters > Number(restaurantRow.delivery_radius_meters)) {
             throw new AppError('Delivery address is outside this restaurant\'s delivery area', 409, 'outside_delivery_area', {
               deliveryDistanceMeters: Math.round(deliveryDistanceMeters),
-              deliveryRadiusMeters: Number(lockedRestaurant.delivery_radius_meters),
+              deliveryRadiusMeters: Number(restaurantRow.delivery_radius_meters),
             });
           }
           deliveryAddress.distanceMeters = Math.round(deliveryDistanceMeters);
         }
-        const publishedSettings = safeJson(lockedRestaurant.settings);
+        const publishedSettings = safeJson(restaurantRow.settings);
         deliveryFeeCents = parseCents(
           publishedSettings.deliveryFeeCents ?? publishedSettings.delivery_fee_cents,
           'deliveryFeeCents'
         );
       }
       const total = taxableSubtotal + tax + serviceFeeCents + deliveryFeeCents + tip;
-      const { rows: queueRows } = await client.query(
-        `SELECT COALESCE(MAX(queue_number), 0) + 1 AS next_queue
-           FROM food_orders
-          WHERE restaurant_id = $1
-            AND (created_at AT TIME ZONE COALESCE($2, 'UTC'))::date =
-                (CURRENT_TIMESTAMP AT TIME ZONE COALESCE($2, 'UTC'))::date`,
-        [restaurantId, lockedRestaurant.timezone || 'UTC']
-      );
+      const queueNumber = await nextQueueNumber(client, restaurantId, restaurantRow.timezone);
       const requestedPaymentStatus = normalizeString(req.body.paymentStatus || req.body.payment_status, 24);
       if (requestedPaymentStatus && requestedPaymentStatus !== 'unpaid') {
         throw new AppError(
@@ -3765,7 +3765,7 @@ exports.createPosOrder = async (req, res, next) => {
          RETURNING *`,
         [
           restaurantId,
-          lockedRestaurant.business_id,
+          restaurantRow.business_id,
           normalizeString(req.body.guestName || req.body.guest_name, 140),
           normalizeString(req.body.guestPhone || req.body.guest_phone, 40),
           normalizeString(req.body.guestEmail || req.body.guest_email, 255),
@@ -3781,10 +3781,10 @@ exports.createPosOrder = async (req, res, next) => {
           tip,
           discount,
           total,
-          lockedRestaurant.currency_code || 'USD',
+          restaurantRow.currency_code || 'USD',
           normalizeString(req.body.tableLabel || req.body.table_label, 80),
-          Number(queueRows[0]?.next_queue || 1),
-          lockedRestaurant.prep_time_min || 15,
+          queueNumber,
+          restaurantRow.prep_time_min || 15,
           normalizeString(req.body.notes, 1000),
           metadata,
         ]
@@ -4035,21 +4035,15 @@ exports.splitPosOrder = async (req, res, next) => {
       const splitRatio = Number(source.subtotal_cents || 0) > 0 ? splitSubtotal / Number(source.subtotal_cents) : 0;
       const childDiscount = Math.round(Number(source.discount_cents || 0) * splitRatio);
       const childTip = Math.round(Number(source.tip_cents || 0) * splitRatio);
-      const { rows: queueRows } = await client.query(
-        `WITH locked_restaurant AS (
-           SELECT id, timezone
-             FROM food_restaurants
-            WHERE id = $1
-            FOR UPDATE
-         )
-         SELECT COALESCE(MAX(fo.queue_number), 0) + 1 AS next_queue
-           FROM food_orders fo
-           JOIN locked_restaurant lr ON lr.id = fo.restaurant_id
-          WHERE fo.restaurant_id = $1
-            AND (fo.created_at AT TIME ZONE COALESCE(lr.timezone, 'UTC'))::date =
-                (CURRENT_TIMESTAMP AT TIME ZONE COALESCE(lr.timezone, 'UTC'))::date`,
+      // Queue number for the split child ticket (F-18/F-32): the atomic
+      // per-day counter replaces the MAX computation whose CTE locked the
+      // restaurant row. The source order row lock above still serializes
+      // splits of the same ticket.
+      const { rows: [restaurantTz] } = await client.query(
+        `SELECT timezone FROM food_restaurants WHERE id = $1`,
         [restaurantId]
       );
+      const queueNumber = await nextQueueNumber(client, restaurantId, restaurantTz?.timezone);
       const { rows: [child] } = await client.query(
         `INSERT INTO food_orders
          (restaurant_id, business_id, customer_id, guest_name, guest_phone, guest_email,
@@ -4076,7 +4070,7 @@ exports.splitPosOrder = async (req, res, next) => {
           childDiscount,
           source.currency_code,
           source.table_label,
-          Number(queueRows[0]?.next_queue || 1),
+          queueNumber,
           source.promised_at,
           normalizeString(req.body.notes, 1000) || source.notes,
           JSON.stringify({ ...(source.metadata || {}), splitFromOrderId: source.id }),

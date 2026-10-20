@@ -20,6 +20,7 @@ const { createLinkedSupportTicket } = require('../services/supportTicketLinkServ
 const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
 const { getClientRequestId } = require('../utils/idempotency');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
+const { nextQueueNumber } = require('../services/restaurantQueueCounter');
 const {
   reserveInventoryForOrder,
   releaseInventoryForOrder,
@@ -2954,8 +2955,14 @@ exports.createOrder = async (req, res, next) => {
         }
       }
 
-      // FOR UPDATE serializes concurrent orders for the same restaurant so the
-      // per-day queue number below cannot be duplicated under load.
+      // Read WITHOUT the row lock (F-18). This read used to take
+      // FOR UPDATE OF fr up front, which held the restaurant row for the
+      // whole checkout, including the Stripe verification below, and
+      // serialized every order for the restaurant behind network latency.
+      // Queue numbers now come from the atomic per-day counter, and the
+      // only serialization still needed (the authoritative idempotency
+      // recheck before the insert) takes a short lock further down, after
+      // every network call is done.
     const { rows: restaurants } = await client.query(
         `SELECT fr.*,
                 -- Single Connect source of truth: restaurant_connect_accounts
@@ -2974,15 +2981,17 @@ exports.createOrder = async (req, res, next) => {
             AND b.is_listed = TRUE
             AND COALESCE(b.setup_status, 'active') = 'active'
             AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
-            AND b.deleted_at IS NULL
-          FOR UPDATE OF fr`,
+            AND b.deleted_at IS NULL`,
         [restaurantId]
       );
       const restaurant = restaurants[0];
       if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
 
-      // The fast-path check above can race with another request. Recheck after
-      // locking the restaurant row so concurrent offline retries replay cleanly.
+      // The fast-path check above can race with another request, so recheck
+      // here before doing the expensive work. This recheck is unlocked; the
+      // authoritative one runs under the short restaurant lock taken just
+      // before the insert (see below), which is what makes concurrent
+      // offline retries replay cleanly.
       if (clientOrderId) {
         const lookup = buildFoodOrderIdempotencyLookup({
           restaurantId,
@@ -3381,16 +3390,6 @@ exports.createOrder = async (req, res, next) => {
         }
       }
 
-      const { rows: queueRows } = await client.query(
-        `SELECT COALESCE(MAX(queue_number), 0) + 1 AS next_queue
-           FROM food_orders
-          WHERE restaurant_id = $1
-            AND (created_at AT TIME ZONE COALESCE($2, 'UTC'))::date =
-                (CURRENT_TIMESTAMP AT TIME ZONE COALESCE($2, 'UTC'))::date`,
-        [restaurantId, restaurant.timezone || 'UTC']
-      );
-      const queueNumber = Number(queueRows[0]?.next_queue || 1);
-
       const trackingToken = createTrackingToken();
       const trackingTokenHash = hashTrackingToken(trackingToken);
       const discountMetadata = discount > 0
@@ -3517,6 +3516,41 @@ exports.createOrder = async (req, res, next) => {
           } : {}),
         };
 
+      // Short locked critical section (F-18): every network call above
+      // (Stripe verification) is complete, so the restaurant row lock is
+      // taken only now and held only for database work. It serializes this
+      // recheck + insert pair against other creators for the restaurant,
+      // so a concurrent duplicate of this idempotency key replays cleanly
+      // instead of failing on the unique index. Queue numbers come from
+      // the atomic per-day counter and no longer need this lock.
+      await client.query(
+        `SELECT id FROM food_restaurants WHERE id = $1 FOR UPDATE`,
+        [restaurantId]
+      );
+      if (clientOrderId) {
+        const lookup = buildFoodOrderIdempotencyLookup({
+          restaurantId,
+          customerId: orderCustomerId,
+          clientOrderId,
+        });
+        const { rows: existingOrders } = await client.query(lookup.text, lookup.values);
+        if (existingOrders[0]) {
+          assertFoodOrderIdempotencyMatch(existingOrders[0], idempotencyFingerprint, clientOrderId);
+          const existing = existingOrders[0];
+          if (req.screenTicket) {
+            if (String(existing.location_id || '') !== String(req.screenTicket.location_id || '')) throw new AppError('Existing order belongs to another location', 409, 'screen_location_mismatch');
+            await client.query("UPDATE restaurant_screen_tickets SET status='accepted',order_id=$2,conflict_code=NULL,updated_at=NOW() WHERE id=$1", [req.screenTicket.id, existing.id]);
+          }
+          return {
+            order: existing,
+            restaurant,
+            trackingToken: existing.metadata?.trackingToken || existing.metadata?.tracking_token || null,
+            replayed: true,
+          };
+        }
+      }
+      const queueNumber = await nextQueueNumber(client, restaurantId, restaurant.timezone);
+
       const { rows: [created] } = await client.query(
         `INSERT INTO food_orders
            (restaurant_id, business_id, customer_id, guest_name, guest_phone, guest_email,
@@ -3568,18 +3602,12 @@ exports.createOrder = async (req, res, next) => {
         await client.query("UPDATE restaurant_screen_tickets SET status='accepted',order_id=$2,conflict_code=NULL,updated_at=NOW() WHERE id=$1",[req.screenTicket.id,created.id]);
       }
 
-      if (paymentContract.canonical === 'card' && cardPaymentIntentId) {
-        // Link the order to the intent so payment_intent.* webhooks reconcile
-        // even if this response is lost. Fail closed: a linking failure rolls
-        // back the order and the client retries with the same idempotency key.
-        try {
-          await stripe.paymentIntents.update(cardPaymentIntentId, {
-            metadata: { food_order_id: String(created.id) },
-          });
-        } catch (err) {
-          throw new AppError('The card payment could not be linked to the order', 502, 'card_payment_link_failed');
-        }
-      }
+      // The order id is stamped onto the card PaymentIntent AFTER commit
+      // (see below), not here: stamping inside the transaction held the
+      // restaurant lock across a Stripe network call (F-18), and a stamp
+      // failure rolled back an order whose card payment had already
+      // succeeded. The intent id is stored on the order row itself, which
+      // is the fallback webhook reconciliation already uses.
 
       const createdOrderItems = [];
       for (const normalized of normalizedItems) {
@@ -3769,12 +3797,21 @@ exports.createOrder = async (req, res, next) => {
       });
 
       if (promotionId) {
-        await client.query(
+        // Guarded increment (F-18): promotion resolution now runs without
+        // the restaurant row lock, so the max_uses cap it checked is
+        // re-checked atomically in the increment itself. If a concurrent
+        // order consumed the last use, fail like a changed promo instead
+        // of overshooting the cap.
+        const { rowCount: promoUsesUpdated } = await client.query(
           `UPDATE food_restaurant_promotions
               SET use_count = use_count + 1, updated_at = NOW()
-            WHERE id = $1 AND restaurant_id = $2`,
+            WHERE id = $1 AND restaurant_id = $2
+              AND (max_uses IS NULL OR use_count < max_uses)`,
           [promotionId, restaurantId]
         );
+        if (promoUsesUpdated === 0) {
+          throw new AppError('The promo discount changed; review your order again', 409, 'promo_changed');
+        }
       } else if (discountMetadata?.discountCodeId) {
         // Atomic redemption in the order transaction (re-validated under a
         // row lock, so a code that hit its limit meanwhile rolls the order back).
@@ -3831,8 +3868,28 @@ exports.createOrder = async (req, res, next) => {
         printerJobs,
         walletPayment,
         oxsteedCreditPayment,
+        cardPaymentIntentId,
       };
     }, 'food_create_order');
+
+    // Post-commit (F-18): link the order to its card PaymentIntent so
+    // payment_intent.* webhooks reconcile even if this response is lost.
+    // Best effort by design: the webhook handler falls back to the intent
+    // id recorded on the order row when the stamp is missing, so a failed
+    // stamp is logged and never fails a paid, committed order.
+    if (!createdOrder.replayed && createdOrder.cardPaymentIntentId && stripe) {
+      try {
+        await stripe.paymentIntents.update(createdOrder.cardPaymentIntentId, {
+          metadata: { food_order_id: String(createdOrder.order.id) },
+        });
+      } catch (stampErr) {
+        logger.warn('Card PaymentIntent order stamp failed; webhook fallback by intent id remains available', {
+          orderId: createdOrder.order.id,
+          paymentIntentId: createdOrder.cardPaymentIntentId,
+          error: stampErr?.message || 'unknown_error',
+        });
+      }
+    }
 
     let order = createdOrder.order;
     let payment = null;

@@ -182,7 +182,9 @@ describe('food order validation guards', () => {
   test('accepts a delivery order with a real customer address', async () => {
     mockPreInsert();
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ next_queue: 7 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 7 }] })
       .mockResolvedValueOnce({ rows: [createdOrderRow({ fulfillment_type: 'delivery' })] })
       .mockResolvedValueOnce({ rows: [{ id: 501 }] });
     mockQuery.mockResolvedValue({ rows: [] });
@@ -227,7 +229,9 @@ describe('food order validation guards', () => {
       temporarily_closed_until: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
     });
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ next_queue: 7 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 7 }] })
       .mockResolvedValueOnce({ rows: [createdOrderRow()] })
       .mockResolvedValueOnce({ rows: [{ id: 501 }] });
     mockQuery.mockResolvedValue({ rows: [] });
@@ -255,7 +259,9 @@ describe('food order validation guards', () => {
   test('accepts an order that meets the restaurant minimum', async () => {
     mockPreInsert({ minimum_order_cents: 899 });
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ next_queue: 7 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 7 }] })
       .mockResolvedValueOnce({ rows: [createdOrderRow()] })
       .mockResolvedValueOnce({ rows: [{ id: 501 }] });
     mockQuery.mockResolvedValue({ rows: [] });
@@ -271,7 +277,9 @@ describe('food order validation guards', () => {
   test('honors deliverySlot by shifting promised_at (prep + slot offset)', async () => {
     mockPreInsert();
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ next_queue: 7 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 7 }] })
       .mockResolvedValueOnce({ rows: [createdOrderRow({ fulfillment_type: 'delivery' })] })
       .mockResolvedValueOnce({ rows: [{ id: 501 }] });
     mockQuery.mockResolvedValue({ rows: [] });
@@ -297,7 +305,9 @@ describe('food order validation guards', () => {
   test('asap slot adds no offset to promised_at', async () => {
     mockPreInsert();
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ next_queue: 7 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 7 }] })
       .mockResolvedValueOnce({ rows: [createdOrderRow()] })
       .mockResolvedValueOnce({ rows: [{ id: 501 }] });
     mockQuery.mockResolvedValue({ rows: [] });

@@ -65,7 +65,9 @@ describe('food loyalty redeem (B4)', () => {
       .mockResolvedValueOnce({
         rows: [{ id: ACCOUNT_ID, points_balance: 500 }],
       })
-      .mockResolvedValueOnce({ rows: [{ next_queue: 3 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 7 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 3 }] })
       .mockResolvedValueOnce({
         rows: [{
           id: 200,
@@ -119,7 +121,9 @@ describe('food loyalty redeem (B4)', () => {
           is_available: true,
         }],
       })
-      .mockResolvedValueOnce({ rows: [{ next_queue: 4 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 7 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 4 }] })
       .mockResolvedValueOnce({
         rows: [{
           id: 201,
@@ -163,7 +167,9 @@ describe('food loyalty redeem (B4)', () => {
           is_available: true,
         }],
       })
-      .mockResolvedValueOnce({ rows: [{ next_queue: 5 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 7 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 5 }] })
       .mockResolvedValueOnce({
         rows: [{
           id: 202,

@@ -499,8 +499,9 @@ describe('food controller', () => {
       .mockResolvedValueOnce({
         rows: [{ id: '11', name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }],
       })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ next_queue: 5 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 3 }] }) // F-18 short lock before insert
+      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (locked recheck)
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 5 }] }) // F-18/F-32 daily counter
       .mockResolvedValueOnce({
         rows: [{
           id: 100,
@@ -524,7 +525,7 @@ describe('food controller', () => {
 
     expect(res.status).toBe(201);
     expect(mockQuery.mock.calls[1][0]).toMatch(/b\.is_active = TRUE/);
-    expect(mockQuery.mock.calls.some(([sql]) => /MAX\(queue_number\)/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO restaurant_daily_counters/.test(sql))).toBe(true);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_orders/.test(sql))).toBe(true);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_order_items/.test(sql))).toBe(true);
     const orderInsert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO food_orders/.test(sql));
@@ -588,7 +589,9 @@ describe('food controller', () => {
       .mockResolvedValueOnce({
         rows: [{ id: '11', name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }],
       })
-      .mockResolvedValueOnce({ rows: [{ next_queue: 5 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 3 }] }) // F-18 short lock before insert
+      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (locked recheck)
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 5 }] }) // F-18/F-32 daily counter
       .mockResolvedValueOnce({
         rows: [{
           id: 100,
@@ -661,7 +664,9 @@ describe('food controller', () => {
       .mockResolvedValueOnce({
         rows: [{ id: 7, code: 'FOOD10', title: 'Food 10', discount_cents: 100, min_subtotal_cents: 0 }],
       }) // promotion lookup
-      .mockResolvedValueOnce({ rows: [{ next_queue: 5 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 3 }] }) // F-18 short lock before insert
+      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (locked recheck)
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 5 }] }) // F-18/F-32 daily counter
       .mockResolvedValueOnce({
         rows: [{
           id: 100,
@@ -680,7 +685,8 @@ describe('food controller', () => {
       .mockResolvedValueOnce({ rows: [{ id: 200 }] })
       .mockResolvedValueOnce({ rows: [] }) // inventory item lookup: none tracked
       .mockResolvedValueOnce({ rows: [] }) // inventory mapping lookup: none
-      .mockResolvedValueOnce({ rows: [] }); // printer jobs: none
+      .mockResolvedValueOnce({ rows: [] }) // printer jobs: none
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 }); // promotion use_count increment
 
     const res = await request(buildApp())
       .post('/api/food/restaurants/3/orders')

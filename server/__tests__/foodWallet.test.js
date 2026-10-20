@@ -166,7 +166,7 @@ describe('food wallet security wiring', () => {
     mockQuery.mockImplementation(async (sql, params) => {
       const creditFixture = dualPostCreditFixture(sql, params);
       if (creditFixture) return creditFixture;
-      if (/FROM food_restaurants fr/.test(sql) && /LEFT JOIN businesses b ON b.id = fr.business_id/.test(sql) && /FOR UPDATE/.test(sql)) {
+      if (/FROM food_restaurants fr/.test(sql) && /LEFT JOIN businesses b ON b.id = fr.business_id/.test(sql)) {
         return { rows: [restaurantRow()] };
       }
       if (/FROM food_menu_items/.test(sql)) {
@@ -180,8 +180,8 @@ describe('food wallet security wiring', () => {
           }],
         };
       }
-      if (/SELECT COALESCE\(MAX\(queue_number\), 0\) \+ 1 AS next_queue/.test(sql)) {
-        return { rows: [{ next_queue: 3 }] };
+      if (/INSERT INTO restaurant_daily_counters/.test(sql)) {
+        return { rows: [{ last_queue_number: 3 }] };
       }
       if (/INSERT INTO food_orders/.test(sql)) {
         return {
@@ -302,7 +302,7 @@ describe('food wallet security wiring', () => {
 
   test('kiosk wallet-credit pickup order is created as requires_payment without debiting wallet', async () => {
     mockQuery.mockImplementation(async (sql) => {
-      if (/FROM food_restaurants fr/.test(sql) && /LEFT JOIN businesses b ON b.id = fr.business_id/.test(sql) && /FOR UPDATE/.test(sql)) {
+      if (/FROM food_restaurants fr/.test(sql) && /LEFT JOIN businesses b ON b.id = fr.business_id/.test(sql)) {
         return { rows: [restaurantRow()] };
       }
       if (/FROM food_menu_items/.test(sql)) {
@@ -316,8 +316,8 @@ describe('food wallet security wiring', () => {
           }],
         };
       }
-      if (/SELECT COALESCE\(MAX\(queue_number\), 0\) \+ 1 AS next_queue/.test(sql)) {
-        return { rows: [{ next_queue: 4 }] };
+      if (/INSERT INTO restaurant_daily_counters/.test(sql)) {
+        return { rows: [{ last_queue_number: 4 }] };
       }
       if (/INSERT INTO food_orders/.test(sql)) {
         return {
@@ -364,7 +364,7 @@ describe('food wallet security wiring', () => {
 
   test('wallet-funded delivery is rejected when the wallet is suspended', async () => {
     mockQuery.mockImplementation(async (sql) => {
-      if (/FROM food_restaurants fr/.test(sql) && /LEFT JOIN businesses b ON b.id = fr.business_id/.test(sql) && /FOR UPDATE/.test(sql)) {
+      if (/FROM food_restaurants fr/.test(sql) && /LEFT JOIN businesses b ON b.id = fr.business_id/.test(sql)) {
         return { rows: [restaurantRow()] };
       }
       if (/FROM food_menu_items/.test(sql)) {
@@ -378,8 +378,8 @@ describe('food wallet security wiring', () => {
           }],
         };
       }
-      if (/SELECT COALESCE\(MAX\(queue_number\), 0\) \+ 1 AS next_queue/.test(sql)) {
-        return { rows: [{ next_queue: 3 }] };
+      if (/INSERT INTO restaurant_daily_counters/.test(sql)) {
+        return { rows: [{ last_queue_number: 3 }] };
       }
       if (/INSERT INTO food_orders/.test(sql)) {
         return {
