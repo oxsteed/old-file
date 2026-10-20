@@ -14,6 +14,7 @@ const {
   applyAutoAssignRules,
 } = require('../services/restaurantTrainingLifecycle');
 const permissionsService = require('../services/permissionsService');
+const { logBusinessAction } = require('../services/businessAuditLog');
 
 const TRAINING_CATEGORIES = ['general', 'kitchen', 'front_of_house', 'cleaning', 'food_safety', 'customer_service', 'safety'];
 const ASSIGNMENT_STATUSES = ['assigned', 'in_progress', 'completed', 'overdue'];
@@ -129,6 +130,15 @@ exports.createModule = async (req, res, next) => {
       const created = await insertQuestions(client, module.id, questions);
       // S-12: version 1 snapshot so completions can name the content taken.
       await snapshotModuleVersion(client, module, req.user.id);
+      // S-16: module writes are auditable team events.
+      await logBusinessAction(req, {
+        action: 'restaurant.training_module.created',
+        target_type: 'training_module',
+        target_id: module.id,
+        after_state: { title: module.title, category: module.category },
+        business_id: restaurant.business_id,
+        client,
+      });
       await client.query('COMMIT');
       res.status(201).json({ module: sanitizeModule({ ...module, questions: created }, true) });
     } catch (err) {
@@ -220,6 +230,16 @@ exports.updateModule = async (req, res, next) => {
       if (contentChanged) {
         await snapshotModuleVersion(client, module, req.user.id);
       }
+      // S-16: module writes are auditable team events.
+      await logBusinessAction(req, {
+        action: 'restaurant.training_module.updated',
+        target_type: 'training_module',
+        target_id: module.id,
+        before_state: { title: existing.title, category: existing.category, pass_score_pct: existing.pass_score_pct },
+        after_state: { title: module.title, category: module.category, pass_score_pct: module.pass_score_pct },
+        business_id: restaurant.business_id,
+        client,
+      });
       await client.query('COMMIT');
       const withQuestions = created
         ? sanitizeModule({ ...module, questions: created }, true)
@@ -242,11 +262,23 @@ exports.deleteModule = async (req, res, next) => {
     const moduleId = parsePositiveInt(req.params.moduleId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertManage(restaurant, req.user.id);
-    const { rowCount } = await pool.query(
+    const { rows: [existing] } = await pool.query(
+      `SELECT title, category FROM restaurant_training_modules WHERE id = $1 AND restaurant_id = $2`,
+      [moduleId, restaurantId]
+    );
+    if (!existing) throw new AppError('Training module not found', 404, 'module_not_found');
+    await pool.query(
       `DELETE FROM restaurant_training_modules WHERE id = $1 AND restaurant_id = $2`,
       [moduleId, restaurantId]
     );
-    if (!rowCount) throw new AppError('Training module not found', 404, 'module_not_found');
+    // S-16: module writes are auditable team events.
+    await logBusinessAction(req, {
+      action: 'restaurant.training_module.deleted',
+      target_type: 'training_module',
+      target_id: moduleId,
+      before_state: { title: existing.title, category: existing.category },
+      business_id: restaurant.business_id,
+    });
     res.json({ deleted: true });
   } catch (err) {
     next(err);

@@ -5931,6 +5931,20 @@ exports.setStaffPin = async (req, res, next) => {
       }
       throw err;
     }
+    // S-16: PIN set/rotation is an auditable security event (the PIN
+    // value itself is never logged).
+    await logBusinessAction(req, {
+      action: 'restaurant.staff_pin.updated',
+      target_type: 'restaurant_staff_pin',
+      target_id: staffPin.id,
+      after_state: {
+        staff_user_id: staffPin.staff_user_id,
+        staff_label: staffPin.staff_label,
+        role_label: staffPin.role_label,
+        is_active: true,
+      },
+      business_id: restaurant.business_id,
+    });
     res.status(201).json({ staffPin });
   } catch (err) {
     next(err);

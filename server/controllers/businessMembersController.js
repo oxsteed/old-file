@@ -213,6 +213,18 @@ async function inviteMember(req, res) {
           data: { invite_id: created.id, business_id: biz.id, business_name: biz.business_name, role, job_role: created.job_role },
         });
       }
+      // S-16: the invite itself is an auditable team event (the Team
+      // activity view reads business_audit_log).
+      await logBusinessAction(req, {
+        action: 'business.member.invited',
+        target_type: 'business_member',
+        target_id: created.id,
+        after_state: { status: 'pending', role, invite_email: normalizedEmail },
+        metadata: { job_role: created.job_role, user_found: !!found },
+        business_id: biz.id,
+        actor_role: biz.actor_role,
+        client,
+      });
       return { record: created, invitee: found };
     });
 
@@ -482,6 +494,15 @@ async function acceptInvitation(req, res) {
       }
       return res.status(404).json({ error: 'Invitation not found or already handled' });
     }
+    // S-16: accepting an invite is an auditable team event.
+    await logBusinessAction(req, {
+      action: 'business.member.invite_accepted',
+      target_type: 'business_member',
+      target_id: record.id,
+      before_state: { status: 'pending' },
+      after_state: { status: 'active', role: record.role },
+      business_id: record.business_id,
+    });
     return res.json({ ok: true, member: record });
   } catch (err) {
     logger.error('acceptInvitation error', { err: err.message });
@@ -503,6 +524,23 @@ async function declineInvitation(req, res) {
     );
 
     if (!record) return res.status(404).json({ error: 'Invitation not found or already handled' });
+    // S-16: declining an invite is an auditable team event. The update
+    // only returns the id, so fetch the business for the audit row.
+    const { rows: [declined] } = await pool.query(
+      'SELECT business_id, role, invite_email FROM business_members WHERE id = $1',
+      [record.id]
+    );
+    if (declined) {
+      await logBusinessAction(req, {
+        action: 'business.member.invite_declined',
+        target_type: 'business_member',
+        target_id: record.id,
+        before_state: { status: 'pending' },
+        after_state: { status: 'revoked' },
+        metadata: { role: declined.role, invite_email: declined.invite_email },
+        business_id: declined.business_id,
+      });
+    }
     return res.json({ ok: true });
   } catch (err) {
     logger.error('declineInvitation error', { err: err.message });

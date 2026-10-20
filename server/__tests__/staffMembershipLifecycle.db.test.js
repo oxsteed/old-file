@@ -155,6 +155,14 @@ suite('staff membership lifecycle (S-01/S-03/S-09/S-10/S-11/S-13)', () => {
     expect(invite.expires_at).toBeTruthy();
     expect(new Date(invite.expires_at).getTime()).toBeGreaterThan(Date.now() + 13 * 24 * 3600 * 1000);
 
+    // S-16: the invite writes a business_audit_log row (Team activity).
+    const { rows: inviteAudits } = await db.query(
+      `SELECT id FROM business_audit_log
+        WHERE business_id = $1 AND action = 'business.member.invited' AND target_id = $2`,
+      [bizId, String(res.body.member.id)]
+    );
+    expect(inviteAudits.length).toBe(1);
+
     const { rows: notifications } = await db.query(
       `SELECT * FROM notifications WHERE user_id = $1 AND type = 'business_invite'`, [INVITEE]
     );
@@ -398,6 +406,30 @@ suite('staff membership lifecycle (S-01/S-03/S-09/S-10/S-11/S-13)', () => {
        VALUES ($1, $2, 'Eli', 'open')`,
       [restaurantId, EMPLOYEE]
     );
+    // S-11: an open crew task and an open corrective action assigned to
+    // the departing member must return to the unassigned pool.
+    const { rows: [crewTask] } = await db.query(
+      `INSERT INTO restaurant_crew_tasks (restaurant_id, assigned_to, title, status, created_by)
+       VALUES ($1, $2, 'Mop the walk-in', 'in_progress', $3) RETURNING id`,
+      [restaurantId, EMPLOYEE, OWNER]
+    );
+    const { rows: [template] } = await db.query(
+      `INSERT INTO restaurant_audit_templates (restaurant_id, name) VALUES ($1, 'Offboarding fixture') RETURNING id`,
+      [restaurantId]
+    );
+    const { rows: [audit] } = await db.query(
+      `INSERT INTO restaurant_audits (template_id, restaurant_id, business_day) VALUES ($1, $2, CURRENT_DATE) RETURNING id`,
+      [template.id, restaurantId]
+    );
+    const { rows: [finding] } = await db.query(
+      `INSERT INTO restaurant_audit_findings (audit_id, note) VALUES ($1, 'Thermometer log missing') RETURNING id`,
+      [audit.id]
+    );
+    const { rows: [action] } = await db.query(
+      `INSERT INTO restaurant_corrective_actions (finding_id, audit_id, description, assignee_id, status, created_by)
+       VALUES ($1, $2, 'Fix the thermometer log', $3, 'open', $4) RETURNING id`,
+      [finding.id, audit.id, EMPLOYEE, OWNER]
+    );
 
     const { res, error } = await call(accessCtrl.removeMembership, {
       user: { id: OWNER },
@@ -408,7 +440,20 @@ suite('staff membership lifecycle (S-01/S-03/S-09/S-10/S-11/S-13)', () => {
     });
     expect(error).toBeNull();
     expect(res.statusCode).toBe(200);
-    expect(res.body.data.offboarding).toEqual({ pinsDeactivated: 1, drawersFlagged: 1 });
+    expect(res.body.data.offboarding).toEqual({
+      pinsDeactivated: 1,
+      drawersFlagged: 1,
+      crewTasksUnassigned: 1,
+      correctiveActionsUnassigned: 1,
+    });
+    const { rows: [taskAfter] } = await db.query(
+      `SELECT assigned_to FROM restaurant_crew_tasks WHERE id = $1`, [crewTask.id]
+    );
+    expect(taskAfter.assigned_to).toBeNull();
+    const { rows: [actionAfter] } = await db.query(
+      `SELECT assignee_id FROM restaurant_corrective_actions WHERE id = $1`, [action.id]
+    );
+    expect(actionAfter.assignee_id).toBeNull();
 
     const { rows: [pin] } = await db.query(
       `SELECT is_active FROM restaurant_staff_pins WHERE restaurant_id = $1 AND staff_user_id = $2`,

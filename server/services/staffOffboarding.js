@@ -13,6 +13,10 @@
  *   - POS drawers (restaurant_pos_shifts) the user left open are flagged
  *     for a manager close instead of silently staying open. They are NOT
  *     force-closed: the cash inside still has to be counted by a manager.
+ *   - open crew tasks and corrective actions assigned to the user are
+ *     unassigned (returned to the manager's pool) instead of pointing at
+ *     a person who can no longer act on them. Completed items keep their
+ *     assignee: they are history.
  *
  * Staff history is deliberately NOT deleted here. Schedules, time entries
  * and training records are wage-and-hour history; migration 946 switched
@@ -24,11 +28,12 @@
  * @param {number} args.businessId
  * @param {string} args.userId    the removed member's user id
  * @param {string} [args.reason]  recorded on flagged drawers
- * @returns {Promise<{pinsDeactivated:number, drawersFlagged:number}>}
+ * @returns {Promise<{pinsDeactivated:number, drawersFlagged:number,
+ *   crewTasksUnassigned:number, correctiveActionsUnassigned:number}>}
  */
 async function applyStaffOffboarding(client, { businessId, userId, reason } = {}) {
   if (!client || !businessId || !userId) {
-    return { pinsDeactivated: 0, drawersFlagged: 0 };
+    return { pinsDeactivated: 0, drawersFlagged: 0, crewTasksUnassigned: 0, correctiveActionsUnassigned: 0 };
   }
 
   const pins = await client.query(
@@ -57,7 +62,38 @@ async function applyStaffOffboarding(client, { businessId, userId, reason } = {}
     [userId, businessId, reason || 'Staff member removed from the team']
   );
 
-  return { pinsDeactivated: pins.rowCount || 0, drawersFlagged: drawers.rowCount || 0 };
+  const crewTasks = await client.query(
+    `UPDATE restaurant_crew_tasks t
+        SET assigned_to = NULL, updated_at = NOW()
+      WHERE t.assigned_to = $1
+        AND t.status IN ('not_started', 'in_progress', 'needs_approval')
+        AND t.restaurant_id IN (
+          SELECT id FROM food_restaurants WHERE business_id = $2
+        )
+      RETURNING t.id`,
+    [userId, businessId]
+  );
+
+  const correctiveActions = await client.query(
+    `UPDATE restaurant_corrective_actions a
+        SET assignee_id = NULL, updated_at = NOW()
+      WHERE a.assignee_id = $1
+        AND a.status IN ('open', 'in_progress')
+        AND a.audit_id IN (
+          SELECT au.id FROM restaurant_audits au
+            JOIN food_restaurants r ON r.id = au.restaurant_id
+           WHERE r.business_id = $2
+        )
+      RETURNING a.id`,
+    [userId, businessId]
+  );
+
+  return {
+    pinsDeactivated: pins.rowCount || 0,
+    drawersFlagged: drawers.rowCount || 0,
+    crewTasksUnassigned: crewTasks.rowCount || 0,
+    correctiveActionsUnassigned: correctiveActions.rowCount || 0,
+  };
 }
 
 module.exports = { applyStaffOffboarding };
