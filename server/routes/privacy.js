@@ -41,7 +41,9 @@ const EXPORT_CSV_COLUMNS = {
   tracking_consents: ['purpose','granted','jurisdiction','source','consent_text_version','recorded_at'],
   interests: ['labels','score','last_seen'],
   offers: ['name','title','channel','status','sent_at','opened_at','clicked_at'],
-  activity_events: ['event_name','occurred_at','route','props'],
+  // Export the human-readable event envelope only. Raw props can contain
+  // internal entity identifiers and are not part of the portability contract.
+  activity_events: ['event_name','occurred_at','route'],
   messages: ['id', 'sender_id', 'receiver_id', 'conversation_id', 'content', 'created_at'],
   payments: ['id', 'job_id', 'payer_id', 'payee_id', 'amount', 'status', 'created_at', 'updated_at'],
   invoices: ['id', 'business_id', 'invoice_number', 'client_name', 'client_email', 'status', 'due_date', 'total', 'amount_paid', 'created_at', 'updated_at'],

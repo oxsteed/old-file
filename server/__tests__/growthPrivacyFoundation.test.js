@@ -206,6 +206,25 @@ describe("explicit result caps", () => {
     require("../growth/clickhouse").getClient.mockRestore();
   });
 
+  test("activity export omits raw props and internal entity identifiers", async () => {
+    process.env.GROWTH_CLICKHOUSE_URL = "https://store.example.test";
+    const clickhouse = require("../growth/clickhouse");
+    jest.spyOn(clickhouse, "getClient").mockReturnValue({
+      query: jest.fn(async () => ({
+        json: async () => [{ event_name: "job.view", route: "/jobs" }],
+      })),
+    });
+    const conn = {
+      query: jest.fn(async (sql) =>
+        sql.includes("growth_device_links") ? { rows: [] } : { rows: [] }),
+    };
+    const result = await require("../growth/rights").exportData(conn, userId);
+    expect(result.activity_events[0]).toEqual({ event_name: "job.view", route: "/jobs" });
+    const queryArg = clickhouse.getClient.mock.results.at(-1).value.query.mock.calls[0][0];
+    expect(queryArg.query).not.toContain("props");
+    clickhouse.getClient.mockRestore();
+  });
+
   test("privacy activity export throws instead of truncating a section", async () => {
     const { EXPORT_ROW_CAP } = require("../services/privacyActivityData");
     const conn = {
@@ -297,11 +316,13 @@ describe("deletion cleanup retains financial and suppression records", () => {
     expect(joined).toContain("DELETE FROM activity_outbox");
     // Financial conversions are a retained financial record; suppression
     // records keep an unsubscribe effective; the append-only consent ledger
-    // and the current denial survive profile/raw erasure.
+    // survives profile/raw erasure while the current pointer is removed with
+    // the deleted account.
     expect(joined).not.toContain("affiliate_conversions");
     expect(joined).not.toContain("marketing_suppressions");
     expect(joined).not.toContain("DELETE FROM tracking_consents");
-    expect(joined).not.toContain("DELETE FROM tracking_consent_current");
+    expect(joined).toContain("DELETE FROM tracking_consent_current");
+    expect(joined).toContain("DELETE FROM offer_campaign_recipients");
   });
 
   test("privacyRetentionService.eraseUser never deletes conversions, suppressions or payments", async () => {
@@ -325,6 +346,19 @@ describe("deletion cleanup retains financial and suppression records", () => {
     expect(joined).not.toContain("marketing_suppressions");
     expect(joined).not.toMatch(/DELETE FROM payments/);
     expect(joined).not.toMatch(/DELETE FROM oxsteed_credit/);
+    expect(summary.growth).toBeDefined();
+  });
+
+  test("consent withdrawal preserves the current denial pointer", async () => {
+    const sqls = [];
+    const client = {
+      query: jest.fn(async (sql) => {
+        sqls.push(sql);
+        return { rows: [], rowCount: 0 };
+      }),
+    };
+    await require("../growth/rights").erase(client, userId, "withdraw_activity");
+    expect(sqls.join("\n")).not.toContain("DELETE FROM tracking_consent_current");
   });
 });
 

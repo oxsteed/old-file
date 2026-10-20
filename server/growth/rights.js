@@ -5,6 +5,7 @@ const { key, consentLock } = require("./identity");
 const ACTIVITY_EXPORT_ROW_CAP = 100000;
 async function erase(conn, userId, reason = "account_erasure") {
   const subject = key("subject", userId);
+  const summary = {};
   await conn.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
     consentLock(subject),
   ]);
@@ -20,16 +21,42 @@ async function erase(conn, userId, reason = "account_erasure") {
     "demand_subject_daily",
     "supply_subject_daily",
   ]) {
-    await conn.query(`DELETE FROM ${table} WHERE user_id=$1`, [userId]);
+    const result = await conn.query(`DELETE FROM ${table} WHERE user_id=$1`, [userId]);
+    summary[table] = result.rowCount || 0;
   }
-  await conn.query(
+  const skipped = await conn.query(
     `UPDATE offer_campaign_deliveries SET status='skipped',skip_reason='privacy_erasure',lease_token=NULL,lease_expires_at=NULL
     WHERE recipient_id IN (SELECT id FROM offer_campaign_recipients WHERE user_id=$1) AND status IN ('pending','sending')`,
     [userId],
   );
-  await conn.query("DELETE FROM activity_outbox WHERE user_id=$1", [userId]);
-  // Preserve current denials: deleting a withdrawal would re-enable notice-basis collection.
-  // The append-only ledger and current objection remain evidence of that choice.
+  summary.offer_deliveries_skipped = skipped.rowCount || 0;
+  // Recipients with no delivered/opened/clicked record are still pending
+  // targeting data and are removed. Delivered history remains exportable and
+  // auditable, while ON DELETE CASCADE removes its pending deliveries.
+  const recipients = await conn.query(
+    `DELETE FROM offer_campaign_recipients r
+     WHERE r.user_id=$1
+       AND NOT EXISTS (
+         SELECT 1 FROM offer_campaign_deliveries d
+         WHERE d.recipient_id=r.id
+           AND (d.sent_at IS NOT NULL OR d.opened_at IS NOT NULL OR d.clicked_at IS NOT NULL)
+       )`,
+    [userId],
+  );
+  summary.offer_recipients_removed = recipients.rowCount || 0;
+  const outbox = await conn.query("DELETE FROM activity_outbox WHERE user_id=$1", [userId]);
+  summary.activity_outbox = outbox.rowCount || 0;
+  // Account erasure removes the denormalized current pointer. Consent history
+  // remains append-only; withdrawal paths retain the current denial so a
+  // notice-basis gate cannot accidentally re-enable collection.
+  if (reason === "account_erasure") {
+    const current = await conn.query(
+      "DELETE FROM tracking_consent_current WHERE subject_key=$1",
+      [subject],
+    );
+    summary.tracking_consent_current = current.rowCount || 0;
+  }
+  return summary;
 }
 async function exportData(conn, userId) {
   if (!process.env.GROWTH_SUBJECT_PEPPER) {
@@ -79,7 +106,7 @@ async function exportData(conn, userId) {
   if (process.env.GROWTH_CLICKHOUSE_URL) {
     const client = require("./clickhouse").getClient("rights");
     const rows = await client.query({
-      query: `SELECT event_name,occurred_at,route,props FROM growth.activity_events FINAL
+      query: `SELECT event_name,occurred_at,route FROM growth.activity_events FINAL
       WHERE (subject_key={subject:String} OR device_key IN {devices:Array(String)}) AND day>=today()-90
       ORDER BY occurred_at LIMIT ${ACTIVITY_EXPORT_ROW_CAP + 1}`,
       query_params: { subject, devices: links },

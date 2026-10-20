@@ -81,7 +81,10 @@ function stripSql(column) {
 
 async function eraseUser(client, userId) {
   const summary = await require('./privacyActivityData').erase(client,userId);
-  if(process.env.GROWTH_SUBJECT_PEPPER)await require('../growth/rights').erase(client,userId);
+  if(process.env.GROWTH_SUBJECT_PEPPER) {
+    const growthSummary = await require('../growth/rights').erase(client,userId);
+    summary.growth = growthSummary;
+  }
   // Review P3-6-F03: capture the profile photo before it is cleared so the
   // storage object can be queued for deletion instead of orphaned.
   let oldPhotoUrl = null;
