@@ -3684,7 +3684,7 @@ exports.createPosOrder = async (req, res, next) => {
         }
         // F-11: POS orders are immediate, so dayparts are enforced at the
         // current time in the restaurant's timezone, same as online orders.
-        if (!isItemAvailableAt(item, new Date(), lockedRestaurant.timezone)) {
+        if (!isItemAvailableAt(item, new Date(), restaurantRow.timezone)) {
           throw new AppError('Validation failed', 400, 'validation_failed', { [`items.${index}.menuItemId`]: 'Menu item is not available at this time of day' });
         }
         const quantity = Math.min(parsePositiveInt(line.quantity, 1), 99);

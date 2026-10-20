@@ -112,8 +112,13 @@ const ALWAYS_AVAILABLE = {
 };
 
 function mockOrderSuccess() {
+  // Integrated createOrder tail (F-18 short lock + F-32 counter): the
+  // restaurant id lock, the authoritative idempotency recheck under it,
+  // the atomic queue-counter allocation, then the order and item inserts.
   mockQuery
-    .mockResolvedValueOnce({ rows: [{ next_queue: 7 }] })
+    .mockResolvedValueOnce({ rows: [{ id: RESTAURANT_ID }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ last_queue_number: 7 }] })
     .mockResolvedValueOnce({ rows: [createdOrderRow()] })
     .mockResolvedValueOnce({ rows: [{ id: 501 }] });
   mockQuery.mockResolvedValue({ rows: [] });
