@@ -11,6 +11,7 @@ import api from '../../api/axios';
 import { getFoodRestaurant, formatFoodMoney } from '../../api/food';
 import { FoodBrand } from './foodShared';
 import { usePosSync } from './usePosSync';
+import PosStaffSessionBar from './PosStaffSession';
 import {subscribeRestaurantDisplay} from '../../api/restaurantDisplaySocket';
 import PageShell from '../../components/PageShell';
 import '../../styles/FoodPages.css';
@@ -595,6 +596,7 @@ export default function RestaurantPOSPage() {
             ))}
           </div>
           <div className="fd-pos-header-meta">
+            <PosStaffSessionBar restaurantId={restaurantId} />
             {activeShift ? (
               <span className="fd-tag">
                 {t('food.pos.shiftOpen', { defaultValue: 'POS shift open' })}

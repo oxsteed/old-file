@@ -56,6 +56,7 @@ router.get('/:restaurantId/devices/:deviceId/display-stats', scopeExempt('device
 router.get('/:restaurantId/devices/:deviceId/display-settings', scopeExempt('device-credential'), appFlow.getDeviceDisplaySettings);
 router.patch('/:restaurantId/devices/:deviceId/display-settings', scopeExempt('device-credential'), appFlow.updateDeviceDisplaySettings);
 router.post('/:restaurantId/devices/:deviceId/report-issue', scopeExempt('device-credential'), appFlow.reportDeviceIssue);
+router.post('/:restaurantId/devices/:deviceId/staff-session', strictLimiter, scopeExempt('device-credential'), appFlow.authenticatePosDevice, appFlow.createDeviceStaffSession);
 router.post('/:restaurantId/devices/:deviceId/orders', appFlow.authenticateDisplayDevice, scopeExempt('device-credential'), food.createOrder);
 router.get('/:restaurantId/display/queue-board', scopeExempt('public-storefront'), appFlow.getPublicDisplayQueueBoard);
 router.get('/:restaurantId/display/menu', scopeExempt('public-storefront'), food.getRestaurant);
@@ -366,6 +367,9 @@ router.get('/:restaurantId/pos/shifts/:shiftId/drawer-events', requireRestaurant
 router.post('/:restaurantId/pos/shifts/:shiftId/drawer-events', requireRestaurantAccess(), appFlow.recordDrawerEvent);
 router.post('/:restaurantId/pos/staff-pins', requireRestaurantAccess(), appFlow.setStaffPin);
 router.post('/:restaurantId/pos/staff-pins/validate', requireRestaurantAccess(), appFlow.validateStaffPin);
+router.post('/:restaurantId/pos/staff-session', requireRestaurantAccess(), appFlow.createStaffSession);
+router.get('/:restaurantId/pos/staff-session', requireRestaurantAccess(), appFlow.getStaffSession);
+router.delete('/:restaurantId/pos/staff-session', requireRestaurantAccess(), appFlow.endStaffSession);
 router.get('/:restaurantId/pos/receipt-events', requireRestaurantAccess(), pos.listReceiptEvents);
 router.post('/:restaurantId/pos/receipt-events', requireRestaurantAccess(), pos.createReceiptEvent);
 

@@ -5079,7 +5079,19 @@
       "temporarilyClosed": "Temporarily closed"
     },
     "pos": {
-      "creditHoldPlaceholder": "Paste the OxSteed Credit hold ID"
+      "creditHoldPlaceholder": "Paste the OxSteed Credit hold ID",
+      "staffSessionExpired": "Staff session locked after inactivity.",
+      "pinLocked": "Too many failed PIN attempts. PIN entry is locked for a few minutes.",
+      "pinNotMember": "This PIN no longer belongs to an active team member.",
+      "invalidPin": "Invalid staff PIN.",
+      "staffUnlocked": "Unlocked for {{name}}.",
+      "actingAs": "Acting: {{name}}",
+      "switchUser": "Switch user",
+      "lockTerminal": "Lock",
+      "unlockWithPin": "Unlock with staff PIN",
+      "enterStaffPin": "Enter your staff PIN",
+      "staffPinPlaceholder": "Staff PIN",
+      "unlock": "Unlock"
     },
     "restaurant": {
       "promoErrors": {

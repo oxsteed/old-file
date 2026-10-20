@@ -136,9 +136,9 @@ exports.logHours = async (req, res, next) => {
     }
 
     const { rows } = await pool.query(
-      `INSERT INTO business_time_entries (business_id, user_id, entry_date, hours_worked, description)
-       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [businessId, user_id, entry_date || new Date().toISOString().split('T')[0], hours, description || null]
+      `INSERT INTO business_time_entries (business_id, user_id, entry_date, hours_worked, description, approved_by, source)
+       VALUES ($1,$2,$3,$4,$5,$6,'manual') RETURNING *`,
+      [businessId, user_id, entry_date || new Date().toISOString().split('T')[0], hours, description || null, userId]
     );
     // S-16: time entries feed payroll; creating one is an auditable
     // staff action (deletion below was previously unaudited entirely).
@@ -168,6 +168,7 @@ exports.getTimeEntries = async (req, res, next) => {
     const params = [businessId];
     let p = 2;
 
+    conditions.push('te.voided_at IS NULL');
     if (user_id) { conditions.push(`te.user_id = $${p++}`); params.push(user_id); }
     if (from_date) { conditions.push(`te.entry_date >= $${p++}`); params.push(from_date); }
     if (to_date) { conditions.push(`te.entry_date <= $${p++}`); params.push(to_date); }
@@ -181,12 +182,13 @@ exports.getTimeEntries = async (req, res, next) => {
       params
     );
 
-    // Compute total hours per user
+    // Compute total hours per user. Open punches (S-05) carry a NULL
+    // hours_worked until clock-out; they contribute 0 here, not NaN.
     const totalsMap = {};
     for (const row of rows) {
       const key = row.user_id;
       if (!totalsMap[key]) totalsMap[key] = { user_id: key, name: `${row.first_name} ${row.last_name}`, total_hours: 0 };
-      totalsMap[key].total_hours += parseFloat(row.hours_worked);
+      totalsMap[key].total_hours += parseFloat(row.hours_worked) || 0;
     }
 
     res.json({ entries: rows, totals: Object.values(totalsMap), total: rows.length });
@@ -195,40 +197,58 @@ exports.getTimeEntries = async (req, res, next) => {
   }
 };
 
+// S-05: time records are never hard-deleted. This endpoint keeps its
+// route (StaffSchedulingTab calls it) but now voids the entry: the row
+// stays for payroll history with voided_at/voided_by/void_reason set and
+// an append-only audit row in business_time_entry_edits.
 exports.deleteTimeEntry = async (req, res, next) => {
+  const client = await pool.connect();
   try {
     const { businessId, id } = req.params;
     const userId = req.user.id;
 
     if (!(businessScopeSatisfies(req, businessId, 'manager') || await checkAccess(businessId, userId))) return res.status(403).json({ error: 'Access denied' });
 
-    const { rows: existing } = await pool.query(
-      'SELECT id, user_id, entry_date, hours_worked, description FROM business_time_entries WHERE id=$1 AND business_id=$2',
-      [id, businessId]
+    const reason = (req.body?.reason && String(req.body.reason).slice(0, 1000)) || 'Voided via scheduling API';
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `UPDATE business_time_entries
+          SET voided_at = NOW(), voided_by = $1, void_reason = $2
+        WHERE id=$3 AND business_id=$4 AND voided_at IS NULL
+        RETURNING *`,
+      [userId, reason, id, businessId]
     );
-    if (!existing.length) return res.status(404).json({ error: 'Entry not found' });
-
-    const { rows } = await pool.query(
-      'DELETE FROM business_time_entries WHERE id=$1 AND business_id=$2 RETURNING id',
-      [id, businessId]
+    if (!rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Entry not found' });
+    }
+    await client.query(
+      `INSERT INTO business_time_entry_edits (entry_id, business_id, editor_user_id, approved_by, field, old_value, new_value, reason)
+       VALUES ($1,$2,$3,$4,'voided_at',NULL,NOW()::text,$5)`,
+      [id, businessId, userId, userId, reason]
     );
-    if (!rows.length) return res.status(404).json({ error: 'Entry not found' });
-    // S-16: deleting a time entry erases payroll evidence; keep the
-    // before-state in the audit log so the deletion itself is visible.
+    // S-16: voiding a time entry affects payroll evidence; mirror the void
+    // into the business audit log (with the entry's state) so it is visible
+    // in the Team activity view, not only in the entry edit log.
     await logBusinessAction(req, {
       business_id: Number(businessId),
-      action: 'business.time_entry.deleted',
+      action: 'business.time_entry.voided',
       target_type: 'time_entry',
       target_id: id,
       before_state: {
-        user_id: existing[0].user_id,
-        entry_date: existing[0].entry_date,
-        hours_worked: existing[0].hours_worked,
-        description: existing[0].description,
+        user_id: rows[0].user_id,
+        entry_date: rows[0].entry_date,
+        hours_worked: rows[0].hours_worked,
+        description: rows[0].description,
       },
+      after_state: { voided: true, void_reason: reason },
     });
-    res.json({ success: true });
+    await client.query('COMMIT');
+    res.json({ success: true, voided: true, entry: rows[0] });
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     next(err);
+  } finally {
+    client.release();
   }
 };

@@ -5079,7 +5079,19 @@
       "temporarilyClosed": "مغلق مؤقتًا"
     },
     "pos": {
-      "creditHoldPlaceholder": "الصق معرّف حجز OxSteed Credit"
+      "creditHoldPlaceholder": "الصق معرّف حجز OxSteed Credit",
+      "staffSessionExpired": "تم قفل جلسة الموظف بعد فترة من عدم النشاط.",
+      "pinLocked": "محاولات PIN فاشلة كثيرة. تم قفل إدخال PIN لبضع دقائق.",
+      "pinNotMember": "لم يعد هذا الرقم السري يخص عضوًا نشطًا في الفريق.",
+      "invalidPin": "رقم PIN للموظف غير صالح.",
+      "staffUnlocked": "تم الفتح لـ {{name}}.",
+      "actingAs": "يعمل باسم: {{name}}",
+      "switchUser": "تبديل المستخدم",
+      "lockTerminal": "قفل",
+      "unlockWithPin": "الفتح برقم PIN للموظف",
+      "enterStaffPin": "أدخل رقم PIN الخاص بك",
+      "staffPinPlaceholder": "رقم PIN للموظف",
+      "unlock": "فتح"
     },
     "restaurant": {
       "promoErrors": {
