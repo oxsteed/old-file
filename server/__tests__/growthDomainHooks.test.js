@@ -23,8 +23,16 @@ const REQUIRED_HOOKS = {
   "job.completed": { "controllers/jobController.js": 1 },
   "job.cancelled": { "services/jobCancellationService.js": 2 },
   "booking.confirmed": { "services/bookingRequestLifecycle.js": 2 },
-  "booking.requested": { "controllers/bookingController.js": 1 },
-  "booking.cancelled": { "controllers/bookingController.js": 2 },
+  "booking.requested": {
+    "controllers/bookingController.js": 1,
+    "controllers/chatBookingRequestsController.js": 1,
+    "controllers/chatController.js": 1,
+    "controllers/chatQuotesController.js": 1,
+  },
+  "booking.cancelled": {
+    "controllers/bookingController.js": 3,
+    "controllers/agentBookingActions.js": 1,
+  },
   "appointment.booked": {
     "services/directSlotEngine.js": 1,
     "controllers/appointmentController.js": 1,

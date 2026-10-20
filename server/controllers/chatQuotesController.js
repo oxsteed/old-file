@@ -25,6 +25,7 @@ const bookingLifecycle = require('../services/bookingRequestLifecycle');
 const { mirrorLegacyMessage } = require('../services/businessConversationSync');
 const { enqueueConversationMessageNotifications } = require('../services/messageNotificationService');
 const { withTransaction } = require('../utils/transaction');
+const { emitDomainEvent, serviceEventProps } = require('../growth/emit');
 
 
 function bad(res, status, error, code, extra = {}) {
@@ -1203,7 +1204,8 @@ exports.scheduleFromQuote = async (req, res, next) => {
       bookingId = crypto.randomUUID();
       const hours = 24;
       const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
-      const { rows } = await pool.query(
+      const { rows } = await withTransaction(pool, async (client) => {
+        const inserted = await client.query(
         `INSERT INTO booking_requests (
            id, customer_id, helper_id, business_id, service_name, requested_date,
            requested_start_time, requested_end_time, service_location,
@@ -1233,7 +1235,15 @@ exports.scheduleFromQuote = async (req, res, next) => {
           'quote_schedule',
           clientRequestId,
         ],
-      );
+        );
+        if (inserted.rows.length) {
+          await emitDomainEvent(client, 'booking.requested', serviceEventProps({ service_id: quote.service_id }), {
+            userId,
+            req,
+          });
+        }
+        return inserted;
+      }, 'quote_booking_requested_growth');
       booking = rows[0];
       if (!booking && clientRequestId) {
         const replay = await pool.query(

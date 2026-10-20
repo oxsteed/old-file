@@ -34,6 +34,7 @@ const { withTransaction } = require('../utils/transaction');
 const { sendNotification } = require('../services/notificationService');
 const { broadcastToUser } = require('../services/socketService');
 const bookingLifecycle = require('../services/bookingRequestLifecycle');
+const { emitDomainEvent, serviceEventProps } = require('../growth/emit');
 
 // Mirrors the cancellable states of the user-facing flows:
 // customer may cancel pending or accepted; helper may cancel accepted.
@@ -196,6 +197,10 @@ exports.cancelBooking = async (req, res) => {
               JSON.stringify({ reason }),
             ]
           );
+          await emitDomainEvent(client, 'booking.cancelled', serviceEventProps(updatedRow), {
+            userId: updatedRow.customer_id || adminId,
+            req,
+          });
 
           return updatedRow;
         },

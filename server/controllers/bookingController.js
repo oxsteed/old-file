@@ -659,17 +659,29 @@ exports.helperCancelAcceptedBooking = async (req, res) => {
       return sendError(res, 400, 'Only accepted bookings can be cancelled by the helper here');
     }
 
-    const updatedResult = await pool.query(
-      `UPDATE booking_requests
-       SET status = 'accepted_cancelled',
-           helper_response_reason = COALESCE($2, helper_response_reason),
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1 AND status = 'accepted'
-       RETURNING *`,
-      [bookingId, reason || null]
-    );
+    const updatedResult = await withTransaction(pool, async (client) => {
+      const updated = await client.query(
+        `UPDATE booking_requests
+         SET status = 'accepted_cancelled',
+             helper_response_reason = COALESCE($2, helper_response_reason),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1 AND status = 'accepted'
+         RETURNING *`,
+        [bookingId, reason || null]
+      );
+      if (updated.rows.length) {
+        await emitDomainEvent(client, 'booking.cancelled', serviceEventProps(updated.rows[0]), {
+          userId: helperId,
+          req,
+        });
+      }
+      return updated;
+    }, 'booking_helper_cancelled_growth');
 
     const updated = updatedResult.rows[0];
+    if (!updated) {
+      return sendError(res, 400, 'Booking cannot be cancelled', 'booking_not_cancellable');
+    }
 
     // Cancelling an accepted booking must also cancel the confirmed
     // appointment it created (helper or business calendar).

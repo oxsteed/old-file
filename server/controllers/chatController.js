@@ -11,6 +11,7 @@ const { broadcastGuestChatMessage } = socketService;
 const guestProfileVerify = require('../services/guestProfileChatVerification');
 const chatBookingReqCtl = require('./chatBookingRequestsController');
 const bookingLifecycle = require('../services/bookingRequestLifecycle');
+const { emitDomainEvent, serviceEventProps } = require('../growth/emit');
 const { buildProfileAiFailurePayload } = require('../services/profileChatRouting');
 const { withTransaction } = require('../utils/transaction');
 const { canEditProfile } = require('../utils/businessOwnership');
@@ -2271,7 +2272,8 @@ exports.createMessengerGuestBooking = async (req, res, next) => {
       }
       let booking = replayedBooking;
       if (!booking) {
-        const { rows } = await pool.query(
+        const { rows } = await withTransaction(pool, async (client) => {
+          const inserted = await client.query(
           `INSERT INTO booking_requests (
              id, customer_id, helper_id, business_id, service_name, requested_date,
              requested_start_time, requested_end_time, service_location,
@@ -2300,7 +2302,15 @@ exports.createMessengerGuestBooking = async (req, res, next) => {
             timezone || null,
             clientRequestId,
           ]
-        );
+          );
+          if (inserted.rows.length) {
+            await emitDomainEvent(client, 'booking.requested', serviceEventProps({ service_id: serviceId }), {
+              userId: req.user.id,
+              req,
+            });
+          }
+          return inserted;
+        }, 'messenger_booking_requested_growth');
         booking = rows[0] || null;
         if (!booking && clientRequestId) {
           const { rows: replayRows } = await pool.query(
