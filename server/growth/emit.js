@@ -1,5 +1,5 @@
 "use strict";
-const crypto = require("crypto");
+const { v7: uuidv7 } = require("uuid");
 const gate = require("./gate");
 const { validateEvent } = require("./events/validate");
 async function emitDomainEvent(client, name, props, { userId, req } = {}) {
@@ -33,7 +33,7 @@ async function emitDomainEvent(client, name, props, { userId, req } = {}) {
     });
   const event = validateEvent(
     {
-      event_id: crypto.randomUUID(),
+      event_id: uuidv7(),
       name,
       schema_ver: 1,
       occurred_at: new Date().toISOString(),
