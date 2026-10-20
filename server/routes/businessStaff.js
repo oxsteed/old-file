@@ -12,5 +12,8 @@ router.delete('/:businessId/staff/shifts/:shiftId',      requireAuth, requireBus
 router.get   ('/:businessId/staff/time-entries',         requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.listTimeEntries);
 router.post  ('/:businessId/staff/clock-in',             requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.clockIn);
 router.post  ('/:businessId/staff/clock-out/:entryId',   requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.clockOut);
+router.post  ('/:businessId/staff/time-entries/:entryId/break', requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.punchBreak);
+router.patch ('/:businessId/staff/time-entries/:entryId',       requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.editTimeEntry);
+router.post  ('/:businessId/staff/time-entries/:entryId/void',  requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.voidTimeEntry);
 
 module.exports = router;
