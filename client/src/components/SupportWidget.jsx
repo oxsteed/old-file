@@ -4,8 +4,26 @@ import api from '../api/axios';
 import { useTranslation } from 'react-i18next';
 import SpeechToTextInput from './SpeechToTextInput';
 import { useCapabilities } from '../hooks/useCapabilities';
+import { useAuth } from '../context/AuthContext';
+import {
+  chatHistoryKey,
+  chatStorageScope,
+  clearEscalation,
+  ensureEscalationRequest,
+  pruneSupportChatStorage,
+  readEscalation,
+  writeEscalation,
+} from '../lib/supportChatStorage';
+import { createMessageRequestId } from '../lib/messageRequestId';
+import {
+  SUPPORT_CHAT_MAX_IMAGE_BYTES,
+  formatTicketNumberForCopy,
+  isFocusInside,
+  prepareRetry,
+  sendErrorMessageKey,
+} from './supportWidgetState';
 
-const STORAGE_KEY = 'oxsteed_chat_history';
+// History lives under a per-user (or guest) key; see lib/supportChatStorage.
 const MAX_HISTORY = 40;
 // Server-side context window for /chat/message: never send more than this.
 const MAX_CONTEXT_MESSAGES = 12;
@@ -27,9 +45,9 @@ function formatTime(iso, locale) {
   return d.toLocaleTimeString(locale || undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
-function loadHistory() {
+function loadHistory(storageKey) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) return null;
@@ -37,12 +55,12 @@ function loadHistory() {
   } catch { return null; }
 }
 
-function saveHistory(msgs) {
+function saveHistory(storageKey, msgs) {
   try {
     // Gap #3: image data URLs are display-only; persisting them would blow
     // the localStorage quota, so they are stripped from saved history.
     const slim = msgs.slice(-MAX_HISTORY).map(({ image, ...rest }) => rest);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(slim));
+    localStorage.setItem(storageKey, JSON.stringify(slim));
   } catch { /* storage full */ }
 }
 
@@ -194,7 +212,8 @@ function exportTranscript(messages, locale, labels) {
 }
 
 // ── Main widget ───────────────────────────────────────────────────────────────
-function AISupportWidget() {
+function AISupportWidget({ storageScope, signedIn }) {
+  const storageKey = chatHistoryKey(storageScope);
   const location = useLocation();
   const isMediaPage = /^\/media(?:\/|$)/.test(location.pathname);
   const hideOnHelperProfile = isHelperPublicProfilePath(location.pathname);
@@ -202,7 +221,7 @@ function AISupportWidget() {
   const navigate = useNavigate();
 
   // 8. Welcome-back: show different greeting if prior history exists
-  const existingHistory = loadHistory();
+  const [existingHistory] = useState(() => loadHistory(storageKey));
   const initialMsg = existingHistory
     ? { role: 'assistant', content: t('supportWidget.welcomeBack'), ts: new Date().toISOString() }
     : { role: 'assistant', content: t('supportWidget.aiGreeting'), ts: new Date().toISOString() };
@@ -219,9 +238,10 @@ function AISupportWidget() {
   const [pendingImage, setPendingImage] = useState(null);
   const [imageError,   setImageError]   = useState(null);
   const fileInputRef = useRef(null);
-  // Gap #8: one-click handoff state.
+  // Gap #8: one-click handoff state. The handoff record (idempotency key and
+  // ticket number) survives reloads, so one conversation opens one ticket.
   const [escalating,   setEscalating]   = useState(false);
-  const escalatedRef = useRef(false);
+  const [escalation,   setEscalation]   = useState(() => readEscalation(storageScope));
   // Gap #7: suggestion chips follow the page instead of one-size-fits-all.
   const SUGGESTION_KEYS_BY_PATH = [
     { match: (p) => p.startsWith('/post-job'), keys: ['suggestionPostJob', 'suggestionBidding', 'suggestionPayments'] },
@@ -337,8 +357,12 @@ function markProactiveDismissed() {
     return () => clearTimeout(timer);
   }, [open, location.pathname, t]);
 
-  // Persist history
-  useEffect(() => { saveHistory(messages); }, [messages]);
+  // Persist history under this user's (or the guest) key.
+  useEffect(() => { saveHistory(storageKey, messages); }, [storageKey, messages]);
+
+  // Drop the unscoped pre-fix history (it may belong to anyone) and, once
+  // signed in, the guest bucket left by the signed-out session.
+  useEffect(() => { pruneSupportChatStorage(storageScope); }, [storageScope]);
 
   // Custom open event from other components. The event may carry a
   // `detail.prefill` string (e.g. the Learn page's per-step support prompt);
@@ -384,10 +408,12 @@ function markProactiveDismissed() {
     }
   }, [open, minimized]);
 
-  // Escape to close
+  // Escape closes the chat only while focus is inside the widget, so Escape
+  // in another dialog, menu or field on the page never closes it as well.
+  const panelRef = useRef(null);
   useEffect(() => {
     const handler = (e) => {
-      if (e.key === 'Escape' && open) {
+      if (e.key === 'Escape' && open && isFocusInside(panelRef.current, e.target)) {
         markProactiveDismissed();
         setOpen(false);
       }
@@ -410,24 +436,40 @@ function markProactiveDismissed() {
   // Gap #8: one-click handoff that carries the transcript. Signed-in users
   // get a ticket instantly; guests fall back to the escalation page.
   const handleChatEscalation = useCallback(async () => {
-    if (escalating || escalatedRef.current) return;
+    if (escalating) return;
+    const handedOffMessage = (ticketNumber) => ({
+      role: 'assistant',
+      content: ticketNumber
+        ? t('supportWidget.escalatedWithTicket', { ticketNumber: formatTicketNumberForCopy(ticketNumber) })
+        : t('supportWidget.escalated'),
+      ts: new Date().toISOString(),
+    });
+    // Already handed off: repeat the ticket number instead of opening another.
+    if (escalation?.ticketNumber) {
+      setMessages(prev => [...prev, handedOffMessage(escalation.ticketNumber)]);
+      return;
+    }
     setEscalating(true);
+    // Persisted before the request so a reload or retry reuses the same key.
+    const record = ensureEscalationRequest(storageScope, createMessageRequestId);
+    setEscalation(record);
     try {
       const transcript = messages
         .filter(m => !m.handoff && !m.isError)
         .slice(-20)
         .map(m => ({ role: m.role, content: String(m.content || '').slice(0, 1500) }));
-      await api.post('/support/chat-escalation', {
+      const { data } = await api.post('/support/chat-escalation', {
         subject: `Chat escalation from ${window.location.pathname}`,
         transcript,
         page: window.location.pathname,
+        clientRequestId: record.requestId,
+        sender_language: i18n.language || localStorage.getItem('oxs:language') || 'en',
       });
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: t('supportWidget.escalated'),
-        ts: new Date().toISOString(),
-      }]);
-      escalatedRef.current = true;
+      const ticketNumber = data?.ticket_number ?? null;
+      const next = { ...record, ticketNumber };
+      writeEscalation(storageScope, next);
+      setEscalation(next);
+      setMessages(prev => [...prev, handedOffMessage(ticketNumber)]);
     } catch (err) {
       if (err?.response?.status === 401) {
         navigate('/support/escalation');
@@ -442,14 +484,14 @@ function markProactiveDismissed() {
     } finally {
       setEscalating(false);
     }
-  }, [messages, escalating, navigate, t]);
+  }, [messages, escalating, escalation, storageScope, navigate, t, i18n.language]);
 
   // Gap #3: attach a screenshot or photo to the next message.
   const handleImageSelect = useCallback((e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    if (!/^image\/(png|jpe?g|webp)$/.test(file.type) || file.size > 2 * 1024 * 1024) {
+    if (!/^image\/(png|jpe?g|webp)$/.test(file.type) || file.size > SUPPORT_CHAT_MAX_IMAGE_BYTES) {
       setImageError(t('supportWidget.imageTooLarge'));
       return;
     }
@@ -461,36 +503,46 @@ function markProactiveDismissed() {
   }, [t]);
 
   const send = useCallback(async (text, isRetry = false) => {
-    if ((!text.trim() && !pendingImage) || loading) return;
+    if (loading) return;
 
-    // One-shot Learn guide tag: when this send carries the prefill the Learn
-    // page set, tell the server which guide+step it is about so the cached
-    // per-guide AI answer can be served instead of calling the provider again.
-    // Cleared on every send so follow-up messages are never cached.
-    const pendingGuideHelp = guideHelpRef.current;
-    guideHelpRef.current = null;
-    const trimmed = text.trim() || (pendingImage ? '[image]' : '');
-    const guideHelpPayload = (
-      pendingGuideHelp?.guide_id &&
-      pendingGuideHelp.prefill.trim() &&
-      trimmed.startsWith(pendingGuideHelp.prefill.trim())
-    ) ? { guide_help: { guide_id: pendingGuideHelp.guide_id, step: pendingGuideHelp.step ?? 0 } } : {};
+    let updated;
+    let outgoingImage;
+    let guideHelpPayload = {};
+    if (isRetry) {
+      // 5. Retry re-sends the failed message (and its image) in place: only
+      // the error bubble is removed, so the user turn is never duplicated
+      // and the server's repeated-question handoff signal is not tripped.
+      const retry = prepareRetry(messages);
+      if (!retry) return;
+      updated = retry.base;
+      outgoingImage = retry.failedUser.image || null;
+    } else {
+      if (!text.trim() && !pendingImage) return;
 
-    // Gap #3: the image rides on the dedicated field and renders from the
-    // message record; it is never duplicated into the text history.
-    const outgoingImage = pendingImage;
-    const userMsg = { role: 'user', content: trimmed, image: outgoingImage, ts: new Date().toISOString() };
+      // One-shot Learn guide tag: when this send carries the prefill the Learn
+      // page set, tell the server which guide+step it is about so the cached
+      // per-guide AI answer can be served instead of calling the provider again.
+      // Cleared on every send so follow-up messages are never cached.
+      const pendingGuideHelp = guideHelpRef.current;
+      guideHelpRef.current = null;
+      const trimmed = text.trim() || (pendingImage ? '[image]' : '');
+      guideHelpPayload = (
+        pendingGuideHelp?.guide_id &&
+        pendingGuideHelp.prefill.trim() &&
+        trimmed.startsWith(pendingGuideHelp.prefill.trim())
+      ) ? { guide_help: { guide_id: pendingGuideHelp.guide_id, step: pendingGuideHelp.step ?? 0 } } : {};
 
-    // 5. On retry, strip the last error message before re-sending
-    const base = isRetry
-      ? messages.slice(0, -1)
-      : messages;
+      // Gap #3: the image rides on the dedicated field and renders from the
+      // message record; it is never duplicated into the text history.
+      outgoingImage = pendingImage;
+      const userMsg = { role: 'user', content: trimmed, image: outgoingImage, ts: new Date().toISOString() };
+      updated = [...messages, userMsg];
+      setInput('');
+      setPendingImage(null);
+      setImageError(null);
+    }
 
-    const updated = [...base, userMsg];
     setMessages(updated);
-    setInput('');
-    setPendingImage(null);
-    setImageError(null);
     setLoading(true);
     atBottomRef.current = true;
 
@@ -503,8 +555,8 @@ function markProactiveDismissed() {
     try {
       const { data } = await api.post('/chat/message', {
         // Cap the history per turn to the server's context window. The
-        // handoff card is UI chrome, not conversation, so it stays out.
-        messages:    updated.filter(m => !m.handoff).slice(-MAX_CONTEXT_MESSAGES).map(m => ({ role: m.role, content: m.content })),
+        // handoff card and error bubbles are UI chrome, not conversation.
+        messages:    updated.filter(m => !m.handoff && !m.isError).slice(-MAX_CONTEXT_MESSAGES).map(m => ({ role: m.role, content: m.content })),
         images:      outgoingImage ? [outgoingImage] : undefined,
         pageContext,
         language:    localStorage.getItem('oxs:language') || 'en',
@@ -532,13 +584,13 @@ function markProactiveDismissed() {
         // 9. Play ping when window is not focused
         if (!windowFocused.current) playPing();
       }
-    } catch {
+    } catch (err) {
       setMessages(prev => [...prev, {
         role:      'assistant',
-        content:   t('supportWidget.errorMessage'),
+        content:   t(sendErrorMessageKey(err)),
         ts:        new Date().toISOString(),
         isError:   true,
-        retryText: text.trim(), // 5. Store for retry
+        retryable: true, // 5. Retry re-sends the failed message in place
       }]);
     } finally {
       setLoading(false);
@@ -573,7 +625,17 @@ function markProactiveDismissed() {
   const handleClearChat = () => {
     const fresh = [{ ...initialMsg, ts: new Date().toISOString() }];
     setMessages(fresh);
-    saveHistory(fresh);
+    saveHistory(storageKey, fresh);
+    // A cleared conversation is a new conversation: its handoff opens a new ticket.
+    clearEscalation(storageScope);
+    setEscalation(null);
+    // Signed-in users also have server-side memory; clear it so the
+    // assistant does not keep using a conversation the user just erased.
+    if (signedIn) {
+      Promise.resolve()
+        .then(() => api.delete('/chat/support-thread'))
+        .catch(() => { /* best-effort */ });
+    }
   };
 
   const showSuggestions = messages.length <= 1 && !loading;
@@ -614,9 +676,13 @@ function markProactiveDismissed() {
           onClick={isFullScreen ? undefined : (e => { if (e.target === e.currentTarget) { markProactiveDismissed(); setOpen(false); } })}
         >
           <div
+            ref={panelRef}
+            // Focusable container: a click on non-interactive chat content
+            // keeps focus inside the widget, so Escape still closes it.
+            tabIndex={-1}
             className={isFullScreen
-              ? 'w-full h-full bg-gray-900 flex flex-col'
-              : 'pointer-events-auto bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-sm flex flex-col transition-all'
+              ? 'w-full h-full bg-gray-900 flex flex-col focus:outline-none'
+              : 'pointer-events-auto bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-sm flex flex-col transition-all focus:outline-none'
             }
             style={isFullScreen ? {} : { maxHeight: minimized ? 'auto' : '82vh' }}
           >
@@ -749,7 +815,8 @@ function markProactiveDismissed() {
                               >
                                 {escalating ? t('supportWidget.escalating') : t('supportWidget.handoffTitle')}
                               </button>
-                              <span className="text-[10px] text-gray-600">{formatTime(m.ts)}</span>                            </div>
+                              <span className="text-[10px] text-gray-600">{formatTime(m.ts, i18n.language)}</span>
+                            </div>
                           </div>
                         ) : (
                         <>
@@ -777,12 +844,12 @@ function markProactiveDismissed() {
 
                         {/* Meta row: timestamp + actions */}
                         <div className={`flex items-center gap-2 flex-wrap ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                          <span className="text-[10px] text-gray-600">{formatTime(m.ts)}</span>
+                          <span className="text-[10px] text-gray-600">{formatTime(m.ts, i18n.language)}</span>
 
                           {/* 5. Retry button on error */}
-                          {m.isError && m.retryText && (
+                          {m.isError && m.retryable && i === messages.length - 1 && (
                             <button
-                              onClick={() => send(m.retryText, true)}
+                              onClick={() => send('', true)}
                               className="text-[10px] text-orange-400 hover:text-orange-300 transition flex items-center gap-1"
                             >
                               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -987,6 +1054,7 @@ export default function SupportWidget() {
   const isMediaPage = /^\/media(?:\/|$)/.test(pathname);
   const { t } = useTranslation();
   const { isAvailable, loading } = useCapabilities();
+  const { user, loading: authLoading } = useAuth();
 
   if (loading) return null;
   if (!isAvailable('aiSupport')) {
@@ -1002,5 +1070,9 @@ export default function SupportWidget() {
     );
   }
 
-  return <AISupportWidget />;
+  // Wait for auth so history is never read from or written to the wrong
+  // user's key. Keying by scope remounts the widget on login/logout.
+  if (authLoading) return null;
+  const scope = chatStorageScope(user);
+  return <AISupportWidget key={scope} storageScope={scope} signedIn={Boolean(user)} />;
 }

@@ -2,6 +2,7 @@ import api from './axios';
 import { createAdminChallengeHandler } from './adminChallenge.mjs';
 import { withCrossTabRefreshLock } from './authRefreshCoordinator';
 import { isTransientRefreshFailure } from './authRefreshPolicy';
+import { clearSupportChatStorage } from '../lib/supportChatStorage';
 
 const ACCESS_TOKEN_KEY = 'accessToken';
 const REFRESH_TOKEN_KEY = 'refreshToken';
@@ -35,6 +36,9 @@ function clearStoredSession() {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  // Support chat history can quote balances and payouts; never leave it for
+  // the next person on a shared device.
+  clearSupportChatStorage();
   delete api.defaults.headers.common.Authorization;
 }
 

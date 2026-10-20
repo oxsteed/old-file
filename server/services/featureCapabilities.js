@@ -1,5 +1,7 @@
 'use strict';
 
+const { isSupportChatProviderConfigured } = require('./supportChatProviders');
+
 function present(name) {
   return typeof process.env[name] === 'string' && process.env[name].trim().length > 0;
 }
@@ -20,14 +22,10 @@ function getPublicCapabilities() {
     backgroundChecks: capability(
       present('CHECKR_API_KEY') && present('CHECKR_WEBHOOK_SECRET')
     ),
-    // The AI support chat tries Meta -> OpenRouter -> Ollama, so it is available
-    // when any provider is configured, not just the legacy OpenAI key.
-    aiSupport: capability(
-      present('OPENAI_API_KEY') ||
-      present('META_AI_API_KEY') ||
-      present('OPENROUTER_API_KEY') ||
-      present('OLLAMA_URL')
-    ),
+    // The AI support chat calls OpenRouter -> Ollama only (Meta and OpenAI
+    // were removed), so it is available exactly when one of those can answer.
+    // An OLLAMA_URL the chat would reject (non-allowlisted host) does not count.
+    aiSupport: capability(isSupportChatProviderConfigured()),
     geocoding: capability(present('GOOGLE_MAPS_API_KEY')),
   };
 }

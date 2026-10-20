@@ -24,6 +24,8 @@ const { sendNotification } = require('../services/notificationService');
 const { enqueueConversationMessageNotifications } = require('../services/messageNotificationService');
 const redis = require('../utils/redis');
 const { getCachedGuideReply, setCachedGuideReply } = require('../services/guideHelpCache');
+const { MAX_IMAGE_BASE64_CHARS } = require('../constants/supportChatLimits');
+const { resolveOllamaUrl } = require('../services/supportChatProviders');
 
 function isUuid(value) {
   return typeof value === 'string'
@@ -63,33 +65,8 @@ function getLanguageInstruction(code) {
   return `\n\n## Language Requirement\nThe user has selected ${name} as their preferred language. You MUST respond entirely in ${name} for all your replies, regardless of what language the user writes in. Only switch languages if the user explicitly asks you to.`;
 }
 
-// Validate OLLAMA_URL at startup to prevent SSRF via misconfigured env
-const OLLAMA_URL = (() => {
-  const raw = process.env.OLLAMA_URL || '';
-  if (!raw) return '';
-  try {
-    const u = new URL(raw);
-    const allowedHosts = [
-      'localhost',
-      '127.0.0.1',
-      '::1',
-      'ollama-api',
-      'ollama-api-p116fo3uwyxytib7ph3yleei',
-    ];
-    if (!['http:', 'https:'].includes(u.protocol)) {
-      logger.warn('[Chat] OLLAMA_URL has unsupported protocol - ignoring', { url: raw });
-      return '';
-    }
-    if (!allowedHosts.includes(u.hostname)) {
-      logger.warn('[Chat] OLLAMA_URL hostname is not localhost - ignoring to prevent SSRF', { hostname: u.hostname });
-      return '';
-    }
-    return raw;
-  } catch {
-    logger.warn('[Chat] OLLAMA_URL is not a valid URL - ignoring', { url: raw });
-    return '';
-  }
-})();
+// Validate OLLAMA_URL at startup to prevent SSRF via misconfigured env.
+const OLLAMA_URL = resolveOllamaUrl(process.env.OLLAMA_URL, logger);
 
 const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const OPENROUTER_CHAT_MODEL = process.env.OPENROUTER_CHAT_MODEL
@@ -167,14 +144,13 @@ async function fetchOllamaChat(messages, options) {
 }
 
 /**
- * Multi-provider fallback: Meta (Muse Spark) → OpenRouter → Ollama.
- * Meta is only attempted when options.allowMeta is true: Meta tokens must
- * never be spent on unauthenticated requests, so anonymous callers get the
- * free-tier chain (OpenRouter → Ollama) with identical UX.
+ * Multi-provider fallback: OpenRouter → Ollama. These are the only providers
+ * the chat paths call; services/supportChatProviders mirrors this chain for
+ * the `aiSupport` capability.
  * @param {Array<{role:string,content:string}>} messages - full message list including system
  * @param {object} ollamaOptions - passed to Ollama `options` (temperature, num_predict, etc.)
  * @param {string} logTag - prefix for structured logs e.g. '[Chat]' or '[ProfileChat]'
- * @param {object} options - reserved for future use
+ * @param {object} options - { openRouterModel } overrides the OpenRouter model (vision turns)
  */
 async function callWithFallback(messages, ollamaOptions, logTag, options = {}) {
   const openRouterModel = options.openRouterModel || OPENROUTER_CHAT_MODEL;
@@ -218,11 +194,25 @@ async function callWithFallback(messages, ollamaOptions, logTag, options = {}) {
  */
 const HANDOFF_NEGATIVE_SIGNALS = /\b(frustrat|annoy|angry|upset|terrible|awful|horrible|useless|stupid|hate|worst|disappoint|complain|speak to (a )?human|real person|live agent|talk to (a )?(person|someone|human)|not helping|doesn'?t work|still not working|give up|escalat)/i;
 
+function normalizeHandoffText(message) {
+  return message.toLowerCase().replace(/\s+/g, ' ').slice(0, 300);
+}
+
 function shouldSuggestHandoff(history) {
-  const userMessages = history
-    .filter((m) => m.role === 'user')
-    .map((m) => String(m.content || '').trim())
-    .filter(Boolean);
+  // Consecutive identical user turns with no assistant reply between them
+  // are retries of a failed send, not a user repeating themselves, so they
+  // collapse into one turn before any signal is evaluated.
+  const userMessages = [];
+  let previous = null;
+  for (const m of history) {
+    if (m.role !== 'user') { previous = null; continue; }
+    const text = String(m.content || '').trim();
+    if (!text) continue;
+    const normalized = normalizeHandoffText(text);
+    if (previous === normalized) continue;
+    userMessages.push(text);
+    previous = normalized;
+  }
   // Same signal as checkNeedsHandoff: more than a few back-and-forth turns.
   if (userMessages.length > 3) return true;
   // Negative sentiment in the recent user turns.
@@ -230,7 +220,7 @@ function shouldSuggestHandoff(history) {
   // Repeated question: the same normalized message sent more than once.
   const seen = new Set();
   for (const message of userMessages) {
-    const normalized = message.toLowerCase().replace(/\s+/g, ' ').slice(0, 300);
+    const normalized = normalizeHandoffText(message);
     if (seen.has(normalized)) return true;
     seen.add(normalized);
   }
@@ -306,7 +296,7 @@ exports.chatMessage = async (req, res, next) => {
     // balances, payout, disputes, jobs and tickets so money answers cite
     // real values instead of guessing. Each section fails open.
     if (req.user?.id) {
-      const snapshot = await getSupportAccountSnapshot(req.user.id);
+      const snapshot = await getSupportAccountSnapshot(req.user.id, { language });
       const formatted = formatSnapshotForAI(snapshot);
       if (formatted) systemPrompt += `\n\n${formatted}`;
     }
@@ -319,8 +309,9 @@ exports.chatMessage = async (req, res, next) => {
       for (const img of images.slice(0, 1)) {
         const m = typeof img === 'string'
           && /^data:image\/(png|jpe?g|webp);base64,([A-Za-z0-9+/=]+)$/.exec(img);
-        // ~2.8M base64 chars ~= 2MB; larger images are ignored, not rejected.
-        if (m && m[2].length <= 2800000) { visionImageUrl = img; break; }
+        // MAX_IMAGE_BASE64_CHARS matches the 2 MB client limit; larger images
+        // are ignored, not rejected.
+        if (m && m[2].length <= MAX_IMAGE_BASE64_CHARS) { visionImageUrl = img; break; }
       }
     }
 
@@ -404,10 +395,8 @@ exports.chatMessage = async (req, res, next) => {
         repeat_penalty: 1.1,
       },
       '[Chat]',
-      // Meta tokens are never spent on unauthenticated requests: anonymous
-      // callers get the free-tier chain with the same UX.
       // Vision turns use the vision-capable model instead of the text model.
-      { allowMeta: Boolean(req.user), openRouterModel: visionImageUrl ? OPENROUTER_VISION_MODEL : undefined }
+      { openRouterModel: visionImageUrl ? OPENROUTER_VISION_MODEL : undefined }
     );
 
     if (!ai.ok) {
@@ -432,6 +421,21 @@ exports.chatMessage = async (req, res, next) => {
     }
 
     res.json({ reply: ai.reply, handoff_suggested: handoffSuggested });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * DELETE /api/chat/support-thread
+ * Clears the caller's server-side AI support memory. Identity comes from the
+ * session only, so a user can only clear their own thread.
+ */
+exports.clearSupportThread = async (req, res, next) => {
+  try {
+    if (!req.user?.id) throw new AppError('Sign in required', 401, 'unauthorized');
+    await supportChatThreads.clearSupportThread(req.user.id);
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }
@@ -489,9 +493,7 @@ ${getLanguageInstruction(language)}`;
         top_p: 0.9,
         repeat_penalty: 1.1,
       },
-      '[FinancialAdvisor]',
-      // Route requires authentication, so the Meta-first chain is allowed.
-      { allowMeta: true }
+      '[FinancialAdvisor]'
     );
 
     if (!ai.ok) {
@@ -1116,9 +1118,7 @@ exports.profileChatMessage = async (req, res, next) => {
     const ai = await callWithFallback(
       ollamaMessages,
       { temperature: 0.6, num_predict: 350, top_p: 0.9 },
-      '[ProfileChat]',
-      // Same rule as the main chat path: Meta tokens only for signed-in users.
-      { allowMeta: Boolean(userId) }
+      '[ProfileChat]'
     );
 
     if (!ai.ok) {
@@ -2277,3 +2277,4 @@ exports.createMessengerGuestBooking = async (req, res, next) => {
 };
 
 exports.createAiBookingFromAction = createAiBookingFromAction;
+exports._shouldSuggestHandoff = shouldSuggestHandoff;

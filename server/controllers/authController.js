@@ -18,6 +18,7 @@ const { validate, rules } = require('../utils/validate');
 const countriesUtil = require('../utils/countries');
 const { isSignupPasswordValid } = require('../utils/signupValidation');
 const logger = require('../utils/logger');
+const supportChatThreads = require('../services/supportChatThreads');
 const tokenRevocationService = require('../services/tokenRevocationService');
 const { AppError } = require('../middleware/errorHandler');
 const { assertRegistrationsOpen } = require('../middleware/maintenanceGate'); // Review P3-7-F07
@@ -1075,6 +1076,11 @@ async function logout(req, res) {
     // Revoke all user tokens on logout
     if (userId) {
       await tokenRevocationService.revokeAllUserTokens(userId);
+    }
+
+    // AI support chat memory ends with the session (never throws).
+    if (userId) {
+      await supportChatThreads.clearSupportThread(userId);
     }
 
     // H8d: drop the httpOnly refresh cookie so the browser session ends even

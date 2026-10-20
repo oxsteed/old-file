@@ -11,6 +11,7 @@ const {
   financialAdvisor,
   transcribeAudio,
   getProfileContext,
+  clearSupportThread,
 } = require('../controllers/chatController');
 const { chatLimiter, profileChatLimiter, authLimiter, paymentsLimiter } = require('../middleware/rateLimiter');
 const { authenticate, optionalAuth: sharedOptionalAuth } = require('../middleware/auth');
@@ -19,6 +20,7 @@ const checkRestrictions = require('../middleware/checkRestrictions');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const logger = require('../utils/logger');
+const pool = require('../db');
 
 // Preserve verified guest-profile sessions, then delegate normal authentication
 // to the shared optionalAuth implementation. The shared middleware accepts both
@@ -64,9 +66,14 @@ const optionalAuth = async (req, res, next) => {
 };
 
 // Public - no auth required for support chat. optionalAuth attaches req.user
-// when a valid web cookie or Bearer token is present so signed-in users keep
-// the Meta-first provider chain; anonymous requests skip Meta entirely.
+// when a valid web cookie or Bearer token is present, so signed-in users get
+// their account snapshot and server-side thread memory. Every caller uses the
+// same OpenRouter -> Ollama provider chain.
 router.post('/message', chatLimiter, optionalAuth, chatMessage);
+
+// DELETE /api/chat/support-thread - clear the signed-in user's server-side
+// AI support memory ("Clear conversation" in the widget).
+router.delete('/support-thread', chatLimiter, authenticate, clearSupportThread);
 
 // POST /api/chat/financial-advisor
 // Personalized financial advice - requires authentication

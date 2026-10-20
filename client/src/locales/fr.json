@@ -11205,7 +11205,9 @@
     "attachImage": "Joindre une capture ou une photo",
     "removeImage": "Retirer l'image",
     "imageTooLarge": "Cette image est trop lourde. Choisissez-en une de moins de 2 Mo.",
+    "requestTooLarge": "Ce message était trop volumineux pour être envoyé. Joignez une image de moins de 2 Mo ou raccourcissez votre message, puis réessayez.",
     "escalated": "C'est fait. Le support a votre conversation et vous recontactera par e-mail.",
+    "escalatedWithTicket": "C'est fait. Le support a votre conversation sous le ticket {{ticketNumber}} et vous recontactera par e-mail.",
     "escalateFailed": "Impossible de joindre le support pour le moment. Veuillez réessayer.",
     "escalating": "Transfert en cours..."
   },

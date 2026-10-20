@@ -28,12 +28,58 @@ async function safeSection(name, fn) {
   }
 }
 
-function centsToDollars(cents) {
-  return (Number(cents) / 100).toFixed(2);
+// The widget's five locales map to full Intl locales; anything Intl cannot
+// format falls back to English so a balance is never dropped.
+const SNAPSHOT_LOCALES = { en: 'en-US', es: 'es', fr: 'fr', ht: 'fr-HT', ar: 'ar' };
+
+function resolveSnapshotLocale(language) {
+  const code = typeof language === 'string' ? language.trim() : '';
+  const candidate = SNAPSHOT_LOCALES[code.toLowerCase()] || code || 'en-US';
+  try {
+    return Intl.NumberFormat.supportedLocalesOf([candidate]).length ? candidate : 'en-US';
+  } catch {
+    return 'en-US';
+  }
 }
 
-async function getSupportAccountSnapshot(userId) {
+/**
+ * Formats a minor-unit amount (cents for USD) in its own currency for the
+ * user's locale, e.g. "$12.50", "12,50 €", "US$12.50". Uses the currency's
+ * real minor-unit exponent (JPY has none). Never prefixes "$" onto a
+ * non-dollar currency; an unknown code falls back to "<amount> <CODE>".
+ */
+function formatMinorAmount(minor, currencyCode, language) {
+  const currency = String(currencyCode || 'USD').trim().toUpperCase() || 'USD';
+  const locale = resolveSnapshotLocale(language);
+  const value = Number(minor);
+  if (!Number.isFinite(value)) return null;
+  try {
+    const formatter = new Intl.NumberFormat(locale, { style: 'currency', currency });
+    const digits = formatter.resolvedOptions().maximumFractionDigits;
+    return formatter.format(value / 10 ** digits);
+  } catch {
+    return `${(value / 100).toFixed(2)} ${currency}`;
+  }
+}
+
+// Customer jobs that are still live. jobs.status is the job_status enum
+// (draft, published, matched, negotiating, accepted, in_progress, completed,
+// cancelled, closed); the ::text cast keeps the filter valid if 'expired' is
+// ever added. A published job past expires_at was never picked up: expired.
+const ACTIVE_CUSTOMER_JOBS_SQL = `SELECT COUNT(*)::int AS n
+         FROM jobs
+        WHERE client_id = $1
+          AND deleted_at IS NULL
+          AND status::text NOT IN ('draft', 'expired', 'completed', 'cancelled', 'closed')
+          AND NOT (status::text = 'published' AND expires_at IS NOT NULL AND expires_at <= NOW())`;
+
+/**
+ * @param {string} userId
+ * @param {{ language?: string }} [options] language selects number/currency formatting
+ */
+async function getSupportAccountSnapshot(userId, options = {}) {
   if (!userId) return null;
+  const language = options.language;
   const snapshot = {};
 
   // OxSteed Credit wallet balance.
@@ -46,7 +92,9 @@ async function getSupportAccountSnapshot(userId) {
       [userId]
     );
     if (!rows.length) return null;
-    return { balance: `$${centsToDollars(rows[0].balance_cents)}`, currency: rows[0].currency_code || 'USD' };
+    const balance = formatMinorAmount(rows[0].balance_cents, rows[0].currency_code, language);
+    if (!balance) return null;
+    return { balance, currency: String(rows[0].currency_code || 'USD').toUpperCase() };
   });
 
   // Latest payout request (the "where is my payout" question).
@@ -61,7 +109,8 @@ async function getSupportAccountSnapshot(userId) {
     if (!rows.length) return null;
     const p = rows[0];
     return {
-      amount: `$${centsToDollars(p.amount_cents)}`,
+      amount: formatMinorAmount(p.amount_cents, p.currency_code, language),
+      currency: String(p.currency_code || 'USD').toUpperCase(),
       method: p.payout_method,
       status: p.status,
       requested: p.requested_at,
@@ -80,14 +129,9 @@ async function getSupportAccountSnapshot(userId) {
     return Number(rows[0]?.n || 0);
   });
 
-  // Active jobs where the user is the customer.
+  // Active jobs where the user is the customer (no drafts, expired or deleted).
   snapshot.activeJobs = await safeSection('activeJobs', async () => {
-    const { rows } = await query(
-      `SELECT COUNT(*)::int AS n
-         FROM jobs
-        WHERE client_id = $1 AND status NOT IN ('completed', 'cancelled', 'closed')`,
-      [userId]
-    );
+    const { rows } = await query(ACTIVE_CUSTOMER_JOBS_SQL, [userId]);
     return Number(rows[0]?.n || 0);
   });
 
@@ -113,12 +157,14 @@ function formatSnapshotForAI(snapshot) {
   if (!snapshot) return '';
   const lines = [];
   if (snapshot.credit) {
-    lines.push(`- OxSteed Credit balance: ${snapshot.credit.balance} ${snapshot.credit.currency}`);
+    // The formatted amount already carries its currency symbol; the ISO
+    // code is added in parentheses so "$" is never ambiguous.
+    lines.push(`- OxSteed Credit balance: ${snapshot.credit.balance} (${snapshot.credit.currency})`);
   }
   if (snapshot.latestPayout) {
     const p = snapshot.latestPayout;
     lines.push(
-      `- Latest payout: ${p.amount} via ${p.method}, status ${p.status}, requested ${p.requested}` +
+      `- Latest payout: ${p.amount}${p.currency ? ` (${p.currency})` : ''} via ${p.method}, status ${p.status}, requested ${p.requested}` +
       (p.processed ? `, processed ${p.processed}` : '')
     );
   }
@@ -138,4 +184,10 @@ function formatSnapshotForAI(snapshot) {
   );
 }
 
-module.exports = { getSupportAccountSnapshot, formatSnapshotForAI };
+module.exports = {
+  getSupportAccountSnapshot,
+  formatSnapshotForAI,
+  formatMinorAmount,
+  resolveSnapshotLocale,
+  ACTIVE_CUSTOMER_JOBS_SQL,
+};

@@ -95,6 +95,87 @@ function notifyUser(userId, event, data) {
   try { socketService.broadcastToUser(userId, event, data); } catch { /* socket not ready */ }
 }
 
+// Ticket languages accepted on support_messages.sender_language. The first
+// message's language drives localized ticket emails for guests.
+const SUPPORT_TICKET_LANGUAGES = ['en', 'es', 'fr', 'ht', 'ar', 'de', 'it', 'pt', 'nl', 'pl', 'ja', 'zh'];
+
+function safeSupportLanguage(value) {
+  const code = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  return SUPPORT_TICKET_LANGUAGES.includes(code) ? code : 'en';
+}
+
+/**
+ * Post-commit side effects for a newly created ticket, shared by the support
+ * form and the AI chat handoff so both reach staff the same way: in-app/push
+ * notifications, the requester confirmation email, the admin socket
+ * broadcast, admin emails and Customer 360 watchers. Never throws.
+ */
+async function announceNewSupportTicket({ ticket, userId, name, email, messageId, body, title }) {
+  try {
+    scheduleSupportMessageNotifications({
+      ticketId: ticket.id,
+      messageId,
+      body,
+      title,
+    });
+  } catch (err) {
+    logger.warn('Failed to schedule new-ticket notifications', { err: err.message, ticketId: ticket.id });
+  }
+
+  // Confirmation email to the user
+  // ADM-033: escape the guest-supplied name/subject before embedding in HTML.
+  sendEmail({
+    to: email,
+    subject: `[Ticket #${ticket.ticket_number}] We received your support request`,
+    html: `
+        <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;">
+          <h2 style="color:#ea580c;">OxSteed Support</h2>
+          <p>Hi ${escapeHtml(name)},</p>
+          <p>We've received your support request and a member of our team will be in touch soon.</p>
+          <table style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;width:100%;margin:16px 0;">
+            <tr><td style="color:#6b7280;width:140px;">Ticket number</td>
+                <td style="font-weight:bold;">#${ticket.ticket_number}</td></tr>
+            <tr><td style="color:#6b7280;">Subject</td>
+                <td>${escapeHtml(ticket.subject)}</td></tr>
+            <tr><td style="color:#6b7280;">Priority</td>
+                <td style="text-transform:capitalize;">${escapeHtml(ticket.priority)}</td></tr>
+          </table>
+          <p style="color:#6b7280;font-size:13px;">
+            Keep this email - ticket #${ticket.ticket_number} is your reference if you need to follow up.
+          </p>
+        </div>`,
+  }).catch(() => { /* non-fatal */ });
+
+  // Real-time broadcast to all admin sockets
+  notifyAdmins('support:new_ticket', {
+    ticket_id:     ticket.id,
+    ticket_number: ticket.ticket_number,
+    subject:       ticket.subject,
+    name:          ticket.name,
+    priority:      ticket.priority,
+    created_at:    ticket.created_at,
+  });
+  // Email every admin/super_admin about the new ticket
+  emailAdminsNewTicket(ticket).catch(() => { /* logged internally */ });
+
+  logger.info('Support ticket created', {
+    ticketId: ticket.id, ticketNumber: ticket.ticket_number,
+  });
+
+  // Customer 360 watchlist: notify watching admins (best-effort, skip guests).
+  if (userId) {
+    try {
+      const { notifyWatchers } = require('./customer360Controller');
+      await notifyWatchers({
+        targetUserIds: [String(userId)],
+        eventType: 'ticket',
+        refId: ticket.id,
+        title: ticket.subject,
+      });
+    } catch (watchErr) { /* never fail the response */ }
+  }
+}
+
 function isUuid(value) {
   return typeof value === 'string'
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -232,8 +313,7 @@ exports.submitSupportRequest = async (req, res, next) => {
     }
 
     // Validate and sanitize language code.
-    const allowedLanguages = ['en', 'es', 'fr', 'ht', 'ar', 'de', 'it', 'pt', 'nl', 'pl', 'ja', 'zh'];
-    const safeLanguage = allowedLanguages.includes(sender_language?.toLowerCase?.()) ? sender_language.toLowerCase() : 'en';
+    const safeLanguage = safeSupportLanguage(sender_language);
 
     const client = await db.connect();
     try {
@@ -298,65 +378,15 @@ exports.submitSupportRequest = async (req, res, next) => {
 
     await client.query('COMMIT');
 
-    scheduleSupportMessageNotifications({
-      ticketId: ticket.id,
+    await announceNewSupportTicket({
+      ticket,
+      userId,
+      name: name.trim(),
+      email: email.trim(),
       messageId: messageRows[0]?.id,
       body: message,
       title: 'New support request',
     });
-
-    // Confirmation email to the user
-    // ADM-033: escape the guest-supplied name/subject before embedding in HTML.
-    sendEmail({
-      to: email.trim(),
-      subject: `[Ticket #${ticket.ticket_number}] We received your support request`,
-      html: `
-        <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;">
-          <h2 style="color:#ea580c;">OxSteed Support</h2>
-          <p>Hi ${escapeHtml(name.trim())},</p>
-          <p>We've received your support request and a member of our team will be in touch soon.</p>
-          <table style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;width:100%;margin:16px 0;">
-            <tr><td style="color:#6b7280;width:140px;">Ticket number</td>
-                <td style="font-weight:bold;">#${ticket.ticket_number}</td></tr>
-            <tr><td style="color:#6b7280;">Subject</td>
-                <td>${escapeHtml(ticket.subject)}</td></tr>
-            <tr><td style="color:#6b7280;">Priority</td>
-                <td style="text-transform:capitalize;">${escapeHtml(ticket.priority)}</td></tr>
-          </table>
-          <p style="color:#6b7280;font-size:13px;">
-            Keep this email - ticket #${ticket.ticket_number} is your reference if you need to follow up.
-          </p>
-        </div>`,
-    }).catch(() => { /* non-fatal */ });
-
-    // Real-time broadcast to all admin sockets
-    notifyAdmins('support:new_ticket', {
-      ticket_id:     ticket.id,
-      ticket_number: ticket.ticket_number,
-      subject:       ticket.subject,
-      name:          ticket.name,
-      priority:      ticket.priority,
-      created_at:    ticket.created_at,
-    });
-    // Email every admin/super_admin about the new ticket
-    emailAdminsNewTicket(ticket).catch(() => { /* logged internally */ });
-
-    logger.info('Support ticket created', {
-      ticketId: ticket.id, ticketNumber: ticket.ticket_number,
-    });
-
-    // Customer 360 watchlist: notify watching admins (best-effort, skip guests).
-    if (userId) {
-      try {
-        const { notifyWatchers } = require('./customer360Controller');
-        await notifyWatchers({
-          targetUserIds: [String(userId)],
-          eventType: 'ticket',
-          refId: ticket.id,
-          title: ticket.subject,
-        });
-      } catch (watchErr) { /* never fail the response */ }
-    }
 
       return res.status(201).json({
         ticket_id:     ticket.id,
@@ -390,6 +420,18 @@ exports.createChatEscalation = async (req, res, next) => {
     if (!userId) throw new AppError('Sign in required', 401, 'unauthorized');
 
     const { subject, transcript, page } = req.body || {};
+    // Idempotency: the widget keeps one clientRequestId per conversation in
+    // localStorage, so a double click, a retry or a reload never opens a
+    // second high-priority ticket for the same handoff.
+    const clientRequestId = req.get('Idempotency-Key')
+      || req.body?.clientRequestId
+      || req.body?.client_request_id
+      || null;
+    if (clientRequestId && !isUuid(clientRequestId)) {
+      throw new AppError('clientRequestId must be a valid UUID', 400, 'validation_failed');
+    }
+    const senderLanguage = safeSupportLanguage(req.body?.sender_language ?? req.body?.language);
+
     const turns = Array.isArray(transcript) ? transcript.slice(-20) : [];
     const transcriptText = turns
       .map((t) => {
@@ -410,46 +452,86 @@ exports.createChatEscalation = async (req, res, next) => {
     if (!email) throw new AppError('Account email is required', 400, 'validation_failed');
 
     const client = await db.connect();
+    let ticket;
+    let messageId;
     try {
       await client.query('BEGIN');
       const ticketRes = await client.query(
         `INSERT INTO support_tickets
-           (user_id, name, email, subject, category, priority, status, source, metadata, sla_due_at)
-         VALUES ($1, $2, $3, $4, 'chat_escalation', 'high', 'open', 'widget', $5::jsonb,
+           (user_id, name, email, subject, category, priority, status, source, client_request_id, metadata, sla_due_at)
+         VALUES ($1, $2, $3, $4, 'chat_escalation', 'high', 'open', 'widget', $5, $6::jsonb,
                  NOW() + INTERVAL '4 hours')
-         RETURNING id, ticket_number`,
+         ON CONFLICT (client_request_id)
+         WHERE client_request_id IS NOT NULL DO NOTHING
+         RETURNING *`,
         [
           userId,
           name,
           email,
           String(subject || 'Chat escalation').slice(0, 500),
+          clientRequestId,
           JSON.stringify({
             page: typeof page === 'string' ? page.slice(0, 200) : null,
             transcript: transcriptText || '(no transcript captured)',
+            language: senderLanguage,
           }),
         ]
       );
-      const ticket = ticketRes.rows[0];
-      await client.query(
+      ticket = ticketRes.rows[0];
+      if (!ticket && clientRequestId) {
+        // Replay: return the ticket this handoff already opened. Scoped to
+        // the caller so a guessed id never reveals someone else's ticket.
+        const replay = await client.query(
+          'SELECT id, ticket_number, user_id FROM support_tickets WHERE client_request_id = $1',
+          [clientRequestId]
+        );
+        await client.query('COMMIT');
+        const existing = replay.rows[0];
+        if (!existing || String(existing.user_id) !== String(userId)) {
+          throw new AppError('Chat handoff retry could not be recovered', 409, 'escalation_retry_failed');
+        }
+        return res.status(200).json({
+          ticket_id: existing.id,
+          ticket_number: existing.ticket_number,
+          replayed: true,
+          message: 'Your chat was already handed off to support.',
+        });
+      }
+      const messageRes = await client.query(
         `INSERT INTO support_messages
            (ticket_id, sender_id, sender_name, sender_email, content,
-            sender_language, is_internal, is_from_admin)
-         VALUES ($1, $2, $3, $4, $5, 'en', false, false)`,
-        [ticket.id, userId, name, email, transcriptText || '(no transcript captured)']
+            sender_language, is_internal, is_from_admin, client_message_id)
+         VALUES ($1, $2, $3, $4, $5, $6, false, false, $7)
+         RETURNING id`,
+        [ticket.id, userId, name, email, transcriptText || '(no transcript captured)', senderLanguage, clientRequestId]
       );
+      messageId = messageRes.rows[0]?.id;
       await client.query('COMMIT');
-      return res.status(201).json({
-        ticket_id: ticket.id,
-        ticket_number: ticket.ticket_number,
-        message: 'Handed off to support with your chat attached.',
-      });
     } catch (err) {
-      await client.query('ROLLBACK');
+      await client.query('ROLLBACK').catch(() => {});
+      if (err instanceof AppError) throw err;
       logger.error('Failed to create chat escalation', { err });
       throw new AppError('Failed to hand off to support', 500, 'escalation_failed');
     } finally {
       client.release();
     }
+
+    // Same staff notifications and confirmation email as the support form.
+    await announceNewSupportTicket({
+      ticket,
+      userId,
+      name,
+      email,
+      messageId,
+      body: transcriptText || '(no transcript captured)',
+      title: 'Chat handed off to support',
+    });
+
+    return res.status(201).json({
+      ticket_id: ticket.id,
+      ticket_number: ticket.ticket_number,
+      message: 'Handed off to support with your chat attached.',
+    });
   } catch (error) {
     next(error);
   }
