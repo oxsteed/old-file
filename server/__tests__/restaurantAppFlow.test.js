@@ -724,7 +724,7 @@ describe('restaurant app-flow backend', () => {
       .mockResolvedValueOnce({ rows: [{ id: 55, restaurant_id: RESTAURANT_ID, status: 'open', staff_user_id: USER_ID }] })
       .mockResolvedValueOnce({ rows: [accessRow()] })
       .mockResolvedValueOnce({ rows: [{ id: 11, name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }] })
-      .mockResolvedValueOnce({ rows: [{ next_queue: 12 }] })
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 12 }] })
       .mockResolvedValueOnce({
         rows: [{
           id: ORDER_ID,
@@ -774,7 +774,7 @@ describe('restaurant app-flow backend', () => {
           options: [{ id: 91, name: 'Extra Cheese', price_delta_cents: 200, is_available: true }],
         }],
       }] })
-      .mockResolvedValueOnce({ rows: [{ next_queue: 14 }] })
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 14 }] })
       .mockResolvedValueOnce({
         rows: [{
           id: ORDER_ID,
@@ -1173,7 +1173,8 @@ describe('restaurant app-flow backend', () => {
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, restaurant_id: RESTAURANT_ID, business_id: BUSINESS_ID, status: 'received', payment_status: 'unpaid', order_source: 'counter', fulfillment_type: 'pickup', currency_code: 'USD', metadata: {} }] })
       .mockResolvedValueOnce({ rows: [{ payment_count: 0 }] })
       .mockResolvedValueOnce({ rows: [{ id: 201, line_total_cents: 500, order_item_count: 2 }] })
-      .mockResolvedValueOnce({ rows: [{ next_queue: 13 }] })
+      .mockResolvedValueOnce({ rows: [{ timezone: 'UTC' }] })
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 13 }] })
       .mockResolvedValueOnce({ rows: [{ id: 101, queue_number: 13 }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
