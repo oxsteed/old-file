@@ -19,6 +19,7 @@ const checkRestrictions = require('../middleware/checkRestrictions');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const logger = require('../utils/logger');
+const pool = require('../db');
 
 // Preserve verified guest-profile sessions, then delegate normal authentication
 // to the shared optionalAuth implementation. The shared middleware accepts both
