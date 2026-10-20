@@ -17,6 +17,30 @@ const escapeHtml = require('../utils/escapeHtml');
 const { transitionTicket } = require('../services/supportTicketLifecycleService');
 const { ticketEmail } = require('../utils/supportTicketEmail');
 const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
+const { MAX_IMAGE_BASE64_CHARS } = require('../constants/supportChatLimits');
+
+const HANDOFF_IMAGE_RE = /^data:image\/(png|jpe?g|webp);base64,([A-Za-z0-9+/=]+)$/;
+
+/** Decode the optional chat screenshot (same rules as /api/chat/message). */
+function decodeHandoffImage(dataUrl) {
+  if (typeof dataUrl !== 'string') return null;
+  const m = HANDOFF_IMAGE_RE.exec(dataUrl);
+  if (!m || m[2].length > MAX_IMAGE_BASE64_CHARS) return null;
+  const ext = m[1] === 'jpg' ? 'jpeg' : m[1];
+  return { buffer: Buffer.from(m[2], 'base64'), mime: `image/${ext}`, filename: `chat-screenshot.${ext === 'jpeg' ? 'jpg' : ext}` };
+}
+
+/** Read-only account summary for staff (never blocks the handoff). */
+async function handoffSnapshotSummary(userId, language) {
+  try {
+    const { getSupportAccountSnapshot, formatSnapshotForAI } = require('../services/supportAccountSnapshot');
+    const snap = await getSupportAccountSnapshot(userId, { language });
+    return formatSnapshotForAI(snap).slice(0, 4000);
+  } catch (err) {
+    logger.warn('chat handoff snapshot failed', { err: err.message });
+    return '';
+  }
+}
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -447,6 +471,11 @@ exports.createChatEscalation = async (req, res, next) => {
       [userId]
     );
     const u = urows[0] || {};
+    // Item 3: the handoff carries the page, a read-only account summary and
+    // the screenshot the user attached in chat, so staff never re-ask.
+    const pagePath = typeof page === 'string' ? page.slice(0, 200) : null;
+    const image = decodeHandoffImage(req.body?.image);
+    const snapshotSummary = await handoffSnapshotSummary(userId, senderLanguage);
     const name = `${u.first_name || ''} ${u.last_name || ''}`.trim() || 'OxSteed user';
     const email = (u.email || '').trim().toLowerCase();
     if (!email) throw new AppError('Account email is required', 400, 'validation_failed');
@@ -471,9 +500,10 @@ exports.createChatEscalation = async (req, res, next) => {
           String(subject || 'Chat escalation').slice(0, 500),
           clientRequestId,
           JSON.stringify({
-            page: typeof page === 'string' ? page.slice(0, 200) : null,
+            page: pagePath,
             transcript: transcriptText || '(no transcript captured)',
             language: senderLanguage,
+            snapshot_summary: snapshotSummary || null,
           }),
         ]
       );
@@ -506,6 +536,17 @@ exports.createChatEscalation = async (req, res, next) => {
         [ticket.id, userId, name, email, transcriptText || '(no transcript captured)', senderLanguage, clientRequestId]
       );
       messageId = messageRes.rows[0]?.id;
+      // Staff-only context note: page, account summary, screenshot flag.
+      const contextLines = [`Chat handoff context`, `Page: ${pagePath || '(unknown)'}`];
+      if (snapshotSummary) contextLines.push('', snapshotSummary);
+      if (image) contextLines.push('', 'The user attached a screenshot in chat (see Handoff screenshot).');
+      await client.query(
+        `INSERT INTO support_messages
+           (ticket_id, sender_id, sender_name, sender_email, content,
+            sender_language, is_internal, is_from_admin)
+         VALUES ($1, NULL, 'OxSteed AI', NULL, $2, $3, true, false)`,
+        [ticket.id, contextLines.join('\n').slice(0, 5000), senderLanguage]
+      );
       await client.query('COMMIT');
     } catch (err) {
       await client.query('ROLLBACK').catch(() => {});
@@ -514,6 +555,23 @@ exports.createChatEscalation = async (req, res, next) => {
       throw new AppError('Failed to hand off to support', 500, 'escalation_failed');
     } finally {
       client.release();
+    }
+
+    // The screenshot is stored after commit (a replay never re-uploads it)
+    // and linked from the ticket metadata; staff get a signed URL.
+    if (image) {
+      try {
+        const { uploadFile } = require('../utils/storage');
+        const key = await uploadFile(image.buffer, 'support-tickets', image.filename, image.mime);
+        await db.query(
+          `UPDATE support_tickets
+              SET metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('image_key', $2::text, 'image_mime', $3::text)
+            WHERE id = $1`,
+          [ticket.id, key, image.mime]
+        );
+      } catch (err) {
+        logger.warn('chat handoff image upload failed', { err: err.message, ticketId: ticket.id });
+      }
     }
 
     // Same staff notifications and confirmation email as the support form.
@@ -842,7 +900,19 @@ exports.getTicketAdmin = async (req, res) => {
       [req.params.ticketId]
     );
 
-    return res.json({ ticket, messages: msgs });
+    // Chat handoff screenshot (item 3): short-lived signed link for staff.
+    let handoffImageUrl = null;
+    const imageKey = ticket?.metadata && typeof ticket.metadata === 'object' ? ticket.metadata.image_key : null;
+    if (typeof imageKey === 'string' && imageKey) {
+      try {
+        const { getSignedDownloadUrl } = require('../utils/storage');
+        handoffImageUrl = await getSignedDownloadUrl(imageKey, 60 * 60);
+      } catch (err) {
+        logger.warn('chat handoff image url failed', { err: err.message });
+      }
+    }
+
+    return res.json({ ticket, messages: msgs, handoff_image_url: handoffImageUrl });
   } catch (err) {
     if (err && err.code === 'SCOPE_UNAVAILABLE') {
       return res.status(err.statusCode || 503).json({
