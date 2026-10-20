@@ -1142,7 +1142,7 @@ These get the builder, evidence, alerts, region filtering and nightly snapshots 
 | In-app offer card click-through | ≥ 2% of impressions |
 | Push click-through (taps that open the offer, web + updated apps) | ≥ 4% of delivered |
 | Offer-push opt-in rate (of people shown the prompt) | ≥ 20% |
-| Offer opt-outs per campaign (push or in-app turned off) | < 0.5%; auto-pause a campaign above 1% |
+| Offer opt-outs per campaign (push or in-app turned off) | < 0.5%; auto-pause a campaign above 1% (owner-ratified 2026-10-20: the rule fires only once a campaign has at least 100 delivered, so a single opt-out in a tiny send cannot pause it) |
 | Push device loss (users disabling OS notifications for OxSteed entirely after an offer push) | no measurable rise vs. 30-day baseline; any rise pauses push campaigns for review |
 | Offer email CTR, unsubscribes, complaints (Phase 8) | ≥ 3%; < 0.5%; < 0.1% (auto-pause at 0.1%, provider ceiling 0.3%) |
 | Holdout lift on conversions | positive and significant on ≥ 50% of campaigns with holdout |

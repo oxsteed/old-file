@@ -249,7 +249,8 @@ async function autoPause(fence) {
     const stats = await campaigns.optOutStats(fence.db, row.id);
     // Spec 21.3: auto-pause above 1% offer opt-outs. The 100-delivered
     // floor keeps a single opt-out in a tiny send from pausing a campaign
-    // on noise; the rate itself is the spec rule.
+    // on noise (the spec names no floor; the floor was ratified by the
+    // owner on 2026-10-20 and recorded in design-spec.md 21.1).
     if (stats.delivered >= 100 && stats.rate > 0.01) {
       const { rowCount } = await fence.db.query(
         `UPDATE offer_campaigns SET status='paused', updated_at=NOW()
