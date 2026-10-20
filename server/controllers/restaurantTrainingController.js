@@ -309,14 +309,18 @@ exports.assignModule = async (req, res, next) => {
        RETURNING *, (xmax = 0) AS inserted`,
       [moduleId, restaurantId, userId, req.user.id, dueAt || null]
     );
-    // S-12: assignment used to be silent; notify the staff member when the
-    // assignment is (re)opened for them.
-    if (assignment.status !== 'completed') {
+    // S-12 + S-17: assignment used to be silent; notify the staff member
+    // when the assignment is (re)opened for them, via the lifecycle helper
+    // (idempotent, recertification-aware). Type + params (S-19) ride in the
+    // notification data so clients render it localized. Not sent when a
+    // manager assigns a module to themselves.
+    if (assignment.status !== 'completed' && String(userId) !== String(req.user.id)) {
       await notifyTrainingAssigned(userId, {
         assignmentId: assignment.id,
         moduleId,
         moduleTitle: module.title,
         restaurantId,
+        restaurantName: restaurant.display_name,
         dueAt: assignment.due_at,
         recertification: !assignment.inserted,
       });

@@ -1,6 +1,6 @@
 // Shared OxSteed Food UI bits. The logo is the same OxSteed mark used in the
 // main navbar - the Food experience reuses the brand identity by design.
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export function FoodLogo({ size = 32 }) {
@@ -32,6 +32,39 @@ export function FoodBrand({ size = 32, label }) {
       <FoodLogo size={size} />
       <span className="fd-brand-food">{resolvedLabel}</span>
     </span>
+  );
+}
+
+// Real confirmation dialog for destructive food-surface actions (S-24:
+// no window.confirm). Rendered conditionally by the caller; Escape and
+// overlay clicks cancel. Labels are passed already translated.
+export function ConfirmDialog({ title, message, confirmLabel, cancelLabel, onConfirm, onCancel }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onCancel(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onCancel]);
+
+  return (
+    <div
+      className="fd-ops-modal-overlay"
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+    >
+      <div className="fd-ops-modal fd-ops-modal--narrow" role="alertdialog" aria-modal="true" aria-label={title}>
+        <div className="fd-ops-modal-head">
+          <h3>{title}</h3>
+        </div>
+        {message && <p className="fd-card-meta">{message}</p>}
+        <div className="fd-ops-modal-actions">
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onCancel}>
+            {cancelLabel}
+          </button>
+          <button type="button" className="fd-btn fd-btn-sm" onClick={onConfirm} autoFocus>
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

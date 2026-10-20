@@ -9799,6 +9799,28 @@
     "referredPeople": "Personas que has referido"
   },
   "notifications": {
+    "staff": {
+      "crew_task_assigned": {
+        "title": "Nueva tarea asignada",
+        "body": "{{taskTitle}} en {{restaurantName}}"
+      },
+      "training_assigned": {
+        "title": "Nueva capacitación asignada",
+        "body": "{{moduleTitle}} en {{restaurantName}}"
+      },
+      "crew_shift_published": {
+        "title": "Nuevo turno publicado",
+        "body": "{{shiftLabel}} · {{startsAt}} en {{restaurantName}}"
+      },
+      "crew_shift_cancelled": {
+        "title": "Turno cancelado",
+        "body": "{{shiftLabel}} · {{startsAt}} en {{restaurantName}}"
+      },
+      "restaurant_announcement": {
+        "title": "Anuncio de {{restaurantName}}",
+        "body": "{{announcementTitle}}"
+      }
+    },
     "title": "Preferencias de Notificaciones",
     "subtitle": "Elige cómo y cuándo recibes notificaciones",
     "backToSettings": "Volver a Configuración",
@@ -22931,6 +22953,60 @@
       "paused": "Pausado",
       "suspended": "Suspendido"
     },
+    "myShift": {
+      "title": "Mi turno",
+      "subtitle": "Anuncios, tu horario, tareas, listas de verificación y capacitación de este restaurante.",
+      "announcements": "Anuncios",
+      "announcementsEmpty": "Aún no hay anuncios.",
+      "announcementTitleLabel": "Título",
+      "announcementBodyLabel": "Detalles",
+      "postAnnouncement": "Publicar anuncio",
+      "announcementPosted": "Anuncio publicado",
+      "acknowledge": "Confirmar lectura",
+      "acknowledged": "Confirmado",
+      "ackCount": "{{count}} confirmaciones",
+      "schedule": "Mi horario",
+      "scheduleEmpty": "No hay turnos en el tablero por ahora.",
+      "shiftStatus": {
+        "scheduled": "Programado",
+        "open": "Abierto",
+        "closed": "Cerrado",
+        "cancelled": "Cancelado"
+      },
+      "tasks": "Mis tareas",
+      "tasksEmpty": "No tienes tareas asignadas por ahora.",
+      "taskStatus": {
+        "not_started": "Sin empezar",
+        "in_progress": "En curso",
+        "needs_approval": "Necesita aprobación",
+        "completed": "Completada",
+        "cancelled": "Cancelada"
+      },
+      "taskPriority": {
+        "low": "Baja",
+        "normal": "Normal",
+        "high": "Alta",
+        "urgent": "Urgente"
+      },
+      "startTask": "Empezar",
+      "completeTask": "Marcar hecha",
+      "submitForApproval": "Enviar para aprobación",
+      "waitingApproval": "Esperando aprobación",
+      "addProof": "Añadir prueba",
+      "proofUploaded": "Prueba subida",
+      "proofRequired": "Añade una foto de prueba antes de enviar esta tarea.",
+      "photoProof": "Se requiere foto de prueba",
+      "dueAt": "Vence el {{date}}",
+      "checklists": "Listas para ejecutar",
+      "training": "Mi capacitación",
+      "sops": "Procedimientos",
+      "logbook": "Libro de registro del gerente",
+      "logbookEmpty": "Aún no hay entradas en el libro.",
+      "logbookLabel": "Nota del turno",
+      "logbookPlaceholder": "¿Qué debe saber el próximo turno?",
+      "addLogbookEntry": "Añadir entrada",
+      "logbookAdded": "Entrada añadida"
+    },
     "merchant": {
       "title": "Panel del restaurante",
       "oxsteedPayReplacesQr": "Tu enlace de pago QR de OxSteed se muestra a los clientes aquí en lugar de la imagen QR subida.",
@@ -22963,7 +23039,8 @@
         "settings": "Configuración",
         "operations": "Operaciones",
         "payouts": "Pagos",
-        "displays": "Pantallas"
+        "displays": "Pantallas",
+        "myshift": "Mi turno"
       },
       "liveOrders": "Pedidos en vivo",
       "noOrders": "No hay pedidos activos ahora.",

@@ -49,6 +49,7 @@ const { createLinkedSupportTicket } = require('../services/supportTicketLinkServ
 const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
 const { getClientRequestId } = require('../utils/idempotency');
 const { notifyRefundIssued } = require('../services/refundNotification');
+const { sendNotification } = require('../services/notificationService');
 const { resolveOrderItemModifiers } = require('./foodController');
 const { isItemAvailableAt } = require('../utils/menuDayparts');
 const { calculateRoute: calculateGeoRoute } = require('../services/geoRouteProviderService');
@@ -6748,6 +6749,29 @@ async function validateCrewAssignee(restaurantId, assignedTo) {
   return assignedTo;
 }
 
+// S-17: fan a team notification out to every active member of the
+// restaurant's business (plus the business owner), except the actor.
+// Notifications carry type + params (S-19) so clients translate them;
+// sendNotification never throws, and this guard keeps a notification
+// outage from failing the underlying crew write.
+async function notifyRestaurantTeam(restaurant, excludeUserId, payload) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT bm.member_id AS user_id FROM business_members bm
+        WHERE bm.business_id = $1 AND bm.status = 'active' AND bm.member_id IS NOT NULL
+       UNION
+       SELECT b.user_id AS user_id FROM businesses b WHERE b.id = $1`,
+      [restaurant.business_id]
+    );
+    const recipients = rows
+      .map((r) => r.user_id)
+      .filter((id) => id && String(id) !== String(excludeUserId));
+    await Promise.all(recipients.map((userId) => sendNotification({ userId, ...payload })));
+  } catch (_) {
+    // Notification fan-out is best-effort; the crew write already succeeded.
+  }
+}
+
 exports.listCrewShifts = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
@@ -6812,6 +6836,22 @@ exports.createCrewShift = async (req, res, next) => {
        RETURNING *`,
       [restaurantId, label, startsAt, endsAt, normalizeString(req.body.notes, 2000), req.user.id]
     );
+    // S-17: a new shift on the board notifies the team.
+    await notifyRestaurantTeam(restaurant, req.user.id, {
+      type: 'crew_shift_published',
+      title: `New shift at ${restaurant.display_name}`,
+      body: label,
+      action_url: '/restaurants/merchant?tab=myshift',
+      data: {
+        restaurantId,
+        shiftId: shift.id,
+        params: {
+          restaurantName: restaurant.display_name,
+          shiftLabel: label,
+          startsAt: new Date(shift.starts_at).toISOString(),
+        },
+      },
+    });
     res.status(201).json({ shift });
   } catch (err) {
     next(err);
@@ -6860,6 +6900,24 @@ exports.updateCrewShift = async (req, res, next) => {
       [normalizeString(req.body.label, 160), startsAt, endsAt,
         normalizeString(req.body.notes, 2000), status, req.user.id, restaurantId, shiftId]
     );
+    // S-17: a cancelled shift notifies the team so nobody shows up for it.
+    if (status === 'cancelled' && existing.status !== 'cancelled') {
+      await notifyRestaurantTeam(restaurant, req.user.id, {
+        type: 'crew_shift_cancelled',
+        title: `Shift cancelled at ${restaurant.display_name}`,
+        body: shift.label,
+        action_url: '/restaurants/merchant?tab=myshift',
+        data: {
+          restaurantId,
+          shiftId: shift.id,
+          params: {
+            restaurantName: restaurant.display_name,
+            shiftLabel: shift.label,
+            startsAt: new Date(shift.starts_at).toISOString(),
+          },
+        },
+      });
+    }
     res.json({ shift });
   } catch (err) {
     next(err);
@@ -6987,6 +7045,26 @@ exports.createCrewTask = async (req, res, next) => {
       );
       return created;
     }, 'restaurant_crew_task_create');
+    // S-17: the assignee hears about a new task right away (type + params,
+    // S-19). Not sent when a manager assigns a task to themselves.
+    if (task.assigned_to && String(task.assigned_to) !== String(req.user.id)) {
+      await sendNotification({
+        userId: task.assigned_to,
+        type: 'crew_task_assigned',
+        title: `New task at ${restaurant.display_name}`,
+        body: task.title,
+        action_url: '/restaurants/merchant?tab=myshift',
+        emailChannel: false,
+        data: {
+          restaurantId,
+          taskId: task.id,
+          params: {
+            restaurantName: restaurant.display_name,
+            taskTitle: task.title,
+          },
+        },
+      });
+    }
     res.status(201).json({ task });
   } catch (err) {
     next(err);

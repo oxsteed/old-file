@@ -4856,8 +4856,86 @@
       }
     }
   },
+  "notifications": {
+    "staff": {
+      "crew_task_assigned": {
+        "title": "New task assigned",
+        "body": "{{taskTitle}} at {{restaurantName}}"
+      },
+      "training_assigned": {
+        "title": "New training assigned",
+        "body": "{{moduleTitle}} at {{restaurantName}}"
+      },
+      "crew_shift_published": {
+        "title": "New shift posted",
+        "body": "{{shiftLabel}} · {{startsAt}} at {{restaurantName}}"
+      },
+      "crew_shift_cancelled": {
+        "title": "Shift cancelled",
+        "body": "{{shiftLabel}} · {{startsAt}} at {{restaurantName}}"
+      },
+      "restaurant_announcement": {
+        "title": "Announcement from {{restaurantName}}",
+        "body": "{{announcementTitle}}"
+      }
+    }
+  },
   "food": {
-    "merchant": { "timezone": "Time zone", "timezoneHint": "Used for opening hours, daily queue numbers, and reports.", "locationEdit": "Edit", "locationSaveChanges": "Save changes", "locationStatus": "Status", "locationActive": "Active", "locationPaused": "Paused", "locationClosed": "Closed", "locationUpdated": "Location updated", "locationMakePrimary": "Make this the primary location", "locationName": "Location name", "addLocation": "Add location", "locationCreated": "Location added", "locationError": "Could not save location", "findCoordinates": "Find coordinates", "locationGeocodeEmpty": "Could not find coordinates for this location", "locationGeocoded": "Coordinates found", "locationGeocodeError": "Could not find coordinates" },
+    "myShift": {
+      "title": "My shift",
+      "subtitle": "Announcements, your schedule, tasks, checklists and training for this restaurant.",
+      "announcements": "Announcements",
+      "announcementsEmpty": "No announcements yet.",
+      "announcementTitleLabel": "Title",
+      "announcementBodyLabel": "Details",
+      "postAnnouncement": "Post announcement",
+      "announcementPosted": "Announcement posted",
+      "acknowledge": "Acknowledge",
+      "acknowledged": "Acknowledged",
+      "ackCount": "{{count}} acknowledged",
+      "schedule": "My schedule",
+      "scheduleEmpty": "No shifts on the board right now.",
+      "shiftStatus": {
+        "scheduled": "Scheduled",
+        "open": "Open",
+        "closed": "Closed",
+        "cancelled": "Cancelled"
+      },
+      "tasks": "My tasks",
+      "tasksEmpty": "No tasks assigned to you right now.",
+      "taskStatus": {
+        "not_started": "Not started",
+        "in_progress": "In progress",
+        "needs_approval": "Needs approval",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "taskPriority": {
+        "low": "Low",
+        "normal": "Normal",
+        "high": "High",
+        "urgent": "Urgent"
+      },
+      "startTask": "Start",
+      "completeTask": "Mark done",
+      "submitForApproval": "Submit for approval",
+      "waitingApproval": "Waiting for approval",
+      "addProof": "Add proof",
+      "proofUploaded": "Proof uploaded",
+      "proofRequired": "Add a photo proof before submitting this task.",
+      "photoProof": "Photo proof required",
+      "dueAt": "Due {{date}}",
+      "checklists": "Checklists to run",
+      "training": "My training",
+      "sops": "SOPs",
+      "logbook": "Manager log book",
+      "logbookEmpty": "No log book entries yet.",
+      "logbookLabel": "Shift note",
+      "logbookPlaceholder": "What should the next shift know?",
+      "addLogbookEntry": "Add entry",
+      "logbookAdded": "Log entry added"
+    },
+    "merchant": { "timezone": "Time zone", "timezoneHint": "Used for opening hours, daily queue numbers, and reports.", "locationEdit": "Edit", "locationSaveChanges": "Save changes", "locationStatus": "Status", "locationActive": "Active", "locationPaused": "Paused", "locationClosed": "Closed", "locationUpdated": "Location updated", "locationMakePrimary": "Make this the primary location", "locationName": "Location name", "addLocation": "Add location", "locationCreated": "Location added", "locationError": "Could not save location", "findCoordinates": "Find coordinates", "locationGeocodeEmpty": "Could not find coordinates for this location", "locationGeocoded": "Coordinates found", "locationGeocodeError": "Could not find coordinates" , "tab": { "myshift": "My shift" } },
     "creditCenter": {
       "recentFallback": "Recently",
       "oxsteedCustomer": "OxSteed customer",

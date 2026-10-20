@@ -20,6 +20,7 @@ import {
   acknowledgeSop, listSopAcknowledgements,
 } from '../../api/restaurants';
 import { submitTrainingQuizOffline } from '../../api/restaurantsOffline';
+import { ConfirmDialog } from './foodShared';
 
 function apiErr(err, fallback) {
   const m = err?.response?.data?.error?.message || err?.response?.data?.message;
@@ -78,6 +79,7 @@ export function TrainingPanel({ t, restaurant, bare, onStats, isManager }) {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null); // null | 'new' | module
   const [taking, setTaking] = useState(null); // { assignment, module, step: 'lesson'|'quiz'|'result', result }
+  const [confirmDelete, setConfirmDelete] = useState(null); // module pending delete confirmation
 
   const load = useCallback(() => {
     setLoading(true);
@@ -113,9 +115,9 @@ export function TrainingPanel({ t, restaurant, bare, onStats, isManager }) {
   };
 
   const remove = async (moduleId) => {
-    if (!window.confirm(t('restaurants.ops.training.confirmDelete', 'Delete this training module?'))) return;
     try {
       await deleteTrainingModule(restaurantId, moduleId);
+      setConfirmDelete(null);
       load();
     } catch (err) {
       toast.error(apiErr(err, t('common.failedToDelete', 'Failed to delete')));
@@ -165,6 +167,16 @@ export function TrainingPanel({ t, restaurant, bare, onStats, isManager }) {
         )}
       </div>
 
+      {confirmDelete && (
+        <ConfirmDialog
+          title={t('restaurants.ops.training.confirmDelete')}
+          confirmLabel={t('common.delete')}
+          cancelLabel={t('food.common.cancel')}
+          onConfirm={() => remove(confirmDelete.id)}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+
       {isManager ? (
         <ManagerTraining
           t={t}
@@ -173,7 +185,7 @@ export function TrainingPanel({ t, restaurant, bare, onStats, isManager }) {
           assignments={assignments}
           completions={completions}
           onEdit={setEditing}
-          onDelete={remove}
+          onDelete={(moduleId) => setConfirmDelete(modules.find((m) => m.id === moduleId) || { id: moduleId })}
           onAssigned={load}
         />
       ) : (
@@ -964,7 +976,7 @@ function TrainingFlow({ t, restaurantId, taking, setTaking, onDone }) {
       return (
         <div>
           <h3 className="fd-ops-form-title">{t('restaurants.ops.training.resultTitle', 'Quiz result')}</h3>
-          <p className="fd-ops-notice">
+          <p className="fd-ops-notice" role="status" aria-live="polite">
             {t('restaurants.ops.offline.queued', 'Saved offline. Will sync when back online.')}
           </p>
           <div className="fd-settings-actions">
@@ -978,18 +990,20 @@ function TrainingFlow({ t, restaurantId, taking, setTaking, onDone }) {
     return (
       <div>
         <h3 className="fd-ops-form-title">{t('restaurants.ops.training.resultTitle', 'Quiz result')}</h3>
-        <p className={`fd-ops-notice${passed ? '' : ' fd-ops-notice--warn'}`}>
-          {passed
-            ? t('restaurants.ops.training.resultPassed', 'You passed. Nice work.')
-            : t('restaurants.ops.training.resultFailed', 'Not quite. Review the lesson and try again.')}
-        </p>
-        <p className="fd-card-meta">
-          {t('restaurants.ops.training.yourScore', 'Your score: {{score}}%', { score: scorePct ?? 0 })}
-          {' · '}
-          {t('restaurants.ops.training.passNeeded', 'Pass mark: {{pct}}%', { pct: threshold ?? 0 })}
-          {!passed && taking.result?.attemptsRemaining != null && ` · ${t('restaurants.ops.training.attemptsRemaining', { count: taking.result.attemptsRemaining })}`}
-          {passed && taking.result?.expiresAt && ` · ${t('restaurants.ops.training.validUntil', { date: fmtDate(taking.result.expiresAt) })}`}
-        </p>
+<div role="status" aria-live="polite">
+          <p className={`fd-ops-notice${passed ? '' : ' fd-ops-notice--warn'}`}>
+            {passed
+              ? t('restaurants.ops.training.resultPassed', 'You passed. Nice work.')
+              : t('restaurants.ops.training.resultFailed', 'Not quite. Review the lesson and try again.')}
+          </p>
+          <p className="fd-card-meta">
+            {t('restaurants.ops.training.yourScore', 'Your score: {{score}}%', { score: scorePct ?? 0 })}
+            {' · '}
+            {t('restaurants.ops.training.passNeeded', 'Pass mark: {{pct}}%', { pct: threshold ?? 0 })}
+            {!passed && taking.result?.attemptsRemaining != null && ` · ${t('restaurants.ops.training.attemptsRemaining', { count: taking.result.attemptsRemaining })}`}
+            {passed && taking.result?.expiresAt && ` · ${t('restaurants.ops.training.validUntil', { date: fmtDate(taking.result.expiresAt) })}`}
+          </p>
+        </div>
         <div className="fd-settings-actions">
           <button type="button" className="fd-btn fd-btn-sm" onClick={close} data-track="ui.2265f208ce.20">
             {t('restaurants.ops.training.done', 'Done')}
