@@ -45,6 +45,19 @@ const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/stora
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
 const { nextQueueNumber } = require('../services/restaurantQueueCounter');
 const { getEffectivePermissions } = require('../services/permissionsService');
+const {
+  POS_VOID_REASON_CODES,
+  POS_COMP_REASON_CODES,
+  staffPinDigest,
+  validateStaffPinForRestaurant,
+  createStaffSession,
+  staffSessionTokenFromRequest,
+  resolveStaffSession,
+  endStaffSession,
+  resolveActingStaff,
+  consumeManagerApproval,
+  linkApproval,
+} = require('../services/restaurantStaffIdentityService');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
 const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
 const { getClientRequestId } = require('../utils/idempotency');
@@ -322,12 +335,14 @@ async function insertPosReceiptAudit(client, {
   reason = null,
   metadata = {},
   idempotencyKey = null,
+  actingStaffUserId = null,
 }) {
   const { rows: [event] } = await client.query(
     `INSERT INTO restaurant_pos_receipt_events
        (restaurant_id, food_order_id, queue_number, guest_name, total_cents,
-        payment_status, channel, event_type, reason, metadata, idempotency_key, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12)
+        payment_status, channel, event_type, reason, metadata, idempotency_key, created_by,
+        acting_staff_user_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13)
      ON CONFLICT (restaurant_id, idempotency_key)
        WHERE idempotency_key IS NOT NULL
      DO NOTHING
@@ -345,6 +360,7 @@ async function insertPosReceiptAudit(client, {
       JSON.stringify(safeJson(metadata)),
       idempotencyKey,
       createdBy,
+      actingStaffUserId,
     ]
   );
   return event || null;
@@ -3245,6 +3261,11 @@ exports.openShift = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    // S-07: opening a cash drawer is a POS capability, not a side effect
+    // of membership. Representatives and support agents hold restaurant
+    // access but no pos.use, and previously could open a drawer in their
+    // own name.
+    await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage']);
     const staffUserId = req.body.staffUserId || req.body.staff_user_id || req.user.id;
     if (!MANAGE_ROLES.has(restaurant.effective_role) && String(staffUserId) !== String(req.user.id)) {
       throw new AppError('Only a manager can open a shift for another staff member', 403, 'forbidden');
@@ -3544,36 +3565,77 @@ exports.recordDrawerEvent = async (req, res, next) => {
       throw new AppError('Validation failed', 400, 'validation_failed', { eventType: 'Unsupported drawer event type' });
     }
     const amountCents = parseCents(req.body.amountCents ?? req.body.amount_cents, 'amountCents');
-    const { rows: [event] } = await pool.query(
-       `WITH checked_shift AS (
-         SELECT id
-           FROM restaurant_pos_shifts
-          WHERE id = $1
-            AND restaurant_id = $2
-            AND status = 'open'
-            AND (staff_user_id = $9 OR $10 = TRUE)
-       )
-       INSERT INTO restaurant_pos_drawer_events
-         (restaurant_id, shift_id, event_type, amount_cents, reason, note, metadata, created_by)
-       SELECT $2, id, $3, $4, $5, $6, $7::jsonb, $8
-         FROM checked_shift
-       RETURNING *`,
-      [
-        shiftId,
-        restaurantId,
-        eventType,
-        amountCents,
-        normalizeString(req.body.reason, 160),
-        normalizeString(req.body.note, 1000),
-        JSON.stringify(safeJson(req.body.metadata)),
-        req.user.id,
-        req.user.id,
-        MANAGE_ROLES.has(restaurant.effective_role),
-      ]
-    );
-    if (!event) throw new AppError('Shift not found', 404, 'shift_not_found');
-    broadcastRestaurant(restaurant, 'food:pos:drawer:event', { event });
-    res.status(201).json({ event });
+    const actingStaff = await resolveActingStaff(req, restaurantId);
+    // S-07: cash leaving the drawer without a sale (payout, cash-out) and
+    // opening it without a transaction (no-sale) need a manager-PIN
+    // approval above the restaurant's thresholds. The approval row is
+    // written on the same transaction as the event and linked to it, so
+    // a refused or rolled-back event leaves no orphan approval.
+    const approvalAction = eventType === 'payout'
+      ? 'payout'
+      : eventType === 'cash_out'
+        ? 'cash_out'
+        : eventType === 'no_sale'
+          ? 'no_sale'
+          : null;
+    const result = await withTransaction(pool, async (client) => {
+      let approval = null;
+      if (approvalAction) {
+        approval = await consumeManagerApproval({
+          client,
+          restaurant,
+          req,
+          action: approvalAction,
+          amountCents,
+          shiftId,
+          actingStaff,
+        });
+      }
+      const metadata = {
+        ...safeJson(req.body.metadata),
+        ...(approval ? { approvalId: approval.id } : {}),
+      };
+      const { rows: [event] } = await client.query(
+         `WITH checked_shift AS (
+           SELECT id
+             FROM restaurant_pos_shifts
+            WHERE id = $1
+              AND restaurant_id = $2
+              AND status = 'open'
+              AND (staff_user_id = $9 OR $10 = TRUE)
+         )
+         INSERT INTO restaurant_pos_drawer_events
+           (restaurant_id, shift_id, event_type, amount_cents, reason, note, metadata, created_by, acting_staff_user_id)
+         SELECT $2, id, $3, $4, $5, $6, $7::jsonb, $8, $11
+           FROM checked_shift
+         RETURNING *`,
+        [
+          shiftId,
+          restaurantId,
+          eventType,
+          amountCents,
+          normalizeString(req.body.reason, 160),
+          normalizeString(req.body.note, 1000),
+          JSON.stringify(metadata),
+          req.user.id,
+          req.user.id,
+          MANAGE_ROLES.has(restaurant.effective_role),
+          actingStaff?.staffUserId || null,
+        ]
+      );
+      if (!event) throw new AppError('Shift not found', 404, 'shift_not_found');
+      if (approval) {
+        await linkApproval(client, approval.id, { drawerEventId: event.id });
+        approval.status = 'consumed';
+        approval.drawer_event_id = event.id;
+      }
+      return { event, approval };
+    });
+    broadcastRestaurant(restaurant, 'food:pos:drawer:event', { event: result.event });
+    res.status(201).json({
+      event: result.event,
+      ...(result.approval ? { approval: result.approval } : {}),
+    });
   } catch (err) {
     next(err);
   }
@@ -3602,6 +3664,9 @@ exports.createPosOrder = async (req, res, next) => {
     // resends it and replays on the order the first attempt created
     // (enforced by the partial unique index from migration 942).
     const clientOrderId = normalizeString(req.body.clientOrderId || req.body.client_order_id, 120) || null;
+    // S-06: the staff member who unlocked this terminal, when a staff
+    // sub-session is attached to the request.
+    const actingStaff = await resolveActingStaff(req, restaurantId);
 
     const result = await withTransaction(pool, async (client) => {
       if (shiftId) {
@@ -3826,8 +3891,8 @@ exports.createPosOrder = async (req, res, next) => {
             order_source, fulfillment_type, payment_status, subtotal_cents, tax_cents,
             service_fee_cents, delivery_fee_cents, tax_rate_bps, service_fee_bps,
             tip_cents, discount_cents, total_cents, currency_code, table_label,
-            queue_number, promised_at, notes, metadata, client_order_id)
-         VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW() + ($21 || ' minutes')::interval,$22,$23,$24)
+            queue_number, promised_at, notes, metadata, client_order_id, acting_staff_user_id)
+         VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW() + ($21 || ' minutes')::interval,$22,$23,$24,$25)
          RETURNING *`,
         [
           restaurantId,
@@ -3858,6 +3923,7 @@ exports.createPosOrder = async (req, res, next) => {
           normalizeString(req.body.notes, 1000),
           metadata,
           clientOrderId,
+          actingStaff?.staffUserId || null,
         ]
       );
       const createdOrderItems = [];
@@ -3917,6 +3983,7 @@ exports.createPosOrder = async (req, res, next) => {
             fulfillmentType: fulfillment,
             paymentContract: paymentContractMetadata(paymentContract),
           },
+          actingStaffUserId: actingStaff?.staffUserId || null,
           idempotencyKey: clientOrderId
             ? `pos-order-created:${restaurantId}:${clientOrderId}`
             : null,
@@ -3948,8 +4015,20 @@ exports.updatePosTicket = async (req, res, next) => {
     // reopen are non-money ticket routing, but F-31: membership alone no
     // longer suffices; the caller needs pos.use (or orders.manage), which
     // representative and support-agent memberships do not hold.
+    // S-07: a non-manager can void when a manager approves with their PIN
+    // on this device (approvalPin in the body) plus a void reason code;
+    // without a PIN the historical manager-only refusal is unchanged.
+    const actingStaff = await resolveActingStaff(req, restaurantId);
+    let voidApprovalRequested = false;
     if (ticketState === 'voided') {
-      assertManage(restaurant);
+      if (!MANAGE_ROLES.has(restaurant.effective_role)) {
+        const approvalPin = normalizeString(
+          req.body.approvalPin || req.body.approval_pin || req.body.managerPin || req.body.manager_pin,
+          12
+        );
+        if (!approvalPin) assertManage(restaurant);
+        voidApprovalRequested = true;
+      }
     } else {
       await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'orders.manage']);
     }
@@ -3990,7 +4069,31 @@ exports.updatePosTicket = async (req, res, next) => {
     }
     const status = ticketState === 'voided' ? 'cancelled' : ticketState === 'refunded' ? 'refunded' : null;
     const paymentStatus = ticketState === 'refunded' ? 'refunded' : null;
+    const voidReasonCode = ticketState === 'voided'
+      ? normalizeString(req.body.reasonCode || req.body.reason_code, 60)
+      : null;
+    if (voidReasonCode && !POS_VOID_REASON_CODES.has(voidReasonCode)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { reasonCode: 'Unsupported void reason code' });
+    }
     const result = await withTransaction(pool, async (client) => {
+      let voidApproval = null;
+      if (voidApprovalRequested) {
+        const { rows: [voidOrder] } = await client.query(
+          `SELECT total_cents FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
+          [orderId, restaurantId]
+        );
+        if (!voidOrder) throw new AppError('Order not found', 404, 'order_not_found');
+        voidApproval = await consumeManagerApproval({
+          client,
+          restaurant,
+          req,
+          action: 'void',
+          amountCents: Number(voidOrder.total_cents || 0),
+          orderId,
+          actingStaff,
+          reasonCodes: POS_VOID_REASON_CODES,
+        });
+      }
       const { rows: [order] } = await client.query(
         `UPDATE food_orders
             SET pos_ticket_state = $1,
@@ -4037,7 +4140,10 @@ exports.updatePosTicket = async (req, res, next) => {
         metadata: {
           ticketState,
           previousAllowedStates: allowedCurrentStates,
+          ...(voidReasonCode ? { reasonCode: voidReasonCode } : {}),
+          ...(voidApproval ? { approvalId: voidApproval.id } : {}),
         },
+        actingStaffUserId: actingStaff?.staffUserId || null,
         idempotencyKey: normalizeString(
           req.get('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key,
           200
@@ -4620,6 +4726,14 @@ exports.recordPosPayment = async (req, res, next) => {
     // tendering is a pos.use capability inside the staff member's own
     // open drawer shift; refunds stay manager-only.
     const isManager = MANAGE_ROLES.has(restaurant.effective_role);
+    // S-06: acting staff identity from the request's staff sub-session.
+    const actingStaff = await resolveActingStaff(req, restaurantId);
+    const compReasonCode = paymentType === 'comp'
+      ? normalizeString(req.body.reasonCode || req.body.reason_code, 60)
+      : null;
+    if (compReasonCode && !POS_COMP_REASON_CODES.has(compReasonCode)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { reasonCode: 'Unsupported comp reason code' });
+    }
     if (!POS_PAYMENT_STATUSES.has(status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported payment status' });
     }
@@ -4637,9 +4751,22 @@ exports.recordPosPayment = async (req, res, next) => {
     // requireOpenPosShift inside the transaction); without one the
     // payment is refused. Refunds keep requiring a manager, by role or
     // via the pos.manage permission.
+    // S-07: a refund by non-manager staff can instead carry a manager's
+    // PIN approval (approvalPin), consumed inside the transaction below;
+    // without a PIN the denial is exactly the pre-S-07 one.
+    const approvalPin = normalizeString(
+      req.body.approvalPin || req.body.approval_pin || req.body.managerPin || req.body.manager_pin,
+      12
+    );
+    let refundApprovalRequested = false;
     if (paymentType === 'refund') {
       if (!isManager) {
-        await assertRestaurantPermission(restaurant, req.user.id, ['pos.manage']);
+        try {
+          await assertRestaurantPermission(restaurant, req.user.id, ['pos.manage']);
+        } catch (err) {
+          if (!approvalPin) throw err;
+          refundApprovalRequested = true;
+        }
       }
     } else if (!isManager) {
       await assertRestaurantPermission(restaurant, req.user.id, ['pos.use']);
@@ -4726,6 +4853,23 @@ exports.recordPosPayment = async (req, res, next) => {
           const reconciliation = await reconcilePosOrderPayment(client, orderId);
           return { payment: existing, ...reconciliation, replayed: true };
         }
+      }
+      // S-07: consume the manager-PIN approval for a refund that needed
+      // one, and for a comp above the restaurant's threshold. This runs
+      // after the idempotency replay checks above, so a retried request
+      // never burns a second approval.
+      let paymentApproval = null;
+      if (refundApprovalRequested || paymentType === 'comp') {
+        paymentApproval = await consumeManagerApproval({
+          client,
+          restaurant,
+          req,
+          action: paymentType === 'refund' ? 'refund' : 'comp',
+          amountCents,
+          orderId,
+          actingStaff,
+          reasonCodes: paymentType === 'comp' ? POS_COMP_REASON_CODES : null,
+        });
       }
       if (['voided', 'refunded'].includes(order.pos_ticket_state) || order.status === 'cancelled') {
         throw new AppError('This ticket cannot accept payments', 409, 'ticket_not_payable');
@@ -5077,8 +5221,8 @@ exports.recordPosPayment = async (req, res, next) => {
       const { rows: [payment] } = await client.query(
         `INSERT INTO restaurant_pos_payments
            (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
-            reference, note, metadata, idempotency_key, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+            reference, note, metadata, idempotency_key, created_by, acting_staff_user_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
          RETURNING *`,
         [
           restaurantId,
@@ -5099,12 +5243,20 @@ exports.recordPosPayment = async (req, res, next) => {
                 receiptConfirmedByUserId: String(req.user.id),
               },
             } : {}),
+            ...(paymentApproval ? { approvalId: paymentApproval.id } : {}),
+            ...(compReasonCode ? { reasonCode: compReasonCode } : {}),
             paymentContract: paymentContractMetadata(paymentContract, { source: 'manual_pos_payment' }),
           },
           idempotencyKey,
           req.user.id,
+          actingStaff?.staffUserId || null,
         ]
       );
+      if (paymentApproval) {
+        await linkApproval(client, paymentApproval.id, { paymentId: payment.id });
+        paymentApproval.status = 'consumed';
+        paymentApproval.payment_id = payment.id;
+      }
       const reconciliation = await reconcilePosOrderPayment(client, orderId);
       if (reconciliation?.order) {
         await insertPosReceiptAudit(client, {
@@ -5120,12 +5272,15 @@ exports.recordPosPayment = async (req, res, next) => {
             amountCents,
             status,
             shiftId,
+            ...(paymentApproval ? { approvalId: paymentApproval.id } : {}),
+            ...(compReasonCode ? { reasonCode: compReasonCode } : {}),
             paymentContract: paymentContractMetadata(paymentContract),
           },
+          actingStaffUserId: actingStaff?.staffUserId || null,
           idempotencyKey: idempotencyKey ? `receipt:${restaurantId}:${idempotencyKey}` : null,
         });
       }
-      return { payment, ...reconciliation };
+      return { payment, ...(paymentApproval ? { approval: paymentApproval } : {}), ...reconciliation };
     });
     // P3-3-F07: a recorded POS refund notifies the customer in-app + email.
     // Replays are deduped by the notification idempotency key; best-effort
@@ -5662,7 +5817,8 @@ exports.setStaffPin = async (req, res, next) => {
       throw new AppError('Validation failed', 400, 'validation_failed', { pin: 'PIN must be 4-12 digits' });
     }
     const staffUserId = req.body.staffUserId || req.body.staff_user_id || null;
-    if (!staffUserId && !normalizeString(req.body.staffLabel || req.body.staff_label, 160)) {
+    const staffLabel = normalizeString(req.body.staffLabel || req.body.staff_label, 160);
+    if (!staffUserId && !staffLabel) {
       throw new AppError('Validation failed', 400, 'validation_failed', { staffLabel: 'Staff label is required when staffUserId is missing' });
     }
     if (staffUserId) {
@@ -5674,62 +5830,237 @@ exports.setStaffPin = async (req, res, next) => {
         });
       }
     }
-    const pinHash = await bcrypt.hash(pin, 10);
-    const { rows: [staffPin] } = await pool.query(
-      `INSERT INTO restaurant_staff_pins
-         (restaurant_id, staff_user_id, staff_label, pin_hash, role_label, is_active, created_by)
-       VALUES ($1,$2,$3,$4,$5,TRUE,$6)
-       ON CONFLICT (restaurant_id, staff_user_id)
-       DO UPDATE SET pin_hash = EXCLUDED.pin_hash,
-                     staff_label = COALESCE(EXCLUDED.staff_label, restaurant_staff_pins.staff_label),
-                     role_label = COALESCE(EXCLUDED.role_label, restaurant_staff_pins.role_label),
-                     is_active = TRUE,
-                     updated_at = NOW()
-       RETURNING id, restaurant_id, staff_user_id, staff_label, role_label, is_active, updated_at`,
-      [
-        restaurantId,
-        staffUserId,
-        normalizeString(req.body.staffLabel || req.body.staff_label, 160),
-        pinHash,
-        normalizeString(req.body.roleLabel || req.body.role_label, 120),
-        req.user.id,
-      ]
+    // S-06: one PIN value per store. The digest identifies the target row
+    // being (re)set so re-setting your own PIN is not a conflict, while a
+    // value already held by anyone else at this restaurant is refused
+    // (previously the first bcrypt match won and label PINs duplicated).
+    const pinDigest = staffPinDigest(restaurantId, pin);
+    const { rows: digestRows } = await pool.query(
+      `SELECT id, staff_user_id, staff_label FROM restaurant_staff_pins
+        WHERE restaurant_id = $1 AND pin_digest = $2 AND is_active = TRUE`,
+      [restaurantId, pinDigest]
     );
+    const targetClash = digestRows.find((row) => {
+      if (staffUserId) return String(row.staff_user_id || '') !== String(staffUserId);
+      return !(row.staff_user_id === null && staffLabel && row.staff_label === staffLabel);
+    });
+    if (targetClash) {
+      throw new AppError('This PIN is already in use at this restaurant', 409, 'pin_already_in_use');
+    }
+    const pinHash = await bcrypt.hash(pin, 10);
+    const roleLabel = normalizeString(req.body.roleLabel || req.body.role_label, 120);
+    let staffPin;
+    try {
+      if (staffUserId) {
+        ({ rows: [staffPin] } = await pool.query(
+          `INSERT INTO restaurant_staff_pins
+             (restaurant_id, staff_user_id, staff_label, pin_hash, pin_digest, role_label, is_active, created_by)
+           VALUES ($1,$2,$3,$4,$5,$6,TRUE,$7)
+           ON CONFLICT (restaurant_id, staff_user_id)
+           DO UPDATE SET pin_hash = EXCLUDED.pin_hash,
+                         pin_digest = EXCLUDED.pin_digest,
+                         staff_label = COALESCE(EXCLUDED.staff_label, restaurant_staff_pins.staff_label),
+                         role_label = COALESCE(EXCLUDED.role_label, restaurant_staff_pins.role_label),
+                         is_active = TRUE,
+                         updated_at = NOW()
+           RETURNING id, restaurant_id, staff_user_id, staff_label, role_label, is_active, updated_at`,
+          [restaurantId, staffUserId, staffLabel, pinHash, pinDigest, roleLabel, req.user.id]
+        ));
+      } else {
+        // Label-only PINs have no (restaurant_id, staff_user_id) conflict
+        // target: rotate the active row carrying this label, else insert.
+        const { rows: [existingLabelPin] } = await pool.query(
+          `SELECT id FROM restaurant_staff_pins
+            WHERE restaurant_id = $1 AND staff_user_id IS NULL AND staff_label = $2 AND is_active = TRUE
+            ORDER BY updated_at DESC LIMIT 1`,
+          [restaurantId, staffLabel]
+        );
+        if (existingLabelPin) {
+          ({ rows: [staffPin] } = await pool.query(
+            `UPDATE restaurant_staff_pins
+                SET pin_hash = $1, pin_digest = $2,
+                    role_label = COALESCE($3, role_label), updated_at = NOW()
+              WHERE id = $4
+              RETURNING id, restaurant_id, staff_user_id, staff_label, role_label, is_active, updated_at`,
+            [pinHash, pinDigest, roleLabel, existingLabelPin.id]
+          ));
+        } else {
+          ({ rows: [staffPin] } = await pool.query(
+            `INSERT INTO restaurant_staff_pins
+               (restaurant_id, staff_user_id, staff_label, pin_hash, pin_digest, role_label, is_active, created_by)
+             VALUES ($1,NULL,$2,$3,$4,$5,TRUE,$6)
+             RETURNING id, restaurant_id, staff_user_id, staff_label, role_label, is_active, updated_at`,
+            [restaurantId, staffLabel, pinHash, pinDigest, roleLabel, req.user.id]
+          ));
+        }
+      }
+    } catch (err) {
+      if (err.code === '23505') {
+        throw new AppError('This PIN is already in use at this restaurant', 409, 'pin_already_in_use');
+      }
+      throw err;
+    }
     res.status(201).json({ staffPin });
   } catch (err) {
     next(err);
   }
 };
 
+// Shared unlock path for validateStaffPin and the staff-session endpoints:
+// validates the PIN (lockout + membership enforced in the service) and
+// issues the staff sub-session. The device id comes from the paired
+// device credential when present, else from the request body.
+async function issueStaffSession(req, restaurant, restaurantId) {
+  const pin = normalizeString(req.body.pin, 12);
+  if (!pin) throw new AppError('Validation failed', 400, 'validation_failed', { pin: 'PIN is required' });
+  let deviceId = req.restaurantDevice?.id
+    || parsePositiveInt(req.body.deviceId || req.body.device_id);
+  if (deviceId && !req.restaurantDevice) {
+    // A body-supplied device id is only honored when it names a real
+    // device of this restaurant (attempts/sessions FK to it).
+    const { rows: [device] } = await pool.query(
+      'SELECT id FROM restaurant_app_devices WHERE id = $1 AND restaurant_id = $2',
+      [deviceId, restaurantId]
+    );
+    if (!device) deviceId = null;
+  }
+  const { pinRow, staff } = await validateStaffPinForRestaurant({ restaurantId, pin, deviceId });
+  const { token, session, idleMinutes } = await createStaffSession({
+    restaurantId,
+    deviceId,
+    pinRow,
+    createdByUserId: req.user?.id || null,
+    settings: restaurant?.settings,
+  });
+  return {
+    token,
+    session,
+    idleMinutes,
+    staff: {
+      id: pinRow.id,
+      pinId: pinRow.id,
+      userId: pinRow.staff_user_id,
+      label: pinRow.staff_label,
+      roleLabel: pinRow.role_label,
+      effectiveRole: staff.effectiveRole,
+    },
+  };
+}
+
+function staffSessionResponse(token, session, staff, idleMinutes) {
+  return {
+    token,
+    sessionToken: token,
+    expiresAt: session.expires_at,
+    idleTimeoutSeconds: idleMinutes * 60,
+    staff,
+    staffSession: {
+      id: session.id,
+      token,
+      expiresAt: session.expires_at,
+      idleTimeoutSeconds: idleMinutes * 60,
+      staff,
+    },
+  };
+}
+
 exports.validateStaffPin = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
-    const pin = normalizeString(req.body.pin, 12);
-    if (!pin) throw new AppError('Validation failed', 400, 'validation_failed', { pin: 'PIN is required' });
-    const { rows } = await pool.query(
-      `SELECT id, staff_user_id, staff_label, pin_hash, role_label
-         FROM restaurant_staff_pins
-        WHERE restaurant_id = $1 AND is_active = TRUE
-        ORDER BY updated_at DESC`,
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const { token, session, staff, idleMinutes } = await issueStaffSession(req, restaurant, restaurantId);
+    return res.json({
+      valid: true,
+      staff,
+      ...staffSessionResponse(token, session, staff, idleMinutes),
+    });
+  } catch (err) {
+    if (err instanceof AppError && err.code === 'invalid_pin') {
+      return res.status(401).json({ valid: false, error: { code: 'invalid_pin', message: 'Invalid staff PIN' } });
+    }
+    return next(err);
+  }
+};
+
+exports.createStaffSession = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const { token, session, staff, idleMinutes } = await issueStaffSession(req, restaurant, restaurantId);
+    return res.status(201).json(staffSessionResponse(token, session, staff, idleMinutes));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Paired POS appliances have no user session; the device credential is
+// the transport auth and the staff PIN is the person auth.
+exports.authenticatePosDevice = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const deviceId = parsePositiveInt(req.params.deviceId);
+    if (!restaurantId || !deviceId) {
+      throw new AppError('Restaurant and device are required', 400, 'invalid_device_scope');
+    }
+    const device = await requireDeviceCredential(req, restaurantId, deviceId);
+    assertDeviceApp(device, 'pos');
+    req.restaurantDevice = device;
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createDeviceStaffSession = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const { rows: [restaurant] } = await pool.query(
+      'SELECT id, settings FROM food_restaurants WHERE id = $1',
       [restaurantId]
     );
-    for (const row of rows) {
-      // Constant-time enough for a short local staff unlock flow; bcrypt does
-      // the actual hash comparison.
-      if (await bcrypt.compare(pin, row.pin_hash)) {
-        return res.json({
-          valid: true,
-          staff: {
-            id: row.id,
-            userId: row.staff_user_id,
-            label: row.staff_label,
-            roleLabel: row.role_label,
-          },
-        });
-      }
+    if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const { token, session, staff, idleMinutes } = await issueStaffSession(req, restaurant, restaurantId);
+    return res.status(201).json(staffSessionResponse(token, session, staff, idleMinutes));
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getStaffSession = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const session = await resolveStaffSession(req, restaurantId);
+    if (!session) {
+      return res.status(401).json({ error: { code: 'staff_session_required', message: 'No active staff session' } });
     }
-    return res.status(401).json({ valid: false, error: { code: 'invalid_pin', message: 'Invalid staff PIN' } });
+    const metadata = safeJson(session.metadata, {});
+    return res.json({
+      staffSession: {
+        id: session.id,
+        expiresAt: session.expires_at,
+        idleTimeoutSeconds: (Number(metadata.idleMinutes) || 10) * 60,
+        staff: {
+          pinId: session.staff_pin_id,
+          userId: session.staff_user_id,
+          label: metadata.staffLabel || null,
+          roleLabel: metadata.roleLabel || null,
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.endStaffSession = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const token = staffSessionTokenFromRequest(req);
+    const reason = normalizeString(req.body.reason, 40) || 'manual_lock';
+    const session = await endStaffSession(token, reason);
+    return res.json({ ended: Boolean(session), staffSession: session ? { id: session.id } : null });
   } catch (err) {
     next(err);
   }
