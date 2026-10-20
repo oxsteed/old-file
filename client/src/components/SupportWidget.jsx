@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/axios';
 import { useTranslation } from 'react-i18next';
@@ -22,6 +22,17 @@ import {
   prepareRetry,
   sendErrorMessageKey,
 } from './supportWidgetState';
+import {
+  actionLabel,
+  actionStatusKey,
+  buildGuestHandoffPrefill,
+  confirmErrorState,
+  isRenderableAction,
+  latestUserImage,
+  mergeServerThread,
+  runActionPlan,
+} from './supportChatActionState';
+import { CookieConsentContext } from '../context/CookieConsentContext';
 
 // History lives under a per-user (or guest) key; see lib/supportChatStorage.
 const MAX_HISTORY = 40;
@@ -360,6 +371,28 @@ function markProactiveDismissed() {
   // Persist history under this user's (or the guest) key.
   useEffect(() => { saveHistory(storageKey, messages); }, [storageKey, messages]);
 
+  // Item 10: signed-in users see the conversation the assistant remembers
+  // (server thread), e.g. after switching devices. Local history is kept
+  // when it already contains every saved turn. Clear deletes both.
+  useEffect(() => {
+    if (!signedIn) return undefined;
+    let cancelled = false;
+    Promise.resolve()
+      .then(() => api.get('/chat/support-thread'))
+      .then(({ data }) => {
+        if (cancelled) return;
+        setMessages((prev) => {
+          const merged = mergeServerThread(prev, data?.messages, {
+            role: 'assistant', content: t('supportWidget.welcomeBack'), ts: new Date().toISOString(),
+          });
+          return merged || prev;
+        });
+      })
+      .catch(() => { /* memory is best-effort */ });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signedIn, storageScope]);
+
   // Drop the unscoped pre-fix history (it may belong to anyone) and, once
   // signed in, the guest bucket left by the signed-out session.
   useEffect(() => { pruneSupportChatStorage(storageScope); }, [storageScope]);
@@ -422,6 +455,20 @@ function markProactiveDismissed() {
     return () => document.removeEventListener('keydown', handler);
   }, [open]);
 
+  // Item 3: the escalation page opens with this conversation prefilled, so
+  // a guest (or anyone using the header button) never retypes it.
+  const escalationState = useCallback(() => ({
+    from: 'support_chat',
+    prefillMessage: buildGuestHandoffPrefill(messages, {
+      header: t('supportWidget.handoffPrefillHeader'),
+      pageLabel: t('supportWidget.handoffPrefillPage', { page: window.location.pathname }),
+      recentLabel: t('supportWidget.handoffPrefillRecent'),
+      you: t('supportWidget.transcriptYou'),
+      assistant: t('supportWidget.transcriptAssistant'),
+      page: window.location.pathname,
+    }),
+  }), [messages, t]);
+
   // Navigate to escalation page
   const handleEscalate = useCallback(() => {
     // If already on the escalation page, just close the chat like the X does.
@@ -430,13 +477,19 @@ function markProactiveDismissed() {
       setOpen(false);
       return;
     }
-    navigate('/support/escalation');
-  }, [navigate, location.pathname]);
+    navigate('/support/escalation', { state: escalationState() });
+  }, [navigate, location.pathname, escalationState]);
 
   // Gap #8: one-click handoff that carries the transcript. Signed-in users
   // get a ticket instantly; guests fall back to the escalation page.
   const handleChatEscalation = useCallback(async () => {
-    if (escalating) return;
+    if (escalating) return false;
+    // Guests cannot open a ticket from here: hand the transcript to the
+    // escalation page instead of losing it.
+    if (!signedIn) {
+      navigate('/support/escalation', { state: escalationState() });
+      return true;
+    }
     const handedOffMessage = (ticketNumber) => ({
       role: 'assistant',
       content: ticketNumber
@@ -447,7 +500,7 @@ function markProactiveDismissed() {
     // Already handed off: repeat the ticket number instead of opening another.
     if (escalation?.ticketNumber) {
       setMessages(prev => [...prev, handedOffMessage(escalation.ticketNumber)]);
-      return;
+      return true;
     }
     setEscalating(true);
     // Persisted before the request so a reload or retry reuses the same key.
@@ -462,6 +515,8 @@ function markProactiveDismissed() {
         subject: `Chat escalation from ${window.location.pathname}`,
         transcript,
         page: window.location.pathname,
+        // Item 3: the newest screenshot from this chat rides along (≤2 MB).
+        image: latestUserImage(messages) || undefined,
         clientRequestId: record.requestId,
         sender_language: i18n.language || localStorage.getItem('oxs:language') || 'en',
       });
@@ -470,10 +525,11 @@ function markProactiveDismissed() {
       writeEscalation(storageScope, next);
       setEscalation(next);
       setMessages(prev => [...prev, handedOffMessage(ticketNumber)]);
+      return true;
     } catch (err) {
       if (err?.response?.status === 401) {
-        navigate('/support/escalation');
-        return;
+        navigate('/support/escalation', { state: escalationState() });
+        return true;
       }
       setMessages(prev => [...prev, {
         role: 'assistant',
@@ -481,10 +537,49 @@ function markProactiveDismissed() {
         ts: new Date().toISOString(),
         isError: true,
       }]);
+      return false;
     } finally {
       setEscalating(false);
     }
-  }, [messages, escalating, escalation, storageScope, navigate, t, i18n.language]);
+  }, [messages, escalating, escalation, storageScope, navigate, t, i18n.language, signedIn, escalationState]);
+
+  // Item 4: confirm-card actions. The server re-checks ownership/state on
+  // confirm and returns the existing endpoint to call with this session;
+  // the outcome is reported back for the audit log.
+  // Optional: the widget also renders in harnesses without the provider.
+  const cookieConsent = useContext(CookieConsentContext);
+  const openCookiePreferences = cookieConsent?.openSettings;
+  const setActionState = useCallback((actionId, actionState) => {
+    setMessages(prev => prev.map(m => (m.action?.id === actionId ? { ...m, actionState } : m)));
+  }, []);
+  const handleConfirmAction = useCallback(async (action) => {
+    if (!isRenderableAction(action)) return;
+    setActionState(action.id, 'running');
+    let plan;
+    try {
+      const { data } = await api.post(`/chat/actions/${encodeURIComponent(action.id)}/confirm`);
+      plan = data?.plan;
+    } catch (err) {
+      setActionState(action.id, confirmErrorState(err));
+      return;
+    }
+    const outcome = await runActionPlan(plan, {
+      api,
+      navigate,
+      openCookiePreferences: () => openCookiePreferences?.(),
+      handoff: () => handleChatEscalation(),
+    });
+    setActionState(action.id, outcome.ok ? 'done' : 'failed');
+    api.post(`/chat/actions/${encodeURIComponent(action.id)}/result`, {
+      ok: outcome.ok,
+      status_code: outcome.statusCode ?? undefined,
+    }).catch(() => { /* audit is best-effort from the client */ });
+  }, [navigate, openCookiePreferences, handleChatEscalation, setActionState]);
+  const handleDismissAction = useCallback((action) => {
+    if (!isRenderableAction(action)) return;
+    setActionState(action.id, 'dismissed');
+    api.post(`/chat/actions/${encodeURIComponent(action.id)}/dismiss`).catch(() => {});
+  }, [setActionState]);
 
   // Gap #3: attach a screenshot or photo to the next message.
   const handleImageSelect = useCallback((e) => {
@@ -562,7 +657,12 @@ function markProactiveDismissed() {
         language:    localStorage.getItem('oxs:language') || 'en',
         ...guideHelpPayload,
       });
-      const reply = { role: 'assistant', content: data.reply, ts: new Date().toISOString() };
+      const reply = { role: 'assistant', content: data.reply || '', ts: new Date().toISOString() };
+      // Item 4: a server-validated action proposal renders as a confirm card.
+      if (isRenderableAction(data?.proposed_action)) {
+        reply.action = data.proposed_action;
+        reply.actionState = 'proposed';
+      }
       setMessages(prev => [...prev, reply]);
 
       // Handoff nudge: the server suggests a human take over. Render a calm
@@ -820,7 +920,8 @@ function markProactiveDismissed() {
                           </div>
                         ) : (
                         <>
-                        {/* Bubble */}
+                        {/* Bubble (an action-only reply shows just its card) */}
+                        {(m.content || m.image || !m.action) && (
                         <div className={`px-3.5 py-2.5 rounded-2xl text-sm ${
                           m.role === 'user'
                             ? 'bg-action text-on-action rounded-br-sm whitespace-pre-wrap leading-relaxed'
@@ -841,6 +942,49 @@ function markProactiveDismissed() {
                             : m.content
                           }
                         </div>
+                        )}
+
+                        {/* Item 4: confirm card for a proposed in-chat action. */}
+                        {m.role === 'assistant' && isRenderableAction(m.action) && (() => {
+                          const label = actionLabel(m.action);
+                          const statusKey = actionStatusKey(m.actionState);
+                          const pending = !m.actionState || m.actionState === 'proposed';
+                          return (
+                            <div
+                              role="group"
+                              aria-label={t('supportWidget.actionCardLabel')}
+                              className="w-full px-3.5 py-3 rounded-2xl text-sm bg-gray-900 border border-orange-500/40"
+                            >
+                              <p className="font-semibold text-orange-300 mb-1">{t('supportWidget.actionCardLabel')}</p>
+                              <p className="text-gray-200 leading-relaxed">{t(label.key, label.params)}</p>
+                              {m.action.type === 'reply_ticket' && m.action.params?.message && (
+                                <blockquote dir="auto" className="mt-1.5 border-s-2 border-orange-500/50 ps-2 text-gray-400 whitespace-pre-wrap">
+                                  {m.action.params.message}
+                                </blockquote>
+                              )}
+                              {pending ? (
+                                <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleConfirmAction(m.action)}
+                                    className="px-3 py-1.5 bg-action hover:bg-action-hover text-on-action rounded-full text-xs font-semibold transition active:scale-95"
+                                  >
+                                    {t('supportWidget.actionConfirm')}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDismissAction(m.action)}
+                                    className="px-3 py-1.5 rounded-full text-xs text-gray-300 border border-gray-600 hover:bg-gray-800 transition"
+                                  >
+                                    {t('supportWidget.actionDismiss')}
+                                  </button>
+                                </div>
+                              ) : statusKey && (
+                                <p role="status" className="mt-2 text-xs text-gray-400">{t(statusKey)}</p>
+                              )}
+                            </div>
+                          );
+                        })()}
 
                         {/* Meta row: timestamp + actions */}
                         <div className={`flex items-center gap-2 flex-wrap ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>

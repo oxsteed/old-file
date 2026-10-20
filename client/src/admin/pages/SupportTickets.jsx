@@ -355,6 +355,24 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
               {ticket.first_response_at && <span>{t('adminSupportTickets.detail.firstResponse', { time: timeAgo(ticket.first_response_at, t) })}</span>}
               {ticket.assignee_id && <span>{t('adminSupportTickets.detail.assignedTo', { first: ticket.assignee_first, last: ticket.assignee_last })}</span>}
             </div>
+            {/* AI chat handoff: page + screenshot (the account summary is the internal note). */}
+            {(ticket.metadata?.page || data.handoff_image_url) && (
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-400">
+                {ticket.metadata?.page && (
+                  <span dir="ltr">{t('adminSupportTickets.detail.handoffPage', { page: ticket.metadata.page })}</span>
+                )}
+                {data.handoff_image_url && (
+                  <a href={data.handoff_image_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-orange-300 hover:text-orange-200">
+                    <img
+                      src={data.handoff_image_url}
+                      alt={t('adminSupportTickets.detail.handoffImageAlt')}
+                      className="h-12 w-auto rounded border border-gray-700 object-cover"
+                    />
+                    {t('adminSupportTickets.detail.handoffImage')}
+                  </a>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">

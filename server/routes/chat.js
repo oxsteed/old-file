@@ -12,6 +12,10 @@ const {
   transcribeAudio,
   getProfileContext,
   clearSupportThread,
+  getSupportThread,
+  confirmSupportAction,
+  recordSupportActionResult,
+  dismissSupportAction,
 } = require('../controllers/chatController');
 const { chatLimiter, supportChatLimiter, profileChatLimiter, authLimiter, paymentsLimiter } = require('../middleware/rateLimiter');
 const { authenticate, optionalAuth: sharedOptionalAuth } = require('../middleware/auth');
@@ -76,6 +80,14 @@ router.post('/message', optionalAuth, supportChatLimiter, chatMessage);
 // DELETE /api/chat/support-thread - clear the signed-in user's server-side
 // AI support memory ("Clear conversation" in the widget).
 router.delete('/support-thread', chatLimiter, authenticate, clearSupportThread);
+// GET /api/chat/support-thread - the saved server conversation (item 10).
+router.get('/support-thread', chatLimiter, authenticate, getSupportThread);
+// In-chat actions (item 4): confirm re-checks ownership/state server-side and
+// returns the existing endpoint to call with the user's session; result and
+// dismiss complete the audit row (support_chat_actions, migration 914).
+router.post('/actions/:actionId/confirm', chatLimiter, authenticate, rejectImpersonated, confirmSupportAction);
+router.post('/actions/:actionId/result', chatLimiter, authenticate, recordSupportActionResult);
+router.post('/actions/:actionId/dismiss', chatLimiter, authenticate, dismissSupportAction);
 
 // POST /api/chat/financial-advisor
 // Personalized financial advice - requires authentication

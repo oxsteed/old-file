@@ -15,7 +15,7 @@ const { buildProfileAiFailurePayload } = require('../services/profileChatRouting
 const { withTransaction } = require('../utils/transaction');
 const { canEditProfile } = require('../utils/businessOwnership');
 const { getUserFinancialContext, formatFinancialContextForAI } = require('../services/userFinancialContextService');
-const { getSupportAccountSnapshot, formatSnapshotForAI } = require('../services/supportAccountSnapshot');
+const { getSupportAccountSnapshot, formatSnapshotForAI, invalidateSupportSnapshot } = require('../services/supportAccountSnapshot');
 const { getLaunchVisibility } = require('../middleware/launchGate');
 const supportChatThreads = require('../services/supportChatThreads');
 const { sanitizeMessage } = require('../utils/messageSanitizer');
@@ -26,6 +26,7 @@ const redis = require('../utils/redis');
 const { getCachedGuideReply, setCachedGuideReply } = require('../services/guideHelpCache');
 const { MAX_IMAGE_BASE64_CHARS } = require('../constants/supportChatLimits');
 const { resolveOllamaUrl } = require('../services/supportChatProviders');
+const supportChatActions = require('../services/supportChatActions');
 
 function isUuid(value) {
   return typeof value === 'string'
@@ -365,6 +366,8 @@ exports.chatMessage = async (req, res, next) => {
     systemPrompt = buildSupportPrompt({
       hasSnapshot,
       firstName: isGuideHelp ? null : snapshot?.profile?.firstName || null,
+      // Confirm-card actions (item 4): signed-in, non-guide turns only.
+      actions: Boolean(req.user?.id) && !isGuideHelp,
     }) + systemPrompt;
 
     // Image attachments (gap #3): one image per message, validated data URL.
@@ -471,8 +474,16 @@ exports.chatMessage = async (req, res, next) => {
 
     // The model marks replies it cannot resolve; the marker never reaches
     // the user, the thread memory or the guide cache.
-    const { text: reply, cannotHelp } = extractHandoffMarker(ai.reply);
+    const { text: unmarked, cannotHelp } = extractHandoffMarker(ai.reply);
     const handoffReasonValue = userHandoffReason || (cannotHelp ? 'model_cannot_help' : null);
+    // In-chat action proposal (item 4): the marker is always stripped; a
+    // proposal only survives for signed-in, non-cached turns that pass the
+    // ownership/state check, and then waits for the user's confirmation.
+    const { reply, proposal } = supportChatActions.extractActionProposal(unmarked);
+    let proposedAction = null;
+    if (proposal && req.user?.id && !guideCacheCtx && !isGuideHelp) {
+      proposedAction = await supportChatActions.proposeAction(req.user.id, proposal, { page: pageContext?.path });
+    }
 
     // Persist the turn for signed-in users (gap #5). Fire-and-forget by
     // design: the helper never throws and the reply must not wait on Redis.
@@ -491,7 +502,12 @@ exports.chatMessage = async (req, res, next) => {
       setCachedGuideReply(redis, guideCacheCtx.guide_id, guideCacheCtx.step, guideCacheCtx.language, reply);
     }
 
-    res.json({ reply, handoff_suggested: Boolean(handoffReasonValue), handoff_reason: handoffReasonValue });
+    res.json({
+      reply,
+      handoff_suggested: Boolean(handoffReasonValue),
+      handoff_reason: handoffReasonValue,
+      ...(proposedAction ? { proposed_action: proposedAction } : {}),
+    });
   } catch (err) {
     next(err);
   }
@@ -507,6 +523,64 @@ exports.clearSupportThread = async (req, res, next) => {
     if (!req.user?.id) throw new AppError('Sign in required', 401, 'unauthorized');
     await supportChatThreads.clearSupportThread(req.user.id);
     res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/chat/support-thread
+ * The signed-in user's saved support-chat turns (item 10), so the panel can
+ * show the same conversation the assistant remembers on any device.
+ */
+exports.getSupportThread = async (req, res, next) => {
+  try {
+    if (!req.user?.id) throw new AppError('Sign in required', 401, 'unauthorized');
+    const turns = await supportChatThreads.getSupportThread(req.user.id);
+    res.set('Cache-Control', 'no-store');
+    res.json({
+      messages: turns.map((m) => ({ role: m.role, content: m.content, ts: m.ts || null })),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+function sendActionResult(res, result) {
+  return res.status(result.status).json(result.body);
+}
+
+/** POST /api/chat/actions/:actionId/confirm — re-check, then return the plan. */
+exports.confirmSupportAction = async (req, res, next) => {
+  try {
+    if (!req.user?.id) throw new AppError('Sign in required', 401, 'unauthorized');
+    sendActionResult(res, await supportChatActions.confirmAction(req.user.id, req.params.actionId));
+  } catch (err) {
+    next(err);
+  }
+};
+
+/** POST /api/chat/actions/:actionId/result — log what the existing endpoint returned. */
+exports.recordSupportActionResult = async (req, res, next) => {
+  try {
+    if (!req.user?.id) throw new AppError('Sign in required', 401, 'unauthorized');
+    const result = await supportChatActions.recordActionResult(req.user.id, req.params.actionId, {
+      ok: req.body?.ok === true,
+      statusCode: Number.isInteger(req.body?.status_code) ? req.body.status_code : null,
+    });
+    // The account changed: the next turn must not reuse a stale snapshot.
+    if (result.status === 200) invalidateSupportSnapshot(req.user.id);
+    sendActionResult(res, result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/** POST /api/chat/actions/:actionId/dismiss */
+exports.dismissSupportAction = async (req, res, next) => {
+  try {
+    if (!req.user?.id) throw new AppError('Sign in required', 401, 'unauthorized');
+    sendActionResult(res, await supportChatActions.dismissAction(req.user.id, req.params.actionId));
   } catch (err) {
     next(err);
   }
