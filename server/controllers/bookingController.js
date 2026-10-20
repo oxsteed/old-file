@@ -9,6 +9,8 @@ const { uuidv4 } = require('../utils/uuid');
 const { sendNotification } = require('../services/notificationService');
 const { broadcastToUser } = require('../services/socketService');
 const bookingLifecycle = require('../services/bookingRequestLifecycle');
+const { withTransaction } = require('../utils/transaction');
+const { emitDomainEvent, serviceEventProps } = require('../growth/emit');
 
 const DEFAULT_CONFIRMATION_HOURS = 24;
 const MIN_CONFIRMATION_HOURS = 1;
@@ -259,37 +261,41 @@ exports.createBookingRequest = async (req, res) => {
 const bookingId = uuidv4();
     const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
 
-    const result = await pool.query(
-      `INSERT INTO booking_requests (
-        id, customer_id, helper_id, business_id, service_name, requested_date,
-        requested_start_time, requested_end_time, service_location,
-        description, expires_at, confirmation_hours,
-        availability_mode, auto_post_on_expiry,
-        conversation_id, guest_session_id, source, service_id, timezone
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
-       RETURNING *`,
-      [
-        bookingId,
-        customerId,
-        helperId,
-        businessId || null,
-        String(serviceName).trim(),
-        requestedDate,
-        requestOnly ? null : requestedStartTime,
-        requestOnly ? null : requestedEndTime,
-        serviceLocation || null,
-        description || null,
-        expiresAt,
-        hours,
-        normalizedAvailabilityMode,
-        requestOnly && Boolean(autoPostOnExpiry),
-        conversationId || null,
-        guestSessionId || null,
-        source || (conversationId || guestSessionId ? 'messenger_picker' : 'calendar'),
-        serviceId != null ? String(serviceId) : null,
-        timezone || null,
-      ]
-    );
+    const result = await withTransaction(pool, async (client) => {
+      const inserted = await client.query(
+        `INSERT INTO booking_requests (
+          id, customer_id, helper_id, business_id, service_name, requested_date,
+          requested_start_time, requested_end_time, service_location,
+          description, expires_at, confirmation_hours,
+          availability_mode, auto_post_on_expiry,
+          conversation_id, guest_session_id, source, service_id, timezone
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+         RETURNING *`,
+        [
+          bookingId,
+          customerId,
+          helperId,
+          businessId || null,
+          String(serviceName).trim(),
+          requestedDate,
+          requestOnly ? null : requestedStartTime,
+          requestOnly ? null : requestedEndTime,
+          serviceLocation || null,
+          description || null,
+          expiresAt,
+          hours,
+          normalizedAvailabilityMode,
+          requestOnly && Boolean(autoPostOnExpiry),
+          conversationId || null,
+          guestSessionId || null,
+          source || (conversationId || guestSessionId ? 'messenger_picker' : 'calendar'),
+          serviceId != null ? String(serviceId) : null,
+          timezone || null,
+        ]
+      );
+      await emitDomainEvent(client, 'booking.requested', serviceEventProps({ service_id: serviceId }), { userId: customerId, req });
+      return inserted;
+    }, 'booking_requested_growth');
 
     const booking = result.rows[0];
 
@@ -559,13 +565,19 @@ exports.cancelBookingRequest = async (req, res) => {
     }
 
     if (booking.status === 'pending') {
-      const updatedResult = await pool.query(
-        `UPDATE booking_requests
-         SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
-         WHERE id = $1 AND status IN ('pending', 'expired')
-         RETURNING *`,
-        [bookingId]
-      );
+      const updatedResult = await withTransaction(pool, async (client) => {
+        const updated = await client.query(
+          `UPDATE booking_requests
+           SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1 AND status IN ('pending', 'expired')
+           RETURNING *`,
+          [bookingId]
+        );
+        if (updated.rows.length) {
+          await emitDomainEvent(client, 'booking.cancelled', serviceEventProps(updated.rows[0]), { userId: customerId, req });
+        }
+        return updated;
+      }, 'booking_cancelled_growth');
       if (!updatedResult.rows.length) {
         return sendError(res, 400, 'Booking is no longer pending');
       }
@@ -576,13 +588,19 @@ exports.cancelBookingRequest = async (req, res) => {
     }
 
     if (booking.status === 'accepted') {
-      const updatedResult = await pool.query(
-        `UPDATE booking_requests
-         SET status = 'accepted_cancelled', updated_at = CURRENT_TIMESTAMP
-         WHERE id = $1 AND status = 'accepted'
-         RETURNING *`,
-        [bookingId]
-      );
+      const updatedResult = await withTransaction(pool, async (client) => {
+        const updated = await client.query(
+          `UPDATE booking_requests
+           SET status = 'accepted_cancelled', updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1 AND status = 'accepted'
+           RETURNING *`,
+          [bookingId]
+        );
+        if (updated.rows.length) {
+          await emitDomainEvent(client, 'booking.cancelled', serviceEventProps(updated.rows[0]), { userId: customerId, req });
+        }
+        return updated;
+      }, 'booking_cancelled_growth');
       if (!updatedResult.rows.length) {
         return sendError(res, 400, 'Booking cannot be cancelled');
       }

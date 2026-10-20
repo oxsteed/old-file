@@ -23,6 +23,8 @@ const REQUIRED_HOOKS = {
   "job.completed": { "controllers/jobController.js": 1 },
   "job.cancelled": { "services/jobCancellationService.js": 2 },
   "booking.confirmed": { "services/bookingRequestLifecycle.js": 2 },
+  "booking.requested": { "controllers/bookingController.js": 1 },
+  "booking.cancelled": { "controllers/bookingController.js": 2 },
   "appointment.booked": {
     "services/directSlotEngine.js": 1,
     "controllers/appointmentController.js": 1,
@@ -71,6 +73,15 @@ const REQUIRED_HOOKS = {
     "controllers/superAdminUserController.js": 1,
   },
   "account.tier_changed": { "controllers/webhookController.js": 1 },
+  "account.verified": {
+    "controllers/authController.js": 1,
+    "controllers/helperRegistrationController.js": 1,
+  },
+  "marketplace.order_paid": { "controllers/cartCheckoutController.js": 1 },
+  "marketplace.cart_shared": { "controllers/sharedCartsController.js": 1 },
+  "planned_need.created": { "controllers/plannedNeedsController.js": 1 },
+  "saved_search.created": { "routes/savedSearches.js": 1 },
+  "food.menu_item_added": { "controllers/foodController.js": 1 },
 };
 
 describe("spec 5.3 guard: required domain hooks exist", () => {

@@ -366,6 +366,7 @@ async function verifyOTP(req, res) {
       // the schema's tier enum, and reg.country is not selected by this
       // flow's pending_registrations read, so neither is emitted.
       await require('../growth/emit').emitDomainEvent(client, 'account.signed_up', { role: 'helper' }, { userId, req });
+      await require('../growth/emit').emitDomainEvent(client, 'account.verified', { role: 'helper' }, { userId, req });
     }
 
     await client.query('COMMIT');

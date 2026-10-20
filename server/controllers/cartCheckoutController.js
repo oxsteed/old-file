@@ -316,21 +316,33 @@ async function confirmPayment(req, res) {
     }
 
     if (paymentIntent.status === 'succeeded') {
-      // Update order status
-      await pool.query(
-        `UPDATE marketplace_orders
-         SET status = $1, updated_at = CURRENT_TIMESTAMP, completed_at = CURRENT_TIMESTAMP
-         WHERE id = $2`,
-        ['paid', orderId]
-      );
+      // Keep the paid transition and its growth event in one transaction so
+      // an outbox row can never describe a payment state that did not commit.
+      await withTransaction(pool, async (client) => {
+        const transitioned = await client.query(
+          `UPDATE marketplace_orders
+           SET status = $1, updated_at = CURRENT_TIMESTAMP, completed_at = CURRENT_TIMESTAMP
+           WHERE id = $2 AND status IS DISTINCT FROM $1
+           RETURNING id`,
+          ['paid', orderId]
+        );
 
-      // Update transaction
-      await pool.query(
-        `UPDATE marketplace_transactions
-         SET status = $1, updated_at = CURRENT_TIMESTAMP, completed_at = CURRENT_TIMESTAMP
-         WHERE order_id = $2`,
-        ['succeeded', orderId]
-      );
+        await client.query(
+          `UPDATE marketplace_transactions
+           SET status = $1, updated_at = CURRENT_TIMESTAMP, completed_at = CURRENT_TIMESTAMP
+           WHERE order_id = $2`,
+          ['succeeded', orderId]
+        );
+
+        if (transitioned.rows.length) {
+          const { emitDomainEvent, commerceEventProps } = require('../growth/emit');
+          await emitDomainEvent(client, 'marketplace.order_paid', commerceEventProps({
+            id: orderId,
+            amount_minor: paidAmount,
+            currency: actualCurrency.toUpperCase(),
+          }), { userId, req });
+        }
+      }, 'marketplace_order_paid_growth');
 
       // Clear cart items after successful payment
       if (order.rows[0].cart_id) {

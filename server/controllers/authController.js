@@ -4,6 +4,7 @@
 // OxSteed v2
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
+const { withTransaction } = require('../utils/transaction');
 const jwt = require('jsonwebtoken');
 const { authenticator } = require('@otplib/v12-adapter');
 const pool = require('../db');
@@ -812,7 +813,7 @@ async function verifyOTP(req, res) {
   try {
     const { email, otp } = req.body;
     const { rows } = await pool.query(
-      'SELECT id, otp_code, otp_expires_at, otp_attempts, otp_locked_until FROM users WHERE email = $1',
+      'SELECT id, otp_code, otp_expires_at, otp_attempts, otp_locked_until, role, country, membership_tier FROM users WHERE email = $1',
       [email.toLowerCase()]
     );
     // Return same 400 for missing user to prevent account enumeration.
@@ -844,10 +845,25 @@ async function verifyOTP(req, res) {
       await pool.query('UPDATE users SET otp_attempts = $1 WHERE id = $2', [newAttempts, user.id]);
       return res.status(400).json({ error: 'Invalid or expired OTP', attemptsRemaining: 3 - newAttempts });
     }
-    const { rows: verifyRows } = await pool.query(
-      'UPDATE users SET email_verified = true, otp_code = NULL, otp_expires_at = NULL, otp_attempts = 0, otp_locked_until = NULL WHERE id = $1 AND otp_code = $2 RETURNING id',
-      [user.id, user.otp_code]
-    );
+    const { rows: verifyRows } = await withTransaction(pool, async (client) => {
+      const result = await client.query(
+        'UPDATE users SET email_verified = true, otp_code = NULL, otp_expires_at = NULL, otp_attempts = 0, otp_locked_until = NULL WHERE id = $1 AND otp_code = $2 RETURNING id',
+        [user.id, user.otp_code]
+      );
+      if (result.rows.length) {
+        const role = ['customer', 'helper', 'business', 'restaurant', 'broker'].includes(user.role) ? user.role : undefined;
+        const tier = ['starter', 'pro', 'elite'].includes(user.membership_tier) ? user.membership_tier : undefined;
+        const country = /^[A-Z]{2}$/.test(String(user.country || '').toUpperCase())
+          ? String(user.country).toUpperCase()
+          : undefined;
+        await require('../growth/emit').emitDomainEvent(client, 'account.verified', {
+          ...(role ? { role } : {}),
+          ...(tier ? { tier } : {}),
+          ...(country ? { country } : {}),
+        }, { userId: user.id, req });
+      }
+      return result;
+    }, 'account_verified_growth');
     if (verifyRows.length === 0) {
       return res.status(400).json({ error: 'OTP verification failed. Please try again.' });
     }
@@ -1404,34 +1420,42 @@ async function verifyRegistrationOTP(req, res) {
       : (pending.role && ['customer', 'helper'].includes(pending.role) ? pending.role : 'customer');
     const pendingRole = derivedRole;
 
-    const userResult = await pool.query(
-      `INSERT INTO users (
-         email, password_hash, first_name, last_name, phone, zip_code, city, state, address_line1,
-         country, preferred_currency,
-         role, age_confirmed, email_verified,
-         terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua, referral_code,
-         trial_started_at, trial_ends_at, referred_by,
-         onboarding_status, onboarding_completed, profile_completed, tier_selected, terms_accepted,
-         contact_completed, membership_tier, default_mode, signup_device_fingerprint
-       ) VALUES (
-         $1,$2,$3,$4,$5,$6,$7,$8,$9,
-         $10,$11,
-         $21,$12,true,
-         $13,$14,$15,$16,$17,
-         $18,$19,$20,
-         'onboarding_complete', TRUE, TRUE, TRUE, TRUE,
-         TRUE, 'tier1', $22, pending.signup_device_fingerprint
-       ) RETURNING *`,
-      [
-        pending.email, pending.password_hash, pending.first_name, pending.last_name, pending.phone, pending.zip_code,
-        cityU, stateU, addr1,
-        countryU, preferredCurrency,
-        pending.age_confirmed,
-        pending.terms_accepted_at, pending.terms_version, pending.terms_acceptance_ip, pending.terms_acceptance_ua, referralCode,
-        trial_started_at, trial_ends_at, referrerId,
-        pendingRole, pendingDefaultMode,
-      ]
-    );
+    const userResult = await withTransaction(pool, async (client) => {
+      const result = await client.query(
+        `INSERT INTO users (
+           email, password_hash, first_name, last_name, phone, zip_code, city, state, address_line1,
+           country, preferred_currency,
+           role, age_confirmed, email_verified,
+           terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua, referral_code,
+           trial_started_at, trial_ends_at, referred_by,
+           onboarding_status, onboarding_completed, profile_completed, tier_selected, terms_accepted,
+           contact_completed, membership_tier, default_mode, signup_device_fingerprint
+         ) VALUES (
+           $1,$2,$3,$4,$5,$6,$7,$8,$9,
+           $10,$11,
+           $21,$12,true,
+           $13,$14,$15,$16,$17,
+           $18,$19,$20,
+           'onboarding_complete', TRUE, TRUE, TRUE, TRUE,
+           TRUE, 'tier1', $22, pending.signup_device_fingerprint
+         ) RETURNING *`,
+        [
+          pending.email, pending.password_hash, pending.first_name, pending.last_name, pending.phone, pending.zip_code,
+          cityU, stateU, addr1,
+          countryU, preferredCurrency,
+          pending.age_confirmed,
+          pending.terms_accepted_at, pending.terms_version, pending.terms_acceptance_ip, pending.terms_acceptance_ua, referralCode,
+          trial_started_at, trial_ends_at, referrerId,
+          pendingRole, pendingDefaultMode,
+        ]
+      );
+      const growthRole = ['customer', 'helper'].includes(pendingRole) ? pendingRole : 'customer';
+      await require('../growth/emit').emitDomainEvent(client, 'account.verified', {
+        role: growthRole,
+        ...(typeof countryU === 'string' && /^[A-Z]{2}$/.test(countryU) ? { country: countryU } : {}),
+      }, { userId: result.rows[0]?.id, req });
+      return result;
+    }, 'customer_registration_verified_growth');
     const user = userResult.rows[0];
     // Mint the universal entity ID (migration 670). This path is not wrapped
     // in an explicit transaction, so mint best-effort: a failure must never

@@ -2606,34 +2606,41 @@ exports.createMenuItem = async (req, res, next) => {
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
 
     const priceCents = parseMoneyCents(req.body.priceCents ?? req.body.price_cents, 'priceCents');
-    const { rows: [item] } = await pool.query(
-      `INSERT INTO food_menu_items
-         (restaurant_id, category_id, name, description, image_url, price_cents,
-          currency_code, is_available, manual_available, inventory_available,
-          inventory_availability_state, sort_order, tags, allergens,
-          publication_status, availability_schedule)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,TRUE,'available',$9,$10,$11,$12,$13)
-       RETURNING *`,
-      [
-        restaurantId,
-        parsePositiveInt(req.body.categoryId || req.body.category_id),
-        name,
-        normalizeString(req.body.description, 2000),
-        normalizeString(req.body.imageUrl || req.body.image_url, 1000),
-        priceCents,
-        normalizeCurrency(req.body.currencyCode || req.body.currency_code || restaurant.currency_code),
-        req.body.isAvailable !== false && req.body.is_available !== false,
-        Number.parseInt(req.body.sortOrder || req.body.sort_order || 0, 10) || 0,
-        normalizeTextArray(req.body.tags, 20),
-        normalizeTextArray(req.body.allergens, 20),
-        ['draft', 'published'].includes(req.body.publicationStatus || req.body.publication_status)
-          ? (req.body.publicationStatus || req.body.publication_status)
-          : 'published',
-        req.body.availabilitySchedule && typeof req.body.availabilitySchedule === 'object'
-          ? JSON.stringify(req.body.availabilitySchedule)
-          : '{}',
-      ]
-    );
+    const { rows: [item] } = await withTransaction(pool, async (client) => {
+      const result = await client.query(
+        `INSERT INTO food_menu_items
+           (restaurant_id, category_id, name, description, image_url, price_cents,
+            currency_code, is_available, manual_available, inventory_available,
+            inventory_availability_state, sort_order, tags, allergens,
+            publication_status, availability_schedule)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,TRUE,'available',$9,$10,$11,$12,$13)
+         RETURNING *`,
+        [
+          restaurantId,
+          parsePositiveInt(req.body.categoryId || req.body.category_id),
+          name,
+          normalizeString(req.body.description, 2000),
+          normalizeString(req.body.imageUrl || req.body.image_url, 1000),
+          priceCents,
+          normalizeCurrency(req.body.currencyCode || req.body.currency_code || restaurant.currency_code),
+          req.body.isAvailable !== false && req.body.is_available !== false,
+          Number.parseInt(req.body.sortOrder || req.body.sort_order || 0, 10) || 0,
+          normalizeTextArray(req.body.tags, 20),
+          normalizeTextArray(req.body.allergens, 20),
+          ['draft', 'published'].includes(req.body.publicationStatus || req.body.publication_status)
+            ? (req.body.publicationStatus || req.body.publication_status)
+            : 'published',
+          req.body.availabilitySchedule && typeof req.body.availabilitySchedule === 'object'
+            ? JSON.stringify(req.body.availabilitySchedule)
+            : '{}',
+        ]
+      );
+      const { emitDomainEvent } = require('../growth/emit');
+      await emitDomainEvent(client, 'food.menu_item_added', {
+        restaurant_id: String(restaurantId),
+      }, { userId: req.user.id, req });
+      return result;
+    }, 'food_menu_item_created_growth');
     await auditFoodChange(req, restaurant, {
       action: 'menu.item.created',
       target_type: 'menu_item',
