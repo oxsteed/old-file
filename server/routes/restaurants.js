@@ -14,6 +14,7 @@ const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const { requireRestaurantAccess, scopeExempt } = require('../middleware/scopeGates');
 const ops = require('../controllers/restaurantOpsController');
 const training = require('../controllers/restaurantTrainingController');
+const teamComms = require('../controllers/restaurantTeamCommsController');
 const audits = require('../controllers/restaurantAuditsController');
 const franchiseReports = require('../controllers/restaurantReportsController');
 const inventory = require('../controllers/restaurantInventoryController');
@@ -268,6 +269,13 @@ router.post('/:restaurantId/crew/tasks/:taskId/proofs', requireRestaurantAccess(
 router.get('/:restaurantId/crew/tasks/:taskId/comments', requireRestaurantAccess(), appFlow.listCrewTaskComments);
 router.post('/:restaurantId/crew/tasks/:taskId/comments', requireRestaurantAccess(), appFlow.addCrewTaskComment);
 router.get('/:restaurantId/crew/tasks/:taskId/events', requireRestaurantAccess(), appFlow.listCrewTaskEvents);
+
+// Team communication (S-17): announcements with acknowledgement + log book.
+router.get('/:restaurantId/announcements', requireRestaurantAccess(), teamComms.listAnnouncements);
+router.post('/:restaurantId/announcements', requireRestaurantAccess(), teamComms.createAnnouncement);
+router.post('/:restaurantId/announcements/:announcementId/acknowledge', requireRestaurantAccess(), teamComms.acknowledgeAnnouncement);
+router.get('/:restaurantId/logbook', requireRestaurantAccess(), teamComms.listLogbook);
+router.post('/:restaurantId/logbook', requireRestaurantAccess(), teamComms.createLogbookEntry);
 
 // Marketplace Help requests (App 2)
 router.get('/:restaurantId/help-requests', requireRestaurantAccess(), help.listHelpRequests);

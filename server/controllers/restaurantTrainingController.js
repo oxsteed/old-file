@@ -7,6 +7,7 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const { sendNotification } = require('../services/notificationService');
 
 const TRAINING_CATEGORIES = ['general', 'kitchen', 'front_of_house', 'cleaning', 'food_safety', 'customer_service', 'safety'];
 const ASSIGNMENT_STATUSES = ['assigned', 'in_progress', 'completed', 'overdue'];
@@ -237,7 +238,7 @@ exports.assignModule = async (req, res, next) => {
     const { userId, dueAt } = req.body || {};
     if (!userId) throw new AppError('userId is required', 400, 'user_required');
     const { rows: [module] } = await pool.query(
-      `SELECT id FROM restaurant_training_modules WHERE id = $1 AND restaurant_id = $2`,
+      `SELECT id, title FROM restaurant_training_modules WHERE id = $1 AND restaurant_id = $2`,
       [moduleId, restaurantId]
     );
     if (!module) throw new AppError('Training module not found', 404, 'module_not_found');
@@ -260,6 +261,26 @@ exports.assignModule = async (req, res, next) => {
        RETURNING *`,
       [moduleId, restaurantId, userId, req.user.id, dueAt || null]
     );
+    // S-17: the assignee hears about new training right away (type + params,
+    // S-19). Not sent when a manager assigns a module to themselves.
+    if (String(userId) !== String(req.user.id)) {
+      await sendNotification({
+        userId,
+        type: 'training_assigned',
+        title: `New training at ${restaurant.display_name}`,
+        body: module.title,
+        action_url: '/restaurants/merchant?tab=myshift',
+        emailChannel: false,
+        data: {
+          restaurantId,
+          moduleId,
+          params: {
+            restaurantName: restaurant.display_name,
+            moduleTitle: module.title,
+          },
+        },
+      });
+    }
     res.status(201).json({ assignment });
   } catch (err) {
     next(err);
