@@ -5081,6 +5081,9 @@
     "pos": {
       "creditHoldPlaceholder": "Pegue el ID de retención de OxSteed Credit",
       "staffSessionExpired": "La sesión del personal se bloqueó por inactividad.",
+      "discountApprovalRequired": "Este descuento necesita la aprobación de un gerente. Ingrese el PIN de un gerente y vuelva a revisar el pago.",
+      "managerPin": "PIN del gerente",
+      "managerPinPlaceholder": "Ingrese el PIN del gerente",
       "pinLocked": "Demasiados intentos de PIN fallidos. El ingreso de PIN está bloqueado por unos minutos.",
       "pinNotMember": "Este PIN ya no pertenece a un miembro activo del equipo.",
       "invalidPin": "PIN de personal inválido.",

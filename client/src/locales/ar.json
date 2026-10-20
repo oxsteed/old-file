@@ -23548,6 +23548,9 @@
     "pos": {
       "creditHoldPlaceholder": "الصق معرّف حجز OxSteed Credit",
       "staffSessionExpired": "تم قفل جلسة الموظف بعد فترة من عدم النشاط.",
+      "discountApprovalRequired": "يحتاج هذا الخصم إلى موافقة مدير. أدخل الرقم السري للمدير ثم راجع الدفع مرة أخرى.",
+      "managerPin": "الرقم السري للمدير",
+      "managerPinPlaceholder": "أدخل الرقم السري للمدير",
       "pinLocked": "محاولات PIN فاشلة كثيرة. تم قفل إدخال PIN لبضع دقائق.",
       "pinNotMember": "لم يعد هذا الرقم السري يخص عضوًا نشطًا في الفريق.",
       "invalidPin": "رقم PIN للموظف غير صالح.",

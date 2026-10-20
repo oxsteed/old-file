@@ -110,13 +110,21 @@ function PaymentModal({ total, currency, discounts, serverOrder, onCreateOrder, 
   const [tip, setTip] = useState('');
   const [creditHoldId, setCreditHoldId] = useState('');
   const [loading, setLoading] = useState(false);
+  // S-07: set when the server answers discount_approval_required; the
+  // modal then shows the manager-PIN prompt and the next review retries
+  // once with the PIN.
+  const [approvalNeeded, setApprovalNeeded] = useState(false);
+  const [approvalPin, setApprovalPin] = useState('');
 
   const selectedDiscount = discounts.find((d) => String(d.id) === discountId);
-  const discountCents = selectedDiscount
+  const rawDiscountCents = selectedDiscount
     ? selectedDiscount.discount_type === 'percent'
       ? Math.round(total * (selectedDiscount.value / 100))
       : Number(selectedDiscount.value_cents || 0)
     : 0;
+  const discountCents = selectedDiscount?.max_discount_cents !== null && selectedDiscount?.max_discount_cents !== undefined
+    ? Math.min(rawDiscountCents, Number(selectedDiscount.max_discount_cents))
+    : rawDiscountCents;
   const tipCents = Math.round((parseFloat(tip) || 0) * 100);
   // F-14: once the order exists, every figure the cashier sees (subtotal,
   // tax, service fee, total, change) comes from the server-returned
@@ -129,13 +137,20 @@ function PaymentModal({ total, currency, discounts, serverOrder, onCreateOrder, 
 
   const handleReview = async () => {
     setLoading(true);
-    await onCreateOrder({
+    const result = await onCreateOrder({
       method,
       discountId: discountId || null,
       discountCents,
       tipCents,
+      approvalPin: approvalNeeded ? approvalPin : undefined,
     });
     setLoading(false);
+    if (result && result.errorCode === 'discount_approval_required') {
+      setApprovalNeeded(true);
+    } else if (result) {
+      setApprovalNeeded(false);
+      setApprovalPin('');
+    }
   };
 
   const handleConfirm = async () => {
@@ -160,12 +175,28 @@ function PaymentModal({ total, currency, discounts, serverOrder, onCreateOrder, 
         {!serverOrder && discounts.length > 0 && (
           <div className="fd-field">
             <label>{t('food.pos.discount')}</label>
-            <select value={discountId} onChange={(e) => setDiscountId(e.target.value)}>
+            <select value={discountId} onChange={(e) => { setDiscountId(e.target.value); setApprovalNeeded(false); setApprovalPin(''); }}>
               <option value="">{t('food.pos.noDiscount')}</option>
               {discounts.map((d) => (
                 <option key={d.id} value={d.id}>{d.name} {d.discount_type === 'percent' ? `(${d.value}%)` : formatFoodMoney(d.value_cents, currency)}</option>
               ))}
             </select>
+          </div>
+        )}
+
+        {!serverOrder && approvalNeeded && (
+          <div className="fd-field">
+            <label htmlFor="pos-discount-approval-pin">{t('food.pos.managerPin')}</label>
+            <p className="fd-pos-pay-hint">{t('food.pos.discountApprovalRequired')}</p>
+            <input
+              id="pos-discount-approval-pin"
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              value={approvalPin}
+              onChange={(e) => setApprovalPin(e.target.value)}
+              placeholder={t('food.pos.managerPinPlaceholder')}
+            />
           </div>
         )}
 
@@ -274,6 +305,7 @@ export default function RestaurantPOSPage() {
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
   const [discounts, setDiscounts] = useState([]);
+  const [discountDefinitions, setDiscountDefinitions] = useState([]);
   const [activeShift, setActiveShift] = useState(null);
   const [canManage, setCanManage] = useState(false);
   const [canUsePos, setCanUsePos] = useState(false);
@@ -327,6 +359,12 @@ export default function RestaurantPOSPage() {
       // access; refunds stay manager-only on the API.
       const membership = bootstrapResponse?.data?.membership;
       setCanManage(Boolean(membership?.canManage));
+      // F-15: the restaurant's own discount definitions ride the
+      // bootstrap payload; the discounts endpoint below also returns
+      // them as a fallback.
+      if (Array.isArray(bootstrapResponse?.data?.discountDefinitions)) {
+        setDiscountDefinitions(bootstrapResponse.data.discountDefinitions);
+      }
       const membershipPermissions = membership?.permissions || [];
       setCanUsePos(membershipPermissions.includes('*') || membershipPermissions.includes('pos.use'));
       const openShifts = (shiftsResponse.data?.shifts || [])
@@ -366,7 +404,12 @@ export default function RestaurantPOSPage() {
   useEffect(() => {
     load();
     api.get(`/restaurants/${restaurantId}/pos/discounts`)
-      .then((r) => setDiscounts(r.data?.discounts || []))
+      .then((r) => {
+        setDiscounts(r.data?.discounts || []);
+        if (Array.isArray(r.data?.discountDefinitions)) {
+          setDiscountDefinitions(r.data.discountDefinitions);
+        }
+      })
       .catch(() => {});
   }, [load, restaurantId]);
 
@@ -443,17 +486,31 @@ export default function RestaurantPOSPage() {
 
   const canPay = canManage || canUsePos;
 
+  // F-15: the discount picker lists the legacy global codes and the
+  // restaurant's own definitions together. Definitions carry a prefixed
+  // id so the two sets never collide; choosing one sends its
+  // discount_definition_id and the server computes the amount.
+  const pickerDiscounts = [
+    ...discounts,
+    ...discountDefinitions.map((definition) => ({
+      ...definition,
+      id: `definition-${definition.id}`,
+      definitionId: Number(definition.id),
+    })),
+  ];
+
   // F-04 phase 1: create the order for this checkout. The stable
   // client_order_id makes a retry return the same order from the server
   // instead of duplicating the ticket; if this checkout already created
   // its order, it is reused as-is.
-  const handleCreateCheckoutOrder = async ({ method, discountId, tipCents }) => {
+  const handleCreateCheckoutOrder = async ({ method, discountId, tipCents, approvalPin }) => {
     if (!requireOpenShift()) return null;
     const activeCheckoutId = checkoutId || crypto.randomUUID();
     if (!checkoutId) setCheckoutId(activeCheckoutId);
     if (checkoutOrder) return checkoutOrder;
     setSubmitting(true);
     try {
+      const selectedDiscount = pickerDiscounts.find((discount) => String(discount.id) === String(discountId));
       const payload = {
         items: serializeTicket(),
         order_source: 'counter',
@@ -464,13 +521,15 @@ export default function RestaurantPOSPage() {
         client_order_id: activeCheckoutId,
         payment_mode: method === 'oxsteed_credit' ? 'oxsteed_credit' : 'pay_at_restaurant',
         payment_method: method,
-        discount_lines: discountId
+        discount_definition_id: selectedDiscount?.definitionId || undefined,
+        discount_lines: discountId && !selectedDiscount?.definitionId
           ? [{
-              code: discounts.find((discount) => String(discount.id) === String(discountId))?.code,
-              label: discounts.find((discount) => String(discount.id) === String(discountId))?.name,
-              percent_bps: Math.round((discounts.find((discount) => String(discount.id) === String(discountId))?.percentOff || 0) * 10000),
+              code: selectedDiscount?.code,
+              label: selectedDiscount?.name,
+              percent_bps: Math.round((selectedDiscount?.percentOff || 0) * 10000),
             }]
           : undefined,
+        approval_pin: approvalPin || undefined,
         tip_cents: tipCents || undefined,
       };
       const res = await api.post(`/restaurants/${restaurantId}/pos/orders`, payload);
@@ -478,6 +537,12 @@ export default function RestaurantPOSPage() {
       if (order) setCheckoutOrder(order);
       return order;
     } catch (err) {
+      // S-07: the server refused the definition discount until a manager
+      // approves it. Not a failure: hand the code back so the payment
+      // modal can prompt for the manager PIN and retry once with it.
+      if (err?.response?.data?.code === 'discount_approval_required') {
+        return { errorCode: 'discount_approval_required' };
+      }
       const message = err?.response?.data?.message || t('food.pos.orderError');
       reportFailedOperation('pos_order', message);
       toast.error(message);
@@ -733,7 +798,7 @@ export default function RestaurantPOSPage() {
         <PaymentModal
           total={totalCents}
           currency={currency}
-          discounts={discounts}
+          discounts={pickerDiscounts}
           serverOrder={checkoutOrder}
           onCreateOrder={handleCreateCheckoutOrder}
           onConfirmPayment={handleConfirmPayment}

@@ -5081,6 +5081,9 @@
     "pos": {
       "creditHoldPlaceholder": "Collez l'ID de retenue OxSteed Credit",
       "staffSessionExpired": "La session du personnel s'est verrouillée après une période d'inactivité.",
+      "discountApprovalRequired": "Cette remise nécessite l'approbation d'un responsable. Saisissez le code PIN d'un responsable, puis vérifiez à nouveau le paiement.",
+      "managerPin": "Code PIN du responsable",
+      "managerPinPlaceholder": "Saisissez le code PIN du responsable",
       "pinLocked": "Trop de tentatives de code PIN échouées. La saisie du code PIN est verrouillée pour quelques minutes.",
       "pinNotMember": "Ce code PIN n'appartient plus à un membre actif de l'équipe.",
       "invalidPin": "Code PIN du personnel invalide.",

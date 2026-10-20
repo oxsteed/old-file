@@ -324,6 +324,10 @@ router.get('/:restaurantId/orders', requireRestaurantAccess(), food.listRestaura
 
 // POS operations (App 3)
 router.get('/:restaurantId/pos/discounts', requireRestaurantAccess(), pos.listDiscounts);
+router.get('/:restaurantId/pos/discount-definitions', requireRestaurantAccess(), pos.listDiscountDefinitions);
+router.post('/:restaurantId/pos/discount-definitions', requireRestaurantAccess(), pos.createDiscountDefinition);
+router.patch('/:restaurantId/pos/discount-definitions/:definitionId', requireRestaurantAccess(), pos.updateDiscountDefinition);
+router.delete('/:restaurantId/pos/discount-definitions/:definitionId', requireRestaurantAccess(), pos.deactivateDiscountDefinition);
 router.post('/:restaurantId/pos/sync/ack', requireRestaurantAccess(), appFlow.ackPendingOperations);
 router.post('/:restaurantId/pos/pending-operations/ack', requireRestaurantAccess(), appFlow.ackPendingOperations);
 router.get('/:restaurantId/pos/sync/status', requireRestaurantAccess(), appFlow.getPosSyncStatus);

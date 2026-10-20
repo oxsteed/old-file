@@ -11,6 +11,7 @@ const { withTransaction } = require('../utils/transaction');
 const socketService = require('../services/socketService');
 const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
 const { maybeUnpublishBusinessIfIncomplete } = require('./businessController');
+const { serializeDiscountDefinition } = require('./restaurantPosController');
 const {
   reserveInventoryForOrder,
   releaseInventoryForOrder,
@@ -299,6 +300,107 @@ function normalizeDiscountLines(body, subtotalCents, { allowManual = false } = {
     throw new AppError('Validation failed', 400, 'validation_failed', { discountCents: 'Cannot exceed subtotal' });
   }
   return { discountCents: total, discountLines: normalized };
+}
+
+// F-15 + S-07: apply one of the restaurant's own discount definitions
+// (migration 953). The amount is computed here from the stored
+// definition, never from a client-supplied figure: percent of the order
+// subtotal or the fixed amount, clamped to max_discount_cents and to the
+// subtotal so a discount can never push a total negative. Approval: when
+// the definition requires approval, or the computed discount exceeds
+// settings.posApprovalPolicy.discountAboveCents (absent/null = no
+// threshold), a non-manager caller must supply a manager approvalPin,
+// consumed through the shared S-07 machinery inside the order's write
+// transaction; managers (restaurant.manage via the resolver) never need
+// the PIN. Without the PIN the request fails 403
+// 'discount_approval_required' so the POS can prompt and retry.
+async function resolveDefinitionDiscount({ client, restaurant, req, restaurantId, subtotal, definitionId, shiftId, actingStaff }) {
+  const { rows: [definition] } = await client.query(
+    `SELECT * FROM restaurant_discount_definitions
+      WHERE id = $1 AND restaurant_id = $2`,
+    [definitionId, restaurantId]
+  );
+  if (!definition) {
+    throw new AppError('Discount definition not found', 404, 'discount_definition_not_found');
+  }
+  if (!definition.is_active) {
+    throw new AppError('This discount is not active', 400, 'discount_definition_inactive');
+  }
+  const minSubtotalCents = Number(definition.min_subtotal_cents || 0);
+  if (subtotal < minSubtotalCents) {
+    throw new AppError('Order subtotal is below this discount minimum', 400, 'discount_min_subtotal_not_met', {
+      minSubtotalCents,
+      subtotalCents: subtotal,
+    });
+  }
+  let amount = definition.kind === 'percent'
+    ? Math.round(subtotal * Number(definition.value) / 100)
+    : Number(definition.value);
+  if (definition.max_discount_cents !== null && definition.max_discount_cents !== undefined) {
+    amount = Math.min(amount, Number(definition.max_discount_cents));
+  }
+  amount = Math.max(0, Math.min(amount, subtotal));
+
+  const settings = safeJson(restaurant.settings, {});
+  const policy = safeJson(settings.posApprovalPolicy, {});
+  const rawThreshold = policy.discountAboveCents ?? policy.discount_above_cents;
+  const threshold = rawThreshold === null || rawThreshold === undefined
+    ? null
+    : Math.max(0, Math.floor(Number(rawThreshold) || 0));
+  const approvalRequired = definition.requires_approval === true
+    || (threshold !== null && amount > threshold);
+
+  let approval = null;
+  if (approvalRequired && amount > 0) {
+    const isManager = await permissionsService.hasRestaurantPermission(restaurant, req.user.id, ['restaurant.manage']);
+    if (!isManager) {
+      const approvalPin = normalizeString(
+        req.body.approvalPin || req.body.approval_pin || req.body.managerPin || req.body.manager_pin,
+        12
+      );
+      if (!approvalPin) {
+        throw new AppError('A manager approval is required for this discount', 403, 'discount_approval_required', {
+          definitionId: Number(definition.id),
+          discountCents: amount,
+        });
+      }
+      // The definition/threshold decision above is authoritative, so the
+      // per-action policy for 'discount' is pinned to always-on for this
+      // call only, on a copy: consumeManagerApproval then verifies the
+      // PIN and writes the restaurant_pos_approvals row (action
+      // 'discount') on this transaction. The caller's access row and its
+      // stored settings are not mutated.
+      const approvalRestaurant = {
+        ...restaurant,
+        settings: {
+          ...settings,
+          posApprovalPolicy: { ...policy, discount: { always: true } },
+        },
+      };
+      approval = await consumeManagerApproval({
+        client,
+        restaurant: approvalRestaurant,
+        req,
+        action: 'discount',
+        amountCents: amount,
+        shiftId,
+        actingStaff,
+      });
+    }
+  }
+  const discountLines = amount > 0
+    ? [{
+      code: definition.code,
+      label: definition.name,
+      amountCents: amount,
+      source: 'discount_definition',
+      metadata: {
+        definitionId: Number(definition.id),
+        ...(approval ? { approvalId: Number(approval.id) } : {}),
+      },
+    }]
+    : [];
+  return { discountCents: amount, discountLines, approval };
 }
 
 async function insertPosReceiptAudit(client, {
@@ -1067,7 +1169,7 @@ async function buildBootstrapPayload(user, restaurantId, query = {}) {
     }
     const requestedDeviceId = parsePositiveInt(query.deviceId || query.device_id);
 
-    const [{ rows: membershipRows }, { rows: devices }, { rows: locations }, { rows: businessRows }, snapshot] = await Promise.all([
+    const [{ rows: membershipRows }, { rows: devices }, { rows: locations }, { rows: businessRows }, { rows: discountDefinitionRows }, snapshot] = await Promise.all([
       pool.query(
         `SELECT id, role, status
            FROM business_members
@@ -1101,6 +1203,14 @@ async function buildBootstrapPayload(user, restaurantId, query = {}) {
           WHERE id = $1
           LIMIT 1`,
         [restaurant.business_id]
+      ),
+      // F-15: active discount definitions ride the bootstrap payload so
+      // the POS picker needs no extra round trip.
+      pool.query(
+        `SELECT * FROM restaurant_discount_definitions
+          WHERE restaurant_id = $1 AND is_active = TRUE
+          ORDER BY code ASC`,
+        [restaurantId]
       ),
       loadRestaurantSnapshot(restaurantId),
     ]);
@@ -1172,6 +1282,7 @@ async function buildBootstrapPayload(user, restaurantId, query = {}) {
       },
       device: activeDevice,
       devices,
+      discountDefinitions: discountDefinitionRows.map(serializeDiscountDefinition),
     };
 }
 
@@ -3789,9 +3900,30 @@ exports.createPosOrder = async (req, res, next) => {
           tipCents: `Must not exceed ${maxTip} cents`,
         });
       }
-      const { discountCents: discount, discountLines } = normalizeDiscountLines(req.body, subtotal, {
-        allowManual: MANAGE_ROLES.has(restaurant.effective_role),
-      });
+      // F-15: when the request names one of the restaurant's discount
+      // definitions, the definition path computes and (S-07) approves
+      // the discount; legacy fields are ignored for that request. With
+      // no definition id the legacy global-code path runs unchanged.
+      const discountDefinitionId = parsePositiveInt(req.body.discountDefinitionId || req.body.discount_definition_id);
+      let discount;
+      let discountLines;
+      let discountApproval = null;
+      if (discountDefinitionId) {
+        ({ discountCents: discount, discountLines, approval: discountApproval } = await resolveDefinitionDiscount({
+          client,
+          restaurant,
+          req,
+          restaurantId,
+          subtotal,
+          definitionId: discountDefinitionId,
+          shiftId,
+          actingStaff,
+        }));
+      } else {
+        ({ discountCents: discount, discountLines } = normalizeDiscountLines(req.body, subtotal, {
+          allowManual: MANAGE_ROLES.has(restaurant.effective_role),
+        }));
+      }
       const taxableSubtotal = Math.max(0, subtotal - discount);
       const taxRateBps = Math.max(0, Math.min(10000, Number(restaurantRow.tax_rate_bps || 0)));
       const serviceFeeBps = Math.max(0, Math.min(10000, Number(restaurantRow.service_fee_bps || 0)));
@@ -3931,6 +4063,15 @@ exports.createPosOrder = async (req, res, next) => {
           posLocationId,
         ]
       );
+      if (discountApproval) {
+        // S-07: link the consumed manager approval to the order it
+        // authorized (the approvals row was written before the order
+        // existed, inside this same transaction).
+        await client.query(
+          'UPDATE restaurant_pos_approvals SET food_order_id = $2 WHERE id = $1',
+          [discountApproval.id, order.id]
+        );
+      }
       const createdOrderItems = [];
       for (const line of normalized) {
         const { rows: [orderItem] } = await client.query(
