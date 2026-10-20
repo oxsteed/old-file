@@ -4831,6 +4831,7 @@
     }
   },
   "food": {
+    "merchant": { "timezone": "Time zone", "timezoneHint": "Used for opening hours, daily queue numbers, and reports.", "locationEdit": "Edit", "locationSaveChanges": "Save changes", "locationStatus": "Status", "locationActive": "Active", "locationPaused": "Paused", "locationClosed": "Closed", "locationUpdated": "Location updated", "locationMakePrimary": "Make this the primary location", "locationName": "Location name", "addLocation": "Add location", "locationCreated": "Location added", "locationError": "Could not save location", "findCoordinates": "Find coordinates", "locationGeocodeEmpty": "Could not find coordinates for this location", "locationGeocoded": "Coordinates found", "locationGeocodeError": "Could not find coordinates" },
     "restaurant": {
       "promoErrors": {
         "generic": "This promo code can't be used on this order.",

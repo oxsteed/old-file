@@ -199,6 +199,9 @@ export const listFoodLocations = (restaurantId) =>
 export const createFoodLocation = (restaurantId, payload) =>
   api.post(`/food/restaurants/${restaurantId}/locations`, payload).then((r) => r.data?.location);
 
+export const updateFoodLocation = (restaurantId, locationId, payload) =>
+  api.patch(`/food/restaurants/${restaurantId}/locations/${locationId}`, payload).then((r) => r.data?.location);
+
 export const getTrackedFoodOrder = (trackingToken) =>
   api.get(`/food/orders/track/${trackingToken}`).then((r) => r.data?.order);
 

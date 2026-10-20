@@ -4831,6 +4831,7 @@
     }
   },
   "food": {
+    "merchant": { "timezone": "Fuseau horaire", "timezoneHint": "Utilisé pour les heures d'ouverture, les numéros de file quotidiens et les rapports.", "locationEdit": "Modifier", "locationSaveChanges": "Enregistrer les modifications", "locationStatus": "Statut", "locationActive": "Actif", "locationPaused": "En pause", "locationClosed": "Fermé", "locationUpdated": "Établissement mis à jour", "locationMakePrimary": "Définir comme établissement principal", "locationName": "Nom de l'établissement", "addLocation": "Ajouter un établissement", "locationCreated": "Établissement ajouté", "locationError": "Impossible d'enregistrer l'établissement", "findCoordinates": "Trouver les coordonnées", "locationGeocodeEmpty": "Coordonnées introuvables pour cet établissement", "locationGeocoded": "Coordonnées trouvées", "locationGeocodeError": "Impossible de trouver les coordonnées" },
     "restaurant": {
       "promoErrors": {
         "generic": "Ce code promo ne peut pas être utilisé pour cette commande.",
