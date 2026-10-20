@@ -134,6 +134,8 @@ const ConsultingScheduler = lazyWithRetry(() => import('./pages/ConsultingSchedu
 const ConsultingAnalyticsDashboard = lazyWithRetry(() => import('./pages/ConsultingAnalyticsDashboard'));
 const AdminQueryBuilderPage = lazyWithRetry(() => import('../pages/admin/AdminQueryBuilderPage'));
 const GrowthInsights = lazyWithRetry(() => import('./pages/growth/GrowthInsights'));
+const GrowthCampaignManager = lazyWithRetry(() => import('./pages/growth/CampaignManager'));
+const GrowthPartnerManager = lazyWithRetry(() => import('./pages/growth/PartnerManager'));
 const BusinessLaunchAdmin = lazyWithRetry(() => import('./pages/BusinessLaunchAdmin'));
 const ConsultingSessionsAdmin = lazyWithRetry(() => import('./pages/ConsultingSessionsAdmin'));
 const OrderManagement = lazyWithRetry(() => import('./pages/OrderManagement'));
@@ -294,7 +296,9 @@ export default function AdminApp() {
           <Route path={adminRoute('growthSegments').relative} element={<GrantGuard grant={adminRoute('growthSegments').grant}><GrowthInsights section="segments" /></GrantGuard>} />
           <Route path={adminRoute('growthSuggestions').relative} element={<GrantGuard grant={adminRoute('growthSuggestions').grant}><GrowthInsights section="suggestions" /></GrantGuard>} />
           <Route path={adminRoute('growthCampaigns').relative} element={<GrantGuard grant={adminRoute('growthCampaigns').grant}><GrowthInsights section="campaigns" /></GrantGuard>} />
+          <Route path={adminRoute('growthCampaignDetail').relative} element={<GrantGuard grant={adminRoute('growthCampaignDetail').grant}><GrowthCampaignManager /></GrantGuard>} />
           <Route path={adminRoute('growthPartners').relative} element={<GrantGuard grant={adminRoute('growthPartners').grant}><GrowthInsights section="partners" /></GrantGuard>} />
+          <Route path={adminRoute('growthPartnerTools').relative} element={<GrantGuard grant={adminRoute('growthPartnerTools').grant}><GrowthPartnerManager /></GrantGuard>} />
           <Route path={adminRoute('growthTaxonomy').relative} element={<GrantGuard grant={adminRoute('growthTaxonomy').grant}><GrowthInsights section="taxonomy" /></GrantGuard>} />
           <Route path={adminRoute('growthSettings').relative} element={<GrantGuard grant={adminRoute('growthSettings').grant}><GrowthInsights section="settings" /></GrantGuard>} />
           <Route path={adminRoute('businessLaunch').relative} element={<BusinessLaunchAdmin />} />
