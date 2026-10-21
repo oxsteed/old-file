@@ -27,6 +27,8 @@ describe('operational store identity migration', () => {
 
   test('installs source-aware resolution and tenant fail-closed triggers', () => {
     expect(sql).toContain('CREATE OR REPLACE FUNCTION restaurant_fill_operational_location');
+    expect(sql).toContain('restaurant_fill_operational_location()');
+    expect(sql).toContain('TG_ARGV[0]');
     expect(sql).toContain("source_kind = 'order'");
     expect(sql).toContain("source_kind = 'shift'");
     expect(sql).toContain("source_kind = 'item'");

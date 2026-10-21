@@ -52,41 +52,58 @@ UPDATE restaurant_printer_settings s
  WHERE l.restaurant_id = s.restaurant_id AND l.is_primary = TRUE
    AND s.location_id IS NULL;
 UPDATE restaurant_inventory_adjustments a
-   SET location_id = COALESCE(i.location_id, l.id)
+   SET location_id = COALESCE((
+     SELECT i.location_id
+       FROM restaurant_inventory_items i
+      WHERE i.id = a.item_id AND i.restaurant_id = a.restaurant_id
+   ), l.id)
   FROM restaurant_locations l
-  LEFT JOIN restaurant_inventory_items i ON i.id = a.item_id AND i.restaurant_id = a.restaurant_id
  WHERE l.restaurant_id = a.restaurant_id AND l.is_primary = TRUE
    AND a.location_id IS NULL;
 UPDATE restaurant_kitchen_stations s
-   SET location_id = COALESCE(d.location_id, l.id)
+   SET location_id = COALESCE((
+     SELECT d.location_id
+       FROM restaurant_app_devices d
+      WHERE d.id = s.device_id AND d.restaurant_id = s.restaurant_id
+   ), l.id)
   FROM restaurant_locations l
-  LEFT JOIN restaurant_app_devices d ON d.id = s.device_id AND d.restaurant_id = s.restaurant_id
  WHERE l.restaurant_id = s.restaurant_id AND l.is_primary = TRUE
    AND s.location_id IS NULL;
 UPDATE restaurant_kitchen_events e
-   SET location_id = COALESCE(o.location_id, l.id)
+   SET location_id = COALESCE((
+     SELECT o.location_id
+       FROM food_orders o
+      WHERE o.id = e.food_order_id AND o.restaurant_id = e.restaurant_id
+   ), l.id)
   FROM restaurant_locations l
-  LEFT JOIN food_orders o ON o.id = e.food_order_id AND o.restaurant_id = e.restaurant_id
  WHERE l.restaurant_id = e.restaurant_id AND l.is_primary = TRUE
    AND e.location_id IS NULL;
 UPDATE restaurant_pos_drawer_events e
-   SET location_id = COALESCE(s.location_id, l.id)
+   SET location_id = COALESCE((
+     SELECT s.location_id
+       FROM restaurant_pos_shifts s
+      WHERE s.id = e.shift_id AND s.restaurant_id = e.restaurant_id
+   ), l.id)
   FROM restaurant_locations l
-  LEFT JOIN restaurant_pos_shifts s ON s.id = e.shift_id AND s.restaurant_id = e.restaurant_id
  WHERE l.restaurant_id = e.restaurant_id AND l.is_primary = TRUE
    AND e.location_id IS NULL;
 UPDATE restaurant_pos_receipt_events e
-   SET location_id = COALESCE(o.location_id, l.id)
+   SET location_id = COALESCE((
+     SELECT o.location_id
+       FROM food_orders o
+      WHERE o.id = e.food_order_id AND o.restaurant_id = e.restaurant_id
+   ), l.id)
   FROM restaurant_locations l
-  LEFT JOIN food_orders o ON o.id = e.food_order_id AND o.restaurant_id = e.restaurant_id
  WHERE l.restaurant_id = e.restaurant_id AND l.is_primary = TRUE
    AND e.location_id IS NULL;
 UPDATE restaurant_pos_approvals a
-   SET location_id = COALESCE(p.location_id, o.location_id, s.location_id, l.id)
+   SET location_id = COALESCE(
+     (SELECT p.location_id FROM restaurant_pos_payments p WHERE p.id = a.payment_id AND p.restaurant_id = a.restaurant_id),
+     (SELECT o.location_id FROM food_orders o WHERE o.id = a.food_order_id AND o.restaurant_id = a.restaurant_id),
+     (SELECT s.location_id FROM restaurant_pos_shifts s WHERE s.id = a.shift_id AND s.restaurant_id = a.restaurant_id),
+     l.id
+   )
   FROM restaurant_locations l
-  LEFT JOIN restaurant_pos_payments p ON p.id = a.payment_id AND p.restaurant_id = a.restaurant_id
-  LEFT JOIN food_orders o ON o.id = a.food_order_id AND o.restaurant_id = a.restaurant_id
-  LEFT JOIN restaurant_pos_shifts s ON s.id = a.shift_id AND s.restaurant_id = a.restaurant_id
  WHERE l.restaurant_id = a.restaurant_id AND l.is_primary = TRUE
    AND a.location_id IS NULL;
 UPDATE restaurant_runner_settlements s
@@ -157,7 +174,7 @@ END $$;
 
 -- Resolve omitted store ids at the database boundary. Source records use a
 -- parent-specific location first, then the primary store as the safe default.
-CREATE OR REPLACE FUNCTION restaurant_fill_operational_location(source_kind TEXT)
+CREATE OR REPLACE FUNCTION restaurant_fill_operational_location()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
@@ -165,6 +182,7 @@ DECLARE payload JSONB := to_jsonb(NEW);
         restaurant_key BIGINT;
         resolved BIGINT;
         source_key BIGINT;
+        source_kind TEXT := COALESCE(TG_ARGV[0], 'primary');
 BEGIN
   restaurant_key := NULLIF(payload ->> 'restaurant_id', '')::BIGINT;
   IF NEW.location_id IS NULL AND source_kind = 'order' THEN
