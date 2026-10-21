@@ -202,7 +202,7 @@ ddescribe('lease expiry and fencing', () => {
     const run = await newRun();
     const customer = await newUser();
     await service.discoverAccountJobs(run.id, [accountFor(customer)]);
-    const claimed = await service.claimNextAccountJob('worker-a');
+    const claimed = await service.claimNextAccountJob('worker-a', 120);
     await expect(service.renewLease(claimed.id, 'worker-a', 999, 120))
       .rejects.toMatchObject({ code: 'statement_lease_stale', statusCode: 409 });
   });
@@ -274,7 +274,7 @@ ddescribe('stage progression and run stats', () => {
     const run = await newRun();
     const customer = await newUser();
     await service.discoverAccountJobs(run.id, [accountFor(customer)]);
-    const claimed = await service.claimNextAccountJob('worker-a');
+    const claimed = await service.claimNextAccountJob('worker-a', 120, { runId: run.id });
     let job = claimed;
     for (const stage of ['snapshotted', 'artifact_ready', 'notified', 'complete']) {
       job = await service.completeJobStage(job.id, 'worker-a', 1, stage);
@@ -288,7 +288,7 @@ ddescribe('stage progression and run stats', () => {
     const run = await newRun();
     const customer = await newUser();
     await service.discoverAccountJobs(run.id, [accountFor(customer)]);
-    const claimed = await service.claimNextAccountJob('worker-a');
+    const claimed = await service.claimNextAccountJob('worker-a', 120, { runId: run.id });
     await expect(service.completeJobStage(claimed.id, 'worker-a', 1, 'complete'))
       .rejects.toMatchObject({ code: 'statement_job_invalid_transition', statusCode: 409 });
     await expect(service.completeJobStage(claimed.id, 'worker-a', 1, 'pending'))
