@@ -64,7 +64,17 @@ async function regionalTerritory(userId, permission, conn = db) {
     regions.push(boundary);
     regionIds.push(row.region_id);
   }
-  return { grants, regions, regionIds };
+  let geo_source = 'direct_geocode_cache';
+  try {
+    const { rows: settings } = await conn.query(
+      "SELECT value FROM platform_settings WHERE key='analytics.region_geo_source'",
+    );
+    const candidate = settings[0]?.value;
+    if (candidate === 'geo_postal_centroids') geo_source = candidate;
+  } catch {
+    // A missing setting keeps the compatibility source and fails safe.
+  }
+  return { grants, regions, regionIds, geo_source };
 }
 
 /**
@@ -83,7 +93,7 @@ async function metricScope(user, metric, cache = new Map()) {
       const territory = await regionalTerritory(user.id, permission);
       if (!territory.grants) return null;
       if (!territory.regions.length) return { unknown: true };
-      return Object.freeze({ global: false, regions: territory.regions, regionIds: territory.regionIds, permission });
+      return Object.freeze({ global: false, regions: territory.regions, regionIds: territory.regionIds, permission, geo_source: territory.geo_source });
     })());
   }
   return cache.get(permission);

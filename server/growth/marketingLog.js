@@ -1,9 +1,7 @@
 "use strict";
-// Global marketing caps (spec 17.2): platform marketing sends outside the
-// growth engine (customer re-engagement, Discover digest) count toward the
-// same per-person caps as offer campaigns. The delivery worker's cap check
-// reads marketing_contact_log across all sources, so legacy jobs only need
-// to record each send here.
+// Legacy marketing sends (customer re-engagement, Discover digest) remain
+// auditable in marketing_contact_log, but do not consume the growth offer
+// campaign caps. Offer delivery queries source='growth_offer' explicitly.
 //
 // Fail-open by design: these legacy jobs predate the engine and must never
 // break because a growth table is unavailable. The insert is a plain row

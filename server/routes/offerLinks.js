@@ -16,7 +16,7 @@ router.get("/:token", generalLimiter, async (req, res) => {
     const {
       rows: [offer],
     } = await db.query(
-      `SELECT o.*,p.link_domains_allowlist,p.status AS partner_status,r.user_id
+      `SELECT o.*,c.is_personalized,p.link_domains_allowlist,p.status AS partner_status,r.user_id
       FROM offer_campaign_deliveries d JOIN offer_campaigns c ON c.id=d.campaign_id JOIN offers o ON o.id=c.offer_id
       JOIN offer_campaign_recipients r ON r.id=d.recipient_id
       JOIN affiliate_partners p ON p.id=o.partner_id WHERE d.id=$1 AND o.id=$2 AND d.status='sent'`,
@@ -34,20 +34,22 @@ router.get("/:token", generalLimiter, async (req, res) => {
         await require("../growth/gate").allow(
           { userId: offer.user_id },
           "partner_offers",
+          { personalized: offer.is_personalized !== false },
         )
       ).allowed
     )
       return res.redirect(303, "/offers/ended");
-    const clickId = crypto.randomUUID(),
+    const clickId = offer.is_personalized === false ? null : crypto.randomUUID(),
       target = destination(
         offer.destination_url,
         offer.link_domains_allowlist,
         clickId,
       );
-    await db.query(
-      "INSERT INTO offer_clicks(click_id,delivery_id,offer_id) VALUES($1,$2,$3)",
-      [clickId, token.delivery_id, token.offer_id],
-    );
+    if (clickId)
+      await db.query(
+        "INSERT INTO offer_clicks(click_id,delivery_id,offer_id) VALUES($1,$2,$3)",
+        [clickId, token.delivery_id, token.offer_id],
+      );
     await db.query(
       "UPDATE offer_campaign_deliveries SET clicked_at=COALESCE(clicked_at,NOW()) WHERE id=$1",
       [token.delivery_id],

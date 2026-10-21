@@ -1255,6 +1255,17 @@ router.post(
       b.name.length > 120
     )
       return res.status(400).json({ error: "invalid_campaign" });
+    if (
+      b.is_personalized !== undefined &&
+      typeof b.is_personalized !== "boolean"
+    )
+      return res.status(400).json({ error: "invalid_campaign" });
+    if (
+      b.amazon_tracking_tag !== undefined &&
+      b.amazon_tracking_tag !== null &&
+      !/^[A-Za-z0-9-]{1,64}$/.test(b.amazon_tracking_tag)
+    )
+      return res.status(400).json({ error: "invalid_campaign" });
     campaigns.validateCopy(b.copy, b.channels);
     const result = await withTransaction(
       db,
@@ -1273,8 +1284,8 @@ router.post(
         const {
           rows: [c],
         } = await conn.query(
-          `INSERT INTO offer_campaigns(name,offer_id,segment_version_id,channels,copy,holdout_pct,created_by)
-      VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+          `INSERT INTO offer_campaigns(name,offer_id,segment_version_id,channels,copy,holdout_pct,is_personalized,amazon_tracking_tag,created_by)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
           [
             b.name,
             id(b.offer_id),
@@ -1282,6 +1293,8 @@ router.post(
             b.channels,
             b.copy,
             b.holdout_pct ?? 10,
+            b.is_personalized !== false,
+            b.amazon_tracking_tag || null,
             req.user.id,
           ],
         );

@@ -133,6 +133,29 @@ describe("consent IP-HMAC evidence", () => {
     );
     expect(m916).not.toContain("ip_hash");
   });
+
+  test("forward privacy migrations align jurisdiction and retention policy", () => {
+    const dir = path.join(__dirname, "../migrations");
+    const m956 = fs.readFileSync(
+      path.join(dir, "956_growth_jurisdiction_optout_rules.sql"),
+      "utf8",
+    );
+    expect(m956).toContain("WHERE code='US'");
+    expect(m956).toContain("('US-CO'");
+    expect(m956).toContain("WHERE code IN ('CA','CA-QC','CH')");
+    const c005 = fs.readFileSync(
+      path.join(__dirname, "../migrations-clickhouse/C005_activity_events_retention.sql"),
+      "utf8",
+    );
+    expect(c005).toContain("MODIFY TTL day + INTERVAL 90 DAY DELETE");
+    const m957 = fs.readFileSync(
+      path.join(dir, "957_growth_campaign_personalization.sql"),
+      "utf8",
+    );
+    expect(m957).toContain("is_personalized BOOLEAN NOT NULL DEFAULT TRUE");
+    expect(fs.readFileSync(path.join(__dirname, "../growth/policyCopy.json"), "utf8"))
+      .not.toContain("30 days under consent");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1096,6 +1119,15 @@ describe("gate integration across jurisdictions", () => {
       allowed: false,
       reason: "sale_share_optout",
     });
+    await expect(
+      gate.allow({ userId, req }, "activity_offers"),
+    ).resolves.toMatchObject({
+      allowed: false,
+      reason: "sale_share_optout",
+    });
+    await expect(
+      gate.allow({ userId, req }, "partner_offers", { personalized: false }),
+    ).resolves.toMatchObject({ allowed: true });
     const noGpc = { headers: { "cf-ipcountry": "US", "cf-region-code": "CA" } };
     await expect(
       gate.allow({ userId, req: noGpc }, "partner_offers"),

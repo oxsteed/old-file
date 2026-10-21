@@ -118,6 +118,7 @@ async function approve(conn, campaign, user, totp, checklist) {
     version.definition,
     boundary,
     offer.type === "affiliate_product" ? "partner_offers" : "activity_offers",
+    { personalized: campaign.is_personalized !== false },
   );
   // A regional approver must cover the FULL author's scoped audience, not
   // silently approve a smaller territorial intersection.
@@ -130,6 +131,7 @@ async function approve(conn, campaign, user, totp, checklist) {
     version.definition,
     authorScope,
     offer.type === "affiliate_product" ? "partner_offers" : "activity_offers",
+    { personalized: campaign.is_personalized !== false },
   );
   if (full.some((r) => !audience.some((a) => a.id === r.id)))
     throw new Error("campaign_outside_approver_region");
@@ -173,6 +175,7 @@ async function queue(conn, campaign, user) {
     version.definition,
     boundary,
     offer.type === "affiliate_product" ? "partner_offers" : "activity_offers",
+    { personalized: campaign.is_personalized !== false },
   );
   // Small campaigns have no holdout. Stable hashes preserve assignment on retries.
   const pct =
@@ -283,6 +286,8 @@ const EDITABLE_FIELDS = [
   "channels",
   "copy",
   "holdout_pct",
+  "is_personalized",
+  "amazon_tracking_tag",
   "scheduled_at",
 ];
 // Campaign editing (spec 15.2). Drafts and change-requested campaigns edit
@@ -314,6 +319,17 @@ async function editCampaign(conn, campaign, user, patch, { affiliate = false } =
     if (!Number.isInteger(patch.holdout_pct) || patch.holdout_pct < 0 || patch.holdout_pct > 50)
       throw new Error("invalid_campaign");
   }
+  if (
+    patch.is_personalized !== undefined &&
+    typeof patch.is_personalized !== "boolean"
+  )
+    throw new Error("invalid_campaign");
+  if (
+    patch.amazon_tracking_tag !== undefined &&
+    patch.amazon_tracking_tag !== null &&
+    !/^[A-Za-z0-9-]{1,64}$/.test(patch.amazon_tracking_tag)
+  )
+    throw new Error("invalid_campaign");
   if (patch.scheduled_at !== undefined && patch.scheduled_at !== null) {
     if (Number.isNaN(Date.parse(patch.scheduled_at)))
       throw new Error("invalid_campaign");
@@ -327,6 +343,8 @@ async function editCampaign(conn, campaign, user, patch, { affiliate = false } =
     "channels",
     "copy",
     "holdout_pct",
+    "is_personalized",
+    "amazon_tracking_tag",
   ].some(
     (k) =>
       patch[k] !== undefined &&
@@ -337,8 +355,9 @@ async function editCampaign(conn, campaign, user, patch, { affiliate = false } =
   const next = { ...campaign, ...patch };
   await conn.query(
     `UPDATE offer_campaigns SET name=$2, offer_id=$3, segment_version_id=$4,
-       channels=$5, copy=$6, holdout_pct=$7, scheduled_at=$8,
-       status=$9, approved_by=$10, approved_at=$11, updated_at=NOW()
+       channels=$5, copy=$6, holdout_pct=$7, is_personalized=$8,
+       amazon_tracking_tag=$9, scheduled_at=$10,
+       status=$11, approved_by=$12, approved_at=$13, updated_at=NOW()
      WHERE id=$1`,
     [
       campaign.id,
@@ -348,6 +367,8 @@ async function editCampaign(conn, campaign, user, patch, { affiliate = false } =
       next.channels,
       JSON.stringify(next.copy),
       next.holdout_pct,
+      next.is_personalized !== false,
+      next.amazon_tracking_tag || null,
       next.scheduled_at,
       forcesReapproval ? "draft" : campaign.status,
       forcesReapproval ? null : campaign.approved_by,
@@ -387,6 +408,7 @@ async function reviewPreview(conn, campaign, user) {
     version.definition,
     boundary,
     offer.type === "affiliate_product" ? "partner_offers" : "activity_offers",
+    { personalized: campaign.is_personalized !== false },
   );
   const userIds = audience.map((r) => r.id);
   // k-suppression, same rule as POST /segments/preview: an exact sub-k
@@ -420,7 +442,8 @@ async function reviewPreview(conn, campaign, user) {
          COUNT(*) FILTER(WHERE contacted_at>NOW()-interval '7 days')::int AS weekly,
          COUNT(*) FILTER(WHERE contacted_at>NOW()-interval '30 days')::int AS monthly
        FROM marketing_contact_log
-       WHERE user_id=ANY($1::uuid[]) AND channel=$2 GROUP BY user_id`,
+       WHERE user_id=ANY($1::uuid[]) AND channel=$2 AND source='growth_offer'
+       GROUP BY user_id`,
       [userIds, channel],
     );
     const skipped = rows.filter(

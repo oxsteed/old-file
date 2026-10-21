@@ -67,6 +67,7 @@ function decide(
   purpose = "activity",
   now = Date.now(),
   env = process.env,
+  { personalized = true } = {},
 ) {
   if (!PURPOSES.has(purpose)) return denied("unknown_purpose");
   const availability = rolloutAllows(ctx, now, env);
@@ -97,7 +98,8 @@ function decide(
   )
     return denied("offers_consent_required");
   if (
-    purpose === "partner_offers" &&
+    personalized &&
+    ["activity_offers", "partner_offers", "offer_push"].includes(purpose) &&
     saleShare &&
     (ctx.gpc || ctx.consents.sale_share_optout === true)
   )
@@ -200,10 +202,13 @@ async function contexts(
 async function context(options = {}) {
   return (await contexts([options.userId], options)).get(options.userId);
 }
-async function allow(input, purpose = "activity") {
+async function allow(input, purpose = "activity", options = {}) {
   try {
     const ctx = input?.consents ? input : await context(input);
-    return { ...decide(ctx, purpose), context: ctx };
+    return {
+      ...decide(ctx, purpose, Date.now(), process.env, options),
+      context: ctx,
+    };
   } catch (error) {
     // A failed query aborts PostgreSQL transactions. Propagate instead of
     // returning a denial and letting COMMIT silently roll back a business write.

@@ -1,8 +1,8 @@
 # OxSteed Demand & Sales Engine: Design Spec
 
-**Status:** design only. No code, commits or PRs.
-**Written against:** `oxsteed/old-file`, branch `old-files-claude` @ `82711d2a` (merge of PR #617, October 20, 2026, 3:27 AM ET).
-**Owner decisions locked by Emile:** track every click, target every role, affiliate partners first and an OxSteed catalog later, admins approve every send, self-hosted Ollama only. Follow-up decisions from October 20 are in the table below and are applied throughout.
+**Status:** implementation specification and acceptance boundary. The engine remains default-off until the rollout, legal, infrastructure, and external acceptance gates are complete.
+**Written against:** `codex/demand-sales-engine`; the original design baseline is `old-files-claude` @ `82711d2a` (October 20, 2026).
+**Owner decisions locked by Emile:** track every click, target every role, affiliate partners first and an OxSteed catalog later, admins approve every send, self-hosted Ollama only. Follow-up decisions from October 20 are recorded below and are applied throughout.
 **Internal working name:** "Growth Insights" (admin section). It's an internal tool. Users never see the engine. They only see the offers admins approve.
 
 ### Emile's decisions (October 20, 2026)
@@ -16,6 +16,32 @@
 | D5 | Event storage | **Self-hosted ClickHouse from day one** (no Postgres-first stage). | §0, §6, §7, §18.1, §19, §20.3, §20.4, §24, §25, appendices |
 | D6 | Effective date | **Exactly 14 days after the last notice email is sent.** | §4.3, §4.5, §24 |
 | D7 | Channels | **In-app and push now; offer email in Phase 8**, with the postal-address work. The one email now is the legal policy notice, which isn't an offer. | §0, §15.2, §16, §17, §21, §24 |
+
+### Forward decisions D8–D24
+
+These requirements were added to the review baseline and are part of this
+specification. A row marked **external** needs evidence outside the source tree;
+it remains a release gate even when the supporting code is present.
+
+| # | Requirement | Current implementation boundary |
+|---|---|---|
+| D8 | Run self-hosted ClickHouse with two replicas and three Keeper nodes in one provider and region. | Schema and role grants are in `server/migrations-clickhouse`; provisioning, replica drills, and provider/region evidence are external. |
+| D9 | Switzerland, Canada, and Québec use notice treatment; applicable US opt-out states expose the sale/share control. | Migration `956_growth_jurisdiction_optout_rules.sql` seeds the state rows and leaves them unreviewed until Legal supplies the review reference. |
+| D10 | GPC and sale/share opt-out apply only in an applicable US opt-out jurisdiction and block personalized targeting while preserving broad offers. | The gate blocks personalized activity and partner offer purposes; broad partner-link handling remains an explicit acceptance item. |
+| D11 | Encrypted same-region ClickHouse backups are retained for seven days and restore-checked. | Backup, restore-check, and operational evidence are external until the ops jobs and runbook land. |
+| D12 | ClickHouse upgrades and health alerts are repeatable and auditable. | Upgrade/alert automation, `growth_ops_runs`, and infrastructure-as-code are release-gated implementation work. |
+| D13 | Users can hide an offer and report “Not relevant”; the display preference is independent from tracking consent. | `offer_preferences` and intent-dismissal flows implement this boundary. |
+| D14 | Activity-event retention is 90 days for every jurisdiction and basis. | ClickHouse migration `C005_activity_events_retention.sql` changes the table TTL to one 90-day policy. |
+| D15 | Re-engagement and Discover digest sends remain unchanged and stay outside growth-offer frequency caps. | Legacy contacts remain in the audit log; offer cap queries count `source='growth_offer'` only. |
+| D16 | GeoNames postal centroids feed `regionScope.js` through a switch with a diff, rollback setting, and admin note. | Existing filters remain the compatibility path until the region-source switch and rollback evidence are complete. |
+| D17 | Policy notices go to account holders only, never business-client audiences. | Notice audience queries are account-user scoped. |
+| D18 | Existing `site_visits` analytics stays separate from growth activity events and retention. | No growth writer or rollup reads or writes `site_visits`. |
+| D19 | No minors, staff, internal subjects, or impersonated sessions enter growth collection, profiling, or delivery. | `growth_subject_eligibility.adult_confirmed` and gate checks fail closed; adult-status backfill is an external launch dependency. |
+| D20 | Offer push is a separate opt-in with a 90-day prompt rule. | `offer_preferences`, `offer_push` consent, and prompt cooldown enforce the channel boundary. |
+| D21 | Amazon Associates is the first catalog partner; tracking IDs, report import, and disclosure are required. | The generic partner feed is present; Amazon-specific client/report/disclosure work remains open. |
+| D22 | Helper-assisted attribution never shares or pays helper commission from growth partner revenue. | Assisted fields are audit-only and excluded from affiliate conversion payouts. |
+| D23 | Licensed business listings require provenance, license scope, suppression, and per-country outreach controls. | Prospect tables/imports and licensed-source evidence remain open. |
+| D24 | Privacy policy, notice, and banner content maintain parity across all 20 locales. | All locale files exist; professional translation and browser/RTL/accessibility review remain external acceptance gates. |
 
 ---
 

@@ -13,7 +13,7 @@ async function deliver(conn, d, deps = {}) {
   const {
     rows: [ctx],
   } = await conn.query(
-    `SELECT r.user_id,c.status AS campaign_status,c.approved_by,c.copy,c.channels,
+    `SELECT r.user_id,c.status AS campaign_status,c.approved_by,c.copy,c.channels,c.is_personalized,
     o.type,o.status AS offer_status,o.expires_at,o.partner_id,o.countries,o.channels AS allowed_channels,
     p.offer_push,p.offer_in_app,p.timezone,u.preferred_language,u.created_at,
     np.push_notifications,np.web_push_enabled
@@ -38,6 +38,7 @@ async function deliver(conn, d, deps = {}) {
   const permission = await gate.allow(
     { userId: ctx.user_id, db: conn },
     ctx.type === "affiliate_product" ? "partner_offers" : "activity_offers",
+    { personalized: ctx.is_personalized !== false },
   );
   if (!permission.allowed) return skip(permission.reason);
   if (ctx.offer_status !== "active" || new Date(ctx.expires_at) <= new Date())
@@ -93,7 +94,8 @@ async function deliver(conn, d, deps = {}) {
     `SELECT COUNT(*) FILTER(WHERE contacted_at>NOW()-interval '7 days')::int AS weekly,
     COUNT(*) FILTER(WHERE contacted_at>NOW()-interval '30 days')::int AS monthly,
     COUNT(*) FILTER(WHERE campaign_id=$2 AND channel='in_app' AND contacted_at>NOW()-interval '24 hours')::int AS seen
-    FROM marketing_contact_log WHERE user_id=$1 AND channel=$3`,
+    FROM marketing_contact_log
+    WHERE user_id=$1 AND channel=$3 AND source='growth_offer'`,
     [ctx.user_id, d.campaign_id, d.channel],
   );
   const { rows: settings } = await conn.query(
@@ -134,7 +136,9 @@ async function deliver(conn, d, deps = {}) {
     });
     await core.finishOffer(conn, d, { status: "sent", notificationId });
   } else {
-    const push = await gate.allow(permission.context, "offer_push");
+    const push = await gate.allow(permission.context, "offer_push", {
+      personalized: ctx.is_personalized !== false,
+    });
     if (
       !push.allowed ||
       ctx.offer_push !== true ||

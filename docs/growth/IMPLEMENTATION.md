@@ -15,6 +15,21 @@ Completion tracks (2026-10-20, integrated into `codex/demand-sales-engine`):
 
 Track 1 continuation (2026-10-20, branch `growth-finish-t1`): the privacy foundation items from handoff section 1 are implemented and covered by `server/__tests__/growthPrivacyFoundation.test.js` (mocked stores only; no live Postgres/Redis/ClickHouse rehearsal). The consent ledger records IP-HMAC evidence (migration 936), export and ClickHouse result caps fail explicitly, and English upcoming-policy sections 2/3/4/6/7/8 now match spec 4.1. The fifteen notice-banner locales that lacked their own copy (bn, de, hi, id, it, ja, ko, pt, ru, sw, th, tr, ur, vi, zh) now carry **machine-draft** banner labels (`growthInsights` policy/changedOn/changesOn/dismiss) in both catalog trees. These drafts are pending professional translation review and must not be represented as reviewed copy.
 
+## Forward audit implementation pass (2026-10-20, source PDF)
+
+The attached combined review was used as an audit input against the current branch. The following code and runbook changes address the actionable software-side findings while keeping every launch gate default-off:
+
+- D15 cap accounting now counts only `marketing_contact_log.source='growth_offer'`; legacy re-engagement and Discover digest contacts remain separately auditable and no longer consume Demand & Sales Engine offer caps.
+- D9/D10 jurisdiction and purpose handling now separates broad partner offers from personalized activity/partner/push targeting. Campaigns persist `is_personalized`; GPC and sale/share opt-outs continue to block personalized delivery. Migration 956 records the additional state and leaves newly added US-jurisdiction rows unreviewed until Legal supplies review references. Migration 957 adds the campaign field.
+- D14 retention policy is aligned across the ClickHouse activity TTL and upcoming privacy copy; the former consent-specific 30-day exception is removed. Migration C005 changes raw activity retention to 90 days.
+- D16 adds the `analytics.region_geo_source` setting, a fail-closed source switch between direct geocode cache and postal centroids, and `scripts/regionGeoDiff.js` for bounded aggregate comparison without exposing postal values.
+- D8/D11/D12 add default-off consent-audit and ClickHouse operations jobs, metadata migrations 959-960, the scheduled worker entries, and runbooks for two-replica/three-Keeper operations, encrypted backups, restore checks, upgrades, and health evidence. These jobs do not prove that the required infrastructure exists.
+- D21 adds a default-off, signed Amazon Product Advertising API adapter, per-campaign associate tags, report SHA-256 evidence, and disclosure text in migration 961. Credentials are runtime configuration only.
+- D23 adds default-off licensed-prospect import and suppression storage with provenance and outreach controls in migration 962. No outreach is enabled.
+- D6 adds an aggregate-only adult-eligibility backfill plan that requires a reviewed provider and never infers age from activity or role. D8 adds the stable `client/src/growth/useTrack.js` hook surface. D24 remains an external professional-translation and accessibility gate.
+
+Verification for this pass: the focused growth suites passed **8 suites, 310 tests**; client tests and `npm run build:ci` passed (**611 tests**, TypeScript check, Vite build and 1,020 asset checks); migration/deployment script tests passed **23 tests**; all changed/new JavaScript passed `node --check`; JSON parsing and `git diff --check` passed. These are local source checks. Legal review, professional translations, browser/RTL/screen-reader QA, Amazon/provider acceptance, licensed-data approval, adult-eligibility evidence, two-replica/three-Keeper provisioning, encrypted backup/restore, sustained-load and failover rehearsal, and live deployment remain open acceptance work.
+
 ## Continuation verification (2026-10-20, scheduler drain, partner images and rights)
 
 - `npx jest __tests__/scheduledWorkerSchedule.test.js --runInBand --forceExit`: **1 suite, 1 test passed**. The test holds an API scheduled worker in flight, confirms `stop()` waits, then confirms no new ticks start after shutdown.

@@ -3,21 +3,21 @@
     "Activity, offers and partner links",
     "After the policy notice period, we record pages viewed, buttons selected, searches and marketplace actions. We use postal-code centres, never personal coordinates, to understand local demand and choose relevant offers. Staff approve every campaign. AI for this analysis runs only on OxSteed-controlled servers.",
     "In the EEA, UK, Switzerland and Québec, activity tracking and activity-based offers each require your consent. You can withdraw it in Settings. Applicable US states have a Do not sell or share control, including Global Privacy Control. Elsewhere the Analytics toggle controls Google Analytics and persistent device storage; activity is covered by this notice.",
-    "Detailed activity is retained for up to 90 days, or 30 days under consent. Account summaries are retained for up to 13 months. Partner links send a random click code, not your name, email or activity. A partner’s own privacy policy applies to purchases there.",
+    "Detailed activity is retained for up to 90 days. Account summaries are retained for up to 13 months. Partner links send a random click code, not your name, email or activity. A partner’s own privacy policy applies to purchases there.",
     "Offer push notifications require a separate opt-in and can be turned off in Settings → Privacy. Offers never change your prices, access or search ranking. Promote links may associate signed-in visitors with an account code for seven days. For access, correction or deletion, contact privacy@oxsteed.com."
   ],
   "es": [
     "Actividad, ofertas y enlaces de socios",
     "Tras el plazo de aviso, registramos páginas, botones seleccionados, búsquedas y acciones del mercado. Usamos centros de códigos postales, nunca coordenadas personales, para entender la demanda y elegir ofertas. El personal aprueba cada campaña. La IA de este análisis funciona solo en servidores controlados por OxSteed.",
     "En el EEE, Reino Unido, Suiza y Quebec, el seguimiento y las ofertas basadas en la actividad requieren consentimientos separados, revocables en Configuración. Los estados estadounidenses aplicables disponen del control No vender ni compartir y de Global Privacy Control. En otras regiones, el ajuste de analítica controla Google Analytics y el almacenamiento persistente; la actividad está cubierta por este aviso.",
-    "Guardamos la actividad detallada hasta 90 días, o 30 días con consentimiento, y los resúmenes de cuenta hasta 13 meses. Los socios solo reciben un código de clic aleatorio, nunca tu nombre, correo o actividad. Sus políticas se aplican a las compras en sus sitios.",
+    "Guardamos la actividad detallada hasta 90 días y los resúmenes de cuenta hasta 13 meses. Los socios solo reciben un código de clic aleatorio, nunca tu nombre, correo o actividad. Sus políticas se aplican a las compras en sus sitios.",
     "Las notificaciones de ofertas requieren autorización separada y pueden desactivarse en Configuración → Privacidad. Las ofertas no cambian precios, acceso ni posición en búsquedas. Promote puede vincular visitantes conectados con un código de cuenta durante siete días. Para acceso, corrección o eliminación: privacy@oxsteed.com."
   ],
   "fr": [
     "Activité, offres et liens partenaires",
     "Après le préavis, nous enregistrons les pages, boutons sélectionnés, recherches et actions sur la place de marché. Les centres des codes postaux, jamais les coordonnées personnelles, servent à analyser la demande et choisir des offres. Le personnel approuve chaque campagne. L’IA fonctionne uniquement sur des serveurs contrôlés par OxSteed.",
     "Dans l’EEE, au Royaume-Uni, en Suisse et au Québec, le suivi et les offres fondées sur l’activité exigent des consentements distincts, révocables dans les paramètres. Les États américains concernés proposent le refus de vente ou de partage et Global Privacy Control. Ailleurs, le réglage analytique concerne Google Analytics et le stockage persistant ; l’activité relève de cet avis.",
-    "L’activité détaillée est conservée au maximum 90 jours, ou 30 jours sous consentement ; les résumés de compte, 13 mois. Les partenaires reçoivent uniquement un code de clic aléatoire, sans nom, courriel ni activité. Leur politique s’applique aux achats chez eux.",
+    "L’activité détaillée est conservée au maximum 90 jours ; les résumés de compte, 13 mois. Les partenaires reçoivent uniquement un code de clic aléatoire, sans nom, courriel ni activité. Leur politique s’applique aux achats chez eux.",
     "Les notifications d’offres exigent un accord distinct et se désactivent dans Paramètres → Confidentialité. Les offres ne changent ni prix, ni accès, ni classement. Promote peut relier les visiteurs connectés à un code de compte pendant sept jours. Accès, rectification ou effacement : privacy@oxsteed.com."
   ],
   "ht": [
@@ -52,7 +52,7 @@
     "Atividade, ofertas e links de parceiros",
     "Após o período de aviso, registramos páginas, cliques, pesquisas e ações no mercado. Usamos centros de códigos postais, nunca coordenadas pessoais, para entender a demanda e selecionar ofertas. A equipe aprova cada campanha. A IA opera apenas em servidores controlados pela OxSteed.",
     "No EEE, Reino Unido, Suíça e Quebec, o rastreamento e as ofertas baseadas na atividade exigem consentimentos separados e revogáveis. Os estados americanos aplicáveis permitem recusar venda ou compartilhamento e respeitam Global Privacy Control. Nas demais regiões, a opção de análise controla Google Analytics e armazenamento persistente; este aviso cobre a atividade.",
-    "Retemos os detalhes por até 90 dias, ou 30 com consentimento, e os resumos da conta por 13 meses. Parceiros recebem apenas um código de clique aleatório, sem nome, email ou atividade. As compras seguem a política do parceiro.",
+    "Retemos os detalhes por até 90 dias e os resumos da conta por 13 meses. Parceiros recebem apenas um código de clique aleatório, sem nome, email ou atividade. As compras seguem a política do parceiro.",
     "Notificações de ofertas exigem autorização separada e podem ser desligadas em Configurações → Privacidade. Preços, acesso e classificação não mudam. Promote pode associar visitantes conectados a um código de conta por sete dias. Acesso, correção ou exclusão: privacy@oxsteed.com."
   ],
   "zh": [

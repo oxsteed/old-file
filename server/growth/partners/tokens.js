@@ -40,8 +40,9 @@ function destination(raw, domains, clickId) {
     !domains.includes(url.hostname.toLowerCase())
   )
     throw new Error("partner_destination_denied");
-  // Only the random click id is appended. No user, email or segment identifier.
-  url.searchParams.set("subid", clickId);
+  // Personalized links carry only a random click id. Broad links carry no
+  // per-click identifier, so an opt-out never becomes an affiliate profile.
+  if (clickId) url.searchParams.set("subid", clickId);
   return url.href;
 }
 module.exports = { sign, verify, destination };

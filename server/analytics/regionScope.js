@@ -127,7 +127,13 @@ const JOB_LOC = (a) => ({ zip: `${a}.location_zip`, city: `${a}.location_city`, 
 const USER_LOC = (a, g) => ({ zip: `${a}.zip_code`, city: `${a}.city`, state: `${a}.state`,
   country: `${a}.country`,
   ...(g ? { lat: `${g}.lat`, lng: `${g}.lng` } : {}) });
-const USER_GEO = (a, g) => `LEFT JOIN LATERAL (
+const USER_GEO = (a, g, source = 'direct_geocode_cache') => source === 'geo_postal_centroids'
+  ? `LEFT JOIN LATERAL (
+    SELECT __gc.lat, __gc.lng FROM geo_postal_centroids __gc
+     WHERE upper(btrim(COALESCE(${a}.country, ''))) = upper(btrim(COALESCE(__gc.country, '')))
+       AND __gc.postal_code = substring(btrim(COALESCE(${a}.zip_code, '')) FROM '^[0-9]{3,10}')
+     ORDER BY __gc.id LIMIT 1) ${g} ON TRUE`
+  : `LEFT JOIN LATERAL (
     SELECT __gc.lat, __gc.lng FROM direct_geocode_cache __gc
      WHERE upper(btrim(COALESCE(${a}.country, ''))) = 'US'
        AND __gc.zip_code = substring(btrim(COALESCE(${a}.zip_code, '')) FROM '^[0-9]{5}')
@@ -136,7 +142,7 @@ const USER_GEO = (a, g) => `LEFT JOIN LATERAL (
 const RESTAURANT_LOC = (a) => ({ zip: `${a}.address_zip`, city: `${a}.address_city`, state: `${a}.address_state`,
   country: `${a}.address_country`, lat: `${a}.latitude`, lng: `${a}.longitude` });
 
-const userIn = (col, ref) => `EXISTS (SELECT 1 FROM __rs_users __u ${USER_GEO('__u', '__ug')} WHERE __u.id = ${col} AND ${locationInRegionsSql(USER_LOC('__u', '__ug'), ref)})`;
+const userIn = (col, ref, source) => `EXISTS (SELECT 1 FROM __rs_users __u ${USER_GEO('__u', '__ug', source)} WHERE __u.id = ${col} AND ${locationInRegionsSql(USER_LOC('__u', '__ug'), ref)})`;
 const jobIn = (col, ref) => `EXISTS (SELECT 1 FROM __rs_jobs __j WHERE __j.id = ${col} AND ${locationInRegionsSql(JOB_LOC('__j'), ref)})`;
 const restaurantIn = (col, ref) => `EXISTS (SELECT 1 FROM __rs_food_restaurants __r WHERE __r.id = ${col} AND ${locationInRegionsSql(RESTAURANT_LOC('__r'), ref)})`;
 // Growth rollup rows (demand_subject_daily / supply_subject_daily) are
@@ -144,32 +150,32 @@ const restaurantIn = (col, ref) => `EXISTS (SELECT 1 FROM __rs_food_restaurants 
 const POSTAL_LOC = (a) => ({ zip: `${a}.postal_code`, city: `${a}.place_name`, state: `${a}.admin1`,
   country: `${a}.country`, lat: `${a}.lat`, lng: `${a}.lng` });
 const postalIn = (col, ref) => `EXISTS (SELECT 1 FROM __rs_geo_postal_centroids __g WHERE __g.id = ${col} AND ${locationInRegionsSql(POSTAL_LOC('__g'), ref)})`;
-const recipientUserIn = (recipientIdCol, ref) =>
-  `EXISTS (SELECT 1 FROM __rs_offer_campaign_recipients __r WHERE __r.id = ${recipientIdCol} AND ${userIn('__r.user_id', ref)})`;
+const recipientUserIn = (recipientIdCol, ref, source) =>
+  `EXISTS (SELECT 1 FROM __rs_offer_campaign_recipients __r WHERE __r.id = ${recipientIdCol} AND ${userIn('__r.user_id', ref, source)})`;
 
 // table -> { needs: base tables used by the predicate, predicate(ref) on alias t }
 const ANCHORS = Object.freeze({
   jobs: { needs: [], predicate: (ref) => locationInRegionsSql(JOB_LOC('t'), ref) },
   disputes: { needs: ['jobs'], predicate: (ref) => jobIn('t.job_id', ref) },
-  payments: { needs: ['jobs', 'users'], predicate: (ref) =>
-    `CASE WHEN t.job_id IS NOT NULL THEN ${jobIn('t.job_id', ref)} ELSE ${userIn('t.payer_id', ref)} END` },
-  platform_ledger: { needs: ['jobs', 'users'], predicate: (ref) =>
-    `CASE WHEN t.job_id IS NOT NULL THEN ${jobIn('t.job_id', ref)} ELSE ${userIn('t.user_id', ref)} END` },
-  main_app_payout_requests: { needs: ['users'], predicate: (ref) => userIn('t.user_id', ref) },
-  subscriptions: { needs: ['users'], predicate: (ref) => userIn('t.user_id', ref) },
-  consulting_sessions: { needs: ['users'], predicate: (ref) => userIn('t.user_id', ref) },
-  consulting_session_feedback: { needs: ['users'], predicate: (ref) => userIn('t.user_id', ref) },
-  support_conversations: { needs: ['users'], predicate: (ref) => userIn('t.customer_id', ref) },
-  support_conversation_reviews: { needs: ['users'], predicate: (ref) => userIn('t.customer_id', ref) },
+  payments: { needs: ['jobs', 'users'], predicate: (ref, source) =>
+    `CASE WHEN t.job_id IS NOT NULL THEN ${jobIn('t.job_id', ref)} ELSE ${userIn('t.payer_id', ref, source)} END` },
+  platform_ledger: { needs: ['jobs', 'users'], predicate: (ref, source) =>
+    `CASE WHEN t.job_id IS NOT NULL THEN ${jobIn('t.job_id', ref)} ELSE ${userIn('t.user_id', ref, source)} END` },
+  main_app_payout_requests: { needs: ['users'], predicate: (ref, source) => userIn('t.user_id', ref, source) },
+  subscriptions: { needs: ['users'], predicate: (ref, source) => userIn('t.user_id', ref, source) },
+  consulting_sessions: { needs: ['users'], predicate: (ref, source) => userIn('t.user_id', ref, source) },
+  consulting_session_feedback: { needs: ['users'], predicate: (ref, source) => userIn('t.user_id', ref, source) },
+  support_conversations: { needs: ['users'], predicate: (ref, source) => userIn('t.customer_id', ref, source) },
+  support_conversation_reviews: { needs: ['users'], predicate: (ref, source) => userIn('t.customer_id', ref, source) },
   food_restaurants: { needs: [], predicate: (ref) => locationInRegionsSql(RESTAURANT_LOC('t'), ref) },
   food_orders: { needs: ['food_restaurants'], predicate: (ref) => restaurantIn('t.restaurant_id', ref) },
   // Checkout promo redemptions (decision 2): jobs anchor on the job, food on
   // the restaurant, bookings on the customer's address.
-  promo_redemptions: { needs: ['jobs', 'users', 'food_orders', 'food_restaurants'], predicate: (ref) =>
+  promo_redemptions: { needs: ['jobs', 'users', 'food_orders', 'food_restaurants'], predicate: (ref, source) =>
     `CASE t.surface
        WHEN 'job' THEN EXISTS (SELECT 1 FROM __rs_jobs __j WHERE __j.id::text = t.reference_id AND ${locationInRegionsSql(JOB_LOC('__j'), ref)})
        WHEN 'food' THEN EXISTS (SELECT 1 FROM __rs_food_orders __o WHERE __o.id::text = t.reference_id AND ${restaurantIn('__o.restaurant_id', ref)})
-       ELSE ${userIn('t.user_id', ref)} END` },
+       ELSE ${userIn('t.user_id', ref, source)} END` },
   food_order_items: { needs: ['food_orders', 'food_restaurants'], predicate: (ref) =>
     `EXISTS (SELECT 1 FROM __rs_food_orders __o WHERE __o.id = t.order_id AND ${restaurantIn('__o.restaurant_id', ref)})` },
   // Growth engine tables (Demand & Sales Engine spec 21.1): rollup rows
@@ -178,15 +184,15 @@ const ANCHORS = Object.freeze({
   // through click -> delivery -> recipient.
   demand_subject_daily: { needs: ['geo_postal_centroids'], predicate: (ref) => postalIn('t.postal_ref', ref) },
   supply_subject_daily: { needs: ['geo_postal_centroids'], predicate: (ref) => postalIn('t.postal_ref', ref) },
-  user_interest_profiles: { needs: ['users'], predicate: (ref) => userIn('t.user_id', ref) },
-  offer_campaign_recipients: { needs: ['users'], predicate: (ref) => userIn('t.user_id', ref) },
-  offer_preferences: { needs: ['users'], predicate: (ref) => userIn('t.user_id', ref) },
-  offer_campaign_deliveries: { needs: ['offer_campaign_recipients', 'users'], predicate: (ref) =>
-    recipientUserIn('t.recipient_id', ref) },
-  offer_clicks: { needs: ['offer_campaign_deliveries', 'offer_campaign_recipients', 'users'], predicate: (ref) =>
-    `EXISTS (SELECT 1 FROM __rs_offer_campaign_deliveries __d WHERE __d.id = t.delivery_id AND ${recipientUserIn('__d.recipient_id', ref)})` },
-  affiliate_conversions: { needs: ['offer_clicks', 'offer_campaign_deliveries', 'offer_campaign_recipients', 'users'], predicate: (ref) =>
-    `EXISTS (SELECT 1 FROM __rs_offer_clicks __c WHERE __c.click_id = t.click_id AND ${`EXISTS (SELECT 1 FROM __rs_offer_campaign_deliveries __d WHERE __d.id = __c.delivery_id AND ${recipientUserIn('__d.recipient_id', ref)})`})` },
+  user_interest_profiles: { needs: ['users'], predicate: (ref, source) => userIn('t.user_id', ref, source) },
+  offer_campaign_recipients: { needs: ['users'], predicate: (ref, source) => userIn('t.user_id', ref, source) },
+  offer_preferences: { needs: ['users'], predicate: (ref, source) => userIn('t.user_id', ref, source) },
+  offer_campaign_deliveries: { needs: ['offer_campaign_recipients', 'users'], predicate: (ref, source) =>
+    recipientUserIn('t.recipient_id', ref, source) },
+  offer_clicks: { needs: ['offer_campaign_deliveries', 'offer_campaign_recipients', 'users'], predicate: (ref, source) =>
+    `EXISTS (SELECT 1 FROM __rs_offer_campaign_deliveries __d WHERE __d.id = t.delivery_id AND ${recipientUserIn('__d.recipient_id', ref, source)})` },
+  affiliate_conversions: { needs: ['offer_clicks', 'offer_campaign_deliveries', 'offer_campaign_recipients', 'users'], predicate: (ref, source) =>
+    `EXISTS (SELECT 1 FROM __rs_offer_clicks __c WHERE __c.click_id = t.click_id AND ${`EXISTS (SELECT 1 FROM __rs_offer_campaign_deliveries __d WHERE __d.id = __c.delivery_id AND ${recipientUserIn('__d.recipient_id', ref, source)})`})` },
 });
 const PASS_THROUGH = new Set(['plans', 'support_sla_targets', 'discount_codes']);
 
@@ -235,7 +241,10 @@ function applyRegionScope(built, scope) {
   const bases = new Set();
   for (const table of shadow) { bases.add(table); for (const n of ANCHORS[table].needs) bases.add(n); }
   const baseCtes = [...bases].map(b => `__rs_${b} AS NOT MATERIALIZED (SELECT * FROM ${b})`);
-  const shadowCtes = shadow.map(t => `${t} AS NOT MATERIALIZED (SELECT t.* FROM __rs_${t} t WHERE ${ANCHORS[t].predicate(ref)})`);
+  const geoSource = scope.geo_source === 'geo_postal_centroids'
+    ? 'geo_postal_centroids'
+    : 'direct_geocode_cache';
+  const shadowCtes = shadow.map(t => `${t} AS NOT MATERIALIZED (SELECT t.* FROM __rs_${t} t WHERE ${ANCHORS[t].predicate(ref, geoSource)})`);
   const prefix = [...baseCtes, ...shadowCtes].join(',\n');
   const trimmed = text.replace(/^\s+/, '');
   const scoped = /^WITH\s/i.test(trimmed)
@@ -261,7 +270,7 @@ async function userCountryBreakdown(db, scope, texts) {
   const { rows } = await db.query(
     `SELECT COUNT(*) FILTER (WHERE __u.country_confirmed IS TRUE)::INT AS confirmed,
             COUNT(*) FILTER (WHERE __u.country_confirmed IS NOT TRUE)::INT AS unconfirmed
-       FROM users __u ${USER_GEO('__u', '__ug')}
+       FROM users __u ${USER_GEO('__u', '__ug', scope.geo_source)}
       WHERE ${locationInRegionsSql(USER_LOC('__u', '__ug'), '$1::JSONB')}`,
     [JSON.stringify(scope.regions)]
   );

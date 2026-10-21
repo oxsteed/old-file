@@ -1,10 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-} from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCookieConsentContext } from "../context/CookieConsentContext";
@@ -21,9 +15,9 @@ import {
 import eventProps from "./eventProps.json";
 import routes from "./routes.json";
 import elementKeys from "./elementKeys.json";
+import { TrackingContext, useTrack } from "./useTrack";
 const namedKeys = new Set(elementKeys);
-const TrackingContext = createContext(() => {});
-export const useTrack = () => useContext(TrackingContext);
+export { useTrack };
 export default function ActivityTracker({ children }) {
   const { user } = useAuth();
   const { preferences } = useCookieConsentContext();

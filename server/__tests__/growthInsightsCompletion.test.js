@@ -355,6 +355,11 @@ test("region anchors cover the growth tables and unanchored tables fail closed",
     { global: false, regions: [{ country: "US" }] },
   );
   expect(scoped.text).toContain("__rs_geo_postal_centroids");
+  const centroidScoped = regionScope.applyRegionScope(
+    { text: "SELECT * FROM offer_preferences t", params: [] },
+    { global: false, regions: [{ country: "US" }], geo_source: "geo_postal_centroids" },
+  );
+  expect(centroidScoped.text).toContain("FROM geo_postal_centroids __gc");
   expect(() =>
     regionScope.applyRegionScope(
       { text: "SELECT * FROM wallets t", params: [] },

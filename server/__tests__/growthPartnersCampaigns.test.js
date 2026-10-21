@@ -583,7 +583,7 @@ describe("campaign editing and holdout lift", () => {
     );
     expect(result).toEqual({ status: "draft", reapproval: true });
     const update = conn.calls.find((c) => c.sql.includes("UPDATE offer_campaigns"));
-    expect(update.params[9]).toBeNull();
+    expect(update.params[11]).toBeNull();
   });
   test("schedule-only edit on a scheduled campaign keeps approval", async () => {
     const conn = fakeConn();

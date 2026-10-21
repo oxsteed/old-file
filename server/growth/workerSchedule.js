@@ -27,6 +27,18 @@ function entries(env = process.env) {
         60 * 60 * 1000,
         {},
       ],
+      [
+        "growthConsentAudit",
+        () => require("../jobs/growthConsentAudit").run(),
+        6 * 60 * 60 * 1000,
+        {},
+      ],
+      [
+        "growthClickhouseOps",
+        () => require("../jobs/growthClickhouseOps").run(),
+        60 * 60 * 1000,
+        {},
+      ],
     );
   if (env.GROWTH_CAMPAIGN_DELIVERY_ENABLED === "true")
     rows.push([

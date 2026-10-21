@@ -192,7 +192,7 @@
       ]
     },
     "14": {
-      "search": "Actividad, ofertas y enlaces de socios Tras el plazo de aviso, registramos páginas, botones seleccionados, búsquedas y acciones del mercado. Usamos centros de códigos postales, nunca coordenadas personales, para entender la demanda y elegir ofertas. El personal aprueba cada campaña. La IA de este análisis funciona solo en servidores controlados por OxSteed. En el EEE, Reino Unido, Suiza y Quebec, el seguimiento y las ofertas basadas en la actividad requieren consentimientos separados, revocables en Configuración. Los estados estadounidenses aplicables disponen del control No vender ni compartir y de Global Privacy Control. En otras regiones, el ajuste de analítica controla Google Analytics y el almacenamiento persistente; la actividad está cubierta por este aviso. Guardamos la actividad detallada hasta 90 días, o 30 días con consentimiento, y los resúmenes de cuenta hasta 13 meses. Los socios solo reciben un código de clic aleatorio, nunca tu nombre, correo o actividad. Sus políticas se aplican a las compras en sus sitios. Las notificaciones de ofertas requieren autorización separada y pueden desactivarse en Configuración → Privacidad. Las ofertas no cambian precios, acceso ni posición en búsquedas. Promote puede vincular visitantes conectados con un código de cuenta durante siete días. Para acceso, corrección o eliminación: privacy@oxsteed.com.",
+      "search": "Actividad, ofertas y enlaces de socios Tras el plazo de aviso, registramos páginas, botones seleccionados, búsquedas y acciones del mercado. Usamos centros de códigos postales, nunca coordenadas personales, para entender la demanda y elegir ofertas. El personal aprueba cada campaña. La IA de este análisis funciona solo en servidores controlados por OxSteed. En el EEE, Reino Unido, Suiza y Quebec, el seguimiento y las ofertas basadas en la actividad requieren consentimientos separados, revocables en Configuración. Los estados estadounidenses aplicables disponen del control No vender ni compartir y de Global Privacy Control. En otras regiones, el ajuste de analítica controla Google Analytics y el almacenamiento persistente; la actividad está cubierta por este aviso. Guardamos la actividad detallada hasta 90 días y los resúmenes de cuenta hasta 13 meses. Los socios solo reciben un código de clic aleatorio, nunca tu nombre, correo o actividad. Sus políticas se aplican a las compras en sus sitios. Las notificaciones de ofertas requieren autorización separada y pueden desactivarse en Configuración → Privacidad. Las ofertas no cambian precios, acceso ni posición en búsquedas. Promote puede vincular visitantes conectados con un código de cuenta durante siete días. Para acceso, corrección o eliminación: privacy@oxsteed.com.",
       "blocks": [
         {
           "type": "h2",
@@ -208,7 +208,7 @@
         },
         {
           "type": "p",
-          "text": "Guardamos la actividad detallada hasta 90 días, o 30 días con consentimiento, y los resúmenes de cuenta hasta 13 meses. Los socios solo reciben un código de clic aleatorio, nunca tu nombre, correo o actividad. Sus políticas se aplican a las compras en sus sitios."
+          "text": "Guardamos la actividad detallada hasta 90 días y los resúmenes de cuenta hasta 13 meses. Los socios solo reciben un código de clic aleatorio, nunca tu nombre, correo o actividad. Sus políticas se aplican a las compras en sus sitios."
         },
         {
           "type": "p",

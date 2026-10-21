@@ -286,7 +286,7 @@ async function evaluate(
   definition,
   boundary,
   purpose = "activity_offers",
-  { userId } = {},
+  { userId, personalized = true } = {},
 ) {
   const gate = require("../gate");
   if (!gate.rolloutAllows(await gate.runtimePolicy(conn)).allowed) return [];
@@ -309,7 +309,9 @@ async function evaluate(
   const deadline = Date.now() + 30000;
   for (const row of rows) {
     if (Date.now() > deadline) throw new Error("segment_timeout");
-    const permission = await gate.allow(contexts.get(row.id), purpose);
+    const permission = await gate.allow(contexts.get(row.id), purpose, {
+      personalized,
+    });
     if (permission.allowed) approved.push(row);
   }
   return approved;

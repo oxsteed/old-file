@@ -135,7 +135,7 @@ test("GPC and sale/share opt-out limit partner targeting in opt-out jurisdiction
   expect(allowed(c, "partner_offers")).toBe(true);
   c.jurisdiction.saleShare = true;
   expect(allowed(c, "partner_offers")).toBe(false);
-  expect(allowed(c, "activity_offers")).toBe(true);
+  expect(allowed(c, "activity_offers")).toBe(false);
   c.gpc = false;
   c.consents.sale_share_optout = true;
   expect(allowed(c, "partner_offers")).toBe(false);

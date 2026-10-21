@@ -1,4 +1,4 @@
-# Migration number collisions (691, 699, 700)
+# Migration number collisions (691, 699, 700, and growth-era numbering)
 
 Recorded 2026-10-07. Do NOT renumber these files — renaming requires a
 coordinated production `_migrations` row update on Emile's side.
@@ -35,5 +35,16 @@ No overlapping tables.
 No overlapping tables or constraints.
 
 ## Rule going forward
-New migrations must use the next free number (711+ at time of writing).
+New migrations must use the next free number in the current migration
+directory.
 `docs/` checks or CI filename-uniqueness lint would catch repeats early.
+
+## Growth-era numbering note (2026-10-20)
+
+The original Demand & Sales Engine plan reserved `934`–`937` for deferred
+catalog and offer-email work. Those numbers were later used by additive growth
+migrations (`934_growth_notice_content_digest.sql` through
+`937_growth_clusters.sql`), while `938` and `943` remain unused. No applied
+migration is renamed or repurposed. The next growth changes use the first free
+numbers after the current tail: `956_growth_jurisdiction_optout_rules.sql`
+and `957_growth_campaign_personalization.sql`.
