@@ -44,6 +44,13 @@ async function requireRestaurantAccess(userId, restaurantId) {
   return resolveRestaurantAccess(userId, restaurantId);
 }
 
+async function assertPosPermission(restaurant, userId, permissions = ['pos.use', 'pos.manage']) {
+  if (restaurant.effective_role === 'owner') return;
+  if (!await permissionsService.hasRestaurantPermission(restaurant, userId, permissions)) {
+    throw new AppError('You do not have permission to use the POS', 403, 'forbidden');
+  }
+}
+
 exports.listDiscounts = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
@@ -81,7 +88,10 @@ exports.listReceiptEvents = async (req, res, next) => {
 exports.createReceiptEvent = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    // Receipt events are part of the money-facing POS history. Membership
+    // alone must not allow a caller to mint one.
+    await assertPosPermission(restaurant, req.user.id);
 
     const orderId = parsePositiveInt(req.body.orderId || req.body.order_id);
     const queueNumber = parsePositiveInt(req.body.queueNumber || req.body.queue_number);
@@ -110,12 +120,16 @@ exports.createReceiptEvent = async (req, res, next) => {
 
     const { rows: [order] } = await pool.query(
       `SELECT id
+              , queue_number, total_cents, payment_status
          FROM food_orders
         WHERE id = $1
           AND restaurant_id = $2`,
       [orderId, restaurantId]
     );
     if (!order) throw new AppError('Order not found', 404, 'order_not_found');
+    if (Number(order.queue_number) !== queueNumber || Number(order.total_cents) !== totalCents) {
+      throw new AppError('Receipt totals do not match the server order', 409, 'receipt_order_mismatch');
+    }
 
     const { rows: [receiptEvent] } = await pool.query(
       `INSERT INTO restaurant_pos_receipt_events
