@@ -29,9 +29,7 @@ const bcrypt = require('bcrypt');
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('./scopeModel');
-const { getEffectivePermissions } = require('./permissionsService');
-
-const MANAGE_ROLES = new Set(['owner', 'manager']);
+const { getEffectivePermissions, hasRestaurantPermission } = require('./permissionsService');
 
 const PIN_LOCKOUT_WINDOW_MINUTES = 15;
 const PIN_LOCKOUT_MAX_FAILURES = 5;
@@ -390,15 +388,7 @@ async function resolveActingStaff(req, restaurantId) {
 
 async function hasPosManage(restaurant, userId) {
   if (!userId) return false;
-  if (restaurant.effective_role === 'owner' || MANAGE_ROLES.has(restaurant.effective_role)) return true;
-  const permissionResult = await getEffectivePermissions({
-    businessId: restaurant.business_id,
-    userId,
-    role: restaurant.effective_role,
-    membershipId: restaurant.effective_membership_id || null,
-  });
-  const permissions = new Set(permissionResult.permissions || []);
-  return permissions.has('*') || permissions.has('pos.manage');
+  return hasRestaurantPermission(restaurant, userId, ['pos.manage']);
 }
 
 function approvalRequirement(restaurant, action, amountCents) {
@@ -427,8 +417,8 @@ async function verifyManagerPinApproval({ restaurantId, pin, deviceId = null }) 
   if (!pinRow.staff_user_id) {
     throw new AppError('A manager approval must use a PIN assigned to a team member', 403, 'manager_approval_invalid');
   }
-  let manager = MANAGE_ROLES.has(staff.effectiveRole);
-  if (!manager && staff.businessId) {
+  let manager = false;
+  if (staff.businessId) {
     const permissionResult = await getEffectivePermissions({
       businessId: staff.businessId,
       userId: pinRow.staff_user_id,
@@ -527,7 +517,6 @@ async function linkApproval(client, approvalId, { paymentId = null, drawerEventI
 }
 
 module.exports = {
-  MANAGE_ROLES,
   POS_VOID_REASON_CODES,
   POS_COMP_REASON_CODES,
   DEFAULT_POS_APPROVAL_POLICY,
