@@ -37,6 +37,7 @@ const { authenticatedLimiter, strictLimiter, generalLimiter } = require('../midd
 const media = require('../controllers/restaurantMediaController');
 const { requireKitchenDeviceOrStaff } = require('../controllers/restaurantDisplayController');
 const hosting = require('../controllers/restaurantHostingController');
+const locationAccess = require('../controllers/restaurantLocationAccessController');
 
 // Managed appliances authenticate with their scoped device credential.
 router.post('/:restaurantId/devices/:deviceId/screen-orders', strictLimiter, scopeExempt('device-credential'), screens.createOrder);
@@ -145,6 +146,11 @@ router.patch('/:restaurantId/locations/:locationId', requireRestaurantAccess(), 
 const storeMenu = require('../controllers/restaurantStoreMenuController');
 router.get('/:restaurantId/locations/:locationId/menu', requireRestaurantAccess(), storeMenu.list);
 router.patch('/:restaurantId/locations/:locationId/menu-items/:itemId', requireRestaurantAccess(), storeMenu.update);
+// F-02: explicit store-scoped staff assignments. Members without assignments
+// retain legacy all-store access until an operator opts them into a boundary.
+router.get('/:restaurantId/location-access', requireRestaurantAccess(), locationAccess.list);
+router.put('/:restaurantId/location-access/:membershipId', requireRestaurantAccess(), locationAccess.replace);
+router.delete('/:restaurantId/location-access/:membershipId', requireRestaurantAccess(), locationAccess.clear);
 
 // Host stand: location-scoped floor plan, reservations, and walk-in queue.
 // Every handler still resolves the effective restaurant permission in the

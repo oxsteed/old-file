@@ -313,14 +313,14 @@ async function getCatalog() {
  * Fails closed: missing context resolves to an empty set, and a resolver
  * error propagates (the caller's error handler returns 5xx, never a pass).
  */
-async function getRestaurantPermissions(restaurant, userId) {
+async function getRestaurantPermissions(restaurant, userId, { roleOverride = null } = {}) {
   if (!restaurant || !userId || !restaurant.business_id || !restaurant.effective_role) {
     return new Set();
   }
   const { permissions } = await getEffectivePermissions({
     businessId: restaurant.business_id,
     userId,
-    role: restaurant.effective_role,
+    role: roleOverride || restaurant.effective_role,
     membershipId: restaurant.effective_membership_id || null,
   });
   return permissions;
@@ -331,8 +331,8 @@ async function getRestaurantPermissions(restaurant, userId) {
  * (or the owner '*' marker). Use for restaurant manage gates that used to
  * be `MANAGE_ROLES.has(restaurant.effective_role)`.
  */
-async function hasRestaurantPermission(restaurant, userId, codes) {
-  const permissions = await getRestaurantPermissions(restaurant, userId);
+async function hasRestaurantPermission(restaurant, userId, codes, options = {}) {
+  const permissions = await getRestaurantPermissions(restaurant, userId, options);
   if (permissions.has('*')) return true;
   return hasAny(permissions, codes);
 }

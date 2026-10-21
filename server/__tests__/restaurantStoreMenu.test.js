@@ -69,7 +69,7 @@ test('price changes require menu.manage and a denied grant never writes', async 
   hasRestaurantPermission.mockResolvedValue(false);
   expect((await request(app()).patch('/3/locations/7/menu-items/11').send({ priceCents: 1200 })).status).toBe(403);
   expect(hasRestaurantPermission).toHaveBeenCalledWith(expect.anything(), expect.anything(), ['menu.manage']);
-  expect(mockQuery).not.toHaveBeenCalled();
+  expect(mockQuery.mock.calls.some(([sql]) => /\b(INSERT|UPDATE|DELETE)\b/.test(sql))).toBe(false);
 });
 test('audit failure rejects the transaction rather than returning a successful unaudited change', async () => {
   mockStoreQueries(); logBusinessAction.mockRejectedValue(new Error('audit offline'));

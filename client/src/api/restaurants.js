@@ -213,6 +213,17 @@ export const getSalesClose = (restaurantId, params = {}) =>
 export const downloadSalesCloseCsv = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/reports/sales/close.csv`, { params, responseType: 'blob' }).then((r) => r.data);
 
+// F-02: optional store-scoped staff boundaries. Members without assignments
+// retain all-store access; assigning stores narrows their operational scope.
+export const getRestaurantLocationAccess = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/location-access`).then((r) => r.data);
+
+export const replaceRestaurantLocationAccess = (restaurantId, membershipId, payload) =>
+  api.put(`/restaurants/${restaurantId}/location-access/${membershipId}`, payload).then((r) => r.data);
+
+export const clearRestaurantLocationAccess = (restaurantId, membershipId) =>
+  api.delete(`/restaurants/${restaurantId}/location-access/${membershipId}`).then((r) => r.data);
+
 export const getInventoryReport = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/reports/inventory`, { params }).then((r) => r.data);
 

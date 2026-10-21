@@ -5,6 +5,7 @@ const { resolveRestaurantAccess } = require('../services/scopeModel');
 const permissions = require('../services/permissionsService');
 const { resolveLocationRow, deviceLocationId } = require('../services/restaurantLocationService');
 const { resolveActingStaff } = require('../services/restaurantStaffIdentityService');
+const { getLocationRole } = require('../services/restaurantLocationAccessService');
 const menu = require('../services/restaurantStoreMenuService');
 const { withTransaction } = require('../utils/transaction');
 const { logBusinessAction } = require('../services/businessAuditLog');
@@ -13,7 +14,11 @@ const sockets = require('../services/socketService');
 async function access(req, codes) {
   const restaurantId = menu.locationId(req.params.restaurantId);
   const restaurant = await resolveRestaurantAccess(req.user.id, restaurantId);
-  if (!await permissions.hasRestaurantPermission(restaurant, req.user.id, codes)) throw new AppError('Permission denied', 403, 'forbidden');
+  let allowed = await permissions.hasRestaurantPermission(restaurant, req.user.id, codes);
+  const locationRole = await getLocationRole(restaurant, req.user.id, menu.locationId(req.params.locationId));
+  const roleOptions = locationRole && locationRole !== restaurant.effective_role ? { roleOverride: locationRole } : undefined;
+  if (roleOptions) allowed = await permissions.hasRestaurantPermission(restaurant, req.user.id, codes, roleOptions);
+  if (!allowed) throw new AppError('Permission denied', 403, 'forbidden');
   return restaurant;
 }
 
