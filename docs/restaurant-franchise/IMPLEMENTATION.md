@@ -258,8 +258,8 @@ available-menu export, and idempotent inbound order state queues. Live provider
 OAuth/webhook verification and local food-order creation remain deployment-gated.
 The localized merchant gift-card panel now issues cards with an idempotency key
 and reveals a generated code only in the issue response.
-The restaurant HQ surface now provides a permission-filtered business view with
-store comparison, currency-separated net-collected sales, latest audit score,
+The restaurant HQ surface now provides a permission-filtered, location-native
+business view with store comparison, currency-separated net-collected sales, latest audit score,
 high-severity open findings, checklist completion, and current training
 completion/overdue counts; it does not merge currencies or reveal customer
 identity. Compliance facts are read-only aggregates scoped to the requested
@@ -308,7 +308,7 @@ hardware decisions do not excuse independent software work on these flows.
 - `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **958/958 migrations passed** twice, including migration 983's campaign delivery queue.
 - `server`: `npx jest --runInBand __tests__/restaurantDeliveryMarketplaceService.test.js __tests__/routeScopeGuard.test.js` — **13 passed** across provider/secret-reference validation, menu filtering, disabled-provider rejection, and route scope registration.
 - `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **959/959 migrations passed** twice, including migration 984's marketplace integration and order queue.
-- `server`: `npx jest --runInBand __tests__/restaurantHQController.test.js __tests__/restaurantHQService.test.js __tests__/routeScopeGuard.test.js` — **17 passed** after adding bounded HQ menu-override publishing, its merchant console contract, and route registration.
+- `server`: `npx jest --runInBand __tests__/restaurantHQController.test.js __tests__/restaurantHQService.test.js __tests__/routeScopeGuard.test.js` — **18 passed** after making HQ rollups location-native and adding bounded menu-override publishing, its merchant console contract, and route registration.
 - `client`: `npm run verify:i18n` — **passed** with the host-stand keys present in `en`, `es`, `fr`, `ht`, and `ar`.
 - `client`: `npm run build:ci` — **passed** after adding the localized HQ comparison and menu-policy publishing console; typecheck, production build, i18n, and emitted-asset verification completed with the repository's existing chunk advisories.
 - `client`: `npm run build` — **passed**; Vite emitted the merchant bundle with the host-stand panel. Existing large-chunk and dynamic-import advisories remain.

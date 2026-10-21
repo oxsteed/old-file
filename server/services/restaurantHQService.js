@@ -114,6 +114,81 @@ async function rollup(client, { businessId, restaurantIds, from, to }) {
   return { salesRows, healthRows, complianceRows };
 }
 
+// Restaurant locations are the operational stores in the current rollout.
+// Keep the legacy business/restaurant query above for callers that still use
+// the pre-location contract, but make the HQ surface location-native.
+async function rollupLocations(client, { restaurantId, locationIds, from, to }) {
+  if (!Array.isArray(locationIds) || !locationIds.length) throw new AppError('No accessible stores found', 403, 'hq_scope_empty');
+  const { rows: salesRows } = await client.query(
+    `SELECT o.location_id, o.currency_code,
+            COUNT(*) FILTER (WHERE o.payment_status = 'paid' AND o.status NOT IN ('cancelled','refunded'))::int AS order_count,
+            COALESCE(SUM(o.total_cents) FILTER (WHERE o.payment_status = 'paid' AND o.status NOT IN ('cancelled','refunded')), 0)::bigint AS net_collected_cents
+       FROM food_orders o
+      WHERE o.restaurant_id = $1 AND o.location_id = ANY($2::bigint[])
+        AND o.created_at >= $3::timestamptz AND o.created_at < $4::timestamptz
+      GROUP BY o.location_id, o.currency_code
+      ORDER BY o.location_id, o.currency_code`,
+    [restaurantId, locationIds, from, to]
+  );
+  const { rows: healthRows } = await client.query(
+    `SELECT l.id AS location_id, r.id AS restaurant_id,
+            (SELECT ROUND(100.0 * a.total_score / NULLIF(a.max_score, 0), 1)
+               FROM restaurant_audits a
+              WHERE a.restaurant_id = r.id AND a.status = 'completed'
+              ORDER BY a.completed_at DESC NULLS LAST, a.id DESC LIMIT 1) AS latest_audit_score_percent,
+            (SELECT COUNT(*)::int
+               FROM restaurant_audit_findings f
+               JOIN restaurant_audits a ON a.id = f.audit_id
+              WHERE a.restaurant_id = r.id AND f.severity IN ('high','critical')) AS open_findings
+       FROM restaurant_locations l
+       JOIN food_restaurants r ON r.id = l.restaurant_id
+      WHERE l.restaurant_id = $1 AND l.id = ANY($2::bigint[])`,
+    [restaurantId, locationIds]
+  );
+  const { rows: complianceRows } = await client.query(
+    `WITH checklist AS (
+       SELECT restaurant_id,
+              COUNT(*)::int AS runs,
+              COUNT(*) FILTER (WHERE status = 'completed')::int AS completed_runs
+         FROM restaurant_checklist_runs
+        WHERE restaurant_id = $1
+          AND started_at >= $3::timestamptz AND started_at < $4::timestamptz
+        GROUP BY restaurant_id
+     ), training AS (
+       SELECT a.restaurant_id,
+              COUNT(*)::int AS assignments,
+              COUNT(*) FILTER (
+                WHERE a.status = 'completed'
+                  AND EXISTS (
+                    SELECT 1 FROM restaurant_training_completions c
+                     WHERE c.assignment_id = a.id
+                       AND c.passed = TRUE
+                       AND (c.expires_at IS NULL OR c.expires_at >= NOW())
+                  )
+              )::int AS completed_assignments,
+              COUNT(*) FILTER (WHERE a.status = 'overdue')::int AS overdue_assignments
+         FROM restaurant_training_assignments a
+        WHERE a.restaurant_id = $1
+        GROUP BY a.restaurant_id
+     )
+     SELECT l.id AS location_id, r.id AS restaurant_id,
+            COALESCE(checklist.runs, 0)::int AS checklist_runs,
+            CASE WHEN COALESCE(checklist.runs, 0) = 0 THEN NULL
+                 ELSE ROUND(100.0 * checklist.completed_runs / checklist.runs, 1) END AS checklist_completion_percent,
+            COALESCE(training.assignments, 0)::int AS training_assignments,
+            CASE WHEN COALESCE(training.assignments, 0) = 0 THEN NULL
+                 ELSE ROUND(100.0 * training.completed_assignments / training.assignments, 1) END AS training_completion_percent,
+            COALESCE(training.overdue_assignments, 0)::int AS overdue_training
+       FROM restaurant_locations l
+       JOIN food_restaurants r ON r.id = l.restaurant_id
+       LEFT JOIN checklist ON checklist.restaurant_id = r.id
+       LEFT JOIN training ON training.restaurant_id = r.id
+      WHERE l.restaurant_id = $1 AND l.id = ANY($2::bigint[])`,
+    [restaurantId, locationIds, from, to]
+  );
+  return { salesRows, healthRows, complianceRows };
+}
+
 async function publishMenuOverrides(client, { restaurantId, sourceLocationId, targetLocationIds, actorUserId }) {
   const request = normalizePublishRequest({ sourceLocationId, targetLocationIds });
   const locationIds = [request.sourceLocationId, ...request.targetLocationIds];
@@ -150,4 +225,4 @@ async function publishMenuOverrides(client, { restaurantId, sourceLocationId, ta
   };
 }
 
-module.exports = { storeShape, rollup, normalizePublishRequest, publishMenuOverrides };
+module.exports = { storeShape, rollup, rollupLocations, normalizePublishRequest, publishMenuOverrides };

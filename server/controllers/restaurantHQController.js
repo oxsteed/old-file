@@ -24,24 +24,24 @@ exports.rollup = async (req, res, next) => {
     if (!(await permissions.hasRestaurantPermission(anchor, req.user.id, ['settings.manage']))) {
       throw new AppError('You do not have permission to view the HQ rollup', 403, 'forbidden');
     }
-    const { rows } = await pool.query(
-      `SELECT id, display_name, address_city, address_state, timezone, status
-         FROM food_restaurants WHERE business_id = $1 ORDER BY id`,
-      [anchor.business_id]
+    const locationScope = await getLocationScope(anchor, req.user.id);
+    const locationParams = [anchor.id];
+    const locationFilter = locationScope.mode === 'assigned' ? ' AND id = ANY($2::bigint[])' : '';
+    if (locationScope.mode === 'assigned') locationParams.push(locationScope.location_ids);
+    const { rows: accessible } = await pool.query(
+      `SELECT id, name AS display_name, address_city, address_state, timezone, status
+         FROM restaurant_locations
+        WHERE restaurant_id = $1${locationFilter}
+        ORDER BY is_primary DESC, id`,
+      locationParams
     );
-    const accessible = [];
-    for (const row of rows) {
-      try {
-        const restaurant = await resolveRestaurantAccess(req.user.id, row.id);
-        if (await permissions.hasRestaurantPermission(restaurant, req.user.id, ['settings.manage'])) accessible.push(row);
-      } catch (_) { /* fail closed per store */ }
-    }
     const ids = accessible.map((row) => Number(row.id));
+    if (!ids.length) throw new AppError('No accessible stores found', 403, 'hq_scope_empty');
     const range = dateRange(req);
-    const { salesRows, healthRows, complianceRows } = await hq.rollup(pool, { businessId: anchor.business_id, restaurantIds: ids, ...range });
-    const healthById = new Map(healthRows.map((row) => [Number(row.restaurant_id), row]));
-    const complianceById = new Map(complianceRows.map((row) => [Number(row.restaurant_id), row]));
-    const stores = accessible.map((row) => hq.storeShape(row, salesRows.filter((entry) => Number(entry.restaurant_id) === Number(row.id)), {
+    const { salesRows, healthRows, complianceRows } = await hq.rollupLocations(pool, { restaurantId: anchor.id, locationIds: ids, ...range });
+    const healthById = new Map(healthRows.map((row) => [Number(row.location_id), row]));
+    const complianceById = new Map(complianceRows.map((row) => [Number(row.location_id), row]));
+    const stores = accessible.map((row) => hq.storeShape(row, salesRows.filter((entry) => Number(entry.location_id) === Number(row.id)), {
       latestAuditScorePercent: healthById.get(Number(row.id))?.latest_audit_score_percent,
       openFindings: healthById.get(Number(row.id))?.open_findings,
       checklistCompletionPercent: complianceById.get(Number(row.id))?.checklist_completion_percent,
@@ -50,7 +50,7 @@ exports.rollup = async (req, res, next) => {
       trainingAssignments: complianceById.get(Number(row.id))?.training_assignments,
       overdueTraining: complianceById.get(Number(row.id))?.overdue_training,
     }));
-    res.json({ scope: { businessId: Number(anchor.business_id), storeCount: stores.length, from: range.from, to: range.to }, stores });
+    res.json({ scope: { businessId: Number(anchor.business_id), restaurantId: Number(anchor.id), storeCount: stores.length, from: range.from, to: range.to }, stores });
   } catch (err) { next(err); }
 };
 

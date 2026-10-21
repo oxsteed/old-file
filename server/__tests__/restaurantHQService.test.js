@@ -41,4 +41,16 @@ describe('restaurant HQ rollup service', () => {
     expect(client.query.mock.calls[1][1]).toEqual([9, 4, [5], 'user-1']);
     expect(client.query.mock.calls[1][0]).toContain('restaurant_store_menu_overrides');
   });
+
+  test('location rollups group sales by accessible store ids', async () => {
+    const client = { query: jest.fn()
+      .mockResolvedValueOnce({ rows: [{ location_id: 7, currency_code: 'USD', order_count: 2, net_collected_cents: 2500 }] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 7, latest_audit_score_percent: '91.0', open_findings: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 7, checklist_runs: 3, checklist_completion_percent: '66.7', training_assignments: 2, training_completion_percent: '50.0', overdue_training: 1 }] })
+    };
+    const result = await service.rollupLocations(client, { restaurantId: 3, locationIds: [7], from: '2026-10-01T00:00:00.000Z', to: '2026-10-31T00:00:00.000Z' });
+    expect(result.salesRows[0].location_id).toBe(7);
+    expect(client.query.mock.calls[0][1]).toEqual([3, [7], '2026-10-01T00:00:00.000Z', '2026-10-31T00:00:00.000Z']);
+    expect(client.query.mock.calls[1][0]).toContain('restaurant_locations');
+  });
 });
