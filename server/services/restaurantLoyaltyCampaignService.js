@@ -128,6 +128,7 @@ async function queueCampaign(client, { restaurantId, campaignId, actorUserId }) 
 
 async function deliverBatch({ limit = 25 } = {}) {
   const db = require('../db');
+  const leaseToken = crypto.randomUUID();
   const { rows } = await db.query(
     `WITH claim AS (
        SELECT d.id
@@ -145,7 +146,7 @@ async function deliverBatch({ limit = 25 } = {}) {
             attempts = d.attempts + 1, updated_at = NOW()
        FROM claim WHERE d.id = claim.id
        RETURNING d.*`,
-    [Math.max(1, Math.min(Number(limit) || 25, 100)), crypto.randomUUID()]
+    [Math.max(1, Math.min(Number(limit) || 25, 100)), leaseToken]
   );
   let sent = 0;
   for (const delivery of rows) {
@@ -165,8 +166,8 @@ async function deliverBatch({ limit = 25 } = {}) {
         `UPDATE restaurant_loyalty_campaign_deliveries
             SET status = $2, notification_id = $3, sent_at = CASE WHEN $2 = 'sent' THEN NOW() ELSE NULL END,
                 lease_token = NULL, lease_expires_at = NULL, last_error = $4, updated_at = NOW()
-          WHERE id = $1`,
-        [delivery.id, result?.success === false ? 'failed' : 'sent', result?.notificationId || null, result?.reason || null]
+          WHERE id = $1 AND lease_token = $5::uuid`,
+        [delivery.id, result?.success === false ? 'failed' : 'sent', result?.notificationId || null, result?.reason || null, leaseToken]
       );
       if (result?.success !== false) sent += 1;
     } catch (error) {
@@ -174,8 +175,8 @@ async function deliverBatch({ limit = 25 } = {}) {
         `UPDATE restaurant_loyalty_campaign_deliveries
             SET status = 'failed', lease_token = NULL, lease_expires_at = NULL,
                 last_error = $2, next_attempt_at = NOW() + INTERVAL '15 minutes', updated_at = NOW()
-          WHERE id = $1`,
-        [delivery.id, String(error.message || 'delivery_failed').slice(0, 500)]
+          WHERE id = $1 AND lease_token = $3::uuid`,
+        [delivery.id, String(error.message || 'delivery_failed').slice(0, 500), leaseToken]
       );
     }
   }
