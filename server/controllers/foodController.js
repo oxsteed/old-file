@@ -584,6 +584,27 @@ function normalizeTextArray(value, maxItems = 12) {
     .slice(0, maxItems);
 }
 
+// Customer allergen preferences are advisory filters, but the server must
+// enforce them at both quote and order time so a stale or modified client
+// cannot submit an excluded menu item. Keep comparison case-insensitive while
+// preserving the merchant's canonical allergen labels in the menu response.
+function normalizeAllergenExclusions(value) {
+  const source = Array.isArray(value)
+    ? value
+    : (typeof value === 'string' ? value.split(',') : []);
+  return [...new Set(source
+    .map((item) => normalizeString(item, 60).toLowerCase())
+    .filter(Boolean))].slice(0, 20);
+}
+
+function menuItemHasExcludedAllergen(menuItem, exclusions) {
+  if (!exclusions.length) return false;
+  const allergens = Array.isArray(menuItem?.allergens)
+    ? menuItem.allergens.map((item) => String(item || '').trim().toLowerCase()).filter(Boolean)
+    : [];
+  return exclusions.some((allergen) => allergens.includes(allergen));
+}
+
 // Restaurant-level dietary capabilities used by the customer dietary filter.
 // Canonical values are lowercase + underscore-separated; common variants are
 // folded in so older/looser clients still resolve correctly.
@@ -2759,8 +2780,12 @@ exports.quoteOrder = async (req, res, next) => {
       throw new AppError('This fulfillment mode is not available', 409, 'fulfillment_mode_unavailable');
     }
     const itemIds = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
+    const allergenExclusions = normalizeAllergenExclusions(
+      req.body.allergenExclusions ?? req.body.allergen_exclusions
+    );
     const { rows: menuRows } = await pool.query(
       `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
+              fmi.allergens,
               fmi.availability_schedule, ${storeMenu.overrideSql('fmi', '$3')},
               fmc.name AS category_name,
               COALESCE((
@@ -2818,6 +2843,11 @@ exports.quoteOrder = async (req, res, next) => {
       if (!isItemAvailableAt(menuItem, daypartInstant, restaurant.timezone)) {
         throw new AppError('Validation failed', 400, 'validation_failed', {
           [`items.${index}.menuItemId`]: 'Menu item is not available at this time of day',
+        });
+      }
+      if (menuItemHasExcludedAllergen(menuItem, allergenExclusions)) {
+        throw new AppError('Validation failed', 400, 'validation_failed', {
+          [`items.${index}.menuItemId`]: 'Menu item contains an excluded allergen',
         });
       }
       const quantity = Math.min(parsePositiveInt(item.quantity, 1), 99);
@@ -3298,6 +3328,7 @@ exports.createOrder = async (req, res, next) => {
       const ids = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
       const { rows: menuRows } = await client.query(
         `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
+                fmi.allergens,
                 fmi.availability_schedule, ${storeMenu.overrideSql('fmi', '$3')},
                 fmc.name AS category_name,
                 COALESCE((
@@ -3336,12 +3367,20 @@ exports.createOrder = async (req, res, next) => {
       );
       const menuById = new Map(menuRows.map((row) => [Number(row.id), storeMenu.applyOverride(row)]));
 
+      const allergenExclusions = normalizeAllergenExclusions(
+        req.body.allergenExclusions ?? req.body.allergen_exclusions
+      );
       const normalizedItems = items.map((item, index) => {
         const menuItemId = parsePositiveInt(item.menuItemId || item.menu_item_id);
         const menuItem = menuById.get(menuItemId);
         if (!menuItem || !menuItem.is_available) {
           throw new AppError('Validation failed', 400, 'validation_failed', {
             [`items.${index}.menuItemId`]: 'Menu item is unavailable',
+          });
+        }
+        if (menuItemHasExcludedAllergen(menuItem, allergenExclusions)) {
+          throw new AppError('Validation failed', 400, 'validation_failed', {
+            [`items.${index}.menuItemId`]: 'Menu item contains an excluded allergen',
           });
         }
         const quantity = Math.min(parsePositiveInt(item.quantity, 1), 99);
@@ -3672,6 +3711,7 @@ exports.createOrder = async (req, res, next) => {
           tracking_token: trackingTokenHash,
           paymentMode,
           payment_mode: paymentMode,
+          ...(allergenExclusions.length ? { allergenExclusions } : {}),
           restaurantPaymentMode: paymentContract.canonical,
           paymentContract: {
             mode: paymentContract.canonical,
@@ -3727,6 +3767,7 @@ exports.createOrder = async (req, res, next) => {
           trackingToken,
           paymentMode,
           payment_mode: paymentMode,
+          ...(allergenExclusions.length ? { allergenExclusions } : {}),
           restaurantPaymentMode: paymentContract.canonical,
           paymentContract: {
             mode: paymentContract.canonical,

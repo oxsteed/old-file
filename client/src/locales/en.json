@@ -22623,6 +22623,8 @@
         "gf": "GF",
         "spicy": "Spicy"
       },
+      "allergenFilter": "Allergen filters",
+      "avoidAllergens": "Avoid",
       "filteredBy": "Filtered - {{filter}}",
       "popularItems": "Popular items",
       "guest": "Guest",

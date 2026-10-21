@@ -60,6 +60,12 @@ policy when the override is blank. The location editor exposes these controls,
 and the order stores the effective rate and inclusive flag in its pricing
 snapshot.
 
+The public menu now exposes the stored allergen labels as exclusion filters.
+Selected exclusions are sent with every quote and order, and both server paths
+reject a menu item whose authoritative allergen list intersects the request.
+The selected exclusions are retained in the order pricing metadata so kitchen
+and support surfaces can see the customer's safety preference.
+
 ## Requirements matrix
 
 `Existing source` means an earlier branch change exists; it is not a fresh
@@ -105,7 +111,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 
 The review also requests coursing and expanded splits, brand loyalty/CRM, physical/e-gift
 card products, delivery-marketplace menu/order adapters, QuickBooks/Xero and BI
-exports, allergen ordering filters/label printing, unified onboarding/hardware
+exports, allergen label printing, unified onboarding/hardware
 pairing, HQ compliance publishing/rollups and end-to-end store acceptance.
 Reservations, table records, floor-plan metadata, seat-state updates, and a
 walk-in SMS waitlist are now implemented in the host-stand tranche; floor-plan
@@ -120,6 +126,7 @@ hardware decisions do not excuse independent software work on these flows.
 - `client`: `node --test scripts/restaurantRender.browser-check.cjs scripts/restaurantCheckoutCard.browser-check.cjs scripts/restaurantStoreMenu.browser-check.cjs` — **3 passed**. The new store-menu check covers save/reset payloads, English/French/Arabic labels, RTL direction, narrow widths, and form labels.
 - `client`: `node --test scripts/restaurantLocationHours.browser-check.cjs` — **1 passed**. The location-hours check loads a legacy multi-range day, adds a third range, verifies the exact split-shift payload, and confirms the form resets.
 - `server`: `npx jest --runInBand --testPathPatterns='restaurantHosting' __tests__/restaurantHosting.test.js` — **4 passed**. Covers location-scoped table conflict detection, reservation idempotency, final-window validation, and waitlist SMS acknowledgement.
+- `server`: `npx jest --runInBand --testPathPatterns='foodController|foodOrderValidation' __tests__/foodController.test.js __tests__/foodOrderValidation.test.js` — **45 passed**. Includes the server-enforced allergen exclusion quote check.
 - `server`: `npx jest --runInBand --testPathPatterns='routeScopeGuard' __tests__/routeScopeGuard.test.js` — **10 passed** after adding all host-stand routes.
 - `client`: `npm run verify:i18n` — **passed** with the host-stand keys present in `en`, `es`, `fr`, `ht`, and `ar`.
 - `client`: `npm run build` — **passed**; Vite emitted the merchant bundle with the host-stand panel. Existing large-chunk and dynamic-import advisories remain.

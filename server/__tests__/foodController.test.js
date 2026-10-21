@@ -98,6 +98,33 @@ describe('food controller', () => {
     expect(res.body.fields['items.0.modifierIds']).toMatch(/not available for this menu item/);
   });
 
+  test('rejects a quote when an item contains an excluded allergen', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [quoteRestaurant] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 10,
+          name: 'Peanut noodles',
+          price_cents: 1200,
+          currency_code: 'USD',
+          is_available: true,
+          allergens: ['peanuts', 'soy'],
+          modifier_groups: [],
+        }],
+      });
+
+    const res = await request(buildApp())
+      .post('/api/food/restaurants/3/orders/quote')
+      .send({
+        allergenExclusions: [' PEANUTS '],
+        items: [{ menuItemId: 10, quantity: 1 }],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('validation_failed');
+    expect(res.body.fields['items.0.menuItemId']).toMatch(/excluded allergen/);
+  });
+
   test('rejects a quote that omits a required modifier selection', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [quoteRestaurant] })

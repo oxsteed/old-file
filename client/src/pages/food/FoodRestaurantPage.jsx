@@ -239,6 +239,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
   const [activeCategory, setActiveCategory] = useState(customerSnapshot ? snapshotCategory : null);
   const [searchQuery, setSearchQuery] = useState('');
   const [dietaryFilter, setDietaryFilter] = useState('all');
+  const [excludedAllergens, setExcludedAllergens] = useState([]);
   const [saved, setSaved] = useState(false);
   const [saveSaving, setSaveSaving] = useState(false);
   const [deliveryMode, setDeliveryMode] = useState('pickup');
@@ -1066,6 +1067,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
           fulfillmentType,
           paymentMode: apiPaymentMode,
           tipCents,
+          allergenExclusions: excludedAllergens,
           items: orderItemsPayload,
         };
         if (promoCode.trim()) {
@@ -1101,7 +1103,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       }
     }, 450);
     return () => clearTimeout(timer);
-  }, [cartOpen, cartItems.length, restaurantId, cartStep, deliveryMode, addressLine1, addressLine2, apiPaymentMode, tipCents, promoCode, loyaltyPointsToRedeem, orderItemsPayload, restaurant, data?.location?.id, storeId]);
+  }, [cartOpen, cartItems.length, restaurantId, cartStep, deliveryMode, addressLine1, addressLine2, apiPaymentMode, tipCents, promoCode, loyaltyPointsToRedeem, excludedAllergens, orderItemsPayload, restaurant, data?.location?.id, storeId]);
 
   // P3-9-F01: fetch the signed-in customer's loyalty balance for this
   // restaurant when the checkout opens so points can be viewed and redeemed.
@@ -1233,6 +1235,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
           fulfillmentType,
           // Canonical restaurant payment contract mode (card checkout is pay_now).
           paymentMode,
+          allergenExclusions: excludedAllergens,
           // CC4: promo codes are validated server-side for every payment mode.
           discountCode: promoCode.trim() ? promoCode.trim() : undefined,
           // P3-9-F01: loyalty points redemption (validated server-side).
@@ -1660,6 +1663,11 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
     if (dietaryFilter === 'spicy') return tags.includes('spicy');
     return true;
   };
+  const allergenOk = (item) => {
+    if (!excludedAllergens.length) return true;
+    const allergens = (item.allergens || []).map((value) => String(value).toLowerCase());
+    return !excludedAllergens.some((allergen) => allergens.includes(allergen));
+  };
   const searchOk = (item) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
@@ -1705,8 +1713,8 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
   const catItems = (currentSection?.items || []).map((it) => decorate(it, currentSection));
 
   const filteredMenu = hasSearch
-    ? allItemsFlat.filter(searchOk).filter(dietOk)
-    : catItems.filter(dietOk);
+    ? allItemsFlat.filter(searchOk).filter(dietOk).filter(allergenOk)
+    : catItems.filter(dietOk).filter(allergenOk);
 
   const showGrid = !hasSearch && isFirstCat && filteredMenu.length > 0;
   const showList = !showGrid;
@@ -1936,6 +1944,10 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
     { key: 'gf', label: 'GF' },
     { key: 'spicy', label: `🌶 ${t('food.restaurant.filters.spicy')}` },
   ];
+  const availableAllergens = [...new Set(allItemsFlat
+    .flatMap((item) => Array.isArray(item.allergens) ? item.allergens : [])
+    .map((value) => String(value || '').trim().toLowerCase())
+    .filter(Boolean))].sort();
 
   const timeSlots = [
     { id: 'asap', label: t('food.restaurant.timeSlots.asap'), sub: t('food.restaurant.estimated', { time: delivTime }) },
@@ -2261,6 +2273,30 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                     );
                   })}
                 </div>
+                {availableAllergens.length > 0 && (
+                  <div className="rp-chip-row" aria-label={t('food.restaurant.allergenFilter')}>
+                    <span style={{ alignSelf: 'center', color: '#64748b', fontSize: 12, fontWeight: 700 }}>
+                      {t('food.restaurant.avoidAllergens')}
+                    </span>
+                    {availableAllergens.map((allergen) => {
+                      const on = excludedAllergens.includes(allergen);
+                      return (
+                        <button
+                          key={allergen}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() => setExcludedAllergens((current) => (
+                            on ? current.filter((value) => value !== allergen) : [...current, allergen]
+                          ))}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 13px', borderRadius: 9999, border: `1.5px solid ${on ? '#b91c1c' : '#e2e8f0'}`, background: on ? '#fef2f2' : '#fff', color: on ? '#b91c1c' : '#475569', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', minHeight: 34, cursor: 'pointer', flexShrink: 0 }}
+                          data-track="ui.a612ceb6f0.16"
+                        >
+                          {allergen}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Tab bar */}

@@ -22634,6 +22634,8 @@
         "gf": "خالٍ من الغلوتين",
         "spicy": "حار"
       },
+      "allergenFilter": "مرشحات مسببات الحساسية",
+      "avoidAllergens": "تجنب",
       "filteredBy": "تصفية - {{filter}}",
       "popularItems": "الأصناف الشائعة",
       "guest": "ضيف",

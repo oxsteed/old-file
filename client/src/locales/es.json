@@ -22623,6 +22623,8 @@
         "gf": "Sin gluten",
         "spicy": "Picante"
       },
+      "allergenFilter": "Filtros de alérgenos",
+      "avoidAllergens": "Evitar",
       "filteredBy": "Filtrado - {{filter}}",
       "popularItems": "Artículos populares",
       "guest": "Invitado",

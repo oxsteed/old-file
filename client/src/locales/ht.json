@@ -22623,6 +22623,8 @@
         "gf": "San gluten",
         "spicy": "Pike"
       },
+      "allergenFilter": "Filtè alèjèn",
+      "avoidAllergens": "Evite",
       "filteredBy": "Filtre - {{filter}}",
       "popularItems": "Atik popilè",
       "guest": "Kliyan",
