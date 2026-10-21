@@ -7,6 +7,7 @@ const archiver = require('archiver');
 const { AppError } = require('../middleware/errorHandler');
 // Canonical restaurant access gate (analytics scope model, Phase 1 Item 6).
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const { getLocationScope } = require('../services/restaurantLocationAccessService');
 const permissionsService = require('../services/permissionsService');
 // Canonical restaurant-level analytics computations (Phase 2, Item 10).
 const restaurantAnalytics = require('../analytics/restaurantAnalytics');
@@ -33,7 +34,7 @@ async function requireRestaurantAccess(userId, restaurantId) {
   if (!allowed) {
     throw new AppError('You do not have permission to view reports', 403, 'forbidden');
   }
-  return restaurant;
+  return { ...restaurant, locationScope: await getLocationScope(restaurant, userId) };
 }
 
 function parseRange(query) {
@@ -133,7 +134,11 @@ function parseSalesRange(query, timezone) {
 // Per-order financials, mirroring the net-collected definition in
 // getManagerReports (restaurantAppFlowController) exactly. $1 restaurant,
 // $2 from local date, $3 to local date, $4 timezone.
-const ORDER_FINANCIALS_CTE = `
+function orderFinancialsCte(locationScope) {
+  const locationPredicate = locationScope?.mode === 'assigned'
+    ? '\n       AND fo.location_id = ANY($5::bigint[])'
+    : '';
+  return `
   WITH order_financials AS (
     SELECT fo.*,
            CASE
@@ -160,8 +165,15 @@ const ORDER_FINANCIALS_CTE = `
       ) pos ON TRUE
      WHERE fo.restaurant_id = $1
        AND fo.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
-       AND fo.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
+       AND fo.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)${locationPredicate}
   )`;
+}
+
+function scopedParams(baseParams, locationScope) {
+  return locationScope?.mode === 'assigned'
+    ? [...baseParams, locationScope.location_ids]
+    : baseParams;
+}
 
 const SALES_COMPONENT_SUMS = `
   COUNT(*) FILTER (WHERE status NOT IN ('cancelled', 'refunded'))::int AS orders,
@@ -225,7 +237,8 @@ function salesDayShape(row) {
 async function computeSalesReport(restaurantId, restaurant, query) {
   const timezone = resolveReportTimezone(restaurant);
   const { fromDate, toDate } = parseSalesRange(query || {}, timezone);
-  const params = [restaurantId, fromDate, toDate, timezone];
+  const params = scopedParams([restaurantId, fromDate, toDate, timezone], restaurant.locationScope);
+  const cte = orderFinancialsCte(restaurant.locationScope);
   const [bounds, totals, daily, byFulfillment, bySource, paymentMethods] = await Promise.all([
     pool.query(
       `SELECT (($1::date)::timestamp AT TIME ZONE $3) AS from_instant,
@@ -233,7 +246,7 @@ async function computeSalesReport(restaurantId, restaurant, query) {
       [fromDate, toDate, timezone]
     ),
     pool.query(
-      `${ORDER_FINANCIALS_CTE}
+      `${cte}
        SELECT COALESCE(NULLIF(currency_code, ''), 'USD') AS currency,
               ${SALES_COMPONENT_SUMS},
               COUNT(*) FILTER (WHERE status = 'cancelled')::int AS cancelled,
@@ -244,7 +257,7 @@ async function computeSalesReport(restaurantId, restaurant, query) {
       params
     ),
     pool.query(
-      `${ORDER_FINANCIALS_CTE}
+      `${cte}
        SELECT COALESCE(NULLIF(currency_code, ''), 'USD') AS currency,
               to_char((created_at AT TIME ZONE $4)::date, 'YYYY-MM-DD') AS day,
               ${SALES_COMPONENT_SUMS}
@@ -254,7 +267,7 @@ async function computeSalesReport(restaurantId, restaurant, query) {
       params
     ),
     pool.query(
-      `${ORDER_FINANCIALS_CTE}
+      `${cte}
        SELECT COALESCE(NULLIF(currency_code, ''), 'USD') AS currency,
               fulfillment_type,
               COUNT(*) FILTER (WHERE status NOT IN ('cancelled', 'refunded'))::int AS orders,
@@ -266,7 +279,7 @@ async function computeSalesReport(restaurantId, restaurant, query) {
       params
     ),
     pool.query(
-      `${ORDER_FINANCIALS_CTE}
+      `${cte}
        SELECT COALESCE(NULLIF(currency_code, ''), 'USD') AS currency,
               order_source,
               COUNT(*) FILTER (WHERE status NOT IN ('cancelled', 'refunded'))::int AS orders,
@@ -289,6 +302,7 @@ async function computeSalesReport(restaurantId, restaurant, query) {
           AND p.status IN ('recorded', 'captured')
           AND fo.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
           AND fo.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
+          ${restaurant.locationScope?.mode === 'assigned' ? 'AND fo.location_id = ANY($5::bigint[])' : ''}
         GROUP BY 1, 2
         ORDER BY amount_cents DESC`,
       params
@@ -429,10 +443,11 @@ function closeTotalsShape(row) {
 async function computeDailyClose(restaurantId, restaurant, query = {}) {
   const timezone = resolveReportTimezone(restaurant);
   const businessDate = parseCloseDate(query, timezone);
-  const params = [restaurantId, businessDate, businessDate, timezone];
+  const params = scopedParams([restaurantId, businessDate, businessDate, timezone], restaurant.locationScope);
+  const cte = orderFinancialsCte(restaurant.locationScope);
   const [locationTotals, paymentMethods] = await Promise.all([
     pool.query(
-      `${ORDER_FINANCIALS_CTE}
+      `${cte}
        SELECT o.location_id,
               COALESCE(l.name, 'Unassigned') AS location_name,
               COALESCE(NULLIF(o.currency_code, ''), 'USD') AS currency,
@@ -442,6 +457,7 @@ async function computeDailyClose(restaurantId, restaurant, query = {}) {
          FROM order_financials o
          LEFT JOIN restaurant_locations l
            ON l.restaurant_id = o.restaurant_id AND l.id = o.location_id
+         ${restaurant.locationScope?.mode === 'assigned' ? 'WHERE o.location_id = ANY($5::bigint[])' : ''}
         GROUP BY o.location_id, l.name, 3
         ORDER BY location_name ASC, currency ASC`,
       params
@@ -461,6 +477,7 @@ async function computeDailyClose(restaurantId, restaurant, query = {}) {
           AND p.status IN ('recorded', 'captured', 'refunded')
           AND fo.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
           AND fo.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
+          ${restaurant.locationScope?.mode === 'assigned' ? 'AND fo.location_id = ANY($5::bigint[])' : ''}
         GROUP BY fo.location_id, l.name, 3, p.payment_type
         ORDER BY location_name ASC, currency ASC, amount_cents DESC`,
       params
@@ -518,7 +535,7 @@ async function computeLocationComparison(restaurantId, restaurant, query = {}) {
   const timezone = resolveReportTimezone(restaurant);
   const { fromDate, toDate } = parseSalesRange(query, timezone);
   const { rows } = await pool.query(
-    `${ORDER_FINANCIALS_CTE}
+    `${orderFinancialsCte(restaurant.locationScope)}
      SELECT o.location_id,
             COALESCE(l.name, 'Unassigned') AS location_name,
             COALESCE(NULLIF(o.currency_code, ''), 'USD') AS currency,
@@ -528,9 +545,10 @@ async function computeLocationComparison(restaurantId, restaurant, query = {}) {
        FROM order_financials o
        LEFT JOIN restaurant_locations l
          ON l.restaurant_id = o.restaurant_id AND l.id = o.location_id
+      ${restaurant.locationScope?.mode === 'assigned' ? 'WHERE o.location_id = ANY($5::bigint[])' : ''}
       GROUP BY o.location_id, l.name, 3
       ORDER BY currency ASC, revenue_cents DESC, location_name ASC`,
-    [restaurantId, fromDate, toDate, timezone]
+    scopedParams([restaurantId, fromDate, toDate, timezone], restaurant.locationScope)
   );
   const locations = rows.map((row) => ({
     location_id: row.location_id === null ? null : Number(row.location_id),
@@ -829,8 +847,9 @@ exports.salesJournalExportCsv = async (req, res, next) => {
         WHERE o.restaurant_id = $1
           AND o.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
           AND o.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
+          ${restaurant.locationScope?.mode === 'assigned' ? 'AND o.location_id = ANY($5::bigint[])' : ''}
         ORDER BY o.created_at ASC, o.id ASC, p.created_at ASC NULLS FIRST, p.id ASC`,
-      [restaurantId, fromDate, toDate, timezone]
+      scopedParams([restaurantId, fromDate, toDate, timezone], restaurant.locationScope)
     );
     const lines = [SALES_JOURNAL_COLUMNS.join(',')];
     for (const row of rows) {

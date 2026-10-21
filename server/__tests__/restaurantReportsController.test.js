@@ -213,6 +213,26 @@ describe('franchise reports backend', () => {
     expect(res.text).toContain('2026-10-01,2026-10-07,7,"Main, Store",USD,1,1,1000');
   });
 
+  test('assigned staff reports are filtered to their active stores', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...access('manager'), effective_membership_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ code: 'analytics.view_financial', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ membership_id: 77, location_id: 7, role_override: null }] })
+      .mockResolvedValueOnce({ rows: [{
+        location_id: 7, location_name: 'Assigned Store', currency: 'USD', orders: '1', paid_orders: '1',
+        revenue_cents: '1000', gross_cents: '1000', discount_cents: '0', tax_cents: '80', tips_cents: '0',
+        service_fee_cents: '0', delivery_fee_cents: '0', collected_cents: '1000', refunds_cents: '0',
+        cancelled: '0', refunded: '0',
+      }] });
+    const res = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/reports/sales/locations?from=2026-10-01&to=2026-10-01`);
+    expect(res.status).toBe(200);
+    expect(res.body.locations).toHaveLength(1);
+    expect(res.body.locations[0].location_id).toBe(7);
+    expect(mockQuery.mock.calls[4][0]).toMatch(/location_id = ANY\(\$5::bigint\[\]\)/);
+    expect(mockQuery.mock.calls[4][1]).toEqual([RESTAURANT_ID, '2026-10-01', '2026-10-01', 'UTC', [7]]);
+  });
+
   test('salesLocationComparisonXlsx emits a real workbook with store and brand sheets', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [access('manager')] })

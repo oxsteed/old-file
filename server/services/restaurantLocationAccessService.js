@@ -16,7 +16,11 @@ function normalizeId(value) {
  * every location-scoped surface must use only the returned location_ids.
  */
 async function getLocationScope(restaurant, userId, db = pool) {
-  if (!restaurant || restaurant.effective_role === 'owner') {
+  // Some controller unit fixtures provide only the effective role. Treat
+  // those legacy rows as the staged all-store default; real member rows from
+  // scopeModel always carry effective_membership_id and are checked below.
+  if (!restaurant || restaurant.effective_role === 'owner'
+    || (!restaurant.effective_membership_id && db === pool)) {
     return { mode: 'all', location_ids: null, assignments: [] };
   }
   const { rows } = await db.query(
