@@ -23286,6 +23286,8 @@
       "posShiftOpened": "Sesyon an louvri. Ou ka pran kòmand kounye a.",
       "taxRate": "To taks (%)",
       "taxRateHint": "Taks lavant ki ajoute sou kòmand kliyan yo. Kite vid oswa 0 si taks pa aplikab.",
+      "taxJurisdiction": "Jiridiksyon taks",
+      "taxInclusive": "Taks enkli",
       "taxRateInvalid": "Antre yon to taks ant 0 ak 100.",
       "locationsTitle": "Lòt kote yo",
       "locationName": "Non lokasyon an",

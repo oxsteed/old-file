@@ -69,6 +69,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
   const blankForm = useCallback(() => ({
     name: '', addressCity: '', addressState: '', addressCountry: 'US', latitude: '', longitude: '',
     phone: '', timezone: restaurant.timezone || DETECTED_TIMEZONE, status: 'active', isPrimary: false,
+    taxRatePercent: '', serviceFeePercent: '', taxInclusive: false, taxJurisdiction: '',
   }), [restaurant.timezone]);
   const [form, setForm] = useState(blankForm);
   const [editingId, setEditingId] = useState(null);
@@ -103,6 +104,10 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
       timezone: loc.timezone || restaurant.timezone || DETECTED_TIMEZONE,
       status: LOCATION_STATUSES.includes(loc.status) ? loc.status : 'active',
       isPrimary: !!loc.is_primary,
+      taxRatePercent: loc.tax_rate_bps == null ? '' : String(Number(loc.tax_rate_bps) / 100),
+      serviceFeePercent: loc.service_fee_bps == null ? '' : String(Number(loc.service_fee_bps) / 100),
+      taxInclusive: !!loc.tax_inclusive,
+      taxJurisdiction: loc.tax_jurisdiction || '',
     });
     setDayHours(dayHoursFromLocation(loc));
     setHoursDirty(false);
@@ -186,6 +191,10 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
         timezone: form.timezone || undefined,
         status: form.status,
         isPrimary: editingId ? form.isPrimary : (locations.length === 0 || form.isPrimary),
+        taxRateBps: form.taxRatePercent === '' ? null : Math.round(Number(form.taxRatePercent) * 100),
+        serviceFeeBps: form.serviceFeePercent === '' ? null : Math.round(Number(form.serviceFeePercent) * 100),
+        taxInclusive: form.taxInclusive,
+        taxJurisdiction: form.taxJurisdiction.trim() || null,
         ...(hoursDirty ? { operatingHours: buildOperatingHours() } : {}),
       };
       if (editingId) {
@@ -276,6 +285,21 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
               ))}
             </select>
           </div>
+          <div className="fd-field" style={{ flex: '0 1 130px' }}>
+            <label htmlFor="fd-loc-tax">{t('food.merchant.taxRate')}</label>
+            <input id="fd-loc-tax" type="number" min="0" max="100" step="0.001" value={form.taxRatePercent} onChange={(e) => setForm((f) => ({ ...f, taxRatePercent: e.target.value }))} placeholder={t('food.merchant.taxRateHint')} />
+          </div>
+          <div className="fd-field" style={{ flex: '0 1 130px' }}>
+            <label htmlFor="fd-loc-service-fee">{t('food.orders.serviceFee', 'Service fee')} (%)</label>
+            <input id="fd-loc-service-fee" type="number" min="0" max="100" step="0.001" value={form.serviceFeePercent} onChange={(e) => setForm((f) => ({ ...f, serviceFeePercent: e.target.value }))} />
+          </div>
+          <div className="fd-field" style={{ flex: '1 1 160px' }}>
+            <label htmlFor="fd-loc-tax-jurisdiction">{t('food.merchant.taxJurisdiction', 'Tax jurisdiction')}</label>
+            <input id="fd-loc-tax-jurisdiction" value={form.taxJurisdiction} onChange={(e) => setForm((f) => ({ ...f, taxJurisdiction: e.target.value }))} maxLength={160} />
+          </div>
+          <label className="fd-field" style={{ flex: '0 1 180px', justifyContent: 'flex-end' }}>
+            <span><input type="checkbox" checked={form.taxInclusive} onChange={(e) => setForm((f) => ({ ...f, taxInclusive: e.target.checked }))} />{' '}{t('food.merchant.taxInclusive', 'Tax inclusive')}</span>
+          </label>
           <div className="fd-field" style={{ flex: '0 1 100px' }}>
             <label htmlFor="fd-loc-lat">{t('food.merchant.latitude')}</label>
             <input id="fd-loc-lat" value={form.latitude} onChange={(e) => setForm((f) => ({ ...f, latitude: e.target.value }))} />

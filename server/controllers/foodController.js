@@ -396,6 +396,20 @@ function parseOptionalCoordinate(value) {
 
 const LOCATION_STATUSES = new Set(['active', 'paused', 'closed']);
 
+function normalizeLocationRate(value, field) {
+  if (value === undefined || value === null || value === '') return null;
+  const rate = Number(value);
+  if (!Number.isSafeInteger(rate) || rate < 0 || rate > 10000) {
+    throw new AppError('Validation failed', 400, 'validation_failed', { [field]: 'Enter a rate from 0 to 100 percent' });
+  }
+  return rate;
+}
+
+function normalizeLocationTaxJurisdiction(value) {
+  if (value === undefined || value === null || value === '') return null;
+  return normalizeString(value, 160);
+}
+
 // F-12: the fulfillment set the database itself defaults to (migration 305).
 const DEFAULT_FULFILLMENT_MODES = ['pickup', 'dine_in', 'kiosk'];
 
@@ -2907,9 +2921,12 @@ exports.quoteOrder = async (req, res, next) => {
     const taxableSubtotalCents = Math.max(0, subtotalCents - discountCents);
     const taxRateBps = Math.max(0, Math.min(10000, Number(restaurant.tax_rate_bps || 0)));
     const serviceFeeBps = Math.max(0, Math.min(10000, Number(restaurant.service_fee_bps || 0)));
-    const taxCents = Math.round(taxableSubtotalCents * taxRateBps / 10000);
+    const taxInclusive = restaurant.tax_inclusive === true;
+    const taxCents = taxInclusive
+      ? Math.round(taxableSubtotalCents * taxRateBps / (10000 + taxRateBps || 10000))
+      : Math.round(taxableSubtotalCents * taxRateBps / 10000);
     const serviceFeeCents = Math.round(taxableSubtotalCents * serviceFeeBps / 10000);
-    const totalCents = Math.max(0, taxableSubtotalCents + taxCents + serviceFeeCents + tipCents + deliveryFeeCents);
+    const totalCents = Math.max(0, taxableSubtotalCents + (taxInclusive ? 0 : taxCents) + serviceFeeCents + tipCents + deliveryFeeCents);
     const legacyPaymentMode = FOOD_PAYMENT_LEGACY_MODE[paymentContract.canonical];
     const supportedPaymentModes = ['pay_at_counter', 'pay_at_restaurant', 'restaurant_credit', 'wallet_credit', 'direct_payment'];
     let oxsteedCreditEligibility = null;
@@ -2992,8 +3009,12 @@ exports.quoteOrder = async (req, res, next) => {
       taxable_subtotal_cents: taxableSubtotalCents,
       taxRateBps,
       tax_rate_bps: taxRateBps,
+      taxInclusive,
+      tax_inclusive: taxInclusive,
       taxCents,
       tax_cents: taxCents,
+      taxJurisdiction: restaurant.tax_jurisdiction || null,
+      tax_jurisdiction: restaurant.tax_jurisdiction || null,
       serviceFeeBps,
       service_fee_bps: serviceFeeBps,
       serviceFeeCents,
@@ -3560,9 +3581,12 @@ exports.createOrder = async (req, res, next) => {
       const taxableSubtotal = Math.max(0, subtotal - discount);
       const taxRateBps = Math.max(0, Math.min(10000, Number(restaurant.tax_rate_bps || 0)));
       const serviceFeeBps = Math.max(0, Math.min(10000, Number(restaurant.service_fee_bps || 0)));
-      const tax = Math.round(taxableSubtotal * taxRateBps / 10000);
+      const taxInclusive = restaurant.tax_inclusive === true;
+      const tax = taxInclusive
+        ? Math.round(taxableSubtotal * taxRateBps / (10000 + taxRateBps))
+        : Math.round(taxableSubtotal * taxRateBps / 10000);
       const serviceFeeCents = Math.round(taxableSubtotal * serviceFeeBps / 10000);
-      const total = Math.max(0, taxableSubtotal + tax + serviceFeeCents + tip + deliveryFeeCents);
+      const total = Math.max(0, taxableSubtotal + (taxInclusive ? 0 : tax) + serviceFeeCents + tip + deliveryFeeCents);
       const screenFingerprint=normalizedItems.map(i=>({id:String(i.menuItem.id),name:i.menuItem.name,price:Number(i.menuItem.price_cents),modifiers:i.modifiers.map(m=>({id:String(m.id),name:m.name,price:Number(m.price_delta_cents)})).sort((a,b)=>a.id.localeCompare(b.id))}));
       if(req.screenExpectedFingerprint&&JSON.stringify(req.screenExpectedFingerprint)!==JSON.stringify(screenFingerprint))throw new AppError('Menu changed; review your items again',409,'screen_price_conflict');
       if(req.screenExpectedTotal!==undefined&&req.screenExpectedTotal!==total)throw new AppError('Price changed; review the current total',409,'screen_price_conflict',{currentTotalCents:total});
@@ -3670,7 +3694,7 @@ exports.createOrder = async (req, res, next) => {
           ...(scheduledFor ? { scheduledFor } : {}),
           ...(pickupContact ? { pickupContact } : {}),
           ...(cardPaymentIntentId ? { cardPaymentIntentId } : {}),
-          pricing: { taxRateBps, serviceFeeBps, taxCents: tax, serviceFeeCents },
+          pricing: { taxRateBps, taxInclusive, taxJurisdiction: restaurant.tax_jurisdiction || null, serviceFeeBps, taxCents: tax, serviceFeeCents },
           ...(paymentContract.canonical === 'direct_payment' || externalPaymentSubmission ? {
             externalPayment: {
               enabled: externalPaymentEnabled,
@@ -7673,7 +7697,8 @@ exports.listRestaurantLocations = async (req, res, next) => {
       const { rows } = await pool.query(
         `SELECT id, restaurant_id, name, address_street, address_city, address_state, address_zip,
                 address_country, latitude, longitude, timezone, phone, is_primary, status,
-                operating_hours, created_at, updated_at
+                operating_hours, tax_rate_bps, service_fee_bps, tax_inclusive,
+                tax_jurisdiction, created_at, updated_at
            FROM restaurant_locations
           WHERE restaurant_id = $1 ${isMerchant ? '' : "AND status = 'active'"}
           ORDER BY is_primary DESC, name ASC`,
@@ -7720,8 +7745,9 @@ exports.createRestaurantLocation = async (req, res, next) => {
       const { rows: [created] } = await client.query(
         `INSERT INTO restaurant_locations
            (restaurant_id, name, address_street, address_city, address_state, address_zip,
-            address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+            address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours,
+            tax_rate_bps, service_fee_bps, tax_inclusive, tax_jurisdiction)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
          RETURNING *`,
         [
           restaurantId,
@@ -7738,6 +7764,10 @@ exports.createRestaurantLocation = async (req, res, next) => {
           isPrimary,
           status,
           normalizeHoursInput(req.body.operatingHours || req.body.operating_hours),
+          normalizeLocationRate(req.body.taxRateBps ?? req.body.tax_rate_bps, 'taxRateBps'),
+          normalizeLocationRate(req.body.serviceFeeBps ?? req.body.service_fee_bps, 'serviceFeeBps'),
+          req.body.taxInclusive === true || req.body.tax_inclusive === true,
+          normalizeLocationTaxJurisdiction(req.body.taxJurisdiction ?? req.body.tax_jurisdiction),
         ]
       );
       return created;
@@ -7768,6 +7798,10 @@ exports.updateRestaurantLocation = async (req, res, next) => {
     }
     const timezone = normalizeIanaTimezone(req.body.timezone);
     const makePrimary = req.body.isPrimary === true || req.body.is_primary === true;
+    const hasTaxRate = Object.hasOwn(req.body, 'taxRateBps') || Object.hasOwn(req.body, 'tax_rate_bps');
+    const hasServiceFee = Object.hasOwn(req.body, 'serviceFeeBps') || Object.hasOwn(req.body, 'service_fee_bps');
+    const hasTaxInclusive = Object.hasOwn(req.body, 'taxInclusive') || Object.hasOwn(req.body, 'tax_inclusive');
+    const hasTaxJurisdiction = Object.hasOwn(req.body, 'taxJurisdiction') || Object.hasOwn(req.body, 'tax_jurisdiction');
 
     const location = await withTransaction(pool, async (client) => {
       const { rows: existing } = await client.query(
@@ -7798,8 +7832,12 @@ exports.updateRestaurantLocation = async (req, res, next) => {
                 is_primary = COALESCE($11, is_primary),
                 status = COALESCE($12, status),
                 operating_hours = COALESCE($13, operating_hours),
+                tax_rate_bps = CASE WHEN $14 THEN $15 ELSE tax_rate_bps END,
+                service_fee_bps = CASE WHEN $16 THEN $17 ELSE service_fee_bps END,
+                tax_inclusive = CASE WHEN $18 THEN $19 ELSE tax_inclusive END,
+                tax_jurisdiction = CASE WHEN $20 THEN $21 ELSE tax_jurisdiction END,
                 updated_at = NOW()
-          WHERE id = $14 AND restaurant_id = $15
+          WHERE id = $22 AND restaurant_id = $23
           RETURNING *`,
         [
           normalizeString(req.body.name, 160),
@@ -7815,6 +7853,14 @@ exports.updateRestaurantLocation = async (req, res, next) => {
           typeof (req.body.isPrimary ?? req.body.is_primary) === 'boolean' ? (req.body.isPrimary ?? req.body.is_primary) : null,
           status,
           req.body.operatingHours || req.body.operating_hours ? normalizeHoursInput(req.body.operatingHours || req.body.operating_hours) : null,
+          hasTaxRate,
+          normalizeLocationRate(req.body.taxRateBps ?? req.body.tax_rate_bps, 'taxRateBps'),
+          hasServiceFee,
+          normalizeLocationRate(req.body.serviceFeeBps ?? req.body.service_fee_bps, 'serviceFeeBps'),
+          hasTaxInclusive,
+          req.body.taxInclusive === true || req.body.tax_inclusive === true,
+          hasTaxJurisdiction,
+          normalizeLocationTaxJurisdiction(req.body.taxJurisdiction ?? req.body.tax_jurisdiction),
           locationId,
           restaurantId,
         ]

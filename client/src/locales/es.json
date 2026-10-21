@@ -23286,6 +23286,8 @@
       "posShiftOpened": "Turno de caja abierto. Ya puedes recibir pedidos.",
       "taxRate": "Tasa de impuesto (%)",
       "taxRateHint": "Impuesto sobre las ventas añadido a los pedidos. Deja en blanco o en 0 si no aplica.",
+      "taxJurisdiction": "Jurisdicción fiscal",
+      "taxInclusive": "Impuesto incluido",
       "taxRateInvalid": "Introduce una tasa de impuesto entre 0 y 100.",
       "locationsTitle": "Ubicaciones",
       "locationName": "Nombre de la ubicación",

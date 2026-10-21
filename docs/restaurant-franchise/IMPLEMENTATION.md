@@ -53,6 +53,13 @@ reservation state, add walk-ins, seat them, and send a transactional SMS
 notification. SMS delivery is fail-closed when the provider is unavailable;
 the entry is not marked notified until the provider accepts the message.
 
+Migration 965 adds optional store tax and service-fee rates, tax-inclusive
+pricing, and a jurisdiction label. A selected store overrides the brand rate
+for authoritative quote and order totals; existing stores inherit the brand
+policy when the override is blank. The location editor exposes these controls,
+and the order stores the effective rate and inclusive flag in its pricing
+snapshot.
+
 ## Requirements matrix
 
 `Existing source` means an earlier branch change exists; it is not a fresh
@@ -78,7 +85,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-16 | Existing unpaid completion guards | Verify every kitchen, display, runner, counter and manager exception path |
 | F-17 | This pass adds per-store availability, timed restock, audit, POS/kitchen grants | Full per-store inventory integration and all native/KDS UI adoption |
 | F-18 | Existing daily counters and routing/Stripe lock reduction | Concurrent 50-store load and lock-observation evidence |
-| F-19 | Restaurant-wide flat tax remains | Item categories, store jurisdictions, inclusive/exclusive rules, fees/exemptions, rule snapshots and provider integration |
+| F-19 | Migration 965 adds optional per-store tax/service rates, jurisdiction and inclusive pricing; quote/order snapshots use the selected store | Item-level categories, exemptions, provider integration, and populated-store tax acceptance |
 | F-20 | Existing menu/settings/tax audit emitters; required store-menu audit added | Audit coverage across every resource and owner-visible history acceptance |
 | F-21 | Existing PIN sessions, switching, lockout and keyed lookup | Native/shared-device and multi-store identity acceptance |
 | F-22 | Existing time punches, wages, labor, tips and CSV foundation | Scheduling integration/rules, availability/swaps, break/overtime compliance and native timeclock |
@@ -116,6 +123,7 @@ hardware decisions do not excuse independent software work on these flows.
 - `server`: `npx jest --runInBand --testPathPatterns='routeScopeGuard' __tests__/routeScopeGuard.test.js` — **10 passed** after adding all host-stand routes.
 - `client`: `npm run verify:i18n` — **passed** with the host-stand keys present in `en`, `es`, `fr`, `ht`, and `ar`.
 - `client`: `npm run build` — **passed**; Vite emitted the merchant bundle with the host-stand panel. Existing large-chunk and dynamic-import advisories remain.
+- `server/scripts/migration-rehearsal.cjs --timeout-ms 600000` — **passed** against a disposable Colima PostgreSQL container; all 939 migrations applied and replayed cleanly, including migrations 964 and 965.
 - `server/scripts/verifyRestaurantStoreMenu.js` — **passed** in the dedicated Colima PostgreSQL container. It applied migration 963 twice, verified default-store backfill/onboarding and legacy order/counter continuity, tenant foreign keys, negative prices, screen events, SQL projections, and sibling-store isolation.
 - `client`: `npm run build:ci` — **passed**; Vite emitted and verified 1,020 assets. The existing build warnings are the repository's large-chunk and dynamic-import advisories.
 - The broader restaurant Jest selection was also run with the local FFmpeg binary. It reached 768 passing tests, but the pre-existing media-transcode test still fails because it expects a 960x720 rendition while the current binary produces 1280x960. That unrelated media behavior is outside this store-menu change.

@@ -90,7 +90,7 @@ function assertLocation(store, requestedId) {
 }
 function useStoreDetails(restaurant, store) {
   if (!store) return;
-  for (const field of ['address_street', 'address_city', 'address_state', 'address_zip', 'address_country', 'latitude', 'longitude', 'timezone']) {
+  for (const field of ['address_street', 'address_city', 'address_state', 'address_zip', 'address_country', 'latitude', 'longitude', 'timezone', 'tax_rate_bps', 'service_fee_bps', 'tax_inclusive', 'tax_jurisdiction']) {
     if (store[field] != null) restaurant[field] = store[field];
   }
   if (store.operating_hours && Object.keys(store.operating_hours).length) restaurant.operating_hours = store.operating_hours;

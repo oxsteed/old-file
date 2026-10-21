@@ -23286,6 +23286,8 @@
       "posShiftOpened": "POS shift opened. You can take orders now.",
       "taxRate": "Tax rate (%)",
       "taxRateHint": "Sales tax added to customer orders. Leave blank or 0 when tax does not apply.",
+      "taxJurisdiction": "Tax jurisdiction",
+      "taxInclusive": "Tax inclusive",
       "taxRateInvalid": "Enter a tax rate between 0 and 100.",
       "locationsTitle": "Locations",
       "locationName": "Location name",

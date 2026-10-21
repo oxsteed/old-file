@@ -110,3 +110,11 @@ test('paired terminals and cash drawers cannot price or replay a sibling store',
   expect(menu.pinnedLocation(7, null)).toBe(7);
   expect(() => menu.pinnedLocation(8, 7)).toThrow('Store differs');
 });
+
+test('selected store pricing policy overrides the brand policy without mutating the source row', () => {
+  const restaurant = { tax_rate_bps: 725, service_fee_bps: 0, timezone: 'UTC' };
+  const store = { tax_rate_bps: 887, service_fee_bps: 150, tax_inclusive: true, tax_jurisdiction: 'Local' };
+  menu.useStoreDetails(restaurant, store);
+  expect(restaurant).toMatchObject({ tax_rate_bps: 887, service_fee_bps: 150, tax_inclusive: true, tax_jurisdiction: 'Local' });
+  expect(store.tax_rate_bps).toBe(887);
+});

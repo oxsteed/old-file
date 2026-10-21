@@ -23286,6 +23286,8 @@
       "posShiftOpened": "Service ouvert. Vous pouvez prendre des commandes.",
       "taxRate": "Taux de taxe (%)",
       "taxRateHint": "Taxe de vente ajoutée aux commandes. Laissez vide ou 0 si elle ne s'applique pas.",
+      "taxJurisdiction": "Juridiction fiscale",
+      "taxInclusive": "Taxe incluse",
       "taxRateInvalid": "Saisissez un taux de taxe entre 0 et 100.",
       "locationsTitle": "Emplacements",
       "locationName": "Nom de l'établissement",
