@@ -20,6 +20,7 @@ function app() {
   instance.use((req, _res, next) => { req.user = { id: '00000000-0000-4000-8000-000000000123' }; next(); });
   instance.post('/:restaurantId/reservations', hosting.createReservation);
   instance.patch('/:restaurantId/reservations/:reservationId', hosting.updateReservation);
+  instance.patch('/:restaurantId/tables/:tableId', hosting.updateTable);
   instance.post('/:restaurantId/waitlist', hosting.createWaitlistEntry);
   instance.post('/:restaurantId/waitlist/:entryId/notify', hosting.notifyWaitlistEntry);
   instance.use(errorHandler);
@@ -42,6 +43,19 @@ test('reservation creation scopes the location and rejects an occupied table', a
   expect(response.status).toBe(409);
   expect(response.body.code).toBe('reservation_conflict');
   expect(mockQuery.mock.calls.some(([sql]) => sql.includes('restaurant_id=$1 AND location_id=$2'))).toBe(true);
+});
+
+test('table position updates stay tenant-scoped for the floor plan', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    if (sql.startsWith('UPDATE restaurant_tables')) {
+      return { rows: [{ id: 11, restaurant_id: 3, location_id: 7, name: 'T1', capacity: 2, position: { x: 42, y: 64 } }] };
+    }
+    return { rows: [] };
+  });
+  const response = await request(app()).patch('/3/tables/11').send({ position: { x: 42, y: 64 } });
+  expect(response.status).toBe(200);
+  expect(response.body.table.position).toEqual({ x: 42, y: 64 });
+  expect(mockQuery.mock.calls.find(([sql]) => sql.startsWith('UPDATE restaurant_tables'))[1]).toEqual([3, 11, '{"x":42,"y":64}']);
 });
 
 test('reservation idempotency returns the existing record without inserting', async () => {

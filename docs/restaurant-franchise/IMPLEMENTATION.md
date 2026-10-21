@@ -114,8 +114,9 @@ card products, delivery-marketplace menu/order adapters, QuickBooks/Xero and BI
 exports, allergen label printing, unified onboarding/hardware
 pairing, HQ compliance publishing/rollups and end-to-end store acceptance.
 Reservations, table records, floor-plan metadata, seat-state updates, and a
-walk-in SMS waitlist are now implemented in the host-stand tranche; floor-plan
-drag/drop, guest self-service and physical SMS/provider acceptance remain.
+walk-in SMS waitlist are now implemented in the host-stand tranche. The merchant
+panel now provides a location-scoped drag/drop floor plan backed by the table
+position field; guest self-service and physical SMS/provider acceptance remain.
 External vendor or
 hardware decisions do not excuse independent software work on these flows.
 

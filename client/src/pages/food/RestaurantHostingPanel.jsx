@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
   listRestaurantTables,
   createRestaurantTable,
+  updateRestaurantTable,
   listRestaurantReservations,
   createRestaurantReservation,
   updateRestaurantReservation,
@@ -24,6 +25,7 @@ export default function RestaurantHostingPanel({ t, restaurant }) {
   const [table, setTable] = useState({ name: '', capacity: 2, section: '' });
   const [reservation, setReservation] = useState({ guestName: '', guestPhone: '', partySize: 2, tableId: '', startsAt: '', endsAt: '' });
   const [waitlist, setWaitlist] = useState({ guestName: '', guestPhone: '', partySize: 2, quotedWaitMin: 20 });
+  const floorPlanRef = useRef(null);
   const text = useCallback((key, fallback, vars) => t(`restaurants.ops.hosting.${key}`, { defaultValue: fallback, ...vars }), [t]);
 
   const load = useCallback(async () => {
@@ -64,6 +66,25 @@ export default function RestaurantHostingPanel({ t, restaurant }) {
   const status = async (id, value) => { try { await updateRestaurantReservation(restaurant.id, id, { status: value }); await load(); } catch (error) { toast.error(apiErrorMessage(error, text('saveError', 'Could not save'))); } };
   const notify = async (entry) => { try { await notifyRestaurantWaitlistEntry(restaurant.id, entry.id); await load(); } catch (error) { toast.error(apiErrorMessage(error, text('smsError', 'Could not send SMS'))); } };
   const seat = async (entry) => { try { await updateRestaurantWaitlistEntry(restaurant.id, entry.id, { status: 'seated' }); await load(); } catch (error) { toast.error(apiErrorMessage(error, text('saveError', 'Could not save'))); } };
+  const moveTable = async (event) => {
+    event.preventDefault();
+    const tableId = event.dataTransfer.getData('text/plain');
+    const canvas = floorPlanRef.current;
+    if (!tableId || !canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.max(4, Math.min(96, Math.round(((event.clientX - rect.left) / rect.width) * 100)));
+    const y = Math.max(8, Math.min(92, Math.round(((event.clientY - rect.top) / rect.height) * 100)));
+    setData((current) => ({
+      ...current,
+      tables: current.tables.map((item) => (String(item.id) === String(tableId) ? { ...item, position: { x, y } } : item)),
+    }));
+    try {
+      await updateRestaurantTable(restaurant.id, tableId, { position: { x, y } });
+    } catch (error) {
+      toast.error(apiErrorMessage(error, text('saveError', 'Could not save')));
+      await load();
+    }
+  };
 
   return (
     <div className="fd-section" data-testid="restaurant-hosting-panel">
@@ -78,6 +99,34 @@ export default function RestaurantHostingPanel({ t, restaurant }) {
             <input aria-label={text('section', 'Section')} placeholder={text('section', 'Section')} value={table.section} onChange={set(setTable, 'section')} maxLength={120} />
             <button className="fd-btn fd-btn-primary" disabled={busy}>{text('addTable', 'Add table')}</button>
           </form>
+          <h5>{text('floorPlanTitle', 'Floor plan')}</h5>
+          <p className="fd-card-meta">{text('floorPlanHint', 'Drag tables to arrange the store layout.')}</p>
+          <div
+            ref={floorPlanRef}
+            role="application"
+            aria-label={text('floorPlanTitle', 'Floor plan')}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={moveTable}
+            style={{ position: 'relative', minHeight: 240, margin: '12px 0', border: '1px dashed var(--border-color, #cbd5e1)', borderRadius: 12, background: 'var(--color-surface-2, #f8fafc)', overflow: 'hidden' }}
+          >
+            {data.tables.filter((item) => item.status === 'active').map((item, index) => {
+              const position = item.position && typeof item.position === 'object' ? item.position : {};
+              const x = Number.isFinite(Number(position.x)) ? Number(position.x) : 16 + ((index % 4) * 22);
+              const y = Number.isFinite(Number(position.y)) ? Number(position.y) : 24 + (Math.floor(index / 4) * 28);
+              return (
+                <button
+                  key={`floor-${item.id}`}
+                  type="button"
+                  draggable
+                  onDragStart={(event) => event.dataTransfer.setData('text/plain', String(item.id))}
+                  style={{ position: 'absolute', left: `${x}%`, top: `${y}%`, transform: 'translate(-50%, -50%)', minWidth: 64, minHeight: 44, border: '1px solid var(--color-border, #cbd5e1)', borderRadius: 10, background: 'var(--color-surface, #fff)', color: 'inherit', cursor: 'grab', fontWeight: 700, padding: '6px 8px' }}
+                  aria-label={`${item.name} (${item.capacity})`}
+                >
+                  {item.name}<small style={{ display: 'block', fontWeight: 500, opacity: 0.7 }}>{item.capacity}</small>
+                </button>
+              );
+            })}
+          </div>
           <ul>{data.tables.map((item) => <li key={item.id}>{item.name} · {item.capacity}</li>)}</ul>
         </section>
 
