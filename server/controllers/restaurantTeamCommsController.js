@@ -16,10 +16,10 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const permissionsService = require('../services/permissionsService');
 const { sendNotification } = require('../services/notificationService');
 const logger = require('../utils/logger');
 
-const MANAGE_ROLES = new Set(['owner', 'manager']);
 const MY_SHIFT_URL = '/restaurants/merchant?tab=myshift';
 
 function parsePositiveInt(value) {
@@ -39,8 +39,9 @@ async function requireRestaurantAccess(userId, restaurantId) {
   return resolveRestaurantAccess(userId, restaurantId);
 }
 
-function assertManage(restaurant) {
-  if (!MANAGE_ROLES.has(restaurant.effective_role)) {
+async function assertManage(restaurant, userId) {
+  const allowed = await permissionsService.hasRestaurantPermission(restaurant, userId, ['restaurant.manage']);
+  if (!allowed) {
     throw new AppError('You do not have permission to manage this restaurant', 403, 'forbidden');
   }
 }
@@ -110,7 +111,7 @@ exports.createAnnouncement = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const title = normalizeString(req.body.title, 200);
     if (!title) {
       throw new AppError('Validation failed', 400, 'validation_failed', { title: 'Title is required' });
@@ -196,7 +197,7 @@ exports.createLogbookEntry = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const body = normalizeString(req.body.body, 4000);
     if (!body) {
       throw new AppError('Validation failed', 400, 'validation_failed', { body: 'Note is required' });

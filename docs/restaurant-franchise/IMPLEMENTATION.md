@@ -10,9 +10,10 @@ changes are authorized by this checkpoint.
 Restaurant support case listing, detail, responses, escalation, and resolution
 now use the `support.view` and `support.manage` permission catalog instead of
 role-name checks. Kiosk configuration uses `settings.manage` through the same
-resolver, so membership deny overrides apply to both surfaces. Existing case
-ownership and payment approval rules remain in force; provider and
-populated-store acceptance are still open.
+resolver, and help requests, team communications, and staff documents use
+`restaurant.manage`, so membership deny overrides apply to these manager
+surfaces. Existing case ownership and payment approval rules remain in force;
+provider and populated-store acceptance are still open.
 
 ## Current pass: store menu, split-shift hours, quantity-level POS splits, and HQ regions
 
@@ -274,7 +275,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-28 | Existing transactional primary-location update and validation | Populated database concurrency acceptance |
 | F-29 | Existing edit/pause/close/timezone/hours/location UI plus store-role assignment panel and region assignment | Full multi-range hours editor and populated store-role/region acceptance |
 | F-30 | Existing src tests and loader in CI | Retain browser/device regression coverage as surfaces converge |
-| F-31 | Ticket, payment, printing, crew, runner, restaurant support, and kiosk manager gates now resolve the permission catalog (including membership overrides) instead of role-name checks; bootstrap `canManage` follows the same resolver | Custom membership and deny-override acceptance on every adapter |
+| F-31 | Ticket, payment, printing, crew, runner, restaurant support, kiosk, help-request, team-comms, and staff-document manager gates now resolve the permission catalog (including membership overrides) instead of role-name checks; bootstrap `canManage` follows the same resolver | Custom membership and deny-override acceptance on every adapter |
 | F-32 | Existing per-store per-day atomic counters | Concurrent multi-store rollover and peak-load acceptance |
 | F-33 | Migration 966 adds per-store online/in-store pacing caps, inheritance/disable semantics, and prep extensions applied to quote/order estimates | Peak-load/lock evidence and physical terminal/channel acceptance |
 

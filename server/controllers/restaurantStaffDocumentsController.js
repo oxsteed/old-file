@@ -16,9 +16,9 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const permissionsService = require('../services/permissionsService');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 
-const MANAGE_ROLES = new Set(['owner', 'manager']);
 const DOC_TYPES = [
   'certificate_food_handler', 'certificate_allergen', 'certificate_manager',
   'certificate_other', 'id_document', 'policy_handbook', 'sop_document', 'other',
@@ -35,8 +35,9 @@ async function requireRestaurantAccess(userId, restaurantId) {
   return resolveRestaurantAccess(userId, restaurantId);
 }
 
-function assertManage(restaurant) {
-  if (!MANAGE_ROLES.has(restaurant.effective_role)) {
+async function assertManage(restaurant, userId) {
+  const allowed = await permissionsService.hasRestaurantPermission(restaurant, userId, ['restaurant.manage']);
+  if (!allowed) {
     throw new AppError('You do not have permission to manage this restaurant', 403, 'forbidden');
   }
 }
@@ -64,7 +65,7 @@ exports.listDocuments = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const isManager = MANAGE_ROLES.has(restaurant.effective_role);
+    const isManager = await permissionsService.hasRestaurantPermission(restaurant, req.user.id, ['restaurant.manage']);
     // Staff only ever see their own documents.
     const targetUserId = isManager ? (req.query.userId || null) : req.user.id;
     const expiringDays = parsePositiveInt(req.query.expiringDays);
@@ -92,7 +93,7 @@ exports.uploadDocument = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const isManager = MANAGE_ROLES.has(restaurant.effective_role);
+    const isManager = await permissionsService.hasRestaurantPermission(restaurant, req.user.id, ['restaurant.manage']);
     if (!req.file || !req.file.buffer) throw new AppError('A document file is required', 400, 'file_required');
     const { docType, title, userId, issuedOn, expiresOn } = req.body || {};
     if (!DOC_TYPES.includes(docType)) throw new AppError('Invalid document type', 400, 'invalid_doc_type');
@@ -149,7 +150,7 @@ exports.verifyDocument = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const documentId = parsePositiveInt(req.params.documentId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const { verificationStatus, expiresOn, issuedOn } = req.body || {};
     if (verificationStatus !== undefined && !VERIFICATION_STATUSES.includes(verificationStatus)) {
       throw new AppError('Invalid verification status', 400, 'invalid_verification_status');
@@ -194,7 +195,7 @@ exports.deleteDocument = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const documentId = parsePositiveInt(req.params.documentId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const { rows: [document] } = await pool.query(
       `DELETE FROM restaurant_staff_documents WHERE id = $1 AND restaurant_id = $2 RETURNING storage_key`,
       [documentId, restaurantId]
@@ -246,7 +247,7 @@ exports.listSopAcknowledgements = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const isManager = MANAGE_ROLES.has(restaurant.effective_role);
+    const isManager = await permissionsService.hasRestaurantPermission(restaurant, req.user.id, ['restaurant.manage']);
     const sopId = parsePositiveInt(req.query.sopId);
     // Managers see the restaurant's sign-off state; staff see their own.
     const { rows } = await pool.query(
