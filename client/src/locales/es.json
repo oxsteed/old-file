@@ -24283,6 +24283,7 @@
       "reports": {
         "downloadCsv": "Descargar CSV",
         "downloadJournalCsv": "Descargar CSV del diario",
+        "downloadCloseCsv": "Descargar cierre diario",
         "exportError": "No se pudo descargar el informe de ventas.",
         "breakdown": "Desglose",
         "gross": "Ventas brutas",

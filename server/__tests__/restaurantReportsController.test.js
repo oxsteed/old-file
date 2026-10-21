@@ -25,6 +25,8 @@ function app() {
   server.get('/api/restaurants/:restaurantId/reports/sales', reports.salesSummary);
   server.get('/api/restaurants/:restaurantId/reports/sales/export.csv', reports.salesExportCsv);
   server.get('/api/restaurants/:restaurantId/reports/sales/journal.csv', reports.salesJournalExportCsv);
+  server.get('/api/restaurants/:restaurantId/reports/sales/close', reports.salesClose);
+  server.get('/api/restaurants/:restaurantId/reports/sales/close.csv', reports.salesCloseCsv);
   server.get('/api/restaurants/:restaurantId/reports/inventory', reports.inventorySummary);
   server.get('/api/restaurants/:restaurantId/reports/operations', reports.operationsSummary);
   server.use(errorHandler);
@@ -110,6 +112,55 @@ describe('franchise reports backend', () => {
     expect(res.text).toContain('business_date,order_id,location_id');
     expect(res.text).toContain('2026-10-01,91,7,"Main, Store",USD,counter');
     expect(res.text).toContain('"drawer,1"');
+  });
+
+  test('salesClose returns per-store totals and tender mix', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access('manager')] })
+      .mockResolvedValueOnce({ rows: [{ code: 'analytics.view_financial', allow: true }] })
+      .mockResolvedValueOnce({ rows: [{
+        location_id: 7, location_name: 'Main Store', currency: 'USD',
+        orders: '3', paid_orders: '3', revenue_cents: '4200', gross_cents: '4500',
+        discount_cents: '300', tax_cents: '350', tips_cents: '100', service_fee_cents: '0',
+        delivery_fee_cents: '0', collected_cents: '4200', refunds_cents: '0', cancelled: '0', refunded: '0',
+      }] })
+      .mockResolvedValueOnce({ rows: [{
+        location_id: 7, location_name: 'Main Store', currency: 'USD',
+        payment_type: 'cash', payments: '2', amount_cents: '2200',
+      }, {
+        location_id: 7, location_name: 'Main Store', currency: 'USD',
+        payment_type: 'card', payments: '1', amount_cents: '2000',
+      }] });
+
+    const res = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/reports/sales/close?date=2026-10-01`);
+    expect(res.status).toBe(200);
+    expect(res.body.business_date).toBe('2026-10-01');
+    expect(res.body.locations).toHaveLength(1);
+    expect(res.body.locations[0].location_id).toBe(7);
+    expect(res.body.locations[0].totals.revenue_cents).toBe(4200);
+    expect(res.body.locations[0].payment_methods).toEqual([
+      { payment_type: 'cash', payments: 2, amount_cents: 2200 },
+      { payment_type: 'card', payments: 1, amount_cents: 2000 },
+    ]);
+    expect(res.body.brand_totals[0].totals.avg_ticket_cents).toBe(1400);
+  });
+
+  test('salesCloseCsv emits one row per store and currency', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access('manager')] })
+      .mockResolvedValueOnce({ rows: [{ code: 'analytics.view_financial', allow: true }] })
+      .mockResolvedValueOnce({ rows: [{
+        location_id: 7, location_name: 'Main, Store', currency: 'USD',
+        orders: '1', paid_orders: '1', revenue_cents: '1000', gross_cents: '1000',
+        discount_cents: '0', tax_cents: '80', tips_cents: '0', service_fee_cents: '0',
+        delivery_fee_cents: '0', collected_cents: '1000', refunds_cents: '0', cancelled: '0', refunded: '0',
+      }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const res = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/reports/sales/close.csv?date=2026-10-01`);
+    expect(res.status).toBe(200);
+    expect(res.headers['content-disposition']).toContain('sales-close-2026-10-01.csv');
+    expect(res.text).toContain('business_date,location_id,location_name,currency');
+    expect(res.text).toContain('2026-10-01,7,"Main, Store",USD,1,1,1000');
   });
 
   test('salesSummary rejects invalid ranges', async () => {

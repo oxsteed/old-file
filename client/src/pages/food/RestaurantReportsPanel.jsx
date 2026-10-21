@@ -15,6 +15,7 @@ import {
   getSalesReport,
   downloadSalesReportCsv,
   downloadSalesJournalCsv,
+  downloadSalesCloseCsv,
   getInventoryReport,
   getOperationsReport,
   getLoyaltyReport,
@@ -126,6 +127,7 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
 
   const [exporting, setExporting] = useState(false);
   const [exportingJournal, setExportingJournal] = useState(false);
+  const [exportingClose, setExportingClose] = useState(false);
   const onExportCsv = async () => {
     setExporting(true);
     try {
@@ -160,6 +162,24 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
       toast.error(apiErr(err, t('restaurants.ops.reports.exportError')));
     } finally {
       setExportingJournal(false);
+    }
+  };
+  const onExportClose = async () => {
+    setExportingClose(true);
+    try {
+      const blob = await downloadSalesCloseCsv(restaurantId, { date: to });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `sales-close-${to}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.exportError')));
+    } finally {
+      setExportingClose(false);
     }
   };
 
@@ -203,6 +223,15 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
             data-track="ui.e7f53817fe.4"
           >
             {t('restaurants.ops.reports.downloadJournalCsv')}
+          </button>
+          <button
+            type="button"
+            className="fd-btn fd-btn-sm fd-btn-secondary"
+            onClick={onExportClose}
+            disabled={exportingClose}
+            data-track="ui.e7f53817fe.5"
+          >
+            {t('restaurants.ops.reports.downloadCloseCsv', 'Download daily close')}
           </button>
         </div>
       )}

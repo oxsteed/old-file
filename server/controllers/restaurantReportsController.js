@@ -411,6 +411,160 @@ exports.salesExportCsv = async (req, res, next) => {
   }
 };
 
+function parseCloseDate(query, timezone) {
+  const raw = query?.date || localDateString(new Date(), timezone);
+  if (!isRealDateString(raw)) throw new AppError('Invalid close date', 400, 'invalid_range');
+  return raw;
+}
+
+function closeTotalsShape(row) {
+  return salesTotalsShape({
+    ...row,
+    cancelled: row.cancelled,
+    refunded: row.refunded,
+  });
+}
+
+async function computeDailyClose(restaurantId, restaurant, query = {}) {
+  const timezone = resolveReportTimezone(restaurant);
+  const businessDate = parseCloseDate(query, timezone);
+  const params = [restaurantId, businessDate, businessDate, timezone];
+  const [locationTotals, paymentMethods] = await Promise.all([
+    pool.query(
+      `${ORDER_FINANCIALS_CTE}
+       SELECT o.location_id,
+              COALESCE(l.name, 'Unassigned') AS location_name,
+              COALESCE(NULLIF(o.currency_code, ''), 'USD') AS currency,
+              ${SALES_COMPONENT_SUMS},
+              COUNT(*) FILTER (WHERE o.status = 'cancelled')::int AS cancelled,
+              COUNT(*) FILTER (WHERE o.status = 'refunded')::int AS refunded
+         FROM order_financials o
+         LEFT JOIN restaurant_locations l
+           ON l.restaurant_id = o.restaurant_id AND l.id = o.location_id
+        GROUP BY o.location_id, l.name, 3
+        ORDER BY location_name ASC, currency ASC`,
+      params
+    ),
+    pool.query(
+      `SELECT fo.location_id,
+              COALESCE(l.name, 'Unassigned') AS location_name,
+              COALESCE(NULLIF(fo.currency_code, ''), 'USD') AS currency,
+              p.payment_type,
+              COUNT(*)::int AS payments,
+              COALESCE(SUM(p.amount_cents), 0)::int AS amount_cents
+         FROM restaurant_pos_payments p
+         JOIN food_orders fo ON fo.id = p.food_order_id
+         LEFT JOIN restaurant_locations l
+           ON l.restaurant_id = fo.restaurant_id AND l.id = fo.location_id
+        WHERE p.restaurant_id = $1
+          AND p.status IN ('recorded', 'captured', 'refunded')
+          AND fo.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
+          AND fo.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
+        GROUP BY fo.location_id, l.name, 3, p.payment_type
+        ORDER BY location_name ASC, currency ASC, amount_cents DESC`,
+      params
+    ),
+  ]);
+
+  const closeByKey = new Map();
+  for (const row of locationTotals.rows) {
+    const key = `${row.location_id || 'none'}:${row.currency}`;
+    closeByKey.set(key, {
+      location_id: row.location_id === null ? null : Number(row.location_id),
+      location_name: row.location_name,
+      currency: row.currency,
+      totals: closeTotalsShape(row),
+      payment_methods: [],
+    });
+  }
+  for (const row of paymentMethods.rows) {
+    const key = `${row.location_id || 'none'}:${row.currency}`;
+    if (!closeByKey.has(key)) {
+      closeByKey.set(key, {
+        location_id: row.location_id === null ? null : Number(row.location_id),
+        location_name: row.location_name,
+        currency: row.currency,
+        totals: salesTotalsShape({}),
+        payment_methods: [],
+      });
+    }
+    closeByKey.get(key).payment_methods.push({
+      payment_type: row.payment_type,
+      payments: Number(row.payments || 0),
+      amount_cents: Number(row.amount_cents || 0),
+    });
+  }
+  const locations = [...closeByKey.values()];
+  const brandByCurrency = new Map();
+  for (const entry of locations) {
+    if (!brandByCurrency.has(entry.currency)) brandByCurrency.set(entry.currency, []);
+    brandByCurrency.get(entry.currency).push(entry.totals);
+  }
+  const brandTotals = [...brandByCurrency.entries()].map(([currency, totals]) => {
+    const sum = totals.reduce((acc, row) => {
+      for (const key of ['orders', 'paid_orders', 'revenue_cents', 'cancelled', 'refunded', 'gross_cents', 'discount_cents', 'net_sales_cents', 'tax_cents', 'tips_cents', 'service_fee_cents', 'delivery_fee_cents', 'collected_cents', 'refunds_cents']) {
+        acc[key] = (acc[key] || 0) + Number(row[key] || 0);
+      }
+      return acc;
+    }, {});
+    sum.avg_ticket_cents = sum.paid_orders > 0 ? Math.round(sum.revenue_cents / sum.paid_orders) : 0;
+    return { currency, totals: sum };
+  });
+  return { business_date: businessDate, timezone, locations, brand_totals: brandTotals };
+}
+
+exports.salesClose = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    res.json(await computeDailyClose(restaurantId, restaurant, req.query));
+  } catch (err) {
+    next(err);
+  }
+};
+
+const SALES_CLOSE_CSV_COLUMNS = [
+  'business_date', 'location_id', 'location_name', 'currency', 'orders',
+  'paid_orders', 'gross_cents', 'discount_cents', 'net_sales_cents',
+  'tax_cents', 'tips_cents', 'service_fee_cents', 'delivery_fee_cents',
+  'refunds_cents', 'net_collected_cents', 'avg_ticket_cents',
+];
+
+exports.salesCloseCsv = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const close = await computeDailyClose(restaurantId, restaurant, req.query);
+    const lines = [SALES_CLOSE_CSV_COLUMNS.join(',')];
+    for (const location of close.locations) {
+      const s = location.totals;
+      lines.push([
+        close.business_date,
+        location.location_id ?? '',
+        csvCell(location.location_name),
+        location.currency,
+        s.orders,
+        s.paid_orders,
+        s.gross_cents,
+        s.discount_cents,
+        s.net_sales_cents,
+        s.tax_cents,
+        s.tips_cents,
+        s.service_fee_cents,
+        s.delivery_fee_cents,
+        s.refunds_cents,
+        s.revenue_cents,
+        s.avg_ticket_cents,
+      ].join(','));
+    }
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="sales-close-${close.business_date}.csv"`);
+    res.send(`${lines.join('\n')}\n`);
+  } catch (err) {
+    next(err);
+  }
+};
+
 // Accounting handoff: one order row when no POS tender exists, otherwise one
 // row per recorded tender/refund. Amounts remain in minor units and currencies
 // are never converted or combined. This is deliberately a journal export,

@@ -24283,6 +24283,7 @@
       "reports": {
         "downloadCsv": "Telechaje CSV",
         "downloadJournalCsv": "Telechaje CSV jounal la",
+        "downloadCloseCsv": "Telechaje fèmti chak jou",
         "exportError": "Pa t kapab telechaje rapò lavant lan.",
         "breakdown": "Detay",
         "gross": "Vant brit",
