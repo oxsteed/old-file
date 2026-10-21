@@ -267,6 +267,7 @@ router.get('/:restaurantId/reports/sales/export.csv', requireRestaurantAccess(),
 router.get('/:restaurantId/reports/sales/journal.csv', requireRestaurantAccess(), franchiseReports.salesJournalExportCsv);
 router.get('/:restaurantId/reports/sales/locations', requireRestaurantAccess(), franchiseReports.salesLocationComparison);
 router.get('/:restaurantId/reports/sales/locations.csv', requireRestaurantAccess(), franchiseReports.salesLocationComparisonCsv);
+router.get('/:restaurantId/reports/sales/locations.xlsx', requireRestaurantAccess(), franchiseReports.salesLocationComparisonXlsx);
 router.get('/:restaurantId/reports/sales/close', requireRestaurantAccess(), franchiseReports.salesClose);
 router.get('/:restaurantId/reports/sales/close.csv', requireRestaurantAccess(), franchiseReports.salesCloseCsv);
 router.get('/:restaurantId/reports/inventory', requireRestaurantAccess(), franchiseReports.inventorySummary);

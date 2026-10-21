@@ -3,6 +3,7 @@
 // Read-only; manager-only (sales figures are sensitive).
 
 const pool = require('../db');
+const archiver = require('archiver');
 const { AppError } = require('../middleware/errorHandler');
 // Canonical restaurant access gate (analytics scope model, Phase 1 Item 6).
 const { resolveRestaurantAccess } = require('../services/scopeModel');
@@ -572,6 +573,117 @@ const SALES_LOCATION_COMPARISON_CSV_COLUMNS = [
   'net_collected_cents', 'avg_ticket_cents',
 ];
 
+// Keep the XLSX writer deliberately small and dependency-free beyond the
+// already-installed ZIP implementation. Values are written as inline strings
+// or numbers, so user-controlled store names cannot become formulas.
+function xmlEscape(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function xlsxColumnName(index) {
+  let value = index + 1;
+  let name = '';
+  while (value > 0) {
+    const remainder = (value - 1) % 26;
+    name = String.fromCharCode(65 + remainder) + name;
+    value = Math.floor((value - 1) / 26);
+  }
+  return name;
+}
+
+function xlsxCell(reference, value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return `<c r="${reference}"><v>${value}</v></c>`;
+  }
+  return `<c r="${reference}" t="inlineStr"><is><t xml:space="preserve">${xmlEscape(value)}</t></is></c>`;
+}
+
+function xlsxWorksheet(rows) {
+  const rowXml = rows.map((row, rowIndex) => {
+    const cells = row.map((value, columnIndex) => xlsxCell(`${xlsxColumnName(columnIndex)}${rowIndex + 1}`, value)).join('');
+    return `<row r="${rowIndex + 1}">${cells}</row>`;
+  }).join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${rowXml}</sheetData></worksheet>`;
+}
+
+function buildSalesLocationWorkbook(report) {
+  const locationHeaders = SALES_LOCATION_COMPARISON_CSV_COLUMNS;
+  const locationRows = [
+    ['Sales location comparison', ''],
+    ['From date', report.from_date, 'To date', report.to_date],
+    ['Timezone', report.timezone],
+    [],
+    locationHeaders,
+    ...report.locations.map((location) => {
+      const s = location.totals;
+      return [
+        report.from_date, report.to_date, location.location_id ?? '', location.location_name,
+        location.currency, s.orders, s.paid_orders, s.gross_cents, s.discount_cents,
+        s.net_sales_cents, s.tax_cents, s.tips_cents, s.service_fee_cents,
+        s.delivery_fee_cents, s.refunds_cents, s.revenue_cents, s.avg_ticket_cents,
+      ];
+    }),
+  ];
+  const brandHeaders = ['currency', ...SALES_LOCATION_COMPARISON_CSV_COLUMNS.slice(5)];
+  const brandRows = [
+    ['Brand totals by currency'],
+    [],
+    brandHeaders,
+    ...report.brand_totals.map(({ currency, totals: s }) => [
+      currency, s.orders, s.paid_orders, s.gross_cents, s.discount_cents, s.net_sales_cents,
+      s.tax_cents, s.tips_cents, s.service_fee_cents, s.delivery_fee_cents, s.refunds_cents,
+      s.revenue_cents, s.avg_ticket_cents,
+    ]),
+  ];
+  return { locations: xlsxWorksheet(locationRows), totals: xlsxWorksheet(brandRows) };
+}
+
+function streamXlsx(res, filename, sheets) {
+  const archive = archiver('zip', { zlib: { level: 9 } });
+  archive.on('error', (error) => { if (!res.headersSent) res.status(500); res.end(); });
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  archive.pipe(res);
+  archive.append(
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+      '<Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+      '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+      '<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+      '</Types>', { name: '[Content_Types].xml' }
+  );
+  archive.append(
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+      '</Relationships>', { name: '_rels/.rels' }
+  );
+  archive.append(
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+      '<sheets><sheet name="Store Comparison" sheetId="1" r:id="rId1"/><sheet name="Brand Totals" sheetId="2" r:id="rId2"/></sheets>' +
+      '</workbook>', { name: 'xl/workbook.xml' }
+  );
+  archive.append(
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+      '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>' +
+      '</Relationships>', { name: 'xl/_rels/workbook.xml.rels' }
+  );
+  archive.append(sheets.locations, { name: 'xl/worksheets/sheet1.xml' });
+  archive.append(sheets.totals, { name: 'xl/worksheets/sheet2.xml' });
+  archive.finalize();
+}
+
 exports.salesLocationComparisonCsv = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
@@ -606,6 +718,21 @@ exports.salesLocationComparisonCsv = async (req, res, next) => {
       `attachment; filename="sales-location-comparison-${report.from_date}-to-${report.to_date}.csv"`
     );
     res.send(`${lines.join('\n')}\n`);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.salesLocationComparisonXlsx = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const report = await computeLocationComparison(restaurantId, restaurant, req.query);
+    streamXlsx(
+      res,
+      `sales-location-comparison-${report.from_date}-to-${report.to_date}.xlsx`,
+      buildSalesLocationWorkbook(report)
+    );
   } catch (err) {
     next(err);
   }

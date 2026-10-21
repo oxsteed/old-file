@@ -204,6 +204,9 @@ export const getSalesLocationComparison = (restaurantId, params = {}) =>
 export const downloadSalesLocationComparisonCsv = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/reports/sales/locations.csv`, { params, responseType: 'blob' }).then((r) => r.data);
 
+export const downloadSalesLocationComparisonXlsx = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/sales/locations.xlsx`, { params, responseType: 'blob' }).then((r) => r.data);
+
 export const getSalesClose = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/reports/sales/close`, { params }).then((r) => r.data);
 

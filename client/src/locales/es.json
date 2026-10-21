@@ -24285,6 +24285,7 @@
         "downloadJournalCsv": "Descargar CSV del diario",
         "downloadCloseCsv": "Descargar cierre diario",
         "downloadLocationComparisonCsv": "Comparar tiendas CSV",
+        "downloadLocationComparisonXlsx": "Comparar tiendas XLSX",
         "exportError": "No se pudo descargar el informe de ventas.",
         "breakdown": "Desglose",
         "gross": "Ventas brutas",

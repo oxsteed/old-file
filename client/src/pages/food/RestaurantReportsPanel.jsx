@@ -16,6 +16,7 @@ import {
   downloadSalesReportCsv,
   downloadSalesJournalCsv,
   downloadSalesLocationComparisonCsv,
+  downloadSalesLocationComparisonXlsx,
   downloadSalesCloseCsv,
   getInventoryReport,
   getOperationsReport,
@@ -129,6 +130,7 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
   const [exporting, setExporting] = useState(false);
   const [exportingJournal, setExportingJournal] = useState(false);
   const [exportingLocationComparison, setExportingLocationComparison] = useState(false);
+  const [exportingLocationComparisonXlsx, setExportingLocationComparisonXlsx] = useState(false);
   const [exportingClose, setExportingClose] = useState(false);
   const onExportCsv = async () => {
     setExporting(true);
@@ -202,6 +204,24 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
       setExportingLocationComparison(false);
     }
   };
+  const onExportLocationComparisonXlsx = async () => {
+    setExportingLocationComparisonXlsx(true);
+    try {
+      const blob = await downloadSalesLocationComparisonXlsx(restaurantId, { from, to });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `sales-location-comparison-${from}-to-${to}.xlsx`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.exportError')));
+    } finally {
+      setExportingLocationComparisonXlsx(false);
+    }
+  };
 
   const toolbar = (withControls) => (
     <div className={`fd-ops-toolbar${bare ? ' fd-ops-toolbar--end' : ''}`}>
@@ -261,6 +281,15 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
             data-track="ui.e7f53817fe.6"
           >
             {t('restaurants.ops.reports.downloadLocationComparisonCsv', 'Compare stores CSV')}
+          </button>
+          <button
+            type="button"
+            className="fd-btn fd-btn-sm fd-btn-secondary"
+            onClick={onExportLocationComparisonXlsx}
+            disabled={exportingLocationComparisonXlsx}
+            data-track="ui.e7f53817fe.7"
+          >
+            {t('restaurants.ops.reports.downloadLocationComparisonXlsx', 'Compare stores XLSX')}
           </button>
         </div>
       )}

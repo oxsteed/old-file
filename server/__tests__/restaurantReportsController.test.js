@@ -27,6 +27,7 @@ function app() {
   server.get('/api/restaurants/:restaurantId/reports/sales/journal.csv', reports.salesJournalExportCsv);
   server.get('/api/restaurants/:restaurantId/reports/sales/locations', reports.salesLocationComparison);
   server.get('/api/restaurants/:restaurantId/reports/sales/locations.csv', reports.salesLocationComparisonCsv);
+  server.get('/api/restaurants/:restaurantId/reports/sales/locations.xlsx', reports.salesLocationComparisonXlsx);
   server.get('/api/restaurants/:restaurantId/reports/sales/close', reports.salesClose);
   server.get('/api/restaurants/:restaurantId/reports/sales/close.csv', reports.salesCloseCsv);
   server.get('/api/restaurants/:restaurantId/reports/inventory', reports.inventorySummary);
@@ -210,6 +211,31 @@ describe('franchise reports backend', () => {
     expect(res.headers['content-disposition']).toContain('sales-location-comparison-2026-10-01-to-2026-10-07.csv');
     expect(res.text).toContain('from_date,to_date,location_id,location_name,currency');
     expect(res.text).toContain('2026-10-01,2026-10-07,7,"Main, Store",USD,1,1,1000');
+  });
+
+  test('salesLocationComparisonXlsx emits a real workbook with store and brand sheets', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access('manager')] })
+      .mockResolvedValueOnce({ rows: [{ code: 'analytics.view_financial', allow: true }] })
+      .mockResolvedValueOnce({ rows: [{
+        location_id: 7, location_name: 'Main & Store', currency: 'USD', orders: '1', paid_orders: '1',
+        revenue_cents: '1000', gross_cents: '1000', discount_cents: '0', tax_cents: '80', tips_cents: '0',
+        service_fee_cents: '0', delivery_fee_cents: '0', collected_cents: '1000', refunds_cents: '0',
+        cancelled: '0', refunded: '0',
+      }] });
+    const res = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/reports/sales/locations.xlsx?from=2026-10-01&to=2026-10-07`)
+      .buffer(true)
+      .parse((response, callback) => {
+        const chunks = [];
+        response.on('data', (chunk) => chunks.push(chunk));
+        response.on('end', () => callback(null, Buffer.concat(chunks)));
+      });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    expect(res.headers['content-disposition']).toContain('sales-location-comparison-2026-10-01-to-2026-10-07.xlsx');
+    expect(Buffer.isBuffer(res.body)).toBe(true);
+    expect(res.body.subarray(0, 2).toString()).toBe('PK');
+    expect(res.body.length).toBeGreaterThan(500);
   });
 
   test('salesSummary rejects invalid ranges', async () => {
