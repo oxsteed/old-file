@@ -42,12 +42,14 @@ export default function PrinterSettingsPanel({ t, restaurant }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [printingLabels, setPrintingLabels] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [host, setHost] = useState('');
   const [port, setPort] = useState('9100');
   const [drawerKick, setDrawerKick] = useState(true);
   const [locationId, setLocationId] = useState(primaryLocation?.id ? String(primaryLocation.id) : '');
   const [testResult, setTestResult] = useState(null); // { ok, message }
+  const [labelOrderId, setLabelOrderId] = useState('');
 
   useEffect(() => {
     setLocationId(primaryLocation?.id ? String(primaryLocation.id) : '');
@@ -123,6 +125,32 @@ export default function PrinterSettingsPanel({ t, restaurant }) {
     }
   };
 
+  const printAllergenLabels = async () => {
+    const orderId = labelOrderId.trim();
+    if (!/^\d+$/.test(orderId) || Number(orderId) < 1) {
+      setTestResult({ ok: false, message: t('printer.labelOrderRequired') });
+      return;
+    }
+    setPrintingLabels(true);
+    setTestResult(null);
+    try {
+      const res = await api.post(`/restaurants/${restaurantId}/print-allergen-labels`, {
+        orderId: Number(orderId),
+        locationId: locationId || undefined,
+      });
+      const queued = Boolean(res.data?.queued);
+      const ok = queued || Boolean(res.data?.ok);
+      setTestResult({
+        ok,
+        message: queued ? t('printer.labelsQueued') : ok ? t('printer.labelsSent') : t('printer.labelsFailed'),
+      });
+    } catch (err) {
+      setTestResult({ ok: false, message: apiErr(err, t('printer.labelsFailed'), t) });
+    } finally {
+      setPrintingLabels(false);
+    }
+  };
+
   if (loading) {
     return (
       <section className="fd-settings-card fd-settings-card--wide" aria-label={t('printer.title')}>
@@ -193,6 +221,20 @@ export default function PrinterSettingsPanel({ t, restaurant }) {
         </div>
         <p className="fd-settings-hint">{t('printer.drawerKickHint')}</p>
 
+        <div className="fd-field">
+          <label htmlFor={`printer-label-order-${restaurantId}`}>{t('printer.labelOrderId')}</label>
+          <input
+            id={`printer-label-order-${restaurantId}`}
+            value={labelOrderId}
+            onChange={(e) => setLabelOrderId(e.target.value.replace(/[^0-9]/g, '').slice(0, 12))}
+            placeholder={t('printer.labelOrderPlaceholder')}
+            disabled={saving || testing || printingLabels}
+            inputMode="numeric"
+            autoComplete="off"
+          />
+          <p className="fd-settings-hint">{t('printer.labelOrderHint')}</p>
+        </div>
+
         {testResult && (
           <div
             role="status"
@@ -223,6 +265,16 @@ export default function PrinterSettingsPanel({ t, restaurant }) {
             title={!enabled ? t('printer.enableFirst') : undefined} data-track="ui.e34bf5675e.3"
           >
             {testing ? t('printer.testing') : t('printer.printTest')}
+          </button>
+          <button
+            type="button"
+            className="fd-btn-secondary"
+            disabled={saving || testing || printingLabels || !enabled || !/^\d+$/.test(labelOrderId.trim())}
+            onClick={printAllergenLabels}
+            title={!enabled ? t('printer.enableFirst') : undefined}
+            data-track="ui.e34bf5675e.4"
+          >
+            {printingLabels ? t('printer.labelsPrinting') : t('printer.printLabels')}
           </button>
         </div>
       </div>

@@ -35664,7 +35664,16 @@
       "testQueued": "Página de prueba en cola. Un dispositivo vinculado en la tienda la imprimirá.",
       "testFailed": "Error de impresión. Revise la conexión y vuelva a intentarlo.",
       "enableFirst": "Active la impresión de recibos y guarde primero.",
-      "hostNotLocal": "El host de la impresora debe ser una dirección de red local."
+      "hostNotLocal": "El host de la impresora debe ser una dirección de red local.",
+      "labelOrderId": "ID del pedido para etiquetas de alérgenos",
+      "labelOrderPlaceholder": "p. ej., 12345",
+      "labelOrderHint": "Imprima las etiquetas de alérgenos declarados de este pedido.",
+      "printLabels": "Imprimir etiquetas de alérgenos",
+      "labelsPrinting": "Imprimiendo etiquetas...",
+      "labelsQueued": "Etiquetas de alérgenos en cola para el dispositivo vinculado.",
+      "labelsSent": "Etiquetas de alérgenos enviadas a la impresora.",
+      "labelsFailed": "No se pudieron imprimir las etiquetas de alérgenos.",
+      "labelOrderRequired": "Introduzca primero un ID de pedido válido."
   },
   "displayPairing": {
     "pairThisDisplay": "Vincular esta pantalla",

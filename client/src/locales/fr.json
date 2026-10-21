@@ -35664,7 +35664,16 @@
       "testQueued": "Page de test mise en file. Un appareil jumelé en magasin l'imprimera.",
       "testFailed": "Échec d'impression. Vérifiez la connexion et réessayez.",
       "enableFirst": "Activez d'abord l'impression des reçus et enregistrez.",
-      "hostNotLocal": "L'hôte de l'imprimante doit être une adresse de réseau local."
+      "hostNotLocal": "L'hôte de l'imprimante doit être une adresse de réseau local.",
+      "labelOrderId": "ID de commande pour les étiquettes d'allergènes",
+      "labelOrderPlaceholder": "ex. 12345",
+      "labelOrderHint": "Imprimez les étiquettes des allergènes déclarés de cette commande.",
+      "printLabels": "Imprimer les étiquettes d'allergènes",
+      "labelsPrinting": "Impression des étiquettes...",
+      "labelsQueued": "Étiquettes d'allergènes mises en file pour l'appareil associé.",
+      "labelsSent": "Étiquettes d'allergènes envoyées à l'imprimante.",
+      "labelsFailed": "Impossible d'imprimer les étiquettes d'allergènes.",
+      "labelOrderRequired": "Saisissez d'abord un ID de commande valide."
   },
   "displayPairing": {
     "pairThisDisplay": "Associer cet écran",

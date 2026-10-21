@@ -35664,7 +35664,16 @@
       "testQueued": "Paj tès la nan liy. Yon aparèy ki konekte nan magazen an ap enprime li.",
       "testFailed": "Enpresyon an echwe. Tcheke koneksyon an epi eseye ankò.",
       "enableFirst": "Aktive enpresyon resi a epi anrejistre anvan.",
-      "hostNotLocal": "Host enprimant lan dwe yon adrès rezo lokal."
+      "hostNotLocal": "Host enprimant lan dwe yon adrès rezo lokal.",
+      "labelOrderId": "ID kòmand pou etikèt alèji",
+      "labelOrderPlaceholder": "eg. 12345",
+      "labelOrderHint": "Enprime etikèt pou alèji yo deklare nan kòmand sa a.",
+      "printLabels": "Enprime etikèt alèji",
+      "labelsPrinting": "Ap enprime etikèt...",
+      "labelsQueued": "Etikèt alèji yo nan liy pou aparèy ki konekte a.",
+      "labelsSent": "Etikèt alèji yo voye bay enprimant lan.",
+      "labelsFailed": "Pa t kapab enprime etikèt alèji yo.",
+      "labelOrderRequired": "Antre yon ID kòmand ki valab anvan."
   },
   "displayPairing": {
     "pairThisDisplay": "Konekte ekran sa a",

@@ -35664,7 +35664,16 @@
       "testQueued": "Test page queued. A paired in-store device will print it.",
       "testFailed": "Print failed. Check the printer connection and try again.",
       "enableFirst": "Enable receipt printing and save first.",
-      "hostNotLocal": "Printer host must be a local network address."
+      "hostNotLocal": "Printer host must be a local network address.",
+      "labelOrderId": "Order ID for allergen labels",
+      "labelOrderPlaceholder": "e.g. 12345",
+      "labelOrderHint": "Print labels for declared allergens on this order.",
+      "printLabels": "Print allergen labels",
+      "labelsPrinting": "Printing labels...",
+      "labelsQueued": "Allergen labels queued for the paired store device.",
+      "labelsSent": "Allergen labels sent to the printer.",
+      "labelsFailed": "Could not print allergen labels.",
+      "labelOrderRequired": "Enter a valid order ID first."
   },
   "displayPairing": {
     "pairThisDisplay": "Pair this display",
