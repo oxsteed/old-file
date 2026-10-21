@@ -57,9 +57,13 @@ client totals.
 F-05 now exposes a paired-kitchen-device printer queue contract. A device token
 can list, claim and acknowledge only printer jobs assigned to that device's
 restaurant and location; runtime config publishes the queue paths and polling
-interval. The queue remains the server-side handoff. A native LAN print bridge
-and physical printer acceptance are still required before this can be called a
-complete print deployment. Manager-only allergen-label printing now reads the
+interval. The queue remains the server-side handoff. The repository now
+includes a bounded `server/scripts/restaurant-print-bridge.mjs` process that
+uses the paired device token, claims queued jobs, validates the configured LAN
+target, prints receipt or kitchen-ticket payloads locally, and acknowledges
+success or leaves failures retryable. Physical printer/browser acceptance is
+still required before this can be called a complete print deployment.
+Manager-only allergen-label printing now reads the
 restaurant's declared menu allergens, emits an ESC/POS label job, and exposes a
 store-aware merchant control; no-label orders fail closed and no order or
 payment state is changed.
@@ -203,7 +207,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-02 | Existing location columns/counters/hours; this pass adds store menu and customer selection; hosting records are location-scoped; migrations 968 and 976 add store-scoped staff assignments and receipt-printer settings, menu enforcement, store-filtered sales reports, assigned-store inventory reads/writes, and an audited HQ override-policy publish contract | Mandatory store IDs on every operational record, HQ/region hierarchy and full data-boundary adoption |
 | F-03 | Existing cashier own-drawer tender, Terminal intent gate, receipt-event gate, and permission resolver | Exercise custom grants/denials and approvals across every money surface |
 | F-04 | Existing stable order/payment retry IDs and pay-first hold; POS checkout state now survives reload for a bounded window and cash replay preserves the same identities | Lost-response/concurrent replay verification across every kitchen/display/runner fire path |
-| F-05 | Existing production server-dial prohibition and print queue; this pass adds paired kitchen-device queue endpoints, runtime contract, and store-scoped receipt-printer settings/jobs | Native LAN print bridge and physical device/browser acceptance |
+| F-05 | Existing production server-dial prohibition and print queue; this pass adds paired kitchen-device queue endpoints, runtime contract, store-scoped receipt-printer settings/jobs, and the executable LAN bridge | Physical device/browser acceptance |
 | F-06 | Existing Connect-bound Terminal flow, token permission gate, and card-intent reservation gate | Provider sandbox/readers and reconciliation acceptance |
 | F-07 | Existing local-day net-collected reports, currencies, summary CSV and tender-level journal CSV; this pass adds per-store/currency daily close, multi-day location comparison JSON/CSV/XLSX, theoretical/actual/variance food-cost percentages, labor percentage output against paid sales, QuickBooks/Xero import-ready journal contracts with stable account codes, and migration 985's dynamic-reference integration plus idempotent currency-scoped journal outbox | Authenticated provider API posting, account mapping confirmation, and populated external-ledger reconciliation |
 | F-08 | Existing offline drafts and failure reporting; web POS adds cash-only browser outbox replay with stable order/payment idempotency keys and sequential reconnect processing | In-store hub, Terminal store-and-forward/risk policy, and physical outage acceptance |
@@ -318,6 +322,7 @@ hardware decisions do not excuse independent software work on these flows.
 - `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **959/959 migrations passed** twice, including migration 984's marketplace integration and order queue.
 - `server`: `npx jest --runInBand __tests__/restaurantHQController.test.js __tests__/restaurantHQService.test.js __tests__/routeScopeGuard.test.js` — **18 passed** after making HQ rollups location-native and adding bounded menu-override publishing, its merchant console contract, and route registration.
 - `server`: `npx jest --runInBand __tests__/restaurantAccountingService.test.js __tests__/restaurantHQController.test.js __tests__/restaurantHQService.test.js __tests__/routeScopeGuard.test.js` — **24 passed** across accounting dynamic-reference validation, bounded provider/export status listing, idempotent journal outbox states, location-native HQ rollups, bounded menu publishing, and route registration.
+- `server`: `npx jest --runInBand __tests__/restaurantPrintBridge.test.js` — **3 passed** across bridge configuration bounds, receipt target validation, claim/print/ack sequencing, and retryable failures.
 - `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **960/960 migrations passed**, including migration 985's accounting integration and export outbox schema.
 - `client`: `npm run verify:i18n` — **passed** with the host-stand keys present in `en`, `es`, `fr`, `ht`, and `ar`.
 - `client`: `npm run build:ci` — **passed** after adding the localized HQ comparison and menu-policy publishing console; typecheck, production build, i18n, and emitted-asset verification completed with the repository's existing chunk advisories.

@@ -35,6 +35,7 @@
     "install:backup-scheduler": "bash ../scripts/install-production-backup-launchagents.sh",
     "verify:restore": "bash ../scripts/verify-production-restore.sh",
     "verify:i18n": "node scripts/verify-server-localization.mjs",
+    "print-bridge": "node scripts/restaurant-print-bridge.mjs",
     "translate": "node ../scripts/translate-locales.js",
     "translate:force": "node ../scripts/translate-locales.js --force"
   },
