@@ -14,6 +14,7 @@ jobs:
   install-check:
     name: Server and Client Verification
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     permissions:
       contents: read
     services:
@@ -288,6 +289,7 @@ jobs:
   migration-rehearsal:
     name: PostgreSQL migration rehearsal
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     needs: install-check
     permissions:
       contents: read
@@ -333,3 +335,53 @@ jobs:
         env:
           DATABASE_URL: postgresql://oxsteed:migration-rehearsal-password@127.0.0.1:5432/credit_card_security_test?sslmode=disable
         run: node scripts/credit-card-security-rehearsal.js
+
+  growth-clickhouse-rehearsal:
+    name: ClickHouse growth schema rehearsal
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Start pinned ClickHouse fixture
+        env:
+          CLICKHOUSE_IMAGE: clickhouse/clickhouse-server@sha256:0152dd511befe6a2c2ef53e930726179669b08116da78500b37c51c96ff5ee77
+        run: |
+          set -euo pipefail
+          docker run -d --name oxsteed-growth-clickhouse-ci --network host \
+            -e CLICKHOUSE_USER=default \
+            -e CLICKHOUSE_PASSWORD=synthetic-growth-only \
+            -e CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1 \
+            -v "$GITHUB_WORKSPACE/server/growth/testing/clickhouse.xml:/etc/clickhouse-server/config.d/growth-test.xml:ro" \
+            "$CLICKHOUSE_IMAGE"
+          for attempt in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8123/ping >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          docker logs oxsteed-growth-clickhouse-ci || true
+          exit 1
+
+      - name: Verify growth ClickHouse migrations and role isolation
+        working-directory: server
+        env:
+          NODE_ENV: test
+          GROWTH_CLICKHOUSE_URL: http://127.0.0.1:8123
+          GROWTH_CLICKHOUSE_ADMIN_USER: default
+          GROWTH_CLICKHOUSE_ADMIN_PASSWORD: synthetic-growth-only
+        run: node scripts/verifyGrowthClickhouse.js
+
+      - name: Remove ClickHouse fixture
+        if: always()
+        run: docker rm -f oxsteed-growth-clickhouse-ci >/dev/null 2>&1 || true

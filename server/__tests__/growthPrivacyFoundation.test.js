@@ -158,6 +158,24 @@ describe("consent IP-HMAC evidence", () => {
   });
 });
 
+describe("personalized sale/share cleanup", () => {
+  test("skips unsent personalized deliveries and removes their recipients", async () => {
+    const conn = {
+      query: jest.fn()
+        .mockResolvedValueOnce({ rowCount: 2 })
+        .mockResolvedValueOnce({ rowCount: 3 }),
+    };
+    const rights = require("../growth/rights");
+    await expect(rights.removePersonalizedOffers(conn, userId)).resolves.toEqual({
+      offer_deliveries_skipped: 2,
+      personalized_recipients_removed: 3,
+    });
+    expect(conn.query.mock.calls[0][0]).toContain("c.is_personalized IS TRUE");
+    expect(conn.query.mock.calls[1][0]).toContain("c.is_personalized IS TRUE");
+    expect(conn.query.mock.calls[0][1]).toEqual([userId, "sale_share_optout"]);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Item 2: export and ClickHouse result caps fail explicitly
 // ---------------------------------------------------------------------------

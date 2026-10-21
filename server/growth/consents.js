@@ -51,6 +51,7 @@ async function record(
     await conn.query("DELETE FROM propensity_scores WHERE user_id=$1", [
       userId,
     ]);
+    await require("./rights").removePersonalizedOffers(conn, userId);
   }
   if (purpose === "offer_push")
     await conn.query(

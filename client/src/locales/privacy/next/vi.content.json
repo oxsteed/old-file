@@ -192,7 +192,7 @@
       ]
     },
     "14": {
-      "search": "Hoạt động, ưu đãi và liên kết đối tác Sau thời gian thông báo, chúng tôi ghi lại trang xem, nút chọn, tìm kiếm và hoạt động trên nền tảng. Chúng tôi dùng tâm mã bưu chính, không dùng tọa độ cá nhân, để phân tích nhu cầu và chọn ưu đãi. Nhân viên duyệt mọi chiến dịch. AI chỉ chạy trên máy chủ do OxSteed kiểm soát. Tại EEA, Anh, Thụy Sĩ và Québec, theo dõi và ưu đãi dựa trên hoạt động cần sự đồng ý riêng, có thể rút lại trong Cài đặt. Các bang Hoa Kỳ áp dụng có quyền từ chối bán hoặc chia sẻ và hỗ trợ Global Privacy Control. Ở nơi khác, tùy chọn phân tích kiểm soát Google Analytics và lưu trữ lâu dài; hoạt động thuộc thông báo này. Hoạt động chi tiết được giữ tối đa 90 ngày, hoặc 30 ngày khi dựa trên đồng ý; tóm tắt tài khoản 13 tháng. Đối tác chỉ nhận mã nhấp ngẫu nhiên, không nhận tên, email hoặc hoạt động. Mua hàng ở đối tác theo chính sách của họ. Thông báo ưu đãi cần đồng ý riêng và có thể tắt tại Cài đặt → Quyền riêng tư. Giá, quyền truy cập và thứ hạng tìm kiếm không đổi. Promote có thể liên kết khách đăng nhập với mã tài khoản trong bảy ngày. Truy cập, sửa hoặc xóa: privacy@oxsteed.com.",
+      "search": "Hoạt động, ưu đãi và liên kết đối tác Sau thời gian thông báo, chúng tôi ghi lại trang xem, nút chọn, tìm kiếm và hoạt động trên nền tảng. Chúng tôi dùng tâm mã bưu chính, không dùng tọa độ cá nhân, để phân tích nhu cầu và chọn ưu đãi. Nhân viên duyệt mọi chiến dịch. AI chỉ chạy trên máy chủ do OxSteed kiểm soát. Tại EEA và Anh, theo dõi và ưu đãi dựa trên hoạt động cần sự đồng ý riêng, có thể rút lại trong Cài đặt. Các bang Hoa Kỳ áp dụng có quyền từ chối bán hoặc chia sẻ và hỗ trợ Global Privacy Control. Ở nơi khác, tùy chọn phân tích kiểm soát Google Analytics và lưu trữ lâu dài; hoạt động thuộc thông báo này. Hoạt động chi tiết được giữ tối đa 90 ngày; tóm tắt tài khoản 13 tháng. Đối tác chỉ nhận mã nhấp ngẫu nhiên, không nhận tên, email hoặc hoạt động. Mua hàng ở đối tác theo chính sách của họ. Thông báo ưu đãi cần đồng ý riêng và có thể tắt tại Cài đặt → Quyền riêng tư. Giá, quyền truy cập và thứ hạng tìm kiếm không đổi. Promote có thể liên kết khách đăng nhập với mã tài khoản trong bảy ngày. Truy cập, sửa hoặc xóa: privacy@oxsteed.com.",
       "blocks": [
         {
           "type": "h2",
@@ -204,11 +204,11 @@
         },
         {
           "type": "p",
-          "text": "Tại EEA, Anh, Thụy Sĩ và Québec, theo dõi và ưu đãi dựa trên hoạt động cần sự đồng ý riêng, có thể rút lại trong Cài đặt. Các bang Hoa Kỳ áp dụng có quyền từ chối bán hoặc chia sẻ và hỗ trợ Global Privacy Control. Ở nơi khác, tùy chọn phân tích kiểm soát Google Analytics và lưu trữ lâu dài; hoạt động thuộc thông báo này."
+          "text": "Tại EEA và Anh, theo dõi và ưu đãi dựa trên hoạt động cần sự đồng ý riêng, có thể rút lại trong Cài đặt. Các bang Hoa Kỳ áp dụng có quyền từ chối bán hoặc chia sẻ và hỗ trợ Global Privacy Control. Ở nơi khác, tùy chọn phân tích kiểm soát Google Analytics và lưu trữ lâu dài; hoạt động thuộc thông báo này."
         },
         {
           "type": "p",
-          "text": "Hoạt động chi tiết được giữ tối đa 90 ngày, hoặc 30 ngày khi dựa trên đồng ý; tóm tắt tài khoản 13 tháng. Đối tác chỉ nhận mã nhấp ngẫu nhiên, không nhận tên, email hoặc hoạt động. Mua hàng ở đối tác theo chính sách của họ."
+          "text": "Hoạt động chi tiết được giữ tối đa 90 ngày; tóm tắt tài khoản 13 tháng. Đối tác chỉ nhận mã nhấp ngẫu nhiên, không nhận tên, email hoặc hoạt động. Mua hàng ở đối tác theo chính sách của họ."
         },
         {
           "type": "p",

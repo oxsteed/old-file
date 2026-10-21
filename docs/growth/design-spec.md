@@ -28,19 +28,19 @@ it remains a release gate even when the supporting code is present.
 | D8 | Run self-hosted ClickHouse with two replicas and three Keeper nodes in one provider and region. | Schema and role grants are in `server/migrations-clickhouse`; provisioning, replica drills, and provider/region evidence are external. |
 | D9 | Switzerland, Canada, and Québec use notice treatment; applicable US opt-out states expose the sale/share control. | Migration `956_growth_jurisdiction_optout_rules.sql` seeds the state rows and leaves them unreviewed until Legal supplies the review reference. |
 | D10 | GPC and sale/share opt-out apply only in an applicable US opt-out jurisdiction and block personalized targeting while preserving broad offers. | The gate blocks personalized activity and partner offer purposes; broad partner-link handling remains an explicit acceptance item. |
-| D11 | Encrypted same-region ClickHouse backups are retained for seven days and restore-checked. | Backup, restore-check, and operational evidence are external until the ops jobs and runbook land. |
-| D12 | ClickHouse upgrades and health alerts are repeatable and auditable. | Upgrade/alert automation, `growth_ops_runs`, and infrastructure-as-code are release-gated implementation work. |
+| D11 | Encrypted same-region ClickHouse backups are retained for seven days and restore-checked. | `server/jobs/growthClickhouseOps.js`, migration `960_growth_clickhouse_ops_runs.sql`, and `docs/growth/clickhouse-runbook.md` provide default-off automation; configured storage, encryption, restore evidence, and retention remain external release gates. |
+| D12 | ClickHouse upgrades and health alerts are repeatable and auditable. | The default-off ops worker records health/backup/restore/upgrade outcomes and durable incident alerts; the CI fixture and topology file provide rehearsal scaffolding, while production provisioning and alert delivery remain external. |
 | D13 | Users can hide an offer and report “Not relevant”; the display preference is independent from tracking consent. | `offer_preferences` and intent-dismissal flows implement this boundary. |
 | D14 | Activity-event retention is 90 days for every jurisdiction and basis. | ClickHouse migration `C005_activity_events_retention.sql` changes the table TTL to one 90-day policy. |
 | D15 | Re-engagement and Discover digest sends remain unchanged and stay outside growth-offer frequency caps. | Legacy contacts remain in the audit log; offer cap queries count `source='growth_offer'` only. |
-| D16 | GeoNames postal centroids feed `regionScope.js` through a switch with a diff, rollback setting, and admin note. | Existing filters remain the compatibility path until the region-source switch and rollback evidence are complete. |
+| D16 | GeoNames postal centroids feed `regionScope.js` through a switch with a diff, rollback setting, and admin note. | Migration `958_region_geo_source.sql`, `scripts/regionGeoDiff.js`, `regionScope.js`, and `docs/growth/region-geo-source-runbook.md` implement the compatibility default, switch, diff, rollback, and operator note; evidence is still required before switching. |
 | D17 | Policy notices go to account holders only, never business-client audiences. | Notice audience queries are account-user scoped. |
 | D18 | Existing `site_visits` analytics stays separate from growth activity events and retention. | No growth writer or rollup reads or writes `site_visits`. |
 | D19 | No minors, staff, internal subjects, or impersonated sessions enter growth collection, profiling, or delivery. | `growth_subject_eligibility.adult_confirmed` and gate checks fail closed; adult-status backfill is an external launch dependency. |
 | D20 | Offer push is a separate opt-in with a 90-day prompt rule. | `offer_preferences`, `offer_push` consent, and prompt cooldown enforce the channel boundary. |
-| D21 | Amazon Associates is the first catalog partner; tracking IDs, report import, and disclosure are required. | The generic partner feed is present; Amazon-specific client/report/disclosure work remains open. |
+| D21 | Amazon Associates is the first catalog partner; tracking IDs, report import, and disclosure are required. | Migration `961_growth_amazon_associates.sql` and `server/growth/partners/amazonProducts.js` provide a default-off signed client, campaign tags, report hash evidence, and disclosure; provider terms and credentials remain external. |
 | D22 | Helper-assisted attribution never shares or pays helper commission from growth partner revenue. | Assisted fields are audit-only and excluded from affiliate conversion payouts. |
-| D23 | Licensed business listings require provenance, license scope, suppression, and per-country outreach controls. | Prospect tables/imports and licensed-source evidence remain open. |
+| D23 | Licensed business listings require provenance, license scope, suppression, and per-country outreach controls. | Migration `962_growth_prospects.sql` and `server/growth/prospects/import.js` provide default-off validated import, license/provenance fields, suppression, and outreach controls; licensed source approval remains external. |
 | D24 | Privacy policy, notice, and banner content maintain parity across all 20 locales. | All locale files exist; professional translation and browser/RTL/accessibility review remain external acceptance gates. |
 
 ---
@@ -242,9 +242,9 @@ Draft English text (legal to finalize):
 | **2. Information We Collect** | Replace "and consented usage events" with: "and activity on OxSteed, such as pages and screens viewed, buttons and links selected, searches, and the jobs, bookings, orders and services you create or respond to. Where the law requires your consent for this, we collect it only after you agree." |
 | **3. How We Use Your Information** | Replace "Optional analytics helps us understand usage." with: "We use activity and account records to understand demand for services and food in different areas, improve OxSteed, and choose offers we think are relevant to you, including products from partner retailers and OxSteed's own offers. Our staff review and approve every offer before it is sent. Offers never affect your access to OxSteed, your prices, or how you appear in search." Add: "AI features used for this analysis run on servers OxSteed controls. Your activity is not sent to outside AI providers for it." |
 | **4. How We Share Your Information** | Add: "When you open a partner offer, the partner receives a random link code so it can tell us whether a purchase happened. We do not give partners your name, email, account details or activity. Purchases you make on a partner's site are governed by that partner's privacy policy." |
-| **6. Data Retention** | Add: "Detailed activity records are kept for up to 90 days (30 days where we rely on your consent). Summaries tied to your account are kept for up to 13 months. Area-level statistics that cannot identify you may be kept longer." |
-| **7. Your Rights** | Add: "In the European Economic Area, the United Kingdom, Switzerland and Québec, we use your activity for offers only with your consent, and you can withdraw it at any time. If you live in California or another US state that gives you the right, you can opt out of the sale or sharing of your personal information at /do-not-sell or in Settings › Privacy, and we honour the Global Privacy Control signal from your browser. You can turn off offer notifications at any time." (Outside those regions there is no separate opt-out of personalized offers, per D1.) |
-| **8. Cookies and Tracking Technologies** | Add: "OxSteed stores a random device code in your browser or app to connect activity on that device. The Analytics setting in Manage Cookies controls this device code and Google Analytics. In the European Economic Area, the United Kingdom, Switzerland and Québec, we track activity only with your consent. Elsewhere, we record activity on OxSteed while you use it, as described in section 14." |
+| **6. Data Retention** | Add: "Detailed activity records are kept for up to 90 days. Summaries tied to your account are kept for up to 13 months. Area-level statistics that cannot identify you may be kept longer." |
+| **7. Your Rights** | Add: "In the European Economic Area and the United Kingdom, we use your activity for offers only with your consent, and you can withdraw it at any time. If you live in Switzerland or Canada, activity and offers follow the notice treatment described below. If you live in California or another US state that gives you the right, you can opt out of the sale or sharing of your personal information at /do-not-sell or in Settings › Privacy, and we honour the Global Privacy Control signal from your browser. You can turn off offer notifications at any time." (Outside US opt-out states there is no separate opt-out of personalized offers, per D1.) |
+| **8. Cookies and Tracking Technologies** | Add: "OxSteed stores a random device code in your browser or app to connect activity on that device. The Analytics setting in Manage Cookies controls this device code and Google Analytics. In the European Economic Area and the United Kingdom, we track activity only with your consent. Switzerland and Canada use notice treatment; elsewhere, we record activity on OxSteed while you use it, as described in section 14." |
 | **14. Activity Tracking, Offers and Partner Links (new)** | Plain-language summary: what's tracked, why, the consent regions, the US-state "Do not sell or share" opt-out and GPC, retention, the partner link code, staff review of every offer, the self-hosted AI, no sale of personal data, how to turn off offer notifications. **Also describes the Promote 7-day account link** for signed-in visitors (closes the gap in `privacy-consent-notes.md`). |
 | **12. Changes** | Unchanged. This change is treated as material, so the 14-day email rule applies. |
 
@@ -310,7 +310,7 @@ AND setting activity_tracking_enabled = true
 AND rollout.state = 'effective' AND now() >= rollout.effective_at
 AND jurisdiction rule for this person allows it (notice basis), OR the person has a current consent record (consent basis)
 AND the person isn't a minor, staff/admin, or an impersonation session
-AND (for partner-offer profiling only) the person hasn't used "Do not sell or share" / sent GPC in an opt-out state
+AND (for personalized-offer profiling) the person hasn't used "Do not sell or share" / sent GPC in an opt-out state
 ```
 
 There's no general personalized-offers opt-out outside consent regions (D1).
@@ -333,9 +333,9 @@ Rules live in a data table (`jurisdiction_rules`), so legal can change them with
 |---|---|---|---|---|
 | EU + EEA (30 countries) | **Opt-in consent** ("Activity & analytics") | **Separate opt-in** ("Offers based on my activity") | Opt-in marketing consent (soft opt-in doesn't cover third-party partner products) | Push: OS permission + offer-push opt-in. In-app: offers consent |
 | UK | Same as EU (UK GDPR + PECR) | Same | Same | Same |
-| Switzerland (recommended, Q2) | Opt-in | Opt-in | Opt-in | Opt-in |
-| Canada, Québec (Law 25: profiling off by default; recommended, Q2) | Opt-in | Opt-in | CASL consent | Opt-in |
-| Canada, rest | Notice | Notice, no opt-out (D1) | CASL: express or implied consent (implied for 2 years after a transaction) | Push: offer-push opt-in. In-app: shown |
+| Switzerland (D9) | Notice | Notice | Opt-in | Push: offer-push opt-in. In-app: shown |
+| Canada, Québec (D9) | Notice | Notice | CASL consent | Push: offer-push opt-in. In-app: shown |
+| Canada, rest (D9) | Notice | Notice | CASL: express or implied consent (implied for 2 years after a transaction) | Push: offer-push opt-in. In-app: shown |
 | **US "opt-out" states** (California plus the states whose law gives a sale/sharing opt-out; list kept by legal in `jurisdiction_rules`, Q3) | Notice | Notice, plus **"Do not sell or share"** opt-out; **GPC honoured** as that opt-out | CAN-SPAM opt-out (existing prefs) | Push: offer-push opt-in. In-app: shown |
 | Other US states | Notice | Notice, no opt-out (D1); GPC not applied | CAN-SPAM opt-out | Push: offer-push opt-in. In-app: shown |
 | Brazil (LGPD) | Notice, legitimate interest (documented LIA) | Notice | Opt-out | Push: offer-push opt-in. In-app: shown |
@@ -343,8 +343,8 @@ Rules live in a data table (`jurisdiction_rules`), so legal can change them with
 | **Unknown** | **Treated as opt-in (fail closed)** | Opt-in | Opt-in | Opt-in |
 
 **"Do not sell or share" (US opt-out states only, D1).** The engine never sells or shares personal data in the CCPA sense, so legal confirms what the opt-out must switch off (Q3). The design treats it conservatively:
-- The person's activity is **not used to pick partner (affiliate) offers** for them. They're left out of interest profiles and segments for `affiliate_product` offers.
-- OxSteed's own offers (promo codes, plans) and generic, non-targeted partner offers can still be shown.
+- The person's activity is **not used to pick personalized activity, promo, plan, or partner offers** for them. They're left out of interest profiles and segments used for personalized offers.
+- OxSteed's own offers and generic, non-targeted partner offers can still be shown.
 - It also switches off marketing cookies (Meta Pixel), as GPC already does today in `useCookieConsent.ts`.
 
 How it's set and stored:
@@ -435,7 +435,7 @@ Each event has a versioned JSON schema in `server/growth/events/schemas/<name>.v
 | Events per day | ~90 million (avg ~1,050/s, peak ~5,000/s) | |
 | Stored size per event in ClickHouse | ~40 bytes compressed (columnar, LZ4/ZSTD) | typical for this shape of event |
 | Raw data per day | ~3.6 GB compressed per replica | |
-| Raw retention | 90 days (30 in consent regions) → ~330 GB per replica | |
+| Raw retention | 90 days everywhere → ~330 GB per replica | |
 | Rollups in ClickHouse | `activity_hourly` + `subject_activity_daily` (13 months) → ~60–90 GB per replica | |
 | Headroom | 3× growth before more disk or a second shard is needed | |
 
@@ -508,13 +508,12 @@ CREATE TABLE growth.activity_events ON CLUSTER growth
 ENGINE = ReplicatedReplacingMergeTree('/clickhouse/{shard}/growth/activity_events', '{replica}')
 PARTITION BY day
 ORDER BY (event_name, day, subject_key, event_id)
-TTL day + INTERVAL 30 DAY DELETE WHERE basis = 'consent',
-    day + INTERVAL 90 DAY DELETE
+TTL day + INTERVAL 90 DAY DELETE
 SETTINGS index_granularity = 8192;
 ```
 
 - **Partitions:** one per UTC day (about 90 live). They're created automatically on insert, so no partition maintenance job is needed (unlike migration `760`'s Postgres pattern).
-- **Retention:** enforced by **TTL**: 90 days for everyone, 30 days for consent-basis rows (the recommendation; Q8 confirms). A daily check confirms no row older than the TTL survives, by querying `min(day)` per basis.
+- **Retention:** enforced by **TTL**: 90 days for every jurisdiction and legal basis. A daily check confirms no row older than the TTL survives, by querying `min(day)` per basis.
 - **Access roles (ClickHouse users and roles):**
 
 | Role | Can do |
@@ -535,14 +534,14 @@ SETTINGS index_granularity = 8192;
 | Rollup | Where | Grain | Retention | Used by |
 |---|---|---|---|---|
 | `activity_hourly` | ClickHouse, materialized view → `ReplicatedAggregatingMergeTree` | hour × event_name × role × country × postal_ref × route/element, with `uniqState(subject_key)` | 13 months (TTL) | product analytics, capacity |
-| `subject_activity_daily` | ClickHouse, materialized view → `ReplicatedSummingMergeTree` | day × subject_key × event family × intent counts | 13 months (TTL) | interest profiles, propensity |
+| `subject_activity_daily` | ClickHouse, materialized view → `ReplicatedAggregatingMergeTree` | day × subject_key × event name × exact event state | 13 months (TTL) | interest profiles, propensity |
 | `demand_daily` | Postgres main DB | day × postal_ref × intent × signal_type → distinct subjects, events, value per currency | 5 years (k-anonymous) | heatmaps, gap index, governed metrics, region scoping |
 | `supply_daily` | Postgres main DB | day × postal_ref × intent × role → active providers, capacity proxy (open bids, bookable slots), mostly from domain tables | 5 years | heatmaps, gap index |
-| `user_interest_profiles` | Postgres main DB | subject × intent → score, last_seen | rolling; deleted after 12 months inactive, on consent withdrawal (consent regions), or for partner-offer use on a "Do not sell or share" opt-out | segments, recommendations |
+| `user_interest_profiles` | Postgres main DB | subject × intent → score, last_seen | rolling; deleted after 12 months inactive, on consent withdrawal (EU/UK), or for personalized-offer use on a "Do not sell or share" opt-out | segments, recommendations |
 
 - **Nightly job:** `server/jobs/growthNightlyRollups.js` (fenced lock, its own `growth_rollup_runs` row, one running run at a time like `metric_snapshot_runs`). It runs **after** the existing `metricSnapshots` job. It reads yesterday's aggregates from ClickHouse as `growth_reader` and upserts the three Postgres tables in one transaction per day.
 - **Why the split:** segments, governed metrics, region scoping (`regionScope.js`) and the admin UI keep working on Postgres tables the existing code already understands. ClickHouse holds only raw events and their two direct rollups.
-- **Admin product-analytics charts** (funnels, click maps) read `activity_hourly` through a small, fixed set of parameterized ClickHouse queries in `server/growth/clickhouseQueries.js`. These are audited like the query builder and never run ad hoc SQL.
+- **Admin product-analytics charts** (funnels, click maps) read `activity_hourly` through the fixed, bounded, parameterized queries in `server/growth/clickhouseQueries.js`. These are audited like the query builder and never run ad hoc SQL.
 
 ---
 
@@ -745,7 +744,7 @@ A **segment** is a saved, versioned rule for "who". It's never a hand-uploaded l
 ### 11.2 How it runs
 
 - Compiled to **parameterized SQL over rollup tables and fact templates only**, never ad-hoc SQL and never raw events, inside a READ ONLY transaction with a 30 s timeout. This reuses the safety pattern in `server/analytics/queryBuilder.js`.
-- **Always ANDed in, and they can't be removed:** the tracking gate (permitted subjects only), the jurisdiction profiling basis (offers consent in consent regions), no "Do not sell or share" opt-out for segments used by partner offers (US opt-out states), and the admin's region territory (§22).
+- **Always ANDed in, and they can't be removed:** the tracking gate (permitted subjects only), the jurisdiction profiling basis (offers consent in EU/UK consent regions), no "Do not sell or share" opt-out for personalized offer segments (US opt-out states), and the admin's region territory (§22).
 - **Preview** shows a count (shown as "fewer than 5" below k), a breakdown by country, language and role, and overlap with other active campaigns. **No names in preview.** Viewing a sample of members needs `view_growth_insights` plus a reason, and is audited fail-closed.
 - **Versions:** editing creates version N+1. Campaigns point to the exact version they used.
 - **Freezing:** when a campaign is approved, the segment is evaluated once and frozen into `offer_campaign_recipients`, the same idea as `business_broadcast_recipients`. Opt-outs are still re-checked at send time (§17).
@@ -988,8 +987,8 @@ These parts are designed now so nothing has to be redone:
 
 | Control | Where | Effect |
 |---|---|---|
-| **Offers consent** (consent regions only: EU/EEA, UK, Switzerland, Québec) | Consent banner and Settings › Privacy (5 languages, RTL) | Off by default (opt-in). Withdrawal means no interest profile, removal from all segments, profile and raw events deleted within 24 hours (§18). |
-| **"Do not sell or share"** (US opt-out states only, `tracking_consents` purpose `sale_share_optout`) | Existing `/do-not-sell` page, Settings › Privacy (shown only in those states), and GPC (§4.6) | Activity isn't used to pick partner offers; the person is left out of interest profiles and segments for partner offers within 24 hours. OxSteed's own and generic offers still allowed. |
+| **Offers consent** (EU/EEA and UK only) | Consent banner and Settings › Privacy (5 languages, RTL) | Off by default (opt-in). Withdrawal means no interest profile, removal from all segments, profile and raw events deleted within 24 hours (§18). |
+| **"Do not sell or share"** (US opt-out states only, `tracking_consents` purpose `sale_share_optout`) | Existing `/do-not-sell` page, Settings › Privacy (shown only in those states), and GPC (§4.6) | Activity isn't used to pick personalized offers; the person is left out of interest profiles and segments for personalized offers within 24 hours. OxSteed's own broad and generic offers stay allowed. |
 | No general personalized-offers opt-out elsewhere (D1) | — | Outside consent regions and US opt-out states, activity is used for offers under the notice. The relabelled Analytics toggle controls only Google Analytics and device storage. |
 | **Offer push** (new, `offer_preferences.offer_push`, **default off: explicit opt-in everywhere**, §4.6) | Opt-in prompt on the offers card or in Settings. Opt-out in Settings › Notifications › "Offers" (5 languages, RTL), "Turn off offer notifications" on the offer detail screen a push opens, and the OS "Offers" channel/category once the apps update (§16.2) | Off means no offer pushes. Job, order and message pushes are unaffected. Takes effect for the next send, including pushes already queued or held for quiet hours. |
 | **Offer in-app** (proposed, `offer_preferences.offer_in_app`; Q7) | Settings › Notifications › "Offers", and the card menu | A display control, not a profiling opt-out: off hides offer cards and offer notifications. Every card also has "Not relevant". Whether to ship this toggle is Q7. |
@@ -1035,7 +1034,7 @@ Caps are checked **twice**: as a preview at review time ("1,240 people will be s
 |---|---|
 | **Access / portability** | `server/routes/privacy.js` `/export` adds: `activity_events.csv` (last 90 days, decoded event names, routes, times, no internal keys), `interests.csv` (intent labels + scores in plain language), `offers.csv` (offers sent, opened, clicked, dismissed), `consents.csv` additions (tracking purposes), `segments.csv` (current segment names, not definitions). It also closes R10 by adding `site_visits`, `promotion_link_events` (own rows by hashed key) and `discover_search_log`. `/data-categories` lists the new categories. |
 | **Deletion / erasure** | `privacyRetentionService.requestErasure` and `/delete-account` add a `growth` step: delete `user_interest_profiles`, `propensity_scores`, `tracking_consent_current`, recipient rows not yet sent; queue ClickHouse deletion by `subject_key` and linked `device_key`s (§18.1); keep `marketing_suppressions` (hashed email only, so an unsubscribe still holds) and `affiliate_conversions` (no user id; financial record). The erasure audit row records counts per store. |
-| **Objection to profiling / withdraw consent** | In consent regions, withdrawing consent means: within 24 hours, collection stops, the profile is deleted, the person leaves all segments, and raw events are queued for deletion (§18.1). In US opt-out states, "Do not sell or share" (or GPC) removes the person from partner-offer profiling and segments within 24 hours. Elsewhere, an objection sent to privacy@ is handled manually the same way. All recorded in `tracking_consents`. |
+| **Objection to profiling / withdraw consent** | In EU/UK consent regions, withdrawing consent means: within 24 hours, collection stops, the profile is deleted, the person leaves all segments, and raw events are queued for deletion (§18.1). In US opt-out states, "Do not sell or share" (or GPC) removes the person from personalized-offer profiling and segments within 24 hours. Elsewhere, an objection sent to privacy@ is handled manually the same way. All recorded in `tracking_consents`. |
 | **Correction** | Interest shown in the export can be marked "not me", which drops that intent for 180 days |
 | **Limit sensitive use** | Not applicable by design (§8.6) |
 | **Deadlines** | GDPR 1 month, CCPA 45 days. Tracked in the existing admin CCPA requests page (`AdminCCPARequestsPage.jsx`), with a new "growth data" checklist item. |
@@ -1257,13 +1256,13 @@ Questions answered on October 20 (storage, effective date, re-acceptance, cookie
 | # | Question | Recommendation |
 |---|---|---|
 | **Q1** | *(new, merges old Q10)* Where do the ClickHouse servers (and the GPU) run? Which provider and region, and is two replicas plus a small third Keeper VM the right size, or one node to start? Where production runs isn't stated in the repo. | Same provider and region as production (EU if EU residency is wanted); 2 replicas + 3 Keeper members from day one, because raw events are the source for data-rights work and one node is a single point of failure |
-| **Q2** | *(new)* Treat Switzerland and Québec as consent (opt-in) regions like the EU/UK? D1 covers "outside the EU/UK", and these two have their own opt-in style rules (revFADP, Law 25). | Yes, opt-in for both |
-| **Q3** | *(new)* For "Do not sell or share": which US states get it (list in `jurisdiction_rules`), and what must it switch off? The spec assumes partner-offer profiling only (§4.6). | Every state with a comprehensive privacy law in force that grants a sale/sharing opt-out, kept by legal; switch off partner-offer profiling and marketing cookies; OxSteed's own offers stay |
+| **Q2** | *(new)* Treat Switzerland and Québec as consent (opt-in) regions like the EU/UK? | No. Switzerland and all of Canada, including Québec, use notice treatment (D9); legal maintains the reviewed state data. |
+| **Q3** | *(new)* For "Do not sell or share": which US states get it (list in `jurisdiction_rules`), and what must it switch off? | Every state with a comprehensive privacy law in force that grants a sale/sharing opt-out, kept by legal; switch off personalized offer profiling and marketing cookies; broad offers stay allowed. |
 | **Q4** | *(new)* Who operates ClickHouse (on-call, upgrades, restore drills)? The team doesn't run it today. | Name one owner plus a backup before Phase 1; budget 1–2 days a month; consider a paid support contract only if incidents occur |
 | **Q5** | *(was Q8)* Before the effective date, may we build area-level, k-anonymous demand maps from records we already keep (no per-person data)? | Yes, if legal confirms it fits the current policy |
 | **Q6** | *(new)* Backup approach for ClickHouse: which bucket (same provider as the servers, or a second provider for off-site), 7-day retention, and should backups be client-side encrypted? | OxSteed-owned S3-compatible bucket at a **different** provider or region from the servers; daily incremental + weekly full; 7-day retention (fits the 7-day deletion promise); encrypted; quarterly restore drill |
 | **Q7** | *(new)* D1 removes the personalized-offers opt-out. Keep a separate "Show offer cards in the app" display toggle (not a profiling opt-out), or only per-card "Not relevant"? | Keep the in-app display toggle; it costs little and reduces annoyance, and doesn't change profiling |
-| **Q8** | *(was Q12)* Raw event retention: 90 days everywhere, or 30 days in consent regions? (Designed as 90/30 via ClickHouse TTL; changing it is one migration.) | 90 / 30 |
+| **Q8** | *(was Q12)* Raw event retention: 90 days everywhere, or 30 days in consent regions? | 90 days everywhere (migration `C005_activity_events_retention.sql`). |
 | **Q9** | *(was Q7)* Keep `customerReengagementJob` and the Discover digest automatic, or move them under admin approval? | Keep them but count them in the caps; review their copy |
 | **Q10** | *(was Q9)* Load GeoNames postal centres (CC BY 4.0) and also switch the existing region filters (`regionScope.js`) to them? That changes some regional numbers. | Load them now; switch region filters in a separate, announced change |
 | **Q11** | *(was Q14)* Send the notice to businesses' clients who don't have OxSteed accounts? | No; they aren't OxSteed users |
@@ -1288,7 +1287,7 @@ Questions answered on October 20 (storage, effective date, re-acceptance, cookie
 | main | `activity_tracking_rollout` | Notice → effective state machine |
 | main | `policy_notice_campaigns`, `policy_notice_deliveries`, `policy_notice_acknowledgements` | 14-day notice email and dismissible banner evidence |
 | main | `activity_outbox` | Transactional domain events |
-| ClickHouse (`growth` database) | `activity_events` (ReplicatedReplacingMergeTree, daily partitions, TTL 90/30 days), `activity_hourly` (AggregatingMergeTree), `subject_activity_daily` (SummingMergeTree), materialized views, `schema_migrations` | Raw and hourly data |
+| ClickHouse (`growth` database) | `activity_events` (ReplicatedReplacingMergeTree, daily partitions, TTL 90 days), `activity_hourly` (AggregatingMergeTree), `subject_activity_daily` (AggregatingMergeTree), materialized views, `schema_migrations` | Raw and hourly data |
 | main | `demand_taxonomy_nodes`, `demand_taxonomy_rules` | Intent tree and rules |
 | main | `entity_intents`, `classification_review_queue` | Classifications |
 | main | `geo_postal_centroids` | Postal centres (no personal coordinates) |

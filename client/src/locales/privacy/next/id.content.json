@@ -192,7 +192,7 @@
       ]
     },
     "14": {
-      "search": "Aktivitas, penawaran dan tautan mitra Setelah masa pemberitahuan, kami mencatat halaman, klik, pencarian dan tindakan di pasar. Pusat kode pos, bukan koordinat pribadi, digunakan untuk menganalisis permintaan dan memilih penawaran. Staf menyetujui setiap kampanye. AI hanya berjalan di server yang dikendalikan OxSteed. Di EEA, Inggris, Swiss dan Québec, pelacakan serta penawaran berdasarkan aktivitas memerlukan persetujuan terpisah yang dapat dicabut di Pengaturan. Negara bagian AS yang berlaku menyediakan pilihan menolak penjualan atau pembagian dan menghormati Global Privacy Control. Di wilayah lain, pengaturan analitik mengontrol Google Analytics dan penyimpanan persisten; aktivitas dicakup pemberitahuan ini. Rincian aktivitas disimpan hingga 90 hari, atau 30 hari berdasarkan persetujuan, dan ringkasan akun hingga 13 bulan. Mitra hanya menerima kode klik acak, tanpa nama, email atau aktivitas. Pembelian di mitra mengikuti kebijakan privasinya. Notifikasi penawaran memerlukan persetujuan terpisah dan dapat dimatikan di Pengaturan → Privasi. Harga, akses dan peringkat pencarian tidak berubah. Promote dapat menghubungkan pengunjung masuk dengan kode akun selama tujuh hari. Akses, koreksi atau penghapusan: privacy@oxsteed.com.",
+      "search": "Aktivitas, penawaran dan tautan mitra Setelah masa pemberitahuan, kami mencatat halaman, klik, pencarian dan tindakan di pasar. Pusat kode pos, bukan koordinat pribadi, digunakan untuk menganalisis permintaan dan memilih penawaran. Staf menyetujui setiap kampanye. AI hanya berjalan di server yang dikendalikan OxSteed. Di EEA dan Inggris, pelacakan serta penawaran berdasarkan aktivitas memerlukan persetujuan terpisah yang dapat dicabut di Pengaturan. Negara bagian AS yang berlaku menyediakan pilihan menolak penjualan atau pembagian dan menghormati Global Privacy Control. Di wilayah lain, pengaturan analitik mengontrol Google Analytics dan penyimpanan persisten; aktivitas dicakup pemberitahuan ini. Rincian aktivitas disimpan hingga 90 hari, dan ringkasan akun hingga 13 bulan. Mitra hanya menerima kode klik acak, tanpa nama, email atau aktivitas. Pembelian di mitra mengikuti kebijakan privasinya. Notifikasi penawaran memerlukan persetujuan terpisah dan dapat dimatikan di Pengaturan → Privasi. Harga, akses dan peringkat pencarian tidak berubah. Promote dapat menghubungkan pengunjung masuk dengan kode akun selama tujuh hari. Akses, koreksi atau penghapusan: privacy@oxsteed.com.",
       "blocks": [
         {
           "type": "h2",
@@ -204,11 +204,11 @@
         },
         {
           "type": "p",
-          "text": "Di EEA, Inggris, Swiss dan Québec, pelacakan serta penawaran berdasarkan aktivitas memerlukan persetujuan terpisah yang dapat dicabut di Pengaturan. Negara bagian AS yang berlaku menyediakan pilihan menolak penjualan atau pembagian dan menghormati Global Privacy Control. Di wilayah lain, pengaturan analitik mengontrol Google Analytics dan penyimpanan persisten; aktivitas dicakup pemberitahuan ini."
+          "text": "Di EEA dan Inggris, pelacakan serta penawaran berdasarkan aktivitas memerlukan persetujuan terpisah yang dapat dicabut di Pengaturan. Negara bagian AS yang berlaku menyediakan pilihan menolak penjualan atau pembagian dan menghormati Global Privacy Control. Di wilayah lain, pengaturan analitik mengontrol Google Analytics dan penyimpanan persisten; aktivitas dicakup pemberitahuan ini."
         },
         {
           "type": "p",
-          "text": "Rincian aktivitas disimpan hingga 90 hari, atau 30 hari berdasarkan persetujuan, dan ringkasan akun hingga 13 bulan. Mitra hanya menerima kode klik acak, tanpa nama, email atau aktivitas. Pembelian di mitra mengikuti kebijakan privasinya."
+          "text": "Rincian aktivitas disimpan hingga 90 hari, dan ringkasan akun hingga 13 bulan. Mitra hanya menerima kode klik acak, tanpa nama, email atau aktivitas. Pembelian di mitra mengikuti kebijakan privasinya."
         },
         {
           "type": "p",

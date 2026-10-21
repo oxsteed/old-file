@@ -192,7 +192,7 @@
       ]
     },
     "14": {
-      "search": "Aktivität, Angebote und Partnerlinks Nach der Ankündigungsfrist erfassen wir Seiten, Klicks, Suchen und Marktplatzaktionen. Postleitzahlzentren statt persönlicher Koordinaten dienen der Nachfrageanalyse und Angebotsauswahl. Mitarbeiter genehmigen jede Kampagne. Die KI läuft ausschließlich auf OxSteed-kontrollierten Servern. Im EWR, Vereinigten Königreich, der Schweiz und Québec erfordern Aktivitätserfassung und personalisierte Angebote getrennte, widerrufbare Einwilligungen. Betroffene US-Staaten bieten Widerspruch gegen Verkauf oder Weitergabe einschließlich Global Privacy Control. Andernorts steuert die Analyse-Einstellung Google Analytics und dauerhaften Gerätespeicher; diese Mitteilung deckt die Aktivität ab. Detaillierte Aktivität bleibt höchstens 90 Tage, bei Einwilligung 30 Tage, Kontozusammenfassungen 13 Monate. Partner erhalten nur einen zufälligen Klickcode, keinen Namen, keine E-Mail und keine Aktivität. Für Käufe dort gilt deren Datenschutzrichtlinie. Angebotsbenachrichtigungen benötigen eine eigene Zustimmung und lassen sich unter Einstellungen → Datenschutz abschalten. Preise, Zugang und Suchrang bleiben gleich. Promote kann angemeldete Besucher sieben Tage einem Kontocode zuordnen. Auskunft, Berichtigung oder Löschung: privacy@oxsteed.com.",
+      "search": "Aktivität, Angebote und Partnerlinks Nach der Ankündigungsfrist erfassen wir Seiten, Klicks, Suchen und Marktplatzaktionen. Postleitzahlzentren statt persönlicher Koordinaten dienen der Nachfrageanalyse und Angebotsauswahl. Mitarbeiter genehmigen jede Kampagne. Die KI läuft ausschließlich auf OxSteed-kontrollierten Servern. Im EWR und Vereinigten Königreich erfordern Aktivitätserfassung und personalisierte Angebote getrennte, widerrufbare Einwilligungen. Betroffene US-Staaten bieten Widerspruch gegen Verkauf oder Weitergabe einschließlich Global Privacy Control. Andernorts steuert die Analyse-Einstellung Google Analytics und dauerhaften Gerätespeicher; diese Mitteilung deckt die Aktivität ab. Detaillierte Aktivität bleibt höchstens 90 Tage, Kontozusammenfassungen 13 Monate. Partner erhalten nur einen zufälligen Klickcode, keinen Namen, keine E-Mail und keine Aktivität. Für Käufe dort gilt deren Datenschutzrichtlinie. Angebotsbenachrichtigungen benötigen eine eigene Zustimmung und lassen sich unter Einstellungen → Datenschutz abschalten. Preise, Zugang und Suchrang bleiben gleich. Promote kann angemeldete Besucher sieben Tage einem Kontocode zuordnen. Auskunft, Berichtigung oder Löschung: privacy@oxsteed.com.",
       "blocks": [
         {
           "type": "h2",
@@ -204,11 +204,11 @@
         },
         {
           "type": "p",
-          "text": "Im EWR, Vereinigten Königreich, der Schweiz und Québec erfordern Aktivitätserfassung und personalisierte Angebote getrennte, widerrufbare Einwilligungen. Betroffene US-Staaten bieten Widerspruch gegen Verkauf oder Weitergabe einschließlich Global Privacy Control. Andernorts steuert die Analyse-Einstellung Google Analytics und dauerhaften Gerätespeicher; diese Mitteilung deckt die Aktivität ab."
+          "text": "Im EWR und Vereinigten Königreich erfordern Aktivitätserfassung und personalisierte Angebote getrennte, widerrufbare Einwilligungen. Betroffene US-Staaten bieten Widerspruch gegen Verkauf oder Weitergabe einschließlich Global Privacy Control. Andernorts steuert die Analyse-Einstellung Google Analytics und dauerhaften Gerätespeicher; diese Mitteilung deckt die Aktivität ab."
         },
         {
           "type": "p",
-          "text": "Detaillierte Aktivität bleibt höchstens 90 Tage, bei Einwilligung 30 Tage, Kontozusammenfassungen 13 Monate. Partner erhalten nur einen zufälligen Klickcode, keinen Namen, keine E-Mail und keine Aktivität. Für Käufe dort gilt deren Datenschutzrichtlinie."
+          "text": "Detaillierte Aktivität bleibt höchstens 90 Tage, Kontozusammenfassungen 13 Monate. Partner erhalten nur einen zufälligen Klickcode, keinen Namen, keine E-Mail und keine Aktivität. Für Käufe dort gilt deren Datenschutzrichtlinie."
         },
         {
           "type": "p",

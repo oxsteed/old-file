@@ -3,6 +3,39 @@ const { key, consentLock } = require("./identity");
 // A subject export that exceeds the row cap fails explicitly instead of
 // shipping a silently truncated archive (spec 18.1: 90 days of events).
 const ACTIVITY_EXPORT_ROW_CAP = 100000;
+
+// Sale/share withdrawal removes a subject from personalized campaign
+// targeting within the same consent transaction. Delivered history remains
+// auditable, while pending or sending deliveries are skipped and unsent
+// recipient rows are removed. Broad campaigns deliberately remain eligible.
+async function removePersonalizedOffers(conn, userId, reason = "sale_share_optout") {
+  const skipped = await conn.query(
+    `UPDATE offer_campaign_deliveries d SET status='skipped',skip_reason=$2,
+       lease_token=NULL,lease_expires_at=NULL
+     WHERE d.recipient_id IN (
+       SELECT r.id FROM offer_campaign_recipients r
+       JOIN offer_campaigns c ON c.id=r.campaign_id
+       WHERE r.user_id=$1 AND c.is_personalized IS TRUE
+     ) AND d.status IN ('pending','sending')`,
+    [userId, reason],
+  );
+  const removed = await conn.query(
+    `DELETE FROM offer_campaign_recipients r
+     USING offer_campaigns c
+     WHERE c.id=r.campaign_id AND r.user_id=$1 AND c.is_personalized IS TRUE
+       AND NOT EXISTS (
+         SELECT 1 FROM offer_campaign_deliveries d
+         WHERE d.recipient_id=r.id
+           AND (d.sent_at IS NOT NULL OR d.opened_at IS NOT NULL OR d.clicked_at IS NOT NULL)
+       )`,
+    [userId],
+  );
+  return {
+    offer_deliveries_skipped: skipped.rowCount || 0,
+    personalized_recipients_removed: removed.rowCount || 0,
+  };
+}
+
 async function erase(conn, userId, reason = "account_erasure") {
   const subject = key("subject", userId);
   const summary = {};
@@ -152,4 +185,9 @@ async function exportData(conn, userId) {
       result.segments.push({ name: def.name });
   return result;
 }
-module.exports = { erase, exportData, ACTIVITY_EXPORT_ROW_CAP };
+module.exports = {
+  erase,
+  exportData,
+  removePersonalizedOffers,
+  ACTIVITY_EXPORT_ROW_CAP,
+};
