@@ -20,6 +20,7 @@ const { syncMappedMenuAvailability } = require('../services/restaurantInventoryA
 const { getEffectivePermissions, hasAny } = require('../services/permissionsService');
 const { logInventoryAudit } = require('../services/restaurantInventoryAuditService');
 const restaurantLocationService = require('../services/restaurantLocationService');
+const { getLocationScope, assertLocationAccess } = require('../services/restaurantLocationAccessService');
 
 function parsePositiveInt(value) {
   const n = Number.parseInt(value, 10);
@@ -65,7 +66,23 @@ function parseOperationId(value) {
 // shared gate) so invalid ids keep this module's exact 404 behavior.
 async function requireRestaurantAccess(userId, restaurantId) {
   if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-  return resolveRestaurantAccess(userId, restaurantId);
+  const restaurant = await resolveRestaurantAccess(userId, restaurantId);
+  return { ...restaurant, locationScope: await getLocationScope(restaurant, userId) };
+}
+
+function locationScopeClause(scope, alias, parameterIndex) {
+  return scope?.mode === 'assigned'
+    ? { sql: ` AND ${alias}.location_id = ANY($${parameterIndex}::bigint[])`, values: [scope.location_ids] }
+    : { sql: '', values: [] };
+}
+
+async function assertExistingItemLocationAccess(restaurant, userId, locationId, db) {
+  // A small number of pre-location inventory rows may still be null while
+  // migration 952 is being rolled through existing installations. Preserve
+  // their staged all-store behavior until the backfill completes.
+  if (locationId === null || locationId === undefined
+    || (restaurant?.effective_role !== 'owner' && !restaurant?.effective_membership_id)) return;
+  return assertLocationAccess(restaurant, userId, locationId, db);
 }
 
 async function requireInventoryPermission(userId, restaurant, permissions) {
@@ -105,6 +122,7 @@ exports.listItems = async (req, res, next) => {
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
     const lowOnly = req.query.lowStock === '1' || req.query.lowStock === 'true';
+    const scope = locationScopeClause(restaurant.locationScope, 'i', 2);
 
     const { rows } = await pool.query(
       `SELECT i.*,
@@ -140,11 +158,11 @@ exports.listItems = async (req, res, next) => {
          LEFT JOIN food_menu_items fmi
            ON fmi.id = m.menu_item_id
           AND fmi.restaurant_id = i.restaurant_id
-        WHERE i.restaurant_id = $1 AND i.is_active = TRUE
+        WHERE i.restaurant_id = $1 AND i.is_active = TRUE${scope.sql}
           ${lowOnly ? 'AND GREATEST(0, i.quantity - COALESCE(reserved.quantity, 0)) <= i.reorder_point AND i.reorder_point > 0' : ''}
         GROUP BY i.id, a.name, s.name, reserved.quantity
         ORDER BY i.name ASC`,
-      [restaurantId]
+      [restaurantId, ...scope.values]
     );
     res.json({ items: rows });
   } catch (err) {
@@ -199,6 +217,7 @@ exports.createItem = async (req, res, next) => {
         restaurantId,
         requestedLocationId: parsePositiveInt(req.body.locationId || req.body.location_id),
       });
+      await assertExistingItemLocationAccess(restaurant, req.user.id, itemLocationId, client);
       const { rows: [created] } = await client.query(
         `INSERT INTO restaurant_inventory_items
            (restaurant_id, name, category, unit, quantity, low_stock_threshold,
@@ -315,6 +334,12 @@ exports.updateItem = async (req, res, next) => {
     sets.push('updated_at = NOW()');
 
     const result = await withTransaction(pool, async (client) => {
+      const { rows: [existing] } = await client.query(
+        `SELECT id, location_id FROM restaurant_inventory_items WHERE id = $1 AND restaurant_id = $2 FOR UPDATE`,
+        [itemId, restaurantId]
+      );
+      if (!existing) throw new AppError('Item not found', 404, 'inventory_item_not_found');
+      await assertExistingItemLocationAccess(restaurant, req.user.id, existing.location_id, client);
       const { rows: [item] } = await client.query(
         `UPDATE restaurant_inventory_items SET ${sets.join(', ')}
           WHERE id = $${i++} AND restaurant_id = $${i}
@@ -349,6 +374,12 @@ exports.deleteItem = async (req, res, next) => {
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
     const availability = await withTransaction(pool, async (client) => {
+      const { rows: [existing] } = await client.query(
+        `SELECT id, location_id FROM restaurant_inventory_items WHERE id = $1 AND restaurant_id = $2 FOR UPDATE`,
+        [itemId, restaurantId]
+      );
+      if (!existing) throw new AppError('Item not found', 404, 'inventory_item_not_found');
+      await assertExistingItemLocationAccess(restaurant, req.user.id, existing.location_id, client);
       const { rows: [item] } = await client.query(
         `DELETE FROM restaurant_inventory_items WHERE id = $1 AND restaurant_id = $2 RETURNING id, name, category`,
         [itemId, restaurantId]
@@ -401,6 +432,7 @@ exports.adjustItem = async (req, res, next) => {
         [itemId, restaurantId]
       );
       if (!item) throw new AppError('Item not found', 404, 'inventory_item_not_found');
+      await assertExistingItemLocationAccess(restaurant, req.user.id, item.location_id, client);
 
       const current = Number(item.quantity);
       let delta;
@@ -480,8 +512,11 @@ exports.listAdjustments = async (req, res, next) => {
     const itemId = parsePositiveInt(req.query.itemId);
 
     const params = [restaurantId];
-    let where = 'restaurant_id = $1';
-    if (itemId) { params.push(itemId); where += ` AND item_id = $${params.length}`; }
+    let where = 'a.restaurant_id = $1';
+    if (itemId) { params.push(itemId); where += ` AND a.item_id = $${params.length}`; }
+    const scope = locationScopeClause(restaurant.locationScope, 'i', params.length + 1);
+    where += scope.sql;
+    params.push(...scope.values);
     params.push(limit, offset);
 
     const { rows } = await pool.query(
@@ -491,7 +526,7 @@ exports.listAdjustments = async (req, res, next) => {
          FROM restaurant_inventory_adjustments a
          LEFT JOIN restaurant_inventory_items i ON i.id = a.item_id AND i.restaurant_id = a.restaurant_id
          LEFT JOIN users u ON u.id = a.adjusted_by
-        WHERE ${where.replaceAll('restaurant_id', 'a.restaurant_id').replaceAll('item_id', 'a.item_id')}
+        WHERE ${where}
         ORDER BY a.created_at DESC
         LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params

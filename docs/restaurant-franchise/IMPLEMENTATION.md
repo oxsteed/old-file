@@ -114,6 +114,12 @@ without an assignment retain the legacy all-store scope during rollout; once
 assigned, a member can only use the listed stores and may receive a store role
 override.
 
+Inventory item reads, adjustment history, and item mutations now use the same
+assignment scope. New items must resolve to an accessible store; assigned
+members cannot adjust, edit, or delete stock in a sibling store. Legacy rows
+with a null location remain readable during the migration backfill, while new
+writes always carry a location.
+
 ## Requirements matrix
 
 `Existing source` means an earlier branch change exists; it is not a fresh
@@ -122,7 +128,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | ID | Current boundary | Remaining implementation / acceptance |
 | --- | --- | --- |
 | F-01 | Existing timezone capture, validation, business copy and backfill | Populated-store owner confirmation and onboarding/browser acceptance |
-| F-02 | Existing location columns/counters/hours; this pass adds store menu and customer selection; hosting records are location-scoped; migration 968 adds store-scoped staff assignments, menu enforcement, and store-filtered sales reports | Mandatory store IDs on every operational record, per-store inventory/printers, HQ/region hierarchy and full data-boundary adoption |
+| F-02 | Existing location columns/counters/hours; this pass adds store menu and customer selection; hosting records are location-scoped; migration 968 adds store-scoped staff assignments, menu enforcement, store-filtered sales reports, and assigned-store inventory reads/writes | Mandatory store IDs on every operational record, per-store printers, HQ/region hierarchy and full data-boundary adoption |
 | F-03 | Existing cashier own-drawer tender and permission resolver | Exercise custom grants/denials and approvals across every money surface |
 | F-04 | Existing stable order/payment retry IDs and pay-first hold; POS checkout state now survives reload for a bounded window and cash replay preserves the same identities | Lost-response/concurrent replay verification across every kitchen/display/runner fire path |
 | F-05 | Existing production server-dial prohibition and print queue; this pass adds paired kitchen-device queue endpoints and runtime contract | Native LAN print bridge and physical device/browser acceptance |
@@ -143,7 +149,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-20 | Existing menu/settings/tax audit emitters; store-menu, location-policy, printer-settings, and store-membership before/after audit writes are covered | Audit coverage across every remaining resource and owner-visible history acceptance |
 | F-21 | Existing PIN sessions, switching, lockout and keyed lookup | Native/shared-device and multi-store identity acceptance |
 | F-22 | Existing time punches, wages, labor, tips and CSV foundation | Scheduling integration/rules, availability/swaps, break/overtime compliance and native timeclock |
-| F-23 | Existing inventory quantities/mappings/counts and location column | Store-isolated stock/transfer, unit/yield recipes, period COGS/variance, vendor catalogs and PO/invoice matching |
+| F-23 | Existing inventory quantities/mappings/counts and location column; assigned-member item reads, adjustment history, and item writes now enforce store scope | Store-isolated transfers, unit/yield recipes, period COGS/variance, vendor catalogs and PO/invoice matching |
 | F-24 | Existing five-language cleanup; new store UI parity in both catalogs | Server/receipt and full-screen human language acceptance |
 | F-25 | Existing logical CSS cleanup | Full POS/KDS/merchant RTL visual acceptance |
 | F-26 | Three device systems remain | Canonical device identity and print bridge, deprecated API adapters, resource-controller convergence |
@@ -177,6 +183,7 @@ hardware decisions do not excuse independent software work on these flows.
 - `server`: `npx jest --runInBand --testPathPatterns='restaurantHosting' __tests__/restaurantHosting.test.js` — **5 passed**. Covers location-scoped table conflict detection, reservation idempotency, final-window validation, waitlist SMS acknowledgement, and floor-plan position updates.
 - `server`: `npx jest --runInBand --testPathPatterns='restaurantReportsController' __tests__/restaurantReportsController.test.js` — **13 passed**. Covers per-store/currency daily close, multi-day location comparison in JSON, CSV, and XLSX, plus assigned-member filtering with a parameterized store predicate.
 - `server`: `npx jest --runInBand __tests__/restaurantLocationAccess.test.js __tests__/restaurantStoreMenu.test.js __tests__/routeScopeGuard.test.js` — **38 passed**. Covers tenant-checked assignment replacement/clear, sibling-store denial, store-menu enforcement, and route scope registration.
+- `server`: `npx jest --runInBand __tests__/restaurantInventoryController.test.js __tests__/restaurantInventoryOperations.test.js __tests__/restaurantInventoryOrderService.test.js` — **18 passed**. Covers assigned-store adjustment filtering, inventory item access, idempotent adjustments, and inventory operations.
 - `server`: `npx jest --runInBand --testPathPatterns='foodController|foodOrderValidation' __tests__/foodController.test.js __tests__/foodOrderValidation.test.js` — **45 passed**. Includes the server-enforced allergen exclusion quote check.
 - `server`: `npx jest --runInBand --testPathPatterns='routeScopeGuard' __tests__/routeScopeGuard.test.js` — **10 passed** after adding all host-stand routes.
 - `client`: `npm run verify:i18n` — **passed** with the host-stand keys present in `en`, `es`, `fr`, `ht`, and `ar`.
