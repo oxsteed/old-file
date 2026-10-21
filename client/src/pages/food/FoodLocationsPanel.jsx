@@ -438,7 +438,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
                 <input type="date" aria-label={`${t('food.merchant.specialDate')} ${index + 1}`} value={entry.date} onChange={(e) => updateSpecialDate(index, { date: e.target.value })} />
               </label>
               <label>
-                <input type="checkbox" checked={entry.closed} onChange={(e) => updateSpecialDate(index, { closed: e.target.checked })} />{' '}
+                <input type="checkbox" checked={entry.closed} onChange={(e) => updateSpecialDate(index, { closed: e.target.checked })} data-track="ui.dbbd615872.11" />{' '}
                 {t('food.merchant.specialDateClosed')}
               </label>
               {!entry.closed && entry.ranges.map((range, rangeIndex) => (
@@ -447,10 +447,10 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
                   <label>{t('food.merchant.closeTime')}{' '}<input type="time" aria-label={`${t('food.merchant.specialDate')} ${index + 1} ${t('food.merchant.closeTime')}`} value={range.close} onChange={(e) => updateSpecialDateRange(index, rangeIndex, { close: e.target.value })} /></label>
                 </span>
               ))}
-              <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => removeSpecialDate(index)}>{t('food.merchant.specialDateRemove')}</button>
+              <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => removeSpecialDate(index)} data-track="ui.dbbd615872.12">{t('food.merchant.specialDateRemove')}</button>
             </div>
           ))}
-          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={addSpecialDate}>{t('food.merchant.specialDateAdd')}</button>
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={addSpecialDate} data-track="ui.dbbd615872.13">{t('food.merchant.specialDateAdd')}</button>
         </fieldset>
         <div className="fd-row" style={{ gap: '0.75rem', marginTop: '0.75rem' }}>
           <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={resolveCoordinates} disabled={geocoding} data-track="ui.dbbd615872.2">

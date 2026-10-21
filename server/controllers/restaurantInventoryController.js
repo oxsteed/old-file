@@ -712,11 +712,12 @@ exports.createSupplierIssue = async (req, res, next) => {
     const relatedPurchaseRequestId = parsePositiveInt(req.body.relatedPurchaseRequestId);
     if (relatedPurchaseRequestId) {
       const { rows } = await pool.query(
-        `SELECT id FROM restaurant_inventory_purchase_requests
+        `SELECT id, location_id FROM restaurant_inventory_purchase_requests
           WHERE id = $1 AND restaurant_id = $2`,
         [relatedPurchaseRequestId, restaurantId]
       );
       if (!rows[0]) throw new AppError('Related purchase request not found', 404, 'purchase_request_not_found');
+      await assertExistingItemLocationAccess(restaurant, req.user.id, rows[0].location_id, pool);
     }
 
     const status = ISSUE_STATUSES.includes(req.body.status) ? req.body.status : 'open';
@@ -795,11 +796,12 @@ exports.updateSupplierIssue = async (req, res, next) => {
       const relatedPurchaseRequestId = parsePositiveInt(req.body.relatedPurchaseRequestId);
       if (relatedPurchaseRequestId) {
         const { rows } = await pool.query(
-          `SELECT id FROM restaurant_inventory_purchase_requests
+          `SELECT id, location_id FROM restaurant_inventory_purchase_requests
             WHERE id = $1 AND restaurant_id = $2`,
           [relatedPurchaseRequestId, restaurantId]
         );
         if (!rows[0]) throw new AppError('Related purchase request not found', 404, 'purchase_request_not_found');
+        await assertExistingItemLocationAccess(restaurant, req.user.id, rows[0].location_id, pool);
       }
       sets.push(`related_purchase_request_id = $${i++}`); vals.push(relatedPurchaseRequestId);
     }
