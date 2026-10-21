@@ -24309,6 +24309,7 @@
         "downloadJournalCsv": "Descargar CSV del diario",
         "accountingProvider": "Formato contable",
         "downloadAccountingCsv": "Descargar CSV contable",
+        "downloadBiExport": "Descargar exportación de BI",
         "downloadCloseCsv": "Descargar cierre diario",
         "downloadLocationComparisonCsv": "Comparar tiendas CSV",
         "downloadLocationComparisonXlsx": "Comparar tiendas XLSX",

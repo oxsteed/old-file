@@ -24311,6 +24311,7 @@
         "downloadJournalCsv": "Download journal CSV",
         "accountingProvider": "Accounting format",
         "downloadAccountingCsv": "Download accounting CSV",
+        "downloadBiExport": "Download BI export",
         "downloadCloseCsv": "Download daily close",
         "downloadLocationComparisonCsv": "Compare stores CSV",
         "downloadLocationComparisonXlsx": "Compare stores XLSX",

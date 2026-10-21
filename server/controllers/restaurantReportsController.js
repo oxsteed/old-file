@@ -964,6 +964,29 @@ exports.salesAccountingExportCsv = async (req, res, next) => {
   }
 };
 
+exports.salesBiExportNdjson = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const { rows, fromDate, toDate } = await loadSalesJournalRows(restaurantId, restaurant, req.query);
+    const records = [
+      { type: 'metadata', schema: 'oxsteed.restaurant.sales.v1', from_date: fromDate, to_date: toDate, amount_unit: 'minor', customer_identity: 'excluded' },
+      ...rows.map((row) => ({
+        type: 'order_tender',
+        ...row,
+        order_id: Number(row.order_id),
+        payment_id: row.payment_id == null ? null : Number(row.payment_id),
+        location_id: row.location_id == null ? null : Number(row.location_id),
+      })),
+    ];
+    res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="sales-bi-${fromDate}-to-${toDate}.ndjson"`);
+    res.send(`${records.map((record) => JSON.stringify(record)).join('\n')}\n`);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports._accountingTest = { accountingLines, buildAccountingCsv, ACCOUNTING_ACCOUNT_CODES };
 
 // ── Inventory ────────────────────────────────────────────────────────────────

@@ -26,6 +26,7 @@ function app() {
   server.get('/api/restaurants/:restaurantId/reports/sales/export.csv', reports.salesExportCsv);
   server.get('/api/restaurants/:restaurantId/reports/sales/journal.csv', reports.salesJournalExportCsv);
   server.get('/api/restaurants/:restaurantId/reports/sales/accounting/:provider.csv', reports.salesAccountingExportCsv);
+  server.get('/api/restaurants/:restaurantId/reports/sales/bi.ndjson', reports.salesBiExportNdjson);
   server.get('/api/restaurants/:restaurantId/reports/sales/locations', reports.salesLocationComparison);
   server.get('/api/restaurants/:restaurantId/reports/sales/locations.csv', reports.salesLocationComparisonCsv);
   server.get('/api/restaurants/:restaurantId/reports/sales/locations.xlsx', reports.salesLocationComparisonXlsx);
@@ -155,6 +156,27 @@ describe('franchise reports backend', () => {
     expect(lines.filter((line) => line.account === '4000')).toHaveLength(1);
     expect(lines.filter((line) => line.account === '1000')).toHaveLength(2);
     expect(lines.filter((line) => line.account === '1000').map((line) => line.debit)).toEqual(['5.00', '5.80']);
+  });
+
+  test('salesBiExportNdjson emits a versioned, identity-minimized row contract', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access('manager')] })
+      .mockResolvedValueOnce({ rows: [{ code: 'analytics.view_financial', allow: true }] })
+      .mockResolvedValueOnce({ rows: [{
+        business_date: '2026-10-01', order_id: '93', location_id: '7', location_name: 'Main Store',
+        currency: 'USD', order_source: 'counter', fulfillment_type: 'dine_in', order_status: 'completed',
+        payment_status: 'paid', subtotal_cents: '1200', discount_cents: '0', tax_cents: '96',
+        service_fee_cents: '0', delivery_fee_cents: '0', tip_cents: '0', order_total_cents: '1296',
+        payment_id: '302', payment_type: 'card', payment_status_detail: 'captured', payment_amount_cents: '1296',
+        payment_reference: 'opaque-ref', payment_created_at: '2026-10-01T18:00:00.000Z',
+      }] });
+    const res = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/reports/sales/bi.ndjson?from=2026-10-01&to=2026-10-01`);
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('application/x-ndjson');
+    expect(res.headers['content-disposition']).toContain('sales-bi-2026-10-01-to-2026-10-01.ndjson');
+    const records = res.text.trim().split('\n').map((line) => JSON.parse(line));
+    expect(records[0]).toEqual(expect.objectContaining({ type: 'metadata', schema: 'oxsteed.restaurant.sales.v1', amount_unit: 'minor', customer_identity: 'excluded' }));
+    expect(records[1]).toEqual(expect.objectContaining({ type: 'order_tender', order_id: 93, payment_id: 302, location_id: 7, payment_reference: 'opaque-ref' }));
   });
 
   test('salesClose returns per-store totals and tender mix', async () => {

@@ -24320,6 +24320,7 @@
         "downloadJournalCsv": "تنزيل CSV اليومية",
         "accountingProvider": "تنسيق المحاسبة",
         "downloadAccountingCsv": "تنزيل CSV المحاسبة",
+        "downloadBiExport": "تنزيل تصدير BI",
         "downloadCloseCsv": "تنزيل إغلاق اليوم",
         "downloadLocationComparisonCsv": "مقارنة المتاجر CSV",
         "downloadLocationComparisonXlsx": "مقارنة المتاجر XLSX",

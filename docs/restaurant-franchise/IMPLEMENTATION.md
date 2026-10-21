@@ -236,7 +236,8 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 ## Additional named deliverables still in scope
 
 The review also requests further split-workflow coverage, brand loyalty/CRM,
-delivery-marketplace menu/order adapters, QuickBooks/Xero and BI exports,
+delivery-marketplace menu/order adapters, and live QuickBooks/Xero provider
+adapters,
 unified onboarding/hardware pairing, HQ compliance publishing/rollups and
 end-to-end store acceptance. Allergen label printing is now implemented as a
 manager-only, store-scoped queued printer job; physical label stock and device
@@ -252,6 +253,9 @@ sales, tax, service fees, delivery fees, tips, and payment clearing, preserve
 currency and location columns, and never call an external provider. Live OAuth,
 provider account mapping, posting, duplicate detection, and reconciliation
 remain release-gated work.
+The same report surface exposes `/reports/sales/bi.ndjson`, a versioned row-level
+BI contract that excludes customer identity and preserves store, currency, and
+minor-unit values.
 Reservations, table records, floor-plan metadata, seat-state updates, and a
 walk-in SMS waitlist are now implemented in the host-stand tranche. The merchant
 panel now provides a location-scoped drag/drop floor plan backed by the table

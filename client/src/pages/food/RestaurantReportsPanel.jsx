@@ -16,6 +16,7 @@ import {
   downloadSalesReportCsv,
   downloadSalesJournalCsv,
   downloadSalesAccountingCsv,
+  downloadSalesBiNdjson,
   downloadSalesLocationComparisonCsv,
   downloadSalesLocationComparisonXlsx,
   downloadSalesCloseCsv,
@@ -132,6 +133,7 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
   const [exportingJournal, setExportingJournal] = useState(false);
   const [accountingProvider, setAccountingProvider] = useState('quickbooks');
   const [exportingAccounting, setExportingAccounting] = useState(false);
+  const [exportingBi, setExportingBi] = useState(false);
   const [exportingLocationComparison, setExportingLocationComparison] = useState(false);
   const [exportingLocationComparisonXlsx, setExportingLocationComparisonXlsx] = useState(false);
   const [exportingClose, setExportingClose] = useState(false);
@@ -187,6 +189,24 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
       toast.error(apiErr(err, t('restaurants.ops.reports.exportError')));
     } finally {
       setExportingAccounting(false);
+    }
+  };
+  const onExportBi = async () => {
+    setExportingBi(true);
+    try {
+      const blob = await downloadSalesBiNdjson(restaurantId, { from, to });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `sales-bi-${from}-to-${to}.ndjson`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.exportError')));
+    } finally {
+      setExportingBi(false);
     }
   };
   const onExportClose = async () => {
@@ -300,6 +320,15 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
             data-track="ui.e7f53817fe.11"
           >
             {t('restaurants.ops.reports.downloadAccountingCsv', 'Download accounting CSV')}
+          </button>
+          <button
+            type="button"
+            className="fd-btn fd-btn-sm fd-btn-secondary"
+            onClick={onExportBi}
+            disabled={exportingBi}
+            data-track="ui.e7f53817fe.12"
+          >
+            {t('restaurants.ops.reports.downloadBiExport', 'Download BI export')}
           </button>
           <button
             type="button"
