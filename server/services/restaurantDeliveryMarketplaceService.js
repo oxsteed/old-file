@@ -27,7 +27,7 @@ function normalizeStatus(value) {
 function normalizeSecretRef(value, field) {
   if (value == null || value === '') return null;
   const ref = String(value).trim();
-  if (!/^\{\{resolve:secretsmanager:[^{}]+\}\}$/.test(ref)) {
+  if (!/^\{\{resolve:secretsmanager:[^{}]+:SecretString(?::[^{}]+)?\}\}$/.test(ref)) {
     throw new AppError(`${field} must be a Secrets Manager dynamic reference`, 400, 'delivery_secret_ref_invalid');
   }
   return ref;
