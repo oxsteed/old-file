@@ -125,6 +125,28 @@ describe('food controller', () => {
     expect(res.body.fields['items.0.menuItemId']).toMatch(/excluded allergen/);
   });
 
+  test('applies item tax overrides and exemptions in the quote', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...quoteRestaurant, tax_rate_bps: 800 }] })
+      .mockResolvedValueOnce({
+        rows: [
+          { id: 10, name: 'Taxed bowl', price_cents: 1000, currency_code: 'USD', is_available: true, tax_rate_bps: 1000, tax_exempt: false, modifier_groups: [] },
+          { id: 11, name: 'Exempt drink', price_cents: 500, currency_code: 'USD', is_available: true, tax_rate_bps: 1000, tax_exempt: true, modifier_groups: [] },
+        ],
+      });
+
+    const res = await request(buildApp())
+      .post('/api/food/restaurants/3/orders/quote')
+      .send({ items: [{ menuItemId: 10, quantity: 1 }, { menuItemId: 11, quantity: 1 }] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.quote.tax_cents).toBe(100);
+    expect(res.body.quote.tax_breakdown).toEqual([
+      { menuItemId: 10, taxableCents: 1000, taxRateBps: 1000, taxCents: 100 },
+      { menuItemId: 11, taxableCents: 500, taxRateBps: 0, taxCents: 0 },
+    ]);
+  });
+
   test('rejects a quote that omits a required modifier selection', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [quoteRestaurant] })

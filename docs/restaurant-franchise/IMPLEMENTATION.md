@@ -67,6 +67,12 @@ selected store/channel window, and quotes/orders expose and apply the effective
 prep estimate. This is source-level pacing behavior; peak-load and physical
 terminal acceptance remain open.
 
+Migration 967 adds nullable menu-item tax rates and an explicit tax-exempt
+flag. Quote and order calculations allocate discounts across lines and compute
+tax per item, while retaining the selected store rate as the fallback; the
+pricing metadata includes the line breakdown for later provider or accounting
+adapters.
+
 The public menu now exposes the stored allergen labels as exclusion filters.
 Selected exclusions are sent with every quote and order, and both server paths
 reject a menu item whose authoritative allergen list intersects the request.
@@ -103,7 +109,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-16 | Existing unpaid completion guards | Verify every kitchen, display, runner, counter and manager exception path |
 | F-17 | This pass adds per-store availability, timed restock, audit, POS/kitchen grants | Full per-store inventory integration and all native/KDS UI adoption |
 | F-18 | Existing daily counters and routing/Stripe lock reduction | Concurrent 50-store load and lock-observation evidence |
-| F-19 | Migration 965 adds optional per-store tax/service rates, jurisdiction and inclusive pricing; quote/order snapshots use the selected store | Item-level categories, exemptions, provider integration, and populated-store tax acceptance |
+| F-19 | Migrations 965 and 967 add store policy plus item-level tax rates/exemptions; quote/order snapshots include a line tax breakdown | Provider integration and populated-store tax acceptance |
 | F-20 | Existing menu/settings/tax audit emitters; store-menu and location-policy before/after audit writes are covered | Audit coverage across every resource and owner-visible history acceptance |
 | F-21 | Existing PIN sessions, switching, lockout and keyed lookup | Native/shared-device and multi-store identity acceptance |
 | F-22 | Existing time punches, wages, labor, tips and CSV foundation | Scheduling integration/rules, availability/swaps, break/overtime compliance and native timeclock |

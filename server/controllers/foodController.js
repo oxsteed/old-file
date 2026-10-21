@@ -421,6 +421,17 @@ function normalizeLocationInteger(value, field, { nullable = true, max = 1000 } 
   return parsed;
 }
 
+function normalizeMenuTaxRate(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0 || parsed > 10000) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      taxRateBps: 'Enter a tax rate from 0 to 100 percent',
+    });
+  }
+  return parsed;
+}
+
 // F-12: the fulfillment set the database itself defaults to (migration 305).
 const DEFAULT_FULFILLMENT_MODES = ['pickup', 'dine_in', 'kiosk'];
 
@@ -585,6 +596,32 @@ function parseOptionalFutureDate(value) {
   if (value === undefined || value === null || value === '') return null;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+// Apply discount allocation and item tax policy without trusting client
+// totals. A null item rate inherits the selected store/restaurant rate;
+// tax_exempt items contribute no tax while remaining in the order total.
+function calculateFoodTax(lineItems, discountCents, defaultRateBps, taxInclusive) {
+  const subtotal = lineItems.reduce((sum, item) => sum + Number(item.lineTotalCents ?? item.lineTotal ?? 0), 0);
+  let remainingDiscount = Math.max(0, Math.min(subtotal, Number(discountCents || 0)));
+  let tax = 0;
+  const breakdown = lineItems.map((item, index) => {
+    const lineTotal = Math.max(0, Number(item.lineTotalCents ?? item.lineTotal ?? 0));
+    const lineDiscount = index === lineItems.length - 1
+      ? Math.min(lineTotal, remainingDiscount)
+      : Math.min(lineTotal, subtotal > 0 ? Math.round(discountCents * lineTotal / subtotal) : 0, remainingDiscount);
+    remainingDiscount -= lineDiscount;
+    const taxableCents = Math.max(0, lineTotal - lineDiscount);
+    const rateBps = item.taxExempt || item.menuItem?.tax_exempt
+      ? 0
+      : Math.max(0, Math.min(10000, Number(item.taxRateBps ?? item.menuItem?.tax_rate_bps ?? defaultRateBps) || 0));
+    const lineTax = taxInclusive
+      ? Math.round(taxableCents * rateBps / (10000 + rateBps || 10000))
+      : Math.round(taxableCents * rateBps / 10000);
+    tax += lineTax;
+    return { menuItemId: item.menuItemId ?? item.menuItem?.id ?? null, taxableCents, taxRateBps: rateBps, taxCents: lineTax };
+  });
+  return { tax, breakdown };
 }
 
 function normalizeTextArray(value, maxItems = 12) {
@@ -1837,6 +1874,8 @@ function menuItemAuditSnapshot(item) {
     manual_available: item.manual_available,
     publication_status: item.publication_status,
     availability_schedule: item.availability_schedule || {},
+    tax_rate_bps: item.tax_rate_bps,
+    tax_exempt: item.tax_exempt === true,
   };
 }
 
@@ -2313,6 +2352,7 @@ async function loadRestaurantMenu(restaurantId, { managed = false, locationId = 
   const { rows: items } = await pool.query(
     `SELECT fmi.id, category_id, name, description, image_url, price_cents,
             currency_code, is_available, sort_order, tags, allergens,
+            tax_rate_bps, tax_exempt,
             publication_status, archived_at, availability_schedule,
             ${storeMenu.overrideSql('fmi', '$2')}
        FROM food_menu_items fmi
@@ -2672,8 +2712,9 @@ exports.createMenuItem = async (req, res, next) => {
            (restaurant_id, category_id, name, description, image_url, price_cents,
             currency_code, is_available, manual_available, inventory_available,
             inventory_availability_state, sort_order, tags, allergens,
+            tax_rate_bps, tax_exempt,
             publication_status, availability_schedule)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,TRUE,'available',$9,$10,$11,$12,$13)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,TRUE,'available',$9,$10,$11,$12,$13,$14,$15)
          RETURNING *`,
         [
           restaurantId,
@@ -2687,6 +2728,8 @@ exports.createMenuItem = async (req, res, next) => {
           Number.parseInt(req.body.sortOrder || req.body.sort_order || 0, 10) || 0,
           normalizeTextArray(req.body.tags, 20),
           normalizeTextArray(req.body.allergens, 20),
+          normalizeMenuTaxRate(req.body.taxRateBps ?? req.body.tax_rate_bps),
+          req.body.taxExempt === true || req.body.tax_exempt === true,
           ['draft', 'published'].includes(req.body.publicationStatus || req.body.publication_status)
             ? (req.body.publicationStatus || req.body.publication_status)
             : 'published',
@@ -2796,7 +2839,7 @@ exports.quoteOrder = async (req, res, next) => {
     );
     const { rows: menuRows } = await pool.query(
       `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
-              fmi.allergens,
+              fmi.allergens, fmi.tax_rate_bps, fmi.tax_exempt,
               fmi.availability_schedule, ${storeMenu.overrideSql('fmi', '$3')},
               fmc.name AS category_name,
               COALESCE((
@@ -2877,6 +2920,10 @@ exports.quoteOrder = async (req, res, next) => {
         modifier_total_cents: modifierTotalCents,
         lineTotalCents,
         line_total_cents: lineTotalCents,
+        taxRateBps: menuItem.tax_exempt ? 0 : (menuItem.tax_rate_bps ?? restaurant.tax_rate_bps ?? 0),
+        tax_rate_bps: menuItem.tax_exempt ? 0 : (menuItem.tax_rate_bps ?? restaurant.tax_rate_bps ?? 0),
+        taxExempt: menuItem.tax_exempt === true,
+        tax_exempt: menuItem.tax_exempt === true,
         category: menuItem.category_name || null,
         category_name: menuItem.category_name || null,
         modifiers: modifiers.map((modifier) => ({
@@ -2980,9 +3027,8 @@ exports.quoteOrder = async (req, res, next) => {
     const taxRateBps = Math.max(0, Math.min(10000, Number(restaurant.tax_rate_bps || 0)));
     const serviceFeeBps = Math.max(0, Math.min(10000, Number(restaurant.service_fee_bps || 0)));
     const taxInclusive = restaurant.tax_inclusive === true;
-    const taxCents = taxInclusive
-      ? Math.round(taxableSubtotalCents * taxRateBps / (10000 + taxRateBps || 10000))
-      : Math.round(taxableSubtotalCents * taxRateBps / 10000);
+    const quoteTax = calculateFoodTax(lineItems, discountCents, taxRateBps, taxInclusive);
+    const taxCents = quoteTax.tax;
     const serviceFeeCents = Math.round(taxableSubtotalCents * serviceFeeBps / 10000);
     const totalCents = Math.max(0, taxableSubtotalCents + (taxInclusive ? 0 : taxCents) + serviceFeeCents + tipCents + deliveryFeeCents);
     const legacyPaymentMode = FOOD_PAYMENT_LEGACY_MODE[paymentContract.canonical];
@@ -3071,6 +3117,8 @@ exports.quoteOrder = async (req, res, next) => {
       tax_inclusive: taxInclusive,
       taxCents,
       tax_cents: taxCents,
+      taxBreakdown: quoteTax.breakdown,
+      tax_breakdown: quoteTax.breakdown,
       taxJurisdiction: restaurant.tax_jurisdiction || null,
       tax_jurisdiction: restaurant.tax_jurisdiction || null,
       serviceFeeBps,
@@ -3374,7 +3422,7 @@ exports.createOrder = async (req, res, next) => {
       const ids = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
       const { rows: menuRows } = await client.query(
         `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
-                fmi.allergens,
+                fmi.allergens, fmi.tax_rate_bps, fmi.tax_exempt,
                 fmi.availability_schedule, ${storeMenu.overrideSql('fmi', '$3')},
                 fmc.name AS category_name,
                 COALESCE((
@@ -3667,9 +3715,8 @@ exports.createOrder = async (req, res, next) => {
       const taxRateBps = Math.max(0, Math.min(10000, Number(restaurant.tax_rate_bps || 0)));
       const serviceFeeBps = Math.max(0, Math.min(10000, Number(restaurant.service_fee_bps || 0)));
       const taxInclusive = restaurant.tax_inclusive === true;
-      const tax = taxInclusive
-        ? Math.round(taxableSubtotal * taxRateBps / (10000 + taxRateBps))
-        : Math.round(taxableSubtotal * taxRateBps / 10000);
+      const orderTax = calculateFoodTax(normalizedItems, discount, taxRateBps, taxInclusive);
+      const tax = orderTax.tax;
       const serviceFeeCents = Math.round(taxableSubtotal * serviceFeeBps / 10000);
       const total = Math.max(0, taxableSubtotal + (taxInclusive ? 0 : tax) + serviceFeeCents + tip + deliveryFeeCents);
       const screenFingerprint=normalizedItems.map(i=>({id:String(i.menuItem.id),name:i.menuItem.name,price:Number(i.menuItem.price_cents),modifiers:i.modifiers.map(m=>({id:String(m.id),name:m.name,price:Number(m.price_delta_cents)})).sort((a,b)=>a.id.localeCompare(b.id))}));
@@ -3780,7 +3827,7 @@ exports.createOrder = async (req, res, next) => {
           ...(scheduledFor ? { scheduledFor } : {}),
           ...(pickupContact ? { pickupContact } : {}),
           ...(cardPaymentIntentId ? { cardPaymentIntentId } : {}),
-          pricing: { taxRateBps, taxInclusive, taxJurisdiction: restaurant.tax_jurisdiction || null, serviceFeeBps, taxCents: tax, serviceFeeCents },
+          pricing: { taxRateBps, taxInclusive, taxJurisdiction: restaurant.tax_jurisdiction || null, serviceFeeBps, taxCents: tax, taxBreakdown: orderTax.breakdown, serviceFeeCents },
           ...(paymentContract.canonical === 'direct_payment' || externalPaymentSubmission ? {
             externalPayment: {
               enabled: externalPaymentEnabled,
@@ -3836,7 +3883,7 @@ exports.createOrder = async (req, res, next) => {
           ...(scheduledFor ? { scheduledFor } : {}),
           ...(pickupContact ? { pickupContact } : {}),
           ...(cardPaymentIntentId ? { cardPaymentIntentId } : {}),
-          pricing: { taxRateBps, serviceFeeBps, taxCents: tax, serviceFeeCents },
+          pricing: { taxRateBps, taxInclusive, taxJurisdiction: restaurant.tax_jurisdiction || null, taxBreakdown: orderTax.breakdown, serviceFeeBps, taxCents: tax, serviceFeeCents },
           ...(paymentContract.canonical === 'direct_payment' || externalPaymentSubmission ? {
             externalPayment: {
               enabled: externalPaymentEnabled,
@@ -6072,6 +6119,16 @@ exports.updateMenuItem = async (req, res, next) => {
     }
     if (has('tags')) add('tags', normalizeTextArray(req.body.tags, 20));
     if (has('allergens')) add('allergens', normalizeTextArray(req.body.allergens, 20));
+    if (has('taxRateBps', 'tax_rate_bps')) {
+      add('tax_rate_bps', normalizeMenuTaxRate(req.body.taxRateBps ?? req.body.tax_rate_bps));
+    }
+    if (has('taxExempt', 'tax_exempt')) {
+      const taxExempt = req.body.taxExempt ?? req.body.tax_exempt;
+      if (typeof taxExempt !== 'boolean') {
+        throw new AppError('Validation failed', 400, 'validation_failed', { taxExempt: 'Tax exemption must be true or false' });
+      }
+      add('tax_exempt', taxExempt);
+    }
     if (has('publicationStatus', 'publication_status')) {
       const status = req.body.publicationStatus ?? req.body.publication_status;
       if (!['draft', 'published'].includes(status)) {
