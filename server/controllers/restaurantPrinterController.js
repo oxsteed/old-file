@@ -28,6 +28,7 @@ const permissionsService = require('../services/permissionsService');
 const { validatePrinterHost } = require('../utils/printerHostValidation');
 const escpos = require('../services/escposPrinter');
 const restaurantLocationService = require('../services/restaurantLocationService');
+const { assertLocationAccess } = require('../services/restaurantLocationAccessService');
 const { logBusinessAction } = require('../services/businessAuditLog');
 
 // Direct server-side dialing is an explicit operator opt-in for trusted
@@ -78,17 +79,31 @@ function settingsShape(row) {
     host: row && row.host ? row.host : '',
     port: row && row.port != null ? Number(row.port) : 9100,
     drawerKickOnCash: row ? Boolean(row.drawer_kick_on_cash) : true,
+    ...(row && row.location_id != null ? { locationId: Number(row.location_id) } : {}),
   };
 }
 
-async function loadSettings(restaurantId) {
+async function loadSettings(restaurantId, locationId = null) {
   const { rows } = await pool.query(
-    `SELECT id, restaurant_id, host, port, enabled, drawer_kick_on_cash, updated_at
+    `SELECT id, restaurant_id, location_id, host, port, enabled, drawer_kick_on_cash, updated_at
        FROM restaurant_printer_settings
-      WHERE restaurant_id = $1`,
-    [restaurantId]
+      WHERE restaurant_id = $1
+        AND ((location_id = $2) OR ($2::bigint IS NULL AND location_id IS NULL))`,
+    [restaurantId, locationId]
   );
   return rows[0] || null;
+}
+
+async function resolvePrinterLocation(req, restaurant) {
+  const requested = parsePositiveInt(
+    req.body?.locationId ?? req.body?.location_id ?? req.query?.locationId ?? req.query?.location_id
+  );
+  const locationId = await restaurantLocationService.resolveLocationId(pool, {
+    restaurantId: restaurant.id,
+    requestedLocationId: requested,
+  });
+  if (locationId != null) await assertLocationAccess(restaurant, req.user.id, locationId);
+  return locationId;
 }
 
 // F-24: receipts format money and dates in the restaurant's stored
@@ -123,7 +138,7 @@ function formatMoney(cents, currency, locale = 'en-US') {
 /** Read-only order snapshot for the receipt. Same columns as reprintReceipt. */
 async function loadOrderSnapshot(restaurantId, orderId) {
   const { rows: [order] } = await pool.query(
-    `SELECT id, queue_number, guest_name, table_label, fulfillment_type,
+    `SELECT id, location_id, queue_number, guest_name, table_label, fulfillment_type,
             order_source, status, payment_status,
             subtotal_cents, discount_cents, tax_cents, service_fee_cents,
             delivery_fee_cents, tip_cents, total_cents, currency_code,
@@ -238,8 +253,9 @@ exports.getPrinterSettings = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-    await resolveRestaurantAccess(req.user.id, restaurantId);
-    const row = await loadSettings(restaurantId);
+    const restaurant = await resolveRestaurantAccess(req.user.id, restaurantId);
+    const locationId = await resolvePrinterLocation(req, restaurant);
+    const row = await loadSettings(restaurantId, locationId);
     res.json({ settings: settingsShape(row) });
   } catch (err) {
     next(err);
@@ -252,13 +268,14 @@ exports.updatePrinterSettings = async (req, res, next) => {
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     const restaurant = await resolveRestaurantAccess(req.user.id, restaurantId);
     await assertManage(restaurant, req.user.id);
+    const locationId = await resolvePrinterLocation(req, restaurant);
 
     const body = req.body || {};
     const enabled = body.enabled === true || body.enabled === 'true';
     const host = normalizeHost(body.host);
     const port = normalizePort(body.port);
     const drawerKickOnCash = body.drawerKickOnCash !== false && body.drawer_kick_on_cash !== false;
-    const previous = await loadSettings(restaurantId);
+    const previous = await loadSettings(restaurantId, locationId);
 
     if (enabled && !host) {
       throw new AppError('A printer host is required when printing is enabled', 400, 'validation_failed');
@@ -271,18 +288,21 @@ exports.updatePrinterSettings = async (req, res, next) => {
     // resolves or dials the host from the API server.
     const { host: validatedHost } = host ? await validatePrinterHost(host) : { host: null };
 
+    const conflict = locationId == null
+      ? 'ON CONFLICT (restaurant_id) WHERE location_id IS NULL'
+      : 'ON CONFLICT (restaurant_id, location_id) WHERE location_id IS NOT NULL';
     const { rows: [saved] } = await pool.query(
       `INSERT INTO restaurant_printer_settings
-         (restaurant_id, host, port, enabled, drawer_kick_on_cash, updated_at)
-       VALUES ($1, $2, $3, $4, $5, NOW())
-       ON CONFLICT (restaurant_id)
+         (restaurant_id, location_id, host, port, enabled, drawer_kick_on_cash, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW())
+       ${conflict}
        DO UPDATE SET host = EXCLUDED.host,
                      port = EXCLUDED.port,
                      enabled = EXCLUDED.enabled,
                      drawer_kick_on_cash = EXCLUDED.drawer_kick_on_cash,
                      updated_at = NOW()
-       RETURNING id, restaurant_id, host, port, enabled, drawer_kick_on_cash, updated_at`,
-      [restaurantId, validatedHost, port, enabled, drawerKickOnCash]
+       RETURNING id, restaurant_id, location_id, host, port, enabled, drawer_kick_on_cash, updated_at`,
+      [restaurantId, locationId, validatedHost, port, enabled, drawerKickOnCash]
     );
     await logBusinessAction(req, {
       business_id: restaurant.business_id,
@@ -299,8 +319,8 @@ exports.updatePrinterSettings = async (req, res, next) => {
   }
 };
 
-async function requireEnabledSettings(restaurantId) {
-  const row = await loadSettings(restaurantId);
+async function requireEnabledSettings(restaurantId, locationId) {
+  const row = await loadSettings(restaurantId, locationId);
   const settings = settingsShape(row);
   if (!settings.enabled) {
     throw new AppError('Receipt printing is not enabled for this restaurant', 409, 'printer_disabled');
@@ -319,7 +339,7 @@ async function requireEnabledSettings(restaurantId) {
 // The payload carries the exact ESC/POS bytes (base64) plus the target
 // printer from settings, so the claiming device prints on the LAN
 // without the API server ever opening a socket to it.
-async function enqueuePrintJob({ restaurantId, orderId, kind, buffer, kickDrawer, settings, createdBy }) {
+async function enqueuePrintJob({ restaurantId, orderId, locationId, kind, buffer, kickDrawer, settings, createdBy }) {
   const payload = {
     kind,
     printer: { host: settings.host, port: settings.port },
@@ -328,7 +348,7 @@ async function enqueuePrintJob({ restaurantId, orderId, kind, buffer, kickDrawer
   };
   // F-02 phase 1: a receipt job belongs to the order's store; an
   // order-less job (test page) belongs to the primary store.
-  let jobLocationId = null;
+  let jobLocationId = locationId || null;
   if (orderId) {
     const { rows: [order] } = await pool.query(
       `SELECT location_id FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
@@ -367,7 +387,8 @@ exports.printTestPage = async (req, res, next) => {
     const restaurant = await resolveRestaurantAccess(req.user.id, restaurantId);
     // F-05/F-31: printing is a manager action, not mere membership.
     await assertManage(restaurant, req.user.id);
-    const settings = await requireEnabledSettings(restaurantId);
+    const locationId = await resolvePrinterLocation(req, restaurant);
+    const settings = await requireEnabledSettings(restaurantId, locationId);
     const buffer = escpos.buildTestPage({
       title: restaurant.display_name || 'PRINTER TEST',
       lines: [`${settings.host}:${settings.port}`],
@@ -379,6 +400,7 @@ exports.printTestPage = async (req, res, next) => {
     const job = await enqueuePrintJob({
       restaurantId,
       orderId: null,
+      locationId,
       kind: 'test_page',
       buffer,
       kickDrawer: false,
@@ -400,11 +422,16 @@ exports.printReceipt = async (req, res, next) => {
     const restaurant = await resolveRestaurantAccess(req.user.id, restaurantId);
     // F-05/F-31: printing is a manager action, not mere membership.
     await assertManage(restaurant, req.user.id);
-    const settings = await requireEnabledSettings(restaurantId);
+    const requestedLocationId = await resolvePrinterLocation(req, restaurant);
     // Read-only snapshot: SELECTs only. Nothing here writes to food_orders,
     // food_order_items, restaurant_pos_payments, or any ledger; the only
     // write is the printer job row itself.
     const snapshot = await loadOrderSnapshot(restaurantId, orderId);
+    const orderLocationId = snapshot.order.location_id == null ? requestedLocationId : Number(snapshot.order.location_id);
+    if (requestedLocationId != null && orderLocationId != null && requestedLocationId !== orderLocationId) {
+      throw new AppError('The order belongs to another store', 409, 'printer_location_mismatch');
+    }
+    const settings = await requireEnabledSettings(restaurantId, orderLocationId);
     const { buffer, kickDrawer } = buildOrderReceipt({ restaurant, settings, snapshot });
     if (serverPrintingEnabled()) {
       const result = await dialPrinter(settings, buffer);
@@ -413,6 +440,7 @@ exports.printReceipt = async (req, res, next) => {
     const job = await enqueuePrintJob({
       restaurantId,
       orderId,
+      locationId: orderLocationId,
       kind: 'receipt',
       buffer,
       kickDrawer,

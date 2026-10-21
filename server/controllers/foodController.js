@@ -5601,6 +5601,10 @@ exports.listMyRestaurants = async (req, res, next) => {
               rca.stripe_account_id AS business_stripe_account_id,
               rca.charges_enabled AS business_stripe_charges_enabled,
               rca.payouts_enabled AS business_stripe_payouts_enabled,
+              (SELECT COALESCE(jsonb_agg(jsonb_build_object(
+                'id', l.id, 'name', l.name, 'status', l.status, 'is_primary', l.is_primary
+                ) ORDER BY l.is_primary DESC, l.id), '[]'::jsonb)
+                 FROM restaurant_locations l WHERE l.restaurant_id = fr.id) AS locations,
               CASE
                 WHEN fr.owner_user_id = $1 OR b.user_id = $1 THEN 'owner'
                 ELSE bm.role

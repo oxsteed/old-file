@@ -35641,6 +35641,7 @@
   "printer": {
       "title": "Imprimante de reçus",
       "desc": "Imprimez les reçus de commande sur une imprimante réseau ESC/POS et ouvrez le tiroir-caisse pour les ventes en espèces.",
+      "locationLabel": "Magasin",
       "enable": "Activer l'impression des reçus",
       "hostLabel": "Hôte de l'imprimante",
       "hostPlaceholder": "192.168.1.100",

@@ -35641,6 +35641,7 @@
   "printer": {
       "title": "Receipt printer",
       "desc": "Print order receipts on a network ESC/POS printer and kick the cash drawer on cash sales.",
+      "locationLabel": "Store",
       "enable": "Enable receipt printing",
       "hostLabel": "Printer host",
       "hostPlaceholder": "192.168.1.100",

@@ -5,8 +5,8 @@
  * (Track C: POS hardware support).
  *
  * Covers:
- *   - migration 912: restaurant_printer_settings table, defaults, unique
- *     restaurant_id, FK to food_restaurants.
+ *   - migrations 912/976: restaurant_printer_settings table, defaults,
+ *     legacy compatibility, and unique per-store settings.
  *   - GET /:restaurantId/printer-settings: defaults when no row exists.
  *   - PUT /:restaurantId/printer-settings: owner/manager upsert; 403 for
  *     non-managers; 400 when enabling without a host; 400 on bad port.
@@ -160,11 +160,16 @@ ddescribe('restaurant_printer_settings (migration 912)', () => {
     expect(byName.port.column_default).toBe('9100');
     expect(byName.enabled.column_default).toBe('false');
     expect(byName.drawer_kick_on_cash.column_default).toBe('true');
-    const { rows: uniq } = await pool.query(
+    const { rows: locationUniq } = await pool.query(
       `SELECT 1 FROM pg_indexes WHERE tablename = 'restaurant_printer_settings'
-        AND indexname = 'restaurant_printer_settings_restaurant_id_uniq'`
+        AND indexname = 'restaurant_printer_settings_restaurant_location_uniq'`
     );
-    expect(uniq.length).toBe(1);
+    const { rows: legacyUniq } = await pool.query(
+      `SELECT 1 FROM pg_indexes WHERE tablename = 'restaurant_printer_settings'
+        AND indexname = 'restaurant_printer_settings_legacy_restaurant_uniq'`
+    );
+    expect(locationUniq.length).toBe(1);
+    expect(legacyUniq.length).toBe(1);
     fx = await newFixtures();
   });
 
@@ -249,6 +254,46 @@ ddescribe('restaurant_printer_settings (migration 912)', () => {
     expect(audits.at(-1).target_type).toBe('restaurant_printer_settings');
     expect(audits.at(-1).before_state.enabled).toBe(true);
     expect(audits.at(-1).after_state.enabled).toBe(false);
+  });
+
+  test('keeps printer settings isolated between stores', async () => {
+    const { rows: stores } = await pool.query(
+      `INSERT INTO restaurant_locations (restaurant_id, name, is_primary, status)
+       VALUES ($1, 'Main store', TRUE, 'active'), ($1, 'Second store', FALSE, 'active')
+       RETURNING id, name`,
+      [fx.restaurantId]
+    );
+    stores.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    ownerAccess();
+    const first = mockRes();
+    await controller.updatePrinterSettings(
+      mockReq({ params: { restaurantId: String(fx.restaurantId) }, body: { locationId: stores[0].id, enabled: true, host: '192.168.1.51', port: 9100 } }),
+      first,
+      jest.fn()
+    );
+    const second = mockRes();
+    await controller.updatePrinterSettings(
+      mockReq({ params: { restaurantId: String(fx.restaurantId) }, body: { locationId: stores[1].id, enabled: true, host: '192.168.1.52', port: 9100 } }),
+      second,
+      jest.fn()
+    );
+    expect(first.payload.settings.locationId).toBe(Number(stores[0].id));
+    expect(second.payload.settings.locationId).toBe(Number(stores[1].id));
+
+    const readFirst = mockRes();
+    await controller.getPrinterSettings(
+      mockReq({ params: { restaurantId: String(fx.restaurantId) }, body: { locationId: stores[0].id } }),
+      readFirst,
+      jest.fn()
+    );
+    const readSecond = mockRes();
+    await controller.getPrinterSettings(
+      mockReq({ params: { restaurantId: String(fx.restaurantId) }, body: { locationId: stores[1].id } }),
+      readSecond,
+      jest.fn()
+    );
+    expect(readFirst.payload.settings.host).toBe('192.168.1.51');
+    expect(readSecond.payload.settings.host).toBe('192.168.1.52');
   });
 
   test('PUT is forbidden for non-managers', async () => {
