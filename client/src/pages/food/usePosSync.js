@@ -48,8 +48,9 @@ function readCashOutbox(restaurantId) {
 function writeCashOutbox(restaurantId, ops) {
   try {
     localStorage.setItem(CASH_OUTBOX_KEY(restaurantId), JSON.stringify(ops));
+    return true;
   } catch {
-    // The caller still receives a failure toast when durable storage is not available.
+    return false;
   }
 }
 
@@ -123,7 +124,7 @@ export function usePosSync(restaurantId, enabled) {
     flushingCash.current = true;
     try {
       const remaining = await replayCashOutboxEntries(readCashOutbox(restaurantId), replayCashEntry);
-      writeCashOutbox(restaurantId, remaining);
+    writeCashOutbox(restaurantId, remaining);
       setCashOutboxCount(remaining.length);
     } finally {
       flushingCash.current = false;
@@ -145,7 +146,7 @@ export function usePosSync(restaurantId, enabled) {
     const existing = readCashOutbox(restaurantId);
     if (existing.length >= MAX_OUTBOX) return false;
     const entries = [...existing, entry];
-    writeCashOutbox(restaurantId, entries);
+    if (!writeCashOutbox(restaurantId, entries)) return false;
     setCashOutboxCount(entries.length);
     return true;
   }, [restaurantId]);
