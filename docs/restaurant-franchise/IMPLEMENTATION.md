@@ -130,8 +130,9 @@ now apply weekly overtime thresholds and multipliers to recorded time punches,
 surface required-break exceptions, and expose the policy through the guarded
 restaurant payroll API. The policy defaults are 40 hours, 1.5x overtime, and a
 30-minute break after six hours; owners or payroll.view managers can update
-them. Scheduling vendor integration, availability/swaps, and native device
-acceptance remain open.
+them. Migration 977 adds recurring availability windows and manager-approved
+shift swaps with atomic reassignment. Scheduling vendor integration and native
+device acceptance remain open.
 
 Migration 971 carries each inventory transfer's item store onto the transfer
 record, backfills populated rows, and filters transfer listing and lifecycle
@@ -184,8 +185,8 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-03 | Existing cashier own-drawer tender and permission resolver | Exercise custom grants/denials and approvals across every money surface |
 | F-04 | Existing stable order/payment retry IDs and pay-first hold; POS checkout state now survives reload for a bounded window and cash replay preserves the same identities | Lost-response/concurrent replay verification across every kitchen/display/runner fire path |
 | F-05 | Existing production server-dial prohibition and print queue; this pass adds paired kitchen-device queue endpoints, runtime contract, and store-scoped receipt-printer settings/jobs | Native LAN print bridge and physical device/browser acceptance |
-| F-06 | Existing Connect-bound Terminal flow and token permission gate | Provider sandbox/readers and reconciliation acceptance |
-| F-07 | Existing local-day net-collected reports, currencies, summary CSV and tender-level journal CSV; this pass adds per-store/currency daily close, multi-day location comparison JSON/CSV/XLSX, and theoretical/actual/variance food-cost percentages against paid sales | Labor percentages and accounting-system adapters |
+| F-06 | Existing Connect-bound Terminal flow, token permission gate, and card-intent reservation gate | Provider sandbox/readers and reconciliation acceptance |
+| F-07 | Existing local-day net-collected reports, currencies, summary CSV and tender-level journal CSV; this pass adds per-store/currency daily close, multi-day location comparison JSON/CSV/XLSX, theoretical/actual/variance food-cost percentages, and labor percentage output against paid sales | Accounting-system adapters |
 | F-08 | Existing offline drafts and failure reporting; web POS adds cash-only browser outbox replay with stable order/payment idempotency keys and sequential reconnect processing | In-store hub, Terminal store-and-forward/risk policy, and physical outage acceptance |
 | F-09 | The broken legacy food split route is removed; POS splitting uses the canonical transactional `splitPosOrder` path with payment, delivery, non-empty-ticket, store inheritance, and queue-counter guards | Maintain canonical split guards and populated-db acceptance |
 | F-10 | Existing overnight/split-shift/holiday/timezone evaluator; this pass adds a multi-range and dated special-hours location editor | Scheduling/device acceptance and populated-store special-date acceptance |
@@ -200,7 +201,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-19 | Migrations 965 and 967 add store policy plus item-level tax rates/exemptions; quote/order snapshots include a line tax breakdown | Provider integration and populated-store tax acceptance |
 | F-20 | Existing menu/settings/tax audit emitters; store-menu, location-policy, printer-settings, and store-membership before/after audit writes are covered | Audit coverage across every remaining resource and owner-visible history acceptance |
 | F-21 | Existing PIN sessions, switching, lockout and keyed lookup | Native/shared-device and multi-store identity acceptance |
-| F-22 | Existing time punches, wages, labor, tips and CSV foundation; migration 970 adds configurable weekly overtime pricing and required-break exception reporting | Scheduling integration/rules, availability/swaps, native timeclock/device acceptance |
+| F-22 | Existing time punches, wages, labor, tips and CSV foundation; migration 970 adds configurable weekly overtime pricing and required-break exception reporting; migration 977 adds recurring availability windows and manager-approved shift swaps with atomic reassignment | Scheduling vendor integration and native timeclock/device acceptance |
 | F-23 | Existing inventory quantities/mappings/counts and location column; assigned-member item reads, adjustment history, item writes, procurement, and transfer reads/writes now enforce store scope; migrations 972-974 add recipe costing, supplier catalogs, receipt-to-request invoice matching, late-invoice reconciliation with audited match states, a receipt CSV accounting-ingestion contract, and food-cost percentage output | Accounting-system adapters and populated external-provider invoice acceptance |
 | F-24 | Existing five-language cleanup; new store UI parity in both catalogs | Server/receipt and full-screen human language acceptance |
 | F-25 | Existing logical CSS cleanup | Full POS/KDS/merchant RTL visual acceptance |
@@ -244,7 +245,8 @@ hardware decisions do not excuse independent software work on these flows.
 - `server`: `npx jest --runInBand __tests__/restaurantInventoryOperations.test.js` — **9 passed**. Covers assigned-store transfer filtering and transfer creation/lifecycle behavior.
 - `server`: `npx jest --runInBand __tests__/restaurantInventoryController.test.js __tests__/restaurantInventoryOperations.test.js __tests__/routeScopeGuard.test.js` — **28 passed**. Includes recipe mapping validation and the food-cost report contract.
 - `server`: `npx jest --runInBand __tests__/restaurantInventoryOperations.test.js` — **14 passed**. Includes assigned-store catalog filtering, supplier catalog upsert validation, late-invoice match/exception state handling, the receipt CSV contract, and food-cost percentages.
-- `node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **passed** against a disposable Colima PostgreSQL container; all 951 discovered migrations applied and replayed cleanly through migration 976.
+- `node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **passed** against a disposable Colima PostgreSQL container; all 952 discovered migrations applied and replayed cleanly through migration 977.
+- `server`: `npx jest --runInBand __tests__/businessStaffScheduleController.test.js` — **12 passed**. Covers shift persistence plus availability replacement, validation, swap requests, and atomic manager approval.
 - `server/scripts/verifyRestaurantStoreMenu.js` — **passed** in the dedicated Colima PostgreSQL container. It applied migration 963 twice, verified default-store backfill/onboarding and legacy order/counter continuity, tenant foreign keys, negative prices, screen events, SQL projections, and sibling-store isolation.
 - `client`: `npm run build:ci` — **passed**; Vite emitted and verified 1,020 assets. The existing build warnings are the repository's large-chunk and dynamic-import advisories.
 - `client`: `node --test scripts/restaurantPosOfflineCash.test.mjs` — **passed**. Covers cash-only replay ordering, retention after a failed entry, and network-error classification.

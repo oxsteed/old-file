@@ -1,4 +1,5 @@
 const pool = require('../db');
+const { withTransaction } = require('../utils/transaction');
 
 // Shifts
 //
@@ -164,6 +165,195 @@ exports.deleteShift = async (req, res, next) => {
 // they carry entry_date + hours_worked and no punch timestamps.
 
 const PUNCH_SOURCES = new Set(['web', 'pos', 'kiosk', 'mobile', 'manual']);
+
+const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/;
+
+function parseAvailabilityWindow(window) {
+  const day = Number(window?.day_of_week ?? window?.dayOfWeek);
+  const start = String(window?.start_time ?? window?.startTime ?? '');
+  const end = String(window?.end_time ?? window?.endTime ?? '');
+  if (!Number.isInteger(day) || day < 0 || day > 6 || !TIME_RE.test(start) || !TIME_RE.test(end)) {
+    return { error: 'day_of_week must be 0-6 and start_time/end_time must be valid times' };
+  }
+  const startValue = start.length === 5 ? `${start}:00` : start;
+  const endValue = end.length === 5 ? `${end}:00` : end;
+  if (startValue >= endValue) return { error: 'end_time must be after start_time' };
+  return {
+    day,
+    start: startValue,
+    end: endValue,
+    notes: window?.notes ? String(window.notes).slice(0, 500) : null,
+  };
+}
+
+async function assertBusinessMember(businessId, userId) {
+  const { rows } = await pool.query(
+    `SELECT 1 FROM business_members WHERE business_id=$1 AND member_id=$2 AND status='active'
+     UNION SELECT 1 FROM businesses WHERE id=$1 AND user_id=$2`,
+    [businessId, userId]
+  );
+  return rows.length > 0;
+}
+
+exports.listAvailability = async (req, res, next) => {
+  const { businessId } = req.params;
+  const requestedUserId = req.query.user_id || req.user.id;
+  try {
+    if (String(requestedUserId) !== String(req.user.id)
+      && !await isBusinessManager(req, businessId, req.user.id)) {
+      return res.status(403).json({ error: 'Only a manager can view another staff member availability' });
+    }
+    const { rows } = await pool.query(
+      `SELECT id, business_id, user_id, day_of_week, start_time, end_time, notes
+         FROM business_staff_availability
+        WHERE business_id=$1 AND user_id=$2
+        ORDER BY day_of_week, start_time, id`,
+      [businessId, requestedUserId]
+    );
+    return res.json({ user_id: requestedUserId, windows: rows });
+  } catch (err) { return next(err); }
+};
+
+exports.replaceAvailability = async (req, res, next) => {
+  const { businessId } = req.params;
+  const windows = Array.isArray(req.body?.windows) ? req.body.windows : null;
+  if (!windows) return res.status(400).json({ error: 'windows must be an array' });
+  if (windows.length > 42) return res.status(400).json({ error: 'A maximum of 42 availability windows is allowed' });
+  const parsed = windows.map(parseAvailabilityWindow);
+  const invalid = parsed.find((item) => item.error);
+  if (invalid) return res.status(400).json({ error: invalid.error });
+  const dedupe = new Set();
+  for (const item of parsed) {
+    const key = `${item.day}:${item.start}:${item.end}`;
+    if (dedupe.has(key)) return res.status(400).json({ error: 'Duplicate availability windows are not allowed' });
+    dedupe.add(key);
+  }
+  try {
+    if (!await assertBusinessMember(businessId, req.user.id)) {
+      return res.status(403).json({ error: 'Not a member of this business' });
+    }
+    const rows = await withTransaction(pool, async (client) => {
+      await client.query(
+        'DELETE FROM business_staff_availability WHERE business_id=$1 AND user_id=$2',
+        [businessId, req.user.id]
+      );
+      for (const item of parsed) {
+        await client.query(
+          `INSERT INTO business_staff_availability
+             (business_id, user_id, day_of_week, start_time, end_time, notes)
+           VALUES ($1,$2,$3,$4,$5,$6)`,
+          [businessId, req.user.id, item.day, item.start, item.end, item.notes]
+        );
+      }
+      const result = await client.query(
+        `SELECT id, business_id, user_id, day_of_week, start_time, end_time, notes
+           FROM business_staff_availability
+          WHERE business_id=$1 AND user_id=$2
+          ORDER BY day_of_week, start_time, id`,
+        [businessId, req.user.id]
+      );
+      return result.rows;
+    });
+    return res.json({ user_id: req.user.id, windows: rows });
+  } catch (err) { return next(err); }
+};
+
+exports.listShiftSwapRequests = async (req, res, next) => {
+  const { businessId } = req.params;
+  try {
+    const manager = await isBusinessManager(req, businessId, req.user.id);
+    const params = [businessId];
+    let filter = '';
+    if (!manager) {
+      params.push(req.user.id);
+      filter = ' AND (r.requester_user_id=$2 OR r.target_user_id=$2)';
+    }
+    const { rows } = await pool.query(
+      `SELECT r.*, s.shift_date, s.start_time, s.end_time, s.role_label, s.user_id AS assigned_user_id
+         FROM business_shift_swap_requests r
+         JOIN business_staff_shifts s ON s.id=r.shift_id AND s.business_id=r.business_id
+        WHERE r.business_id=$1${filter}
+        ORDER BY r.created_at DESC, r.id DESC`,
+      params
+    );
+    return res.json({ requests: rows });
+  } catch (err) { return next(err); }
+};
+
+exports.createShiftSwapRequest = async (req, res, next) => {
+  const { businessId, shiftId } = req.params;
+  const targetUserId = req.body?.target_user_id || req.body?.targetUserId || null;
+  const note = req.body?.note ? String(req.body.note).slice(0, 1000) : null;
+  try {
+    const { rows: shifts } = await pool.query(
+      `SELECT id, user_id, shift_date, start_time, end_time
+         FROM business_staff_shifts WHERE id=$1 AND business_id=$2`,
+      [shiftId, businessId]
+    );
+    const shift = shifts[0];
+    if (!shift) return res.status(404).json({ error: 'Shift not found' });
+    const manager = await isBusinessManager(req, businessId, req.user.id);
+    if (!manager && String(shift.user_id) !== String(req.user.id)) {
+      return res.status(403).json({ error: 'You can only request a swap for your own shift' });
+    }
+    if (!targetUserId || String(targetUserId) === String(shift.user_id)) {
+      return res.status(400).json({ error: 'A different target staff member is required' });
+    }
+    if (!await assertBusinessMember(businessId, targetUserId)) {
+      return res.status(400).json({ error: 'Target user is not a member of this business' });
+    }
+    const { rows } = await pool.query(
+      `INSERT INTO business_shift_swap_requests
+         (business_id, shift_id, requester_user_id, target_user_id, note)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [businessId, shiftId, req.user.id, targetUserId, note]
+    );
+    return res.status(201).json({ request: rows[0] });
+  } catch (err) { return next(err); }
+};
+
+async function decideShiftSwap(req, res, next, status) {
+  const { businessId, requestId } = req.params;
+  try {
+    if (!await isBusinessManager(req, businessId, req.user.id)) {
+      return res.status(403).json({ error: 'Only a manager can decide shift swaps' });
+    }
+    const result = await withTransaction(pool, async (client) => {
+      const { rows } = await client.query(
+        `SELECT r.*, s.user_id AS assigned_user_id
+           FROM business_shift_swap_requests r
+           JOIN business_staff_shifts s ON s.id=r.shift_id AND s.business_id=r.business_id
+          WHERE r.id=$1 AND r.business_id=$2 FOR UPDATE`,
+        [requestId, businessId]
+      );
+      const swap = rows[0];
+      if (!swap) return { missing: true };
+      if (swap.status !== 'requested') return { conflict: true };
+      if (status === 'approved') {
+        if (!swap.target_user_id) return { noTarget: true };
+        await client.query(
+          `UPDATE business_staff_shifts SET user_id=$1
+            WHERE id=$2 AND business_id=$3 AND user_id=$4`,
+          [swap.target_user_id, swap.shift_id, businessId, swap.assigned_user_id]
+        );
+      }
+      const { rows: updated } = await client.query(
+        `UPDATE business_shift_swap_requests
+            SET status=$1, decided_by=$2, decided_at=NOW(), updated_at=NOW()
+          WHERE id=$3 AND business_id=$4 RETURNING *`,
+        [status, req.user.id, requestId, businessId]
+      );
+      return { request: updated[0] };
+    });
+    if (result.missing) return res.status(404).json({ error: 'Shift swap request not found' });
+    if (result.conflict) return res.status(409).json({ error: 'Shift swap request is no longer pending' });
+    if (result.noTarget) return res.status(409).json({ error: 'A target staff member is required before approval' });
+    return res.json({ request: result.request });
+  } catch (err) { return next(err); }
+}
+
+exports.approveShiftSwapRequest = (req, res, next) => decideShiftSwap(req, res, next, 'approved');
+exports.rejectShiftSwapRequest = (req, res, next) => decideShiftSwap(req, res, next, 'rejected');
 
 function breakSeconds(breaks, nowMs) {
   if (!Array.isArray(breaks)) return 0;
