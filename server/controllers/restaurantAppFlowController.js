@@ -3638,7 +3638,7 @@ exports.listPosOrders = async (req, res, next) => {
                 'kitchenStatus', foi.kitchen_status,
                 'stationLabel', foi.station_label,
                 'specialInstructions', foi.special_instructions
-              ) ORDER BY foi.id) FILTER (WHERE foi.id IS NOT NULL), '[]') AS items
+              ) ORDER BY foi.course_number, foi.id) FILTER (WHERE foi.id IS NOT NULL), '[]') AS items
          FROM food_orders fo
          LEFT JOIN food_order_items foi ON foi.order_id = fo.id
         WHERE ${filters.join(' AND ')}
@@ -6049,10 +6049,10 @@ exports.reprintReceipt = async (req, res, next) => {
     const [{ rows: items }, { rows: modifiers }, { rows: payments }] = await Promise.all([
       pool.query(
         `SELECT id, menu_item_id, item_name, quantity, unit_price_cents,
-                modifier_total_cents, line_total_cents, special_instructions
+                modifier_total_cents, line_total_cents, course_number, special_instructions
            FROM food_order_items
           WHERE order_id = $1
-          ORDER BY id ASC`,
+          ORDER BY course_number ASC, id ASC`,
         [orderId]
       ),
       pool.query(
@@ -6837,7 +6837,7 @@ exports.getKitchenFeed = async (req, res, next) => {
                 'targetPrepSeconds', foi.target_prep_seconds,
                 'elapsedPrepSeconds', GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (NOW() - COALESCE(foi.kitchen_started_at, fo.created_at))))::int),
                 'specialInstructions', foi.special_instructions
-              ) ORDER BY foi.id) FILTER (WHERE foi.id IS NOT NULL), '[]') AS items
+              ) ORDER BY foi.course_number, foi.id) FILTER (WHERE foi.id IS NOT NULL), '[]') AS items
          FROM food_orders fo
          LEFT JOIN food_order_items foi
            ON foi.order_id = fo.id
