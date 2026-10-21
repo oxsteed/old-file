@@ -130,3 +130,17 @@ test('reservation notification sends once and records the notification timestamp
   expect(sendTransactionalSMS).toHaveBeenCalledWith('+15555550124', expect.stringContaining('has been received'));
 });
 
+test('reservation notification refuses a concurrent active claim', async () => {
+  const pending = { ...reservation, guest_phone: '+15555550125', status: 'confirmed', notified_at: null };
+  mockQuery.mockImplementation(async (sql) => {
+    if (sql.startsWith('SELECT * FROM restaurant_reservations')) return { rows: [pending] };
+    if (sql.startsWith('UPDATE restaurant_reservations')) return { rows: [] };
+    if (sql.startsWith('SELECT notified_at FROM restaurant_reservations')) return { rows: [{ notified_at: null }] };
+    return { rows: [] };
+  });
+  const response = await request(app()).post('/3/reservations/18/notify');
+  expect(response.status).toBe(409);
+  expect(response.body.code).toBe('reservation_notification_in_progress');
+  expect(sendTransactionalSMS).not.toHaveBeenCalled();
+});
+

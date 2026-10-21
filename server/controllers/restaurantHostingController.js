@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
@@ -284,17 +285,39 @@ exports.notifyReservation = async (req, res, next) => {
     if (reservation.notified_at) {
       return res.json({ reservation, delivery: { success: true, alreadyNotified: true } });
     }
+    const claimToken = crypto.randomUUID();
+    const { rows: [claimed] } = await pool.query(`UPDATE restaurant_reservations
+      SET notification_claimed_at=NOW(), notification_claim_token=$3, updated_at=NOW()
+      WHERE restaurant_id=$1 AND id=$2 AND notified_at IS NULL
+        AND (notification_claimed_at IS NULL OR notification_claimed_at < NOW() - INTERVAL '5 minutes')
+      RETURNING *`, [restaurant.id, reservationId, claimToken]);
+    if (!claimed) {
+      const { rows: [current] } = await pool.query(`SELECT notified_at FROM restaurant_reservations
+        WHERE restaurant_id=$1 AND id=$2`, [restaurant.id, reservationId]);
+      if (current?.notified_at) {
+        return res.json({ reservation: { ...reservation, notified_at: current.notified_at }, delivery: { success: true, alreadyNotified: true } });
+      }
+      throw new AppError('Reservation notification is already in progress', 409, 'reservation_notification_in_progress');
+    }
     const startsAt = new Date(reservation.starts_at).toISOString();
     const verb = reservation.status === 'confirmed' ? 'is confirmed' : 'has been received';
-    const delivery = await sendTransactionalSMS(
-      reservation.guest_phone,
-      `Your reservation at ${restaurant.display_name || 'the restaurant'} ${verb} for ${startsAt}.`
-    );
-    if (!delivery.success) throw new AppError('SMS could not be sent', 503, 'sms_unavailable');
-    const { rows: [updated] } = await pool.query(`UPDATE restaurant_reservations
-      SET notified_at=NOW(), updated_at=NOW()
-      WHERE restaurant_id=$1 AND id=$2 AND notified_at IS NULL RETURNING *`, [restaurant.id, reservationId]);
-    res.json({ reservation: updated || { ...reservation, notified_at: new Date().toISOString() }, delivery: { success: true, sid: delivery.sid || null } });
+    try {
+      const delivery = await sendTransactionalSMS(
+        reservation.guest_phone,
+        `Your reservation at ${restaurant.display_name || 'the restaurant'} ${verb} for ${startsAt}.`
+      );
+      if (!delivery.success) throw new AppError('SMS could not be sent', 503, 'sms_unavailable');
+      const { rows: [updated] } = await pool.query(`UPDATE restaurant_reservations
+        SET notified_at=NOW(), notification_claimed_at=NULL, notification_claim_token=NULL, updated_at=NOW()
+        WHERE restaurant_id=$1 AND id=$2 AND notified_at IS NULL AND notification_claim_token=$3 RETURNING *`, [restaurant.id, reservationId, claimToken]);
+      if (!updated) throw new AppError('Reservation notification state could not be saved', 503, 'notification_state_unavailable');
+      res.json({ reservation: updated, delivery: { success: true, sid: delivery.sid || null } });
+    } catch (error) {
+      await pool.query(`UPDATE restaurant_reservations
+        SET notification_claimed_at=NULL, notification_claim_token=NULL, updated_at=NOW()
+        WHERE restaurant_id=$1 AND id=$2 AND notification_claim_token=$3`, [restaurant.id, reservationId, claimToken]).catch(() => {});
+      throw error;
+    }
   } catch (error) { next(error); }
 };
 
