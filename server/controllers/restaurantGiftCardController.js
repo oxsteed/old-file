@@ -63,6 +63,13 @@ function normalizeDeliveryType(value) {
   return type;
 }
 
+function normalizeActive(value) {
+  if (typeof value === 'boolean') return value;
+  if (value === 'true' || value === '1' || value === 1) return true;
+  if (value === 'false' || value === '0' || value === 0) return false;
+  throw new AppError('isActive must be a boolean', 400, 'validation_failed', { isActive: 'Invalid active flag' });
+}
+
 function shape(row) {
   return {
     id: Number(row.id),
@@ -150,7 +157,7 @@ exports.updateProduct = async (req, res, next) => {
     const deliveryType = body.deliveryType === undefined && body.delivery_type === undefined
       ? before.delivery_type : normalizeDeliveryType(body.deliveryType ?? body.delivery_type);
     const isActive = body.isActive === undefined && body.is_active === undefined
-      ? Boolean(before.is_active) : Boolean(body.isActive ?? body.is_active);
+      ? Boolean(before.is_active) : normalizeActive(body.isActive ?? body.is_active);
     const metadata = body.metadata === undefined ? (before.metadata || {})
       : (body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata) ? body.metadata : {});
     const { rows: [after] } = await pool.query(
@@ -180,4 +187,4 @@ exports.updateProduct = async (req, res, next) => {
   }
 };
 
-exports._normalize = { normalizeSku, normalizeName, normalizeAmount, normalizeCurrency, normalizeDeliveryType };
+exports._normalize = { normalizeSku, normalizeName, normalizeAmount, normalizeCurrency, normalizeDeliveryType, normalizeActive };

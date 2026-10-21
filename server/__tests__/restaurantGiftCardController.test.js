@@ -7,6 +7,7 @@ describe('restaurant gift-card product catalog validation', () => {
     expect(normalize.normalizeSku(' spring-25 ')).toBe('SPRING-25');
     expect(normalize.normalizeCurrency('usd')).toBe('USD');
     expect(normalize.normalizeDeliveryType('e-gift')).toBe('e_gift');
+    expect(normalize.normalizeActive('false')).toBe(false);
     expect(normalize.normalizeAmount(2500)).toBe(2500);
   });
 
@@ -16,5 +17,6 @@ describe('restaurant gift-card product catalog validation', () => {
     expect(() => normalize.normalizeAmount(1000001)).toThrow(/amount/);
     expect(() => normalize.normalizeCurrency('US')).toThrow(/Currency/);
     expect(() => normalize.normalizeDeliveryType('reloadable')).toThrow(/Delivery type/);
+    expect(() => normalize.normalizeActive('maybe')).toThrow(/isActive/);
   });
 });
