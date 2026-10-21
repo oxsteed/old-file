@@ -361,12 +361,22 @@ exports.foodCostSummary = async (req, res, next) => {
     const scope = await getTransferScope(restaurant, req.user.id);
     const params = [restaurantId, fromDate, toDate];
     let locationFilter = '';
+    let salesLocationFilter = '';
     if (scope?.mode === 'assigned') {
       params.push(scope.location_ids);
       locationFilter = ' AND i.location_id = ANY($4::bigint[])';
+      salesLocationFilter = ' AND fo.location_id = ANY($4::bigint[])';
     }
     const { rows } = await pool.query(
-      `WITH theoretical AS (
+      `WITH sales AS (
+         SELECT COALESCE(SUM(fo.total_cents), 0) / 100.0 AS net_sales
+           FROM food_orders fo
+          WHERE fo.restaurant_id = $1
+            AND fo.created_at >= ($2::date)::timestamp
+            AND fo.created_at < (($3::date + 1))::timestamp
+            AND fo.payment_status = 'paid'
+            AND fo.status NOT IN ('cancelled', 'refunded')${salesLocationFilter}
+       ), theoretical AS (
          SELECT rim.inventory_item_id,
                 COALESCE(SUM(foi.quantity * rim.required_quantity * rim.conversion_factor
                   * (100.0 / NULLIF(rim.yield_percent, 0))), 0) AS quantity
@@ -389,6 +399,7 @@ exports.foodCostSummary = async (req, res, next) => {
           GROUP BY item_id
        )
        SELECT i.id AS inventory_item_id, i.name, i.unit, i.unit_cost,
+              sales.net_sales,
               COALESCE(t.quantity, 0) AS theoretical_quantity,
               COALESCE(a.quantity, 0) AS actual_quantity,
               COALESCE(a.quantity, 0) - COALESCE(t.quantity, 0) AS variance_quantity,
@@ -398,16 +409,24 @@ exports.foodCostSummary = async (req, res, next) => {
          FROM restaurant_inventory_items i
          LEFT JOIN theoretical t ON t.inventory_item_id = i.id
          LEFT JOIN actual a ON a.item_id = i.id
+        CROSS JOIN sales
         WHERE i.restaurant_id = $1 AND i.is_active = TRUE${locationFilter}
         ORDER BY ABS((COALESCE(a.quantity, 0) - COALESCE(t.quantity, 0)) * i.unit_cost) DESC, i.name ASC`,
       params
     );
     const totals = rows.reduce((sum, row) => {
+      sum.net_sales = Number(row.net_sales) || sum.net_sales;
       sum.theoretical_cost += Number(row.theoretical_cost) || 0;
       sum.actual_cost += Number(row.actual_cost) || 0;
       sum.variance_cost += Number(row.variance_cost) || 0;
       return sum;
-    }, { theoretical_cost: 0, actual_cost: 0, variance_cost: 0 });
+    }, { net_sales: 0, theoretical_cost: 0, actual_cost: 0, variance_cost: 0 });
+    totals.theoretical_cost_pct = totals.net_sales > 0
+      ? Number(((totals.theoretical_cost / totals.net_sales) * 100).toFixed(2)) : null;
+    totals.actual_cost_pct = totals.net_sales > 0
+      ? Number(((totals.actual_cost / totals.net_sales) * 100).toFixed(2)) : null;
+    totals.variance_cost_pct = totals.net_sales > 0
+      ? Number(((totals.variance_cost / totals.net_sales) * 100).toFixed(2)) : null;
     res.json({ from_date: fromDate, to_date: toDate, rows, totals });
   } catch (error) { next(error); }
 };

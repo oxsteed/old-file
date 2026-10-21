@@ -164,6 +164,7 @@ describe('restaurant Inventory operations backend', () => {
         theoretical_cost: '12.00',
         actual_cost: '15.00',
         variance_cost: '3.00',
+        net_sales: '100.00',
       }] });
 
     const response = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/inventory/reports/food-cost?from=2026-10-01&to=2026-10-07`);
@@ -171,8 +172,10 @@ describe('restaurant Inventory operations backend', () => {
     expect(response.status).toBe(200);
     expect(response.body.rows[0].variance_quantity).toBe('1.000');
     expect(response.body.totals.variance_cost).toBe(3);
+    expect(response.body.totals.actual_cost_pct).toBe(15);
     expect(mockQuery.mock.calls[1][0]).toMatch(/conversion_factor/);
     expect(mockQuery.mock.calls[1][0]).toMatch(/yield_percent/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/net_sales/);
   });
 
   test('exports receipt invoice and store fields for accounting ingestion', async () => {
