@@ -450,7 +450,7 @@ ddescribe('pause and resume gate claims', () => {
     expect(await service.claimNextAccountJob('worker-a')).toBeNull();
     const resumed = await service.resumeRun(run.id);
     expect(resumed.state).toBe('discovering');
-    const claimed = await service.claimNextAccountJob('worker-a');
+    const claimed = await service.claimNextAccountJob('worker-a', 120, { runId: run.id });
     expect(claimed).not.toBeNull();
     expect(claimed.run_id).toBe(run.id);
   });

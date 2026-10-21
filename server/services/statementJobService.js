@@ -215,7 +215,7 @@ async function discoverAccountJobs(runId, accounts) {
  * yield nothing. Expired leases whose attempt budget is exhausted are moved
  * to dead_letter instead of being re-leased.
  */
-async function claimNextAccountJob(workerId, leaseSeconds = 120, { product = null } = {}) {
+async function claimNextAccountJob(workerId, leaseSeconds = 120, { product = null, runId = null } = {}) {
   if (!workerId || typeof workerId !== 'string') {
     fail('statement_job_invalid_worker', 'workerId is required', 400);
   }
@@ -224,6 +224,9 @@ async function claimNextAccountJob(workerId, leaseSeconds = 120, { product = nul
     fail('statement_job_invalid_worker', 'leaseSeconds must be between 5 and 3600', 400);
   }
   if (product !== null) checkProduct(product);
+  if (runId !== null && !UUID_RE.test(String(runId))) {
+    fail('statement_job_invalid_run', 'runId must be a UUID', 400);
+  }
   const { rows } = await pool.query(
     `WITH candidate AS (
        SELECT id, state AS prior_state,
@@ -232,6 +235,7 @@ async function claimNextAccountJob(workerId, leaseSeconds = 120, { product = nul
        FROM statement_account_jobs
        WHERE run_id IN (SELECT id FROM statement_issuance_runs WHERE state = ANY($3))
          AND ($4::varchar IS NULL OR product=$4)
+         AND ($5::uuid IS NULL OR run_id=$5)
          AND (state = 'pending'
            OR (state = 'leased' AND lease_expires_at < transaction_timestamp())
            OR (state IN ('snapshotted', 'artifact_ready', 'notified')
@@ -258,7 +262,7 @@ async function claimNextAccountJob(workerId, leaseSeconds = 120, { product = nul
      FROM candidate
      WHERE job.id = candidate.id
      RETURNING job.*`,
-    [workerId, lease, RUN_CLAIMABLE_STATES, product]
+    [workerId, lease, RUN_CLAIMABLE_STATES, product, runId]
   );
   const job = rows[0] || null;
   if (job && job.state === 'dead_letter') {
