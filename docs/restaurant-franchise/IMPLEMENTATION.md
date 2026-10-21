@@ -256,6 +256,10 @@ delivery failures stay retryable and auditable. Migration 984 adds provider-neut
 DoorDash/Uber Eats/Grubhub integration records, dynamic secret-reference fields,
 available-menu export, and idempotent inbound order state queues. Live provider
 OAuth/webhook verification and local food-order creation remain deployment-gated.
+The restaurant HQ rollup now provides a permission-filtered business view with
+store comparison, currency-separated net-collected sales, latest audit score,
+and high-severity open findings; it does not merge currencies or reveal
+customer identity.
 
 Sales reports now expose `/reports/sales/accounting/quickbooks.csv` and
 `/reports/sales/accounting/xero.csv`. These are read-only, store-scoped import
@@ -296,6 +300,7 @@ hardware decisions do not excuse independent software work on these flows.
 - `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **958/958 migrations passed** twice, including migration 983's campaign delivery queue.
 - `server`: `npx jest --runInBand __tests__/restaurantDeliveryMarketplaceService.test.js __tests__/routeScopeGuard.test.js` — **13 passed** across provider/secret-reference validation, menu filtering, disabled-provider rejection, and route scope registration.
 - `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **959/959 migrations passed** twice, including migration 984's marketplace integration and order queue.
+- `server`: `npx jest --runInBand __tests__/restaurantHQService.test.js __tests__/routeScopeGuard.test.js` — **12 passed** across business/store scope filtering, currency-separated sales shaping, audit-health shaping, and route scope registration.
 - `client`: `npm run verify:i18n` — **passed** with the host-stand keys present in `en`, `es`, `fr`, `ht`, and `ar`.
 - `client`: `npm run build` — **passed**; Vite emitted the merchant bundle with the host-stand panel. Existing large-chunk and dynamic-import advisories remain.
 - `server`: `npx jest --runInBand __tests__/restaurantPayrollOvertime.test.js` — **2 passed**. Covers weekly overtime allocation and required-break exception detection.
