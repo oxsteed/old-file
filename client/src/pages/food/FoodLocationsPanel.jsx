@@ -13,12 +13,27 @@ const DEFAULT_OPEN_TIME = '11:00';
 const DEFAULT_CLOSE_TIME = '22:00';
 const LOCATION_STATUSES = ['active', 'paused', 'closed'];
 
-const blankDayHours = (open = DEFAULT_OPEN_TIME, close = DEFAULT_CLOSE_TIME, closed = false) => ({ open, close, closed });
+const blankRange = (open = DEFAULT_OPEN_TIME, close = DEFAULT_CLOSE_TIME) => ({ open, close });
+const blankDayHours = (open = DEFAULT_OPEN_TIME, close = DEFAULT_CLOSE_TIME, closed = false) => ({
+  ranges: [blankRange(open, close)],
+  closed,
+});
 
-// Parse a location's operating_hours into the single-range editor shape.
-// Multi-range days (F-10) show their first range; the saved value is only
-// sent when the owner actually edits the hours, so untouched multi-range
-// schedules are never collapsed by an unrelated edit.
+function rangesFromEntry(entry) {
+  if (Array.isArray(entry)) {
+    const ranges = entry
+      .filter((range) => range && typeof range === 'object')
+      .map((range) => blankRange(range.open || DEFAULT_OPEN_TIME, range.close || DEFAULT_CLOSE_TIME));
+    return ranges.length ? ranges : [blankRange()];
+  }
+  if (entry && typeof entry === 'object' && (entry.open || entry.close)) {
+    return [blankRange(entry.open || DEFAULT_OPEN_TIME, entry.close || DEFAULT_CLOSE_TIME)];
+  }
+  return [blankRange()];
+}
+
+// Parse both legacy single ranges and F-10 split-shift arrays without
+// collapsing ranges when an owner edits an unrelated location field.
 function dayHoursFromLocation(location) {
   const hours = location && location.operating_hours && typeof location.operating_hours === 'object'
     ? location.operating_hours
@@ -26,12 +41,9 @@ function dayHoursFromLocation(location) {
   const weekly = hours && hours.weekly && typeof hours.weekly === 'object' ? hours.weekly : hours;
   return WEEKDAY_KEYS.map((key) => {
     let entry = weekly && typeof weekly === 'object' ? weekly[key] : null;
-    if (Array.isArray(entry)) entry = entry[0] || null;
     if (entry === 'closed') return blankDayHours(DEFAULT_OPEN_TIME, DEFAULT_CLOSE_TIME, true);
-    if (entry && entry.closed) return blankDayHours(entry.open || DEFAULT_OPEN_TIME, entry.close || DEFAULT_CLOSE_TIME, true);
-    if (entry && (entry.open || entry.close)) {
-      return blankDayHours(entry.open || DEFAULT_OPEN_TIME, entry.close || DEFAULT_CLOSE_TIME, false);
-    }
+    if (entry && entry.closed) return { ranges: rangesFromEntry(entry.ranges || entry), closed: true };
+    if (entry && (entry.open || entry.close) || Array.isArray(entry)) return { ranges: rangesFromEntry(entry), closed: false };
     return blankDayHours();
   });
 }
@@ -101,6 +113,29 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
     setHoursDirty(true);
   };
 
+  const updateRange = (dayIndex, rangeIndex, patch) => {
+    setDayHours((current) => current.map((day, i) => {
+      if (i !== dayIndex) return day;
+      return { ...day, ranges: day.ranges.map((range, j) => (j === rangeIndex ? { ...range, ...patch } : range)) };
+    }));
+    setHoursDirty(true);
+  };
+
+  const addRange = (dayIndex) => {
+    setDayHours((current) => current.map((day, i) => (
+      i === dayIndex ? { ...day, ranges: [...day.ranges, blankRange()] } : day
+    )));
+    setHoursDirty(true);
+  };
+
+  const removeRange = (dayIndex, rangeIndex) => {
+    setDayHours((current) => current.map((day, i) => {
+      if (i !== dayIndex || day.ranges.length <= 1) return day;
+      return { ...day, ranges: day.ranges.filter((_, j) => j !== rangeIndex) };
+    }));
+    setHoursDirty(true);
+  };
+
   const resolveCoordinates = async () => {
     const query = [form.addressCity, form.addressState, form.addressCountry].filter(Boolean).join(', ');
     if (query.length < 2) return;
@@ -130,9 +165,8 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
   const buildOperatingHours = () => ({
     weekly: Object.fromEntries(WEEKDAY_KEYS.map((key, index) => {
       const day = dayHours[index];
-      return day.closed
-        ? [key, { closed: true, open: day.open, close: day.close }]
-        : [key, { open: day.open, close: day.close }];
+      const ranges = day.ranges.map((range) => ({ open: range.open, close: range.close }));
+      return day.closed ? [key, { closed: true, ranges }] : [key, ranges.length === 1 ? ranges[0] : ranges];
     })),
   });
 
@@ -264,24 +298,41 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
         <fieldset style={{ border: 'none', padding: 0, margin: '0.75rem 0 0' }}>
           <legend className="fd-card-meta" style={{ marginBottom: '0.5rem' }}>{t('food.merchant.hoursTitle')}</legend>
           {dayHours.map((day, index) => (
-            <div key={WEEKDAY_KEYS[index]} className="fd-row" style={{ gap: '0.5rem', alignItems: 'center', marginBottom: '0.35rem' }}>
-              <span style={{ flex: '0 0 44px' }}>{weekDayLabel(index)}</span>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={day.closed}
-                  onChange={(e) => updateDay(index, { closed: e.target.checked })} data-track="ui.dbbd615872.6"
-                />{' '}
-                {t('food.merchant.hoursClosed')}
-              </label>
-              <label>
-                {t('food.merchant.openTime')}{' '}
-                <input type="time" value={day.open} disabled={day.closed} onChange={(e) => updateDay(index, { open: e.target.value })} />
-              </label>
-              <label>
-                {t('food.merchant.closeTime')}{' '}
-                <input type="time" value={day.close} disabled={day.closed} onChange={(e) => updateDay(index, { close: e.target.value })} />
-              </label>
+            <div key={WEEKDAY_KEYS[index]} style={{ marginBottom: '0.65rem' }}>
+              <div className="fd-row" style={{ gap: '0.5rem', alignItems: 'center', marginBottom: '0.25rem' }}>
+                <span style={{ flex: '0 0 44px' }}>{weekDayLabel(index)}</span>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={day.closed}
+                    onChange={(e) => updateDay(index, { closed: e.target.checked })} data-track="ui.dbbd615872.6"
+                  />{' '}
+                  {t('food.merchant.hoursClosed')}
+                </label>
+                {!day.closed && (
+                  <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => addRange(index)}>
+                    {t('food.merchant.addHoursRange')}
+                  </button>
+                )}
+              </div>
+              {day.ranges.map((range, rangeIndex) => (
+                <div key={`${WEEKDAY_KEYS[index]}-${rangeIndex}`} className="fd-row" style={{ gap: '0.5rem', alignItems: 'center', margin: '0.25rem 0 0 3rem', flexWrap: 'wrap' }}>
+                  <span className="fd-card-meta" style={{ flex: '0 0 44px' }}>{t('food.merchant.hoursRangeLabel', { number: rangeIndex + 1 })}</span>
+                  <label>
+                    {t('food.merchant.openTime')}{' '}
+                    <input type="time" aria-label={`${weekDayLabel(index)} ${t('food.merchant.openTime')} ${rangeIndex + 1}`} value={range.open} disabled={day.closed} onChange={(e) => updateRange(index, rangeIndex, { open: e.target.value })} />
+                  </label>
+                  <label>
+                    {t('food.merchant.closeTime')}{' '}
+                    <input type="time" aria-label={`${weekDayLabel(index)} ${t('food.merchant.closeTime')} ${rangeIndex + 1}`} value={range.close} disabled={day.closed} onChange={(e) => updateRange(index, rangeIndex, { close: e.target.value })} />
+                  </label>
+                  {day.ranges.length > 1 && (
+                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => removeRange(index, rangeIndex)} disabled={day.closed}>
+                      {t('food.merchant.removeHoursRange')}
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
           ))}
         </fieldset>

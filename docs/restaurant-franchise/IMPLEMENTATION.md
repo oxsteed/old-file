@@ -7,7 +7,7 @@ franchise-grade or production-readiness declaration. Existing fixes are retained
 no production migrations, deployment, financial activation, or provider-account
 changes are authorized by this checkpoint.
 
-## Current pass: store menu and temporary sold-out controls
+## Current pass: store menu and split-shift hours controls
 
 Migration 963 adds tenant-constrained store menu overrides. Prices and temporary
 availability are separate fields; null inherits the brand menu. Store overrides
@@ -31,6 +31,12 @@ This implements the menu-override portion of F-02 and the operational per-store
 employment, inventory, tax or reporting. Existing legacy availability URLs now
 adapt to the primary/acting device's store instead of changing the brand menu.
 
+The location editor now preserves legacy single ranges and edits F-10 split-shift
+arrays without collapsing them. Owners can add or remove ranges for each weekday;
+closed days retain their configured ranges for later reopening. The evaluator's
+overnight, split-shift, holiday and timezone behavior remains server-owned, while
+the browser check verifies the multi-range save payload and reset behavior.
+
 ## Requirements matrix
 
 `Existing source` means an earlier branch change exists; it is not a fresh
@@ -47,7 +53,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-07 | Existing local-day net-collected reports, currencies and CSV | Canonical per-store/brand facts, daily close/Z-report, XLSX/journal and HQ comparisons |
 | F-08 | Existing offline drafts and failure reporting | In-store hub, offline cash with idempotent replay, Terminal store-and-forward/risk policy |
 | F-09 | Existing broken split-route adapter | Maintain canonical split guards and populated-db acceptance |
-| F-10 | Existing overnight/split-shift/holiday/timezone evaluator | Full multi-range editor and scheduling/device acceptance |
+| F-10 | Existing overnight/split-shift/holiday/timezone evaluator; this pass adds a multi-range location editor | Scheduling/device acceptance and special-date editing |
 | F-11 | Existing dayparts and scheduled fire filtering | Verify all scheduling paths and store-selected quote/submit invariants |
 | F-12 | Existing onboarding fulfillment defaults | End-to-end first-store POS acceptance |
 | F-13 | Existing table-name aliases | Device/counter/kitchen contract acceptance |
@@ -86,6 +92,7 @@ hardware decisions do not excuse independent software work on these flows.
 
 - `server`: `npx jest --runInBand --testPathPatterns='restaurantStoreMenu|restaurantAppFlow|foodController|foodOrderValidation|routeScopeGuard'` — **127 passed**.
 - `client`: `node --test scripts/restaurantRender.browser-check.cjs scripts/restaurantCheckoutCard.browser-check.cjs scripts/restaurantStoreMenu.browser-check.cjs` — **3 passed**. The new store-menu check covers save/reset payloads, English/French/Arabic labels, RTL direction, narrow widths, and form labels.
+- `client`: `node --test scripts/restaurantLocationHours.browser-check.cjs` — **1 passed**. The location-hours check loads a legacy multi-range day, adds a third range, verifies the exact split-shift payload, and confirms the form resets.
 - `server/scripts/verifyRestaurantStoreMenu.js` — **passed** in the dedicated Colima PostgreSQL container. It applied migration 963 twice, verified default-store backfill/onboarding and legacy order/counter continuity, tenant foreign keys, negative prices, screen events, SQL projections, and sibling-store isolation.
 - `client`: `npm run build:ci` — **passed**; Vite emitted and verified 1,020 assets. The existing build warnings are the repository's large-chunk and dynamic-import advisories.
 - The broader restaurant Jest selection was also run with the local FFmpeg binary. It reached 768 passing tests, but the pre-existing media-transcode test still fails because it expects a 960x720 rendition while the current binary produces 1280x960. That unrelated media behavior is outside this store-menu change.
