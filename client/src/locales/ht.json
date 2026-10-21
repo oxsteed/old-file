@@ -23612,6 +23612,8 @@
       "categories": "Kategori",
       "allItems": "Tout",
       "ticket": "Tikè",
+      "course": "Sèvis",
+      "courseOption": "Sèvis {{n}}",
       "emptyTicket": "Tikè a vid",
       "sendToKitchen": "Voye nan kwizin",
       "payNow": "Peye kounye a",

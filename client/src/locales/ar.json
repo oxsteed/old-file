@@ -23623,6 +23623,8 @@
       "categories": "الفئات",
       "allItems": "الكل",
       "ticket": "الفاتورة",
+      "course": "المرحلة",
+      "courseOption": "المرحلة {{n}}",
       "emptyTicket": "الفاتورة فارغة",
       "sendToKitchen": "إرسال إلى المطبخ",
       "payNow": "الدفع الآن",

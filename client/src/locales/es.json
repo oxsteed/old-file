@@ -23612,6 +23612,8 @@
       "categories": "Categorías",
       "allItems": "Todo",
       "ticket": "Boleto",
+      "course": "Curso",
+      "courseOption": "Curso {{n}}",
       "emptyTicket": "El ticket está vacío",
       "sendToKitchen": "Enviar a cocina",
       "payNow": "Pagar ahora",

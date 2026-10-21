@@ -480,14 +480,14 @@ export default function RestaurantPOSPage() {
     setTicket((prev) => {
       // merge identical lines (same item, same mods, no note)
       if (!note && mods.length === 0) {
-        const idx = prev.findIndex((l) => l.item.id === item.id && l.mods.length === 0 && !l.note);
+        const idx = prev.findIndex((l) => l.item.id === item.id && l.mods.length === 0 && !l.note && (l.courseNumber || 1) === 1);
         if (idx >= 0) {
           const next = [...prev];
           next[idx] = { ...next[idx], qty: next[idx].qty + qty };
           return next;
         }
       }
-      return [...prev, { item, qty, note, mods, unitCents }];
+      return [...prev, { item, qty, note, mods, unitCents, courseNumber: 1 }];
     });
     setModItem(null);
   };
@@ -509,6 +509,7 @@ export default function RestaurantPOSPage() {
   const serializeTicket = () => ticket.map((l) => ({
     menuItemId: l.item.id,
     quantity: l.qty,
+      courseNumber: l.courseNumber || 1,
     modifierIds: l.mods.map((modifier) => modifier.modifier_id),
     specialInstructions: l.note || undefined,
   }));
@@ -516,6 +517,13 @@ export default function RestaurantPOSPage() {
     if (activeShift) return true;
     toast.error(t('food.pos.openShiftRequired', { defaultValue: 'Open a POS shift before taking orders.' }));
     return false;
+  };
+
+  const changeCourse = (idx, courseNumber) => {
+    resetCheckout();
+    setTicket((prev) => prev.map((line, lineIndex) => (
+      lineIndex === idx ? { ...line, courseNumber: Number(courseNumber) || 1 } : line
+    )));
   };
 
   const handleOpenShift = async () => {
@@ -852,6 +860,14 @@ export default function RestaurantPOSPage() {
                     <span>{line.qty}</span>
                     <button className="fd-qty-btn" onClick={() => adjustQty(idx, 1)} data-track="ui.c952aceb7c.15">+</button>
                   </div>
+                  <label className="fd-pos-line-course">
+                    <span className="sr-only">{t('food.pos.course')}</span>
+                    <select value={line.courseNumber || 1} onChange={(e) => changeCourse(idx, e.target.value)} aria-label={t('food.pos.course')}>
+                      {Array.from({ length: 4 }, (_, courseIndex) => courseIndex + 1).map((course) => (
+                        <option key={course} value={course}>{t('food.pos.courseOption', { n: course })}</option>
+                      ))}
+                    </select>
+                  </label>
                   <div className="fd-price">{formatFoodMoney(line.unitCents * line.qty, currency)}</div>
                 </div>
               ))}

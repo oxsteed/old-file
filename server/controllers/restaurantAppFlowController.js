@@ -3634,6 +3634,7 @@ exports.listPosOrders = async (req, res, next) => {
                 'unitPriceCents', foi.unit_price_cents,
                 'modifierTotalCents', foi.modifier_total_cents,
                 'lineTotalCents', foi.line_total_cents,
+                'courseNumber', foi.course_number,
                 'kitchenStatus', foi.kitchen_status,
                 'stationLabel', foi.station_label,
                 'specialInstructions', foi.special_instructions
@@ -3906,6 +3907,13 @@ exports.createPosOrder = async (req, res, next) => {
         }
         const modifiers = resolveOrderItemModifiers(item, line, index);
         const modifierTotal = Math.max(0, modifiers.reduce((sum, modifier) => sum + Number(modifier.price_delta_cents || 0), 0));
+        const requestedCourse = line.courseNumber ?? line.course_number;
+        const courseNumber = requestedCourse === undefined || requestedCourse === null || requestedCourse === ''
+          ? 1
+          : parsePositiveInt(requestedCourse);
+        if (!courseNumber || courseNumber > 20) {
+          throw new AppError('Validation failed', 400, 'validation_failed', { [`items.${index}.courseNumber`]: 'Must be between 1 and 20' });
+        }
         return {
           item,
           quantity,
@@ -3913,6 +3921,7 @@ exports.createPosOrder = async (req, res, next) => {
           modifiers,
           modifierTotal,
           lineTotal: (unitPrice + modifierTotal) * quantity,
+          courseNumber,
           stationLabel: normalizeString(line.stationLabel || line.station_label, 80),
           specialInstructions: normalizeString(line.specialInstructions || line.special_instructions, 500),
         };
@@ -4105,8 +4114,8 @@ exports.createPosOrder = async (req, res, next) => {
       for (const line of normalized) {
         const { rows: [orderItem] } = await client.query(
           `INSERT INTO food_order_items
-             (order_id, menu_item_id, item_name, quantity, unit_price_cents, modifier_total_cents, line_total_cents, special_instructions, station_label)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+             (order_id, menu_item_id, item_name, quantity, unit_price_cents, modifier_total_cents, line_total_cents, special_instructions, course_number, station_label)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
            RETURNING id`,
           [
             order.id,
@@ -4117,6 +4126,7 @@ exports.createPosOrder = async (req, res, next) => {
             line.modifierTotal,
             line.lineTotal,
             line.specialInstructions,
+            line.courseNumber,
             normalizeString(line.stationLabel, 80),
           ]
         );
@@ -4514,8 +4524,8 @@ exports.splitPosOrder = async (req, res, next) => {
           `INSERT INTO food_order_items
              (order_id, menu_item_id, item_name, quantity, unit_price_cents,
               modifier_total_cents, line_total_cents, special_instructions,
-              kitchen_status, station_label, bumped_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+              course_number, kitchen_status, station_label, bumped_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
            RETURNING id`,
           [
             child.id,
@@ -4526,6 +4536,7 @@ exports.splitPosOrder = async (req, res, next) => {
             item.modifier_total_cents,
             childLineTotal,
             item.special_instructions,
+            item.course_number || 1,
             item.kitchen_status,
             item.station_label,
             item.bumped_at,
@@ -6816,6 +6827,7 @@ exports.getKitchenFeed = async (req, res, next) => {
                 'menuItemId', foi.menu_item_id,
                 'itemName', foi.item_name,
                 'quantity', foi.quantity,
+                'courseNumber', foi.course_number,
                 'kitchenStatus', foi.kitchen_status,
                 'stationLabel', foi.station_label,
                 'bumpedAt', foi.bumped_at,
