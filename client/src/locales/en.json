@@ -22406,6 +22406,7 @@
         "grantCredit": "Grant credit",
         "refundCredit": "Refund credit",
         "approvedToast": "Credit added for {{name}}.",
+        "defaultApprovalNote": "Payment verified in the restaurant credit inbox.",
         "approveError": "Unable to approve this credit request.",
         "declineReasonRequired": "Add a short reason so the customer knows what to correct.",
         "declinedToast": "Credit request declined.",

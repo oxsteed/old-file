@@ -22417,6 +22417,7 @@
         "grantCredit": "منح ائتمان",
         "refundCredit": "استرداد ائتمان",
         "approvedToast": "تمت إضافة الائتمان لـ {{name}}.",
+        "defaultApprovalNote": "تم التحقق من الدفع في صندوق ائتمان المطعم.",
         "approveError": "تعذر اعتماد طلب الائتمان هذا.",
         "declineReasonRequired": "أضف سببًا قصيرًا حتى يعرف العميل ما يجب تصحيحه.",
         "declinedToast": "تم رفض طلب الائتمان.",

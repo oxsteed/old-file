@@ -22406,6 +22406,7 @@
         "grantCredit": "Conceder crédito",
         "refundCredit": "Reembolsar crédito",
         "approvedToast": "Crédito agregado para {{name}}.",
+        "defaultApprovalNote": "Pago verificado en la bandeja de crédito del restaurante.",
         "approveError": "No se pudo aprobar esta solicitud de crédito.",
         "declineReasonRequired": "Agregue un motivo breve para que el cliente sepa qué corregir.",
         "declinedToast": "Solicitud de crédito rechazada.",

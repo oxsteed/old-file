@@ -22406,6 +22406,7 @@
         "grantCredit": "Bay kredi",
         "refundCredit": "Ranbouse kredi",
         "approvedToast": "Kredi ajoute pou {{name}}.",
+        "defaultApprovalNote": "Peman verifye nan bwat kredi restoran an.",
         "approveError": "Nou pa ka apwouve demann kredi sa a.",
         "declineReasonRequired": "Ajoute yon ti rezon pou kliyan an konnen sa pou l korije.",
         "declinedToast": "Demann kredi a refize.",

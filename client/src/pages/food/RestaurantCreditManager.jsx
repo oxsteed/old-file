@@ -89,7 +89,7 @@ export default function RestaurantCreditManager({ restaurant }) {
     setWorkingId(request.id);
     try {
       await approveMerchantFoodWalletCreditRequest(restaurant.id, request.id, {
-        approvalNote: 'Payment verified in the restaurant credit inbox.',
+        approvalNote: t('food.creditCenter.manager.defaultApprovalNote'),
       });
       toast.success(t('food.creditCenter.manager.approvedToast', { name: request.customerName || request.customerEmail || t('food.creditCenter.customerFallback') }));
       setConfirmingId(null);
