@@ -73,6 +73,11 @@ reject a menu item whose authoritative allergen list intersects the request.
 The selected exclusions are retained in the order pricing metadata so kitchen
 and support surfaces can see the customer's safety preference.
 
+Location creation and updates now append before/after snapshots to the existing
+manager-visible business activity log, including hours, tax policy, channel
+pacing caps, and prep extensions. This closes the location-policy audit write;
+full resource coverage and owner-facing review across every adapter remain open.
+
 ## Requirements matrix
 
 `Existing source` means an earlier branch change exists; it is not a fresh
@@ -99,7 +104,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-17 | This pass adds per-store availability, timed restock, audit, POS/kitchen grants | Full per-store inventory integration and all native/KDS UI adoption |
 | F-18 | Existing daily counters and routing/Stripe lock reduction | Concurrent 50-store load and lock-observation evidence |
 | F-19 | Migration 965 adds optional per-store tax/service rates, jurisdiction and inclusive pricing; quote/order snapshots use the selected store | Item-level categories, exemptions, provider integration, and populated-store tax acceptance |
-| F-20 | Existing menu/settings/tax audit emitters; required store-menu audit added | Audit coverage across every resource and owner-visible history acceptance |
+| F-20 | Existing menu/settings/tax audit emitters; store-menu and location-policy before/after audit writes are covered | Audit coverage across every resource and owner-visible history acceptance |
 | F-21 | Existing PIN sessions, switching, lockout and keyed lookup | Native/shared-device and multi-store identity acceptance |
 | F-22 | Existing time punches, wages, labor, tips and CSV foundation | Scheduling integration/rules, availability/swaps, break/overtime compliance and native timeclock |
 | F-23 | Existing inventory quantities/mappings/counts and location column | Store-isolated stock/transfer, unit/yield recipes, period COGS/variance, vendor catalogs and PO/invoice matching |

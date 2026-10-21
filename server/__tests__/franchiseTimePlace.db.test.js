@@ -57,6 +57,7 @@ suite('franchise time & place: restaurant timezone, fulfillment defaults, locati
   const stamp = Date.now();
   let userId;
   let restaurantId;
+  let businessId;
 
   const reqFor = (body = {}, params = {}) => ({
     user: { id: userId },
@@ -90,6 +91,7 @@ suite('franchise time & place: restaurant timezone, fulfillment defaults, locati
     expect(error).toBeNull();
     expect(res.statusCode).toBe(201);
     restaurantId = res.body.restaurant.id;
+    businessId = res.body.restaurant.business_id;
     expect(res.body.restaurant.timezone).toBe('America/New_York');
     expect(res.body.restaurant.fulfillment_modes).toEqual(['pickup', 'dine_in', 'kiosk']);
     const { rows: [biz] } = await db.query(
@@ -195,6 +197,15 @@ suite('franchise time & place: restaurant timezone, fulfillment defaults, locati
       expect(res.statusCode).toBe(201);
       primaryId = res.body.location.id;
       expect(res.body.location.latitude).toBeNull();
+      const { rows: auditRows } = await db.query(
+        `SELECT action, target_type, after_state
+           FROM business_audit_log
+          WHERE business_id = $1 AND action = 'restaurant.location.created'
+          ORDER BY id DESC LIMIT 1`,
+        [businessId]
+      );
+      expect(auditRows[0].target_type).toBe('restaurant_location');
+      expect(auditRows[0].after_state.name).toBe('Downtown');
       expect(res.body.location.longitude).toBeNull();
       expect(res.body.location.timezone).toBe('America/New_York');
       expect(res.body.location.is_primary).toBe(true);
@@ -246,6 +257,15 @@ suite('franchise time & place: restaurant timezone, fulfillment defaults, locati
       expect(res.body.location.status).toBe('paused');
       expect(res.body.location.phone).toBe('555-0100');
       expect(res.body.location.latitude).toBeNull();
+      const { rows: auditRows } = await db.query(
+        `SELECT before_state, after_state
+           FROM business_audit_log
+          WHERE business_id = $1 AND action = 'restaurant.location.updated'
+          ORDER BY id DESC LIMIT 1`,
+        [businessId]
+      );
+      expect(auditRows[0].before_state.status).toBe('active');
+      expect(auditRows[0].after_state.status).toBe('paused');
     });
 
     test('update can promote a location back to primary', async () => {

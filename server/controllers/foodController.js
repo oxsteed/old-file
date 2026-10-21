@@ -7868,6 +7868,24 @@ exports.createRestaurantLocation = async (req, res, next) => {
       );
       return created;
     }, 'food_create_location');
+    await auditFoodChange(req, restaurant, {
+      action: 'restaurant.location.created',
+      target_type: 'restaurant_location',
+      target_id: location.id,
+      after_state: {
+        name: location.name,
+        status: location.status,
+        timezone: location.timezone,
+        operating_hours: location.operating_hours || {},
+        tax_rate_bps: location.tax_rate_bps,
+        service_fee_bps: location.service_fee_bps,
+        tax_inclusive: location.tax_inclusive,
+        tax_jurisdiction: location.tax_jurisdiction,
+        online_order_pacing_max_per_15_min: location.online_order_pacing_max_per_15_min,
+        in_store_order_pacing_max_per_15_min: location.in_store_order_pacing_max_per_15_min,
+        prep_time_extension_min: location.prep_time_extension_min,
+      },
+    });
     res.status(201).json({ location: attachRestaurantHours(location) });
   } catch (err) {
     if (isMissingRelationError(err)) {
@@ -7902,7 +7920,7 @@ exports.updateRestaurantLocation = async (req, res, next) => {
     const hasInStorePacing = Object.hasOwn(req.body, 'inStoreOrderPacingMaxPer15Min') || Object.hasOwn(req.body, 'in_store_order_pacing_max_per_15_min');
     const hasPrepExtension = Object.hasOwn(req.body, 'prepTimeExtensionMin') || Object.hasOwn(req.body, 'prep_time_extension_min');
 
-    const location = await withTransaction(pool, async (client) => {
+    const result = await withTransaction(pool, async (client) => {
       const { rows: existing } = await client.query(
         `SELECT * FROM restaurant_locations WHERE id = $1 AND restaurant_id = $2`,
         [locationId, restaurantId]
@@ -7973,9 +7991,40 @@ exports.updateRestaurantLocation = async (req, res, next) => {
           restaurantId,
         ]
       );
-      return updated;
+      return { updated, before: existing[0] };
     }, 'food_update_location');
-    res.json({ location: attachRestaurantHours(location) });
+    await auditFoodChange(req, restaurant, {
+      action: 'restaurant.location.updated',
+      target_type: 'restaurant_location',
+      target_id: result.updated.id,
+      before_state: {
+        name: result.before.name,
+        status: result.before.status,
+        timezone: result.before.timezone,
+        operating_hours: result.before.operating_hours || {},
+        tax_rate_bps: result.before.tax_rate_bps,
+        service_fee_bps: result.before.service_fee_bps,
+        tax_inclusive: result.before.tax_inclusive,
+        tax_jurisdiction: result.before.tax_jurisdiction,
+        online_order_pacing_max_per_15_min: result.before.online_order_pacing_max_per_15_min,
+        in_store_order_pacing_max_per_15_min: result.before.in_store_order_pacing_max_per_15_min,
+        prep_time_extension_min: result.before.prep_time_extension_min,
+      },
+      after_state: {
+        name: result.updated.name,
+        status: result.updated.status,
+        timezone: result.updated.timezone,
+        operating_hours: result.updated.operating_hours || {},
+        tax_rate_bps: result.updated.tax_rate_bps,
+        service_fee_bps: result.updated.service_fee_bps,
+        tax_inclusive: result.updated.tax_inclusive,
+        tax_jurisdiction: result.updated.tax_jurisdiction,
+        online_order_pacing_max_per_15_min: result.updated.online_order_pacing_max_per_15_min,
+        in_store_order_pacing_max_per_15_min: result.updated.in_store_order_pacing_max_per_15_min,
+        prep_time_extension_min: result.updated.prep_time_extension_min,
+      },
+    });
+    res.json({ location: attachRestaurantHours(result.updated) });
   } catch (err) {
     if (isMissingRelationError(err)) {
       return next(new AppError('Locations are not available yet', 503, 'locations_unavailable'));
