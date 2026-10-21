@@ -11,11 +11,33 @@ describe('restaurant HQ rollup service', () => {
 
   test('shapes store comparisons without customer identity', () => {
     expect(service.storeShape({ id: 4, display_name: 'Downtown', address_city: 'Boston', address_state: 'MA', timezone: 'America/New_York', status: 'active' }, [{ currency_code: 'USD', order_count: '3', net_collected_cents: '4200' }], { latestAuditScorePercent: '92.5', openFindings: '1' })).toEqual({
-      id: 4, name: 'Downtown', city: 'Boston', state: 'MA', timezone: 'America/New_York', status: 'active',
+      id: 4, name: 'Downtown', regionId: null, regionName: null, city: 'Boston', state: 'MA', timezone: 'America/New_York', status: 'active',
       sales: [{ currencyCode: 'USD', orderCount: 3, netCollectedCents: 4200 }],
       health: { latestAuditScorePercent: 92.5, openFindings: 1 },
       compliance: { checklistCompletionPercent: null, checklistRuns: 0, trainingCompletionPercent: null, trainingAssignments: 0, overdueTraining: 0 },
     });
+  });
+
+  test('validates region identifiers and preserves the root region contract', () => {
+    expect(service.normalizeRegionCode('North-East_1')).toBe('north-east_1');
+    expect(service.normalizeRegionName('North East')).toBe('North East');
+    expect(() => service.normalizeRegionCode('x')).toThrow();
+    expect(() => service.normalizeRegionName('')).toThrow();
+  });
+
+  test('creates a tenant-bound child region and validates its parent', async () => {
+    const client = { query: jest.fn()
+      .mockResolvedValueOnce({ rows: [{ id: 8 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 12, restaurant_id: 9, parent_region_id: 8, code: 'north', name: 'North' }] }) };
+    await expect(service.createRegion(client, {
+      restaurantId: 9,
+      code: 'North',
+      name: 'North',
+      parentRegionId: 8,
+      actorUserId: 'user-1',
+    })).resolves.toMatchObject({ id: 12, parent_region_id: 8 });
+    expect(client.query.mock.calls[0][1]).toEqual([9, 8]);
+    expect(client.query.mock.calls[1][1]).toEqual([9, 8, 'north', 'North', 'user-1']);
   });
 
   test('rollup query is explicitly constrained to the business and accessible stores', async () => {

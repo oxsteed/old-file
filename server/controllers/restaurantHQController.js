@@ -16,6 +16,92 @@ function dateRange(req) {
   return { from: from.toISOString(), to: to.toISOString() };
 }
 
+async function loadHQRestaurant(req, permission) {
+  const restaurantId = Number.parseInt(req.params.restaurantId, 10);
+  if (!Number.isSafeInteger(restaurantId) || restaurantId <= 0) {
+    throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+  }
+  const restaurant = await resolveRestaurantAccess(req.user.id, restaurantId);
+  if (!(await permissions.hasRestaurantPermission(restaurant, req.user.id, [permission]))) {
+    throw new AppError('You do not have permission to manage the HQ hierarchy', 403, 'forbidden');
+  }
+  return restaurant;
+}
+
+exports.listRegions = async (req, res, next) => {
+  try {
+    const restaurant = await loadHQRestaurant(req, 'settings.view');
+    const regions = await hq.listRegions(pool, restaurant.id);
+    res.json({ regions });
+  } catch (error) { next(error); }
+};
+
+exports.createRegion = async (req, res, next) => {
+  try {
+    const restaurant = await loadHQRestaurant(req, 'settings.manage');
+    const parentRegionId = req.body?.parentRegionId ?? req.body?.parent_region_id ?? null;
+    const region = await withTransaction(pool, async (client) => {
+      const created = await hq.createRegion(client, {
+        restaurantId: restaurant.id,
+        code: req.body?.code,
+        name: req.body?.name,
+        parentRegionId: parentRegionId == null || parentRegionId === '' ? null : Number(parentRegionId),
+        actorUserId: req.user.id,
+      });
+      await logBusinessAction(req, {
+        business_id: restaurant.business_id,
+        actor_role: restaurant.effective_role,
+        action: 'restaurant.hq_region.created',
+        target_type: 'restaurant_region',
+        target_id: created.id,
+        after_state: created,
+        client,
+        throwOnError: true,
+      });
+      return created;
+    }, 'restaurant_hq_region_create');
+    res.status(201).json({ region });
+  } catch (error) { next(error); }
+};
+
+exports.updateRegion = async (req, res, next) => {
+  try {
+    const restaurant = await loadHQRestaurant(req, 'settings.manage');
+    const regionId = Number.parseInt(req.params.regionId, 10);
+    const patch = {};
+    for (const key of ['code', 'name', 'status']) {
+      if (Object.prototype.hasOwnProperty.call(req.body || {}, key)) patch[key] = req.body[key];
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'parentRegionId')
+      || Object.prototype.hasOwnProperty.call(req.body || {}, 'parent_region_id')) {
+      const value = req.body.parentRegionId ?? req.body.parent_region_id;
+      patch.parentRegionId = value == null || value === '' ? null : Number(value);
+    }
+    if (!Object.keys(patch).length) throw new AppError('No region fields provided', 400, 'validation_failed');
+    const result = await withTransaction(pool, async (client) => {
+      const updated = await hq.updateRegion(client, {
+        restaurantId: restaurant.id,
+        regionId,
+        patch,
+        actorUserId: req.user.id,
+      });
+      await logBusinessAction(req, {
+        business_id: restaurant.business_id,
+        actor_role: restaurant.effective_role,
+        action: 'restaurant.hq_region.updated',
+        target_type: 'restaurant_region',
+        target_id: regionId,
+        before_state: updated.before,
+        after_state: updated.after,
+        client,
+        throwOnError: true,
+      });
+      return updated;
+    }, 'restaurant_hq_region_update');
+    res.json({ region: result.after });
+  } catch (error) { next(error); }
+};
+
 exports.rollup = async (req, res, next) => {
   try {
     const anchorId = Number.parseInt(req.params.restaurantId, 10);
@@ -26,13 +112,16 @@ exports.rollup = async (req, res, next) => {
     }
     const locationScope = await getLocationScope(anchor, req.user.id);
     const locationParams = [anchor.id];
-    const locationFilter = locationScope.mode === 'assigned' ? ' AND id = ANY($2::bigint[])' : '';
+    const locationFilter = locationScope.mode === 'assigned' ? ' AND l.id = ANY($2::bigint[])' : '';
     if (locationScope.mode === 'assigned') locationParams.push(locationScope.location_ids);
     const { rows: accessible } = await pool.query(
-      `SELECT id, name AS display_name, address_city, address_state, timezone, status
-         FROM restaurant_locations
-        WHERE restaurant_id = $1${locationFilter}
-        ORDER BY is_primary DESC, id`,
+      `SELECT l.id, l.name AS display_name, l.address_city, l.address_state,
+              l.timezone, l.status, l.region_id, rr.name AS region_name
+         FROM restaurant_locations l
+         LEFT JOIN restaurant_regions rr
+           ON rr.restaurant_id = l.restaurant_id AND rr.id = l.region_id
+        WHERE l.restaurant_id = $1${locationFilter}
+        ORDER BY l.is_primary DESC, l.id`,
       locationParams
     );
     const ids = accessible.map((row) => Number(row.id));

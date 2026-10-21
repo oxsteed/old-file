@@ -982,6 +982,12 @@ async function assertRestaurantPermission(restaurant, userId, allowedPermissions
 function normalizeLocationPatch(value) {
   const source = safeJson(value, null);
   if (!source) return null;
+  const regionValue = source.regionId ?? source.region_id;
+  const hasRegion = source.regionId !== undefined || source.region_id !== undefined;
+  const regionId = hasRegion && regionValue !== null && regionValue !== '' ? parsePositiveInt(regionValue) : null;
+  if (hasRegion && regionValue !== null && regionValue !== '' && !regionId) {
+    throw new AppError('Validation failed', 400, 'validation_failed', { regionId: 'A valid region is required' });
+  }
   return {
     id: parsePositiveInt(source.id),
     name: normalizeString(source.name, 160),
@@ -993,6 +999,7 @@ function normalizeLocationPatch(value) {
     latitude: source.latitude === undefined || source.latitude === null || source.latitude === '' ? null : parseFiniteNumber(source.latitude, 'latitude'),
     longitude: source.longitude === undefined || source.longitude === null || source.longitude === '' ? null : parseFiniteNumber(source.longitude, 'longitude'),
     timezone: normalizeString(source.timezone, 80),
+    regionId,
     phone: normalizeString(source.phone, 40),
     status: normalizeString(source.status, 24),
     operatingHours: safeJson(source.operatingHours ?? source.operating_hours, null),
@@ -2113,6 +2120,15 @@ exports.updatePublishing = async (req, res, next) => {
             [restaurantId]
           );
         }
+        let locationRegion = null;
+        if (locationPatch.regionId != null) {
+          const result = await client.query(
+            `SELECT id FROM restaurant_regions WHERE restaurant_id = $1 AND id = $2 LIMIT 1`,
+            [restaurantId, locationPatch.regionId]
+          );
+          locationRegion = result.rows[0] || null;
+          if (!locationRegion) throw new AppError('Region not found', 404, 'region_not_found');
+        }
         const locationValues = [
           restaurantId,
           locationPatch.name || updated.display_name || 'Primary location',
@@ -2128,6 +2144,7 @@ exports.updatePublishing = async (req, res, next) => {
           locationPatch.isPrimary !== false,
           locationPatch.status,
           locationPatch.operatingHours ? JSON.stringify(locationPatch.operatingHours) : JSON.stringify(operatingHours || {}),
+          locationRegion?.id ?? null,
         ];
         if (locationPatch.id) {
           const { rows: [location] } = await client.query(
@@ -2145,8 +2162,9 @@ exports.updatePublishing = async (req, res, next) => {
                     is_primary = COALESCE($12, is_primary),
                     status = COALESCE($13, status),
                     operating_hours = CASE WHEN $14::jsonb = '{}'::jsonb THEN operating_hours ELSE $14::jsonb END,
+                    region_id = COALESCE($15, region_id),
                     updated_at = NOW()
-              WHERE restaurant_id = $1 AND id = $15
+              WHERE restaurant_id = $1 AND id = $16
               RETURNING *`,
             [...locationValues, locationPatch.id]
           );
@@ -2169,8 +2187,9 @@ exports.updatePublishing = async (req, res, next) => {
                       is_primary = COALESCE($12, is_primary),
                       status = COALESCE($13, status),
                       operating_hours = CASE WHEN $14::jsonb = '{}'::jsonb THEN operating_hours ELSE $14::jsonb END,
+                      region_id = COALESCE($15, region_id),
                       updated_at = NOW()
-                WHERE restaurant_id = $1 AND id = $15
+                WHERE restaurant_id = $1 AND id = $16
                 RETURNING *`,
               [...locationValues, existingPrimary.id]
             );
@@ -2179,8 +2198,8 @@ exports.updatePublishing = async (req, res, next) => {
             const { rows: [location] } = await client.query(
               `INSERT INTO restaurant_locations
                  (restaurant_id, name, address_street, address_city, address_state, address_zip,
-                  address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours)
-               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,COALESCE($13,'active'),$14)
+                 address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours, region_id)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,COALESCE($13,'active'),$14,$15)
                RETURNING *`,
               locationValues
             );
@@ -2419,6 +2438,15 @@ exports.createRestaurantLocation = async (req, res, next) => {
         : isPrimaryProvided
           ? location.isPrimary === true
           : false;
+      const { rows: [region] } = await client.query(
+        `SELECT id
+           FROM restaurant_regions
+          WHERE restaurant_id = $1
+            AND id = COALESCE($2, (SELECT id FROM restaurant_regions WHERE restaurant_id = $1 AND LOWER(code) = 'all-stores' LIMIT 1))
+          LIMIT 1`,
+        [restaurantId, location.regionId ?? null]
+      );
+      if (!region) throw new AppError('Region not found', 404, 'region_not_found');
       if (isPrimary) {
         await client.query(
           `UPDATE restaurant_locations SET is_primary = FALSE, updated_at = NOW() WHERE restaurant_id = $1`,
@@ -2428,8 +2456,8 @@ exports.createRestaurantLocation = async (req, res, next) => {
       const { rows: [created] } = await client.query(
         `INSERT INTO restaurant_locations
            (restaurant_id, name, address_street, address_city, address_state, address_zip,
-            address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+            address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours, region_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
          RETURNING *`,
         [
           restaurantId,
@@ -2446,6 +2474,7 @@ exports.createRestaurantLocation = async (req, res, next) => {
           isPrimary,
           location.status || 'active',
           JSON.stringify(location.operatingHours || {}),
+          region.id,
         ]
       );
       const { rows: locations } = await client.query(
@@ -2524,6 +2553,13 @@ exports.updateRestaurantLocation = async (req, res, next) => {
       if (!hours) throw new AppError('Validation failed', 400, 'validation_failed', { operatingHours: 'Must be an object' });
       add('operating_hours', JSON.stringify(hours));
     }
+    if (Object.prototype.hasOwnProperty.call(req.body, 'regionId')
+      || Object.prototype.hasOwnProperty.call(req.body, 'region_id')) {
+      if (!normalized.regionId) {
+        throw new AppError('Validation failed', 400, 'validation_failed', { regionId: 'A valid region is required' });
+      }
+      add('region_id', normalized.regionId);
+    }
     const hasPrimary = Object.prototype.hasOwnProperty.call(req.body, 'isPrimary')
       || Object.prototype.hasOwnProperty.call(req.body, 'is_primary');
     const isPrimary = hasPrimary
@@ -2539,6 +2575,14 @@ exports.updateRestaurantLocation = async (req, res, next) => {
         [restaurantId, locationId]
       );
       if (!existing) throw new AppError('Location not found', 404, 'location_not_found');
+      if (Object.prototype.hasOwnProperty.call(req.body, 'regionId')
+        || Object.prototype.hasOwnProperty.call(req.body, 'region_id')) {
+        const { rows: [region] } = await client.query(
+          `SELECT id FROM restaurant_regions WHERE restaurant_id = $1 AND id = $2`,
+          [restaurantId, normalized.regionId]
+        );
+        if (!region) throw new AppError('Region not found', 404, 'region_not_found');
+      }
       if (existing.is_primary && hasPrimary && isPrimary === false) {
         throw new AppError('Promote another location before demoting the primary location', 409, 'primary_location_required');
       }

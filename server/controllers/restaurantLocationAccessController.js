@@ -26,10 +26,13 @@ exports.list = async (req, res, next) => {
     await requirePermission(restaurant, req.user.id, 'settings.view');
     const [{ rows: locations }, { rows: members }, { rows: assignments }] = await Promise.all([
       pool.query(
-        `SELECT id, name, status, is_primary, timezone
-           FROM restaurant_locations
-          WHERE restaurant_id = $1
-          ORDER BY is_primary DESC, name ASC, id ASC`,
+        `SELECT l.id, l.name, l.status, l.is_primary, l.timezone,
+                l.region_id, rr.name AS region_name
+           FROM restaurant_locations l
+           LEFT JOIN restaurant_regions rr
+             ON rr.restaurant_id = l.restaurant_id AND rr.id = l.region_id
+          WHERE l.restaurant_id = $1
+          ORDER BY l.is_primary DESC, l.name ASC, l.id ASC`,
         [restaurant.id]
       ),
       pool.query(

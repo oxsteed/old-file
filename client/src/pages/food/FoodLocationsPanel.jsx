@@ -1,7 +1,7 @@
 // Multi-location management panel for merchant settings (D1, F-29).
 import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { createFoodLocation, listFoodLocations, updateFoodLocation } from '../../api/food';
+import { createFoodLocation, listFoodLocations, listRestaurantHQRegions, updateFoodLocation } from '../../api/food';
 import { suggestLocation } from '../../api/geo';
 import { apiErrorMessage } from './foodShared';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
@@ -81,10 +81,11 @@ function statusLabelKey(status) {
 
 export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
   const [locations, setLocations] = useState([]);
+  const [regions, setRegions] = useState([]);
   const blankForm = useCallback(() => ({
     name: '', addressCity: '', addressState: '', addressCountry: 'US', latitude: '', longitude: '',
     phone: '', timezone: restaurant.timezone || DETECTED_TIMEZONE, status: 'active', isPrimary: false,
-    taxRatePercent: '', serviceFeePercent: '', taxInclusive: false, taxJurisdiction: '',
+    taxRatePercent: '', serviceFeePercent: '', taxInclusive: false, taxJurisdiction: '', regionId: '',
     onlinePacingMax: '', inStorePacingMax: '', prepTimeExtensionMin: '0',
   }), [restaurant.timezone]);
   const [form, setForm] = useState(blankForm);
@@ -96,7 +97,12 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
   const [geocoding, setGeocoding] = useState(false);
 
   const load = useCallback(() => {
-    listFoodLocations(restaurant.id).then(setLocations).catch(() => setLocations([]));
+    Promise.all([
+      listFoodLocations(restaurant.id),
+      listRestaurantHQRegions(restaurant.id).catch(() => []),
+    ])
+      .then(([storeRows, regionRows]) => { setLocations(storeRows); setRegions(regionRows); })
+      .catch(() => { setLocations([]); setRegions([]); });
   }, [restaurant.id]);
 
   useEffect(() => { load(); }, [load]);
@@ -126,6 +132,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
       serviceFeePercent: loc.service_fee_bps == null ? '' : String(Number(loc.service_fee_bps) / 100),
       taxInclusive: !!loc.tax_inclusive,
       taxJurisdiction: loc.tax_jurisdiction || '',
+      regionId: loc.region_id == null ? '' : String(loc.region_id),
       onlinePacingMax: loc.online_order_pacing_max_per_15_min == null ? '' : String(loc.online_order_pacing_max_per_15_min),
       inStorePacingMax: loc.in_store_order_pacing_max_per_15_min == null ? '' : String(loc.in_store_order_pacing_max_per_15_min),
       prepTimeExtensionMin: loc.prep_time_extension_min == null ? '0' : String(loc.prep_time_extension_min),
@@ -248,6 +255,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
         serviceFeeBps: form.serviceFeePercent === '' ? null : Math.round(Number(form.serviceFeePercent) * 100),
         taxInclusive: form.taxInclusive,
         taxJurisdiction: form.taxJurisdiction.trim() || null,
+        regionId: form.regionId || null,
         onlineOrderPacingMaxPer15Min: form.onlinePacingMax === '' ? null : Number(form.onlinePacingMax),
         inStoreOrderPacingMaxPer15Min: form.inStorePacingMax === '' ? null : Number(form.inStorePacingMax),
         prepTimeExtensionMin: form.prepTimeExtensionMin === '' ? 0 : Number(form.prepTimeExtensionMin),
@@ -287,6 +295,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
                 {[loc.address_city, loc.address_state].filter(Boolean).join(', ')}
                 {' · '}{t(statusLabelKey(loc.status))}
                 {loc.timezone ? ` · ${loc.timezone}` : ''}
+                {loc.region_name ? ` · ${loc.region_name}` : ''}
               </span>
               <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => startEdit(loc)} data-track="ui.dbbd615872.4">
                 {t('food.merchant.locationEdit')}
@@ -338,6 +347,15 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
             <select id="fd-loc-status" value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
               {LOCATION_STATUSES.map((status) => (
                 <option key={status} value={status}>{t(statusLabelKey(status))}</option>
+              ))}
+            </select>
+          </div>
+          <div className="fd-field" style={{ flex: '1 1 180px' }}>
+            <label htmlFor="fd-loc-region">{t('restaurants.ops.hq.regionParent')}</label>
+            <select id="fd-loc-region" value={form.regionId} onChange={(e) => setForm((f) => ({ ...f, regionId: e.target.value }))}>
+              <option value="">{t('restaurants.ops.hq.regionRoot')}</option>
+              {regions.filter((region) => region.status === 'active').map((region) => (
+                <option key={region.id} value={region.id}>{region.name}</option>
               ))}
             </select>
           </div>

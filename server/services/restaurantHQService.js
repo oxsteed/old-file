@@ -20,10 +20,126 @@ function normalizePublishRequest({ sourceLocationId, targetLocationIds }) {
   return { sourceLocationId: source, targetLocationIds: targets };
 }
 
+function normalizeRegionCode(value) {
+  const code = String(value || '').trim().toLowerCase();
+  if (!/^[a-z0-9][a-z0-9_-]{1,47}$/.test(code)) {
+    throw new AppError('Region code must be 2-48 lowercase letters, numbers, hyphens, or underscores', 400, 'validation_failed');
+  }
+  return code;
+}
+
+function normalizeRegionName(value) {
+  const name = String(value || '').trim();
+  if (name.length < 2 || name.length > 160) {
+    throw new AppError('Region name must be between 2 and 160 characters', 400, 'validation_failed');
+  }
+  return name;
+}
+
+async function assertRegionParent(client, { restaurantId, regionId = null, parentRegionId = null }) {
+  if (parentRegionId == null) return;
+  if (regionId != null && Number(regionId) === Number(parentRegionId)) {
+    throw new AppError('A region cannot be its own parent', 400, 'region_cycle');
+  }
+  const { rows: [parent] } = await client.query(
+    `SELECT id FROM restaurant_regions
+      WHERE restaurant_id = $1 AND id = $2 AND status = 'active'`,
+    [restaurantId, parentRegionId]
+  );
+  if (!parent) throw new AppError('Parent region not found', 404, 'region_not_found');
+  if (regionId != null) {
+    const { rows: cycle } = await client.query(
+      `WITH RECURSIVE descendants AS (
+         SELECT id, parent_region_id
+           FROM restaurant_regions
+          WHERE restaurant_id = $1 AND id = $2
+         UNION ALL
+         SELECT child.id, child.parent_region_id
+           FROM restaurant_regions child
+           JOIN descendants parent ON parent.id = child.parent_region_id
+          WHERE child.restaurant_id = $1
+       )
+       SELECT 1 FROM descendants WHERE id = $3 LIMIT 1`,
+      [restaurantId, regionId, parentRegionId]
+    );
+    if (cycle.length) throw new AppError('A region cannot be moved beneath one of its descendants', 400, 'region_cycle');
+  }
+}
+
+async function listRegions(client, restaurantId) {
+  const { rows } = await client.query(
+    `WITH RECURSIVE tree AS (
+       SELECT rr.id, rr.restaurant_id, rr.parent_region_id, rr.code, rr.name,
+              rr.status, 0 AS depth, ARRAY[rr.id] AS path
+         FROM restaurant_regions rr
+        WHERE rr.restaurant_id = $1 AND rr.parent_region_id IS NULL
+       UNION ALL
+       SELECT child.id, child.restaurant_id, child.parent_region_id, child.code,
+              child.name, child.status, tree.depth + 1, tree.path || child.id
+         FROM restaurant_regions child
+         JOIN tree ON tree.id = child.parent_region_id
+        WHERE child.restaurant_id = $1
+     )
+     SELECT tree.*, COUNT(l.id)::int AS store_count
+       FROM tree
+       LEFT JOIN restaurant_locations l
+         ON l.restaurant_id = tree.restaurant_id AND l.region_id = tree.id
+      GROUP BY tree.id, tree.restaurant_id, tree.parent_region_id, tree.code,
+               tree.name, tree.status, tree.depth, tree.path
+      ORDER BY tree.path`,
+    [restaurantId]
+  );
+  return rows;
+}
+
+async function createRegion(client, { restaurantId, code, name, parentRegionId = null, actorUserId = null }) {
+  const normalizedCode = normalizeRegionCode(code);
+  const normalizedName = normalizeRegionName(name);
+  await assertRegionParent(client, { restaurantId, parentRegionId });
+  const { rows: [region] } = await client.query(
+    `INSERT INTO restaurant_regions
+       (restaurant_id, parent_region_id, code, name, created_by, updated_by)
+     VALUES ($1,$2,$3,$4,$5,$5)
+     RETURNING *`,
+    [restaurantId, parentRegionId == null ? null : Number(parentRegionId), normalizedCode, normalizedName, actorUserId]
+  );
+  return region;
+}
+
+async function updateRegion(client, { restaurantId, regionId, patch, actorUserId = null }) {
+  const id = Number(regionId);
+  if (!Number.isSafeInteger(id) || id <= 0) throw new AppError('A valid region is required', 400, 'invalid_region_id');
+  const { rows: [before] } = await client.query(
+    `SELECT * FROM restaurant_regions WHERE restaurant_id = $1 AND id = $2 FOR UPDATE`,
+    [restaurantId, id]
+  );
+  if (!before) throw new AppError('Region not found', 404, 'region_not_found');
+  const code = patch.code === undefined ? before.code : normalizeRegionCode(patch.code);
+  const name = patch.name === undefined ? before.name : normalizeRegionName(patch.name);
+  const parentRegionId = patch.parentRegionId === undefined ? before.parent_region_id : patch.parentRegionId;
+  const status = patch.status === undefined ? before.status : String(patch.status).trim().toLowerCase();
+  if (!['active', 'archived'].includes(status)) throw new AppError('Unsupported region status', 400, 'validation_failed');
+  if (String(before.code).toLowerCase() === 'all-stores' && (code !== before.code || parentRegionId != null || status === 'archived')) {
+    throw new AppError('The root region cannot be renamed, moved, or archived', 409, 'root_region_protected');
+  }
+  await assertRegionParent(client, { restaurantId, regionId: id, parentRegionId });
+  const { rows: [after] } = await client.query(
+    `UPDATE restaurant_regions
+        SET code = $3, name = $4, parent_region_id = $5, status = $6,
+            updated_by = $7, updated_at = NOW()
+      WHERE restaurant_id = $1 AND id = $2
+      RETURNING *`,
+    [restaurantId, id, code, name, parentRegionId == null ? null : Number(parentRegionId), status, actorUserId]
+  );
+  return { before, after };
+}
+
 function storeShape(row, sales = [], health = {}) {
   return {
     id: Number(row.id),
     name: row.display_name,
+    regionId: row.region_id == null ? null : Number(row.region_id),
+    regionName: row.region_name || null,
     city: row.address_city || null,
     state: row.address_state || null,
     timezone: row.timezone,
@@ -225,4 +341,15 @@ async function publishMenuOverrides(client, { restaurantId, sourceLocationId, ta
   };
 }
 
-module.exports = { storeShape, rollup, rollupLocations, normalizePublishRequest, publishMenuOverrides };
+module.exports = {
+  storeShape,
+  rollup,
+  rollupLocations,
+  normalizePublishRequest,
+  publishMenuOverrides,
+  listRegions,
+  createRegion,
+  updateRegion,
+  normalizeRegionCode,
+  normalizeRegionName,
+};

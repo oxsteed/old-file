@@ -208,6 +208,12 @@ export const getRestaurantHQRollup = (restaurantId, params = {}) =>
 
 export const publishRestaurantHQMenu = (restaurantId, payload) =>
   api.post(`/restaurants/${restaurantId}/hq/menu/publish`, payload).then((r) => r.data);
+export const listRestaurantHQRegions = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/hq/regions`).then((r) => r.data?.regions || []);
+export const createRestaurantHQRegion = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/hq/regions`, payload).then((r) => r.data?.region);
+export const updateRestaurantHQRegion = (restaurantId, regionId, payload) =>
+  api.patch(`/restaurants/${restaurantId}/hq/regions/${regionId}`, payload).then((r) => r.data?.region);
 
 // Restaurant host stand (floor-plan tables, reservations, and walk-in queue).
 export const listRestaurantTables = (restaurantId, params = {}) =>

@@ -1,7 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Building2, CheckCircle2, RefreshCw, Send } from 'lucide-react';
-import { getRestaurantHQRollup, listFoodLocations, publishRestaurantHQMenu } from '../../api/food';
+import {
+  createRestaurantHQRegion,
+  getRestaurantHQRollup,
+  listFoodLocations,
+  listRestaurantHQRegions,
+  publishRestaurantHQMenu,
+} from '../../api/food';
 import { apiErrorMessage } from './foodShared';
 
 function isoDate(daysFromToday = 0) {
@@ -17,6 +23,10 @@ function percent(value) {
 export default function RestaurantHQPanel({ t, restaurant, bare = false }) {
   const [locations, setLocations] = useState([]);
   const [rollup, setRollup] = useState(null);
+  const [regions, setRegions] = useState([]);
+  const [regionCode, setRegionCode] = useState('');
+  const [regionName, setRegionName] = useState('');
+  const [regionParentId, setRegionParentId] = useState('');
   const [sourceId, setSourceId] = useState('');
   const [targetIds, setTargetIds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,9 +37,10 @@ export default function RestaurantHQPanel({ t, restaurant, bare = false }) {
     setLoading(true);
     setError('');
     try {
-      const [storeRows, report] = await Promise.all([
+      const [storeRows, report, regionRows] = await Promise.all([
         listFoodLocations(restaurant.id),
         getRestaurantHQRollup(restaurant.id, { from: isoDate(-30), to: isoDate(1) }),
+        listRestaurantHQRegions(restaurant.id).catch(() => []),
       ]);
       const stores = Array.isArray(storeRows) ? storeRows : [];
       setLocations(stores);
@@ -37,6 +48,7 @@ export default function RestaurantHQPanel({ t, restaurant, bare = false }) {
       setSourceId((current) => current || (primary ? String(primary.id) : ''));
       setTargetIds((current) => current.filter((id) => stores.some((store) => String(store.id) === String(id))));
       setRollup(report);
+      setRegions(Array.isArray(regionRows) ? regionRows : []);
     } catch (err) {
       setError(apiErrorMessage(err, t('restaurants.ops.hq.loadError')));
     } finally {
@@ -65,6 +77,25 @@ export default function RestaurantHQPanel({ t, restaurant, bare = false }) {
       toast.error(apiErrorMessage(err, t('restaurants.ops.hq.publishError')));
     } finally {
       setPublishing(false);
+    }
+  };
+
+  const createRegion = async (event) => {
+    event.preventDefault();
+    if (!regionCode.trim() || !regionName.trim()) return;
+    try {
+      await createRestaurantHQRegion(restaurant.id, {
+        code: regionCode.trim(),
+        name: regionName.trim(),
+        parentRegionId: regionParentId || null,
+      });
+      toast.success(t('restaurants.ops.hq.regionCreated'));
+      setRegionCode('');
+      setRegionName('');
+      setRegionParentId('');
+      await load();
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t('restaurants.ops.hq.regionCreateError')));
     }
   };
 
@@ -97,6 +128,25 @@ export default function RestaurantHQPanel({ t, restaurant, bare = false }) {
             <p className="fd-card-meta">{t('restaurants.ops.hq.checklists')}: {percent(store.compliance?.checklistCompletionPercent)} · {t('restaurants.ops.hq.training')}: {percent(store.compliance?.trainingCompletionPercent)}</p>
           </div>
         ))}
+      </div>
+
+      <div className="fd-settings-note" style={{ marginTop: '1rem' }}>
+        <h4 className="fd-settings-subhead fd-settings-subhead--flush"><Building2 size={15} /> {t('restaurants.ops.hq.regionsTitle')}</h4>
+        <p className="fd-card-meta">{t('restaurants.ops.hq.regionsHint')}</p>
+        <div className="fd-ops-checklists-grid">
+          {regions.map((region) => (
+            <div className="fd-ops-checklist-card" key={region.id}>
+              <div className="fd-ops-checklist-top"><strong>{region.name}</strong><span className="fd-tag">{region.code}</span></div>
+              <p className="fd-card-meta">{t('restaurants.ops.hq.regionStores', { count: region.store_count || 0 })}{region.parent_region_id ? ` · ${t('restaurants.ops.hq.regionChild')}` : ''}</p>
+            </div>
+          ))}
+        </div>
+        <form onSubmit={createRegion} className="fd-row" style={{ alignItems: 'end', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div className="fd-field"><label htmlFor="restaurant-hq-region-code">{t('restaurants.ops.hq.regionCode')}</label><input id="restaurant-hq-region-code" value={regionCode} onChange={(event) => setRegionCode(event.target.value)} maxLength={48} required /></div>
+          <div className="fd-field"><label htmlFor="restaurant-hq-region-name">{t('restaurants.ops.hq.regionName')}</label><input id="restaurant-hq-region-name" value={regionName} onChange={(event) => setRegionName(event.target.value)} maxLength={160} required /></div>
+          <div className="fd-field"><label htmlFor="restaurant-hq-region-parent">{t('restaurants.ops.hq.regionParent')}</label><select id="restaurant-hq-region-parent" value={regionParentId} onChange={(event) => setRegionParentId(event.target.value)}><option value="">{t('restaurants.ops.hq.regionRoot')}</option>{regions.filter((region) => region.status === 'active').map((region) => <option key={region.id} value={region.id}>{region.name}</option>)}</select></div>
+          <button type="submit" className="fd-btn fd-btn-sm"><Building2 size={14} /> {t('restaurants.ops.hq.regionCreate')}</button>
+        </form>
       </div>
 
       <div className="fd-settings-note" style={{ marginTop: '1rem' }}>

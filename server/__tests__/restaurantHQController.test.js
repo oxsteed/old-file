@@ -24,6 +24,9 @@ function app() {
   server.use(express.json());
   server.use((req, _res, next) => { req.user = { id: '00000000-0000-4000-8000-000000000123' }; next(); });
   server.post('/:restaurantId/hq/menu/publish', controller.publishMenuOverrides);
+  server.get('/:restaurantId/hq/regions', controller.listRegions);
+  server.post('/:restaurantId/hq/regions', controller.createRegion);
+  server.patch('/:restaurantId/hq/regions/:regionId', controller.updateRegion);
   server.use(errorHandler);
   return server;
 }
@@ -63,4 +66,28 @@ test('invalid source and target selections fail before opening a transaction', a
   expect(response.status).toBe(400);
   expect(response.body.code).toBe('validation_failed');
   expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('lists the tenant region tree for HQ users', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [
+    { id: 1, restaurant_id: 3, parent_region_id: null, code: 'all-stores', name: 'All stores', status: 'active', depth: 0, path: [1], store_count: 2 },
+  ] });
+  const response = await request(app()).get('/3/hq/regions');
+  expect(response.status).toBe(200);
+  expect(response.body.regions[0]).toMatchObject({ code: 'all-stores', store_count: 2 });
+});
+
+test('creates and audits a child HQ region', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: 8 }] })
+    .mockResolvedValueOnce({ rows: [{ id: 12, restaurant_id: 3, parent_region_id: 8, code: 'north', name: 'North', status: 'active' }] });
+  const response = await request(app()).post('/3/hq/regions').send({ code: 'North', name: 'North', parentRegionId: 8 });
+  expect(response.status).toBe(201);
+  expect(response.body.region).toMatchObject({ code: 'north', parent_region_id: 8 });
+  expect(logBusinessAction).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+    action: 'restaurant.hq_region.created',
+    target_type: 'restaurant_region',
+    target_id: 12,
+    throwOnError: true,
+  }));
 });

@@ -7,7 +7,16 @@ franchise-grade or production-readiness declaration. Existing fixes are retained
 no production migrations, deployment, financial activation, or provider-account
 changes are authorized by this checkpoint.
 
-## Current pass: store menu, split-shift hours, and quantity-level POS splits
+## Current pass: store menu, split-shift hours, quantity-level POS splits, and HQ regions
+
+Migration 988 formalizes the existing restaurant record as the brand anchor and
+adds tenant-bound HQ regions beneath it. Every existing store is assigned to an
+`all-stores` root region; new stores default there, and owners can create nested
+regions, move stores between regions, and review store counts through the HQ
+console. Parent cycles and cross-brand region assignments fail closed, and
+region changes are audited. This closes the hierarchy portion of F-02 while
+leaving the remaining mandatory-record backfill and full data-boundary adoption
+as explicit follow-up work.
 
 Migration 963 adds tenant-constrained store menu overrides. Prices and temporary
 availability are separate fields; null inherits the brand menu. Store overrides
@@ -219,7 +228,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | ID | Current boundary | Remaining implementation / acceptance |
 | --- | --- | --- |
 | F-01 | Existing timezone capture, validation, business copy and backfill | Populated-store owner confirmation and onboarding/browser acceptance |
-| F-02 | Existing location columns/counters/hours; this pass adds store menu and customer selection; hosting records are location-scoped; migrations 968 and 976 add store-scoped staff assignments and receipt-printer settings, menu enforcement, store-filtered sales reports, assigned-store inventory reads/writes, and an audited HQ override-policy publish contract | Mandatory store IDs on every operational record, HQ/region hierarchy and full data-boundary adoption |
+| F-02 | Existing location columns/counters/hours; this pass adds store menu and customer selection; hosting records are location-scoped; migrations 968 and 976 add store-scoped staff assignments and receipt-printer settings, menu enforcement, store-filtered sales reports, assigned-store inventory reads/writes, and an audited HQ override-policy publish contract; migration 988 adds tenant-bound nested HQ regions and audited store assignment | Mandatory store IDs on every remaining operational record and full data-boundary adoption |
 | F-03 | Existing cashier own-drawer tender, Terminal intent gate, receipt-event gate, and permission resolver | Exercise custom grants/denials and approvals across every money surface |
 | F-04 | Existing stable order/payment retry IDs and pay-first hold; POS checkout state now survives reload for a bounded window and cash replay preserves the same identities | Lost-response/concurrent replay verification across every kitchen/display/runner fire path |
 | F-05 | Existing production server-dial prohibition and print queue; this pass adds paired kitchen-device queue endpoints, runtime contract, store-scoped receipt-printer settings/jobs, and the executable LAN bridge | Physical device/browser acceptance |
@@ -246,7 +255,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-26 | Three device systems remain; receipt-printer settings and queued jobs now carry the selected store | Canonical device identity and native print bridge, deprecated API adapters, resource-controller convergence |
 | F-27 | Existing display grants, 90-day expiry/rotation, revoke-by-unpair, and migration 975 store-bound pairing tokens with sibling-store kitchen-action rejection | Populated store-role and physical device acceptance |
 | F-28 | Existing transactional primary-location update and validation | Populated database concurrency acceptance |
-| F-29 | Existing edit/pause/close/timezone/hours/location UI plus store-role assignment panel | Full multi-range hours editor and populated store-role acceptance |
+| F-29 | Existing edit/pause/close/timezone/hours/location UI plus store-role assignment panel and region assignment | Full multi-range hours editor and populated store-role/region acceptance |
 | F-30 | Existing src tests and loader in CI | Retain browser/device regression coverage as surfaces converge |
 | F-31 | Existing ticket/payment/printing permission gates | Custom membership and deny-override acceptance on every adapter |
 | F-32 | Existing per-store per-day atomic counters | Concurrent multi-store rollover and peak-load acceptance |
@@ -287,6 +296,12 @@ HQ can also publish an approved source store's existing menu override policy to
 selected same-restaurant stores in one audited transaction. The operation is
 bounded to the caller's assigned stores and leaves the central menu and
 unrelated target overrides untouched.
+Migration 988 adds tenant-bound nested HQ regions beneath the restaurant brand
+anchor. Existing stores are placed in the `all-stores` root, new stores default
+there, and the merchant location editor and HQ panel can assign or create
+regions. Cross-brand assignment and parent cycles fail closed; region writes
+are audited. Remaining store-record backfill and populated multi-region
+acceptance are still open.
 
 Sales reports now expose `/reports/sales/accounting/quickbooks.csv` and
 `/reports/sales/accounting/xero.csv`. These are read-only, store-scoped import

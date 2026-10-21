@@ -7887,6 +7887,10 @@ exports.listRestaurantLocations = async (req, res, next) => {
                 operating_hours, tax_rate_bps, service_fee_bps, tax_inclusive,
                 tax_jurisdiction, online_order_pacing_max_per_15_min,
                 in_store_order_pacing_max_per_15_min, prep_time_extension_min,
+                region_id,
+                (SELECT rr.name FROM restaurant_regions rr
+                  WHERE rr.restaurant_id = restaurant_locations.restaurant_id
+                    AND rr.id = restaurant_locations.region_id) AS region_name,
                 created_at, updated_at
            FROM restaurant_locations
           WHERE restaurant_id = $1 ${isMerchant ? '' : "AND status = 'active'"}
@@ -7921,6 +7925,13 @@ exports.createRestaurantLocation = async (req, res, next) => {
       });
     }
     const timezone = normalizeIanaTimezone(req.body.timezone) || 'UTC';
+    const requestedRegionId = req.body.regionId ?? req.body.region_id;
+    const regionId = requestedRegionId === undefined || requestedRegionId === null || requestedRegionId === ''
+      ? null
+      : parsePositiveInt(requestedRegionId);
+    if (requestedRegionId !== undefined && requestedRegionId !== null && requestedRegionId !== '' && !regionId) {
+      throw new AppError('A valid region is required', 400, 'invalid_region_id');
+    }
     const isPrimary = req.body.isPrimary === true || req.body.is_primary === true;
     // F-28: the primary flip and the insert are one transaction, so a failed
     // insert can no longer leave the restaurant with no primary location.
@@ -7931,14 +7942,21 @@ exports.createRestaurantLocation = async (req, res, next) => {
           [restaurantId]
         );
       }
+      if (regionId) {
+        const { rows: [region] } = await client.query(
+          `SELECT id FROM restaurant_regions WHERE restaurant_id = $1 AND id = $2`,
+          [restaurantId, regionId]
+        );
+        if (!region) throw new AppError('Region not found', 404, 'region_not_found');
+      }
       const { rows: [created] } = await client.query(
         `INSERT INTO restaurant_locations
            (restaurant_id, name, address_street, address_city, address_state, address_zip,
             address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours,
             tax_rate_bps, service_fee_bps, tax_inclusive, tax_jurisdiction,
             online_order_pacing_max_per_15_min, in_store_order_pacing_max_per_15_min,
-            prep_time_extension_min)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+            prep_time_extension_min, region_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
          RETURNING *`,
         [
           restaurantId,
@@ -7962,6 +7980,7 @@ exports.createRestaurantLocation = async (req, res, next) => {
           normalizeLocationInteger(req.body.onlineOrderPacingMaxPer15Min ?? req.body.online_order_pacing_max_per_15_min, 'onlineOrderPacingMaxPer15Min'),
           normalizeLocationInteger(req.body.inStoreOrderPacingMaxPer15Min ?? req.body.in_store_order_pacing_max_per_15_min, 'inStoreOrderPacingMaxPer15Min'),
           normalizeLocationInteger(req.body.prepTimeExtensionMin ?? req.body.prep_time_extension_min, 'prepTimeExtensionMin', { nullable: false, max: 240 }),
+          regionId,
         ]
       );
       return created;
@@ -7982,6 +8001,7 @@ exports.createRestaurantLocation = async (req, res, next) => {
         online_order_pacing_max_per_15_min: location.online_order_pacing_max_per_15_min,
         in_store_order_pacing_max_per_15_min: location.in_store_order_pacing_max_per_15_min,
         prep_time_extension_min: location.prep_time_extension_min,
+        region_id: location.region_id,
       },
     });
     res.status(201).json({ location: attachRestaurantHours(location) });
@@ -8017,6 +8037,12 @@ exports.updateRestaurantLocation = async (req, res, next) => {
     const hasOnlinePacing = Object.hasOwn(req.body, 'onlineOrderPacingMaxPer15Min') || Object.hasOwn(req.body, 'online_order_pacing_max_per_15_min');
     const hasInStorePacing = Object.hasOwn(req.body, 'inStoreOrderPacingMaxPer15Min') || Object.hasOwn(req.body, 'in_store_order_pacing_max_per_15_min');
     const hasPrepExtension = Object.hasOwn(req.body, 'prepTimeExtensionMin') || Object.hasOwn(req.body, 'prep_time_extension_min');
+    const hasRegion = Object.hasOwn(req.body, 'regionId') || Object.hasOwn(req.body, 'region_id');
+    const regionValue = req.body.regionId ?? req.body.region_id;
+    const regionId = hasRegion && regionValue !== null && regionValue !== '' ? parsePositiveInt(regionValue) : null;
+    if (hasRegion && regionValue !== null && regionValue !== '' && !regionId) {
+      throw new AppError('A valid region is required', 400, 'invalid_region_id');
+    }
 
     const result = await withTransaction(pool, async (client) => {
       const { rows: existing } = await client.query(
@@ -8024,6 +8050,14 @@ exports.updateRestaurantLocation = async (req, res, next) => {
         [locationId, restaurantId]
       );
       if (!existing[0]) throw new AppError('Location not found', 404, 'location_not_found');
+
+      if (hasRegion && regionId !== null) {
+        const { rows: [region] } = await client.query(
+          `SELECT id FROM restaurant_regions WHERE restaurant_id = $1 AND id = $2`,
+          [restaurantId, regionId]
+        );
+        if (!region) throw new AppError('Region not found', 404, 'region_not_found');
+      }
 
       if (makePrimary) {
         await client.query(
@@ -8054,8 +8088,9 @@ exports.updateRestaurantLocation = async (req, res, next) => {
                 online_order_pacing_max_per_15_min = CASE WHEN $22 THEN $23 ELSE online_order_pacing_max_per_15_min END,
                 in_store_order_pacing_max_per_15_min = CASE WHEN $24 THEN $25 ELSE in_store_order_pacing_max_per_15_min END,
                 prep_time_extension_min = CASE WHEN $26 THEN $27 ELSE prep_time_extension_min END,
+                region_id = CASE WHEN $28 THEN $29 ELSE region_id END,
                 updated_at = NOW()
-          WHERE id = $28 AND restaurant_id = $29
+          WHERE id = $30 AND restaurant_id = $31
           RETURNING *`,
         [
           normalizeString(req.body.name, 160),
@@ -8085,6 +8120,8 @@ exports.updateRestaurantLocation = async (req, res, next) => {
           normalizeLocationInteger(req.body.inStoreOrderPacingMaxPer15Min ?? req.body.in_store_order_pacing_max_per_15_min, 'inStoreOrderPacingMaxPer15Min'),
           hasPrepExtension,
           normalizeLocationInteger(req.body.prepTimeExtensionMin ?? req.body.prep_time_extension_min, 'prepTimeExtensionMin', { nullable: false, max: 240 }),
+          hasRegion,
+          regionId,
           locationId,
           restaurantId,
         ]
@@ -8107,6 +8144,7 @@ exports.updateRestaurantLocation = async (req, res, next) => {
         online_order_pacing_max_per_15_min: result.before.online_order_pacing_max_per_15_min,
         in_store_order_pacing_max_per_15_min: result.before.in_store_order_pacing_max_per_15_min,
         prep_time_extension_min: result.before.prep_time_extension_min,
+        region_id: result.before.region_id,
       },
       after_state: {
         name: result.updated.name,
@@ -8120,6 +8158,7 @@ exports.updateRestaurantLocation = async (req, res, next) => {
         online_order_pacing_max_per_15_min: result.updated.online_order_pacing_max_per_15_min,
         in_store_order_pacing_max_per_15_min: result.updated.in_store_order_pacing_max_per_15_min,
         prep_time_extension_min: result.updated.prep_time_extension_min,
+        region_id: result.updated.region_id,
       },
     });
     res.json({ location: attachRestaurantHours(result.updated) });
