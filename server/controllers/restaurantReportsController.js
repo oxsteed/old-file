@@ -987,7 +987,7 @@ exports.salesBiExportNdjson = async (req, res, next) => {
   }
 };
 
-exports._accountingTest = { accountingLines, buildAccountingCsv, ACCOUNTING_ACCOUNT_CODES };
+exports._accountingTest = { accountingLines, buildAccountingCsv, ACCOUNTING_ACCOUNT_CODES, loadSalesJournalRows };
 
 // ── Inventory ────────────────────────────────────────────────────────────────
 exports.inventorySummary = async (req, res, next) => {

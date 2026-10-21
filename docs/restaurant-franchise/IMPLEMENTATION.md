@@ -205,7 +205,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-04 | Existing stable order/payment retry IDs and pay-first hold; POS checkout state now survives reload for a bounded window and cash replay preserves the same identities | Lost-response/concurrent replay verification across every kitchen/display/runner fire path |
 | F-05 | Existing production server-dial prohibition and print queue; this pass adds paired kitchen-device queue endpoints, runtime contract, and store-scoped receipt-printer settings/jobs | Native LAN print bridge and physical device/browser acceptance |
 | F-06 | Existing Connect-bound Terminal flow, token permission gate, and card-intent reservation gate | Provider sandbox/readers and reconciliation acceptance |
-| F-07 | Existing local-day net-collected reports, currencies, summary CSV and tender-level journal CSV; this pass adds per-store/currency daily close, multi-day location comparison JSON/CSV/XLSX, theoretical/actual/variance food-cost percentages, labor percentage output against paid sales, and QuickBooks/Xero import-ready journal contracts with stable account codes | Authenticated provider API posting, account mapping confirmation, and populated external-ledger reconciliation |
+| F-07 | Existing local-day net-collected reports, currencies, summary CSV and tender-level journal CSV; this pass adds per-store/currency daily close, multi-day location comparison JSON/CSV/XLSX, theoretical/actual/variance food-cost percentages, labor percentage output against paid sales, QuickBooks/Xero import-ready journal contracts with stable account codes, and migration 985's dynamic-reference integration plus idempotent currency-scoped journal outbox | Authenticated provider API posting, account mapping confirmation, and populated external-ledger reconciliation |
 | F-08 | Existing offline drafts and failure reporting; web POS adds cash-only browser outbox replay with stable order/payment idempotency keys and sequential reconnect processing | In-store hub, Terminal store-and-forward/risk policy, and physical outage acceptance |
 | F-09 | The broken legacy food split route is removed; POS splitting uses the canonical transactional `splitPosOrder` path with whole-line, quantity-level, exact amount, and even-share selection, modifier/reservation cloning, course/seat preservation, payment, delivery, non-empty-ticket, store inheritance, and queue-counter guards | Maintain canonical split guards and populated-db acceptance |
 | F-10 | Existing overnight/split-shift/holiday/timezone evaluator; this pass adds a multi-range and dated special-hours location editor | Scheduling/device acceptance and populated-store special-date acceptance |
@@ -275,7 +275,11 @@ contracts derived from the journal export. They use stable account codes for
 sales, tax, service fees, delivery fees, tips, and payment clearing, preserve
 currency and location columns, and never call an external provider. Live OAuth,
 provider account mapping, posting, duplicate detection, and reconciliation
-remain release-gated work.
+remain release-gated work. Migration 985 adds provider configuration records
+for QuickBooks and Xero, stores only Secrets Manager dynamic references, and
+persists an idempotent journal-export outbox with explicit sending, posted,
+failed, and reconciliation-required states. The outbox is the handoff for a
+future provider worker; it never claims that an external ledger has posted.
 The same report surface exposes `/reports/sales/bi.ndjson`, a versioned row-level
 BI contract that excludes customer identity and preserves store, currency, and
 minor-unit values.
@@ -309,6 +313,8 @@ hardware decisions do not excuse independent software work on these flows.
 - `server`: `npx jest --runInBand __tests__/restaurantDeliveryMarketplaceService.test.js __tests__/routeScopeGuard.test.js` — **13 passed** across provider/secret-reference validation, menu filtering, disabled-provider rejection, and route scope registration.
 - `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **959/959 migrations passed** twice, including migration 984's marketplace integration and order queue.
 - `server`: `npx jest --runInBand __tests__/restaurantHQController.test.js __tests__/restaurantHQService.test.js __tests__/routeScopeGuard.test.js` — **18 passed** after making HQ rollups location-native and adding bounded menu-override publishing, its merchant console contract, and route registration.
+- `server`: `npx jest --runInBand __tests__/restaurantAccountingService.test.js __tests__/restaurantHQController.test.js __tests__/restaurantHQService.test.js __tests__/routeScopeGuard.test.js` — **23 passed** across accounting dynamic-reference validation, idempotent journal outbox states, location-native HQ rollups, bounded menu publishing, and route registration.
+- `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **960/960 migrations passed**, including migration 985's accounting integration and export outbox schema.
 - `client`: `npm run verify:i18n` — **passed** with the host-stand keys present in `en`, `es`, `fr`, `ht`, and `ar`.
 - `client`: `npm run build:ci` — **passed** after adding the localized HQ comparison and menu-policy publishing console; typecheck, production build, i18n, and emitted-asset verification completed with the repository's existing chunk advisories.
 - `client`: `npm run build` — **passed**; Vite emitted the merchant bundle with the host-stand panel. Existing large-chunk and dynamic-import advisories remain.
