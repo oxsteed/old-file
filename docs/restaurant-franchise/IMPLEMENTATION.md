@@ -46,10 +46,12 @@ source and child totals are recalculated after the move; duplicate selections,
 invalid quantities, payment activity, delivery tickets, and emptying the source
 ticket remain guarded. The legacy split endpoint is still absent.
 
-Migration 978 adds a bounded `course_number` to every order line, defaulting
-existing and unlabelled tickets to course 1. POS creation validates courses 1
-through 20, and POS/kitchen payloads expose the course so downstream screens can
-sequence service without trusting client totals.
+Migrations 978 and 979 add bounded `course_number` and optional `seat_number`
+fields to every order line, defaulting existing and unlabelled tickets to
+course 1 with no seat. POS creation validates courses 1 through 20 and seats 1
+through 99, and POS/kitchen/receipt payloads expose both fields so downstream
+screens can sequence service and support seat-level splits without trusting
+client totals.
 
 F-05 now exposes a paired-kitchen-device printer queue contract. A device token
 can list, claim and acknowledge only printer jobs assigned to that device's
@@ -201,7 +203,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-06 | Existing Connect-bound Terminal flow, token permission gate, and card-intent reservation gate | Provider sandbox/readers and reconciliation acceptance |
 | F-07 | Existing local-day net-collected reports, currencies, summary CSV and tender-level journal CSV; this pass adds per-store/currency daily close, multi-day location comparison JSON/CSV/XLSX, theoretical/actual/variance food-cost percentages, and labor percentage output against paid sales | Accounting-system adapters |
 | F-08 | Existing offline drafts and failure reporting; web POS adds cash-only browser outbox replay with stable order/payment idempotency keys and sequential reconnect processing | In-store hub, Terminal store-and-forward/risk policy, and physical outage acceptance |
-| F-09 | The broken legacy food split route is removed; POS splitting uses the canonical transactional `splitPosOrder` path with whole-line and quantity-level selection, modifier/reservation cloning, payment, delivery, non-empty-ticket, store inheritance, and queue-counter guards | Maintain canonical split guards and populated-db acceptance |
+| F-09 | The broken legacy food split route is removed; POS splitting uses the canonical transactional `splitPosOrder` path with whole-line and quantity-level selection, modifier/reservation cloning, course/seat preservation, payment, delivery, non-empty-ticket, store inheritance, and queue-counter guards | Maintain canonical split guards and populated-db acceptance |
 | F-10 | Existing overnight/split-shift/holiday/timezone evaluator; this pass adds a multi-range and dated special-hours location editor | Scheduling/device acceptance and populated-store special-date acceptance |
 | F-11 | Existing dayparts and scheduled fire filtering | Verify all scheduling paths and store-selected quote/submit invariants |
 | F-12 | Existing onboarding fulfillment defaults | End-to-end first-store POS acceptance |
@@ -229,7 +231,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 
 ## Additional named deliverables still in scope
 
-The review also requests further coursing and split-workflow coverage, brand loyalty/CRM, physical/e-gift
+The review also requests further split-workflow coverage, brand loyalty/CRM, physical/e-gift
 card products, delivery-marketplace menu/order adapters, QuickBooks/Xero and BI
 exports, allergen label printing, unified onboarding/hardware
 pairing, HQ compliance publishing/rollups and end-to-end store acceptance.
@@ -242,12 +244,12 @@ hardware decisions do not excuse independent software work on these flows.
 
 ## Verification
 
-- `server`: `npx jest --runInBand --testPathPatterns='restaurantStoreMenu|restaurantAppFlow|foodController|foodOrderValidation|routeScopeGuard'` — **135 passed** (including bounded course validation).
-- `server`: `npx jest --runInBand --testPathPatterns='restaurantAppFlow' __tests__/restaurantAppFlow.test.js` — **56 passed**. The suite covers quantity-level split reconciliation, bounded coursing, and the device printer queue check verifies token-authenticated kitchen access and location-scoped query parameters.
+- `server`: `npx jest --runInBand --testPathPatterns='restaurantStoreMenu|restaurantAppFlow|foodController|foodOrderValidation|routeScopeGuard'` — **136 passed** (including bounded course and seat validation).
+- `server`: `npx jest --runInBand --testPathPatterns='restaurantAppFlow' __tests__/restaurantAppFlow.test.js` — **57 passed**. The suite covers quantity-level split reconciliation, bounded coursing and seating, and the device printer queue check verifies token-authenticated kitchen access and location-scoped query parameters.
 - `client`: `npm run build:ci` — **passed** (typecheck, production build, i18n and emitted-asset verification).
 - `client`: `node --test scripts/restaurantRender.browser-check.cjs scripts/restaurantCheckoutCard.browser-check.cjs scripts/restaurantStoreMenu.browser-check.cjs` — **3 passed**. The new store-menu check covers save/reset payloads, English/French/Arabic labels, RTL direction, narrow widths, and form labels.
 - `client`: `node --test scripts/restaurantLocationHours.browser-check.cjs` — **1 passed**. The location-hours check loads a legacy multi-range day, preserves an all-day special closure, adds a dated one-off range, verifies the exact payload, and confirms the form resets.
-- `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **953/953 migrations passed twice**, including migration 978's coursing column and constraint.
+- `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **954/954 migrations passed twice**, including migrations 978-979's coursing and seat columns/constraints.
 - `server`: `npx jest --runInBand --testPathPatterns='restaurantHosting' __tests__/restaurantHosting.test.js` — **5 passed**. Covers location-scoped table conflict detection, reservation idempotency, final-window validation, waitlist SMS acknowledgement, and floor-plan position updates.
 - `server`: `npx jest --runInBand --testPathPatterns='restaurantReportsController' __tests__/restaurantReportsController.test.js` — **13 passed**. Covers per-store/currency daily close, multi-day location comparison in JSON, CSV, and XLSX, plus assigned-member filtering with a parameterized store predicate.
 - `server`: `npx jest --runInBand __tests__/restaurantLocationAccess.test.js __tests__/restaurantStoreMenu.test.js __tests__/routeScopeGuard.test.js` — **38 passed**. Covers tenant-checked assignment replacement/clear, sibling-store denial, store-menu enforcement, and route scope registration.

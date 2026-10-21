@@ -487,7 +487,7 @@ export default function RestaurantPOSPage() {
           return next;
         }
       }
-      return [...prev, { item, qty, note, mods, unitCents, courseNumber: 1 }];
+      return [...prev, { item, qty, note, mods, unitCents, courseNumber: 1, seatNumber: null }];
     });
     setModItem(null);
   };
@@ -510,6 +510,7 @@ export default function RestaurantPOSPage() {
     menuItemId: l.item.id,
     quantity: l.qty,
       courseNumber: l.courseNumber || 1,
+      seatNumber: l.seatNumber || undefined,
     modifierIds: l.mods.map((modifier) => modifier.modifier_id),
     specialInstructions: l.note || undefined,
   }));
@@ -523,6 +524,13 @@ export default function RestaurantPOSPage() {
     resetCheckout();
     setTicket((prev) => prev.map((line, lineIndex) => (
       lineIndex === idx ? { ...line, courseNumber: Number(courseNumber) || 1 } : line
+    )));
+  };
+
+  const changeSeat = (idx, seatNumber) => {
+    resetCheckout();
+    setTicket((prev) => prev.map((line, lineIndex) => (
+      lineIndex === idx ? { ...line, seatNumber: seatNumber ? Number(seatNumber) : null } : line
     )));
   };
 
@@ -865,6 +873,15 @@ export default function RestaurantPOSPage() {
                     <select value={line.courseNumber || 1} onChange={(e) => changeCourse(idx, e.target.value)} aria-label={t('food.pos.course')}>
                       {Array.from({ length: 4 }, (_, courseIndex) => courseIndex + 1).map((course) => (
                         <option key={course} value={course}>{t('food.pos.courseOption', { n: course })}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="fd-pos-line-seat">
+                    <span className="sr-only">{t('food.pos.seat')}</span>
+                    <select value={line.seatNumber || ''} onChange={(e) => changeSeat(idx, e.target.value)} aria-label={t('food.pos.seat')}>
+                      <option value="">{t('food.pos.noSeat')}</option>
+                      {Array.from({ length: 12 }, (_, seatIndex) => seatIndex + 1).map((seat) => (
+                        <option key={seat} value={seat}>{t('food.pos.seatOption', { n: seat })}</option>
                       ))}
                     </select>
                   </label>

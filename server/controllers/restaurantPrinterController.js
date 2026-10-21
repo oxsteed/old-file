@@ -150,7 +150,7 @@ async function loadOrderSnapshot(restaurantId, orderId) {
   if (!order) throw new AppError('Order not found', 404, 'order_not_found');
   const [{ rows: items }, { rows: modifiers }, { rows: payments }] = await Promise.all([
     pool.query(
-      `SELECT id, item_name, quantity, unit_price_cents, line_total_cents, course_number, special_instructions
+      `SELECT id, item_name, quantity, unit_price_cents, line_total_cents, course_number, seat_number, special_instructions
          FROM food_order_items
         WHERE order_id = $1
         ORDER BY course_number ASC, id ASC`,

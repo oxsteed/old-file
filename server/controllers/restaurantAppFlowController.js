@@ -3635,6 +3635,7 @@ exports.listPosOrders = async (req, res, next) => {
                 'modifierTotalCents', foi.modifier_total_cents,
                 'lineTotalCents', foi.line_total_cents,
                 'courseNumber', foi.course_number,
+                'seatNumber', foi.seat_number,
                 'kitchenStatus', foi.kitchen_status,
                 'stationLabel', foi.station_label,
                 'specialInstructions', foi.special_instructions
@@ -3914,6 +3915,13 @@ exports.createPosOrder = async (req, res, next) => {
         if (!courseNumber || courseNumber > 20) {
           throw new AppError('Validation failed', 400, 'validation_failed', { [`items.${index}.courseNumber`]: 'Must be between 1 and 20' });
         }
+        const requestedSeat = line.seatNumber ?? line.seat_number;
+        const seatNumber = requestedSeat === undefined || requestedSeat === null || requestedSeat === ''
+          ? null
+          : parsePositiveInt(requestedSeat);
+        if (requestedSeat !== undefined && requestedSeat !== null && requestedSeat !== '' && (!seatNumber || seatNumber > 99)) {
+          throw new AppError('Validation failed', 400, 'validation_failed', { [`items.${index}.seatNumber`]: 'Must be between 1 and 99' });
+        }
         return {
           item,
           quantity,
@@ -3922,6 +3930,7 @@ exports.createPosOrder = async (req, res, next) => {
           modifierTotal,
           lineTotal: (unitPrice + modifierTotal) * quantity,
           courseNumber,
+          seatNumber,
           stationLabel: normalizeString(line.stationLabel || line.station_label, 80),
           specialInstructions: normalizeString(line.specialInstructions || line.special_instructions, 500),
         };
@@ -4114,8 +4123,8 @@ exports.createPosOrder = async (req, res, next) => {
       for (const line of normalized) {
         const { rows: [orderItem] } = await client.query(
           `INSERT INTO food_order_items
-             (order_id, menu_item_id, item_name, quantity, unit_price_cents, modifier_total_cents, line_total_cents, special_instructions, course_number, station_label)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+             (order_id, menu_item_id, item_name, quantity, unit_price_cents, modifier_total_cents, line_total_cents, special_instructions, course_number, seat_number, station_label)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
            RETURNING id`,
           [
             order.id,
@@ -4127,6 +4136,7 @@ exports.createPosOrder = async (req, res, next) => {
             line.lineTotal,
             line.specialInstructions,
             line.courseNumber,
+            line.seatNumber,
             normalizeString(line.stationLabel, 80),
           ]
         );
@@ -4524,8 +4534,8 @@ exports.splitPosOrder = async (req, res, next) => {
           `INSERT INTO food_order_items
              (order_id, menu_item_id, item_name, quantity, unit_price_cents,
               modifier_total_cents, line_total_cents, special_instructions,
-              course_number, kitchen_status, station_label, bumped_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+              course_number, seat_number, kitchen_status, station_label, bumped_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
            RETURNING id`,
           [
             child.id,
@@ -4537,6 +4547,7 @@ exports.splitPosOrder = async (req, res, next) => {
             childLineTotal,
             item.special_instructions,
             item.course_number || 1,
+            item.seat_number,
             item.kitchen_status,
             item.station_label,
             item.bumped_at,
@@ -6049,7 +6060,7 @@ exports.reprintReceipt = async (req, res, next) => {
     const [{ rows: items }, { rows: modifiers }, { rows: payments }] = await Promise.all([
       pool.query(
         `SELECT id, menu_item_id, item_name, quantity, unit_price_cents,
-                modifier_total_cents, line_total_cents, course_number, special_instructions
+                modifier_total_cents, line_total_cents, course_number, seat_number, special_instructions
            FROM food_order_items
           WHERE order_id = $1
           ORDER BY course_number ASC, id ASC`,
@@ -6828,6 +6839,7 @@ exports.getKitchenFeed = async (req, res, next) => {
                 'itemName', foi.item_name,
                 'quantity', foi.quantity,
                 'courseNumber', foi.course_number,
+                'seatNumber', foi.seat_number,
                 'kitchenStatus', foi.kitchen_status,
                 'stationLabel', foi.station_label,
                 'bumpedAt', foi.bumped_at,

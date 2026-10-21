@@ -806,7 +806,7 @@ describe('restaurant app-flow backend', () => {
         orderSource: 'counter',
         fulfillmentType: 'pickup',
         shiftId: 55,
-        items: [{ menuItemId: 11, quantity: 1, courseNumber: 2, stationLabel: 'Grill' }],
+        items: [{ menuItemId: 11, quantity: 1, courseNumber: 2, seatNumber: 3, stationLabel: 'Grill' }],
       });
 
     expect(res.status).toBe(201);
@@ -815,6 +815,7 @@ describe('restaurant app-flow backend', () => {
     const itemInsert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO food_order_items/.test(sql));
     expect(itemInsert).toBeTruthy();
     expect(itemInsert[1][8]).toBe(2);
+    expect(itemInsert[1][9]).toBe(3);
   });
 
   test('rejects POS order items outside their daypart window (F-11)', async () => {
@@ -866,6 +867,28 @@ describe('restaurant app-flow backend', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.fields['items.0.courseNumber']).toMatch(/between 1 and 20/);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_orders/.test(sql))).toBe(false);
+  });
+
+  test('rejects POS seat numbers outside the bounded seating range', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 55, restaurant_id: RESTAURANT_ID, status: 'open', staff_user_id: USER_ID }] })
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 11, name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }] });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders`)
+      .send({
+        orderSource: 'counter',
+        fulfillmentType: 'pickup',
+        shiftId: 55,
+        items: [{ menuItemId: 11, quantity: 1, seatNumber: 100 }],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.fields['items.0.seatNumber']).toMatch(/between 1 and 99/);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_orders/.test(sql))).toBe(false);
   });
 
