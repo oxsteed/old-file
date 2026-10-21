@@ -256,6 +256,8 @@ delivery failures stay retryable and auditable. Migration 984 adds provider-neut
 DoorDash/Uber Eats/Grubhub integration records, dynamic secret-reference fields,
 available-menu export, and idempotent inbound order state queues. Live provider
 OAuth/webhook verification and local food-order creation remain deployment-gated.
+The localized merchant gift-card panel now issues cards with an idempotency key
+and reveals a generated code only in the issue response.
 The restaurant HQ rollup now provides a permission-filtered business view with
 store comparison, currency-separated net-collected sales, latest audit score,
 and high-severity open findings; it does not merge currencies or reveal
