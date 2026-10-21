@@ -1199,6 +1199,7 @@ describe('restaurant app-flow backend', () => {
   test('allows managers to record cash POS payments', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager' })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'pos.manage', allow: true }] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, restaurant_id: RESTAURANT_ID, total_cents: 899, payment_status: 'unpaid' }] })
       .mockResolvedValueOnce({ rows: [{ paid_cents: 0, refunded_cents: 0 }] })
       .mockResolvedValueOnce({ rows: [{ id: 501, amount_cents: 899, payment_type: 'cash' }] })

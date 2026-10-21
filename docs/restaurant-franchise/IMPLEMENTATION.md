@@ -252,7 +252,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-13 | Existing table-name aliases | Device/counter/kitchen contract acceptance |
 | F-14 | Existing server-priced payment totals | Browser change/tax/tip/fee and retry acceptance |
 | F-15 | Existing restaurant discount definitions and PIN approvals | Complete brand/store policy and reporting acceptance |
-| F-16 | Existing unpaid completion guards | Verify every kitchen, display, runner, counter and manager exception path |
+| F-16 | Existing unpaid completion guards; unpaid completion overrides now use the `orders.manage` catalog permission, including membership overrides | Verify every kitchen, display, runner, counter and manager exception path |
 | F-17 | This pass adds per-store availability, timed restock, audit, POS/kitchen grants | Full per-store inventory integration and all native/KDS UI adoption |
 | F-18 | Existing daily counters and routing/Stripe lock reduction | Concurrent 50-store load and lock-observation evidence |
 | F-19 | Migrations 965 and 967 add store policy plus item-level tax rates/exemptions; quote/order snapshots include a line tax breakdown | Provider integration and populated-store tax acceptance |
@@ -267,7 +267,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-28 | Existing transactional primary-location update and validation | Populated database concurrency acceptance |
 | F-29 | Existing edit/pause/close/timezone/hours/location UI plus store-role assignment panel and region assignment | Full multi-range hours editor and populated store-role/region acceptance |
 | F-30 | Existing src tests and loader in CI | Retain browser/device regression coverage as surfaces converge |
-| F-31 | Existing ticket/payment/printing permission gates | Custom membership and deny-override acceptance on every adapter |
+| F-31 | Ticket, payment, printing, crew, and runner manager gates now resolve the permission catalog (including membership overrides) instead of role-name checks; bootstrap `canManage` follows the same resolver | Custom membership and deny-override acceptance on every adapter |
 | F-32 | Existing per-store per-day atomic counters | Concurrent multi-store rollover and peak-load acceptance |
 | F-33 | Migration 966 adds per-store online/in-store pacing caps, inheritance/disable semantics, and prep extensions applied to quote/order estimates | Peak-load/lock evidence and physical terminal/channel acceptance |
 
@@ -353,6 +353,7 @@ hardware decisions do not excuse independent software work on these flows.
 - `server`: `npx jest --runInBand --testPathPatterns='foodController|foodOrderValidation' __tests__/foodController.test.js __tests__/foodOrderValidation.test.js` — **45 passed**. Includes the server-enforced allergen exclusion quote check.
 - `server`: `npx jest --runInBand --testPathPatterns='routeScopeGuard' __tests__/routeScopeGuard.test.js` — **10 passed** after adding all host-stand routes.
 - `server`: `npx jest --runInBand __tests__/restaurantPrinterLabels.test.js __tests__/restaurantPrinterSettings.db.test.js` — **4 passed, 13 skipped** without the explicit disposable printer database URL; localized receipt and allergen-label rendering pass and the DB suite remains fail-closed.
+- `server`: `npx jest --runInBand __tests__/foodController.test.js __tests__/restaurantAppFlow.test.js __tests__/restaurantPosIntegrity.db.test.js __tests__/restaurantRunnerController.test.js __tests__/restaurantPayrollOvertime.test.js` — **94 passed, 19 skipped** after routing operational manager and unpaid-completion checks through the permission catalog; the disposable database suites remain fail-closed without their explicit opt-in URLs.
 - `client`: `npm run verify:i18n`, `node scripts/growthInstrumentation.mjs --check`, and `npm run build:ci` — **passed** after adding the localized allergen-label printer control and gift-card catalog panel; growth coverage is 2,520/2,520 and emitted-asset verification covered 1,020 assets.
 - `server`: `npx jest --runInBand __tests__/restaurantGiftCardController.test.js __tests__/restaurantGiftCardService.test.js __tests__/restaurantAppFlow.test.js` — **66 passed** across catalog validation, value-ledger issue/redeem/refund guards, POS redemption, and route scope registration.
 - `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **957/957 migrations passed** twice, including migration 982's gift-card value ledger.

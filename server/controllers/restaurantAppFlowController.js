@@ -75,7 +75,6 @@ const giftCardValue = require('../services/restaurantGiftCardService');
 // Absolute ceiling for a POS ticket tip, in cents ($500).
 const POS_TIP_ABSOLUTE_MAX_CENTS = 50000;
 
-const MANAGE_ROLES = new Set(['owner', 'manager']);
 const APP_KEYS = new Set(['manager', 'pos', 'kitchen', 'display', 'inventory', 'crew', 'runner', 'restaurant', 'credit_kiosk']);
 const DEVICE_STATUSES = new Set(['pending', 'paired', 'disabled']);
 const DEVICE_SYNC_STATUSES = new Set(['healthy', 'degraded', 'error']);
@@ -979,6 +978,11 @@ async function assertRestaurantPermission(restaurant, userId, allowedPermissions
   throw new AppError('You do not have permission to update this kitchen', 403, 'forbidden');
 }
 
+async function hasRestaurantPermission(restaurant, userId, permission) {
+  if (restaurant?.effective_role === 'owner') return true;
+  return permissionsService.hasRestaurantPermission(restaurant, userId, [permission]);
+}
+
 function normalizeLocationPatch(value) {
   const source = safeJson(value, null);
   if (!source) return null;
@@ -1296,7 +1300,7 @@ async function buildBootstrapPayload(user, restaurantId, query = {}) {
         permissions,
         permissionSource: teamPermissionResult.raw,
         isOwner: role === 'owner',
-        canManage: MANAGE_ROLES.has(role),
+        canManage: permissions.includes('*') || permissions.includes('restaurant.manage'),
       },
       app: {
         key: appKey || null,
@@ -3447,8 +3451,9 @@ exports.openShift = async (req, res, next) => {
     // access but no pos.use, and previously could open a drawer in their
     // own name.
     await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage']);
+    const canManagePos = await hasRestaurantPermission(restaurant, req.user.id, 'pos.manage');
     const staffUserId = req.body.staffUserId || req.body.staff_user_id || req.user.id;
-    if (!MANAGE_ROLES.has(restaurant.effective_role) && String(staffUserId) !== String(req.user.id)) {
+    if (!canManagePos && String(staffUserId) !== String(req.user.id)) {
       throw new AppError('Only a manager can open a shift for another staff member', 403, 'forbidden');
     }
     try {
@@ -3502,6 +3507,7 @@ exports.closeShift = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const canManagePos = await hasRestaurantPermission(restaurant, req.user.id, 'pos.manage');
     const shiftId = parsePositiveInt(req.params.shiftId);
     const closingCashCents = parseCents(req.body.closingCashCents ?? req.body.closing_cash_cents, 'closingCashCents');
     const result = await withTransaction(pool, async (client) => {
@@ -3510,7 +3516,7 @@ exports.closeShift = async (req, res, next) => {
           WHERE id = $1 AND restaurant_id = $2 AND status = 'open'
             AND (staff_user_id = $3 OR $4 = TRUE)
           FOR UPDATE`,
-        [shiftId, restaurantId, req.user.id, MANAGE_ROLES.has(restaurant.effective_role)]
+        [shiftId, restaurantId, req.user.id, canManagePos]
       );
       if (!currentShift) throw new AppError('Open shift not found', 404, 'shift_not_found');
 
@@ -3758,6 +3764,7 @@ exports.recordDrawerEvent = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const canManagePos = await hasRestaurantPermission(restaurant, req.user.id, 'pos.manage');
     const shiftId = parsePositiveInt(req.params.shiftId);
     const eventType = normalizeString(req.body.eventType || req.body.event_type, 32);
     if (!POS_DRAWER_EVENT_TYPES.has(eventType)) {
@@ -3818,7 +3825,7 @@ exports.recordDrawerEvent = async (req, res, next) => {
           JSON.stringify(metadata),
           req.user.id,
           req.user.id,
-          MANAGE_ROLES.has(restaurant.effective_role),
+          canManagePos,
           actingStaff?.staffUserId || null,
         ]
       );
@@ -3845,6 +3852,7 @@ exports.createPosOrder = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage', 'orders.manage']);
+    const canManagePos = await hasRestaurantPermission(restaurant, req.user.id, 'pos.manage');
     const items = Array.isArray(req.body.items) ? req.body.items : [];
     if (!items.length) throw new AppError('Validation failed', 400, 'validation_failed', { items: 'At least one item is required' });
     const source = normalizeString(req.body.orderSource || req.body.order_source, 24) || 'counter';
@@ -3869,7 +3877,7 @@ exports.createPosOrder = async (req, res, next) => {
 
     const result = await withTransaction(pool, async (client) => {
       const openShift = shiftId
-        ? await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, MANAGE_ROLES.has(restaurant.effective_role))
+        ? await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, canManagePos)
         : null;
       const posDeviceLocationId = actingStaff?.deviceId
         ? await restaurantLocationService.deviceLocationId(client, { restaurantId, deviceId: actingStaff.deviceId })
@@ -3975,7 +3983,7 @@ exports.createPosOrder = async (req, res, next) => {
         const unitPrice = parseCents(requestedUnitPrice, 'unitPriceCents', Number(item.price_cents));
         if (requestedUnitPrice !== undefined
           && unitPrice !== Number(item.price_cents)
-          && !MANAGE_ROLES.has(restaurant.effective_role)) {
+          && !canManagePos) {
           throw new AppError('Only a manager can override menu prices', 403, 'price_override_forbidden');
         }
         const modifiers = resolveOrderItemModifiers(item, line, index);
@@ -4040,7 +4048,7 @@ exports.createPosOrder = async (req, res, next) => {
         }));
       } else {
         ({ discountCents: discount, discountLines } = normalizeDiscountLines(req.body, subtotal, {
-          allowManual: MANAGE_ROLES.has(restaurant.effective_role),
+          allowManual: canManagePos,
         }));
       }
       const taxableSubtotal = Math.max(0, subtotal - discount);
@@ -4274,6 +4282,7 @@ exports.updatePosTicket = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const canManageRestaurant = await hasRestaurantPermission(restaurant, req.user.id, 'restaurant.manage');
     const ticketState = normalizeString(req.body.ticketState || req.body.ticket_state, 24);
     if (!POS_TICKET_STATES.has(ticketState)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { ticketState: 'Unsupported ticket state' });
@@ -4297,7 +4306,7 @@ exports.updatePosTicket = async (req, res, next) => {
       // else (owners and managers included, so a deny override on
       // restaurant.manage actually closes this gate) must hold
       // restaurant.manage through the unified resolver.
-      if (approvalPin && !MANAGE_ROLES.has(restaurant.effective_role)) {
+      if (approvalPin && !canManageRestaurant) {
         voidApprovalRequested = true;
       } else {
         await assertManage(restaurant, req.user.id);
@@ -5162,7 +5171,7 @@ exports.recordPosPayment = async (req, res, next) => {
     // Authorization is resolved after shiftId is parsed below (F-03):
     // tendering is a pos.use capability inside the staff member's own
     // open drawer shift; refunds stay manager-only.
-    const isManager = MANAGE_ROLES.has(restaurant.effective_role);
+    const isManager = await hasRestaurantPermission(restaurant, req.user.id, 'pos.manage');
     // S-06: acting staff identity from the request's staff sub-session.
     const actingStaff = await resolveActingStaff(req, restaurantId);
     const compReasonCode = paymentType === 'comp'
@@ -5835,6 +5844,7 @@ exports.createPosCardIntent = async (req, res, next) => {
     // F-06: reserving a Terminal payment moves money, so restaurant
     // membership alone must not mint a processor-backed card intent.
     await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage']);
+    const canManagePos = await hasRestaurantPermission(restaurant, req.user.id, 'pos.manage');
     const amountCents = parseCents(req.body.amountCents ?? req.body.amount_cents, 'amountCents');
     if (amountCents < 1) {
       throw new AppError('Validation failed', 400, 'validation_failed', { amountCents: 'Amount must be greater than zero' });
@@ -5877,7 +5887,7 @@ exports.createPosCardIntent = async (req, res, next) => {
       if (['voided', 'refunded'].includes(order.pos_ticket_state) || order.status === 'cancelled') {
         throw new AppError('This ticket cannot accept payments', 409, 'ticket_not_payable');
       }
-      await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, MANAGE_ROLES.has(restaurant.effective_role));
+      await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, canManagePos);
       const { rows: [ledger] } = await client.query(
         `SELECT COALESCE(SUM(amount_cents) FILTER (
                         WHERE payment_type <> 'refund' AND status IN ('pending','recorded','captured')
@@ -7556,13 +7566,16 @@ exports.updatePrinterJob = async (req, res, next) => {
     const restaurant = device
       ? { effective_role: 'screen_expeditor' }
       : await requireRestaurantAccess(req.user.id, restaurantId);
+    const canManageKitchen = device
+      ? false
+      : await hasRestaurantPermission(restaurant, req.user.id, 'kitchen.manage');
     const jobId = parsePositiveInt(req.params.jobId);
     const status = normalizeString(req.body.status, 24);
     if (!PRINTER_JOB_STATUSES.has(status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported printer job status' });
     }
     const deviceId = device?.id || parsePositiveInt(req.body.deviceId || req.body.device_id);
-    const managerCancel = status === 'cancelled' && MANAGE_ROLES.has(restaurant.effective_role);
+    const managerCancel = status === 'cancelled' && canManageKitchen;
     if (!managerCancel && !['printed', 'failed'].includes(status)) {
       throw new AppError('Printer job transition is not allowed', 409, 'invalid_printer_job_transition');
     }
@@ -7947,7 +7960,7 @@ exports.updateCrewTask = async (req, res, next) => {
     if (status && !CREW_STATUS.has(status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported task status' });
     }
-    const canManage = MANAGE_ROLES.has(restaurant.effective_role);
+    const canManage = await hasRestaurantPermission(restaurant, req.user.id, 'crew.manage');
     const { rows: [existing] } = await pool.query(
       `SELECT * FROM restaurant_crew_tasks WHERE restaurant_id = $1 AND id = $2`,
       [restaurantId, taskId]
@@ -8145,7 +8158,7 @@ async function loadCrewProofTask(userId, restaurantId, taskId) {
     [restaurantId, taskId]
   );
   if (!task) throw new AppError('Crew task not found', 404, 'crew_task_not_found');
-  if (!MANAGE_ROLES.has(restaurant.effective_role)
+  if (!(await hasRestaurantPermission(restaurant, userId, 'crew.manage'))
     && task.assigned_to
     && String(task.assigned_to) !== String(userId)) {
     throw new AppError('You do not have permission to update this task', 403, 'forbidden');
@@ -8390,7 +8403,7 @@ exports.updateRunnerDispatch = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const canManage = MANAGE_ROLES.has(restaurant.effective_role);
+    const canManage = await hasRestaurantPermission(restaurant, req.user.id, 'runner.manage');
     // Require runner.update permission for dispatch changes (parity with claim).
     await assertRestaurantPermission(restaurant, req.user.id, ['runner.update', 'runner.manage', 'orders.manage']);
     const hasAssignedTo = Object.prototype.hasOwnProperty.call(req.body, 'assignedTo')
@@ -8495,7 +8508,7 @@ exports.completeRunnerHandoff = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const canManage = MANAGE_ROLES.has(restaurant.effective_role);
+    const canManage = await hasRestaurantPermission(restaurant, req.user.id, 'runner.manage');
     // Use server time; ignore client-supplied handoffAt (prevents backdating).
     const handoffAt = new Date().toISOString();
     const note = normalizeString(req.body.note || req.body.handoffNote || req.body.handoff_note, 1000);
@@ -8732,6 +8745,7 @@ exports.logRunnerLocation = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId || req.body.taskId || req.body.task_id);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const canManage = await hasRestaurantPermission(restaurant, req.user.id, 'runner.manage');
     const latitude = parseFiniteNumber(req.body.latitude ?? req.body.lat, 'latitude');
     const longitude = parseFiniteNumber(req.body.longitude ?? req.body.lng, 'longitude');
     if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
@@ -8743,12 +8757,11 @@ exports.logRunnerLocation = async (req, res, next) => {
         [taskId, restaurantId]
       );
       if (!task) throw new AppError('Runner task not found', 404, 'runner_task_not_found');
-      if (!MANAGE_ROLES.has(restaurant.effective_role)
+      if (!canManage
         && String(task.assigned_to || '') !== String(req.user.id)) {
         throw new AppError('This runner task is assigned to another user', 403, 'runner_task_not_assigned');
       }
     }
-    const canManage = MANAGE_ROLES.has(restaurant.effective_role);
     let runnerUserId = req.user.id;
     if (canManage && (req.body.runnerUserId || req.body.runner_user_id)) {
       // Validate the specified runner is a restaurant member.
@@ -8808,7 +8821,8 @@ exports.listRunnerSettlements = async (req, res, next) => {
       params.push(status);
       filter = `AND status = $${params.length}`;
     }
-    if (!MANAGE_ROLES.has(restaurant.effective_role)) {
+    const canManage = await hasRestaurantPermission(restaurant, req.user.id, 'runner.manage');
+    if (!canManage) {
       params.push(req.user.id);
       filter += ` AND runner_user_id = $${params.length}`;
     }
@@ -8831,7 +8845,7 @@ exports.upsertRunnerSettlement = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId || req.body.taskId || req.body.task_id);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const canManage = MANAGE_ROLES.has(restaurant.effective_role);
+    const canManage = await hasRestaurantPermission(restaurant, req.user.id, 'runner.manage');
     const status = normalizeString(req.body.status, 24) || 'pending';
     if (!RUNNER_SETTLEMENT_STATUSES.has(status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported settlement status' });

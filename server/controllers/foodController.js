@@ -4885,8 +4885,7 @@ exports.updateOrderStatus = async (req, res, next) => {
     let unpaidCompletionOverride = false;
     if (status === 'completed' && completeUnpaidReason && req.user
       && !req.screenDevice && !req.displayDevice) {
-      unpaidCompletionOverride = ['owner', 'manager'].includes(restaurant.effective_role)
-        || await hasRestaurantPermission(restaurant, ['orders.manage']);
+      unpaidCompletionOverride = await hasRestaurantPermission(restaurant, ['orders.manage']);
     }
 
     const transitionResult = await withTransaction(pool, async (client) => {
