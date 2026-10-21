@@ -83,7 +83,9 @@ still required before this can be called a complete print deployment.
 Manager-only allergen-label printing now reads the
 restaurant's declared menu allergens, emits an ESC/POS label job, and exposes a
 store-aware merchant control; no-label orders fail closed and no order or
-payment state is changed.
+payment state is changed. Fixed label text on those jobs now follows the
+restaurant's configured receipt locale across en, es, fr, ht, and ar, while
+the existing English output remains the default for legacy restaurants.
 
 The host-stand tranche adds migration 964 and location-scoped tables,
 reservations, and walk-in waitlist records. Reservation creation is
@@ -258,7 +260,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-21 | Existing PIN sessions, switching, lockout and keyed lookup | Native/shared-device and multi-store identity acceptance |
 | F-22 | Existing time punches, wages, labor, tips and CSV foundation; migration 970 adds configurable weekly overtime pricing and required-break exception reporting; migration 977 adds recurring availability windows and manager-approved shift swaps with atomic reassignment, with staff availability/swap audit events | Scheduling vendor integration and native timeclock/device acceptance |
 | F-23 | Existing inventory quantities/mappings/counts and location column; assigned-member item reads, adjustment history, item writes, procurement, and transfer reads/writes now enforce store scope; migrations 972-974 add recipe costing, supplier catalogs, receipt-to-request invoice matching, late-invoice reconciliation with audited match states, a receipt CSV accounting-ingestion contract, and food-cost percentage output | External invoice ingestion and populated external-provider invoice acceptance |
-| F-24 | Existing five-language cleanup; new store UI parity in both catalogs | Server/receipt and full-screen human language acceptance |
+| F-24 | Existing five-language cleanup; new store UI parity in both catalogs; fixed receipt and allergen-label text follows the configured locale | Full-screen human language acceptance |
 | F-25 | Existing logical CSS cleanup | Full POS/KDS/merchant RTL visual acceptance |
 | F-26 | Three device systems remain; receipt-printer settings and queued jobs now carry the selected store | Canonical device identity and native print bridge, deprecated API adapters, resource-controller convergence |
 | F-27 | Existing display grants, 90-day expiry/rotation, revoke-by-unpair, and migration 975 store-bound pairing tokens with sibling-store kitchen-action rejection | Populated store-role and physical device acceptance |
@@ -350,7 +352,7 @@ hardware decisions do not excuse independent software work on these flows.
 - `server`: `npx jest --runInBand __tests__/restaurantInventoryController.test.js __tests__/restaurantInventoryOperations.test.js __tests__/restaurantInventoryOrderService.test.js` — **20 passed**. Covers assigned-store item, adjustment, purchase-request, and supplier-issue filtering, idempotent adjustments, and inventory operations.
 - `server`: `npx jest --runInBand --testPathPatterns='foodController|foodOrderValidation' __tests__/foodController.test.js __tests__/foodOrderValidation.test.js` — **45 passed**. Includes the server-enforced allergen exclusion quote check.
 - `server`: `npx jest --runInBand --testPathPatterns='routeScopeGuard' __tests__/routeScopeGuard.test.js` — **10 passed** after adding all host-stand routes.
-- `server`: `npx jest --runInBand __tests__/restaurantPrinterLabels.test.js __tests__/restaurantPrinterSettings.db.test.js` — **3 passed, 13 skipped** without the explicit disposable printer database URL; pure allergen-label rendering passes and the DB suite remains fail-closed.
+- `server`: `npx jest --runInBand __tests__/restaurantPrinterLabels.test.js __tests__/restaurantPrinterSettings.db.test.js` — **4 passed, 13 skipped** without the explicit disposable printer database URL; localized receipt and allergen-label rendering pass and the DB suite remains fail-closed.
 - `client`: `npm run verify:i18n`, `node scripts/growthInstrumentation.mjs --check`, and `npm run build:ci` — **passed** after adding the localized allergen-label printer control and gift-card catalog panel; growth coverage is 2,520/2,520 and emitted-asset verification covered 1,020 assets.
 - `server`: `npx jest --runInBand __tests__/restaurantGiftCardController.test.js __tests__/restaurantGiftCardService.test.js __tests__/restaurantAppFlow.test.js` — **66 passed** across catalog validation, value-ledger issue/redeem/refund guards, POS redemption, and route scope registration.
 - `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **957/957 migrations passed** twice, including migration 982's gift-card value ledger.
