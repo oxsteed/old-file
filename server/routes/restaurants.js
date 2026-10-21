@@ -40,6 +40,7 @@ const media = require('../controllers/restaurantMediaController');
 const { requireKitchenDeviceOrStaff } = require('../controllers/restaurantDisplayController');
 const hosting = require('../controllers/restaurantHostingController');
 const locationAccess = require('../controllers/restaurantLocationAccessController');
+const deliveryMarketplaces = require('../controllers/restaurantDeliveryMarketplaceController');
 
 // Managed appliances authenticate with their scoped device credential.
 router.post('/:restaurantId/devices/:deviceId/screen-orders', strictLimiter, scopeExempt('device-credential'), screens.createOrder);
@@ -155,6 +156,11 @@ router.post('/:restaurantId/gift-cards', requireRestaurantAccess(), giftCards.is
 router.post('/:restaurantId/gift-cards/lookup', requireRestaurantAccess(), giftCards.lookupValue);
 router.post('/:restaurantId/gift-cards/redeem', requireRestaurantAccess(), giftCards.redeemValue);
 router.post('/:restaurantId/gift-cards/refund', requireRestaurantAccess(), giftCards.refundValue);
+router.get('/:restaurantId/delivery/marketplaces', requireRestaurantAccess(), deliveryMarketplaces.listIntegrations);
+router.put('/:restaurantId/delivery/marketplaces/:provider', requireRestaurantAccess(), deliveryMarketplaces.upsertIntegration);
+router.get('/:restaurantId/delivery/marketplaces/:provider/menu', requireRestaurantAccess(), deliveryMarketplaces.menu);
+router.post('/:restaurantId/delivery/marketplaces/:provider/orders', requireRestaurantAccess(), deliveryMarketplaces.ingestOrder);
+router.patch('/:restaurantId/delivery/marketplace-orders/:orderId', requireRestaurantAccess(), deliveryMarketplaces.transitionOrder);
 // F-02: explicit store-scoped staff assignments. Members without assignments
 // retain legacy all-store access until an operator opts them into a boundary.
 router.get('/:restaurantId/location-access', requireRestaurantAccess(), locationAccess.list);

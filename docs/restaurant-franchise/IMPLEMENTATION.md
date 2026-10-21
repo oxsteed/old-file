@@ -252,7 +252,10 @@ definitions with bounded criteria (lifetime points, paid-order count, recency,
 and optional store) and an aggregate-only audience preview. Migration 983 adds
 approval-gated campaign definitions and consent-aware in-app/email delivery
 queues. Customer identity remains excluded from merchant responses; provider
-delivery failures stay retryable and auditable.
+delivery failures stay retryable and auditable. Migration 984 adds provider-neutral
+DoorDash/Uber Eats/Grubhub integration records, dynamic secret-reference fields,
+available-menu export, and idempotent inbound order state queues. Live provider
+OAuth/webhook verification and local food-order creation remain deployment-gated.
 
 Sales reports now expose `/reports/sales/accounting/quickbooks.csv` and
 `/reports/sales/accounting/xero.csv`. These are read-only, store-scoped import
@@ -291,6 +294,8 @@ hardware decisions do not excuse independent software work on these flows.
 - `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **957/957 migrations passed** twice, including migration 982's gift-card value ledger.
 - `server`: `npx jest --runInBand __tests__/restaurantLoyaltyCampaignService.test.js __tests__/restaurantLoyaltyController.test.js` — **6 passed, 7 skipped** (the skipped cases require the explicit disposable loyalty database URL).
 - `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **958/958 migrations passed** twice, including migration 983's campaign delivery queue.
+- `server`: `npx jest --runInBand __tests__/restaurantDeliveryMarketplaceService.test.js __tests__/routeScopeGuard.test.js` — **13 passed** across provider/secret-reference validation, menu filtering, disabled-provider rejection, and route scope registration.
+- `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **959/959 migrations passed** twice, including migration 984's marketplace integration and order queue.
 - `client`: `npm run verify:i18n` — **passed** with the host-stand keys present in `en`, `es`, `fr`, `ht`, and `ar`.
 - `client`: `npm run build` — **passed**; Vite emitted the merchant bundle with the host-stand panel. Existing large-chunk and dynamic-import advisories remain.
 - `server`: `npx jest --runInBand __tests__/restaurantPayrollOvertime.test.js` — **2 passed**. Covers weekly overtime allocation and required-break exception detection.
