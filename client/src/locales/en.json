@@ -24286,6 +24286,7 @@
         "downloadCsv": "Download CSV",
         "downloadJournalCsv": "Download journal CSV",
         "downloadCloseCsv": "Download daily close",
+        "downloadLocationComparisonCsv": "Compare stores CSV",
         "exportError": "Could not download the sales report.",
         "breakdown": "Breakdown",
         "gross": "Gross sales",

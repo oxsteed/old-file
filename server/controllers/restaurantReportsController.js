@@ -513,6 +513,104 @@ async function computeDailyClose(restaurantId, restaurant, query = {}) {
   return { business_date: businessDate, timezone, locations, brand_totals: brandTotals };
 }
 
+async function computeLocationComparison(restaurantId, restaurant, query = {}) {
+  const timezone = resolveReportTimezone(restaurant);
+  const { fromDate, toDate } = parseSalesRange(query, timezone);
+  const { rows } = await pool.query(
+    `${ORDER_FINANCIALS_CTE}
+     SELECT o.location_id,
+            COALESCE(l.name, 'Unassigned') AS location_name,
+            COALESCE(NULLIF(o.currency_code, ''), 'USD') AS currency,
+            ${SALES_COMPONENT_SUMS},
+            COUNT(*) FILTER (WHERE o.status = 'cancelled')::int AS cancelled,
+            COUNT(*) FILTER (WHERE o.status = 'refunded')::int AS refunded
+       FROM order_financials o
+       LEFT JOIN restaurant_locations l
+         ON l.restaurant_id = o.restaurant_id AND l.id = o.location_id
+      GROUP BY o.location_id, l.name, 3
+      ORDER BY currency ASC, revenue_cents DESC, location_name ASC`,
+    [restaurantId, fromDate, toDate, timezone]
+  );
+  const locations = rows.map((row) => ({
+    location_id: row.location_id === null ? null : Number(row.location_id),
+    location_name: row.location_name,
+    currency: row.currency,
+    totals: closeTotalsShape(row),
+  }));
+  const brandByCurrency = new Map();
+  for (const entry of locations) {
+    if (!brandByCurrency.has(entry.currency)) brandByCurrency.set(entry.currency, []);
+    brandByCurrency.get(entry.currency).push(entry.totals);
+  }
+  const brandTotals = [...brandByCurrency.entries()].map(([currency, totals]) => {
+    const sum = totals.reduce((acc, row) => {
+      for (const key of ['orders', 'paid_orders', 'revenue_cents', 'cancelled', 'refunded', 'gross_cents', 'discount_cents', 'net_sales_cents', 'tax_cents', 'tips_cents', 'service_fee_cents', 'delivery_fee_cents', 'collected_cents', 'refunds_cents']) {
+        acc[key] = (acc[key] || 0) + Number(row[key] || 0);
+      }
+      return acc;
+    }, {});
+    sum.avg_ticket_cents = sum.paid_orders > 0 ? Math.round(sum.revenue_cents / sum.paid_orders) : 0;
+    return { currency, totals: sum };
+  });
+  return { from_date: fromDate, to_date: toDate, timezone, locations, brand_totals: brandTotals };
+}
+
+exports.salesLocationComparison = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    res.json(await computeLocationComparison(restaurantId, restaurant, req.query));
+  } catch (err) {
+    next(err);
+  }
+};
+
+const SALES_LOCATION_COMPARISON_CSV_COLUMNS = [
+  'from_date', 'to_date', 'location_id', 'location_name', 'currency', 'orders',
+  'paid_orders', 'gross_cents', 'discount_cents', 'net_sales_cents', 'tax_cents',
+  'tips_cents', 'service_fee_cents', 'delivery_fee_cents', 'refunds_cents',
+  'net_collected_cents', 'avg_ticket_cents',
+];
+
+exports.salesLocationComparisonCsv = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const report = await computeLocationComparison(restaurantId, restaurant, req.query);
+    const lines = [SALES_LOCATION_COMPARISON_CSV_COLUMNS.join(',')];
+    for (const location of report.locations) {
+      const s = location.totals;
+      lines.push([
+        report.from_date,
+        report.to_date,
+        location.location_id ?? '',
+        csvCell(location.location_name),
+        location.currency,
+        s.orders,
+        s.paid_orders,
+        s.gross_cents,
+        s.discount_cents,
+        s.net_sales_cents,
+        s.tax_cents,
+        s.tips_cents,
+        s.service_fee_cents,
+        s.delivery_fee_cents,
+        s.refunds_cents,
+        s.revenue_cents,
+        s.avg_ticket_cents,
+      ].join(','));
+    }
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="sales-location-comparison-${report.from_date}-to-${report.to_date}.csv"`
+    );
+    res.send(`${lines.join('\n')}\n`);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.salesClose = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);

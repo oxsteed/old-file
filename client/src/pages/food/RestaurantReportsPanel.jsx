@@ -15,6 +15,7 @@ import {
   getSalesReport,
   downloadSalesReportCsv,
   downloadSalesJournalCsv,
+  downloadSalesLocationComparisonCsv,
   downloadSalesCloseCsv,
   getInventoryReport,
   getOperationsReport,
@@ -127,6 +128,7 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
 
   const [exporting, setExporting] = useState(false);
   const [exportingJournal, setExportingJournal] = useState(false);
+  const [exportingLocationComparison, setExportingLocationComparison] = useState(false);
   const [exportingClose, setExportingClose] = useState(false);
   const onExportCsv = async () => {
     setExporting(true);
@@ -182,6 +184,24 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
       setExportingClose(false);
     }
   };
+  const onExportLocationComparison = async () => {
+    setExportingLocationComparison(true);
+    try {
+      const blob = await downloadSalesLocationComparisonCsv(restaurantId, { from, to });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `sales-location-comparison-${from}-to-${to}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.exportError')));
+    } finally {
+      setExportingLocationComparison(false);
+    }
+  };
 
   const toolbar = (withControls) => (
     <div className={`fd-ops-toolbar${bare ? ' fd-ops-toolbar--end' : ''}`}>
@@ -232,6 +252,15 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
             data-track="ui.e7f53817fe.5"
           >
             {t('restaurants.ops.reports.downloadCloseCsv', 'Download daily close')}
+          </button>
+          <button
+            type="button"
+            className="fd-btn fd-btn-sm fd-btn-secondary"
+            onClick={onExportLocationComparison}
+            disabled={exportingLocationComparison}
+            data-track="ui.e7f53817fe.6"
+          >
+            {t('restaurants.ops.reports.downloadLocationComparisonCsv', 'Compare stores CSV')}
           </button>
         </div>
       )}

@@ -24295,6 +24295,7 @@
         "downloadCsv": "تنزيل CSV",
         "downloadJournalCsv": "تنزيل CSV اليومية",
         "downloadCloseCsv": "تنزيل إغلاق اليوم",
+        "downloadLocationComparisonCsv": "مقارنة المتاجر CSV",
         "exportError": "تعذر تنزيل تقرير المبيعات.",
         "breakdown": "التفاصيل",
         "gross": "المبيعات الإجمالية",

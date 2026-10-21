@@ -25,6 +25,8 @@ function app() {
   server.get('/api/restaurants/:restaurantId/reports/sales', reports.salesSummary);
   server.get('/api/restaurants/:restaurantId/reports/sales/export.csv', reports.salesExportCsv);
   server.get('/api/restaurants/:restaurantId/reports/sales/journal.csv', reports.salesJournalExportCsv);
+  server.get('/api/restaurants/:restaurantId/reports/sales/locations', reports.salesLocationComparison);
+  server.get('/api/restaurants/:restaurantId/reports/sales/locations.csv', reports.salesLocationComparisonCsv);
   server.get('/api/restaurants/:restaurantId/reports/sales/close', reports.salesClose);
   server.get('/api/restaurants/:restaurantId/reports/sales/close.csv', reports.salesCloseCsv);
   server.get('/api/restaurants/:restaurantId/reports/inventory', reports.inventorySummary);
@@ -161,6 +163,53 @@ describe('franchise reports backend', () => {
     expect(res.headers['content-disposition']).toContain('sales-close-2026-10-01.csv');
     expect(res.text).toContain('business_date,location_id,location_name,currency');
     expect(res.text).toContain('2026-10-01,7,"Main, Store",USD,1,1,1000');
+  });
+
+  test('salesLocationComparison keeps store and currency totals separate', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access('manager')] })
+      .mockResolvedValueOnce({ rows: [{ code: 'analytics.view_financial', allow: true }] })
+      .mockResolvedValueOnce({ rows: [
+        {
+          location_id: 7, location_name: 'Main Store', currency: 'USD', orders: '8', paid_orders: '7',
+          revenue_cents: '8400', gross_cents: '9000', discount_cents: '600', tax_cents: '700',
+          tips_cents: '200', service_fee_cents: '0', delivery_fee_cents: '0', collected_cents: '8400',
+          refunds_cents: '0', cancelled: '1', refunded: '0',
+        },
+        {
+          location_id: 8, location_name: 'Airport', currency: 'CAD', orders: '2', paid_orders: '2',
+          revenue_cents: '2600', gross_cents: '2600', discount_cents: '0', tax_cents: '300',
+          tips_cents: '0', service_fee_cents: '0', delivery_fee_cents: '0', collected_cents: '2600',
+          refunds_cents: '0', cancelled: '0', refunded: '0',
+        },
+      ] });
+    const res = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/reports/sales/locations?from=2026-10-01&to=2026-10-07`);
+    expect(res.status).toBe(200);
+    expect(res.body.from_date).toBe('2026-10-01');
+    expect(res.body.to_date).toBe('2026-10-07');
+    expect(res.body.locations).toHaveLength(2);
+    expect(res.body.locations[0].totals.avg_ticket_cents).toBe(1200);
+    expect(res.body.brand_totals).toEqual([
+      { currency: 'USD', totals: expect.objectContaining({ revenue_cents: 8400, paid_orders: 7 }) },
+      { currency: 'CAD', totals: expect.objectContaining({ revenue_cents: 2600, paid_orders: 2 }) },
+    ]);
+  });
+
+  test('salesLocationComparisonCsv emits a range row for each store', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access('manager')] })
+      .mockResolvedValueOnce({ rows: [{ code: 'analytics.view_financial', allow: true }] })
+      .mockResolvedValueOnce({ rows: [{
+        location_id: 7, location_name: 'Main, Store', currency: 'USD', orders: '1', paid_orders: '1',
+        revenue_cents: '1000', gross_cents: '1000', discount_cents: '0', tax_cents: '80', tips_cents: '0',
+        service_fee_cents: '0', delivery_fee_cents: '0', collected_cents: '1000', refunds_cents: '0',
+        cancelled: '0', refunded: '0',
+      }] });
+    const res = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/reports/sales/locations.csv?from=2026-10-01&to=2026-10-07`);
+    expect(res.status).toBe(200);
+    expect(res.headers['content-disposition']).toContain('sales-location-comparison-2026-10-01-to-2026-10-07.csv');
+    expect(res.text).toContain('from_date,to_date,location_id,location_name,currency');
+    expect(res.text).toContain('2026-10-01,2026-10-07,7,"Main, Store",USD,1,1,1000');
   });
 
   test('salesSummary rejects invalid ranges', async () => {

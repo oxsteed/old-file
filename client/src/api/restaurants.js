@@ -198,6 +198,12 @@ export const downloadSalesReportCsv = (restaurantId, params = {}) =>
 export const downloadSalesJournalCsv = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/reports/sales/journal.csv`, { params, responseType: 'blob' }).then((r) => r.data);
 
+export const getSalesLocationComparison = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/sales/locations`, { params }).then((r) => r.data);
+
+export const downloadSalesLocationComparisonCsv = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/sales/locations.csv`, { params, responseType: 'blob' }).then((r) => r.data);
+
 export const getSalesClose = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/reports/sales/close`, { params }).then((r) => r.data);
 
