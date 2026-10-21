@@ -77,6 +77,14 @@ reservation state, add walk-ins, seat them, and send a transactional SMS
 notification. SMS delivery is fail-closed when the provider is unavailable;
 the entry is not marked notified until the provider accepts the message.
 
+Public storefronts can now submit a future reservation request without
+merchant credentials. The endpoint requires a contact method, bounded party
+size and reservation window, and an idempotency key; it records a pending,
+location-scoped request without assigning a table. The restaurant page exposes
+the localized request form and leaves confirmation to the merchant Operations
+workflow. This closes the software portion of the public-request flow; guest
+SMS/provider delivery and populated-store/browser acceptance remain open.
+
 Migration 965 adds optional store tax and service-fee rates, tax-inclusive
 pricing, and a jurisdiction label. A selected store overrides the brand rate
 for authoritative quote and order totals; existing stores inherit the brand
@@ -328,6 +336,8 @@ hardware decisions do not excuse independent software work on these flows.
 - `client`: `npm run build:ci` — **passed** after adding the localized HQ comparison and menu-policy publishing console; typecheck, production build, i18n, and emitted-asset verification completed with the repository's existing chunk advisories.
 - `client`: `npm run verify:i18n`, `node scripts/growthInstrumentation.mjs --write && --check`, and `npm run build:ci` — **passed** after adding the localized accounting integration/export status panel; growth coverage is 2,528/2,528 and emitted-asset verification covered 1,020 assets.
 - `client`: `npm run build` — **passed**; Vite emitted the merchant bundle with the host-stand panel. Existing large-chunk and dynamic-import advisories remain.
+- `server`: `npx jest --runInBand __tests__/restaurantHosting.test.js __tests__/routeScopeGuard.test.js` — **16 passed** after adding the bounded, contact-required, idempotent public reservation request route.
+- `client`: `npm run verify:i18n` — **passed** after adding the localized public reservation request form in `en`, `es`, `fr`, `ht`, and `ar`.
 - `server`: `npx jest --runInBand __tests__/restaurantPayrollOvertime.test.js` — **2 passed**. Covers weekly overtime allocation and required-break exception detection.
 - `server`: `npx jest --runInBand __tests__/restaurantInventoryOperations.test.js` — **9 passed**. Covers assigned-store transfer filtering and transfer creation/lifecycle behavior.
 - `server`: `npx jest --runInBand __tests__/restaurantInventoryController.test.js __tests__/restaurantInventoryOperations.test.js __tests__/routeScopeGuard.test.js` — **28 passed**. Includes recipe mapping validation and the food-cost report contract.

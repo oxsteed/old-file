@@ -80,6 +80,60 @@ function reservationPayload(body) {
   };
 }
 
+function publicReservationPayload(body, idempotencyKey) {
+  const startsAt = instant(body.startsAt, 'start time');
+  const endsAt = instant(body.endsAt, 'end time');
+  const start = new Date(startsAt);
+  const end = new Date(endsAt);
+  if (end <= start) throw new AppError('End time must be after start time', 400, 'invalid_request');
+  if (start < new Date(Date.now() - 60_000)) throw new AppError('Reservation time must be in the future', 400, 'invalid_request');
+  if (start > new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)) throw new AppError('Reservations can be requested up to 90 days ahead', 400, 'invalid_request');
+  if ((end - start) > 4 * 60 * 60 * 1000) throw new AppError('Reservation window is too long', 400, 'invalid_request');
+  const guestPhone = optionalText(body.guestPhone, 40);
+  const guestEmail = optionalText(body.guestEmail);
+  if (!guestPhone && !guestEmail) throw new AppError('A phone or email is required', 400, 'contact_required');
+  const key = String(idempotencyKey || body.idempotencyKey || '').trim();
+  if (!key || key.length > 180) throw new AppError('An idempotency key is required', 400, 'idempotency_required');
+  const size = partySize(body.partySize);
+  if (size > 20) throw new AppError('Public reservations support parties up to 20', 400, 'invalid_request');
+  return {
+    guestName: requiredText(body.guestName, 'guest name'), guestPhone, guestEmail,
+    partySize: size, startsAt, endsAt,
+    notes: optionalText(body.notes, 500), idempotencyKey: key,
+  };
+}
+
+function publicReservationShape(row) {
+  return {
+    id: Number(row.id), restaurantId: Number(row.restaurant_id), locationId: Number(row.location_id),
+    guestName: row.guest_name, partySize: Number(row.party_size), startsAt: row.starts_at,
+    endsAt: row.ends_at, status: row.status, source: row.source, createdAt: row.created_at,
+  };
+}
+
+exports.createPublicReservationRequest = async (req, res, next) => {
+  try {
+    const restaurantId = positiveId(req.params.restaurantId, 'restaurant');
+    const input = publicReservationPayload(req.body || {}, req.get('Idempotency-Key'));
+    const result = await withTransaction(pool, async (client) => {
+      const location = await resolveLocation(client, restaurantId, req.body?.locationId);
+      const { rows: [existing] } = await client.query(
+        `SELECT * FROM restaurant_reservations WHERE restaurant_id=$1 AND idempotency_key=$2 FOR UPDATE`,
+        [restaurantId, input.idempotencyKey]
+      );
+      if (existing) return { reservation: publicReservationShape(existing), idempotent: true };
+      const { rows: [created] } = await client.query(`INSERT INTO restaurant_reservations
+        (restaurant_id, location_id, guest_name, guest_phone, guest_email, party_size,
+         starts_at, ends_at, status, source, notes, idempotency_key, created_by)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,'pending','public',$9,$10,NULL) RETURNING *`,
+      [restaurantId, location.id, input.guestName, input.guestPhone, input.guestEmail,
+        input.partySize, input.startsAt, input.endsAt, input.notes, input.idempotencyKey]);
+      return { reservation: publicReservationShape(created), idempotent: false };
+    }, 'restaurant_public_reservation_request');
+    res.status(result.idempotent ? 200 : 201).json(result);
+  } catch (error) { next(error); }
+};
+
 exports.listTables = async (req, res, next) => {
   try {
     const restaurant = await access(req, ['restaurant.manage', 'pos.use', 'orders.manage']);

@@ -19,6 +19,7 @@ function app() {
   instance.use(express.json());
   instance.use((req, _res, next) => { req.user = { id: '00000000-0000-4000-8000-000000000123' }; next(); });
   instance.post('/:restaurantId/reservations', hosting.createReservation);
+  instance.post('/:restaurantId/reservations/request', hosting.createPublicReservationRequest);
   instance.patch('/:restaurantId/reservations/:reservationId', hosting.updateReservation);
   instance.patch('/:restaurantId/tables/:tableId', hosting.updateTable);
   instance.post('/:restaurantId/waitlist', hosting.createWaitlistEntry);
@@ -43,6 +44,27 @@ test('reservation creation scopes the location and rejects an occupied table', a
   expect(response.status).toBe(409);
   expect(response.body.code).toBe('reservation_conflict');
   expect(mockQuery.mock.calls.some(([sql]) => sql.includes('restaurant_id=$1 AND location_id=$2'))).toBe(true);
+});
+
+test('public reservation requests are future-bounded, contact-required, and idempotent', async () => {
+  const startsAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const endsAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+  mockQuery.mockImplementation(async (sql) => {
+    if (sql.startsWith('SELECT id, restaurant_id, name, status')) return { rows: [location] };
+    if (sql.startsWith('SELECT * FROM restaurant_reservations')) return { rows: [] };
+    if (sql.startsWith('INSERT INTO restaurant_reservations')) return { rows: [{ ...reservation, id: 44, table_id: null, source: 'public', status: 'pending', guest_name: 'Guest', party_size: 3 }] };
+    return { rows: [] };
+  });
+  const response = await request(app()).post('/3/reservations/request')
+    .set('Idempotency-Key', 'public-1')
+    .send({ locationId: 7, guestName: 'Guest', guestEmail: 'guest@example.test', partySize: 3, startsAt, endsAt });
+  expect(response.status).toBe(201);
+  expect(response.body).toMatchObject({ idempotent: false, reservation: { id: 44, status: 'pending', source: 'public' } });
+  const noContact = await request(app()).post('/3/reservations/request')
+    .set('Idempotency-Key', 'public-2')
+    .send({ locationId: 7, guestName: 'Guest', partySize: 2, startsAt, endsAt });
+  expect(noContact.status).toBe(400);
+  expect(noContact.body.code).toBe('contact_required');
 });
 
 test('table position updates stay tenant-scoped for the floor plan', async () => {

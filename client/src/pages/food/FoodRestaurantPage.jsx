@@ -60,6 +60,7 @@ import AddressAutocomplete from '../../components/AddressAutocomplete';
 import { SuggestDropdown } from '../../components/SuggestDropdown';
 import '../../styles/FoodRestaurantPage.css';
 import PromoCodeField from '../../components/food/PromoCodeField';
+import PublicReservationRequest from './PublicReservationRequest';
 
 // Stripe for in-checkout card payments and credit top-ups. Same lazy pattern
 // as the /restaurant-credit page: null when the publishable key is missing,
@@ -2209,6 +2210,13 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                   </div>
                 </div>
               )}
+              <PublicReservationRequest
+                t={t}
+                restaurantId={restaurantId}
+                locationId={data?.location?.id || storeId}
+                locations={data?.locations || []}
+                accent={accent}
+              />
               {address && (
                 <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden', marginBottom: 14 }}>
                   <div style={{ padding: '14px 16px' }}>
@@ -2427,6 +2435,13 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                       </div>
                     )) : <p style={{ fontSize: 13, color: '#94a3b8' }}>{t('food.restaurant.hoursUnavailable')}</p>}
                   </div>
+                  <PublicReservationRequest
+                    t={t}
+                    restaurantId={restaurantId}
+                    locationId={data?.location?.id || storeId}
+                    locations={data?.locations || []}
+                    accent={accent}
+                  />
                   {address && (
                     <div style={{ padding: 16, borderBottom: '1px solid #f1f5f9' }}>
                       <p style={sectionLabel}>{t('food.restaurant.location')}</p>

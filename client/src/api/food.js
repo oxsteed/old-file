@@ -220,6 +220,10 @@ export const listRestaurantReservations = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/reservations`, { params }).then((r) => r.data || { reservations: [], location: null });
 export const createRestaurantReservation = (restaurantId, payload) =>
   api.post(`/restaurants/${restaurantId}/reservations`, payload).then((r) => r.data);
+export const requestRestaurantReservation = (restaurantId, payload, idempotencyKey) =>
+  api.post(`/restaurants/${restaurantId}/reservations/request`, payload, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  }).then((r) => r.data);
 export const updateRestaurantReservation = (restaurantId, reservationId, payload) =>
   api.patch(`/restaurants/${restaurantId}/reservations/${reservationId}`, payload).then((r) => r.data?.reservation);
 export const listRestaurantWaitlist = (restaurantId, params = {}) =>

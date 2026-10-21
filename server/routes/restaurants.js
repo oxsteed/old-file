@@ -184,6 +184,7 @@ router.post('/:restaurantId/tables', requireRestaurantAccess(), hosting.createTa
 router.patch('/:restaurantId/tables/:tableId', requireRestaurantAccess(), hosting.updateTable);
 router.get('/:restaurantId/reservations', requireRestaurantAccess(), hosting.listReservations);
 router.post('/:restaurantId/reservations', requireRestaurantAccess(), hosting.createReservation);
+router.post('/:restaurantId/reservations/request', strictLimiter, scopeExempt('public-storefront'), hosting.createPublicReservationRequest);
 router.patch('/:restaurantId/reservations/:reservationId', requireRestaurantAccess(), hosting.updateReservation);
 router.get('/:restaurantId/waitlist', requireRestaurantAccess(), hosting.listWaitlist);
 router.post('/:restaurantId/waitlist', requireRestaurantAccess(), hosting.createWaitlistEntry);
