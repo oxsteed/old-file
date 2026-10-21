@@ -241,6 +241,23 @@ export const getOperationsReport = (restaurantId, params = {}) =>
 export const getLoyaltyReport = (restaurantId) =>
   api.get(`/restaurants/${restaurantId}/reports/loyalty`).then((r) => r.data);
 
+// CRM segments are aggregate-only; customer identity and campaign delivery are
+// intentionally excluded from this contract.
+export const listLoyaltySegments = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/crm/segments`).then((r) => r.data?.segments || []);
+
+export const createLoyaltySegment = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/crm/segments`, payload).then((r) => r.data?.segment);
+
+export const updateLoyaltySegment = (restaurantId, segmentId, payload) =>
+  api.patch(`/restaurants/${restaurantId}/crm/segments/${segmentId}`, payload).then((r) => r.data?.segment);
+
+export const deleteLoyaltySegment = (restaurantId, segmentId) =>
+  api.delete(`/restaurants/${restaurantId}/crm/segments/${segmentId}`);
+
+export const previewLoyaltySegment = (restaurantId, segmentId) =>
+  api.get(`/restaurants/${restaurantId}/crm/segments/${segmentId}/audience`).then((r) => r.data?.segment);
+
 // ── Payroll, tips, labor + team activity (S-04/S-15/S-16) ───────────────────
 // Labor and payroll endpoints require the payroll.view permission on the
 // server (fail closed); team activity requires audit.view.

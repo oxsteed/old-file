@@ -29,6 +29,7 @@ const kiosk = require('../controllers/restaurantKioskController');
 const appFlow = require('../controllers/restaurantAppFlowController');
 const printer = require('../controllers/restaurantPrinterController');
 const giftCards = require('../controllers/restaurantGiftCardController');
+const loyalty = require('../controllers/restaurantLoyaltyController');
 const screens = require('../controllers/restaurantScreensController');
 const food = require('../controllers/foodController');
 const upload = require('../middleware/upload');
@@ -287,6 +288,13 @@ router.get('/:restaurantId/reports/inventory', requireRestaurantAccess(), franch
 router.get('/:restaurantId/reports/operations', requireRestaurantAccess(), franchiseReports.operationsSummary);
 // Loyalty: repeat-order rate + top items (analytics platform, Phase 2 Item 10)
 router.get('/:restaurantId/reports/loyalty', requireRestaurantAccess(), franchiseReports.loyaltySummary);
+// CRM audience segments are aggregate-only and manager scoped. Campaign sends
+// remain disabled until consent, provider, and reconciliation contracts exist.
+router.get('/:restaurantId/crm/segments', requireRestaurantAccess(), loyalty.listSegments);
+router.post('/:restaurantId/crm/segments', requireRestaurantAccess(), loyalty.createSegment);
+router.patch('/:restaurantId/crm/segments/:segmentId', requireRestaurantAccess(), loyalty.updateSegment);
+router.delete('/:restaurantId/crm/segments/:segmentId', requireRestaurantAccess(), loyalty.deleteSegment);
+router.get('/:restaurantId/crm/segments/:segmentId/audience', requireRestaurantAccess(), loyalty.previewSegment);
 // Payroll, tips, labor + team activity (S-04/S-15/S-16). Wage-bearing
 // endpoints additionally require payroll.view inside the controller
 // (fail closed); team activity requires audit.view.

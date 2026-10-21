@@ -235,7 +235,8 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 
 ## Additional named deliverables still in scope
 
-The review also requests further split-workflow coverage, brand loyalty/CRM,
+The review also requests further split-workflow coverage, brand-wide loyalty
+programs and CRM campaign delivery,
 delivery-marketplace menu/order adapters, and live QuickBooks/Xero provider
 adapters,
 unified onboarding/hardware pairing, HQ compliance publishing/rollups and
@@ -244,7 +245,11 @@ manager-only, store-scoped queued printer job; physical label stock and device
 acceptance remain open. Migration 980 adds manager-audited physical/e-gift card
 SKUs as a catalog-only foundation with a localized merchant catalog panel; value issuance, redemption, refunds and
 provider reconciliation remain deliberately disabled until their ledger
-contract is implemented.
+contract is implemented. Migration 981 adds restaurant-scoped CRM segment
+definitions with bounded criteria (lifetime points, paid-order count, recency,
+and optional store) and an aggregate-only audience preview. Customer identity
+is excluded, all writes are audited, and campaign delivery remains disabled
+until consent, provider, and reconciliation contracts exist.
 
 Sales reports now expose `/reports/sales/accounting/quickbooks.csv` and
 `/reports/sales/accounting/xero.csv`. These are read-only, store-scoped import
