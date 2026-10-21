@@ -63,6 +63,9 @@ function buildApp(userId = USER_ID) {
   app.post('/api/restaurants/:restaurantId/devices/:deviceId/heartbeat', appFlow.deviceHeartbeat);
   app.get('/api/restaurants/:restaurantId/devices/:deviceId/kitchen-feed', appFlow.getKitchenFeed);
   app.post('/api/restaurants/:restaurantId/devices/:deviceId/kitchen-feed/ack', appFlow.ackKitchenFeed);
+  app.get('/api/restaurants/:restaurantId/devices/:deviceId/printer-jobs', appFlow.authenticateKitchenPrinterDevice, appFlow.listPrinterJobs);
+  app.post('/api/restaurants/:restaurantId/devices/:deviceId/printer-jobs/:jobId/claim', appFlow.authenticateKitchenPrinterDevice, appFlow.claimPrinterJob);
+  app.patch('/api/restaurants/:restaurantId/devices/:deviceId/printer-jobs/:jobId', appFlow.authenticateKitchenPrinterDevice, appFlow.updatePrinterJob);
   app.get('/api/restaurants/:restaurantId/devices/:deviceId/queue-board', appFlow.getDeviceQueueBoard);
   app.get('/api/restaurants/:restaurantId/devices/:deviceId/config', appFlow.getDeviceConfig);
   app.patch('/api/restaurants/:restaurantId/devices/:deviceId', appFlow.updateDeviceConfig);
@@ -145,6 +148,44 @@ beforeEach(() => {
 });
 
 describe('restaurant app-flow backend', () => {
+  test('paired kitchen devices can read only their location printer queue', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 31, restaurant_id: RESTAURANT_ID, app_key: 'kitchen', status: 'paired', location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 51, restaurant_id: RESTAURANT_ID, location_id: 77, status: 'queued', job_type: 'kitchen_ticket' }] });
+
+    const res = await request(buildApp())
+      .get(`/api/restaurants/${RESTAURANT_ID}/devices/31/printer-jobs`)
+      .set('X-Device-Token', 'bridge-secret');
+
+    expect(res.status).toBe(200);
+    expect(res.body.jobs).toHaveLength(1);
+    const queueQuery = mockQuery.mock.calls[1];
+    expect(queueQuery[0]).toMatch(/pj\.location_id = \$5/);
+    expect(queueQuery[1]).toEqual([RESTAURANT_ID, 31, null, null, 77]);
+  });
+
+  test('paired kitchen devices can claim and acknowledge their own printer jobs', async () => {
+    const device = { id: 31, restaurant_id: RESTAURANT_ID, app_key: 'kitchen', status: 'paired', location_id: 77 };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [device] })
+      .mockResolvedValueOnce({ rows: [{ id: 51, status: 'sent', claimed_by_device_id: 31 }] });
+    const claimRes = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/devices/31/printer-jobs/51/claim`)
+      .set('X-Device-Token', 'bridge-secret');
+    expect(claimRes.status).toBe(200);
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [device] })
+      .mockResolvedValueOnce({ rows: [{ id: 51, status: 'printed', claimed_by_device_id: 31 }] });
+    const updateRes = await request(buildApp())
+      .patch(`/api/restaurants/${RESTAURANT_ID}/devices/31/printer-jobs/51`)
+      .set('X-Device-Token', 'bridge-secret')
+      .send({ status: 'printed' });
+    expect(updateRes.status).toBe(200);
+    const updateQuery = mockQuery.mock.calls.at(-1);
+    expect(updateQuery[1]).toEqual(['printed', null, 51, RESTAURANT_ID, false, 31, 77]);
+  });
+
   test('requires all supplied POS customer identity fields to match', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })

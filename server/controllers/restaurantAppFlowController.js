@@ -2603,7 +2603,11 @@ function deviceRouteContract(device, options = {}) {
   if (appKey === 'kitchen') {
     contract.routes.kitchenFeed = `${base}/devices/${deviceId}/kitchen-feed`;
     contract.routes.kitchenFeedAck = `${base}/devices/${deviceId}/kitchen-feed/ack`;
+    contract.routes.printerJobs = `${base}/devices/${deviceId}/printer-jobs`;
+    contract.routes.printerJobClaim = `${base}/devices/${deviceId}/printer-jobs/:jobId/claim`;
+    contract.routes.printerJobUpdate = `${base}/devices/${deviceId}/printer-jobs/:jobId`;
     contract.polling.kitchenFeedAfterMs = 2000;
+    contract.polling.printerJobsAfterMs = 2000;
   }
   if (appKey === 'display') {
     contract.routes.queueBoard = `${base}/devices/${deviceId}/queue-board`;
@@ -2680,6 +2684,25 @@ exports.authenticateDisplayDevice = async (req, res, next) => {
         display_device_id: Number(device.id),
       },
     };
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Printer bridges use the same paired kitchen-device credential as the
+// managed screen. Keeping this transport-only path separate from staff
+// sessions prevents a browser bridge from inheriting restaurant-wide access.
+exports.authenticateKitchenPrinterDevice = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const deviceId = parsePositiveInt(req.params.deviceId);
+    if (!restaurantId || !deviceId) {
+      throw new AppError('Restaurant and device are required', 400, 'invalid_device_scope');
+    }
+    const device = await requireDeviceCredential(req, restaurantId, deviceId);
+    assertDeviceApp(device, 'kitchen');
+    req.restaurantDevice = device;
     next();
   } catch (err) {
     next(err);
@@ -7152,8 +7175,10 @@ exports.createPrinterJob = async (req, res, next) => {
 exports.listPrinterJobs = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
-    const deviceId = parsePositiveInt(req.query.deviceId || req.query.device_id);
+    const device = req.restaurantDevice || null;
+    if (device) assertDeviceApp(device, 'kitchen');
+    else await requireRestaurantAccess(req.user.id, restaurantId);
+    const deviceId = device?.id || parsePositiveInt(req.query.deviceId || req.query.device_id);
     const stationId = parsePositiveInt(req.query.stationId || req.query.station_id);
     const status = normalizeString(req.query.status, 24);
     if (status && !PRINTER_JOB_STATUSES.has(status)) {
@@ -7169,10 +7194,11 @@ exports.listPrinterJobs = async (req, res, next) => {
           AND ($2::bigint IS NULL OR ks.device_id = $2 OR pj.claimed_by_device_id = $2)
           AND ($3::bigint IS NULL OR pj.station_id = $3)
           AND ($4::text IS NULL OR pj.status = $4)
+          AND ($5::bigint IS NULL OR pj.location_id = $5)
         ORDER BY CASE pj.status WHEN 'queued' THEN 0 WHEN 'failed' THEN 1 ELSE 2 END,
                  pj.created_at ASC
         LIMIT 200`,
-      [restaurantId, deviceId, stationId, status]
+      [restaurantId, deviceId, stationId, status, device?.location_id || null]
     );
     res.json({ jobs });
   } catch (err) {
@@ -7184,10 +7210,12 @@ exports.claimPrinterJob = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const jobId = parsePositiveInt(req.params.jobId);
-    const deviceId = parsePositiveInt(req.body.deviceId || req.body.device_id);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const device = req.restaurantDevice || null;
+    if (device) assertDeviceApp(device, 'kitchen');
+    else await requireRestaurantAccess(req.user.id, restaurantId);
+    const deviceId = device?.id || parsePositiveInt(req.body.deviceId || req.body.device_id);
     if (!deviceId) throw new AppError('Validation failed', 400, 'validation_failed', { deviceId: 'Kitchen device is required' });
-    await requireDeviceCredential(req, restaurantId, deviceId);
+    if (!device) await requireDeviceCredential(req, restaurantId, deviceId);
     const { rows: [job] } = await pool.query(
       `UPDATE restaurant_printer_jobs pj
           SET status = 'sent',
@@ -7207,8 +7235,9 @@ exports.claimPrinterJob = async (req, res, next) => {
           AND d.app_key = 'kitchen'
           AND d.status = 'paired'
           AND pj.status IN ('queued','failed')
+          AND ($4::bigint IS NULL OR pj.location_id = $4)
         RETURNING pj.*`,
-      [deviceId, jobId, restaurantId]
+      [deviceId, jobId, restaurantId, device?.location_id || null]
     );
     if (!job) throw new AppError('Printer job is no longer claimable by this device', 409, 'printer_job_unavailable');
     res.json({ job });
@@ -7220,20 +7249,23 @@ exports.claimPrinterJob = async (req, res, next) => {
 exports.updatePrinterJob = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const device = req.restaurantDevice || null;
+    const restaurant = device
+      ? { effective_role: 'screen_expeditor' }
+      : await requireRestaurantAccess(req.user.id, restaurantId);
     const jobId = parsePositiveInt(req.params.jobId);
     const status = normalizeString(req.body.status, 24);
     if (!PRINTER_JOB_STATUSES.has(status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported printer job status' });
     }
-    const deviceId = parsePositiveInt(req.body.deviceId || req.body.device_id);
+    const deviceId = device?.id || parsePositiveInt(req.body.deviceId || req.body.device_id);
     const managerCancel = status === 'cancelled' && MANAGE_ROLES.has(restaurant.effective_role);
     if (!managerCancel && !['printed', 'failed'].includes(status)) {
       throw new AppError('Printer job transition is not allowed', 409, 'invalid_printer_job_transition');
     }
     if (!managerCancel) {
       if (!deviceId) throw new AppError('Validation failed', 400, 'validation_failed', { deviceId: 'Claiming device is required' });
-      await requireDeviceCredential(req, restaurantId, deviceId);
+      if (!device) await requireDeviceCredential(req, restaurantId, deviceId);
     }
     const { rows: [job] } = await pool.query(
       `UPDATE restaurant_printer_jobs
@@ -7246,8 +7278,9 @@ exports.updatePrinterJob = async (req, res, next) => {
             ($5 = TRUE AND status IN ('queued','sent','failed'))
             OR ($5 = FALSE AND status = 'sent' AND claimed_by_device_id = $6)
           )
+          AND ($7::bigint IS NULL OR location_id = $7)
         RETURNING *`,
-      [status, normalizeString(req.body.errorMessage || req.body.error_message, 1000), jobId, restaurantId, managerCancel, deviceId]
+      [status, normalizeString(req.body.errorMessage || req.body.error_message, 1000), jobId, restaurantId, managerCancel, deviceId, device?.location_id || null]
     );
     if (!job) throw new AppError('Printer job transition is no longer allowed', 409, 'invalid_printer_job_transition');
     res.json({ job });

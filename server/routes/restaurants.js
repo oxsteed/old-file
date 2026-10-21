@@ -51,6 +51,9 @@ router.get('/:restaurantId/devices/:deviceId/runtime-config', scopeExempt('devic
 router.post('/:restaurantId/devices/:deviceId/heartbeat', scopeExempt('device-credential'), appFlow.deviceHeartbeat);
 router.get('/:restaurantId/devices/:deviceId/kitchen-feed', scopeExempt('device-credential'), appFlow.getKitchenFeed);
 router.post('/:restaurantId/devices/:deviceId/kitchen-feed/ack', scopeExempt('device-credential'), appFlow.ackKitchenFeed);
+router.get('/:restaurantId/devices/:deviceId/printer-jobs', appFlow.authenticateKitchenPrinterDevice, scopeExempt('device-credential'), appFlow.listPrinterJobs);
+router.post('/:restaurantId/devices/:deviceId/printer-jobs/:jobId/claim', appFlow.authenticateKitchenPrinterDevice, scopeExempt('device-credential'), appFlow.claimPrinterJob);
+router.patch('/:restaurantId/devices/:deviceId/printer-jobs/:jobId', appFlow.authenticateKitchenPrinterDevice, scopeExempt('device-credential'), appFlow.updatePrinterJob);
 router.get('/:restaurantId/devices/:deviceId/queue-board', scopeExempt('device-credential'), appFlow.getDeviceQueueBoard);
 router.get('/:restaurantId/devices/:deviceId/display-stats', scopeExempt('device-credential'), appFlow.getDisplayStats);
 router.get('/:restaurantId/devices/:deviceId/display-settings', scopeExempt('device-credential'), appFlow.getDeviceDisplaySettings);

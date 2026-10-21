@@ -37,6 +37,13 @@ closed days retain their configured ranges for later reopening. The evaluator's
 overnight, split-shift, holiday and timezone behavior remains server-owned, while
 the browser check verifies the multi-range save payload and reset behavior.
 
+F-05 now exposes a paired-kitchen-device printer queue contract. A device token
+can list, claim and acknowledge only printer jobs assigned to that device's
+restaurant and location; runtime config publishes the queue paths and polling
+interval. The queue remains the server-side handoff. A native LAN print bridge
+and physical printer acceptance are still required before this can be called a
+complete print deployment.
+
 ## Requirements matrix
 
 `Existing source` means an earlier branch change exists; it is not a fresh
@@ -48,7 +55,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-02 | Existing location columns/counters/hours; this pass adds store menu and customer selection | Store-scoped roles/employment, mandatory store IDs, per-store tax/inventory/printers, HQ/region hierarchy and data boundaries |
 | F-03 | Existing cashier own-drawer tender and permission resolver | Exercise custom grants/denials and approvals across every money surface |
 | F-04 | Existing stable order/payment retry IDs and pay-first hold | Lost-response/concurrent replay and reload resilience; verify all kitchen fire paths |
-| F-05 | Existing production server-dial prohibition and print queue | Working paired in-store print bridge and device/browser acceptance |
+| F-05 | Existing production server-dial prohibition and print queue; this pass adds paired kitchen-device queue endpoints and runtime contract | Native LAN print bridge and physical device/browser acceptance |
 | F-06 | Existing Connect-bound Terminal flow and token permission gate | Provider sandbox/readers and reconciliation acceptance |
 | F-07 | Existing local-day net-collected reports, currencies and CSV | Canonical per-store/brand facts, daily close/Z-report, XLSX/journal and HQ comparisons |
 | F-08 | Existing offline drafts and failure reporting | In-store hub, offline cash with idempotent replay, Terminal store-and-forward/risk policy |
@@ -91,6 +98,7 @@ hardware decisions do not excuse independent software work on these flows.
 ## Verification
 
 - `server`: `npx jest --runInBand --testPathPatterns='restaurantStoreMenu|restaurantAppFlow|foodController|foodOrderValidation|routeScopeGuard'` — **127 passed**.
+- `server`: `npx jest --runInBand --testPathPatterns='restaurantAppFlow' __tests__/restaurantAppFlow.test.js` — **52 passed**. The device printer queue check verifies token-authenticated kitchen access and location-scoped query parameters.
 - `client`: `node --test scripts/restaurantRender.browser-check.cjs scripts/restaurantCheckoutCard.browser-check.cjs scripts/restaurantStoreMenu.browser-check.cjs` — **3 passed**. The new store-menu check covers save/reset payloads, English/French/Arabic labels, RTL direction, narrow widths, and form labels.
 - `client`: `node --test scripts/restaurantLocationHours.browser-check.cjs` — **1 passed**. The location-hours check loads a legacy multi-range day, adds a third range, verifies the exact split-shift payload, and confirms the form resets.
 - `server/scripts/verifyRestaurantStoreMenu.js` — **passed** in the dedicated Colima PostgreSQL container. It applied migration 963 twice, verified default-store backfill/onboarding and legacy order/counter continuity, tenant foreign keys, negative prices, screen events, SQL projections, and sibling-store isolation.
