@@ -16,6 +16,9 @@ jest.mock('../services/restaurantLocationAccessService', () => ({
   getLocationScope: jest.fn().mockResolvedValue({ mode: 'all', location_ids: null, assignments: [] }),
   assertLocationAccess: jest.fn().mockResolvedValue({ mode: 'all', location_ids: null, assignments: [] }),
 }));
+jest.mock('../services/restaurantInventoryAuditService', () => ({
+  logInventoryAudit: jest.fn().mockResolvedValue(undefined),
+}));
 
 const operations = require('../controllers/restaurantInventoryOperationsController');
 const permissions = require('../services/permissionsService');
@@ -57,6 +60,7 @@ function app() {
   server.get('/api/restaurants/:restaurantId/inventory/transfers', operations.listTransfers);
   server.patch('/api/restaurants/:restaurantId/inventory/transfers/:transferId', operations.updateTransfer);
   server.post('/api/restaurants/:restaurantId/inventory/receipts', operations.createReceipt);
+  server.patch('/api/restaurants/:restaurantId/inventory/receipts/:receiptId/invoice-match', operations.updateReceiptInvoiceMatch);
   server.use(errorHandler);
   return server;
 }
@@ -259,5 +263,57 @@ describe('restaurant Inventory operations backend', () => {
     expect(response.body.replayed).toBe(true);
     expect(response.body.receipt.id).toBe(77);
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE restaurant_inventory_items/.test(sql))).toBe(false);
+  });
+
+  test('reconciles a late invoice against a store-scoped purchase request', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access({ effective_role: 'manager', effective_membership_id: 88 })] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 77,
+        restaurant_id: RESTAURANT_ID,
+        location_id: 11,
+        invoice_match_status: 'unmatched',
+        purchase_request_id: null,
+      }] })
+      .mockResolvedValueOnce({ rows: [{ id: 21, location_id: 11, status: 'submitted' }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 77,
+        location_id: 11,
+        purchase_request_id: 21,
+        invoice_match_status: 'matched',
+        invoice_total_cents: 4250,
+        invoice_currency_code: 'USD',
+      }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 77,
+        location_id: 11,
+        purchase_request_id: 21,
+        invoice_match_status: 'matched',
+        invoice_total_cents: 4250,
+        invoice_currency_code: 'USD',
+        lines: [],
+      }] });
+
+    const response = await request(app())
+      .patch(`/api/restaurants/${RESTAURANT_ID}/inventory/receipts/77/invoice-match`)
+      .send({ invoiceMatchStatus: 'matched', purchaseRequestId: 21, invoiceTotalCents: 4250, invoiceCurrencyCode: 'usd' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.receipt.invoice_match_status).toBe('matched');
+    expect(response.body.receipt.purchase_request_id).toBe(21);
+    expect(mockQuery.mock.calls[3][0]).toMatch(/invoice_match_status = \$2/);
+    expect(mockQuery.mock.calls[3][1]).toEqual([21, 'matched', true, 4250, true, 'USD', USER_ID, 77, RESTAURANT_ID]);
+  });
+
+  test('rejects unsupported invoice match states before changing a receipt', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [access()] });
+
+    const response = await request(app())
+      .patch(`/api/restaurants/${RESTAURANT_ID}/inventory/receipts/77/invoice-match`)
+      .send({ invoiceMatchStatus: 'approved' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe('validation_failed');
+    expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 });

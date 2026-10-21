@@ -312,6 +312,7 @@ router.post('/:restaurantId/inventory/transfers', requireRestaurantAccess(), inv
 router.patch('/:restaurantId/inventory/transfers/:transferId', requireRestaurantAccess(), inventoryOperations.updateTransfer);
 router.get('/:restaurantId/inventory/receipts', requireRestaurantAccess(), inventoryOperations.listReceipts);
 router.post('/:restaurantId/inventory/receipts', requireRestaurantAccess(), inventoryOperations.createReceipt);
+router.patch('/:restaurantId/inventory/receipts/:receiptId/invoice-match', requireRestaurantAccess(), inventoryOperations.updateReceiptInvoiceMatch);
 
 // Crew training / certifications (App 6)
 router.get('/:restaurantId/crew/dashboard', requireRestaurantAccess(), crew.getDashboard);

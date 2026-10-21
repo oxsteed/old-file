@@ -12,6 +12,7 @@ const { getLocationScope, assertLocationAccess } = require('../services/restaura
 const AREA_TYPES = new Set(['dry_storage', 'walk_in_cooler', 'freezer', 'bar', 'packaging', 'receiving', 'prep', 'other']);
 const SUPPLIER_STATUSES = new Set(['active', 'inactive', 'issue_reported']);
 const TRANSFER_STATUSES = new Set(['pending', 'completed', 'cancelled']);
+const INVOICE_MATCH_STATUSES = new Set(['unmatched', 'matched', 'exception']);
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -32,6 +33,17 @@ function quantity(value, field = 'quantity') {
     throw new AppError('Validation failed', 400, 'validation_failed', { [field]: 'Must be a non-negative number' });
   }
   return Math.round(number * 1000) / 1000;
+}
+
+function invoiceTotalCents(value, field = 'invoiceTotalCents') {
+  if (value === undefined || value === null || value === '') return null;
+  const number = Number(value);
+  if (!Number.isInteger(number) || number < 0) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      [field]: 'Invoice total must be non-negative cents',
+    });
+  }
+  return number;
 }
 
 function operationId(value) {
@@ -796,6 +808,98 @@ exports.listReceipts = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+// External invoice systems often deliver their document after the stock
+// receipt. Keep that reconciliation inside the same restaurant/store scope as
+// receipt creation, and record every state change for later accounting export.
+exports.updateReceiptInvoiceMatch = async (req, res, next) => {
+  try {
+    const restaurantId = positiveInt(req.params.restaurantId);
+    const receiptId = positiveInt(req.params.receiptId);
+    const restaurant = await restaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, UPDATE_INVENTORY);
+    const status = text(req.body.invoiceMatchStatus || req.body.invoice_match_status, 24) || 'unmatched';
+    if (!INVOICE_MATCH_STATUSES.has(status)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        invoiceMatchStatus: 'Unsupported invoice match status',
+      });
+    }
+    const hasTotal = Object.prototype.hasOwnProperty.call(req.body, 'invoiceTotalCents')
+      || Object.prototype.hasOwnProperty.call(req.body, 'invoice_total_cents');
+    const parsedInvoiceTotal = invoiceTotalCents(
+      req.body.invoiceTotalCents ?? req.body.invoice_total_cents,
+    );
+    const hasCurrency = Object.prototype.hasOwnProperty.call(req.body, 'invoiceCurrencyCode')
+      || Object.prototype.hasOwnProperty.call(req.body, 'invoice_currency_code');
+    const invoiceCurrency = hasCurrency
+      ? String(req.body.invoiceCurrencyCode || req.body.invoice_currency_code || '').trim().toUpperCase()
+      : null;
+    if (hasCurrency && !/^[A-Z]{3}$/.test(invoiceCurrency)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        invoiceCurrencyCode: 'Currency must be a 3-letter code',
+      });
+    }
+    const purchaseRequestId = positiveInt(req.body.purchaseRequestId || req.body.purchase_request_id);
+    if (status === 'matched' && !purchaseRequestId && !hasTotal && !hasCurrency) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        invoiceMatchStatus: 'A matched invoice needs a purchase request or invoice metadata',
+      });
+    }
+    const receipt = await withTransaction(pool, async (client) => {
+      const { rows: [current] } = await client.query(
+        `SELECT * FROM restaurant_inventory_receipts
+          WHERE id = $1 AND restaurant_id = $2
+          FOR UPDATE`,
+        [receiptId, restaurantId]
+      );
+      if (!current) throw new AppError('Receipt not found', 404, 'inventory_receipt_not_found');
+      await assertLocationAccess(restaurant, req.user.id, current.location_id, client);
+
+      let request = null;
+      if (purchaseRequestId) {
+        const { rows: [found] } = await client.query(
+          `SELECT id, location_id, status
+             FROM restaurant_inventory_purchase_requests
+            WHERE id = $1 AND restaurant_id = $2
+            FOR UPDATE`,
+          [purchaseRequestId, restaurantId]
+        );
+        if (!found || found.status === 'cancelled') {
+          throw new AppError('Purchase request not found or cancelled', 404, 'purchase_request_not_found');
+        }
+        await assertLocationAccess(restaurant, req.user.id, found.location_id, client);
+        if (current.location_id != null && found.location_id != null
+          && Number(current.location_id) !== Number(found.location_id)) {
+          throw new AppError('Invoice purchase request must belong to the receipt store', 400, 'location_mismatch');
+        }
+        request = found;
+      }
+      const { rows: [updated] } = await client.query(
+        `UPDATE restaurant_inventory_receipts
+            SET purchase_request_id = COALESCE($1, purchase_request_id),
+                invoice_match_status = $2,
+                invoice_total_cents = CASE WHEN $3::boolean THEN $4 ELSE invoice_total_cents END,
+                invoice_currency_code = CASE WHEN $5::boolean THEN $6 ELSE invoice_currency_code END,
+                matched_at = CASE WHEN $2 = 'unmatched' THEN NULL ELSE NOW() END,
+                matched_by = CASE WHEN $2 = 'unmatched' THEN NULL ELSE $7 END
+          WHERE id = $8 AND restaurant_id = $9
+          RETURNING *`,
+        [request?.id || null, status, hasTotal, parsedInvoiceTotal, hasCurrency, invoiceCurrency,
+          status === 'unmatched' ? null : req.user.id, receiptId, restaurantId]
+      );
+      await logInventoryAudit(client, auditEntry(restaurant, 'receipt_invoice_match_updated', 'receipt', receiptId, req, {
+        previousStatus: current.invoice_match_status,
+        invoiceMatchStatus: updated.invoice_match_status,
+        previousPurchaseRequestId: current.purchase_request_id,
+        purchaseRequestId: updated.purchase_request_id,
+        invoiceTotalCents: updated.invoice_total_cents,
+        invoiceCurrencyCode: updated.invoice_currency_code,
+      }));
+      return receiptWithLines(client, restaurantId, updated.id);
+    });
+    res.json({ receipt });
+  } catch (error) { next(error); }
+};
+
 exports.createReceipt = async (req, res, next) => {
   try {
     const restaurantId = positiveInt(req.params.restaurantId);
@@ -810,12 +914,9 @@ exports.createReceipt = async (req, res, next) => {
       });
     }
     const purchaseRequestId = positiveInt(req.body.purchaseRequestId || req.body.purchase_request_id);
-    const invoiceTotalCents = req.body.invoiceTotalCents ?? req.body.invoice_total_cents;
-    const parsedInvoiceTotal = invoiceTotalCents === undefined || invoiceTotalCents === null || invoiceTotalCents === ''
-      ? null : Number(invoiceTotalCents);
-    if (parsedInvoiceTotal !== null && (!Number.isInteger(parsedInvoiceTotal) || parsedInvoiceTotal < 0)) {
-      throw new AppError('Validation failed', 400, 'validation_failed', { invoiceTotalCents: 'Invoice total must be non-negative cents' });
-    }
+    const invoiceTotalInput = req.body.invoiceTotalCents ?? req.body.invoice_total_cents;
+    const parsedInvoiceTotal = invoiceTotalInput === undefined || invoiceTotalInput === null || invoiceTotalInput === ''
+      ? null : invoiceTotalCents(invoiceTotalInput);
     const invoiceCurrency = String(req.body.invoiceCurrencyCode || req.body.invoice_currency_code || 'USD').trim().toUpperCase();
     if (!/^[A-Z]{3}$/.test(invoiceCurrency)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { invoiceCurrencyCode: 'Currency must be a 3-letter code' });
