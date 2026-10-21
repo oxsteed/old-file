@@ -12,9 +12,13 @@ jest.mock('../services/oxsteedCreditPartnerLedgerService', () => ({
   getPartnerLedger: jest.fn(),
   listPartnerFundingRecords: jest.fn(),
 }));
+jest.mock('../services/permissionsService', () => ({
+  hasRestaurantPermission: jest.fn(),
+}));
 
 const { listSettlements } = require('../services/oxsteedCreditAdminService');
 const { getPartnerLedger, listPartnerFundingRecords } = require('../services/oxsteedCreditPartnerLedgerService');
+const { hasRestaurantPermission } = require('../services/permissionsService');
 const controller = require('../controllers/oxsteedCreditPartnerController');
 
 function buildApp(role = 'owner') {
@@ -37,6 +41,7 @@ beforeEach(() => {
   listSettlements.mockReset();
   getPartnerLedger.mockReset();
   listPartnerFundingRecords.mockReset();
+  hasRestaurantPermission.mockReset().mockResolvedValue(true);
 });
 
 test('allows an owner to view partner settlements without customer data', async () => {
@@ -183,6 +188,7 @@ test('exports a bounded partner Credit report without customer identity fields',
 });
 
 test('rejects non-manager restaurant staff before reading partner data', async () => {
+  hasRestaurantPermission.mockResolvedValue(false);
   mockQuery.mockResolvedValueOnce({ rows: [{ id: 9, effective_role: 'employee' }] });
 
   const response = await request(buildApp('employee')).get('/restaurants/9/transactions');
