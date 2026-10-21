@@ -14,6 +14,7 @@ import EmptyState from '../../components/EmptyState';
 import {
   getSalesReport,
   downloadSalesReportCsv,
+  downloadSalesJournalCsv,
   getInventoryReport,
   getOperationsReport,
   getLoyaltyReport,
@@ -124,6 +125,7 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
   const onToChange = (value) => { setPreset(null); setTo(value); };
 
   const [exporting, setExporting] = useState(false);
+  const [exportingJournal, setExportingJournal] = useState(false);
   const onExportCsv = async () => {
     setExporting(true);
     try {
@@ -140,6 +142,24 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
       toast.error(apiErr(err, t('restaurants.ops.reports.exportError')));
     } finally {
       setExporting(false);
+    }
+  };
+  const onExportJournal = async () => {
+    setExportingJournal(true);
+    try {
+      const blob = await downloadSalesJournalCsv(restaurantId, { from, to });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `sales-journal-${from}-to-${to}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.exportError')));
+    } finally {
+      setExportingJournal(false);
     }
   };
 
@@ -174,6 +194,15 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
             disabled={exporting} data-track="ui.e7f53817fe.3"
           >
             {t('restaurants.ops.reports.downloadCsv')}
+          </button>
+          <button
+            type="button"
+            className="fd-btn fd-btn-sm fd-btn-secondary"
+            onClick={onExportJournal}
+            disabled={exportingJournal}
+            data-track="ui.e7f53817fe.4"
+          >
+            {t('restaurants.ops.reports.downloadJournalCsv')}
           </button>
         </div>
       )}

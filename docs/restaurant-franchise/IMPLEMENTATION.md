@@ -79,7 +79,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-04 | Existing stable order/payment retry IDs and pay-first hold | Lost-response/concurrent replay and reload resilience; verify all kitchen fire paths |
 | F-05 | Existing production server-dial prohibition and print queue; this pass adds paired kitchen-device queue endpoints and runtime contract | Native LAN print bridge and physical device/browser acceptance |
 | F-06 | Existing Connect-bound Terminal flow and token permission gate | Provider sandbox/readers and reconciliation acceptance |
-| F-07 | Existing local-day net-collected reports, currencies and CSV | Canonical per-store/brand facts, daily close/Z-report, XLSX/journal and HQ comparisons |
+| F-07 | Existing local-day net-collected reports, currencies, summary CSV and a tender-level journal CSV | Canonical per-store/brand facts, daily close/Z-report, XLSX and HQ comparisons |
 | F-08 | Existing offline drafts and failure reporting | In-store hub, offline cash with idempotent replay, Terminal store-and-forward/risk policy |
 | F-09 | Existing broken split-route adapter | Maintain canonical split guards and populated-db acceptance |
 | F-10 | Existing overnight/split-shift/holiday/timezone evaluator; this pass adds a multi-range location editor | Scheduling/device acceptance and special-date editing |
@@ -126,7 +126,8 @@ hardware decisions do not excuse independent software work on these flows.
 - `server`: `npx jest --runInBand --testPathPatterns='restaurantAppFlow' __tests__/restaurantAppFlow.test.js` — **52 passed**. The device printer queue check verifies token-authenticated kitchen access and location-scoped query parameters.
 - `client`: `node --test scripts/restaurantRender.browser-check.cjs scripts/restaurantCheckoutCard.browser-check.cjs scripts/restaurantStoreMenu.browser-check.cjs` — **3 passed**. The new store-menu check covers save/reset payloads, English/French/Arabic labels, RTL direction, narrow widths, and form labels.
 - `client`: `node --test scripts/restaurantLocationHours.browser-check.cjs` — **1 passed**. The location-hours check loads a legacy multi-range day, adds a third range, verifies the exact split-shift payload, and confirms the form resets.
-- `server`: `npx jest --runInBand --testPathPatterns='restaurantHosting' __tests__/restaurantHosting.test.js` — **4 passed**. Covers location-scoped table conflict detection, reservation idempotency, final-window validation, and waitlist SMS acknowledgement.
+- `server`: `npx jest --runInBand --testPathPatterns='restaurantHosting' __tests__/restaurantHosting.test.js` — **5 passed**. Covers location-scoped table conflict detection, reservation idempotency, final-window validation, waitlist SMS acknowledgement, and floor-plan position updates.
+- `server`: `npx jest --runInBand --testPathPatterns='restaurantReportsController' __tests__/restaurantReportsController.test.js` — **7 passed**. Covers the local-day sales journal export, CSV escaping, and permission gate.
 - `server`: `npx jest --runInBand --testPathPatterns='foodController|foodOrderValidation' __tests__/foodController.test.js __tests__/foodOrderValidation.test.js` — **45 passed**. Includes the server-enforced allergen exclusion quote check.
 - `server`: `npx jest --runInBand --testPathPatterns='routeScopeGuard' __tests__/routeScopeGuard.test.js` — **10 passed** after adding all host-stand routes.
 - `client`: `npm run verify:i18n` — **passed** with the host-stand keys present in `en`, `es`, `fr`, `ht`, and `ar`.

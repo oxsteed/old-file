@@ -382,6 +382,11 @@ function salesCsvRow(date, currency, s) {
   ].join(',');
 }
 
+function csvCell(value) {
+  const text = value === null || value === undefined ? '' : String(value);
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
 exports.salesExportCsv = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
@@ -399,6 +404,63 @@ exports.salesExportCsv = async (req, res, next) => {
     res.setHeader(
       'Content-Disposition',
       `attachment; filename="sales-report-${report.from_date}-to-${report.to_date}.csv"`
+    );
+    res.send(`${lines.join('\n')}\n`);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Accounting handoff: one order row when no POS tender exists, otherwise one
+// row per recorded tender/refund. Amounts remain in minor units and currencies
+// are never converted or combined. This is deliberately a journal export,
+// not a QuickBooks/Xero integration or a claim that an external ledger posted.
+const SALES_JOURNAL_COLUMNS = [
+  'business_date', 'order_id', 'location_id', 'location_name', 'currency',
+  'order_source', 'fulfillment_type', 'order_status', 'payment_status',
+  'subtotal_cents', 'discount_cents', 'tax_cents', 'service_fee_cents',
+  'delivery_fee_cents', 'tip_cents', 'order_total_cents', 'payment_id',
+  'payment_type', 'payment_status_detail', 'payment_amount_cents',
+  'payment_reference', 'payment_created_at',
+];
+
+exports.salesJournalExportCsv = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const timezone = resolveReportTimezone(restaurant);
+    const { fromDate, toDate } = parseSalesRange(req.query || {}, timezone);
+    const { rows } = await pool.query(
+      `SELECT to_char((o.created_at AT TIME ZONE $4)::date, 'YYYY-MM-DD') AS business_date,
+              o.id AS order_id, o.location_id, l.name AS location_name,
+              COALESCE(NULLIF(o.currency_code, ''), 'USD') AS currency,
+              o.order_source, o.fulfillment_type, o.status AS order_status,
+              o.payment_status, o.subtotal_cents, o.discount_cents, o.tax_cents,
+              o.service_fee_cents, o.delivery_fee_cents, o.tip_cents,
+              o.total_cents AS order_total_cents, p.id AS payment_id,
+              p.payment_type, p.status AS payment_status_detail,
+              p.amount_cents AS payment_amount_cents, p.reference AS payment_reference,
+              p.created_at AS payment_created_at
+         FROM food_orders o
+         LEFT JOIN restaurant_locations l
+           ON l.restaurant_id = o.restaurant_id AND l.id = o.location_id
+         LEFT JOIN restaurant_pos_payments p
+           ON p.restaurant_id = o.restaurant_id AND p.food_order_id = o.id
+          AND p.status IN ('recorded', 'captured', 'refunded')
+        WHERE o.restaurant_id = $1
+          AND o.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
+          AND o.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
+        ORDER BY o.created_at ASC, o.id ASC, p.created_at ASC NULLS FIRST, p.id ASC`,
+      [restaurantId, fromDate, toDate, timezone]
+    );
+    const lines = [SALES_JOURNAL_COLUMNS.join(',')];
+    for (const row of rows) {
+      lines.push(SALES_JOURNAL_COLUMNS.map((column) => csvCell(row[column])).join(','));
+    }
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="sales-journal-${fromDate}-to-${toDate}.csv"`
     );
     res.send(`${lines.join('\n')}\n`);
   } catch (err) {

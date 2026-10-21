@@ -264,6 +264,7 @@ router.patch('/:restaurantId/audits/corrective-actions/:actionId', requireRestau
 // Franchise reports (manager-only)
 router.get('/:restaurantId/reports/sales', requireRestaurantAccess(), franchiseReports.salesSummary);
 router.get('/:restaurantId/reports/sales/export.csv', requireRestaurantAccess(), franchiseReports.salesExportCsv);
+router.get('/:restaurantId/reports/sales/journal.csv', requireRestaurantAccess(), franchiseReports.salesJournalExportCsv);
 router.get('/:restaurantId/reports/inventory', requireRestaurantAccess(), franchiseReports.inventorySummary);
 router.get('/:restaurantId/reports/operations', requireRestaurantAccess(), franchiseReports.operationsSummary);
 // Loyalty: repeat-order rate + top items (analytics platform, Phase 2 Item 10)

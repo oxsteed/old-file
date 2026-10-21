@@ -24274,6 +24274,7 @@
       },
       "reports": {
         "downloadCsv": "Telechaje CSV",
+        "downloadJournalCsv": "Telechaje CSV jounal la",
         "exportError": "Pa t kapab telechaje rapò lavant lan.",
         "breakdown": "Detay",
         "gross": "Vant brit",

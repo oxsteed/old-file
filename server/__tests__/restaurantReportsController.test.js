@@ -24,6 +24,7 @@ function app() {
   });
   server.get('/api/restaurants/:restaurantId/reports/sales', reports.salesSummary);
   server.get('/api/restaurants/:restaurantId/reports/sales/export.csv', reports.salesExportCsv);
+  server.get('/api/restaurants/:restaurantId/reports/sales/journal.csv', reports.salesJournalExportCsv);
   server.get('/api/restaurants/:restaurantId/reports/inventory', reports.inventorySummary);
   server.get('/api/restaurants/:restaurantId/reports/operations', reports.operationsSummary);
   server.use(errorHandler);
@@ -89,6 +90,26 @@ describe('franchise reports backend', () => {
     expect(lines[0]).toContain('net_collected_cents');
     expect(lines).toContain('2026-10-01,USD,12,10,5000,200,4800,300,150,0,0,0,4800,480');
     expect(lines).toContain('TOTAL,USD,12,10,5000,200,4800,300,150,0,0,0,4800,480');
+  });
+
+  test('salesJournalExportCsv emits order and tender rows without combining currencies', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access('manager')] })
+      .mockResolvedValueOnce({ rows: [{ code: 'analytics.view_financial', allow: true }] })
+      .mockResolvedValueOnce({ rows: [{
+        business_date: '2026-10-01', order_id: 91, location_id: 7, location_name: 'Main, Store',
+        currency: 'USD', order_source: 'counter', fulfillment_type: 'dine_in', order_status: 'completed',
+        payment_status: 'paid', subtotal_cents: 1200, discount_cents: 0, tax_cents: 96,
+        service_fee_cents: 0, delivery_fee_cents: 0, tip_cents: 100, order_total_cents: 1396,
+        payment_id: 301, payment_type: 'cash', payment_status_detail: 'recorded', payment_amount_cents: 1396,
+        payment_reference: 'drawer,1', payment_created_at: '2026-10-01T18:00:00.000Z',
+      }] });
+    const res = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/reports/sales/journal.csv?from=2026-10-01&to=2026-10-01`);
+    expect(res.status).toBe(200);
+    expect(res.headers['content-disposition']).toContain('sales-journal-2026-10-01-to-2026-10-01.csv');
+    expect(res.text).toContain('business_date,order_id,location_id');
+    expect(res.text).toContain('2026-10-01,91,7,"Main, Store",USD,counter');
+    expect(res.text).toContain('"drawer,1"');
   });
 
   test('salesSummary rejects invalid ranges', async () => {

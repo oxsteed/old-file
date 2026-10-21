@@ -24276,6 +24276,7 @@
       },
       "reports": {
         "downloadCsv": "Download CSV",
+        "downloadJournalCsv": "Download journal CSV",
         "exportError": "Could not download the sales report.",
         "breakdown": "Breakdown",
         "gross": "Gross sales",

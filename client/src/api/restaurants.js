@@ -195,6 +195,9 @@ export const getSalesReport = (restaurantId, params = {}) =>
 export const downloadSalesReportCsv = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/reports/sales/export.csv`, { params, responseType: 'blob' }).then((r) => r.data);
 
+export const downloadSalesJournalCsv = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/sales/journal.csv`, { params, responseType: 'blob' }).then((r) => r.data);
+
 export const getInventoryReport = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/reports/inventory`, { params }).then((r) => r.data);
 
