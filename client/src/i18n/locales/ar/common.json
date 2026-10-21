@@ -5112,7 +5112,10 @@
       "unlockWithPin": "الفتح برقم PIN للموظف",
       "enterStaffPin": "أدخل رقم PIN الخاص بك",
       "staffPinPlaceholder": "رقم PIN للموظف",
-      "unlock": "فتح"
+      "unlock": "فتح",
+      "offlineCashSaved": "تم حفظ الدفع النقدي. سيُعاد تشغيله تلقائيًا عند عودة الاتصال.",
+      "offlineCashReplayed": "تمت إعادة تشغيل الدفع النقدي.",
+      "offlineCashReplayWaiting": "لا يزال الدفع النقدي قيد الانتظار لإعادة التشغيل. اترك نقطة البيع مفتوحة وتحقق من الوردية."
     },
     "restaurant": {
       "promoErrors": {

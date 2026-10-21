@@ -89,6 +89,15 @@ contains separate store-comparison and brand-total sheets, preserves each
 currency as its own row, and is generated from the same net-collected report
 facts as the JSON and CSV endpoints.
 
+The web POS now has a cash-only offline replay lane. When order creation or
+cash payment loses the network, the full order or the existing order payment
+is stored in a bounded browser outbox with stable order and payment idempotency
+keys. On reconnect, entries replay sequentially and are removed only after the
+server acknowledges both steps; a closed shift or validation failure keeps the
+entry for reconciliation. Card, mobile, credit, managed-screen drafts, and
+Terminal store-and-forward remain fail-closed. This is not an in-store LAN
+hub or physical payment-device acceptance.
+
 Migration 968 adds explicit store-scoped staff assignments. The manager-facing
 location-access API and Settings panel validate the membership and store
 tenants, record before/after assignments, and enforce the boundary on store
@@ -112,7 +121,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-05 | Existing production server-dial prohibition and print queue; this pass adds paired kitchen-device queue endpoints and runtime contract | Native LAN print bridge and physical device/browser acceptance |
 | F-06 | Existing Connect-bound Terminal flow and token permission gate | Provider sandbox/readers and reconciliation acceptance |
 | F-07 | Existing local-day net-collected reports, currencies, summary CSV and tender-level journal CSV; this pass adds per-store/currency daily close and multi-day location comparison JSON/CSV/XLSX | Labor and food-cost percentages; accounting-system adapters |
-| F-08 | Existing offline drafts and failure reporting | In-store hub, offline cash with idempotent replay, Terminal store-and-forward/risk policy |
+| F-08 | Existing offline drafts and failure reporting; web POS adds cash-only browser outbox replay with stable order/payment idempotency keys and sequential reconnect processing | In-store hub, Terminal store-and-forward/risk policy, and physical outage acceptance |
 | F-09 | Existing broken split-route adapter | Maintain canonical split guards and populated-db acceptance |
 | F-10 | Existing overnight/split-shift/holiday/timezone evaluator; this pass adds a multi-range location editor | Scheduling/device acceptance and special-date editing |
 | F-11 | Existing dayparts and scheduled fire filtering | Verify all scheduling paths and store-selected quote/submit invariants |
@@ -168,6 +177,7 @@ hardware decisions do not excuse independent software work on these flows.
 - `server/scripts/migration-rehearsal.cjs --timeout-ms 600000` — **passed** against a disposable Colima PostgreSQL container; all 939 migrations applied and replayed cleanly, including migrations 964 and 965.
 - `server/scripts/verifyRestaurantStoreMenu.js` — **passed** in the dedicated Colima PostgreSQL container. It applied migration 963 twice, verified default-store backfill/onboarding and legacy order/counter continuity, tenant foreign keys, negative prices, screen events, SQL projections, and sibling-store isolation.
 - `client`: `npm run build:ci` — **passed**; Vite emitted and verified 1,020 assets. The existing build warnings are the repository's large-chunk and dynamic-import advisories.
+- `client`: `node --test scripts/restaurantPosOfflineCash.test.mjs` — **passed**. Covers cash-only replay ordering, retention after a failed entry, and network-error classification.
 - The broader restaurant Jest selection was also run with the local FFmpeg binary. It reached 768 passing tests, but the pre-existing media-transcode test still fails because it expects a 960x720 rendition while the current binary produces 1280x960. That unrelated media behavior is outside this store-menu change.
 - `git diff --check` and JavaScript syntax checks for the changed server files pass.
 - `node server/scripts/verifyRestaurantStoreMenu.js` creates a random temporary

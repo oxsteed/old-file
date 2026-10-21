@@ -5112,7 +5112,10 @@
       "unlockWithPin": "Debloke ak PIN anplwaye",
       "enterStaffPin": "Antre PIN anplwaye ou",
       "staffPinPlaceholder": "PIN anplwaye",
-      "unlock": "Debloke"
+      "unlock": "Debloke",
+      "offlineCashSaved": "Kòmand lajan kach la sove. Li pral rejwe otomatikman lè koneksyon an retounen.",
+      "offlineCashReplayed": "Kòmand lajan kach la rejwe.",
+      "offlineCashReplayWaiting": "Kòmand lajan kach la toujou ap tann pou rejwe. Kenbe POS sa a ouvè epi verifye sèvis la."
     },
     "restaurant": {
       "promoErrors": {

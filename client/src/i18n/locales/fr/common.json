@@ -5112,7 +5112,10 @@
       "unlockWithPin": "Déverrouiller avec le code PIN",
       "enterStaffPin": "Entrez votre code PIN",
       "staffPinPlaceholder": "Code PIN du personnel",
-      "unlock": "Déverrouiller"
+      "unlock": "Déverrouiller",
+      "offlineCashSaved": "Paiement en espèces enregistré. Il sera rejoué automatiquement au retour de la connexion.",
+      "offlineCashReplayed": "Paiement en espèces rejoué.",
+      "offlineCashReplayWaiting": "Le paiement en espèces attend toujours sa relance. Gardez ce POS ouvert et vérifiez le service."
     },
     "restaurant": {
       "promoErrors": {

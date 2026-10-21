@@ -10,7 +10,7 @@ import EmptyState from '../../components/EmptyState';
 import api from '../../api/axios';
 import { getFoodRestaurant, formatFoodMoney } from '../../api/food';
 import { FoodBrand } from './foodShared';
-import { usePosSync } from './usePosSync';
+import { isNetworkFailure, usePosSync } from './usePosSync';
 import PosStaffSessionBar from './PosStaffSession';
 import {subscribeRestaurantDisplay} from '../../api/restaurantDisplaySocket';
 import PageShell from '../../components/PageShell';
@@ -147,6 +147,8 @@ function PaymentModal({ total, currency, discounts, serverOrder, onCreateOrder, 
     setLoading(false);
     if (result && result.errorCode === 'discount_approval_required') {
       setApprovalNeeded(true);
+    } else if (result?.offlineQueued) {
+      onClose();
     } else if (result) {
       setApprovalNeeded(false);
       setApprovalPin('');
@@ -332,15 +334,17 @@ export default function RestaurantPOSPage() {
   const [submitting, setSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState(null);
 
-  // F13: wire the offline-sync pipeline into the web POS. Failed mutations
-  // are reported (never auto-retried) and the manager sees a degraded banner.
+  // F13/F-08: wire the offline-sync pipeline into the web POS. Generic
+  // failures are reported; cash-only network failures can be replayed with
+  // the stable order/payment ids already used by the online flow.
   const {
     degraded: syncDegraded,
     failedOperations: syncFailed,
     pendingOperations: syncPending,
     outboxCount: syncOutbox,
     reportFailedOperation,
-  } = usePosSync(restaurantId, canManage);
+    queueOfflineCashCheckout,
+  } = usePosSync(restaurantId, canManage || canUsePos);
 
   const ticketRef = useRef(null);
 
@@ -522,30 +526,30 @@ export default function RestaurantPOSPage() {
     if (!checkoutId) setCheckoutId(activeCheckoutId);
     if (checkoutOrder) return checkoutOrder;
     setSubmitting(true);
+    const selectedDiscount = pickerDiscounts.find((discount) => String(discount.id) === String(discountId));
+    const payload = {
+      items: serializeTicket(),
+      order_source: 'counter',
+      location_id: restaurant?.location_id ?? activeShift.location_id,
+      shift_id: activeShift.id,
+      fulfillment_type: fulfillment,
+      table_name: tableName || undefined,
+      guest_name: guestName || undefined,
+      client_order_id: activeCheckoutId,
+      payment_mode: method === 'oxsteed_credit' ? 'oxsteed_credit' : 'pay_at_restaurant',
+      payment_method: method,
+      discount_definition_id: selectedDiscount?.definitionId || undefined,
+      discount_lines: discountId && !selectedDiscount?.definitionId
+        ? [{
+            code: selectedDiscount?.code,
+            label: selectedDiscount?.name,
+            percent_bps: Math.round((selectedDiscount?.percentOff || 0) * 10000),
+          }]
+        : undefined,
+      approval_pin: approvalPin || undefined,
+      tip_cents: tipCents || undefined,
+    };
     try {
-      const selectedDiscount = pickerDiscounts.find((discount) => String(discount.id) === String(discountId));
-      const payload = {
-        items: serializeTicket(),
-        order_source: 'counter',
-        location_id: restaurant?.location_id ?? activeShift.location_id,
-        shift_id: activeShift.id,
-        fulfillment_type: fulfillment,
-        table_name: tableName || undefined,
-        guest_name: guestName || undefined,
-        client_order_id: activeCheckoutId,
-        payment_mode: method === 'oxsteed_credit' ? 'oxsteed_credit' : 'pay_at_restaurant',
-        payment_method: method,
-        discount_definition_id: selectedDiscount?.definitionId || undefined,
-        discount_lines: discountId && !selectedDiscount?.definitionId
-          ? [{
-              code: selectedDiscount?.code,
-              label: selectedDiscount?.name,
-              percent_bps: Math.round((selectedDiscount?.percentOff || 0) * 10000),
-            }]
-          : undefined,
-        approval_pin: approvalPin || undefined,
-        tip_cents: tipCents || undefined,
-      };
       const res = await api.post(`/restaurants/${restaurantId}/pos/orders`, payload);
       const order = res.data?.order || null;
       if (order) setCheckoutOrder(order);
@@ -556,6 +560,31 @@ export default function RestaurantPOSPage() {
       // modal can prompt for the manager PIN and retry once with it.
       if (err?.response?.data?.code === 'discount_approval_required') {
         return { errorCode: 'discount_approval_required' };
+      }
+      if (method === 'cash' && isNetworkFailure(err)) {
+        const queued = queueOfflineCashCheckout({
+          method,
+          orderPayload: payload,
+          paymentPayload: {
+            paymentType: 'cash',
+            paymentMode: 'pay_at_restaurant',
+            shiftId: activeShift.id,
+            idempotencyKey: `pos-payment:${activeCheckoutId}`,
+          },
+        });
+        if (!queued) {
+          const message = t('food.pos.offlineCashReplayWaiting');
+          reportFailedOperation('pos_order', message);
+          toast.error(message);
+          return null;
+        }
+        setTicket([]);
+        setTableName('');
+        setGuestName('');
+        resetCheckout();
+        setShowPay(false);
+        toast.success(t('food.pos.offlineCashSaved'));
+        return { offlineQueued: true };
       }
       const message = err?.response?.data?.message || t('food.pos.orderError');
       reportFailedOperation('pos_order', message);
@@ -596,8 +625,35 @@ export default function RestaurantPOSPage() {
       return true;
     } catch (err) {
       const message = err?.response?.data?.message || t('food.pos.orderError');
-      // Failed POS mutations are reported to the offline-sync pipeline so
-      // the manager's sync view shows them. Never auto-retried (money).
+      if (method === 'cash' && isNetworkFailure(err)) {
+        const queued = queueOfflineCashCheckout({
+          method,
+          orderId: checkoutOrder.id,
+          orderTotalCents: checkoutOrder.total_cents,
+          paymentPayload: {
+            paymentType: 'cash',
+            paymentMode: 'pay_at_restaurant',
+            amountCents: Number(checkoutOrder.total_cents),
+            shiftId: activeShift.id,
+            idempotencyKey: `pos-payment:${checkoutOrder.client_order_id || checkoutId}`,
+          },
+        });
+        if (!queued) {
+          const replayMessage = t('food.pos.offlineCashReplayWaiting');
+          reportFailedOperation('pos_payment', replayMessage);
+          toast.error(replayMessage);
+          return false;
+        }
+        setTicket([]);
+        setTableName('');
+        setGuestName('');
+        resetCheckout();
+        setShowPay(false);
+        toast.success(t('food.pos.offlineCashSaved'));
+        return true;
+      }
+      // Other failed POS mutations are reported to the offline-sync pipeline;
+      // they stay visible for reconciliation and are never auto-retried.
       reportFailedOperation('pos_payment', message);
       toast.error(message);
       return false;

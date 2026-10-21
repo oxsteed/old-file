@@ -5112,7 +5112,10 @@
       "unlockWithPin": "Desbloquear con PIN del personal",
       "enterStaffPin": "Ingresa tu PIN de personal",
       "staffPinPlaceholder": "PIN del personal",
-      "unlock": "Desbloquear"
+      "unlock": "Desbloquear",
+      "offlineCashSaved": "Pago en efectivo guardado. Se reintentará automáticamente cuando vuelva la conexión.",
+      "offlineCashReplayed": "Pago en efectivo reintentado.",
+      "offlineCashReplayWaiting": "El pago en efectivo aún espera para reintentarse. Mantén abierto este POS y revisa el turno."
     },
     "restaurant": {
       "promoErrors": {

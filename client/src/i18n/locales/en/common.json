@@ -5112,7 +5112,10 @@
       "unlockWithPin": "Unlock with staff PIN",
       "enterStaffPin": "Enter your staff PIN",
       "staffPinPlaceholder": "Staff PIN",
-      "unlock": "Unlock"
+      "unlock": "Unlock",
+      "offlineCashSaved": "Cash checkout saved. It will replay automatically when the connection returns.",
+      "offlineCashReplayed": "Cash checkout replayed.",
+      "offlineCashReplayWaiting": "Cash checkout is still waiting to replay. Keep this POS open and check the shift."
     },
     "restaurant": {
       "promoErrors": {
