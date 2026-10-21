@@ -5535,6 +5535,9 @@ exports.createPosCardIntent = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    // F-06: reserving a Terminal payment moves money, so restaurant
+    // membership alone must not mint a processor-backed card intent.
+    await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage']);
     const amountCents = parseCents(req.body.amountCents ?? req.body.amount_cents, 'amountCents');
     if (amountCents < 1) {
       throw new AppError('Validation failed', 400, 'validation_failed', { amountCents: 'Amount must be greater than zero' });

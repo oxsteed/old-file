@@ -85,6 +85,8 @@ function buildApp(userId = USER_ID) {
   app.post('/api/restaurants/:restaurantId/pos/orders/:orderId/merge', appFlow.mergePosOrders);
   app.post('/api/restaurants/:restaurantId/pos/orders/:orderId/payments', appFlow.recordPosPayment);
   app.post('/api/restaurants/:restaurantId/pos/orders/:orderId/payment', appFlow.recordPosPayment);
+  app.post('/api/restaurants/:restaurantId/pos/terminal/connection-token', appFlow.createPosTerminalConnectionToken);
+  app.post('/api/restaurants/:restaurantId/pos/orders/:orderId/card-intents', appFlow.createPosCardIntent);
   app.post('/api/restaurants/:restaurantId/pos/orders/:orderId/refund', appFlow.refundPosOrder);
   app.post('/api/restaurants/:restaurantId/menu-items/:itemId/availability', appFlow.setMenuItemAvailability);
   app.get('/api/restaurants/:restaurantId/pos/shifts/:shiftId/drawer-events', appFlow.listDrawerEvents);
@@ -1132,6 +1134,19 @@ describe('restaurant app-flow backend', () => {
 
     expect(res.status).toBe(403);
     expect(res.body.code).toBe('forbidden');
+  });
+
+  test('denies Terminal card intent reservation to staff without pos.use', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'employee' })] });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/card-intents`)
+      .set('Idempotency-Key', 'terminal-intent-denied-1')
+      .send({ amountCents: 899, shiftId: 12 });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('forbidden');
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO restaurant_pos_payments/.test(sql))).toBe(false);
   });
 
   test('allows managers to record cash POS payments', async () => {
