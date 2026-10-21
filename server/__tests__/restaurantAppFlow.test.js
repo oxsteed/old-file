@@ -1340,6 +1340,46 @@ describe('restaurant app-flow backend', () => {
     expect(mockQuery.mock.calls.some(([, params]) => JSON.stringify(params).includes('mergedIntoOrderId'))).toBe(true);
   });
 
+  test('splits a partial line quantity while cloning modifiers and reservations', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, restaurant_id: RESTAURANT_ID, business_id: BUSINESS_ID, status: 'received', payment_status: 'unpaid', order_source: 'counter', fulfillment_type: 'pickup', currency_code: 'USD', subtotal_cents: 1000, discount_cents: 0, tip_cents: 0, metadata: {} }] })
+      .mockResolvedValueOnce({ rows: [{ payment_count: 0 }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 201,
+        quantity: 2,
+        unit_price_cents: 500,
+        modifier_total_cents: 0,
+        line_total_cents: 1000,
+        item_name: 'Burger',
+        order_item_count: 1,
+        kitchen_status: 'queued',
+        station_label: 'grill',
+        special_instructions: null,
+      }] })
+      .mockResolvedValueOnce({ rows: [{ timezone: 'UTC' }] })
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 14 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 102, queue_number: 14 }] })
+      .mockResolvedValueOnce({ rows: [] }) // source tip/discount update
+      .mockResolvedValueOnce({ rows: [{ id: 202 }] }) // child line
+      .mockResolvedValueOnce({ rows: [] }) // source line remainder
+      .mockResolvedValueOnce({ rows: [] }) // cloned modifiers
+      .mockResolvedValueOnce({ rows: [] }) // no inventory reservations
+      .mockResolvedValueOnce({ rows: [{ subtotal_cents: 500 }] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, subtotal_cents: 500, total_cents: 500 }] })
+      .mockResolvedValueOnce({ rows: [{ subtotal_cents: 500 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 102, subtotal_cents: 500, total_cents: 500 }] });
+
+    const splitRes = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/split`)
+      .send({ items: [{ orderItemId: 201, quantity: 1 }] });
+
+    expect(splitRes.status).toBe(201);
+    expect(splitRes.body.splitOrder.id).toBe(102);
+    expect(mockQuery.mock.calls.some(([sql]) => /SET quantity =/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_order_item_modifiers/.test(sql))).toBe(true);
+  });
+
   test('returns kitchen feed with item-level station state', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })

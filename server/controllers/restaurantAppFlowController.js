@@ -4366,10 +4366,25 @@ exports.splitPosOrder = async (req, res, next) => {
     const sourceOrderId = parsePositiveInt(req.params.orderId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage', 'orders.manage']);
-    const itemIds = Array.isArray(req.body.orderItemIds || req.body.order_item_ids || req.body.itemIds)
-      ? (req.body.orderItemIds || req.body.order_item_ids || req.body.itemIds).map((id) => parsePositiveInt(id)).filter(Boolean)
-      : [];
-    if (!itemIds.length) throw new AppError('Validation failed', 400, 'validation_failed', { orderItemIds: 'At least one order item is required' });
+    const rawSplitItems = Array.isArray(req.body.items || req.body.splitItems || req.body.split_items)
+      ? (req.body.items || req.body.splitItems || req.body.split_items)
+      : null;
+    const itemIdsInput = req.body.orderItemIds || req.body.order_item_ids || req.body.itemIds;
+    const splitRequests = rawSplitItems
+      ? rawSplitItems.map((entry) => ({
+        id: parsePositiveInt(entry?.orderItemId || entry?.order_item_id || entry?.itemId || entry?.id),
+        quantity: entry?.quantity === undefined || entry?.quantity === null || entry?.quantity === ''
+          ? null
+          : parsePositiveInt(entry.quantity),
+      }))
+      : (Array.isArray(itemIdsInput) ? itemIdsInput.map((id) => ({ id: parsePositiveInt(id), quantity: null })) : []);
+    if (!splitRequests.length || splitRequests.some((entry) => !entry.id || (rawSplitItems && entry.quantity === null))) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { orderItemIds: 'Each split item must include a valid order item and positive quantity' });
+    }
+    const itemIds = splitRequests.map((entry) => entry.id);
+    if (new Set(itemIds).size !== itemIds.length) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { orderItemIds: 'An order item may appear only once' });
+    }
 
     const result = await withTransaction(pool, async (client) => {
       const { rows: [source] } = await client.query(
@@ -4394,10 +4409,26 @@ exports.splitPosOrder = async (req, res, next) => {
       if (items.length !== itemIds.length) {
         throw new AppError('Validation failed', 400, 'validation_failed', { orderItemIds: 'Some order items do not belong to this order' });
       }
-      if (items.length >= Number(items[0]?.order_item_count || 0)) {
+      const splitItems = items.map((item) => {
+        const requested = splitRequests.find((entry) => entry.id === Number(item.id));
+        const lineQuantity = Number(item.quantity || 1);
+        const splitQuantity = requested?.quantity || lineQuantity;
+        if (!Number.isInteger(splitQuantity) || splitQuantity < 1 || splitQuantity > lineQuantity) {
+          throw new AppError('Validation failed', 400, 'validation_failed', { items: 'Split quantity must be between one and the line quantity' });
+        }
+        return { ...item, quantity: lineQuantity, splitQuantity };
+      });
+      const allLinesSelected = splitItems.length >= Number(items[0]?.order_item_count || 0);
+      const emptiesEverySelectedLine = splitItems.every((item) => item.splitQuantity >= Number(item.quantity || 1));
+      if (allLinesSelected && emptiesEverySelectedLine) {
         throw new AppError('A split must leave at least one item on the original ticket', 409, 'split_would_empty_ticket');
       }
-      const splitSubtotal = items.reduce((sum, item) => sum + Number(item.line_total_cents || 0), 0);
+      // A partial split carries the line price and modifier total per unit;
+      // rounding is applied only to the child line, with the remainder left
+      // on the source ticket so the two lines always reconcile exactly.
+      const splitSubtotal = splitItems.reduce((sum, item) => (
+        sum + Math.round(Number(item.line_total_cents || 0) * item.splitQuantity / Number(item.quantity || 1))
+      ), 0);
       const splitRatio = Number(source.subtotal_cents || 0) > 0 ? splitSubtotal / Number(source.subtotal_cents) : 0;
       const childDiscount = Math.round(Number(source.discount_cents || 0) * splitRatio);
       const childTip = Math.round(Number(source.tip_cents || 0) * splitRatio);
@@ -4458,18 +4489,92 @@ exports.splitPosOrder = async (req, res, next) => {
       // database with "cannot insert multiple commands into a prepared
       // statement", which made every split 500 — found by the F-02
       // location plumbing DB suite).
-      await client.query(
-        `UPDATE food_order_items
-            SET order_id = $1
-          WHERE order_id = $2 AND id = ANY($3::bigint[])`,
-        [child.id, sourceOrderId, itemIds]
-      );
-      await client.query(
-        `UPDATE restaurant_inventory_order_reservations
-            SET food_order_id = $1
-          WHERE restaurant_id = $2 AND food_order_item_id = ANY($3::bigint[])`,
-        [child.id, restaurantId, itemIds]
-      );
+      const wholeLineItemIds = splitItems
+        .filter((item) => item.splitQuantity >= Number(item.quantity || 1))
+        .map((item) => item.id);
+      if (wholeLineItemIds.length) {
+        await client.query(
+          `UPDATE food_order_items
+              SET order_id = $1
+            WHERE order_id = $2 AND id = ANY($3::bigint[])`,
+          [child.id, sourceOrderId, wholeLineItemIds]
+        );
+        await client.query(
+          `UPDATE restaurant_inventory_order_reservations
+              SET food_order_id = $1
+            WHERE restaurant_id = $2 AND food_order_item_id = ANY($3::bigint[])`,
+          [child.id, restaurantId, wholeLineItemIds]
+        );
+      }
+      for (const item of splitItems.filter((candidate) => candidate.splitQuantity < Number(candidate.quantity || 1))) {
+        const sourceQuantity = Number(item.quantity);
+        const childQuantity = item.splitQuantity;
+        const childLineTotal = Math.round(Number(item.line_total_cents || 0) * childQuantity / sourceQuantity);
+        const { rows: [childItem] } = await client.query(
+          `INSERT INTO food_order_items
+             (order_id, menu_item_id, item_name, quantity, unit_price_cents,
+              modifier_total_cents, line_total_cents, special_instructions,
+              kitchen_status, station_label, bumped_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+           RETURNING id`,
+          [
+            child.id,
+            item.menu_item_id,
+            item.item_name,
+            childQuantity,
+            item.unit_price_cents,
+            item.modifier_total_cents,
+            childLineTotal,
+            item.special_instructions,
+            item.kitchen_status,
+            item.station_label,
+            item.bumped_at,
+          ]
+        );
+        await client.query(
+          `UPDATE food_order_items
+              SET quantity = $1, line_total_cents = $2
+            WHERE id = $3 AND order_id = $4`,
+          [sourceQuantity - childQuantity, Number(item.line_total_cents || 0) - childLineTotal, item.id, sourceOrderId]
+        );
+        await client.query(
+          `INSERT INTO food_order_item_modifiers
+             (order_item_id, modifier_id, modifier_name, price_delta_cents)
+           SELECT $1, modifier_id, modifier_name, price_delta_cents
+             FROM food_order_item_modifiers
+            WHERE order_item_id = $2`,
+          [childItem.id, item.id]
+        );
+        const { rows: reservations } = await client.query(
+          `SELECT id, inventory_item_id, menu_item_id, quantity, status, expires_at
+             FROM restaurant_inventory_order_reservations
+            WHERE food_order_item_id = $1
+            FOR UPDATE`,
+          [item.id]
+        );
+        if (reservations.some((reservation) => reservation.status !== 'reserved')) {
+          throw new AppError('Partially split items must have active inventory reservations', 409, 'partial_split_inventory_state');
+        }
+        for (const reservation of reservations) {
+          const childReservationQuantity = Math.round(Number(reservation.quantity) * childQuantity / sourceQuantity * 1000) / 1000;
+          if (childReservationQuantity <= 0) continue;
+          await client.query(
+            `UPDATE restaurant_inventory_order_reservations
+                SET quantity = quantity - $1
+              WHERE id = $2`,
+            [childReservationQuantity, reservation.id]
+          );
+          await client.query(
+            `INSERT INTO restaurant_inventory_order_reservations
+               (restaurant_id, food_order_id, food_order_item_id, inventory_item_id,
+                menu_item_id, quantity, expires_at)
+             SELECT restaurant_id, $1, $2, inventory_item_id, menu_item_id, $3, expires_at
+               FROM restaurant_inventory_order_reservations
+              WHERE id = $4`,
+            [child.id, childItem.id, childReservationQuantity, reservation.id]
+          );
+        }
+      }
       const updatedSource = await recalcOrderTotals(client, sourceOrderId);
       const updatedChild = await recalcOrderTotals(client, child.id);
       return { sourceOrder: updatedSource, splitOrder: updatedChild };

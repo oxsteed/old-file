@@ -7,7 +7,7 @@ franchise-grade or production-readiness declaration. Existing fixes are retained
 no production migrations, deployment, financial activation, or provider-account
 changes are authorized by this checkpoint.
 
-## Current pass: store menu and split-shift hours controls
+## Current pass: store menu, split-shift hours, and quantity-level POS splits
 
 Migration 963 adds tenant-constrained store menu overrides. Prices and temporary
 availability are separate fields; null inherits the brand menu. Store overrides
@@ -37,6 +37,14 @@ closed days retain their configured ranges for later reopening. The editor also
 supports dated special-hour overrides, including all-day closures. The evaluator's
 overnight, split-shift, holiday and timezone behavior remains server-owned, while
 the browser check verifies the multi-range and special-date save payloads and reset behavior.
+
+The canonical POS split path now accepts quantity-level line selections in
+addition to its existing whole-line payload. A partial line creates a child
+line, leaves the remainder on the source ticket, clones modifiers, and splits
+active inventory reservations proportionally inside the same transaction. The
+source and child totals are recalculated after the move; duplicate selections,
+invalid quantities, payment activity, delivery tickets, and emptying the source
+ticket remain guarded. The legacy split endpoint is still absent.
 
 F-05 now exposes a paired-kitchen-device printer queue contract. A device token
 can list, claim and acknowledge only printer jobs assigned to that device's
@@ -188,7 +196,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-06 | Existing Connect-bound Terminal flow, token permission gate, and card-intent reservation gate | Provider sandbox/readers and reconciliation acceptance |
 | F-07 | Existing local-day net-collected reports, currencies, summary CSV and tender-level journal CSV; this pass adds per-store/currency daily close, multi-day location comparison JSON/CSV/XLSX, theoretical/actual/variance food-cost percentages, and labor percentage output against paid sales | Accounting-system adapters |
 | F-08 | Existing offline drafts and failure reporting; web POS adds cash-only browser outbox replay with stable order/payment idempotency keys and sequential reconnect processing | In-store hub, Terminal store-and-forward/risk policy, and physical outage acceptance |
-| F-09 | The broken legacy food split route is removed; POS splitting uses the canonical transactional `splitPosOrder` path with payment, delivery, non-empty-ticket, store inheritance, and queue-counter guards | Maintain canonical split guards and populated-db acceptance |
+| F-09 | The broken legacy food split route is removed; POS splitting uses the canonical transactional `splitPosOrder` path with whole-line and quantity-level selection, modifier/reservation cloning, payment, delivery, non-empty-ticket, store inheritance, and queue-counter guards | Maintain canonical split guards and populated-db acceptance |
 | F-10 | Existing overnight/split-shift/holiday/timezone evaluator; this pass adds a multi-range and dated special-hours location editor | Scheduling/device acceptance and populated-store special-date acceptance |
 | F-11 | Existing dayparts and scheduled fire filtering | Verify all scheduling paths and store-selected quote/submit invariants |
 | F-12 | Existing onboarding fulfillment defaults | End-to-end first-store POS acceptance |
@@ -216,7 +224,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 
 ## Additional named deliverables still in scope
 
-The review also requests coursing and expanded splits, brand loyalty/CRM, physical/e-gift
+The review also requests coursing and further split-workflow coverage, brand loyalty/CRM, physical/e-gift
 card products, delivery-marketplace menu/order adapters, QuickBooks/Xero and BI
 exports, allergen label printing, unified onboarding/hardware
 pairing, HQ compliance publishing/rollups and end-to-end store acceptance.
@@ -229,8 +237,8 @@ hardware decisions do not excuse independent software work on these flows.
 
 ## Verification
 
-- `server`: `npx jest --runInBand --testPathPatterns='restaurantStoreMenu|restaurantAppFlow|foodController|foodOrderValidation|routeScopeGuard'` — **127 passed**.
-- `server`: `npx jest --runInBand --testPathPatterns='restaurantAppFlow' __tests__/restaurantAppFlow.test.js` — **52 passed**. The device printer queue check verifies token-authenticated kitchen access and location-scoped query parameters.
+- `server`: `npx jest --runInBand --testPathPatterns='restaurantStoreMenu|restaurantAppFlow|foodController|foodOrderValidation|routeScopeGuard'` — **134 passed**.
+- `server`: `npx jest --runInBand --testPathPatterns='restaurantAppFlow' __tests__/restaurantAppFlow.test.js` — **55 passed**. The suite covers quantity-level split reconciliation and the device printer queue check verifies token-authenticated kitchen access and location-scoped query parameters.
 - `client`: `node --test scripts/restaurantRender.browser-check.cjs scripts/restaurantCheckoutCard.browser-check.cjs scripts/restaurantStoreMenu.browser-check.cjs` — **3 passed**. The new store-menu check covers save/reset payloads, English/French/Arabic labels, RTL direction, narrow widths, and form labels.
 - `client`: `node --test scripts/restaurantLocationHours.browser-check.cjs` — **1 passed**. The location-hours check loads a legacy multi-range day, preserves an all-day special closure, adds a dated one-off range, verifies the exact payload, and confirms the form resets.
 - `server`: `npx jest --runInBand --testPathPatterns='restaurantHosting' __tests__/restaurantHosting.test.js` — **5 passed**. Covers location-scoped table conflict detection, reservation idempotency, final-window validation, waitlist SMS acknowledgement, and floor-plan position updates.
