@@ -59,7 +59,10 @@ can list, claim and acknowledge only printer jobs assigned to that device's
 restaurant and location; runtime config publishes the queue paths and polling
 interval. The queue remains the server-side handoff. A native LAN print bridge
 and physical printer acceptance are still required before this can be called a
-complete print deployment.
+complete print deployment. Manager-only allergen-label printing now reads the
+restaurant's declared menu allergens, emits an ESC/POS label job, and exposes a
+store-aware merchant control; no-label orders fail closed and no order or
+payment state is changed.
 
 The host-stand tranche adds migration 964 and location-scoped tables,
 reservations, and walk-in waitlist records. Reservation creation is
@@ -259,6 +262,8 @@ hardware decisions do not excuse independent software work on these flows.
 - `server`: `npx jest --runInBand __tests__/restaurantInventoryController.test.js __tests__/restaurantInventoryOperations.test.js __tests__/restaurantInventoryOrderService.test.js` — **20 passed**. Covers assigned-store item, adjustment, purchase-request, and supplier-issue filtering, idempotent adjustments, and inventory operations.
 - `server`: `npx jest --runInBand --testPathPatterns='foodController|foodOrderValidation' __tests__/foodController.test.js __tests__/foodOrderValidation.test.js` — **45 passed**. Includes the server-enforced allergen exclusion quote check.
 - `server`: `npx jest --runInBand --testPathPatterns='routeScopeGuard' __tests__/routeScopeGuard.test.js` — **10 passed** after adding all host-stand routes.
+- `server`: `npx jest --runInBand __tests__/restaurantPrinterLabels.test.js __tests__/restaurantPrinterSettings.db.test.js` — **3 passed, 13 skipped** without the explicit disposable printer database URL; pure allergen-label rendering passes and the DB suite remains fail-closed.
+- `client`: `npm run verify:i18n` and `npm run build:ci` — **passed** after adding the localized allergen-label printer control; emitted-asset verification covered 1,020 assets.
 - `client`: `npm run verify:i18n` — **passed** with the host-stand keys present in `en`, `es`, `fr`, `ht`, and `ar`.
 - `client`: `npm run build` — **passed**; Vite emitted the merchant bundle with the host-stand panel. Existing large-chunk and dynamic-import advisories remain.
 - `server`: `npx jest --runInBand __tests__/restaurantPayrollOvertime.test.js` — **2 passed**. Covers weekly overtime allocation and required-break exception detection.
