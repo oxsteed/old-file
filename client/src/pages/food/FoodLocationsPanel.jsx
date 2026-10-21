@@ -6,6 +6,7 @@ import { suggestLocation } from '../../api/geo';
 import { apiErrorMessage } from './foodShared';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 import TimezoneSelect, { DETECTED_TIMEZONE } from './TimezoneSelect.jsx';
+import StoreMenuPanel from './StoreMenuPanel.jsx';
 
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const DEFAULT_OPEN_TIME = '11:00';
@@ -300,6 +301,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
           )}
         </div>
       </form>
+      {editingId && <StoreMenuPanel restaurant={restaurant} locationId={editingId} t={t} />}
     </div>
   );
 }

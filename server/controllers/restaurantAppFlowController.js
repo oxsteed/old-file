@@ -46,6 +46,7 @@ const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/stora
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
 const { nextQueueNumber } = require('../services/restaurantQueueCounter');
 const restaurantLocationService = require('../services/restaurantLocationService');
+const storeMenu = require('../services/restaurantStoreMenuService');
 const permissionsService = require('../services/permissionsService');
 const { getEffectivePermissions } = permissionsService;
 const {
@@ -3770,9 +3771,14 @@ exports.createPosOrder = async (req, res, next) => {
     const actingStaff = await resolveActingStaff(req, restaurantId);
 
     const result = await withTransaction(pool, async (client) => {
-      if (shiftId) {
-        await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, MANAGE_ROLES.has(restaurant.effective_role));
-      }
+      const openShift = shiftId
+        ? await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, MANAGE_ROLES.has(restaurant.effective_role))
+        : null;
+      const posDeviceLocationId = actingStaff?.deviceId
+        ? await restaurantLocationService.deviceLocationId(client, { restaurantId, deviceId: actingStaff.deviceId })
+        : null;
+      const requestedStore = storeMenu.pinnedLocation(req.body.locationId ?? req.body.location_id, openShift?.location_id);
+      const pinnedStore = storeMenu.pinnedLocation(requestedStore, posDeviceLocationId);
       // Read WITHOUT the row lock (F-18). This SELECT used to take
       // FOR UPDATE, which held the restaurant row across the external
       // routing call below (and every other POS order for the restaurant
@@ -3792,6 +3798,7 @@ exports.createPosOrder = async (req, res, next) => {
           [restaurantId, clientOrderId]
         );
         if (existingOrder) {
+          storeMenu.pinnedLocation(existingOrder.location_id, pinnedStore);
           return { order: existingOrder, printerJobs: [], runnerTask: null, replayed: true };
         }
       }
@@ -3809,20 +3816,19 @@ exports.createPosOrder = async (req, res, next) => {
       // request, else the acting terminal's store, else primary) and run
       // daypart checks in that store's timezone. The queue counter is
       // per store since migration 952, keyed on the resolved location.
-      const posDeviceLocationId = actingStaff?.deviceId
-        ? await restaurantLocationService.deviceLocationId(client, { restaurantId, deviceId: actingStaff.deviceId })
-        : null;
       const posLocation = await restaurantLocationService.resolveLocationRow(client, {
         restaurantId,
-        requestedLocationId: parsePositiveInt(req.body.locationId || req.body.location_id),
+        requestedLocationId: pinnedStore,
         deviceLocationId: posDeviceLocationId,
       });
+      storeMenu.assertLocation(posLocation, null);
+      storeMenu.useStoreDetails(restaurantRow, posLocation);
       const posLocationId = posLocation ? Number(posLocation.id) : null;
       const posTimezone = posLocation?.timezone || restaurantRow.timezone;
       const ids = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
       const { rows: menuRows } = await client.query(
         `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
-                fmi.availability_schedule,
+                fmi.availability_schedule, ${storeMenu.overrideSql('fmi', '$3')},
                 COALESCE((
                   SELECT jsonb_agg(
                     jsonb_build_object(
@@ -3854,9 +3860,9 @@ exports.createPosOrder = async (req, res, next) => {
             AND fmi.id = ANY($2::bigint[])
             AND fmi.publication_status = 'published'
             AND fmi.archived_at IS NULL`,
-        [restaurantId, ids]
+        [restaurantId, ids, posLocationId]
       );
-      const menu = new Map(menuRows.map((row) => [Number(row.id), row]));
+      const menu = new Map(menuRows.map((row) => [Number(row.id), storeMenu.applyOverride(row)]));
       const normalized = items.map((line, index) => {
         const item = menu.get(parsePositiveInt(line.menuItemId || line.menu_item_id));
         if (!item || item.is_available === false) {
@@ -8746,77 +8752,19 @@ exports.syncMenuAvailability = async (req, res, next) => {
   }
 };
 
+// Compatibility adapters retain the existing POS/KDS URLs and response shape.
+// An omitted store resolves to the primary store; it never changes the brand.
 exports.setMenuItemAvailability = async (req, res, next) => {
   try {
-    const restaurantId = parsePositiveInt(req.params.restaurantId);
-    const itemId = parsePositiveInt(req.params.itemId || req.body.itemId || req.body.item_id);
-    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    // F-17: 86ing an item is floor work, not a management act. Kitchen
-    // and POS staff (kitchen.update or pos.use) may toggle availability;
-    // every toggle is written to the availability event log below with
-    // the actor and reason, which is the audit entry for the change.
-    if (!MANAGE_ROLES.has(restaurant.effective_role)) {
-      await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.update', 'pos.use']);
-    }
-    const available = parseOptionalBoolean(
-      req.body.isAvailable ?? req.body.is_available ?? req.body.available,
-      'isAvailable'
-    );
-    if (available === null) {
-      throw new AppError('Validation failed', 400, 'validation_failed', { isAvailable: 'Must be true or false' });
-    }
-    const reason = normalizeString(req.body.reason || req.body.note, 1000);
-    const result = await withTransaction(pool, async (client) => {
-      const { rows: [current] } = await client.query(
-        `SELECT id, is_available, manual_available, inventory_available
-           FROM food_menu_items
-          WHERE id = $1 AND restaurant_id = $2
-          FOR UPDATE`,
-        [itemId, restaurantId]
-      );
-      if (!current) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
-      const { rows: [item] } = await client.query(
-        `UPDATE food_menu_items
-            SET manual_available = $1,
-                is_available = $1 AND inventory_available,
-                updated_at = NOW()
-          WHERE id = $2 AND restaurant_id = $3
-          RETURNING *`,
-        [available, itemId, restaurantId]
-      );
-      if (!item) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
-      const { rows: [event] } = await client.query(
-        `INSERT INTO restaurant_inventory_availability_events
-           (restaurant_id, menu_item_id, previous_available, next_available, reason, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6)
-         RETURNING *`,
-        [
-          restaurantId,
-          item.id,
-          current.is_available,
-          item.is_available,
-          reason,
-          req.user.id,
-        ]
-      );
-      return { item, event };
-    });
-    broadcastRestaurant(restaurant, 'food:menu:availability', result);
-    // Audit fix (P2-3-F13): toggling the last available menu item off breaks
-    // publish readiness. Re-check and auto-unpublish if now incomplete.
-    if (restaurant.business_id) {
-      const { unpublished, missing } = await maybeUnpublishBusinessIfIncomplete(pool, restaurant.business_id, {
-        actorUserId: req.user.id, actorRole: 'owner',
-      });
-      if (unpublished) {
-        result.businessUnpublished = true;
-        result.unpublishMissing = missing;
-      }
-    }
-    res.json(result);
-  } catch (err) {
-    next(err);
-  }
+    const available = parseOptionalBoolean(req.body.isAvailable ?? req.body.is_available ?? req.body.available, 'isAvailable');
+    if (available === null) throw new AppError('Availability is required', 400, 'invalid_store_availability');
+    req.params.locationId = storeMenu.locationId(req.body.locationId ?? req.body.location_id);
+    const body = { isAvailable: available };
+    if (req.body.reason || req.body.note) body.reason = normalizeString(req.body.reason || req.body.note, 1000);
+    if (Object.hasOwn(req.body, 'availableAgainAt')) body.availableAgainAt = req.body.availableAgainAt;
+    req.body = body;
+    return require('./restaurantStoreMenuController').update(req, res, next);
+  } catch (error) { next(error); }
 };
 
 exports.getPosSyncStatus = async (req, res, next) => {

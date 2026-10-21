@@ -4881,6 +4881,24 @@
     }
   },
   "food": {
+    "storeMenu": {
+      "title": "Meni lokal la",
+      "hint": "Pri ak disponiblite sa yo aplike sèlman nan lokal sa a. Restriksyon mak la ak stok la toujou aplike.",
+      "item": "Atik nan meni",
+      "choose": "Chwazi yon atik",
+      "brandPrice": "Pri mak la: {{price}}",
+      "price": "Pri lokal la ({{currency}})",
+      "inheritPrice": "Kite l vid pou itilize pri mak la.",
+      "availability": "Disponiblite",
+      "inherit": "Itilize disponiblite mak la",
+      "available": "Disponib",
+      "soldOut": "Fini",
+      "returnAt": "Remete an vant (lè lokal ou, opsyonèl)",
+      "saved": "Meni lokal la mete ajou.",
+      "failed": "Nou pa t ka mete meni lokal la ajou.",
+      "store": "Chwazi yon lokal",
+      "emptyCart": "Vide panye w anvan ou chanje lokal."
+    },
     "myShift": {
       "title": "Orè mwen",
       "subtitle": "Anons, orè ou, tach ou, lis verifikasyon ak fòmasyon pou restoran sa a.",

@@ -1142,21 +1142,23 @@ describe('restaurant app-flow backend', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(false);
   });
 
-  test('toggles menu availability for sold-out POS flows', async () => {
+  test('toggles only the primary store availability for legacy sold-out POS URLs', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
-      .mockResolvedValueOnce({ rows: [{ id: 11, is_available: true }] })
-      .mockResolvedValueOnce({ rows: [{ id: 11, name: 'Classic Burger', is_available: false }] })
-      .mockResolvedValueOnce({ rows: [{ id: 700, menu_item_id: 11, next_available: false }] });
-
+      .mockResolvedValueOnce({ rows: [{ code: 'menu.manage' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 77, restaurant_id: RESTAURANT_ID, status: 'active' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 11, name: 'Classic Burger', price_cents: 1000, is_available: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ menu_item_id: 11, location_id: 77, is_available: false }] });
     const res = await request(buildApp())
       .post(`/api/restaurants/${RESTAURANT_ID}/menu-items/11/availability`)
       .send({ isAvailable: false, reason: 'Sold out' });
-
     expect(res.status).toBe(200);
     expect(res.body.item.is_available).toBe(false);
-    expect(res.body.event.next_available).toBe(false);
-    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_menu_items/.test(sql))).toBe(true);
+    expect(res.body.event).toMatchObject({ location_id: 77, next_available: false });
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_menu_items/.test(sql))).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO restaurant_store_menu_overrides/.test(sql))).toBe(true);
   });
 
   test('acknowledges pending local POS operations idempotently', async () => {

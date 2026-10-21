@@ -22307,6 +22307,24 @@
     "changeCountry": "Change country"
   },
   "food": {
+    "storeMenu": {
+      "title": "Store menu",
+      "hint": "Prices and availability apply only to this store. Brand and inventory restrictions still apply.",
+      "item": "Menu item",
+      "choose": "Choose an item",
+      "brandPrice": "Brand price: {{price}}",
+      "price": "Store price ({{currency}})",
+      "inheritPrice": "Leave blank to use the brand price.",
+      "availability": "Availability",
+      "inherit": "Use brand availability",
+      "available": "Available",
+      "soldOut": "Sold out",
+      "returnAt": "Return to stock (your local time, optional)",
+      "saved": "Store menu updated.",
+      "failed": "Could not update the store menu.",
+      "store": "Choose a store",
+      "emptyCart": "Empty your basket before changing stores."
+    },
     "creditCenter": {
       "recentFallback": "Recently",
       "oxsteedCustomer": "OxSteed customer",

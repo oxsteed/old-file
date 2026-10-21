@@ -346,13 +346,18 @@ export default function RestaurantPOSPage() {
 
   const load = useCallback(async () => {
     try {
-      const [r, shiftsResponse, bootstrapResponse] = await Promise.all([
+      let [r, shiftsResponse, bootstrapResponse] = await Promise.all([
         getFoodRestaurant(restaurantId),
         api.get(`/restaurants/${restaurantId}/pos/shifts?limit=50`).catch(() => ({ data: { shifts: [] } })),
         api.get(`/restaurants/${restaurantId}/app/bootstrap`).catch(() => null),
       ]);
+      const openShifts = (shiftsResponse.data?.shifts || [])
+        .filter((shift) => shift.status === 'open')
+        .sort((a, b) => Number(Boolean(b.is_mine)) - Number(Boolean(a.is_mine)));
+      const selectedShift = openShifts[0] || null;
+      if (selectedShift?.location_id) r = await getFoodRestaurant(restaurantId, { locationId: selectedShift.location_id });
       const rest = r?.restaurant || r;
-      setRestaurant(rest);
+      setRestaurant({ ...rest, location_id: r?.location?.id ?? selectedShift?.location_id ?? null });
       // F-03: tendering a payment is a pos.use capability exercised
       // inside the cashier's own open drawer shift (the API enforces the
       // permission and the shift ownership). Managers keep their wider
@@ -367,16 +372,18 @@ export default function RestaurantPOSPage() {
       }
       const membershipPermissions = membership?.permissions || [];
       setCanUsePos(membershipPermissions.includes('*') || membershipPermissions.includes('pos.use'));
-      const openShifts = (shiftsResponse.data?.shifts || [])
-        .filter((shift) => shift.status === 'open')
-        .sort((a, b) => Number(Boolean(b.is_mine)) - Number(Boolean(a.is_mine)));
-      setActiveShift(openShifts[0] || null);
-      const cats = r?.categories || [];
-      const its = r?.items || [];
+      setActiveShift(selectedShift);
+      const cats = r?.categories || (r?.menu || []).map(({ items: _items, ...category }) => category);
+      const its = r?.items || [...(r?.menu || []).flatMap((category) => category.items || []), ...(r?.uncategorizedItems || [])];
       // attach modifier groups to items
       const modGroups = r?.modifierGroups || [];
       const itemMap = {};
-      its.forEach((item) => { itemMap[item.id] = { ...item, modifierGroups: [] }; });
+      its.forEach((item) => { itemMap[item.id] = { ...item, modifierGroups: (item.modifierGroups || []).map((group) => ({
+        group_id: group.id, group_name: group.name, min_select: group.minSelect, max_select: group.maxSelect,
+        is_required: group.isRequired, modifiers: (group.options || []).filter((option) => option.isAvailable !== false).map((option) => ({
+          modifier_id: option.id, modifier_name: option.name, price_delta_cents: option.priceDeltaCents,
+        })),
+      })) }; });
       modGroups.forEach((g) => {
         if (itemMap[g.menu_item_id]) {
           const existing = itemMap[g.menu_item_id].modifierGroups.find((eg) => eg.group_id === g.group_id);
@@ -400,6 +407,12 @@ export default function RestaurantPOSPage() {
   }, [restaurantId, t]);
 
   useEffect(()=>{return subscribeRestaurantDisplay(restaurantId,load);},[restaurantId,canManage,load]);
+  useEffect(() => {
+    const stamps = items.map((item) => Date.parse(item.store_override?.available_again_at)).filter((stamp) => stamp > Date.now());
+    if (!stamps.length) return undefined;
+    const timer = setTimeout(load, Math.min(2147483647, Math.max(100, Math.min(...stamps) - Date.now() + 100)));
+    return () => clearTimeout(timer);
+  }, [items, load]);
 
   useEffect(() => {
     load();
@@ -514,6 +527,7 @@ export default function RestaurantPOSPage() {
       const payload = {
         items: serializeTicket(),
         order_source: 'counter',
+        location_id: restaurant?.location_id ?? activeShift.location_id,
         shift_id: activeShift.id,
         fulfillment_type: fulfillment,
         table_name: tableName || undefined,
@@ -598,6 +612,7 @@ export default function RestaurantPOSPage() {
     try {
       const payload = {
         items: serializeTicket(),
+        location_id: restaurant?.location_id ?? activeShift.location_id,
         order_source: 'counter',
         shift_id: activeShift.id,
         fulfillment_type: fulfillment,

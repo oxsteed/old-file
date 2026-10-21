@@ -138,6 +138,9 @@ router.get('/:restaurantId/kitchen/prep-device-config', requireRestaurantAccess(
 router.patch('/:restaurantId/kitchen/prep-device-config', requireRestaurantAccess(), appFlow.updatePrepDeviceConfig);
 router.post('/:restaurantId/locations', requireRestaurantAccess(), appFlow.createRestaurantLocation);
 router.patch('/:restaurantId/locations/:locationId', requireRestaurantAccess(), appFlow.updateRestaurantLocation);
+const storeMenu = require('../controllers/restaurantStoreMenuController');
+router.get('/:restaurantId/locations/:locationId/menu', requireRestaurantAccess(), storeMenu.list);
+router.patch('/:restaurantId/locations/:locationId/menu-items/:itemId', requireRestaurantAccess(), storeMenu.update);
 
 // Display / kiosk / device pairing
 router.post('/:restaurantId/devices/pairing-codes', authenticatedLimiter, requireRestaurantAccess(), appFlow.createDevicePairingCode);

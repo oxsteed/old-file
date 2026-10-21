@@ -22307,6 +22307,24 @@
     "changeCountry": "Changer de pays"
   },
   "food": {
+    "storeMenu": {
+      "title": "Menu du point de vente",
+      "hint": "Les prix et la disponibilité concernent uniquement ce point de vente. Les restrictions de la marque et du stock restent applicables.",
+      "item": "Article du menu",
+      "choose": "Choisir un article",
+      "brandPrice": "Prix de la marque : {{price}}",
+      "price": "Prix du point de vente ({{currency}})",
+      "inheritPrice": "Laissez vide pour utiliser le prix de la marque.",
+      "availability": "Disponibilité",
+      "inherit": "Utiliser la disponibilité de la marque",
+      "available": "Disponible",
+      "soldOut": "Épuisé",
+      "returnAt": "Remettre en vente (votre heure locale, facultatif)",
+      "saved": "Menu du point de vente mis à jour.",
+      "failed": "Impossible de mettre à jour le menu du point de vente.",
+      "store": "Choisir un point de vente",
+      "emptyCart": "Videz votre panier avant de changer de point de vente."
+    },
     "creditCenter": {
       "recentFallback": "Récemment",
       "oxsteedCustomer": "Client OxSteed",

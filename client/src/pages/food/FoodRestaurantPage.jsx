@@ -223,6 +223,9 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
 
   // Data
   const [data, setData] = useState(customerSnapshot);
+  const [storeId, setStoreId] = useState(() => new URLSearchParams(location.search).get('locationId') || '');
+  const [menuRevision, setMenuRevision] = useState(0);
+  useEffect(() => { setStoreId(new URLSearchParams(location.search).get('locationId') || ''); }, [restaurantId, location.search]);
   const [loading, setLoading] = useState(!customerSnapshot);
   const [stripeClient, setStripeClient] = useState(null);
   useEffect(() => {
@@ -425,12 +428,21 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
   useEffect(() => {
     let alive = true;
     setLoading(true);
-    getFoodRestaurant(restaurantId)
+    getFoodRestaurant(restaurantId, storeId ? { locationId: storeId } : {})
       .then((d) => { if (alive) setData(d); })
       .catch(() => { if (alive) setData(null); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, [restaurantId]);
+  }, [restaurantId, storeId, menuRevision]);
+
+  // A temporary 86 expires even when no other order or menu event occurs.
+  useEffect(() => {
+    const stamps = [...(data?.menu || []).flatMap((group) => group.items || []), ...(data?.uncategorizedItems || [])]
+      .map((item) => Date.parse(item.store_override?.available_again_at)).filter((stamp) => stamp > Date.now());
+    if (!stamps.length) return undefined;
+    const timer = setTimeout(() => setMenuRevision((value) => value + 1), Math.min(2147483647, Math.max(100, Math.min(...stamps) - Date.now() + 100)));
+    return () => clearTimeout(timer);
+  }, [data]);
 
   useEffect(() => {
     if (!restaurantId) return;
@@ -757,6 +769,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       return;
     }
 
+    if (draft.locationId && !new URLSearchParams(location.search).has('locationId')) setStoreId(String(draft.locationId));
     const savedCartItems = Array.isArray(draft.cartItems) ? draft.cartItems : [];
     const savedStep = draft.cartStep === 'login'
       ? 'details'
@@ -869,6 +882,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       return;
     }
     saveDraftOrder(restaurantId, {
+      locationId: data?.location?.id ?? storeId,
       cartItems,
       cartOpen,
       cartStep,
@@ -893,6 +907,8 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
     });
   }, [
     restaurantId,
+    data?.location?.id,
+    storeId,
     draftHydrated,
     cartItems,
     cartOpen,
@@ -1046,6 +1062,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       try {
         const payload = {
           orderSource: 'web',
+          locationId: data?.location?.id ?? (storeId || undefined),
           fulfillmentType,
           paymentMode: apiPaymentMode,
           tipCents,
@@ -1084,7 +1101,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       }
     }, 450);
     return () => clearTimeout(timer);
-  }, [cartOpen, cartItems.length, restaurantId, cartStep, deliveryMode, addressLine1, addressLine2, apiPaymentMode, tipCents, promoCode, loyaltyPointsToRedeem, orderItemsPayload, restaurant]);
+  }, [cartOpen, cartItems.length, restaurantId, cartStep, deliveryMode, addressLine1, addressLine2, apiPaymentMode, tipCents, promoCode, loyaltyPointsToRedeem, orderItemsPayload, restaurant, data?.location?.id, storeId]);
 
   // P3-9-F01: fetch the signed-in customer's loyalty balance for this
   // restaurant when the checkout opens so points can be viewed and redeemed.
@@ -1212,6 +1229,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
   const placeOrderAfterPayment = async (stripePaymentIntentId, { fulfillmentType, paymentMode, externalPaymentSubmission }) => {
         const payload = {
           orderSource: 'web',
+          locationId: data?.location?.id ?? (storeId || undefined),
           fulfillmentType,
           // Canonical restaurant payment contract mode (card checkout is pay_now).
           paymentMode,
@@ -2101,6 +2119,23 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
             <div style={{ display: 'inline-flex', background: accentBg, color: accent, padding: '2px 9px', borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>{cuisineLabel}</div>
             <h1 style={{ fontFamily: SERIF, fontSize: 28, fontWeight: 400, color: 'var(--color-text)', lineHeight: 1.15, letterSpacing: '-0.01em', marginBottom: 4 }}>{restaurant.display_name}</h1>
             <p style={{ fontSize: 14, color: 'var(--color-text-muted)', marginBottom: 10 }}>{meta}</p>
+            {data?.locations?.length > 1 && <div className="fd-field">
+              <label htmlFor="restaurant-store-picker">{t('food.storeMenu.store')}</label>
+              <select id="restaurant-store-picker" value={String(data?.location?.id || storeId)}
+                disabled={cartItems.length > 0 || cartStep === 'confirmed'} onChange={(event) => {
+                  setStoreId(event.target.value);
+                  setQuote(null);
+                  setModalItem(null);
+                  const params = new URLSearchParams(location.search);
+                  params.set('locationId', event.target.value);
+                  navigate({ search: params.toString() }, { replace: true });
+                }}>
+                {data.locations.map((store) => <option key={store.id} value={store.id} disabled={store.status !== 'active'}>
+                  {store.name}{store.address_city ? ` · ${store.address_city}` : ''}
+                </option>)}
+              </select>
+              {cartItems.length > 0 && <p className="fd-card-meta">{t('food.storeMenu.emptyCart')}</p>}
+            </div>}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                 <span style={{ color: '#fbbf24', fontSize: 13 }}>★</span>

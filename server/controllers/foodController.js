@@ -22,6 +22,7 @@ const { getClientRequestId } = require('../utils/idempotency');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
 const { nextQueueNumber } = require('../services/restaurantQueueCounter');
 const { resolveLocationRow } = require('../services/restaurantLocationService');
+const storeMenu = require('../services/restaurantStoreMenuService');
 const {
   reserveInventoryForOrder,
   releaseInventoryForOrder,
@@ -439,6 +440,7 @@ function buildFoodOrderIdempotencyFingerprint({ restaurantId, paymentMode, reque
   );
   const fingerprintInput = {
     version: 2,
+    ...(storeMenu.locationId(request.locationId ?? request.location_id) ? { locationId: storeMenu.locationId(request.locationId ?? request.location_id) } : {}),
     restaurantId: Number(restaurantId),
     paymentMode,
     fulfillmentType,
@@ -2254,7 +2256,7 @@ exports.listRestaurants = async (req, res, next) => {
   }
 };
 
-async function loadRestaurantMenu(restaurantId, { managed = false } = {}) {
+async function loadRestaurantMenu(restaurantId, { managed = false, locationId = null } = {}) {
   const { rows: categories } = await pool.query(
     `SELECT id, name, description, sort_order, is_active
        FROM food_menu_categories
@@ -2263,14 +2265,15 @@ async function loadRestaurantMenu(restaurantId, { managed = false } = {}) {
     [restaurantId]
   );
   const { rows: items } = await pool.query(
-    `SELECT id, category_id, name, description, image_url, price_cents,
+    `SELECT fmi.id, category_id, name, description, image_url, price_cents,
             currency_code, is_available, sort_order, tags, allergens,
-            publication_status, archived_at, availability_schedule
-       FROM food_menu_items
+            publication_status, archived_at, availability_schedule,
+            ${storeMenu.overrideSql('fmi', '$2')}
+       FROM food_menu_items fmi
       WHERE restaurant_id = $1
         ${managed ? '' : "AND publication_status = 'published' AND archived_at IS NULL"}
       ORDER BY sort_order, name`,
-    [restaurantId]
+    [restaurantId, locationId]
   );
   const { rows: modifiers } = await pool.query(
     `SELECT mg.id AS group_id, mg.menu_item_id, mg.name AS group_name,
@@ -2313,7 +2316,8 @@ async function loadRestaurantMenu(restaurantId, { managed = false } = {}) {
   }
 
   const itemsByCategory = new Map();
-  for (const item of items) {
+  for (const rawItem of items) {
+    const item = storeMenu.applyOverride(rawItem);
     const key = item.category_id || 0;
     if (!itemsByCategory.has(key)) itemsByCategory.set(key, []);
     itemsByCategory.get(key).push({
@@ -2363,8 +2367,12 @@ async function respondRestaurantProfile(req, res, next, adminPreview) {
     const restaurantId = parsePositiveInt(req.params.restaurantId || req.params.id);
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
 
+    const selectedLocationId = storeMenu.locationId(req.query.locationId ?? req.query.location_id);
     const { rows: restaurants } = await pool.query(
-      `SELECT fr.*,
+      `SELECT fr.*, ${storeMenu.locationSql('$2')},
+              (SELECT COALESCE(jsonb_agg(jsonb_build_object('id', ls.id, 'name', ls.name,
+                'address_city', ls.address_city, 'status', ls.status) ORDER BY ls.is_primary DESC, ls.id), '[]'::jsonb)
+                FROM restaurant_locations ls WHERE ls.restaurant_id=fr.id) AS public_locations,
               -- Single Connect source of truth: restaurant_connect_accounts
               -- (P0 fix). The public profile's card-payments signal must match
               -- what checkout actually uses.
@@ -2381,10 +2389,14 @@ async function respondRestaurantProfile(req, res, next, adminPreview) {
           AND b.is_listed = TRUE
           AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
           AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'`}`,
-      [restaurantId]
+      [restaurantId, selectedLocationId]
     );
     const restaurant = restaurants[0];
     if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const selectedStore = restaurant.store_location;
+    storeMenu.useStoreDetails(restaurant, selectedStore);
+    if (selectedLocationId && !selectedStore) throw new AppError('Store not found', 404, 'location_not_found');
+
 
     try {
       const { rows: ratingRows } = await pool.query(
@@ -2401,13 +2413,15 @@ async function respondRestaurantProfile(req, res, next, adminPreview) {
       restaurant.review_count = 0;
     }
 
-    const menuData = await loadRestaurantMenu(restaurantId);
+    const menuData = await loadRestaurantMenu(restaurantId, { locationId: selectedStore?.id ?? null });
 
     const payload = publicRestaurantPayload(attachRestaurantHours(restaurant));
     if (!adminPreview) payload.oxsteed_pay_url = await getOwnerOxsteedPayUrl(restaurant.business_id);
 
     res.json({
       restaurant: payload,
+      locations: restaurant.public_locations || [],
+      location: selectedStore ? { id: selectedStore.id, name: selectedStore.name, status: selectedStore.status, timezone: selectedStore.timezone } : null,
       ...menuData,
     });
   } catch (err) {
@@ -2668,8 +2682,9 @@ exports.quoteOrder = async (req, res, next) => {
     // createOrder exactly (Review P2-3-F07): a quote must never succeed where
     // order creation would be rejected.
     const orderSourceEarly = normalizeString(req.body.orderSource || req.body.order_source, 24) || 'kiosk';
+    const selectedLocationId = storeMenu.locationId(req.body.locationId ?? req.body.location_id);
     const { rows: restaurants } = await pool.query(
-      `SELECT fr.*,
+      `SELECT fr.*, ${storeMenu.locationSql('$2')},
               -- Single Connect source of truth: restaurant_connect_accounts
               -- (P0 fix). No fallback to the legacy businesses.stripe_account_id.
               rca.stripe_account_id AS business_stripe_account_id,
@@ -2687,10 +2702,15 @@ exports.quoteOrder = async (req, res, next) => {
           AND COALESCE(b.setup_status, 'active') = 'active'
           AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
           AND b.deleted_at IS NULL`,
-      [restaurantId]
+      [restaurantId, selectedLocationId]
     );
     const restaurant = restaurants[0];
     if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const selectedStore = restaurant.store_location;
+    if (selectedLocationId && !selectedStore) throw new AppError('Store not found', 404, 'location_not_found');
+    storeMenu.assertLocation(selectedStore, selectedLocationId);
+    storeMenu.useStoreDetails(restaurant, selectedStore);
+
     const stripeStatus = getRestaurantStripeStatus(restaurant);
     if (paymentContract.canonical === 'pay_now' && !stripeStatus.readyForCheckout) {
       throw new AppError(
@@ -2727,7 +2747,7 @@ exports.quoteOrder = async (req, res, next) => {
     const itemIds = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
     const { rows: menuRows } = await pool.query(
       `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
-              fmi.availability_schedule,
+              fmi.availability_schedule, ${storeMenu.overrideSql('fmi', '$3')},
               fmc.name AS category_name,
               COALESCE((
                 SELECT jsonb_agg(
@@ -2761,9 +2781,9 @@ exports.quoteOrder = async (req, res, next) => {
           AND fmi.id = ANY($2::bigint[])
           AND fmi.publication_status = 'published'
           AND fmi.archived_at IS NULL`,
-      [restaurantId, itemIds]
+      [restaurantId, itemIds, selectedStore?.id ?? null]
     );
-    const menuById = new Map(menuRows.map((row) => [Number(row.id), row]));
+    const menuById = new Map(menuRows.map((row) => [Number(row.id), storeMenu.applyOverride(row)]));
 
     // F-11: dayparts are evaluated at the fulfillment instant: the scheduled
     // time when the quote carries one, otherwise now.
@@ -2937,6 +2957,8 @@ exports.quoteOrder = async (req, res, next) => {
     const quote = {
       restaurantId,
       restaurant_id: restaurantId,
+      locationId: selectedStore?.id ?? null,
+      location_id: selectedStore?.id ?? null,
       currencyCode: normalizeCurrency(restaurant.currency_code),
       currency_code: normalizeCurrency(restaurant.currency_code),
       orderSource,
@@ -3012,6 +3034,7 @@ exports.createOrder = async (req, res, next) => {
     const orderCustomerId=req.screenTicket ? null : req.user?.id;
     // Legacy/native paired-device orders retain their trusted location too.
     if(req.restaurantDevice&&req.screenLocationId===undefined)req.screenLocationId=req.restaurantDevice.location_id||null;
+    const requestedOrderLocationId = storeMenu.pinnedLocation(req.body.locationId ?? req.body.location_id, req.screenLocationId);
     const isGuest = !orderCustomerId;
     // Locked decision #1: guest Credit allowed with risk limits (enforced in
     // the spend adapter). Guests may also pay at the restaurant/counter, or
@@ -3063,6 +3086,7 @@ exports.createOrder = async (req, res, next) => {
         const { rows: existingOrders } = await client.query(lookup.text, lookup.values);
         if (existingOrders[0]) {
           assertFoodOrderIdempotencyMatch(existingOrders[0], idempotencyFingerprint, clientOrderId);
+          storeMenu.pinnedLocation(existingOrders[0].location_id, req.screenLocationId);
           const { rows: restaurants } = await client.query(
             `SELECT * FROM food_restaurants WHERE id = $1`,
             [restaurantId]
@@ -3127,6 +3151,7 @@ exports.createOrder = async (req, res, next) => {
         const { rows: existingOrders } = await client.query(lookup.text, lookup.values);
         if (existingOrders[0]) {
           assertFoodOrderIdempotencyMatch(existingOrders[0], idempotencyFingerprint, clientOrderId);
+          storeMenu.pinnedLocation(existingOrders[0].location_id, req.screenLocationId);
           const existing = existingOrders[0];
           if(req.screenTicket){
             if(String(existing.location_id||'')!==String(req.screenTicket.location_id||''))throw new AppError('Existing order belongs to another location',409,'screen_location_mismatch');
@@ -3154,12 +3179,14 @@ exports.createOrder = async (req, res, next) => {
         restaurantId,
         requestedLocationId: req.screenTicket
           ? null
-          : parsePositiveInt(req.body.locationId || req.body.location_id),
+          : requestedOrderLocationId,
         deviceLocationId: req.screenTicket?.location_id ?? req.screenLocationId ?? null,
       });
+      storeMenu.assertLocation(orderLocation, null);
+      storeMenu.useStoreDetails(restaurant, orderLocation);
       const orderLocationId = orderLocation ? Number(orderLocation.id) : null;
       const orderTimezone = orderLocation?.timezone || restaurant.timezone;
-      const orderOperatingHours = orderLocation?.operating_hours ?? restaurant.operating_hours;
+      const orderOperatingHours = restaurant.operating_hours;
       const stripeStatus = getRestaurantStripeStatus(restaurant);
       if (['pay_now', 'card'].includes(paymentContract.canonical) && !stripeStatus.readyForCheckout) {
         throw new AppError(
@@ -3250,7 +3277,7 @@ exports.createOrder = async (req, res, next) => {
       const ids = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
       const { rows: menuRows } = await client.query(
         `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
-                fmi.availability_schedule,
+                fmi.availability_schedule, ${storeMenu.overrideSql('fmi', '$3')},
                 fmc.name AS category_name,
                 COALESCE((
                   SELECT jsonb_agg(
@@ -3284,9 +3311,9 @@ exports.createOrder = async (req, res, next) => {
             AND fmi.id = ANY($2::bigint[])
             AND fmi.publication_status = 'published'
             AND fmi.archived_at IS NULL`,
-        [restaurantId, ids]
+        [restaurantId, ids, orderLocationId]
       );
-      const menuById = new Map(menuRows.map((row) => [Number(row.id), row]));
+      const menuById = new Map(menuRows.map((row) => [Number(row.id), storeMenu.applyOverride(row)]));
 
       const normalizedItems = items.map((item, index) => {
         const menuItemId = parsePositiveInt(item.menuItemId || item.menu_item_id);
@@ -3748,6 +3775,7 @@ exports.createOrder = async (req, res, next) => {
         const { rows: existingOrders } = await client.query(lookup.text, lookup.values);
         if (existingOrders[0]) {
           assertFoodOrderIdempotencyMatch(existingOrders[0], idempotencyFingerprint, clientOrderId);
+          storeMenu.pinnedLocation(existingOrders[0].location_id, req.screenLocationId);
           const existing = existingOrders[0];
           if (req.screenTicket) {
             if (String(existing.location_id || '') !== String(req.screenTicket.location_id || '')) throw new AppError('Existing order belongs to another location', 409, 'screen_location_mismatch');
@@ -3808,7 +3836,7 @@ exports.createOrder = async (req, res, next) => {
         ]
       );
 
-      if(req.screenLocationId!==undefined&&!req.screenTicket){const {rows:[scoped]}=await client.query('UPDATE food_orders SET location_id=$2 WHERE id=$1 RETURNING *',[created.id,req.screenLocationId]);Object.assign(created,scoped);}
+
       if(req.screenTicket){
         const {rows:[scoped]}=await client.query('UPDATE food_orders SET location_id=$2 WHERE id=$1 RETURNING *',[created.id,req.screenTicket.location_id]);
         Object.assign(created,scoped);

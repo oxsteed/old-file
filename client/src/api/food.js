@@ -86,8 +86,9 @@ export const listFoodRestaurants = (params = {}) =>
 export const getFeaturedRestaurants = (params = {}) =>
   listFoodRestaurants({ featured_only: true, limit: 8, ...params });
 
-export const getFoodRestaurant = (restaurantId) =>
+export const getFoodRestaurant = (restaurantId, params = {}) =>
   api.get(`/food/restaurants/${restaurantId}`, {
+    params,
     headers: displayDeviceAuthHeaders(restaurantId),
   }).then((r) => r.data);
 

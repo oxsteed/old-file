@@ -4881,6 +4881,24 @@
     }
   },
   "food": {
+    "storeMenu": {
+      "title": "Menú de la sucursal",
+      "hint": "Los precios y la disponibilidad solo se aplican a esta sucursal. Se mantienen las restricciones de marca e inventario.",
+      "item": "Producto del menú",
+      "choose": "Elige un producto",
+      "brandPrice": "Precio de marca: {{price}}",
+      "price": "Precio de la sucursal ({{currency}})",
+      "inheritPrice": "Déjalo vacío para usar el precio de marca.",
+      "availability": "Disponibilidad",
+      "inherit": "Usar disponibilidad de marca",
+      "available": "Disponible",
+      "soldOut": "Agotado",
+      "returnAt": "Volver a ofrecer (tu hora local, opcional)",
+      "saved": "Menú de la sucursal actualizado.",
+      "failed": "No se pudo actualizar el menú de la sucursal.",
+      "store": "Elige una sucursal",
+      "emptyCart": "Vacía tu cesta antes de cambiar de sucursal."
+    },
     "myShift": {
       "title": "Mi turno",
       "subtitle": "Anuncios, tu horario, tareas, listas de verificación y capacitación de este restaurante.",
