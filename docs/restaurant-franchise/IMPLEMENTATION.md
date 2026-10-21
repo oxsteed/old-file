@@ -82,8 +82,11 @@ merchant credentials. The endpoint requires a contact method, bounded party
 size and reservation window, and an idempotency key; it records a pending,
 location-scoped request without assigning a table. The restaurant page exposes
 the localized request form and leaves confirmation to the merchant Operations
-workflow. This closes the software portion of the public-request flow; guest
-SMS/provider delivery and populated-store/browser acceptance remain open.
+workflow. Managers can send one guarded SMS notification for a pending or
+confirmed request; the notification timestamp is persisted by migration 986
+and retries after a successful send are acknowledged without sending again.
+Provider delivery, race testing against a live SMS service, and
+populated-store/browser acceptance remain open.
 
 Migration 965 adds optional store tax and service-fee rates, tax-inclusive
 pricing, and a jurisdiction label. A selected store overrides the brand rate
@@ -333,6 +336,8 @@ hardware decisions do not excuse independent software work on these flows.
 - `server`: `npx jest --runInBand __tests__/restaurantPrintBridge.test.js` — **3 passed** across bridge configuration bounds, receipt target validation, claim/print/ack sequencing, and retryable failures.
 - `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **960/960 migrations passed**, including migration 985's accounting integration and export outbox schema.
 - `client`: `npm run verify:i18n` — **passed** with the host-stand keys present in `en`, `es`, `fr`, `ht`, and `ar`.
+- `server`: `npx jest --runInBand __tests__/restaurantHosting.test.js __tests__/routeScopeGuard.test.js` — **17 passed** after adding the persisted reservation-notification state, guarded manager route, and single-send test.
+- `client`: `npm run verify:i18n`, `node scripts/growthInstrumentation.mjs --write && --check` — **passed** with localized reservation-notification controls and growth coverage at 2,532/2,532.
 - `client`: `npm run build:ci` — **passed** after adding the localized HQ comparison and menu-policy publishing console; typecheck, production build, i18n, and emitted-asset verification completed with the repository's existing chunk advisories.
 - `client`: `npm run verify:i18n`, `node scripts/growthInstrumentation.mjs --write && --check`, and `npm run build:ci` — **passed** after adding the localized accounting integration/export status panel; growth coverage is 2,528/2,528 and emitted-asset verification covered 1,020 assets.
 - `client`: `npm run build` — **passed**; Vite emitted the merchant bundle with the host-stand panel. Existing large-chunk and dynamic-import advisories remain.

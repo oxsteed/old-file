@@ -20,6 +20,7 @@ function app() {
   instance.use((req, _res, next) => { req.user = { id: '00000000-0000-4000-8000-000000000123' }; next(); });
   instance.post('/:restaurantId/reservations', hosting.createReservation);
   instance.post('/:restaurantId/reservations/request', hosting.createPublicReservationRequest);
+  instance.post('/:restaurantId/reservations/:reservationId/notify', hosting.notifyReservation);
   instance.patch('/:restaurantId/reservations/:reservationId', hosting.updateReservation);
   instance.patch('/:restaurantId/tables/:tableId', hosting.updateTable);
   instance.post('/:restaurantId/waitlist', hosting.createWaitlistEntry);
@@ -114,5 +115,18 @@ test('waitlist notification sends the guest SMS then records notified state', as
   expect(response.status).toBe(200);
   expect(response.body.entry.status).toBe('notified');
   expect(sendTransactionalSMS).toHaveBeenCalledWith('+15555550123', expect.stringContaining('20 minutes'));
+});
+
+test('reservation notification sends once and records the notification timestamp', async () => {
+  const pending = { ...reservation, guest_phone: '+15555550124', status: 'pending', notified_at: null };
+  mockQuery.mockImplementation(async (sql) => {
+    if (sql.startsWith('SELECT * FROM restaurant_reservations')) return { rows: [pending] };
+    if (sql.startsWith('UPDATE restaurant_reservations')) return { rows: [{ ...pending, notified_at: '2026-10-21T18:00:00Z' }] };
+    return { rows: [] };
+  });
+  const response = await request(app()).post('/3/reservations/18/notify');
+  expect(response.status).toBe(200);
+  expect(response.body.reservation.notified_at).toBe('2026-10-21T18:00:00Z');
+  expect(sendTransactionalSMS).toHaveBeenCalledWith('+15555550124', expect.stringContaining('has been received'));
 });
 

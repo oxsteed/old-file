@@ -270,6 +270,34 @@ exports.updateReservation = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+exports.notifyReservation = async (req, res, next) => {
+  try {
+    const restaurant = await access(req);
+    const reservationId = positiveId(req.params.reservationId, 'reservation');
+    const { rows: [reservation] } = await pool.query(`SELECT * FROM restaurant_reservations
+      WHERE restaurant_id=$1 AND id=$2`, [restaurant.id, reservationId]);
+    if (!reservation) throw new AppError('Reservation not found', 404, 'reservation_not_found');
+    if (!reservation.guest_phone) throw new AppError('A phone number is required to send an SMS', 400, 'phone_required');
+    if (!['pending', 'confirmed'].includes(reservation.status)) {
+      throw new AppError('Reservation is no longer awaiting guest notification', 409, 'reservation_closed');
+    }
+    if (reservation.notified_at) {
+      return res.json({ reservation, delivery: { success: true, alreadyNotified: true } });
+    }
+    const startsAt = new Date(reservation.starts_at).toISOString();
+    const verb = reservation.status === 'confirmed' ? 'is confirmed' : 'has been received';
+    const delivery = await sendTransactionalSMS(
+      reservation.guest_phone,
+      `Your reservation at ${restaurant.display_name || 'the restaurant'} ${verb} for ${startsAt}.`
+    );
+    if (!delivery.success) throw new AppError('SMS could not be sent', 503, 'sms_unavailable');
+    const { rows: [updated] } = await pool.query(`UPDATE restaurant_reservations
+      SET notified_at=NOW(), updated_at=NOW()
+      WHERE restaurant_id=$1 AND id=$2 AND notified_at IS NULL RETURNING *`, [restaurant.id, reservationId]);
+    res.json({ reservation: updated || { ...reservation, notified_at: new Date().toISOString() }, delivery: { success: true, sid: delivery.sid || null } });
+  } catch (error) { next(error); }
+};
+
 exports.listWaitlist = async (req, res, next) => {
   try {
     const restaurant = await access(req);

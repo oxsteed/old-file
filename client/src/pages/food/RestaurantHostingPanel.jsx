@@ -7,6 +7,7 @@ import {
   listRestaurantReservations,
   createRestaurantReservation,
   updateRestaurantReservation,
+  notifyRestaurantReservation,
   listRestaurantWaitlist,
   createRestaurantWaitlistEntry,
   notifyRestaurantWaitlistEntry,
@@ -64,6 +65,7 @@ export default function RestaurantHostingPanel({ t, restaurant }) {
 
   const set = (setter, field) => (event) => setter((current) => ({ ...current, [field]: event.target.value }));
   const status = async (id, value) => { try { await updateRestaurantReservation(restaurant.id, id, { status: value }); await load(); } catch (error) { toast.error(apiErrorMessage(error, text('saveError', 'Could not save'))); } };
+  const notifyReservation = async (item) => { try { await notifyRestaurantReservation(restaurant.id, item.id); await load(); } catch (error) { toast.error(apiErrorMessage(error, text('reservationSmsError', 'Could not send reservation SMS'))); } };
   const notify = async (entry) => { try { await notifyRestaurantWaitlistEntry(restaurant.id, entry.id); await load(); } catch (error) { toast.error(apiErrorMessage(error, text('smsError', 'Could not send SMS'))); } };
   const seat = async (entry) => { try { await updateRestaurantWaitlistEntry(restaurant.id, entry.id, { status: 'seated' }); await load(); } catch (error) { toast.error(apiErrorMessage(error, text('saveError', 'Could not save'))); } };
   const moveTable = async (event) => {
@@ -141,7 +143,7 @@ export default function RestaurantHostingPanel({ t, restaurant }) {
             <input aria-label={text('endsAt', 'Ends')} type="datetime-local" value={reservation.endsAt} onChange={set(setReservation, 'endsAt')} required />
             <button className="fd-btn fd-btn-primary" disabled={busy} data-track="ui.96de179235.5">{text('addReservation', 'Add reservation')}</button>
           </form>
-          <ul>{data.reservations.map((item) => <li key={item.id}>{item.guest_name} · {item.party_size} · {item.status} <select value={item.status} onChange={(event) => status(item.id, event.target.value)} aria-label={text('reservationStatus', 'Reservation status')}><option value="confirmed">{text('confirmed', 'Confirmed')}</option><option value="seated">{text('seated', 'Seated')}</option><option value="completed">{text('completed', 'Completed')}</option><option value="cancelled">{text('cancelled', 'Cancelled')}</option></select></li>)}</ul>
+          <ul>{data.reservations.map((item) => <li key={item.id}>{item.guest_name} · {item.party_size} · {item.status} <select value={item.status} onChange={(event) => status(item.id, event.target.value)} aria-label={text('reservationStatus', 'Reservation status')}><option value="pending">{text('pending', 'Pending')}</option><option value="confirmed">{text('confirmed', 'Confirmed')}</option><option value="seated">{text('seated', 'Seated')}</option><option value="completed">{text('completed', 'Completed')}</option><option value="cancelled">{text('cancelled', 'Cancelled')}</option></select>{item.guest_phone && ['pending', 'confirmed'].includes(item.status) && <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => notifyReservation(item)} disabled={Boolean(item.notified_at)} data-track="ui.96de179235.10">{item.notified_at ? text('reservationNotified', 'SMS sent') : text('notifyReservation', 'Send SMS')}</button>}</li>)}</ul>
         </section>
 
         <section className="fd-settings-card">
