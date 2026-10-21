@@ -310,7 +310,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
                   {t('food.merchant.hoursClosed')}
                 </label>
                 {!day.closed && (
-                  <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => addRange(index)}>
+                  <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => addRange(index)} data-track="ui.dbbd615872.8">
                     {t('food.merchant.addHoursRange')}
                   </button>
                 )}
@@ -327,7 +327,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
                     <input type="time" aria-label={`${weekDayLabel(index)} ${t('food.merchant.closeTime')} ${rangeIndex + 1}`} value={range.close} disabled={day.closed} onChange={(e) => updateRange(index, rangeIndex, { close: e.target.value })} />
                   </label>
                   {day.ranges.length > 1 && (
-                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => removeRange(index, rangeIndex)} disabled={day.closed}>
+                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => removeRange(index, rangeIndex)} disabled={day.closed} data-track="ui.dbbd615872.9">
                       {t('food.merchant.removeHoursRange')}
                     </button>
                   )}
