@@ -125,6 +125,19 @@ purchase requests and supplier issues. Their list and update paths filter by
 assigned stores, and new records resolve and validate an explicit or primary
 store before insertion.
 
+Migration 970 adds an explicit restaurant labor policy. Payroll labor reports
+now apply weekly overtime thresholds and multipliers to recorded time punches,
+surface required-break exceptions, and expose the policy through the guarded
+restaurant payroll API. The policy defaults are 40 hours, 1.5x overtime, and a
+30-minute break after six hours; owners or payroll.view managers can update
+them. Scheduling vendor integration, availability/swaps, and native device
+acceptance remain open.
+
+Migration 971 carries each inventory transfer's item store onto the transfer
+record, backfills populated rows, and filters transfer listing and lifecycle
+updates for assigned members. Transfer creation validates the item's store
+before writing; null-location legacy rows remain available during rollout.
+
 ## Requirements matrix
 
 `Existing source` means an earlier branch change exists; it is not a fresh
@@ -153,8 +166,8 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-19 | Migrations 965 and 967 add store policy plus item-level tax rates/exemptions; quote/order snapshots include a line tax breakdown | Provider integration and populated-store tax acceptance |
 | F-20 | Existing menu/settings/tax audit emitters; store-menu, location-policy, printer-settings, and store-membership before/after audit writes are covered | Audit coverage across every remaining resource and owner-visible history acceptance |
 | F-21 | Existing PIN sessions, switching, lockout and keyed lookup | Native/shared-device and multi-store identity acceptance |
-| F-22 | Existing time punches, wages, labor, tips and CSV foundation | Scheduling integration/rules, availability/swaps, break/overtime compliance and native timeclock |
-| F-23 | Existing inventory quantities/mappings/counts and location column; assigned-member item reads, adjustment history, and item writes now enforce store scope | Store-isolated transfers, unit/yield recipes, period COGS/variance, vendor catalogs and PO/invoice matching |
+| F-22 | Existing time punches, wages, labor, tips and CSV foundation; migration 970 adds configurable weekly overtime pricing and required-break exception reporting | Scheduling integration/rules, availability/swaps, native timeclock/device acceptance |
+| F-23 | Existing inventory quantities/mappings/counts and location column; assigned-member item reads, adjustment history, item writes, procurement, and transfer reads/writes now enforce store scope | Unit/yield recipes, period COGS/variance, vendor catalogs and PO/invoice matching |
 | F-24 | Existing five-language cleanup; new store UI parity in both catalogs | Server/receipt and full-screen human language acceptance |
 | F-25 | Existing logical CSS cleanup | Full POS/KDS/merchant RTL visual acceptance |
 | F-26 | Three device systems remain | Canonical device identity and print bridge, deprecated API adapters, resource-controller convergence |
@@ -193,7 +206,9 @@ hardware decisions do not excuse independent software work on these flows.
 - `server`: `npx jest --runInBand --testPathPatterns='routeScopeGuard' __tests__/routeScopeGuard.test.js` — **10 passed** after adding all host-stand routes.
 - `client`: `npm run verify:i18n` — **passed** with the host-stand keys present in `en`, `es`, `fr`, `ht`, and `ar`.
 - `client`: `npm run build` — **passed**; Vite emitted the merchant bundle with the host-stand panel. Existing large-chunk and dynamic-import advisories remain.
-- `node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **passed** against a disposable Colima PostgreSQL container; all 944 discovered migrations applied and replayed cleanly, including migrations 964, 965, 968, and 969.
+- `server`: `npx jest --runInBand __tests__/restaurantPayrollOvertime.test.js` — **2 passed**. Covers weekly overtime allocation and required-break exception detection.
+- `server`: `npx jest --runInBand __tests__/restaurantInventoryOperations.test.js` — **9 passed**. Covers assigned-store transfer filtering and transfer creation/lifecycle behavior.
+- `node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **passed** against a disposable Colima PostgreSQL container; all 946 discovered migrations applied and replayed cleanly, including migrations 964, 965, 968, 969, 970, and 971.
 - `server/scripts/verifyRestaurantStoreMenu.js` — **passed** in the dedicated Colima PostgreSQL container. It applied migration 963 twice, verified default-store backfill/onboarding and legacy order/counter continuity, tenant foreign keys, negative prices, screen events, SQL projections, and sibling-store isolation.
 - `client`: `npm run build:ci` — **passed**; Vite emitted and verified 1,020 assets. The existing build warnings are the repository's large-chunk and dynamic-import advisories.
 - `client`: `node --test scripts/restaurantPosOfflineCash.test.mjs` — **passed**. Covers cash-only replay ordering, retention after a failed entry, and network-error classification.

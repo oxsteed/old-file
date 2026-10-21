@@ -284,6 +284,8 @@ router.get('/:restaurantId/reports/loyalty', requireRestaurantAccess(), franchis
 // endpoints additionally require payroll.view inside the controller
 // (fail closed); team activity requires audit.view.
 router.get('/:restaurantId/reports/labor', requireRestaurantAccess(), payrollReports.laborSummary);
+router.get('/:restaurantId/labor-policy', requireRestaurantAccess(), payrollReports.getLaborPolicy);
+router.put('/:restaurantId/labor-policy', requireRestaurantAccess(), payrollReports.updateLaborPolicy);
 router.get('/:restaurantId/reports/payroll/export.csv', requireRestaurantAccess(), payrollReports.payrollExportCsv);
 router.get('/:restaurantId/reports/exceptions', requireRestaurantAccess(), payrollReports.exceptionsReport);
 router.get('/:restaurantId/team/activity', requireRestaurantAccess(), payrollReports.teamActivity);

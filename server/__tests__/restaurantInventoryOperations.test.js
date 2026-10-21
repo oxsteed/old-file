@@ -12,9 +12,14 @@ jest.mock('../services/permissionsService', () => ({
   getEffectivePermissions: jest.fn().mockResolvedValue({ permissions: new Set(['inventory.view', 'inventory.update']), raw: {} }),
   hasAny: (permissionSet, requested) => requested.some((permission) => permissionSet.has(permission)),
 }));
+jest.mock('../services/restaurantLocationAccessService', () => ({
+  getLocationScope: jest.fn().mockResolvedValue({ mode: 'all', location_ids: null, assignments: [] }),
+  assertLocationAccess: jest.fn().mockResolvedValue({ mode: 'all', location_ids: null, assignments: [] }),
+}));
 
 const operations = require('../controllers/restaurantInventoryOperationsController');
 const permissions = require('../services/permissionsService');
+const locationAccess = require('../services/restaurantLocationAccessService');
 
 const USER_ID = '00000000-0000-4000-8000-000000000123';
 const RESTAURANT_ID = 9;
@@ -46,6 +51,7 @@ function app() {
   server.get('/api/restaurants/:restaurantId/inventory/areas', operations.listAreas);
   server.post('/api/restaurants/:restaurantId/inventory/suppliers', operations.createSupplier);
   server.post('/api/restaurants/:restaurantId/inventory/transfers', operations.createTransfer);
+  server.get('/api/restaurants/:restaurantId/inventory/transfers', operations.listTransfers);
   server.patch('/api/restaurants/:restaurantId/inventory/transfers/:transferId', operations.updateTransfer);
   server.post('/api/restaurants/:restaurantId/inventory/receipts', operations.createReceipt);
   server.use(errorHandler);
@@ -161,6 +167,21 @@ describe('restaurant Inventory operations backend', () => {
     expect(response.status).toBe(201);
     expect(response.body.transfer.item_name).toBe('Rice');
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE restaurant_inventory_items/.test(sql))).toBe(false);
+  });
+
+  test('filters transfers to assigned stores and preserves the location predicate', async () => {
+    locationAccess.getLocationScope.mockResolvedValueOnce({ mode: 'assigned', location_ids: [11], assignments: [] });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access({ effective_role: 'manager', effective_membership_id: 88 })] })
+      .mockResolvedValueOnce({ rows: [{ id: 12, location_id: 11, item_name: 'Rice' }] });
+
+    const response = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/inventory/transfers`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.transfers[0].location_id).toBe(11);
+    const [sql, params] = mockQuery.mock.calls[1];
+    expect(sql).toMatch(/t\.location_id = ANY\(\$2::bigint\[\]\)/);
+    expect(params).toEqual([RESTAURANT_ID, [11]]);
   });
 
   test('restricts transfer lifecycle changes to restaurant managers', async () => {

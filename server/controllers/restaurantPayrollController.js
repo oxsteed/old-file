@@ -86,6 +86,44 @@ exports.laborSummary = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.getLaborPolicy = async (req, res, next) => {
+  try {
+    const restaurant = await requireManager(req);
+    await requirePayrollView(restaurant, req.user.id);
+    const policy = await payroll.getLaborPolicy(restaurant.id);
+    res.json({ policy });
+  } catch (err) { next(err); }
+};
+
+exports.updateLaborPolicy = async (req, res, next) => {
+  try {
+    const restaurant = await requireManager(req);
+    await requirePayrollView(restaurant, req.user.id);
+    const body = req.body || {};
+    const current = await payroll.getLaborPolicy(restaurant.id);
+    const policy = await payroll.saveLaborPolicy(restaurant.id, {
+      overtime_threshold_hours: body.overtime_threshold_hours ?? body.overtimeThresholdHours ?? current.overtime_threshold_hours,
+      overtime_multiplier_bps: body.overtime_multiplier_bps ?? body.overtimeMultiplierBps ?? current.overtime_multiplier_bps,
+      break_after_minutes: body.break_after_minutes ?? body.breakAfterMinutes ?? current.break_after_minutes,
+      break_duration_minutes: body.break_duration_minutes ?? body.breakDurationMinutes ?? current.break_duration_minutes,
+    }, req.user.id);
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role || null,
+      action: 'restaurant.labor_policy.updated',
+      target_type: 'restaurant',
+      target_id: restaurant.id,
+      after_state: policy,
+    });
+    res.json({ policy });
+  } catch (err) {
+    if (err && err.code === 'validation_failed') {
+      return next(new AppError(err.message, 400, 'validation_failed'));
+    }
+    next(err);
+  }
+};
+
 exports.payrollExportCsv = async (req, res, next) => {
   try {
     const restaurant = await requireManager(req);

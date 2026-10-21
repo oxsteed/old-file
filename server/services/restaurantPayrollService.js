@@ -23,10 +23,9 @@
  *   - a per-employee exception report (voids, comps, refunds, discounts,
  *     no-sales, payouts, missing time entries for scheduled shifts).
  *
- * NOT in scope (review direction is integrate-first, a vendor decision
- * for the owner): scheduling rules engines, availability / swap
- * workflows, overtime rules, and Fair Workweek / predictive-scheduling
- * compliance (S-20).
+ * Scheduling vendor integration and availability/swap workflows remain
+ * outside this service. The in-house report does, however, apply the
+ * restaurant's explicit overtime and break policy to recorded punches.
  *
  * Money is integer cents everywhere. Tip allocation conserves cents
  * exactly: sum(net tips) + unattributed == total tips, always.
@@ -232,6 +231,82 @@ async function getRoster(businessId) {
   return rows;
 }
 
+const DEFAULT_LABOR_POLICY = Object.freeze({
+  overtime_threshold_hours: 40,
+  overtime_multiplier_bps: 15000,
+  break_after_minutes: 360,
+  break_duration_minutes: 30,
+});
+
+function normalizeLaborPolicy(row, restaurantId = null) {
+  const source = row || {};
+  return {
+    restaurant_id: restaurantId != null ? restaurantId : source.restaurant_id,
+    overtime_threshold_hours: Number(source.overtime_threshold_hours ?? DEFAULT_LABOR_POLICY.overtime_threshold_hours),
+    overtime_multiplier_bps: Number(source.overtime_multiplier_bps ?? DEFAULT_LABOR_POLICY.overtime_multiplier_bps),
+    break_after_minutes: Number(source.break_after_minutes ?? DEFAULT_LABOR_POLICY.break_after_minutes),
+    break_duration_minutes: Number(source.break_duration_minutes ?? DEFAULT_LABOR_POLICY.break_duration_minutes),
+    updated_by: source.updated_by || null,
+    updated_at: source.updated_at || null,
+  };
+}
+
+async function getLaborPolicy(restaurantId) {
+  const { rows: [row] } = await pool.query(
+    `SELECT restaurant_id, overtime_threshold_hours, overtime_multiplier_bps,
+            break_after_minutes, break_duration_minutes, updated_by, updated_at
+       FROM restaurant_labor_policies WHERE restaurant_id = $1`,
+    [restaurantId]
+  );
+  return normalizeLaborPolicy(row, restaurantId);
+}
+
+async function saveLaborPolicy(restaurantId, policy, updatedBy) {
+  const normalized = normalizeLaborPolicy({ ...policy, restaurant_id: restaurantId });
+  if (!Number.isFinite(normalized.overtime_threshold_hours)
+    || normalized.overtime_threshold_hours <= 0 || normalized.overtime_threshold_hours > 168) {
+    const err = new Error('overtime_threshold_hours must be between 0 and 168');
+    err.code = 'validation_failed';
+    throw err;
+  }
+  if (!Number.isInteger(normalized.overtime_multiplier_bps)
+    || normalized.overtime_multiplier_bps < 10000 || normalized.overtime_multiplier_bps > 50000) {
+    const err = new Error('overtime_multiplier_bps must be between 10000 and 50000');
+    err.code = 'validation_failed';
+    throw err;
+  }
+  if (!Number.isInteger(normalized.break_after_minutes)
+    || normalized.break_after_minutes <= 0 || normalized.break_after_minutes > 1440) {
+    const err = new Error('break_after_minutes must be between 1 and 1440');
+    err.code = 'validation_failed';
+    throw err;
+  }
+  if (!Number.isInteger(normalized.break_duration_minutes)
+    || normalized.break_duration_minutes < 0 || normalized.break_duration_minutes > 240) {
+    const err = new Error('break_duration_minutes must be between 0 and 240');
+    err.code = 'validation_failed';
+    throw err;
+  }
+  const { rows: [row] } = await pool.query(
+    `INSERT INTO restaurant_labor_policies
+       (restaurant_id, overtime_threshold_hours, overtime_multiplier_bps,
+        break_after_minutes, break_duration_minutes, updated_by)
+     VALUES ($1,$2,$3,$4,$5,$6)
+     ON CONFLICT (restaurant_id) DO UPDATE SET
+       overtime_threshold_hours = EXCLUDED.overtime_threshold_hours,
+       overtime_multiplier_bps = EXCLUDED.overtime_multiplier_bps,
+       break_after_minutes = EXCLUDED.break_after_minutes,
+       break_duration_minutes = EXCLUDED.break_duration_minutes,
+       updated_by = EXCLUDED.updated_by,
+       updated_at = NOW()
+     RETURNING restaurant_id, overtime_threshold_hours, overtime_multiplier_bps,
+               break_after_minutes, break_duration_minutes, updated_by, updated_at`,
+    [restaurantId, normalized.overtime_threshold_hours, normalized.overtime_multiplier_bps,
+      normalized.break_after_minutes, normalized.break_duration_minutes, updatedBy || null]
+  );
+  return normalizeLaborPolicy(row, restaurantId);
+}
+
 // ── Hours (actual + scheduled) ───────────────────────────────────────
 
 // Actual recorded hours per user from business_time_entries (the
@@ -241,12 +316,64 @@ async function getHoursByUser(businessId, fromDate, toDate) {
     `SELECT user_id, COALESCE(SUM(hours_worked), 0)::float8 AS hours
        FROM business_time_entries
       WHERE business_id = $1 AND entry_date >= $2 AND entry_date <= $3
+        AND voided_at IS NULL
       GROUP BY user_id`,
     [businessId, fromDate, toDate]
   );
   const map = new Map();
   for (const row of rows) map.set(row.user_id, Number(row.hours) || 0);
   return map;
+}
+
+// Calculate per-person hours under the restaurant's weekly overtime and break
+// policy. `entry_date` is the local business date captured at clock-in, which
+// keeps the calculation deterministic across DST boundaries.
+function calculatePolicyHours(rows, policy) {
+  const byUser = new Map();
+  for (const row of rows) {
+    const user = byUser.get(row.user_id) || { totalHours: 0, overtimeHours: 0, breakExceptions: 0, weeks: new Map() };
+    const hours = Math.max(0, Number(row.hours_worked) || 0);
+    const entryDate = row.entry_date instanceof Date
+      ? row.entry_date.toISOString().slice(0, 10)
+      : String(row.entry_date).slice(0, 10);
+    const date = new Date(`${entryDate}T12:00:00Z`);
+    const weekStart = new Date(date);
+    weekStart.setUTCDate(weekStart.getUTCDate() - weekStart.getUTCDay());
+    const weekKey = weekStart.toISOString().slice(0, 10);
+    user.weeks.set(weekKey, (user.weeks.get(weekKey) || 0) + hours);
+    user.totalHours += hours;
+    if (hours * 60 >= policy.break_after_minutes) {
+      const breaks = Array.isArray(row.breaks) ? row.breaks : [];
+      const breakMinutes = breaks.reduce((sum, item) => {
+        const start = Date.parse(item?.started_at || '');
+        const end = Date.parse(item?.ended_at || '');
+        return Number.isFinite(start) && Number.isFinite(end) && end > start
+          ? sum + ((end - start) / 60000) : sum;
+      }, 0);
+      if (breakMinutes < policy.break_duration_minutes) user.breakExceptions += 1;
+    }
+    byUser.set(row.user_id, user);
+  }
+  for (const user of byUser.values()) {
+    for (const weeklyHours of user.weeks.values()) {
+      user.overtimeHours += Math.max(0, weeklyHours - policy.overtime_threshold_hours);
+    }
+    user.overtimeHours = Math.round(user.overtimeHours * 100) / 100;
+    user.totalHours = Math.round(user.totalHours * 100) / 100;
+  }
+  return byUser;
+}
+
+async function getPolicyHoursByUser(businessId, fromDate, toDate, policy) {
+  const { rows } = await pool.query(
+    `SELECT user_id, entry_date, hours_worked, breaks, clock_in_at, clock_out_at
+       FROM business_time_entries
+      WHERE business_id = $1 AND entry_date >= $2 AND entry_date <= $3
+        AND voided_at IS NULL AND hours_worked IS NOT NULL
+      ORDER BY entry_date, id`,
+    [businessId, fromDate, toDate]
+  );
+  return calculatePolicyHours(rows, policy);
 }
 
 // Scheduled hours per user from business_staff_shifts (person-based
@@ -526,13 +653,15 @@ async function computeLabor({ restaurant, fromDate, toDate }) {
   const timezone = resolveReportTimezone(restaurant);
   const businessId = restaurant.business_id;
   const restaurantCurrency = restaurant.currency_code || 'USD';
-  const [roster, hoursByUser, scheduledByUser, revenues, tipAllocations] = await Promise.all([
+  const [roster, hoursByUser, scheduledByUser, revenues, tipAllocations, laborPolicy] = await Promise.all([
     getRoster(businessId),
     getHoursByUser(businessId, fromDate, toDate),
     getScheduledHoursByUser(businessId, restaurant.id, fromDate, toDate),
     getRevenueByCurrency(restaurant.id, fromDate, toDate, timezone),
     computeTipAllocations({ restaurant, fromDate, toDate }),
+    getLaborPolicy(restaurant.id),
   ]);
+  const policyHours = await getPolicyHoursByUser(businessId, fromDate, toDate, laborPolicy);
 
   const tipsFor = (currency) => tipAllocations.currencies.find((c) => c.currency === currency)
     || { employees: [], unattributed_cents: 0, total_tips_cents: 0 };
@@ -550,20 +679,32 @@ async function computeLabor({ restaurant, fromDate, toDate }) {
   let totalHours = 0;
   let totalScheduledHours = 0;
   let laborCostCents = 0;
+  let overtimeHours = 0;
+  let overtimeWagesCents = 0;
+  let breakExceptions = 0;
   const missingWageUserIds = [];
   const employees = [];
   for (const userId of employeeIds) {
     const member = rosterById.get(userId);
-    const hours = Math.round((hoursByUser.get(userId) || 0) * 100) / 100;
+    const policy = policyHours.get(userId) || { totalHours: 0, overtimeHours: 0, breakExceptions: 0 };
+    const hours = Math.round((policy.totalHours || hoursByUser.get(userId) || 0) * 100) / 100;
+    const employeeOvertimeHours = Math.min(hours, Math.max(0, Number(policy.overtimeHours) || 0));
+    const regularHours = Math.max(0, Math.round((hours - employeeOvertimeHours) * 100) / 100);
     const scheduledHours = Math.round((scheduledByUser.get(userId) || 0) * 100) / 100;
     const wage = member && member.hourly_wage_cents != null ? Number(member.hourly_wage_cents) : null;
-    const wagesCents = wage != null ? Math.round(hours * wage) : null;
+    const regularWagesCents = wage != null ? Math.round(regularHours * wage) : null;
+    const employeeOvertimeWagesCents = wage != null
+      ? Math.round(employeeOvertimeHours * wage * (laborPolicy.overtime_multiplier_bps / 10000)) : null;
+    const wagesCents = wage != null ? regularWagesCents + employeeOvertimeWagesCents : null;
     if (hours > 0 && wage == null && member && member.membership_role !== 'owner') {
       missingWageUserIds.push(userId);
     }
     if (wagesCents != null) laborCostCents += wagesCents;
     totalHours += hours;
     totalScheduledHours += scheduledHours;
+    overtimeHours += employeeOvertimeHours;
+    if (employeeOvertimeWagesCents != null) overtimeWagesCents += employeeOvertimeWagesCents;
+    breakExceptions += Number(policy.breakExceptions) || 0;
     const tips = tipsByUser.get(userId) || {
       gross_tips_cents: 0, tip_out_cents: 0, tip_in_cents: 0, net_tips_cents: 0,
     };
@@ -573,9 +714,14 @@ async function computeLabor({ restaurant, fromDate, toDate }) {
       membership_role: member ? member.membership_role : null,
       job_role: member ? member.job_role : null,
       hours,
+      regular_hours: regularHours,
+      overtime_hours: employeeOvertimeHours,
       scheduled_hours: scheduledHours,
       hourly_wage_cents: wage,
+      regular_wages_cents: regularWagesCents,
+      overtime_wages_cents: employeeOvertimeWagesCents,
       wages_cents: wagesCents,
+      break_exceptions: Number(policy.breakExceptions) || 0,
       gross_tips_cents: tips.gross_tips_cents,
       tip_out_cents: tips.tip_out_cents,
       tip_in_cents: tips.tip_in_cents,
@@ -605,6 +751,10 @@ async function computeLabor({ restaurant, fromDate, toDate }) {
     labor_percent: laborPercent,
     total_hours: Math.round(totalHours * 100) / 100,
     scheduled_hours: Math.round(totalScheduledHours * 100) / 100,
+    overtime_hours: Math.round(overtimeHours * 100) / 100,
+    overtime_wages_cents: overtimeWagesCents,
+    break_exceptions: breakExceptions,
+    labor_policy: laborPolicy,
     sales_per_labor_hour_cents: salesPerLaborHourCents,
     missing_wage_user_ids: missingWageUserIds,
     unattributed_tips_cents: primaryTips.unattributed_cents,
@@ -620,8 +770,8 @@ function csvEscape(value) {
 
 function buildPayrollCsv(labor) {
   const header = [
-    'employee', 'user_id', 'job_role', 'hours', 'scheduled_hours',
-    'hourly_wage_cents', 'wages_cents', 'gross_tips_cents', 'tip_out_cents',
+    'employee', 'user_id', 'job_role', 'hours', 'regular_hours', 'overtime_hours', 'scheduled_hours',
+    'hourly_wage_cents', 'regular_wages_cents', 'overtime_wages_cents', 'wages_cents', 'break_exceptions', 'gross_tips_cents', 'tip_out_cents',
     'tip_in_cents', 'net_tips_cents', 'total_pay_cents', 'currency',
     'period_from', 'period_to',
   ];
@@ -632,9 +782,14 @@ function buildPayrollCsv(labor) {
       e.user_id,
       e.job_role || '',
       e.hours,
+      e.regular_hours,
+      e.overtime_hours,
       e.scheduled_hours,
       e.hourly_wage_cents == null ? '' : e.hourly_wage_cents,
+      e.regular_wages_cents == null ? '' : e.regular_wages_cents,
+      e.overtime_wages_cents == null ? '' : e.overtime_wages_cents,
       e.wages_cents == null ? '' : e.wages_cents,
+      e.break_exceptions,
       e.gross_tips_cents,
       e.tip_out_cents,
       e.tip_in_cents,
@@ -773,6 +928,11 @@ module.exports = {
   saveTipPoolSettings,
   declareCashTip,
   getRoster,
+  getLaborPolicy,
+  saveLaborPolicy,
+  normalizeLaborPolicy,
+  getPolicyHoursByUser,
+  calculatePolicyHours,
   computeTipAllocations,
   computeLabor,
   buildPayrollCsv,

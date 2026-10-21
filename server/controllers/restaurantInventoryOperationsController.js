@@ -7,6 +7,7 @@ const { withTransaction } = require('../utils/transaction');
 const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
 const { getEffectivePermissions, hasAny } = require('../services/permissionsService');
 const { logInventoryAudit } = require('../services/restaurantInventoryAuditService');
+const { getLocationScope, assertLocationAccess } = require('../services/restaurantLocationAccessService');
 
 const AREA_TYPES = new Set(['dry_storage', 'walk_in_cooler', 'freezer', 'bar', 'packaging', 'receiving', 'prep', 'other']);
 const SUPPLIER_STATUSES = new Set(['active', 'inactive', 'issue_reported']);
@@ -47,6 +48,17 @@ function operationId(value) {
 async function restaurantAccess(userId, restaurantId) {
   if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
   return resolveRestaurantAccess(userId, restaurantId);
+}
+
+function transferScopeClause(scope, parameterIndex) {
+  return scope?.mode === 'assigned'
+    ? { sql: ` AND (t.location_id IS NULL OR t.location_id = ANY($${parameterIndex}::bigint[]))`, values: [scope.location_ids] }
+    : { sql: '', values: [] };
+}
+
+async function getTransferScope(restaurant, userId) {
+  if (restaurant.effective_role === 'owner' || !restaurant.effective_membership_id) return null;
+  return getLocationScope(restaurant, userId);
 }
 
 async function requireInventoryPermission(userId, restaurant, permissions) {
@@ -456,12 +468,13 @@ exports.listTransfers = async (req, res, next) => {
     const restaurantId = positiveInt(req.params.restaurantId);
     const restaurant = await restaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const scope = transferScopeClause(await getTransferScope(restaurant, req.user.id), 2);
     const { rows } = await pool.query(
       `SELECT t.*, TRIM(CONCAT(u.first_name, ' ', u.last_name)) AS transferred_by_name
          FROM restaurant_inventory_transfers t
          LEFT JOIN users u ON u.id = t.transferred_by
-        WHERE t.restaurant_id = $1 ORDER BY t.created_at DESC LIMIT 200`,
-      [restaurantId]
+        WHERE t.restaurant_id = $1${scope.sql} ORDER BY t.created_at DESC LIMIT 200`,
+      [restaurantId, ...scope.values]
     );
     res.json({ transfers: rows });
   } catch (error) { next(error); }
@@ -472,6 +485,7 @@ exports.createTransfer = async (req, res, next) => {
     const restaurantId = positiveInt(req.params.restaurantId);
     const restaurant = await restaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, UPDATE_INVENTORY);
+    const scope = await getTransferScope(restaurant, req.user.id);
     const itemId = positiveInt(req.body.itemId);
     const amount = quantity(req.body.quantity);
     if (!itemId || amount <= 0) throw new AppError('Validation failed', 400, 'validation_failed', { itemId: 'Item is required', quantity: 'Must be greater than zero' });
@@ -483,13 +497,22 @@ exports.createTransfer = async (req, res, next) => {
           `SELECT * FROM restaurant_inventory_transfers WHERE restaurant_id = $1 AND client_operation_id = $2`,
           [restaurantId, clientOperationId]
         );
-        if (existing) return { transfer: existing, replayed: true };
+        if (existing) {
+          if (scope?.mode === 'assigned' && existing.location_id != null
+            && !scope.location_ids.includes(Number(existing.location_id))) {
+            throw new AppError('Transfer not found', 404, 'inventory_transfer_not_found');
+          }
+          return { transfer: existing, replayed: true };
+        }
       }
       const { rows: [item] } = await client.query(
-        `SELECT id, name, unit FROM restaurant_inventory_items WHERE id = $1 AND restaurant_id = $2 AND is_active = TRUE`,
+        `SELECT id, name, unit, location_id FROM restaurant_inventory_items WHERE id = $1 AND restaurant_id = $2 AND is_active = TRUE`,
         [itemId, restaurantId]
       );
       if (!item) throw new AppError('Item not found', 404, 'inventory_item_not_found');
+      if (restaurant.effective_role !== 'owner' && restaurant.effective_membership_id && item.location_id != null) {
+        await assertLocationAccess(restaurant, req.user.id, item.location_id, client);
+      }
       const fromAreaId = positiveInt(req.body.fromAreaId);
       const toAreaId = positiveInt(req.body.toAreaId);
       const { rows: areas } = await client.query(
@@ -505,10 +528,10 @@ exports.createTransfer = async (req, res, next) => {
       const status = TRANSFER_STATUSES.has(req.body.status) ? req.body.status : 'completed';
       const { rows: [transfer] } = await client.query(
         `INSERT INTO restaurant_inventory_transfers
-           (restaurant_id, item_id, item_name, quantity, unit, from_area_id, to_area_id,
+           (restaurant_id, location_id, item_id, item_name, quantity, unit, from_area_id, to_area_id,
             from_area_name, to_area_name, status, note, transferred_by, client_operation_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
-        [restaurantId, item.id, item.name, amount, item.unit, fromAreaId, toAreaId,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+        [restaurantId, item.location_id || null, item.id, item.name, amount, item.unit, fromAreaId, toAreaId,
           fromName, toName, status, text(req.body.note, 1000), req.user.id, clientOperationId]
       );
       await logInventoryAudit(client, auditEntry(restaurant, 'transfer_created', 'transfer', transfer.id, req, {
@@ -532,19 +555,22 @@ exports.updateTransfer = async (req, res, next) => {
     const transferId = positiveInt(req.params.transferId);
     const restaurant = await restaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
+    const scope = await getTransferScope(restaurant, req.user.id);
     if (!transferId) throw new AppError('Transfer not found', 404, 'inventory_transfer_not_found');
     if (!TRANSFER_STATUSES.has(req.body.status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', {
         status: 'Status must be pending, completed, or cancelled',
       });
     }
+    const scopeClause = scope?.mode === 'assigned'
+      ? ' AND (location_id IS NULL OR location_id = ANY($4::bigint[]))' : '';
     const transfer = await withTransaction(pool, async (client) => {
       const { rows: [updated] } = await client.query(
         `UPDATE restaurant_inventory_transfers
             SET status = $1, updated_at = NOW()
-          WHERE id = $2 AND restaurant_id = $3
+          WHERE id = $2 AND restaurant_id = $3${scopeClause}
           RETURNING *`,
-        [req.body.status, transferId, restaurantId]
+        [req.body.status, transferId, restaurantId, ...(scope?.mode === 'assigned' ? [scope.location_ids] : [])]
       );
       if (!updated) throw new AppError('Transfer not found', 404, 'inventory_transfer_not_found');
       await logInventoryAudit(client, auditEntry(restaurant, 'transfer_updated', 'transfer', updated.id, req, {
