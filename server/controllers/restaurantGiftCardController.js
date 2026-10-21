@@ -8,6 +8,8 @@ const AppError = require('../utils/appError');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
 const permissions = require('../services/permissionsService');
 const { logBusinessAction } = require('../services/businessAuditLog');
+const { withTransaction } = require('../utils/transaction');
+const giftCardValue = require('../services/restaurantGiftCardService');
 
 const MAX_AMOUNT_CENTS = 1_000_000;
 
@@ -188,3 +190,127 @@ exports.updateProduct = async (req, res, next) => {
 };
 
 exports._normalize = { normalizeSku, normalizeName, normalizeAmount, normalizeCurrency, normalizeDeliveryType, normalizeActive };
+
+async function valueAccess(req) {
+  const restaurantId = Number.parseInt(req.params.restaurantId, 10);
+  if (!Number.isSafeInteger(restaurantId) || restaurantId <= 0) {
+    throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+  }
+  const restaurant = await resolveRestaurantAccess(req.user.id, restaurantId);
+  if (!(await permissions.hasRestaurantPermission(restaurant, req.user.id, ['pos.manage', 'settings.manage']))) {
+    throw new AppError('You do not have permission to manage gift-card value', 403, 'forbidden');
+  }
+  return restaurant;
+}
+
+function issueProductId(value) {
+  const id = Number(value);
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    throw new AppError('Gift-card product is required', 400, 'validation_failed', { productId: 'Invalid product' });
+  }
+  return id;
+}
+
+function issueCustomerId(value) {
+  if (value == null || value === '') return null;
+  const id = String(value).trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+    throw new AppError('Customer ID is invalid', 400, 'validation_failed', { customerId: 'Invalid UUID' });
+  }
+  return id;
+}
+
+exports.issueValue = async (req, res, next) => {
+  try {
+    const restaurant = await valueAccess(req);
+    const idempotencyKey = req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key;
+    const result = await withTransaction(pool, (client) => giftCardValue.issueGiftCard(client, {
+      restaurantId: restaurant.id,
+      productId: issueProductId(req.body?.productId ?? req.body?.product_id),
+      actorUserId: req.user.id,
+      idempotencyKey,
+      customerId: issueCustomerId(req.body?.customerId ?? req.body?.customer_id),
+      metadata: req.body?.metadata && typeof req.body.metadata === 'object' && !Array.isArray(req.body.metadata)
+        ? req.body.metadata : {},
+      expiresAt: req.body?.expiresAt ?? req.body?.expires_at ?? null,
+    }), 'gift_card_issue');
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role,
+      action: 'restaurant.gift_card.issued',
+      target_type: 'restaurant_gift_card',
+      target_id: result.card.id,
+      before_state: {},
+      after_state: result.card,
+      metadata: { replayed: result.replayed, value_provider: 'internal_ledger' },
+      throwOnError: true,
+    });
+    res.status(result.replayed ? 200 : 201).json({
+      card: result.card,
+      replayed: result.replayed,
+      deliveryStatus: result.card.deliveryType === 'e_gift' ? 'provider_not_configured' : 'issued',
+      valueProvider: 'internal_ledger',
+    });
+  } catch (err) {
+    if (err?.code === '23505') return next(new AppError('That gift-card issue request already exists', 409, 'gift_card_issue_exists'));
+    next(err);
+  }
+};
+
+exports.lookupValue = async (req, res, next) => {
+  try {
+    const restaurant = await valueAccess(req);
+    const card = await giftCardValue.lookupGiftCard(pool, { restaurantId: restaurant.id, code: req.body?.code });
+    res.json({ card, valueProvider: 'internal_ledger' });
+  } catch (err) { next(err); }
+};
+
+exports.redeemValue = async (req, res, next) => {
+  try {
+    const restaurant = await valueAccess(req);
+    const orderId = req.body?.orderId ?? req.body?.order_id ?? null;
+    const amountCents = Number(req.body?.amountCents ?? req.body?.amount_cents);
+    const result = await withTransaction(pool, (client) => giftCardValue.redeemGiftCard(client, {
+      restaurantId: restaurant.id,
+      code: req.body?.code,
+      amountCents,
+      currencyCode: req.body?.currencyCode ?? req.body?.currency_code,
+      actorUserId: req.user.id,
+      idempotencyKey: req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key,
+      foodOrderId: orderId,
+      metadata: { source: 'merchant_gift_card_redeem' },
+    }), 'gift_card_redeem');
+    res.status(result.replayed ? 200 : 201).json({
+      card: result.card,
+      ledger: { id: result.ledger.id, eventType: result.ledger.event_type, deltaCents: Number(result.ledger.delta_cents) },
+      replayed: result.replayed,
+      valueProvider: 'internal_ledger',
+    });
+  } catch (err) { next(err); }
+};
+
+exports.refundValue = async (req, res, next) => {
+  try {
+    const restaurant = await valueAccess(req);
+    const result = await withTransaction(pool, (client) => giftCardValue.redeemGiftCard(client, {
+      restaurantId: restaurant.id,
+      code: req.body?.code,
+      amountCents: Number(req.body?.amountCents ?? req.body?.amount_cents),
+      currencyCode: req.body?.currencyCode ?? req.body?.currency_code,
+      actorUserId: req.user.id,
+      idempotencyKey: req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key,
+      foodOrderId: req.body?.orderId ?? req.body?.order_id ?? null,
+      metadata: { source: 'merchant_gift_card_refund' },
+      eventType: 'refund',
+      originalLedgerId: req.body?.originalLedgerId ?? req.body?.original_ledger_id ?? null,
+    }), 'gift_card_refund');
+    res.status(result.replayed ? 200 : 201).json({
+      card: result.card,
+      ledger: { id: result.ledger.id, eventType: result.ledger.event_type, deltaCents: Number(result.ledger.delta_cents) },
+      replayed: result.replayed,
+      valueProvider: 'internal_ledger',
+    });
+  } catch (err) { next(err); }
+};
+
+exports._valueNormalize = { issueProductId, issueCustomerId };

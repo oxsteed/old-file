@@ -151,6 +151,10 @@ router.patch('/:restaurantId/locations/:locationId/menu-items/:itemId', requireR
 router.get('/:restaurantId/gift-card-products', requireRestaurantAccess(), giftCards.listProducts);
 router.post('/:restaurantId/gift-card-products', requireRestaurantAccess(), giftCards.createProduct);
 router.patch('/:restaurantId/gift-card-products/:productId', requireRestaurantAccess(), giftCards.updateProduct);
+router.post('/:restaurantId/gift-cards', requireRestaurantAccess(), giftCards.issueValue);
+router.post('/:restaurantId/gift-cards/lookup', requireRestaurantAccess(), giftCards.lookupValue);
+router.post('/:restaurantId/gift-cards/redeem', requireRestaurantAccess(), giftCards.redeemValue);
+router.post('/:restaurantId/gift-cards/refund', requireRestaurantAccess(), giftCards.refundValue);
 // F-02: explicit store-scoped staff assignments. Members without assignments
 // retain legacy all-store access until an operator opts them into a boundary.
 router.get('/:restaurantId/location-access', requireRestaurantAccess(), locationAccess.list);

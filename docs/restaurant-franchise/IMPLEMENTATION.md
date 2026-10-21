@@ -243,9 +243,11 @@ unified onboarding/hardware pairing, HQ compliance publishing/rollups and
 end-to-end store acceptance. Allergen label printing is now implemented as a
 manager-only, store-scoped queued printer job; physical label stock and device
 acceptance remain open. Migration 980 adds manager-audited physical/e-gift card
-SKUs as a catalog-only foundation with a localized merchant catalog panel; value issuance, redemption, refunds and
-provider reconciliation remain deliberately disabled until their ledger
-contract is implemented. Migration 981 adds restaurant-scoped CRM segment
+SKUs as the catalog foundation and migration 982 adds an internal append-only
+hashed-code value ledger with idempotent issue, redeem, refund, lookup, and POS
+redemption paths. Generated codes are returned only at issue time; raw codes are
+never stored. E-gift delivery-provider dispatch and external value
+reconciliation remain release-gated. Migration 981 adds restaurant-scoped CRM segment
 definitions with bounded criteria (lifetime points, paid-order count, recency,
 and optional store) and an aggregate-only audience preview. Customer identity
 is excluded, all writes are audited, and campaign delivery remains disabled
@@ -284,8 +286,8 @@ hardware decisions do not excuse independent software work on these flows.
 - `server`: `npx jest --runInBand --testPathPatterns='routeScopeGuard' __tests__/routeScopeGuard.test.js` — **10 passed** after adding all host-stand routes.
 - `server`: `npx jest --runInBand __tests__/restaurantPrinterLabels.test.js __tests__/restaurantPrinterSettings.db.test.js` — **3 passed, 13 skipped** without the explicit disposable printer database URL; pure allergen-label rendering passes and the DB suite remains fail-closed.
 - `client`: `npm run verify:i18n`, `node scripts/growthInstrumentation.mjs --check`, and `npm run build:ci` — **passed** after adding the localized allergen-label printer control and gift-card catalog panel; growth coverage is 2,520/2,520 and emitted-asset verification covered 1,020 assets.
-- `server`: `npx jest --runInBand __tests__/restaurantGiftCardController.test.js` and `__tests__/routeScopeGuard.test.js` — **12 passed** across catalog validation and route scope registration.
-- `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **955/955 migrations passed** twice, including migration 980's gift-card product catalog.
+- `server`: `npx jest --runInBand __tests__/restaurantGiftCardController.test.js __tests__/restaurantGiftCardService.test.js __tests__/restaurantAppFlow.test.js` — **66 passed** across catalog validation, value-ledger issue/redeem/refund guards, POS redemption, and route scope registration.
+- `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **957/957 migrations passed** twice, including migration 982's gift-card value ledger.
 - `client`: `npm run verify:i18n` — **passed** with the host-stand keys present in `en`, `es`, `fr`, `ht`, and `ar`.
 - `client`: `npm run build` — **passed**; Vite emitted the merchant bundle with the host-stand panel. Existing large-chunk and dynamic-import advisories remain.
 - `server`: `npx jest --runInBand __tests__/restaurantPayrollOvertime.test.js` — **2 passed**. Covers weekly overtime allocation and required-break exception detection.

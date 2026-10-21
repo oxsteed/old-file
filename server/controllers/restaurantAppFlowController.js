@@ -70,6 +70,7 @@ const { sendNotification } = require('../services/notificationService');
 const { resolveOrderItemModifiers } = require('./foodController');
 const { isItemAvailableAt } = require('../utils/menuDayparts');
 const { calculateRoute: calculateGeoRoute } = require('../services/geoRouteProviderService');
+const giftCardValue = require('../services/restaurantGiftCardService');
 
 // Absolute ceiling for a POS ticket tip, in cents ($500).
 const POS_TIP_ABSOLUTE_MAX_CENTS = 50000;
@@ -5170,7 +5171,7 @@ exports.recordPosPayment = async (req, res, next) => {
       req.get('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key,
       200
     );
-    if (['refund', 'wallet_credit', 'oxsteed_credit'].includes(paymentType) && !idempotencyKey) {
+    if (['refund', 'gift_card', 'wallet_credit', 'oxsteed_credit'].includes(paymentType) && !idempotencyKey) {
       throw new AppError(
         'Idempotency-Key is required for stored-value payments and refunds',
         400,
@@ -5608,6 +5609,64 @@ exports.recordPosPayment = async (req, res, next) => {
           request: req,
           paymentContract,
         });
+      }
+
+      if (paymentType === 'gift_card') {
+        const giftCard = await giftCardValue.redeemGiftCard(client, {
+          restaurantId,
+          code: req.body.giftCardCode || req.body.gift_card_code || req.body.code,
+          amountCents,
+          currencyCode,
+          actorUserId: req.user.id,
+          idempotencyKey,
+          foodOrderId: orderId,
+          metadata: { source: 'pos_payment', shiftId },
+        });
+        const { rows: [payment] } = await client.query(
+          `INSERT INTO restaurant_pos_payments
+             (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
+              reference, note, metadata, idempotency_key, created_by, acting_staff_user_id, location_id)
+           VALUES ($1,$2,$3,'gift_card',$4,$5,$6,$7,$8,$9,$10,$11,$12)
+           RETURNING *`,
+          [
+            restaurantId, orderId, shiftId, amountCents, status,
+            giftCard.card.codeLast4 ? `gift-card:${giftCard.card.codeLast4}` : null,
+            normalizeString(req.body.note, 1000),
+            {
+              ...safeJson(req.body.metadata),
+              giftCardId: giftCard.card.id,
+              giftCardLedgerId: giftCard.ledger.id,
+              giftCardBalanceAfterCents: giftCard.card.balanceCents,
+              paymentContract: paymentContractMetadata(paymentContract, { source: 'restaurant_gift_card' }),
+            },
+            idempotencyKey, req.user.id, actingStaff?.staffUserId || null, order.location_id ?? null,
+          ]
+        );
+        const reconciliation = await reconcilePosOrderPayment(client, orderId);
+        if (reconciliation?.order) {
+          await insertPosReceiptAudit(client, {
+            restaurantId,
+            order: reconciliation.order,
+            eventType: 'payment_recorded',
+            channel: 'Gift card',
+            createdBy: req.user.id,
+            reason: normalizeString(req.body.reason || req.body.note, 1000) || 'Paid with gift card',
+            metadata: { paymentId: payment.id, paymentType, amountCents, giftCardId: giftCard.card.id, giftCardLedgerId: giftCard.ledger.id },
+            actingStaffUserId: actingStaff?.staffUserId || null,
+            idempotencyKey: `receipt:${restaurantId}:${idempotencyKey}`,
+          });
+        }
+        return {
+          payment,
+          ...reconciliation,
+          giftCard: {
+            id: giftCard.card.id,
+            codeLast4: giftCard.card.codeLast4,
+            balanceCents: giftCard.card.balanceCents,
+            currencyCode,
+            replayed: giftCard.replayed === true,
+          },
+        };
       }
 
       const { rows: [payment] } = await client.query(
