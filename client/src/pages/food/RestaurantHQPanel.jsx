@@ -141,11 +141,11 @@ export default function RestaurantHQPanel({ t, restaurant, bare = false }) {
             </div>
           ))}
         </div>
-        <form onSubmit={createRegion} className="fd-row" style={{ alignItems: 'end', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <form onSubmit={createRegion} className="fd-row" style={{ alignItems: 'end', gap: '0.75rem', flexWrap: 'wrap' }} data-track="ui.ec032c849d.1">
           <div className="fd-field"><label htmlFor="restaurant-hq-region-code">{t('restaurants.ops.hq.regionCode')}</label><input id="restaurant-hq-region-code" value={regionCode} onChange={(event) => setRegionCode(event.target.value)} maxLength={48} required /></div>
           <div className="fd-field"><label htmlFor="restaurant-hq-region-name">{t('restaurants.ops.hq.regionName')}</label><input id="restaurant-hq-region-name" value={regionName} onChange={(event) => setRegionName(event.target.value)} maxLength={160} required /></div>
           <div className="fd-field"><label htmlFor="restaurant-hq-region-parent">{t('restaurants.ops.hq.regionParent')}</label><select id="restaurant-hq-region-parent" value={regionParentId} onChange={(event) => setRegionParentId(event.target.value)}><option value="">{t('restaurants.ops.hq.regionRoot')}</option>{regions.filter((region) => region.status === 'active').map((region) => <option key={region.id} value={region.id}>{region.name}</option>)}</select></div>
-          <button type="submit" className="fd-btn fd-btn-sm"><Building2 size={14} /> {t('restaurants.ops.hq.regionCreate')}</button>
+          <button type="submit" className="fd-btn fd-btn-sm" data-track="ui.ec032c849d.2"><Building2 size={14} /> {t('restaurants.ops.hq.regionCreate')}</button>
         </form>
       </div>
 
