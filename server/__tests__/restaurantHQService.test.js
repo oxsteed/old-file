@@ -8,15 +8,18 @@ describe('restaurant HQ rollup service', () => {
       id: 4, name: 'Downtown', city: 'Boston', state: 'MA', timezone: 'America/New_York', status: 'active',
       sales: [{ currencyCode: 'USD', orderCount: 3, netCollectedCents: 4200 }],
       health: { latestAuditScorePercent: 92.5, openFindings: 1 },
+      compliance: { checklistCompletionPercent: null, checklistRuns: 0, trainingCompletionPercent: null, trainingAssignments: 0, overdueTraining: 0 },
     });
   });
 
   test('rollup query is explicitly constrained to the business and accessible stores', async () => {
     const client = { query: jest.fn()
       .mockResolvedValueOnce({ rows: [{ restaurant_id: 4, currency_code: 'USD', order_count: 3, net_collected_cents: 4200 }] })
-      .mockResolvedValueOnce({ rows: [{ restaurant_id: 4, latest_audit_score_percent: '92.5', open_findings: 1 }] }) };
+      .mockResolvedValueOnce({ rows: [{ restaurant_id: 4, latest_audit_score_percent: '92.5', open_findings: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ restaurant_id: 4, checklist_runs: 4, checklist_completion_percent: '75.0', training_assignments: 5, training_completion_percent: '80.0', overdue_training: 1 }] }) };
     const result = await service.rollup(client, { businessId: 8, restaurantIds: [4], from: '2026-10-01T00:00:00.000Z', to: '2026-10-31T00:00:00.000Z' });
     expect(result.salesRows[0].restaurant_id).toBe(4);
+    expect(result.complianceRows[0].training_assignments).toBe(5);
     expect(client.query.mock.calls[0][1]).toEqual([8, [4], '2026-10-01T00:00:00.000Z', '2026-10-31T00:00:00.000Z']);
   });
 });

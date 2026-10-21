@@ -35,11 +35,17 @@ exports.rollup = async (req, res, next) => {
     }
     const ids = accessible.map((row) => Number(row.id));
     const range = dateRange(req);
-    const { salesRows, healthRows } = await hq.rollup(pool, { businessId: anchor.business_id, restaurantIds: ids, ...range });
+    const { salesRows, healthRows, complianceRows } = await hq.rollup(pool, { businessId: anchor.business_id, restaurantIds: ids, ...range });
     const healthById = new Map(healthRows.map((row) => [Number(row.restaurant_id), row]));
+    const complianceById = new Map(complianceRows.map((row) => [Number(row.restaurant_id), row]));
     const stores = accessible.map((row) => hq.storeShape(row, salesRows.filter((entry) => Number(entry.restaurant_id) === Number(row.id)), {
       latestAuditScorePercent: healthById.get(Number(row.id))?.latest_audit_score_percent,
       openFindings: healthById.get(Number(row.id))?.open_findings,
+      checklistCompletionPercent: complianceById.get(Number(row.id))?.checklist_completion_percent,
+      checklistRuns: complianceById.get(Number(row.id))?.checklist_runs,
+      trainingCompletionPercent: complianceById.get(Number(row.id))?.training_completion_percent,
+      trainingAssignments: complianceById.get(Number(row.id))?.training_assignments,
+      overdueTraining: complianceById.get(Number(row.id))?.overdue_training,
     }));
     res.json({ scope: { businessId: Number(anchor.business_id), storeCount: stores.length, from: range.from, to: range.to }, stores });
   } catch (err) { next(err); }
