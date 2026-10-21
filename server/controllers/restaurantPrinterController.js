@@ -128,11 +128,11 @@ function receiptLocale(restaurant) {
 function receiptLabels(locale) {
   const language = String(locale || 'en').toLowerCase().split('-')[0];
   const labels = {
-    en: { order: 'Order', date: 'Date', guest: 'Guest', table: 'Table', type: 'Type', subtotal: 'Subtotal', discount: 'Discount', tax: 'Tax', serviceFee: 'Service fee', deliveryFee: 'Delivery fee', tip: 'Tip', total: 'TOTAL', paid: 'Paid', thankYou: 'Thank you for your business!' },
-    es: { order: 'Pedido', date: 'Fecha', guest: 'Cliente', table: 'Mesa', type: 'Tipo', subtotal: 'Subtotal', discount: 'Descuento', tax: 'Impuesto', serviceFee: 'Cargo de servicio', deliveryFee: 'Cargo de entrega', tip: 'Propina', total: 'TOTAL', paid: 'Pagado', thankYou: '¡Gracias por su compra!' },
-    fr: { order: 'Commande', date: 'Date', guest: 'Client', table: 'Table', type: 'Type', subtotal: 'Sous-total', discount: 'Remise', tax: 'Taxe', serviceFee: 'Frais de service', deliveryFee: 'Frais de livraison', tip: 'Pourboire', total: 'TOTAL', paid: 'Payé', thankYou: 'Merci pour votre visite !' },
-    ht: { order: 'Kòmann', date: 'Dat', guest: 'Kliyan', table: 'Tab', type: 'Kalite', subtotal: 'Sou-total', discount: 'Rabè', tax: 'Taks', serviceFee: 'Frè sèvis', deliveryFee: 'Frè livrezon', tip: 'Poubò', total: 'TOTAL', paid: 'Peye', thankYou: 'Mèsi pou acha ou!' },
-    ar: { order: 'الطلب', date: 'التاريخ', guest: 'العميل', table: 'الطاولة', type: 'النوع', subtotal: 'المجموع الفرعي', discount: 'الخصم', tax: 'الضريبة', serviceFee: 'رسوم الخدمة', deliveryFee: 'رسوم التوصيل', tip: 'الإكرامية', total: 'الإجمالي', paid: 'المدفوع', thankYou: 'شكرًا لطلبكم!' },
+    en: { order: 'Order', date: 'Date', guest: 'Guest', table: 'Table', type: 'Type', subtotal: 'Subtotal', discount: 'Discount', tax: 'Tax', serviceFee: 'Service fee', deliveryFee: 'Delivery fee', tip: 'Tip', total: 'TOTAL', paid: 'Paid', thankYou: 'Thank you for your business!', allergens: 'ALLERGENS', seat: 'Seat', allergenLabels: 'ALLERGEN LABELS', verifyLabels: 'Verify labels before service.' },
+    es: { order: 'Pedido', date: 'Fecha', guest: 'Cliente', table: 'Mesa', type: 'Tipo', subtotal: 'Subtotal', discount: 'Descuento', tax: 'Impuesto', serviceFee: 'Cargo de servicio', deliveryFee: 'Cargo de entrega', tip: 'Propina', total: 'TOTAL', paid: 'Pagado', thankYou: '¡Gracias por su compra!', allergens: 'ALÉRGENOS', seat: 'Asiento', allergenLabels: 'ETIQUETAS DE ALÉRGENOS', verifyLabels: 'Verifique las etiquetas antes del servicio.' },
+    fr: { order: 'Commande', date: 'Date', guest: 'Client', table: 'Table', type: 'Type', subtotal: 'Sous-total', discount: 'Remise', tax: 'Taxe', serviceFee: 'Frais de service', deliveryFee: 'Frais de livraison', tip: 'Pourboire', total: 'TOTAL', paid: 'Payé', thankYou: 'Merci pour votre visite !', allergens: 'ALLERGÈNES', seat: 'Siège', allergenLabels: 'ÉTIQUETTES D’ALLERGÈNES', verifyLabels: 'Vérifiez les étiquettes avant le service.' },
+    ht: { order: 'Kòmann', date: 'Dat', guest: 'Kliyan', table: 'Tab', type: 'Kalite', subtotal: 'Sou-total', discount: 'Rabè', tax: 'Taks', serviceFee: 'Frè sèvis', deliveryFee: 'Frè livrezon', tip: 'Poubò', total: 'TOTAL', paid: 'Peye', thankYou: 'Mèsi pou acha ou!', allergens: 'ALÈJÈN', seat: 'Syèj', allergenLabels: 'ETIKÈT ALÈJÈN', verifyLabels: 'Verifye etikèt yo anvan sèvis.' },
+    ar: { order: 'الطلب', date: 'التاريخ', guest: 'العميل', table: 'الطاولة', type: 'النوع', subtotal: 'المجموع الفرعي', discount: 'الخصم', tax: 'الضريبة', serviceFee: 'رسوم الخدمة', deliveryFee: 'رسوم التوصيل', tip: 'الإكرامية', total: 'الإجمالي', paid: 'المدفوع', thankYou: 'شكرًا لطلبكم!', allergens: 'مسببات الحساسية', seat: 'المقعد', allergenLabels: 'ملصقات مسببات الحساسية', verifyLabels: 'تحقق من الملصقات قبل التقديم.' },
   };
   return labels[language] || labels.en;
 }
@@ -267,23 +267,24 @@ function buildOrderReceipt({ restaurant, settings, snapshot }) {
 }
 
 function buildAllergenLabelReceipt({ restaurant, snapshot }) {
-  const labels = snapshot.items
+  const fixed = receiptLabels(receiptLocale(restaurant));
+  const allergenItems = snapshot.items
     .filter((item) => Array.isArray(item.allergens) && item.allergens.length)
     .map((item) => ({
       qty: item.quantity,
       name: item.item_name,
       amount: '',
-      subLines: [`ALLERGENS: ${item.allergens.join(', ')}`, ...(item.seat_number ? [`Seat ${item.seat_number}`] : [])],
+      subLines: [`${fixed.allergens}: ${item.allergens.join(', ')}`, ...(item.seat_number ? [`${fixed.seat} ${item.seat_number}`] : [])],
     }));
-  if (!labels.length) {
+  if (!allergenItems.length) {
     throw new AppError('No declared allergens found for this order', 409, 'allergen_labels_unavailable');
   }
   return escpos.buildReceipt({
     headerLines: [restaurant.display_name || 'OxSteed Restaurant'],
-    metaLines: [`Order #${snapshot.order.queue_number || snapshot.order.id}`, 'ALLERGEN LABELS'],
-    items: labels,
+    metaLines: [`${fixed.order} #${snapshot.order.queue_number || snapshot.order.id}`, fixed.allergenLabels],
+    items: allergenItems,
     totals: [],
-    footerLines: ['Verify labels before service.'],
+    footerLines: [fixed.verifyLabels],
     kickDrawer: false,
   });
 }
