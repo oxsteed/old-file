@@ -15,6 +15,7 @@ import {
   getSalesReport,
   downloadSalesReportCsv,
   downloadSalesJournalCsv,
+  downloadSalesAccountingCsv,
   downloadSalesLocationComparisonCsv,
   downloadSalesLocationComparisonXlsx,
   downloadSalesCloseCsv,
@@ -129,6 +130,8 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
 
   const [exporting, setExporting] = useState(false);
   const [exportingJournal, setExportingJournal] = useState(false);
+  const [accountingProvider, setAccountingProvider] = useState('quickbooks');
+  const [exportingAccounting, setExportingAccounting] = useState(false);
   const [exportingLocationComparison, setExportingLocationComparison] = useState(false);
   const [exportingLocationComparisonXlsx, setExportingLocationComparisonXlsx] = useState(false);
   const [exportingClose, setExportingClose] = useState(false);
@@ -166,6 +169,24 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
       toast.error(apiErr(err, t('restaurants.ops.reports.exportError')));
     } finally {
       setExportingJournal(false);
+    }
+  };
+  const onExportAccounting = async () => {
+    setExportingAccounting(true);
+    try {
+      const blob = await downloadSalesAccountingCsv(restaurantId, accountingProvider, { from, to });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `sales-${accountingProvider}-${from}-to-${to}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.exportError')));
+    } finally {
+      setExportingAccounting(false);
     }
   };
   const onExportClose = async () => {
@@ -263,6 +284,22 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
             data-track="ui.e7f53817fe.4"
           >
             {t('restaurants.ops.reports.downloadJournalCsv')}
+          </button>
+          <label className="fd-field fd-field-inline" htmlFor="rpt-accounting-provider">
+            <span>{t('restaurants.ops.reports.accountingProvider', 'Accounting format')}</span>
+            <select id="rpt-accounting-provider" value={accountingProvider} onChange={(e) => setAccountingProvider(e.target.value)}>
+              <option value="quickbooks">QuickBooks</option>
+              <option value="xero">Xero</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            className="fd-btn fd-btn-sm fd-btn-secondary"
+            onClick={onExportAccounting}
+            disabled={exportingAccounting}
+            data-track="ui.e7f53817fe.11"
+          >
+            {t('restaurants.ops.reports.downloadAccountingCsv', 'Download accounting CSV')}
           </button>
           <button
             type="button"

@@ -24307,6 +24307,8 @@
       "reports": {
         "downloadCsv": "Telechaje CSV",
         "downloadJournalCsv": "Telechaje CSV jounal la",
+        "accountingProvider": "Fòma kontablite",
+        "downloadAccountingCsv": "Telechaje CSV kontablite",
         "downloadCloseCsv": "Telechaje fèmti chak jou",
         "downloadLocationComparisonCsv": "Konpare magazen yo CSV",
         "downloadLocationComparisonXlsx": "Konpare magazen yo XLSX",

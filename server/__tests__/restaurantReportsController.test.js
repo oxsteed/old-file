@@ -25,6 +25,7 @@ function app() {
   server.get('/api/restaurants/:restaurantId/reports/sales', reports.salesSummary);
   server.get('/api/restaurants/:restaurantId/reports/sales/export.csv', reports.salesExportCsv);
   server.get('/api/restaurants/:restaurantId/reports/sales/journal.csv', reports.salesJournalExportCsv);
+  server.get('/api/restaurants/:restaurantId/reports/sales/accounting/:provider.csv', reports.salesAccountingExportCsv);
   server.get('/api/restaurants/:restaurantId/reports/sales/locations', reports.salesLocationComparison);
   server.get('/api/restaurants/:restaurantId/reports/sales/locations.csv', reports.salesLocationComparisonCsv);
   server.get('/api/restaurants/:restaurantId/reports/sales/locations.xlsx', reports.salesLocationComparisonXlsx);
@@ -115,6 +116,45 @@ describe('franchise reports backend', () => {
     expect(res.text).toContain('business_date,order_id,location_id');
     expect(res.text).toContain('2026-10-01,91,7,"Main, Store",USD,counter');
     expect(res.text).toContain('"drawer,1"');
+  });
+
+  test('salesAccountingExportCsv emits an import-ready QuickBooks journal contract', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access('manager')] })
+      .mockResolvedValueOnce({ rows: [{ code: 'analytics.view_financial', allow: true }] })
+      .mockResolvedValueOnce({ rows: [{
+        business_date: '2026-10-01', order_id: 91, location_id: 7, location_name: 'Main Store',
+        currency: 'USD', subtotal_cents: 1200, discount_cents: 100, tax_cents: 88,
+        service_fee_cents: 20, delivery_fee_cents: 0, tip_cents: 100,
+        payment_type: 'cash', payment_amount_cents: 1308,
+      }] });
+    const res = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/reports/sales/accounting/quickbooks.csv?from=2026-10-01&to=2026-10-01`);
+    expect(res.status).toBe(200);
+    expect(res.headers['content-disposition']).toContain('sales-quickbooks-2026-10-01-to-2026-10-01.csv');
+    expect(res.text).toContain('Date,Transaction Type,Document Number,Account,Description,Debit,Credit,Currency,Location');
+    expect(res.text).toContain('2026-10-01,Journal Entry,OX-91,4000,Restaurant sales 91,0.00,11.00,USD,Main Store');
+    expect(res.text).toContain('2026-10-01,Journal Entry,OX-91,1000,Tender cash 91,13.08,0.00,USD,Main Store');
+  });
+
+  test('accounting export rejects unsupported providers before querying orders', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access('manager')] })
+      .mockResolvedValueOnce({ rows: [{ code: 'analytics.view_financial', allow: true }] });
+    const res = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/reports/sales/accounting/sage.csv`);
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('unsupported_accounting_export');
+    expect(mockQuery).toHaveBeenCalledTimes(3);
+  });
+
+  test('accounting lines keep one revenue leg when an order has split tenders', () => {
+    const { accountingLines } = reports._accountingTest;
+    const lines = accountingLines([
+      { business_date: '2026-10-01', order_id: 92, location_name: 'Main', currency: 'USD', subtotal_cents: 1000, discount_cents: 0, tax_cents: 80, order_total_cents: 1080, payment_id: 1, payment_type: 'cash', payment_amount_cents: 500 },
+      { business_date: '2026-10-01', order_id: 92, location_name: 'Main', currency: 'USD', subtotal_cents: 1000, discount_cents: 0, tax_cents: 80, order_total_cents: 1080, payment_id: 2, payment_type: 'card', payment_amount_cents: 580 },
+    ]);
+    expect(lines.filter((line) => line.account === '4000')).toHaveLength(1);
+    expect(lines.filter((line) => line.account === '1000')).toHaveLength(2);
+    expect(lines.filter((line) => line.account === '1000').map((line) => line.debit)).toEqual(['5.00', '5.80']);
   });
 
   test('salesClose returns per-store totals and tender mix', async () => {

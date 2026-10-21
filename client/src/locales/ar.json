@@ -24318,6 +24318,8 @@
       "reports": {
         "downloadCsv": "تنزيل CSV",
         "downloadJournalCsv": "تنزيل CSV اليومية",
+        "accountingProvider": "تنسيق المحاسبة",
+        "downloadAccountingCsv": "تنزيل CSV المحاسبة",
         "downloadCloseCsv": "تنزيل إغلاق اليوم",
         "downloadLocationComparisonCsv": "مقارنة المتاجر CSV",
         "downloadLocationComparisonXlsx": "مقارنة المتاجر XLSX",

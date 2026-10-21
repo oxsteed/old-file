@@ -24307,6 +24307,8 @@
       "reports": {
         "downloadCsv": "Descargar CSV",
         "downloadJournalCsv": "Descargar CSV del diario",
+        "accountingProvider": "Formato contable",
+        "downloadAccountingCsv": "Descargar CSV contable",
         "downloadCloseCsv": "Descargar cierre diario",
         "downloadLocationComparisonCsv": "Comparar tiendas CSV",
         "downloadLocationComparisonXlsx": "Comparar tiendas XLSX",

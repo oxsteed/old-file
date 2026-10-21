@@ -102,10 +102,6 @@ describeDb('kitchen device-or-staff authorization', () => {
     const businessId = (
       await db.query(`INSERT INTO ${schema}.businesses (user_id) VALUES ($1) RETURNING id`, [OWNER_ID])
     ).rows[0].id;
-    await db.query(
-      `INSERT INTO ${schema}.restaurant_locations (restaurant_id, name, is_primary) VALUES ($1, 'Main A', TRUE), ($2, 'Main B', TRUE)`,
-      [restaurantA, restaurantB]
-    );
     restaurantA = (
       await db.query(
         `INSERT INTO ${schema}.food_restaurants (business_id, owner_user_id, display_name)
@@ -120,6 +116,10 @@ describeDb('kitchen device-or-staff authorization', () => {
         [businessId, OWNER_ID]
       )
     ).rows[0].id;
+    await db.query(
+      `INSERT INTO ${schema}.restaurant_locations (restaurant_id, name, is_primary) VALUES ($1, 'Main A', TRUE), ($2, 'Main B', TRUE)`,
+      [restaurantA, restaurantB]
+    );
 
     async function pairedRow(restaurantId, label, deviceRole = 'kiosk') {
       const token = crypto.randomBytes(32).toString('hex');

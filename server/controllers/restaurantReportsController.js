@@ -821,36 +821,119 @@ const SALES_JOURNAL_COLUMNS = [
   'payment_reference', 'payment_created_at',
 ];
 
+const ACCOUNTING_EXPORT_FORMATS = new Set(['quickbooks', 'xero']);
+const ACCOUNTING_ACCOUNT_CODES = Object.freeze({
+  SALES: '4000',
+  TAX_PAYABLE: '2100',
+  SERVICE_FEES: '4100',
+  DELIVERY_FEES: '4200',
+  TIPS_PAYABLE: '2200',
+  PAYMENT_CLEARING: '1000',
+});
+
+function accountingMoney(cents) {
+  const amount = Number(cents || 0);
+  return (Number.isFinite(amount) ? amount / 100 : 0).toFixed(2);
+}
+
+function accountingDate(value) {
+  return String(value || '').slice(0, 10);
+}
+
+function accountingLines(rows) {
+  const lines = [];
+  const grouped = new Map();
+  for (const row of rows) {
+    const key = String(row.order_id);
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(row);
+  }
+  for (const orderRows of grouped.values()) {
+    const row = orderRows[0];
+    const base = {
+      date: accountingDate(row.business_date),
+      reference: `OX-${row.order_id}`,
+      description: `Restaurant order ${row.order_id}`,
+      currency: row.currency || 'USD',
+      location: row.location_name || row.location_id || '',
+    };
+    const credit = (account, amount, description) => {
+      if (Number(amount || 0) === 0) return;
+      lines.push({ ...base, account, description: description || base.description, debit: '0.00', credit: accountingMoney(amount) });
+    };
+    const debit = (account, amount, description) => {
+      if (Number(amount || 0) === 0) return;
+      lines.push({ ...base, account, description: description || base.description, debit: accountingMoney(amount), credit: '0.00' });
+    };
+    const netSales = Number(row.subtotal_cents || 0) - Number(row.discount_cents || 0);
+    credit(ACCOUNTING_ACCOUNT_CODES.SALES, netSales, `Restaurant sales ${row.order_id}`);
+    credit(ACCOUNTING_ACCOUNT_CODES.TAX_PAYABLE, row.tax_cents, `Sales tax ${row.order_id}`);
+    credit(ACCOUNTING_ACCOUNT_CODES.SERVICE_FEES, row.service_fee_cents, `Service fees ${row.order_id}`);
+    credit(ACCOUNTING_ACCOUNT_CODES.DELIVERY_FEES, row.delivery_fee_cents, `Delivery fees ${row.order_id}`);
+    credit(ACCOUNTING_ACCOUNT_CODES.TIPS_PAYABLE, row.tip_cents, `Tips ${row.order_id}`);
+    const paymentRows = orderRows.filter((payment) => payment.payment_id != null || Number(payment.payment_amount_cents || 0) !== 0);
+    if (paymentRows.length === 0) {
+      debit(ACCOUNTING_ACCOUNT_CODES.PAYMENT_CLEARING, row.order_total_cents, `Order total ${row.order_id}`);
+    } else {
+      for (const payment of paymentRows) {
+        const paymentAmount = Number(payment.payment_amount_cents || 0);
+        if (paymentAmount !== 0) debit(ACCOUNTING_ACCOUNT_CODES.PAYMENT_CLEARING, paymentAmount, `Tender ${payment.payment_type || 'payment'} ${row.order_id}`);
+      }
+    }
+  }
+  return lines;
+}
+
+function buildAccountingCsv(format, rows) {
+  if (!ACCOUNTING_EXPORT_FORMATS.has(format)) throw new AppError('Unsupported accounting export format', 400, 'unsupported_accounting_export');
+  const lines = accountingLines(rows);
+  const columns = format === 'quickbooks'
+    ? ['Date', 'Transaction Type', 'Document Number', 'Account', 'Description', 'Debit', 'Credit', 'Currency', 'Location']
+    : ['Date', 'JournalNumber', 'AccountCode', 'Description', 'Debit', 'Credit', 'Currency', 'Reference', 'Location'];
+  const body = lines.map((line) => {
+    const values = format === 'quickbooks'
+      ? [line.date, 'Journal Entry', line.reference, line.account, line.description, line.debit, line.credit, line.currency, line.location]
+      : [line.date, line.reference, line.account, line.description, line.debit, line.credit, line.currency, line.reference, line.location];
+    return values.map((value) => csvCell(value)).join(',');
+  });
+  return `${[columns.join(','), ...body].join('\n')}\n`;
+}
+
+async function loadSalesJournalRows(restaurantId, restaurant, reqQuery) {
+  const timezone = resolveReportTimezone(restaurant);
+  const { fromDate, toDate } = parseSalesRange(reqQuery || {}, timezone);
+  const { rows } = await pool.query(
+    `SELECT to_char((o.created_at AT TIME ZONE $4)::date, 'YYYY-MM-DD') AS business_date,
+            o.id AS order_id, o.location_id, l.name AS location_name,
+            COALESCE(NULLIF(o.currency_code, ''), 'USD') AS currency,
+            o.order_source, o.fulfillment_type, o.status AS order_status,
+            o.payment_status, o.subtotal_cents, o.discount_cents, o.tax_cents,
+            o.service_fee_cents, o.delivery_fee_cents, o.tip_cents,
+            o.total_cents AS order_total_cents, p.id AS payment_id,
+            p.payment_type, p.status AS payment_status_detail,
+            p.amount_cents AS payment_amount_cents, p.reference AS payment_reference,
+            p.created_at AS payment_created_at
+       FROM food_orders o
+       LEFT JOIN restaurant_locations l
+         ON l.restaurant_id = o.restaurant_id AND l.id = o.location_id
+       LEFT JOIN restaurant_pos_payments p
+         ON p.restaurant_id = o.restaurant_id AND p.food_order_id = o.id
+        AND p.status IN ('recorded', 'captured', 'refunded')
+      WHERE o.restaurant_id = $1
+        AND o.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
+        AND o.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
+        ${restaurant.locationScope?.mode === 'assigned' ? 'AND o.location_id = ANY($5::bigint[])' : ''}
+      ORDER BY o.created_at ASC, o.id ASC, p.created_at ASC NULLS FIRST, p.id ASC`,
+    scopedParams([restaurantId, fromDate, toDate, timezone], restaurant.locationScope)
+  );
+  return { rows, fromDate, toDate };
+}
+
 exports.salesJournalExportCsv = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const timezone = resolveReportTimezone(restaurant);
-    const { fromDate, toDate } = parseSalesRange(req.query || {}, timezone);
-    const { rows } = await pool.query(
-      `SELECT to_char((o.created_at AT TIME ZONE $4)::date, 'YYYY-MM-DD') AS business_date,
-              o.id AS order_id, o.location_id, l.name AS location_name,
-              COALESCE(NULLIF(o.currency_code, ''), 'USD') AS currency,
-              o.order_source, o.fulfillment_type, o.status AS order_status,
-              o.payment_status, o.subtotal_cents, o.discount_cents, o.tax_cents,
-              o.service_fee_cents, o.delivery_fee_cents, o.tip_cents,
-              o.total_cents AS order_total_cents, p.id AS payment_id,
-              p.payment_type, p.status AS payment_status_detail,
-              p.amount_cents AS payment_amount_cents, p.reference AS payment_reference,
-              p.created_at AS payment_created_at
-         FROM food_orders o
-         LEFT JOIN restaurant_locations l
-           ON l.restaurant_id = o.restaurant_id AND l.id = o.location_id
-         LEFT JOIN restaurant_pos_payments p
-           ON p.restaurant_id = o.restaurant_id AND p.food_order_id = o.id
-          AND p.status IN ('recorded', 'captured', 'refunded')
-        WHERE o.restaurant_id = $1
-          AND o.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
-          AND o.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
-          ${restaurant.locationScope?.mode === 'assigned' ? 'AND o.location_id = ANY($5::bigint[])' : ''}
-        ORDER BY o.created_at ASC, o.id ASC, p.created_at ASC NULLS FIRST, p.id ASC`,
-      scopedParams([restaurantId, fromDate, toDate, timezone], restaurant.locationScope)
-    );
+    const { rows, fromDate, toDate } = await loadSalesJournalRows(restaurantId, restaurant, req.query);
     const lines = [SALES_JOURNAL_COLUMNS.join(',')];
     for (const row of rows) {
       lines.push(SALES_JOURNAL_COLUMNS.map((column) => csvCell(row[column])).join(','));
@@ -865,6 +948,23 @@ exports.salesJournalExportCsv = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.salesAccountingExportCsv = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const format = String(req.params.provider || '').trim().toLowerCase();
+    const { rows, fromDate, toDate } = await loadSalesJournalRows(restaurantId, restaurant, req.query);
+    const body = buildAccountingCsv(format, rows);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="sales-${format}-${fromDate}-to-${toDate}.csv"`);
+    res.send(body);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports._accountingTest = { accountingLines, buildAccountingCsv, ACCOUNTING_ACCOUNT_CODES };
 
 // ── Inventory ────────────────────────────────────────────────────────────────
 exports.inventorySummary = async (req, res, next) => {

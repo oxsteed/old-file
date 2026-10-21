@@ -205,7 +205,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-04 | Existing stable order/payment retry IDs and pay-first hold; POS checkout state now survives reload for a bounded window and cash replay preserves the same identities | Lost-response/concurrent replay verification across every kitchen/display/runner fire path |
 | F-05 | Existing production server-dial prohibition and print queue; this pass adds paired kitchen-device queue endpoints, runtime contract, and store-scoped receipt-printer settings/jobs | Native LAN print bridge and physical device/browser acceptance |
 | F-06 | Existing Connect-bound Terminal flow, token permission gate, and card-intent reservation gate | Provider sandbox/readers and reconciliation acceptance |
-| F-07 | Existing local-day net-collected reports, currencies, summary CSV and tender-level journal CSV; this pass adds per-store/currency daily close, multi-day location comparison JSON/CSV/XLSX, theoretical/actual/variance food-cost percentages, and labor percentage output against paid sales | Accounting-system adapters |
+| F-07 | Existing local-day net-collected reports, currencies, summary CSV and tender-level journal CSV; this pass adds per-store/currency daily close, multi-day location comparison JSON/CSV/XLSX, theoretical/actual/variance food-cost percentages, labor percentage output against paid sales, and QuickBooks/Xero import-ready journal contracts with stable account codes | Authenticated provider API posting, account mapping confirmation, and populated external-ledger reconciliation |
 | F-08 | Existing offline drafts and failure reporting; web POS adds cash-only browser outbox replay with stable order/payment idempotency keys and sequential reconnect processing | In-store hub, Terminal store-and-forward/risk policy, and physical outage acceptance |
 | F-09 | The broken legacy food split route is removed; POS splitting uses the canonical transactional `splitPosOrder` path with whole-line, quantity-level, exact amount, and even-share selection, modifier/reservation cloning, course/seat preservation, payment, delivery, non-empty-ticket, store inheritance, and queue-counter guards | Maintain canonical split guards and populated-db acceptance |
 | F-10 | Existing overnight/split-shift/holiday/timezone evaluator; this pass adds a multi-range and dated special-hours location editor | Scheduling/device acceptance and populated-store special-date acceptance |
@@ -221,7 +221,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-20 | Existing menu item/category/modifier, settings/tax, store-menu, location-policy, printer-settings, store-membership, and server-validated POS receipt before/after audit writes are covered | Audit coverage across every remaining resource and owner-visible history acceptance |
 | F-21 | Existing PIN sessions, switching, lockout and keyed lookup | Native/shared-device and multi-store identity acceptance |
 | F-22 | Existing time punches, wages, labor, tips and CSV foundation; migration 970 adds configurable weekly overtime pricing and required-break exception reporting; migration 977 adds recurring availability windows and manager-approved shift swaps with atomic reassignment, with staff availability/swap audit events | Scheduling vendor integration and native timeclock/device acceptance |
-| F-23 | Existing inventory quantities/mappings/counts and location column; assigned-member item reads, adjustment history, item writes, procurement, and transfer reads/writes now enforce store scope; migrations 972-974 add recipe costing, supplier catalogs, receipt-to-request invoice matching, late-invoice reconciliation with audited match states, a receipt CSV accounting-ingestion contract, and food-cost percentage output | Accounting-system adapters and populated external-provider invoice acceptance |
+| F-23 | Existing inventory quantities/mappings/counts and location column; assigned-member item reads, adjustment history, item writes, procurement, and transfer reads/writes now enforce store scope; migrations 972-974 add recipe costing, supplier catalogs, receipt-to-request invoice matching, late-invoice reconciliation with audited match states, a receipt CSV accounting-ingestion contract, and food-cost percentage output | External invoice ingestion and populated external-provider invoice acceptance |
 | F-24 | Existing five-language cleanup; new store UI parity in both catalogs | Server/receipt and full-screen human language acceptance |
 | F-25 | Existing logical CSS cleanup | Full POS/KDS/merchant RTL visual acceptance |
 | F-26 | Three device systems remain; receipt-printer settings and queued jobs now carry the selected store | Canonical device identity and native print bridge, deprecated API adapters, resource-controller convergence |
@@ -244,6 +244,14 @@ acceptance remain open. Migration 980 adds manager-audited physical/e-gift card
 SKUs as a catalog-only foundation with a localized merchant catalog panel; value issuance, redemption, refunds and
 provider reconciliation remain deliberately disabled until their ledger
 contract is implemented.
+
+Sales reports now expose `/reports/sales/accounting/quickbooks.csv` and
+`/reports/sales/accounting/xero.csv`. These are read-only, store-scoped import
+contracts derived from the journal export. They use stable account codes for
+sales, tax, service fees, delivery fees, tips, and payment clearing, preserve
+currency and location columns, and never call an external provider. Live OAuth,
+provider account mapping, posting, duplicate detection, and reconciliation
+remain release-gated work.
 Reservations, table records, floor-plan metadata, seat-state updates, and a
 walk-in SMS waitlist are now implemented in the host-stand tranche. The merchant
 panel now provides a location-scoped drag/drop floor plan backed by the table
