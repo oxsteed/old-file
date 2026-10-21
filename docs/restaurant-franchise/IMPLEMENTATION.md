@@ -234,8 +234,10 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 
 The review also requests further split-workflow coverage, brand loyalty/CRM, physical/e-gift
 card products, delivery-marketplace menu/order adapters, QuickBooks/Xero and BI
-exports, allergen label printing, unified onboarding/hardware
-pairing, HQ compliance publishing/rollups and end-to-end store acceptance.
+exports, unified onboarding/hardware pairing, HQ compliance publishing/rollups
+and end-to-end store acceptance. Allergen label printing is now implemented as
+a manager-only, store-scoped queued printer job; physical label stock and
+device acceptance remain open.
 Reservations, table records, floor-plan metadata, seat-state updates, and a
 walk-in SMS waitlist are now implemented in the host-stand tranche. The merchant
 panel now provides a location-scoped drag/drop floor plan backed by the table

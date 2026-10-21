@@ -404,6 +404,7 @@ router.get('/:restaurantId/printer-settings', requireRestaurantAccess(), printer
 router.put('/:restaurantId/printer-settings', requireRestaurantAccess(), printer.updatePrinterSettings);
 router.post('/:restaurantId/printer-test', requireRestaurantAccess(), printer.printTestPage);
 router.post('/:restaurantId/print-receipt', requireRestaurantAccess(), printer.printReceipt);
+router.post('/:restaurantId/print-allergen-labels', requireRestaurantAccess(), printer.printAllergenLabels);
 router.get('/:restaurantId/pos/shifts', requireRestaurantAccess(), appFlow.listShifts);
 router.post('/:restaurantId/pos/shifts', requireRestaurantAccess(), appFlow.openShift);
 router.post('/:restaurantId/pos/shifts/:shiftId/close', requireRestaurantAccess(), appFlow.closeShift);

@@ -489,6 +489,37 @@ ddescribe('restaurant_printer_settings (migration 912)', () => {
     expect(items[0].n).toBe(1);
   });
 
+  test('print-allergen-labels queues labels from the restaurant menu snapshot', async () => {
+    await enablePrinting();
+    const { rows: [menuItem] } = await pool.query(
+      `INSERT INTO food_menu_items (restaurant_id, name, price_cents, allergens)
+       VALUES ($1, 'Allergen Burger', 450, ARRAY['milk', 'wheat']::text[])
+       RETURNING id`,
+      [fx.restaurantId]
+    );
+    const orderId = await newOrder(fx.restaurantId, fx.businessId);
+    await pool.query(
+      'UPDATE food_order_items SET menu_item_id = $1 WHERE order_id = $2',
+      [menuItem.id, orderId]
+    );
+
+    const res = mockRes();
+    await controller.printAllergenLabels(
+      mockReq({ params: { restaurantId: String(fx.restaurantId) }, body: { order_id: orderId }, user: { id: fx.userId } }),
+      res,
+      jest.fn()
+    );
+    expect(res.statusCode).toBe(202);
+    expect(res.payload.ok).toBe(true);
+    expect(res.payload.queued).toBe(true);
+    const jobs = await jobsFor(fx.restaurantId);
+    const job = jobs[jobs.length - 1];
+    expect(job.payload.kind).toBe('allergen_labels');
+    const text = jobBytes(job).toString('latin1');
+    expect(text).toContain('ALLERGEN LABELS');
+    expect(text).toContain('ALLERGENS: milk, wheat');
+  });
+
   test('queued receipt kicks the drawer only for cash payments when the setting is on', async () => {
     await enablePrinting({ drawerKickOnCash: true });
     const orderId = await newOrder(fx.restaurantId, fx.businessId);

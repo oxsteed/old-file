@@ -150,11 +150,15 @@ async function loadOrderSnapshot(restaurantId, orderId) {
   if (!order) throw new AppError('Order not found', 404, 'order_not_found');
   const [{ rows: items }, { rows: modifiers }, { rows: payments }] = await Promise.all([
     pool.query(
-      `SELECT id, item_name, quantity, unit_price_cents, line_total_cents, course_number, seat_number, special_instructions
-         FROM food_order_items
-        WHERE order_id = $1
-        ORDER BY course_number ASC, id ASC`,
-      [orderId]
+      `SELECT foi.id, foi.item_name, foi.quantity, foi.unit_price_cents, foi.line_total_cents,
+              foi.course_number, foi.seat_number, foi.special_instructions,
+              COALESCE(fmi.allergens, ARRAY[]::text[]) AS allergens
+         FROM food_order_items foi
+         LEFT JOIN food_menu_items fmi
+           ON fmi.id = foi.menu_item_id AND fmi.restaurant_id = $2
+        WHERE foi.order_id = $1
+        ORDER BY foi.course_number ASC, foi.id ASC`,
+      [orderId, restaurantId]
     ),
     pool.query(
       `SELECT foim.order_item_id, foim.modifier_name, foim.price_delta_cents
@@ -245,6 +249,28 @@ function buildOrderReceipt({ restaurant, settings, snapshot }) {
     kickDrawer,
   });
   return { buffer, kickDrawer };
+}
+
+function buildAllergenLabelReceipt({ restaurant, snapshot }) {
+  const labels = snapshot.items
+    .filter((item) => Array.isArray(item.allergens) && item.allergens.length)
+    .map((item) => ({
+      qty: item.quantity,
+      name: item.item_name,
+      amount: '',
+      subLines: [`ALLERGENS: ${item.allergens.join(', ')}`, ...(item.seat_number ? [`Seat ${item.seat_number}`] : [])],
+    }));
+  if (!labels.length) {
+    throw new AppError('No declared allergens found for this order', 409, 'allergen_labels_unavailable');
+  }
+  return escpos.buildReceipt({
+    headerLines: [restaurant.display_name || 'OxSteed Restaurant'],
+    metaLines: [`Order #${snapshot.order.queue_number || snapshot.order.id}`, 'ALLERGEN LABELS'],
+    items: labels,
+    totals: [],
+    footerLines: ['Verify labels before service.'],
+    kickDrawer: false,
+  });
 }
 
 // ── handlers ────────────────────────────────────────────────────────────────
@@ -452,3 +478,46 @@ exports.printReceipt = async (req, res, next) => {
     next(err);
   }
 };
+
+// Allergen labels use the same claim-based in-store printer queue as receipts.
+// The API only reads the order/menu snapshot and enqueues ESC/POS bytes; it
+// never changes order, inventory, payment, or ledger state.
+exports.printAllergenLabels = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const orderId = parsePositiveInt(req.body && (req.body.order_id ?? req.body.orderId));
+    if (!orderId) throw new AppError('order_id is required', 400, 'validation_failed');
+    const restaurant = await resolveRestaurantAccess(req.user.id, restaurantId);
+    await assertManage(restaurant, req.user.id);
+    const requestedLocationId = await resolvePrinterLocation(req, restaurant);
+    const snapshot = await loadOrderSnapshot(restaurantId, orderId);
+    const orderLocationId = snapshot.order.location_id == null ? requestedLocationId : Number(snapshot.order.location_id);
+    if (requestedLocationId != null && orderLocationId != null && requestedLocationId !== orderLocationId) {
+      throw new AppError('The order belongs to another store', 409, 'printer_location_mismatch');
+    }
+    const settings = await requireEnabledSettings(restaurantId, orderLocationId);
+    const buffer = buildAllergenLabelReceipt({ restaurant, snapshot });
+    if (serverPrintingEnabled()) {
+      const result = await dialPrinter(settings, buffer);
+      return res.json({ ok: result.ok, error: result.error, orderId });
+    }
+    const job = await enqueuePrintJob({
+      restaurantId,
+      orderId,
+      locationId: orderLocationId,
+      kind: 'allergen_labels',
+      buffer,
+      kickDrawer: false,
+      settings,
+      createdBy: req.user.id,
+    });
+    return res.status(202).json({ ok: true, queued: true, jobId: job.id, jobStatus: job.status, orderId });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Exported for the pure ESC/POS rendering test; the handler above owns all
+// authorization, store scoping, and queue side effects.
+exports.buildAllergenLabelReceipt = buildAllergenLabelReceipt;
