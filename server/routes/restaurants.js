@@ -28,6 +28,7 @@ const pos = require('../controllers/restaurantPosController');
 const kiosk = require('../controllers/restaurantKioskController');
 const appFlow = require('../controllers/restaurantAppFlowController');
 const printer = require('../controllers/restaurantPrinterController');
+const giftCards = require('../controllers/restaurantGiftCardController');
 const screens = require('../controllers/restaurantScreensController');
 const food = require('../controllers/foodController');
 const upload = require('../middleware/upload');
@@ -146,6 +147,9 @@ router.patch('/:restaurantId/locations/:locationId', requireRestaurantAccess(), 
 const storeMenu = require('../controllers/restaurantStoreMenuController');
 router.get('/:restaurantId/locations/:locationId/menu', requireRestaurantAccess(), storeMenu.list);
 router.patch('/:restaurantId/locations/:locationId/menu-items/:itemId', requireRestaurantAccess(), storeMenu.update);
+router.get('/:restaurantId/gift-card-products', requireRestaurantAccess(), giftCards.listProducts);
+router.post('/:restaurantId/gift-card-products', requireRestaurantAccess(), giftCards.createProduct);
+router.patch('/:restaurantId/gift-card-products/:productId', requireRestaurantAccess(), giftCards.updateProduct);
 // F-02: explicit store-scoped staff assignments. Members without assignments
 // retain legacy all-store access until an operator opts them into a boundary.
 router.get('/:restaurantId/location-access', requireRestaurantAccess(), locationAccess.list);
