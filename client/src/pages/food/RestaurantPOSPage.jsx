@@ -11,6 +11,7 @@ import api from '../../api/axios';
 import { getFoodRestaurant, formatFoodMoney } from '../../api/food';
 import { FoodBrand } from './foodShared';
 import { isNetworkFailure, usePosSync } from './usePosSync';
+import { clearPersistedCheckout, readPersistedCheckout, writePersistedCheckout } from './posCheckoutPersistence';
 import PosStaffSessionBar from './PosStaffSession';
 import {subscribeRestaurantDisplay} from '../../api/restaurantDisplaySocket';
 import PageShell from '../../components/PageShell';
@@ -333,6 +334,7 @@ export default function RestaurantPOSPage() {
   const [showPay, setShowPay] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState(null);
+  const [checkoutHydrated, setCheckoutHydrated] = useState(false);
 
   // F13/F-08: wire the offline-sync pipeline into the web POS. Generic
   // failures are reported; cash-only network failures can be replayed with
@@ -347,6 +349,39 @@ export default function RestaurantPOSPage() {
   } = usePosSync(restaurantId, canManage || canUsePos);
 
   const ticketRef = useRef(null);
+
+  // F-04: keep an in-progress ticket and its stable retry identity across a
+  // browser reload. The two-hour bound prevents an abandoned checkout from
+  // reappearing indefinitely, while an existing server order remains
+  // recoverable for the same idempotent payment retry.
+  useEffect(() => {
+    const saved = readPersistedCheckout(restaurantId);
+    if (saved) {
+      setTicket(Array.isArray(saved.ticket) ? saved.ticket : []);
+      setFulfillment(saved.fulfillment || 'dine_in');
+      setTableName(saved.tableName || '');
+      setGuestName(saved.guestName || '');
+      setCheckoutId(saved.checkoutId || null);
+      setCheckoutOrder(saved.checkoutOrder || null);
+    }
+    setCheckoutHydrated(String(restaurantId));
+  }, [restaurantId]);
+
+  useEffect(() => {
+    if (checkoutHydrated !== String(restaurantId)) return;
+    if (!ticket.length && !checkoutId && !checkoutOrder) {
+      clearPersistedCheckout(restaurantId);
+      return;
+    }
+    writePersistedCheckout(restaurantId, {
+      ticket,
+      fulfillment,
+      tableName,
+      guestName,
+      checkoutId,
+      checkoutOrder,
+    });
+  }, [checkoutHydrated, restaurantId, ticket, fulfillment, tableName, guestName, checkoutId, checkoutOrder]);
 
   const load = useCallback(async () => {
     try {
@@ -582,6 +617,7 @@ export default function RestaurantPOSPage() {
         setTableName('');
         setGuestName('');
         resetCheckout();
+        clearPersistedCheckout(restaurantId);
         setShowPay(false);
         toast.success(t('food.pos.offlineCashSaved'));
         return { offlineQueued: true };
@@ -620,6 +656,7 @@ export default function RestaurantPOSPage() {
       setTableName('');
       setGuestName('');
       resetCheckout();
+      clearPersistedCheckout(restaurantId);
       setShowPay(false);
       toast.success(t('food.pos.orderSent'));
       return true;
@@ -648,6 +685,7 @@ export default function RestaurantPOSPage() {
         setTableName('');
         setGuestName('');
         resetCheckout();
+        clearPersistedCheckout(restaurantId);
         setShowPay(false);
         toast.success(t('food.pos.offlineCashSaved'));
         return true;
@@ -684,6 +722,7 @@ export default function RestaurantPOSPage() {
         setTableName('');
         setGuestName('');
         resetCheckout();
+        clearPersistedCheckout(restaurantId);
         toast.success(t('food.pos.sentToKitchen'));
       }
     } catch (err) {

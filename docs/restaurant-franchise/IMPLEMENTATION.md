@@ -98,6 +98,12 @@ entry for reconciliation. Card, mobile, credit, managed-screen drafts, and
 Terminal store-and-forward remain fail-closed. This is not an in-store LAN
 hub or physical payment-device acceptance.
 
+The same POS now persists an in-progress ticket, fulfillment context, and
+stable checkout/order identity for up to two hours. A reload restores the
+ticket and an already-created unpaid order so the cashier can continue the
+same idempotent payment attempt; successful payment, kitchen send, deliberate
+clear, or offline cash queue completion clears the saved state.
+
 Migration 968 adds explicit store-scoped staff assignments. The manager-facing
 location-access API and Settings panel validate the membership and store
 tenants, record before/after assignments, and enforce the boundary on store
@@ -117,7 +123,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-01 | Existing timezone capture, validation, business copy and backfill | Populated-store owner confirmation and onboarding/browser acceptance |
 | F-02 | Existing location columns/counters/hours; this pass adds store menu and customer selection; hosting records are location-scoped; migration 968 adds store-scoped staff assignments, menu enforcement, and store-filtered sales reports | Mandatory store IDs on every operational record, per-store inventory/printers, HQ/region hierarchy and full data-boundary adoption |
 | F-03 | Existing cashier own-drawer tender and permission resolver | Exercise custom grants/denials and approvals across every money surface |
-| F-04 | Existing stable order/payment retry IDs and pay-first hold | Lost-response/concurrent replay and reload resilience; verify all kitchen fire paths |
+| F-04 | Existing stable order/payment retry IDs and pay-first hold; POS checkout state now survives reload for a bounded window and cash replay preserves the same identities | Lost-response/concurrent replay verification across every kitchen/display/runner fire path |
 | F-05 | Existing production server-dial prohibition and print queue; this pass adds paired kitchen-device queue endpoints and runtime contract | Native LAN print bridge and physical device/browser acceptance |
 | F-06 | Existing Connect-bound Terminal flow and token permission gate | Provider sandbox/readers and reconciliation acceptance |
 | F-07 | Existing local-day net-collected reports, currencies, summary CSV and tender-level journal CSV; this pass adds per-store/currency daily close and multi-day location comparison JSON/CSV/XLSX | Labor and food-cost percentages; accounting-system adapters |
@@ -178,6 +184,7 @@ hardware decisions do not excuse independent software work on these flows.
 - `server/scripts/verifyRestaurantStoreMenu.js` — **passed** in the dedicated Colima PostgreSQL container. It applied migration 963 twice, verified default-store backfill/onboarding and legacy order/counter continuity, tenant foreign keys, negative prices, screen events, SQL projections, and sibling-store isolation.
 - `client`: `npm run build:ci` — **passed**; Vite emitted and verified 1,020 assets. The existing build warnings are the repository's large-chunk and dynamic-import advisories.
 - `client`: `node --test scripts/restaurantPosOfflineCash.test.mjs` — **passed**. Covers cash-only replay ordering, retention after a failed entry, and network-error classification.
+- `client`: `node --test scripts/restaurantPosCheckoutPersistence.test.mjs` — **passed**. Covers bounded reload recovery of ticket/order identity and clearing stale or completed state.
 - The broader restaurant Jest selection was also run with the local FFmpeg binary. It reached 768 passing tests, but the pre-existing media-transcode test still fails because it expects a 960x720 rendition while the current binary produces 1280x960. That unrelated media behavior is outside this store-menu change.
 - `git diff --check` and JavaScript syntax checks for the changed server files pass.
 - `node server/scripts/verifyRestaurantStoreMenu.js` creates a random temporary
