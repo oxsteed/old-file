@@ -144,6 +144,11 @@ recipe-theoretical usage with recorded usage adjustments and calculates cost
 variance from the item's unit cost. Vendor catalogs, purchase-order matching,
 and invoice reconciliation remain open.
 
+Migration 973 adds a supplier catalog keyed to each store inventory item,
+including supplier SKU, pack quantity/unit, currency, lead time, preferred
+status, and current unit cost. Catalog reads and writes use the same assigned
+store boundary and write inventory audit events.
+
 ## Requirements matrix
 
 `Existing source` means an earlier branch change exists; it is not a fresh
@@ -173,7 +178,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-20 | Existing menu/settings/tax audit emitters; store-menu, location-policy, printer-settings, and store-membership before/after audit writes are covered | Audit coverage across every remaining resource and owner-visible history acceptance |
 | F-21 | Existing PIN sessions, switching, lockout and keyed lookup | Native/shared-device and multi-store identity acceptance |
 | F-22 | Existing time punches, wages, labor, tips and CSV foundation; migration 970 adds configurable weekly overtime pricing and required-break exception reporting | Scheduling integration/rules, availability/swaps, native timeclock/device acceptance |
-| F-23 | Existing inventory quantities/mappings/counts and location column; assigned-member item reads, adjustment history, item writes, procurement, and transfer reads/writes now enforce store scope; migration 972 adds recipe units/conversion/yield and theoretical-vs-actual food-cost reporting | Vendor catalogs and PO/invoice matching |
+| F-23 | Existing inventory quantities/mappings/counts and location column; assigned-member item reads, adjustment history, item writes, procurement, and transfer reads/writes now enforce store scope; migrations 972-973 add recipe costing and store-aware supplier catalogs | PO/invoice matching |
 | F-24 | Existing five-language cleanup; new store UI parity in both catalogs | Server/receipt and full-screen human language acceptance |
 | F-25 | Existing logical CSS cleanup | Full POS/KDS/merchant RTL visual acceptance |
 | F-26 | Three device systems remain | Canonical device identity and print bridge, deprecated API adapters, resource-controller convergence |
@@ -215,7 +220,8 @@ hardware decisions do not excuse independent software work on these flows.
 - `server`: `npx jest --runInBand __tests__/restaurantPayrollOvertime.test.js` — **2 passed**. Covers weekly overtime allocation and required-break exception detection.
 - `server`: `npx jest --runInBand __tests__/restaurantInventoryOperations.test.js` — **9 passed**. Covers assigned-store transfer filtering and transfer creation/lifecycle behavior.
 - `server`: `npx jest --runInBand __tests__/restaurantInventoryController.test.js __tests__/restaurantInventoryOperations.test.js __tests__/routeScopeGuard.test.js` — **28 passed**. Includes recipe mapping validation and the food-cost report contract.
-- `node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **passed** against a disposable Colima PostgreSQL container; all 947 discovered migrations applied and replayed cleanly through migration 972.
+- `server`: `npx jest --runInBand __tests__/restaurantInventoryOperations.test.js` — **11 passed**. Includes assigned-store catalog filtering and supplier catalog upsert validation.
+- `node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **passed** against a disposable Colima PostgreSQL container; all 948 discovered migrations applied and replayed cleanly through migration 973.
 - `server/scripts/verifyRestaurantStoreMenu.js` — **passed** in the dedicated Colima PostgreSQL container. It applied migration 963 twice, verified default-store backfill/onboarding and legacy order/counter continuity, tenant foreign keys, negative prices, screen events, SQL projections, and sibling-store isolation.
 - `client`: `npm run build:ci` — **passed**; Vite emitted and verified 1,020 assets. The existing build warnings are the repository's large-chunk and dynamic-import advisories.
 - `client`: `node --test scripts/restaurantPosOfflineCash.test.mjs` — **passed**. Covers cash-only replay ordering, retention after a failed entry, and network-error classification.

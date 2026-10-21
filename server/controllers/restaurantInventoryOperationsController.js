@@ -529,6 +529,111 @@ exports.createSupplier = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+exports.listSupplierCatalog = async (req, res, next) => {
+  try {
+    const restaurantId = positiveInt(req.params.restaurantId);
+    const restaurant = await restaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const scope = await getTransferScope(restaurant, req.user.id);
+    const params = [restaurantId];
+    const where = ['c.restaurant_id = $1', 'c.is_active = TRUE'];
+    if (positiveInt(req.query.supplierId)) {
+      params.push(positiveInt(req.query.supplierId));
+      where.push(`c.supplier_id = $${params.length}`);
+    }
+    if (positiveInt(req.query.inventoryItemId)) {
+      params.push(positiveInt(req.query.inventoryItemId));
+      where.push(`c.inventory_item_id = $${params.length}`);
+    }
+    if (scope?.mode === 'assigned') {
+      params.push(scope.location_ids);
+      where.push(`(i.location_id IS NULL OR i.location_id = ANY($${params.length}::bigint[]))`);
+    }
+    const { rows } = await pool.query(
+      `SELECT c.*, s.name AS supplier_name, i.name AS inventory_item_name, i.unit AS inventory_unit
+         FROM restaurant_inventory_supplier_catalog c
+         JOIN restaurant_inventory_suppliers s ON s.id = c.supplier_id AND s.restaurant_id = c.restaurant_id
+         JOIN restaurant_inventory_items i ON i.id = c.inventory_item_id AND i.restaurant_id = c.restaurant_id
+        WHERE ${where.join(' AND ')}
+        ORDER BY s.name ASC, i.name ASC`,
+      params
+    );
+    res.json({ catalog: rows });
+  } catch (error) { next(error); }
+};
+
+exports.upsertSupplierCatalog = async (req, res, next) => {
+  try {
+    const restaurantId = positiveInt(req.params.restaurantId);
+    const restaurant = await restaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
+    const supplierId = positiveInt(req.body.supplierId || req.body.supplier_id);
+    const inventoryItemId = positiveInt(req.body.inventoryItemId || req.body.inventory_item_id);
+    const packQuantity = quantity(req.body.packQuantity ?? req.body.pack_quantity ?? 1, 'packQuantity');
+    const packUnit = text(req.body.packUnit || req.body.pack_unit, 24);
+    const unitCost = Number(req.body.unitCost ?? req.body.unit_cost ?? 0);
+    const currencyCode = String(req.body.currencyCode || req.body.currency_code || 'USD').trim().toUpperCase();
+    const leadTimeDays = req.body.leadTimeDays ?? req.body.lead_time_days;
+    if (!supplierId || !inventoryItemId || !packUnit) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        supplierId: 'Supplier is required', inventoryItemId: 'Inventory item is required', packUnit: 'Pack unit is required',
+      });
+    }
+    if (!Number.isFinite(unitCost) || unitCost < 0 || unitCost > 100000000) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { unitCost: 'Unit cost must be non-negative' });
+    }
+    if (!/^[A-Z]{3}$/.test(currencyCode)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { currencyCode: 'Currency must be a 3-letter code' });
+    }
+    if (packQuantity <= 0) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { packQuantity: 'Pack quantity must be greater than zero' });
+    }
+    const lead = leadTimeDays === undefined || leadTimeDays === null || leadTimeDays === '' ? null : Number(leadTimeDays);
+    if (lead !== null && (!Number.isInteger(lead) || lead < 0 || lead > 365)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { leadTimeDays: 'Lead time must be between 0 and 365 days' });
+    }
+    const result = await withTransaction(pool, async (client) => {
+      const { rows: [refs] } = await client.query(
+        `SELECT s.id AS supplier_id, i.id AS inventory_item_id, i.location_id
+           FROM restaurant_inventory_suppliers s
+           CROSS JOIN restaurant_inventory_items i
+          WHERE s.id = $1 AND s.restaurant_id = $3 AND s.is_active = TRUE
+            AND i.id = $2 AND i.restaurant_id = $3 AND i.is_active = TRUE`,
+        [supplierId, inventoryItemId, restaurantId]
+      );
+      if (!refs) throw new AppError('Supplier or inventory item not found', 404, 'inventory_reference_not_found');
+      if (restaurant.effective_role !== 'owner' && restaurant.effective_membership_id && refs.location_id != null) {
+        await assertLocationAccess(restaurant, req.user.id, refs.location_id, client);
+      }
+      const { rows: [catalog] } = await client.query(
+        `INSERT INTO restaurant_inventory_supplier_catalog
+           (restaurant_id, supplier_id, inventory_item_id, supplier_sku, pack_quantity,
+            pack_unit, unit_cost, currency_code, lead_time_days, is_preferred, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+         ON CONFLICT (restaurant_id, supplier_id, inventory_item_id)
+         DO UPDATE SET supplier_sku = EXCLUDED.supplier_sku,
+                       pack_quantity = EXCLUDED.pack_quantity,
+                       pack_unit = EXCLUDED.pack_unit,
+                       unit_cost = EXCLUDED.unit_cost,
+                       currency_code = EXCLUDED.currency_code,
+                       lead_time_days = EXCLUDED.lead_time_days,
+                       is_preferred = EXCLUDED.is_preferred,
+                       is_active = TRUE,
+                       updated_at = NOW()
+         RETURNING *`,
+        [restaurantId, supplierId, inventoryItemId, text(req.body.supplierSku || req.body.supplier_sku, 80),
+          packQuantity, packUnit, Math.round(unitCost * 100) / 100, currencyCode, lead,
+          req.body.isPreferred === true || req.body.is_preferred === true, req.user.id]
+      );
+      await logInventoryAudit(client, auditEntry(restaurant, 'supplier_catalog_upserted', 'supplier_catalog', catalog.id, req, {
+        supplierId, inventoryItemId, unitCost: catalog.unit_cost, currencyCode: catalog.currency_code,
+      }));
+      return catalog;
+    });
+    res.status(201).json({ catalog: result });
+  } catch (error) { next(error); }
+};
+
 exports.listTransfers = async (req, res, next) => {
   try {
     const restaurantId = positiveInt(req.params.restaurantId);

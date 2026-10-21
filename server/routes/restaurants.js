@@ -305,6 +305,8 @@ router.get('/:restaurantId/inventory/areas', requireRestaurantAccess(), inventor
 router.post('/:restaurantId/inventory/areas', requireRestaurantAccess(), inventoryOperations.createArea);
 router.get('/:restaurantId/inventory/suppliers', requireRestaurantAccess(), inventoryOperations.listSuppliers);
 router.post('/:restaurantId/inventory/suppliers', requireRestaurantAccess(), inventoryOperations.createSupplier);
+router.get('/:restaurantId/inventory/supplier-catalog', requireRestaurantAccess(), inventoryOperations.listSupplierCatalog);
+router.put('/:restaurantId/inventory/supplier-catalog', requireRestaurantAccess(), inventoryOperations.upsertSupplierCatalog);
 router.get('/:restaurantId/inventory/transfers', requireRestaurantAccess(), inventoryOperations.listTransfers);
 router.post('/:restaurantId/inventory/transfers', requireRestaurantAccess(), inventoryOperations.createTransfer);
 router.patch('/:restaurantId/inventory/transfers/:transferId', requireRestaurantAccess(), inventoryOperations.updateTransfer);

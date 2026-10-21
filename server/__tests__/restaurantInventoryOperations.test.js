@@ -51,6 +51,8 @@ function app() {
   server.get('/api/restaurants/:restaurantId/inventory/audit-events', operations.listAuditEvents);
   server.get('/api/restaurants/:restaurantId/inventory/areas', operations.listAreas);
   server.post('/api/restaurants/:restaurantId/inventory/suppliers', operations.createSupplier);
+  server.get('/api/restaurants/:restaurantId/inventory/supplier-catalog', operations.listSupplierCatalog);
+  server.put('/api/restaurants/:restaurantId/inventory/supplier-catalog', operations.upsertSupplierCatalog);
   server.post('/api/restaurants/:restaurantId/inventory/transfers', operations.createTransfer);
   server.get('/api/restaurants/:restaurantId/inventory/transfers', operations.listTransfers);
   server.patch('/api/restaurants/:restaurantId/inventory/transfers/:transferId', operations.updateTransfer);
@@ -166,6 +168,21 @@ describe('restaurant Inventory operations backend', () => {
     expect(response.body.totals.variance_cost).toBe(3);
     expect(mockQuery.mock.calls[1][0]).toMatch(/conversion_factor/);
     expect(mockQuery.mock.calls[1][0]).toMatch(/yield_percent/);
+  });
+
+  test('upserts a supplier catalog entry with pack and price metadata', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access()] })
+      .mockResolvedValueOnce({ rows: [{ supplier_id: 7, inventory_item_id: 5, location_id: null }] })
+      .mockResolvedValueOnce({ rows: [{ id: 19, supplier_id: 7, inventory_item_id: 5, pack_quantity: ' case', unit_cost: '42.50', currency_code: 'USD' }] });
+
+    const response = await request(app())
+      .put(`/api/restaurants/${RESTAURANT_ID}/inventory/supplier-catalog`)
+      .send({ supplierId: 7, inventoryItemId: 5, packQuantity: 6, packUnit: 'case', unitCost: 42.5, currencyCode: 'usd' });
+
+    expect(response.status).toBe(201);
+    expect(response.body.catalog.unit_cost).toBe('42.50');
+    expect(mockQuery.mock.calls[2][0]).toMatch(/ON CONFLICT/);
   });
 
   test('requires owner or manager access to create suppliers', async () => {
