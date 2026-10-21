@@ -845,6 +845,9 @@ exports.listMappings = async (req, res, next) => {
               fmi.name AS menu_item_name,
               rim.usage_label,
               rim.required_quantity,
+              COALESCE(rim.required_unit, rii.unit) AS required_unit,
+              rim.conversion_factor,
+              rim.yield_percent,
               rim.auto_manage
          FROM restaurant_inventory_item_mappings rim
          JOIN restaurant_inventory_items rii
@@ -872,6 +875,9 @@ exports.upsertMapping = async (req, res, next) => {
     const menuItemId = parsePositiveInt(req.body.menuItemId || req.body.menu_item_id);
     const usageLabel = normalizeString(req.body.usageLabel || req.body.usage_label, 120);
     const requiredQuantity = parseQty(req.body.requiredQuantity ?? req.body.required_quantity ?? 0.001, 'requiredQuantity');
+    const requiredUnit = normalizeString(req.body.requiredUnit || req.body.required_unit, 24);
+    const conversionFactor = parseQty(req.body.conversionFactor ?? req.body.conversion_factor ?? 1, 'conversionFactor');
+    const yieldPercent = parseQty(req.body.yieldPercent ?? req.body.yield_percent ?? 100, 'yieldPercent');
     if (!inventoryItemId || !menuItemId || !usageLabel) {
       throw new AppError('Validation failed', 400, 'validation_failed', {
         inventoryItemId: 'Inventory item is required',
@@ -882,6 +888,16 @@ exports.upsertMapping = async (req, res, next) => {
     if (requiredQuantity === null || requiredQuantity <= 0) {
       throw new AppError('Validation failed', 400, 'validation_failed', {
         requiredQuantity: 'Required quantity must be greater than zero',
+      });
+    }
+    if (conversionFactor === null || conversionFactor <= 0) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        conversionFactor: 'Conversion factor must be greater than zero',
+      });
+    }
+    if (yieldPercent === null || yieldPercent <= 0 || yieldPercent > 100) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        yieldPercent: 'Yield percent must be greater than zero and at most 100',
       });
     }
     const result = await withTransaction(pool, async (client) => {
@@ -900,15 +916,20 @@ exports.upsertMapping = async (req, res, next) => {
       const { rows: [mapping] } = await client.query(
         `INSERT INTO restaurant_inventory_item_mappings
            (restaurant_id, inventory_item_id, menu_item_id, usage_label,
-            required_quantity, auto_manage, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)
+            required_quantity, required_unit, conversion_factor, yield_percent,
+            auto_manage, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
          ON CONFLICT (restaurant_id, inventory_item_id, menu_item_id)
          DO UPDATE SET usage_label = EXCLUDED.usage_label,
                        required_quantity = EXCLUDED.required_quantity,
+                       required_unit = EXCLUDED.required_unit,
+                       conversion_factor = EXCLUDED.conversion_factor,
+                       yield_percent = EXCLUDED.yield_percent,
                        auto_manage = EXCLUDED.auto_manage,
                        updated_at = NOW()
          RETURNING *`,
         [restaurantId, inventoryItemId, menuItemId, usageLabel, requiredQuantity,
+          requiredUnit, conversionFactor, yieldPercent,
           req.body.autoManage !== false && req.body.auto_manage !== false, req.user.id]
       );
       const availability = await syncMappedMenuAvailability(client, restaurantId, {
@@ -919,6 +940,9 @@ exports.upsertMapping = async (req, res, next) => {
         menuItemId: mapping.menu_item_id,
         usageLabel: mapping.usage_label,
         requiredQuantity: mapping.required_quantity,
+        requiredUnit: mapping.required_unit,
+        conversionFactor: mapping.conversion_factor,
+        yieldPercent: mapping.yield_percent,
         autoManage: mapping.auto_manage,
       }));
       return { mapping, availability };

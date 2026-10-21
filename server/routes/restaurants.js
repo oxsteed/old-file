@@ -199,6 +199,7 @@ router.delete('/:restaurantId/sops/:sopId', requireRestaurantAccess(), ops.delet
 // Inventory (Phase 3, App 7): items + stock-adjustment ledger
 router.get('/:restaurantId/inventory/dashboard', requireRestaurantAccess(), inventoryOperations.getDashboard);
 router.get('/:restaurantId/inventory/reports', requireRestaurantAccess(), inventoryOperations.getReports);
+router.get('/:restaurantId/inventory/reports/food-cost', requireRestaurantAccess(), inventoryOperations.foodCostSummary);
 router.get('/:restaurantId/inventory/audit-events', requireRestaurantAccess(), inventoryOperations.listAuditEvents);
 router.get('/:restaurantId/inventory/hooks/status', requireRestaurantAccess(), appFlow.getInventoryHookStatus);
 router.post('/:restaurantId/inventory/hooks/sync', requireRestaurantAccess(), appFlow.syncMenuAvailability);

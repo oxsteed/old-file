@@ -12,6 +12,7 @@ const { getLocationScope, assertLocationAccess } = require('../services/restaura
 const AREA_TYPES = new Set(['dry_storage', 'walk_in_cooler', 'freezer', 'bar', 'packaging', 'receiving', 'prep', 'other']);
 const SUPPLIER_STATUSES = new Set(['active', 'inactive', 'issue_reported']);
 const TRANSFER_STATUSES = new Set(['pending', 'completed', 'cancelled']);
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function positiveInt(value) {
@@ -304,6 +305,71 @@ exports.getReports = async (req, res, next) => {
         suppliers: deliverySuppliers.rows,
       },
     });
+  } catch (error) { next(error); }
+};
+
+exports.foodCostSummary = async (req, res, next) => {
+  try {
+    const restaurantId = positiveInt(req.params.restaurantId);
+    const restaurant = await restaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const today = new Date().toISOString().slice(0, 10);
+    const fromDate = req.query.from || new Date(Date.now() - (29 * 86400000)).toISOString().slice(0, 10);
+    const toDate = req.query.to || today;
+    if (!DATE_ONLY_RE.test(fromDate) || !DATE_ONLY_RE.test(toDate) || fromDate > toDate) {
+      throw new AppError('A valid from/to date range is required', 400, 'invalid_range');
+    }
+    const scope = await getTransferScope(restaurant, req.user.id);
+    const params = [restaurantId, fromDate, toDate];
+    let locationFilter = '';
+    if (scope?.mode === 'assigned') {
+      params.push(scope.location_ids);
+      locationFilter = ' AND i.location_id = ANY($4::bigint[])';
+    }
+    const { rows } = await pool.query(
+      `WITH theoretical AS (
+         SELECT rim.inventory_item_id,
+                COALESCE(SUM(foi.quantity * rim.required_quantity * rim.conversion_factor
+                  * (100.0 / NULLIF(rim.yield_percent, 0))), 0) AS quantity
+           FROM food_orders fo
+           JOIN food_order_items foi ON foi.order_id = fo.id
+           JOIN restaurant_inventory_item_mappings rim
+             ON rim.menu_item_id = foi.menu_item_id AND rim.restaurant_id = fo.restaurant_id
+          WHERE fo.restaurant_id = $1
+            AND fo.created_at >= ($2::date)::timestamp
+            AND fo.created_at < (($3::date + 1))::timestamp
+            AND fo.payment_status = 'paid'
+            AND fo.status NOT IN ('cancelled', 'refunded')
+          GROUP BY rim.inventory_item_id
+       ), actual AS (
+         SELECT item_id, COALESCE(SUM(ABS(quantity_delta)), 0) AS quantity
+           FROM restaurant_inventory_adjustments
+          WHERE restaurant_id = $1 AND adjustment_type = 'usage'
+            AND created_at >= ($2::date)::timestamp
+            AND created_at < (($3::date + 1))::timestamp
+          GROUP BY item_id
+       )
+       SELECT i.id AS inventory_item_id, i.name, i.unit, i.unit_cost,
+              COALESCE(t.quantity, 0) AS theoretical_quantity,
+              COALESCE(a.quantity, 0) AS actual_quantity,
+              COALESCE(a.quantity, 0) - COALESCE(t.quantity, 0) AS variance_quantity,
+              COALESCE(t.quantity, 0) * i.unit_cost AS theoretical_cost,
+              COALESCE(a.quantity, 0) * i.unit_cost AS actual_cost,
+              (COALESCE(a.quantity, 0) - COALESCE(t.quantity, 0)) * i.unit_cost AS variance_cost
+         FROM restaurant_inventory_items i
+         LEFT JOIN theoretical t ON t.inventory_item_id = i.id
+         LEFT JOIN actual a ON a.item_id = i.id
+        WHERE i.restaurant_id = $1 AND i.is_active = TRUE${locationFilter}
+        ORDER BY ABS((COALESCE(a.quantity, 0) - COALESCE(t.quantity, 0)) * i.unit_cost) DESC, i.name ASC`,
+      params
+    );
+    const totals = rows.reduce((sum, row) => {
+      sum.theoretical_cost += Number(row.theoretical_cost) || 0;
+      sum.actual_cost += Number(row.actual_cost) || 0;
+      sum.variance_cost += Number(row.variance_cost) || 0;
+      return sum;
+    }, { theoretical_cost: 0, actual_cost: 0, variance_cost: 0 });
+    res.json({ from_date: fromDate, to_date: toDate, rows, totals });
   } catch (error) { next(error); }
 };
 

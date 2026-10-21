@@ -47,6 +47,7 @@ function app() {
   });
   server.get('/api/restaurants/:restaurantId/inventory/dashboard', operations.getDashboard);
   server.get('/api/restaurants/:restaurantId/inventory/reports', operations.getReports);
+  server.get('/api/restaurants/:restaurantId/inventory/reports/food-cost', operations.foodCostSummary);
   server.get('/api/restaurants/:restaurantId/inventory/audit-events', operations.listAuditEvents);
   server.get('/api/restaurants/:restaurantId/inventory/areas', operations.listAreas);
   server.post('/api/restaurants/:restaurantId/inventory/suppliers', operations.createSupplier);
@@ -140,6 +141,31 @@ describe('restaurant Inventory operations backend', () => {
     const auditSql = mockQuery.mock.calls[1][0];
     expect(auditSql).toMatch(/restaurant_inventory_audit_events/);
     expect(mockQuery.mock.calls[1][1][0]).toBe(RESTAURANT_ID);
+  });
+
+  test('returns theoretical versus actual food cost for a period', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access()] })
+      .mockResolvedValueOnce({ rows: [{
+        inventory_item_id: 5,
+        name: 'Rice',
+        unit: 'kg',
+        unit_cost: '3.00',
+        theoretical_quantity: '4.000',
+        actual_quantity: '5.000',
+        variance_quantity: '1.000',
+        theoretical_cost: '12.00',
+        actual_cost: '15.00',
+        variance_cost: '3.00',
+      }] });
+
+    const response = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/inventory/reports/food-cost?from=2026-10-01&to=2026-10-07`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.rows[0].variance_quantity).toBe('1.000');
+    expect(response.body.totals.variance_cost).toBe(3);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/conversion_factor/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/yield_percent/);
   });
 
   test('requires owner or manager access to create suppliers', async () => {
