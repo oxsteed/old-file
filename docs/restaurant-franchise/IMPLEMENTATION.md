@@ -18,6 +18,14 @@ region changes are audited. This closes the hierarchy portion of F-02 while
 leaving the remaining mandatory-record backfill and full data-boundary adoption
 as explicit follow-up work.
 
+Migration 989 completes the operational store-identity cutover for orders,
+payments, shifts, printer settings/jobs, paired devices, kitchen and drawer
+records, approvals, inventory ledgers, and workforce task records. It backfills
+legacy rows to the primary store, adds composite tenant foreign keys, installs
+source-aware database triggers for omitted store ids, and makes the operational
+location columns non-null. Brand-level accounting integrations remain
+intentionally location-aggregated until their provider mapping is configured.
+
 Migration 963 adds tenant-constrained store menu overrides. Prices and temporary
 availability are separate fields; null inherits the brand menu. Store overrides
 cannot restore an item blocked by brand/inventory availability. Expiry is checked
@@ -228,7 +236,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | ID | Current boundary | Remaining implementation / acceptance |
 | --- | --- | --- |
 | F-01 | Existing timezone capture, validation, business copy and backfill | Populated-store owner confirmation and onboarding/browser acceptance |
-| F-02 | Existing location columns/counters/hours; this pass adds store menu and customer selection; hosting records are location-scoped; migrations 968 and 976 add store-scoped staff assignments and receipt-printer settings, menu enforcement, store-filtered sales reports, assigned-store inventory reads/writes, and an audited HQ override-policy publish contract; migration 988 adds tenant-bound nested HQ regions and audited store assignment | Mandatory store IDs on every remaining operational record and full data-boundary adoption |
+| F-02 | Existing location columns/counters/hours; this pass adds store menu and customer selection; hosting records are location-scoped; migrations 968 and 976 add store-scoped staff assignments and receipt-printer settings, menu enforcement, store-filtered sales reports, assigned-store inventory reads/writes, and an audited HQ override-policy publish contract; migration 988 adds tenant-bound nested HQ regions and audited store assignment; migration 989 makes operational store identity non-null with composite tenant FKs and database resolution triggers | Full data-boundary adoption across every remaining adapter plus populated multi-store acceptance |
 | F-03 | Existing cashier own-drawer tender, Terminal intent gate, receipt-event gate, and permission resolver | Exercise custom grants/denials and approvals across every money surface |
 | F-04 | Existing stable order/payment retry IDs and pay-first hold; POS checkout state now survives reload for a bounded window and cash replay preserves the same identities | Lost-response/concurrent replay verification across every kitchen/display/runner fire path |
 | F-05 | Existing production server-dial prohibition and print queue; this pass adds paired kitchen-device queue endpoints, runtime contract, store-scoped receipt-printer settings/jobs, and the executable LAN bridge | Physical device/browser acceptance |
