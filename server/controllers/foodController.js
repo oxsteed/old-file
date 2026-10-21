@@ -1879,6 +1879,16 @@ function menuItemAuditSnapshot(item) {
   };
 }
 
+function menuCategoryAuditSnapshot(category) {
+  if (!category) return null;
+  return {
+    name: category.name,
+    description: category.description,
+    sort_order: category.sort_order,
+    is_active: category.is_active,
+  };
+}
+
 function promotionAuditSnapshot(promotion) {
   if (!promotion) return null;
   return {
@@ -2691,6 +2701,12 @@ exports.createMenuCategory = async (req, res, next) => {
         req.body.isActive !== false && req.body.is_active !== false,
       ]
     );
+    await auditFoodChange(req, restaurant, {
+      action: 'menu.category.created',
+      target_type: 'menu_category',
+      target_id: category.id,
+      after_state: menuCategoryAuditSnapshot(category),
+    });
     res.status(201).json({ category });
   } catch (err) {
     next(err);
@@ -6035,6 +6051,10 @@ exports.updateMenuCategory = async (req, res, next) => {
     const categoryId = parsePositiveInt(req.params.categoryId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
+    const { rows: [existingCategory] } = await pool.query(
+      'SELECT * FROM food_menu_categories WHERE id = $1 AND restaurant_id = $2',
+      [categoryId, restaurantId]
+    );
     const { rows: [category] } = await pool.query(
       `UPDATE food_menu_categories
           SET name = COALESCE($1, name),
@@ -6054,6 +6074,13 @@ exports.updateMenuCategory = async (req, res, next) => {
       ]
     );
     if (!category) throw new AppError('Category not found', 404, 'category_not_found');
+    await auditFoodChange(req, restaurant, {
+      action: 'menu.category.updated',
+      target_type: 'menu_category',
+      target_id: category.id,
+      before_state: menuCategoryAuditSnapshot(existingCategory),
+      after_state: menuCategoryAuditSnapshot(category),
+    });
     res.json({ category });
   } catch (err) {
     next(err);
@@ -6066,11 +6093,21 @@ exports.deleteMenuCategory = async (req, res, next) => {
     const categoryId = parsePositiveInt(req.params.categoryId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
+    const { rows: [existingCategory] } = await pool.query(
+      'SELECT * FROM food_menu_categories WHERE id = $1 AND restaurant_id = $2',
+      [categoryId, restaurantId]
+    );
     const { rowCount } = await pool.query(
       `DELETE FROM food_menu_categories WHERE id = $1 AND restaurant_id = $2`,
       [categoryId, restaurantId]
     );
     if (!rowCount) throw new AppError('Category not found', 404, 'category_not_found');
+    await auditFoodChange(req, restaurant, {
+      action: 'menu.category.deleted',
+      target_type: 'menu_category',
+      target_id: categoryId,
+      before_state: menuCategoryAuditSnapshot(existingCategory),
+    });
     res.status(204).end();
   } catch (err) {
     next(err);
