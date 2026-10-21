@@ -311,6 +311,7 @@ router.get('/:restaurantId/inventory/transfers', requireRestaurantAccess(), inve
 router.post('/:restaurantId/inventory/transfers', requireRestaurantAccess(), inventoryOperations.createTransfer);
 router.patch('/:restaurantId/inventory/transfers/:transferId', requireRestaurantAccess(), inventoryOperations.updateTransfer);
 router.get('/:restaurantId/inventory/receipts', requireRestaurantAccess(), inventoryOperations.listReceipts);
+router.get('/:restaurantId/inventory/receipts/export.csv', requireRestaurantAccess(), inventoryOperations.exportReceiptsCsv);
 router.post('/:restaurantId/inventory/receipts', requireRestaurantAccess(), inventoryOperations.createReceipt);
 router.patch('/:restaurantId/inventory/receipts/:receiptId/invoice-match', requireRestaurantAccess(), inventoryOperations.updateReceiptInvoiceMatch);
 

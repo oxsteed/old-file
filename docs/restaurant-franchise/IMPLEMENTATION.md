@@ -158,7 +158,8 @@ accounting adapters are still open.
 Receipts also expose a guarded invoice-match update endpoint for invoices that
 arrive after delivery. It validates the receipt and purchase-request store,
 supports explicit unmatched/matched/exception states, preserves invoice totals
-and currency, and writes a before/after audit event without changing stock.
+and currency, writes a before/after audit event without changing stock, and
+exports receipt/invoice/store rows as a CSV contract for accounting ingestion.
 
 ## Requirements matrix
 
@@ -189,7 +190,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-20 | Existing menu/settings/tax audit emitters; store-menu, location-policy, printer-settings, and store-membership before/after audit writes are covered | Audit coverage across every remaining resource and owner-visible history acceptance |
 | F-21 | Existing PIN sessions, switching, lockout and keyed lookup | Native/shared-device and multi-store identity acceptance |
 | F-22 | Existing time punches, wages, labor, tips and CSV foundation; migration 970 adds configurable weekly overtime pricing and required-break exception reporting | Scheduling integration/rules, availability/swaps, native timeclock/device acceptance |
-| F-23 | Existing inventory quantities/mappings/counts and location column; assigned-member item reads, adjustment history, item writes, procurement, and transfer reads/writes now enforce store scope; migrations 972-974 add recipe costing, supplier catalogs, receipt-to-request invoice matching, and late-invoice reconciliation with audited match states | Accounting adapters and populated external-provider invoice acceptance |
+| F-23 | Existing inventory quantities/mappings/counts and location column; assigned-member item reads, adjustment history, item writes, procurement, and transfer reads/writes now enforce store scope; migrations 972-974 add recipe costing, supplier catalogs, receipt-to-request invoice matching, late-invoice reconciliation with audited match states, and a receipt CSV accounting-ingestion contract | Accounting-system adapters and populated external-provider invoice acceptance |
 | F-24 | Existing five-language cleanup; new store UI parity in both catalogs | Server/receipt and full-screen human language acceptance |
 | F-25 | Existing logical CSS cleanup | Full POS/KDS/merchant RTL visual acceptance |
 | F-26 | Three device systems remain | Canonical device identity and print bridge, deprecated API adapters, resource-controller convergence |
@@ -231,7 +232,7 @@ hardware decisions do not excuse independent software work on these flows.
 - `server`: `npx jest --runInBand __tests__/restaurantPayrollOvertime.test.js` — **2 passed**. Covers weekly overtime allocation and required-break exception detection.
 - `server`: `npx jest --runInBand __tests__/restaurantInventoryOperations.test.js` — **9 passed**. Covers assigned-store transfer filtering and transfer creation/lifecycle behavior.
 - `server`: `npx jest --runInBand __tests__/restaurantInventoryController.test.js __tests__/restaurantInventoryOperations.test.js __tests__/routeScopeGuard.test.js` — **28 passed**. Includes recipe mapping validation and the food-cost report contract.
-- `server`: `npx jest --runInBand __tests__/restaurantInventoryOperations.test.js` — **13 passed**. Includes assigned-store catalog filtering, supplier catalog upsert validation, and late-invoice match/exception state handling.
+- `server`: `npx jest --runInBand __tests__/restaurantInventoryOperations.test.js` — **14 passed**. Includes assigned-store catalog filtering, supplier catalog upsert validation, late-invoice match/exception state handling, and the receipt CSV contract.
 - `node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **passed** against a disposable Colima PostgreSQL container; all 949 discovered migrations applied and replayed cleanly through migration 974.
 - `server/scripts/verifyRestaurantStoreMenu.js` — **passed** in the dedicated Colima PostgreSQL container. It applied migration 963 twice, verified default-store backfill/onboarding and legacy order/counter continuity, tenant foreign keys, negative prices, screen events, SQL projections, and sibling-store isolation.
 - `client`: `npm run build:ci` — **passed**; Vite emitted and verified 1,020 assets. The existing build warnings are the repository's large-chunk and dynamic-import advisories.

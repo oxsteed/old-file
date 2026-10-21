@@ -60,6 +60,7 @@ function app() {
   server.get('/api/restaurants/:restaurantId/inventory/transfers', operations.listTransfers);
   server.patch('/api/restaurants/:restaurantId/inventory/transfers/:transferId', operations.updateTransfer);
   server.post('/api/restaurants/:restaurantId/inventory/receipts', operations.createReceipt);
+  server.get('/api/restaurants/:restaurantId/inventory/receipts/export.csv', operations.exportReceiptsCsv);
   server.patch('/api/restaurants/:restaurantId/inventory/receipts/:receiptId/invoice-match', operations.updateReceiptInvoiceMatch);
   server.use(errorHandler);
   return server;
@@ -172,6 +173,37 @@ describe('restaurant Inventory operations backend', () => {
     expect(response.body.totals.variance_cost).toBe(3);
     expect(mockQuery.mock.calls[1][0]).toMatch(/conversion_factor/);
     expect(mockQuery.mock.calls[1][0]).toMatch(/yield_percent/);
+  });
+
+  test('exports receipt invoice and store fields for accounting ingestion', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access()] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 77,
+        received_at: '2026-10-21T15:00:00.000Z',
+        location_id: 11,
+        location_name: 'Main, Store',
+        supplier_id: 7,
+        supplier_name: 'Atlantic Foods',
+        invoice_number: 'INV-42',
+        status: 'received',
+        purchase_request_id: 21,
+        invoice_match_status: 'matched',
+        invoice_total_cents: 4250,
+        invoice_currency_code: 'USD',
+        general_note: 'Dock, A',
+        received_by: USER_ID,
+        received_by_name: 'Emile Jean Philippe',
+      }] });
+
+    const response = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/inventory/receipts/export.csv`);
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toMatch(/text\/csv/);
+    expect(response.text).toContain('invoice_match_status');
+    expect(response.text).toContain('"Main, Store"');
+    expect(response.text).toContain('"Dock, A"');
+    expect(mockQuery.mock.calls[1][0]).toMatch(/LIMIT 10000/);
   });
 
   test('upserts a supplier catalog entry with pack and price metadata', async () => {

@@ -27,6 +27,13 @@ function text(value, max = 255) {
   return normalized ? normalized.slice(0, max) : null;
 }
 
+function csvCell(value) {
+  const normalized = value === undefined || value === null ? '' : String(value);
+  return /[",\r\n]/.test(normalized)
+    ? `"${normalized.replaceAll('"', '""')}"`
+    : normalized;
+}
+
 function quantity(value, field = 'quantity') {
   const number = Number(value);
   if (!Number.isFinite(number) || number < 0) {
@@ -805,6 +812,47 @@ exports.listReceipts = async (req, res, next) => {
       [restaurantId, ...scope.values]
     );
     res.json({ receipts: rows });
+  } catch (error) { next(error); }
+};
+
+exports.exportReceiptsCsv = async (req, res, next) => {
+  try {
+    const restaurantId = positiveInt(req.params.restaurantId);
+    const restaurant = await restaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const scope = transferScopeClause(await getTransferScope(restaurant, req.user.id), 2);
+    const { rows } = await pool.query(
+      `SELECT r.id, r.received_at, r.location_id, l.name AS location_name,
+              r.supplier_id, r.supplier_name, r.invoice_number, r.status,
+              r.purchase_request_id, r.invoice_match_status,
+              r.invoice_total_cents, r.invoice_currency_code,
+              r.general_note, r.received_by,
+              TRIM(CONCAT(u.first_name, ' ', u.last_name)) AS received_by_name
+         FROM restaurant_inventory_receipts r
+         LEFT JOIN restaurant_locations l ON l.id = r.location_id
+         LEFT JOIN users u ON u.id = r.received_by
+        WHERE r.restaurant_id = $1${scope.sql.replaceAll('t.location_id', 'r.location_id')}
+        ORDER BY r.received_at DESC LIMIT 10000`,
+      [restaurantId, ...scope.values]
+    );
+    const columns = [
+      'receipt_id', 'received_at', 'location_id', 'location_name', 'supplier_id',
+      'supplier_name', 'invoice_number', 'status', 'purchase_request_id',
+      'invoice_match_status', 'invoice_total_cents', 'invoice_currency_code',
+      'general_note', 'received_by', 'received_by_name',
+    ];
+    const lines = [columns.join(',')];
+    for (const row of rows) {
+      lines.push([
+        row.id, row.received_at, row.location_id, row.location_name, row.supplier_id,
+        row.supplier_name, row.invoice_number, row.status, row.purchase_request_id,
+        row.invoice_match_status, row.invoice_total_cents, row.invoice_currency_code,
+        row.general_note, row.received_by, row.received_by_name,
+      ].map(csvCell).join(','));
+    }
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="inventory-receipts.csv"');
+    res.send(`${lines.join('\n')}\n`);
   } catch (error) { next(error); }
 };
 
