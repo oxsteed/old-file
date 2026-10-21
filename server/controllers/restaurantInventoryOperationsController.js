@@ -108,6 +108,26 @@ async function receiptWithLines(client, restaurantId, receiptId) {
   return receipt || null;
 }
 
+async function requireReceiptLocation(client, restaurant, userId, { requestedLocationId, requestLocationId }) {
+  const locationId = requestLocationId || requestedLocationId;
+  if (locationId) {
+    await assertLocationAccess(restaurant, userId, locationId, client);
+    if (requestLocationId && requestedLocationId && Number(requestLocationId) !== Number(requestedLocationId)) {
+      throw new AppError('Receipt store does not match the purchase request', 400, 'location_mismatch');
+    }
+    return locationId;
+  }
+  const resolved = await client.query(
+    `SELECT id FROM restaurant_locations
+      WHERE restaurant_id = $1 AND status <> 'inactive'
+      ORDER BY is_primary DESC, id ASC LIMIT 1`,
+    [restaurant.id]
+  );
+  const primary = resolved.rows[0]?.id || null;
+  if (primary) await assertLocationAccess(restaurant, userId, primary, client);
+  return primary;
+}
+
 exports.getDashboard = async (req, res, next) => {
   try {
     const restaurantId = positiveInt(req.params.restaurantId);
@@ -758,6 +778,7 @@ exports.listReceipts = async (req, res, next) => {
     const restaurantId = positiveInt(req.params.restaurantId);
     const restaurant = await restaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const scope = transferScopeClause(await getTransferScope(restaurant, req.user.id), 2);
     const { rows } = await pool.query(
       `SELECT r.*, TRIM(CONCAT(u.first_name, ' ', u.last_name)) AS received_by_name,
               COALESCE(jsonb_agg(to_jsonb(l) ORDER BY l.id) FILTER (WHERE l.id IS NOT NULL), '[]'::jsonb) AS lines
@@ -766,10 +787,10 @@ exports.listReceipts = async (req, res, next) => {
            ON l.receipt_id = r.id
           AND l.restaurant_id = r.restaurant_id
          LEFT JOIN users u ON u.id = r.received_by
-        WHERE r.restaurant_id = $1
+        WHERE r.restaurant_id = $1${scope.sql.replaceAll('t.location_id', 'r.location_id')}
         GROUP BY r.id, u.first_name, u.last_name
         ORDER BY r.created_at DESC LIMIT 100`,
-      [restaurantId]
+      [restaurantId, ...scope.values]
     );
     res.json({ receipts: rows });
   } catch (error) { next(error); }
@@ -787,6 +808,17 @@ exports.createReceipt = async (req, res, next) => {
         supplierName: supplierName ? undefined : 'Supplier is required',
         lines: lines.length ? undefined : 'At least one line is required',
       });
+    }
+    const purchaseRequestId = positiveInt(req.body.purchaseRequestId || req.body.purchase_request_id);
+    const invoiceTotalCents = req.body.invoiceTotalCents ?? req.body.invoice_total_cents;
+    const parsedInvoiceTotal = invoiceTotalCents === undefined || invoiceTotalCents === null || invoiceTotalCents === ''
+      ? null : Number(invoiceTotalCents);
+    if (parsedInvoiceTotal !== null && (!Number.isInteger(parsedInvoiceTotal) || parsedInvoiceTotal < 0)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { invoiceTotalCents: 'Invoice total must be non-negative cents' });
+    }
+    const invoiceCurrency = String(req.body.invoiceCurrencyCode || req.body.invoice_currency_code || 'USD').trim().toUpperCase();
+    if (!/^[A-Z]{3}$/.test(invoiceCurrency)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { invoiceCurrencyCode: 'Currency must be a 3-letter code' });
     }
     const clientOperationId = operationId(req.body.clientOperationId);
     const result = await withTransaction(pool, async (client) => {
@@ -806,13 +838,35 @@ exports.createReceipt = async (req, res, next) => {
         );
         if (!supplier) throw new AppError('Supplier not found', 404, 'supplier_not_found');
       }
+      let purchaseRequest = null;
+      if (purchaseRequestId) {
+        const { rows: [request] } = await client.query(
+          `SELECT id, location_id, supplier_name, status
+             FROM restaurant_inventory_purchase_requests
+            WHERE id = $1 AND restaurant_id = $2 FOR UPDATE`,
+          [purchaseRequestId, restaurantId]
+        );
+        if (!request || request.status === 'cancelled') {
+          throw new AppError('Purchase request not found or cancelled', 404, 'purchase_request_not_found');
+        }
+        await assertLocationAccess(restaurant, req.user.id, request.location_id, client);
+        purchaseRequest = request;
+      }
+      const receiptLocationId = await requireReceiptLocation(client, restaurant, req.user.id, {
+        requestedLocationId: parsePositiveInt(req.body.locationId || req.body.location_id),
+        requestLocationId: purchaseRequest?.location_id || null,
+      });
       const { rows: [receipt] } = await client.query(
         `INSERT INTO restaurant_inventory_receipts
-           (restaurant_id, supplier_id, supplier_name, invoice_number, status, general_note,
-            received_by, received_at, client_operation_id)
-         VALUES ($1,$2,$3,$4,'received',$5,$6,NOW(),$7) RETURNING *`,
-        [restaurantId, supplierId, supplierName, text(req.body.invoiceNumber, 120),
-          text(req.body.generalNote, 2000), req.user.id, clientOperationId]
+           (restaurant_id, location_id, supplier_id, supplier_name, invoice_number, status, general_note,
+            purchase_request_id, invoice_match_status, invoice_total_cents, invoice_currency_code,
+            matched_at, matched_by, received_by, received_at, client_operation_id)
+         VALUES ($1,$2,$3,$4,$5,'received',$6,$7,$8,$9,$10,$11,$12,$13,NOW(),$14) RETURNING *`,
+        [restaurantId, receiptLocationId, supplierId, supplierName, text(req.body.invoiceNumber, 120),
+          text(req.body.generalNote, 2000), purchaseRequestId,
+          purchaseRequestId ? 'matched' : 'unmatched', parsedInvoiceTotal, invoiceCurrency,
+          purchaseRequestId ? new Date() : null, purchaseRequestId ? req.user.id : null,
+          req.user.id, clientOperationId]
       );
       const auditLines = [];
       for (const [index, line] of lines.entries()) {
@@ -827,6 +881,10 @@ exports.createReceipt = async (req, res, next) => {
           [itemId, restaurantId]
         );
         if (!item) throw new AppError('Item not found', 404, 'inventory_item_not_found');
+        if (item.location_id != null && receiptLocationId != null && Number(item.location_id) !== Number(receiptLocationId)) {
+          throw new AppError('Receipt items must belong to the receipt store', 400, 'location_mismatch');
+        }
+        if (item.location_id != null) await assertLocationAccess(restaurant, req.user.id, item.location_id, client);
         auditLines.push({
           itemId: item.id,
           itemName: item.name,
@@ -869,10 +927,21 @@ exports.createReceipt = async (req, res, next) => {
           [supplierId, restaurantId]
         );
       }
+      if (purchaseRequestId) {
+        await client.query(
+          `UPDATE restaurant_inventory_purchase_requests
+              SET status = 'received', updated_at = NOW()
+            WHERE id = $1 AND restaurant_id = $2`,
+          [purchaseRequestId, restaurantId]
+        );
+      }
       await logInventoryAudit(client, auditEntry(restaurant, 'receipt_created', 'receipt', receipt.id, req, {
         supplierId,
         supplierName: receipt.supplier_name,
         invoiceNumber: receipt.invoice_number,
+        locationId: receipt.location_id,
+        purchaseRequestId: receipt.purchase_request_id,
+        invoiceMatchStatus: receipt.invoice_match_status,
         lineCount: auditLines.length,
         acceptedLineCount: auditLines.filter((line) => line.acceptedQuantity > 0).length,
         lines: auditLines.slice(0, 50),
