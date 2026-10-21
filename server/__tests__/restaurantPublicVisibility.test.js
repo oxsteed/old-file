@@ -7,6 +7,7 @@ const { errorHandler } = require('../middleware/errorHandler');
 const food = require('../controllers/foodController');
 const kiosk = require('../controllers/restaurantKioskController');
 const appFlow = require('../controllers/restaurantAppFlowController');
+const permissionsService = require('../services/permissionsService');
 
 function buildApp() {
   const app = express();
@@ -21,6 +22,18 @@ function buildApp() {
   app.get('/api/restaurants/:restaurantId/display/queue-board', appFlow.getPublicDisplayQueueBoard);
   app.post('/api/food/restaurants/:restaurantId/orders/quote', food.quoteOrder);
   app.post('/api/food/restaurants/:restaurantId/orders', food.createOrder);
+  app.use(errorHandler);
+  return app;
+}
+
+function buildKioskManagerApp() {
+  const app = express();
+  app.use(express.json());
+  app.use((req, _res, next) => {
+    req.user = { id: '00000000-0000-4000-8000-000000000999' };
+    next();
+  });
+  app.patch('/api/restaurants/:restaurantId/kiosk-config', kiosk.upsertKioskConfig);
   app.use(errorHandler);
   return app;
 }
@@ -48,6 +61,7 @@ function findPublicationGuardSql() {
 }
 
 beforeEach(() => resetMocks());
+afterEach(() => jest.restoreAllMocks());
 
 describe('public restaurant visibility', () => {
   test.each([
@@ -158,5 +172,24 @@ describe('public restaurant visibility', () => {
 
     expect(order.status).toBe(404);
     expectActiveBusinessGuard(findPublicationGuardSql());
+  });
+
+  test('kiosk configuration honors a permission-catalog denial', async () => {
+    jest.spyOn(permissionsService, 'hasRestaurantPermission').mockResolvedValue(false);
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 3, business_id: 8, effective_role: 'manager' }],
+    });
+
+    const res = await request(buildKioskManagerApp())
+      .patch('/api/restaurants/3/kiosk-config')
+      .send({ lockedMode: true });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('forbidden');
+    expect(permissionsService.hasRestaurantPermission).toHaveBeenCalledWith(
+      expect.objectContaining({ effective_role: 'manager' }),
+      '00000000-0000-4000-8000-000000000999',
+      ['settings.manage']
+    );
   });
 });

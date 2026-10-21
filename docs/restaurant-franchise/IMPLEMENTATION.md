@@ -7,6 +7,13 @@ franchise-grade or production-readiness declaration. Existing fixes are retained
 no production migrations, deployment, financial activation, or provider-account
 changes are authorized by this checkpoint.
 
+Restaurant support case listing, detail, responses, escalation, and resolution
+now use the `support.view` and `support.manage` permission catalog instead of
+role-name checks. Kiosk configuration uses `settings.manage` through the same
+resolver, so membership deny overrides apply to both surfaces. Existing case
+ownership and payment approval rules remain in force; provider and
+populated-store acceptance are still open.
+
 ## Current pass: store menu, split-shift hours, quantity-level POS splits, and HQ regions
 
 Migration 988 formalizes the existing restaurant record as the brand anchor and
@@ -262,12 +269,12 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-23 | Existing inventory quantities/mappings/counts and location column; assigned-member item reads, adjustment history, item writes, procurement, and transfer reads/writes now enforce store scope; migrations 972-974 add recipe costing, supplier catalogs, receipt-to-request invoice matching, late-invoice reconciliation with audited match states, a receipt CSV accounting-ingestion contract, and food-cost percentage output | External invoice ingestion and populated external-provider invoice acceptance |
 | F-24 | Existing five-language cleanup; new store UI parity in both catalogs; fixed receipt and allergen-label text follows the configured locale | Full-screen human language acceptance |
 | F-25 | Existing logical CSS cleanup | Full POS/KDS/merchant RTL visual acceptance |
-| F-26 | Three device systems remain; receipt-printer settings and queued jobs now carry the selected store | Canonical device identity and native print bridge, deprecated API adapters, resource-controller convergence |
+| F-26 | Three device systems remain; receipt-printer settings and queued jobs now carry the selected store; kiosk configuration now uses the `settings.manage` permission catalog | Canonical device identity and native print bridge, deprecated API adapters, resource-controller convergence |
 | F-27 | Existing display grants, 90-day expiry/rotation, revoke-by-unpair, and migration 975 store-bound pairing tokens with sibling-store kitchen-action rejection | Populated store-role and physical device acceptance |
 | F-28 | Existing transactional primary-location update and validation | Populated database concurrency acceptance |
 | F-29 | Existing edit/pause/close/timezone/hours/location UI plus store-role assignment panel and region assignment | Full multi-range hours editor and populated store-role/region acceptance |
 | F-30 | Existing src tests and loader in CI | Retain browser/device regression coverage as surfaces converge |
-| F-31 | Ticket, payment, printing, crew, and runner manager gates now resolve the permission catalog (including membership overrides) instead of role-name checks; bootstrap `canManage` follows the same resolver | Custom membership and deny-override acceptance on every adapter |
+| F-31 | Ticket, payment, printing, crew, runner, restaurant support, and kiosk manager gates now resolve the permission catalog (including membership overrides) instead of role-name checks; bootstrap `canManage` follows the same resolver | Custom membership and deny-override acceptance on every adapter |
 | F-32 | Existing per-store per-day atomic counters | Concurrent multi-store rollover and peak-load acceptance |
 | F-33 | Migration 966 adds per-store online/in-store pacing caps, inheritance/disable semantics, and prep extensions applied to quote/order estimates | Peak-load/lock evidence and physical terminal/channel acceptance |
 
@@ -354,6 +361,7 @@ hardware decisions do not excuse independent software work on these flows.
 - `server`: `npx jest --runInBand --testPathPatterns='routeScopeGuard' __tests__/routeScopeGuard.test.js` — **10 passed** after adding all host-stand routes.
 - `server`: `npx jest --runInBand __tests__/restaurantPrinterLabels.test.js __tests__/restaurantPrinterSettings.db.test.js` — **4 passed, 13 skipped** without the explicit disposable printer database URL; localized receipt and allergen-label rendering pass and the DB suite remains fail-closed.
 - `server`: `npx jest --runInBand __tests__/foodController.test.js __tests__/restaurantAppFlow.test.js __tests__/restaurantPosIntegrity.db.test.js __tests__/restaurantRunnerController.test.js __tests__/restaurantPayrollOvertime.test.js` — **94 passed, 19 skipped** after routing operational manager and unpaid-completion checks through the permission catalog; the disposable database suites remain fail-closed without their explicit opt-in URLs.
+- `server`: `npx jest --runInBand __tests__/restaurantSupport.test.js __tests__/restaurantPublicVisibility.test.js` — **22 passed** after routing support case and kiosk configuration gates through `support.view`, `support.manage`, and `settings.manage`; the suites include denied membership response and kiosk paths.
 - `client`: `npm run verify:i18n`, `node scripts/growthInstrumentation.mjs --check`, and `npm run build:ci` — **passed** after adding the localized allergen-label printer control and gift-card catalog panel; growth coverage is 2,520/2,520 and emitted-asset verification covered 1,020 assets.
 - `server`: `npx jest --runInBand __tests__/restaurantGiftCardController.test.js __tests__/restaurantGiftCardService.test.js __tests__/restaurantAppFlow.test.js` — **66 passed** across catalog validation, value-ledger issue/redeem/refund guards, POS redemption, and route scope registration.
 - `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **957/957 migrations passed** twice, including migration 982's gift-card value ledger.
