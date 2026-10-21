@@ -6416,6 +6416,7 @@ async function screenKitchenContext(req, restaurantId, elevated = false) {
 function screenRevision(req,row) {
  if(req.body.expectedRevision!==undefined && String(req.body.expectedRevision)!==String(row.screen_revision)) throw new AppError('Ticket changed; refresh before retrying',409,'screen_revision_conflict',{currentRevision:row.screen_revision,currentState:{id:row.id,status:row.status,kitchenStatus:row.kitchen_status,revision:row.screen_revision}});
  if(req.screenDevice && String(req.screenDevice.location_id||'')!==String(row.location_id||''))throw new AppError('Wrong device location',403,'screen_location_mismatch');
+ if(req.displayDevice && req.displayDevice.locationId != null && String(req.displayDevice.locationId)!==String(row.location_id||''))throw new AppError('Wrong display store',403,'display_location_mismatch');
  if(req.screenDevice){const paymentMode=(row.order_metadata||row.metadata||{}).paymentMode;if(['pay_now','oxsteed_credit','wallet_credit','wallet'].includes(paymentMode)&&(row.order_payment_status||row.payment_status)!=='paid')throw new AppError('Payment confirmation required before preparation',409,'order_payment_pending');}
 }
 

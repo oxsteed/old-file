@@ -87,15 +87,25 @@ describeDb('kitchen device-or-staff authorization', () => {
          (id BIGSERIAL PRIMARY KEY, business_id BIGINT REFERENCES ${schema}.businesses(id),
           owner_user_id BIGINT, display_name TEXT)`
     );
+    await db.query(
+      `CREATE TABLE ${schema}.restaurant_locations
+         (id BIGSERIAL PRIMARY KEY, restaurant_id BIGINT NOT NULL, name TEXT,
+          status TEXT NOT NULL DEFAULT 'active', is_primary BOOLEAN NOT NULL DEFAULT FALSE)`
+    );
     await db.query(fs.readFileSync(path.join(__dirname, '../migrations/911_display_pairings.sql'), 'utf8'));
     await db.query(fs.readFileSync(path.join(__dirname, '../migrations/913_display_pairing_device_role.sql'), 'utf8'));
     // Migration 944 (F-27 pairing-token expiry/rotation): token verification
     // reads the expiry/previous-hash columns, so the schema must have them.
     await db.query(fs.readFileSync(path.join(__dirname, '../migrations/944_display_pairing_token_expiry.sql'), 'utf8'));
+    await db.query(fs.readFileSync(path.join(__dirname, '../migrations/975_display_pairing_locations.sql'), 'utf8'));
 
     const businessId = (
       await db.query(`INSERT INTO ${schema}.businesses (user_id) VALUES ($1) RETURNING id`, [OWNER_ID])
     ).rows[0].id;
+    await db.query(
+      `INSERT INTO ${schema}.restaurant_locations (restaurant_id, name, is_primary) VALUES ($1, 'Main A', TRUE), ($2, 'Main B', TRUE)`,
+      [restaurantA, restaurantB]
+    );
     restaurantA = (
       await db.query(
         `INSERT INTO ${schema}.food_restaurants (business_id, owner_user_id, display_name)
@@ -115,8 +125,8 @@ describeDb('kitchen device-or-staff authorization', () => {
       const token = crypto.randomBytes(32).toString('hex');
       const { rows } = await db.query(
         `INSERT INTO ${schema}.display_pairings
-           (restaurant_id, code_hash, expires_at, paired_at, label, pairing_token_hash, device_role)
-         VALUES ($1, $2, NOW() + INTERVAL '10 minutes', NOW(), $3, $4, $5)
+           (restaurant_id, location_id, code_hash, expires_at, paired_at, label, pairing_token_hash, device_role)
+         VALUES ($1, (SELECT id FROM ${schema}.restaurant_locations WHERE restaurant_id = $1), $2, NOW() + INTERVAL '10 minutes', NOW(), $3, $4, $5)
          RETURNING id`,
         [restaurantId, codeHash(), label, sha256hex(token), deviceRole]
       );
@@ -136,7 +146,7 @@ describeDb('kitchen device-or-staff authorization', () => {
     // F-27: the verifier also reports token expiry and whether the
     // rotated-out previous token was used; this legacy fixture row has no
     // expiry recorded yet, so tokenExpiresAt is null.
-    expect(ok).toEqual({ pairingId: pairingA.id, restaurantId: Number(restaurantA), label: 'Kitchen tablet', deviceRole: 'kitchen', tokenExpiresAt: null, usedPreviousToken: false });
+    expect(ok).toEqual({ pairingId: pairingA.id, restaurantId: Number(restaurantA), locationId: expect.any(Number), label: 'Kitchen tablet', deviceRole: 'kitchen', tokenExpiresAt: null, usedPreviousToken: false });
 
     expect(await controller.verifyDisplayPairingToken(crypto.randomBytes(32).toString('hex'))).toBeNull();
     expect(await controller.verifyDisplayPairingToken(null)).toBeNull();
@@ -169,6 +179,7 @@ describeDb('kitchen device-or-staff authorization', () => {
     expect(req.displayDevice).toEqual({
       pairingId: pairingA.id,
       restaurantId: Number(restaurantA),
+      locationId: expect.any(Number),
       label: 'Kitchen tablet',
       deviceRole: 'kitchen',
     });

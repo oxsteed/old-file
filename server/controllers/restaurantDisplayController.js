@@ -34,6 +34,7 @@ const logger = require('../utils/logger');
 const { encrypt, decrypt } = require('../utils/encryption');
 const { resolveScope, resolveRestaurantAccess } = require('../services/scopeModel');
 const permissionsService = require('../services/permissionsService');
+const { assertLocationAccess } = require('../services/restaurantLocationAccessService');
 // Imported as module objects (not destructured) so tests can stub the staff
 // path at the module boundary.
 const authMiddleware = require('../middleware/auth');
@@ -150,14 +151,14 @@ function isDisplayTokenShape(token) {
 // pairing_token_expires_at (NULL = legacy row not yet adopted by a
 // heartbeat, still valid); the rotated-out previous token stays valid
 // until pairing_token_prev_expires_at. Returns
-// { pairingId, restaurantId, label, deviceRole, tokenExpiresAt,
+// { pairingId, restaurantId, locationId, label, deviceRole, tokenExpiresAt,
 //   usedPreviousToken } or null. Constant-time compares, exactly like
 // heartbeat()'s original inline check.
 async function verifyDisplayPairingToken(token) {
   if (!isDisplayTokenShape(token)) return null;
   const tokenHash = hashSecret(token);
   const { rows } = await pool.query(
-    `SELECT id, restaurant_id, label, pairing_token_hash, pairing_token_hash_prev,
+    `SELECT id, restaurant_id, location_id, label, pairing_token_hash, pairing_token_hash_prev,
             pairing_token_expires_at, pairing_token_prev_expires_at, device_role
        FROM display_pairings
       WHERE (pairing_token_hash = $1 OR pairing_token_hash_prev = $1)
@@ -176,6 +177,7 @@ async function verifyDisplayPairingToken(token) {
     return {
       pairingId: Number(row.id),
       restaurantId: Number(row.restaurant_id),
+      ...(row.location_id != null ? { locationId: Number(row.location_id) } : {}),
       label: row.label,
       deviceRole: row.device_role || DEFAULT_DEVICE_ROLE,
       tokenExpiresAt: row.pairing_token_expires_at || null,
@@ -190,6 +192,7 @@ async function verifyDisplayPairingToken(token) {
     return {
       pairingId: Number(row.id),
       restaurantId: Number(row.restaurant_id),
+      ...(row.location_id != null ? { locationId: Number(row.location_id) } : {}),
       label: row.label,
       deviceRole: row.device_role || DEFAULT_DEVICE_ROLE,
       tokenExpiresAt: row.pairing_token_prev_expires_at,
@@ -215,10 +218,18 @@ async function requireRestaurantOwner(userId, restaurantId) {
 // display.manage capability (granted to the manager role by the permission
 // catalog, migration 370), so a store manager can replace a broken kitchen
 // TV without the owner.
-async function requireDisplayManager(userId, restaurantId) {
+async function requireDisplayManager(userId, restaurantId, locationId = null) {
   if (!userId) throw new AppError('Sign in required', 401, 'unauthorized');
   if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
   const restaurant = await resolveRestaurantAccess(userId, restaurantId);
+  if (locationId != null) {
+    const { rows: locations } = await pool.query(
+      `SELECT id FROM restaurant_locations
+        WHERE id = $1 AND restaurant_id = $2 AND status = 'active'`,
+      [locationId, restaurantId]
+    );
+    if (!locations[0]) throw new AppError('Display store not found', 404, 'display_location_not_found');
+  }
   if (restaurant.effective_role === 'owner') return restaurant;
   const { permissions } = await permissionsService.getEffectivePermissions({
     businessId: restaurant.business_id,
@@ -229,6 +240,7 @@ async function requireDisplayManager(userId, restaurantId) {
   if (!permissionsService.hasAny(permissions, ['display.manage'])) {
     throw new AppError('Display manager access required', 403, 'forbidden');
   }
+  if (locationId != null) await assertLocationAccess(restaurant, userId, locationId);
   return restaurant;
 }
 
@@ -240,7 +252,7 @@ async function requireOwnedPairing(userId, pairingId) {
   if (!pairing) throw new AppError('Display not found', 404, 'display_not_found');
   // resolveRestaurantAccess maps "no standing" to 404 restaurant_not_found, so
   // the pairing's existence never leaks to an outsider.
-  await requireDisplayManager(userId, pairing.restaurant_id);
+  await requireDisplayManager(userId, pairing.restaurant_id, pairing.location_id);
   return pairing;
 }
 
@@ -248,6 +260,7 @@ function publicPairingShape(row) {
   return {
     id: Number(row.id),
     restaurant_id: Number(row.restaurant_id),
+    ...(row.location_id != null ? { location_id: Number(row.location_id) } : {}),
     restaurant_name: row.restaurant_name || null,
     label: row.label,
     device_role: row.device_role || DEFAULT_DEVICE_ROLE,
@@ -272,6 +285,21 @@ async function issuePairingCode(req, res, next) {
     if (!restaurantId) throw new AppError('A valid restaurant id is required', 400, 'invalid_restaurant_id');
     const { rows } = await pool.query('SELECT id FROM food_restaurants WHERE id = $1', [restaurantId]);
     if (!rows[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const requestedLocationId = parsePositiveInt(req.body?.location_id ?? req.body?.locationId);
+    const { rows: locationRows } = await pool.query(
+      `SELECT id
+         FROM restaurant_locations
+        WHERE restaurant_id = $1
+          AND status = 'active'
+          AND ($2::bigint IS NULL OR id = $2)
+        ORDER BY is_primary DESC, id ASC
+        LIMIT 1`,
+      [restaurantId, requestedLocationId]
+    );
+    const locationId = Number(locationRows[0]?.id || 0);
+    if (!locationId) {
+      throw new AppError('A valid active store is required for display pairing', 409, 'display_location_required');
+    }
     // The TV declares its physical role up front so the pairing record is
     // fail-closed from issuance: an invalid or absent display_type becomes
     // 'kiosk', which can never reach the kitchen ticket surface.
@@ -284,10 +312,10 @@ async function issuePairingCode(req, res, next) {
       const codeHash = hashSecret(code);
       try {
         const { rows: inserted } = await pool.query(
-          `INSERT INTO display_pairings (restaurant_id, code_hash, expires_at, device_role)
-           VALUES ($1, $2, NOW() + make_interval(secs => $3), $4)
+          `INSERT INTO display_pairings (restaurant_id, location_id, code_hash, expires_at, device_role)
+           VALUES ($1, $2, $3, NOW() + make_interval(secs => $4), $5)
            RETURNING id, expires_at`,
-          [restaurantId, codeHash, PAIRING_CODE_TTL_MS / 1000, deviceRole]
+          [restaurantId, locationId, codeHash, PAIRING_CODE_TTL_MS / 1000, deviceRole]
         );
         return res.status(201).json({
           code,
@@ -316,7 +344,7 @@ async function claimDisplay(req, res, next) {
     const codeHash = hashSecret(code);
 
     const { rows: candidates } = await pool.query(
-      `SELECT id, restaurant_id, code_hash, device_role, paired_at, expires_at
+      `SELECT id, restaurant_id, location_id, code_hash, device_role, paired_at, expires_at
          FROM display_pairings
         WHERE code_hash = $1 AND paired_at IS NULL AND expires_at > NOW()`,
       [codeHash]
@@ -328,7 +356,7 @@ async function claimDisplay(req, res, next) {
     // Access first: claiming a code for a restaurant the caller cannot
     // manage displays for must fail even when the code is valid (fail
     // closed). Owners and display.manage holders may claim (F-27).
-    const restaurant = await requireDisplayManager(req.user?.id, candidate.restaurant_id);
+    const restaurant = await requireDisplayManager(req.user?.id, candidate.restaurant_id, candidate.location_id);
     // The owner approves the final device role at claim time; an invalid
     // value is a 400, an absent one keeps the role the TV declared.
     const deviceRole = resolveClaimDeviceRole(req.body?.device_role, candidate.device_role);
@@ -345,7 +373,7 @@ async function claimDisplay(req, res, next) {
               pairing_token_hash_prev = NULL,
               pairing_token_prev_expires_at = NULL
         WHERE id = $1 AND paired_at IS NULL AND expires_at > NOW()
-        RETURNING id, restaurant_id, label, device_role, paired_at, created_at, pairing_token_expires_at`,
+        RETURNING id, restaurant_id, location_id, label, device_role, paired_at, created_at, pairing_token_expires_at`,
       [candidate.id, label, hashSecret(token), encrypt(token), deviceRole, PAIRING_TOKEN_TTL_MS / 1000]
     );
     if (!updated[0]) {
@@ -490,6 +518,7 @@ async function heartbeat(req, res, next) {
     return res.json({
       refresh_requested: refreshRequested,
       restaurant_id: pairing.restaurantId,
+      ...(pairing.locationId != null ? { location_id: pairing.locationId } : {}),
       label: pairing.label,
       token_expires_at: tokenExpiresAt,
       ...(rotatedToken ? { rotated_token: rotatedToken } : {}),
@@ -542,6 +571,7 @@ async function requireKitchenDeviceOrStaff(req, res, next) {
       req.displayDevice = {
         pairingId: pairing.pairingId,
         restaurantId: pairing.restaurantId,
+        locationId: pairing.locationId || null,
         label: pairing.label,
         deviceRole: pairing.deviceRole,
       };

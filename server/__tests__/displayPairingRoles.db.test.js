@@ -107,6 +107,11 @@ describeDb('display device roles (migration 913)', () => {
          (id BIGSERIAL PRIMARY KEY, business_id BIGINT REFERENCES ${schema}.businesses(id),
           owner_user_id BIGINT, display_name TEXT)`
     );
+    await db.query(
+      `CREATE TABLE ${schema}.restaurant_locations
+         (id BIGSERIAL PRIMARY KEY, restaurant_id BIGINT NOT NULL, name TEXT,
+          status TEXT NOT NULL DEFAULT 'active', is_primary BOOLEAN NOT NULL DEFAULT FALSE)`
+    );
     // Apply 911, insert a legacy (pre-role) paired row, then apply 913 so
     // the migration default is exercised against real existing data.
     await db.query(fs.readFileSync(path.join(__dirname, '../migrations/911_display_pairings.sql'), 'utf8'));
@@ -118,6 +123,10 @@ describeDb('display device roles (migration 913)', () => {
         [businessId, OWNER_ID]
       )
     ).rows[0].id;
+    await db.query(
+      `INSERT INTO ${schema}.restaurant_locations (restaurant_id, name, is_primary) VALUES ($1, 'Main store', TRUE)`,
+      [restaurantId]
+    );
     await db.query(
       `INSERT INTO ${schema}.display_pairings
          (restaurant_id, code_hash, pairing_token_hash, label, expires_at, paired_at)
@@ -132,6 +141,7 @@ describeDb('display device roles (migration 913)', () => {
     // Migration 944 (F-27 pairing-token expiry/rotation): the endpoints
     // read/write the token expiry columns, so the schema must have them too.
     await db.query(fs.readFileSync(path.join(__dirname, '../migrations/944_display_pairing_token_expiry.sql'), 'utf8'));
+    await db.query(fs.readFileSync(path.join(__dirname, '../migrations/975_display_pairing_locations.sql'), 'utf8'));
   });
 
   afterAll(async () => {

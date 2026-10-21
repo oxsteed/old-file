@@ -161,6 +161,11 @@ supports explicit unmatched/matched/exception states, preserves invoice totals
 and currency, writes a before/after audit event without changing stock, and
 exports receipt/invoice/store rows as a CSV contract for accounting ingestion.
 
+Migration 975 binds legacy display pairings to an active store and backfills
+the primary store. Pairing codes select that store, display managers must hold
+the assigned-store scope, token verification carries the store identity, and
+kitchen ticket actions reject a sibling-store order.
+
 ## Requirements matrix
 
 `Existing source` means an earlier branch change exists; it is not a fresh
@@ -176,7 +181,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-06 | Existing Connect-bound Terminal flow and token permission gate | Provider sandbox/readers and reconciliation acceptance |
 | F-07 | Existing local-day net-collected reports, currencies, summary CSV and tender-level journal CSV; this pass adds per-store/currency daily close, multi-day location comparison JSON/CSV/XLSX, and theoretical/actual/variance food-cost percentages against paid sales | Labor percentages and accounting-system adapters |
 | F-08 | Existing offline drafts and failure reporting; web POS adds cash-only browser outbox replay with stable order/payment idempotency keys and sequential reconnect processing | In-store hub, Terminal store-and-forward/risk policy, and physical outage acceptance |
-| F-09 | Existing broken split-route adapter | Maintain canonical split guards and populated-db acceptance |
+| F-09 | The broken legacy food split route is removed; POS splitting uses the canonical transactional `splitPosOrder` path with payment, delivery, non-empty-ticket, store inheritance, and queue-counter guards | Maintain canonical split guards and populated-db acceptance |
 | F-10 | Existing overnight/split-shift/holiday/timezone evaluator; this pass adds a multi-range and dated special-hours location editor | Scheduling/device acceptance and populated-store special-date acceptance |
 | F-11 | Existing dayparts and scheduled fire filtering | Verify all scheduling paths and store-selected quote/submit invariants |
 | F-12 | Existing onboarding fulfillment defaults | End-to-end first-store POS acceptance |
@@ -194,7 +199,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-24 | Existing five-language cleanup; new store UI parity in both catalogs | Server/receipt and full-screen human language acceptance |
 | F-25 | Existing logical CSS cleanup | Full POS/KDS/merchant RTL visual acceptance |
 | F-26 | Three device systems remain | Canonical device identity and print bridge, deprecated API adapters, resource-controller convergence |
-| F-27 | Existing display grants and token expiry | Store scoping and actual rotation/revoke device acceptance |
+| F-27 | Existing display grants, 90-day expiry/rotation, revoke-by-unpair, and migration 975 store-bound pairing tokens with sibling-store kitchen-action rejection | Populated store-role and physical device acceptance |
 | F-28 | Existing transactional primary-location update and validation | Populated database concurrency acceptance |
 | F-29 | Existing edit/pause/close/timezone/hours/location UI plus store-role assignment panel | Full multi-range hours editor and populated store-role acceptance |
 | F-30 | Existing src tests and loader in CI | Retain browser/device regression coverage as surfaces converge |
@@ -233,7 +238,7 @@ hardware decisions do not excuse independent software work on these flows.
 - `server`: `npx jest --runInBand __tests__/restaurantInventoryOperations.test.js` — **9 passed**. Covers assigned-store transfer filtering and transfer creation/lifecycle behavior.
 - `server`: `npx jest --runInBand __tests__/restaurantInventoryController.test.js __tests__/restaurantInventoryOperations.test.js __tests__/routeScopeGuard.test.js` — **28 passed**. Includes recipe mapping validation and the food-cost report contract.
 - `server`: `npx jest --runInBand __tests__/restaurantInventoryOperations.test.js` — **14 passed**. Includes assigned-store catalog filtering, supplier catalog upsert validation, late-invoice match/exception state handling, the receipt CSV contract, and food-cost percentages.
-- `node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **passed** against a disposable Colima PostgreSQL container; all 949 discovered migrations applied and replayed cleanly through migration 974.
+- `node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **passed** against a disposable Colima PostgreSQL container; all 950 discovered migrations applied and replayed cleanly through migration 975.
 - `server/scripts/verifyRestaurantStoreMenu.js` — **passed** in the dedicated Colima PostgreSQL container. It applied migration 963 twice, verified default-store backfill/onboarding and legacy order/counter continuity, tenant foreign keys, negative prices, screen events, SQL projections, and sibling-store isolation.
 - `client`: `npm run build:ci` — **passed**; Vite emitted and verified 1,020 assets. The existing build warnings are the repository's large-chunk and dynamic-import advisories.
 - `client`: `node --test scripts/restaurantPosOfflineCash.test.mjs` — **passed**. Covers cash-only replay ordering, retention after a failed entry, and network-error classification.

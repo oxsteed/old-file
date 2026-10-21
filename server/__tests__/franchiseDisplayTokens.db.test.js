@@ -89,6 +89,16 @@ describeDb('F-27 display fleet managers and token expiry', () => {
          (id BIGSERIAL PRIMARY KEY, business_id BIGINT REFERENCES ${schema}.businesses(id),
           owner_user_id BIGINT, display_name TEXT)`
     );
+    await db.query(
+      `CREATE TABLE ${schema}.restaurant_locations
+         (id BIGSERIAL PRIMARY KEY, restaurant_id BIGINT NOT NULL, name TEXT,
+          status TEXT NOT NULL DEFAULT 'active', is_primary BOOLEAN NOT NULL DEFAULT FALSE)`
+    );
+    await db.query(
+      `CREATE TABLE ${schema}.restaurant_location_memberships
+         (id BIGSERIAL PRIMARY KEY, restaurant_id BIGINT NOT NULL, membership_id BIGINT NOT NULL,
+          location_id BIGINT NOT NULL, role_override TEXT, status TEXT NOT NULL DEFAULT 'active')`
+    );
     await db.query(`CREATE TABLE ${schema}.team_roles (id BIGSERIAL PRIMARY KEY, code TEXT)`);
     await db.query(`CREATE TABLE ${schema}.team_permissions (id BIGSERIAL PRIMARY KEY, code TEXT)`);
     await db.query(
@@ -99,7 +109,7 @@ describeDb('F-27 display fleet managers and token expiry', () => {
       `CREATE TABLE ${schema}.membership_permission_overrides
          (id BIGSERIAL PRIMARY KEY, membership_id BIGINT, permission_id BIGINT, effect TEXT, expires_at TIMESTAMPTZ)`
     );
-    for (const file of ['911_display_pairings.sql', '913_display_pairing_device_role.sql', '944_display_pairing_token_expiry.sql']) {
+    for (const file of ['911_display_pairings.sql', '913_display_pairing_device_role.sql', '944_display_pairing_token_expiry.sql', '975_display_pairing_locations.sql']) {
       await db.query(fs.readFileSync(path.join(__dirname, '../migrations', file), 'utf8'));
     }
 
@@ -111,9 +121,18 @@ describeDb('F-27 display fleet managers and token expiry', () => {
         [businessId, OWNER_ID]
       )
     ).rows[0].id;
+    const locationId = (await db.query(
+      `INSERT INTO ${schema}.restaurant_locations (restaurant_id, name, is_primary) VALUES ($1, 'Main store', TRUE) RETURNING id`,
+      [restaurantId]
+    )).rows[0].id;
     await db.query(
       `INSERT INTO ${schema}.business_members (business_id, member_id, role, status) VALUES ($1, $2, 'manager', 'active'), ($1, $3, 'employee', 'active')`,
       [businessId, MANAGER_ID, EMPLOYEE_ID]
+    );
+    await db.query(
+      `INSERT INTO ${schema}.restaurant_location_memberships (restaurant_id, membership_id, location_id)
+       SELECT $1, id, $2 FROM ${schema}.business_members WHERE business_id = $3 AND member_id = $4`,
+      [restaurantId, locationId, businessId, MANAGER_ID]
     );
     const { rows: roles } = await db.query(
       `INSERT INTO ${schema}.team_roles (code) VALUES ('owner'), ('manager'), ('employee') RETURNING id, code`
