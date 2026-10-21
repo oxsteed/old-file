@@ -2,6 +2,24 @@
 
 const AppError = require('../utils/appError');
 
+function normalizeLocationId(value, field = 'store') {
+  if (!/^[1-9]\d*$/.test(String(value)) || !Number.isSafeInteger(Number(value))) {
+    throw new AppError(`Invalid ${field}`, 400, 'validation_failed');
+  }
+  return Number(value);
+}
+
+function normalizePublishRequest({ sourceLocationId, targetLocationIds }) {
+  const source = normalizeLocationId(sourceLocationId, 'source store');
+  if (!Array.isArray(targetLocationIds) || targetLocationIds.length < 1 || targetLocationIds.length > 100) {
+    throw new AppError('At least one and at most 100 target stores are required', 400, 'validation_failed');
+  }
+  const targets = [...new Set(targetLocationIds.map((value) => normalizeLocationId(value)))];
+  if (targets.length !== targetLocationIds.length) throw new AppError('Target stores must be unique', 400, 'validation_failed');
+  if (targets.includes(source)) throw new AppError('The source store cannot be a target', 400, 'validation_failed');
+  return { sourceLocationId: source, targetLocationIds: targets };
+}
+
 function storeShape(row, sales = [], health = {}) {
   return {
     id: Number(row.id),
@@ -96,4 +114,40 @@ async function rollup(client, { businessId, restaurantIds, from, to }) {
   return { salesRows, healthRows, complianceRows };
 }
 
-module.exports = { storeShape, rollup };
+async function publishMenuOverrides(client, { restaurantId, sourceLocationId, targetLocationIds, actorUserId }) {
+  const request = normalizePublishRequest({ sourceLocationId, targetLocationIds });
+  const locationIds = [request.sourceLocationId, ...request.targetLocationIds];
+  const { rows: locations } = await client.query(
+    `SELECT id, name, status
+       FROM restaurant_locations
+      WHERE restaurant_id = $1 AND id = ANY($2::bigint[])
+      ORDER BY id`,
+    [restaurantId, locationIds]
+  );
+  if (locations.length !== locationIds.length) throw new AppError('One or more stores were not found', 404, 'location_not_found');
+  const { rows: copied } = await client.query(
+    `INSERT INTO restaurant_store_menu_overrides
+       (restaurant_id, location_id, menu_item_id, price_cents, is_available, available_again_at, updated_by)
+     SELECT $1, target.id, source.menu_item_id, source.price_cents, source.is_available,
+            source.available_again_at, $4
+       FROM restaurant_store_menu_overrides source
+       CROSS JOIN UNNEST($3::bigint[]) AS target(id)
+      WHERE source.restaurant_id = $1 AND source.location_id = $2
+     ON CONFLICT (restaurant_id, location_id, menu_item_id)
+     DO UPDATE SET price_cents = EXCLUDED.price_cents,
+                   is_available = EXCLUDED.is_available,
+                   available_again_at = EXCLUDED.available_again_at,
+                   updated_by = EXCLUDED.updated_by,
+                   updated_at = NOW()
+     RETURNING location_id, menu_item_id`,
+    [restaurantId, request.sourceLocationId, request.targetLocationIds, actorUserId || null]
+  );
+  const counts = new Map(request.targetLocationIds.map((id) => [id, 0]));
+  for (const row of copied) counts.set(Number(row.location_id), (counts.get(Number(row.location_id)) || 0) + 1);
+  return {
+    sourceLocationId: request.sourceLocationId,
+    targets: request.targetLocationIds.map((id) => ({ locationId: id, copiedOverrides: counts.get(id) || 0 })),
+  };
+}
+
+module.exports = { storeShape, rollup, normalizePublishRequest, publishMenuOverrides };

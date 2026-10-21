@@ -4,7 +4,7 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useSt
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, Tv, CalendarDays, CreditCard } from 'lucide-react';
+import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, Tv, CalendarDays, CreditCard, Building2 } from 'lucide-react';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 import api from '../../api/axios';
 import {
@@ -44,6 +44,7 @@ import PrinterSettingsPanel from './PrinterSettingsPanel';
 import GiftCardProductsPanel from './GiftCardProductsPanel';
 import DisplayFleetPanel from './DisplayFleetPanel';
 import RestaurantHostingPanel from './RestaurantHostingPanel';
+import RestaurantHQPanel from './RestaurantHQPanel';
 import { syncPendingMutations, countPendingMutations, isDeviceOnline } from '../../api/restaurantsOffline';
 import PageShell from '../../components/PageShell';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
@@ -2002,6 +2003,10 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
           ? t('restaurants.ops.opChipOpenActions', '{{count}} open actions', { count: openActions })
           : t('restaurants.ops.opChipAudits', 'Audits'),
       },
+      {
+        key: 'hq', target: 'hq', tone: null,
+        label: t('restaurants.ops.hq.chip', 'HQ'),
+      },
     );
   }
   chips.push({
@@ -2040,6 +2045,19 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
       </div>
 
       <div className="fd-settings-grid">
+        {canManageRestaurant && (
+          <SettingsCard
+            icon={Building2}
+            title={t('restaurants.ops.hq.title', 'HQ console')}
+            desc={t('restaurants.ops.hq.subtitle', 'Compare stores and publish approved menu policies.')}
+            cardKey="hq"
+            registerRef={registerCard}
+            wide
+          >
+            <RestaurantHQPanel t={t} restaurant={restaurant} bare />
+          </SettingsCard>
+        )}
+
         {canManageRestaurant && (
           <SettingsCard
             icon={CalendarDays}

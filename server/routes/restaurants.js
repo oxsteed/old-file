@@ -163,6 +163,7 @@ router.get('/:restaurantId/delivery/marketplaces/:provider/menu', requireRestaur
 router.post('/:restaurantId/delivery/marketplaces/:provider/orders', requireRestaurantAccess(), deliveryMarketplaces.ingestOrder);
 router.patch('/:restaurantId/delivery/marketplace-orders/:orderId', requireRestaurantAccess(), deliveryMarketplaces.transitionOrder);
 router.get('/:restaurantId/hq/rollup', requireRestaurantAccess(), hq.rollup);
+router.post('/:restaurantId/hq/menu/publish', requireRestaurantAccess(), hq.publishMenuOverrides);
 // F-02: explicit store-scoped staff assignments. Members without assignments
 // retain legacy all-store access until an operator opts them into a boundary.
 router.get('/:restaurantId/location-access', requireRestaurantAccess(), locationAccess.list);

@@ -5,6 +5,9 @@ const AppError = require('../utils/appError');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
 const permissions = require('../services/permissionsService');
 const hq = require('../services/restaurantHQService');
+const { getLocationScope } = require('../services/restaurantLocationAccessService');
+const { withTransaction } = require('../utils/transaction');
+const { logBusinessAction } = require('../services/businessAuditLog');
 
 function dateRange(req) {
   const to = req.query?.to ? new Date(`${req.query.to}T00:00:00.000Z`) : new Date();
@@ -49,4 +52,37 @@ exports.rollup = async (req, res, next) => {
     }));
     res.json({ scope: { businessId: Number(anchor.business_id), storeCount: stores.length, from: range.from, to: range.to }, stores });
   } catch (err) { next(err); }
+};
+
+exports.publishMenuOverrides = async (req, res, next) => {
+  try {
+    const restaurantId = Number.parseInt(req.params.restaurantId, 10);
+    if (!Number.isSafeInteger(restaurantId) || restaurantId <= 0) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const restaurant = await resolveRestaurantAccess(req.user.id, restaurantId);
+    if (!(await permissions.hasRestaurantPermission(restaurant, req.user.id, ['settings.manage']))) {
+      throw new AppError('You do not have permission to publish the HQ menu', 403, 'forbidden');
+    }
+    const request = hq.normalizePublishRequest(req.body || {});
+    const scope = await getLocationScope(restaurant, req.user.id);
+    if (scope.mode === 'assigned' && [request.sourceLocationId, ...request.targetLocationIds].some((id) => !scope.location_ids.includes(id))) {
+      throw new AppError('You do not have access to every selected store', 403, 'location_scope_forbidden');
+    }
+    const result = await withTransaction(pool, async (client) => {
+      const published = await hq.publishMenuOverrides(client, { restaurantId, ...request, actorUserId: req.user.id });
+      for (const target of published.targets) {
+        await logBusinessAction(req, {
+          business_id: restaurant.business_id,
+          actor_role: restaurant.effective_role,
+          action: 'restaurant.hq_menu.published',
+          target_type: 'restaurant_location',
+          target_id: target.locationId,
+          metadata: { source_location_id: published.sourceLocationId, copied_overrides: target.copiedOverrides },
+          client,
+          throwOnError: true,
+        });
+      }
+      return published;
+    }, 'restaurant_hq_menu_publish');
+    res.status(200).json({ ...result, published: true });
+  } catch (error) { next(error); }
 };

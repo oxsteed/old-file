@@ -203,6 +203,12 @@ export const createFoodLocation = (restaurantId, payload) =>
 export const updateFoodLocation = (restaurantId, locationId, payload) =>
   api.patch(`/food/restaurants/${restaurantId}/locations/${locationId}`, payload).then((r) => r.data?.location);
 
+export const getRestaurantHQRollup = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/hq/rollup`, { params }).then((r) => r.data || { stores: [], scope: null });
+
+export const publishRestaurantHQMenu = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/hq/menu/publish`, payload).then((r) => r.data);
+
 // Restaurant host stand (floor-plan tables, reservations, and walk-in queue).
 export const listRestaurantTables = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/tables`, { params }).then((r) => r.data || { tables: [], location: null });

@@ -200,7 +200,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | ID | Current boundary | Remaining implementation / acceptance |
 | --- | --- | --- |
 | F-01 | Existing timezone capture, validation, business copy and backfill | Populated-store owner confirmation and onboarding/browser acceptance |
-| F-02 | Existing location columns/counters/hours; this pass adds store menu and customer selection; hosting records are location-scoped; migrations 968 and 976 add store-scoped staff assignments and receipt-printer settings, menu enforcement, store-filtered sales reports, and assigned-store inventory reads/writes | Mandatory store IDs on every operational record, HQ/region hierarchy and full data-boundary adoption |
+| F-02 | Existing location columns/counters/hours; this pass adds store menu and customer selection; hosting records are location-scoped; migrations 968 and 976 add store-scoped staff assignments and receipt-printer settings, menu enforcement, store-filtered sales reports, assigned-store inventory reads/writes, and an audited HQ override-policy publish contract | Mandatory store IDs on every operational record, HQ/region hierarchy and full data-boundary adoption |
 | F-03 | Existing cashier own-drawer tender, Terminal intent gate, receipt-event gate, and permission resolver | Exercise custom grants/denials and approvals across every money surface |
 | F-04 | Existing stable order/payment retry IDs and pay-first hold; POS checkout state now survives reload for a bounded window and cash replay preserves the same identities | Lost-response/concurrent replay verification across every kitchen/display/runner fire path |
 | F-05 | Existing production server-dial prohibition and print queue; this pass adds paired kitchen-device queue endpoints, runtime contract, and store-scoped receipt-printer settings/jobs | Native LAN print bridge and physical device/browser acceptance |
@@ -239,7 +239,7 @@ The review also requests further split-workflow coverage, brand-wide loyalty
 programs and CRM campaign delivery,
 delivery-marketplace menu/order adapters, and live QuickBooks/Xero provider
 adapters,
-unified onboarding/hardware pairing, HQ compliance publishing/rollups and
+unified onboarding/hardware pairing, full HQ menu/compliance publishing and
 end-to-end store acceptance. Allergen label printing is now implemented as a
 manager-only, store-scoped queued printer job; physical label stock and device
 acceptance remain open. Migration 980 adds manager-audited physical/e-gift card
@@ -258,12 +258,16 @@ available-menu export, and idempotent inbound order state queues. Live provider
 OAuth/webhook verification and local food-order creation remain deployment-gated.
 The localized merchant gift-card panel now issues cards with an idempotency key
 and reveals a generated code only in the issue response.
-The restaurant HQ rollup now provides a permission-filtered business view with
+The restaurant HQ surface now provides a permission-filtered business view with
 store comparison, currency-separated net-collected sales, latest audit score,
 high-severity open findings, checklist completion, and current training
 completion/overdue counts; it does not merge currencies or reveal customer
 identity. Compliance facts are read-only aggregates scoped to the requested
 date range for checklists and the accessible business stores for training.
+HQ can also publish an approved source store's existing menu override policy to
+selected same-restaurant stores in one audited transaction. The operation is
+bounded to the caller's assigned stores and leaves the central menu and
+unrelated target overrides untouched.
 
 Sales reports now expose `/reports/sales/accounting/quickbooks.csv` and
 `/reports/sales/accounting/xero.csv`. These are read-only, store-scoped import
@@ -304,8 +308,9 @@ hardware decisions do not excuse independent software work on these flows.
 - `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **958/958 migrations passed** twice, including migration 983's campaign delivery queue.
 - `server`: `npx jest --runInBand __tests__/restaurantDeliveryMarketplaceService.test.js __tests__/routeScopeGuard.test.js` — **13 passed** across provider/secret-reference validation, menu filtering, disabled-provider rejection, and route scope registration.
 - `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **959/959 migrations passed** twice, including migration 984's marketplace integration and order queue.
-- `server`: `npx jest --runInBand __tests__/restaurantHQService.test.js __tests__/routeScopeGuard.test.js` — **12 passed** after adding permission-filtered checklist and training compliance aggregates to the HQ rollup contract.
+- `server`: `npx jest --runInBand __tests__/restaurantHQController.test.js __tests__/restaurantHQService.test.js __tests__/routeScopeGuard.test.js` — **17 passed** after adding bounded HQ menu-override publishing, its merchant console contract, and route registration.
 - `client`: `npm run verify:i18n` — **passed** with the host-stand keys present in `en`, `es`, `fr`, `ht`, and `ar`.
+- `client`: `npm run build:ci` — **passed** after adding the localized HQ comparison and menu-policy publishing console; typecheck, production build, i18n, and emitted-asset verification completed with the repository's existing chunk advisories.
 - `client`: `npm run build` — **passed**; Vite emitted the merchant bundle with the host-stand panel. Existing large-chunk and dynamic-import advisories remain.
 - `server`: `npx jest --runInBand __tests__/restaurantPayrollOvertime.test.js` — **2 passed**. Covers weekly overtime allocation and required-break exception detection.
 - `server`: `npx jest --runInBand __tests__/restaurantInventoryOperations.test.js` — **9 passed**. Covers assigned-store transfer filtering and transfer creation/lifecycle behavior.
