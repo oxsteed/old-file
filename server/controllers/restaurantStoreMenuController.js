@@ -15,7 +15,13 @@ async function access(req, codes) {
   const restaurantId = menu.locationId(req.params.restaurantId);
   const restaurant = await resolveRestaurantAccess(req.user.id, restaurantId);
   let allowed = await permissions.hasRestaurantPermission(restaurant, req.user.id, codes);
-  const locationRole = await getLocationRole(restaurant, req.user.id, menu.locationId(req.params.locationId));
+  const locationId = menu.locationId(req.params.locationId);
+  // Legacy availability URLs omit a store and retain primary-store
+  // resolution inside resolveLocationRow below. Explicit store URLs are
+  // checked here before any write.
+  const locationRole = locationId
+    ? await getLocationRole(restaurant, req.user.id, locationId)
+    : restaurant.effective_role;
   const roleOptions = locationRole && locationRole !== restaurant.effective_role ? { roleOverride: locationRole } : undefined;
   if (roleOptions) allowed = await permissions.hasRestaurantPermission(restaurant, req.user.id, codes, roleOptions);
   if (!allowed) throw new AppError('Permission denied', 403, 'forbidden');
@@ -46,6 +52,11 @@ exports.update = async (req, res, next) => {
       const deviceStore = actingStaff?.deviceId ? await deviceLocationId(client, { restaurantId: restaurant.id, deviceId: actingStaff.deviceId }) : null;
       const store = await resolveLocationRow(client, { restaurantId: restaurant.id, requestedLocationId: menu.locationId(req.params.locationId), deviceLocationId: deviceStore });
       if (!store) throw new AppError('Store not found', 404, 'location_not_found');
+      const storeRole = await getLocationRole(restaurant, req.user.id, store.id, client);
+      if (storeRole && storeRole !== restaurant.effective_role
+        && !(await permissions.hasRestaurantPermission(restaurant, req.user.id, codes, { roleOverride: storeRole }))) {
+        throw new AppError('Permission denied', 403, 'forbidden');
+      }
       const { rows: [item] } = await client.query('SELECT id, name, price_cents, currency_code, is_available FROM food_menu_items WHERE restaurant_id=$1 AND id=$2 FOR UPDATE', [restaurant.id, menu.locationId(req.params.itemId)]);
       if (!item) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
       const { rows: [before] } = await client.query('SELECT * FROM restaurant_store_menu_overrides WHERE restaurant_id=$1 AND location_id=$2 AND menu_item_id=$3', [restaurant.id, store.id, item.id]);
