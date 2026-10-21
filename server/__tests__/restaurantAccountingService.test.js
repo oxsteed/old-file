@@ -57,6 +57,14 @@ test('a replay returns the existing export without inserting another batch', asy
   expect(client.query).toHaveBeenCalledTimes(2);
 });
 
+test('listing exports is provider-filtered and bounded without exposing payloads', async () => {
+  const client = { query: jest.fn().mockResolvedValueOnce({ rows: [exportRow] }) };
+  const result = await service.listExports(client, 3, { provider: 'xero', limit: '999' });
+  expect(result).toEqual([expect.objectContaining({ id: 21, status: 'pending', lineCount: 1 })]);
+  expect(result[0].payload).toBeUndefined();
+  expect(client.query.mock.calls[0][1]).toEqual([3, 'xero', 100]);
+});
+
 test('posted batches require external evidence and remain immutable', async () => {
   const client = { query: jest.fn().mockResolvedValueOnce({ rows: [exportRow] }) };
   await expect(service.updateExportStatus(client, { restaurantId: 3, exportId: 21, status: 'posted' })).rejects.toMatchObject({ code: 'accounting_external_id_required' });

@@ -280,6 +280,10 @@ for QuickBooks and Xero, stores only Secrets Manager dynamic references, and
 persists an idempotent journal-export outbox with explicit sending, posted,
 failed, and reconciliation-required states. The outbox is the handoff for a
 future provider worker; it never claims that an external ledger has posted.
+The merchant Reports panel now lists configured provider state and recent
+currency-scoped journal exports through a bounded, payload-free status endpoint;
+provider credentials remain outside the browser and the worker handoff is
+explicitly labeled as pending external reconciliation.
 The same report surface exposes `/reports/sales/bi.ndjson`, a versioned row-level
 BI contract that excludes customer identity and preserves store, currency, and
 minor-unit values.
@@ -313,10 +317,11 @@ hardware decisions do not excuse independent software work on these flows.
 - `server`: `npx jest --runInBand __tests__/restaurantDeliveryMarketplaceService.test.js __tests__/routeScopeGuard.test.js` — **13 passed** across provider/secret-reference validation, menu filtering, disabled-provider rejection, and route scope registration.
 - `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **959/959 migrations passed** twice, including migration 984's marketplace integration and order queue.
 - `server`: `npx jest --runInBand __tests__/restaurantHQController.test.js __tests__/restaurantHQService.test.js __tests__/routeScopeGuard.test.js` — **18 passed** after making HQ rollups location-native and adding bounded menu-override publishing, its merchant console contract, and route registration.
-- `server`: `npx jest --runInBand __tests__/restaurantAccountingService.test.js __tests__/restaurantHQController.test.js __tests__/restaurantHQService.test.js __tests__/routeScopeGuard.test.js` — **23 passed** across accounting dynamic-reference validation, idempotent journal outbox states, location-native HQ rollups, bounded menu publishing, and route registration.
+- `server`: `npx jest --runInBand __tests__/restaurantAccountingService.test.js __tests__/restaurantHQController.test.js __tests__/restaurantHQService.test.js __tests__/routeScopeGuard.test.js` — **24 passed** across accounting dynamic-reference validation, bounded provider/export status listing, idempotent journal outbox states, location-native HQ rollups, bounded menu publishing, and route registration.
 - `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **960/960 migrations passed**, including migration 985's accounting integration and export outbox schema.
 - `client`: `npm run verify:i18n` — **passed** with the host-stand keys present in `en`, `es`, `fr`, `ht`, and `ar`.
 - `client`: `npm run build:ci` — **passed** after adding the localized HQ comparison and menu-policy publishing console; typecheck, production build, i18n, and emitted-asset verification completed with the repository's existing chunk advisories.
+- `client`: `npm run verify:i18n`, `node scripts/growthInstrumentation.mjs --write && --check`, and `npm run build:ci` — **passed** after adding the localized accounting integration/export status panel; growth coverage is 2,528/2,528 and emitted-asset verification covered 1,020 assets.
 - `client`: `npm run build` — **passed**; Vite emitted the merchant bundle with the host-stand panel. Existing large-chunk and dynamic-import advisories remain.
 - `server`: `npx jest --runInBand __tests__/restaurantPayrollOvertime.test.js` — **2 passed**. Covers weekly overtime allocation and required-break exception detection.
 - `server`: `npx jest --runInBand __tests__/restaurantInventoryOperations.test.js` — **9 passed**. Covers assigned-store transfer filtering and transfer creation/lifecycle behavior.

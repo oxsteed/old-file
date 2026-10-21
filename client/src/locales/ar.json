@@ -24339,6 +24339,29 @@
         }
       },
       "reports": {
+        "accountingOutbox": {
+          "title": "تكاملات المحاسبة",
+          "refresh": "تحديث",
+          "loadError": "تعذر تحميل حالة المحاسبة.",
+          "noIntegrations": "لم يتم إعداد أي مزود محاسبة.",
+          "credentialsReady": "بيانات الاعتماد جاهزة",
+          "exports": "تصديرات اليومية الأخيرة",
+          "noExports": "لم يتم وضع أي تصديرات يومية في قائمة الانتظار.",
+          "lines": "بنود",
+          "providerNote": "تُوضع التصديرات في قائمة انتظار عامل موثق بشكل منفصل؛ لا يخزن المتصفح بيانات اعتماد المزود.",
+          "status": {
+              "disconnected": "غير متصل",
+              "configured": "مُعد",
+              "active": "نشط",
+              "paused": "متوقف مؤقتًا",
+              "error": "خطأ",
+              "pending": "قيد الانتظار",
+              "sending": "جارٍ الإرسال",
+              "posted": "مُرحّل",
+              "failed": "فشل",
+              "requires_reconciliation": "يتطلب تسوية"
+          }
+        },
         "downloadCsv": "تنزيل CSV",
         "downloadJournalCsv": "تنزيل CSV اليومية",
         "accountingProvider": "تنسيق المحاسبة",

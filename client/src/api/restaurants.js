@@ -241,6 +241,12 @@ export const getOperationsReport = (restaurantId, params = {}) =>
 export const getLoyaltyReport = (restaurantId) =>
   api.get(`/restaurants/${restaurantId}/reports/loyalty`).then((r) => r.data);
 
+export const listAccountingIntegrations = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/accounting/integrations`).then((r) => r.data?.integrations || []);
+
+export const listAccountingExports = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/accounting/exports`, { params }).then((r) => r.data?.exports || []);
+
 // CRM segments are aggregate-only; customer identity and campaign delivery are
 // intentionally excluded from this contract.
 export const listLoyaltySegments = (restaurantId) =>

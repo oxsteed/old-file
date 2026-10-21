@@ -8,6 +8,7 @@ const accounting = require('../services/restaurantAccountingService');
 const reports = require('./restaurantReportsController');
 const { withTransaction } = require('../utils/transaction');
 const { logBusinessAction } = require('../services/businessAuditLog');
+const { getLocationScope } = require('../services/restaurantLocationAccessService');
 
 async function access(req) {
   const restaurantId = Number.parseInt(req.params.restaurantId, 10);
@@ -23,6 +24,13 @@ exports.list = async (req, res, next) => {
   try {
     const restaurant = await access(req);
     res.json({ integrations: await accounting.listIntegrations(pool, restaurant.id) });
+  } catch (error) { next(error); }
+};
+
+exports.listExports = async (req, res, next) => {
+  try {
+    const restaurant = await access(req);
+    res.json({ exports: await accounting.listExports(pool, restaurant.id, req.query || {}) });
   } catch (error) { next(error); }
 };
 
@@ -53,15 +61,20 @@ exports.queueJournal = async (req, res, next) => {
   try {
     const restaurant = await access(req);
     const provider = accounting.normalizeProvider(req.params.provider);
-    const currency = accounting.normalizeCurrency(req.body?.currencyCode || req.query?.currency);
-    const { rows, fromDate, toDate } = await reports._accountingTest.loadSalesJournalRows(restaurant.id, { ...restaurant, locationScope: await require('../services/restaurantLocationAccessService').getLocationScope(restaurant, req.user.id) }, req.body || req.query || {});
+    const input = { ...(req.query || {}), ...(req.body || {}) };
+    const currency = accounting.normalizeCurrency(input.currencyCode || input.currency);
+    const { rows, fromDate, toDate } = await reports._accountingTest.loadSalesJournalRows(
+      restaurant.id,
+      { ...restaurant, locationScope: await getLocationScope(restaurant, req.user.id) },
+      input
+    );
     const currencyRows = rows.filter((row) => String(row.currency || 'USD').toUpperCase() === currency);
     const lines = reports._accountingTest.accountingLines(currencyRows);
     const result = await withTransaction(pool, async (client) => accounting.queueExport(client, {
       restaurantId: restaurant.id,
       provider,
-      periodFrom: req.body?.from || req.query?.from || fromDate,
-      periodTo: req.body?.to || req.query?.to || toDate,
+      periodFrom: input.from || fromDate,
+      periodTo: input.to || toDate,
       currencyCode: currency,
       idempotencyKey: req.get('Idempotency-Key') || req.body?.idempotencyKey,
       lines,

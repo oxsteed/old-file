@@ -24328,6 +24328,29 @@
         }
       },
       "reports": {
+        "accountingOutbox": {
+          "title": "Entegrasyon kontablite",
+          "refresh": "Rafrechi",
+          "loadError": "Nou pa t kapab chaje estati kontablite a.",
+          "noIntegrations": "Pa gen founisè kontablite ki konfigire.",
+          "credentialsReady": "kalifikasyon yo pare",
+          "exports": "Ekspòtasyon jounal resan",
+          "noExports": "Pa gen ekspòtasyon jounal ki nan keu.",
+          "lines": "liy",
+          "providerNote": "Ekspòtasyon yo nan keu pou yon travayè ki otantifye apa; navigatè a pa estoke kalifikasyon founisè yo.",
+          "status": {
+              "disconnected": "Dekonekte",
+              "configured": "Konfigire",
+              "active": "Aktif",
+              "paused": "Poz",
+              "error": "Erè",
+              "pending": "An atant",
+              "sending": "Ap voye",
+              "posted": "Pibliye",
+              "failed": "Echwe",
+              "requires_reconciliation": "Bezwen rekonsilyasyon"
+          }
+        },
         "downloadCsv": "Telechaje CSV",
         "downloadJournalCsv": "Telechaje CSV jounal la",
         "accountingProvider": "Fòma kontablite",

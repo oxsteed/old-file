@@ -121,6 +121,22 @@ async function listIntegrations(client, restaurantId) {
   return rows.map(shapeIntegration);
 }
 
+async function listExports(client, restaurantId, { provider, limit = 50 } = {}) {
+  const normalizedProvider = provider == null || provider === '' ? null : normalizeProvider(provider);
+  const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 50, 1), 100);
+  const { rows } = await client.query(
+    `SELECT e.*
+       FROM restaurant_accounting_exports e
+       JOIN restaurant_accounting_integrations i ON i.id = e.integration_id
+      WHERE e.restaurant_id = $1
+        AND ($2::text IS NULL OR i.provider = $2)
+      ORDER BY e.created_at DESC, e.id DESC
+      LIMIT $3`,
+    [restaurantId, normalizedProvider, safeLimit]
+  );
+  return rows.map(shapeExport);
+}
+
 function mapLines(lines, mapping) {
   const accountMapping = normalizeMapping(mapping);
   const codeByStandard = {
@@ -198,6 +214,6 @@ async function updateExportStatus(client, { restaurantId, exportId, status, exte
 
 module.exports = {
   normalizeProvider, normalizeStatus, normalizeSecretRef, normalizeMapping, normalizeDate, normalizeCurrency,
-  normalizeIdempotencyKey, shapeIntegration, shapeExport, mapLines, upsertIntegration, listIntegrations,
+  normalizeIdempotencyKey, shapeIntegration, shapeExport, mapLines, upsertIntegration, listIntegrations, listExports,
   queueExport, updateExportStatus, DEFAULT_MAPPING,
 };

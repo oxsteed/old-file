@@ -24307,6 +24307,29 @@
         }
       },
       "reports": {
+        "accountingOutbox": {
+          "title": "Accounting integrations",
+          "refresh": "Refresh",
+          "loadError": "Could not load accounting status.",
+          "noIntegrations": "No accounting provider is configured.",
+          "credentialsReady": "credentials ready",
+          "exports": "Recent journal exports",
+          "noExports": "No journal exports have been queued.",
+          "lines": "lines",
+          "providerNote": "Exports are queued for a separately authenticated provider worker; no provider credentials are stored in the browser.",
+          "status": {
+              "disconnected": "Disconnected",
+              "configured": "Configured",
+              "active": "Active",
+              "paused": "Paused",
+              "error": "Error",
+              "pending": "Pending",
+              "sending": "Sending",
+              "posted": "Posted",
+              "failed": "Failed",
+              "requires_reconciliation": "Needs reconciliation"
+          }
+        },
         "downloadCsv": "Download CSV",
         "downloadJournalCsv": "Download journal CSV",
         "accountingProvider": "Accounting format",

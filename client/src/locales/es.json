@@ -24328,6 +24328,29 @@
         }
       },
       "reports": {
+        "accountingOutbox": {
+          "title": "Integraciones contables",
+          "refresh": "Actualizar",
+          "loadError": "No se pudo cargar el estado contable.",
+          "noIntegrations": "No hay ningún proveedor contable configurado.",
+          "credentialsReady": "credenciales listas",
+          "exports": "Exportaciones de diarios recientes",
+          "noExports": "No se han puesto en cola exportaciones.",
+          "lines": "líneas",
+          "providerNote": "Las exportaciones se ponen en cola para un proceso autenticado por separado; el navegador no almacena credenciales.",
+          "status": {
+              "disconnected": "Desconectado",
+              "configured": "Configurado",
+              "active": "Activo",
+              "paused": "Pausado",
+              "error": "Error",
+              "pending": "Pendiente",
+              "sending": "Enviando",
+              "posted": "Publicado",
+              "failed": "Fallido",
+              "requires_reconciliation": "Requiere conciliación"
+          }
+        },
         "downloadCsv": "Descargar CSV",
         "downloadJournalCsv": "Descargar CSV del diario",
         "accountingProvider": "Formato contable",

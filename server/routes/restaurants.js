@@ -166,6 +166,7 @@ router.patch('/:restaurantId/delivery/marketplace-orders/:orderId', requireResta
 router.get('/:restaurantId/hq/rollup', requireRestaurantAccess(), hq.rollup);
 router.post('/:restaurantId/hq/menu/publish', requireRestaurantAccess(), hq.publishMenuOverrides);
 router.get('/:restaurantId/accounting/integrations', requireRestaurantAccess(), accounting.list);
+router.get('/:restaurantId/accounting/exports', requireRestaurantAccess(), accounting.listExports);
 router.put('/:restaurantId/accounting/integrations/:provider', requireRestaurantAccess(), accounting.upsert);
 router.post('/:restaurantId/accounting/integrations/:provider/exports', requireRestaurantAccess(), accounting.queueJournal);
 router.patch('/:restaurantId/accounting/exports/:exportId', requireRestaurantAccess(), accounting.updateExport);

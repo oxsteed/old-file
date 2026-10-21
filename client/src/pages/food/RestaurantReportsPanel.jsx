@@ -9,7 +9,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { moneyMinor } from '../../lib/moneyExact';
 import toast from 'react-hot-toast';
-import { Receipt, Activity } from 'lucide-react';
+import { Receipt, Activity, RefreshCw } from 'lucide-react';
 import EmptyState from '../../components/EmptyState';
 import {
   getSalesReport,
@@ -23,6 +23,8 @@ import {
   getInventoryReport,
   getOperationsReport,
   getLoyaltyReport,
+  listAccountingIntegrations,
+  listAccountingExports,
 } from '../../api/restaurants';
 import { PayrollPanel } from './RestaurantPayrollPanel';
 import { formatFoodMoney } from '../../api/food';
@@ -74,6 +76,30 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
   const [loyalty, setLoyalty] = useState(null);
   const [loyaltyLoading, setLoyaltyLoading] = useState(true);
   const [loyaltyError, setLoyaltyError] = useState(false);
+  const [accountingIntegrations, setAccountingIntegrations] = useState([]);
+  const [accountingExports, setAccountingExports] = useState([]);
+  const [accountingLoading, setAccountingLoading] = useState(true);
+  const [accountingError, setAccountingError] = useState(false);
+
+  const loadAccounting = useCallback(() => {
+    let cancelled = false;
+    setAccountingLoading(true);
+    setAccountingError(false);
+    Promise.all([listAccountingIntegrations(restaurantId), listAccountingExports(restaurantId)])
+      .then(([integrations, exports]) => {
+        if (cancelled) return;
+        setAccountingIntegrations(integrations);
+        setAccountingExports(exports);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        if (err?.response?.status !== 403) setAccountingError(true);
+      })
+      .finally(() => { if (!cancelled) setAccountingLoading(false); });
+    return () => { cancelled = true; };
+  }, [restaurantId]);
+
+  useEffect(() => loadAccounting(), [loadAccounting]);
 
   useEffect(() => {
     let cancelled = false;
@@ -549,6 +575,64 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
   return (
     <div>
       {toolbar(true)}
+
+      <section className="fd-card" aria-labelledby="accounting-outbox-title">
+        <div className="fd-ops-toolbar">
+          <h3 id="accounting-outbox-title" className="fd-ops-subhead">
+            {t('restaurants.ops.reports.accountingOutbox.title', 'Accounting integrations')}
+          </h3>
+          <button
+            type="button"
+            className="fd-btn fd-btn-sm fd-btn-secondary"
+            onClick={loadAccounting}
+            disabled={accountingLoading}
+            aria-label={t('restaurants.ops.reports.accountingOutbox.refresh', 'Refresh accounting status')}
+            data-track="ui.e7f53817fe.13"
+          >
+            <RefreshCw size={14} aria-hidden="true" />
+            {t('restaurants.ops.reports.accountingOutbox.refresh', 'Refresh')}
+          </button>
+        </div>
+        {accountingLoading ? (
+          <div className="fd-empty">{t('food.common.loading', 'Loading…')}</div>
+        ) : accountingError ? (
+          <div className="fd-empty" role="alert">
+            {t('restaurants.ops.reports.accountingOutbox.loadError', 'Could not load accounting status.')}
+          </div>
+        ) : (
+          <>
+            <div className="fd-ops-inventory-list">
+              {accountingIntegrations.length === 0 ? (
+                <div className="fd-card-meta">
+                  {t('restaurants.ops.reports.accountingOutbox.noIntegrations', 'No accounting provider is configured.')}
+                </div>
+              ) : accountingIntegrations.map((integration) => (
+                <div key={integration.id} className="fd-ops-inventory-row">
+                  <span>{integration.provider === 'quickbooks' ? 'QuickBooks' : 'Xero'}</span>
+                  <span className="fd-card-meta">
+                    {t(`restaurants.ops.reports.accountingOutbox.status.${integration.status}`, integration.status)}
+                    {integration.credentialsConfigured ? ` · ${t('restaurants.ops.reports.accountingOutbox.credentialsReady', 'credentials ready')}` : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <h4 className="fd-ops-subhead">{t('restaurants.ops.reports.accountingOutbox.exports', 'Recent journal exports')}</h4>
+            {accountingExports.length === 0 ? (
+              <div className="fd-card-meta">{t('restaurants.ops.reports.accountingOutbox.noExports', 'No journal exports have been queued.')}</div>
+            ) : (
+              <div className="fd-ops-inventory-list">
+                {accountingExports.slice(0, 10).map((item) => (
+                  <div key={item.id} className="fd-ops-inventory-row">
+                    <span>{item.periodFrom} – {item.periodTo} · {item.currencyCode} · {item.lineCount} {t('restaurants.ops.reports.accountingOutbox.lines', 'lines')}</span>
+                    <span className="fd-card-meta">{t(`restaurants.ops.reports.accountingOutbox.status.${item.status}`, item.status)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="fd-card-meta">{t('restaurants.ops.reports.accountingOutbox.providerNote', 'Exports are queued for a separately authenticated provider worker; no provider credentials are stored in the browser.')}</p>
+          </>
+        )}
+      </section>
 
       {/* ── Sales ── */}
       <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.salesTitle', 'Sales')}</h3>
