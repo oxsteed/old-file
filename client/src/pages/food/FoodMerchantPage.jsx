@@ -4,7 +4,7 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useSt
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, Tv, CalendarDays } from 'lucide-react';
+import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, Tv, CalendarDays, CreditCard } from 'lucide-react';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 import api from '../../api/axios';
 import {
@@ -41,6 +41,7 @@ import RestaurantMyShiftPanel from './RestaurantMyShiftPanel';
 import { AuditsPanel } from './RestaurantAuditPanels';
 import { ReportsPanel } from './RestaurantReportsPanel';
 import PrinterSettingsPanel from './PrinterSettingsPanel';
+import GiftCardProductsPanel from './GiftCardProductsPanel';
 import DisplayFleetPanel from './DisplayFleetPanel';
 import RestaurantHostingPanel from './RestaurantHostingPanel';
 import { syncPendingMutations, countPendingMutations, isDeviceOnline } from '../../api/restaurantsOffline';
@@ -1872,6 +1873,17 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
         </SettingsCard>
 
         <PrinterSettingsPanel t={t} restaurant={restaurant} />
+
+        <SettingsCard
+          icon={CreditCard}
+          title={t('giftCards.title')}
+          desc={t('giftCards.desc')}
+          cardKey="gift-cards"
+          registerRef={registerCard}
+          wide
+        >
+          <GiftCardProductsPanel t={t} restaurant={restaurant} />
+        </SettingsCard>
       </div>
     </div>
   );

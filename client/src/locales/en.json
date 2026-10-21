@@ -35643,6 +35643,28 @@
       "blocked": "Sound is blocked. Tap to turn the ready chime back on."
     }
   },
+  "giftCards": {
+    "title": "Gift-card products",
+    "desc": "Create physical and e-gift card SKUs for your menu catalog.",
+    "catalogOnly": "Catalog only: issuing, redeeming, refunds, and provider reconciliation are disabled until the value ledger is enabled.",
+    "sku": "SKU",
+    "name": "Product name",
+    "amount": "Value",
+    "delivery": "Delivery",
+    "physical": "Physical",
+    "eGift": "E-gift",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "add": "Add product",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "empty": "No gift-card products yet.",
+    "saved": "Gift-card product saved.",
+    "loadError": "Could not load gift-card products.",
+    "saveError": "Could not save gift-card product.",
+    "validation": "Enter a SKU, name, and positive value."
+  },
   "printer": {
       "title": "Receipt printer",
       "desc": "Print order receipts on a network ESC/POS printer and kick the cash drawer on cash sales.",

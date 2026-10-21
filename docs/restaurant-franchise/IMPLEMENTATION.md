@@ -241,7 +241,7 @@ unified onboarding/hardware pairing, HQ compliance publishing/rollups and
 end-to-end store acceptance. Allergen label printing is now implemented as a
 manager-only, store-scoped queued printer job; physical label stock and device
 acceptance remain open. Migration 980 adds manager-audited physical/e-gift card
-SKUs as a catalog-only foundation; value issuance, redemption, refunds and
+SKUs as a catalog-only foundation with a localized merchant catalog panel; value issuance, redemption, refunds and
 provider reconciliation remain deliberately disabled until their ledger
 contract is implemented.
 Reservations, table records, floor-plan metadata, seat-state updates, and a
@@ -266,7 +266,7 @@ hardware decisions do not excuse independent software work on these flows.
 - `server`: `npx jest --runInBand --testPathPatterns='foodController|foodOrderValidation' __tests__/foodController.test.js __tests__/foodOrderValidation.test.js` — **45 passed**. Includes the server-enforced allergen exclusion quote check.
 - `server`: `npx jest --runInBand --testPathPatterns='routeScopeGuard' __tests__/routeScopeGuard.test.js` — **10 passed** after adding all host-stand routes.
 - `server`: `npx jest --runInBand __tests__/restaurantPrinterLabels.test.js __tests__/restaurantPrinterSettings.db.test.js` — **3 passed, 13 skipped** without the explicit disposable printer database URL; pure allergen-label rendering passes and the DB suite remains fail-closed.
-- `client`: `npm run verify:i18n` and `npm run build:ci` — **passed** after adding the localized allergen-label printer control; emitted-asset verification covered 1,020 assets.
+- `client`: `npm run verify:i18n`, `node scripts/growthInstrumentation.mjs --check`, and `npm run build:ci` — **passed** after adding the localized allergen-label printer control and gift-card catalog panel; growth coverage is 2,520/2,520 and emitted-asset verification covered 1,020 assets.
 - `server`: `npx jest --runInBand __tests__/restaurantGiftCardController.test.js` and `__tests__/routeScopeGuard.test.js` — **12 passed** across catalog validation and route scope registration.
 - `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **955/955 migrations passed** twice, including migration 980's gift-card product catalog.
 - `client`: `npm run verify:i18n` — **passed** with the host-stand keys present in `en`, `es`, `fr`, `ht`, and `ar`.

@@ -35643,6 +35643,28 @@
       "blocked": "Le son est bloqué. Touchez pour réactiver la sonnerie."
     }
   },
+  "giftCards": {
+    "title": "Produits de cartes-cadeaux",
+    "desc": "Créez des SKU de cartes physiques et électroniques pour le catalogue.",
+    "catalogOnly": "Catalogue seulement : l'émission, l'utilisation, les remboursements et la conciliation du fournisseur sont désactivés jusqu'à l'activation du grand livre de valeur.",
+    "sku": "SKU",
+    "name": "Nom du produit",
+    "amount": "Valeur",
+    "delivery": "Livraison",
+    "physical": "Physique",
+    "eGift": "Électronique",
+    "status": "Statut",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "add": "Ajouter le produit",
+    "activate": "Activer",
+    "deactivate": "Désactiver",
+    "empty": "Aucun produit de carte-cadeau pour le moment.",
+    "saved": "Produit de carte-cadeau enregistré.",
+    "loadError": "Impossible de charger les produits.",
+    "saveError": "Impossible d'enregistrer le produit.",
+    "validation": "Saisissez un SKU, un nom et une valeur positive."
+  },
   "printer": {
       "title": "Imprimante de reçus",
       "desc": "Imprimez les reçus de commande sur une imprimante réseau ESC/POS et ouvrez le tiroir-caisse pour les ventes en espèces.",

@@ -35643,6 +35643,28 @@
       "blocked": "Son an bloke. Peze pou limen sonèt la ankò."
     }
   },
+  "giftCards": {
+    "title": "Pwodwi kat kado",
+    "desc": "Kreye SKU pou kat fizik ak kat kado elektwonik nan katalòg la.",
+    "catalogOnly": "Katalòg sèlman: emisyon, itilizasyon, ranbousman ak rekonsilyasyon founisè yo dezaktive jouk liv valè a aktive.",
+    "sku": "SKU",
+    "name": "Non pwodwi",
+    "amount": "Valè",
+    "delivery": "Livrezon",
+    "physical": "Fizik",
+    "eGift": "Elektwonik",
+    "status": "Estati",
+    "active": "Aktif",
+    "inactive": "Inaktif",
+    "add": "Ajoute pwodwi",
+    "activate": "Aktive",
+    "deactivate": "Dezaktive",
+    "empty": "Pa gen pwodwi kat kado ankò.",
+    "saved": "Pwodwi kat kado a anrejistre.",
+    "loadError": "Pa t kapab chaje pwodwi kat kado yo.",
+    "saveError": "Pa t kapab anrejistre pwodwi a.",
+    "validation": "Antre yon SKU, yon non ak yon valè pozitif."
+  },
   "printer": {
       "title": "Enprimant resi",
       "desc": "Enprime resi kòmand sou yon enprimant rezo ESC/POS epi louvri tiwa lajan an pou vant kach.",
