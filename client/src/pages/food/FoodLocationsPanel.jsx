@@ -49,6 +49,20 @@ function dayHoursFromLocation(location) {
   });
 }
 
+function specialDatesFromLocation(location) {
+  const hours = location && location.operating_hours && typeof location.operating_hours === 'object'
+    ? location.operating_hours
+    : {};
+  const weekly = hours.weekly && typeof hours.weekly === 'object' ? hours.weekly : {};
+  const map = hours.special_dates || hours.specialDates || weekly.special_dates || weekly.specialDates || {};
+  if (!map || typeof map !== 'object') return [];
+  return Object.entries(map).sort(([a], [b]) => a.localeCompare(b)).map(([date, entry]) => {
+    const closed = entry === 'closed' || Boolean(entry && entry.closed);
+    const source = entry && typeof entry === 'object' && entry.ranges ? entry.ranges : entry;
+    return { date, closed, ranges: rangesFromEntry(source) };
+  });
+}
+
 function weekDayLabel(index) {
   // 2026-06-01 is a Monday; weekday names come from the browser locale data.
   const date = new Date(Date.UTC(2026, 5, 1 + index));
@@ -76,6 +90,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
   const [form, setForm] = useState(blankForm);
   const [editingId, setEditingId] = useState(null);
   const [dayHours, setDayHours] = useState(() => WEEKDAY_KEYS.map(() => blankDayHours()));
+  const [specialDates, setSpecialDates] = useState([]);
   const [hoursDirty, setHoursDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
@@ -90,6 +105,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
     setForm(blankForm());
     setEditingId(null);
     setDayHours(WEEKDAY_KEYS.map(() => blankDayHours()));
+    setSpecialDates([]);
     setHoursDirty(false);
   }, [blankForm]);
 
@@ -115,6 +131,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
       prepTimeExtensionMin: loc.prep_time_extension_min == null ? '0' : String(loc.prep_time_extension_min),
     });
     setDayHours(dayHoursFromLocation(loc));
+    setSpecialDates(specialDatesFromLocation(loc));
     setHoursDirty(false);
   };
 
@@ -143,6 +160,28 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
       if (i !== dayIndex || day.ranges.length <= 1) return day;
       return { ...day, ranges: day.ranges.filter((_, j) => j !== rangeIndex) };
     }));
+    setHoursDirty(true);
+  };
+
+  const addSpecialDate = () => {
+    setSpecialDates((current) => [...current, { date: '', closed: false, ranges: [blankRange()] }]);
+    setHoursDirty(true);
+  };
+
+  const updateSpecialDate = (index, patch) => {
+    setSpecialDates((current) => current.map((entry, i) => (i === index ? { ...entry, ...patch } : entry)));
+    setHoursDirty(true);
+  };
+
+  const updateSpecialDateRange = (dateIndex, rangeIndex, patch) => {
+    setSpecialDates((current) => current.map((entry, i) => i === dateIndex
+      ? { ...entry, ranges: entry.ranges.map((range, j) => (j === rangeIndex ? { ...range, ...patch } : range)) }
+      : entry));
+    setHoursDirty(true);
+  };
+
+  const removeSpecialDate = (index) => {
+    setSpecialDates((current) => current.filter((_, i) => i !== index));
     setHoursDirty(true);
   };
 
@@ -178,11 +217,20 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
       const ranges = day.ranges.map((range) => ({ open: range.open, close: range.close }));
       return day.closed ? [key, { closed: true, ranges }] : [key, ranges.length === 1 ? ranges[0] : ranges];
     })),
+    special_dates: Object.fromEntries(specialDates.filter((entry) => entry.date).map((entry) => {
+      const ranges = entry.ranges.map((range) => ({ open: range.open, close: range.close }));
+      return [entry.date, entry.closed ? { closed: true, ranges } : ranges.length === 1 ? ranges[0] : ranges];
+    })),
   });
 
   const submit = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) return;
+    const specialDateKeys = specialDates.map((entry) => entry.date).filter(Boolean);
+    if (new Set(specialDateKeys).size !== specialDateKeys.length) {
+      toast.error(t('food.merchant.specialDateDuplicate'));
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -379,6 +427,30 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
               ))}
             </div>
           ))}
+        </fieldset>
+        <fieldset style={{ border: 'none', padding: 0, margin: '0.75rem 0 0' }}>
+          <legend className="fd-card-meta" style={{ marginBottom: '0.25rem' }}>{t('food.merchant.specialDatesTitle')}</legend>
+          <p className="fd-card-meta" style={{ margin: '0 0 0.5rem' }}>{t('food.merchant.specialDatesHint')}</p>
+          {specialDates.map((entry, index) => (
+            <div key={`${entry.date || 'new'}-${index}`} className="fd-row" style={{ gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+              <label>
+                {t('food.merchant.specialDate')}{' '}
+                <input type="date" aria-label={`${t('food.merchant.specialDate')} ${index + 1}`} value={entry.date} onChange={(e) => updateSpecialDate(index, { date: e.target.value })} />
+              </label>
+              <label>
+                <input type="checkbox" checked={entry.closed} onChange={(e) => updateSpecialDate(index, { closed: e.target.checked })} />{' '}
+                {t('food.merchant.specialDateClosed')}
+              </label>
+              {!entry.closed && entry.ranges.map((range, rangeIndex) => (
+                <span key={`${index}-${rangeIndex}`}>
+                  <label>{t('food.merchant.openTime')}{' '}<input type="time" aria-label={`${t('food.merchant.specialDate')} ${index + 1} ${t('food.merchant.openTime')}`} value={range.open} onChange={(e) => updateSpecialDateRange(index, rangeIndex, { open: e.target.value })} /></label>{' '}
+                  <label>{t('food.merchant.closeTime')}{' '}<input type="time" aria-label={`${t('food.merchant.specialDate')} ${index + 1} ${t('food.merchant.closeTime')}`} value={range.close} onChange={(e) => updateSpecialDateRange(index, rangeIndex, { close: e.target.value })} /></label>
+                </span>
+              ))}
+              <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => removeSpecialDate(index)}>{t('food.merchant.specialDateRemove')}</button>
+            </div>
+          ))}
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={addSpecialDate}>{t('food.merchant.specialDateAdd')}</button>
         </fieldset>
         <div className="fd-row" style={{ gap: '0.75rem', marginTop: '0.75rem' }}>
           <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={resolveCoordinates} disabled={geocoding} data-track="ui.dbbd615872.2">

@@ -33,9 +33,10 @@ adapt to the primary/acting device's store instead of changing the brand menu.
 
 The location editor now preserves legacy single ranges and edits F-10 split-shift
 arrays without collapsing them. Owners can add or remove ranges for each weekday;
-closed days retain their configured ranges for later reopening. The evaluator's
+closed days retain their configured ranges for later reopening. The editor also
+supports dated special-hour overrides, including all-day closures. The evaluator's
 overnight, split-shift, holiday and timezone behavior remains server-owned, while
-the browser check verifies the multi-range save payload and reset behavior.
+the browser check verifies the multi-range and special-date save payloads and reset behavior.
 
 F-05 now exposes a paired-kitchen-device printer queue contract. A device token
 can list, claim and acknowledge only printer jobs assigned to that device's
@@ -129,7 +130,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-07 | Existing local-day net-collected reports, currencies, summary CSV and tender-level journal CSV; this pass adds per-store/currency daily close and multi-day location comparison JSON/CSV/XLSX | Labor and food-cost percentages; accounting-system adapters |
 | F-08 | Existing offline drafts and failure reporting; web POS adds cash-only browser outbox replay with stable order/payment idempotency keys and sequential reconnect processing | In-store hub, Terminal store-and-forward/risk policy, and physical outage acceptance |
 | F-09 | Existing broken split-route adapter | Maintain canonical split guards and populated-db acceptance |
-| F-10 | Existing overnight/split-shift/holiday/timezone evaluator; this pass adds a multi-range location editor | Scheduling/device acceptance and special-date editing |
+| F-10 | Existing overnight/split-shift/holiday/timezone evaluator; this pass adds a multi-range and dated special-hours location editor | Scheduling/device acceptance and populated-store special-date acceptance |
 | F-11 | Existing dayparts and scheduled fire filtering | Verify all scheduling paths and store-selected quote/submit invariants |
 | F-12 | Existing onboarding fulfillment defaults | End-to-end first-store POS acceptance |
 | F-13 | Existing table-name aliases | Device/counter/kitchen contract acceptance |
@@ -172,7 +173,7 @@ hardware decisions do not excuse independent software work on these flows.
 - `server`: `npx jest --runInBand --testPathPatterns='restaurantStoreMenu|restaurantAppFlow|foodController|foodOrderValidation|routeScopeGuard'` — **127 passed**.
 - `server`: `npx jest --runInBand --testPathPatterns='restaurantAppFlow' __tests__/restaurantAppFlow.test.js` — **52 passed**. The device printer queue check verifies token-authenticated kitchen access and location-scoped query parameters.
 - `client`: `node --test scripts/restaurantRender.browser-check.cjs scripts/restaurantCheckoutCard.browser-check.cjs scripts/restaurantStoreMenu.browser-check.cjs` — **3 passed**. The new store-menu check covers save/reset payloads, English/French/Arabic labels, RTL direction, narrow widths, and form labels.
-- `client`: `node --test scripts/restaurantLocationHours.browser-check.cjs` — **1 passed**. The location-hours check loads a legacy multi-range day, adds a third range, verifies the exact split-shift payload, and confirms the form resets.
+- `client`: `node --test scripts/restaurantLocationHours.browser-check.cjs` — **1 passed**. The location-hours check loads a legacy multi-range day, preserves an all-day special closure, adds a dated one-off range, verifies the exact payload, and confirms the form resets.
 - `server`: `npx jest --runInBand --testPathPatterns='restaurantHosting' __tests__/restaurantHosting.test.js` — **5 passed**. Covers location-scoped table conflict detection, reservation idempotency, final-window validation, waitlist SMS acknowledgement, and floor-plan position updates.
 - `server`: `npx jest --runInBand --testPathPatterns='restaurantReportsController' __tests__/restaurantReportsController.test.js` — **13 passed**. Covers per-store/currency daily close, multi-day location comparison in JSON, CSV, and XLSX, plus assigned-member filtering with a parameterized store predicate.
 - `server`: `npx jest --runInBand __tests__/restaurantLocationAccess.test.js __tests__/restaurantStoreMenu.test.js __tests__/routeScopeGuard.test.js` — **38 passed**. Covers tenant-checked assignment replacement/clear, sibling-store denial, store-menu enforcement, and route scope registration.
