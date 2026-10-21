@@ -58,6 +58,7 @@ function buildApp(userId = USER_ID) {
   app.get('/api/restaurants/:restaurantId/kitchen/prep-device-config', appFlow.getPrepDeviceConfig);
   app.patch('/api/restaurants/:restaurantId/kitchen/prep-device-config', appFlow.updatePrepDeviceConfig);
   app.post('/api/restaurants/:restaurantId/devices/pairing-codes', appFlow.createDevicePairingCode);
+  app.get('/api/restaurants/:restaurantId/devices', appFlow.listRestaurantDevices);
   app.post('/api/restaurants/:restaurantId/devices/:deviceId/rotate-token', appFlow.rotateDeviceToken);
   app.get('/api/restaurants/:restaurantId/devices/:deviceId/runtime-config', appFlow.getDeviceRuntimeConfig);
   app.post('/api/restaurants/:restaurantId/devices/:deviceId/heartbeat', appFlow.deviceHeartbeat);
@@ -550,6 +551,38 @@ describe('restaurant app-flow backend', () => {
     expect(configRes.body.device.location.id).toBe(77);
     expect(configRes.body.contract.routes.runtimeConfig).toBe('/api/restaurants/3/devices/801/runtime-config');
     expect(configRes.body.contract.routes.queueBoard).toBe('/api/restaurants/3/devices/801/queue-board');
+  });
+
+  test('returns a unified device fleet view across app and legacy display pairings', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 801,
+        restaurant_id: RESTAURANT_ID,
+        app_key: 'kitchen',
+        device_name: 'Expo KDS',
+        location_id: 77,
+        status: 'paired',
+        config: {},
+        last_seen_at: null,
+        config_version: 2,
+      }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 901,
+        restaurant_id: RESTAURANT_ID,
+        location_id: 77,
+        label: 'Dining room TV',
+        device_role: 'queue_board',
+        paired_at: new Date().toISOString(),
+        last_seen_at: null,
+      }] });
+
+    const res = await request(buildApp()).get(`/api/restaurants/${RESTAURANT_ID}/devices`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.version).toBe(1);
+    expect(res.body.devices.map((device) => device.canonicalId)).toEqual(['app:801', 'display:901']);
+    expect(res.body.devices[1]).toMatchObject({ source: 'display_pairings', appKey: 'display', deviceRole: 'queue_board' });
   });
 
   test('rotates a paired device token for a restaurant manager', async () => {

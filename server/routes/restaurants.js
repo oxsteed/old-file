@@ -197,6 +197,7 @@ router.post('/:restaurantId/waitlist/:entryId/notify', requireRestaurantAccess()
 
 // Display / kiosk / device pairing
 router.post('/:restaurantId/devices/pairing-codes', authenticatedLimiter, requireRestaurantAccess(), appFlow.createDevicePairingCode);
+router.get('/:restaurantId/devices', requireRestaurantAccess(), appFlow.listRestaurantDevices);
 router.post('/:restaurantId/devices/:deviceId/rotate-token', strictLimiter, requireRestaurantAccess(), appFlow.rotateDeviceToken);
 router.get('/:restaurantId/devices/:deviceId/config', requireRestaurantAccess(), appFlow.getDeviceConfig);
 router.patch('/:restaurantId/devices/:deviceId', requireRestaurantAccess(), appFlow.updateDeviceConfig);

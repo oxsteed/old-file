@@ -3280,6 +3280,68 @@ exports.getDeviceConfig = async (req, res, next) => {
   }
 };
 
+// F-26: expose one read model for the device fleet while legacy display
+// pairing tokens and managed-screen credentials remain valid during the
+// migration.  Callers can render one fleet view without knowing which
+// credential store owns a device.
+exports.listRestaurantDevices = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const [{ rows: appDevices }, { rows: displayPairings }] = await Promise.all([
+      pool.query(
+        `SELECT id, restaurant_id, app_key, device_name, mode, location_id,
+                status, config, last_seen_at, created_at, updated_at,
+                paired_at, device_token_expires_at, config_version
+           FROM restaurant_app_devices
+          WHERE restaurant_id = $1
+          ORDER BY updated_at DESC, id DESC`,
+        [restaurantId]
+      ),
+      pool.query(
+        `SELECT id, restaurant_id, location_id, label, device_role, paired_at,
+                last_seen_at, pairing_token_expires_at, created_at
+           FROM display_pairings
+          WHERE restaurant_id = $1
+          ORDER BY created_at DESC, id DESC`,
+        [restaurantId]
+      ),
+    ]);
+    const devices = [
+      ...appDevices.map((device) => ({
+        ...publicDevice(device),
+        canonicalId: `app:${device.id}`,
+        source: 'restaurant_app_devices',
+        capabilities: [device.app_key],
+      })),
+      ...displayPairings.map((pairing) => ({
+        id: Number(pairing.id),
+        canonicalId: `display:${pairing.id}`,
+        source: 'display_pairings',
+        restaurantId: Number(pairing.restaurant_id),
+        locationId: pairing.location_id == null ? null : Number(pairing.location_id),
+        deviceName: pairing.label || `Display ${pairing.id}`,
+        appKey: 'display',
+        deviceRole: pairing.device_role || DEFAULT_DEVICE_ROLE,
+        status: pairing.paired_at ? 'paired' : 'pending',
+        pairedAt: pairing.paired_at,
+        lastSeenAt: pairing.last_seen_at,
+        tokenExpiresAt: pairing.pairing_token_expires_at || null,
+        createdAt: pairing.created_at,
+        capabilities: [pairing.device_role || DEFAULT_DEVICE_ROLE],
+      })),
+    ];
+    res.json({
+      version: 1,
+      devices,
+      sources: ['restaurant_app_devices', 'display_pairings'],
+      serverTime: new Date().toISOString(),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.getDeviceQueueBoard = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
