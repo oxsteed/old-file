@@ -3,13 +3,13 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const permissionsService = require('../services/permissionsService');
 const { listSettlements } = require('../services/oxsteedCreditAdminService');
 const {
   getPartnerLedger,
   listPartnerFundingRecords,
 } = require('../services/oxsteedCreditPartnerLedgerService');
 
-const MANAGE_ROLES = new Set(['owner', 'manager']);
 const MAX_PARTNER_CREDIT_EXPORT_ROWS = 5000;
 
 function csvCell(value) {
@@ -52,10 +52,11 @@ function parseRestaurantId(value) {
 }
 
 // Canonical restaurant gate (scope report Area 4): same ownership CASE and 404
-// as the former local query; the owner/manager policy stays here.
+// as the former local query; the credit.manage policy stays here.
 async function requireRestaurantManager(userId, restaurantId) {
   const restaurant = await resolveRestaurantAccess(userId, restaurantId);
-  if (!MANAGE_ROLES.has(restaurant.effective_role)) throw new AppError('Owner or manager access required', 403, 'forbidden');
+  const allowed = await permissionsService.hasRestaurantPermission(restaurant, userId, ['credit.manage']);
+  if (!allowed) throw new AppError('Credit partner management permission required', 403, 'forbidden');
   return restaurant;
 }
 

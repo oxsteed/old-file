@@ -4,9 +4,13 @@ jest.mock('../db', () => ({ query: jest.fn() }));
 jest.mock('../services/oxsteedCreditAdminService', () => ({
   listSettlements: jest.fn(),
 }));
+jest.mock('../services/permissionsService', () => ({
+  hasRestaurantPermission: jest.fn(),
+}));
 
 const pool = require('../db');
 const { listSettlements } = require('../services/oxsteedCreditAdminService');
+const { hasRestaurantPermission } = require('../services/permissionsService');
 const controller = require('../controllers/oxsteedCreditPartnerController');
 
 function buildResponse() {
@@ -21,18 +25,25 @@ describe('OxSteed Credit partner controller authorization', () => {
   beforeEach(() => {
     pool.query.mockReset();
     listSettlements.mockReset();
+    hasRestaurantPermission.mockReset().mockResolvedValue(true);
   });
 
   test('rejects a restaurant member without owner or manager role', async () => {
     const req = { user: { id: 'staff-1' }, params: { restaurantId: '42' }, query: {} };
     const res = buildResponse();
     const next = jest.fn();
+    hasRestaurantPermission.mockResolvedValue(false);
     pool.query.mockResolvedValueOnce({ rows: [{ id: 42, effective_role: 'staff' }] });
 
     await controller.listPartnerTransactions(req, res, next);
 
     expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'forbidden', status: 403 }));
     expect(pool.query).toHaveBeenCalledTimes(1);
+    expect(hasRestaurantPermission).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 42 }),
+      'staff-1',
+      ['credit.manage']
+    );
     expect(res.json).not.toHaveBeenCalled();
   });
 
