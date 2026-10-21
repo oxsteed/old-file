@@ -28,6 +28,7 @@ const permissionsService = require('../services/permissionsService');
 const { validatePrinterHost } = require('../utils/printerHostValidation');
 const escpos = require('../services/escposPrinter');
 const restaurantLocationService = require('../services/restaurantLocationService');
+const { logBusinessAction } = require('../services/businessAuditLog');
 
 // Direct server-side dialing is an explicit operator opt-in for trusted
 // single-host deployments. Off by default everywhere, production included.
@@ -257,6 +258,7 @@ exports.updatePrinterSettings = async (req, res, next) => {
     const host = normalizeHost(body.host);
     const port = normalizePort(body.port);
     const drawerKickOnCash = body.drawerKickOnCash !== false && body.drawer_kick_on_cash !== false;
+    const previous = await loadSettings(restaurantId);
 
     if (enabled && !host) {
       throw new AppError('A printer host is required when printing is enabled', 400, 'validation_failed');
@@ -282,6 +284,15 @@ exports.updatePrinterSettings = async (req, res, next) => {
        RETURNING id, restaurant_id, host, port, enabled, drawer_kick_on_cash, updated_at`,
       [restaurantId, validatedHost, port, enabled, drawerKickOnCash]
     );
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      action: 'restaurant.printer_settings.updated',
+      target_type: 'restaurant_printer_settings',
+      target_id: saved.id,
+      before_state: settingsShape(previous),
+      after_state: settingsShape(saved),
+      metadata: { restaurant_id: restaurantId },
+    });
     res.json({ settings: settingsShape(saved) });
   } catch (err) {
     next(err);

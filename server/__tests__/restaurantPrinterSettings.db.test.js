@@ -238,6 +238,17 @@ ddescribe('restaurant_printer_settings (migration 912)', () => {
     expect(putRes2.payload.settings.enabled).toBe(false);
     const { rows } = await pool.query('SELECT count(*)::int AS n FROM restaurant_printer_settings WHERE restaurant_id = $1', [fx.restaurantId]);
     expect(rows[0].n).toBe(1);
+    const { rows: audits } = await pool.query(
+      `SELECT action, target_type, before_state, after_state
+         FROM business_audit_log
+        WHERE business_id = $1 AND action = 'restaurant.printer_settings.updated'
+        ORDER BY id ASC`,
+      [fx.businessId]
+    );
+    expect(audits.length).toBeGreaterThanOrEqual(2);
+    expect(audits.at(-1).target_type).toBe('restaurant_printer_settings');
+    expect(audits.at(-1).before_state.enabled).toBe(true);
+    expect(audits.at(-1).after_state.enabled).toBe(false);
   });
 
   test('PUT is forbidden for non-managers', async () => {
