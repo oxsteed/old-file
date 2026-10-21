@@ -78,6 +78,17 @@ exports.ingestOrder = async (req, res, next) => {
       totalCents: req.body?.totalCents ?? req.body?.total_cents,
       payload: req.body?.payload && typeof req.body.payload === 'object' && !Array.isArray(req.body.payload) ? req.body.payload : {},
     }), 'restaurant_delivery_marketplace_order');
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role,
+      action: 'restaurant.delivery_marketplace.order_ingested',
+      target_type: 'restaurant_delivery_marketplace_order',
+      target_id: result.order.id,
+      before_state: {},
+      after_state: { id: result.order.id, status: result.order.status, total_cents: result.order.total_cents, currency_code: result.order.currency_code },
+      metadata: { provider: req.params.provider, external_order_id: result.order.external_order_id, replayed: result.replayed },
+      throwOnError: true,
+    });
     res.status(result.replayed ? 200 : 202).json({ order: { id: Number(result.order.id), status: result.order.status, externalOrderId: result.order.external_order_id, totalCents: Number(result.order.total_cents), currencyCode: result.order.currency_code }, replayed: result.replayed });
   } catch (err) { next(err); }
 };
@@ -85,9 +96,26 @@ exports.ingestOrder = async (req, res, next) => {
 exports.transitionOrder = async (req, res, next) => {
   try {
     const restaurant = await access(req);
+    const orderId = positiveId(req.params.orderId, 'orderId');
+    const { rows: [before] } = await pool.query(
+      'SELECT id, status, total_cents, currency_code, external_order_id FROM restaurant_delivery_marketplace_orders WHERE id = $1 AND restaurant_id = $2',
+      [orderId, restaurant.id]
+    );
+    if (!before) throw new AppError('Delivery marketplace order not found', 404, 'delivery_order_not_found');
     const order = await withTransaction(pool, (client) => marketplace.transitionOrder(client, {
-      restaurantId: restaurant.id, orderId: positiveId(req.params.orderId, 'orderId'), status: req.body?.status,
+      restaurantId: restaurant.id, orderId, status: req.body?.status,
     }), 'restaurant_delivery_marketplace_transition');
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role,
+      action: 'restaurant.delivery_marketplace.order_transitioned',
+      target_type: 'restaurant_delivery_marketplace_order',
+      target_id: order.id,
+      before_state: before,
+      after_state: { id: order.id, status: order.status, total_cents: order.total_cents, currency_code: order.currency_code, external_order_id: order.external_order_id },
+      metadata: { requested_status: req.body?.status },
+      throwOnError: true,
+    });
     res.json({ order: { id: Number(order.id), status: order.status, externalOrderId: order.external_order_id } });
   } catch (err) { next(err); }
 };

@@ -233,8 +233,24 @@ exports.deleteSegment = async (req, res, next) => {
     const restaurant = await access(req);
     const id = positiveInt(req.params.segmentId, 'segmentId', { allowZero: false });
     if (!id) throw new AppError('Segment not found', 404, 'loyalty_segment_not_found');
+    const { rows: [before] } = await pool.query(
+      'SELECT * FROM restaurant_loyalty_segments WHERE id = $1 AND restaurant_id = $2',
+      [id, restaurant.id]
+    );
+    if (!before) throw new AppError('Segment not found', 404, 'loyalty_segment_not_found');
     const result = await pool.query('DELETE FROM restaurant_loyalty_segments WHERE id = $1 AND restaurant_id = $2', [id, restaurant.id]);
     if (!result.rowCount) throw new AppError('Segment not found', 404, 'loyalty_segment_not_found');
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role,
+      action: 'restaurant.loyalty_segment.deleted',
+      target_type: 'restaurant_loyalty_segment',
+      target_id: id,
+      before_state: before,
+      after_state: {},
+      metadata: {},
+      throwOnError: true,
+    });
     res.status(204).end();
   } catch (err) { next(err); }
 };

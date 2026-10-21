@@ -234,6 +234,8 @@ exports.issueValue = async (req, res, next) => {
         ? req.body.metadata : {},
       expiresAt: req.body?.expiresAt ?? req.body?.expires_at ?? null,
     }), 'gift_card_issue');
+    const auditCard = { ...result.card };
+    delete auditCard.code;
     await logBusinessAction(req, {
       business_id: restaurant.business_id,
       actor_role: restaurant.effective_role,
@@ -241,7 +243,7 @@ exports.issueValue = async (req, res, next) => {
       target_type: 'restaurant_gift_card',
       target_id: result.card.id,
       before_state: {},
-      after_state: result.card,
+      after_state: auditCard,
       metadata: { replayed: result.replayed, value_provider: 'internal_ledger' },
       throwOnError: true,
     });
@@ -280,6 +282,17 @@ exports.redeemValue = async (req, res, next) => {
       foodOrderId: orderId,
       metadata: { source: 'merchant_gift_card_redeem' },
     }), 'gift_card_redeem');
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role,
+      action: 'restaurant.gift_card.redeemed',
+      target_type: 'restaurant_gift_card',
+      target_id: result.card.id,
+      before_state: { balance_cents: Number(result.ledger.balance_before_cents), status: 'active' },
+      after_state: result.card,
+      metadata: { ledger_id: result.ledger.id, replayed: result.replayed, food_order_id: orderId },
+      throwOnError: true,
+    });
     res.status(result.replayed ? 200 : 201).json({
       card: result.card,
       ledger: { id: result.ledger.id, eventType: result.ledger.event_type, deltaCents: Number(result.ledger.delta_cents) },
@@ -304,6 +317,17 @@ exports.refundValue = async (req, res, next) => {
       eventType: 'refund',
       originalLedgerId: req.body?.originalLedgerId ?? req.body?.original_ledger_id ?? null,
     }), 'gift_card_refund');
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role,
+      action: 'restaurant.gift_card.refunded',
+      target_type: 'restaurant_gift_card',
+      target_id: result.card.id,
+      before_state: { balance_cents: Number(result.ledger.balance_before_cents), status: 'active' },
+      after_state: result.card,
+      metadata: { ledger_id: result.ledger.id, replayed: result.replayed, original_ledger_id: req.body?.originalLedgerId ?? req.body?.original_ledger_id ?? null },
+      throwOnError: true,
+    });
     res.status(result.replayed ? 200 : 201).json({
       card: result.card,
       ledger: { id: result.ledger.id, eventType: result.ledger.event_type, deltaCents: Number(result.ledger.delta_cents) },
