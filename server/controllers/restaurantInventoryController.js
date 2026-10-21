@@ -71,8 +71,9 @@ async function requireRestaurantAccess(userId, restaurantId) {
 }
 
 function locationScopeClause(scope, alias, parameterIndex) {
+  const locationColumn = alias ? `${alias}.location_id` : 'location_id';
   return scope?.mode === 'assigned'
-    ? { sql: ` AND ${alias}.location_id = ANY($${parameterIndex}::bigint[])`, values: [scope.location_ids] }
+    ? { sql: ` AND ${locationColumn} = ANY($${parameterIndex}::bigint[])`, values: [scope.location_ids] }
     : { sql: '', values: [] };
 }
 
@@ -545,15 +546,16 @@ exports.listPurchaseRequests = async (req, res, next) => {
     await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
     const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 50, 1), 100);
     const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
+    const scope = locationScopeClause(restaurant.locationScope, 'r', 2);
 
     const { rows } = await pool.query(
       `SELECT r.*, NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), '') AS requested_by_name
          FROM restaurant_inventory_purchase_requests r
          LEFT JOIN users u ON u.id = r.requested_by
-        WHERE r.restaurant_id = $1
+        WHERE r.restaurant_id = $1${scope.sql}
         ORDER BY r.created_at DESC
-        LIMIT $2 OFFSET $3`,
-      [restaurantId, limit, offset]
+        LIMIT $${scope.mode === 'assigned' ? 3 : 2} OFFSET $${scope.mode === 'assigned' ? 4 : 3}`,
+      [restaurantId, ...scope.values, limit, offset]
     );
     res.json({ requests: rows, limit, offset });
   } catch (err) {
@@ -587,13 +589,18 @@ exports.createPurchaseRequest = async (req, res, next) => {
         );
         if (existing) return { request: existing, replayed: true };
       }
+      const requestLocationId = await restaurantLocationService.resolveLocationId(client, {
+        restaurantId,
+        requestedLocationId: parsePositiveInt(req.body.locationId || req.body.location_id),
+      });
+      await assertExistingItemLocationAccess(restaurant, req.user.id, requestLocationId, client);
       const { rows: [request] } = await client.query(
         `INSERT INTO restaurant_inventory_purchase_requests
-           (restaurant_id, item_name, requested_quantity, unit, supplier_name, status,
+           (restaurant_id, location_id, item_name, requested_quantity, unit, supplier_name, status,
             eta_window, note, requested_by, estimated_cost, urgency, client_operation_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
          RETURNING *`,
-        [restaurantId, itemName, requestedQuantity, normalizeString(req.body.unit, 24) || 'units',
+        [restaurantId, requestLocationId, itemName, requestedQuantity, normalizeString(req.body.unit, 24) || 'units',
           normalizeString(req.body.supplierName, 160), status, normalizeString(req.body.etaWindow, 80),
           normalizeString(req.body.note, 1000), req.user.id, estimatedCost, urgency, clientOperationId]
       );
@@ -643,13 +650,14 @@ exports.updatePurchaseRequest = async (req, res, next) => {
     if (req.body.urgency !== undefined && URGENCY_LEVELS.includes(req.body.urgency)) { sets.push(`urgency = $${i++}`); vals.push(req.body.urgency); }
     if (!sets.length) throw new AppError('No updatable fields provided', 400, 'validation_failed', { body: 'No updatable fields provided' });
     sets.push('updated_at = NOW()');
+    const scope = locationScopeClause(restaurant.locationScope, '', i + 2);
 
     const request = await withTransaction(pool, async (client) => {
       const { rows: [updated] } = await client.query(
         `UPDATE restaurant_inventory_purchase_requests SET ${sets.join(', ')}
-          WHERE id = $${i++} AND restaurant_id = $${i}
+          WHERE id = $${i++} AND restaurant_id = $${i}${scope.sql}
           RETURNING *`,
-        [...vals, requestId, restaurantId]
+        [...vals, requestId, restaurantId, ...scope.values]
       );
       if (!updated) throw new AppError('Purchase request not found', 404, 'purchase_request_not_found');
       await logInventoryAudit(client, auditEntry(restaurant, 'purchase_request_updated', 'purchase_request', updated.id, req, {
@@ -673,15 +681,16 @@ exports.listSupplierIssues = async (req, res, next) => {
     await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
     const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 50, 1), 100);
     const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
+    const scope = locationScopeClause(restaurant.locationScope, 'i', 2);
 
     const { rows } = await pool.query(
       `SELECT i.*, NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), '') AS reported_by_name
          FROM restaurant_inventory_supplier_issues i
          LEFT JOIN users u ON u.id = i.reported_by
-        WHERE i.restaurant_id = $1
+        WHERE i.restaurant_id = $1${scope.sql}
         ORDER BY i.created_at DESC
-        LIMIT $2 OFFSET $3`,
-      [restaurantId, limit, offset]
+        LIMIT $${scope.mode === 'assigned' ? 3 : 2} OFFSET $${scope.mode === 'assigned' ? 4 : 3}`,
+      [restaurantId, ...scope.values, limit, offset]
     );
     res.json({ issues: rows, limit, offset });
   } catch (err) {
@@ -725,13 +734,18 @@ exports.createSupplierIssue = async (req, res, next) => {
         );
         if (existing) return { issue: existing, replayed: true };
       }
+      const issueLocationId = await restaurantLocationService.resolveLocationId(client, {
+        restaurantId,
+        requestedLocationId: parsePositiveInt(req.body.locationId || req.body.location_id),
+      });
+      await assertExistingItemLocationAccess(restaurant, req.user.id, issueLocationId, client);
       const { rows: [issueRow] } = await client.query(
         `INSERT INTO restaurant_inventory_supplier_issues
-           (restaurant_id, supplier_name, issue, status, related_purchase_request_id,
+           (restaurant_id, location_id, supplier_name, issue, status, related_purchase_request_id,
             reported_by, issue_type, delivery_reference, affected_item_names, client_operation_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11)
          RETURNING *`,
-        [restaurantId, supplierName, issue, status, relatedPurchaseRequestId, req.user.id,
+        [restaurantId, issueLocationId, supplierName, issue, status, relatedPurchaseRequestId, req.user.id,
           issueType, normalizeString(req.body.deliveryReference, 120), JSON.stringify(affectedItemNames), clientOperationId]
       );
       await logInventoryAudit(client, auditEntry(restaurant, 'supplier_issue_created', 'supplier_issue', issueRow.id, req, {
@@ -791,13 +805,14 @@ exports.updateSupplierIssue = async (req, res, next) => {
     }
     if (!sets.length) throw new AppError('No updatable fields provided', 400, 'validation_failed', { body: 'No updatable fields provided' });
     sets.push('updated_at = NOW()');
+    const scope = locationScopeClause(restaurant.locationScope, '', i + 2);
 
     const issueRow = await withTransaction(pool, async (client) => {
       const { rows: [updated] } = await client.query(
         `UPDATE restaurant_inventory_supplier_issues SET ${sets.join(', ')}
-          WHERE id = $${i++} AND restaurant_id = $${i}
+          WHERE id = $${i++} AND restaurant_id = $${i}${scope.sql}
           RETURNING *`,
-        [...vals, issueId, restaurantId]
+        [...vals, issueId, restaurantId, ...scope.values]
       );
       if (!updated) throw new AppError('Supplier issue not found', 404, 'supplier_issue_not_found');
       await logInventoryAudit(client, auditEntry(restaurant, 'supplier_issue_updated', 'supplier_issue', updated.id, req, {
