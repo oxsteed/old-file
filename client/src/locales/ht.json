@@ -23864,6 +23864,7 @@
     "ops": {
       "title": "Operasyon",
       "subtitle": "Jere restoran ou ak sistèm nivo franchiz.",
+      "hosting": {"title": "Resepsyon", "subtitle": "Jere tab, rezèvasyon ak moun ki vini san rezèvasyon.", "tablesTitle": "Tab", "reservationsTitle": "Rezèvasyon", "waitlistTitle": "Lis datant", "tableName": "Non tab", "capacity": "Kapasite", "section": "Seksyon", "addTable": "Ajoute tab", "guestName": "Non kliyan", "phone": "Telefòn", "partySize": "Gwosè gwoup", "table": "Tab", "anyTable": "Nenpòt tab", "startsAt": "Kòmanse", "endsAt": "Fini", "addReservation": "Ajoute rezèvasyon", "reservationStatus": "Estati rezèvasyon", "confirmed": "Konfime", "seated": "Chita", "completed": "Fini", "cancelled": "Anile", "quotedWait": "Datant estime (minit)", "addToWaitlist": "Ajoute nan lis", "notify": "Notifye", "seat": "Fè chita", "loadError": "Pa t kapab chaje resepsyon an", "saveError": "Pa t kapab sove", "smsError": "Pa t kapab voye SMS la"},
       "comingSoon": "Ap vini talè",
       "opAtAGlance": "Yon ti gade",
       "opChipChecklists": "{{count}} lis verifikasyon",

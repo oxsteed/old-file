@@ -4,7 +4,7 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useSt
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, Tv } from 'lucide-react';
+import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, Tv, CalendarDays } from 'lucide-react';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 import api from '../../api/axios';
 import {
@@ -42,6 +42,7 @@ import { AuditsPanel } from './RestaurantAuditPanels';
 import { ReportsPanel } from './RestaurantReportsPanel';
 import PrinterSettingsPanel from './PrinterSettingsPanel';
 import DisplayFleetPanel from './DisplayFleetPanel';
+import RestaurantHostingPanel from './RestaurantHostingPanel';
 import { syncPendingMutations, countPendingMutations, isDeviceOnline } from '../../api/restaurantsOffline';
 import PageShell from '../../components/PageShell';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
@@ -2027,6 +2028,19 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
       </div>
 
       <div className="fd-settings-grid">
+        {canManageRestaurant && (
+          <SettingsCard
+            icon={CalendarDays}
+            title={t('restaurants.ops.hosting.title', 'Host stand')}
+            desc={t('restaurants.ops.hosting.subtitle', 'Manage tables, reservations, and walk-ins for this restaurant.')}
+            cardKey="hosting"
+            registerRef={registerCard}
+            wide
+          >
+            <RestaurantHostingPanel t={t} restaurant={restaurant} />
+          </SettingsCard>
+        )}
+
         {canManageRestaurant && (
           <SettingsCard
             icon={ClipboardCheck}

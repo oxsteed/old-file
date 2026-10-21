@@ -23875,6 +23875,7 @@
     "ops": {
       "title": "العمليات",
       "subtitle": "أدِر مطعمك بأنظمة بمستوى الامتياز.",
+      "hosting": {"title": "الاستقبال", "subtitle": "أدر الطاولات والحجوزات والزوار دون حجز.", "tablesTitle": "الطاولات", "reservationsTitle": "الحجوزات", "waitlistTitle": "قائمة الانتظار", "tableName": "اسم الطاولة", "capacity": "السعة", "section": "القسم", "addTable": "إضافة طاولة", "guestName": "اسم الضيف", "phone": "الهاتف", "partySize": "حجم المجموعة", "table": "الطاولة", "anyTable": "أي طاولة", "startsAt": "البداية", "endsAt": "النهاية", "addReservation": "إضافة حجز", "reservationStatus": "حالة الحجز", "confirmed": "مؤكد", "seated": "تم الجلوس", "completed": "مكتمل", "cancelled": "ملغى", "quotedWait": "الانتظار المقدر (بالدقائق)", "addToWaitlist": "إضافة إلى القائمة", "notify": "إخطار", "seat": "إجلاس", "loadError": "تعذر تحميل الاستقبال", "saveError": "تعذر الحفظ", "smsError": "تعذر إرسال الرسالة النصية"},
       "comingSoon": "قريبًا",
       "opAtAGlance": "نظرة سريعة",
       "opChipChecklists": "{{count}} قوائم تحقق",

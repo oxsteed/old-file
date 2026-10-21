@@ -23864,6 +23864,7 @@
     "ops": {
       "title": "Operations",
       "subtitle": "Run your restaurant with franchise-grade systems.",
+      "hosting": {"title": "Host stand", "subtitle": "Manage tables, reservations, and walk-ins for this restaurant.", "tablesTitle": "Tables", "reservationsTitle": "Reservations", "waitlistTitle": "Walk-in waitlist", "tableName": "Table name", "capacity": "Capacity", "section": "Section", "addTable": "Add table", "guestName": "Guest name", "phone": "Phone", "partySize": "Party size", "table": "Table", "anyTable": "Any table", "startsAt": "Starts", "endsAt": "Ends", "addReservation": "Add reservation", "reservationStatus": "Reservation status", "confirmed": "Confirmed", "seated": "Seated", "completed": "Completed", "cancelled": "Cancelled", "quotedWait": "Quoted wait (minutes)", "addToWaitlist": "Add to waitlist", "notify": "Notify", "seat": "Seat", "loadError": "Could not load host stand", "saveError": "Could not save", "smsError": "Could not send SMS"},
       "comingSoon": "Coming next",
       "opAtAGlance": "At a glance",
       "opChipChecklists": "{{count}} checklists",

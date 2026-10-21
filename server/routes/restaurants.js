@@ -36,6 +36,7 @@ const enforceUploadQuota = require('../middleware/uploadQuota');
 const { authenticatedLimiter, strictLimiter, generalLimiter } = require('../middleware/rateLimiter');
 const media = require('../controllers/restaurantMediaController');
 const { requireKitchenDeviceOrStaff } = require('../controllers/restaurantDisplayController');
+const hosting = require('../controllers/restaurantHostingController');
 
 // Managed appliances authenticate with their scoped device credential.
 router.post('/:restaurantId/devices/:deviceId/screen-orders', strictLimiter, scopeExempt('device-credential'), screens.createOrder);
@@ -144,6 +145,20 @@ router.patch('/:restaurantId/locations/:locationId', requireRestaurantAccess(), 
 const storeMenu = require('../controllers/restaurantStoreMenuController');
 router.get('/:restaurantId/locations/:locationId/menu', requireRestaurantAccess(), storeMenu.list);
 router.patch('/:restaurantId/locations/:locationId/menu-items/:itemId', requireRestaurantAccess(), storeMenu.update);
+
+// Host stand: location-scoped floor plan, reservations, and walk-in queue.
+// Every handler still resolves the effective restaurant permission in the
+// controller; the route gate provides the canonical tenant boundary.
+router.get('/:restaurantId/tables', requireRestaurantAccess(), hosting.listTables);
+router.post('/:restaurantId/tables', requireRestaurantAccess(), hosting.createTable);
+router.patch('/:restaurantId/tables/:tableId', requireRestaurantAccess(), hosting.updateTable);
+router.get('/:restaurantId/reservations', requireRestaurantAccess(), hosting.listReservations);
+router.post('/:restaurantId/reservations', requireRestaurantAccess(), hosting.createReservation);
+router.patch('/:restaurantId/reservations/:reservationId', requireRestaurantAccess(), hosting.updateReservation);
+router.get('/:restaurantId/waitlist', requireRestaurantAccess(), hosting.listWaitlist);
+router.post('/:restaurantId/waitlist', requireRestaurantAccess(), hosting.createWaitlistEntry);
+router.patch('/:restaurantId/waitlist/:entryId', requireRestaurantAccess(), hosting.updateWaitlistEntry);
+router.post('/:restaurantId/waitlist/:entryId/notify', requireRestaurantAccess(), hosting.notifyWaitlistEntry);
 
 // Display / kiosk / device pairing
 router.post('/:restaurantId/devices/pairing-codes', authenticatedLimiter, requireRestaurantAccess(), appFlow.createDevicePairingCode);

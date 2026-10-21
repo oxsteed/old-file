@@ -44,6 +44,15 @@ interval. The queue remains the server-side handoff. A native LAN print bridge
 and physical printer acceptance are still required before this can be called a
 complete print deployment.
 
+The host-stand tranche adds migration 964 and location-scoped tables,
+reservations, and walk-in waitlist records. Reservation creation is
+idempotent, checks table capacity and overlapping active bookings under a
+transaction, and all writes stay behind the restaurant permission gate. The
+merchant Operations panel can create tables and reservations, update
+reservation state, add walk-ins, seat them, and send a transactional SMS
+notification. SMS delivery is fail-closed when the provider is unavailable;
+the entry is not marked notified until the provider accepts the message.
+
 ## Requirements matrix
 
 `Existing source` means an earlier branch change exists; it is not a fresh
@@ -52,7 +61,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | ID | Current boundary | Remaining implementation / acceptance |
 | --- | --- | --- |
 | F-01 | Existing timezone capture, validation, business copy and backfill | Populated-store owner confirmation and onboarding/browser acceptance |
-| F-02 | Existing location columns/counters/hours; this pass adds store menu and customer selection | Store-scoped roles/employment, mandatory store IDs, per-store tax/inventory/printers, HQ/region hierarchy and data boundaries |
+| F-02 | Existing location columns/counters/hours; this pass adds store menu and customer selection; hosting records are location-scoped | Store-scoped roles/employment, mandatory store IDs, per-store tax/inventory/printers, HQ/region hierarchy and data boundaries |
 | F-03 | Existing cashier own-drawer tender and permission resolver | Exercise custom grants/denials and approvals across every money surface |
 | F-04 | Existing stable order/payment retry IDs and pay-first hold | Lost-response/concurrent replay and reload resilience; verify all kitchen fire paths |
 | F-05 | Existing production server-dial prohibition and print queue; this pass adds paired kitchen-device queue endpoints and runtime contract | Native LAN print bridge and physical device/browser acceptance |
@@ -87,12 +96,14 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 
 ## Additional named deliverables still in scope
 
-The review also requests reservations, table/floor-plan/seat workflows, a walk-in
-SMS waitlist, coursing and expanded splits, brand loyalty/CRM, physical/e-gift
+The review also requests coursing and expanded splits, brand loyalty/CRM, physical/e-gift
 card products, delivery-marketplace menu/order adapters, QuickBooks/Xero and BI
 exports, allergen ordering filters/label printing, unified onboarding/hardware
 pairing, HQ compliance publishing/rollups and end-to-end store acceptance.
-These have **not** been completed by the store-menu pass. External vendor or
+Reservations, table records, floor-plan metadata, seat-state updates, and a
+walk-in SMS waitlist are now implemented in the host-stand tranche; floor-plan
+drag/drop, guest self-service and physical SMS/provider acceptance remain.
+External vendor or
 hardware decisions do not excuse independent software work on these flows.
 
 ## Verification
@@ -101,6 +112,10 @@ hardware decisions do not excuse independent software work on these flows.
 - `server`: `npx jest --runInBand --testPathPatterns='restaurantAppFlow' __tests__/restaurantAppFlow.test.js` — **52 passed**. The device printer queue check verifies token-authenticated kitchen access and location-scoped query parameters.
 - `client`: `node --test scripts/restaurantRender.browser-check.cjs scripts/restaurantCheckoutCard.browser-check.cjs scripts/restaurantStoreMenu.browser-check.cjs` — **3 passed**. The new store-menu check covers save/reset payloads, English/French/Arabic labels, RTL direction, narrow widths, and form labels.
 - `client`: `node --test scripts/restaurantLocationHours.browser-check.cjs` — **1 passed**. The location-hours check loads a legacy multi-range day, adds a third range, verifies the exact split-shift payload, and confirms the form resets.
+- `server`: `npx jest --runInBand --testPathPatterns='restaurantHosting' __tests__/restaurantHosting.test.js` — **4 passed**. Covers location-scoped table conflict detection, reservation idempotency, final-window validation, and waitlist SMS acknowledgement.
+- `server`: `npx jest --runInBand --testPathPatterns='routeScopeGuard' __tests__/routeScopeGuard.test.js` — **10 passed** after adding all host-stand routes.
+- `client`: `npm run verify:i18n` — **passed** with the host-stand keys present in `en`, `es`, `fr`, `ht`, and `ar`.
+- `client`: `npm run build` — **passed**; Vite emitted the merchant bundle with the host-stand panel. Existing large-chunk and dynamic-import advisories remain.
 - `server/scripts/verifyRestaurantStoreMenu.js` — **passed** in the dedicated Colima PostgreSQL container. It applied migration 963 twice, verified default-store backfill/onboarding and legacy order/counter continuity, tenant foreign keys, negative prices, screen events, SQL projections, and sibling-store isolation.
 - `client`: `npm run build:ci` — **passed**; Vite emitted and verified 1,020 assets. The existing build warnings are the repository's large-chunk and dynamic-import advisories.
 - The broader restaurant Jest selection was also run with the local FFmpeg binary. It reached 768 passing tests, but the pre-existing media-transcode test still fails because it expects a 960x720 rendition while the current binary produces 1280x960. That unrelated media behavior is outside this store-menu change.

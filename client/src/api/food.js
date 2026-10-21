@@ -203,6 +203,26 @@ export const createFoodLocation = (restaurantId, payload) =>
 export const updateFoodLocation = (restaurantId, locationId, payload) =>
   api.patch(`/food/restaurants/${restaurantId}/locations/${locationId}`, payload).then((r) => r.data?.location);
 
+// Restaurant host stand (floor-plan tables, reservations, and walk-in queue).
+export const listRestaurantTables = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/tables`, { params }).then((r) => r.data || { tables: [], location: null });
+export const createRestaurantTable = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/tables`, payload).then((r) => r.data?.table);
+export const listRestaurantReservations = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reservations`, { params }).then((r) => r.data || { reservations: [], location: null });
+export const createRestaurantReservation = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/reservations`, payload).then((r) => r.data);
+export const updateRestaurantReservation = (restaurantId, reservationId, payload) =>
+  api.patch(`/restaurants/${restaurantId}/reservations/${reservationId}`, payload).then((r) => r.data?.reservation);
+export const listRestaurantWaitlist = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/waitlist`, { params }).then((r) => r.data || { entries: [], location: null });
+export const createRestaurantWaitlistEntry = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/waitlist`, payload).then((r) => r.data?.entry);
+export const notifyRestaurantWaitlistEntry = (restaurantId, entryId) =>
+  api.post(`/restaurants/${restaurantId}/waitlist/${entryId}/notify`).then((r) => r.data?.entry);
+export const updateRestaurantWaitlistEntry = (restaurantId, entryId, payload) =>
+  api.patch(`/restaurants/${restaurantId}/waitlist/${entryId}`, payload).then((r) => r.data?.entry);
+
 export const getTrackedFoodOrder = (trackingToken) =>
   api.get(`/food/orders/track/${trackingToken}`).then((r) => r.data?.order);
 
