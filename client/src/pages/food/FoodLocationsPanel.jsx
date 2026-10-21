@@ -305,7 +305,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
             <input id="fd-loc-tax-jurisdiction" value={form.taxJurisdiction} onChange={(e) => setForm((f) => ({ ...f, taxJurisdiction: e.target.value }))} maxLength={160} />
           </div>
           <label className="fd-field" style={{ flex: '0 1 180px', justifyContent: 'flex-end' }}>
-            <span><input type="checkbox" checked={form.taxInclusive} onChange={(e) => setForm((f) => ({ ...f, taxInclusive: e.target.checked }))} />{' '}{t('food.merchant.taxInclusive', 'Tax inclusive')}</span>
+            <span><input type="checkbox" checked={form.taxInclusive} onChange={(e) => setForm((f) => ({ ...f, taxInclusive: e.target.checked }))} data-track="ui.dbbd615872.10" />{' '}{t('food.merchant.taxInclusive', 'Tax inclusive')}</span>
           </label>
           <div className="fd-field" style={{ flex: '0 1 150px' }}>
             <label htmlFor="fd-loc-online-pacing">{t('food.merchant.onlinePacingMax')}</label>
