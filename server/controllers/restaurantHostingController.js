@@ -7,6 +7,7 @@ const { resolveRestaurantAccess } = require('../services/scopeModel');
 const permissions = require('../services/permissionsService');
 const { withTransaction } = require('../utils/transaction');
 const { sendTransactionalSMS } = require('../services/smsNotificationService');
+const { logBusinessAction } = require('../services/businessAuditLog');
 
 const ACTIVE_RESERVATION_STATUSES = ['pending', 'confirmed', 'seated'];
 const RESERVATION_STATUSES = ['pending', 'confirmed', 'seated', 'completed', 'cancelled', 'no_show'];
@@ -311,6 +312,14 @@ exports.notifyReservation = async (req, res, next) => {
         SET notified_at=NOW(), notification_claimed_at=NULL, notification_claim_token=NULL, updated_at=NOW()
         WHERE restaurant_id=$1 AND id=$2 AND notified_at IS NULL AND notification_claim_token=$3 RETURNING *`, [restaurant.id, reservationId, claimToken]);
       if (!updated) throw new AppError('Reservation notification state could not be saved', 503, 'notification_state_unavailable');
+      await logBusinessAction(req, {
+        business_id: restaurant.business_id,
+        action: 'restaurant.reservation.notification_sent',
+        target_type: 'restaurant_reservation',
+        target_id: reservationId,
+        after_state: { status: updated.status, notified_at: updated.notified_at },
+        metadata: { channel: 'sms', provider_sid: delivery.sid || null },
+      });
       res.json({ reservation: updated, delivery: { success: true, sid: delivery.sid || null } });
     } catch (error) {
       await pool.query(`UPDATE restaurant_reservations

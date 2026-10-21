@@ -87,6 +87,8 @@ confirmed request; the notification timestamp is persisted by migration 986
 and retries after a successful send are acknowledged without sending again.
 Migration 987 adds a five-minute claim lease so concurrent manager clicks
 cannot send duplicate SMS messages; failed sends release the claim for retry.
+Successful sends also append a business activity event with the provider
+reference and reservation state.
 Provider delivery, race testing against a live SMS service, and
 populated-store/browser acceptance remain open.
 
@@ -340,6 +342,7 @@ hardware decisions do not excuse independent software work on these flows.
 - `client`: `npm run verify:i18n` — **passed** with the host-stand keys present in `en`, `es`, `fr`, `ht`, and `ar`.
 - `server`: `npx jest --runInBand __tests__/restaurantHosting.test.js __tests__/routeScopeGuard.test.js` — **18 passed** after adding the persisted reservation-notification state, guarded manager route, single-send test, and concurrent-claim guard.
 - `server`: `node --check server/controllers/restaurantHostingController.js` — **passed** after adding the short-lived reservation notification claim lease.
+- `server`: host-stand notification tests also pass with the business activity audit write enabled.
 - `client`: `npm run verify:i18n`, `node scripts/growthInstrumentation.mjs --write && --check` — **passed** with localized reservation-notification controls and growth coverage at 2,532/2,532.
 - `client`: `npm run build:ci` — **passed** after adding the localized HQ comparison and menu-policy publishing console; typecheck, production build, i18n, and emitted-asset verification completed with the repository's existing chunk advisories.
 - `client`: `npm run verify:i18n`, `node scripts/growthInstrumentation.mjs --write && --check`, and `npm run build:ci` — **passed** after adding the localized accounting integration/export status panel; growth coverage is 2,528/2,528 and emitted-asset verification covered 1,020 assets.
