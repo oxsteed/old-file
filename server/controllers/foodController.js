@@ -2367,7 +2367,7 @@ async function respondRestaurantProfile(req, res, next, adminPreview) {
     const restaurantId = parsePositiveInt(req.params.restaurantId || req.params.id);
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
 
-    const selectedLocationId = storeMenu.locationId(req.query.locationId ?? req.query.location_id);
+    const selectedLocationId = storeMenu.locationId(req.query?.locationId ?? req.query?.location_id);
     const { rows: restaurants } = await pool.query(
       `SELECT fr.*, ${storeMenu.locationSql('$2')},
               (SELECT COALESCE(jsonb_agg(jsonb_build_object('id', ls.id, 'name', ls.name,

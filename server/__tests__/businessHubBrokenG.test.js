@@ -272,8 +272,11 @@ describe('F07 quote/create eligibility parity', () => {
     expect(sql).not.toMatch(/IN \('active','paused'\)/);
     expect(sql).toMatch(/fr\.discovery_status = 'visible'/);
     expect(sql).toMatch(/b\.is_listed = TRUE/);
-    expect(sql).not.toContain('$2');
-    expect(params).toEqual([44]);
+    // The store_location subquery attaches an optional $2 (store scope) to the
+    // strict eligibility query; the predicate itself stays single-restaurant.
+    expect(sql).toContain('store_location');
+    expect([...new Set(sql.match(/\$\d+/g))].sort()).toEqual(['$1', '$2']);
+    expect(params).toEqual([44, null]);
   });
 });
 
