@@ -410,6 +410,17 @@ function normalizeLocationTaxJurisdiction(value) {
   return normalizeString(value, 160);
 }
 
+function normalizeLocationInteger(value, field, { nullable = true, max = 1000 } = {}) {
+  if (value === undefined || value === null || value === '') return nullable ? null : 0;
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0 || parsed > max) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      [field]: `Enter a whole number from 0 to ${max}`,
+    });
+  }
+  return parsed;
+}
+
 // F-12: the fulfillment set the database itself defaults to (migration 305).
 const DEFAULT_FULFILLMENT_MODES = ['pickup', 'dine_in', 'kiosk'];
 
@@ -2949,6 +2960,23 @@ exports.quoteOrder = async (req, res, next) => {
     }
 
     const taxableSubtotalCents = Math.max(0, subtotalCents - discountCents);
+    const prepTimeMin = Math.max(0, parseNonNegativeInt(restaurant.prep_time_min, 15));
+    const prepTimeExtensionMin = Math.max(0, parseNonNegativeInt(restaurant.prep_time_extension_min, 0));
+    const quotePacingSettings = restaurant.settings && typeof restaurant.settings === 'object'
+      ? restaurant.settings
+      : {};
+    const quoteIsInStore = IN_STORE_SOURCES.has(orderSource);
+    const quoteStorePacingLimit = quoteIsInStore
+      ? selectedStore?.in_store_order_pacing_max_per_15_min
+      : selectedStore?.online_order_pacing_max_per_15_min;
+    const quoteInheritedPacingLimit = quoteIsInStore
+      ? (quotePacingSettings.inStoreOrderPacingMaxPer15Min ?? quotePacingSettings.in_store_order_pacing_max_per_15_min)
+      : (quotePacingSettings.onlineOrderPacingMaxPer15Min ?? quotePacingSettings.online_order_pacing_max_per_15_min);
+    const pacingLimit = Math.max(0, Math.floor(Number(
+      quoteStorePacingLimit === null || quoteStorePacingLimit === undefined
+        ? quoteInheritedPacingLimit
+        : quoteStorePacingLimit
+    ) || 0));
     const taxRateBps = Math.max(0, Math.min(10000, Number(restaurant.tax_rate_bps || 0)));
     const serviceFeeBps = Math.max(0, Math.min(10000, Number(restaurant.service_fee_bps || 0)));
     const taxInclusive = restaurant.tax_inclusive === true;
@@ -3051,6 +3079,16 @@ exports.quoteOrder = async (req, res, next) => {
       service_fee_cents: serviceFeeCents,
       deliveryFeeCents,
       delivery_fee_cents: deliveryFeeCents,
+      prepTimeMin,
+      prep_time_min: prepTimeMin,
+      prepTimeExtensionMin,
+      prep_time_extension_min: prepTimeExtensionMin,
+      estimatedReadyMinutes: prepTimeMin + prepTimeExtensionMin,
+      estimated_ready_minutes: prepTimeMin + prepTimeExtensionMin,
+      pacingLimit,
+      pacing_limit: pacingLimit,
+      pacingWindowMinutes: 15,
+      pacing_window_minutes: 15,
       tipCents,
       tip_cents: tipCents,
       totalCents,
@@ -3288,40 +3326,48 @@ exports.createOrder = async (req, res, next) => {
             }
           );
         }
-        // F-33: online order pacing. A merchant-set cap on accepted online
-        // orders per rolling 15-minute window (settings key
-        // onlineOrderPacingMaxPer15Min); 0/absent disables pacing. Runs
-        // under the restaurant row lock so concurrent checkouts cannot
-        // both slip under the cap.
-        const pacingSettings = restaurant.settings && typeof restaurant.settings === 'object'
-          ? restaurant.settings
-          : {};
-        const pacingLimit = Math.max(0, Math.floor(Number(
-          pacingSettings.onlineOrderPacingMaxPer15Min
-          ?? pacingSettings.online_order_pacing_max_per_15_min
-        ) || 0));
-        if (pacingLimit > 0) {
-          const { rows: [pacing] } = await client.query(
-            `SELECT COUNT(*)::int AS accepted_count, MIN(created_at) AS oldest_at
-               FROM food_orders
-              WHERE restaurant_id = $1
-                AND created_at > NOW() - INTERVAL '15 minutes'
-                AND status NOT IN ('cancelled')
-                AND order_source NOT IN ('kiosk', 'counter', 'tablet')`,
-            [restaurantId]
+      }
+
+      // F-33: enforce a store/channel cap on accepted orders in a rolling
+      // 15-minute window. A non-null store value overrides the restaurant
+      // setting; zero explicitly disables the inherited cap. This runs while
+      // the restaurant row lock is held so concurrent checkouts cannot both
+      // slip under the limit.
+      const pacingSettings = restaurant.settings && typeof restaurant.settings === 'object'
+        ? restaurant.settings
+        : {};
+      const storePacingLimit = isInStore
+        ? orderLocation?.in_store_order_pacing_max_per_15_min
+        : orderLocation?.online_order_pacing_max_per_15_min;
+      const inheritedPacingLimit = isInStore
+        ? (pacingSettings.inStoreOrderPacingMaxPer15Min ?? pacingSettings.in_store_order_pacing_max_per_15_min)
+        : (pacingSettings.onlineOrderPacingMaxPer15Min ?? pacingSettings.online_order_pacing_max_per_15_min);
+      const pacingLimit = Math.max(0, Math.floor(Number(
+        storePacingLimit === null || storePacingLimit === undefined ? inheritedPacingLimit : storePacingLimit
+      ) || 0));
+      if (pacingLimit > 0) {
+        const channelSources = isInStore ? Array.from(IN_STORE_SOURCES) : ['mobile', 'web'];
+        const { rows: [pacing] } = await client.query(
+          `SELECT COUNT(*)::int AS accepted_count, MIN(created_at) AS oldest_at
+             FROM food_orders
+            WHERE restaurant_id = $1
+              AND ($2::bigint IS NULL OR location_id = $2)
+              AND created_at > NOW() - INTERVAL '15 minutes'
+              AND status NOT IN ('cancelled')
+              AND order_source = ANY($3::text[])`,
+          [restaurantId, orderLocationId, channelSources]
+        );
+        if (Number(pacing?.accepted_count || 0) >= pacingLimit) {
+          const oldestAt = pacing?.oldest_at ? new Date(pacing.oldest_at).getTime() : NaN;
+          const retryAfterSeconds = Number.isFinite(oldestAt)
+            ? Math.max(1, Math.ceil((oldestAt + 15 * 60 * 1000 - Date.now()) / 1000))
+            : 900;
+          throw new AppError(
+            'This restaurant is at its order capacity for the moment. Please try again shortly.',
+            429,
+            'order_pacing_limit_reached',
+            { limit: pacingLimit, windowMinutes: 15, retryAfterSeconds, locationId: orderLocationId, channel: isInStore ? 'in_store' : 'online' }
           );
-          if (Number(pacing?.accepted_count || 0) >= pacingLimit) {
-            const oldestAt = pacing?.oldest_at ? new Date(pacing.oldest_at).getTime() : NaN;
-            const retryAfterSeconds = Number.isFinite(oldestAt)
-              ? Math.max(1, Math.ceil((oldestAt + 15 * 60 * 1000 - Date.now()) / 1000))
-              : 900;
-            throw new AppError(
-              'This restaurant is at its order capacity for the moment. Please try again shortly.',
-              429,
-              'order_pacing_limit_reached',
-              { limit: pacingLimit, windowMinutes: 15, retryAfterSeconds }
-            );
-          }
         }
       }
 
@@ -3889,7 +3935,9 @@ exports.createOrder = async (req, res, next) => {
           normalizeCurrency(restaurant.currency_code),
           normalizeString(req.body.tableLabel || req.body.table_label, 80),
           queueNumber,
-          (restaurant.prep_time_min || 15) + deliverySlotOffsetMinutes,
+          Math.max(0, parseNonNegativeInt(restaurant.prep_time_min, 15))
+            + Math.max(0, parseNonNegativeInt(restaurant.prep_time_extension_min, 0))
+            + deliverySlotOffsetMinutes,
           normalizeString(req.body.notes, 1000),
           metadata,
           kitchenNotes,
@@ -7739,7 +7787,9 @@ exports.listRestaurantLocations = async (req, res, next) => {
         `SELECT id, restaurant_id, name, address_street, address_city, address_state, address_zip,
                 address_country, latitude, longitude, timezone, phone, is_primary, status,
                 operating_hours, tax_rate_bps, service_fee_bps, tax_inclusive,
-                tax_jurisdiction, created_at, updated_at
+                tax_jurisdiction, online_order_pacing_max_per_15_min,
+                in_store_order_pacing_max_per_15_min, prep_time_extension_min,
+                created_at, updated_at
            FROM restaurant_locations
           WHERE restaurant_id = $1 ${isMerchant ? '' : "AND status = 'active'"}
           ORDER BY is_primary DESC, name ASC`,
@@ -7787,8 +7837,10 @@ exports.createRestaurantLocation = async (req, res, next) => {
         `INSERT INTO restaurant_locations
            (restaurant_id, name, address_street, address_city, address_state, address_zip,
             address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours,
-            tax_rate_bps, service_fee_bps, tax_inclusive, tax_jurisdiction)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+            tax_rate_bps, service_fee_bps, tax_inclusive, tax_jurisdiction,
+            online_order_pacing_max_per_15_min, in_store_order_pacing_max_per_15_min,
+            prep_time_extension_min)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
          RETURNING *`,
         [
           restaurantId,
@@ -7809,6 +7861,9 @@ exports.createRestaurantLocation = async (req, res, next) => {
           normalizeLocationRate(req.body.serviceFeeBps ?? req.body.service_fee_bps, 'serviceFeeBps'),
           req.body.taxInclusive === true || req.body.tax_inclusive === true,
           normalizeLocationTaxJurisdiction(req.body.taxJurisdiction ?? req.body.tax_jurisdiction),
+          normalizeLocationInteger(req.body.onlineOrderPacingMaxPer15Min ?? req.body.online_order_pacing_max_per_15_min, 'onlineOrderPacingMaxPer15Min'),
+          normalizeLocationInteger(req.body.inStoreOrderPacingMaxPer15Min ?? req.body.in_store_order_pacing_max_per_15_min, 'inStoreOrderPacingMaxPer15Min'),
+          normalizeLocationInteger(req.body.prepTimeExtensionMin ?? req.body.prep_time_extension_min, 'prepTimeExtensionMin', { nullable: false, max: 240 }),
         ]
       );
       return created;
@@ -7843,6 +7898,9 @@ exports.updateRestaurantLocation = async (req, res, next) => {
     const hasServiceFee = Object.hasOwn(req.body, 'serviceFeeBps') || Object.hasOwn(req.body, 'service_fee_bps');
     const hasTaxInclusive = Object.hasOwn(req.body, 'taxInclusive') || Object.hasOwn(req.body, 'tax_inclusive');
     const hasTaxJurisdiction = Object.hasOwn(req.body, 'taxJurisdiction') || Object.hasOwn(req.body, 'tax_jurisdiction');
+    const hasOnlinePacing = Object.hasOwn(req.body, 'onlineOrderPacingMaxPer15Min') || Object.hasOwn(req.body, 'online_order_pacing_max_per_15_min');
+    const hasInStorePacing = Object.hasOwn(req.body, 'inStoreOrderPacingMaxPer15Min') || Object.hasOwn(req.body, 'in_store_order_pacing_max_per_15_min');
+    const hasPrepExtension = Object.hasOwn(req.body, 'prepTimeExtensionMin') || Object.hasOwn(req.body, 'prep_time_extension_min');
 
     const location = await withTransaction(pool, async (client) => {
       const { rows: existing } = await client.query(
@@ -7877,8 +7935,11 @@ exports.updateRestaurantLocation = async (req, res, next) => {
                 service_fee_bps = CASE WHEN $16 THEN $17 ELSE service_fee_bps END,
                 tax_inclusive = CASE WHEN $18 THEN $19 ELSE tax_inclusive END,
                 tax_jurisdiction = CASE WHEN $20 THEN $21 ELSE tax_jurisdiction END,
+                online_order_pacing_max_per_15_min = CASE WHEN $22 THEN $23 ELSE online_order_pacing_max_per_15_min END,
+                in_store_order_pacing_max_per_15_min = CASE WHEN $24 THEN $25 ELSE in_store_order_pacing_max_per_15_min END,
+                prep_time_extension_min = CASE WHEN $26 THEN $27 ELSE prep_time_extension_min END,
                 updated_at = NOW()
-          WHERE id = $22 AND restaurant_id = $23
+          WHERE id = $28 AND restaurant_id = $29
           RETURNING *`,
         [
           normalizeString(req.body.name, 160),
@@ -7902,6 +7963,12 @@ exports.updateRestaurantLocation = async (req, res, next) => {
           req.body.taxInclusive === true || req.body.tax_inclusive === true,
           hasTaxJurisdiction,
           normalizeLocationTaxJurisdiction(req.body.taxJurisdiction ?? req.body.tax_jurisdiction),
+          hasOnlinePacing,
+          normalizeLocationInteger(req.body.onlineOrderPacingMaxPer15Min ?? req.body.online_order_pacing_max_per_15_min, 'onlineOrderPacingMaxPer15Min'),
+          hasInStorePacing,
+          normalizeLocationInteger(req.body.inStoreOrderPacingMaxPer15Min ?? req.body.in_store_order_pacing_max_per_15_min, 'inStoreOrderPacingMaxPer15Min'),
+          hasPrepExtension,
+          normalizeLocationInteger(req.body.prepTimeExtensionMin ?? req.body.prep_time_extension_min, 'prepTimeExtensionMin', { nullable: false, max: 240 }),
           locationId,
           restaurantId,
         ]

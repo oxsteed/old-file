@@ -70,6 +70,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
     name: '', addressCity: '', addressState: '', addressCountry: 'US', latitude: '', longitude: '',
     phone: '', timezone: restaurant.timezone || DETECTED_TIMEZONE, status: 'active', isPrimary: false,
     taxRatePercent: '', serviceFeePercent: '', taxInclusive: false, taxJurisdiction: '',
+    onlinePacingMax: '', inStorePacingMax: '', prepTimeExtensionMin: '0',
   }), [restaurant.timezone]);
   const [form, setForm] = useState(blankForm);
   const [editingId, setEditingId] = useState(null);
@@ -108,6 +109,9 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
       serviceFeePercent: loc.service_fee_bps == null ? '' : String(Number(loc.service_fee_bps) / 100),
       taxInclusive: !!loc.tax_inclusive,
       taxJurisdiction: loc.tax_jurisdiction || '',
+      onlinePacingMax: loc.online_order_pacing_max_per_15_min == null ? '' : String(loc.online_order_pacing_max_per_15_min),
+      inStorePacingMax: loc.in_store_order_pacing_max_per_15_min == null ? '' : String(loc.in_store_order_pacing_max_per_15_min),
+      prepTimeExtensionMin: loc.prep_time_extension_min == null ? '0' : String(loc.prep_time_extension_min),
     });
     setDayHours(dayHoursFromLocation(loc));
     setHoursDirty(false);
@@ -195,6 +199,9 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
         serviceFeeBps: form.serviceFeePercent === '' ? null : Math.round(Number(form.serviceFeePercent) * 100),
         taxInclusive: form.taxInclusive,
         taxJurisdiction: form.taxJurisdiction.trim() || null,
+        onlineOrderPacingMaxPer15Min: form.onlinePacingMax === '' ? null : Number(form.onlinePacingMax),
+        inStoreOrderPacingMaxPer15Min: form.inStorePacingMax === '' ? null : Number(form.inStorePacingMax),
+        prepTimeExtensionMin: form.prepTimeExtensionMin === '' ? 0 : Number(form.prepTimeExtensionMin),
         ...(hoursDirty ? { operatingHours: buildOperatingHours() } : {}),
       };
       if (editingId) {
@@ -300,6 +307,18 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
           <label className="fd-field" style={{ flex: '0 1 180px', justifyContent: 'flex-end' }}>
             <span><input type="checkbox" checked={form.taxInclusive} onChange={(e) => setForm((f) => ({ ...f, taxInclusive: e.target.checked }))} />{' '}{t('food.merchant.taxInclusive', 'Tax inclusive')}</span>
           </label>
+          <div className="fd-field" style={{ flex: '0 1 150px' }}>
+            <label htmlFor="fd-loc-online-pacing">{t('food.merchant.onlinePacingMax')}</label>
+            <input id="fd-loc-online-pacing" type="number" min="0" max="1000" step="1" value={form.onlinePacingMax} onChange={(e) => setForm((f) => ({ ...f, onlinePacingMax: e.target.value }))} placeholder={t('food.merchant.pacingInherit')} />
+          </div>
+          <div className="fd-field" style={{ flex: '0 1 150px' }}>
+            <label htmlFor="fd-loc-store-pacing">{t('food.merchant.inStorePacingMax')}</label>
+            <input id="fd-loc-store-pacing" type="number" min="0" max="1000" step="1" value={form.inStorePacingMax} onChange={(e) => setForm((f) => ({ ...f, inStorePacingMax: e.target.value }))} placeholder={t('food.merchant.pacingInherit')} />
+          </div>
+          <div className="fd-field" style={{ flex: '0 1 150px' }}>
+            <label htmlFor="fd-loc-prep-extension">{t('food.merchant.prepExtension')}</label>
+            <input id="fd-loc-prep-extension" type="number" min="0" max="240" step="1" value={form.prepTimeExtensionMin} onChange={(e) => setForm((f) => ({ ...f, prepTimeExtensionMin: e.target.value }))} />
+          </div>
           <div className="fd-field" style={{ flex: '0 1 100px' }}>
             <label htmlFor="fd-loc-lat">{t('food.merchant.latitude')}</label>
             <input id="fd-loc-lat" value={form.latitude} onChange={(e) => setForm((f) => ({ ...f, latitude: e.target.value }))} />

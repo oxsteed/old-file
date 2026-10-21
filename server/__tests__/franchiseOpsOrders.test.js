@@ -318,6 +318,38 @@ describe('F-33 order pacing', () => {
     const pacingCount = mockQuery.mock.calls.find(([sql]) => /accepted_count/.test(String(sql)));
     expect(pacingCount).toBeUndefined();
   });
+
+  test('uses the selected store override for in-store pacing', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [restaurantRow({ settings: { inStoreOrderPacingMaxPer15Min: 20 } })] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 7 }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 7,
+        restaurant_id: RESTAURANT_ID,
+        status: 'active',
+        timezone: 'UTC',
+        operating_hours: null,
+        in_store_order_pacing_max_per_15_min: 1,
+        online_order_pacing_max_per_15_min: null,
+        prep_time_extension_min: 8,
+      }] })
+      .mockResolvedValueOnce({ rows: [{ accepted_count: 1, oldest_at: new Date(Date.now() - 60 * 1000) }] });
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    const res = await request(buildApp())
+      .post(`/api/food/restaurants/${RESTAURANT_ID}/orders`)
+      .set('Idempotency-Key', 'pacing-store-counter-1')
+      .send({ ...BASE_BODY, orderSource: 'counter', locationId: 7 });
+
+    expect(res.status).toBe(429);
+    expect(res.body.code).toBe('order_pacing_limit_reached');
+    expect(res.body.fields.channel).toBe('in_store');
+    expect(res.body.fields.locationId).toBe(7);
+    const pacingQuery = mockQuery.mock.calls.find(([sql]) => /accepted_count/.test(String(sql)));
+    expect(pacingQuery[1]).toEqual([RESTAURANT_ID, 7, ['kiosk', 'counter', 'tablet']]);
+  });
 });
 
 describe('F-20 audit trail', () => {

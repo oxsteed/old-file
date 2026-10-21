@@ -60,6 +60,13 @@ policy when the override is blank. The location editor exposes these controls,
 and the order stores the effective rate and inclusive flag in its pricing
 snapshot.
 
+Migration 966 adds nullable online and in-store pacing caps per location plus a
+bounded prep-time extension. A blank cap inherits the restaurant setting while
+zero disables that channel cap at the store. The order lock enforces the
+selected store/channel window, and quotes/orders expose and apply the effective
+prep estimate. This is source-level pacing behavior; peak-load and physical
+terminal acceptance remain open.
+
 The public menu now exposes the stored allergen labels as exclusion filters.
 Selected exclusions are sent with every quote and order, and both server paths
 reject a menu item whose authoritative allergen list intersects the request.
@@ -105,7 +112,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-30 | Existing src tests and loader in CI | Retain browser/device regression coverage as surfaces converge |
 | F-31 | Existing ticket/payment/printing permission gates | Custom membership and deny-override acceptance on every adapter |
 | F-32 | Existing per-store per-day atomic counters | Concurrent multi-store rollover and peak-load acceptance |
-| F-33 | Existing pacing/busy settings foundation | Per-store/channel slot capacity, automatic prep extension and load acceptance |
+| F-33 | Migration 966 adds per-store online/in-store pacing caps, inheritance/disable semantics, and prep extensions applied to quote/order estimates | Peak-load/lock evidence and physical terminal/channel acceptance |
 
 ## Additional named deliverables still in scope
 
