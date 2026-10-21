@@ -212,10 +212,11 @@ ddescribe('lease expiry and fencing', () => {
     const customer = await newUser();
     await service.discoverAccountJobs(run.id, [accountFor(customer)]);
     let job = await service.claimNextAccountJob('worker-a', 120);
+    const fencingToken = job.fencing_token;
 
     for (const state of ['leased', 'snapshotted', 'artifact_ready', 'notified']) {
       const previousExpiry = new Date(job.lease_expires_at).getTime();
-      job = await service.renewLease(job.id, 'worker-a', 1, 300);
+      job = await service.renewLease(job.id, 'worker-a', fencingToken, 300);
       expect(job.state).toBe(state);
       expect(new Date(job.lease_expires_at).getTime()).toBeGreaterThan(previousExpiry);
 
@@ -225,7 +226,7 @@ ddescribe('lease expiry and fencing', () => {
         artifact_ready: 'notified',
       }[state];
       if (nextState) {
-        job = await service.completeJobStage(job.id, 'worker-a', 1, nextState);
+        job = await service.completeJobStage(job.id, 'worker-a', fencingToken, nextState);
       }
     }
   });
