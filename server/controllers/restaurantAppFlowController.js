@@ -167,6 +167,33 @@ function parseCents(value, field, fallback = 0) {
   return Math.round(n);
 }
 
+// Find a quantity allocation whose server-calculated line totals equal the
+// requested child amount. Quantities are integral, so this avoids inventing a
+// fractional item while still supporting even splits when an exact allocation
+// exists. The state cap prevents a pathological ticket from turning a split
+// request into an unbounded memory operation.
+function allocateExactSplitQuantities(items, targetCents) {
+  const target = Number(targetCents);
+  if (!Number.isSafeInteger(target) || target <= 0 || target > 2_000_000) return null;
+  let states = new Map([[0, []]]);
+  for (const item of items) {
+    const quantity = Math.max(1, Number(item.quantity || 1));
+    const lineTotal = Math.max(0, Number(item.line_total_cents || 0));
+    const next = new Map(states);
+    for (const [sum, allocation] of states) {
+      for (let units = 1; units <= quantity; units += 1) {
+        const lineShare = Math.round(lineTotal * units / quantity);
+        const nextSum = sum + lineShare;
+        if (nextSum > target || next.has(nextSum)) continue;
+        next.set(nextSum, [...allocation, { id: Number(item.id), quantity: units }]);
+      }
+    }
+    if (next.size > 200_000) return null;
+    states = next;
+  }
+  return states.get(target) || null;
+}
+
 function normalizeString(value, max = 255) {
   if (value === undefined || value === null) return null;
   const s = String(value).trim();
@@ -4390,7 +4417,7 @@ exports.splitPosOrder = async (req, res, next) => {
       ? (req.body.items || req.body.splitItems || req.body.split_items)
       : null;
     const itemIdsInput = req.body.orderItemIds || req.body.order_item_ids || req.body.itemIds;
-    const splitRequests = rawSplitItems
+    let splitRequests = rawSplitItems
       ? rawSplitItems.map((entry) => ({
         id: parsePositiveInt(entry?.orderItemId || entry?.order_item_id || entry?.itemId || entry?.id),
         quantity: entry?.quantity === undefined || entry?.quantity === null || entry?.quantity === ''
@@ -4398,10 +4425,25 @@ exports.splitPosOrder = async (req, res, next) => {
           : parsePositiveInt(entry.quantity),
       }))
       : (Array.isArray(itemIdsInput) ? itemIdsInput.map((id) => ({ id: parsePositiveInt(id), quantity: null })) : []);
-    if (!splitRequests.length || splitRequests.some((entry) => !entry.id || (rawSplitItems && entry.quantity === null))) {
+    const splitAmountRaw = req.body.splitAmountCents ?? req.body.split_amount_cents;
+    const splitAmountCents = splitAmountRaw === undefined || splitAmountRaw === null || splitAmountRaw === ''
+      ? null
+      : parsePositiveInt(splitAmountRaw);
+    const evenSplitRaw = req.body.evenSplitCount ?? req.body.even_split_count;
+    const evenSplitCount = evenSplitRaw === undefined || evenSplitRaw === null || evenSplitRaw === ''
+      ? null
+      : parsePositiveInt(evenSplitRaw);
+    if (splitAmountCents && evenSplitCount) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { splitAmountCents: 'Choose an amount or an even split count, not both' });
+    }
+    if (evenSplitCount && (evenSplitCount < 2 || evenSplitCount > 10)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { evenSplitCount: 'Must be between 2 and 10' });
+    }
+    const automaticSplit = Boolean(splitAmountCents || evenSplitCount);
+    if ((!splitRequests.length && !automaticSplit) || splitRequests.some((entry) => !entry.id || (rawSplitItems && entry.quantity === null))) {
       throw new AppError('Validation failed', 400, 'validation_failed', { orderItemIds: 'Each split item must include a valid order item and positive quantity' });
     }
-    const itemIds = splitRequests.map((entry) => entry.id);
+    let itemIds = splitRequests.map((entry) => entry.id);
     if (new Set(itemIds).size !== itemIds.length) {
       throw new AppError('Validation failed', 400, 'validation_failed', { orderItemIds: 'An order item may appear only once' });
     }
@@ -4416,18 +4458,37 @@ exports.splitPosOrder = async (req, res, next) => {
       if (source.fulfillment_type === 'delivery') {
         throw new AppError('Delivery tickets cannot be split', 409, 'delivery_ticket_split_not_supported');
       }
-      const { rows: items } = await client.query(
-        `SELECT *, (
-           SELECT COUNT(*)::int
-             FROM food_order_items all_items
-            WHERE all_items.order_id = $1
-         ) AS order_item_count
-           FROM food_order_items
-          WHERE order_id = $1 AND id = ANY($2::bigint[])`,
-        [sourceOrderId, itemIds]
-      );
-      if (items.length !== itemIds.length) {
+      const itemQuery = itemIds.length
+        ? `SELECT *, (
+             SELECT COUNT(*)::int
+               FROM food_order_items all_items
+              WHERE all_items.order_id = $1
+           ) AS order_item_count
+             FROM food_order_items
+            WHERE order_id = $1 AND id = ANY($2::bigint[])`
+        : `SELECT *, (
+             SELECT COUNT(*)::int
+               FROM food_order_items all_items
+              WHERE all_items.order_id = $1
+           ) AS order_item_count
+             FROM food_order_items
+            WHERE order_id = $1`;
+      let { rows: items } = await client.query(itemQuery, itemIds.length ? [sourceOrderId, itemIds] : [sourceOrderId]);
+      if (itemIds.length && items.length !== itemIds.length) {
         throw new AppError('Validation failed', 400, 'validation_failed', { orderItemIds: 'Some order items do not belong to this order' });
+      }
+      if (!items.length) {
+        throw new AppError('Validation failed', 400, 'validation_failed', { items: 'This ticket has no order lines to split' });
+      }
+      if (!splitRequests.length && automaticSplit) {
+        const targetCents = splitAmountCents || Math.floor(Number(source.subtotal_cents || 0) / evenSplitCount);
+        const allocation = allocateExactSplitQuantities(items, targetCents);
+        if (!allocation || !allocation.length) {
+          throw new AppError('The requested split amount cannot be represented by whole item quantities', 409, 'split_amount_unavailable', { targetCents });
+        }
+        splitRequests = allocation;
+        itemIds = allocation.map((entry) => entry.id);
+        items = items.filter((item) => itemIds.includes(Number(item.id)));
       }
       const splitItems = items.map((item) => {
         const requested = splitRequests.find((entry) => entry.id === Number(item.id));
@@ -4449,6 +4510,12 @@ exports.splitPosOrder = async (req, res, next) => {
       const splitSubtotal = splitItems.reduce((sum, item) => (
         sum + Math.round(Number(item.line_total_cents || 0) * item.splitQuantity / Number(item.quantity || 1))
       ), 0);
+      if (splitAmountCents && splitSubtotal !== splitAmountCents) {
+        throw new AppError('The selected lines do not equal the requested split amount', 409, 'split_amount_mismatch', {
+          requestedCents: splitAmountCents,
+          calculatedCents: splitSubtotal,
+        });
+      }
       const splitRatio = Number(source.subtotal_cents || 0) > 0 ? splitSubtotal / Number(source.subtotal_cents) : 0;
       const childDiscount = Math.round(Number(source.discount_cents || 0) * splitRatio);
       const childTip = Math.round(Number(source.tip_cents || 0) * splitRatio);

@@ -39,7 +39,8 @@ overnight, split-shift, holiday and timezone behavior remains server-owned, whil
 the browser check verifies the multi-range and special-date save payloads and reset behavior.
 
 The canonical POS split path now accepts quantity-level line selections in
-addition to its existing whole-line payload. A partial line creates a child
+addition to its existing whole-line payload, plus exact split-by-amount and
+even-share requests that resolve to whole item quantities. A partial line creates a child
 line, leaves the remainder on the source ticket, clones modifiers, and splits
 active inventory reservations proportionally inside the same transaction. The
 source and child totals are recalculated after the move; duplicate selections,
@@ -203,7 +204,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-06 | Existing Connect-bound Terminal flow, token permission gate, and card-intent reservation gate | Provider sandbox/readers and reconciliation acceptance |
 | F-07 | Existing local-day net-collected reports, currencies, summary CSV and tender-level journal CSV; this pass adds per-store/currency daily close, multi-day location comparison JSON/CSV/XLSX, theoretical/actual/variance food-cost percentages, and labor percentage output against paid sales | Accounting-system adapters |
 | F-08 | Existing offline drafts and failure reporting; web POS adds cash-only browser outbox replay with stable order/payment idempotency keys and sequential reconnect processing | In-store hub, Terminal store-and-forward/risk policy, and physical outage acceptance |
-| F-09 | The broken legacy food split route is removed; POS splitting uses the canonical transactional `splitPosOrder` path with whole-line and quantity-level selection, modifier/reservation cloning, course/seat preservation, payment, delivery, non-empty-ticket, store inheritance, and queue-counter guards | Maintain canonical split guards and populated-db acceptance |
+| F-09 | The broken legacy food split route is removed; POS splitting uses the canonical transactional `splitPosOrder` path with whole-line, quantity-level, exact amount, and even-share selection, modifier/reservation cloning, course/seat preservation, payment, delivery, non-empty-ticket, store inheritance, and queue-counter guards | Maintain canonical split guards and populated-db acceptance |
 | F-10 | Existing overnight/split-shift/holiday/timezone evaluator; this pass adds a multi-range and dated special-hours location editor | Scheduling/device acceptance and populated-store special-date acceptance |
 | F-11 | Existing dayparts and scheduled fire filtering | Verify all scheduling paths and store-selected quote/submit invariants |
 | F-12 | Existing onboarding fulfillment defaults | End-to-end first-store POS acceptance |
@@ -244,8 +245,8 @@ hardware decisions do not excuse independent software work on these flows.
 
 ## Verification
 
-- `server`: `npx jest --runInBand --testPathPatterns='restaurantStoreMenu|restaurantAppFlow|foodController|foodOrderValidation|routeScopeGuard'` — **136 passed** (including bounded course and seat validation).
-- `server`: `npx jest --runInBand --testPathPatterns='restaurantAppFlow' __tests__/restaurantAppFlow.test.js` — **57 passed**. The suite covers quantity-level split reconciliation, bounded coursing and seating, and the device printer queue check verifies token-authenticated kitchen access and location-scoped query parameters.
+- `server`: `npx jest --runInBand --testPathPatterns='restaurantStoreMenu|restaurantAppFlow|foodController|foodOrderValidation|routeScopeGuard'` — **137 passed** (including bounded course, seat, and split-by-amount validation).
+- `server`: `npx jest --runInBand --testPathPatterns='restaurantAppFlow' __tests__/restaurantAppFlow.test.js` — **58 passed**. The suite covers quantity-level and exact amount split reconciliation, bounded coursing and seating, and the device printer queue check verifies token-authenticated kitchen access and location-scoped query parameters.
 - `client`: `npm run build:ci` — **passed** (typecheck, production build, i18n and emitted-asset verification).
 - `client`: `node --test scripts/restaurantRender.browser-check.cjs scripts/restaurantCheckoutCard.browser-check.cjs scripts/restaurantStoreMenu.browser-check.cjs` — **3 passed**. The new store-menu check covers save/reset payloads, English/French/Arabic labels, RTL direction, narrow widths, and form labels.
 - `client`: `node --test scripts/restaurantLocationHours.browser-check.cjs` — **1 passed**. The location-hours check loads a legacy multi-range day, preserves an all-day special closure, adds a dated one-off range, verifies the exact payload, and confirms the form resets.
