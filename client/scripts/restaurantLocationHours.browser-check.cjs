@@ -11,7 +11,7 @@ test('location hours editor preserves split shifts and submits multiple ranges',
   const resources = JSON.parse(fs.readFileSync(path.join(root, 'src/locales/en.json'))).food;
   const mocks = {
     '../../api/food': `export const listFoodLocations = async () => [{id:7,name:'Downtown',address_country:'US',timezone:'America/New_York',status:'active',is_primary:true,operating_hours:{weekly:{mon:[{open:'09:00',close:'14:00'},{open:'17:00',close:'22:00'}]},special_dates:{'2026-12-25':'closed'}}}];
-      export const createFoodLocation = async () => ({}); export const updateFoodLocation = async (_restaurantId, id, payload) => { window.locationWrite = { id, payload }; return {}; };`,
+      export const listRestaurantHQRegions = async () => []; export const createFoodLocation = async () => ({}); export const updateFoodLocation = async (_restaurantId, id, payload) => { window.locationWrite = { id, payload }; return {}; };`,
     '../../api/geo': `export const suggestLocation = async () => [];`,
     '../../api/restaurants': `export const getRestaurantLocationAccess = async () => { const error = new Error('settings unavailable'); error.response = { status: 403 }; throw error; }; export const replaceRestaurantLocationAccess = async () => ({}); export const clearRestaurantLocationAccess = async () => ({});`,
     '../../components/AddressAutocomplete': `import React from 'react'; export default function AddressAutocomplete({id,value,onChange,ariaLabel}) { return React.createElement('input',{id,'aria-label':ariaLabel,value,onChange:event=>onChange(event.target.value)}); }`,
