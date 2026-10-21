@@ -8,6 +8,8 @@ const AppError = require('../utils/appError');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
 const permissions = require('../services/permissionsService');
 const { logBusinessAction } = require('../services/businessAuditLog');
+const { withTransaction } = require('../utils/transaction');
+const campaignService = require('../services/restaurantLoyaltyCampaignService');
 
 const MAX_NAME_LENGTH = 120;
 const MAX_SEGMENTS = 200;
@@ -245,6 +247,85 @@ exports.previewSegment = async (req, res, next) => {
     const { rows: [segment] } = await pool.query('SELECT * FROM restaurant_loyalty_segments WHERE id = $1 AND restaurant_id = $2 AND is_active = TRUE', [id, restaurant.id]);
     if (!segment) throw new AppError('Segment not found', 404, 'loyalty_segment_not_found');
     res.json({ segment: shape(segment, await audienceFor(restaurant.id, segment.criteria || {})), campaignDeliveryEnabled: false });
+  } catch (err) { next(err); }
+};
+
+exports.listCampaigns = async (req, res, next) => {
+  try {
+    const restaurant = await access(req);
+    const { rows } = await pool.query(
+      `SELECT c.*,
+              COUNT(d.id)::int AS delivery_count,
+              COUNT(d.id) FILTER (WHERE d.status = 'sent')::int AS sent_count,
+              COUNT(d.id) FILTER (WHERE d.status = 'failed')::int AS failed_count
+         FROM restaurant_loyalty_campaigns c
+         LEFT JOIN restaurant_loyalty_campaign_deliveries d ON d.campaign_id = c.id
+        WHERE c.restaurant_id = $1
+        GROUP BY c.id
+        ORDER BY c.created_at DESC, c.id DESC
+        LIMIT 200`,
+      [restaurant.id]
+    );
+    res.json({
+      campaigns: rows.map((row) => campaignService.shape(row, {
+        deliveryCount: Number(row.delivery_count || 0),
+        sentCount: Number(row.sent_count || 0),
+        failedCount: Number(row.failed_count || 0),
+      })),
+      campaignDeliveryEnabled: true,
+    });
+  } catch (err) { next(err); }
+};
+
+exports.createCampaign = async (req, res, next) => {
+  try {
+    const restaurant = await access(req);
+    const segmentId = positiveInt(req.body?.segmentId ?? req.body?.segment_id, 'segmentId', { allowZero: false });
+    const campaign = await withTransaction(pool, (client) => campaignService.createCampaign(client, {
+      restaurantId: restaurant.id, segmentId, actorUserId: req.user.id, input: req.body || {},
+    }), 'restaurant_loyalty_campaign_create');
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id, actor_role: restaurant.effective_role,
+      action: 'restaurant.loyalty_campaign.created', target_type: 'restaurant_loyalty_campaign',
+      target_id: campaign.id, before_state: {}, after_state: campaign, metadata: { status: campaign.status }, throwOnError: true,
+    });
+    res.status(201).json({ campaign, campaignDeliveryEnabled: true });
+  } catch (err) {
+    if (err?.code === '23505') return next(new AppError('That campaign name already exists', 409, 'loyalty_campaign_exists'));
+    next(err);
+  }
+};
+
+exports.approveCampaign = async (req, res, next) => {
+  try {
+    const restaurant = await access(req);
+    const campaignId = positiveInt(req.params.campaignId, 'campaignId', { allowZero: false });
+    const campaign = await withTransaction(pool, (client) => campaignService.approveCampaign(client, {
+      restaurantId: restaurant.id, campaignId, actorUserId: req.user.id,
+    }), 'restaurant_loyalty_campaign_approve');
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id, actor_role: restaurant.effective_role,
+      action: 'restaurant.loyalty_campaign.approved', target_type: 'restaurant_loyalty_campaign',
+      target_id: campaign.id, before_state: { status: 'draft' }, after_state: campaign, metadata: {}, throwOnError: true,
+    });
+    res.json({ campaign, campaignDeliveryEnabled: true });
+  } catch (err) { next(err); }
+};
+
+exports.queueCampaign = async (req, res, next) => {
+  try {
+    const restaurant = await access(req);
+    const campaignId = positiveInt(req.params.campaignId, 'campaignId', { allowZero: false });
+    const result = await withTransaction(pool, (client) => campaignService.queueCampaign(client, {
+      restaurantId: restaurant.id, campaignId, actorUserId: req.user.id,
+    }), 'restaurant_loyalty_campaign_queue');
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id, actor_role: restaurant.effective_role,
+      action: 'restaurant.loyalty_campaign.queued', target_type: 'restaurant_loyalty_campaign',
+      target_id: result.campaign.id, before_state: { status: 'approved' }, after_state: result.campaign,
+      metadata: { queued_recipients: result.queuedRecipients }, throwOnError: true,
+    });
+    res.json({ ...result, campaignDeliveryEnabled: true });
   } catch (err) { next(err); }
 };
 

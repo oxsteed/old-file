@@ -291,6 +291,7 @@ exports.sendNotification = async ({
       // admins. Non-transactional: respects the recipient's email toggles
       // (the job additionally gates on admin_notification_prefs).
       'metric_threshold_alert',
+      'restaurant_loyalty_campaign',
     ];
     // Transactional: always attempt email when we have an address (cannot opt out of
     // security-relevant account notices via marketing-style toggles).

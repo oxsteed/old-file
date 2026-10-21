@@ -299,6 +299,10 @@ router.post('/:restaurantId/crm/segments', requireRestaurantAccess(), loyalty.cr
 router.patch('/:restaurantId/crm/segments/:segmentId', requireRestaurantAccess(), loyalty.updateSegment);
 router.delete('/:restaurantId/crm/segments/:segmentId', requireRestaurantAccess(), loyalty.deleteSegment);
 router.get('/:restaurantId/crm/segments/:segmentId/audience', requireRestaurantAccess(), loyalty.previewSegment);
+router.get('/:restaurantId/crm/campaigns', requireRestaurantAccess(), loyalty.listCampaigns);
+router.post('/:restaurantId/crm/campaigns', requireRestaurantAccess(), loyalty.createCampaign);
+router.post('/:restaurantId/crm/campaigns/:campaignId/approve', requireRestaurantAccess(), loyalty.approveCampaign);
+router.post('/:restaurantId/crm/campaigns/:campaignId/queue', requireRestaurantAccess(), loyalty.queueCampaign);
 // Payroll, tips, labor + team activity (S-04/S-15/S-16). Wage-bearing
 // endpoints additionally require payroll.view inside the controller
 // (fail closed); team activity requires audit.view.

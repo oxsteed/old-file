@@ -249,9 +249,10 @@ redemption paths. Generated codes are returned only at issue time; raw codes are
 never stored. E-gift delivery-provider dispatch and external value
 reconciliation remain release-gated. Migration 981 adds restaurant-scoped CRM segment
 definitions with bounded criteria (lifetime points, paid-order count, recency,
-and optional store) and an aggregate-only audience preview. Customer identity
-is excluded, all writes are audited, and campaign delivery remains disabled
-until consent, provider, and reconciliation contracts exist.
+and optional store) and an aggregate-only audience preview. Migration 983 adds
+approval-gated campaign definitions and consent-aware in-app/email delivery
+queues. Customer identity remains excluded from merchant responses; provider
+delivery failures stay retryable and auditable.
 
 Sales reports now expose `/reports/sales/accounting/quickbooks.csv` and
 `/reports/sales/accounting/xero.csv`. These are read-only, store-scoped import
@@ -288,6 +289,8 @@ hardware decisions do not excuse independent software work on these flows.
 - `client`: `npm run verify:i18n`, `node scripts/growthInstrumentation.mjs --check`, and `npm run build:ci` — **passed** after adding the localized allergen-label printer control and gift-card catalog panel; growth coverage is 2,520/2,520 and emitted-asset verification covered 1,020 assets.
 - `server`: `npx jest --runInBand __tests__/restaurantGiftCardController.test.js __tests__/restaurantGiftCardService.test.js __tests__/restaurantAppFlow.test.js` — **66 passed** across catalog validation, value-ledger issue/redeem/refund guards, POS redemption, and route scope registration.
 - `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **957/957 migrations passed** twice, including migration 982's gift-card value ledger.
+- `server`: `npx jest --runInBand __tests__/restaurantLoyaltyCampaignService.test.js __tests__/restaurantLoyaltyController.test.js` — **6 passed, 7 skipped** (the skipped cases require the explicit disposable loyalty database URL).
+- `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **958/958 migrations passed** twice, including migration 983's campaign delivery queue.
 - `client`: `npm run verify:i18n` — **passed** with the host-stand keys present in `en`, `es`, `fr`, `ht`, and `ar`.
 - `client`: `npm run build` — **passed**; Vite emitted the merchant bundle with the host-stand panel. Existing large-chunk and dynamic-import advisories remain.
 - `server`: `npx jest --runInBand __tests__/restaurantPayrollOvertime.test.js` — **2 passed**. Covers weekly overtime allocation and required-break exception detection.
