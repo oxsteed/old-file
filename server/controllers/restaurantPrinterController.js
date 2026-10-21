@@ -123,6 +123,20 @@ function receiptLocale(restaurant) {
   }
 }
 
+// Printer output is byte-oriented, so localize the small fixed label set on
+// the server using the restaurant's configured receipt locale.
+function receiptLabels(locale) {
+  const language = String(locale || 'en').toLowerCase().split('-')[0];
+  const labels = {
+    en: { order: 'Order', date: 'Date', guest: 'Guest', table: 'Table', type: 'Type', subtotal: 'Subtotal', discount: 'Discount', tax: 'Tax', serviceFee: 'Service fee', deliveryFee: 'Delivery fee', tip: 'Tip', total: 'TOTAL', paid: 'Paid', thankYou: 'Thank you for your business!' },
+    es: { order: 'Pedido', date: 'Fecha', guest: 'Cliente', table: 'Mesa', type: 'Tipo', subtotal: 'Subtotal', discount: 'Descuento', tax: 'Impuesto', serviceFee: 'Cargo de servicio', deliveryFee: 'Cargo de entrega', tip: 'Propina', total: 'TOTAL', paid: 'Pagado', thankYou: '¡Gracias por su compra!' },
+    fr: { order: 'Commande', date: 'Date', guest: 'Client', table: 'Table', type: 'Type', subtotal: 'Sous-total', discount: 'Remise', tax: 'Taxe', serviceFee: 'Frais de service', deliveryFee: 'Frais de livraison', tip: 'Pourboire', total: 'TOTAL', paid: 'Payé', thankYou: 'Merci pour votre visite !' },
+    ht: { order: 'Kòmann', date: 'Dat', guest: 'Kliyan', table: 'Tab', type: 'Kalite', subtotal: 'Sou-total', discount: 'Rabè', tax: 'Taks', serviceFee: 'Frè sèvis', deliveryFee: 'Frè livrezon', tip: 'Poubò', total: 'TOTAL', paid: 'Peye', thankYou: 'Mèsi pou acha ou!' },
+    ar: { order: 'الطلب', date: 'التاريخ', guest: 'العميل', table: 'الطاولة', type: 'النوع', subtotal: 'المجموع الفرعي', discount: 'الخصم', tax: 'الضريبة', serviceFee: 'رسوم الخدمة', deliveryFee: 'رسوم التوصيل', tip: 'الإكرامية', total: 'الإجمالي', paid: 'المدفوع', thankYou: 'شكرًا لطلبكم!' },
+  };
+  return labels[language] || labels.en;
+}
+
 function formatMoney(cents, currency, locale = 'en-US') {
   const n = Number(cents || 0) / 100;
   try {
@@ -190,6 +204,7 @@ function buildOrderReceipt({ restaurant, settings, snapshot }) {
   const { order, items, modifiersByItem, payments } = snapshot;
   const currency = order.currency_code || 'USD';
   const locale = receiptLocale(restaurant);
+  const labels = receiptLabels(locale);
   const money = (cents) => formatMoney(cents, currency, locale);
   const addressParts = [restaurant.address_street, restaurant.address_city, restaurant.address_state, restaurant.address_zip]
     .filter(Boolean)
@@ -200,12 +215,12 @@ function buildOrderReceipt({ restaurant, settings, snapshot }) {
   if (restaurant.phone) headerLines.push(restaurant.phone);
 
   const metaLines = [
-    `Order #${order.queue_number || order.id}`,
-    `Date: ${order.created_at ? new Date(order.created_at).toLocaleString(locale, { timeZone: restaurant.timezone || 'UTC' }) : ''}`,
+    `${labels.order} #${order.queue_number || order.id}`,
+    `${labels.date}: ${order.created_at ? new Date(order.created_at).toLocaleString(locale, { timeZone: restaurant.timezone || 'UTC' }) : ''}`,
   ];
-  if (order.guest_name) metaLines.push(`Guest: ${order.guest_name}`);
-  if (order.table_label) metaLines.push(`Table: ${order.table_label}`);
-  if (order.fulfillment_type) metaLines.push(`Type: ${order.fulfillment_type}`);
+  if (order.guest_name) metaLines.push(`${labels.guest}: ${order.guest_name}`);
+  if (order.table_label) metaLines.push(`${labels.table}: ${order.table_label}`);
+  if (order.fulfillment_type) metaLines.push(`${labels.type}: ${order.fulfillment_type}`);
 
   const receiptItems = items.map((item) => {
     const mods = modifiersByItem.get(String(item.id)) || [];
@@ -221,20 +236,20 @@ function buildOrderReceipt({ restaurant, settings, snapshot }) {
   });
 
   const totals = [
-    { label: 'Subtotal', amount: money(order.subtotal_cents) },
+    { label: labels.subtotal, amount: money(order.subtotal_cents) },
   ];
-  if (Number(order.discount_cents) > 0) totals.push({ label: 'Discount', amount: `-${money(order.discount_cents)}` });
-  if (Number(order.tax_cents) > 0) totals.push({ label: 'Tax', amount: money(order.tax_cents) });
-  if (Number(order.service_fee_cents) > 0) totals.push({ label: 'Service fee', amount: money(order.service_fee_cents) });
-  if (Number(order.delivery_fee_cents) > 0) totals.push({ label: 'Delivery fee', amount: money(order.delivery_fee_cents) });
-  if (Number(order.tip_cents) > 0) totals.push({ label: 'Tip', amount: money(order.tip_cents) });
-  totals.push({ label: 'TOTAL', amount: money(order.total_cents), grand: true });
+  if (Number(order.discount_cents) > 0) totals.push({ label: labels.discount, amount: `-${money(order.discount_cents)}` });
+  if (Number(order.tax_cents) > 0) totals.push({ label: labels.tax, amount: money(order.tax_cents) });
+  if (Number(order.service_fee_cents) > 0) totals.push({ label: labels.serviceFee, amount: money(order.service_fee_cents) });
+  if (Number(order.delivery_fee_cents) > 0) totals.push({ label: labels.deliveryFee, amount: money(order.delivery_fee_cents) });
+  if (Number(order.tip_cents) > 0) totals.push({ label: labels.tip, amount: money(order.tip_cents) });
+  totals.push({ label: labels.total, amount: money(order.total_cents), grand: true });
 
   const paidTypes = payments.filter((p) => p.status !== 'refunded');
   if (paidTypes.length) {
     metaLines.push('');
     for (const p of paidTypes) {
-      metaLines.push(`Paid (${p.payment_type}): ${money(p.amount_cents)}`);
+      metaLines.push(`${labels.paid} (${p.payment_type}): ${money(p.amount_cents)}`);
     }
   }
 
@@ -245,7 +260,7 @@ function buildOrderReceipt({ restaurant, settings, snapshot }) {
     metaLines,
     items: receiptItems,
     totals,
-    footerLines: ['Thank you for your business!'],
+    footerLines: [labels.thankYou],
     kickDrawer,
   });
   return { buffer, kickDrawer };
@@ -520,4 +535,5 @@ exports.printAllergenLabels = async (req, res, next) => {
 
 // Exported for the pure ESC/POS rendering test; the handler above owns all
 // authorization, store scoping, and queue side effects.
+exports.buildOrderReceipt = buildOrderReceipt;
 exports.buildAllergenLabelReceipt = buildAllergenLabelReceipt;
