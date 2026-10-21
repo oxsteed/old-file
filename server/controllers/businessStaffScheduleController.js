@@ -1,5 +1,6 @@
 const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
+const { logBusinessAction } = require('../services/businessAuditLog');
 
 // Shifts
 //
@@ -254,6 +255,13 @@ exports.replaceAvailability = async (req, res, next) => {
       );
       return result.rows;
     });
+    await logBusinessAction(req, {
+      business_id: Number(businessId),
+      action: 'business.staff.availability.replaced',
+      target_type: 'staff_availability',
+      target_id: req.user.id,
+      after_state: { windows: rows },
+    });
     return res.json({ user_id: req.user.id, windows: rows });
   } catch (err) { return next(err); }
 };
@@ -308,6 +316,13 @@ exports.createShiftSwapRequest = async (req, res, next) => {
        VALUES ($1,$2,$3,$4,$5) RETURNING *`,
       [businessId, shiftId, req.user.id, targetUserId, note]
     );
+    await logBusinessAction(req, {
+      business_id: Number(businessId),
+      action: 'business.staff.shift_swap.requested',
+      target_type: 'shift_swap_request',
+      target_id: rows[0]?.id,
+      after_state: rows[0],
+    });
     return res.status(201).json({ request: rows[0] });
   } catch (err) { return next(err); }
 };
@@ -348,6 +363,14 @@ async function decideShiftSwap(req, res, next, status) {
     if (result.missing) return res.status(404).json({ error: 'Shift swap request not found' });
     if (result.conflict) return res.status(409).json({ error: 'Shift swap request is no longer pending' });
     if (result.noTarget) return res.status(409).json({ error: 'A target staff member is required before approval' });
+    await logBusinessAction(req, {
+      business_id: Number(businessId),
+      action: `business.staff.shift_swap.${status}`,
+      target_type: 'shift_swap_request',
+      target_id: result.request?.id,
+      before_state: { status: 'requested' },
+      after_state: result.request,
+    });
     return res.json({ request: result.request });
   } catch (err) { return next(err); }
 }
