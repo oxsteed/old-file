@@ -161,8 +161,12 @@ async function applyStaffOffboarding(client, {
   // a membership row. Revoke every refresh token for the offboarded user
   // inside the same transaction, so a revoked member cannot silently mint
   // new access tokens. Any failure rolls the offboarding back (fail closed).
+  // NOTE: refresh tokens live in the `sessions` table (migration 027 dropped
+  // the legacy refresh_tokens table; authController uses sessions).
   const refreshTokens = await client.query(
-    `DELETE FROM refresh_tokens WHERE user_id = $1 RETURNING id`,
+    `UPDATE sessions SET is_valid = FALSE, revoked_at = NOW()
+      WHERE user_id = $1 AND is_valid = TRUE
+      RETURNING id`,
     [userId]
   );
 

@@ -4,9 +4,10 @@
  * Staff offboarding revokes refresh tokens (auth-audit finding 32).
  *
  * A refresh token is a long-lived credential, not a membership row.
- * applyStaffOffboarding now deletes every refresh token for the
+ * applyStaffOffboarding now invalidates every session row for the
  * offboarded user inside the same transaction, so a revoked member
- * cannot silently mint new access tokens.
+ * cannot silently mint new access tokens. (Refresh tokens live in the
+ * `sessions` table; migration 027 dropped the legacy refresh_tokens table.)
  */
 
 const { applyStaffOffboarding } = require('../services/staffOffboarding');
@@ -17,22 +18,22 @@ function fakeClient() {
     queries,
     query: jest.fn(async (sql, params) => {
       queries.push({ sql, params });
-      if (/DELETE FROM refresh_tokens/i.test(sql)) return { rows: [{ id: 'rt-1' }], rowCount: 1 };
+      if (/UPDATE sessions SET is_valid = FALSE/i.test(sql)) return { rows: [{ id: 1 }], rowCount: 1 };
       return { rows: [], rowCount: 0 };
     }),
   };
 }
 
 describe('finding 32: applyStaffOffboarding refresh-token revocation', () => {
-  test('deletes the user refresh tokens in the same transaction', async () => {
+  test('invalidates the user sessions in the same transaction', async () => {
     const client = fakeClient();
     const result = await applyStaffOffboarding(client, {
       businessId: 7, userId: 'user-9', reason: 'Membership revoked',
     });
-    const deletes = client.queries.filter((q) => /DELETE FROM refresh_tokens/i.test(q.sql));
-    expect(deletes).toHaveLength(1);
-    expect(deletes[0].params).toEqual(['user-9']);
-    expect(deletes[0].sql).toContain('WHERE user_id = $1');
+    const revokes = client.queries.filter((q) => /UPDATE sessions SET is_valid = FALSE/i.test(q.sql));
+    expect(revokes).toHaveLength(1);
+    expect(revokes[0].params).toEqual(['user-9']);
+    expect(revokes[0].sql).toContain('WHERE user_id = $1');
     expect(result.refreshTokensRevoked).toBe(1);
   });
 

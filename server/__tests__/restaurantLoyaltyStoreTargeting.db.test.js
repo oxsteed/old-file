@@ -120,12 +120,22 @@ let second;
 let customerA; // orders at primary only
 let customerB; // orders at second only
 let customerC; // orders at both
+let approverId; // SoD: campaign approver must differ from the creator (finding 41)
 
 ddescribe('per-store loyalty targeting', () => {
   beforeAll(async () => {
     ownerId = await newUser();
     businessId = await newBusiness(ownerId);
     ({ id: restaurantId, primary, second } = await newRestaurant(businessId, ownerId));
+
+    // Second admin for approvals: active manager so resolveRestaurantAccess
+    // grants restaurant scope, but a different user than the creator.
+    approverId = await newUser();
+    await pool.query(
+      `INSERT INTO business_members (business_id, owner_id, member_id, role, invite_email, status, accepted_at)
+       VALUES ($1, $2, $3, 'manager', $4, 'active', NOW())`,
+      [businessId, ownerId, approverId, `loyal-approver-${approverId}@example.invalid`]
+    );
 
     customerA = await newUser();
     customerB = await newUser();
@@ -226,13 +236,13 @@ ddescribe('per-store loyalty targeting', () => {
     // Approval SoD flow is unchanged: only drafts approve.
     const approved = await invoke(loyalty.approveCampaign, {
       params: { restaurantId: String(restaurantId), campaignId: String(created.body.campaign.id) },
-      user: { id: ownerId },
+      user: { id: approverId },
     });
     expect(approved.error).toBeUndefined();
     expect(approved.body.campaign.status).toBe('approved');
     const reapprove = await invoke(loyalty.approveCampaign, {
       params: { restaurantId: String(restaurantId), campaignId: String(created.body.campaign.id) },
-      user: { id: ownerId },
+      user: { id: approverId },
     });
     expect(reapprove.error?.code).toBe('loyalty_campaign_not_draft');
 
@@ -267,7 +277,7 @@ ddescribe('per-store loyalty targeting', () => {
     });
     await invoke(loyalty.approveCampaign, {
       params: { restaurantId: String(restaurantId), campaignId: String(created.body.campaign.id) },
-      user: { id: ownerId },
+      user: { id: approverId },
     });
     await invoke(loyalty.queueCampaign, {
       params: { restaurantId: String(restaurantId), campaignId: String(created.body.campaign.id) },
