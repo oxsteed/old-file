@@ -33,9 +33,16 @@ jest.mock('../middleware/adminAuth', () => {
 });
 
 const service = require('../services/jobCancellationService');
+// Track A finding 24: post-acceptance cancels require TOTP step-up.
+jest.mock('../services/stepupChallengeService', () => ({
+  verifyStepupChallenge: jest.fn(async () => ({ ok: true })),
+  issueStepupChallenge: jest.fn(async () => ({ challengeId: 'test-challenge' })),
+}));
+
 jest.mock('../services/jobCancellationService', () => ({
   cancelJobTransaction: jest.fn(),
   finalizeJobCancellation: jest.fn().mockResolvedValue(undefined),
+  PRE_ACCEPTANCE_STATUSES: ['draft', 'published', 'matched', 'negotiating'],
 }));
 
 const agentJobActionsRoutes = require('../routes/agentJobActions');
