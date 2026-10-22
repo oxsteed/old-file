@@ -4,7 +4,7 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useSt
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, Tv, CalendarDays, CreditCard, Building2 } from 'lucide-react';
+import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, Tv, CalendarDays, CreditCard, Building2, Network } from 'lucide-react';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 import api from '../../api/axios';
 import {
@@ -45,6 +45,7 @@ import GiftCardProductsPanel from './GiftCardProductsPanel';
 import DisplayFleetPanel from './DisplayFleetPanel';
 import RestaurantHostingPanel from './RestaurantHostingPanel';
 import RestaurantHQPanel from './RestaurantHQPanel';
+import BrandHQPanel from './BrandHQPanel';
 import { syncPendingMutations, countPendingMutations, isDeviceOnline } from '../../api/restaurantsOffline';
 import PageShell from '../../components/PageShell';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
@@ -2055,6 +2056,19 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
             wide
           >
             <RestaurantHQPanel t={t} restaurant={restaurant} bare />
+          </SettingsCard>
+        )}
+
+        {canManageRestaurant && (
+          <SettingsCard
+            icon={Network}
+            title={t('restaurants.ops.brandHq.title')}
+            desc={t('restaurants.ops.brandHq.subtitle')}
+            cardKey="brand-hq"
+            registerRef={registerCard}
+            wide
+          >
+            <BrandHQPanel t={t} restaurant={restaurant} />
           </SettingsCard>
         )}
 

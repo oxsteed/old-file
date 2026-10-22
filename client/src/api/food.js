@@ -215,6 +215,23 @@ export const createRestaurantHQRegion = (restaurantId, payload) =>
 export const updateRestaurantHQRegion = (restaurantId, regionId, payload) =>
   api.patch(`/restaurants/${restaurantId}/hq/regions/${regionId}`, payload).then((r) => r.data?.region);
 
+// Brand HQ console (F-02 phase 2): the brand groups restaurants across
+// businesses; every call is scoped server-side to accessible restaurants.
+export const listRestaurantBrands = () =>
+  api.get('/restaurant-brands').then((r) => r.data?.brands || []);
+export const getBrandOverview = (brandId) =>
+  api.get(`/restaurant-brands/${brandId}/overview`).then((r) => r.data);
+export const getBrandStoreComparison = (brandId, params = {}) =>
+  api.get(`/restaurant-brands/${brandId}/store-comparison`, { params }).then((r) => r.data);
+export const getBrandCompliance = (brandId, params = {}) =>
+  api.get(`/restaurant-brands/${brandId}/compliance`, { params }).then((r) => r.data);
+export const publishBrandMenu = (brandId, payload) =>
+  api.post(`/restaurant-brands/${brandId}/menu/publish`, payload).then((r) => r.data);
+export const attachBrandRestaurant = (brandId, payload) =>
+  api.post(`/restaurant-brands/${brandId}/restaurants`, payload).then((r) => r.data);
+export const detachBrandRestaurant = (brandId, restaurantId) =>
+  api.delete(`/restaurant-brands/${brandId}/restaurants/${restaurantId}`).then((r) => r.data);
+
 // Restaurant host stand (floor-plan tables, reservations, and walk-in queue).
 export const listRestaurantTables = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/tables`, { params }).then((r) => r.data || { tables: [], location: null });
