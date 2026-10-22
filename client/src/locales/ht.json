@@ -2219,6 +2219,10 @@
         "title": "Yo ba ou yon nouvo fòmasyon",
         "body": "{{moduleTitle}} nan {{restaurantName}}"
       },
+      "training_recertification_due": {
+        "title": "Resètifikasyon ou dwe fèt",
+        "body": "Sètifikasyon ou pou {{moduleTitle}} nan {{restaurantName}} ekspire. Tanpri fè fòmasyon an ankò."
+      },
       "crew_shift_published": {
         "title": "Yo pibliye yon nouvo orè",
         "body": "{{shiftLabel}} · {{startsAt}} nan {{restaurantName}}"

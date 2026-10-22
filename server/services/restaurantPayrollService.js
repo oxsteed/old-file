@@ -189,7 +189,30 @@ async function saveTipPoolSettings(restaurantId, { poolingEnabled, tipOutRules, 
   return row;
 }
 
-async function declareCashTip(restaurantId, { staffUserId, businessDate, amountCents, declaredBy, note, locationId = null }) {
+async function declareCashTip(restaurantId, { staffUserId, businessDate, amountCents, declaredBy, note, locationId = null, idempotencyKey = null }) {
+  const key = typeof idempotencyKey === 'string' && idempotencyKey.trim() ? idempotencyKey.trim().slice(0, 128) : null;
+  // Background-jobs audit (finding P1): dedupe on a client-generated key
+  // so a retry cannot double-declare and inflate the payroll basis. A
+  // replay returns the original row instead of inserting a duplicate.
+  if (key) {
+    const { rows: [row] } = await pool.query(
+      `INSERT INTO restaurant_declared_cash_tips
+         (restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, location_id, idempotency_key)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (restaurant_id, idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
+       RETURNING id, restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, location_id, idempotency_key, created_at`,
+      [restaurantId, staffUserId, businessDate, amountCents, declaredBy || null, note || null, locationId, key]
+    );
+    if (row) return row;
+    const { rows: [existing] } = await pool.query(
+      `SELECT id, restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, location_id, idempotency_key, created_at
+         FROM restaurant_declared_cash_tips
+        WHERE restaurant_id = $1 AND idempotency_key = $2
+        LIMIT 1`,
+      [restaurantId, key]
+    );
+    return { ...existing, replayed: true };
+  }
   const { rows: [row] } = await pool.query(
     `INSERT INTO restaurant_declared_cash_tips
        (restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, location_id)

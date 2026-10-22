@@ -598,7 +598,7 @@ function buildEmailTemplate({
 }
 
 // ─── BULK NOTIFICATION (e.g. platform announcements) ──────────
-exports.sendBulkNotification = async ({ userIds, type, title, body, data = {} }) => {
+exports.sendBulkNotification = async ({ userIds, type, title, body, data = {}, idempotencyKey = null }) => {
   // Audit fix: cap bulk notifications at 1000 recipients to prevent abuse.
   const MAX_BULK_RECIPIENTS = 1000;
   if (!Array.isArray(userIds) || userIds.length === 0) {
@@ -607,9 +607,18 @@ exports.sendBulkNotification = async ({ userIds, type, title, body, data = {} })
   if (userIds.length > MAX_BULK_RECIPIENTS) {
     throw new Error(`Bulk notification limited to ${MAX_BULK_RECIPIENTS} recipients`);
   }
+  // Notifications audit: without a per-recipient delivery key, a retried
+  // bulk send (crash mid-fan-out, caller retry) inserts duplicate in-app
+  // rows and re-fires push/email for everyone already notified. When the
+  // caller supplies idempotencyKey, each recipient gets a deterministic
+  // key so a repeat of the same bulk replays instead of duplicating.
+  const bulkKey = idempotencyKey ? String(idempotencyKey).trim().slice(0, 200) : null;
   const results = await Promise.allSettled(
     userIds.map(userId =>
-      exports.sendNotification({ userId, type, title, body, data })
+      exports.sendNotification({
+        userId, type, title, body, data,
+        ...(bulkKey ? { idempotencyKey: `${bulkKey}:${userId}` } : {}),
+      })
     )
   );
   const failedIds = results

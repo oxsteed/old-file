@@ -1043,8 +1043,16 @@ exports.refundPayment = async (req, res, next) => {
     // ADM-009: fail closed on ambiguous amounts. No amount means the caller
     // must explicitly declare fullRefund: true; it never silently refunds
     // the full remaining balance.
-    const refundRequestId = req.get('Idempotency-Key') || req.body?.idempotencyKey
-      || `admin-payment-refund-${payment_id}-${Date.now()}`;
+    // Money-flows audit: the idempotency key must be client-generated. A
+    // server-minted default (e.g. Date.now()) gives every retry a fresh
+    // key, defeating reservePaymentRefund's reservation and allowing a
+    // double refund at Stripe. Fail closed when the caller did not supply
+    // one; the refund service enforces the same code
+    // (payment_refund_idempotency_required).
+    const refundRequestId = req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key;
+    if (!refundRequestId) {
+      throw new AppError('Idempotency-Key is required for payment refunds', 400, 'payment_refund_idempotency_required');
+    }
     const result = await processPaymentRefund({
       paymentId: payment_id,
       requestedAmountCents: hasRequestedAmount ? Math.round(Number(amount) * 100) : null,
