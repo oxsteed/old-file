@@ -9305,9 +9305,15 @@ exports.getPosSyncStatus = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertManage(restaurant, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const deviceId = parsePositiveInt(req.query.deviceId || req.query.device_id);
     const params = [restaurantId];
     let deviceFilter = '';
+    let locationFilter = '';
+    if (locationScope.mode === 'assigned') {
+      params.push(locationScope.location_ids);
+      locationFilter = `AND d.location_id = ANY($${params.length}::bigint[])`;
+    }
     if (deviceId) {
       params.push(deviceId);
       deviceFilter = `AND d.id = $${params.length}`;
@@ -9326,6 +9332,7 @@ exports.getPosSyncStatus = async (req, res, next) => {
             AND o.restaurant_id = d.restaurant_id
           WHERE d.restaurant_id = $1
             AND d.app_key = 'pos'
+            ${locationFilter}
             ${deviceFilter}
           GROUP BY d.id
           ORDER BY d.status DESC, d.last_seen_at DESC NULLS LAST, d.device_name ASC`,
@@ -9337,16 +9344,16 @@ exports.getPosSyncStatus = async (req, res, next) => {
                 COUNT(*) FILTER (WHERE status = 'failed')::int AS failed_operations,
                 MAX(acknowledged_at) AS last_acknowledged_at
            FROM restaurant_pos_pending_operations
-          WHERE restaurant_id = $1`,
-        [restaurantId]
+          WHERE restaurant_id = $1${locationScope.mode === 'assigned' ? ' AND location_id = ANY($2::bigint[])' : ''}`,
+        locationScope.mode === 'assigned' ? [restaurantId, locationScope.location_ids] : [restaurantId]
       ),
       pool.query(
         `SELECT *
            FROM restaurant_pos_pending_operations
-          WHERE restaurant_id = $1
+          WHERE restaurant_id = $1${locationScope.mode === 'assigned' ? ' AND location_id = ANY($2::bigint[])' : ''}
           ORDER BY acknowledged_at DESC
           LIMIT 25`,
-        [restaurantId]
+        locationScope.mode === 'assigned' ? [restaurantId, locationScope.location_ids] : [restaurantId]
       ),
     ]);
     const hasFailed = Number(operations?.failed_operations || 0) > 0
@@ -9369,7 +9376,8 @@ exports.getPosSyncStatus = async (req, res, next) => {
 exports.ackPendingOperations = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const rawOperations = Array.isArray(req.body.operations)
       ? req.body.operations
       : Array.isArray(req.body.pendingOperations || req.body.pending_operations)
@@ -9411,13 +9419,19 @@ exports.ackPendingOperations = async (req, res, next) => {
         if (!['received', 'acked', 'applied', 'failed'].includes(operationStatus)) {
           throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported sync status' });
         }
+        const operationLocationId = parsePositiveInt(operation.locationId || operation.location_id);
+        if (locationScope.mode === 'assigned'
+          && (!operationLocationId || !locationScope.location_ids.includes(operationLocationId))) {
+          throw new AppError('Each POS operation must name an assigned store', 403, 'location_scope_forbidden');
+        }
         const { rows: [ack] } = await client.query(
           `INSERT INTO restaurant_pos_pending_operations
-             (restaurant_id, device_id, client_operation_id, operation_type, entity_type,
+             (restaurant_id, location_id, device_id, client_operation_id, operation_type, entity_type,
               entity_id, status, error_code, error_message, payload, created_by, acknowledged_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,NOW())
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,NOW())
            ON CONFLICT (restaurant_id, client_operation_id)
-           DO UPDATE SET device_id = COALESCE(EXCLUDED.device_id, restaurant_pos_pending_operations.device_id),
+           DO UPDATE SET location_id = COALESCE(EXCLUDED.location_id, restaurant_pos_pending_operations.location_id),
+                         device_id = COALESCE(EXCLUDED.device_id, restaurant_pos_pending_operations.device_id),
                          operation_type = EXCLUDED.operation_type,
                          entity_type = COALESCE(EXCLUDED.entity_type, restaurant_pos_pending_operations.entity_type),
                          entity_id = COALESCE(EXCLUDED.entity_id, restaurant_pos_pending_operations.entity_id),
@@ -9430,6 +9444,7 @@ exports.ackPendingOperations = async (req, res, next) => {
            RETURNING *`,
           [
             restaurantId,
+            operationLocationId,
             deviceId,
             clientOperationId,
             operationType,

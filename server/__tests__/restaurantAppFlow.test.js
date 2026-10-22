@@ -1374,6 +1374,24 @@ describe('restaurant app-flow backend', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /restaurant_pos_pending_operations/.test(sql))).toBe(true);
   });
 
+  test('requires assigned stores when acknowledging POS operations', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 49 })] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, location_id: 77, client_operation_id: 'local-3', status: 'acked' }] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000129'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/sync/ack`)
+      .send({
+        operations: [{ operationId: 'local-3', type: 'drawer_event', locationId: 77 }],
+      });
+
+    expect(res.status).toBe(200);
+    const insert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO restaurant_pos_pending_operations/.test(sql));
+    expect(insert[0]).toContain('location_id');
+    expect(insert[1][1]).toBe(77);
+  });
+
   test('reports POS sync health for device replacement UI', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
