@@ -2134,7 +2134,7 @@ router.get('/:businessId/conversations/:conversationId/messages', requireSupport
 router.put('/:businessId/messages/:messageId/read', requireSupportBusinessAccess('conversations'), conversationMessageController.markAsRead);
 router.delete('/:businessId/messages/:messageId', requireSupportBusinessAccess('conversations'), conversationMessageController.deleteMessage);
 router.put('/:businessId/messages/:messageId', scopeExempt('resource-scoped'), conversationMessageController.editMessage);
-router.post('/:businessId/conversations/:conversationId/attachment', scopeExempt('resource-scoped'), conversationMessageController.addAttachment);
+router.post('/:businessId/conversations/:conversationId/attachment', conversationMessageLimiter, upload.single('file'), validateFileUpload, scopeExempt('resource-scoped'), conversationMessageController.addAttachment);
 router.get('/:businessId/conversations/:conversationId/unread-count', requireSupportBusinessAccess('conversations'), conversationMessageController.getUnreadCount);
 router.post('/:businessId/conversations/:conversationId/mark-all-read', requireSupportBusinessAccess('conversations'), conversationMessageController.markAllAsRead);
 router.post('/:businessId/conversations/:conversationId/typing', requireSupportBusinessAccess('conversations'), conversationMessageController.sendTypingIndicator);

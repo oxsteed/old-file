@@ -147,6 +147,22 @@ describe('POST /api/payments/payout/instant', () => {
   });
 });
 
+describe('GET /api/payments/payout/balance', () => {
+  test('reports the tax-identity gate state for the proactive W-9 unlock path', async () => {
+    routeInstantPayoutQueries();
+    const res = await auth(request(buildPaymentsApp()).get('/api/payments/payout/balance'));
+    expect(res.status).toBe(200);
+    expect(res.body.tax_identity).toEqual({ w9_completed: true, ready: true });
+  });
+
+  test('reports tax_identity.ready false when the W-9 is missing', async () => {
+    routeInstantPayoutQueries({ user: { ...HELPER, w9_completed: false } });
+    const res = await auth(request(buildPaymentsApp()).get('/api/payments/payout/balance'));
+    expect(res.status).toBe(200);
+    expect(res.body.tax_identity).toEqual({ w9_completed: false, ready: false });
+  });
+});
+
 describe('payout.* webhook events', () => {
   test('payout.paid on the connect destination reconciles the local row', async () => {
     const previous = process.env.STRIPE_CONNECT_WEBHOOK_SECRET;

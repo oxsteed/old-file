@@ -1,5 +1,13 @@
 /**
- * Meta Model API chat provider (Muse Spark family).
+ * LEGACY Meta-only chat provider (Meta Model API, Muse Spark family).
+ *
+ * Do NOT import this as the general AI provider. New code must use the
+ * OpenRouter module (server/services/openRouterChat.js): Emile's standing
+ * rule (2026-10-14) is OpenRouter-only on every user-facing path, and the
+ * Meta API stays tied only to features that actively make money. This
+ * module remains for the two remaining Meta call sites
+ * (customer360 assistant draft, analytics NL translator) until they are
+ * routed through OpenRouter.
  *
  * OpenAI-compatible `POST {base}/chat/completions` with Bearer auth.
  * Returns the same `{ ok, reply } / { ok: false, error }` shape as the

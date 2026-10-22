@@ -6938,7 +6938,9 @@
     "caseActionRequired": "Add a message or attachment first.",
     "case": "Support case",
     "attachments": "Attachments",
-    "attachmentAndReply": "Message or proof link"
+    "attachmentAndReply": "Message or proof",
+    "uploadProofFile": "Upload a receipt or proof file (optional)",
+    "removeAttachment": "Remove"
   },
   "adminCreateUser": {
     "success": "User {{email}} created successfully.",
@@ -21470,7 +21472,20 @@
     "appointmentsByStatus": "Appointments by Status",
     "servicesPerformance": "Services Performance",
     "keyInsights": "Key Insights",
-    "noInsights": "No insights available yet"
+    "noInsights": "No insights available yet",
+    "overview": "Overview",
+    "invoiceRevenue": "Invoice revenue",
+    "mtdRevenue": "Revenue (this month)",
+    "mtdExpenses": "Expenses (this month)",
+    "mtdProfit": "Profit (this month)",
+    "ytdRevenue": "Revenue (year to date)",
+    "outstandingInvoices": "Outstanding invoices",
+    "overdueInvoices": "Overdue invoices",
+    "jobsCompleted": "Jobs completed (6 mo)",
+    "avgJobValue": "Avg job value",
+    "expenses": "Expenses",
+    "profit": "Profit",
+    "month": "Month"
   },
   "businessMessaging": {
     "title": "Conversations",

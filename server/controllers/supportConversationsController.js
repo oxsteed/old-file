@@ -2049,7 +2049,16 @@ async function addMessage(req, res) {
       return sendValidationError(res, { file: 'Only image attachments are allowed' });
     }
 
-    const attachment = normalizeAttachmentReference(attachmentUrl, attachmentName);
+    // Upload-only attachments: a pasted attachmentUrl bypasses the upload
+    // pipeline (malware scan, EXIF strip, quota). Reject it outright and
+    // point the sender at the file upload instead.
+    if (String(attachmentUrl ?? '').trim()) {
+      return sendValidationError(res, {
+        attachmentUrl: 'Pasted attachment links are not accepted. Upload the file directly instead.',
+      });
+    }
+
+    const attachment = normalizeAttachmentReference(null, attachmentName);
     if (attachment.error) {
       return sendValidationError(res, { attachmentUrl: attachment.error });
     }

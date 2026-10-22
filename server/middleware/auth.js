@@ -289,7 +289,14 @@ async function authenticate(req, res, next) {
     user.stripe_connect_ready = !!(user.connect_charges_enabled && user.connect_payouts_enabled);
     user.stripe_connect_onboarded = !!user.connect_onboarding_complete;
 
-    // Identity (Didit): block API access when email is verified but identity gate not met
+    // Identity (Didit): block API access when the identity gate is not met.
+    // Email-unverified accounts are gated too: they previously skipped the
+    // identity check entirely (full API access for admin-created and legacy
+    // rows). An unverified account verifies its email through the exempt
+    // /api/auth paths first, then satisfies Didit (verify, or skip when
+    // DIDIT_ALLOW_USER_SKIP is open) exactly like a verified account — never
+    // broader access. didit_status='skipped' alone does not satisfy the gate
+    // for an unverified account.
     const DIDIT_EXEMPT_PATH_PREFIXES = [
       '/api/auth/',
       '/api/didit/',
@@ -304,20 +311,19 @@ async function authenticate(req, res, next) {
       DIDIT_EXEMPT_PATH_PREFIXES.some((p) => fullPath.startsWith(p)) ||
       fullPath.startsWith('/api/webhooks');
     // Review P2-7-F12: latent lockout trap. With DIDIT_ALLOW_USER_SKIP=false
-    // (the default) and DIDIT_API_KEY unset, no user can verify (session
-    // creation 503s) and no user can skip (403) — every email-verified user
-    // would be 403'd API-wide with no recovery path. When the provider is
-    // not configured the gate is unenforceable, so fail open with a loud
-    // warning instead of a self-inflicted lockout. Money paths keep their
-    // own identity checks (credit rail review is fail-closed separately).
+    // (explicit opt-in) and DIDIT_API_KEY unset, no user can verify (session
+    // creation 503s) and no user can skip (403) — every user would be 403'd
+    // API-wide with no recovery path. When the provider is not configured the
+    // gate is unenforceable, so fail open with a loud warning instead of a
+    // self-inflicted lockout. Money paths keep their own identity checks
+    // (credit rail review is fail-closed separately).
     if (!process.env.DIDIT_API_KEY) {
       if (!diditUnconfiguredWarned) {
         diditUnconfiguredWarned = true;
         logger.warn('DIDIT_API_KEY is not set: identity verification gate is disabled; configure Didit or set DIDIT_ALLOW_USER_SKIP explicitly.');
       }
     } else if (
-      user.email_verified &&
-      !isDiditIdentitySatisfied(user) &&
+      (!user.email_verified || !isDiditIdentitySatisfied(user)) &&
       !isDiditExempt
     ) {
       // Review P2-7-F13: a duplicate identity is not "verify again"; it is a

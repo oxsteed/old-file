@@ -396,7 +396,7 @@ test("all raw writes call the authoritative gate and growth cannot import outsid
   )) {
     const src = fs.readFileSync(file, "utf8");
     expect(src).not.toMatch(
-      /require\([^)]*(?:aiChatProvider|chatController|oxsteedCredit|creditAccount|paymentRails)/i,
+      /require\([^)]*(?:metaChatProvider|aiChatProvider|chatController|oxsteedCredit|creditAccount|paymentRails)/i,
     );
     expect(src).not.toMatch(/openrouter\.ai|api\.meta\.ai|api\.openai\.com/);
     if (/table:\s*['"]growth\.activity_events['"]/.test(src))

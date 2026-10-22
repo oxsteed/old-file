@@ -6938,7 +6938,9 @@
     "caseActionRequired": "Ajoutez d'abord un message ou une pièce jointe.",
     "case": "Dossier d'assistance",
     "attachments": "Pièces jointes",
-    "attachmentAndReply": "Message ou lien de preuve"
+    "attachmentAndReply": "Message ou preuve",
+    "uploadProofFile": "Téléversez un fichier de reçu ou de preuve (facultatif)",
+    "removeAttachment": "Retirer"
   },
   "adminCreateUser": {
     "success": "Utilisateur {{email}} créé.",
@@ -21470,7 +21472,20 @@
     "appointmentsByStatus": "Rendez-vous par statut",
     "servicesPerformance": "Performance des services",
     "keyInsights": "Points clés",
-    "noInsights": "Aucun insight disponible pour le moment"
+    "noInsights": "Aucun insight disponible pour le moment",
+    "overview": "Aperçu",
+    "invoiceRevenue": "Revenus des factures",
+    "mtdRevenue": "Revenus (ce mois-ci)",
+    "mtdExpenses": "Dépenses (ce mois-ci)",
+    "mtdProfit": "Bénéfice (ce mois-ci)",
+    "ytdRevenue": "Revenus (année en cours)",
+    "outstandingInvoices": "Factures impayées",
+    "overdueInvoices": "Factures en retard",
+    "jobsCompleted": "Missions terminées (6 mois)",
+    "avgJobValue": "Valeur moyenne par mission",
+    "expenses": "Dépenses",
+    "profit": "Bénéfice",
+    "month": "Mois"
   },
   "businessMessaging": {
     "title": "Conversations",

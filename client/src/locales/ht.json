@@ -7129,7 +7129,9 @@
     "caseActionRequired": "Ajoute yon mesaj oswa yon pyès jwente anvan.",
     "case": "Dosye asistans",
     "attachments": "Pyès jwente",
-    "attachmentAndReply": "Mesaj oswa lyen prèv"
+    "attachmentAndReply": "Mesaj oswa prèv",
+    "uploadProofFile": "Voye yon fichye resi oswa prèv (opsyonèl)",
+    "removeAttachment": "Retire"
   },
   "adminCreateUser": {
     "success": "Itilizatè {{email}} kreye avèk siksè.",
@@ -21470,7 +21472,20 @@
     "appointmentsByStatus": "Randevou pa estati",
     "servicesPerformance": "Pèfòmans sèvis",
     "keyInsights": "Pwen kle",
-    "noInsights": "Pa gen insight ki disponib ankò"
+    "noInsights": "Pa gen insight ki disponib ankò",
+    "overview": "Apèsi",
+    "invoiceRevenue": "Revni fakti",
+    "mtdRevenue": "Revni (mwa sa a)",
+    "mtdExpenses": "Depans (mwa sa a)",
+    "mtdProfit": "Pwofi (mwa sa a)",
+    "ytdRevenue": "Revni (ane an kou)",
+    "outstandingInvoices": "Fakti ki poko peye",
+    "overdueInvoices": "Fakti ki an reta",
+    "jobsCompleted": "Travay ki fini (6 mwa)",
+    "avgJobValue": "Vale mwayèn pa travay",
+    "expenses": "Depans",
+    "profit": "Pwofi",
+    "month": "Mwa"
   },
   "businessMessaging": {
     "title": "Konvèsasyon",

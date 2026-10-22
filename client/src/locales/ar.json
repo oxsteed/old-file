@@ -6938,7 +6938,9 @@
     "caseActionRequired": "أضف رسالة أو مرفقًا أولًا.",
     "case": "قضية الدعم",
     "attachments": "المرفقات",
-    "attachmentAndReply": "رسالة أو رابط إثبات"
+    "attachmentAndReply": "رسالة أو إثبات",
+    "uploadProofFile": "حمّل ملف إيصال أو إثبات (اختياري)",
+    "removeAttachment": "إزالة"
   },
   "adminCreateUser": {
     "success": "تم إنشاء المستخدم {{email}} بنجاح.",
@@ -21481,7 +21483,20 @@
     "appointmentsByStatus": "المواعيد حسب الحالة",
     "servicesPerformance": "أداء الخدمات",
     "keyInsights": "أبرز الرؤى",
-    "noInsights": "لا توجد رؤى متاحة بعد"
+    "noInsights": "لا توجد رؤى متاحة بعد",
+    "overview": "نظرة عامة",
+    "invoiceRevenue": "إيرادات الفواتير",
+    "mtdRevenue": "الإيرادات (هذا الشهر)",
+    "mtdExpenses": "المصروفات (هذا الشهر)",
+    "mtdProfit": "الربح (هذا الشهر)",
+    "ytdRevenue": "الإيرادات (السنة الجارية)",
+    "outstandingInvoices": "فواتير مستحقة",
+    "overdueInvoices": "فواتير متأخرة",
+    "jobsCompleted": "مهام مكتملة (6 أشهر)",
+    "avgJobValue": "متوسط قيمة المهمة",
+    "expenses": "المصروفات",
+    "profit": "الربح",
+    "month": "الشهر"
   },
   "businessMessaging": {
     "title": "المحادثات",

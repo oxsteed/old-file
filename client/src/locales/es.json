@@ -6938,7 +6938,9 @@
     "caseActionRequired": "Agrega primero un mensaje o un adjunto.",
     "case": "Caso de soporte",
     "attachments": "Adjuntos",
-    "attachmentAndReply": "Mensaje o enlace de comprobante"
+    "attachmentAndReply": "Mensaje o comprobante",
+    "uploadProofFile": "Sube un archivo de recibo o comprobante (opcional)",
+    "removeAttachment": "Quitar"
   },
   "adminCreateUser": {
     "success": "Usuario {{email}} creado correctamente.",
@@ -21470,7 +21472,20 @@
     "appointmentsByStatus": "Citas por Estado",
     "servicesPerformance": "Rendimiento de Servicios",
     "keyInsights": "Principales Hallazgos",
-    "noInsights": "Aún no hay hallazgos disponibles"
+    "noInsights": "Aún no hay hallazgos disponibles",
+    "overview": "Resumen",
+    "invoiceRevenue": "Ingresos por facturas",
+    "mtdRevenue": "Ingresos (este mes)",
+    "mtdExpenses": "Gastos (este mes)",
+    "mtdProfit": "Ganancia (este mes)",
+    "ytdRevenue": "Ingresos (año en curso)",
+    "outstandingInvoices": "Facturas pendientes",
+    "overdueInvoices": "Facturas vencidas",
+    "jobsCompleted": "Trabajos completados (6 meses)",
+    "avgJobValue": "Valor promedio por trabajo",
+    "expenses": "Gastos",
+    "profit": "Ganancia",
+    "month": "Mes"
   },
   "businessMessaging": {
     "title": "Conversaciones",
