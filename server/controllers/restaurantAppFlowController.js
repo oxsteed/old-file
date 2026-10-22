@@ -2862,14 +2862,19 @@ async function buildQueueBoardPayload(restaurantId, device = null, { publicOnly 
   const restaurant = restaurants[0];
   if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
   const timezone = normalizeString(restaurant.timezone, 80) || 'UTC';
+  const orderParams = [restaurantId, timezone];
+  const deviceLocationFilter = device?.location_id != null
+    ? ` AND location_id = ANY($${orderParams.push([Number(device.location_id)])}::bigint[])`
+    : '';
   const { rows } = await pool.query(
     `SELECT queue_number, status, table_label, fulfillment_type, promised_at, updated_at
        FROM food_orders
       WHERE restaurant_id = $1
         AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date
         AND status IN ('received','accepted','preparing','ready')
+        ${deviceLocationFilter}
       ORDER BY queue_number ASC`,
-    [restaurantId, timezone]
+    orderParams
   );
   const preparingRows = rows.filter((row) => row.status !== 'ready');
   const readyRows = rows.filter((row) => row.status === 'ready');
@@ -2931,7 +2936,7 @@ function displaySettingsFromDevice(device) {
   };
 }
 
-async function buildDisplayStatsPayload(restaurantId, device = null) {
+async function buildDisplayStatsPayload(restaurantId, device = null, locationIds = null) {
   const { rows: [restaurant] } = await pool.query(
     `SELECT id, display_name, timezone
        FROM food_restaurants
@@ -2940,6 +2945,12 @@ async function buildDisplayStatsPayload(restaurantId, device = null) {
   );
   if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
   const timezone = normalizeString(restaurant.timezone, 80) || 'UTC';
+  const orderParams = [restaurantId, timezone];
+  const locationFilter = locationIds?.length
+    ? ` AND location_id = ANY($${orderParams.push(locationIds)}::bigint[])`
+    : device?.location_id != null
+      ? ` AND location_id = ANY($${orderParams.push([Number(device.location_id)])}::bigint[])`
+      : '';
   const { rows: [orders] } = await pool.query(
     `SELECT
         COUNT(*) FILTER (WHERE status IN ('received','accepted','preparing','ready'))::int AS active_orders,
@@ -2949,9 +2960,16 @@ async function buildDisplayStatsPayload(restaurantId, device = null) {
         COUNT(*) FILTER (WHERE order_source = 'kiosk')::int AS kiosk_orders
        FROM food_orders
       WHERE restaurant_id = $1
-        AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date`,
-    [restaurantId, timezone]
+        AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date
+        ${locationFilter}`,
+    orderParams
   );
+  const deviceParams = [restaurantId];
+  const deviceLocationFilter = locationIds?.length
+    ? ` AND location_id = ANY($${deviceParams.push(locationIds)}::bigint[])`
+    : device?.location_id != null
+      ? ` AND location_id = ANY($${deviceParams.push([Number(device.location_id)])}::bigint[])`
+      : '';
   const { rows: [devices] } = await pool.query(
     `SELECT
         COUNT(*) FILTER (WHERE app_key = 'display' AND status = 'paired')::int AS paired_displays,
@@ -2962,8 +2980,8 @@ async function buildDisplayStatsPayload(restaurantId, device = null) {
         )::int AS stale_displays,
         MAX(last_seen_at) FILTER (WHERE app_key = 'display' AND status = 'paired') AS last_display_seen_at
        FROM restaurant_app_devices
-      WHERE restaurant_id = $1`,
-    [restaurantId]
+      WHERE restaurant_id = $1${deviceLocationFilter}`,
+    deviceParams
   );
   return {
     restaurant: {
@@ -3411,11 +3429,14 @@ exports.getDisplayStats = async (req, res, next) => {
     const deviceId = parsePositiveInt(req.params.deviceId);
     const device = deviceId ? await requireDeviceCredential(req, restaurantId, deviceId) : null;
     if (device) assertDeviceApp(device, 'display');
+    let locationIds = null;
     if (!device) {
       if (!req.user?.id) throw new AppError('Authentication required', 401, 'authentication_required');
-      await requireRestaurantAccess(req.user.id, restaurantId);
+      const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+      const locationScope = await getLocationScope(restaurant, req.user.id);
+      if (locationScope.mode === 'assigned') locationIds = locationScope.location_ids;
     }
-    res.json(await buildDisplayStatsPayload(restaurantId, device));
+    res.json(await buildDisplayStatsPayload(restaurantId, device, locationIds));
   } catch (err) {
     next(err);
   }
@@ -3530,12 +3551,16 @@ exports.reportDeviceIssue = async (req, res, next) => {
   }
 };
 
-async function requireOpenPosShift(client, restaurantId, shiftId, userId, canManage) {
+async function requireOpenPosShift(client, restaurantId, shiftId, userId, canManage, locationScope = null) {
   if (!shiftId) throw new AppError('An open POS shift is required', 409, 'open_pos_shift_required');
+  const params = [shiftId, restaurantId];
+  const locationFilter = locationScope?.mode === 'assigned'
+    ? ` AND location_id = ANY($${params.push(locationScope.location_ids)}::bigint[])`
+    : '';
   const { rows: [shift] } = await client.query(
     `SELECT * FROM restaurant_pos_shifts
-      WHERE id = $1 AND restaurant_id = $2 AND status = 'open'`,
-    [shiftId, restaurantId]
+      WHERE id = $1 AND restaurant_id = $2 AND status = 'open'${locationFilter}`,
+    params
   );
   if (!shift) throw new AppError('Open POS shift not found', 409, 'open_pos_shift_required');
   if (!canManage && String(shift.staff_user_id) !== String(userId)) {
@@ -3548,6 +3573,7 @@ exports.openShift = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     // S-07: opening a cash drawer is a POS capability, not a side effect
     // of membership. Representatives and support agents hold restaurant
     // access but no pos.use, and previously could open a drawer in their
@@ -3580,6 +3606,10 @@ exports.openShift = async (req, res, next) => {
       requestedLocationId: parsePositiveInt(req.body.locationId || req.body.location_id),
       deviceLocationId: shiftDeviceLocationId,
     });
+    if (locationScope.mode === 'assigned'
+      && (!shiftLocationId || !locationScope.location_ids.includes(Number(shiftLocationId)))) {
+      throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+    }
     const { rows: [shift] } = await pool.query(
       `INSERT INTO restaurant_pos_shifts
          (restaurant_id, staff_user_id, staff_label, drawer_name, opening_cash_cents, metadata, location_id)
@@ -3609,16 +3639,22 @@ exports.closeShift = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const canManagePos = await hasRestaurantPermission(restaurant, req.user.id, 'pos.manage');
     const shiftId = parsePositiveInt(req.params.shiftId);
     const closingCashCents = parseCents(req.body.closingCashCents ?? req.body.closing_cash_cents, 'closingCashCents');
     const result = await withTransaction(pool, async (client) => {
+      const shiftParams = [shiftId, restaurantId, req.user.id, canManagePos];
+      const shiftLocationFilter = locationScope.mode === 'assigned'
+        ? ` AND location_id = ANY($${shiftParams.push(locationScope.location_ids)}::bigint[])`
+        : '';
       const { rows: [currentShift] } = await client.query(
         `SELECT * FROM restaurant_pos_shifts
           WHERE id = $1 AND restaurant_id = $2 AND status = 'open'
             AND (staff_user_id = $3 OR $4 = TRUE)
+            ${shiftLocationFilter}
           FOR UPDATE`,
-        [shiftId, restaurantId, req.user.id, canManagePos]
+        shiftParams
       );
       if (!currentShift) throw new AppError('Open shift not found', 404, 'shift_not_found');
 
@@ -3714,8 +3750,9 @@ exports.closeShift = async (req, res, next) => {
                 closed_at = NOW(),
                 metadata = metadata || $2::jsonb
           WHERE id = $3 AND restaurant_id = $4
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($5::bigint[])' : ''}
           RETURNING *`,
-        [closingCashCents, JSON.stringify(closeSummary), shiftId, restaurantId]
+        [closingCashCents, JSON.stringify(closeSummary), shiftId, restaurantId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
       );
       return { shift, summary: closeSummary };
     });
@@ -3728,7 +3765,9 @@ exports.closeShift = async (req, res, next) => {
 exports.listShifts = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const { locationFilter, scopedParams } = locationScopeQueryHelpers(locationScope);
     const limit = Math.min(parsePositiveInt(req.query.limit, 50), 100);
     const { rows: shifts } = await pool.query(
       `SELECT s.*,
@@ -3769,9 +3808,10 @@ exports.listShifts = async (req, res, next) => {
               ) AS latest_drawer_count_cents
          FROM restaurant_pos_shifts s
         WHERE s.restaurant_id = $1
+          ${locationFilter('s', 4)}
         ORDER BY s.opened_at DESC
         LIMIT $2`,
-      [restaurantId, limit, req.user.id]
+      scopedParams([restaurantId, limit, req.user.id])
     );
     res.json({ shifts });
   } catch (err) {
@@ -3785,6 +3825,7 @@ exports.listPosOrders = async (req, res, next) => {
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     // POS surfaces require pos.use, not just membership.
     await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage', 'orders.manage']);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const limit = Math.min(parsePositiveInt(req.query.limit, 50), 100);
     const ticketState = normalizeString(req.query.ticketState || req.query.ticket_state, 24);
     const status = normalizeString(req.query.status, 32);
@@ -3793,6 +3834,10 @@ exports.listPosOrders = async (req, res, next) => {
       'fo.restaurant_id = $1',
       "fo.order_source IN ('counter','kiosk','tablet')",
     ];
+    if (locationScope.mode === 'assigned') {
+      params.push(locationScope.location_ids);
+      filters.push(`fo.location_id = ANY($${params.length}::bigint[])`);
+    }
     if (ticketState) {
       if (!POS_TICKET_STATES.has(ticketState)) {
         throw new AppError('Validation failed', 400, 'validation_failed', { ticketState: 'Unsupported ticket state' });
@@ -3870,6 +3915,7 @@ exports.recordDrawerEvent = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage', 'orders.manage']);
     const canManagePos = await hasRestaurantPermission(restaurant, req.user.id, 'pos.manage');
     const shiftId = parsePositiveInt(req.params.shiftId);
@@ -3916,6 +3962,7 @@ exports.recordDrawerEvent = async (req, res, next) => {
               AND restaurant_id = $2
               AND status = 'open'
               AND (staff_user_id = $9 OR $10 = TRUE)
+              ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($12::bigint[])' : ''}
          )
          INSERT INTO restaurant_pos_drawer_events
            (restaurant_id, shift_id, event_type, amount_cents, reason, note, metadata, created_by, acting_staff_user_id)
@@ -3934,6 +3981,7 @@ exports.recordDrawerEvent = async (req, res, next) => {
           req.user.id,
           canManagePos,
           actingStaff?.staffUserId || null,
+          ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : []),
         ]
       );
       if (!event) throw new AppError('Shift not found', 404, 'shift_not_found');
@@ -3958,6 +4006,7 @@ exports.createPosOrder = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage', 'orders.manage']);
     const canManagePos = await hasRestaurantPermission(restaurant, req.user.id, 'pos.manage');
     const items = Array.isArray(req.body.items) ? req.body.items : [];
@@ -3984,13 +4033,19 @@ exports.createPosOrder = async (req, res, next) => {
 
     const result = await withTransaction(pool, async (client) => {
       const openShift = shiftId
-        ? await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, canManagePos)
+        ? await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, canManagePos, locationScope)
         : null;
       const posDeviceLocationId = actingStaff?.deviceId
         ? await restaurantLocationService.deviceLocationId(client, { restaurantId, deviceId: actingStaff.deviceId })
         : null;
       const requestedStore = storeMenu.pinnedLocation(req.body.locationId ?? req.body.location_id, openShift?.location_id);
-      const pinnedStore = storeMenu.pinnedLocation(requestedStore, posDeviceLocationId);
+      let pinnedStore = storeMenu.pinnedLocation(requestedStore, posDeviceLocationId);
+      if (locationScope.mode === 'assigned') {
+        if (!pinnedStore && locationScope.location_ids.length === 1) pinnedStore = locationScope.location_ids[0];
+        if (!pinnedStore || !locationScope.location_ids.includes(Number(pinnedStore))) {
+          throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+        }
+      }
       // Read WITHOUT the row lock (F-18). This SELECT used to take
       // FOR UPDATE, which held the restaurant row across the external
       // routing call below (and every other POS order for the restaurant
@@ -5261,6 +5316,7 @@ exports.recordPosPayment = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const paymentType = normalizePosPaymentType(
       req.body.paymentType || req.body.payment_type || req.body.paymentMode || req.body.payment_mode,
       null
@@ -5351,8 +5407,10 @@ exports.recordPosPayment = async (req, res, next) => {
     );
     const result = await withTransaction(pool, async (client) => {
       const { rows: [order] } = await client.query(
-        `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2 FOR UPDATE`,
-        [orderId, restaurantId]
+        `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2
+          ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}
+          FOR UPDATE`,
+        [orderId, restaurantId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
       );
       if (!order) throw new AppError('Order not found', 404, 'order_not_found');
       if (paymentType === 'refund' && idempotencyKey) {
@@ -5433,7 +5491,7 @@ exports.recordPosPayment = async (req, res, next) => {
       // any open shift. Staff tender only inside their own open shift:
       // canManage=false makes requireOpenPosShift enforce ownership.
       if (shiftId) {
-        await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, isManager);
+        await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, isManager, locationScope);
       }
       const { rows: [ledger] } = await client.query(
         `SELECT COALESCE(SUM(amount_cents) FILTER (
@@ -5950,6 +6008,7 @@ exports.createPosCardIntent = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     // F-06: reserving a Terminal payment moves money, so restaurant
     // membership alone must not mint a processor-backed card intent.
     await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage']);
@@ -5972,8 +6031,10 @@ exports.createPosCardIntent = async (req, res, next) => {
     );
     reservedPayment = await withTransaction(pool, async (client) => {
       const { rows: [order] } = await client.query(
-        `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2 FOR UPDATE`,
-        [orderId, restaurantId]
+        `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2
+          ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}
+          FOR UPDATE`,
+        [orderId, restaurantId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
       );
       if (!order) throw new AppError('Order not found', 404, 'order_not_found');
       const { rows: [existing] } = await client.query(
@@ -5996,7 +6057,7 @@ exports.createPosCardIntent = async (req, res, next) => {
       if (['voided', 'refunded'].includes(order.pos_ticket_state) || order.status === 'cancelled') {
         throw new AppError('This ticket cannot accept payments', 409, 'ticket_not_payable');
       }
-      await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, canManagePos);
+      await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, canManagePos, locationScope);
       const { rows: [ledger] } = await client.query(
         `SELECT COALESCE(SUM(amount_cents) FILTER (
                         WHERE payment_type <> 'refund' AND status IN ('pending','recorded','captured')
