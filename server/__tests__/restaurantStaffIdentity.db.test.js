@@ -489,4 +489,84 @@ ddescribe('staff identity and cash controls (S-06/S-07)', () => {
       );
     });
   });
+
+  describe('auth-audit item 18: staff session tokens are device-bound', () => {
+    let deviceA;
+    let deviceB;
+    let tokenA;
+
+    async function pairDevice(name) {
+      const raw = `device-token-18-${crypto.randomUUID()}`;
+      const hash = crypto.createHash('sha256').update(raw).digest('hex');
+      const { rows: [device] } = await pool.query(
+        `INSERT INTO restaurant_app_devices
+           (restaurant_id, app_key, device_name, status, device_token_hash, paired_at)
+         VALUES ($1, 'pos', $2, 'paired', $3, NOW()) RETURNING id`,
+        [F.restaurantId, name, hash]
+      );
+      return { id: Number(device.id), token: raw };
+    }
+
+    async function issueOnDevice(device, pin) {
+      return request(deviceApp())
+        .post(`/api/restaurants/${F.restaurantId}/devices/${device.id}/staff-session`)
+        .set('X-Device-Token', device.token)
+        .send({ pin });
+    }
+
+    beforeAll(async () => {
+      deviceA = await pairDevice('Item18 tablet A');
+      deviceB = await pairDevice('Item18 tablet B');
+      // The manager PIN (2468) was set in the shared fixture; the device
+      // fixtures are fresh so no lockout state interferes.
+      const issued = await issueOnDevice(deviceA, '2468');
+      expect(issued.status).toBe(201);
+      tokenA = issued.body.token;
+      expect(tokenA).toBeTruthy();
+    });
+
+    test('a device-issued token does not resolve on a request without its device credential', async () => {
+      const status = await request(staffApp(F.manager))
+        .get(`/api/restaurants/${F.restaurantId}/pos/staff-session`)
+        .set('X-Staff-Session', tokenA);
+      expect(status.status).toBe(401);
+    });
+
+    test('resolveStaffSession requires the recorded device', async () => {
+      const { resolveStaffSession } = require('../services/restaurantStaffIdentityService');
+      const fakeReq = (restaurantDevice) => ({
+        get: (header) => (header === 'X-Staff-Session' ? tokenA : undefined),
+        body: {},
+        restaurantDevice,
+      });
+
+      const onDeviceA = await resolveStaffSession(fakeReq({ id: deviceA.id }), F.restaurantId);
+      expect(onDeviceA).toBeTruthy();
+      expect(Number(onDeviceA.device_id)).toBe(deviceA.id);
+
+      const onDeviceB = await resolveStaffSession(fakeReq({ id: deviceB.id }), F.restaurantId);
+      expect(onDeviceB).toBeNull();
+
+      const noDevice = await resolveStaffSession(fakeReq(undefined), F.restaurantId);
+      expect(noDevice).toBeNull();
+    });
+
+    test('the deviceId-less account-auth PIN path still issues unbound sessions', async () => {
+      const res = await request(staffApp(F.manager))
+        .post(`/api/restaurants/${F.restaurantId}/pos/staff-session`)
+        .send({ pin: '1357' });
+      expect(res.status).toBe(201);
+
+      const { rows: [session] } = await pool.query(
+        'SELECT device_id FROM restaurant_staff_sessions WHERE id = $1',
+        [res.body.staffSession.id]
+      );
+      expect(session.device_id).toBeNull();
+
+      const status = await request(staffApp(F.manager))
+        .get(`/api/restaurants/${F.restaurantId}/pos/staff-session`)
+        .set('X-Staff-Session', res.body.token);
+      expect(status.status).toBe(200);
+    });
+  });
 });
