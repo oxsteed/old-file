@@ -8701,6 +8701,7 @@ exports.updateRunnerDispatch = async (req, res, next) => {
                 -- proof submission. The old CASE WHEN $7 branch was dead.
                 updated_at = NOW()
           WHERE restaurant_id = $7 AND id = $8
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($9::bigint[])' : ''}
           RETURNING *`,
         [
           release,
@@ -8711,6 +8712,7 @@ exports.updateRunnerDispatch = async (req, res, next) => {
           req.body.deliveryEtaAt || req.body.delivery_eta_at || null,
           restaurantId,
           taskId,
+          ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : []),
         ]
       );
       return updated;
@@ -8785,8 +8787,9 @@ exports.completeRunnerHandoff = async (req, res, next) => {
                 completed_at = COALESCE(completed_at, COALESCE($1::timestamptz, NOW())),
                 updated_at = NOW()
           WHERE restaurant_id = $2 AND id = $3
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($4::bigint[])' : ''}
           RETURNING *`,
-        [handoffAt, restaurantId, taskId]
+        [handoffAt, restaurantId, taskId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
       );
       let proof = null;
       // A proof row is recorded only when there is actual proof content

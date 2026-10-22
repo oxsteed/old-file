@@ -440,8 +440,9 @@ exports.updateTaskStatus = async (req, res, next) => {
                 handoff_at = CASE WHEN $1 = 'Completed' THEN COALESCE(handoff_at, NOW()) ELSE handoff_at END,
                 updated_at = NOW()
           WHERE restaurant_id = $2 AND id = $3 AND status = $4
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($5::bigint[])' : ''}
           RETURNING *`,
-        [status, restaurantId, taskId, lockedTask.status]
+        [status, restaurantId, taskId, lockedTask.status, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
       );
       if (!task) throw new AppError('Runner task changed before the update completed', 409, 'runner_task_conflict');
 
@@ -533,8 +534,9 @@ exports.logProof = async (req, res, next) => {
         `UPDATE restaurant_runner_tasks
             SET status = 'Completed', completed_at = NOW(), handoff_at = COALESCE(handoff_at, NOW()), updated_at = NOW()
           WHERE restaurant_id = $1 AND id = $2 AND status = $3
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($4::bigint[])' : ''}
           RETURNING *`,
-        [restaurantId, taskId, task.status]
+        [restaurantId, taskId, task.status, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
       );
       if (!updatedTask) throw new AppError('Runner task changed before proof was submitted', 409, 'runner_task_conflict');
       if (updatedTask.food_order_id) {
@@ -615,8 +617,9 @@ exports.reportIssue = async (req, res, next) => {
     await pool.query(
       `UPDATE restaurant_runner_tasks
           SET status = 'Issue', updated_at = NOW()
-        WHERE restaurant_id = $1 AND id = $2`,
-      [restaurantId, taskId]
+        WHERE restaurant_id = $1 AND id = $2
+          ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}`,
+      [restaurantId, taskId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
     );
     res.status(201).json({ issue });
   } catch (err) {
