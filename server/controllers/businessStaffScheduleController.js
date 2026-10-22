@@ -2,6 +2,7 @@ const { payrollLocation } = require('../services/restaurantPayrollLocation');
 const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const { logBusinessAction } = require('../services/businessAuditLog');
+const laborJurisdiction = require('../services/laborJurisdictionRules');
 
 // Shifts
 //
@@ -752,7 +753,7 @@ exports.publishShifts = async (req, res, next) => {
       `UPDATE business_staff_shifts
           SET published_at = NOW(), published_by = $${params.length}
         WHERE ${where}
-        RETURNING id, user_id, shift_date, start_time, role_label`,
+        RETURNING id, user_id, shift_date, start_time, end_time, role_label, location_id, restaurant_id`,
       params
     );
 
@@ -794,7 +795,126 @@ exports.publishShifts = async (req, res, next) => {
       target_type: 'staff_schedule',
       after_state: { published: published.length, shift_ids: published.map((s) => s.id) },
     });
-    return res.json({ published: published.length, shift_ids: published.map((s) => s.id) });
+
+    // S-20: native jurisdiction rules are evaluated on every publish and
+    // the batch is kept as an immutable version row (evidence). Advisory
+    // only: warnings never block the publish.
+    let ruleWarnings = [];
+    try {
+      const pubRestaurantId = Number(restaurant_id) || null;
+      const pubLocationId = published.find((s) => s.location_id)?.location_id || null;
+      const rules = await laborJurisdiction.getJurisdiction(pool, pubRestaurantId, pubLocationId);
+      const toDateStr = (d) => {
+        if (!d) return null;
+        if (d instanceof Date) return d.toISOString().slice(0, 10);
+        return String(d).slice(0, 10);
+      };
+      const dates = published.map((s) => toDateStr(s.shift_date)).filter(Boolean).sort();
+      let existingShifts = [];
+      if (dates.length) {
+        const { rows } = await pool.query(
+          `SELECT id, user_id, shift_date::text AS shift_date,
+                  start_time::text AS start_time, end_time::text AS end_time,
+                  location_id, restaurant_id
+             FROM business_staff_shifts
+            WHERE business_id = $1 AND published_at IS NOT NULL
+              AND shift_date >= $2::date - INTERVAL '8 days'
+              AND shift_date <= $3::date + INTERVAL '1 day'`,
+          [businessId, dates[0], dates[dates.length - 1]]
+        );
+        existingShifts = rows;
+      }
+      const evaluated = published.map((s) => ({
+        id: s.id, user_id: s.user_id, shift_date: toDateStr(s.shift_date),
+        start_time: s.start_time, end_time: s.end_time,
+      }));
+      ruleWarnings = laborJurisdiction.evaluateSchedule(evaluated, { rules, existingShifts });
+      await pool.query(
+        `INSERT INTO restaurant_schedule_versions
+           (business_id, restaurant_id, location_id, published_by,
+            shift_ids, shift_count, week_start, week_end, rule_warnings)
+         VALUES ($1, $2, $3, $4, $5::bigint[], $6, $7::date, $8::date, $9::jsonb)`,
+        [
+          businessId, pubRestaurantId, pubLocationId, req.user.id,
+          published.map((s) => s.id), published.length,
+          dates[0] || null, dates[dates.length - 1] || null,
+          JSON.stringify(ruleWarnings),
+        ]
+      );
+    } catch (jurisErr) {
+      // Evidence and warnings are best-effort; the publish itself stands.
+      ruleWarnings = [];
+    }
+    return res.json({ published: published.length, shift_ids: published.map((s) => s.id), rule_warnings: ruleWarnings });
+  } catch (err) { return next(err); }
+};
+
+// ── Labor jurisdiction config (S-20) ────────────────────────────────────
+// Native rule parameters per restaurant location. Vendor rule sets stay
+// out of scope (Emile's call); this only stores and serves the native
+// engine's inputs.
+
+const JURISDICTION_CODES = new Set(['US-FED', 'US-CA', 'US-NYC', 'US-SFO', 'US-SEA', 'US-CHI', 'US-OR', 'CUSTOM']);
+
+exports.getLaborJurisdiction = async (req, res, next) => {
+  try {
+    const { businessId } = req.params;
+    const restaurantId = Number(req.query.restaurant_id);
+    const locationId = Number(req.query.location_id);
+    if (!Number.isSafeInteger(restaurantId) || restaurantId <= 0 || !Number.isSafeInteger(locationId) || locationId <= 0) {
+      return res.status(400).json({ error: 'restaurant_id and location_id are required' });
+    }
+    const rules = await laborJurisdiction.getJurisdiction(pool, restaurantId, locationId);
+    const { rows: [stored] } = await pool.query(
+      `SELECT * FROM restaurant_labor_jurisdictions
+        WHERE restaurant_id = $1 AND location_id = $2 AND is_active LIMIT 1`,
+      [restaurantId, locationId]
+    );
+    res.json({ jurisdiction: rules, configured: !!stored, stored: stored || null, presets: Object.keys(laborJurisdiction.PRESETS).filter((k) => k !== 'CUSTOM') });
+  } catch (err) { return next(err); }
+};
+
+exports.setLaborJurisdiction = async (req, res, next) => {
+  try {
+    const { businessId } = req.params;
+    if (!await isBusinessManager(req, businessId, req.user.id)) {
+      return res.status(403).json({ error: 'Only a manager can set labor jurisdiction rules' });
+    }
+    const restaurantId = Number(req.body?.restaurant_id ?? req.body?.restaurantId);
+    const locationId = Number(req.body?.location_id ?? req.body?.locationId);
+    const code = String(req.body?.jurisdiction_code || req.body?.jurisdictionCode || 'US-FED').toUpperCase();
+    if (!Number.isSafeInteger(restaurantId) || restaurantId <= 0 || !Number.isSafeInteger(locationId) || locationId <= 0) {
+      return res.status(400).json({ error: 'restaurant_id and location_id are required' });
+    }
+    if (!JURISDICTION_CODES.has(code)) {
+      return res.status(400).json({ error: `jurisdiction_code must be one of: ${[...JURISDICTION_CODES].join(', ')}` });
+    }
+    const cols = laborJurisdiction.RULE_COLUMNS;
+    const values = cols.map((c) => {
+      const v = req.body?.[c];
+      return v === undefined || v === null || v === '' ? null : v;
+    });
+    // Deactivate the old row (history is kept), insert the new config.
+    await pool.query(
+      `UPDATE restaurant_labor_jurisdictions SET is_active = FALSE, updated_at = NOW()
+        WHERE restaurant_id = $1 AND location_id = $2 AND is_active`,
+      [restaurantId, locationId]
+    );
+    const placeholders = cols.map((_, i) => `$${i + 4}`).join(', ');
+    const { rows: [row] } = await pool.query(
+      `INSERT INTO restaurant_labor_jurisdictions
+         (restaurant_id, location_id, jurisdiction_code, ${cols.join(', ')}, updated_by)
+       VALUES ($1, $2, $3, ${placeholders}, $${cols.length + 4})
+       RETURNING *`,
+      [restaurantId, locationId, code, ...values, req.user.id]
+    );
+    await logBusinessAction(req, {
+      business_id: Number(businessId),
+      action: 'business.staff.labor_jurisdiction.set',
+      target_type: 'labor_jurisdiction',
+      after_state: { restaurant_id: restaurantId, location_id: locationId, jurisdiction_code: code },
+    });
+    res.status(201).json({ jurisdiction: laborJurisdiction.resolveRules(row) });
   } catch (err) { return next(err); }
 };
 

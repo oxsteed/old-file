@@ -8256,6 +8256,7 @@
       "unassigned": "Non attribué",
       "confirmDeleteShift": "Supprimer ce shift ?",
       "publishDrafts": "Publier {{count}} quarts en brouillon",
+      "ruleWarningsTitle": "Alertes de droit du travail ({{count}})",
       "draftBadge": "Brouillon",
       "deleteShiftLabel": "Supprimer le quart",
       "confirmDeleteTitle": "Supprimer le quart",
@@ -9920,6 +9921,59 @@
       "restaurant_announcement": {
         "title": "Annonce de {{restaurantName}}",
         "body": "{{announcementTitle}}"
+      },
+      "crew_task_completed": {
+        "title": "Tâche terminée",
+        "body": "{{taskTitle}} à {{restaurantName}}"
+      },
+      "training_completed": {
+        "title": "Formation terminée",
+        "body": "{{moduleTitle}} a été terminée"
+      },
+      "training_recertification_due": {
+        "title": "Recertification de formation due",
+        "body": "Votre certification pour {{moduleTitle}} a expiré. Veuillez refaire la formation."
+      },
+      "member_invite": {
+        "title": "Vous avez été invité à rejoindre {{businessName}}",
+        "body": "Vous avez été invité à rejoindre « {{businessName}} » en tant que {{role}}."
+      },
+      "member_invite_resent": {
+        "title": "Invitation renvoyée par {{businessName}}",
+        "body": "Votre invitation à rejoindre « {{businessName}} » en tant que {{role}} a été renvoyée."
+      },
+      "member_invite_withdrawn": {
+        "title": "Invitation retirée par {{businessName}}",
+        "body": "Votre invitation à rejoindre « {{businessName}} » en tant que {{role}} a été retirée avant que vous l'acceptiez."
+      },
+      "member_removed": {
+        "title": "Retiré de {{businessName}}",
+        "body": "Vous avez été retiré en tant que {{role}} de « {{businessName}} »."
+      },
+      "member_rehired": {
+        "title": "Bon retour à {{businessName}}",
+        "body": "Vous avez été réembauché à « {{businessName}} » en tant que {{role}}."
+      },
+      "career_hired": {
+        "title": "Vous avez été embauché à {{businessName}}",
+        "body": "Votre candidature pour {{openingTitle}} est désormais embauchée en tant que {{role}}."
+      },
+      "crew_task_reviewed": {
+        "approved": {
+          "title": "Tâche approuvée",
+          "body": "{{taskTitle}} à {{restaurantName}} a été approuvée"
+        },
+        "rejected": {
+          "title": "Tâche renvoyée",
+          "body": "{{taskTitle}} à {{restaurantName}} nécessite plus de travail"
+        }
+      },
+      "roles": {
+        "owner": "propriétaire",
+        "manager": "responsable",
+        "representative": "représentant",
+        "employee": "employé",
+        "support_agent": "agent de support"
       }
     },
     "title": "Préférences de Notifications",
@@ -24327,6 +24381,10 @@
         "signedOn": "Signé le {{date}}",
         "signatures": "{{count}} signatures",
         "signCta": "Lire et signer",
+        "signModalTitle": "Signer : {{title}}",
+        "signModalHint": "Dessinez votre signature ci-dessous. Un nom tapé ne compte pas comme signature.",
+        "signing": "Signature...",
+        "signAndSubmit": "Signer et envoyer",
         "type": {
           "certificate_food_handler": "Certificat de manipulateur d'aliments",
           "certificate_allergen": "Certificat allergènes",

@@ -91,10 +91,14 @@ export function StaffScheduler({ businessId, isManager = false }) {
   };
 
   // S-04: publish every draft shift so assigned staff are notified.
+  // S-20: the response carries native jurisdiction warnings; they are
+  // shown below the publish button until dismissed.
+  const [ruleWarnings, setRuleWarnings] = useState([]);
   const publishDrafts = async () => {
     try {
       const res = await api.post(`/businesses/${businessId}/staff/shifts/publish`, {});
       toast.success(t('businessHub.staffScheduler.toastPublished', { count: res.data?.published ?? 0 }));
+      setRuleWarnings(res.data?.rule_warnings || []);
       loadShifts();
     } catch { toast.error(t('businessHub.staffScheduler.toastPublishFail')); }
   };
@@ -183,6 +187,23 @@ export function StaffScheduler({ businessId, isManager = false }) {
           )}
         </div>
       </div>
+
+      {/* S-20: jurisdiction warnings from the last publish. */}
+      {ruleWarnings.length > 0 && (
+        <div role="alert" style={{ marginBottom: '1rem', padding: '0.75rem 1rem', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: '0.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <strong style={{ fontSize: '0.875rem' }}>{t('businessHub.staffScheduler.ruleWarningsTitle', { count: ruleWarnings.length })}</strong>
+            <button type="button" onClick={() => setRuleWarnings([])} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem' }} aria-label={t('common.dismiss')}>
+              ✕
+            </button>
+          </div>
+          <ul style={{ margin: 0, paddingInlineStart: '1.25rem', fontSize: '0.8125rem' }}>
+            {ruleWarnings.map((w, i) => (
+              <li key={i}>{w.message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* S-24: real tab semantics — tablist/tab/tabpanel with aria-selected. */}
       <div role="tablist" aria-label={t('businessHub.staffScheduler.title')} onKeyDown={onTabKeyDown} style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>

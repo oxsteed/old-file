@@ -12,18 +12,28 @@
  *   ST_W2_TEST_DATABASE_URL=postgresql://oxsteed:statement-test-password@127.0.0.1:5432/st_w2
  *     npx jest __tests__/staffOffboardingRecords.db.test.js
  */
-function stW2OptIn() {
-  const value = process.env.ST_W2_TEST_DATABASE_URL || '';
-  if (!value) return '';
+function staffDbOptIn() {
+  // S-23: standard disposable test database (ci-local.sh sets it). The
+  // suite runs whenever the test DB is available and self-skips only
+  // when no test DB is configured at all. STATEMENT_REQUIRE_DB_TESTS
+  // (set by ci-local.sh) turns a missing DB into a hard failure instead
+  // of a silent skip.
+  const value = process.env.STATEMENT_TEST_DATABASE_URL || '';
+  if (!value) {
+    if (process.env.STATEMENT_REQUIRE_DB_TESTS === 'true') {
+      throw new Error('STATEMENT_TEST_DATABASE_URL is required when STATEMENT_REQUIRE_DB_TESTS=true');
+    }
+    return '';
+  }
   const url = new URL(value);
   const loopback = ['127.0.0.1', 'localhost', '::1', '[::1]'].includes(url.hostname);
-  if (!loopback || url.pathname !== '/st_w2') {
-    throw new Error('ST_W2_TEST_DATABASE_URL must be a loopback st_w2 database');
+  if (!loopback) {
+    throw new Error('STATEMENT_TEST_DATABASE_URL must be a loopback database');
   }
   return value;
 }
 
-const url = stW2OptIn();
+const url = staffDbOptIn();
 if (url) process.env.DATABASE_URL = url;
 jest.unmock('pg');
 jest.unmock('../db');
@@ -130,7 +140,7 @@ suite('S-11 offboarding records, reassignment, rehire (DB)', () => {
     expect(t.rows[0].c).toBe('staff_offboarding_records');
     const b = await db.query(
       `SELECT column_name FROM information_schema.columns
-        WHERE table_name = 'businesses' AND column_name = 'staff_record_retention_years'`
+        WHERE table_schema = 'public' AND table_name = 'businesses' AND column_name = 'staff_record_retention_years'`
     );
     expect(b.rows.length).toBe(1);
     const { rows } = await db.query(

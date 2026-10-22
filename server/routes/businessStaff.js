@@ -10,6 +10,9 @@ router.put   ('/:businessId/staff/shifts/:shiftId',      requireAuth, requireBus
 router.delete('/:businessId/staff/shifts/:shiftId',      requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.deleteShift);
 // S-04: schedule publishing — drafts go live and notify assigned staff.
 router.post  ('/:businessId/staff/shifts/publish',       requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.publishShifts);
+// S-20: native labor-law jurisdiction rules per location.
+router.get   ('/:businessId/staff/labor-jurisdiction',    requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.getLaborJurisdiction);
+router.put   ('/:businessId/staff/labor-jurisdiction',    requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.setLaborJurisdiction);
 // S-04: time-off / PTO requests.
 router.get   ('/:businessId/staff/time-off',             requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.listTimeOffRequests);
 router.post  ('/:businessId/staff/time-off',             requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.createTimeOffRequest);

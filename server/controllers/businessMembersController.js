@@ -207,10 +207,14 @@ async function inviteMember(req, res) {
       if (found) {
         await insertNotification(client, {
           userId: found.id,
-          type: 'business_invite',
+          type: 'member_invite',
           title: `Business invitation from ${req.user.first_name || 'someone'}`,
           body: `You have been invited to join "${biz.business_name}" as a ${role}.`,
-          data: { invite_id: created.id, business_id: biz.id, business_name: biz.business_name, role, job_role: created.job_role },
+          data: {
+            invite_id: created.id, business_id: biz.id, business_name: biz.business_name, role, job_role: created.job_role,
+            // S-19: the client renders the localized template from type + params.
+            params: { businessName: biz.business_name, role },
+          },
         });
       }
       // S-16: the invite itself is an auditable team event (the Team
@@ -317,10 +321,13 @@ async function revokeMember(req, res) {
       if (member.member_id) {
         await insertNotification(client, {
           userId: member.member_id,
-          type: 'rep_revoked',
+          type: 'member_removed',
           title: `Removed from "${biz.business_name}"`,
           body: `You have been removed as a ${member.role} from "${biz.business_name}".`,
-          data: { business_id: biz.id, business_name: biz.business_name, role: member.role },
+          data: {
+            business_id: biz.id, business_name: biz.business_name, role: member.role,
+            params: { businessName: biz.business_name, role: member.role },
+          },
         });
       }
 
@@ -381,10 +388,13 @@ async function resendMemberInvite(req, res) {
       if (member.member_id) {
         await insertNotification(client, {
           userId: member.member_id,
-          type: 'business_invite',
+          type: 'member_invite_resent',
           title: `Business invitation from ${req.user.first_name || 'someone'}`,
           body: `Your invitation to join "${biz.business_name}" as a ${member.role} has been resent.`,
-          data: { invite_id: row.id, business_id: biz.id, business_name: biz.business_name, role: member.role, job_role: row.job_role, resent: true },
+          data: {
+            invite_id: row.id, business_id: biz.id, business_name: biz.business_name, role: member.role, job_role: row.job_role, resent: true,
+            params: { businessName: biz.business_name, role: member.role },
+          },
         });
       }
       return row;
@@ -446,10 +456,13 @@ async function expireMemberInvite(req, res) {
       if (member.member_id) {
         await insertNotification(client, {
           userId: member.member_id,
-          type: 'business_invite_expired',
+          type: 'member_invite_withdrawn',
           title: `Invitation to "${biz.business_name}" expired`,
           body: `Your invitation to join "${biz.business_name}" as a ${member.role} was withdrawn before you accepted it.`,
-          data: { invite_id: row.id, business_id: biz.id, business_name: biz.business_name, role: member.role },
+          data: {
+            invite_id: row.id, business_id: biz.id, business_name: biz.business_name, role: member.role,
+            params: { businessName: biz.business_name, role: member.role },
+          },
         });
       }
       await logBusinessAction(req, {
@@ -598,10 +611,13 @@ async function rehireMember(req, res) {
       });
       await insertNotification(client, {
         userId: user.id,
-        type: 'business_rehired',
+        type: 'member_rehired',
         title: `Welcome back to "${biz.business_name}"`,
         body: `You have been rehired at "${biz.business_name}" as a ${member.role}.`,
-        data: { business_id: biz.id, business_name: biz.business_name, role: member.role, membership_id: member.id },
+        data: {
+          business_id: biz.id, business_name: biz.business_name, role: member.role, membership_id: member.id,
+          params: { businessName: biz.business_name, role: member.role },
+        },
       });
       return { member, offboardingRecord: record || null, trainingCompletions: completions };
     });

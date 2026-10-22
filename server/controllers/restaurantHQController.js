@@ -149,8 +149,77 @@ exports.rollup = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-exports.publishMenuOverrides = async (req, res, next) => {
+// S-18: HQ cross-store labor rollup. Per-store hours, labor cost and
+// labor % of sales for every accessible store, plus cross-store totals.
+// Gated on settings.manage (HQ hierarchy) and payroll.view (pay data).
+exports.laborRollup = async (req, res, next) => {
   try {
+    const anchorId = v.integer(req.params.restaurantId, 'restaurantId');
+    if (!Number.isSafeInteger(anchorId) || anchorId <= 0) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const anchor = await resolveRestaurantAccess(req.user.id, anchorId);
+    if (!(await permissions.hasRestaurantPermission(anchor, req.user.id, ['settings.manage']))) {
+      throw new AppError('You do not have permission to view the HQ rollup', 403, 'forbidden');
+    }
+    if (!(await permissions.hasRestaurantPermission(anchor, req.user.id, ['payroll.view']))) {
+      throw new AppError('Viewing payroll requires the payroll.view permission', 403, 'payroll_permission_required');
+    }
+    const locationScope = await getLocationScope(anchor, req.user.id);
+    const locationParams = [anchor.id];
+    const locationFilter = locationScope.mode === 'assigned' ? ' AND l.id = ANY($2::bigint[])' : '';
+    if (locationScope.mode === 'assigned') locationParams.push(locationScope.location_ids);
+    const { rows: accessible } = await pool.query(
+      `SELECT l.id, l.name AS display_name
+         FROM restaurant_locations l
+        WHERE l.restaurant_id = $1${locationFilter}
+        ORDER BY l.is_primary DESC, l.id`,
+      locationParams
+    );
+    const ids = accessible.map((row) => Number(row.id));
+    if (!ids.length) throw new AppError('No accessible stores found', 403, 'hq_scope_empty');
+    const range = dateRange(req, anchor);
+    const stores = [];
+    let totalHours = 0;
+    let totalLaborCostCents = 0;
+    let totalRevenueCents = 0;
+    for (const store of accessible) {
+      const labor = await payroll.computeLabor({
+        restaurant: anchor,
+        fromDate: range.from,
+        toDate: range.to,
+        locationIds: [Number(store.id)],
+      });
+      totalHours += labor.total_hours || 0;
+      totalLaborCostCents += labor.labor_cost_cents || 0;
+      totalRevenueCents += labor.revenue_cents || 0;
+      stores.push({
+        location_id: Number(store.id),
+        display_name: store.display_name,
+        total_hours: labor.total_hours,
+        scheduled_hours: labor.scheduled_hours,
+        overtime_hours: labor.overtime_hours,
+        labor_cost_cents: labor.labor_cost_cents,
+        labor_percent: labor.labor_percent,
+        sales_per_labor_hour_cents: labor.sales_per_labor_hour_cents,
+        revenue_cents: labor.revenue_cents,
+        currency: labor.currency,
+        employee_count: (labor.employees || []).length,
+        missing_wage_count: (labor.missing_wage_user_ids || []).length,
+      });
+    }
+    res.json({
+      scope: { businessId: Number(anchor.business_id), restaurantId: Number(anchor.id), storeCount: stores.length, from: range.from, to: range.to, timezone: range.timezone },
+      totals: {
+        total_hours: Math.round(totalHours * 100) / 100,
+        labor_cost_cents: totalLaborCostCents,
+        revenue_cents: totalRevenueCents,
+        labor_percent: totalRevenueCents > 0 ? Math.round((totalLaborCostCents / totalRevenueCents) * 1000) / 10 : null,
+      },
+      stores,
+    });
+  } catch (err) { next(err); }
+};
+
+exports.publishMenuOverrides = async (req, res, next) => {  try {
     const restaurantId = v.integer(req.params.restaurantId, 'restaurantId');
     if (!Number.isSafeInteger(restaurantId) || restaurantId <= 0) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     const restaurant = await resolveRestaurantAccess(req.user.id, restaurantId);

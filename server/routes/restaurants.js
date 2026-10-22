@@ -164,6 +164,8 @@ router.get('/:restaurantId/delivery/marketplaces/:provider/menu', requireRestaur
 router.post('/:restaurantId/delivery/marketplaces/:provider/orders', requireRestaurantAccess(), deliveryMarketplaces.ingestOrder);
 router.patch('/:restaurantId/delivery/marketplace-orders/:orderId', requireRestaurantAccess(), deliveryMarketplaces.transitionOrder);
 router.get('/:restaurantId/hq/rollup', requireRestaurantAccess(), hq.rollup);
+// S-18: HQ cross-store labor rollup (per-store hours, cost, labor %).
+router.get('/:restaurantId/hq/labor-rollup', requireRestaurantAccess(), hq.laborRollup);
 router.post('/:restaurantId/hq/menu/publish', requireRestaurantAccess(), hq.publishMenuOverrides);
 router.get('/:restaurantId/hq/regions', requireRestaurantAccess(), hq.listRegions);
 router.post('/:restaurantId/hq/regions', requireRestaurantAccess(), hq.createRegion);

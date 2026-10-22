@@ -702,13 +702,16 @@ exports.removeMembership = async (req, res, next) => {
     });
     res.json({ data: { ok: true, offboarding } });
 
-    // Fire-and-forget: notify the removed member.
+    // Fire-and-forget: notify the removed member (S-19: type + params).
     sendNotification({
       userId: rows[0].member_id,
-      type: 'vortex_membership_removed',
+      type: 'member_removed',
       title: 'Removed from team',
       body: `You were removed from the team of "${req.business.business_name}".`,
-      data: { business_id: req.business.id, membership_id: mid },
+      data: {
+        business_id: req.business.id, membership_id: mid,
+        params: { businessName: req.business.business_name, role: rows[0].role },
+      },
     }).catch(() => {});
   } catch (err) {
     next(err);

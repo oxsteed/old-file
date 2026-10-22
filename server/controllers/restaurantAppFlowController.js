@@ -8463,6 +8463,27 @@ exports.updateCrewTask = async (req, res, next) => {
       );
       return updated;
     }, 'restaurant_crew_task_update');
+    // S-17: the task creator hears when their task is finished (or sent
+    // for approval). Skipped when the actor is the creator themselves.
+    if (['completed', 'needs_approval'].includes(task.status)
+        && task.created_by && String(task.created_by) !== String(req.user.id)) {
+      await sendNotification({
+        userId: task.created_by,
+        type: 'crew_task_completed',
+        title: `Task completed at ${restaurant.display_name}`,
+        body: task.title,
+        action_url: '/restaurants/merchant?tab=tasks',
+        emailChannel: false,
+        data: {
+          restaurantId,
+          taskId: task.id,
+          params: {
+            restaurantName: restaurant.display_name,
+            taskTitle: task.title,
+          },
+        },
+      }).catch(() => {});
+    }
     res.json({ task });
   } catch (err) {
     next(err);
@@ -8512,7 +8533,7 @@ exports.reviewCrewTask = async (req, res, next) => {
       const { rows: [updated] } = await client.query(
         `UPDATE restaurant_crew_tasks
           SET status = $1,
-              approved_by = CASE WHEN $2 = TRUE THEN $3 ELSE NULL END,
+              approved_by = CASE WHEN $2 = TRUE THEN $3::uuid ELSE NULL END,
               approved_at = CASE WHEN $2 = TRUE THEN NOW() ELSE NULL END,
               completion_note = COALESCE($4, completion_note),
               updated_at = NOW()
@@ -8539,6 +8560,28 @@ exports.reviewCrewTask = async (req, res, next) => {
       );
       return updated;
     }, 'restaurant_crew_task_review');
+    // S-17: the assignee hears the verdict on their task.
+    if (task.assigned_to && String(task.assigned_to) !== String(req.user.id)) {
+      await sendNotification({
+        userId: task.assigned_to,
+        type: 'crew_task_reviewed',
+        title: approved
+          ? `Task approved at ${restaurant.display_name}`
+          : `Task sent back at ${restaurant.display_name}`,
+        body: task.title,
+        action_url: '/restaurants/merchant?tab=myshift',
+        emailChannel: false,
+        data: {
+          restaurantId,
+          taskId: task.id,
+          params: {
+            restaurantName: restaurant.display_name,
+            taskTitle: task.title,
+            approved,
+          },
+        },
+      }).catch(() => {});
+    }
     res.json({ task });
   } catch (err) {
     next(err);

@@ -4877,6 +4877,59 @@
       "restaurant_announcement": {
         "title": "Anons soti nan {{restaurantName}}",
         "body": "{{announcementTitle}}"
+      },
+      "crew_task_completed": {
+        "title": "Travay la fini",
+        "body": "{{taskTitle}} nan {{restaurantName}}"
+      },
+      "training_completed": {
+        "title": "Fòmasyon an fini",
+        "body": "{{moduleTitle}} fini"
+      },
+      "training_recertification_due": {
+        "title": "Resètifikasyon fòmasyon dwe fèt",
+        "body": "Sètifikasyon ou pou {{moduleTitle}} ekspire. Tanpri fè fòmasyon an ankò."
+      },
+      "member_invite": {
+        "title": "Yo envite ou pou rantre nan {{businessName}}",
+        "body": "Yo envite ou pou rantre nan \"{{businessName}}\" kòm {{role}}."
+      },
+      "member_invite_resent": {
+        "title": "Envitasyon voye ankò soti nan {{businessName}}",
+        "body": "Envitasyon ou pou rantre nan \"{{businessName}}\" kòm {{role}} voye ankò."
+      },
+      "member_invite_withdrawn": {
+        "title": "Envitasyon anile pa {{businessName}}",
+        "body": "Envitasyon ou pou rantre nan \"{{businessName}}\" kòm {{role}} anile anvan ou te aksepte li."
+      },
+      "member_removed": {
+        "title": "Yo retire ou nan {{businessName}}",
+        "body": "Yo retire ou kòm {{role}} nan \"{{businessName}}\"."
+      },
+      "member_rehired": {
+        "title": "Byenveni tounen nan {{businessName}}",
+        "body": "Yo anboche ou ankò nan \"{{businessName}}\" kòm {{role}}."
+      },
+      "career_hired": {
+        "title": "Yo anboche ou nan {{businessName}}",
+        "body": "Aplikasyon ou pou {{openingTitle}} anboche kounye a kòm {{role}}."
+      },
+      "crew_task_reviewed": {
+        "approved": {
+          "title": "Travay la apwouve",
+          "body": "{{taskTitle}} nan {{restaurantName}} apwouve"
+        },
+        "rejected": {
+          "title": "Travay la voye tounen",
+          "body": "{{taskTitle}} nan {{restaurantName}} bezwen plis travay"
+        }
+      },
+      "roles": {
+        "owner": "pwopriyetè",
+        "manager": "manadjè",
+        "representative": "reprezantan",
+        "employee": "anplwaye",
+        "support_agent": "ajan sipò"
       }
     }
   },
