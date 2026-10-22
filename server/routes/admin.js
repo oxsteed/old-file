@@ -37,6 +37,8 @@ const oxsteedCreditFeeScheduleService = require('../services/oxsteedCreditFeeSch
 const oxsteedCreditReserveService = require('../services/oxsteedCreditReserveService');
 const oxsteedCreditRestaurantConversionPolicyService = require('../services/oxsteedCreditRestaurantConversionPolicyService');
 const { verifyStepupChallenge } = require('../services/stepupChallengeService');
+const { requireFreshAuth } = require('../middleware/requireFreshAuth');
+const refundsCtrl = require('../controllers/logisticsRefundsController');
 const { AppError } = require('../middleware/errorHandler');
 const { creditAdminMutationLimiter, creditExportLimiter, adminPhoneVerificationLimiter, strictLimiter } = require('../middleware/rateLimiter');
 const moneyApprovalCtrl = require('../controllers/moneyApprovalController');
@@ -272,7 +274,15 @@ router.get('/super/users/:userId/sessions', requireSuperAdmin, superCtrl.listUse
 router.post('/users/:userId/password', requireSuperAdmin, superCtrl.setUserPasswordBySuperAdmin);
 
 // Impersonation (super-admin only)
-router.post('/users/:userId/impersonate',     requireSuperAdmin, superCtrl.impersonateUser);
+// Audit finding 9: starting an impersonation mints a 30-minute token that
+// acts as the victim across the product, so it requires a FRESH TOTP proof,
+// not merely an enrolled one. The admin first calls POST /super/stepup/verify
+// with their current TOTP code and purpose 'impersonation_start', which
+// records a 15-minute fresh-auth event; the impersonate route then requires
+// that event.
+const requireImpersonationStepUp = requireFreshAuth('impersonation_start');
+router.post('/super/stepup/verify', requireSuperAdmin, strictLimiter, refundsCtrl.verifyStepUp);
+router.post('/users/:userId/impersonate',     requireSuperAdmin, requireImpersonationStepUp, superCtrl.impersonateUser);
 router.post('/users/impersonate/exchange', requireSuperAdmin, superCtrl.exchangeImpersonationCode);
 router.post('/users/:userId/impersonate/end', requireSuperAdmin, superCtrl.endImpersonation);
 
@@ -497,19 +507,22 @@ router.delete('/super/regions/:regionId',   requireSuperAdmin, regionCtrl.delete
 // OxSteed Credit is a separate globally scoped stored-value rail. Keep
 // issuance and oversight behind the existing Super Admin authentication gate.
 router.use('/super/oxsteed-credit', noStoreCreditResponse);
-router.post('/super/oxsteed-credit/cards/issue-virtual', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCardCtrl.adminIssueVirtualCard);
-router.post('/super/oxsteed-credit/cards/issue-physical', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCardCtrl.adminIssuePhysicalCard);
-router.get('/super/oxsteed-credit/cards', requireSuperAdmin, oxsteedCreditCardCtrl.listAdminCards);
-router.get('/super/oxsteed-credit/cards/:cardId/history', requireSuperAdmin, oxsteedCreditCardCtrl.adminCardHistory);
-router.post('/super/oxsteed-credit/cards/:cardId/replacement/retry', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCardCtrl.retryAdminReplacement);
-router.post('/super/oxsteed-credit/cards/:cardId/fulfillment', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCardCtrl.updateAdminCardFulfillment);
-router.post('/super/oxsteed-credit/cards/:cardId/revoke', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCardCtrl.revokeAdminCard);
+router.post('/super/oxsteed-credit/cards/issue-virtual', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCardCtrl.adminIssueVirtualCard);
+router.post('/super/oxsteed-credit/cards/issue-physical', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCardCtrl.adminIssuePhysicalCard);
+router.get('/super/oxsteed-credit/cards', requireSuperAdmin, rejectImpersonated, oxsteedCreditCardCtrl.listAdminCards);
+router.get('/super/oxsteed-credit/cards/:cardId/history', requireSuperAdmin, rejectImpersonated, oxsteedCreditCardCtrl.adminCardHistory);
+router.post('/super/oxsteed-credit/cards/:cardId/replacement/retry', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCardCtrl.retryAdminReplacement);
+router.post('/super/oxsteed-credit/cards/:cardId/fulfillment', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCardCtrl.updateAdminCardFulfillment);
+router.post('/super/oxsteed-credit/cards/:cardId/revoke', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCardCtrl.revokeAdminCard);
 router.get('/super/oxsteed-credit/rail', requireSuperAdmin, oxsteedCreditCtrl.getAdminCreditRail);
 router.post('/super/oxsteed-credit/rail', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.updateAdminCreditRail);
 // Operator freeze on money initiation (external reconciliation, migration
 // 637). Independent of the rail enabled/suspended toggle above.
 router.post('/super/oxsteed-credit/rail/freeze', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.freezeAdminCreditRail);
-router.post('/super/oxsteed-credit/rail/unfreeze', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.unfreezeAdminCreditRail);
+// Auth audit item 8: unfreeze lifts the fraud emergency stop. Freeze stays
+// unilateral by design; unfreeze additionally rejects impersonated sessions
+// and requires a fresh step-up challenge in the controller.
+router.post('/super/oxsteed-credit/rail/unfreeze', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.unfreezeAdminCreditRail);
 // External reconciliation vs Stripe (Phase 4): run history and manual
 // triggers. Manual periods are capped at 31 days by the service.
 router.get('/super/oxsteed-credit/external-reconciliation', requireSuperAdmin, oxsteedCreditCtrl.listAdminCreditExternalReconciliationRuns);

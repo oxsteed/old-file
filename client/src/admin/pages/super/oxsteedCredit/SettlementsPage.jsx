@@ -19,6 +19,7 @@ import {
   Section,
   dateTime,
   money,
+  requestStepupChallengeCode,
   useCreditDialog,
   useCreditPageState,
 } from './shared';
@@ -249,10 +250,20 @@ export default function OxsteedCreditSettlementsPage() {
       }
     }
     setBusy(true); setNotice(''); setError('');
+    // Auth audit item 11: dedicated maker routes verify a fresh
+    // 'pending_action_request' step-up challenge before queueing.
+    const stepup = await requestStepupChallengeCode({
+      requestDialog, setNotice, setError, t,
+      actionType: 'pending_action_request',
+      description: t('creditStepupConfirmDescription'),
+      amountCents: Number(settlement.netCents || 0) || undefined,
+      currencyCode: settlement.currencyCode || 'USD',
+    });
+    if (!stepup) { setBusy(false); return; }
     try {
       // ADM-017: requestPendingAction requires an Idempotency-Key; without it
       // the server 400s every attempt.
-      const transitionPayload = { status, expectedStatus: settlement.status, reason: reason.trim(), paymentReference: paymentReference.trim() || undefined };
+      const transitionPayload = { status, expectedStatus: settlement.status, reason: reason.trim(), paymentReference: paymentReference.trim() || undefined, ...stepup };
       const keyPayload = { settlementId: settlement.id, status, reason: reason.trim() };
       const response = await adminApi.post(`/admin/super/oxsteed-credit/settlements/${settlement.id}/status`, transitionPayload, {
         headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-settlement-transition', keyPayload) },
@@ -280,7 +291,17 @@ export default function OxsteedCreditSettlementsPage() {
       return;
     }
     setBusy(true); setNotice(''); setError('');
-    const payload = { reason: reason.trim(), recoveryReference: recoveryReference.trim() };
+    // Auth audit item 11: dedicated maker routes verify a fresh
+    // 'pending_action_request' step-up challenge before queueing.
+    const stepup = await requestStepupChallengeCode({
+      requestDialog, setNotice, setError, t,
+      actionType: 'pending_action_request',
+      description: t('creditStepupConfirmDescription'),
+      amountCents: Number(settlement.netCents || 0) || undefined,
+      currencyCode: settlement.currencyCode || 'USD',
+    });
+    if (!stepup) { setBusy(false); return; }
+    const payload = { reason: reason.trim(), recoveryReference: recoveryReference.trim(), ...stepup };
     const keyPayload = { settlementId: settlement.id, ...payload };
     try {
       await adminApi.post(`/admin/super/oxsteed-credit/settlements/${settlement.id}/reversal`, payload, { headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-settlement-reversal', keyPayload) } });

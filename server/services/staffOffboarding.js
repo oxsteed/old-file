@@ -10,6 +10,13 @@
  *   - restaurant staff PINs for the user are deactivated at every
  *     restaurant owned by the business (previously a removed employee's
  *     PIN kept working at the POS);
+ *   - open staff sub-sessions (restaurant_staff_sessions) for the user are
+ *     ended at every restaurant owned by the business. Auth-audit item 3:
+ *     a revoked employee's session used to keep stamping acting_staff_user_id
+ *     on POS writes and tip attribution until idle expiry or the 12h cap;
+ *     ending it here closes the gap. Fail closed: the UPDATE runs in the
+ *     caller's transaction, so if it throws, the membership revoke and all
+ *     sibling cleanup roll back with it.
  *   - POS drawers (restaurant_pos_shifts) the user left open are flagged
  *     for a manager close instead of silently staying open. They are NOT
  *     force-closed: the cash inside still has to be counted by a manager.
@@ -28,12 +35,13 @@
  * @param {number} args.businessId
  * @param {string} args.userId    the removed member's user id
  * @param {string} [args.reason]  recorded on flagged drawers
- * @returns {Promise<{pinsDeactivated:number, drawersFlagged:number,
- *   crewTasksUnassigned:number, correctiveActionsUnassigned:number}>}
+ * @returns {Promise<{pinsDeactivated:number, sessionsEnded:number,
+ *   drawersFlagged:number, crewTasksUnassigned:number,
+ *   correctiveActionsUnassigned:number}>}
  */
 async function applyStaffOffboarding(client, { businessId, userId, reason } = {}) {
   if (!client || !businessId || !userId) {
-    return { pinsDeactivated: 0, drawersFlagged: 0, crewTasksUnassigned: 0, correctiveActionsUnassigned: 0 };
+    return { pinsDeactivated: 0, sessionsEnded: 0, drawersFlagged: 0, crewTasksUnassigned: 0, correctiveActionsUnassigned: 0 };
   }
 
   const pins = await client.query(
@@ -45,6 +53,25 @@ async function applyStaffOffboarding(client, { businessId, userId, reason } = {}
           SELECT id FROM food_restaurants WHERE business_id = $2
         )
       RETURNING p.id`,
+    [userId, businessId]
+  );
+
+  // Auth-audit item 3: end every open staff sub-session for the user at
+  // every restaurant owned by the business, inside the same transaction.
+  // resolveStaffSession checks only token/restaurant/expiry, so without
+  // this a revoked employee's session would keep stamping
+  // acting_staff_user_id on POS writes (and tip attribution) until the
+  // idle expiry or the 12h absolute cap. Any failure here throws and rolls
+  // the whole offboarding transaction back (fail closed).
+  const sessions = await client.query(
+    `UPDATE restaurant_staff_sessions s
+        SET ended_at = NOW(), end_reason = 'offboarded'
+      WHERE s.staff_user_id = $1
+        AND s.ended_at IS NULL
+        AND s.restaurant_id IN (
+          SELECT id FROM food_restaurants WHERE business_id = $2
+        )
+      RETURNING s.id`,
     [userId, businessId]
   );
 
@@ -90,6 +117,7 @@ async function applyStaffOffboarding(client, { businessId, userId, reason } = {}
 
   return {
     pinsDeactivated: pins.rowCount || 0,
+    sessionsEnded: sessions.rowCount || 0,
     drawersFlagged: drawers.rowCount || 0,
     crewTasksUnassigned: crewTasks.rowCount || 0,
     correctiveActionsUnassigned: correctiveActions.rowCount || 0,

@@ -3368,6 +3368,18 @@ exports.forceLogout = async (req, res) => {
     } catch (revokeErr) {
       logger.warn('forceLogout: token revocation failed', { userId, error: revokeErr.message });
     }
+
+    // Audit fix (finding 5): passkeys are standalone login credentials that
+    // survive session/token revocation. A planted user or admin passkey must
+    // not survive a force logout.
+    await db.query(
+      `UPDATE user_passkeys SET revoked_at = NOW() WHERE ${userIdEq('user_id')} AND revoked_at IS NULL`,
+      [String(userId)],
+    );
+    await db.query(
+      `UPDATE admin_passkeys SET revoked_at = NOW() WHERE ${userIdEq('user_id')} AND revoked_at IS NULL`,
+      [String(userId)],
+    );
     try {
       const { io } = require('../bootstrap/realtime');
       if (io) {
@@ -3658,6 +3670,34 @@ exports.setUserPasswordBySuperAdmin = async (req, res) => {
       `UPDATE sessions SET is_valid = false, is_revoked = true WHERE ${userIdEq('user_id')}`,
       [String(userId)],
     );
+
+    // Audit fix (finding 5): a credential rotation must revoke both passkey
+    // tables. Admin passkeys are a standalone admin login credential
+    // (passkeyController); a planted passkey must not survive a password
+    // reset by a super-admin.
+    await db.query(
+      `UPDATE user_passkeys SET revoked_at = NOW() WHERE ${userIdEq('user_id')} AND revoked_at IS NULL`,
+      [String(userId)],
+    );
+    await db.query(
+      `UPDATE admin_passkeys SET revoked_at = NOW() WHERE ${userIdEq('user_id')} AND revoked_at IS NULL`,
+      [String(userId)],
+    );
+
+    // Audit fix (finding 7): a planted TOTP (enrolled via stolen session)
+    // must not survive a super-admin password reset. Clear the secret, the
+    // enabled flag and the backup codes so the account holder re-enrolls 2FA.
+    await db.query(
+      `UPDATE users
+          SET totp_secret = NULL,
+              totp_enabled = false,
+              totp_verified_at = NULL,
+              backup_codes = NULL,
+              updated_at = NOW()
+        WHERE id = $1`,
+      [userId],
+    );
+
     socketService.disconnectUserSockets(userId);
 
     await logUserAction({

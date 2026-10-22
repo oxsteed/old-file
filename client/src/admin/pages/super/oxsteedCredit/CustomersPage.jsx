@@ -106,7 +106,16 @@ function OxsteedCreditCustomersPage() {
     const amountCents = dollarsToCents(customerForm.amount, customerForm.currencyCode);
     if (amountCents === null) { setError(t('adminCreditAmountInvalid')); return; }
     setBusy(true); setNotice(''); setError('');
-    const payload = { amountCents, currencyCode: customerForm.currencyCode, fundingReference: customerForm.fundingReference, reason: customerForm.reason };
+    // Auth audit item 11: dedicated maker routes verify a fresh
+    // 'pending_action_request' step-up challenge before queueing.
+    const stepup = await requestStepupChallengeCode({
+      requestDialog, setNotice, setError, t,
+      actionType: 'pending_action_request',
+      description: t('creditStepupConfirmDescription'),
+      amountCents, currencyCode: customerForm.currencyCode,
+    });
+    if (!stepup) { setBusy(false); return; }
+    const payload = { amountCents, currencyCode: customerForm.currencyCode, fundingReference: customerForm.fundingReference, reason: customerForm.reason, ...stepup };
     const keyPayload = { customerId: customerForm.customerId, ...payload };
     try {
       const response = await adminApi.post(`/admin/super/oxsteed-credit/customers/${customerForm.customerId}/loads`, payload, { headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-load', keyPayload) } });
@@ -127,7 +136,16 @@ function OxsteedCreditCustomersPage() {
     const amountCents = dollarsToCents(customerForm.amount, customerForm.currencyCode);
     if (amountCents === null) { setError(t('adminCreditAmountInvalid')); return; }
     setBusy(true); setNotice(''); setError('');
-    const payload = { amountCents, currencyCode: customerForm.currencyCode, direction: 'debit', reason: customerForm.reason };
+    // Auth audit item 11: dedicated maker routes verify a fresh
+    // 'pending_action_request' step-up challenge before queueing.
+    const stepup = await requestStepupChallengeCode({
+      requestDialog, setNotice, setError, t,
+      actionType: 'pending_action_request',
+      description: t('creditStepupConfirmDescription'),
+      amountCents, currencyCode: customerForm.currencyCode,
+    });
+    if (!stepup) { setBusy(false); return; }
+    const payload = { amountCents, currencyCode: customerForm.currencyCode, direction: 'debit', reason: customerForm.reason, ...stepup };
     const keyPayload = { customerId: customerForm.customerId, ...payload };
     try {
       const response = await adminApi.post(`/admin/super/oxsteed-credit/customers/${customerForm.customerId}/adjustments`, payload, { headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-adjustment', keyPayload) } });

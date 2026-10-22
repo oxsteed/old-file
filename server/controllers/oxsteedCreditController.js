@@ -162,6 +162,17 @@ function getIdempotencyKey(req) {
  * replayed }.
  */
 async function requestMoneyMovement(req, actionType, payload) {
+  // Auth audit item 11: every dedicated maker route funnels through here,
+  // so this is the single maker-side choke point. Verify a fresh step-up
+  // challenge before queueing any money intent. Challenges are single-use,
+  // so this must run exactly once per request: the generic pending-actions
+  // endpoint no longer verifies on its own and relies on this call.
+  await verifyStepupChallenge({
+    challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+    actorUserId: req.user?.id || null,
+    actionType: 'pending_action_request',
+    code: req.body?.stepupCode || req.body?.stepup_code,
+  });
   return requestPendingAction({
     actionType,
     payload: payload || {},
@@ -725,6 +736,21 @@ async function adminAdjustCredit(req, res, next) {
     if (!referenceId) {
       throw new AppError('A funding reference is required for an administrative credit adjustment', 400, 'credit_funding_reference_required');
     }
+    // P3-10-F01 (auth audit item 2): admin adjustments move real customer
+    // balances in both directions, so they pass through the same funding
+    // compliance choke point as admin loads (identity tier + sanctions
+    // screening), recorded as fundingMethod 'admin_adjustment'. Any
+    // compliance uncertainty fails closed here, before the intent is
+    // queued; the checker re-evaluates at approval time.
+    await evaluateFundingCompliance({
+      customerId,
+      amountCents: req.body?.amountCents ?? req.body?.amount_cents,
+      currencyCode: req.body?.currencyCode || req.body?.currency_code,
+      fundingMethod: 'admin_adjustment',
+      actorUserId: req.user.id,
+      requestIp: req.ip || null,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+    });
     const result = await requestMoneyMovement(req, 'credit_adjustment', {
       customerId,
       amountCents: req.body?.amountCents ?? req.body?.amount_cents,
@@ -914,8 +940,10 @@ async function issueAdminProvisionalCredit(req, res, next) {
  *
  * ADM-079: the generic endpoint used to bypass the per-route maker front
  * doors (maker step-up for payouts/withdrawals, live-rate binding for
- * currency quotes). It now (a) requires the maker to prove a fresh step-up
- * challenge, and (b) refuses the action types that own dedicated maker
+ * currency quotes). It now (a) relies on requestMoneyMovement's maker
+ * step-up verification (auth audit item 11: a single-use challenge must be
+ * verified exactly once, so the choke point lives in requestMoneyMovement,
+ * not here), and (b) refuses the action types that own dedicated maker
  * routes with stronger guarantees, directing callers to those routes.
  */
 async function requestAdminPendingAction(req, res, next) {
@@ -928,12 +956,8 @@ async function requestAdminPendingAction(req, res, next) {
         'credit_pending_action_dedicated_route_required'
       );
     }
-    await verifyStepupChallenge({
-      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
-      actorUserId: req.user?.id || null,
-      actionType: 'pending_action_request',
-      code: req.body?.stepupCode || req.body?.stepup_code,
-    });
+    // Maker step-up is verified inside requestMoneyMovement (single choke
+    // point for every maker route; challenges are single-use).
     const result = await requestMoneyMovement(req, actionType, req.body?.payload || {});
     sendMoneyMovementResult(res, result);
   } catch (error) {
@@ -1268,6 +1292,10 @@ async function freezeAdminCreditRail(req, res, next) {
 
 async function unfreezeAdminCreditRail(req, res, next) {
   try {
+    // Auth audit item 8: unfreezing lifts the emergency stop on money
+    // initiation, so it needs a fresh step-up challenge on top of the
+    // rejectImpersonated route guard. Freeze stays unilateral by design.
+    await requireAdminStepup(req, 'credit_rail_unfreeze');
     const result = await unfreezeCreditRail({
       reason: req.body?.reason,
       actorUserId: req.user.id,
@@ -1412,7 +1440,7 @@ async function transitionAdminComplianceCase(req, res, next) {
  * Phase 7 (gap 9): 'pending_action_approve' is the challenge a checker
  * proves before approving a pending money movement.
  */
-const ADMIN_STEPUP_ACTION_TYPES = new Set(['settlement_payout', 'withdrawal', 'pending_action_approve', 'pending_action_request', 'agent_credit_adjustment_approve', 'compliance_verification_decision', 'compliance_sanction_decision', 'compliance_case_transition', 'credit_account_status_update', 'credit_agreement_create', 'credit_agreement_transition', 'credit_entitlement_upsert', 'manual_refund']);
+const ADMIN_STEPUP_ACTION_TYPES = new Set(['settlement_payout', 'withdrawal', 'pending_action_approve', 'pending_action_request', 'agent_credit_adjustment_approve', 'compliance_verification_decision', 'compliance_sanction_decision', 'compliance_case_transition', 'credit_account_status_update', 'credit_agreement_create', 'credit_agreement_transition', 'credit_entitlement_upsert', 'manual_refund', 'credit_rail_unfreeze', 'credit_card_issue']);
 
 // ADM-020/ADM-082: verify a fresh step-up challenge for high-stakes
 // single-admin actions (compliance decisions, money-adjacent controls).
@@ -2700,6 +2728,7 @@ module.exports = {
   decideAdminComplianceSanction,
   transitionAdminComplianceCase,
   issueAdminStepupChallenge,
+  requireAdminStepup,
   freezeAdminCreditRail,
   unfreezeAdminCreditRail,
 };

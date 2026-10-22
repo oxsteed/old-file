@@ -7,6 +7,7 @@ import { beginCreditRequest, invalidateCreditRequest, isCurrentCreditRequest } f
 import { formatCreditDateTime } from '../../../lib/creditDateTime';
 import { safeCreditErrorMessage } from '../../../lib/creditErrors';
 import { localizeCreditStatus } from '../../../lib/creditStatus';
+import { AdminActionDialog, requestStepupChallengeCode, useCreditDialog } from './oxsteedCredit/shared';
 
 function requestKey() {
   if (globalThis.crypto?.randomUUID) return `credit-partner-funding:${globalThis.crypto.randomUUID()}`;
@@ -39,6 +40,7 @@ export default function OxsteedCreditPartnerLedger({ partners, currencyOptions, 
   const [form, setForm] = useState({ direction: 'fund', amount: '', externalReference: '', reason: '' });
   const loadRequestRef = useRef(0);
   const mutationKeyRef = useRef(null);
+  const { dialog, requestDialog, resolveDialog } = useCreditDialog();
 
   const availablePartners = useMemo(
     () => (partners || []).filter((partner) => partner.status !== 'terminated'),
@@ -115,6 +117,19 @@ export default function OxsteedCreditPartnerLedger({ partners, currencyOptions, 
     }
     setSaving(true);
     setError('');
+    // Auth audit item 11: dedicated maker routes verify a fresh
+    // 'pending_action_request' step-up challenge before queueing.
+    const stepup = await requestStepupChallengeCode({
+      requestDialog,
+      setNotice: (message) => onNotice?.(message),
+      setError,
+      t,
+      actionType: 'pending_action_request',
+      description: t('creditStepupConfirmDescription'),
+      amountCents,
+      currencyCode,
+    });
+    if (!stepup) { setSaving(false); return; }
     try {
       const response = await adminApi.post(`/admin/super/oxsteed-credit/partners/${partnerId}/funding`, {
         direction: form.direction,
@@ -122,6 +137,7 @@ export default function OxsteedCreditPartnerLedger({ partners, currencyOptions, 
         currencyCode,
         externalReference: form.externalReference,
         reason: form.reason,
+        ...stepup,
       }, { headers: { 'Idempotency-Key': mutationKeyRef.current.key } });
       mutationKeyRef.current = null;
       setForm({ direction: form.direction, amount: '', externalReference: '', reason: '' });
@@ -150,6 +166,7 @@ export default function OxsteedCreditPartnerLedger({ partners, currencyOptions, 
   };
 
   return <section className="rounded-2xl border border-amber-500/20 bg-amber-950/10 p-4 sm:p-5">
+    <AdminActionDialog dialog={dialog} onResolve={resolveDialog} />
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">{t('adminRestaurantLedgerEyebrow')}</p>
