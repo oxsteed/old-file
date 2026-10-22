@@ -33,6 +33,11 @@
 
 const pool = require('../db');
 
+function storeFilter(locationIds, column, parameter) {
+  return locationIds === null ? '' : ` AND ${column} = ANY($${parameter}::bigint[])`;
+}
+function storeParams(params, locationIds) { return locationIds === null ? params : [...params, locationIds]; }
+
 const MAX_RANGE_DAYS = 366;
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -61,7 +66,7 @@ function shiftDateString(dateStr, days) {
 }
 
 function isRealDateString(value) {
-  if (!DATE_ONLY_RE.test(value)) return false;
+  if (typeof value !== 'string' || !DATE_ONLY_RE.test(value) || value.startsWith('0000')) return false;
   const d = new Date(`${value}T12:00:00Z`);
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
 }
@@ -184,13 +189,13 @@ async function saveTipPoolSettings(restaurantId, { poolingEnabled, tipOutRules, 
   return row;
 }
 
-async function declareCashTip(restaurantId, { staffUserId, businessDate, amountCents, declaredBy, note }) {
+async function declareCashTip(restaurantId, { staffUserId, businessDate, amountCents, declaredBy, note, locationId = null }) {
   const { rows: [row] } = await pool.query(
     `INSERT INTO restaurant_declared_cash_tips
-       (restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note)
-     VALUES ($1, $2, $3, $4, $5, $6)
+       (restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, location_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING id, restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, created_at`,
-    [restaurantId, staffUserId, businessDate, amountCents, declaredBy || null, note || null]
+    [restaurantId, staffUserId, businessDate, amountCents, declaredBy || null, note || null, locationId]
   );
   return row;
 }
@@ -199,7 +204,7 @@ async function declareCashTip(restaurantId, { staffUserId, businessDate, amountC
 
 // Active team of the restaurant's business: members plus the owner,
 // with job role + wage of record (migration 951 columns).
-async function getRoster(businessId) {
+async function getRoster(businessId, locationIds = null, restaurantId = null) {
   const { rows } = await pool.query(
     `SELECT bm.member_id AS user_id,
             COALESCE(NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''),
@@ -215,7 +220,7 @@ async function getRoster(businessId) {
                      CASE WHEN bm.pay_rate_period = 'hour' THEN bm.pay_rate_cents END) AS hourly_wage_cents
        FROM business_members bm
        JOIN users u ON u.id = bm.member_id
-      WHERE bm.business_id = $1 AND bm.status = 'active' AND bm.member_id IS NOT NULL
+      WHERE bm.business_id = $1 AND bm.status = 'active' AND bm.member_id IS NOT NULL${locationIds === null ? '' : ` AND EXISTS (SELECT 1 FROM restaurant_location_memberships lm WHERE lm.membership_id=bm.id AND lm.restaurant_id=$3 AND lm.status='active' AND lm.location_id=ANY($2::bigint[]))`}
      UNION ALL
      SELECT b.user_id AS user_id,
             COALESCE(NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''),
@@ -225,8 +230,8 @@ async function getRoster(businessId) {
             NULL AS hourly_wage_cents
        FROM businesses b
        JOIN users u ON u.id = b.user_id
-      WHERE b.id = $1`,
-    [businessId]
+      WHERE b.id = $1${locationIds === null ? '' : ' AND FALSE'}`,
+    locationIds === null ? [businessId] : [businessId, locationIds, restaurantId]
   );
   return rows;
 }
@@ -311,14 +316,15 @@ async function saveLaborPolicy(restaurantId, policy, updatedBy) {
 
 // Actual recorded hours per user from business_time_entries (the
 // hours_worked model the working staff-scheduling API writes).
-async function getHoursByUser(businessId, fromDate, toDate) {
+async function getHoursByUser(businessId, fromDate, toDate, locationIds = null) {
   const { rows } = await pool.query(
     `SELECT user_id, COALESCE(SUM(hours_worked), 0)::float8 AS hours
        FROM business_time_entries
       WHERE business_id = $1 AND entry_date >= $2 AND entry_date <= $3
+        ${storeFilter(locationIds, 'location_id', 4)}
         AND voided_at IS NULL
       GROUP BY user_id`,
-    [businessId, fromDate, toDate]
+    storeParams([businessId, fromDate, toDate], locationIds)
   );
   const map = new Map();
   for (const row of rows) map.set(row.user_id, Number(row.hours) || 0);
@@ -364,23 +370,53 @@ function calculatePolicyHours(rows, policy) {
   return byUser;
 }
 
-async function getPolicyHoursByUser(businessId, fromDate, toDate, policy) {
+// Attribute overtime after applying the person's full weekly threshold across
+// stores. Filtering punches first would silently reset overtime at each store.
+function scopedPolicyHours(rows, policy, locationIds, fromDate, toDate) {
+  const weekly = new Map();
+  const result = new Map();
+  for (const row of rows) {
+    const day = row.entry_date instanceof Date ? row.entry_date.toISOString().slice(0, 10) : String(row.entry_date).slice(0, 10);
+    const date = new Date(`${day}T12:00:00Z`);
+    const sunday = shiftDateString(day, -date.getUTCDay());
+    const key = `${row.user_id}:${sunday}`;
+    const before = weekly.get(key) || 0;
+    const hours = Math.max(0, Number(row.hours_worked) || 0);
+    weekly.set(key, before + hours);
+    if (!locationIds.includes(Number(row.location_id)) || day < fromDate || day > toDate) continue;
+    const entry = calculatePolicyHours([row], policy).get(row.user_id);
+    const user = result.get(row.user_id) || { totalHours: 0, overtimeHours: 0, breakExceptions: 0 };
+    user.totalHours += hours;
+    user.overtimeHours += Math.max(0, before + hours - policy.overtime_threshold_hours) - Math.max(0, before - policy.overtime_threshold_hours);
+    user.breakExceptions += entry.breakExceptions;
+    result.set(row.user_id, user);
+  }
+  for (const user of result.values()) {
+    user.totalHours = Math.round(user.totalHours * 100) / 100;
+    user.overtimeHours = Math.round(user.overtimeHours * 100) / 100;
+  }
+  return result;
+}
+
+async function getPolicyHoursByUser(businessId, fromDate, toDate, policy, locationIds = null) {
+  const rangeStart = locationIds === null ? fromDate : shiftDateString(fromDate, -new Date(`${fromDate}T12:00:00Z`).getUTCDay());
+  const rangeEnd = locationIds === null ? toDate : shiftDateString(toDate, 6 - new Date(`${toDate}T12:00:00Z`).getUTCDay());
   const { rows } = await pool.query(
-    `SELECT user_id, entry_date, hours_worked, breaks, clock_in_at, clock_out_at
+    `SELECT user_id, entry_date, hours_worked, breaks, clock_in_at, clock_out_at, location_id
        FROM business_time_entries
       WHERE business_id = $1 AND entry_date >= $2 AND entry_date <= $3
         AND voided_at IS NULL AND hours_worked IS NOT NULL
-      ORDER BY entry_date, id`,
-    [businessId, fromDate, toDate]
+      ORDER BY entry_date, clock_in_at NULLS FIRST, id`,
+    [businessId, rangeStart, rangeEnd]
   );
-  return calculatePolicyHours(rows, policy);
+  return locationIds === null ? calculatePolicyHours(rows, policy) : scopedPolicyHours(rows, policy, locationIds, fromDate, toDate);
 }
 
 // Scheduled hours per user from business_staff_shifts (person-based
 // schedule, migration 238 + restaurant_id from 951). Shifts pinned to
 // another restaurant of the same business are excluded; legacy NULL
 // rows belong to the business's (single) restaurant and count.
-async function getScheduledHoursByUser(businessId, restaurantId, fromDate, toDate) {
+async function getScheduledHoursByUser(businessId, restaurantId, fromDate, toDate, locationIds = null) {
   const { rows } = await pool.query(
     `SELECT user_id,
             COALESCE(SUM(
@@ -392,9 +428,9 @@ async function getScheduledHoursByUser(businessId, restaurantId, fromDate, toDat
        FROM business_staff_shifts
       WHERE business_id = $1
         AND shift_date >= $2 AND shift_date <= $3
-        AND (restaurant_id IS NULL OR restaurant_id = $4)
+        AND (restaurant_id IS NULL OR restaurant_id = $4)${storeFilter(locationIds, 'location_id', 5)}
       GROUP BY user_id`,
-    [businessId, fromDate, toDate, restaurantId]
+    storeParams([businessId, fromDate, toDate, restaurantId], locationIds)
   );
   const map = new Map();
   for (const row of rows) map.set(row.user_id, Number(row.hours) || 0);
@@ -436,15 +472,15 @@ const ORDER_FINANCIALS_CTE = `
        AND fo.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
   )`;
 
-async function getRevenueByCurrency(restaurantId, fromDate, toDate, timezone) {
+async function getRevenueByCurrency(restaurantId, fromDate, toDate, timezone, locationIds = null) {
   const { rows } = await pool.query(
-    `${ORDER_FINANCIALS_CTE}
+    `${locationIds === null ? ORDER_FINANCIALS_CTE : ORDER_FINANCIALS_CTE.replace('WHERE fo.restaurant_id = $1', 'WHERE fo.restaurant_id = $1 AND fo.location_id = ANY($5::bigint[])')}
      SELECT COALESCE(NULLIF(currency_code, ''), 'USD') AS currency,
             COALESCE(SUM(net_collected_cents), 0)::int AS revenue_cents
        FROM order_financials
       GROUP BY 1
       ORDER BY revenue_cents DESC`,
-    [restaurantId, fromDate, toDate, timezone]
+    storeParams([restaurantId, fromDate, toDate, timezone], locationIds)
   );
   return rows.map((r) => ({ currency: r.currency, revenue_cents: Number(r.revenue_cents) || 0 }));
 }
@@ -478,14 +514,14 @@ function distributeCents(amount, entries) {
   return result;
 }
 
-async function getOrderTips(restaurantId, fromDate, toDate, timezone) {
+async function getOrderTips(restaurantId, fromDate, toDate, timezone, locationIds = null) {
   // Tips count only on orders that actually collected money (the F-07
   // rule), excluding cancelled/refunded orders. Attribution: the acting
   // staff member stamped on the order (S-06), falling back to the staff
   // member who owned the POS shift recorded on the order; orders with
   // neither (online, kiosk without a shift) are unattributed.
   const { rows } = await pool.query(
-    `${ORDER_FINANCIALS_CTE}
+    `${locationIds === null ? ORDER_FINANCIALS_CTE : ORDER_FINANCIALS_CTE.replace('WHERE fo.restaurant_id = $1', 'WHERE fo.restaurant_id = $1 AND fo.location_id = ANY($5::bigint[])')}
      SELECT COALESCE(NULLIF(fo.currency_code, ''), 'USD') AS currency,
             -- S-06: the acting staff member stamped on the order is the
             -- precise attribution; the POS shift owner is the fallback
@@ -500,18 +536,18 @@ async function getOrderTips(restaurantId, fromDate, toDate, timezone) {
         AND fo.net_collected_cents > 0
         AND fo.status NOT IN ('cancelled', 'refunded')
       GROUP BY 1, 2`,
-    [restaurantId, fromDate, toDate, timezone]
+    storeParams([restaurantId, fromDate, toDate, timezone], locationIds)
   );
   return rows;
 }
 
-async function getDeclaredCashTips(restaurantId, fromDate, toDate) {
+async function getDeclaredCashTips(restaurantId, fromDate, toDate, locationIds = null) {
   const { rows } = await pool.query(
     `SELECT staff_user_id, COALESCE(SUM(amount_cents), 0)::int AS tips_cents
        FROM restaurant_declared_cash_tips
-      WHERE restaurant_id = $1 AND business_date >= $2 AND business_date <= $3
+      WHERE restaurant_id = $1 AND business_date >= $2 AND business_date <= $3${storeFilter(locationIds, 'location_id', 4)}
       GROUP BY staff_user_id`,
-    [restaurantId, fromDate, toDate]
+    storeParams([restaurantId, fromDate, toDate], locationIds)
   );
   return rows;
 }
@@ -525,16 +561,16 @@ async function getDeclaredCashTips(restaurantId, fromDate, toDate) {
  *           gross_tips_cents, tip_out_cents, tip_in_cents, net_tips_cents }] } ],
  *           from_date, to_date, timezone }
  */
-async function computeTipAllocations({ restaurant, fromDate, toDate }) {
+async function computeTipAllocations({ restaurant, fromDate, toDate, locationIds = null }) {
   const timezone = resolveReportTimezone(restaurant);
   const restaurantId = restaurant.id;
   const businessId = restaurant.business_id;
   const settings = await getTipPoolSettings(restaurantId);
   const [orderTips, cashTips, roster, hoursByUser] = await Promise.all([
-    getOrderTips(restaurantId, fromDate, toDate, timezone),
-    getDeclaredCashTips(restaurantId, fromDate, toDate),
-    getRoster(businessId),
-    getHoursByUser(businessId, fromDate, toDate),
+    getOrderTips(restaurantId, fromDate, toDate, timezone, locationIds),
+    getDeclaredCashTips(restaurantId, fromDate, toDate, locationIds),
+    getRoster(businessId, locationIds, restaurant.id),
+    getHoursByUser(businessId, fromDate, toDate, locationIds),
   ]);
   const rosterById = new Map(roster.map((m) => [m.user_id, m]));
   const restaurantCurrency = restaurant.currency_code || 'USD';
@@ -649,19 +685,19 @@ async function computeTipAllocations({ restaurant, fromDate, toDate }) {
 
 // ── Labor + payroll ──────────────────────────────────────────────────
 
-async function computeLabor({ restaurant, fromDate, toDate }) {
+async function computeLabor({ restaurant, fromDate, toDate, locationIds = null }) {
   const timezone = resolveReportTimezone(restaurant);
   const businessId = restaurant.business_id;
   const restaurantCurrency = restaurant.currency_code || 'USD';
   const [roster, hoursByUser, scheduledByUser, revenues, tipAllocations, laborPolicy] = await Promise.all([
-    getRoster(businessId),
-    getHoursByUser(businessId, fromDate, toDate),
-    getScheduledHoursByUser(businessId, restaurant.id, fromDate, toDate),
-    getRevenueByCurrency(restaurant.id, fromDate, toDate, timezone),
-    computeTipAllocations({ restaurant, fromDate, toDate }),
+    getRoster(businessId, locationIds, restaurant.id),
+    getHoursByUser(businessId, fromDate, toDate, locationIds),
+    getScheduledHoursByUser(businessId, restaurant.id, fromDate, toDate, locationIds),
+    getRevenueByCurrency(restaurant.id, fromDate, toDate, timezone, locationIds),
+    computeTipAllocations({ restaurant, fromDate, toDate, locationIds }),
     getLaborPolicy(restaurant.id),
   ]);
-  const policyHours = await getPolicyHoursByUser(businessId, fromDate, toDate, laborPolicy);
+  const policyHours = await getPolicyHoursByUser(businessId, fromDate, toDate, laborPolicy, locationIds);
 
   const tipsFor = (currency) => tipAllocations.currencies.find((c) => c.currency === currency)
     || { employees: [], unattributed_cents: 0, total_tips_cents: 0 };
@@ -813,11 +849,11 @@ function buildPayrollCsv(labor) {
  * true late-punch delta cannot be computed until punch data exists;
  * a scheduled shift with no time entry is the honest exception).
  */
-async function computeExceptions({ restaurant, fromDate, toDate }) {
+async function computeExceptions({ restaurant, fromDate, toDate, locationIds = null }) {
   const timezone = resolveReportTimezone(restaurant);
   const restaurantId = restaurant.id;
   const businessId = restaurant.business_id;
-  const params = [restaurantId, fromDate, toDate, timezone];
+  const params = storeParams([restaurantId, fromDate, toDate, timezone], locationIds);
 
   const [payments, discounts, drawerEvents, missingPunches, roster] = await Promise.all([
     pool.query(
@@ -829,7 +865,7 @@ async function computeExceptions({ restaurant, fromDate, toDate }) {
               COUNT(*) FILTER (WHERE payment_type = 'comp' AND status IN ('recorded','captured'))::int AS comps,
               COALESCE(SUM(amount_cents) FILTER (WHERE payment_type = 'comp' AND status IN ('recorded','captured')), 0)::int AS comp_cents
          FROM restaurant_pos_payments
-        WHERE restaurant_id = $1 AND created_by IS NOT NULL
+        WHERE restaurant_id = $1${storeFilter(locationIds, 'location_id', 5)} AND created_by IS NOT NULL
           AND created_at >= (($2::date)::timestamp AT TIME ZONE $4)
           AND created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
         GROUP BY created_by`,
@@ -843,7 +879,7 @@ async function computeExceptions({ restaurant, fromDate, toDate }) {
          JOIN restaurant_pos_shifts s
            ON s.id = CASE WHEN fo.metadata->>'shiftId' ~ '^[0-9]+$'
                           THEN (fo.metadata->>'shiftId')::bigint END
-        WHERE fo.restaurant_id = $1
+        WHERE fo.restaurant_id = $1${storeFilter(locationIds, 'fo.location_id', 5)}
           AND fo.discount_cents > 0
           AND fo.status NOT IN ('cancelled', 'refunded')
           AND COALESCE(fo.acting_staff_user_id, s.staff_user_id) IS NOT NULL
@@ -860,7 +896,7 @@ async function computeExceptions({ restaurant, fromDate, toDate }) {
               COUNT(*) FILTER (WHERE event_type = 'cash_out')::int AS cash_outs,
               COALESCE(SUM(amount_cents) FILTER (WHERE event_type = 'cash_out'), 0)::int AS cash_out_cents
          FROM restaurant_pos_drawer_events
-        WHERE restaurant_id = $1 AND created_by IS NOT NULL
+        WHERE restaurant_id = $1${storeFilter(locationIds, 'location_id', 5)} AND created_by IS NOT NULL
           AND created_at >= (($2::date)::timestamp AT TIME ZONE $4)
           AND created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
         GROUP BY created_by`,
@@ -871,17 +907,17 @@ async function computeExceptions({ restaurant, fromDate, toDate }) {
          FROM business_staff_shifts sh
         WHERE sh.business_id = $1
           AND sh.shift_date >= $2 AND sh.shift_date <= $3
-          AND (sh.restaurant_id IS NULL OR sh.restaurant_id = $4)
+          AND (sh.restaurant_id IS NULL OR sh.restaurant_id = $4)${storeFilter(locationIds, 'sh.location_id', 5)}
           AND NOT EXISTS (
             SELECT 1 FROM business_time_entries te
              WHERE te.business_id = sh.business_id
                AND te.user_id = sh.user_id
-               AND te.entry_date = sh.shift_date
+               AND te.entry_date = sh.shift_date AND te.voided_at IS NULL AND te.location_id IS NOT DISTINCT FROM sh.location_id
           )
         GROUP BY sh.user_id`,
-      [businessId, fromDate, toDate, restaurantId]
+      storeParams([businessId, fromDate, toDate, restaurantId], locationIds)
     ),
-    getRoster(businessId),
+    getRoster(businessId, locationIds, restaurant.id),
   ]);
 
   const rosterById = new Map(roster.map((m) => [m.user_id, m]));
@@ -922,6 +958,8 @@ async function computeExceptions({ restaurant, fromDate, toDate }) {
 
 module.exports = {
   resolveReportTimezone,
+  isRealDateString,
+  shiftDateString,
   parseLocalRange,
   normalizeTipOutRules,
   getTipPoolSettings,

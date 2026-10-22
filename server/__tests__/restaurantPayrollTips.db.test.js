@@ -454,11 +454,11 @@ ddescribe('S-15/S-16 permission gating (fxB)', () => {
     expect(res.payload.revenue_cents).toBe(0);
   });
 
-  test('employee is denied at the manager gate', async () => {
+  test('employee without payroll.view is denied by the catalog permission gate', async () => {
     const { err } = await call(controller.laborSummary, laborReq(fx.employee));
     expect(err).toBeTruthy();
     expect(err.statusCode).toBe(403);
-    expect(err.code).toBe('forbidden');
+    expect(err.code).toBe('payroll_permission_required');
   });
 
   test('payroll CSV export fails closed without payroll.view', async () => {

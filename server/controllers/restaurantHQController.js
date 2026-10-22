@@ -1,6 +1,9 @@
 'use strict';
 
 const pool = require('../db');
+const v = require('../utils/restaurantReviewValidation');
+const { attachScope, requireBrand } = require('../services/restaurantReviewScope');
+const payroll = require('../services/restaurantPayrollService');
 const AppError = require('../utils/appError');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
 const permissions = require('../services/permissionsService');
@@ -9,15 +12,16 @@ const { getLocationScope } = require('../services/restaurantLocationAccessServic
 const { withTransaction } = require('../utils/transaction');
 const { logBusinessAction } = require('../services/businessAuditLog');
 
-function dateRange(req) {
-  const to = req.query?.to ? new Date(`${req.query.to}T00:00:00.000Z`) : new Date();
-  const from = req.query?.from ? new Date(`${req.query.from}T00:00:00.000Z`) : new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
-  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from >= to) throw new AppError('Invalid HQ report date range', 400, 'validation_failed');
-  return { from: from.toISOString(), to: to.toISOString() };
+function dateRange(req, restaurant) {
+  try {
+    const timezone = payroll.resolveReportTimezone(restaurant);
+    const { fromDate, toDate } = payroll.parseLocalRange(req.query || {}, timezone);
+    return { from: fromDate, to: payroll.shiftDateString(toDate, 1), timezone };
+  } catch (error) { throw new AppError(error.message, 400, 'validation_failed'); }
 }
 
 async function loadHQRestaurant(req, permission) {
-  const restaurantId = Number.parseInt(req.params.restaurantId, 10);
+  const restaurantId = v.integer(req.params.restaurantId, 'restaurantId');
   if (!Number.isSafeInteger(restaurantId) || restaurantId <= 0) {
     throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
   }
@@ -25,7 +29,9 @@ async function loadHQRestaurant(req, permission) {
   if (!(await permissions.hasRestaurantPermission(restaurant, req.user.id, [permission]))) {
     throw new AppError('You do not have permission to manage the HQ hierarchy', 403, 'forbidden');
   }
-  return restaurant;
+  const scoped = await attachScope(restaurant, req.user.id);
+  requireBrand(scoped);
+  return scoped;
 }
 
 exports.listRegions = async (req, res, next) => {
@@ -45,7 +51,7 @@ exports.createRegion = async (req, res, next) => {
         restaurantId: restaurant.id,
         code: req.body?.code,
         name: req.body?.name,
-        parentRegionId: parentRegionId == null || parentRegionId === '' ? null : Number(parentRegionId),
+        parentRegionId: parentRegionId == null || parentRegionId === '' ? null : v.integer(parentRegionId, 'parentRegionId'),
         actorUserId: req.user.id,
       });
       await logBusinessAction(req, {
@@ -67,7 +73,7 @@ exports.createRegion = async (req, res, next) => {
 exports.updateRegion = async (req, res, next) => {
   try {
     const restaurant = await loadHQRestaurant(req, 'settings.manage');
-    const regionId = Number.parseInt(req.params.regionId, 10);
+    const regionId = v.integer(req.params.regionId, 'regionId');
     const patch = {};
     for (const key of ['code', 'name', 'status']) {
       if (Object.prototype.hasOwnProperty.call(req.body || {}, key)) patch[key] = req.body[key];
@@ -75,7 +81,7 @@ exports.updateRegion = async (req, res, next) => {
     if (Object.prototype.hasOwnProperty.call(req.body || {}, 'parentRegionId')
       || Object.prototype.hasOwnProperty.call(req.body || {}, 'parent_region_id')) {
       const value = req.body.parentRegionId ?? req.body.parent_region_id;
-      patch.parentRegionId = value == null || value === '' ? null : Number(value);
+      patch.parentRegionId = value == null || value === '' ? null : v.integer(value, 'parentRegionId');
     }
     if (!Object.keys(patch).length) throw new AppError('No region fields provided', 400, 'validation_failed');
     const result = await withTransaction(pool, async (client) => {
@@ -104,7 +110,7 @@ exports.updateRegion = async (req, res, next) => {
 
 exports.rollup = async (req, res, next) => {
   try {
-    const anchorId = Number.parseInt(req.params.restaurantId, 10);
+    const anchorId = v.integer(req.params.restaurantId, 'restaurantId');
     if (!Number.isSafeInteger(anchorId) || anchorId <= 0) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     const anchor = await resolveRestaurantAccess(req.user.id, anchorId);
     if (!(await permissions.hasRestaurantPermission(anchor, req.user.id, ['settings.manage']))) {
@@ -126,7 +132,7 @@ exports.rollup = async (req, res, next) => {
     );
     const ids = accessible.map((row) => Number(row.id));
     if (!ids.length) throw new AppError('No accessible stores found', 403, 'hq_scope_empty');
-    const range = dateRange(req);
+    const range = dateRange(req, anchor);
     const { salesRows, healthRows, complianceRows } = await hq.rollupLocations(pool, { restaurantId: anchor.id, locationIds: ids, ...range });
     const healthById = new Map(healthRows.map((row) => [Number(row.location_id), row]));
     const complianceById = new Map(complianceRows.map((row) => [Number(row.location_id), row]));
@@ -139,13 +145,13 @@ exports.rollup = async (req, res, next) => {
       trainingAssignments: complianceById.get(Number(row.id))?.training_assignments,
       overdueTraining: complianceById.get(Number(row.id))?.overdue_training,
     }));
-    res.json({ scope: { businessId: Number(anchor.business_id), restaurantId: Number(anchor.id), storeCount: stores.length, from: range.from, to: range.to }, stores });
+    res.json({ scope: { businessId: Number(anchor.business_id), restaurantId: Number(anchor.id), storeCount: stores.length, from: range.from, to: range.to, timezone: range.timezone }, stores });
   } catch (err) { next(err); }
 };
 
 exports.publishMenuOverrides = async (req, res, next) => {
   try {
-    const restaurantId = Number.parseInt(req.params.restaurantId, 10);
+    const restaurantId = v.integer(req.params.restaurantId, 'restaurantId');
     if (!Number.isSafeInteger(restaurantId) || restaurantId <= 0) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     const restaurant = await resolveRestaurantAccess(req.user.id, restaurantId);
     if (!(await permissions.hasRestaurantPermission(restaurant, req.user.id, ['settings.manage']))) {
@@ -175,3 +181,5 @@ exports.publishMenuOverrides = async (req, res, next) => {
     res.status(200).json({ ...result, published: true });
   } catch (error) { next(error); }
 };
+
+exports._dateRange = dateRange;

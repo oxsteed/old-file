@@ -10,11 +10,12 @@ const integrationRow = {
   account_mapping: service.DEFAULT_MAPPING,
 };
 
+const journalLines = [{date:'2026-10-01',reference:'OX-1',description:'Sale',account:'4000',debit:'0.00',credit:'10.00',currency:'USD',location:'Main'},{date:'2026-10-01',reference:'OX-1',description:'Tender',account:'1000',debit:'10.00',credit:'0.00',currency:'USD',location:'Main'}];
 const exportRow = {
   id: 21, restaurant_id: 3, integration_id: 11,
   period_from: '2026-10-01', period_to: '2026-10-31', currency_code: 'USD',
   idempotency_key: 'export-1', status: 'pending',
-  payload: { lines: [{ account: '4000', debit: '0.00', credit: '10.00' }] }, attempts: 0,
+  payload: {schema:'oxsteed.restaurant.accounting.journal.v1',from_date:'2026-10-01',to_date:'2026-10-31',currency:'USD',lines:journalLines}, attempts: 0,
 };
 
 test('accounting providers, periods, mappings, and secret references are bounded', () => {
@@ -56,9 +57,9 @@ test('queueing a journal is currency-scoped and idempotent', async () => {
   const result = await service.queueExport(client, {
     restaurantId: 3, provider: 'quickbooks', periodFrom: '2026-10-01', periodTo: '2026-10-31',
     currencyCode: 'usd', idempotencyKey: 'export-1', actorUserId: 'user-1',
-    lines: [{ date: '2026-10-01', reference: 'OX-1', description: 'Sale', account: '4000', debit: '0.00', credit: '10.00', currency: 'USD', location: 'Main' }],
+    lines: journalLines,
   });
-  expect(result).toMatchObject({ replayed: false, export: { id: 21, currencyCode: 'USD', lineCount: 1 } });
+  expect(result).toMatchObject({ replayed: false, export: { id: 21, currencyCode: 'USD', lineCount: 2 } });
   expect(client.query.mock.calls[0][1]).toEqual([3, 'quickbooks']);
   expect(client.query.mock.calls[2][1][5]).toBe('export-1');
 });
@@ -67,7 +68,7 @@ test('a replay returns the existing export without inserting another batch', asy
   const client = { query: jest.fn().mockResolvedValueOnce({ rows: [integrationRow] }).mockResolvedValueOnce({ rows: [exportRow] }) };
   const result = await service.queueExport(client, {
     restaurantId: 3, provider: 'quickbooks', periodFrom: '2026-10-01', periodTo: '2026-10-31',
-    currencyCode: 'USD', idempotencyKey: 'export-1', lines: [{ date: '2026-10-01', account: '4000', debit: '0.00', credit: '10.00', currency: 'USD' }],
+    currencyCode: 'USD', idempotencyKey: 'export-1', lines: journalLines,
   });
   expect(result.replayed).toBe(true);
   expect(client.query).toHaveBeenCalledTimes(2);
@@ -76,7 +77,7 @@ test('a replay returns the existing export without inserting another batch', asy
 test('listing exports is provider-filtered and bounded without exposing payloads', async () => {
   const client = { query: jest.fn().mockResolvedValueOnce({ rows: [exportRow] }) };
   const result = await service.listExports(client, 3, { provider: 'xero', limit: '999' });
-  expect(result).toEqual([expect.objectContaining({ id: 21, status: 'pending', lineCount: 1 })]);
+  expect(result).toEqual([expect.objectContaining({ id: 21, status: 'pending', lineCount: 2 })]);
   expect(result[0].payload).toBeUndefined();
   expect(client.query.mock.calls[0][1]).toEqual([3, 'xero', 100]);
 });

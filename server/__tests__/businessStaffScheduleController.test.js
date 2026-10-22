@@ -55,6 +55,7 @@ describe('businessStaffScheduleController shifts (P1-5-F02)', () => {
       '17:00:00',
       'Cashier',
       'Front counter',
+      null,
     ]);
   });
 
