@@ -17,6 +17,7 @@ const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
 const permissionsService = require('../services/permissionsService');
+const { getLocationScope } = require('../services/restaurantLocationAccessService');
 const { sendNotification } = require('../services/notificationService');
 const logger = require('../utils/logger');
 
@@ -173,7 +174,14 @@ exports.acknowledgeAnnouncement = async (req, res, next) => {
 exports.listLogbook = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const params = locationScope.mode === 'assigned'
+      ? [restaurantId, locationScope.location_ids]
+      : [restaurantId];
+    const locationFilter = locationScope.mode === 'assigned'
+      ? ' AND (e.shift_id IS NULL OR s.location_id = ANY($2::bigint[]))'
+      : '';
     const { rows } = await pool.query(
       `SELECT e.*,
               u.first_name AS author_first_name,
@@ -182,10 +190,10 @@ exports.listLogbook = async (req, res, next) => {
          FROM restaurant_logbook_entries e
          JOIN users u ON u.id = e.author_user_id
          LEFT JOIN restaurant_crew_shifts s ON s.id = e.shift_id
-        WHERE e.restaurant_id = $1
+        WHERE e.restaurant_id = $1${locationFilter}
         ORDER BY e.created_at DESC
         LIMIT 50`,
-      [restaurantId]
+      params
     );
     res.json({ entries: rows });
   } catch (err) {
@@ -198,6 +206,7 @@ exports.createLogbookEntry = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertManage(restaurant, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const body = normalizeString(req.body.body, 4000);
     if (!body) {
       throw new AppError('Validation failed', 400, 'validation_failed', { body: 'Note is required' });
@@ -205,8 +214,8 @@ exports.createLogbookEntry = async (req, res, next) => {
     const shiftId = parsePositiveInt(req.body.shiftId || req.body.shift_id);
     if (shiftId) {
       const { rows: [shift] } = await pool.query(
-        `SELECT id FROM restaurant_crew_shifts WHERE id = $1 AND restaurant_id = $2`,
-        [shiftId, restaurantId]
+        `SELECT id, location_id FROM restaurant_crew_shifts WHERE id = $1 AND restaurant_id = $2${locationScope.mode === 'assigned' ? ' AND location_id = ANY($3::bigint[])' : ''}`,
+        locationScope.mode === 'assigned' ? [shiftId, restaurantId, locationScope.location_ids] : [shiftId, restaurantId]
       );
       if (!shift) throw new AppError('Crew shift not found', 404, 'crew_shift_not_found');
     }
