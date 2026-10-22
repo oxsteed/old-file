@@ -17,6 +17,7 @@ router.get('/:restaurantId/hubs', authenticate, rejectImpersonated, requireResta
 router.post('/:restaurantId/hubs', authenticate, rejectImpersonated, requireRestaurantAccess(), authenticatedLimiter, hub.registerHub);
 router.post('/:restaurantId/hubs/:hubId/replay', authenticate, rejectImpersonated, requireRestaurantAccess(), strictLimiter, hub.replaySales);
 router.get('/:restaurantId/hubs/:hubId/offline-sales', authenticate, rejectImpersonated, requireRestaurantAccess(), authenticatedLimiter, hub.listOfflineSales);
+router.post('/:restaurantId/hubs/:hubId/offline-sales/:saleId/resolve', authenticate, rejectImpersonated, requireRestaurantAccess(), strictLimiter, hub.resolveOfflineSale);
 
 // The hub device itself: heartbeat, revision-journal pull, offline sale queue.
 router.post('/:restaurantId/hubs/:hubId/heartbeat', strictLimiter, scopeExempt('device-credential'), hub.authenticateHubDevice, hub.deviceHeartbeat);

@@ -232,6 +232,20 @@ export const attachBrandRestaurant = (brandId, payload) =>
 export const detachBrandRestaurant = (brandId, restaurantId) =>
   api.delete(`/restaurant-brands/${brandId}/restaurants/${restaurantId}`).then((r) => r.data);
 
+// In-store hub + offline cash replay (F-08 phase 2). The hub is the
+// designated per-store device that relays LAN traffic while offline and
+// uploads queued cash sales for idempotent replay on reconnect.
+export const listStoreHubs = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/hubs`).then((r) => r.data?.hubs || []);
+export const registerStoreHub = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/hubs`, payload).then((r) => r.data?.hub);
+export const replayHubSales = (restaurantId, hubId) =>
+  api.post(`/restaurants/${restaurantId}/hubs/${hubId}/replay`).then((r) => r.data);
+export const listHubOfflineSales = (restaurantId, hubId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/hubs/${hubId}/offline-sales`, { params }).then((r) => r.data?.sales || []);
+export const resolveHubOfflineSale = (restaurantId, hubId, saleId, payload) =>
+  api.post(`/restaurants/${restaurantId}/hubs/${hubId}/offline-sales/${saleId}/resolve`, payload).then((r) => r.data?.sale);
+
 // Restaurant host stand (floor-plan tables, reservations, and walk-in queue).
 export const listRestaurantTables = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/tables`, { params }).then((r) => r.data || { tables: [], location: null });

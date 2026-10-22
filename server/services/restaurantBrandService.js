@@ -4,7 +4,7 @@
 // A brand groups one or more restaurants (concepts) across businesses; each
 // restaurant keeps its own region -> store hierarchy (migrations 988, 963).
 // This module owns brand access checks, the HQ console aggregates, and
-// cross-restaurant menu publishing (migration 995).
+// cross-restaurant menu publishing (migration 99921).
 
 const AppError = require('../utils/appError');
 const hq = require('./restaurantHQService');

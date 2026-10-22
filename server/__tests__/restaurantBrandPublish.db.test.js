@@ -1,6 +1,6 @@
 'use strict';
 
-// DB-backed tests for F-02 phase 2 brand menu publishing (migrations 994/995).
+// DB-backed tests for F-02 phase 2 brand menu publishing (migrations 99920/99921).
 // Runs against the real migrated schema of the disposable statement test
 // database (never CI's default suite without STATEMENT_TEST_DATABASE_URL).
 // Everything runs inside one rolled-back transaction, so no fixture rows
@@ -24,7 +24,7 @@ const brand = require('../services/restaurantBrandService');
 const describeDb = url ? describe : describe.skip;
 const TAG = 'BrandPubTest';
 
-describeDb('brand menu publishing (migrations 994/995)', () => {
+describeDb('brand menu publishing (migrations 99920/99921)', () => {
   let client;
   let ownerId;
   let sourceRestaurant; let targetRestaurant; let outsiderRestaurant;
@@ -51,8 +51,8 @@ describeDb('brand menu publishing (migrations 994/995)', () => {
     const src = await mkRestaurant(businessA, 'Source Diner');
     const tgt = await mkRestaurant(businessC, 'Target Diner');
     const out = await mkRestaurant(businessB, 'Outsider Diner');
-    // The auto-brand trigger runs AFTER INSERT, so RETURNING does not carry
-    // brand_id; re-read it.
+    // The auto-brand trigger runs BEFORE INSERT (migration 99920), so
+    // RETURNING carries brand_id; re-read anyway to stay robust.
     const brandOf = async (id) =>
       (await client.query('SELECT brand_id FROM food_restaurants WHERE id = $1', [id])).rows[0].brand_id;
     sourceRestaurant = src.id;

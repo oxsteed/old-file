@@ -2,11 +2,11 @@
 
 // F-08: in-store hub service.
 //
-// The hub is a designated device per store (migration 997) that relays
+// The hub is a designated device per store (migration 99923) that relays
 // POS/KDS/printer traffic over the LAN while the internet is down and syncs
 // with the cloud through the managed-screens revision journal
 // (restaurant_screen_streams / restaurant_screen_events, migration 887).
-// Offline cash sales are queued here (migration 998) and replayed idempotently
+// Offline cash sales are queued here (migration 99924) and replayed idempotently
 // on reconnect. Money fails closed:
 //   - (restaurant_id, idempotency_key) is unique: a retried upload or replay
 //     can never double-post;
@@ -18,6 +18,11 @@
 
 const AppError = require('../utils/appError');
 const { nextQueueNumber } = require('./restaurantQueueCounter');
+const {
+  reserveInventoryForOrder,
+  consumeInventoryForOrder,
+} = require('./restaurantInventoryOrderService');
+const { designateHubDevice } = require('./unifiedDeviceService');
 
 function normalizeId(value, field = 'id') {
   const id = Number(value);
@@ -76,13 +81,9 @@ async function registerHub(client, { restaurantId, locationId, name, deviceId = 
     // Designate a fresh hub identity in the unified registry (F-26). The
     // physical pairing still flows through the standard device pairing
     // endpoints; this row is the hub designation, not a credential.
-    const { rows: [created] } = await client.query(
-      `INSERT INTO restaurant_devices
-         (restaurant_id, location_id, device_role, capabilities, pairing_source, source_key, created_by)
-       VALUES ($1, $2, 'hub', $3, 'manual', $4, $5)
-       RETURNING id`,
-      [restaurantId, location, JSON.stringify({ hub: true }), `hub:${restaurantId}:${location}:${Date.now()}`, actorUserId]
-    );
+    const created = await designateHubDevice(client, {
+      restaurantId, locationId: location, name: hubName, actorUserId,
+    });
     registryId = created.id;
   } else {
     const { rows: [device] } = await client.query(
@@ -328,18 +329,25 @@ async function replayOneSale(client, { sale, restaurant, timezone, actorUserId }
     );
     return { saleId: Number(sale.id), status: 'replayed', orderId: Number(existing.id), duplicate: true };
   }
+  const createdOrderItems = [];
   for (const line of lines) {
-    await client.query(
+    const { rows: [orderItem] } = await client.query(
       `INSERT INTO food_order_items
          (order_id, menu_item_id, item_name, quantity,
           unit_price_cents, line_total_cents, kitchen_status)
-       VALUES ($1,$2,$3,$4,$5,$6,'queued')`,
+       VALUES ($1,$2,$3,$4,$5,$6,'queued')
+       RETURNING id`,
       [
         order.id, line.menuItemId,
         line.name || names.get(Number(line.menuItemId)) || 'Item',
         line.quantity, line.unitPriceCents, line.quantity * line.unitPriceCents,
       ]
     );
+    createdOrderItems.push({
+      id: Number(orderItem.id),
+      menuItemId: Number(line.menuItemId),
+      quantity: Number(line.quantity),
+    });
   }
   const { rows: [payment] } = await client.query(
     `INSERT INTO restaurant_pos_payments
@@ -359,6 +367,33 @@ async function replayOneSale(client, { sale, restaurant, timezone, actorUserId }
     `SELECT id FROM restaurant_pos_payments WHERE restaurant_id = $1 AND idempotency_key = $2`,
     [sale.restaurant_id, sale.idempotency_key]
   )).rows[0].id;
+  // Decrement inventory like the online POS path (reserve at order time,
+  // consume at completion). The replayed order is created already paid and
+  // completed, so reserve then consume immediately. Money fails closed: the
+  // cash was tendered offline, so an inventory shortfall must NOT lose the
+  // money record — the order and payment still post, and the shortfall is
+  // flagged in replay_metadata for manager review.
+  let inventoryShortfall = null;
+  try {
+    await reserveInventoryForOrder(client, {
+      restaurantId: sale.restaurant_id,
+      orderId: order.id,
+      orderItems: createdOrderItems,
+      locationId: sale.location_id,
+    });
+    await consumeInventoryForOrder(client, {
+      restaurantId: sale.restaurant_id,
+      orderId: order.id,
+      locationId: sale.location_id,
+      actorUserId,
+    });
+  } catch (error) {
+    if (error && typeof error.code === 'string' && error.code.startsWith('inventory')) {
+      inventoryShortfall = String(error.message || error.code).slice(0, 300);
+    } else {
+      throw error;
+    }
+  }
   // The in-store print agent claims this on reconnect; nothing is dialed
   // from the server (F-05/F-26: the job queue is the only print path).
   await client.query(
@@ -377,11 +412,18 @@ async function replayOneSale(client, { sale, restaurant, timezone, actorUserId }
   await client.query(
     `UPDATE store_hub_offline_sales
         SET status = 'replayed', food_order_id = $2, pos_payment_id = $3,
-            replayed_at = NOW(), replay_error = NULL, updated_at = NOW()
+            replayed_at = NOW(), replay_error = NULL,
+            replay_metadata = CASE WHEN $4::text IS NULL THEN replay_metadata
+                                   ELSE jsonb_build_object('inventory_shortfall', $4::text) END,
+            updated_at = NOW()
       WHERE id = $1`,
-    [sale.id, order.id, paymentId]
+    [sale.id, order.id, paymentId, inventoryShortfall]
   );
-  return { saleId: Number(sale.id), status: 'replayed', orderId: Number(order.id), paymentId: Number(paymentId) };
+  return {
+    saleId: Number(sale.id), status: 'replayed',
+    orderId: Number(order.id), paymentId: Number(paymentId),
+    inventoryShortfall,
+  };
 }
 
 // Replay every queued sale for the hub's store. Idempotent: already-replayed
@@ -426,12 +468,68 @@ async function replaySales(client, { restaurantId, hubId, actorUserId = null }) 
   return { hubId: Number(hubId), processed: results.length, results };
 }
 
+// Resolve a held or failed offline sale explicitly. Money fails closed:
+//   - 'requeue' only flips the status back to 'queued'. The money is NOT
+//     posted here; the next replay re-verifies the referenced shift is still
+//     open at the same store before posting anything.
+//   - 'void' abandons the sale (e.g. the cash was already counted in the
+//     drawer close). The row is kept for the paper trail and the decision
+//     must be audit-logged by the caller.
+// Only 'held'/'failed' sales can be resolved; replayed/voided sales are
+// immutable and queued sales need no resolution.
+async function resolveOfflineSale(client, { restaurantId, hubId, saleId, action, note = null }) {
+  const id = normalizeId(saleId, 'sale');
+  if (!['requeue', 'void'].includes(action)) {
+    throw new AppError("Action must be 'requeue' or 'void'", 400, 'validation_failed');
+  }
+  const cleanNote = String(note || '').trim().slice(0, 500) || null;
+  const { rows: [sale] } = await client.query(
+    `SELECT id, status, total_cents, cash_tendered_cents, shift_id
+       FROM store_hub_offline_sales
+      WHERE id = $1 AND restaurant_id = $2 AND hub_id = $3
+      FOR UPDATE`,
+    [id, restaurantId, hubId]
+  );
+  if (!sale) throw new AppError('Offline sale not found', 404, 'offline_sale_not_found');
+  if (!['held', 'failed'].includes(sale.status)) {
+    throw new AppError(
+      `Only held or failed sales can be resolved (status: ${sale.status})`,
+      409,
+      'sale_not_resolvable'
+    );
+  }
+  const nextStatus = action === 'requeue' ? 'queued' : 'voided';
+  const resolutionNote = action === 'void'
+    ? (cleanNote ? `Voided by manager: ${cleanNote}` : 'Voided by manager')
+    : null;
+  const { rows: [updated] } = await client.query(
+    `UPDATE store_hub_offline_sales
+        SET status = $2::text,
+            replay_error = $3::text,
+            replay_metadata = CASE WHEN $2::text = 'queued' THEN '{}'::jsonb
+                                   ELSE replay_metadata || jsonb_build_object('void_note', $3::text) END,
+            replayed_at = CASE WHEN $2::text = 'queued' THEN NULL ELSE replayed_at END,
+            updated_at = NOW()
+      WHERE id = $1
+      RETURNING id, status, total_cents, cash_tendered_cents, shift_id`,
+    [id, nextStatus, resolutionNote]
+  );
+  return {
+    id: Number(updated.id),
+    status: updated.status,
+    totalCents: Number(updated.total_cents),
+    cashTenderedCents: Number(updated.cash_tendered_cents),
+    shiftId: updated.shift_id == null ? null : Number(updated.shift_id),
+    action,
+  };
+}
+
 async function listOfflineSales(client, { restaurantId, hubId, status = null, limit = 100 }) {
   await getHub(client, restaurantId, hubId);
   const { rows } = await client.query(
     `SELECT id, hub_sale_uuid, idempotency_key, shift_id, total_cents,
             cash_tendered_cents, currency_code, status, food_order_id,
-            pos_payment_id, replay_error, replayed_at, created_at
+            pos_payment_id, replay_error, replay_metadata, replayed_at, created_at
        FROM store_hub_offline_sales
       WHERE hub_id = $1 AND restaurant_id = $2
         AND ($3::text IS NULL OR status = $3)
@@ -453,5 +551,6 @@ module.exports = {
   pullChanges,
   queueOfflineSales,
   replaySales,
+  resolveOfflineSale,
   listOfflineSales,
 };

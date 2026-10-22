@@ -1,4 +1,4 @@
--- Migration 995: brand menu publications (F-02 phase 2).
+-- Migration 99921: brand menu publications (F-02 phase 2).
 --
 -- Cross-brand menu publishing: HQ picks items from a source restaurant's menu
 -- and publishes them to stores of other restaurants in the same brand. The
@@ -9,6 +9,13 @@
 -- restaurant_store_menu_overrides (migration 963) for price/availability.
 -- Request-level idempotency lives on brand_menu_publish_batches so a retried
 -- POST with the same key returns the stored result instead of re-fanning.
+--
+-- The brand-source dedup index is UNIQUE from the start: the publish sync
+-- upserts with ON CONFLICT (restaurant_id, brand_source_item_id) WHERE
+-- brand_source_item_id IS NOT NULL, and only a unique index can serve as an
+-- ON CONFLICT arbiter (42P10 otherwise). The uniqueness is also the real
+-- invariant: at most one target copy of a brand menu item per restaurant, so
+-- re-publishes update instead of duplicating.
 
 ALTER TABLE food_menu_items
   ADD COLUMN IF NOT EXISTS brand_source_item_id BIGINT;
@@ -27,7 +34,7 @@ BEGIN
   END IF;
 END $$;
 
-CREATE INDEX IF NOT EXISTS idx_food_menu_items_brand_source
+CREATE UNIQUE INDEX IF NOT EXISTS idx_food_menu_items_brand_source
   ON food_menu_items (restaurant_id, brand_source_item_id)
   WHERE brand_source_item_id IS NOT NULL;
 

@@ -1,4 +1,4 @@
--- Migration 996: one canonical device identity (F-26 convergence).
+-- Migration 99922: one canonical device identity (F-26 convergence).
 --
 -- Three device/pairing systems coexist: restaurant_app_devices (pairing codes
 -- + device tokens, also used by managed screens v2), display_pairings (PR #612

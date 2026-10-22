@@ -149,6 +149,51 @@ exports.listOfflineSales = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+// Resolve a held/failed offline sale. Money movement stays behind pos.manage:
+// requeue only re-arms the sale (the next replay re-verifies the shift),
+// void abandons it with an audit-logged manager decision.
+exports.resolveOfflineSale = async (req, res, next) => {
+  try {
+    const restaurant = await loadStaffRestaurant(req, 'pos.manage');
+    const hubId = hubIdParam(req);
+    const saleId = Number.parseInt(req.params.saleId, 10);
+    if (!Number.isSafeInteger(saleId) || saleId <= 0) {
+      throw new AppError('Offline sale not found', 404, 'offline_sale_not_found');
+    }
+    const scope = await getLocationScope(restaurant, req.user.id);
+    const resolved = await withTransaction(pool, async (client) => {
+      const row = await hub.getHub(client, restaurant.id, hubId);
+      if (scope.mode === 'assigned' && !scope.location_ids.includes(Number(row.location_id))) {
+        throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+      }
+      const out = await hub.resolveOfflineSale(client, {
+        restaurantId: restaurant.id,
+        hubId,
+        saleId,
+        action: String(req.body?.action || '').trim(),
+        note: req.body?.note ?? null,
+      });
+      await logBusinessAction(req, {
+        business_id: restaurant.business_id,
+        actor_role: restaurant.effective_role,
+        action: 'restaurant.hub.offline_sale.resolved',
+        target_type: 'store_hub_offline_sale',
+        target_id: out.id,
+        metadata: {
+          hub_id: hubId,
+          resolution: out.action,
+          total_cents: out.totalCents,
+          shift_id: out.shiftId,
+        },
+        client,
+        throwOnError: true,
+      });
+      return out;
+    }, 'restaurant_hub_resolve_sale');
+    res.json({ sale: resolved });
+  } catch (error) { next(error); }
+};
+
 // --- Device-authenticated hub endpoints (the hub calls these) ---------------
 
 exports.deviceHeartbeat = async (req, res, next) => {

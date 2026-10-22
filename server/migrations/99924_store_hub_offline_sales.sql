@@ -1,4 +1,4 @@
--- Migration 998: offline cash tender queue with idempotent replay (F-08).
+-- Migration 99924: offline cash tender queue with idempotent replay (F-08).
 --
 -- While the store is offline, the hub records cash sales locally and POSTs
 -- them here in bulk. On reconnect the replay endpoint ingests each sale
@@ -9,7 +9,11 @@
 --   - a sale whose shift closed before replay is marked 'held' for manager
 --     review, never auto-posted to a different shift;
 --   - totals are recomputed server-side from the payload and must match.
--- Card store-and-forward is intentionally NOT in this queue (see 1305).
+-- A 'voided' status lets managers cancel a queued/held/failed sale with a
+-- note (the row is kept for the audit trail, never deleted). replay_metadata
+-- carries machine-readable flags such as inventory_shortfall.
+-- Card store-and-forward is intentionally NOT in this queue (see the
+-- restaurant_store_forward_settings table in migration 99923).
 
 CREATE TABLE IF NOT EXISTS store_hub_offline_sales (
   id BIGSERIAL PRIMARY KEY,
@@ -24,11 +28,12 @@ CREATE TABLE IF NOT EXISTS store_hub_offline_sales (
   cash_tendered_cents INTEGER NOT NULL CHECK (cash_tendered_cents >= 0),
   currency_code CHAR(3) NOT NULL DEFAULT 'USD',
   status VARCHAR(24) NOT NULL DEFAULT 'queued'
-    CHECK (status IN ('queued', 'replayed', 'held', 'failed')),
+    CHECK (status IN ('queued', 'replayed', 'held', 'failed', 'voided')),
   food_order_id BIGINT REFERENCES food_orders(id) ON DELETE SET NULL,
   pos_payment_id BIGINT REFERENCES restaurant_pos_payments(id) ON DELETE SET NULL,
   replay_error TEXT,
   replayed_at TIMESTAMPTZ,
+  replay_metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT store_hub_offline_sales_tender CHECK (cash_tendered_cents >= total_cents)

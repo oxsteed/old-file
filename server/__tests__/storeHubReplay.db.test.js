@@ -1,6 +1,6 @@
 'use strict';
 
-// DB-backed tests for F-08 offline cash replay (migrations 997/998).
+// DB-backed tests for F-08 offline cash replay (migrations 99923/99924).
 // Everything runs inside one rolled-back transaction against the real
 // migrated schema. Money-safety properties under test:
 //   - replay is idempotent (no double orders/payments on retry),
@@ -25,7 +25,7 @@ const hub = require('../services/storeHubService');
 const describeDb = url ? describe : describe.skip;
 const TAG = 'HubReplayTest';
 
-describeDb('store hub offline replay (migrations 997/998)', () => {
+describeDb('store hub offline replay (migrations 99923/99924)', () => {
   let client;
   let ownerId;
   let restaurantId;
@@ -182,5 +182,143 @@ describeDb('store hub offline replay (migrations 997/998)', () => {
     expect(pulled.locationId).toBe(Number(storeId));
     expect(pulled.events.length).toBeGreaterThan(0);
     expect(pulled.latestRevision).toBeGreaterThanOrEqual(pulled.events[pulled.events.length - 1].revision);
+  });
+
+  test('replay decrements inventory and audits usage', async () => {
+    const itemId = (await client.query(
+      `INSERT INTO food_menu_items (restaurant_id, name, price_cents) VALUES ($1, $2, 500) RETURNING id`,
+      [restaurantId, `${TAG} Stocked Item`]
+    )).rows[0].id;
+    const invId = (await client.query(
+      `INSERT INTO restaurant_inventory_items (restaurant_id, location_id, name, quantity) VALUES ($1, $2, $3, 10) RETURNING id`,
+      [restaurantId, storeId, `${TAG} Flour`]
+    )).rows[0].id;
+    await client.query(
+      `INSERT INTO restaurant_inventory_item_mappings
+         (restaurant_id, inventory_item_id, menu_item_id, usage_label, required_quantity)
+       VALUES ($1, $2, $3, 'test', 2)`,
+      [restaurantId, invId, itemId]
+    );
+    await hub.queueOfflineSales(client, {
+      restaurantId, hubId,
+      sales: [mkSale(20, {
+        items: [{ menuItemId: itemId, quantity: 1, unitPriceCents: 500, name: `${TAG} Stocked Item` }],
+        subtotalCents: 500, totalCents: 580, taxCents: 80, cashTenderedCents: 600,
+      })],
+    });
+    const result = await hub.replaySales(client, { restaurantId, hubId, actorUserId: ownerId });
+    const mine = result.results.find((r) => r.status === 'replayed' && r.inventoryShortfall == null);
+    expect(mine).toBeTruthy();
+    const { rows: [item] } = await client.query(
+      `SELECT quantity FROM restaurant_inventory_items WHERE id = $1`, [invId]
+    );
+    expect(Number(item.quantity)).toBe(8);
+    const { rows: [adj] } = await client.query(
+      `SELECT adjustment_type, quantity_delta, source_type FROM restaurant_inventory_adjustments
+        WHERE restaurant_id = $1 AND item_id = $2 ORDER BY id DESC LIMIT 1`,
+      [restaurantId, invId]
+    );
+    expect(adj.adjustment_type).toBe('usage');
+    expect(Number(adj.quantity_delta)).toBe(-2);
+    expect(adj.source_type).toBe('food_order');
+  });
+
+  test('inventory shortfall still posts money and flags the sale', async () => {
+    const itemId = (await client.query(
+      `INSERT INTO food_menu_items (restaurant_id, name, price_cents) VALUES ($1, $2, 700) RETURNING id`,
+      [restaurantId, `${TAG} Scarce Item`]
+    )).rows[0].id;
+    const invId = (await client.query(
+      `INSERT INTO restaurant_inventory_items (restaurant_id, location_id, name, quantity) VALUES ($1, $2, $3, 1) RETURNING id`,
+      [restaurantId, storeId, `${TAG} Truffle`]
+    )).rows[0].id;
+    await client.query(
+      `INSERT INTO restaurant_inventory_item_mappings
+         (restaurant_id, inventory_item_id, menu_item_id, usage_label, required_quantity)
+       VALUES ($1, $2, $3, 'test', 5)`,
+      [restaurantId, invId, itemId]
+    );
+    await hub.queueOfflineSales(client, {
+      restaurantId, hubId,
+      sales: [mkSale(21, {
+        items: [{ menuItemId: itemId, quantity: 1, unitPriceCents: 700, name: `${TAG} Scarce Item` }],
+        subtotalCents: 700, totalCents: 756, taxCents: 56, cashTenderedCents: 800,
+      })],
+    });
+    const result = await hub.replaySales(client, { restaurantId, hubId, actorUserId: ownerId });
+    const mine = result.results.find((r) => r.inventoryShortfall);
+    expect(mine).toBeTruthy();
+    expect(mine.status).toBe('replayed');
+    // Money posted: the order and cash payment exist.
+    const { rows: [order] } = await client.query(
+      `SELECT id, payment_status FROM food_orders WHERE id = $1`, [mine.orderId]
+    );
+    expect(order.payment_status).toBe('paid');
+    const { rows: [payment] } = await client.query(
+      `SELECT COUNT(*)::int AS n FROM restaurant_pos_payments WHERE food_order_id = $1 AND payment_type = 'cash'`,
+      [mine.orderId]
+    );
+    expect(payment.n).toBe(1);
+    // Stock untouched (never driven negative) and the shortfall flagged.
+    const { rows: [item] } = await client.query(
+      `SELECT quantity FROM restaurant_inventory_items WHERE id = $1`, [invId]
+    );
+    expect(Number(item.quantity)).toBe(1);
+    const { rows: [sale] } = await client.query(
+      `SELECT status, replay_metadata FROM store_hub_offline_sales WHERE id = $1`, [mine.saleId]
+    );
+    expect(sale.status).toBe('replayed');
+    expect(sale.replay_metadata.inventory_shortfall).toMatch(/unavailable/i);
+  });
+
+  test('a held sale can be requeued and then replayed', async () => {
+    await client.query(`UPDATE restaurant_pos_shifts SET status = 'closed', closed_at = NOW() WHERE id = $1`, [shiftId]);
+    await hub.queueOfflineSales(client, { restaurantId, hubId, sales: [mkSale(22)] });
+    const held = (await hub.replaySales(client, { restaurantId, hubId, actorUserId: ownerId })).results[0];
+    expect(held.status).toBe('held');
+    const resolved = await hub.resolveOfflineSale(client, {
+      restaurantId, hubId, saleId: held.saleId, action: 'requeue',
+    });
+    expect(resolved.status).toBe('queued');
+    expect(resolved.action).toBe('requeue');
+    await client.query(`UPDATE restaurant_pos_shifts SET status = 'open', closed_at = NULL WHERE id = $1`, [shiftId]);
+    const replayed = await hub.replaySales(client, { restaurantId, hubId, actorUserId: ownerId });
+    const mine = replayed.results.find((r) => r.saleId === held.saleId);
+    expect(mine.status).toBe('replayed');
+    expect(mine.orderId).toBeTruthy();
+  });
+
+  test('a held sale can be voided with a manager note', async () => {
+    await client.query(`UPDATE restaurant_pos_shifts SET status = 'closed', closed_at = NOW() WHERE id = $1`, [shiftId]);
+    await hub.queueOfflineSales(client, { restaurantId, hubId, sales: [mkSale(23)] });
+    const held = (await hub.replaySales(client, { restaurantId, hubId, actorUserId: ownerId })).results[0];
+    expect(held.status).toBe('held');
+    const resolved = await hub.resolveOfflineSale(client, {
+      restaurantId, hubId, saleId: held.saleId, action: 'void', note: 'counted in drawer close',
+    });
+    expect(resolved.status).toBe('voided');
+    await client.query(`UPDATE restaurant_pos_shifts SET status = 'open', closed_at = NULL WHERE id = $1`, [shiftId]);
+    const replayed = await hub.replaySales(client, { restaurantId, hubId, actorUserId: ownerId });
+    expect(replayed.processed).toBe(0);
+    const { rows: [sale] } = await client.query(
+      `SELECT status, food_order_id, replay_error FROM store_hub_offline_sales WHERE id = $1`,
+      [held.saleId]
+    );
+    expect(sale.status).toBe('voided');
+    expect(sale.food_order_id).toBeNull();
+    expect(sale.replay_error).toMatch(/counted in drawer close/);
+  });
+
+  test('resolve rejects sales that already replayed', async () => {
+    const { rows: [sale] } = await client.query(
+      `SELECT id FROM store_hub_offline_sales WHERE hub_id = $1 AND status = 'replayed' LIMIT 1`,
+      [hubId]
+    );
+    await expect(hub.resolveOfflineSale(client, {
+      restaurantId, hubId, saleId: sale.id, action: 'void',
+    })).rejects.toMatchObject({ code: 'sale_not_resolvable' });
+    await expect(hub.resolveOfflineSale(client, {
+      restaurantId, hubId, saleId: sale.id, action: 'bogus',
+    })).rejects.toMatchObject({ code: 'validation_failed' });
   });
 });
