@@ -46,7 +46,10 @@ exports.update = async (req, res, next) => {
   try {
     // A cashier may 86; changing prices requires the menu-management grant.
     menu.validatePatch(req.body, { is_available: false });
-    const restaurant = await access(req, Object.hasOwn(req.body, 'priceCents') ? ['menu.manage'] : ['menu.manage', 'pos.use', 'kitchen.update']);
+    const requiredCodes = Object.hasOwn(req.body, 'priceCents')
+      ? ['menu.manage']
+      : ['menu.manage', 'pos.use', 'kitchen.update'];
+    const restaurant = await access(req, requiredCodes);
     const result = await withTransaction(pool, async (client) => {
       const actingStaff = await resolveActingStaff(req, restaurant.id);
       const deviceStore = actingStaff?.deviceId ? await deviceLocationId(client, { restaurantId: restaurant.id, deviceId: actingStaff.deviceId }) : null;
@@ -54,7 +57,7 @@ exports.update = async (req, res, next) => {
       if (!store) throw new AppError('Store not found', 404, 'location_not_found');
       const storeRole = await getLocationRole(restaurant, req.user.id, store.id, client);
       if (storeRole && storeRole !== restaurant.effective_role
-        && !(await permissions.hasRestaurantPermission(restaurant, req.user.id, codes, { roleOverride: storeRole }))) {
+        && !(await permissions.hasRestaurantPermission(restaurant, req.user.id, requiredCodes, { roleOverride: storeRole }))) {
         throw new AppError('Permission denied', 403, 'forbidden');
       }
       const { rows: [item] } = await client.query('SELECT id, name, price_cents, currency_code, is_available FROM food_menu_items WHERE restaurant_id=$1 AND id=$2 FOR UPDATE', [restaurant.id, menu.locationId(req.params.itemId)]);

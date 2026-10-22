@@ -8,9 +8,11 @@ jest.mock('../services/scopeModel', () => ({ resolveRestaurantAccess: jest.fn(as
 jest.mock('../services/permissionsService', () => ({ hasRestaurantPermission: jest.fn(async () => true) }));
 jest.mock('../services/restaurantStaffIdentityService', () => ({ resolveActingStaff: jest.fn(async () => null) }));
 jest.mock('../services/businessAuditLog', () => ({ logBusinessAction: jest.fn(async () => {}) }));
+jest.mock('../services/restaurantLocationAccessService', () => ({ getLocationRole: jest.fn(async () => null) }));
 const ctrl = require('../controllers/restaurantStoreMenuController');
 const { logBusinessAction } = require('../services/businessAuditLog');
 const { hasRestaurantPermission } = require('../services/permissionsService');
+const { getLocationRole } = require('../services/restaurantLocationAccessService');
 function app() {
   const instance = express(); instance.use(express.json());
   instance.use((req, _res, next) => { req.user = { id: '00000000-0000-4000-8000-000000000123' }; next(); });
@@ -18,7 +20,7 @@ function app() {
   instance.patch('/:restaurantId/locations/:locationId/menu-items/:itemId', ctrl.update);
   instance.use(errorHandler); return instance;
 }
-beforeEach(() => { resetMocks(); jest.clearAllMocks(); hasRestaurantPermission.mockResolvedValue(true); logBusinessAction.mockResolvedValue(undefined); });
+beforeEach(() => { resetMocks(); jest.clearAllMocks(); hasRestaurantPermission.mockResolvedValue(true); getLocationRole.mockResolvedValue(null); logBusinessAction.mockResolvedValue(undefined); });
 
 test('store pricing inherits independently from temporary availability and cannot override brand stock', () => {
   const base = { price_cents: 1000, is_available: true, store_override: { price_cents: 1250, is_available: false, available_again_at: '2026-01-02T00:00:00Z' } };
@@ -74,6 +76,18 @@ test('price changes require menu.manage and a denied grant never writes', async 
 test('audit failure rejects the transaction rather than returning a successful unaudited change', async () => {
   mockStoreQueries(); logBusinessAction.mockRejectedValue(new Error('audit offline'));
   expect((await request(app()).patch('/3/locations/7/menu-items/11').send({ isAvailable: false })).status).toBe(500);
+});
+test('location role overrides use the same required permission set without crashing', async () => {
+  mockStoreQueries();
+  getLocationRole.mockResolvedValue('employee');
+  const response = await request(app()).patch('/3/locations/7/menu-items/11').send({ isAvailable: false });
+  expect(response.status).toBe(200);
+  expect(hasRestaurantPermission).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.anything(),
+    ['menu.manage', 'pos.use', 'kitchen.update'],
+    { roleOverride: 'employee' },
+  );
 });
 
 test.each([true, false])('a real quote uses the selected store price and availability (%s)', async (available) => {
