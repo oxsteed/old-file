@@ -7,6 +7,13 @@ process.env.DIDIT_API_KEY = 'synthetic-didit-provider';
 // reconcile that row as Stripe settles.
 const { mockQuery, resetMocks } = require('./setup');
 
+// Track A item 12: instant payouts require TOTP step-up. Mock it so these
+// tests cover payout behavior, not the step-up gate.
+jest.mock('../services/stepupChallengeService', () => ({
+  verifyStepupChallenge: jest.fn(async () => ({ ok: true })),
+  issueStepupChallenge: jest.fn(async () => ({ challengeId: 'test-challenge' })),
+}));
+
 jest.mock('../services/localDeliveryPaymentService', () => ({
   handleStripeEvent: jest.fn().mockResolvedValue({ handled: false }),
 }));
