@@ -174,6 +174,22 @@ test('returns restaurant-labelled offers and assigned tasks across workspaces', 
   expect(mockQuery.mock.calls[2][0]).toMatch(/t\.assigned_to = \$1/);
 });
 
+test('runner inbox queries enforce assigned store scope for operational tasks', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [
+      { restaurant_id: 7, business_id: 40, restaurant_name: 'North Kitchen', business_name: 'Ox Group', role: 'employee' },
+    ] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const res = await request(buildApp()).get('/api/runner/inbox');
+
+  expect(res.status).toBe(200);
+  expect(mockQuery.mock.calls[1][0]).toMatch(/restaurant_location_memberships/);
+  expect(mockQuery.mock.calls[1][0]).toMatch(/t\.location_id IN/);
+  expect(mockQuery.mock.calls[2][0]).toMatch(/scope_lm\.location_id/);
+});
+
 test('returns an empty inbox when the user has no active restaurant access', async () => {
   mockQuery.mockResolvedValueOnce({ rows: [] });
 
