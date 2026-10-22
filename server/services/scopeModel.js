@@ -224,7 +224,9 @@ function restaurantInRegions(restaurant, regions) {
 
 /**
  * Canonical restaurant access gate (see module docstring).
- */async function resolveRestaurantAccess(userId, restaurantId) {  const handedOff = takeResolvedRestaurant(userId, restaurantId);
+ */
+async function resolveRestaurantAccess(userId, restaurantId) {
+  const handedOff = takeResolvedRestaurant(userId, restaurantId);
   if (handedOff) return handedOff;
   const { rows } = await pool.query(
     `SELECT fr.*,
