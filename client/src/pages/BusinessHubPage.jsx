@@ -58,7 +58,8 @@ import {
   listInvoices, createInvoice, updateInvoice, markInvoicePaid, deleteInvoice, sendInvoice,
   getTax, refreshTax, markTaxPaid,
   listGoals, createGoal, updateGoal, deleteGoal,
-  inviteMember, revokeMember, resendMemberInvite, listJobRoles,
+  inviteMember, revokeMember, resendMemberInvite, expireMemberInvite, listJobRoles,
+  listOffboardingRecords, rehireMember,
   listMyInvitations, acceptInvitation, declineInvitation,
   listManagedBusinesses,
   listVortexTokens, generateVortexToken, revokeVortexToken,
@@ -235,6 +236,8 @@ function BusinessHubInner() {
   const [membersLoading, setMembersLoading] = useState(false);
   const [invitations, setInvitations]     = useState([]);
   const [managedBiz, setManagedBiz]       = useState([]);
+  // S-11: offboarding history + rehire.
+  const [offboardingRecords, setOffboardingRecords] = useState([]);
 
   // vortex tokens
   const [vortexTokens, setVortexTokens]   = useState([]);
@@ -540,15 +543,17 @@ function BusinessHubInner() {
     if (!bizId) return;
     setMembersLoading(true);
     try {
-      const [m, inv, managed, tokens, codes, roles] = await Promise.all([
+      const [m, inv, managed, tokens, codes, roles, offboarding] = await Promise.all([
         listMemberships(bizId),
         listMyInvitations(),
         listManagedBusinesses(),
         LAUNCH_VISIBILITY.businessHubVortexAccess ? listVortexTokens(bizId).catch(() => []) : Promise.resolve([]),
         LAUNCH_VISIBILITY.businessHubVortexAccess ? listAccessCodes(bizId).catch(() => []) : Promise.resolve([]),
         listJobRoles(bizId).catch(() => []),
+        listOffboardingRecords(bizId).catch(() => []),
       ]);
       setJobRoles(roles);
+      setOffboardingRecords(offboarding);
       // listMemberships returns user_email; the team table expects member_email.
       setMembers(m.map((row) => ({ ...row, member_email: row.member_email || row.user_email })));
       setInvitations(inv);
@@ -973,6 +978,30 @@ function BusinessHubInner() {
       toast.success(t('businessHub.toastInviteResent'));
       await loadTeam();
     } catch { toast.error(t('businessHub.toastInviteResendFail')); }
+  }
+
+  // S-10: expire a pending invite immediately (no waiting for the sweep).
+  async function handleExpireInvite(member) {
+    if (!bizId) return;
+    if (!window.confirm(t('businessHub.confirmExpireInvite', { email: member.invite_email }))) return;
+    try {
+      await expireMemberInvite(bizId, member.id);
+      toast.success(t('businessHub.toastInviteExpired'));
+      await loadTeam();
+    } catch { toast.error(t('businessHub.toastInviteExpireFail')); }
+  }
+
+  // S-11: rehire a previously removed member; restores role/job/pay.
+  async function handleRehire(record) {
+    if (!bizId || !record.user_id) return;
+    if (!window.confirm(t('businessHub.confirmRehire', { name: record.user_name || record.user_email }))) return;
+    try {
+      await rehireMember(bizId, { user_id: record.user_id });
+      toast.success(t('businessHub.toastRehired'));
+      await loadTeam();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('businessHub.toastRehireFail'));
+    }
   }
 
   async function handleApproveMember(member) {
@@ -2162,6 +2191,9 @@ function BusinessHubInner() {
                 businessId={bizId}
                 onRevoke={handleRevokeMember}
                 onResend={handleResendInvite}
+                onExpireInvite={handleExpireInvite}
+                offboardingRecords={offboardingRecords}
+                onRehire={handleRehire}
                 onApprove={handleApproveMember}
                 onDeny={handleDenyMember}
                 onChangeRole={handleChangeMemberRole}
@@ -3338,7 +3370,8 @@ function TeamTab({
   onRevokeToken, onRevokeAccessCode, onRotateAccessCode,
   showVortexAccess = false,
   onInvite, onOpenHiring, businessId,
-  onRevoke, onResend, onAccept, onDecline, onApprove, onDeny, onChangeRole,
+  onRevoke, onResend, onExpireInvite, offboardingRecords = [], onRehire,
+  onAccept, onDecline, onApprove, onDeny, onChangeRole,
   isOwner = false, canEditPermissions = false, onEditPermissions,
   showOnceCode, onDismissShowOnceCode,
 }) {
@@ -3761,6 +3794,9 @@ function TeamTab({
                           <button className="bh-btn" style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => onResend(m)} data-track="ui.83b215c0c9.103">
                             {t('businessHub.btnResendInvite')}
                           </button>
+                          <button className="bh-btn" style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => onExpireInvite(m)} data-track="ui.83b215c0c9.108">
+                            {t('businessHub.btnExpireInvite')}
+                          </button>
                           <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)} data-track="ui.83b215c0c9.104">
                             {t('businessHub.btnCancelInvite')}
                           </button>
@@ -3770,6 +3806,9 @@ function TeamTab({
                       <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                         <button className="bh-btn" style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => onResend(m)} data-track="ui.83b215c0c9.105">
                           {t('businessHub.btnResendInvite')}
+                        </button>
+                        <button className="bh-btn" style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => onExpireInvite(m)} data-track="ui.83b215c0c9.107">
+                          {t('businessHub.btnExpireInvite')}
                         </button>
                         <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)} data-track="ui.83b215c0c9.81">
                           {t('businessHub.btnCancelInvite')}
@@ -3792,6 +3831,62 @@ function TeamTab({
               ))}
             </tbody>
           </table>
+          </div>
+        )}
+
+        {/* S-11: offboarding history + rehire. Only people with a user
+            account can be rehired; the record shows what was reassigned
+            and how long history must be kept. */}
+        {offboardingRecords.length > 0 && (
+          <div style={{ marginTop: '2rem' }}>
+            <h4 className="bh-section-title">{t('businessHub.offboardingTitle')}</h4>
+            <p style={{ fontSize: '0.82rem', color: 'var(--muted-text)', marginBottom: '0.75rem' }}>
+              {t('businessHub.offboardingSubtitle')}
+            </p>
+            <div className="bh-table-wrap">
+              <table className="bh-team-table">
+                <thead>
+                  <tr>
+                    <th>{t('businessHub.colNameEmail')}</th>
+                    <th>{t('businessHub.offboardingRemoved')}</th>
+                    <th>{t('businessHub.offboardingReassigned')}</th>
+                    <th>{t('businessHub.offboardingRetainUntil')}</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {offboardingRecords.map(r => (
+                    <tr key={r.id}>
+                      <td>
+                        <div className="bh-team-member-name">{r.user_name || '-'}</div>
+                        <div className="bh-team-member-email">{r.user_email || ''}</div>
+                        {r.reason && <div style={{ fontSize: '0.75rem', color: 'var(--muted-text)' }}>{r.reason}</div>}
+                      </td>
+                      <td style={{ fontSize: '0.82rem' }}>
+                        {formatDate(r.removed_at, { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {r.rehired_at && <div style={{ color: '#4ade80' }}>{t('businessHub.offboardingRehired')}</div>}
+                      </td>
+                      <td style={{ fontSize: '0.82rem' }}>
+                        {t('businessHub.offboardingReassignedDetail', {
+                          tasks: (r.crew_tasks_reassigned || 0) + (r.corrective_actions_reassigned || 0),
+                          pins: r.pins_deactivated || 0,
+                        })}
+                      </td>
+                      <td style={{ fontSize: '0.82rem' }}>
+                        {formatDate(r.retain_until, { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </td>
+                      <td>
+                        {!r.rehired_at && r.user_id && (
+                          <button className="bh-btn" style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => onRehire(r)} data-track="ui.83b215c0c9.109">
+                            {t('businessHub.btnRehire')}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

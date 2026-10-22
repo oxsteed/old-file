@@ -298,13 +298,18 @@ async function revokeMember(req, res) {
 
       // S-11: an active member losing access also loses their restaurant
       // PINs, and any cash drawer they left open is flagged for a manager
-      // close — atomically with the revoke.
+      // close — atomically with the revoke. Open tasks and corrective
+      // actions move to a manager (never NULL); an offboarding record is
+      // written with the retention deadline.
       let offboarding = { pinsDeactivated: 0, drawersFlagged: 0 };
       if (member.member_id && member.status === 'active') {
         offboarding = await applyStaffOffboarding(client, {
           businessId: biz.id,
           userId: member.member_id,
           reason: 'Membership revoked',
+          membershipId: Number(req.params.memberId),
+          removedBy: req.user.id,
+          reassignToUserId: req.user.id,
         });
       }
 
@@ -465,6 +470,150 @@ async function expireMemberInvite(req, res) {
   } catch (err) {
     logger.error('expireMemberInvite error', { err: err.message });
     return res.status(500).json({ error: 'Failed to expire invite' });
+  }
+}
+
+// ── GET /api/businesses/:id/members/offboarding ──────────────────────────────
+// S-11: the offboarding history for this business (who was removed, what
+// was reassigned, retention deadline, rehire state). Manager+ only.
+async function listOffboardingRecords(req, res) {
+  try {
+    const biz = await managedBusiness(req);
+    if (!biz) return res.status(404).json({ error: 'Business not found' });
+    const { rows } = await pool.query(
+      `SELECT r.*,
+              COALESCE(u.display_name_preference, u.first_name || ' ' || u.last_name) AS user_name,
+              u.email AS user_email,
+              rb.first_name AS removed_by_first_name,
+              rb.last_name AS removed_by_last_name
+         FROM staff_offboarding_records r
+         LEFT JOIN users u ON u.id = r.user_id
+         LEFT JOIN users rb ON rb.id = r.removed_by
+        WHERE r.business_id = $1
+        ORDER BY r.removed_at DESC
+        LIMIT 200`,
+      [biz.id]
+    );
+    return res.json({ records: rows });
+  } catch (err) {
+    logger.error('listOffboardingRecords error', { err: err.message });
+    return res.status(500).json({ error: 'Failed to load offboarding records' });
+  }
+}
+
+// ── POST /api/businesses/:id/members/rehire ──────────────────────────────────
+// S-11: rehire a previously removed team member. Creates a NEW active
+// membership restoring the role, job role and pay captured on the revoked
+// membership row, links it to the offboarding record, and returns the
+// prior history (offboarding outcome + training completions) so the
+// manager sees what is being restored. The user account must still
+// exist; deactivated PINs are NOT reactivated — the manager issues a
+// fresh PIN after rehire.
+async function rehireMember(req, res) {
+  try {
+    const biz = await managedBusiness(req);
+    if (!biz) return res.status(404).json({ error: 'Business not found' });
+
+    const userId = req.body?.user_id || req.body?.userId || null;
+    const email = req.body?.email ? String(req.body.email).trim().toLowerCase() : null;
+    if (!userId && !email) return res.status(400).json({ error: 'user_id or email is required' });
+
+    const { rows: [user] } = await pool.query(
+      userId
+        ? `SELECT id, email, first_name, last_name FROM users WHERE id = $1`
+        : `SELECT id, email, first_name, last_name FROM users WHERE LOWER(email) = $1`,
+      [userId || email]
+    );
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const outcome = await withTransaction(pool, async (client) => {
+      // Fail closed: an existing non-revoked membership/invite blocks the
+      // rehire instead of creating a duplicate.
+      const { rows: [existing] } = await client.query(
+        `SELECT id, status FROM business_members
+          WHERE business_id = $1 AND member_id = $2 AND status != 'revoked'
+          ORDER BY id DESC LIMIT 1`,
+        [biz.id, user.id]
+      );
+      if (existing) {
+        return { conflict: existing.status === 'active' ? 'already_member' : 'invite_exists' };
+      }
+      // The revoked membership carries the role/job/pay to restore.
+      const { rows: [prior] } = await client.query(
+        `SELECT * FROM business_members
+          WHERE business_id = $1 AND member_id = $2 AND status = 'revoked'
+          ORDER BY id DESC LIMIT 1`,
+        [biz.id, user.id]
+      );
+      if (!prior) return { conflict: 'no_prior_membership' };
+      if (!canActOnRole(biz.actor_role, prior.role)) {
+        return { conflict: 'target_rank_too_high' };
+      }
+      const { rows: [record] } = await client.query(
+        `SELECT * FROM staff_offboarding_records
+          WHERE business_id = $1 AND user_id = $2
+          ORDER BY removed_at DESC LIMIT 1`,
+        [biz.id, user.id]
+      );
+      const { rows: [member] } = await client.query(
+        `INSERT INTO business_members
+           (business_id, owner_id, member_id, role, invite_email, status,
+            job_role, pay_rate_cents, pay_rate_period, hourly_wage_cents, accepted_at)
+         VALUES ($1, $2, $3, $4, $5, 'active', $6, $7, $8, $9, NOW())
+         RETURNING *`,
+        [biz.id, biz.owner_id, user.id, prior.role, prior.invite_email,
+          prior.job_role, prior.pay_rate_cents, prior.pay_rate_period, prior.hourly_wage_cents]
+      );
+      if (record) {
+        await client.query(
+          `UPDATE staff_offboarding_records
+              SET rehired_at = NOW(), rehired_membership_id = $1
+            WHERE id = $2`,
+          [member.id, record.id]
+        );
+      }
+      // Prior training completions (tied to user_id) for the history view.
+      const { rows: completions } = await client.query(
+        `SELECT c.id, c.passed, c.completed_at, m.title AS module_title
+           FROM restaurant_training_completions c
+           JOIN restaurant_training_assignments a ON a.id = c.assignment_id
+           JOIN restaurant_training_modules m ON m.id = a.module_id
+          WHERE a.user_id = $1 AND a.restaurant_id IN (
+            SELECT id FROM food_restaurants WHERE business_id = $2
+          )
+          ORDER BY c.completed_at DESC
+          LIMIT 50`,
+        [user.id, biz.id]
+      );
+      await logBusinessAction(req, {
+        action: 'business.member.rehired',
+        target_type: 'business_member',
+        target_id: member.id,
+        before_state: { status: 'revoked', role: prior.role },
+        after_state: { status: 'active', role: member.role },
+        metadata: { restored_job_role: member.job_role, offboarding_record_id: record?.id || null },
+        business_id: biz.id,
+        actor_role: biz.actor_role,
+        client,
+      });
+      await insertNotification(client, {
+        userId: user.id,
+        type: 'business_rehired',
+        title: `Welcome back to "${biz.business_name}"`,
+        body: `You have been rehired at "${biz.business_name}" as a ${member.role}.`,
+        data: { business_id: biz.id, business_name: biz.business_name, role: member.role, membership_id: member.id },
+      });
+      return { member, offboardingRecord: record || null, trainingCompletions: completions };
+    });
+
+    if (outcome.conflict === 'already_member') return res.status(409).json({ error: 'This person is already an active member' });
+    if (outcome.conflict === 'invite_exists') return res.status(409).json({ error: 'This person has a pending or expired invite; resend or revoke it first' });
+    if (outcome.conflict === 'no_prior_membership') return res.status(404).json({ error: 'No prior membership found for this person' });
+    if (outcome.conflict === 'target_rank_too_high') return res.status(403).json({ error: 'You can only manage members with roles below your own' });
+    return res.status(201).json(outcome);
+  } catch (err) {
+    logger.error('rehireMember error', { err: err.message });
+    return res.status(500).json({ error: 'Failed to rehire member' });
   }
 }
 
@@ -656,6 +805,8 @@ module.exports = {
   revokeMember,
   resendMemberInvite,
   expireMemberInvite,
+  rehireMember,
+  listOffboardingRecords,
   listJobRoles,
   listMyInvitations,
   acceptInvitation,
