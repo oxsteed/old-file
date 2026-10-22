@@ -18,6 +18,7 @@ const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
 const permissionsService = require('../services/permissionsService');
 const { getLocationScope } = require('../services/restaurantLocationAccessService');
+const { attachScope, requireBrand } = require('../services/restaurantReviewScope');
 const { sendNotification } = require('../services/notificationService');
 const logger = require('../utils/logger');
 
@@ -113,6 +114,7 @@ exports.createAnnouncement = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertManage(restaurant, req.user.id);
+    requireBrand(await attachScope(restaurant, req.user.id));
     const title = normalizeString(req.body.title, 200);
     if (!title) {
       throw new AppError('Validation failed', 400, 'validation_failed', { title: 'Title is required' });
@@ -180,7 +182,7 @@ exports.listLogbook = async (req, res, next) => {
       ? [restaurantId, locationScope.location_ids]
       : [restaurantId];
     const locationFilter = locationScope.mode === 'assigned'
-      ? ' AND (e.shift_id IS NULL OR s.location_id = ANY($2::bigint[]))'
+      ? ' AND s.location_id = ANY($2::bigint[])'
       : '';
     const { rows } = await pool.query(
       `SELECT e.*,
@@ -212,6 +214,7 @@ exports.createLogbookEntry = async (req, res, next) => {
       throw new AppError('Validation failed', 400, 'validation_failed', { body: 'Note is required' });
     }
     const shiftId = parsePositiveInt(req.body.shiftId || req.body.shift_id);
+    if (!shiftId && locationScope.mode === 'assigned') throw new AppError('A store shift is required',403,'location_scope_forbidden');
     if (shiftId) {
       const { rows: [shift] } = await pool.query(
         `SELECT id, location_id FROM restaurant_crew_shifts WHERE id = $1 AND restaurant_id = $2${locationScope.mode === 'assigned' ? ' AND location_id = ANY($3::bigint[])' : ''}`,

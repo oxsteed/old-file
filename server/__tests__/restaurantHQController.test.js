@@ -41,6 +41,7 @@ beforeEach(() => {
 test('publishes a source store policy transactionally and audits each target', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{ id: 4, name: 'Source', status: 'active' }, { id: 5, name: 'Target', status: 'active' }] })
+    .mockResolvedValueOnce({ rows: [] }) // reset inherited overrides
     .mockResolvedValueOnce({ rows: [{ location_id: 5, menu_item_id: 22 }] });
   const response = await request(app()).post('/3/hq/menu/publish').send({ sourceLocationId: 4, targetLocationIds: [5] });
   expect(response.status).toBe(200);

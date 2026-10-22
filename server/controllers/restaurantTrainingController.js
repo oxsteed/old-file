@@ -368,30 +368,27 @@ exports.listAssignments = async (req, res, next) => {
         ORDER BY a.created_at DESC`,
       params
     );
-    res.json({ assignments: rows });
+    res.json({ assignments: rows.map(row=>({...row,is_mine:row.user_id===req.user.id})) });
   } catch (err) {
     next(err);
   }
 };
 
-exports.startAssignment = async (req, res, next) => {
-  try {
-    const restaurantId = parsePositiveInt(req.params.restaurantId);
-    const assignmentId = parsePositiveInt(req.params.assignmentId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
-    const { rows: [assignment] } = await pool.query(
-      `UPDATE restaurant_training_assignments
-          SET status = 'in_progress', updated_at = NOW()
-        WHERE id = $1 AND restaurant_id = $2 AND user_id = $3 AND status IN ('assigned', 'overdue', 'in_progress')
-          AND EXISTS (SELECT 1 FROM restaurant_training_modules m WHERE m.id=restaurant_training_assignments.module_id AND m.is_active=TRUE)
-        RETURNING *`,
-      [assignmentId, restaurantId, req.user.id]
-    );
-    if (!assignment) throw new AppError('Assignment not found', 404, 'assignment_not_found');
-    res.json({ assignment });
-  } catch (err) {
-    next(err);
-  }
+exports.startAssignment = async(req,res,next)=>{
+  try{
+    const restaurantId=parsePositiveInt(req.params.restaurantId),id=parsePositiveInt(req.params.assignmentId);
+    await requireRestaurantAccess(req.user.id,restaurantId);
+    const assignment=await require('../utils/transaction').withTransaction(pool,async client=>{
+      const {rows:[current]}=await client.query(`SELECT a.*,m.current_version FROM restaurant_training_assignments a JOIN restaurant_training_modules m ON m.id=a.module_id WHERE a.id=$1 AND a.restaurant_id=$2 AND a.user_id=$3 AND m.is_active=TRUE AND m.archived_at IS NULL FOR UPDATE OF a,m`,[id,restaurantId,req.user.id]);
+      if(!current)throw new AppError('Assignment not found',404,'assignment_not_found');
+      if(!['assigned','overdue','in_progress'].includes(current.status))throw new AppError('Assignment not available',409,'assignment_unavailable');
+      const version=current.status==='in_progress'&&current.started_version?current.started_version:current.current_version;
+      const {rows:[snapshot]}=await client.query('SELECT * FROM restaurant_training_module_versions WHERE module_id=$1 AND version=$2',[current.module_id,version]);
+      if(!snapshot)throw new AppError('Training version unavailable',409,'training_version_unavailable');
+      const {rows:[updated]}=await client.query("UPDATE restaurant_training_assignments SET status='in_progress',started_version=$2,updated_at=NOW() WHERE id=$1 RETURNING *",[id,version]);
+      return {...updated,module:sanitizeModule({...snapshot,id:current.module_id,current_version:version},false)};
+    },'restaurant_training_start');res.json({assignment});
+  }catch(error){next(error);}
 };
 
 // Submit quiz answers for your own assignment. Scored transactionally: the
@@ -450,29 +447,24 @@ exports.submitQuiz = async (req, res, next) => {
         });
       }
 
-      // Score against the current version's snapshot (falls back to the
+      const presented=v.integer(req.body.moduleVersion,'moduleVersion');
+      if(!assignment.started_version||assignment.started_version!==presented)throw new AppError('Training version changed; restart the lesson',409,'training_version_conflict');
+      // Score against the learner's pinned version snapshot (falls back to the
       // live questions for modules created before versioning shipped).
       const { rows: [version] } = await client.query(
-        `SELECT questions FROM restaurant_training_module_versions
+        `SELECT questions,pass_score_pct FROM restaurant_training_module_versions
           WHERE module_id = $1 AND version = $2`,
-        [assignment.module_id, assignment.current_version]
+        [assignment.module_id, assignment.started_version]
       );
       let questions = Array.isArray(version?.questions) ? version.questions : null;
-      if (!questions) {
-        const { rows: live } = await client.query(
-          `SELECT correct_index,options FROM restaurant_training_questions
-            WHERE module_id = $1 ORDER BY sort_order ASC, id ASC`,
-          [assignment.module_id]
-        );
-        questions = live;
-      }
+      if (!questions) throw new AppError('Training version unavailable',409,'training_version_unavailable');
       if (answers.length !== questions.length || answers.some((answer,i)=>typeof answer !== 'number' || !Number.isInteger(answer) || answer<0 || (Array.isArray(questions[i].options) && answer>=questions[i].options.length))) v.invalid('answers');
       let correct = 0;
       questions.forEach((q, i) => {
         if (answers[i] === q.correct_index) correct += 1;
       });
       const scorePct = questions.length ? Math.round((correct / questions.length) * 100) : 100;
-      const passed = scorePct >= assignment.pass_score_pct;
+      const passed = scorePct >= version.pass_score_pct;
       const attemptNumber = attemptsUsed + 1;
       const { rows: [completion] } = await client.query(
         `INSERT INTO restaurant_training_completions
@@ -484,7 +476,7 @@ exports.submitQuiz = async (req, res, next) => {
         [
           assignmentId, scorePct, passed,
           JSON.stringify(answers),
-          assignment.current_version, attemptNumber, assignment.valid_for_days,
+          assignment.started_version, attemptNumber, assignment.valid_for_days,
         ]
       );
       await client.query(

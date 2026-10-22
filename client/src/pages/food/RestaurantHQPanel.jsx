@@ -1,178 +1,385 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import toast from 'react-hot-toast';
-import { Building2, CheckCircle2, RefreshCw, Send } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import toast from "react-hot-toast";
+import api from "../../api/axios";
 import {
   createRestaurantHQRegion,
+  updateRestaurantHQRegion,
   getRestaurantHQRollup,
-  listFoodLocations,
   listRestaurantHQRegions,
   publishRestaurantHQMenu,
-} from '../../api/food';
-import { apiErrorMessage } from './foodShared';
-
-function isoDate(daysFromToday = 0) {
-  const date = new Date();
-  date.setDate(date.getDate() + daysFromToday);
-  return date.toISOString().slice(0, 10);
-}
-
-function percent(value) {
-  return value == null ? '—' : `${Number(value).toFixed(1)}%`;
-}
-
+} from "../../api/food";
+import { apiErrorMessage } from "./foodShared";
+import { localDate, permits } from "./restaurantOperationsContext";
+import { moneyMinor } from "../../lib/moneyExact";
+const pct = (value) => (value == null ? "—" : `${Number(value).toFixed(1)}%`);
 export default function RestaurantHQPanel({ t, restaurant, bare = false }) {
-  const [locations, setLocations] = useState([]);
-  const [rollup, setRollup] = useState(null);
-  const [regions, setRegions] = useState([]);
-  const [regionCode, setRegionCode] = useState('');
-  const [regionName, setRegionName] = useState('');
-  const [regionParentId, setRegionParentId] = useState('');
-  const [sourceId, setSourceId] = useState('');
-  const [targetIds, setTargetIds] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [publishing, setPublishing] = useState(false);
-  const [error, setError] = useState('');
-
+  const { i18n } = useTranslation(),
+    shared = (key) => t(`restaurants.ops.shared.${key}`),
+    canManage = permits(restaurant, "settings.manage");
+  const today = localDate(restaurant.timezone || "UTC");
+  const [from, setFrom] = useState(() =>
+      new Date(Date.parse(`${today}T00:00Z`) - 30 * 86400000)
+        .toISOString()
+        .slice(0, 10),
+    ),
+    [to, setTo] = useState(today);
+  const [stores, setStores] = useState([]),
+    [regions, setRegions] = useState([]),
+    [regionError, setRegionError] = useState(""),
+    [error, setError] = useState(""),
+    [loading, setLoading] = useState(false),
+    [busy, setBusy] = useState(false);
+  const [sourceId, setSourceId] = useState(""),
+    [targetIds, setTargetIds] = useState([]),
+    [preview, setPreview] = useState(null);
+  const [region, setRegion] = useState({
+      code: "",
+      name: "",
+      parentRegionId: "",
+      status: "active",
+    }),
+    [regionId, setRegionId] = useState("");
+  useEffect(() => {
+    setSourceId("");
+    setTargetIds([]);
+    setPreview(null);
+    setRegionId("");
+  }, [restaurant.id]);
   const load = useCallback(async () => {
     setLoading(true);
-    setError('');
+    setError("");
+    setRegionError("");
     try {
-      const [storeRows, report, regionRows] = await Promise.all([
-        listFoodLocations(restaurant.id),
-        getRestaurantHQRollup(restaurant.id, { from: isoDate(-30), to: isoDate(1) }),
-        listRestaurantHQRegions(restaurant.id).catch(() => []),
-      ]);
-      const stores = Array.isArray(storeRows) ? storeRows : [];
-      setLocations(stores);
-      const primary = stores.find((store) => store.is_primary) || stores[0];
-      setSourceId((current) => current || (primary ? String(primary.id) : ''));
-      setTargetIds((current) => current.filter((id) => stores.some((store) => String(store.id) === String(id))));
-      setRollup(report);
-      setRegions(Array.isArray(regionRows) ? regionRows : []);
-    } catch (err) {
-      setError(apiErrorMessage(err, t('restaurants.ops.hq.loadError')));
+      const report = await getRestaurantHQRollup(restaurant.id, { from, to });
+      setStores(report.stores || []);
+      setSourceId((current) =>
+        (report.stores || []).some((s) => String(s.id) === current)
+          ? current
+          : String(report.stores?.[0]?.id || ""),
+      );
+      if (canManage) {
+        try {
+          setRegions(await listRestaurantHQRegions(restaurant.id));
+        } catch (e) {
+          setRegionError(apiErrorMessage(e, t("restaurants.ops.hq.loadError")));
+        }
+      }
+    } catch (e) {
+      setError(apiErrorMessage(e, t("restaurants.ops.hq.loadError")));
     } finally {
       setLoading(false);
     }
-  }, [restaurant.id, t]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const targetOptions = useMemo(() => locations.filter((store) => String(store.id) !== String(sourceId)), [locations, sourceId]);
-  const storesById = useMemo(() => new Map((rollup?.stores || []).map((store) => [String(store.id), store])), [rollup]);
-
-  const toggleTarget = (id) => {
-    const value = String(id);
-    setTargetIds((current) => (current.includes(value) ? current.filter((entry) => entry !== value) : [...current, value]));
-  };
-
+  }, [restaurant.id, from, to, t, canManage]);
+  useEffect(() => {
+    let active = true;
+    load();
+    return () => {
+      active = false;
+    };
+  }, [load]);
+  useEffect(() => {
+    setPreview(null);
+  }, [sourceId, targetIds]);
   const publish = async () => {
-    if (!sourceId || targetIds.length === 0) return;
-    setPublishing(true);
+    setBusy(true);
     try {
-      await publishRestaurantHQMenu(restaurant.id, { sourceLocationId: Number(sourceId), targetLocationIds: targetIds.map(Number) });
-      toast.success(t('restaurants.ops.hq.publishSuccess'));
-      await load();
-    } catch (err) {
-      toast.error(apiErrorMessage(err, t('restaurants.ops.hq.publishError')));
-    } finally {
-      setPublishing(false);
-    }
-  };
-
-  const createRegion = async (event) => {
-    event.preventDefault();
-    if (!regionCode.trim() || !regionName.trim()) return;
-    try {
-      await createRestaurantHQRegion(restaurant.id, {
-        code: regionCode.trim(),
-        name: regionName.trim(),
-        parentRegionId: regionParentId || null,
+      const payload = {
+        sourceLocationId: Number(sourceId),
+        targetLocationIds: targetIds.map(Number),
+      };
+      if (!preview) {
+        const { data } = await api.post(
+          `/restaurants/${restaurant.id}/hq/menu/preview`,
+          payload,
+        );
+        setPreview(data);
+        return;
+      }
+      await publishRestaurantHQMenu(restaurant.id, {
+        ...payload,
+        expectedRevision: preview.revision,
       });
-      toast.success(t('restaurants.ops.hq.regionCreated'));
-      setRegionCode('');
-      setRegionName('');
-      setRegionParentId('');
+      setPreview(null);
+      toast.success(t("restaurants.ops.hq.publishSuccess"));
       await load();
-    } catch (err) {
-      toast.error(apiErrorMessage(err, t('restaurants.ops.hq.regionCreateError')));
+    } catch (e) {
+      setPreview(null);
+      toast.error(apiErrorMessage(e, t("restaurants.ops.hq.publishError")));
+    } finally {
+      setBusy(false);
     }
   };
-
-  if (loading) return <div className="fd-empty" role="status">{t('restaurants.ops.hq.loading')}</div>;
-  if (error) return <div className="fd-empty" role="alert">{error}</div>;
-  if (locations.length < 2) {
-    return <div className="fd-empty">{t('restaurants.ops.hq.singleStore')}</div>;
-  }
-
+  const saveRegion = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      const payload = {
+        ...region,
+        parentRegionId: region.parentRegionId || null,
+      };
+      if (regionId)
+        await updateRestaurantHQRegion(restaurant.id, regionId, payload);
+      else await createRestaurantHQRegion(restaurant.id, payload);
+      setRegionId("");
+      setRegion({ code: "", name: "", parentRegionId: "", status: "active" });
+      await load();
+    } catch (e) {
+      toast.error(
+        apiErrorMessage(e, t("restaurants.ops.hq.regionCreateError")),
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+  const policy = (value, currency) =>
+    value
+      ? `${value.priceCents == null ? shared("inherit") : moneyMinor(value.priceCents, currency, i18n.language)} · ${value.available == null ? shared("inherit") : value.available ? shared("available") : shared("unavailable")}${value.returnAt ? " · " + new Date(value.returnAt).toLocaleString(i18n.language) : ""}`
+      : shared("inherit");
   return (
-    <div className={bare ? '' : 'fd-section'}>
-      <div className="fd-row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h3 className="fd-ops-subhead">{t('restaurants.ops.hq.title')}</h3>
-          <p className="fd-card-meta">{t('restaurants.ops.hq.subtitle')}</p>
-        </div>
-        <button type="button" className="fd-btn fd-btn-sm" onClick={load} disabled={publishing} data-track="ui.17b0c32a57.55">
-          <RefreshCw size={14} /> {t('restaurants.ops.hq.refresh')}
+    <div className={bare ? "" : "fd-section"}>
+      <h3>{t("restaurants.ops.hq.title")}</h3>
+      <div className="fd-row">
+        <label>
+          {shared("from")}
+          <input
+            type="date"
+            value={from}
+            max={to}
+            onChange={(e) => setFrom(e.target.value)}
+          />
+        </label>
+        <label>
+          {shared("to")}
+          <input
+            type="date"
+            value={to}
+            min={from}
+            onChange={(e) => setTo(e.target.value)}
+          />
+        </label>
+        <button
+          type="button"
+          className="fd-btn"
+          onClick={load}
+          disabled={loading} data-track="ui.ec032c849d.1"
+        >
+          {shared("retry")}
         </button>
       </div>
-
+      {loading && <p role="status">{t("restaurants.ops.hq.loading")}</p>}
+      {error && <p role="alert">{error}</p>}
       <div className="fd-ops-checklists-grid">
-        {(rollup?.stores || []).map((store) => (
-          <div className="fd-ops-checklist-card" key={store.id}>
-            <div className="fd-ops-checklist-top">
-              <strong>{store.name}</strong>
-              <span className="fd-tag">{store.status}</span>
-            </div>
-            <p className="fd-card-meta">{t('restaurants.ops.hq.auditScore')}: {percent(store.health?.latestAuditScorePercent)} · {t('restaurants.ops.hq.openFindings')}: {store.health?.openFindings ?? 0}</p>
-            <p className="fd-card-meta">{t('restaurants.ops.hq.checklists')}: {percent(store.compliance?.checklistCompletionPercent)} · {t('restaurants.ops.hq.training')}: {percent(store.compliance?.trainingCompletionPercent)}</p>
-          </div>
+        {stores.map((store) => (
+          <section className="fd-ops-checklist-card" key={store.id}>
+            <h4>{store.name}</h4>
+            <p>
+              {t("restaurants.ops.hq.auditScore")}:{" "}
+              {pct(store.health?.latestAuditScorePercent)} ·{" "}
+              {t("restaurants.ops.hq.openFindings")}:{" "}
+              {store.health?.openFindings || 0}
+            </p>
+            <p>
+              {t("restaurants.ops.hq.checklists")}:{" "}
+              {pct(store.compliance?.checklistCompletionPercent)} ·{" "}
+              {t("restaurants.ops.hq.training")}:{" "}
+              {pct(store.compliance?.trainingCompletionPercent)}
+            </p>
+            {(store.sales || []).map((sale) => (
+              <p key={sale.currencyCode}>
+                {shared("netSales")}:{" "}
+                {moneyMinor(
+                  sale.netCollectedCents,
+                  sale.currencyCode,
+                  i18n.language,
+                )}{" "}
+                · {shared("orders")}: {sale.orderCount}
+              </p>
+            ))}
+          </section>
         ))}
       </div>
-
-      <div className="fd-settings-note" style={{ marginTop: '1rem' }}>
-        <h4 className="fd-settings-subhead fd-settings-subhead--flush"><Building2 size={15} /> {t('restaurants.ops.hq.regionsTitle')}</h4>
-        <p className="fd-card-meta">{t('restaurants.ops.hq.regionsHint')}</p>
-        <div className="fd-ops-checklists-grid">
-          {regions.map((region) => (
-            <div className="fd-ops-checklist-card" key={region.id}>
-              <div className="fd-ops-checklist-top"><strong>{region.name}</strong><span className="fd-tag">{region.code}</span></div>
-              <p className="fd-card-meta">{t('restaurants.ops.hq.regionStores', { count: region.store_count || 0 })}{region.parent_region_id ? ` · ${t('restaurants.ops.hq.regionChild')}` : ''}</p>
-            </div>
-          ))}
-        </div>
-        <form onSubmit={createRegion} className="fd-row" style={{ alignItems: 'end', gap: '0.75rem', flexWrap: 'wrap' }} data-track="ui.ec032c849d.1">
-          <div className="fd-field"><label htmlFor="restaurant-hq-region-code">{t('restaurants.ops.hq.regionCode')}</label><input id="restaurant-hq-region-code" value={regionCode} onChange={(event) => setRegionCode(event.target.value)} maxLength={48} required /></div>
-          <div className="fd-field"><label htmlFor="restaurant-hq-region-name">{t('restaurants.ops.hq.regionName')}</label><input id="restaurant-hq-region-name" value={regionName} onChange={(event) => setRegionName(event.target.value)} maxLength={160} required /></div>
-          <div className="fd-field"><label htmlFor="restaurant-hq-region-parent">{t('restaurants.ops.hq.regionParent')}</label><select id="restaurant-hq-region-parent" value={regionParentId} onChange={(event) => setRegionParentId(event.target.value)}><option value="">{t('restaurants.ops.hq.regionRoot')}</option>{regions.filter((region) => region.status === 'active').map((region) => <option key={region.id} value={region.id}>{region.name}</option>)}</select></div>
-          <button type="submit" className="fd-btn fd-btn-sm" data-track="ui.ec032c849d.2"><Building2 size={14} /> {t('restaurants.ops.hq.regionCreate')}</button>
-        </form>
-      </div>
-
-      <div className="fd-settings-note" style={{ marginTop: '1rem' }}>
-        <h4 className="fd-settings-subhead fd-settings-subhead--flush"><Building2 size={15} /> {t('restaurants.ops.hq.publishTitle')}</h4>
-        <p className="fd-card-meta">{t('restaurants.ops.hq.publishHint')}</p>
-        <div className="fd-field">
-          <label htmlFor="restaurant-hq-source">{t('restaurants.ops.hq.sourceStore')}</label>
-          <select id="restaurant-hq-source" value={sourceId} onChange={(event) => { setSourceId(event.target.value); setTargetIds([]); }}>
-            {locations.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
-          </select>
-        </div>
-        <fieldset className="fd-field">
-          <legend>{t('restaurants.ops.hq.targetStores')}</legend>
-          {targetOptions.map((store) => (
-            <label key={store.id} className="fd-checkbox-row">
-              <input type="checkbox" checked={targetIds.includes(String(store.id))} onChange={() => toggleTarget(store.id)} data-track="ui.17b0c32a57.56" />
-              <span>{store.name}</span>
-              {storesById.get(String(store.id))?.compliance?.overdueTraining > 0 && <small>{t('restaurants.ops.hq.overdueTraining')}</small>}
+      {canManage && (
+        <>
+          <h4>{t("restaurants.ops.hq.regionsTitle")}</h4>
+          {regionError && <p role="alert">{regionError}</p>}
+          <div className="fd-ops-checklists-grid">
+            {regions.map((row) => (
+              <div key={row.id} className="fd-ops-checklist-card">
+                <strong>{row.name}</strong>
+                <p>
+                  {row.code} · {row.store_count || 0} ·{" "}
+                  {shared(`status.${row.status}`)}
+                </p>
+                <button
+                  type="button"
+                  className="fd-btn"
+                  onClick={() => {
+                    setRegionId(String(row.id));
+                    setRegion({
+                      code: row.code,
+                      name: row.name,
+                      parentRegionId: row.parent_region_id
+                        ? String(row.parent_region_id)
+                        : "",
+                      status: row.status,
+                    });
+                  }} data-track="ui.ec032c849d.2"
+                >
+                  {shared("edit")}
+                </button>
+              </div>
+            ))}
+          </div>
+          <form onSubmit={saveRegion} className="fd-form-stack" data-track="ui.ec032c849d.3">
+            <label>
+              {t("restaurants.ops.hq.regionCode")}
+              <input
+                value={region.code}
+                onChange={(e) =>
+                  setRegion((r) => ({ ...r, code: e.target.value }))
+                }
+                minLength={2}
+                maxLength={48}
+                disabled={region.code === "all-stores" && !!regionId}
+                required
+              />
             </label>
-          ))}
-        </fieldset>
-        <button type="button" className="fd-btn fd-btn-primary" onClick={publish} disabled={publishing || !sourceId || targetIds.length === 0} data-track="ui.17b0c32a57.57">
-          {publishing ? <RefreshCw size={14} className="fd-spin" /> : <Send size={14} />} {publishing ? t('restaurants.ops.hq.publishing') : t('restaurants.ops.hq.publish')}
-        </button>
-        <p className="fd-card-meta"><CheckCircle2 size={13} /> {t('restaurants.ops.hq.publishScope')}</p>
-      </div>
+            <label>
+              {t("restaurants.ops.hq.regionName")}
+              <input
+                value={region.name}
+                onChange={(e) =>
+                  setRegion((r) => ({ ...r, name: e.target.value }))
+                }
+                minLength={2}
+                maxLength={160}
+                required
+              />
+            </label>
+            <label>
+              {t("restaurants.ops.hq.regionParent")}
+              <select
+                value={region.parentRegionId}
+                disabled={region.code === "all-stores" && !!regionId}
+                onChange={(e) =>
+                  setRegion((r) => ({ ...r, parentRegionId: e.target.value }))
+                }
+              >
+                <option value="">{t("restaurants.ops.hq.regionRoot")}</option>
+                {regions
+                  .filter(
+                    (row) =>
+                      row.status === "active" && String(row.id) !== regionId,
+                  )
+                  .map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {row.name}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            {regionId && region.code !== "all-stores" && (
+              <label>
+                {shared("statusLabel")}
+                <select
+                  value={region.status}
+                  onChange={(e) =>
+                    setRegion((r) => ({ ...r, status: e.target.value }))
+                  }
+                >
+                  <option value="active">{shared("status.active")}</option>
+                  <option value="archived">{shared("status.archived")}</option>
+                </select>
+              </label>
+            )}
+            <button className="fd-btn" disabled={busy} data-track="ui.ec032c849d.4">
+              {regionId ? shared("save") : t("restaurants.ops.hq.regionCreate")}
+            </button>
+            {regionId && (
+              <button
+                type="button"
+                className="fd-btn"
+                onClick={() => {
+                  setRegionId("");
+                  setRegion({
+                    code: "",
+                    name: "",
+                    parentRegionId: "",
+                    status: "active",
+                  });
+                }} data-track="ui.ec032c849d.5"
+              >
+                {shared("cancel")}
+              </button>
+            )}
+          </form>
+          <h4>{t("restaurants.ops.hq.publishTitle")}</h4>
+          <p>{t("restaurants.ops.hq.publishHint")}</p>
+          <label>
+            {t("restaurants.ops.hq.sourceStore")}
+            <select
+              value={sourceId}
+              onChange={(e) => {
+                setSourceId(e.target.value);
+                setTargetIds([]);
+              }}
+            >
+              {stores.map((store) => (
+                <option key={store.id} value={store.id}>
+                  {store.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <fieldset>
+            <legend>{t("restaurants.ops.hq.targetStores")}</legend>
+            {stores
+              .filter((s) => String(s.id) !== sourceId)
+              .map((store) => (
+                <label key={store.id} className="fd-checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={targetIds.includes(String(store.id))}
+                    onChange={() =>
+                      setTargetIds((ids) =>
+                        ids.includes(String(store.id))
+                          ? ids.filter((id) => id !== String(store.id))
+                          : [...ids, String(store.id)],
+                      )
+                    } data-track="ui.ec032c849d.6"
+                  />
+                  {store.name}
+                </label>
+              ))}
+          </fieldset>
+          {preview && (
+            <section role="region" aria-label={shared("preview")}>
+              <h5>{shared("preview")}</h5>
+              <p>{shared("publishWarning")}</p>
+              <ul>
+                {preview.changes.map((change) => (
+                  <li key={`${change.locationId}:${change.itemId}`}>
+                    {stores.find((s) => s.id === change.locationId)?.name} ·{" "}
+                    {change.itemName || change.itemId}:{" "}
+                    {policy(change.before, restaurant.currency_code)} →{" "}
+                    {policy(change.after, restaurant.currency_code)}
+                  </li>
+                ))}
+              </ul>
+              {!preview.changes.length && <p>{shared("noChanges")}</p>}
+            </section>
+          )}
+          <button
+            type="button"
+            className="fd-btn fd-btn-primary"
+            disabled={busy || !sourceId || !targetIds.length}
+            onClick={publish} data-track="ui.ec032c849d.7"
+          >
+            {preview ? t("restaurants.ops.hq.publish") : shared("preview")}
+          </button>
+        </>
+      )}
     </div>
   );
 }

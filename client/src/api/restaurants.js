@@ -30,8 +30,8 @@ export const deleteChecklistTask = (restaurantId, checklistId, taskId) =>
   api.delete(`/restaurants/${restaurantId}/checklists/${checklistId}/tasks/${taskId}`);
 
 // ── Checklist runs (execution + history) ───────────────────────────────────
-export const startChecklistRun = (restaurantId, checklistId) =>
-  api.post(`/restaurants/${restaurantId}/checklists/${checklistId}/runs`).then((r) => r.data?.run);
+export const startChecklistRun = (restaurantId, checklistId, payload = {}) =>
+  api.post(`/restaurants/${restaurantId}/checklists/${checklistId}/runs`, payload).then((r) => r.data?.run);
 
 export const listChecklistRuns = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/checklist-runs`, { params }).then((r) => r.data?.runs || []);
@@ -144,12 +144,13 @@ export const deleteStaffDocument = (restaurantId, documentId) =>
 // SOP read-and-sign acknowledgements (S-14). signatureBlob is the drawn
 // e-signature PNG; the client requires it, the API keeps it optional so
 // legacy click-to-sign rows and older clients keep working.
-export const acknowledgeSop = (restaurantId, sopId, signatureBlob = null) => {
+export const acknowledgeSop = (restaurantId, sopId, signatureBlob = null, sopVersion) => {
   if (!signatureBlob) {
-    return api.post(`/restaurants/${restaurantId}/sops/${sopId}/acknowledge`).then((r) => r.data);
+    return api.post(`/restaurants/${restaurantId}/sops/${sopId}/acknowledge`, { sopVersion }).then((r) => r.data);
   }
   const form = new FormData();
   form.append('signature', signatureBlob, 'signature.png');
+  form.append('sopVersion', sopVersion);
   return api.post(`/restaurants/${restaurantId}/sops/${sopId}/acknowledge`, form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }).then((r) => r.data);
@@ -171,8 +172,8 @@ export const updateAuditTemplate = (restaurantId, templateId, payload) =>
 export const deleteAuditTemplate = (restaurantId, templateId) =>
   api.delete(`/restaurants/${restaurantId}/audits/templates/${templateId}`);
 
-export const startAuditRun = (restaurantId, templateId) =>
-  api.post(`/restaurants/${restaurantId}/audits/templates/${templateId}/runs`).then((r) => r.data?.audit);
+export const startAuditRun = (restaurantId, templateId, payload = {}) =>
+  api.post(`/restaurants/${restaurantId}/audits/templates/${templateId}/runs`, payload).then((r) => r.data?.audit);
 
 export const listAuditRuns = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/audits/runs`, { params }).then((r) => r.data?.audits || []);
@@ -297,3 +298,6 @@ export const updateTipPoolSettings = (restaurantId, payload) =>
 
 export const declareCashTip = (restaurantId, payload) =>
   api.post(`/restaurants/${restaurantId}/tips/cash-declarations`, payload).then((r) => r.data?.declaration);
+
+export const listStaffDocumentPage=(restaurantId,params={})=>api.get(`/restaurants/${restaurantId}/staff-documents`,{params}).then(r=>r.data);
+export const listSopAcknowledgementPage=(restaurantId,params={})=>api.get(`/restaurants/${restaurantId}/sop-acknowledgements`,{params}).then(r=>r.data);

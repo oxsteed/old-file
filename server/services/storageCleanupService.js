@@ -119,6 +119,8 @@ const REFERENCE_CHECKS = [
 ];
 
 async function stillReferenced(key) {
+  const { rows: restaurantReferences } = await db.query(`SELECT 1 FROM restaurant_staff_documents WHERE storage_key=$1 AND deleted_at IS NULL UNION ALL SELECT 1 FROM restaurant_sop_acknowledgements WHERE signature_storage_key=$1 LIMIT 1`, [key]);
+  if (restaurantReferences.length) return true;
   for (const [table, column] of REFERENCE_CHECKS) {
     const { rows } = await db.query(
       `SELECT 1 FROM ${table} WHERE ${column} LIKE '%' || $1 LIMIT 1`,

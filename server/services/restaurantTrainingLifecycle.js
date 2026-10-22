@@ -184,7 +184,7 @@ async function sendCertificateExpiryAlerts(db, { withinDays = 30 } = {}) {
        FROM restaurant_staff_documents d
        JOIN food_restaurants fr ON fr.id = d.restaurant_id
        JOIN users u ON u.id = d.user_id
-      WHERE d.expires_on IS NOT NULL
+      WHERE d.deleted_at IS NULL AND d.expires_on IS NOT NULL
         AND d.expiry_alert_sent_at IS NULL
         AND d.expires_on <= CURRENT_DATE + ($1::int * INTERVAL '1 day')
         AND d.verification_status <> 'rejected'`,

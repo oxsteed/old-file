@@ -56,6 +56,7 @@ exports.update = async (req, res, next) => {
       const deviceStore = actingStaff?.deviceId ? await deviceLocationId(client, { restaurantId: restaurant.id, deviceId: actingStaff.deviceId }) : null;
       const store = await resolveLocationRow(client, { restaurantId: restaurant.id, requestedLocationId: menu.locationId(req.params.locationId), deviceLocationId: deviceStore });
       if (!store) throw new AppError('Store not found', 404, 'location_not_found');
+      await client.query('SELECT id FROM restaurant_locations WHERE id=$1 AND restaurant_id=$2 FOR UPDATE',[store.id,restaurant.id]);
       const storeRole = await getLocationRole(restaurant, req.user.id, store.id, client);
       if (storeRole && storeRole !== restaurant.effective_role
         && !(await permissions.hasRestaurantPermission(restaurant, req.user.id, requiredCodes, { roleOverride: storeRole }))) {

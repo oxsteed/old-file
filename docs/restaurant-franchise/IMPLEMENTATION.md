@@ -503,3 +503,12 @@ Implemented another 50 review-linked corrections in accounting tenant authorizat
 Migration 995 adds the explicit `audit.manage` grant, archive/history retention, audit/checklist store identity and stable run snapshots, including one-time pinning of open legacy audits. The web audit runner uses persisted run items and historical saved score rows. Unknown historical store identity remains excluded from assigned-store metrics. Audit management and brand accounting/region configuration require the corresponding explicit authority.
 
 Verification: **193 server tests passed across 10 focused suites**, including the new **21-case full-schema PostgreSQL suite**, existing training lifecycle cases and 15 permission-resolver cases. The Chrome audit-history regression and client `build:ci` passed. All **970 migrations** applied and replayed successfully in a disposable Colima database. CI YAML, its new full-schema PostgreSQL shell step, JavaScript syntax and diff checks passed. This remains an incomplete broader review checkpoint; no production/provider activation or Credit change is claimed.
+
+
+## Hundred-item operational follow-up - 2026-10-22
+
+Resolved the numbered [100-item audit](NEXT-100-AUDIT-2026-10-22.md): **99 implemented, one withdrawn**. Item 92 assumed an archived store state that migration 319 forbids. The exact mapping and evidence are in [HUNDRED-FIXES-2026-10-22.md](HUNDRED-FIXES-2026-10-22.md).
+
+Migration 99981 adds operational evidence retention and retry/version identities. Checklist/SOP history, document and support store boundaries, version-bound training/signatures, host-stand table/POS seating, currency-correct payroll and canonical HQ sales are covered. Required/default-off/provider/Credit safeguards are unchanged.
+
+Verification at this checkpoint: 1,001 migrations applied/replayed in a disposable Colima database, 46 focused PostgreSQL cases, eight restaurant browser checks and two date tests, 975 broader restaurant tests (143 skipped) and client build:ci with 1,021 assets. Remote CI and deployment are separate states. Next action: review the PR's final checks and complete commit-specific production/provider acceptance before launch.

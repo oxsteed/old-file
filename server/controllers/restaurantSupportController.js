@@ -3,6 +3,13 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const { getLocationScope, assertLocationAccess } = require('../services/restaurantLocationAccessService');
+async function caseFilter(restaurant,userId,params,alias='rsc') {
+ const scope=await getLocationScope(restaurant,userId);
+ if(scope.mode!=='assigned')return '';
+ params.push(scope.location_ids);
+ return ` AND EXISTS(SELECT 1 FROM food_orders scope_order WHERE scope_order.id=${alias}.order_id AND scope_order.restaurant_id=${alias}.restaurant_id AND scope_order.location_id=ANY($${params.length}::bigint[]))`;
+}
 const permissionsService = require('../services/permissionsService');
 const { withTransaction } = require('../utils/transaction');
 const { processExternalRefund } = require('../services/externalRefundService');
@@ -270,6 +277,12 @@ async function assertCaseRestaurant(client, caseId, restaurantId, userId, { mana
     throw new AppError('Support case not found', 404, 'case_not_found');
   }
   const restaurant = await requireRestaurantAccess(userId, restaurantId);
+  const scope=await getLocationScope(restaurant,userId);
+  if(scope.mode==='assigned'){
+    const {rows:[order]}=await client.query('SELECT location_id FROM food_orders WHERE id=$1 AND restaurant_id=$2',[supportCase.order_id,restaurantId]);
+    if(!order)throw new AppError('Support case not found',404,'case_not_found');
+    await assertLocationAccess(restaurant,userId,order.location_id,client);
+  }
   if (manage) await assertManage(restaurant, userId);
   if (respond) await assertRespond(restaurant, userId);
   return { supportCase, restaurant };
@@ -845,6 +858,7 @@ exports.listRestaurantCases = async (req, res, next) => {
     const status = normalizeString(req.query.status, 40);
     const values = [restaurantId];
     let where = 'rsc.restaurant_id = $1 AND rsc.archived_at IS NULL';
+    where += await caseFilter(restaurant,req.user.id,values);
     if (status && STATUS.has(status)) {
       values.push(status);
       where += ` AND rsc.status = $${values.length}`;
@@ -1099,7 +1113,9 @@ exports.restaurantEscalate = async (req, res, next) => {
 exports.getRestaurantSummary = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant=await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRespond(restaurant,req.user.id);
+    const params=[restaurantId],storeFilter=await caseFilter(restaurant,req.user.id,params,'restaurant_support_cases');
     const { rows: [counts] } = await pool.query(
       `SELECT
          COUNT(*) FILTER (WHERE status IN ('new','awaiting_restaurant','reopened'))::int AS new_cases,
@@ -1108,22 +1124,23 @@ exports.getRestaurantSummary = async (req, res, next) => {
          COUNT(*) FILTER (WHERE priority IN ('high','urgent') AND status NOT IN ('resolved','closed','canceled'))::int AS high_priority_cases,
          COUNT(*) FILTER (WHERE status NOT IN ('resolved','closed','canceled'))::int AS unresolved_cases
        FROM restaurant_support_cases
-       WHERE restaurant_id = $1 AND archived_at IS NULL`,
-      [restaurantId]
+       WHERE restaurant_id = $1 AND archived_at IS NULL${storeFilter}`,
+      params
     );
     const { rows: byIssueType } = await pool.query(
       `SELECT issue_type, COUNT(*)::int AS count
          FROM restaurant_support_cases
         WHERE restaurant_id = $1 AND archived_at IS NULL
+        ${storeFilter}
         GROUP BY issue_type
         ORDER BY count DESC`,
-      [restaurantId]
+      params
     );
     const { rows: [response] } = await pool.query(
       `SELECT AVG(EXTRACT(EPOCH FROM (first_response_at - created_at)) / 60.0) AS average_response_minutes
          FROM restaurant_support_cases
-        WHERE restaurant_id = $1 AND first_response_at IS NOT NULL`,
-      [restaurantId]
+        WHERE restaurant_id = $1 AND first_response_at IS NOT NULL${storeFilter}`,
+      params
     );
     res.json({
       summary: {

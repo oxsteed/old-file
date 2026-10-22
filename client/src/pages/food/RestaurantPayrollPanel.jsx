@@ -7,8 +7,10 @@
 // audit.view, everything here is manager-only. Each section degrades
 // to an explanatory note on 403 instead of failing the whole panel.
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useOperationStore, OperationStorePicker, permits, requestIdentity } from './restaurantOperationsContext';
+import { parseCreditMajorAmount, getCreditMinorUnits } from '../../lib/creditCurrency';
 import { moneyMinor } from '../../lib/moneyExact';
 import toast from 'react-hot-toast';
 import EmptyState from '../../components/EmptyState';
@@ -34,6 +36,10 @@ function errCode(err) {
 export function PayrollPanel({ t, restaurant, from, to }) {
   const { i18n } = useTranslation();
   const restaurantId = restaurant.id;
+  const selection=useOperationStore(restaurant),locationId=selection.locationId;
+  const laborGeneration=useRef(0),activityGeneration=useRef(0),cashKey=useRef(null);
+  const [activityOffset,setActivityOffset]=useState(0),[exceptionsError,setExceptionsError]=useState(false);
+  const canManageTips=permits(restaurant,'payroll.manage')&&selection.brandAccess;
   const currency = restaurant.currency_code || 'USD';
   const money = (cents) => moneyMinor(Number(cents) || 0, currency, i18n.language);
 
@@ -50,34 +56,22 @@ export function PayrollPanel({ t, restaurant, from, to }) {
   const [cashForm, setCashForm] = useState({ staffUserId: '', date: to, amount: '', note: '' });
   const [exporting, setExporting] = useState(false);
 
-  const loadLabor = useCallback(() => {
-    setLaborError(null);
-    getLaborReport(restaurantId, { from, to })
-      .then(setLabor)
-      .catch((err) => {
-        if (err?.response?.status === 403 && errCode(err) === 'payroll_permission_required') {
-          setLaborError('payroll');
-        } else if (err?.response?.status !== 403) {
-          setLaborError('generic');
-        }
-      });
-    getExceptionsReport(restaurantId, { from, to })
-      .then(setExceptions)
-      .catch(() => {});
-  }, [restaurantId, from, to]);
-
-  useEffect(() => { loadLabor(); }, [loadLabor]);
-
-  const loadActivity = useCallback(() => {
-    const params = { limit: 50 };
-    if (actorFilter) params.actor_user_id = actorFilter;
-    if (actionFilter) params.action_prefix = actionFilter;
-    getTeamActivity(restaurantId, params)
-      .then((data) => { setActivity(data); setActivityError(false); })
-      .catch((err) => { if (err?.response?.status === 403) setActivityError(true); });
-  }, [restaurantId, actorFilter, actionFilter]);
-
-  useEffect(() => { loadActivity(); }, [loadActivity]);
+  const loadLabor=useCallback(()=>{
+    const generation=++laborGeneration.current;if(!locationId)return;
+    setLaborError(null);setLabor(null);setExceptions(null);setExceptionsError(false);
+    getLaborReport(restaurantId,{from,to,locationId}).then(data=>{if(generation===laborGeneration.current)setLabor(data);}).catch(error=>{if(generation===laborGeneration.current)setLaborError(error?.response?.status===403?'payroll':'generic');});
+    getExceptionsReport(restaurantId,{from,to,locationId}).then(data=>{if(generation===laborGeneration.current)setExceptions(data);}).catch(()=>{if(generation===laborGeneration.current)setExceptionsError(true);});
+  },[restaurantId,from,to,locationId]);
+  useEffect(()=>{loadLabor();return()=>{laborGeneration.current+=1;};},[loadLabor]);
+  const loadActivity=useCallback(()=>{
+    const generation=++activityGeneration.current;if(!locationId)return;
+    setActivityError(false);setActivity(null);
+    const params={limit:50,offset:activityOffset,from,to,locationId};
+    if(actorFilter)params.actor_user_id=actorFilter;if(actionFilter)params.action_prefix=actionFilter;
+    getTeamActivity(restaurantId,params).then(data=>{if(generation===activityGeneration.current)setActivity(data);}).catch(error=>{if(generation===activityGeneration.current)setActivityError(error?.response?.status===403?'permission':'generic');});
+  },[restaurantId,actorFilter,actionFilter,from,to,locationId,activityOffset]);
+  useEffect(()=>{setActivityOffset(0);},[restaurantId,actorFilter,actionFilter,from,to,locationId]);
+  useEffect(()=>{loadActivity();return()=>{activityGeneration.current+=1;};},[loadActivity]);
 
   useEffect(() => {
     getTipPoolSettings(restaurantId)
@@ -95,7 +89,7 @@ export function PayrollPanel({ t, restaurant, from, to }) {
   const onExportPayroll = async () => {
     setExporting(true);
     try {
-      const blob = await downloadPayrollCsv(restaurantId, { from, to });
+      const blob = await downloadPayrollCsv(restaurantId, { from, to, locationId });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
@@ -135,19 +129,22 @@ export function PayrollPanel({ t, restaurant, from, to }) {
 
   const submitCashTip = async (e) => {
     e.preventDefault();
-    const amountCents = Math.round(Number(cashForm.amount) * 100);
+    const amountCents = parseCreditMajorAmount(cashForm.amount,currency);
     if (!cashForm.staffUserId || !cashForm.date || !Number.isFinite(amountCents) || amountCents <= 0) {
       toast.error(t('restaurants.ops.reports.tipPool.cashInvalid'));
       return;
     }
     try {
+      const hash=JSON.stringify([restaurantId,locationId,cashForm]);if(cashKey.current?.hash!==hash)cashKey.current={hash,key:requestIdentity()};
       await declareCashTip(restaurantId, {
+        locationId:Number(locationId),idempotencyKey:cashKey.current.key,
         staffUserId: cashForm.staffUserId,
         date: cashForm.date,
         amountCents,
         note: cashForm.note || undefined,
       });
       toast.success(t('restaurants.ops.reports.tipPool.cashSaved'));
+      cashKey.current=null;
       setCashForm((f) => ({ ...f, amount: '', note: '' }));
       loadLabor();
     } catch (err) {
@@ -158,12 +155,13 @@ export function PayrollPanel({ t, restaurant, from, to }) {
   const employees = labor?.employees || [];
   const fmtTime = (iso) => {
     try {
-      return new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
+      return new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short',timeZone:selection.store?.timezone||restaurant.timezone||'UTC' }).format(new Date(iso));
     } catch { return String(iso || ''); }
   };
 
   return (
     <div>
+      <OperationStorePicker t={t} selection={selection}/>
       {/* ── Labor & payroll ── */}
       <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.payroll.title')}</h3>
       {laborError === 'payroll' ? (
@@ -241,7 +239,7 @@ export function PayrollPanel({ t, restaurant, from, to }) {
 
       {/* ── Tip pool + declared cash tips ── */}
       <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.tipPool.title')}</h3>
-      {tipSettings && (
+      {tipSettings && canManageTips && (
         <div className="fd-card">
           <label className="fd-card-meta">
             <input
@@ -293,7 +291,7 @@ export function PayrollPanel({ t, restaurant, from, to }) {
           <p className="fd-card-meta">{t('restaurants.ops.reports.tipPool.hint')}</p>
         </div>
       )}
-      {labor && employees.length > 0 && (
+      {labor && employees.length > 0 && permits(restaurant,'payroll.manage') && (
         <form onSubmit={submitCashTip} className="fd-card" data-track="ui.aa258f5ea1.6">
           <p className="fd-card-meta">{t('restaurants.ops.reports.tipPool.cashTitle')}</p>
           <div className="fd-ops-inventory-row">
@@ -314,7 +312,7 @@ export function PayrollPanel({ t, restaurant, from, to }) {
             />
             <input
               aria-label={t('restaurants.ops.reports.tipPool.cashAmount')}
-              type="number" min="0" step="0.01" value={cashForm.amount}
+              type="number" min="0" step={10**-getCreditMinorUnits(currency)} value={cashForm.amount}
               placeholder={t('restaurants.ops.reports.tipPool.cashAmount')}
               onChange={(e) => setCashForm((f) => ({ ...f, amount: e.target.value }))}
             />
@@ -325,7 +323,7 @@ export function PayrollPanel({ t, restaurant, from, to }) {
 
       {/* ── Exceptions ── */}
       <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.exceptions.title')}</h3>
-      {!exceptions ? (
+      {exceptionsError ? <div role="alert">{t('restaurants.ops.shared.loadError')} <button type="button" className="fd-btn" onClick={loadLabor} data-track="ui.aa258f5ea1.8">{t('restaurants.ops.shared.retry')}</button></div> : !exceptions ? (
         <div className="fd-empty">{t('food.common.loading')}</div>
       ) : (exceptions.employees || []).length === 0 ? (
         <EmptyState icon={Users} title={t('restaurants.ops.reports.exceptions.none')} />
@@ -364,9 +362,10 @@ export function PayrollPanel({ t, restaurant, from, to }) {
       <p className="fd-card-meta">{t('restaurants.ops.reports.exceptions.missingPunchesHint')}</p>
 
       {/* ── Team activity ── */}
+      <div className="fd-row"><button type="button" className="fd-btn" disabled={!activityOffset} onClick={()=>setActivityOffset(n=>Math.max(0,n-50))} data-track="ui.aa258f5ea1.9">{t('restaurants.ops.shared.previous')}</button><button type="button" className="fd-btn" disabled={!activity||activityOffset+50>=(activity.total||0)} onClick={()=>setActivityOffset(n=>n+50)} data-track="ui.aa258f5ea1.10">{t('restaurants.ops.shared.next')}</button></div>
       <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.activity.title')}</h3>
       {activityError ? (
-        <p className="fd-ops-notice">{t('restaurants.ops.reports.activity.permissionNote')}</p>
+        <p className="fd-ops-notice">{activityError==='permission'?t('restaurants.ops.reports.activity.permissionNote'):t('restaurants.ops.shared.loadError')} <button type="button" className="fd-btn" onClick={loadActivity} data-track="ui.aa258f5ea1.11">{t('restaurants.ops.shared.retry')}</button></p>
       ) : !activity ? (
         <div className="fd-empty">{t('food.common.loading')}</div>
       ) : (

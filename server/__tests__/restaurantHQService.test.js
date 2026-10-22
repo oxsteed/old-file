@@ -54,13 +54,14 @@ describe('restaurant HQ rollup service', () => {
   test('publishes only existing source overrides to same-restaurant targets', async () => {
     const client = { query: jest.fn()
       .mockResolvedValueOnce({ rows: [{ id: 4, name: 'Source', status: 'active' }, { id: 5, name: 'Target', status: 'active' }] })
+      .mockResolvedValueOnce({ rows: [] }) // inherited target overrides cleared
       .mockResolvedValueOnce({ rows: [{ location_id: 5, menu_item_id: 22 }, { location_id: 5, menu_item_id: 23 }] }) };
     await expect(service.publishMenuOverrides(client, { restaurantId: 9, sourceLocationId: 4, targetLocationIds: [5], actorUserId: 'user-1' })).resolves.toEqual({
       sourceLocationId: 4,
       targets: [{ locationId: 5, copiedOverrides: 2 }],
     });
     expect(client.query.mock.calls[0][1]).toEqual([9, [4, 5]]);
-    expect(client.query.mock.calls[1][1]).toEqual([9, 4, [5], 'user-1']);
+    expect(client.query.mock.calls[2][1]).toEqual([9, 4, [5], 'user-1']);
     expect(client.query.mock.calls[1][0]).toContain('restaurant_store_menu_overrides');
   });
 
@@ -72,7 +73,7 @@ describe('restaurant HQ rollup service', () => {
     };
     const result = await service.rollupLocations(client, { restaurantId: 3, locationIds: [7], from: '2026-10-01T00:00:00.000Z', to: '2026-10-31T00:00:00.000Z' });
     expect(result.salesRows[0].location_id).toBe(7);
-    expect(client.query.mock.calls[0][1]).toEqual([3, [7], '2026-10-01T00:00:00.000Z', '2026-10-31T00:00:00.000Z', 'UTC']);
+    expect(client.query.mock.calls[0][1]).toEqual([3, '2026-10-01T00:00:00.000Z', '2026-10-30', 'UTC', [7]]);
     expect(client.query.mock.calls[1][0]).toContain('restaurant_locations');
   });
 });

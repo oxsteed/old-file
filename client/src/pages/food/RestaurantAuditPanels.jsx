@@ -6,6 +6,7 @@
 // surface as a toast. Starting an audit, scoring items, and logging findings
 // are open to any active staff member.
 
+import { permits, useOperationStore, OperationStorePicker, storeInstant } from './restaurantOperationsContext';
 import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { ClipboardList, CheckCircle2 } from 'lucide-react';
@@ -61,7 +62,11 @@ function scorePct(total, max) {
 }
 
 // ── Audit templates ─────────────────────────────────────────────────────────
-export function AuditsPanel({ t, restaurant, bare, onStats, isManager }) {
+export function AuditsPanel({ t, restaurant, bare, onStats }) {
+  const isManager=permits(restaurant,'audit.view') && permits(restaurant,'audit.manage');
+  const selection=useOperationStore(restaurant);
+  const [offset,setOffset]=useState(0);
+  const canAuthor=isManager && selection.brandAccess;
   const restaurantId = restaurant.id;
   const [templates, setTemplates] = useState([]);
   const [runs, setRuns] = useState([]);
@@ -78,8 +83,8 @@ export function AuditsPanel({ t, restaurant, bare, onStats, isManager }) {
     setLoading(true);
     Promise.all([
       listAuditTemplates(restaurantId),
-      listAuditRuns(restaurantId, { limit: 15 }),
-      listCorrectiveActions(restaurantId, isManager ? {} : { mine: '1' }),
+      listAuditRuns(restaurantId, { limit: 15, offset, locationId:selection.locationId || undefined }),
+      listCorrectiveActions(restaurantId, {locationId:selection.locationId||undefined,...(isManager?{}:{mine:'1'})}),
     ])
       .then(([tmpl, rn, acts]) => {
         setTemplates(tmpl);
@@ -88,12 +93,12 @@ export function AuditsPanel({ t, restaurant, bare, onStats, isManager }) {
         onStats?.({
           auditTemplates: tmpl.length,
           auditsRun: rn.length,
-          openActions: acts.filter((a) => !['resolved', 'verified'].includes(a.status)).length,
+          openActions: acts.filter((a) => a.status!=='verified').length,
         });
       })
       .catch((err) => toast.error(apiErr(err, t('restaurants.ops.audits.loadError', 'Could not load audits'))))
       .finally(() => setLoading(false));
-  }, [restaurantId, t, onStats, isManager]);
+  }, [restaurantId, t, onStats, isManager, offset, selection.locationId]);
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
@@ -103,7 +108,7 @@ export function AuditsPanel({ t, restaurant, bare, onStats, isManager }) {
 
   const start = async (templateId) => {
     try {
-      const { audit } = await startAuditRun(restaurantId, templateId);
+      const audit = await startAuditRun(restaurantId, templateId, { locationId:Number(selection.locationId) });
       const template = (templates || []).find((x) => x.id === templateId);
       setActiveRunId(audit.id);
       setActiveTemplate(template || null);
@@ -142,6 +147,7 @@ export function AuditsPanel({ t, restaurant, bare, onStats, isManager }) {
         t={t}
         restaurantId={restaurantId}
         auditId={activeRunId}
+        timeZone={selection.store?.timezone || restaurant.timezone || 'UTC'}
         templateItems={(activeTemplate && activeTemplate.items) || []}
         staff={staff}
         isManager={isManager}
@@ -163,9 +169,14 @@ export function AuditsPanel({ t, restaurant, bare, onStats, isManager }) {
 
   return (
     <div>
+      <OperationStorePicker t={t} selection={selection} />
+      <div className="fd-row">
+        <button type="button" className="fd-btn" disabled={!offset} onClick={()=>setOffset(n=>Math.max(0,n-15))} data-track="ui.0bf8f8ca2a.31">{t('restaurants.ops.shared.previous')}</button>
+        <button type="button" className="fd-btn" disabled={runs.length<15} onClick={()=>setOffset(n=>n+15)} data-track="ui.0bf8f8ca2a.32">{t('restaurants.ops.shared.next')}</button>
+      </div>
       <div className={`fd-ops-toolbar${bare ? ' fd-ops-toolbar--end' : ''}`}>
         {!bare && <h3 className="fd-ops-panel-title">{t('restaurants.ops.audits.title', 'Quality audits')}</h3>}
-        {isManager && (
+        {canAuthor && (
           <button
             type="button"
             className="fd-btn fd-btn-sm"
@@ -176,7 +187,7 @@ export function AuditsPanel({ t, restaurant, bare, onStats, isManager }) {
         )}
       </div>
 
-      {isManager && showCreate && (
+      {canAuthor && showCreate && (
         <AuditTemplateForm
           t={t}
           template={null}
@@ -184,7 +195,7 @@ export function AuditsPanel({ t, restaurant, bare, onStats, isManager }) {
           onSave={saveTemplate}
         />
       )}
-      {isManager && editing && (
+      {canAuthor && editing && (
         <AuditTemplateForm
           t={t}
           template={editing}
@@ -218,7 +229,7 @@ export function AuditsPanel({ t, restaurant, bare, onStats, isManager }) {
                 <button type="button" className="fd-btn fd-btn-sm" onClick={() => start(tmpl.id)} data-track="ui.0bf8f8ca2a.3">
                   {t('restaurants.ops.audits.start', 'Start audit')}
                 </button>
-                {isManager && (
+                {canAuthor && (
                   <button
                     type="button"
                     className="fd-btn fd-btn-secondary fd-btn-sm"
@@ -227,7 +238,7 @@ export function AuditsPanel({ t, restaurant, bare, onStats, isManager }) {
                     {t('common.edit', 'Edit')}
                   </button>
                 )}
-                {isManager && (
+                {canAuthor && (
                   <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => remove(tmpl.id)} data-track="ui.0bf8f8ca2a.5">
                     {t('common.delete', 'Delete')}
                   </button>
@@ -281,7 +292,8 @@ function AuditTemplateForm({ t, template, onCancel, onSave }) {
   const setItem = (idx, key) => (e) => setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, [key]: e.target.value } : it)));
 
   const useStarter = (key) => {
-    const s = STARTER_TEMPLATES[key];
+    const localized=t('restaurants.ops.starters.audit',{returnObjects:true});
+    const s=localized?.[key]||STARTER_TEMPLATES[key];
     setName(s.name);
     setCategory(s.category);
     setDescription(s.description);
@@ -454,7 +466,7 @@ function AuditRunRow({ t, run, onView }) {
 }
 
 // ── Conducting an audit (staff scoring + findings) ──────────────────────────
-function AuditRunView({ t, restaurantId, auditId, templateItems, staff, isManager, onClose }) {
+function AuditRunView({ t, restaurantId, auditId, templateItems, staff, isManager, onClose, timeZone = 'UTC' }) {
   const [audit, setAudit] = useState(null);
   const [loading, setLoading] = useState(true);
   const [entry, setEntry] = useState({}); // item_id -> { score, note }
@@ -466,7 +478,7 @@ function AuditRunView({ t, restaurantId, auditId, templateItems, staff, isManage
   const load = useCallback(() => {
     setLoading(true);
     getAuditRun(restaurantId, auditId)
-      .then(({ audit: a }) => {
+      .then((a) => {
         setAudit(a);
         const e = {};
         (a.scores || []).forEach((sc) => {
@@ -506,7 +518,7 @@ function AuditRunView({ t, restaurantId, auditId, templateItems, staff, isManage
   const complete = async () => {
     setCompleting(true);
     try {
-      const { audit: a } = await completeAuditRun(restaurantId, auditId, { notes });
+      const a = await completeAuditRun(restaurantId, auditId, { notes });
       setAudit(a);
       toast.success(t('restaurants.ops.audits.auditCompleted', 'Audit completed'));
     } catch (err) {
@@ -672,6 +684,7 @@ function AuditRunView({ t, restaurantId, auditId, templateItems, staff, isManage
         <div className="fd-ops-sop-list">
           {(audit.findings || []).map((f) => (
             <FindingCard
+              timeZone={timeZone}
               key={f.id}
               t={t}
               restaurantId={restaurantId}
@@ -782,7 +795,7 @@ function FindingForm({ t, items, onCancel, onAdd }) {
   );
 }
 
-function FindingCard({ t, restaurantId, finding, items, staff, isManager, onActionCreated }) {
+function FindingCard({ t, restaurantId, finding, items, staff, isManager, onActionCreated, timeZone = 'UTC' }) {
   const [showAction, setShowAction] = useState(false);
   const hot = finding.severity === 'high' || finding.severity === 'critical';
   const reporter = [finding.first_name, finding.last_name].filter(Boolean).join(' ');
@@ -828,6 +841,7 @@ function FindingCard({ t, restaurantId, finding, items, staff, isManager, onActi
       )}
       {isManager && showAction && (
         <CorrectiveActionForm
+          timeZone={timeZone}
           t={t}
           staff={staff}
           onCancel={() => setShowAction(false)}
@@ -847,7 +861,7 @@ function FindingCard({ t, restaurantId, finding, items, staff, isManager, onActi
 }
 
 // ── Corrective actions ──────────────────────────────────────────────────────
-function CorrectiveActionForm({ t, staff, onCancel, onCreate }) {
+function CorrectiveActionForm({ t, staff, onCancel, onCreate, timeZone = 'UTC' }) {
   const [description, setDescription] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
   const [dueAt, setDueAt] = useState('');
@@ -860,7 +874,7 @@ function CorrectiveActionForm({ t, staff, onCancel, onCreate }) {
     await onCreate({
       description: description.trim(),
       assigneeId: assigneeId || null,
-      dueAt: dueAt || null,
+      dueAt: storeInstant(dueAt,timeZone,true),
     });
     setSaving(false);
   };
@@ -970,7 +984,7 @@ function CorrectiveActions({ t, restaurantId, actions, isManager, onChanged }) {
 }
 
 // ── Read-only audit detail ──────────────────────────────────────────────────
-function AuditRunDetail({ t, restaurantId, auditId, onClose }) {
+function AuditRunDetail({ t, restaurantId, auditId, onClose, timeZone = 'UTC' }) {
   const [audit, setAudit] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -1029,6 +1043,7 @@ function AuditRunDetail({ t, restaurantId, auditId, onClose }) {
         <div className="fd-ops-sop-list">
           {(audit.findings || []).map((f) => (
             <FindingCard
+              timeZone={timeZone}
               key={f.id}
               t={t}
               restaurantId={restaurantId}

@@ -24410,6 +24410,150 @@
       "opTrainingDesc": "Leçons et quiz attribués à votre équipe, avec suivi des réalisations.",
       "opAuditsDesc": "Notez les inspections, consignez les constats et suivez les actions correctives jusqu’à leur clôture.",
       "opReportsDesc": "Ventes, stock et performance des opérations en un coup d’œil.",
+      "shared": {
+        "store": "Établissement",
+        "loadError": "Impossible de charger les données",
+        "saveError": "Impossible d’enregistrer les modifications",
+        "previous": "Précédent",
+        "next": "Suivant",
+        "myTraining": "Ma formation",
+        "save": "Enregistrer",
+        "cancel": "Annuler",
+        "edit": "Modifier",
+        "notes": "Notes",
+        "selectTable": "Choisir une table",
+        "occupied": "Occupée",
+        "ticket": "Addition de caisse",
+        "release": "Libérer la table",
+        "statusLabel": "Statut",
+        "from": "Du",
+        "to": "Au",
+        "all": "Tous",
+        "retry": "Réessayer",
+        "moveHint": "Déplacez les tables avec les flèches, par glissement ou en modifiant leurs coordonnées.",
+        "netSales": "Ventes nettes encaissées",
+        "orders": "Commandes payées",
+        "preview": "Vérifier les modifications",
+        "publishWarning": "Vérifiez chaque établissement avant de publier. Les paramètres hérités remplacent les anciennes dérogations.",
+        "noChanges": "Aucune modification",
+        "inherit": "Hériter du paramètre de l’enseigne",
+        "available": "Disponible",
+        "unavailable": "Indisponible",
+        "status": {
+          "active": "Actif",
+          "disabled": "Désactivé",
+          "archived": "Archivé",
+          "pending": "En attente",
+          "confirmed": "Confirmé",
+          "seated": "Installé",
+          "completed": "Terminé",
+          "cancelled": "Annulé",
+          "no_show": "Absent",
+          "waiting": "En attente de table",
+          "notified": "Prévenu",
+          "expired": "Expiré"
+        },
+        "signedVersion": "Version signée",
+        "archive": "Archiver",
+        "archiveConfirm": "Archiver ce modèle ? L’historique enregistré reste disponible."
+      },
+      "starters": {
+        "audit": {
+          "kitchen": {
+            "name": "Bases de la sécurité alimentaire",
+            "description": "Contrôlez ce point, consignez vos observations et suivez la procédure de sécurité alimentaire de l’établissement.",
+            "category": "kitchen",
+            "items": [
+              {
+                "label": "Sols propres et secs",
+                "instructions": "Contrôlez ce point, consignez vos observations et suivez la procédure de sécurité alimentaire de l’établissement.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Stockage et étiquetage",
+                "instructions": "Contrôlez ce point, consignez vos observations et suivez la procédure de sécurité alimentaire de l’établissement.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Propreté du matériel",
+                "instructions": "Contrôlez ce point, consignez vos observations et suivez la procédure de sécurité alimentaire de l’établissement.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Lavabos approvisionnés",
+                "instructions": "Contrôlez ce point, consignez vos observations et suivez la procédure de sécurité alimentaire de l’établissement.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Zone de déchets rangée",
+                "instructions": "Contrôlez ce point, consignez vos observations et suivez la procédure de sécurité alimentaire de l’établissement.",
+                "maxScore": 5,
+                "weight": 1
+              }
+            ]
+          },
+          "foodSafety": {
+            "name": "Bases de la sécurité alimentaire",
+            "description": "Contrôlez ce point, consignez vos observations et suivez la procédure de sécurité alimentaire de l’établissement.",
+            "category": "food_safety",
+            "items": [
+              {
+                "label": "Températures des réfrigérateurs",
+                "instructions": "Contrôlez ce point, consignez vos observations et suivez la procédure de sécurité alimentaire de l’établissement.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Concentration du désinfectant",
+                "instructions": "Contrôlez ce point, consignez vos observations et suivez la procédure de sécurité alimentaire de l’établissement.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Dates limites",
+                "instructions": "Contrôlez ce point, consignez vos observations et suivez la procédure de sécurité alimentaire de l’établissement.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Procédures allergènes",
+                "instructions": "Contrôlez ce point, consignez vos observations et suivez la procédure de sécurité alimentaire de l’établissement.",
+                "maxScore": 5,
+                "weight": 1
+              }
+            ]
+          }
+        },
+        "training": {
+          "title": "Bases de la sécurité alimentaire",
+          "description": "Principes essentiels pour toute l’équipe.",
+          "content": "Lavez-vous les mains à l’eau tiède et au savon pendant au moins 20 secondes avant de manipuler des aliments et après la viande crue ou les toilettes. Conservez les aliments froids à 41°F ou moins et les aliments chauds à 135°F ou plus. Rangez la viande crue sous les aliments prêts à consommer et désinfectez les surfaces entre les tâches.",
+          "category": "food_safety",
+          "passScorePct": 80,
+          "questions": [
+            {
+              "question": "Combien de temps faut-il se laver les mains ?",
+              "options": [
+                "5 secondes",
+                "Au moins 20 secondes"
+              ],
+              "correct_index": 1
+            },
+            {
+              "question": "Où ranger la viande crue ?",
+              "options": [
+                "Au-dessus des aliments prêts à consommer",
+                "Sous les aliments prêts à consommer"
+              ],
+              "correct_index": 1
+            }
+          ]
+        }
+      },
       "training": {
         "loadError": "Impossible de charger la formation",
         "saveError": "Impossible d'enregistrer le module",
