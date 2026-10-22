@@ -1788,6 +1788,26 @@ describe('restaurant app-flow backend', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(false);
   });
 
+  test('does not replay an offline kitchen action from an unassigned store', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 46 })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'kitchen.update', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 994, food_order_id: ORDER_ID, event_type: 'order_start', idempotency_key: 'offline-start-100' }] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, location_id: 88, status: 'preparing', kitchen_stage: 'preparing' }] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000126'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/kitchen/orders/${ORDER_ID}/action`)
+      .set('Idempotency-Key', 'offline-start-100')
+      .send({ action: 'start', idempotencyKey: 'offline-start-100' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('location_scope_forbidden');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(false);
+  });
+
   test('configures kitchen station routing and printer jobs', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
@@ -1877,6 +1897,24 @@ describe('restaurant app-flow backend', () => {
 
     expect(res.status).toBe(403);
     expect(res.body.code).toBe('forbidden');
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO restaurant_printer_jobs/.test(sql))).toBe(false);
+  });
+
+  test('does not create a printer job for an order outside the assigned store', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 46 })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'kitchen.update', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 31, location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, location_id: 88 }] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000126'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/kitchen/printer-jobs`)
+      .send({ stationId: 31, orderId: ORDER_ID, jobType: 'kitchen_ticket', payload: { queue: 12 } });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('location_scope_forbidden');
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO restaurant_printer_jobs/.test(sql))).toBe(false);
   });
 

@@ -6979,6 +6979,10 @@ exports.performKitchenOrderAction = async (req, res, next) => {
             `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
             [existingEvent.food_order_id, restaurantId]
           );
+          if (restaurant.locationScope?.mode === 'assigned'
+            && !restaurant.locationScope.location_ids.includes(Number(replayedOrder?.location_id))) {
+            throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+          }
           if(req.screenDevice&&String(replayedOrder?.location_id||'')!==String(req.screenDevice.location_id||''))throw new AppError('Wrong device location',403,'screen_location_mismatch');
           return { order: replayedOrder, event: existingEvent, replayed: true };
         }
@@ -7420,6 +7424,10 @@ exports.performKitchenItemAction = async (req, res, next) => {
             `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
             [existingEvent.food_order_id, restaurantId]
           );
+          if (restaurant.locationScope?.mode === 'assigned'
+            && !restaurant.locationScope.location_ids.includes(Number(replayedOrder?.location_id))) {
+            throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+          }
           if(req.screenDevice&&String(replayedOrder?.location_id||'')!==String(req.screenDevice.location_id||''))throw new AppError('Wrong device location',403,'screen_location_mismatch');
           return { item: replayedItem, order: replayedOrder, event: existingEvent, replayed: true };
         }
@@ -7711,18 +7719,25 @@ exports.createPrinterJob = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.update', 'kitchen.manage', 'orders.manage']);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const jobType = normalizeString(req.body.jobType || req.body.job_type, 40) || 'kitchen_ticket';
     if (!PRINTER_JOB_TYPES.has(jobType)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { jobType: 'Unsupported printer job type' });
     }
     const stationId = parsePositiveInt(req.body.stationId || req.body.station_id);
     const orderId = parsePositiveInt(req.body.orderId || req.body.order_id);
+    let stationLocationId = null;
     if (stationId) {
       const { rows: [station] } = await pool.query(
-        `SELECT id FROM restaurant_kitchen_stations WHERE id = $1 AND restaurant_id = $2`,
+        `SELECT id, location_id FROM restaurant_kitchen_stations WHERE id = $1 AND restaurant_id = $2`,
         [stationId, restaurantId]
       );
       if (!station) throw new AppError('Kitchen station not found', 404, 'kitchen_station_not_found');
+      stationLocationId = station.location_id || null;
+      if (locationScope.mode === 'assigned'
+        && (!stationLocationId || !locationScope.location_ids.includes(Number(stationLocationId)))) {
+        throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+      }
     }
     let jobLocationId = null;
     if (orderId) {
@@ -7732,11 +7747,22 @@ exports.createPrinterJob = async (req, res, next) => {
       );
       if (!order) throw new AppError('Order not found', 404, 'order_not_found');
       jobLocationId = order.location_id || null;
+      if (locationScope.mode === 'assigned'
+        && (!jobLocationId || !locationScope.location_ids.includes(Number(jobLocationId)))) {
+        throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+      }
     }
     if (jobLocationId === null) {
       // F-02 phase 1: order-less jobs (test prints, manual tickets) belong
       // to the restaurant's primary store when it has one.
       jobLocationId = await restaurantLocationService.resolveLocationId(pool, { restaurantId });
+    }
+    if (stationLocationId && jobLocationId && Number(stationLocationId) !== Number(jobLocationId)) {
+      throw new AppError('The printer station store must match the order store', 409, 'location_scope_conflict');
+    }
+    if (locationScope.mode === 'assigned'
+      && (!jobLocationId || !locationScope.location_ids.includes(Number(jobLocationId)))) {
+      throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
     }
     const { rows: [job] } = await pool.query(
       `INSERT INTO restaurant_printer_jobs
