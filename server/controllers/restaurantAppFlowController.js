@@ -7739,11 +7739,15 @@ exports.updatePrinterJob = async (req, res, next) => {
 
 const CREW_SHIFT_STATUSES = new Set(['scheduled', 'open', 'closed', 'cancelled']);
 
-async function loadCrewShift(restaurantId, shiftId) {
+async function loadCrewShift(restaurantId, shiftId, locationScope = null) {
   if (!shiftId) return null;
+  const params = [restaurantId, shiftId];
+  const locationFilter = locationScope?.mode === 'assigned'
+    ? ` AND location_id = ANY($${params.push(locationScope.location_ids)}::bigint[])`
+    : '';
   const { rows: [shift] } = await pool.query(
-    `SELECT * FROM restaurant_crew_shifts WHERE restaurant_id = $1 AND id = $2`,
-    [restaurantId, shiftId]
+    `SELECT * FROM restaurant_crew_shifts WHERE restaurant_id = $1 AND id = $2${locationFilter}`,
+    params
   );
   if (!shift) throw new AppError('Crew shift not found', 404, 'crew_shift_not_found');
   return shift;
@@ -7787,9 +7791,14 @@ async function notifyRestaurantTeam(restaurant, excludeUserId, payload) {
 exports.listCrewShifts = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const params = [restaurantId];
     const filters = ['s.restaurant_id = $1'];
+    if (locationScope.mode === 'assigned') {
+      params.push(locationScope.location_ids);
+      filters.push(`s.location_id = ANY($${params.length}::bigint[])`);
+    }
     const status = normalizeString(req.query.status, 24);
     if (status) {
       if (!CREW_SHIFT_STATUSES.has(status)) {
@@ -7830,6 +7839,7 @@ exports.createCrewShift = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertManage(restaurant, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const label = normalizeString(req.body.label, 160);
     const startsAt = req.body.startsAt || req.body.starts_at;
     const endsAt = req.body.endsAt || req.body.ends_at;
@@ -7841,12 +7851,17 @@ exports.createCrewShift = async (req, res, next) => {
     if (Date.parse(endsAt) <= Date.parse(startsAt)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { endsAt: 'Shift must end after it starts' });
     }
+    const locationId = parsePositiveInt(req.body.locationId || req.body.location_id);
+    if (locationScope.mode === 'assigned'
+      && (!locationId || !locationScope.location_ids.includes(locationId))) {
+      throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+    }
     const { rows: [shift] } = await pool.query(
       `INSERT INTO restaurant_crew_shifts
-         (restaurant_id, label, starts_at, ends_at, notes, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6)
+         (restaurant_id, location_id, label, starts_at, ends_at, notes, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
        RETURNING *`,
-      [restaurantId, label, startsAt, endsAt, normalizeString(req.body.notes, 2000), req.user.id]
+      [restaurantId, locationId, label, startsAt, endsAt, normalizeString(req.body.notes, 2000), req.user.id]
     );
     // S-17: a new shift on the board notifies the team.
     await notifyRestaurantTeam(restaurant, req.user.id, {
@@ -7876,7 +7891,8 @@ exports.updateCrewShift = async (req, res, next) => {
     const shiftId = parsePositiveInt(req.params.shiftId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertManage(restaurant, req.user.id);
-    const existing = await loadCrewShift(restaurantId, shiftId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const existing = await loadCrewShift(restaurantId, shiftId, locationScope);
     const status = normalizeString(req.body.status, 24);
     if (status && !CREW_SHIFT_STATUSES.has(status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported shift status' });
@@ -7895,21 +7911,27 @@ exports.updateCrewShift = async (req, res, next) => {
     if (Date.parse(endsAt) <= Date.parse(startsAt)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { endsAt: 'Shift must end after it starts' });
     }
+    const locationId = parsePositiveInt(req.body.locationId || req.body.location_id) || existing.location_id;
+    if (locationScope.mode === 'assigned'
+      && (!locationId || !locationScope.location_ids.includes(locationId))) {
+      throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+    }
     const { rows: [shift] } = await pool.query(
       `UPDATE restaurant_crew_shifts
-          SET label = COALESCE($1, label),
-              starts_at = $2,
-              ends_at = $3,
-              notes = COALESCE($4, notes),
-              status = COALESCE($5, status),
-              opened_by = CASE WHEN $5 = 'open' AND opened_at IS NULL THEN $6 ELSE opened_by END,
-              opened_at = CASE WHEN $5 = 'open' AND opened_at IS NULL THEN NOW() ELSE opened_at END,
-              closed_by = CASE WHEN $5 = 'closed' AND closed_at IS NULL THEN $6 ELSE closed_by END,
-              closed_at = CASE WHEN $5 = 'closed' AND closed_at IS NULL THEN NOW() ELSE closed_at END,
+          SET location_id = $1,
+              label = COALESCE($2, label),
+              starts_at = $3,
+              ends_at = $4,
+              notes = COALESCE($5, notes),
+              status = COALESCE($6, status),
+              opened_by = CASE WHEN $6 = 'open' AND opened_at IS NULL THEN $7 ELSE opened_by END,
+              opened_at = CASE WHEN $6 = 'open' AND opened_at IS NULL THEN NOW() ELSE opened_at END,
+              closed_by = CASE WHEN $6 = 'closed' AND closed_at IS NULL THEN $7 ELSE closed_by END,
+              closed_at = CASE WHEN $6 = 'closed' AND closed_at IS NULL THEN NOW() ELSE closed_at END,
               updated_at = NOW()
-        WHERE restaurant_id = $7 AND id = $8
+        WHERE restaurant_id = $8 AND id = $9
         RETURNING *`,
-      [normalizeString(req.body.label, 160), startsAt, endsAt,
+      [locationId, normalizeString(req.body.label, 160), startsAt, endsAt,
         normalizeString(req.body.notes, 2000), status, req.user.id, restaurantId, shiftId]
     );
     // S-17: a cancelled shift notifies the team so nobody shows up for it.
@@ -7940,35 +7962,38 @@ exports.getCrewShiftHistory = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const shiftId = parsePositiveInt(req.params.shiftId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
-    const shift = await loadCrewShift(restaurantId, shiftId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const shift = await loadCrewShift(restaurantId, shiftId, locationScope);
+    const taskLocationFilter = locationScope.mode === 'assigned' ? ' AND t.location_id = ANY($3::bigint[])' : '';
+    const taskParams = locationScope.mode === 'assigned' ? [restaurantId, shiftId, locationScope.location_ids] : [restaurantId, shiftId];
     const [{ rows: tasks }, { rows: proofs }, { rows: comments }, { rows: events }] = await Promise.all([
       pool.query(
         `SELECT * FROM restaurant_crew_tasks
-          WHERE restaurant_id = $1 AND shift_id = $2
+          WHERE restaurant_id = $1 AND shift_id = $2${locationScope.mode === 'assigned' ? ' AND location_id = ANY($3::bigint[])' : ''}
           ORDER BY due_at NULLS LAST, created_at ASC`,
-        [restaurantId, shiftId]
+        taskParams
       ),
       pool.query(
         `SELECT p.* FROM restaurant_crew_task_proofs p
           JOIN restaurant_crew_tasks t ON t.id = p.task_id
-         WHERE t.restaurant_id = $1 AND t.shift_id = $2
+         WHERE t.restaurant_id = $1 AND t.shift_id = $2${taskLocationFilter}
          ORDER BY p.created_at ASC`,
-        [restaurantId, shiftId]
+        taskParams
       ),
       pool.query(
         `SELECT c.* FROM restaurant_crew_task_comments c
           JOIN restaurant_crew_tasks t ON t.id = c.task_id
-         WHERE t.restaurant_id = $1 AND t.shift_id = $2
+         WHERE t.restaurant_id = $1 AND t.shift_id = $2${taskLocationFilter}
          ORDER BY c.created_at ASC`,
-        [restaurantId, shiftId]
+        taskParams
       ),
       pool.query(
         `SELECT e.* FROM restaurant_crew_task_events e
           JOIN restaurant_crew_tasks t ON t.id = e.task_id
-         WHERE t.restaurant_id = $1 AND t.shift_id = $2
+         WHERE t.restaurant_id = $1 AND t.shift_id = $2${taskLocationFilter}
          ORDER BY e.created_at ASC`,
-        [restaurantId, shiftId]
+        taskParams
       ),
     ]);
     const presentedProofs = await Promise.all(proofs.map(presentCrewProof));
@@ -7981,7 +8006,8 @@ exports.getCrewShiftHistory = async (req, res, next) => {
 exports.listCrewTasks = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const mine = req.query.mine === '1' || req.query.mine === 'true';
     const params = [restaurantId];
     let where = 'restaurant_id = $1';
@@ -7991,9 +8017,13 @@ exports.listCrewTasks = async (req, res, next) => {
     }
     const shiftId = parsePositiveInt(req.query.shiftId || req.query.shift_id);
     if (shiftId) {
-      await loadCrewShift(restaurantId, shiftId);
+      await loadCrewShift(restaurantId, shiftId, locationScope);
       params.push(shiftId);
       where += ` AND shift_id = $${params.length}`;
+    }
+    if (locationScope.mode === 'assigned') {
+      params.push(locationScope.location_ids);
+      where += ` AND location_id = ANY($${params.length}::bigint[])`;
     }
     const status = normalizeString(req.query.status, 32);
     if (status) {
@@ -8022,21 +8052,28 @@ exports.createCrewTask = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertManage(restaurant, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const title = normalizeString(req.body.title, 200);
     if (!title) throw new AppError('Validation failed', 400, 'validation_failed', { title: 'Title is required' });
     const assignedTo = req.body.assignedTo || req.body.assigned_to || null;
     const shiftId = parsePositiveInt(req.body.shiftId || req.body.shift_id);
     await validateCrewAssignee(restaurantId, assignedTo);
-    await loadCrewShift(restaurantId, shiftId);
+    const shift = await loadCrewShift(restaurantId, shiftId, locationScope);
+    const locationId = parsePositiveInt(req.body.locationId || req.body.location_id) || parsePositiveInt(shift?.location_id);
+    if (locationScope.mode === 'assigned'
+      && (!locationId || !locationScope.location_ids.includes(locationId))) {
+      throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+    }
     const task = await withTransaction(pool, async (client) => {
       const { rows: [created] } = await client.query(
         `INSERT INTO restaurant_crew_tasks
-           (restaurant_id, assigned_to, shift_id, title, detail, role_label, priority, due_at,
+           (restaurant_id, location_id, assigned_to, shift_id, title, detail, role_label, priority, due_at,
             requires_photo, requires_approval, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
          RETURNING *`,
         [
           restaurantId,
+          locationId,
           assignedTo,
           shiftId,
           title,
@@ -8051,9 +8088,9 @@ exports.createCrewTask = async (req, res, next) => {
       );
       await client.query(
         `INSERT INTO restaurant_crew_task_events
-           (restaurant_id, task_id, actor_user_id, event_type, new_status, metadata)
-         VALUES ($1,$2,$3,'created',$4,$5)`,
-        [restaurantId, created.id, req.user.id, created.status, JSON.stringify({ title: created.title })]
+           (restaurant_id, location_id, task_id, actor_user_id, event_type, new_status, metadata)
+         VALUES ($1,$2,$3,$4,'created',$5,$6)`,
+        [restaurantId, created.location_id || locationId, created.id, req.user.id, created.status, JSON.stringify({ title: created.title })]
       );
       return created;
     }, 'restaurant_crew_task_create');
@@ -8171,10 +8208,11 @@ exports.updateCrewTask = async (req, res, next) => {
       if (!updated) throw new AppError('Crew task changed before this update was applied', 409, 'crew_task_conflict');
       await client.query(
         `INSERT INTO restaurant_crew_task_events
-         (restaurant_id, task_id, actor_user_id, event_type, old_status, new_status, metadata)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+         (restaurant_id, location_id, task_id, actor_user_id, event_type, old_status, new_status, metadata)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
         [
           restaurantId,
+          existing.location_id,
           taskId,
           req.user.id,
           approve ? 'approved' : 'updated',
@@ -8245,10 +8283,11 @@ exports.reviewCrewTask = async (req, res, next) => {
       if (!updated) throw new AppError('Crew task changed before review was applied', 409, 'crew_task_conflict');
       await client.query(
         `INSERT INTO restaurant_crew_task_events
-         (restaurant_id, task_id, actor_user_id, event_type, old_status, new_status, metadata)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+         (restaurant_id, location_id, task_id, actor_user_id, event_type, old_status, new_status, metadata)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
         [
           restaurantId,
+          existing.location_id,
           taskId,
           req.user.id,
           approved ? 'approved' : 'rejected',
@@ -8370,10 +8409,11 @@ async function persistCrewProof({
     );
     await client.query(
       `INSERT INTO restaurant_crew_task_events
-         (restaurant_id, task_id, actor_user_id, event_type, old_status, new_status, metadata)
-       VALUES ($1,$2,$3,'proof_submitted',$4,$5,$6)`,
+         (restaurant_id, location_id, task_id, actor_user_id, event_type, old_status, new_status, metadata)
+       VALUES ($1,$2,$3,$4,'proof_submitted',$5,$6,$7)`,
       [
         restaurantId,
+        task.location_id,
         task.id,
         userId,
         task.status,

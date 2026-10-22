@@ -1852,6 +1852,24 @@ describe('restaurant app-flow backend', () => {
     expect(commentRes.body.comment.comment).toBe('Done, needs review.');
   });
 
+  test('requires crew tasks for assigned managers to name an assigned store', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 48 })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 702, location_id: 77, title: 'Restock pickup shelf', status: 'not_started' }] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000128'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/crew/tasks`)
+      .send({ title: 'Restock pickup shelf', locationId: 77 });
+
+    expect(res.status).toBe(201);
+    const insert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO restaurant_crew_tasks/.test(sql));
+    expect(insert[0]).toContain('location_id');
+    expect(insert[1]).toContain(77);
+  });
+
   test('submits crew task proof and records manager approval history', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
