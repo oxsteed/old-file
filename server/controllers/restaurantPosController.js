@@ -3,6 +3,7 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const { getLocationScope } = require('../services/restaurantLocationAccessService');
 const permissionsService = require('../services/permissionsService');
 const { logBusinessAction } = require('../services/businessAuditLog');
 
@@ -67,16 +68,22 @@ exports.listDiscounts = async (req, res, next) => {
 exports.listReceiptEvents = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const limit = Math.min(parsePositiveInt(req.query.limit) || 30, 100);
+    const params = locationScope.mode === 'assigned'
+      ? [restaurantId, locationScope.location_ids, limit]
+      : [restaurantId, limit];
+    const locationFilter = locationScope.mode === 'assigned' ? ' AND location_id = ANY($2::bigint[])' : '';
+    const limitParam = locationScope.mode === 'assigned' ? '$3' : '$2';
 
     const { rows } = await pool.query(
       `SELECT *
          FROM restaurant_pos_receipt_events
-        WHERE restaurant_id = $1
+        WHERE restaurant_id = $1${locationFilter}
         ORDER BY created_at DESC, id DESC
-        LIMIT $2`,
-      [restaurantId, limit]
+        LIMIT ${limitParam}`,
+      params
     );
 
     res.json({ receiptEvents: rows });
@@ -92,6 +99,7 @@ exports.createReceiptEvent = async (req, res, next) => {
     // Receipt events are part of the money-facing POS history. Membership
     // alone must not allow a caller to mint one.
     await assertPosPermission(restaurant, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
 
     const orderId = parsePositiveInt(req.body.orderId || req.body.order_id);
     const queueNumber = parsePositiveInt(req.body.queueNumber || req.body.queue_number);
@@ -120,11 +128,11 @@ exports.createReceiptEvent = async (req, res, next) => {
 
     const { rows: [order] } = await pool.query(
       `SELECT id
-              , queue_number, total_cents, payment_status
+              , location_id, queue_number, total_cents, payment_status
          FROM food_orders
         WHERE id = $1
-          AND restaurant_id = $2`,
-      [orderId, restaurantId]
+          AND restaurant_id = $2${locationScope.mode === 'assigned' ? ' AND location_id = ANY($3::bigint[])' : ''}`,
+      locationScope.mode === 'assigned' ? [orderId, restaurantId, locationScope.location_ids] : [orderId, restaurantId]
     );
     if (!order) throw new AppError('Order not found', 404, 'order_not_found');
     if (Number(order.queue_number) !== queueNumber || Number(order.total_cents) !== totalCents) {
@@ -133,15 +141,16 @@ exports.createReceiptEvent = async (req, res, next) => {
 
     const { rows: [receiptEvent] } = await pool.query(
       `INSERT INTO restaurant_pos_receipt_events
-         (restaurant_id, food_order_id, queue_number, guest_name, total_cents,
+         (restaurant_id, location_id, food_order_id, queue_number, guest_name, total_cents,
           payment_status, channel, event_type, reason, metadata, idempotency_key, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13)
        ON CONFLICT (restaurant_id, idempotency_key)
          WHERE idempotency_key IS NOT NULL
        DO UPDATE SET idempotency_key = EXCLUDED.idempotency_key
        RETURNING *`,
       [
         restaurantId,
+        order.location_id,
         orderId,
         queueNumber,
         guestName,

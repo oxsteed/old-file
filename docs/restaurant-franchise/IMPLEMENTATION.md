@@ -41,8 +41,9 @@ manager surfaces preserve all-store behavior for owners and legacy members
 without active assignments. Kitchen station reads, routing, and writes now carry
 the assigned store, runner settlement reads and writes follow the runner task's
 store identity, assigned crew shifts/tasks/events require and retain their
-store, and POS sync status/acknowledgement records now require the same store
-identity for assigned managers. Remaining F-02 work is the full data-boundary audit
+store, POS sync status/acknowledgement records now require the same store
+identity for assigned managers, and POS receipt-event history follows the
+order's assigned store. Remaining F-02 work is the full data-boundary audit
 across every adapter plus populated multi-store acceptance.
 
 Migration 963 adds tenant-constrained store menu overrides. Prices and temporary
@@ -257,7 +258,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | ID | Current boundary | Remaining implementation / acceptance |
 | --- | --- | --- |
 | F-01 | Existing timezone capture, validation, business copy and backfill | Populated-store owner confirmation and onboarding/browser acceptance |
-| F-02 | Existing location columns/counters/hours; this pass adds store menu and customer selection; hosting records are location-scoped; migrations 968 and 976 add store-scoped staff assignments and receipt-printer settings, menu enforcement, store-filtered sales reports, assigned-store inventory reads/writes, and an audited HQ override-policy publish contract; migration 988 adds tenant-bound nested HQ regions and audited store assignment; migration 989 makes operational store identity non-null with composite tenant FKs and database resolution triggers; manager rollups, POS drawer events, managed-screen snapshots/changes/control/ticket actions, runner inbox tasks, display fleet listing, kitchen station reads/routing/writes, runner settlements, crew shift/task/event paths, and POS sync status/acknowledgement now honor assigned-store sets | Full data-boundary adoption across every remaining adapter plus populated multi-store acceptance |
+| F-02 | Existing location columns/counters/hours; this pass adds store menu and customer selection; hosting records are location-scoped; migrations 968 and 976 add store-scoped staff assignments and receipt-printer settings, menu enforcement, store-filtered sales reports, assigned-store inventory reads/writes, and an audited HQ override-policy publish contract; migration 988 adds tenant-bound nested HQ regions and audited store assignment; migration 989 makes operational store identity non-null with composite tenant FKs and database resolution triggers; manager rollups, POS drawer events, managed-screen snapshots/changes/control/ticket actions, runner inbox tasks, display fleet listing, kitchen station reads/routing/writes, runner settlements, crew shift/task/event paths, POS sync status/acknowledgement, and POS receipt-event history now honor assigned-store sets | Full data-boundary adoption across every remaining adapter plus populated multi-store acceptance |
 | F-03 | Existing cashier own-drawer tender, Terminal intent gate, receipt-event gate, and permission resolver | Exercise custom grants/denials and approvals across every money surface |
 | F-04 | Existing stable order/payment retry IDs and pay-first hold; POS checkout state now survives reload for a bounded window and cash replay preserves the same identities | Lost-response/concurrent replay verification across every kitchen/display/runner fire path |
 | F-05 | Existing production server-dial prohibition and print queue; this pass adds paired kitchen-device queue endpoints, runtime contract, store-scoped receipt-printer settings/jobs, and the executable LAN bridge | Physical device/browser acceptance |
@@ -394,6 +395,7 @@ hardware decisions do not excuse independent software work on these flows.
 - `server`: `npx jest --runInBand __tests__/restaurantAppFlow.test.js` — **68 passed** after scoping kitchen station reads/routing/writes and runner settlement task/ledger access to assigned stores; owner behavior remains all-store.
 - `server`: `npx jest --runInBand __tests__/restaurantAppFlow.test.js` — **69 passed** after requiring assigned-store identity for crew task creation and carrying it into task events; owner behavior remains all-store.
 - `server`: `npx jest --runInBand __tests__/restaurantAppFlow.test.js` — **70 passed** after requiring assigned-store identity for POS sync acknowledgements and filtering status/history reads; owner behavior remains all-store.
+- `server`: `npx jest --runInBand __tests__/restaurantPosController.test.js` — **3 passed** after filtering receipt-event reads by assigned store and carrying the order store into new receipt events.
 - `server`: `npx jest --runInBand __tests__/restaurantPrintBridge.test.js` — **3 passed** across bridge configuration bounds, receipt target validation, claim/print/ack sequencing, and retryable failures.
 - `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **960/960 migrations passed**, including migration 985's accounting integration and export outbox schema.
 - `client`: `npm run verify:i18n` — **passed** with the host-stand keys present in `en`, `es`, `fr`, `ht`, and `ar`.
