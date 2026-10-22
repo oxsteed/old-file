@@ -718,9 +718,9 @@ if (url) {
     const rows = await hq.rollupLocations(pool, {
       restaurantId,
       locationIds: [Number(locationA), Number(locationB)],
-      from: '2026-10-01',
-      to: '2026-11-01',
-      timezone: 'America/New_York'
+      from: new Date(Date.now() - 86400000).toISOString(),
+      to: new Date(Date.now() + 86400000).toISOString(),
+      timezone: 'UTC'
     });
     expect(rows.healthRows.find(r => r.location_id === locationA).latest_audit_score_percent).not.toBeNull();
     expect(rows.healthRows.find(r => r.location_id === locationB).latest_audit_score_percent).toBeNull();
