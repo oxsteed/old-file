@@ -6937,7 +6937,9 @@
     "caseActionRequired": "Add a message or attachment first.",
     "case": "Support case",
     "attachments": "Attachments",
-    "attachmentAndReply": "Message or proof link"
+    "attachmentAndReply": "Message or proof",
+    "uploadProofFile": "Upload a receipt or proof file (optional)",
+    "removeAttachment": "Remove"
   },
   "adminCreateUser": {
     "success": "User {{email}} created successfully.",

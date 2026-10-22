@@ -6,6 +6,8 @@ const { resolveRestaurantAccess } = require('../services/scopeModel');
 const permissionsService = require('../services/permissionsService');
 const { withTransaction } = require('../utils/transaction');
 const { processExternalRefund } = require('../services/externalRefundService');
+const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
+const logger = require('../utils/logger');
 
 const ISSUE_TYPES = new Set([
   'missing_item',
@@ -618,11 +620,31 @@ exports.addCustomerMessage = async (req, res, next) => {
 };
 
 exports.addAttachment = async (req, res, next) => {
+  let uploadedKey = null;
   try {
     const caseId = parsePositiveInt(req.params.caseId);
-    const fileUrl = normalizeString(req.body.fileUrl || req.body.file_url, 2000);
-    if (!fileUrl) throw new AppError('Validation failed', 400, 'validation_failed', { fileUrl: 'File URL is required' });
+    // Upload-only attachments: a pasted fileUrl bypasses the upload
+    // pipeline (malware scan, EXIF strip, quota) and is stored unvalidated.
+    // Reject it outright; attachments must come through the file upload.
+    const pastedUrl = normalizeString(req.body.fileUrl || req.body.file_url, 2000);
+    if (pastedUrl) {
+      throw new AppError(
+        'Pasted file links are not accepted. Upload the file directly instead.',
+        400,
+        'pasted_file_url_rejected',
+        { fileUrl: 'Upload the file instead of pasting a link' },
+      );
+    }
+    if (!req.file) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { file: 'An uploaded file is required' });
+    }
+    uploadedKey = await uploadFile(req.file.buffer, 'restaurant-support-cases', req.file.originalname, req.file.mimetype);
+    if (!uploadedKey) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { file: 'The file could not be stored' });
+    }
+    const fileUrl = await getSignedDownloadUrl(uploadedKey, 7 * 24 * 60 * 60);
     const result = await withTransaction(pool, async (client) => {
+      // Authorize inside the same transaction as the insert.
       const supportCase = await assertCaseCustomer(client, caseId, req.user.id);
       const { rows: [attachment] } = await client.query(
         `INSERT INTO restaurant_support_case_attachments
@@ -633,9 +655,9 @@ exports.addAttachment = async (req, res, next) => {
           supportCase.id,
           req.user.id,
           fileUrl,
-          normalizeString(req.body.fileType || req.body.file_type, 120),
-          normalizeString(req.body.fileName || req.body.file_name, 255),
-          parsePositiveInt(req.body.fileSize || req.body.file_size),
+          normalizeString(req.file.detectedMime || req.file.mimetype, 120),
+          normalizeString(req.file.originalname, 255),
+          Number.isSafeInteger(req.file.size) ? req.file.size : null,
           normalizeEnum(req.body.attachmentType || req.body.attachment_type, new Set(['photo', 'receipt', 'document', 'proof']), 'photo'),
         ]
       );
@@ -649,6 +671,15 @@ exports.addAttachment = async (req, res, next) => {
     }, 'restaurant_support_attachment');
     res.status(201).json({ attachment: result });
   } catch (err) {
+    if (uploadedKey) {
+      await deleteFile(uploadedKey).catch((cleanupError) => {
+        logger.warn('Failed to clean up failed case attachment', {
+          caseId: req.params.caseId,
+          key: uploadedKey,
+          error: cleanupError.message,
+        });
+      });
+    }
     next(err);
   }
 };

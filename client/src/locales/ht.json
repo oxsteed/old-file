@@ -7071,7 +7071,9 @@
     "caseActionRequired": "Ajoute yon mesaj oswa yon pyès jwente anvan.",
     "case": "Dosye asistans",
     "attachments": "Pyès jwente",
-    "attachmentAndReply": "Mesaj oswa lyen prèv"
+    "attachmentAndReply": "Mesaj oswa prèv",
+    "uploadProofFile": "Voye yon fichye resi oswa prèv (opsyonèl)",
+    "removeAttachment": "Retire"
   },
   "adminCreateUser": {
     "success": "Itilizatè {{email}} kreye avèk siksè.",

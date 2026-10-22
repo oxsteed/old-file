@@ -6,7 +6,7 @@ const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
 const { withTransaction } = require('../utils/transaction');
 const { sendNotification } = require('../services/notificationService');
-const { normalizeAttachmentReference } = require('../utils/mediaUrlValidation');
+const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 
 async function loadAuthorizedConversation(req, conversationId) {
   const { businessId } = req.params;
@@ -187,26 +187,33 @@ async function editMessage(req, res) {
 }
 
 async function addAttachment(req, res) {
+  let uploadedKey = null;
   try {
     const { conversationId } = req.params;
     const { attachmentUrl, attachmentName } = req.body || {};
     const normalizedAttachmentName = String(attachmentName || '').trim();
 
-    if (!attachmentUrl || String(attachmentUrl).length > 2048) {
-      return sendValidationError(res, { attachmentUrl: 'Required' });
+    // Upload-only attachments: pasted URLs bypass the upload pipeline
+    // (malware scan, EXIF strip, quota). Reject them outright.
+    if (String(attachmentUrl ?? '').trim()) {
+      return sendValidationError(res, {
+        attachmentUrl: 'Pasted attachment links are not accepted. Upload the file directly instead.',
+      });
+    }
+    if (!req.file) {
+      return sendValidationError(res, { file: 'An uploaded file is required' });
     }
     if (normalizedAttachmentName.length > 255) {
       return sendValidationError(res, { attachmentName: 'Must be 255 characters or fewer' });
     }
-    // Review P3-6-F12: one shared normalization policy for caller-supplied
-    // attachment references (see utils/mediaUrlValidation).
-    const attachment = normalizeAttachmentReference(attachmentUrl, attachmentName);
-    if (attachment.error || !attachment.url) {
-      return sendValidationError(res, { attachmentUrl: attachment.error || 'Required' });
-    }
-    const normalizedAttachmentUrl = attachment.url;
+    // Authorize before touching storage so a denied caller cannot orphan an object.
     const conversation = await loadAuthorizedConversation(req, conversationId);
     if (!conversation) return sendError(res, 403, 'Access denied');
+    uploadedKey = await uploadFile(req.file.buffer, 'support-conversations', req.file.originalname, req.file.mimetype);
+    if (!uploadedKey) {
+      return sendValidationError(res, { file: 'The file could not be stored' });
+    }
+    const normalizedAttachmentUrl = await getSignedDownloadUrl(uploadedKey, 7 * 24 * 60 * 60);
 
     const storedAttachmentName = normalizedAttachmentName || 'Attachment';
     const result = await withTransaction(pool, async (client) => {
@@ -253,6 +260,15 @@ async function addAttachment(req, res) {
 
     res.json({ success: true, data: result.rows[0] });
   } catch (err) {
+    if (uploadedKey) {
+      await deleteFile(uploadedKey).catch((cleanupError) => {
+        logger.warn('Failed to clean up failed conversation attachment', {
+          conversationId: req.params.conversationId,
+          key: uploadedKey,
+          error: cleanupError.message,
+        });
+      });
+    }
     logger.error('addAttachment error', { error: err.message });
     sendError(res, 500, 'Failed to add attachment');
   }

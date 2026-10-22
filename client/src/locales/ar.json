@@ -6937,7 +6937,9 @@
     "caseActionRequired": "أضف رسالة أو مرفقًا أولًا.",
     "case": "قضية الدعم",
     "attachments": "المرفقات",
-    "attachmentAndReply": "رسالة أو رابط إثبات"
+    "attachmentAndReply": "رسالة أو إثبات",
+    "uploadProofFile": "حمّل ملف إيصال أو إثبات (اختياري)",
+    "removeAttachment": "إزالة"
   },
   "adminCreateUser": {
     "success": "تم إنشاء المستخدم {{email}} بنجاح.",
