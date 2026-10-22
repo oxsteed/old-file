@@ -3186,8 +3186,8 @@ exports.quoteOrder = async (req, res, next) => {
       taxable_subtotal_cents: taxableSubtotalCents,
       taxRateBps,
       tax_rate_bps: taxRateBps,
-      taxInclusive,
-      tax_inclusive: taxInclusive,
+      taxInclusive: quoteTaxPolicy.taxInclusive,
+      tax_inclusive: quoteTaxPolicy.taxInclusive,
       taxCents,
       tax_cents: taxCents,
       taxBreakdown: quoteTax.breakdown,
@@ -3928,7 +3928,7 @@ exports.createOrder = async (req, res, next) => {
           ...(scheduledFor ? { scheduledFor } : {}),
           ...(pickupContact ? { pickupContact } : {}),
           ...(cardPaymentIntentId ? { cardPaymentIntentId } : {}),
-          pricing: { taxRateBps, taxInclusive, taxJurisdiction: restaurant.tax_jurisdiction || null, serviceFeeBps, taxCents: tax, taxBreakdown: orderTax.breakdown, serviceFeeCents },
+          pricing: { taxRateBps, taxInclusive: taxPolicy.taxInclusive, taxJurisdiction: restaurant.tax_jurisdiction || null, serviceFeeBps, taxCents: tax, taxBreakdown: orderTax.breakdown, serviceFeeCents },
           ...(paymentContract.canonical === 'direct_payment' || externalPaymentSubmission ? {
             externalPayment: {
               enabled: externalPaymentEnabled,
@@ -3984,7 +3984,7 @@ exports.createOrder = async (req, res, next) => {
           ...(scheduledFor ? { scheduledFor } : {}),
           ...(pickupContact ? { pickupContact } : {}),
           ...(cardPaymentIntentId ? { cardPaymentIntentId } : {}),
-          pricing: { taxRateBps, taxInclusive, taxJurisdiction: restaurant.tax_jurisdiction || null, taxBreakdown: orderTax.breakdown, serviceFeeBps, taxCents: tax, serviceFeeCents },
+          pricing: { taxRateBps, taxInclusive: taxPolicy.taxInclusive, taxJurisdiction: restaurant.tax_jurisdiction || null, taxBreakdown: orderTax.breakdown, serviceFeeBps, taxCents: tax, serviceFeeCents },
           ...(paymentContract.canonical === 'direct_payment' || externalPaymentSubmission ? {
             externalPayment: {
               enabled: externalPaymentEnabled,

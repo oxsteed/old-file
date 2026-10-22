@@ -142,8 +142,8 @@ describe('food controller', () => {
     expect(res.status).toBe(200);
     expect(res.body.quote.tax_cents).toBe(100);
     expect(res.body.quote.tax_breakdown).toEqual([
-      { menuItemId: 10, taxableCents: 1000, taxRateBps: 1000, taxCents: 100 },
-      { menuItemId: 11, taxableCents: 500, taxRateBps: 0, taxCents: 0 },
+      { menuItemId: 10, taxableCents: 1000, rateBps: 1000, taxCents: 100, taxCategory: null, taxExempt: false },
+      { menuItemId: 11, taxableCents: 500, rateBps: 0, taxCents: 0, taxCategory: null, taxExempt: true },
     ]);
   });
 
@@ -533,37 +533,20 @@ describe('food controller', () => {
   });
 
   test('creates order totals from menu prices and assigns next queue number', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (pre-lock)
-      .mockResolvedValueOnce({
-        rows: [{
-          id: 3,
-          business_id: 42,
-          accepts_online_orders: true,
-          currency_code: 'USD',
-          prep_time_min: 12,
-        }],
-      })
-      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (post-lock recheck)
-      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations -> restaurant fallback)
-      .mockResolvedValueOnce({
-        rows: [{ id: '11', name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }],
-      })
-      .mockResolvedValueOnce({ rows: [{ id: 3 }] }) // F-18 short lock before insert
-      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (locked recheck)
-      .mockResolvedValueOnce({ rows: [{ last_queue_number: 5 }] }) // F-18/F-32 daily counter
-      .mockResolvedValueOnce({
-        rows: [{
-          id: 100,
-          restaurant_id: 3,
-          queue_number: 5,
-          subtotal_cents: 1798,
-          total_cents: 1798,
-          status: 'received',
-        }],
-      })
-      .mockResolvedValueOnce({ rows: [{ id: 200 }] });
-
+    // Pattern-based mock: F-19 (tax rules) and F-33 (prep-time) added queries
+    // that break strict positional mocking. Route by SQL instead.
+    mockQuery.mockImplementation(async (sql) => {
+      const q = String(sql);
+      if (/FROM restaurant_tax_rules/.test(q)) return { rows: [], rowCount: 0 };
+      if (/FROM restaurant_locations/.test(q) && /prep_time_auto_extend/.test(q)) return { rows: [], rowCount: 0 };
+      if (/FROM food_restaurants/.test(q) && /WHERE fr.id/.test(q)) return { rows: [{ id: 3, business_id: 42, accepts_online_orders: true, currency_code: 'USD', prep_time_min: 12 }] };
+      if (/FROM food_menu_items/.test(q)) return { rows: [{ id: '11', name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }] };
+      if (/restaurant_daily_counters/.test(q)) return { rows: [{ last_queue_number: 5 }] };
+      if (/INSERT INTO food_orders/.test(q)) return { rows: [{ id: 100, restaurant_id: 3, queue_number: 5, subtotal_cents: 1798, total_cents: 1798, status: 'received' }] };
+      if (/INSERT INTO food_order_items/.test(q)) return { rows: [{ id: 200 }] };
+      if (/SELECT.*FOR UPDATE/.test(q) && /food_restaurants/.test(q)) return { rows: [{ id: 3 }] };
+      return { rows: [], rowCount: 0 };
+    });
     const res = await request(buildApp())
       .post('/api/food/restaurants/3/orders')
       .set('Idempotency-Key', 'test-key-order-totals')
@@ -621,58 +604,20 @@ describe('food controller', () => {
       payment_intent: 'pi_test_123',
     });
 
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (pre-lock)
-      .mockResolvedValueOnce({
-        rows: [{
-          id: 3,
-          business_id: 42,
-          accepts_online_orders: true,
-          currency_code: 'USD',
-          prep_time_min: 12,
-          business_stripe_account_id: 'acct_123',
-          business_stripe_charges_enabled: true,
-          business_stripe_payouts_enabled: true,
-          business_stripe_account_status: 'active',
-        }],
-      })
-      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (post-lock recheck)
-      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations)
-      .mockResolvedValueOnce({
-        rows: [{ id: '11', name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }],
-      })
-      .mockResolvedValueOnce({ rows: [{ id: 3 }] }) // F-18 short lock before insert
-      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (locked recheck)
-      .mockResolvedValueOnce({ rows: [{ last_queue_number: 5 }] }) // F-18/F-32 daily counter
-      .mockResolvedValueOnce({
-        rows: [{
-          id: 100,
-          restaurant_id: 3,
-          queue_number: 5,
-          subtotal_cents: 899,
-          total_cents: 899,
-          status: 'received',
-          business_id: 42,
-          currency_code: 'USD',
-        }],
-      })
-      .mockResolvedValueOnce({ rows: [{ id: 200 }] })
-      .mockResolvedValueOnce({ rows: [] }) // inventory item lookup: none tracked
-      .mockResolvedValueOnce({ rows: [] }) // inventory mapping lookup: none
-      .mockResolvedValueOnce({
-        rows: [{
-          id: 100,
-          restaurant_id: 3,
-          queue_number: 5,
-          subtotal_cents: 899,
-          total_cents: 899,
-          status: 'received',
-          payment_status: 'requires_payment',
-          business_id: 42,
-          currency_code: 'USD',
-          metadata: { paymentMode: 'pay_now' },
-        }],
-      });
+    // Pattern-based mock (see 'creates order totals' above for rationale).
+    mockQuery.mockImplementation(async (sql) => {
+      const q = String(sql);
+      if (/FROM restaurant_tax_rules/.test(q)) return { rows: [], rowCount: 0 };
+      if (/FROM restaurant_locations/.test(q) && /prep_time_auto_extend/.test(q)) return { rows: [], rowCount: 0 };
+      if (/FROM food_restaurants/.test(q) && /WHERE fr.id/.test(q)) return { rows: [{ id: 3, business_id: 42, accepts_online_orders: true, currency_code: 'USD', prep_time_min: 12, business_stripe_account_id: 'acct_123', business_stripe_charges_enabled: true, business_stripe_payouts_enabled: true, business_stripe_account_status: 'active' }] };
+      if (/FROM food_menu_items/.test(q)) return { rows: [{ id: '11', name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }] };
+      if (/restaurant_daily_counters/.test(q)) return { rows: [{ last_queue_number: 5 }] };
+      if (/INSERT INTO food_orders/.test(q)) return { rows: [{ id: 100, restaurant_id: 3, queue_number: 5, subtotal_cents: 899, total_cents: 899, status: 'received', business_id: 42, currency_code: 'USD' }] };
+      if (/INSERT INTO food_order_items/.test(q)) return { rows: [{ id: 200 }] };
+      if (/SELECT.*FOR UPDATE/.test(q) && /food_restaurants/.test(q)) return { rows: [{ id: 3 }] };
+      if (/UPDATE food_orders/.test(q)) return { rows: [{ id: 100, restaurant_id: 3, queue_number: 5, subtotal_cents: 899, total_cents: 899, status: 'received', payment_status: 'requires_payment', business_id: 42, currency_code: 'USD', metadata: { paymentMode: 'pay_now' } }] };
+      return { rows: [], rowCount: 0 };
+    });
 
     const res = await request(buildApp())
       .post('/api/food/restaurants/3/orders')
@@ -698,48 +643,21 @@ describe('food controller', () => {
   });
 
   test('applies discount codes to pay-at-counter orders (promotions are payment-method agnostic)', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (pre-lock)
-      .mockResolvedValueOnce({
-        rows: [{
-          id: 3,
-          business_id: 42,
-          accepts_online_orders: true,
-          currency_code: 'USD',
-          prep_time_min: 12,
-        }],
-      })
-      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (post-lock recheck)
-      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations)
-      .mockResolvedValueOnce({
-        rows: [{ id: '11', name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }],
-      })
-      .mockResolvedValueOnce({
-        rows: [{ id: 7, code: 'FOOD10', title: 'Food 10', discount_cents: 100, min_subtotal_cents: 0 }],
-      }) // promotion lookup
-      .mockResolvedValueOnce({ rows: [{ id: 3 }] }) // F-18 short lock before insert
-      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (locked recheck)
-      .mockResolvedValueOnce({ rows: [{ last_queue_number: 5 }] }) // F-18/F-32 daily counter
-      .mockResolvedValueOnce({
-        rows: [{
-          id: 100,
-          restaurant_id: 3,
-          queue_number: 5,
-          subtotal_cents: 899,
-          discount_cents: 100,
-          total_cents: 799,
-          status: 'received',
-          payment_status: 'unpaid',
-          business_id: 42,
-          currency_code: 'USD',
-          metadata: { paymentMode: 'pay_at_counter' },
-        }],
-      })
-      .mockResolvedValueOnce({ rows: [{ id: 200 }] })
-      .mockResolvedValueOnce({ rows: [] }) // inventory item lookup: none tracked
-      .mockResolvedValueOnce({ rows: [] }) // inventory mapping lookup: none
-      .mockResolvedValueOnce({ rows: [] }) // printer jobs: none
-      .mockResolvedValueOnce({ rows: [], rowCount: 1 }); // promotion use_count increment
+    // Pattern-based mock (see 'creates order totals' above for rationale).
+    mockQuery.mockImplementation(async (sql) => {
+      const q = String(sql);
+      if (/FROM restaurant_tax_rules/.test(q)) return { rows: [], rowCount: 0 };
+      if (/FROM restaurant_locations/.test(q) && /prep_time_auto_extend/.test(q)) return { rows: [], rowCount: 0 };
+      if (/FROM food_restaurants/.test(q) && /WHERE fr.id/.test(q)) return { rows: [{ id: 3, business_id: 42, accepts_online_orders: true, currency_code: 'USD', prep_time_min: 12 }] };
+      if (/FROM food_menu_items/.test(q)) return { rows: [{ id: '11', name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }] };
+      if (/food_restaurant_promotions/.test(q)) return { rows: [{ id: 7, code: 'FOOD10', title: 'Food 10', discount_cents: 100, min_subtotal_cents: 0 }] };
+      if (/restaurant_daily_counters/.test(q)) return { rows: [{ last_queue_number: 5 }] };
+      if (/INSERT INTO food_orders/.test(q)) return { rows: [{ id: 100, restaurant_id: 3, queue_number: 5, subtotal_cents: 899, discount_cents: 100, total_cents: 799, status: 'received', payment_status: 'unpaid', business_id: 42, currency_code: 'USD', metadata: { paymentMode: 'pay_at_counter' } }] };
+      if (/INSERT INTO food_order_items/.test(q)) return { rows: [{ id: 200 }] };
+      if (/SELECT.*FOR UPDATE/.test(q) && /food_restaurants/.test(q)) return { rows: [{ id: 3 }] };
+      if (/UPDATE food_restaurant_promotions/.test(q)) return { rows: [], rowCount: 1 };
+      return { rows: [], rowCount: 0 };
+    });
 
     const res = await request(buildApp())
       .post('/api/food/restaurants/3/orders')
