@@ -8618,6 +8618,7 @@ exports.updateRunnerDispatch = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const canManage = await hasRestaurantPermission(restaurant, req.user.id, 'runner.manage');
     // Require runner.update permission for dispatch changes (parity with claim).
     await assertRestaurantPermission(restaurant, req.user.id, ['runner.update', 'runner.manage', 'orders.manage']);
@@ -8636,9 +8637,13 @@ exports.updateRunnerDispatch = async (req, res, next) => {
       throw new AppError('You do not have permission to release runner tasks', 403, 'forbidden');
     }
     const task = await withTransaction(pool, async (client) => {
+      const taskParams = [restaurantId, taskId];
+      const taskLocationFilter = locationScope.mode === 'assigned'
+        ? ` AND location_id = ANY($${taskParams.push(locationScope.location_ids)}::bigint[])`
+        : '';
       const { rows: [currentTask] } = await client.query(
-        `SELECT * FROM restaurant_runner_tasks WHERE restaurant_id = $1 AND id = $2 FOR UPDATE`,
-        [restaurantId, taskId]
+        `SELECT * FROM restaurant_runner_tasks WHERE restaurant_id = $1 AND id = $2${taskLocationFilter} FOR UPDATE`,
+        taskParams
       );
       if (!currentTask) throw new AppError('Runner task not found', 404, 'runner_task_not_found');
       if (!canManage && String(currentTask.assigned_to || '') !== String(req.user.id)) {
@@ -8723,17 +8728,22 @@ exports.completeRunnerHandoff = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const canManage = await hasRestaurantPermission(restaurant, req.user.id, 'runner.manage');
     // Use server time; ignore client-supplied handoffAt (prevents backdating).
     const handoffAt = new Date().toISOString();
     const note = normalizeString(req.body.note || req.body.handoffNote || req.body.handoff_note, 1000);
     const result = await withTransaction(pool, async (client) => {
+      const taskParams = [restaurantId, taskId];
+      const taskLocationFilter = locationScope.mode === 'assigned'
+        ? ` AND location_id = ANY($${taskParams.push(locationScope.location_ids)}::bigint[])`
+        : '';
       const { rows: [currentTask] } = await client.query(
         `SELECT *
            FROM restaurant_runner_tasks
-          WHERE restaurant_id = $1 AND id = $2
+          WHERE restaurant_id = $1 AND id = $2${taskLocationFilter}
           FOR UPDATE`,
-        [restaurantId, taskId]
+        taskParams
       );
       if (!currentTask) throw new AppError('Runner task not found', 404, 'runner_task_not_found');
       if (!canManage && String(currentTask.assigned_to || '') !== String(req.user.id)) {
@@ -8851,6 +8861,11 @@ exports.listRunnerOffers = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, req.user.id, ['runner.update', 'runner.manage', 'orders.manage']);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const offerParams = [restaurantId, req.user.id];
+    const offerLocationFilter = locationScope.mode === 'assigned'
+      ? ` AND t.location_id = ANY($${offerParams.push(locationScope.location_ids)}::bigint[])`
+      : '';
     const { rows: offers } = await pool.query(
       `SELECT t.*,
               o.guest_name AS customer_name,
@@ -8869,10 +8884,11 @@ exports.listRunnerOffers = async (req, res, next) => {
               FROM restaurant_runner_task_declines d
              WHERE d.task_id = t.id AND d.runner_user_id = $2
           )
+          ${offerLocationFilter}
         ORDER BY CASE WHEN t.status = 'Ready' THEN 0 ELSE 1 END,
                  COALESCE(t.delivery_eta_at, t.created_at) ASC
         LIMIT 100`,
-      [restaurantId, req.user.id]
+      offerParams
     );
     res.json({ offers });
   } catch (err) {
@@ -8886,7 +8902,12 @@ exports.claimRunnerTask = async (req, res, next) => {
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, req.user.id, ['runner.update', 'runner.manage', 'orders.manage']);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const task = await withTransaction(pool, async (client) => {
+      const taskParams = [req.user.id, restaurantId, taskId];
+      const taskLocationFilter = locationScope.mode === 'assigned'
+        ? ` AND location_id = ANY($${taskParams.push(locationScope.location_ids)}::bigint[])`
+        : '';
       const { rows: [claimed] } = await client.query(
         `UPDATE restaurant_runner_tasks
             SET assigned_to = $1,
@@ -8899,6 +8920,7 @@ exports.claimRunnerTask = async (req, res, next) => {
             AND assigned_to IS NULL
             AND status IN ('Queued','Ready')
             AND (offer_expires_at IS NULL OR offer_expires_at > NOW())
+            ${taskLocationFilter}
             AND NOT EXISTS (
               SELECT 1
                 FROM restaurant_runner_task_declines d
@@ -8906,14 +8928,18 @@ exports.claimRunnerTask = async (req, res, next) => {
                  AND d.runner_user_id = $1
             )
           RETURNING *`,
-        [req.user.id, restaurantId, taskId]
+        taskParams
       );
       if (!claimed) {
+        const existingParams = [restaurantId, taskId];
+        const existingLocationFilter = locationScope.mode === 'assigned'
+          ? ` AND location_id = ANY($${existingParams.push(locationScope.location_ids)}::bigint[])`
+          : '';
         const { rows: [existing] } = await client.query(
           `SELECT assigned_to, status, offer_expires_at
              FROM restaurant_runner_tasks
-            WHERE restaurant_id = $1 AND id = $2`,
-          [restaurantId, taskId]
+            WHERE restaurant_id = $1 AND id = $2${existingLocationFilter}`,
+          existingParams
         );
         if (!existing) throw new AppError('Runner task not found', 404, 'runner_task_not_found');
         throw new AppError('This delivery offer is no longer available', 409, 'runner_offer_unavailable');
@@ -8933,6 +8959,11 @@ exports.declineRunnerTask = async (req, res, next) => {
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, req.user.id, ['runner.update', 'runner.manage', 'orders.manage']);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const declineParams = [restaurantId, taskId, req.user.id, normalizeString(req.body.reason, 1000)];
+    const declineLocationFilter = locationScope.mode === 'assigned'
+      ? ` AND t.location_id = ANY($${declineParams.push(locationScope.location_ids)}::bigint[])`
+      : '';
     const { rows: [decline] } = await pool.query(
       `INSERT INTO restaurant_runner_task_declines
          (restaurant_id, task_id, runner_user_id, reason)
@@ -8942,10 +8973,11 @@ exports.declineRunnerTask = async (req, res, next) => {
           AND t.id = $2
           AND t.assigned_to IS NULL
           AND t.status IN ('Queued','Ready')
+          ${declineLocationFilter}
        ON CONFLICT (task_id, runner_user_id)
        DO UPDATE SET reason = EXCLUDED.reason, created_at = NOW()
        RETURNING *`,
-      [restaurantId, taskId, req.user.id, normalizeString(req.body.reason, 1000)]
+      declineParams
     );
     if (!decline) throw new AppError('This delivery offer is no longer available', 409, 'runner_offer_unavailable');
     broadcastRestaurant(restaurant, 'food:runner:task:declined', { taskId, runnerUserId: req.user.id });
@@ -8960,6 +8992,7 @@ exports.logRunnerLocation = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId || req.body.taskId || req.body.task_id);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const canManage = await hasRestaurantPermission(restaurant, req.user.id, 'runner.manage');
     const latitude = parseFiniteNumber(req.body.latitude ?? req.body.lat, 'latitude');
     const longitude = parseFiniteNumber(req.body.longitude ?? req.body.lng, 'longitude');
@@ -8967,9 +9000,13 @@ exports.logRunnerLocation = async (req, res, next) => {
       throw new AppError('Validation failed', 400, 'validation_failed', { location: 'Invalid latitude/longitude' });
     }
     if (taskId) {
+      const taskParams = [taskId, restaurantId];
+      const taskLocationFilter = locationScope.mode === 'assigned'
+        ? ` AND location_id = ANY($${taskParams.push(locationScope.location_ids)}::bigint[])`
+        : '';
       const { rows: [task] } = await pool.query(
-        `SELECT id, assigned_to, status FROM restaurant_runner_tasks WHERE id = $1 AND restaurant_id = $2`,
-        [taskId, restaurantId]
+        `SELECT id, assigned_to, status FROM restaurant_runner_tasks WHERE id = $1 AND restaurant_id = $2${taskLocationFilter}`,
+        taskParams
       );
       if (!task) throw new AppError('Runner task not found', 404, 'runner_task_not_found');
       if (!canManage
@@ -9008,14 +9045,18 @@ exports.logRunnerLocation = async (req, res, next) => {
       ]
     );
     if (taskId) {
+      const updateParams = [latitude, longitude, ping.captured_at, taskId, restaurantId];
+      const taskLocationFilter = locationScope.mode === 'assigned'
+        ? ` AND location_id = ANY($${updateParams.push(locationScope.location_ids)}::bigint[])`
+        : '';
       await pool.query(
         `UPDATE restaurant_runner_tasks
             SET last_latitude = $1,
                 last_longitude = $2,
                 last_location_at = $3,
                 updated_at = NOW()
-          WHERE id = $4 AND restaurant_id = $5`,
-        [latitude, longitude, ping.captured_at, taskId, restaurantId]
+          WHERE id = $4 AND restaurant_id = $5${taskLocationFilter}`,
+        updateParams
       );
     }
     broadcastRestaurant(restaurant, 'food:runner:location', { ping });
