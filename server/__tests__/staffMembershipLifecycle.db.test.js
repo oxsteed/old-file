@@ -442,6 +442,7 @@ suite('staff membership lifecycle (S-01/S-03/S-09/S-10/S-11/S-13)', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.data.offboarding).toEqual({
       pinsDeactivated: 1,
+      sessionsEnded: 0,
       drawersFlagged: 1,
       crewTasksUnassigned: 1,
       correctiveActionsUnassigned: 1,
