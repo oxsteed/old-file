@@ -1,4 +1,4 @@
--- Migration 1501: TOTP step-up for admin credit money actions (auth-audit item 12).
+-- Migration 99911: TOTP step-up for admin credit money actions (auth-audit item 12).
 -- The admin credit dual-approval path previously proved "fresh step-up" with
 -- an emailed 6-digit code, so the second factor was only as strong as the
 -- admin's email account. Per the product decision, the admin credit

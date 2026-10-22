@@ -1,4 +1,4 @@
--- Migration 1202: S-11 offboarding records + retention policy +
+-- Migration 99908: S-11 offboarding records + retention policy +
 -- residual staff-history cascade fixes.
 --
 -- 1. staff_offboarding_records: one row per member removal, capturing

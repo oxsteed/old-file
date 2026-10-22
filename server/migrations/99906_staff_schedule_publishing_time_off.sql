@@ -1,4 +1,4 @@
--- Migration 1200: S-04 schedule publishing + time-off/PTO requests.
+-- Migration 99906: S-04 schedule publishing + time-off/PTO requests.
 --
 -- Schedule publishing: business_staff_shifts gains published_at /
 -- published_by. New rows are drafts (published_at IS NULL) until a

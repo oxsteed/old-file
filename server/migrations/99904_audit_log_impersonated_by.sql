@@ -1,4 +1,4 @@
--- Migration 1104: stamp the impersonating admin on audit rows.
+-- Migration 99904: stamp the impersonating admin on audit rows.
 -- Auth-audit finding 35: actions taken under an impersonated session
 -- previously attributed only to the victim's account; impersonated_by
 -- records which admin actually drove the action.

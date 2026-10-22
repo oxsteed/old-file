@@ -1,4 +1,4 @@
--- Migration 1201: S-10 invite expiry lifecycle.
+-- Migration 99907: S-10 invite expiry lifecycle.
 --
 -- Adds 'expired' to business_members.status so the expiry sweeper (and
 -- the manual "expire now" action) can mark lapsed pending invites

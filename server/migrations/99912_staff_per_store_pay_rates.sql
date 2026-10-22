@@ -1,4 +1,4 @@
--- Migration 1510: S-18 per-store pay rates + S-11 residual cascade fix.
+-- Migration 99912: S-18 per-store pay rates + S-11 residual cascade fix.
 --
 -- 1. S-18: restaurant_location_memberships gains pay_rate_cents /
 --    pay_rate_period. A store-level rate overrides the business-level

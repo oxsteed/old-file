@@ -1,4 +1,4 @@
--- Migration 1500: per-store loyalty campaign and segment targeting.
+-- Migration 99910: per-store loyalty campaign and segment targeting.
 -- Campaigns can target a subset of the restaurant's stores (location_ids);
 -- NULL or an empty array keeps the legacy all-stores audience. Deliveries
 -- carry the attributed store (location_id) for store-scoped reporting.

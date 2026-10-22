@@ -1,4 +1,4 @@
--- Migration 1511: S-20 native labor-law jurisdiction engine basics.
+-- Migration 99913: S-20 native labor-law jurisdiction engine basics.
 --
 -- A jurisdiction is configured per restaurant location
 -- (restaurant_labor_jurisdictions): a jurisdiction code such as 'US-FED',
