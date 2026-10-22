@@ -468,12 +468,6 @@ async function getScheduledHoursByUser(businessId, restaurantId, fromDate, toDat
         -- S-04: planned labor counts published shifts; drafts are not
         -- commitments yet.
         AND published_at IS NOT NULL
-=======
-        AND (restaurant_id IS NULL OR restaurant_id = $4)${storeFilter(locationIds, 'location_id', 5)}
-        -- S-04: planned labor counts published shifts; drafts are not
-        -- commitments yet.
-        AND published_at IS NOT NULL
->>>>>>> origin/old-files-claude
       GROUP BY user_id`,
     storeParams([businessId, fromDate, toDate, restaurantId], locationIds)
   );
@@ -955,11 +949,6 @@ async function computeExceptions({ restaurant, fromDate, toDate, locationIds = n
           AND (sh.restaurant_id IS NULL OR sh.restaurant_id = $4)${storeFilter(locationIds, 'sh.location_id', 5)}
           -- S-04: only published shifts can be "missed punches".
           AND sh.published_at IS NOT NULL
-=======
-          AND (sh.restaurant_id IS NULL OR sh.restaurant_id = $4)${storeFilter(locationIds, 'sh.location_id', 5)}
-          -- S-04: only published shifts can be "missed punches".
-          AND sh.published_at IS NOT NULL
->>>>>>> origin/old-files-claude
           AND NOT EXISTS (
             SELECT 1 FROM business_time_entries te
              WHERE te.business_id = sh.business_id
