@@ -22,6 +22,16 @@ const email = require('../utils/email');
 const USER_ID = '00000000-0000-4000-8000-000000000888';
 const ADMIN_ID = '00000000-0000-4000-8000-000000000889';
 
+// Track F: attachments are upload-only (multipart). Mock the storage layer
+// and the file-content validator (we test attachment storage, not upload
+// security scanning).
+jest.mock('../middleware/validateFileUpload', () => (req, res, next) => next());
+jest.mock('../utils/storage', () => ({
+  uploadFile: jest.fn(async () => 'support-conversations/test-upload.png'),
+  getSignedDownloadUrl: jest.fn(async () => '/api/storage/public/support-conversations/test-upload.png'),
+  deleteFile: jest.fn(async () => {}),
+}));
+
 function buildApp() {
   const app = express();
   // Same per-request context index.js mounts first (decision 5). Admin
@@ -1250,23 +1260,23 @@ describe('support routes', () => {
       .mockResolvedValueOnce({ rows: [{ id: 'attachment-1', conversation_id: 'conversation-1' }] })
       .mockResolvedValueOnce({ rows: [] });
 
+    // Track F: upload-only. Pasted attachmentUrl is rejected; use multipart.
     const res = await request(buildApp())
       .post('/api/support/42/conversations/conversation-1/attachment')
       .set('Authorization', adminAuthHeader())
-      .send({ attachmentUrl: '/api/storage/public/support/image.png', attachmentName: 'proof.png' });
+      .field('attachmentName', 'proof.png')
+      .attach('file', Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'), { filename: 'proof.png', contentType: 'image/png' });
 
     expect(res.status).toBe(200);
     const insertIndex = mockQuery.mock.calls.findIndex(([sql]) => /INSERT INTO support_conversation_messages/.test(sql));
     const counterIndex = mockQuery.mock.calls.findIndex(([sql]) => /UPDATE support_conversations SET message_count/.test(sql));
     expect(insertIndex).toBeGreaterThan(-1);
     expect(counterIndex).toBe(insertIndex + 1);
-    expect(mockQuery.mock.calls[insertIndex][1]).toEqual([
-      'conversation-1',
-      ADMIN_ID,
-      'proof.png',
-      '/api/storage/public/support/image.png',
-      'proof.png',
-    ]);
+    // The stored URL is the uploaded file's public URL, not a pasted link.
+    const params = mockQuery.mock.calls[insertIndex][1];
+    expect(params[0]).toBe('conversation-1');
+    expect(params[1]).toBe(ADMIN_ID);
+    expect(params[3]).toBe('/api/storage/public/support-conversations/test-upload.png');
   });
 
   test('rejects oversized attachment names before authorization or database writes', async () => {
