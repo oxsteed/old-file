@@ -486,3 +486,20 @@ hardware decisions do not excuse independent software work on these flows.
 - No production database, Redis, uploads, stored-value controls, or deployment
   was modified. This isolated schema fixture does not replace the complete
   migration rehearsal or production acceptance.
+
+
+## Thirty follow-up fixes - 2026-10-22
+
+Implemented the approved batch of 30 validation, authorization, store-scope, audit-transaction, reservation-concurrency and notification-recovery fixes. The exact numbered mapping, operational changes and evidence are in [THIRTY-FIXES-2026-10-22.md](THIRTY-FIXES-2026-10-22.md). This is a source checkpoint; the broader review remains incomplete.
+
+Migration 994 introduces `payroll.manage`, payroll store attribution, and waitlist SMS leases. Assigned-store reports exclude unassigned historical records. Brand CRM management and brand labor/tip settings require all-store access. Campaign dispatch remains explicitly default-off, with approval before queueing.
+
+Verification: **180 passed across 18 focused suites**, including **14 real PostgreSQL cases** in an explicit disposable loopback database. The complete migration runner applied and replayed **969/969 migrations**, including migration 994, in a disposable Colima container. JavaScript syntax, CI YAML/DB-step checks and `git diff --check` passed. No client source, live provider or production deployment verification is claimed. Exact commands and the 30-item mapping are in the linked batch document.
+
+## Fifty additional fixes - 2026-10-22
+
+Implemented another 50 review-linked corrections in accounting tenant authorization/journal integrity, quality audits, training, checklist transactions and HQ store compliance. The exact numbered mapping, regression evidence and rollout boundaries are in [FIFTY-FIXES-2026-10-22.md](FIFTY-FIXES-2026-10-22.md).
+
+Migration 995 adds the explicit `audit.manage` grant, archive/history retention, audit/checklist store identity and stable run snapshots, including one-time pinning of open legacy audits. The web audit runner uses persisted run items and historical saved score rows. Unknown historical store identity remains excluded from assigned-store metrics. Audit management and brand accounting/region configuration require the corresponding explicit authority.
+
+Verification: **193 server tests passed across 10 focused suites**, including the new **21-case full-schema PostgreSQL suite**, existing training lifecycle cases and 15 permission-resolver cases. The Chrome audit-history regression and client `build:ci` passed. All **970 migrations** applied and replayed successfully in a disposable Colima database. CI YAML, its new full-schema PostgreSQL shell step, JavaScript syntax and diff checks passed. This remains an incomplete broader review checkpoint; no production/provider activation or Credit change is claimed.
