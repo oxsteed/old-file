@@ -1,4 +1,9 @@
--- 1551: growth erasure anonymization support.
+-- 99980: growth erasure anonymization support.
+--
+-- Numbering note: server/migrate.js sorts migration filenames
+-- lexicographically, so a 4-digit 1xxx name would run BEFORE 951_*.sql on a
+-- fresh database (before the tables below exist). The 99980+ range sorts
+-- after all 9xx migrations.
 --
 -- Privacy retention policy (Emile 2026-10-22): on erasure, delivered
 -- campaign/contact history is anonymized to the internal recipient_id
