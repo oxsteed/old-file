@@ -6,65 +6,29 @@
 // catalog `payroll.view` permission (owners hold every permission;
 // managers do NOT get payroll.view by default — see migration 245 —
 // so a manager needs an explicit grant). The team activity view
-// requires `audit.view`. Tip pool settings and cash-tip declarations
-// write audit rows.
+// requires `audit.view`. Mutations require the explicit `payroll.manage`
+// grant. Brand policy changes also require all-store access.
 
-const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
+const pool = require('../db');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
-const { getLocationScope, assertLocationAccess } = require('../services/restaurantLocationAccessService');
 const { getEffectivePermissions } = require('../services/permissionsService');
 const { logBusinessAction, listBusinessAudit, listBusinessAuditActors } = require('../services/businessAuditLog');
 const payroll = require('../services/restaurantPayrollService');
+const { getLocationScope, assertLocationAccess } = require('../services/restaurantLocationAccessService');
+const { strictInteger } = require('../utils/strictInteger');
 
-const MANAGE_ROLES = new Set(['owner', 'manager']);
 
 function parsePositiveInt(value) {
-  const n = Number(value);
-  return Number.isInteger(n) && n > 0 ? n : null;
+  return strictInteger(value);
 }
 
-async function requireManager(req) {
+async function restaurantAccess(req) {
   const restaurantId = parsePositiveInt(req.params.restaurantId);
   if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
   const restaurant = await resolveRestaurantAccess(req.user.id, restaurantId);
-  if (!MANAGE_ROLES.has(restaurant.effective_role)) {
-    throw new AppError('You do not have permission to view reports', 403, 'forbidden');
-  }
+
   return restaurant;
-}
-
-async function resolveRestaurant(req) {
-  const restaurantId = parsePositiveInt(req.params.restaurantId);
-  if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-  return resolveRestaurantAccess(req.user.id, restaurantId);
-}
-
-// Audit fix (finding 25): the tip-pool / payroll-exception sub-surfaces
-// used a hard-coded owner/manager role check, invisible to per-membership
-// deny overrides. They now resolve through the permission catalog with the
-// tips.view / tips.manage codes (migration 1101): owners and managers hold
-// both by default, and deny overrides revoke them.
-function requireTipsView(req) {
-  return resolveRestaurant(req).then(async (restaurant) => {
-    await requireCatalogPermission(
-      restaurant, req.user.id, 'tips.view',
-      'tips_permission_required',
-      'Viewing tip reports requires the tips.view permission'
-    );
-    return restaurant;
-  });
-}
-
-function requireTipsManage(req) {
-  return resolveRestaurant(req).then(async (restaurant) => {
-    await requireCatalogPermission(
-      restaurant, req.user.id, 'tips.manage',
-      'tips_permission_required',
-      'Managing tip settings requires the tips.manage permission'
-    );
-    return restaurant;
-  });
 }
 
 // Fail closed: any resolver error or a missing permission denies.
@@ -113,19 +77,18 @@ function parseRangeOr400(query, restaurant) {
 
 exports.laborSummary = async (req, res, next) => {
   try {
-    const restaurant = await requireManager(req);
+    const restaurant = await restaurantAccess(req);
     await requirePayrollView(restaurant, req.user.id);
     const { fromDate, toDate } = parseRangeOr400(req.query, restaurant);
-    // Audit fix (finding 22): location-scoped viewers only see their stores.
-    const locationScope = await getLocationScope(restaurant, req.user.id);
-    const labor = await payroll.computeLabor({ restaurant, fromDate, toDate, locationScope });
+    const scope = await getLocationScope(restaurant, req.user.id);
+    const labor = await payroll.computeLabor({ restaurant, fromDate, toDate, locationIds: scope.location_ids });
     res.json(labor);
   } catch (err) { next(err); }
 };
 
 exports.getLaborPolicy = async (req, res, next) => {
   try {
-    const restaurant = await requireManager(req);
+    const restaurant = await restaurantAccess(req);
     await requirePayrollView(restaurant, req.user.id);
     const policy = await payroll.getLaborPolicy(restaurant.id);
     res.json({ policy });
@@ -134,8 +97,10 @@ exports.getLaborPolicy = async (req, res, next) => {
 
 exports.updateLaborPolicy = async (req, res, next) => {
   try {
-    const restaurant = await requireManager(req);
-    await requirePayrollView(restaurant, req.user.id);
+    const restaurant = await restaurantAccess(req);
+    await requireCatalogPermission(restaurant, req.user.id, 'payroll.manage', 'payroll_permission_required', 'Required permission: payroll.manage');
+    const scope = await getLocationScope(restaurant, req.user.id);
+    if (scope.mode === 'assigned') throw new AppError('Brand settings require all-store access', 403, 'location_scope_forbidden');
     const body = req.body || {};
     const current = await payroll.getLaborPolicy(restaurant.id);
     const policy = await payroll.saveLaborPolicy(restaurant.id, {
@@ -163,12 +128,11 @@ exports.updateLaborPolicy = async (req, res, next) => {
 
 exports.payrollExportCsv = async (req, res, next) => {
   try {
-    const restaurant = await requireManager(req);
+    const restaurant = await restaurantAccess(req);
     await requirePayrollView(restaurant, req.user.id);
     const { fromDate, toDate } = parseRangeOr400(req.query, restaurant);
-    // Audit fix (finding 22): location-scoped viewers only see their stores.
-    const locationScope = await getLocationScope(restaurant, req.user.id);
-    const labor = await payroll.computeLabor({ restaurant, fromDate, toDate, locationScope });
+    const scope = await getLocationScope(restaurant, req.user.id);
+    const labor = await payroll.computeLabor({ restaurant, fromDate, toDate, locationIds: scope.location_ids });
     const csv = payroll.buildPayrollCsv(labor);
     await logBusinessAction(req, {
       business_id: restaurant.business_id,
@@ -189,11 +153,11 @@ exports.payrollExportCsv = async (req, res, next) => {
 
 exports.exceptionsReport = async (req, res, next) => {
   try {
-    const restaurant = await requireTipsView(req);
+    const restaurant = await restaurantAccess(req);
+    await requireCatalogPermission(restaurant, req.user.id, 'audit.view', 'payroll_permission_required', 'Required permission: audit.view');
     const { fromDate, toDate } = parseRangeOr400(req.query, restaurant);
-    // Audit fix (finding 22): location-scoped viewers only see their stores.
-    const locationScope = await getLocationScope(restaurant, req.user.id);
-    const report = await payroll.computeExceptions({ restaurant, fromDate, toDate, locationScope });
+    const scope = await getLocationScope(restaurant, req.user.id);
+    const report = await payroll.computeExceptions({ restaurant, fromDate, toDate, locationIds: scope.location_ids });
     res.json(report);
   } catch (err) { next(err); }
 };
@@ -204,14 +168,20 @@ const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 exports.teamActivity = async (req, res, next) => {
   try {
-    const restaurant = await requireManager(req);
+    const restaurant = await restaurantAccess(req);
     await requireAuditView(restaurant, req.user.id);
     const fromRaw = req.query.from ? String(req.query.from) : null;
     const toRaw = req.query.to ? String(req.query.to) : null;
-    const from = fromRaw && DATE_ONLY_RE.test(fromRaw) ? `${fromRaw}T00:00:00.000Z` : fromRaw;
-    const to = toRaw && DATE_ONLY_RE.test(toRaw) ? `${toRaw}T23:59:59.999Z` : toRaw;
+    for (const value of [fromRaw, toRaw]) {
+      if (value && (DATE_ONLY_RE.test(value) ? !payroll.isRealDateString(value) : !Number.isFinite(Date.parse(value)))) throw new AppError('Invalid activity date', 400, 'invalid_range');
+    }
+    const scope = await getLocationScope(restaurant, req.user.id);
+    const auditScope = { restaurantId: restaurant.id, locationIds: scope.location_ids, timezone: payroll.resolveReportTimezone(restaurant) };
+    const from = fromRaw;
+    const to = toRaw;
     const [result, actors] = await Promise.all([
       listBusinessAudit(restaurant.business_id, {
+        ...auditScope,
         limit: req.query.limit,
         offset: req.query.offset,
         action: req.query.action ? String(req.query.action) : undefined,
@@ -220,7 +190,7 @@ exports.teamActivity = async (req, res, next) => {
         from: from || undefined,
         to: to || undefined,
       }),
-      listBusinessAuditActors(restaurant.business_id),
+      listBusinessAuditActors(restaurant.business_id, auditScope),
     ]);
     res.json({ entries: result.rows, total: result.total, actors });
   } catch (err) { next(err); }
@@ -230,7 +200,8 @@ exports.teamActivity = async (req, res, next) => {
 
 exports.getTipPoolSettings = async (req, res, next) => {
   try {
-    const restaurant = await requireTipsView(req);
+    const restaurant = await restaurantAccess(req);
+    await requireCatalogPermission(restaurant, req.user.id, 'payroll.view', 'payroll_permission_required', 'Required permission: payroll.view');
     const settings = await payroll.getTipPoolSettings(restaurant.id);
     res.json({ settings });
   } catch (err) { next(err); }
@@ -238,7 +209,10 @@ exports.getTipPoolSettings = async (req, res, next) => {
 
 exports.updateTipPoolSettings = async (req, res, next) => {
   try {
-    const restaurant = await requireTipsManage(req);
+    const restaurant = await restaurantAccess(req);
+    await requireCatalogPermission(restaurant, req.user.id, 'payroll.manage', 'payroll_permission_required', 'Required permission: payroll.manage');
+    const scope = await getLocationScope(restaurant, req.user.id);
+    if (scope.mode === 'assigned') throw new AppError('Brand settings require all-store access', 403, 'location_scope_forbidden');
     const body = req.body || {};
     let settings;
     try {
@@ -270,44 +244,40 @@ exports.updateTipPoolSettings = async (req, res, next) => {
 
 exports.declareCashTip = async (req, res, next) => {
   try {
-    const restaurant = await requireTipsManage(req);
+    const restaurant = await restaurantAccess(req);
+    await requireCatalogPermission(restaurant, req.user.id, 'payroll.manage', 'payroll_permission_required', 'Required permission: payroll.manage');
     const body = req.body || {};
     const staffUserId = body.staffUserId || body.staff_user_id;
     const businessDate = body.date || body.businessDate || body.business_date;
-    const amountCents = Number(body.amountCents ?? body.amount_cents);
+    const amountCents = strictInteger(body.amountCents ?? body.amount_cents, { max: 1000000 });
     if (!staffUserId || typeof staffUserId !== 'string') {
       throw new AppError('Validation failed', 400, 'validation_failed', { staffUserId: 'A staff member is required' });
     }
-    if (!businessDate || !/^\d{4}-\d{2}-\d{2}$/.test(String(businessDate))) {
+    if (!payroll.isRealDateString(businessDate)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { date: 'A valid date (YYYY-MM-DD) is required' });
     }
     if (!Number.isInteger(amountCents) || amountCents <= 0 || amountCents > 1000000) {
       throw new AppError('Validation failed', 400, 'validation_failed', { amountCents: 'Amount must be a positive number of cents up to 1000000' });
     }
-    const roster = await payroll.getRoster(restaurant.business_id);
+    const scope = await getLocationScope(restaurant, req.user.id);
+    const locationId = body.locationId == null ? null : strictInteger(body.locationId);
+    if ((body.locationId != null && !locationId) || (scope.mode === 'assigned' && !locationId)) throw new AppError('A valid store is required', 400, 'invalid_location_id');
+    if (locationId) {
+      const { rows } = await pool.query('SELECT id FROM restaurant_locations WHERE restaurant_id=$1 AND id=$2 AND status <> \'archived\'', [restaurant.id, locationId]);
+      if (!rows.length) throw new AppError('Location not found', 404, 'location_not_found');
+      await assertLocationAccess(restaurant, req.user.id, locationId);
+    }
+    const roster = await payroll.getRoster(restaurant.business_id, scope.location_ids, restaurant.id);
     if (!roster.some((m) => m.user_id === staffUserId)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { staffUserId: 'Staff member is not on this restaurant team' });
     }
-    // Audit fix (finding 22): declarations are store-attributed when the
-    // caller names a store, so location-scoped rollups can include them.
-    const locationId = body.locationId ?? body.location_id ?? null;
-    if (locationId !== null && locationId !== undefined) {
-      const { rows: [location] } = await pool.query(
-        `SELECT id FROM restaurant_locations WHERE restaurant_id = $1 AND id = $2`,
-        [restaurant.id, Number(locationId)]
-      );
-      if (!location) {
-        throw new AppError('Validation failed', 400, 'validation_failed', { locationId: 'Unknown store for this restaurant' });
-      }
-      await assertLocationAccess(restaurant, req.user.id, Number(locationId));
-    }
     const declaration = await payroll.declareCashTip(restaurant.id, {
       staffUserId,
+      locationId,
       businessDate: String(businessDate),
       amountCents,
       declaredBy: req.user.id,
       note: body.note ? String(body.note).slice(0, 500) : null,
-      locationId,
     });
     await logBusinessAction(req, {
       business_id: restaurant.business_id,
@@ -315,7 +285,7 @@ exports.declareCashTip = async (req, res, next) => {
       action: 'restaurant.cash_tip.declared',
       target_type: 'user',
       target_id: staffUserId,
-      after_state: { amount_cents: amountCents, business_date: String(businessDate), declaration_id: declaration.id },
+      after_state: { location_id: locationId, amount_cents: amountCents, business_date: String(businessDate), declaration_id: declaration.id },
     });
     res.status(201).json({ declaration });
   } catch (err) { next(err); }

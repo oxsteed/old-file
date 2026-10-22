@@ -1,6 +1,8 @@
 'use strict';
 
 const crypto = require('crypto');
+const { strictInteger } = require('../utils/strictInteger');
+const { hostingMessage } = require('../services/restaurantHostingMessages');
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
@@ -16,7 +18,7 @@ const TABLE_STATUSES = ['active', 'disabled'];
 const WAITLIST_STATUSES = ['waiting', 'notified', 'seated', 'cancelled', 'expired'];
 
 function positiveId(value, label) {
-  const id = Number(value);
+  const id = strictInteger(value);
   if (!Number.isSafeInteger(id) || id <= 0) throw new AppError(`Invalid ${label}`, 400, 'invalid_request');
   return id;
 }
@@ -55,15 +57,50 @@ async function access(req, codes = ['restaurant.manage', 'pos.use', 'orders.mana
   return restaurant;
 }
 
-async function resolveLocation(client, restaurantId, requested) {
+async function resolveLocation(client, restaurantId, requested, restaurant = null, userId = null) {
   const locationId = requested == null ? null : positiveId(requested, 'location');
   const result = await client.query(`SELECT id, restaurant_id, name, status, timezone
     FROM restaurant_locations
     WHERE restaurant_id=$1 AND status <> 'archived' AND ($2::bigint IS NULL AND is_primary=TRUE OR id=$2)
     ORDER BY is_primary DESC, id ASC LIMIT 1`, [restaurantId, locationId]);
   if (!result.rows[0]) throw new AppError('Location not found', 404, 'location_not_found');
+  if (restaurant) await assertLocationAccess(restaurant, userId, result.rows[0].id, client);
   return result.rows[0];
 }
+
+function normalizePosition(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)
+    || Object.keys(value).some((key) => !['x', 'y'].includes(key))) {
+    throw new AppError('Invalid table position', 400, 'invalid_request');
+  }
+  for (const coordinate of Object.values(value)) {
+    if (typeof coordinate !== 'number' || !Number.isFinite(coordinate) || coordinate < 0 || coordinate > 100) {
+      throw new AppError('Table coordinates must be percentages from 0 to 100', 400, 'invalid_request');
+    }
+  }
+  return value;
+}
+
+function assertReservationReplay(existing, locationId, input, source) {
+  const sameInstant = (a, b) => new Date(a).getTime() === new Date(b).getTime();
+  if (Number(existing.location_id) !== Number(locationId)
+    || existing.guest_name !== input.guestName
+    || (existing.guest_phone || null) !== input.guestPhone
+    || (existing.guest_email || null) !== input.guestEmail
+    || Number(existing.party_size) !== input.partySize
+    || !sameInstant(existing.starts_at, input.startsAt) || !sameInstant(existing.ends_at, input.endsAt)
+    || (existing.notes || null) !== input.notes || existing.source !== source
+    || Number(existing.table_id || 0) !== Number(input.tableId || 0)) {
+    throw new AppError('Reservation retry conflicts with the original request', 409, 'idempotency_conflict');
+  }
+}
+
+const RESERVATION_TRANSITIONS = {
+  pending: ['confirmed', 'cancelled', 'no_show'],
+  confirmed: ['seated', 'cancelled', 'no_show'],
+  seated: ['completed', 'cancelled'],
+  completed: [], cancelled: [], no_show: [],
+};
 
 function reservationPayload(body) {
   const startsAt = instant(body.startsAt, 'start time');
@@ -119,12 +156,13 @@ exports.createPublicReservationRequest = async (req, res, next) => {
     const restaurantId = positiveId(req.params.restaurantId, 'restaurant');
     const input = publicReservationPayload(req.body || {}, req.get('Idempotency-Key'));
     const result = await withTransaction(pool, async (client) => {
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`reservation:${restaurantId}:${input.idempotencyKey}`]);
       const location = await resolveLocation(client, restaurantId, req.body?.locationId);
       const { rows: [existing] } = await client.query(
         `SELECT * FROM restaurant_reservations WHERE restaurant_id=$1 AND idempotency_key=$2 FOR UPDATE`,
         [restaurantId, input.idempotencyKey]
       );
-      if (existing) return { reservation: publicReservationShape(existing), idempotent: true };
+      if (existing) { assertReservationReplay(existing, location.id, input, 'public'); return { reservation: publicReservationShape(existing), idempotent: true }; }
       const { rows: [created] } = await client.query(`INSERT INTO restaurant_reservations
         (restaurant_id, location_id, guest_name, guest_phone, guest_email, party_size,
          starts_at, ends_at, status, source, notes, idempotency_key, created_by)
@@ -140,7 +178,7 @@ exports.createPublicReservationRequest = async (req, res, next) => {
 exports.listTables = async (req, res, next) => {
   try {
     const restaurant = await access(req, ['restaurant.manage', 'pos.use', 'orders.manage']);
-    const location = await resolveLocation(pool, restaurant.id, req.query.locationId);
+    const location = await resolveLocation(pool, restaurant.id, req.query.locationId, restaurant, req.user.id);
     const { rows } = await pool.query(`SELECT * FROM restaurant_tables
       WHERE restaurant_id=$1 AND location_id=$2 ORDER BY status, section NULLS LAST, name, id`, [restaurant.id, location.id]);
     res.json({ location, tables: rows });
@@ -151,11 +189,11 @@ exports.createTable = async (req, res, next) => {
   try {
     const restaurant = await access(req, ['restaurant.manage']);
     const table = await withTransaction(pool, async (client) => {
-      const location = await resolveLocation(client, restaurant.id, req.body.locationId);
+      const location = await resolveLocation(client, restaurant.id, req.body.locationId, restaurant, req.user.id);
       const name = requiredText(req.body.name, 'table name', 120);
       const capacity = partySize(req.body.capacity);
       const section = optionalText(req.body.section, 120);
-      const position = req.body.position && typeof req.body.position === 'object' && !Array.isArray(req.body.position) ? req.body.position : {};
+      const position = req.body.position === undefined ? {} : normalizePosition(req.body.position);
       const { rows: [created] } = await client.query(`INSERT INTO restaurant_tables
         (restaurant_id, location_id, name, capacity, section, position, created_by)
         VALUES($1,$2,$3,$4,$5,$6::jsonb,$7) RETURNING *`,
@@ -179,11 +217,22 @@ exports.updateTable = async (req, res, next) => {
     }
     if (req.body.capacity !== undefined) { updates.push(`capacity=$${values.length + 1}`); values.push(partySize(req.body.capacity)); }
     if (status) { updates.push(`status=$${values.length + 1}`); values.push(status); }
-    if (req.body.position !== undefined) { updates.push(`position=$${values.length + 1}::jsonb`); values.push(JSON.stringify(req.body.position || {})); }
+    if (req.body.position !== undefined) { updates.push(`position=$${values.length + 1}::jsonb`); values.push(JSON.stringify(normalizePosition(req.body.position))); }
     if (!updates.length) throw new AppError('No table changes supplied', 400, 'invalid_request');
-    const { rows: [table] } = await pool.query(`UPDATE restaurant_tables SET ${updates.join(', ')}, updated_at=NOW()
-      WHERE restaurant_id=$1 AND id=$2 RETURNING *`, values);
-    if (!table) throw new AppError('Table not found', 404, 'table_not_found');
+    const table = await withTransaction(pool, async (client) => {
+      const { rows: [current] } = await client.query('SELECT * FROM restaurant_tables WHERE restaurant_id=$1 AND id=$2 FOR UPDATE', [restaurant.id, tableId]);
+      if (!current) throw new AppError('Table not found', 404, 'table_not_found');
+      await assertLocationAccess(restaurant, req.user.id, current.location_id, client);
+      if (req.body.capacity !== undefined) {
+        const { rows } = await client.query(`SELECT id FROM restaurant_reservations
+          WHERE restaurant_id=$1 AND table_id=$2 AND status = ANY($3::text[]) AND party_size > $4 LIMIT 1`,
+        [restaurant.id, tableId, ACTIVE_RESERVATION_STATUSES, partySize(req.body.capacity)]);
+        if (rows.length) throw new AppError('Capacity is below an active reservation party size', 409, 'table_capacity_exceeded');
+      }
+      const { rows: [updated] } = await client.query(`UPDATE restaurant_tables SET ${updates.join(', ')}, updated_at=NOW()
+        WHERE restaurant_id=$1 AND id=$2 RETURNING *`, values);
+      return updated;
+    }, 'restaurant_table_update');
     res.json({ table });
   } catch (error) { next(error); }
 };
@@ -191,7 +240,7 @@ exports.updateTable = async (req, res, next) => {
 exports.listReservations = async (req, res, next) => {
   try {
     const restaurant = await access(req);
-    const location = await resolveLocation(pool, restaurant.id, req.query.locationId);
+    const location = await resolveLocation(pool, restaurant.id, req.query.locationId, restaurant, req.user.id);
     const { rows } = await pool.query(`SELECT r.*, t.name AS table_name, t.capacity AS table_capacity
       FROM restaurant_reservations r LEFT JOIN restaurant_tables t ON t.id=r.table_id AND t.restaurant_id=r.restaurant_id
       WHERE r.restaurant_id=$1 AND r.location_id=$2
@@ -205,11 +254,12 @@ exports.createReservation = async (req, res, next) => {
     const restaurant = await access(req);
     const input = reservationPayload(req.body);
     const result = await withTransaction(pool, async (client) => {
-      const location = await resolveLocation(client, restaurant.id, req.body.locationId);
+      const location = await resolveLocation(client, restaurant.id, req.body.locationId, restaurant, req.user.id);
       if (input.idempotencyKey) {
+        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`reservation:${restaurant.id}:${input.idempotencyKey}`]);
         const { rows: [existing] } = await client.query(`SELECT * FROM restaurant_reservations
           WHERE restaurant_id=$1 AND idempotency_key=$2 FOR UPDATE`, [restaurant.id, input.idempotencyKey]);
-        if (existing) return { reservation: existing, idempotent: true };
+        if (existing) { assertReservationReplay(existing, location.id, input, input.source); return { reservation: existing, idempotent: true }; }
       }
       let table = null;
       if (input.tableId) {
@@ -243,12 +293,29 @@ exports.updateReservation = async (req, res, next) => {
     const status = req.body.status == null ? null : String(req.body.status);
     if (status && !RESERVATION_STATUSES.includes(status)) throw new AppError('Invalid reservation status', 400, 'invalid_request');
     const reservation = await withTransaction(pool, async (client) => {
+      const { rows: [identity] } = await client.query('SELECT * FROM restaurant_reservations WHERE restaurant_id=$1 AND id=$2', [restaurant.id, reservationId]);
+      if (!identity) throw new AppError('Reservation not found', 404, 'reservation_not_found');
+      await assertLocationAccess(restaurant, req.user.id, identity.location_id, client);
+      let table = null;
+      if (identity.table_id) {
+        const { rows } = await client.query('SELECT * FROM restaurant_tables WHERE restaurant_id=$1 AND location_id=$2 AND id=$3 FOR UPDATE', [restaurant.id, identity.location_id, identity.table_id]);
+        table = rows[0];
+        if (!table) throw new AppError('Table not found', 404, 'table_not_found');
+      }
       const { rows: [current] } = await client.query('SELECT * FROM restaurant_reservations WHERE restaurant_id=$1 AND id=$2 FOR UPDATE', [restaurant.id, reservationId]);
       if (!current) throw new AppError('Reservation not found', 404, 'reservation_not_found');
       // Auth-audit item 14: the row lookup is restaurant-wide, so a
       // store-A-scoped employee could edit a store-B reservation (guest
       // PII). Assert store access on the row's location before mutating.
       await assertLocationAccess(restaurant, req.user.id, current.location_id, client);
+      if (status && status !== current.status && !RESERVATION_TRANSITIONS[current.status]?.includes(status)) {
+        throw new AppError('Invalid reservation transition', 409, 'reservation_transition_invalid');
+      }
+      const finalStatus = status || current.status;
+      const finalPartySize = req.body.partySize === undefined ? Number(current.party_size) : partySize(req.body.partySize);
+      if (table && ACTIVE_RESERVATION_STATUSES.includes(finalStatus) && (table.status !== 'active' || finalPartySize > Number(table.capacity))) {
+        throw new AppError('Party exceeds available table capacity', 409, 'table_capacity_exceeded');
+      }
       const updates = [];
       const values = [restaurant.id, reservationId];
       if (status) { updates.push(`status=$${values.length + 1}`); values.push(status); }
@@ -259,10 +326,10 @@ exports.updateReservation = async (req, res, next) => {
       const startsAt = req.body.startsAt === undefined ? current.starts_at : instant(req.body.startsAt, 'start time');
       const endsAt = req.body.endsAt === undefined ? current.ends_at : instant(req.body.endsAt, 'end time');
       if (new Date(endsAt) <= new Date(startsAt)) throw new AppError('End time must be after start time', 400, 'invalid_request');
-      if (current.table_id && (req.body.startsAt !== undefined || req.body.endsAt !== undefined)) {
+      if (current.table_id && ACTIVE_RESERVATION_STATUSES.includes(finalStatus)) {
         const { rows: conflicts } = await client.query(`SELECT id FROM restaurant_reservations
           WHERE restaurant_id=$1 AND location_id=$2 AND table_id=$3 AND id<>$4 AND status = ANY($5::text[])
-            AND starts_at < $6::timestamptz AND ends_at > $7::timestamptz LIMIT 1 FOR UPDATE`,
+            AND starts_at < $6::timestamptz AND ends_at > $7::timestamptz LIMIT 1`,
         [restaurant.id, current.location_id, current.table_id, reservationId, ACTIVE_RESERVATION_STATUSES, endsAt, startsAt]);
         if (conflicts[0]) throw new AppError('Table is already reserved for that time', 409, 'reservation_conflict');
       }
@@ -308,12 +375,11 @@ exports.notifyReservation = async (req, res, next) => {
       }
       throw new AppError('Reservation notification is already in progress', 409, 'reservation_notification_in_progress');
     }
-    const startsAt = new Date(reservation.starts_at).toISOString();
-    const verb = reservation.status === 'confirmed' ? 'is confirmed' : 'has been received';
+
     try {
       const delivery = await sendTransactionalSMS(
         reservation.guest_phone,
-        `Your reservation at ${restaurant.display_name || 'the restaurant'} ${verb} for ${startsAt}.`
+        hostingMessage('reservation', req.body?.locale || req.language, { restaurant: restaurant.display_name, startsAt: reservation.starts_at, confirmed: reservation.status === 'confirmed', timezone: restaurant.timezone })
       );
       if (!delivery.success) throw new AppError('SMS could not be sent', 503, 'sms_unavailable');
       const { rows: [updated] } = await pool.query(`UPDATE restaurant_reservations
@@ -341,17 +407,22 @@ exports.notifyReservation = async (req, res, next) => {
 exports.listWaitlist = async (req, res, next) => {
   try {
     const restaurant = await access(req);
-    const location = await resolveLocation(pool, restaurant.id, req.query.locationId);
+    const location = await resolveLocation(pool, restaurant.id, req.query.locationId, restaurant, req.user.id);
+    const limit = req.query.limit === undefined ? 100 : strictInteger(req.query.limit, { max: 200 });
+    const offset = req.query.offset === undefined ? 0 : strictInteger(req.query.offset, { min: 0, max: 1000000 });
+    const status = req.query.status;
+    if (limit === null || offset === null || (status && !WAITLIST_STATUSES.includes(status))) throw new AppError('Invalid waitlist filters', 400, 'invalid_request');
     const { rows } = await pool.query(`SELECT * FROM restaurant_waitlist_entries
-      WHERE restaurant_id=$1 AND location_id=$2 ORDER BY joined_at ASC, id ASC`, [restaurant.id, location.id]);
-    res.json({ location, entries: rows });
+      WHERE restaurant_id=$1 AND location_id=$2 AND ($3::text IS NULL OR status=$3)
+      ORDER BY joined_at ASC, id ASC LIMIT $4 OFFSET $5`, [restaurant.id, location.id, status || null, limit + 1, offset]);
+    res.json({ location, entries: rows.slice(0, limit), limit, offset, hasMore: rows.length > limit });
   } catch (error) { next(error); }
 };
 
 exports.createWaitlistEntry = async (req, res, next) => {
   try {
     const restaurant = await access(req);
-    const location = await resolveLocation(pool, restaurant.id, req.body.locationId);
+    const location = await resolveLocation(pool, restaurant.id, req.body.locationId, restaurant, req.user.id);
     const quotedWaitMin = req.body.quotedWaitMin == null ? null : Number(req.body.quotedWaitMin);
     if (quotedWaitMin !== null && (!Number.isInteger(quotedWaitMin) || quotedWaitMin < 0)) {
       throw new AppError('Invalid quoted wait', 400, 'invalid_request');
@@ -408,12 +479,28 @@ exports.notifyWaitlistEntry = async (req, res, next) => {
     await assertLocationAccess(restaurant, req.user.id, entry.location_id);
     if (!entry.guest_phone) throw new AppError('A phone number is required to send an SMS', 400, 'phone_required');
     if (!['waiting', 'notified'].includes(entry.status)) throw new AppError('Waitlist entry is no longer active', 409, 'waitlist_entry_closed');
-    const wait = entry.quoted_wait_min == null ? '' : ` Estimated wait: ${entry.quoted_wait_min} minutes.`;
-    const delivery = await sendTransactionalSMS(entry.guest_phone, `Your table at ${restaurant.display_name || 'the restaurant'} is ready soon.${wait}`);
-    if (!delivery.success) throw new AppError('SMS could not be sent', 503, 'sms_unavailable');
-    const { rows: [updated] } = await pool.query(`UPDATE restaurant_waitlist_entries
-      SET status='notified', notified_at=NOW(), updated_at=NOW() WHERE restaurant_id=$1 AND id=$2 RETURNING *`, [restaurant.id, entryId]);
-    res.json({ entry: updated, delivery: { success: true, sid: delivery.sid || null } });
+    if (entry.notified_at) return res.json({ entry, delivery: { success: true, alreadyNotified: true } });
+    const claimToken = crypto.randomUUID();
+    const { rows: [claimed] } = await pool.query(`UPDATE restaurant_waitlist_entries
+      SET notification_claimed_at=NOW(), notification_claim_token=$3, updated_at=NOW()
+      WHERE restaurant_id=$1 AND id=$2 AND notified_at IS NULL AND status='waiting'
+        AND (notification_claimed_at IS NULL OR notification_claimed_at < NOW() - INTERVAL '5 minutes') RETURNING *`,
+    [restaurant.id, entryId, claimToken]);
+    if (!claimed) throw new AppError('Waitlist notification is already in progress', 409, 'waitlist_notification_in_progress');
+    try {
+      const delivery = await sendTransactionalSMS(entry.guest_phone,
+        hostingMessage('waitlist', req.body?.locale || req.language, { restaurant: restaurant.display_name, wait: entry.quoted_wait_min }));
+      if (!delivery.success) throw new AppError('SMS could not be sent', 503, 'sms_unavailable');
+      const { rows: [updated] } = await pool.query(`UPDATE restaurant_waitlist_entries
+        SET status='notified', notified_at=NOW(), notification_claimed_at=NULL, notification_claim_token=NULL, updated_at=NOW()
+        WHERE restaurant_id=$1 AND id=$2 AND notified_at IS NULL AND status='waiting' AND notification_claim_token=$3 RETURNING *`, [restaurant.id, entryId, claimToken]);
+      if (!updated) throw new AppError('Waitlist notification state could not be saved', 503, 'notification_state_unavailable');
+      res.json({ entry: updated, delivery: { success: true, sid: delivery.sid || null } });
+    } catch (error) {
+      await pool.query(`UPDATE restaurant_waitlist_entries SET notification_claimed_at=NULL, notification_claim_token=NULL
+        WHERE restaurant_id=$1 AND id=$2 AND notification_claim_token=$3`, [restaurant.id, entryId, claimToken]).catch(() => {});
+      throw error;
+    }
   } catch (error) { next(error); }
 };
 

@@ -111,6 +111,17 @@ async function logBusinessAction(req, entry) {
  * @param {string} [opts.to]          ISO timestamp/date, inclusive upper bound on created_at
  * @returns {Promise<{rows: object[], total: number}>}
  */
+function auditStoreClause(opts, params, alias = '') {
+  if (opts.locationIds == null) return '';
+  params.push(opts.locationIds);
+  const locationParam = params.length;
+  // Legacy entries without a resolvable store stay visible only to all-store readers.
+  return ` AND EXISTS (SELECT 1 FROM restaurant_locations audit_location
+    WHERE audit_location.id = ANY($${locationParam}::bigint[])
+      AND audit_location.restaurant_id = ${Number(opts.restaurantId) || 0}
+      AND audit_location.id::text = COALESCE(${alias}metadata->>'location_id', ${alias}after_state->>'location_id', ${alias}before_state->>'location_id'))`;
+}
+
 async function listBusinessAudit(businessId, opts = {}) {
   const limit  = Math.min(Math.max(parseInt(opts.limit, 10) || 50, 1), 200);
   const offset = Math.max(parseInt(opts.offset, 10) || 0, 0);
@@ -131,14 +142,20 @@ async function listBusinessAudit(businessId, opts = {}) {
   }
   if (opts.from) {
     params.push(opts.from);
-    where.push(`created_at >= $${params.length}`);
+    if (opts.timezone && /^\d{4}-\d{2}-\d{2}$/.test(opts.from)) {
+      const dateParam = params.length; params.push(opts.timezone);
+      where.push(`created_at >= ($${dateParam}::date::timestamp AT TIME ZONE $${params.length})`);
+    } else where.push(`created_at >= $${params.length}`);
   }
   if (opts.to) {
     params.push(opts.to);
-    where.push(`created_at <= $${params.length}`);
+    if (opts.timezone && /^\d{4}-\d{2}-\d{2}$/.test(opts.to)) {
+      const dateParam = params.length; params.push(opts.timezone);
+      where.push(`created_at < (($${dateParam}::date + 1)::timestamp AT TIME ZONE $${params.length})`);
+    } else where.push(`created_at <= $${params.length}`);
   }
 
-  const whereSql = where.join(' AND ');
+  const whereSql = where.join(' AND ') + auditStoreClause(opts, params);
   const { rows } = await pool.query(
     `SELECT id, business_id, actor_user_id, actor_role, action,
             target_type, target_id, before_state, after_state, metadata,
@@ -160,7 +177,9 @@ async function listBusinessAudit(businessId, opts = {}) {
  * Distinct actors who appear in a business's audit log, with display
  * names — feeds the Team activity view's person filter (S-16).
  */
-async function listBusinessAuditActors(businessId) {
+async function listBusinessAuditActors(businessId, opts = {}) {
+  const params = [businessId];
+  const storeClause = auditStoreClause(opts, params, 'bal.');
   const { rows } = await pool.query(
     `SELECT bal.actor_user_id AS user_id,
             COALESCE(NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''),
@@ -168,10 +187,10 @@ async function listBusinessAuditActors(businessId) {
             COUNT(*)::int AS events
        FROM business_audit_log bal
        LEFT JOIN users u ON u.id = bal.actor_user_id
-      WHERE bal.business_id = $1 AND bal.actor_user_id IS NOT NULL
+      WHERE bal.business_id = $1 AND bal.actor_user_id IS NOT NULL${storeClause}
       GROUP BY bal.actor_user_id, name
       ORDER BY events DESC`,
-    [businessId]
+    params
   );
   return rows;
 }
