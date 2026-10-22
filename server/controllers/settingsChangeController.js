@@ -22,6 +22,7 @@
 const db = require('../db');
 const { logAdminAction } = require('../services/auditService');
 const logger = require('../utils/logger');
+const { verifyStepupChallenge } = require('../services/stepupChallengeService');
 const { parseBoundedPagination } = require('../utils/pagination');
 const {
   parsePlatformSettingValue,
@@ -617,6 +618,19 @@ async function approveChangeRequest({ id, approverId, req = null, auditSource = 
 
 async function approveChange(req, res) {
   try {
+    // Audit fix (auth finding 13): approving a platform settings change
+    // (fees, escrow delay, dual-approval threshold, rail enablement) is a
+    // single-admin money-adjacent decision. The approver must prove a
+    // fresh step-up challenge before the decision is recorded. This lives
+    // in the admin-route handler, not in approveChangeRequest: the shared
+    // service is also called by the connector API, whose API-key grant is
+    // its own credential and has no step-up challenge to present.
+    await verifyStepupChallenge({
+      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+      actorUserId: req.user?.id || null,
+      actionType: 'settings_change_approve',
+      code: req.body?.stepupCode || req.body?.stepup_code,
+    });
     const { request, applied } = await approveChangeRequest({
       id: req.params.id,
       approverId: req.user.id,
