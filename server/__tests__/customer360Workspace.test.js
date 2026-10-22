@@ -251,14 +251,15 @@ test("watch evaluation rechecks permissions and keeps stable per-record notifica
 test("assistant sends only permitted aggregate counts and statuses, never customer PII or money", async () => {
   const provider = require("../services/metaChatProvider");
   const configured = jest
-    .spyOn(provider, "isMetaConfigured")
+    .spyOn(openRouter, "isOpenRouterConfigured")
     .mockReturnValue(true);
   const model = jest
-    .spyOn(provider, "getMetaModel")
+    .spyOn(openRouter, "openRouterChatModel")
     .mockReturnValue("synthetic-model");
   const chat = jest
-    .spyOn(provider, "fetchMetaChat")
+    .spyOn(openRouter, "fetchOpenRouterChat")
     .mockResolvedValue({ ok: true, reply: "Review the source [jobs]." });
+  const metaChat = jest.spyOn(metaProvider, "fetchMetaChat");
   const snapshot = jest.spyOn(service, "workspace").mockResolvedValue({
     generatedAt: new Date().toISOString(),
     sections: {
@@ -304,6 +305,7 @@ test("assistant sends only permitted aggregate counts and statuses, never custom
     configured.mockRestore();
     model.mockRestore();
     chat.mockRestore();
+    metaChat.mockRestore();
   }
 });
 

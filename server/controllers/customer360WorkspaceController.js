@@ -419,9 +419,9 @@ exports.assistant = async (req, res, next) => {
     }));
     const provider = require("../services/metaChatProvider");
     let draft = null;
-    if (provider.isMetaConfigured()) {
-      const result = await provider.fetchMetaChat(
-        provider.getMetaModel(),
+    if (openRouter.isOpenRouterConfigured()) {
+      const result = await openRouter.fetchOpenRouterChat(
+        openRouter.openRouterChatModel(),
         [
           {
             role: "system",
