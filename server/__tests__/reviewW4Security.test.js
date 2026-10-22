@@ -183,7 +183,9 @@ describe('P3-942 subscription checkout gate', () => {
     let router;
     jest.isolateModules(() => { router = require('../routes/subscription'); });
     const layer = router.stack.find((l) => l.route?.path === '/checkout' && l.route.methods.post);
-    const gate = layer.route.stack[1].handle;
+    // Auth audit item 1 added rejectImpersonated ahead of the feature gate;
+    // locate the gate by middleware name instead of a brittle stack index.
+    const gate = layer.route.stack.find((s) => s.handle?.name === 'featureFlagMiddleware').handle;
     const r = res(); const next = jest.fn();
     await gate({ user: { id: USER_ID } }, r, next);
     expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 503, code: 'feature_disabled' }));
