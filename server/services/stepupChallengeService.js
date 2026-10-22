@@ -77,6 +77,13 @@ const STEPUP_ACTION_TYPES = Object.freeze([
   // ADM-016: the second admin (checker) in dual approval must prove a fresh
   // step-up challenge before the queued money movement executes.
   'money_movement_approve',
+  // Audit fix (auth finding 13): approving a platform settings change
+  // request (fees, escrow delay, dual-approval threshold, rail enablement)
+  // is a single-admin money-adjacent decision; require a fresh step-up.
+  'settings_change_approve',
+  // Audit fix (auth finding 15): processing an affiliate payout moves real
+  // money on a single admin's say-so; the maker must prove a fresh step-up.
+  'affiliate_payout_process',
   // Auth audit item 8: unfreezing the credit rail lifts the emergency stop
   // on money initiation; a fresh step-up is required.
   'credit_rail_unfreeze',

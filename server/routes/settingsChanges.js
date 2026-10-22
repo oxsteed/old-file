@@ -12,18 +12,22 @@
 
 const express = require('express');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const settingsChangeController = require('../controllers/settingsChangeController');
 
 const router = express.Router();
 
 router.use(requireAdmin);
 
+// Audit fix (auth finding 13): decision routes on platform settings changes
+// (fees, escrow delay, dual-approval threshold, rail enablement) must not
+// run under an impersonated session.
 router.post('/', requirePermission('manage_settings'), settingsChangeController.proposeChange);
 router.get('/', requirePermission('manage_settings'), settingsChangeController.listChanges);
 router.get('/:id/preview', requirePermission('manage_settings'), settingsChangeController.previewChange);
-router.post('/:id/approve', requirePermission('approve_settings'), settingsChangeController.approveChange);
-router.post('/:id/reject', requirePermission('approve_settings'), settingsChangeController.rejectChange);
-router.post('/:id/schedule', requirePermission('approve_settings'), settingsChangeController.scheduleChange);
-router.post('/:id/cancel', requirePermission('manage_settings'), settingsChangeController.cancelChange);
+router.post('/:id/approve', rejectImpersonated, requirePermission('approve_settings'), settingsChangeController.approveChange);
+router.post('/:id/reject', rejectImpersonated, requirePermission('approve_settings'), settingsChangeController.rejectChange);
+router.post('/:id/schedule', rejectImpersonated, requirePermission('approve_settings'), settingsChangeController.scheduleChange);
+router.post('/:id/cancel', rejectImpersonated, requirePermission('manage_settings'), settingsChangeController.cancelChange);
 
 module.exports = router;
