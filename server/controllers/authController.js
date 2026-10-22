@@ -1724,6 +1724,30 @@ async function resetPassword(req, res) {
       [rows[0].id]
     );
 
+    // Audit fix (finding 5): admin passkeys are a standalone admin login
+    // credential (passkeyController). A planted admin passkey must not
+    // survive a password reset either.
+    await pool.query(
+      'UPDATE admin_passkeys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL',
+      [rows[0].id]
+    );
+
+    // Audit fix (finding 7): a planted TOTP (enrolled via stolen session)
+    // must not survive a password reset. Clear the secret, the enabled
+    // flag and the backup codes so the account holder re-enrolls 2FA on
+    // next login (login returns requiresTwoFactorSetup when an admin has
+    // no TOTP enrolled).
+    await pool.query(
+      `UPDATE users
+          SET totp_secret = NULL,
+              totp_enabled = false,
+              totp_verified_at = NULL,
+              backup_codes = NULL,
+              updated_at = NOW()
+        WHERE id = $1`,
+      [rows[0].id]
+    );
+
     // FIX #10 & #11: Audit log password reset
     const { ipAddress, userAgent } = extractRequestDetails(req);
     logSecurityEvent('password_reset', {
@@ -2061,6 +2085,28 @@ async function changePassword(req, res) {
     // (via stolen session) must not survive a password change.
     await pool.query(
       'UPDATE user_passkeys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL',
+      [req.user.id]
+    );
+
+    // Audit fix (finding 5): admin passkeys are a standalone admin login
+    // credential (passkeyController). A planted admin passkey must not
+    // survive a password change either.
+    await pool.query(
+      'UPDATE admin_passkeys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL',
+      [req.user.id]
+    );
+
+    // Audit fix (finding 7): a planted TOTP (enrolled via stolen session)
+    // must not survive a password change. Clear the secret, the enabled
+    // flag and the backup codes so the account holder re-enrolls 2FA.
+    await pool.query(
+      `UPDATE users
+          SET totp_secret = NULL,
+              totp_enabled = false,
+              totp_verified_at = NULL,
+              backup_codes = NULL,
+              updated_at = NOW()
+        WHERE id = $1`,
       [req.user.id]
     );
 
