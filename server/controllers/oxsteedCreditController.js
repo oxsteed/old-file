@@ -162,6 +162,17 @@ function getIdempotencyKey(req) {
  * replayed }.
  */
 async function requestMoneyMovement(req, actionType, payload) {
+  // Auth audit item 11: every dedicated maker route funnels through here,
+  // so this is the single maker-side choke point. Verify a fresh step-up
+  // challenge before queueing any money intent. Challenges are single-use,
+  // so this must run exactly once per request: the generic pending-actions
+  // endpoint no longer verifies on its own and relies on this call.
+  await verifyStepupChallenge({
+    challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+    actorUserId: req.user?.id || null,
+    actionType: 'pending_action_request',
+    code: req.body?.stepupCode || req.body?.stepup_code,
+  });
   return requestPendingAction({
     actionType,
     payload: payload || {},
@@ -929,8 +940,10 @@ async function issueAdminProvisionalCredit(req, res, next) {
  *
  * ADM-079: the generic endpoint used to bypass the per-route maker front
  * doors (maker step-up for payouts/withdrawals, live-rate binding for
- * currency quotes). It now (a) requires the maker to prove a fresh step-up
- * challenge, and (b) refuses the action types that own dedicated maker
+ * currency quotes). It now (a) relies on requestMoneyMovement's maker
+ * step-up verification (auth audit item 11: a single-use challenge must be
+ * verified exactly once, so the choke point lives in requestMoneyMovement,
+ * not here), and (b) refuses the action types that own dedicated maker
  * routes with stronger guarantees, directing callers to those routes.
  */
 async function requestAdminPendingAction(req, res, next) {
@@ -943,12 +956,8 @@ async function requestAdminPendingAction(req, res, next) {
         'credit_pending_action_dedicated_route_required'
       );
     }
-    await verifyStepupChallenge({
-      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
-      actorUserId: req.user?.id || null,
-      actionType: 'pending_action_request',
-      code: req.body?.stepupCode || req.body?.stepup_code,
-    });
+    // Maker step-up is verified inside requestMoneyMovement (single choke
+    // point for every maker route; challenges are single-use).
     const result = await requestMoneyMovement(req, actionType, req.body?.payload || {});
     sendMoneyMovementResult(res, result);
   } catch (error) {
