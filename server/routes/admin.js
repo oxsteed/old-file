@@ -497,13 +497,13 @@ router.delete('/super/regions/:regionId',   requireSuperAdmin, regionCtrl.delete
 // OxSteed Credit is a separate globally scoped stored-value rail. Keep
 // issuance and oversight behind the existing Super Admin authentication gate.
 router.use('/super/oxsteed-credit', noStoreCreditResponse);
-router.post('/super/oxsteed-credit/cards/issue-virtual', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCardCtrl.adminIssueVirtualCard);
-router.post('/super/oxsteed-credit/cards/issue-physical', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCardCtrl.adminIssuePhysicalCard);
-router.get('/super/oxsteed-credit/cards', requireSuperAdmin, oxsteedCreditCardCtrl.listAdminCards);
-router.get('/super/oxsteed-credit/cards/:cardId/history', requireSuperAdmin, oxsteedCreditCardCtrl.adminCardHistory);
-router.post('/super/oxsteed-credit/cards/:cardId/replacement/retry', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCardCtrl.retryAdminReplacement);
-router.post('/super/oxsteed-credit/cards/:cardId/fulfillment', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCardCtrl.updateAdminCardFulfillment);
-router.post('/super/oxsteed-credit/cards/:cardId/revoke', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCardCtrl.revokeAdminCard);
+router.post('/super/oxsteed-credit/cards/issue-virtual', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCardCtrl.adminIssueVirtualCard);
+router.post('/super/oxsteed-credit/cards/issue-physical', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCardCtrl.adminIssuePhysicalCard);
+router.get('/super/oxsteed-credit/cards', requireSuperAdmin, rejectImpersonated, oxsteedCreditCardCtrl.listAdminCards);
+router.get('/super/oxsteed-credit/cards/:cardId/history', requireSuperAdmin, rejectImpersonated, oxsteedCreditCardCtrl.adminCardHistory);
+router.post('/super/oxsteed-credit/cards/:cardId/replacement/retry', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCardCtrl.retryAdminReplacement);
+router.post('/super/oxsteed-credit/cards/:cardId/fulfillment', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCardCtrl.updateAdminCardFulfillment);
+router.post('/super/oxsteed-credit/cards/:cardId/revoke', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCardCtrl.revokeAdminCard);
 router.get('/super/oxsteed-credit/rail', requireSuperAdmin, oxsteedCreditCtrl.getAdminCreditRail);
 router.post('/super/oxsteed-credit/rail', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.updateAdminCreditRail);
 // Operator freeze on money initiation (external reconciliation, migration

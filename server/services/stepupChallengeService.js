@@ -80,6 +80,9 @@ const STEPUP_ACTION_TYPES = Object.freeze([
   // Auth audit item 8: unfreezing the credit rail lifts the emergency stop
   // on money initiation; a fresh step-up is required.
   'credit_rail_unfreeze',
+  // Auth audit item 16: admin card issuance creates a spendable instrument
+  // immediately; a fresh step-up is required.
+  'credit_card_issue',
 ]);
 
 function getStepupPepper() {
