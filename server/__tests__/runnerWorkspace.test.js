@@ -114,6 +114,23 @@ test('rejects a task update when the task belongs to another runner', async () =
   expect(mockQuery.mock.calls[2][0]).toMatch(/team_role_permissions/);
 });
 
+test('does not resolve a runner task outside the manager store assignment', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: 7, business_id: 40, effective_role: 'manager', effective_membership_id: 88 }] })
+    .mockResolvedValueOnce({ rows: [{ location_id: 101, membership_id: 88 }] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const res = await request(buildApp())
+    .patch('/api/restaurants/7/runner/tasks/81/status')
+    .send({ status: 'Picked up' });
+
+  expect(res.status).toBe(404);
+  expect(res.body.code).toBe('runner_task_not_found');
+  expect(mockQuery.mock.calls[1][0]).toMatch(/restaurant_location_memberships/);
+  expect(mockQuery.mock.calls[2][0]).toMatch(/location_id = ANY\(\$3::bigint\[\]\)/);
+  expect(mockQuery.mock.calls[2][1]).toEqual([7, 81, [101]]);
+});
+
 test('rechecks the locked task before completing a delivery', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{ id: 7, business_id: 40, effective_role: 'employee' }] })
