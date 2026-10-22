@@ -460,9 +460,11 @@ async function verifyManagerPinApproval({ restaurantId, pin, deviceId = null }) 
 }
 
 // Gate for one approval-protected action. Returns null when no approval
-// is needed (manager actor, or below the threshold). Otherwise verifies
-// the manager PIN from the request body and writes the approvals row on
-// the caller's transaction client, returning it. Throws:
+// is needed (below the threshold). Otherwise verifies the manager PIN from
+// the request body and writes the approvals row on the caller's transaction
+// client, returning it. A manager actor (pos.manage) needs no PIN but still
+// gets a dual-control row with status 'self_approved' (audit fix, finding
+// 26) instead of the old silent null. Throws:
 //   403 manager_approval_required (no PIN supplied) with policy details
 //   400 validation_failed (missing/unknown reason code on approval path)
 //   401/403/429 from PIN validation.
@@ -478,13 +480,53 @@ async function consumeManagerApproval({
   actingStaff = null,
   reasonCodes = null,
 }) {
-  const actorIsManager = await hasPosManage(restaurant, req.user.id);
-  if (actorIsManager) return null;
   const requirement = approvalRequirement(restaurant, action, amountCents);
   if (!requirement.required) return null;
 
   const reasonCode = normalizeString(req.body.reasonCode || req.body.reason_code, 60);
   const reason = normalizeString(req.body.reason || req.body.approvalReason || req.body.approval_reason, 1000);
+  if (reasonCodes && (!reasonCode || !reasonCodes.has(reasonCode))) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      reasonCode: 'A valid reason code is required for this action',
+    });
+  }
+
+  const actorIsManager = await hasPosManage(restaurant, req.user.id);
+  if (actorIsManager) {
+    // Finding 26: the highest-privilege money actions still leave a
+    // dual-control record. No PIN is demanded from an actor who already
+    // holds pos.manage; the row is stamped self_approved with the actor
+    // as both requester and approver, on the caller's transaction so a
+    // rolled-back action leaves no orphan approval.
+    const { rows: [approval] } = await client.query(
+      `INSERT INTO restaurant_pos_approvals
+         (restaurant_id, location_id, action, amount_cents, requester_user_id, requester_staff_user_id,
+          approver_user_id, approver_staff_pin_id, reason_code, reason, shift_id, food_order_id, status)
+       VALUES ($1,
+               COALESCE(
+                 $2,
+                 (SELECT location_id FROM food_orders WHERE id = $12 AND restaurant_id = $1),
+                 (SELECT location_id FROM restaurant_pos_shifts WHERE id = $11 AND restaurant_id = $1),
+                 (SELECT id FROM restaurant_locations WHERE restaurant_id = $1 ORDER BY is_primary DESC, id ASC LIMIT 1)
+               ),
+               $3,$4,$5,$6,$7,NULL,$9,$10,$11,$12,'self_approved')
+       RETURNING *`,
+      [
+        restaurant.id,
+        locationId,
+        action,
+        Math.max(0, Math.floor(Number(amountCents) || 0)),
+        req.user.id,
+        actingStaff?.staffUserId || null,
+        req.user.id,
+        reasonCode || null,
+        reason || null,
+        shiftId,
+        orderId,
+      ]
+    );
+    return approval;
+  }
   const approvalPin = normalizeString(
     req.body.approvalPin || req.body.approval_pin || req.body.managerPin || req.body.manager_pin,
     12
@@ -496,11 +538,6 @@ async function consumeManagerApproval({
       'manager_approval_required',
       { action, amountCents, thresholdCents: requirement.thresholdCents, always: requirement.always }
     );
-  }
-  if (reasonCodes && (!reasonCode || !reasonCodes.has(reasonCode))) {
-    throw new AppError('Validation failed', 400, 'validation_failed', {
-      reasonCode: 'A valid reason code is required for this action',
-    });
   }
   const { pinRow } = await verifyManagerPinApproval({
     restaurantId: restaurant.id,
@@ -538,15 +575,20 @@ async function consumeManagerApproval({
   return approval;
 }
 
-async function linkApproval(client, approvalId, { paymentId = null, drawerEventId = null } = {}) {
+async function linkApproval(client, approvalId, { paymentId = null, drawerEventId = null, foodOrderId = null } = {}) {
   if (!approvalId) return;
+  // Audit fix (finding 39): void and discount-definition approvals used to
+  // stay 'approved' forever. Every approval row now transitions to
+  // 'consumed' once its action completes, so a completed approval is
+  // distinguishable from a mid-flight one in audits.
   await client.query(
     `UPDATE restaurant_pos_approvals
         SET payment_id = COALESCE($2, payment_id),
             drawer_event_id = COALESCE($3, drawer_event_id),
+            food_order_id = COALESCE($4, food_order_id),
             status = 'consumed'
       WHERE id = $1`,
-    [approvalId, paymentId, drawerEventId]
+    [approvalId, paymentId, drawerEventId, foodOrderId]
   );
 }
 

@@ -8,6 +8,8 @@ const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
 const { logBusinessAction } = require('../services/businessAuditLog');
 const { withTransaction } = require('../utils/transaction');
+const logger = require('../utils/logger');
+const { hashIP } = require('../utils/encryption');
 const socketService = require('../services/socketService');
 const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
 const { maybeUnpublishBusinessIfIncomplete } = require('./businessController');
@@ -2704,7 +2706,7 @@ function createPairingCode() {
 
 function publicDevice(device) {
   if (!device) return device;
-  const { device_token_hash: _tokenHash, pairing_code: _pairingCode, ...safe } = device;
+  const { device_token_hash: _tokenHash, pairing_code: _pairingCode, pairing_code_hash: _pairingCodeHash, ...safe } = device;
   return {
     ...safe,
     deviceId: safe.id,
@@ -3076,11 +3078,15 @@ exports.createDevicePairingCode = async (req, res, next) => {
       if (!location) throw new AppError('Location not found', 404, 'location_not_found');
     }
     const code = createPairingCode();
+    // Audit fix (finding 40): never persist the raw pairing code. Like the
+    // display flow, store only the SHA-256 hash (upper-cased, matching the
+    // normalization pairDevice applies before comparing).
+    const pairingCodeHash = crypto.createHash('sha256').update(code.toUpperCase()).digest('hex');
     const { rows: [device] } = await pool.query(
       `INSERT INTO restaurant_app_devices
          (restaurant_id, app_key, device_name, mode, location_id, pairing_code,
-          pairing_code_expires_at, config)
-       VALUES ($1,$2,$3,$4,$5,$6,NOW() + INTERVAL '15 minutes',$7)
+          pairing_code_hash, pairing_code_expires_at, config)
+       VALUES ($1,$2,$3,$4,$5,NULL,$6,NOW() + INTERVAL '15 minutes',$7)
        RETURNING *`,
       [
         restaurantId,
@@ -3088,7 +3094,7 @@ exports.createDevicePairingCode = async (req, res, next) => {
         deviceName,
         normalizeString(req.body.mode, 64),
         locationId,
-        code,
+        pairingCodeHash,
         JSON.stringify(safeJson(req.body.config)),
       ]
     );
@@ -3112,12 +3118,15 @@ exports.pairDevice = async (req, res, next) => {
     if (!code) throw new AppError('Validation failed', 400, 'validation_failed', { pairingCode: 'Pairing code is required' });
     const deviceToken = crypto.randomBytes(32).toString('base64url');
     const deviceTokenHash = crypto.createHash('sha256').update(deviceToken).digest('hex');
+    // Audit fix (finding 40): match on the stored hash, never on plaintext.
+    const pairingCodeHash = crypto.createHash('sha256').update(code.toUpperCase()).digest('hex');
     const { rows: [device] } = await pool.query(
       `UPDATE restaurant_app_devices
           SET status = 'paired',
               paired_at = NOW(),
               last_seen_at = NOW(),
               pairing_code = NULL,
+              pairing_code_hash = NULL,
               pairing_code_expires_at = NULL,
               device_token_hash = $3,
               device_token_expires_at = NOW() + INTERVAL '90 days',
@@ -3125,13 +3134,13 @@ exports.pairDevice = async (req, res, next) => {
               platform = COALESCE($5, platform),
               updated_at = NOW()
         WHERE restaurant_id = $1
-          AND pairing_code = $2
+          AND pairing_code_hash = $2
           AND status = 'pending'
           AND (pairing_code_expires_at IS NULL OR pairing_code_expires_at > NOW())
         RETURNING *`,
       [
         restaurantId,
-        code.toUpperCase(),
+        pairingCodeHash,
         deviceTokenHash,
         normalizeString(req.body.appVersion || req.body.app_version, 80),
         normalizeString(req.body.platform, 80),
@@ -3185,7 +3194,26 @@ exports.deviceHeartbeat = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const deviceId = parsePositiveInt(req.params.deviceId || req.body.deviceId || req.body.device_id);
-    await requireDeviceCredential(req, restaurantId, deviceId);
+    const authedDevice = await requireDeviceCredential(req, restaurantId, deviceId);
+    // Audit fix (finding 34): device bearer tokens are not bound to any
+    // client property. Record the observed network identity on every
+    // heartbeat and log when it changes mid-token-life — the tell of a
+    // token exfiltrated from a TV's localStorage or printer-bridge config.
+    // Detection only; a change never blocks the heartbeat (fail open on
+    // detection, since IPs legitimately rotate on DHCP/mobile networks).
+    const observedIpHash = hashIP(req.ip || req.headers['x-forwarded-for'] || 'unknown');
+    const observedPlatform = normalizeString(req.body.platform, 80);
+    if (authedDevice.last_seen_ip_hash && authedDevice.last_seen_ip_hash !== observedIpHash) {
+      logger.warn('device_token_ip_anomaly', {
+        deviceId, restaurantId, appKey: authedDevice.app_key,
+      });
+    }
+    if (authedDevice.last_seen_platform && observedPlatform
+        && authedDevice.last_seen_platform !== observedPlatform) {
+      logger.warn('device_token_platform_anomaly', {
+        deviceId, restaurantId, appKey: authedDevice.app_key,
+      });
+    }
     const clientConfigVersion = parsePositiveInt(req.body.configVersion || req.body.config_version, 0) || 0;
     const kitchenCursor = parsePositiveInt(
       req.body.kitchenCursor || req.body.kitchen_cursor || req.body.lastKitchenEventId || req.body.last_kitchen_event_id,
@@ -3219,6 +3247,8 @@ exports.deviceHeartbeat = async (req, res, next) => {
               END,
               app_version = COALESCE($5, app_version),
               platform = COALESCE($6, platform),
+              last_seen_ip_hash = $9,
+              last_seen_platform = COALESCE($6, last_seen_platform),
               updated_at = NOW()
         WHERE id = $7 AND restaurant_id = $8 AND status = 'paired'
         RETURNING *`,
@@ -3231,6 +3261,7 @@ exports.deviceHeartbeat = async (req, res, next) => {
         normalizeString(req.body.platform, 80),
         deviceId,
         restaurantId,
+        observedIpHash,
       ]
     );
     if (!device) throw new AppError('Device credential is missing or invalid', 401, 'invalid_device_credential');
@@ -4400,13 +4431,11 @@ exports.createPosOrder = async (req, res, next) => {
         ]
       );
       if (discountApproval) {
-        // S-07: link the consumed manager approval to the order it
-        // authorized (the approvals row was written before the order
-        // existed, inside this same transaction).
-        await client.query(
-          'UPDATE restaurant_pos_approvals SET food_order_id = $2 WHERE id = $1',
-          [discountApproval.id, order.id]
-        );
+        // S-07: link the manager approval to the order it authorized (the
+        // approvals row was written before the order existed, inside this
+        // same transaction). Audit fix (finding 39): linkApproval also
+        // transitions the row to 'consumed'.
+        await linkApproval(client, discountApproval.id, { foodOrderId: order.id });
       }
       const createdOrderItems = [];
       for (const line of normalized) {
@@ -4651,6 +4680,12 @@ exports.updatePosTicket = async (req, res, next) => {
           200
         ),
       });
+      // Audit fix (finding 39): the void approval was written before the
+      // order transition; mark it consumed now that the void completed.
+      // The order link is already on the row (food_order_id at insert).
+      if (voidApproval) {
+        await linkApproval(client, voidApproval.id);
+      }
       return { order, event };
     }, 'restaurant_pos_ticket_update');
     broadcastRestaurant(restaurant, 'food:pos:ticket:updated', result);
