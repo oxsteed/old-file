@@ -657,11 +657,13 @@ async function submitCampaignForReview(id, userId, { userCountry = null, userRol
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    // FOR UPDATE OF po: the LEFT JOIN to logistics_lanes makes a bare
+    // FOR UPDATE illegal in Postgres (0A000). Lock only the campaign row.
     const res = await client.query(
       `SELECT po.*, ll.requires_business_verification
          FROM pooled_orders po
          LEFT JOIN logistics_lanes ll ON ll.id = po.lane_id
-        WHERE po.id = $1 FOR UPDATE`,
+        WHERE po.id = $1 FOR UPDATE OF po`,
       [id]
     );
     const order = res.rows[0];
