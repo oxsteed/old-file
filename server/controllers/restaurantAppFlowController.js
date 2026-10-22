@@ -7649,6 +7649,13 @@ exports.performKitchenCourseAction = async (req, res, next) => {
           [restaurantId, idempotencyKey]
         );
         if (existingEvent) {
+          // Fail closed: a reused operation id that points at a different
+          // order, course, or action is a conflict, not a replay.
+          if (Number(existingEvent.food_order_id) !== Number(orderId)
+            || Number(existingEvent.metadata?.courseNumber) !== Number(courseNumber)
+            || existingEvent.event_type !== `course_${action}`) {
+            throw new AppError('Operation ID already used', 409, 'screen_idempotency_conflict');
+          }
           const { rows: [replayedOrder] } = await client.query(
             `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
             [existingEvent.food_order_id, restaurantId]
