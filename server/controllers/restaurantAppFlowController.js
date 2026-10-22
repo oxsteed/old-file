@@ -7162,7 +7162,8 @@ exports.ackKitchenFeed = async (req, res, next) => {
     const deviceId = parsePositiveInt(req.params.deviceId || req.body.deviceId || req.body.device_id);
     const cursor = parsePositiveInt(req.body.cursor || req.body.lastKitchenEventId || req.body.last_kitchen_event_id, 0) || 0;
     if (req.user?.id) {
-      await requireRestaurantAccess(req.user.id, restaurantId);
+      const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+      await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.update', 'kitchen.manage', 'orders.manage']);
     } else if (!deviceId) {
       throw new AppError('Device credential is required', 401, 'device_credential_required');
     }
