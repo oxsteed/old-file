@@ -6809,6 +6809,7 @@ exports.ackKitchenTicket = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId || req.body.orderId || req.body.order_id);
     let restaurant;
+    let locationScope = null;
     if (req.displayDevice) {
       // Track B paired display: the pairing token is the authorization,
       // scoped to this restaurant's ticket actions only.
@@ -6821,6 +6822,7 @@ exports.ackKitchenTicket = async (req, res, next) => {
     } else {
       restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
       await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.update', 'kitchen.manage', 'orders.manage']);
+      locationScope = await getLocationScope(restaurant, req.user.id);
     }
     if (!orderId) throw new AppError('Validation failed', 400, 'validation_failed', { orderId: 'Order is required' });
     const requestedStatus = normalizeString(req.body.status || req.body.toStatus || req.body.to_status, 32);
@@ -6843,8 +6845,9 @@ exports.ackKitchenTicket = async (req, res, next) => {
         `SELECT *
            FROM food_orders
           WHERE id = $1 AND restaurant_id = $2
+            ${locationScope?.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}
           FOR UPDATE`,
-        [orderId, restaurantId]
+        locationScope?.mode === 'assigned' ? [orderId, restaurantId, locationScope.location_ids] : [orderId, restaurantId]
       );
       if (!existing) throw new AppError('Order not found', 404, 'order_not_found');
       if (['completed', 'cancelled', 'refunded'].includes(existing.status)) {
@@ -6874,8 +6877,9 @@ exports.ackKitchenTicket = async (req, res, next) => {
                 promised_at = COALESCE($2::timestamptz, promised_at, NOW() + ($3::int * INTERVAL '1 minute')),
                 updated_at = NOW()
           WHERE id = $4 AND restaurant_id = $5
+            ${locationScope?.mode === 'assigned' ? 'AND location_id = ANY($6::bigint[])' : ''}
           RETURNING *`,
-        [nextStatus, promisedAt, prepTimeMin, orderId, restaurantId]
+        [nextStatus, promisedAt, prepTimeMin, orderId, restaurantId, ...(locationScope?.mode === 'assigned' ? [locationScope.location_ids] : [])]
       );
       const { rows: [event] } = await client.query(
         `INSERT INTO restaurant_kitchen_events
@@ -7332,14 +7336,20 @@ exports.ackKitchenFeed = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const deviceId = parsePositiveInt(req.params.deviceId || req.body.deviceId || req.body.device_id);
     const cursor = parsePositiveInt(req.body.cursor || req.body.lastKitchenEventId || req.body.last_kitchen_event_id, 0) || 0;
+    let locationScope = null;
     if (req.user?.id) {
       const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
       await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.update', 'kitchen.manage', 'orders.manage']);
+      locationScope = await getLocationScope(restaurant, req.user.id);
     } else if (!deviceId) {
       throw new AppError('Device credential is required', 401, 'device_credential_required');
     }
     const credentialDevice = await requireDeviceCredential(req, restaurantId, deviceId);
     assertDeviceApp(credentialDevice, 'kitchen');
+    if (locationScope?.mode === 'assigned'
+      && (!credentialDevice.location_id || !locationScope.location_ids.includes(Number(credentialDevice.location_id)))) {
+      throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+    }
     const { rows: [device] } = await pool.query(
       `UPDATE restaurant_app_devices d
           SET last_kitchen_event_id = GREATEST(

@@ -1683,6 +1683,26 @@ describe('restaurant app-flow backend', () => {
     expect(auditRes.body.events[0].event_type).toBe('ticket_ack');
   });
 
+  test('does not acknowledge a kitchen ticket outside the assigned store', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 46 })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'kitchen.update', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000126'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/kitchen/orders/${ORDER_ID}/ack`)
+      .send({ startPreparing: true });
+
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('order_not_found');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(false);
+    const orderLookup = mockQuery.mock.calls.at(-1);
+    expect(orderLookup[0]).toMatch(/location_id = ANY\(\$3::bigint\[\]\)/);
+    expect(orderLookup[1]).toEqual([ORDER_ID, RESTAURANT_ID, [77]]);
+  });
+
   test('denies kitchen audit reads to members without a kitchen permission', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'employee' })] });
 
@@ -1703,6 +1723,24 @@ describe('restaurant app-flow backend', () => {
 
     expect(res.status).toBe(403);
     expect(res.body.code).toBe('forbidden');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE restaurant_app_devices/.test(sql))).toBe(false);
+  });
+
+  test('does not acknowledge a kitchen device outside the assigned store', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 46 })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'kitchen.update', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 31, restaurant_id: RESTAURANT_ID, app_key: 'kitchen', status: 'paired', location_id: 88 }] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000126'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/kitchen/feed/ack`)
+      .set('X-Device-Token', 'bridge-secret')
+      .send({ deviceId: 31, cursor: 991 });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('location_scope_forbidden');
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE restaurant_app_devices/.test(sql))).toBe(false);
   });
 
