@@ -66,6 +66,29 @@ async function createCampaign(client, { restaurantId, segmentId, actorUserId, in
 }
 
 async function approveCampaign(client, { restaurantId, campaignId, actorUserId }) {
+  // Audit fix (finding 41): separation of duties. The same admin must not
+  // create and approve a campaign that queues customer messages. The
+  // creator check runs under the same row lock as the approval so a
+  // concurrent create/approve race cannot slip through.
+  const { rows: [campaign] } = await client.query(
+    `SELECT id, status, created_by
+       FROM restaurant_loyalty_campaigns
+      WHERE id = $1 AND restaurant_id = $2
+      FOR UPDATE`,
+    [campaignId, restaurantId]
+  );
+  if (!campaign) throw new AppError('Loyalty campaign not found', 404, 'loyalty_campaign_not_found');
+  if (campaign.status !== 'draft') {
+    throw new AppError('Only a draft campaign can be approved', 409, 'loyalty_campaign_not_draft');
+  }
+  // Rows with NULL created_by predate creator tracking and stay approvable.
+  if (campaign.created_by && String(campaign.created_by) === String(actorUserId)) {
+    throw new AppError(
+      'Campaigns must be approved by someone other than the creator',
+      403,
+      'loyalty_campaign_self_approval'
+    );
+  }
   const { rows: [row] } = await client.query(
     `UPDATE restaurant_loyalty_campaigns
         SET status = 'approved', approved_by = $3, approved_at = NOW(), updated_by = $3

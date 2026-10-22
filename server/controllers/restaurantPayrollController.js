@@ -9,8 +9,10 @@
 // requires `audit.view`. Tip pool settings and cash-tip declarations
 // write audit rows.
 
+const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const { getLocationScope, assertLocationAccess } = require('../services/restaurantLocationAccessService');
 const { getEffectivePermissions } = require('../services/permissionsService');
 const { logBusinessAction, listBusinessAudit, listBusinessAuditActors } = require('../services/businessAuditLog');
 const payroll = require('../services/restaurantPayrollService');
@@ -30,6 +32,39 @@ async function requireManager(req) {
     throw new AppError('You do not have permission to view reports', 403, 'forbidden');
   }
   return restaurant;
+}
+
+async function resolveRestaurant(req) {
+  const restaurantId = parsePositiveInt(req.params.restaurantId);
+  if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+  return resolveRestaurantAccess(req.user.id, restaurantId);
+}
+
+// Audit fix (finding 25): the tip-pool / payroll-exception sub-surfaces
+// used a hard-coded owner/manager role check, invisible to per-membership
+// deny overrides. They now resolve through the permission catalog with the
+// tips.view / tips.manage codes (migration 1101): owners and managers hold
+// both by default, and deny overrides revoke them.
+function requireTipsView(req) {
+  return resolveRestaurant(req).then(async (restaurant) => {
+    await requireCatalogPermission(
+      restaurant, req.user.id, 'tips.view',
+      'tips_permission_required',
+      'Viewing tip reports requires the tips.view permission'
+    );
+    return restaurant;
+  });
+}
+
+function requireTipsManage(req) {
+  return resolveRestaurant(req).then(async (restaurant) => {
+    await requireCatalogPermission(
+      restaurant, req.user.id, 'tips.manage',
+      'tips_permission_required',
+      'Managing tip settings requires the tips.manage permission'
+    );
+    return restaurant;
+  });
 }
 
 // Fail closed: any resolver error or a missing permission denies.
@@ -81,7 +116,9 @@ exports.laborSummary = async (req, res, next) => {
     const restaurant = await requireManager(req);
     await requirePayrollView(restaurant, req.user.id);
     const { fromDate, toDate } = parseRangeOr400(req.query, restaurant);
-    const labor = await payroll.computeLabor({ restaurant, fromDate, toDate });
+    // Audit fix (finding 22): location-scoped viewers only see their stores.
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const labor = await payroll.computeLabor({ restaurant, fromDate, toDate, locationScope });
     res.json(labor);
   } catch (err) { next(err); }
 };
@@ -129,7 +166,9 @@ exports.payrollExportCsv = async (req, res, next) => {
     const restaurant = await requireManager(req);
     await requirePayrollView(restaurant, req.user.id);
     const { fromDate, toDate } = parseRangeOr400(req.query, restaurant);
-    const labor = await payroll.computeLabor({ restaurant, fromDate, toDate });
+    // Audit fix (finding 22): location-scoped viewers only see their stores.
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const labor = await payroll.computeLabor({ restaurant, fromDate, toDate, locationScope });
     const csv = payroll.buildPayrollCsv(labor);
     await logBusinessAction(req, {
       business_id: restaurant.business_id,
@@ -150,9 +189,11 @@ exports.payrollExportCsv = async (req, res, next) => {
 
 exports.exceptionsReport = async (req, res, next) => {
   try {
-    const restaurant = await requireManager(req);
+    const restaurant = await requireTipsView(req);
     const { fromDate, toDate } = parseRangeOr400(req.query, restaurant);
-    const report = await payroll.computeExceptions({ restaurant, fromDate, toDate });
+    // Audit fix (finding 22): location-scoped viewers only see their stores.
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const report = await payroll.computeExceptions({ restaurant, fromDate, toDate, locationScope });
     res.json(report);
   } catch (err) { next(err); }
 };
@@ -189,7 +230,7 @@ exports.teamActivity = async (req, res, next) => {
 
 exports.getTipPoolSettings = async (req, res, next) => {
   try {
-    const restaurant = await requireManager(req);
+    const restaurant = await requireTipsView(req);
     const settings = await payroll.getTipPoolSettings(restaurant.id);
     res.json({ settings });
   } catch (err) { next(err); }
@@ -197,7 +238,7 @@ exports.getTipPoolSettings = async (req, res, next) => {
 
 exports.updateTipPoolSettings = async (req, res, next) => {
   try {
-    const restaurant = await requireManager(req);
+    const restaurant = await requireTipsManage(req);
     const body = req.body || {};
     let settings;
     try {
@@ -229,7 +270,7 @@ exports.updateTipPoolSettings = async (req, res, next) => {
 
 exports.declareCashTip = async (req, res, next) => {
   try {
-    const restaurant = await requireManager(req);
+    const restaurant = await requireTipsManage(req);
     const body = req.body || {};
     const staffUserId = body.staffUserId || body.staff_user_id;
     const businessDate = body.date || body.businessDate || body.business_date;
@@ -247,12 +288,26 @@ exports.declareCashTip = async (req, res, next) => {
     if (!roster.some((m) => m.user_id === staffUserId)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { staffUserId: 'Staff member is not on this restaurant team' });
     }
+    // Audit fix (finding 22): declarations are store-attributed when the
+    // caller names a store, so location-scoped rollups can include them.
+    const locationId = body.locationId ?? body.location_id ?? null;
+    if (locationId !== null && locationId !== undefined) {
+      const { rows: [location] } = await pool.query(
+        `SELECT id FROM restaurant_locations WHERE restaurant_id = $1 AND id = $2`,
+        [restaurant.id, Number(locationId)]
+      );
+      if (!location) {
+        throw new AppError('Validation failed', 400, 'validation_failed', { locationId: 'Unknown store for this restaurant' });
+      }
+      await assertLocationAccess(restaurant, req.user.id, Number(locationId));
+    }
     const declaration = await payroll.declareCashTip(restaurant.id, {
       staffUserId,
       businessDate: String(businessDate),
       amountCents,
       declaredBy: req.user.id,
       note: body.note ? String(body.note).slice(0, 500) : null,
+      locationId,
     });
     await logBusinessAction(req, {
       business_id: restaurant.business_id,

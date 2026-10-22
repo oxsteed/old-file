@@ -6,6 +6,7 @@
 const pool = require('../db');
 const AppError = require('../utils/appError');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const { getLocationScope } = require('../services/restaurantLocationAccessService');
 const permissions = require('../services/permissionsService');
 const { logBusinessAction } = require('../services/businessAuditLog');
 const { withTransaction } = require('../utils/transaction');
@@ -23,7 +24,23 @@ async function access(req) {
   if (!(await permissions.hasRestaurantPermission(restaurant, req.user.id, ['analytics.view_financial']))) {
     throw new AppError('You do not have permission to manage CRM segments', 403, 'forbidden');
   }
-  return restaurant;
+  // Audit fix (finding 33): audience aggregates are store-scoped below.
+  return { ...restaurant, locationScope: await getLocationScope(restaurant, req.user.id) };
+}
+
+// Audit fix (finding 33): force the audience CTE onto the viewer's stores.
+// A location-scoped viewer who names a store outside their scope gets a
+// 403; without an explicit store the aggregate counts only customers with
+// orders at the viewer's stores. Unscoped viewers are unaffected.
+function scopedAudience(restaurant, criteria) {
+  const scope = restaurant.locationScope;
+  if (!scope || scope.mode !== 'assigned') return { criteria, scopeLocationIds: null };
+  const wanted = criteria.location_id != null ? Number(criteria.location_id) : null;
+  const allowed = new Set((scope.location_ids || []).map(Number));
+  if (wanted != null && !allowed.has(wanted)) {
+    throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+  }
+  return { criteria, scopeLocationIds: wanted != null ? null : [...allowed] };
 }
 
 function positiveInt(value, field, { max = 1000000000, allowZero = true } = {}) {
@@ -87,7 +104,7 @@ function shape(row, audience = null) {
   };
 }
 
-function audienceWhere(criteria) {
+function audienceWhere(criteria, scopeLocationIds = null) {
   const clauses = [];
   const params = [];
   if (criteria.min_lifetime_points != null) {
@@ -105,16 +122,24 @@ function audienceWhere(criteria) {
   if (criteria.location_id != null) {
     params.push(criteria.location_id);
     clauses.push(`has_location_order = TRUE`);
+  } else if (scopeLocationIds) {
+    // Finding 33: no explicit store -> count only customers with orders at
+    // the viewer's stores.
+    params.push(scopeLocationIds);
+    clauses.push(`has_location_order = TRUE`);
   }
   return { clauses, params };
 }
 
-async function audienceFor(restaurantId, criteria) {
-  const { clauses, params } = audienceWhere(criteria);
-  const locationParam = criteria.location_id != null ? params[params.length - 1] : null;
+async function audienceFor(restaurantId, criteria, scopeLocationIds = null) {
+  const { clauses, params } = audienceWhere(criteria, scopeLocationIds);
+  const locationParam = criteria.location_id != null || scopeLocationIds ? params[params.length - 1] : null;
   const queryParams = [restaurantId, ...params];
   const locationPredicate = criteria.location_id != null ? `
-          BOOL_OR(fo.location_id = $${queryParams.length}) AS has_location_order,` : '          FALSE AS has_location_order,';
+          BOOL_OR(fo.location_id = $${queryParams.length}) AS has_location_order,`
+    : scopeLocationIds ? `
+          BOOL_OR(fo.location_id = ANY($${queryParams.length}::bigint[])) AS has_location_order,`
+      : '          FALSE AS has_location_order,';
   const { rows: [row] } = await pool.query(
     `WITH customer_rollup AS (
        SELECT fla.customer_id,
@@ -158,7 +183,10 @@ exports.listSegments = async (req, res, next) => {
         LIMIT $2`,
       [restaurant.id, MAX_SEGMENTS]
     );
-    const segments = await Promise.all(rows.map(async (row) => shape(row, await audienceFor(restaurant.id, row.criteria || {}))));
+    const segments = await Promise.all(rows.map(async (row) => {
+      const scoped = scopedAudience(restaurant, row.criteria || {});
+      return shape(row, await audienceFor(restaurant.id, scoped.criteria, scoped.scopeLocationIds));
+    }));
     res.json({ segments, campaignDeliveryEnabled: false });
   } catch (err) { next(err); }
 };
@@ -168,6 +196,9 @@ exports.createSegment = async (req, res, next) => {
     const restaurant = await access(req);
     const name = normalizeName(req.body?.name);
     const criteria = normalizeCriteria(req.body?.criteria);
+    // Finding 33: validate the store scope before inserting, so a
+    // location-scoped viewer cannot persist a segment for another store.
+    const scoped = scopedAudience(restaurant, criteria);
     const { rows: [row] } = await pool.query(
       `INSERT INTO restaurant_loyalty_segments (restaurant_id, name, criteria, created_by, updated_by)
        VALUES ($1, $2, $3, $4, $4)
@@ -185,7 +216,7 @@ exports.createSegment = async (req, res, next) => {
       metadata: { campaign_delivery_enabled: false },
       throwOnError: true,
     });
-    res.status(201).json({ segment: shape(row, await audienceFor(restaurant.id, criteria)), campaignDeliveryEnabled: false });
+    res.status(201).json({ segment: shape(row, await audienceFor(restaurant.id, scoped.criteria, scoped.scopeLocationIds)), campaignDeliveryEnabled: false });
   } catch (err) {
     if (err?.code === '23505') return next(new AppError('That segment name already exists', 409, 'loyalty_segment_exists'));
     next(err);
@@ -201,6 +232,8 @@ exports.updateSegment = async (req, res, next) => {
     if (!before) throw new AppError('Segment not found', 404, 'loyalty_segment_not_found');
     const name = req.body?.name === undefined ? before.name : normalizeName(req.body.name);
     const criteria = req.body?.criteria === undefined ? (before.criteria || {}) : normalizeCriteria(req.body.criteria);
+    // Finding 33: validate the store scope before persisting.
+    const scoped = scopedAudience(restaurant, criteria);
     const isActive = req.body?.isActive === undefined && req.body?.is_active === undefined
       ? Boolean(before.is_active) : normalizeActive(req.body.isActive ?? req.body.is_active);
     const { rows: [row] } = await pool.query(
@@ -221,7 +254,7 @@ exports.updateSegment = async (req, res, next) => {
       metadata: { campaign_delivery_enabled: false },
       throwOnError: true,
     });
-    res.json({ segment: shape(row, await audienceFor(restaurant.id, criteria)), campaignDeliveryEnabled: false });
+    res.json({ segment: shape(row, await audienceFor(restaurant.id, scoped.criteria, scoped.scopeLocationIds)), campaignDeliveryEnabled: false });
   } catch (err) {
     if (err?.code === '23505') return next(new AppError('That segment name already exists', 409, 'loyalty_segment_exists'));
     next(err);
@@ -262,7 +295,8 @@ exports.previewSegment = async (req, res, next) => {
     if (!id) throw new AppError('Segment not found', 404, 'loyalty_segment_not_found');
     const { rows: [segment] } = await pool.query('SELECT * FROM restaurant_loyalty_segments WHERE id = $1 AND restaurant_id = $2 AND is_active = TRUE', [id, restaurant.id]);
     if (!segment) throw new AppError('Segment not found', 404, 'loyalty_segment_not_found');
-    res.json({ segment: shape(segment, await audienceFor(restaurant.id, segment.criteria || {})), campaignDeliveryEnabled: false });
+    const scoped = scopedAudience(restaurant, segment.criteria || {});
+    res.json({ segment: shape(segment, await audienceFor(restaurant.id, scoped.criteria, scoped.scopeLocationIds)), campaignDeliveryEnabled: false });
   } catch (err) { next(err); }
 };
 
@@ -345,4 +379,4 @@ exports.queueCampaign = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-exports._normalize = { normalizeName, normalizeCriteria, normalizeActive, positiveInt, audienceWhere };
+exports._normalize = { normalizeName, normalizeCriteria, normalizeActive, positiveInt, audienceWhere, scopedAudience };
