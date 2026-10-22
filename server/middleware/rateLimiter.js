@@ -874,6 +874,27 @@ const deviceApiLimiter = rateLimit({
   },
 });
 
+// Staff PIN validation and staff-session issuance on the account-auth path
+// (no deviceId): the per-device/per-PIN lockout in assertPinNotLocked cannot
+// scope attempts without a device id, so blind 4-12-digit PIN guesses ran at
+// request speed with no lockout. Auth-audit item 10 adds two layers: the
+// strictLimiter (10/hour per IP) mounted on the routes below, plus this
+// per-restaurant+IP attempt budget (30 per 15 minutes) so an attacker
+// guessing against restaurant A cannot consume restaurant B's budget and
+// one NAT IP cannot burn every other store's allowance.
+const staffPinAttemptLimiter = rateLimit({
+  ...createStoreOption('rl:staff_pin_attempt:'),
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  keyGenerator: (req) => `${req.params?.restaurantId || 'unknown'}:${req.ip}`,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many PIN attempts for this restaurant. Please try again in 15 minutes.',
+    retryAfter: '15 minutes',
+  },
+});
+
 module.exports = {
   createStoreOption,
   getVerifiedBearerUserId,
@@ -923,4 +944,5 @@ module.exports = {
   vortexRedeemLimiter,
   displayPollLimiter,
   deviceApiLimiter,
+  staffPinAttemptLimiter,
 };

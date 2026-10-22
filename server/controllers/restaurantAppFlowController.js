@@ -2031,6 +2031,32 @@ exports.updatePublishing = async (req, res, next) => {
       throw new AppError('Validation failed', 400, 'validation_failed', { longitude: 'Must be between -180 and 180' });
     }
     const settingsPatch = safeJson(req.body.settings, null);
+    // Auth-audit item 6: posApprovalPolicy lives inside settings and the
+    // merge below previously let any restaurant.manage holder (managers
+    // included) write posApprovalPolicy.<action>.disabled=true, disabling
+    // their own manager-PIN approval policy with no audit trail.
+    // Approval-policy keys are owner-only, disabled:true is always
+    // rejected (thresholdCents:null is the supported way to relax an
+    // action), and the change is audit-logged inside the transaction.
+    let posApprovalPolicyPatch = null;
+    if (settingsPatch && settingsPatch.posApprovalPolicy !== undefined) {
+      const policyPatch = safeJson(settingsPatch.posApprovalPolicy, null);
+      if (!policyPatch || typeof policyPatch !== 'object' || Array.isArray(policyPatch)) {
+        throw new AppError('Validation failed', 400, 'validation_failed', { 'settings.posApprovalPolicy': 'Must be an object keyed by approval action' });
+      }
+      if (restaurant.effective_role !== 'owner') {
+        throw new AppError('Only the restaurant owner can change the approval policy', 403, 'forbidden');
+      }
+      for (const [action, override] of Object.entries(policyPatch)) {
+        if (!override || typeof override !== 'object' || Array.isArray(override)) {
+          throw new AppError('Validation failed', 400, 'validation_failed', { 'settings.posApprovalPolicy': `Invalid override for "${action}"` });
+        }
+        if (override.disabled === true) {
+          throw new AppError('Validation failed', 400, 'validation_failed', { 'settings.posApprovalPolicy': `"disabled" is not allowed for "${action}"; set thresholdCents instead` });
+        }
+      }
+      posApprovalPolicyPatch = policyPatch;
+    }
     const operatingHours = safeJson(req.body.operatingHours ?? req.body.operating_hours, null);
     const locationPatch = normalizeLocationPatch(req.body.primaryLocation || req.body.primary_location || req.body.location);
     if (locationPatch?.status && !['active', 'paused', 'closed'].includes(locationPatch.status)) {
@@ -2146,6 +2172,21 @@ exports.updatePublishing = async (req, res, next) => {
             after_state: nextFees,
           });
         }
+      }
+
+      // Auth-audit item 6: any posApprovalPolicy change is money-relevant;
+      // record before/after in the audit trail inside the same transaction.
+      if (restaurant.business_id && posApprovalPolicyPatch) {
+        await logBusinessAction(req, {
+          client,
+          business_id: restaurant.business_id,
+          actor_role: restaurant.effective_role || null,
+          action: 'restaurant.pos_approval_policy.updated',
+          target_type: 'restaurant',
+          target_id: updated.id,
+          before_state: { posApprovalPolicy: safeJson(restaurant.settings?.posApprovalPolicy, {}) },
+          after_state: { posApprovalPolicy: safeJson(updated.settings?.posApprovalPolicy, {}) },
+        });
       }
 
       let primaryLocation = null;

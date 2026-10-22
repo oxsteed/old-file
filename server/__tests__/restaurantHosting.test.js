@@ -24,6 +24,7 @@ function app() {
   instance.patch('/:restaurantId/reservations/:reservationId', hosting.updateReservation);
   instance.patch('/:restaurantId/tables/:tableId', hosting.updateTable);
   instance.post('/:restaurantId/waitlist', hosting.createWaitlistEntry);
+  instance.patch('/:restaurantId/waitlist/:entryId', hosting.updateWaitlistEntry);
   instance.post('/:restaurantId/waitlist/:entryId/notify', hosting.notifyWaitlistEntry);
   instance.use(errorHandler);
   return instance;
@@ -144,3 +145,99 @@ test('reservation notification refuses a concurrent active claim', async () => {
   expect(sendTransactionalSMS).not.toHaveBeenCalled();
 });
 
+
+// Auth-audit item 14: host-stand mutating endpoints looked rows up by
+// restaurant_id + id with no store scoping, so a store-A-scoped employee
+// could read/modify guest PII at store B (and trigger guest SMS).
+// updateReservation, notifyReservation, updateWaitlistEntry and
+// notifyWaitlistEntry now assertLocationAccess on the row's location_id.
+const scopeModel = require('../services/scopeModel');
+
+function storeScopedUser() {
+  scopeModel.resolveRestaurantAccess.mockResolvedValueOnce({
+    id: 3, business_id: 42, display_name: 'Ox Burger Lab',
+    effective_role: 'manager', effective_membership_id: 500,
+  });
+}
+
+function assignedToStore7(sql) {
+  if (sql.includes('restaurant_location_memberships')) {
+    return { rows: [{ id: 1, location_id: 7, role_override: null, membership_id: 500, location_name: 'Main' }] };
+  }
+  return null;
+}
+
+test('host-stand rejects a cross-store reservation edit', async () => {
+  storeScopedUser();
+  const foreign = { ...reservation, id: 19, location_id: 9 };
+  mockQuery.mockImplementation(async (sql) => {
+    const scoped = assignedToStore7(sql);
+    if (scoped) return scoped;
+    if (sql.startsWith('SELECT * FROM restaurant_reservations')) return { rows: [foreign] };
+    return { rows: [] };
+  });
+  const response = await request(app()).patch('/3/reservations/19').send({ partySize: 4 });
+  expect(response.status).toBe(403);
+  expect(response.body.code).toBe('location_scope_forbidden');
+  expect(mockQuery.mock.calls.some(([sql]) => sql.startsWith('UPDATE restaurant_reservations'))).toBe(false);
+});
+
+test('host-stand rejects a cross-store reservation SMS', async () => {
+  storeScopedUser();
+  const foreign = { ...reservation, id: 19, location_id: 9, guest_phone: '+15555550199', status: 'confirmed', notified_at: null };
+  mockQuery.mockImplementation(async (sql) => {
+    const scoped = assignedToStore7(sql);
+    if (scoped) return scoped;
+    if (sql.startsWith('SELECT * FROM restaurant_reservations')) return { rows: [foreign] };
+    return { rows: [] };
+  });
+  const response = await request(app()).post('/3/reservations/19/notify');
+  expect(response.status).toBe(403);
+  expect(response.body.code).toBe('location_scope_forbidden');
+  expect(sendTransactionalSMS).not.toHaveBeenCalled();
+});
+
+test('host-stand rejects a cross-store waitlist edit', async () => {
+  storeScopedUser();
+  const foreign = { id: 24, restaurant_id: 3, location_id: 9, guest_name: 'Zoe', guest_phone: '+15555550198', status: 'waiting' };
+  mockQuery.mockImplementation(async (sql) => {
+    const scoped = assignedToStore7(sql);
+    if (scoped) return scoped;
+    if (sql.startsWith('SELECT * FROM restaurant_waitlist_entries')) return { rows: [foreign] };
+    return { rows: [] };
+  });
+  const response = await request(app()).patch('/3/waitlist/24').send({ quotedWaitMin: 45 });
+  expect(response.status).toBe(403);
+  expect(response.body.code).toBe('location_scope_forbidden');
+  expect(mockQuery.mock.calls.some(([sql]) => sql.startsWith('UPDATE restaurant_waitlist_entries'))).toBe(false);
+});
+
+test('host-stand rejects a cross-store waitlist SMS', async () => {
+  storeScopedUser();
+  const foreign = { id: 24, restaurant_id: 3, location_id: 9, guest_name: 'Zoe', guest_phone: '+15555550198', quoted_wait_min: 20, status: 'waiting' };
+  mockQuery.mockImplementation(async (sql) => {
+    const scoped = assignedToStore7(sql);
+    if (scoped) return scoped;
+    if (sql.startsWith('SELECT * FROM restaurant_waitlist_entries')) return { rows: [foreign] };
+    return { rows: [] };
+  });
+  const response = await request(app()).post('/3/waitlist/24/notify');
+  expect(response.status).toBe(403);
+  expect(response.body.code).toBe('location_scope_forbidden');
+  expect(sendTransactionalSMS).not.toHaveBeenCalled();
+});
+
+test('host-stand still allows edits at the assigned store', async () => {
+  storeScopedUser();
+  const own = { ...reservation, id: 20, location_id: 7 };
+  mockQuery.mockImplementation(async (sql) => {
+    const scoped = assignedToStore7(sql);
+    if (scoped) return scoped;
+    if (sql.startsWith('SELECT * FROM restaurant_reservations')) return { rows: [own] };
+    if (sql.startsWith('UPDATE restaurant_reservations')) return { rows: [{ ...own, party_size: 4 }] };
+    return { rows: [] };
+  });
+  const response = await request(app()).patch('/3/reservations/20').send({ partySize: 4 });
+  expect(response.status).toBe(200);
+  expect(response.body.reservation.party_size).toBe(4);
+});

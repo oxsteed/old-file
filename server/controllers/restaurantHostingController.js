@@ -8,6 +8,7 @@ const permissions = require('../services/permissionsService');
 const { withTransaction } = require('../utils/transaction');
 const { sendTransactionalSMS } = require('../services/smsNotificationService');
 const { logBusinessAction } = require('../services/businessAuditLog');
+const { assertLocationAccess } = require('../services/restaurantLocationAccessService');
 
 const ACTIVE_RESERVATION_STATUSES = ['pending', 'confirmed', 'seated'];
 const RESERVATION_STATUSES = ['pending', 'confirmed', 'seated', 'completed', 'cancelled', 'no_show'];
@@ -244,6 +245,10 @@ exports.updateReservation = async (req, res, next) => {
     const reservation = await withTransaction(pool, async (client) => {
       const { rows: [current] } = await client.query('SELECT * FROM restaurant_reservations WHERE restaurant_id=$1 AND id=$2 FOR UPDATE', [restaurant.id, reservationId]);
       if (!current) throw new AppError('Reservation not found', 404, 'reservation_not_found');
+      // Auth-audit item 14: the row lookup is restaurant-wide, so a
+      // store-A-scoped employee could edit a store-B reservation (guest
+      // PII). Assert store access on the row's location before mutating.
+      await assertLocationAccess(restaurant, req.user.id, current.location_id, client);
       const updates = [];
       const values = [restaurant.id, reservationId];
       if (status) { updates.push(`status=$${values.length + 1}`); values.push(status); }
@@ -279,6 +284,9 @@ exports.notifyReservation = async (req, res, next) => {
     const { rows: [reservation] } = await pool.query(`SELECT * FROM restaurant_reservations
       WHERE restaurant_id=$1 AND id=$2`, [restaurant.id, reservationId]);
     if (!reservation) throw new AppError('Reservation not found', 404, 'reservation_not_found');
+    // Auth-audit item 14: the row lookup is restaurant-wide and this
+    // endpoint sends the guest an SMS; assert store access first.
+    await assertLocationAccess(restaurant, req.user.id, reservation.location_id);
     if (!reservation.guest_phone) throw new AppError('A phone number is required to send an SMS', 400, 'phone_required');
     if (!['pending', 'confirmed'].includes(reservation.status)) {
       throw new AppError('Reservation is no longer awaiting guest notification', 409, 'reservation_closed');
@@ -363,15 +371,27 @@ exports.updateWaitlistEntry = async (req, res, next) => {
     const entryId = positiveId(req.params.entryId, 'waitlist entry');
     const status = req.body.status == null ? null : String(req.body.status);
     if (status && !WAITLIST_STATUSES.includes(status)) throw new AppError('Invalid waitlist status', 400, 'invalid_request');
-    const updates = [];
-    const values = [restaurant.id, entryId];
-    if (status) { updates.push(`status=$${values.length + 1}`); values.push(status); if (status === 'seated') updates.push('seated_at=NOW()'); }
-    if (req.body.quotedWaitMin !== undefined) { const wait = Number(req.body.quotedWaitMin); if (!Number.isInteger(wait) || wait < 0) throw new AppError('Invalid quoted wait', 400, 'invalid_request'); updates.push(`quoted_wait_min=$${values.length + 1}`); values.push(wait); }
-    if (req.body.notes !== undefined) { updates.push(`notes=$${values.length + 1}`); values.push(optionalText(req.body.notes, 2000)); }
-    if (!updates.length) throw new AppError('No waitlist changes supplied', 400, 'invalid_request');
-    const { rows: [entry] } = await pool.query(`UPDATE restaurant_waitlist_entries SET ${updates.join(', ')}, updated_at=NOW()
-      WHERE restaurant_id=$1 AND id=$2 RETURNING *`, values);
-    if (!entry) throw new AppError('Waitlist entry not found', 404, 'waitlist_entry_not_found');
+    const entry = await withTransaction(pool, async (client) => {
+      // Auth-audit item 14: the row lookup is restaurant-wide, so a
+      // store-A-scoped employee could edit a store-B waitlist entry
+      // (guest PII). Lock the row, assert store access on its location,
+      // then mutate — all inside one transaction.
+      const { rows: [current] } = await client.query(
+        'SELECT * FROM restaurant_waitlist_entries WHERE restaurant_id=$1 AND id=$2 FOR UPDATE',
+        [restaurant.id, entryId]
+      );
+      if (!current) throw new AppError('Waitlist entry not found', 404, 'waitlist_entry_not_found');
+      await assertLocationAccess(restaurant, req.user.id, current.location_id, client);
+      const updates = [];
+      const values = [restaurant.id, entryId];
+      if (status) { updates.push(`status=$${values.length + 1}`); values.push(status); if (status === 'seated') updates.push('seated_at=NOW()'); }
+      if (req.body.quotedWaitMin !== undefined) { const wait = Number(req.body.quotedWaitMin); if (!Number.isInteger(wait) || wait < 0) throw new AppError('Invalid quoted wait', 400, 'invalid_request'); updates.push(`quoted_wait_min=$${values.length + 1}`); values.push(wait); }
+      if (req.body.notes !== undefined) { updates.push(`notes=$${values.length + 1}`); values.push(optionalText(req.body.notes, 2000)); }
+      if (!updates.length) throw new AppError('No waitlist changes supplied', 400, 'invalid_request');
+      const { rows: [updated] } = await client.query(`UPDATE restaurant_waitlist_entries SET ${updates.join(', ')}, updated_at=NOW()
+        WHERE restaurant_id=$1 AND id=$2 RETURNING *`, values);
+      return updated;
+    }, 'restaurant_waitlist_entry_update');
     res.json({ entry });
   } catch (error) { next(error); }
 };
@@ -383,6 +403,9 @@ exports.notifyWaitlistEntry = async (req, res, next) => {
     const { rows: [entry] } = await pool.query(`SELECT * FROM restaurant_waitlist_entries
       WHERE restaurant_id=$1 AND id=$2`, [restaurant.id, entryId]);
     if (!entry) throw new AppError('Waitlist entry not found', 404, 'waitlist_entry_not_found');
+    // Auth-audit item 14: the row lookup is restaurant-wide and this
+    // endpoint sends the guest an SMS; assert store access first.
+    await assertLocationAccess(restaurant, req.user.id, entry.location_id);
     if (!entry.guest_phone) throw new AppError('A phone number is required to send an SMS', 400, 'phone_required');
     if (!['waiting', 'notified'].includes(entry.status)) throw new AppError('Waitlist entry is no longer active', 409, 'waitlist_entry_closed');
     const wait = entry.quoted_wait_min == null ? '' : ` Estimated wait: ${entry.quoted_wait_min} minutes.`;

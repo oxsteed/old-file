@@ -321,13 +321,22 @@ function staffSessionTokenFromRequest(req) {
 // ordinary account-authenticated POS traffic is unaffected. Activity
 // slides the idle expiry (throttled); passing the absolute cap or the
 // idle deadline ends the session lazily with end_reason 'idle_timeout'.
+//
+// Auth-audit item 18: the session row records device_id at creation (the
+// paired POS appliance's id via req.restaurantDevice, or a body-supplied
+// id), so a session token issued on one POS device cannot be replayed from
+// another device in the same restaurant. Sessions issued on the
+// deviceId-less account-auth PIN path store device_id NULL and resolve as
+// before (NULL device_id is a wildcard), so that path keeps working.
 async function resolveStaffSession(req, restaurantId) {
   const token = staffSessionTokenFromRequest(req);
   if (!token) return null;
+  const requestDeviceId = req.restaurantDevice?.id ?? null;
   const { rows: [session] } = await pool.query(
     `SELECT * FROM restaurant_staff_sessions
-      WHERE token_hash = $1 AND restaurant_id = $2`,
-    [sessionTokenHash(token), restaurantId]
+      WHERE token_hash = $1 AND restaurant_id = $2
+        AND (device_id IS NULL OR device_id = $3)`,
+    [sessionTokenHash(token), restaurantId, requestDeviceId]
   );
   if (!session || session.ended_at) return null;
   const now = Date.now();
