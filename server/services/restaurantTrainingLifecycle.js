@@ -157,7 +157,7 @@ async function expireCompletionsForRecertification(db) {
           SELECT 1 FROM restaurant_training_completions newer
            WHERE newer.assignment_id = a.id
              AND newer.passed = TRUE
-             AND newer.completed_at > c.completed_at
+             AND (newer.completed_at, newer.id) > (c.completed_at, c.id)
         )
       RETURNING a.id, a.user_id, a.module_id, a.restaurant_id, a.due_at,
                 (SELECT title FROM restaurant_training_modules WHERE id = a.module_id) AS module_title`
@@ -192,9 +192,10 @@ async function sendCertificateExpiryAlerts(db, { withinDays = 30 } = {}) {
       [doc.business_id, doc.owner_user_id]
     );
     const staffName = [doc.first_name, doc.last_name].filter(Boolean).join(' ') || 'A staff member';
+    let delivered = managers.length > 0;
     for (const manager of managers) {
       try {
-        await sendNotification({
+        const result = await sendNotification({
           userId: manager.user_id,
           type: 'staff_document_expiring',
           title: 'Staff document expiring',
@@ -206,12 +207,15 @@ async function sendCertificateExpiryAlerts(db, { withinDays = 30 } = {}) {
             expires_on: doc.expires_on,
           },
           action_url: '/food/merchant',
-          idempotencyKey: `staff-doc-expiry:${doc.id}:${manager.user_id}`,
+          idempotencyKey: `staff-doc-expiry:${doc.id}:${new Date(doc.expires_on).toISOString().slice(0,10)}:${manager.user_id}`,
         });
+        if (result?.success !== true) delivered = false;
       } catch (err) {
+        delivered = false;
         logger.warn('Certificate expiry alert failed', { documentId: doc.id, error: err.message });
       }
     }
+    if (!delivered) continue;
     await db.query(
       `UPDATE restaurant_staff_documents SET expiry_alert_sent_at = NOW() WHERE id = $1`,
       [doc.id]

@@ -1,9 +1,9 @@
 'use strict';
 
-// Gift-card product catalog only. Issuing, redeeming, refunding, and storing
-// value are intentionally outside this controller until a provider and
-// reconciliation contract are enabled.
+// Product catalog and internal gift-card ledger. External e-gift delivery
+// remains unavailable until a provider is configured.
 const pool = require('../db');
+const { strictInteger } = require('../utils/strictInteger');
 const AppError = require('../utils/appError');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
 const permissions = require('../services/permissionsService');
@@ -14,7 +14,7 @@ const giftCardValue = require('../services/restaurantGiftCardService');
 const MAX_AMOUNT_CENTS = 1_000_000;
 
 async function access(req) {
-  const restaurantId = Number.parseInt(req.params.restaurantId, 10);
+  const restaurantId = strictInteger(req.params.restaurantId);
   if (!Number.isSafeInteger(restaurantId) || restaurantId <= 0) {
     throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
   }
@@ -42,7 +42,7 @@ function normalizeName(value) {
 }
 
 function normalizeAmount(value) {
-  const amount = Number(value);
+  const amount = strictInteger(value, { max: MAX_AMOUNT_CENTS });
   if (!Number.isSafeInteger(amount) || amount < 1 || amount > MAX_AMOUNT_CENTS) {
     throw new AppError('Gift-card amount must be 1-1000000 cents', 400, 'validation_failed', { amountCents: 'Invalid amount' });
   }
@@ -99,7 +99,7 @@ exports.listProducts = async (req, res, next) => {
         ORDER BY is_active DESC, delivery_type ASC, amount_cents ASC, id ASC`,
       [restaurant.id]
     );
-    res.json({ products: rows.map(shape), valueIssuanceEnabled: false });
+    res.json({ products: rows.map(shape), valueIssuanceEnabled: true });
   } catch (err) { next(err); }
 };
 
@@ -113,26 +113,30 @@ exports.createProduct = async (req, res, next) => {
     const currencyCode = normalizeCurrency(body.currencyCode ?? body.currency_code);
     const deliveryType = normalizeDeliveryType(body.deliveryType ?? body.delivery_type);
     const metadata = body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata) ? body.metadata : {};
-    const { rows: [product] } = await pool.query(
-      `INSERT INTO restaurant_gift_card_products
-         (restaurant_id, sku, name, amount_cents, currency_code, delivery_type, metadata, created_by, updated_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8)
-       RETURNING id, restaurant_id, sku, name, amount_cents, currency_code,
-                 delivery_type, is_active, metadata, created_at, updated_at`,
-      [restaurant.id, sku, name, amountCents, currencyCode, deliveryType, JSON.stringify(metadata), req.user.id]
-    );
-    await logBusinessAction(req, {
-      business_id: restaurant.business_id,
-      actor_role: restaurant.effective_role,
-      action: 'restaurant.gift_card_product.created',
-      target_type: 'restaurant_gift_card_product',
-      target_id: product.id,
-      before_state: {},
-      after_state: product,
-      metadata: { value_issuance_enabled: false },
-      throwOnError: true,
-    });
-    res.status(201).json({ product: shape(product), valueIssuanceEnabled: false });
+    const product = await withTransaction(pool, async (client) => {
+      const { rows: [product] } = await client.query(
+        `INSERT INTO restaurant_gift_card_products
+           (restaurant_id, sku, name, amount_cents, currency_code, delivery_type, metadata, created_by, updated_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8)
+         RETURNING id, restaurant_id, sku, name, amount_cents, currency_code,
+                   delivery_type, is_active, metadata, created_at, updated_at`,
+        [restaurant.id, sku, name, amountCents, currencyCode, deliveryType, JSON.stringify(metadata), req.user.id]
+      );
+      await logBusinessAction(req, {
+        client,
+        business_id: restaurant.business_id,
+        actor_role: restaurant.effective_role,
+        action: 'restaurant.gift_card_product.created',
+        target_type: 'restaurant_gift_card_product',
+        target_id: product.id,
+        before_state: {},
+        after_state: product,
+        metadata: { value_issuance_enabled: true },
+        throwOnError: true,
+      });
+      return product;
+    }, 'restaurantGiftCardController_createProduct');
+    res.status(201).json({ product: shape(product), valueIssuanceEnabled: true });
   } catch (err) {
     if (err?.code === '23505') return next(new AppError('That gift-card SKU already exists', 409, 'gift_card_sku_exists'));
     next(err);
@@ -142,47 +146,51 @@ exports.createProduct = async (req, res, next) => {
 exports.updateProduct = async (req, res, next) => {
   try {
     const restaurant = await access(req);
-    const productId = Number.parseInt(req.params.productId, 10);
+    const productId = strictInteger(req.params.productId);
     if (!Number.isSafeInteger(productId) || productId <= 0) throw new AppError('Gift-card product not found', 404, 'gift_card_product_not_found');
     const body = req.body || {};
-    const { rows: [before] } = await pool.query(
-      'SELECT * FROM restaurant_gift_card_products WHERE id = $1 AND restaurant_id = $2',
-      [productId, restaurant.id]
-    );
-    if (!before) throw new AppError('Gift-card product not found', 404, 'gift_card_product_not_found');
-    const sku = body.sku === undefined ? before.sku : normalizeSku(body.sku);
-    const name = body.name === undefined ? before.name : normalizeName(body.name);
-    const amountCents = body.amountCents === undefined && body.amount_cents === undefined
-      ? Number(before.amount_cents) : normalizeAmount(body.amountCents ?? body.amount_cents);
-    const currencyCode = body.currencyCode === undefined && body.currency_code === undefined
-      ? before.currency_code : normalizeCurrency(body.currencyCode ?? body.currency_code);
-    const deliveryType = body.deliveryType === undefined && body.delivery_type === undefined
-      ? before.delivery_type : normalizeDeliveryType(body.deliveryType ?? body.delivery_type);
-    const isActive = body.isActive === undefined && body.is_active === undefined
-      ? Boolean(before.is_active) : normalizeActive(body.isActive ?? body.is_active);
-    const metadata = body.metadata === undefined ? (before.metadata || {})
-      : (body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata) ? body.metadata : {});
-    const { rows: [after] } = await pool.query(
-      `UPDATE restaurant_gift_card_products
-          SET sku = $3, name = $4, amount_cents = $5, currency_code = $6,
-              delivery_type = $7, is_active = $8, metadata = $9, updated_by = $10
-        WHERE id = $1 AND restaurant_id = $2
-       RETURNING id, restaurant_id, sku, name, amount_cents, currency_code,
-                 delivery_type, is_active, metadata, created_at, updated_at`,
-      [productId, restaurant.id, sku, name, amountCents, currencyCode, deliveryType, isActive, JSON.stringify(metadata), req.user.id]
-    );
-    await logBusinessAction(req, {
-      business_id: restaurant.business_id,
-      actor_role: restaurant.effective_role,
-      action: 'restaurant.gift_card_product.updated',
-      target_type: 'restaurant_gift_card_product',
-      target_id: productId,
-      before_state: before,
-      after_state: after,
-      metadata: { value_issuance_enabled: false },
-      throwOnError: true,
-    });
-    res.json({ product: shape(after), valueIssuanceEnabled: false });
+    const after = await withTransaction(pool, async (client) => {
+      const { rows: [before] } = await client.query(
+        'SELECT * FROM restaurant_gift_card_products WHERE id = $1 AND restaurant_id = $2 FOR UPDATE',
+        [productId, restaurant.id]
+      );
+      if (!before) throw new AppError('Gift-card product not found', 404, 'gift_card_product_not_found');
+      const sku = body.sku === undefined ? before.sku : normalizeSku(body.sku);
+      const name = body.name === undefined ? before.name : normalizeName(body.name);
+      const amountCents = body.amountCents === undefined && body.amount_cents === undefined
+        ? Number(before.amount_cents) : normalizeAmount(body.amountCents ?? body.amount_cents);
+      const currencyCode = body.currencyCode === undefined && body.currency_code === undefined
+        ? before.currency_code : normalizeCurrency(body.currencyCode ?? body.currency_code);
+      const deliveryType = body.deliveryType === undefined && body.delivery_type === undefined
+        ? before.delivery_type : normalizeDeliveryType(body.deliveryType ?? body.delivery_type);
+      const isActive = body.isActive === undefined && body.is_active === undefined
+        ? Boolean(before.is_active) : normalizeActive(body.isActive ?? body.is_active);
+      const metadata = body.metadata === undefined ? (before.metadata || {})
+        : (body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata) ? body.metadata : {});
+      const { rows: [after] } = await client.query(
+        `UPDATE restaurant_gift_card_products
+            SET sku = $3, name = $4, amount_cents = $5, currency_code = $6,
+                delivery_type = $7, is_active = $8, metadata = $9, updated_by = $10
+          WHERE id = $1 AND restaurant_id = $2
+         RETURNING id, restaurant_id, sku, name, amount_cents, currency_code,
+                   delivery_type, is_active, metadata, created_at, updated_at`,
+        [productId, restaurant.id, sku, name, amountCents, currencyCode, deliveryType, isActive, JSON.stringify(metadata), req.user.id]
+      );
+      await logBusinessAction(req, {
+        client,
+        business_id: restaurant.business_id,
+        actor_role: restaurant.effective_role,
+        action: 'restaurant.gift_card_product.updated',
+        target_type: 'restaurant_gift_card_product',
+        target_id: productId,
+        before_state: before,
+        after_state: after,
+        metadata: { value_issuance_enabled: true },
+        throwOnError: true,
+      });
+      return after;
+    }, 'restaurantGiftCardController_updateProduct');
+    res.json({ product: shape(after), valueIssuanceEnabled: true });
   } catch (err) {
     if (err?.code === '23505') return next(new AppError('That gift-card SKU already exists', 409, 'gift_card_sku_exists'));
     next(err);
@@ -192,7 +200,7 @@ exports.updateProduct = async (req, res, next) => {
 exports._normalize = { normalizeSku, normalizeName, normalizeAmount, normalizeCurrency, normalizeDeliveryType, normalizeActive };
 
 async function valueAccess(req) {
-  const restaurantId = Number.parseInt(req.params.restaurantId, 10);
+  const restaurantId = strictInteger(req.params.restaurantId);
   if (!Number.isSafeInteger(restaurantId) || restaurantId <= 0) {
     throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
   }
@@ -204,10 +212,17 @@ async function valueAccess(req) {
 }
 
 function issueProductId(value) {
-  const id = Number(value);
+  const id = strictInteger(value);
   if (!Number.isSafeInteger(id) || id <= 0) {
     throw new AppError('Gift-card product is required', 400, 'validation_failed', { productId: 'Invalid product' });
   }
+  return id;
+}
+
+function optionalRecordId(value, field) {
+  if (value == null) return null;
+  const id = strictInteger(value);
+  if (!id) throw new AppError('Invalid record identifier', 400, 'validation_failed', { [field]: 'Positive integer required' });
   return id;
 }
 
@@ -224,29 +239,33 @@ exports.issueValue = async (req, res, next) => {
   try {
     const restaurant = await valueAccess(req);
     const idempotencyKey = req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key;
-    const result = await withTransaction(pool, (client) => giftCardValue.issueGiftCard(client, {
-      restaurantId: restaurant.id,
-      productId: issueProductId(req.body?.productId ?? req.body?.product_id),
-      actorUserId: req.user.id,
-      idempotencyKey,
-      customerId: issueCustomerId(req.body?.customerId ?? req.body?.customer_id),
-      metadata: req.body?.metadata && typeof req.body.metadata === 'object' && !Array.isArray(req.body.metadata)
-        ? req.body.metadata : {},
-      expiresAt: req.body?.expiresAt ?? req.body?.expires_at ?? null,
-    }), 'gift_card_issue');
-    const auditCard = { ...result.card };
-    delete auditCard.code;
-    await logBusinessAction(req, {
-      business_id: restaurant.business_id,
-      actor_role: restaurant.effective_role,
-      action: 'restaurant.gift_card.issued',
-      target_type: 'restaurant_gift_card',
-      target_id: result.card.id,
-      before_state: {},
-      after_state: auditCard,
-      metadata: { replayed: result.replayed, value_provider: 'internal_ledger' },
-      throwOnError: true,
-    });
+    const result = await withTransaction(pool, async (client) => {
+      const result = await giftCardValue.issueGiftCard(client, {
+        restaurantId: restaurant.id,
+        productId: issueProductId(req.body?.productId ?? req.body?.product_id),
+        actorUserId: req.user.id,
+        idempotencyKey,
+        customerId: issueCustomerId(req.body?.customerId ?? req.body?.customer_id),
+        metadata: req.body?.metadata && typeof req.body.metadata === 'object' && !Array.isArray(req.body.metadata)
+          ? req.body.metadata : {},
+        expiresAt: req.body?.expiresAt ?? req.body?.expires_at ?? null,
+      });
+      const auditCard = { ...result.card };
+      delete auditCard.code;
+      await logBusinessAction(req, {
+        client,
+        business_id: restaurant.business_id,
+        actor_role: restaurant.effective_role,
+        action: 'restaurant.gift_card.issued',
+        target_type: 'restaurant_gift_card',
+        target_id: result.card.id,
+        before_state: {},
+        after_state: auditCard,
+        metadata: { replayed: result.replayed, value_provider: 'internal_ledger' },
+        throwOnError: true,
+      });
+      return result;
+    }, 'gift_card_issue');
     res.status(result.replayed ? 200 : 201).json({
       card: result.card,
       replayed: result.replayed,
@@ -270,29 +289,33 @@ exports.lookupValue = async (req, res, next) => {
 exports.redeemValue = async (req, res, next) => {
   try {
     const restaurant = await valueAccess(req);
-    const orderId = req.body?.orderId ?? req.body?.order_id ?? null;
-    const amountCents = Number(req.body?.amountCents ?? req.body?.amount_cents);
-    const result = await withTransaction(pool, (client) => giftCardValue.redeemGiftCard(client, {
-      restaurantId: restaurant.id,
-      code: req.body?.code,
-      amountCents,
-      currencyCode: req.body?.currencyCode ?? req.body?.currency_code,
-      actorUserId: req.user.id,
-      idempotencyKey: req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key,
-      foodOrderId: orderId,
-      metadata: { source: 'merchant_gift_card_redeem' },
-    }), 'gift_card_redeem');
-    await logBusinessAction(req, {
-      business_id: restaurant.business_id,
-      actor_role: restaurant.effective_role,
-      action: 'restaurant.gift_card.redeemed',
-      target_type: 'restaurant_gift_card',
-      target_id: result.card.id,
-      before_state: { balance_cents: Number(result.ledger.balance_before_cents), status: 'active' },
-      after_state: result.card,
-      metadata: { ledger_id: result.ledger.id, replayed: result.replayed, food_order_id: orderId },
-      throwOnError: true,
-    });
+    const orderId = optionalRecordId(req.body?.orderId ?? req.body?.order_id, 'orderId');
+    const amountCents = normalizeAmount(req.body?.amountCents ?? req.body?.amount_cents);
+    const result = await withTransaction(pool, async (client) => {
+      const result = await giftCardValue.redeemGiftCard(client, {
+        restaurantId: restaurant.id,
+        code: req.body?.code,
+        amountCents,
+        currencyCode: req.body?.currencyCode ?? req.body?.currency_code,
+        actorUserId: req.user.id,
+        idempotencyKey: req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key,
+        foodOrderId: orderId,
+        metadata: { source: 'merchant_gift_card_redeem' },
+      });
+      await logBusinessAction(req, {
+        client,
+        business_id: restaurant.business_id,
+        actor_role: restaurant.effective_role,
+        action: 'restaurant.gift_card.redeemed',
+        target_type: 'restaurant_gift_card',
+        target_id: result.card.id,
+        before_state: { balance_cents: Number(result.ledger.balance_before_cents), status: 'active' },
+        after_state: result.card,
+        metadata: { ledger_id: result.ledger.id, replayed: result.replayed, food_order_id: orderId },
+        throwOnError: true,
+      });
+      return result;
+    }, 'gift_card_redeem');
     res.status(result.replayed ? 200 : 201).json({
       card: result.card,
       ledger: { id: result.ledger.id, eventType: result.ledger.event_type, deltaCents: Number(result.ledger.delta_cents) },
@@ -305,29 +328,33 @@ exports.redeemValue = async (req, res, next) => {
 exports.refundValue = async (req, res, next) => {
   try {
     const restaurant = await valueAccess(req);
-    const result = await withTransaction(pool, (client) => giftCardValue.redeemGiftCard(client, {
-      restaurantId: restaurant.id,
-      code: req.body?.code,
-      amountCents: Number(req.body?.amountCents ?? req.body?.amount_cents),
-      currencyCode: req.body?.currencyCode ?? req.body?.currency_code,
-      actorUserId: req.user.id,
-      idempotencyKey: req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key,
-      foodOrderId: req.body?.orderId ?? req.body?.order_id ?? null,
-      metadata: { source: 'merchant_gift_card_refund' },
-      eventType: 'refund',
-      originalLedgerId: req.body?.originalLedgerId ?? req.body?.original_ledger_id ?? null,
-    }), 'gift_card_refund');
-    await logBusinessAction(req, {
-      business_id: restaurant.business_id,
-      actor_role: restaurant.effective_role,
-      action: 'restaurant.gift_card.refunded',
-      target_type: 'restaurant_gift_card',
-      target_id: result.card.id,
-      before_state: { balance_cents: Number(result.ledger.balance_before_cents), status: 'active' },
-      after_state: result.card,
-      metadata: { ledger_id: result.ledger.id, replayed: result.replayed, original_ledger_id: req.body?.originalLedgerId ?? req.body?.original_ledger_id ?? null },
-      throwOnError: true,
-    });
+    const result = await withTransaction(pool, async (client) => {
+      const result = await giftCardValue.redeemGiftCard(client, {
+        restaurantId: restaurant.id,
+        code: req.body?.code,
+        amountCents: normalizeAmount(req.body?.amountCents ?? req.body?.amount_cents),
+        currencyCode: req.body?.currencyCode ?? req.body?.currency_code,
+        actorUserId: req.user.id,
+        idempotencyKey: req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key,
+        foodOrderId: optionalRecordId(req.body?.orderId ?? req.body?.order_id, 'orderId'),
+        metadata: { source: 'merchant_gift_card_refund' },
+        eventType: 'refund',
+        originalLedgerId: optionalRecordId(req.body?.originalLedgerId ?? req.body?.original_ledger_id, 'originalLedgerId'),
+      });
+      await logBusinessAction(req, {
+        client,
+        business_id: restaurant.business_id,
+        actor_role: restaurant.effective_role,
+        action: 'restaurant.gift_card.refunded',
+        target_type: 'restaurant_gift_card',
+        target_id: result.card.id,
+        before_state: { balance_cents: Number(result.ledger.balance_before_cents), status: 'active' },
+        after_state: result.card,
+        metadata: { ledger_id: result.ledger.id, replayed: result.replayed, original_ledger_id: req.body?.originalLedgerId ?? req.body?.original_ledger_id ?? null },
+        throwOnError: true,
+      });
+      return result;
+    }, 'gift_card_refund');
     res.status(result.replayed ? 200 : 201).json({
       card: result.card,
       ledger: { id: result.ledger.id, eventType: result.ledger.event_type, deltaCents: Number(result.ledger.delta_cents) },

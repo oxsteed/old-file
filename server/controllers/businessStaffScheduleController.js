@@ -1,3 +1,4 @@
+const { payrollLocation } = require('../services/restaurantPayrollLocation');
 const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const { logBusinessAction } = require('../services/businessAuditLog');
@@ -110,9 +111,9 @@ exports.createShift = async (req, res, next) => {
       return res.status(400).json({ error: 'User is not a member of this business' });
     }
     const row = await pool.query(
-      `INSERT INTO business_staff_shifts (business_id, user_id, shift_date, start_time, end_time, role_label, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [businessId, user_id, parts.shiftDate, parts.startTime, parts.endTime, role || null, notes || null]
+      `INSERT INTO business_staff_shifts (business_id, user_id, shift_date, start_time, end_time, role_label, notes, location_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [businessId, user_id, parts.shiftDate, parts.startTime, parts.endTime, role || null, notes || null, await payrollLocation(businessId, req.user?.id, req.body.locationId ?? req.body.location_id ?? null)]
     );
     res.status(201).json(row.rows[0]);
   } catch (err) { next(err); }
@@ -479,9 +480,9 @@ exports.clockIn = async (req, res, next) => {
       longitude: Number.isFinite(Number(req.body?.longitude)) && req.body?.longitude != null ? Number(req.body.longitude) : null,
     };
     const row = await pool.query(
-      `INSERT INTO business_time_entries (business_id, user_id, entry_date, clock_in_at, source, punch_meta)
-       VALUES ($1,$2, CURRENT_DATE, NOW(), $3, $4::jsonb) RETURNING *`,
-      [businessId, req.user.id, source, JSON.stringify(punchMeta)]
+      `INSERT INTO business_time_entries (business_id, user_id, entry_date, clock_in_at, source, punch_meta, location_id)
+       VALUES ($1,$2, CURRENT_DATE, NOW(), $3, $4::jsonb, $5) RETURNING *`,
+      [businessId, req.user.id, source, JSON.stringify(punchMeta), await payrollLocation(businessId, req.user?.id, req.body?.locationId ?? req.body?.location_id ?? null)]
     );
     res.status(201).json(presentTimeEntry(row.rows[0]));
   } catch (err) { next(err); }

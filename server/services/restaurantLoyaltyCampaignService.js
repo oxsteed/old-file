@@ -4,6 +4,8 @@ const crypto = require('crypto');
 const AppError = require('../utils/appError');
 const notificationService = require('./notificationService');
 
+function deliveryEnabled() { return process.env.RESTAURANT_LOYALTY_DELIVERY_ENABLED === 'true'; }
+
 const CHANNELS = new Set(['in_app', 'email']);
 
 function normalizeText(value, field, max, { required = true } = {}) {
@@ -127,18 +129,23 @@ async function queueCampaign(client, { restaurantId, campaignId, actorUserId }) 
 }
 
 async function deliverBatch({ limit = 25 } = {}) {
+  if (!deliveryEnabled()) return { claimed: 0, sent: 0, disabled: true };
   const db = require('../db');
+  await db.query(`UPDATE restaurant_loyalty_campaign_deliveries
+    SET status='failed', lease_token=NULL, lease_expires_at=NULL, last_error='attempts_exhausted', updated_at=NOW()
+    WHERE status='sending' AND lease_expires_at<NOW() AND attempts>=5`);
   const leaseToken = crypto.randomUUID();
   const { rows } = await db.query(
     `WITH claim AS (
        SELECT d.id
          FROM restaurant_loyalty_campaign_deliveries d
          JOIN restaurant_loyalty_campaigns c ON c.id = d.campaign_id
-        WHERE d.status = 'pending' AND d.next_attempt_at <= NOW()
+        WHERE ((d.status = 'pending' AND d.next_attempt_at <= NOW())
+          OR (d.status = 'sending' AND d.lease_expires_at < NOW())) AND d.attempts < 5
           AND c.status IN ('queued', 'sending')
         ORDER BY d.id
         LIMIT $1
-        FOR UPDATE SKIP LOCKED
+        FOR UPDATE OF d SKIP LOCKED
      )
      UPDATE restaurant_loyalty_campaign_deliveries d
         SET status = 'sending', lease_token = $2::uuid,
@@ -162,25 +169,30 @@ async function deliverBatch({ limit = 25 } = {}) {
         pushChannel: false,
         idempotencyKey: `restaurant-loyalty:${delivery.id}`,
       });
-      await db.query(
+      const saved = await db.query(
         `UPDATE restaurant_loyalty_campaign_deliveries
             SET status = $2, notification_id = $3, sent_at = CASE WHEN $2 = 'sent' THEN NOW() ELSE NULL END,
-                lease_token = NULL, lease_expires_at = NULL, last_error = $4, updated_at = NOW()
+                lease_token = NULL, lease_expires_at = NULL, last_error = $4,
+                next_attempt_at = CASE WHEN $2='pending' THEN NOW() + INTERVAL '15 minutes' ELSE next_attempt_at END, updated_at = NOW()
           WHERE id = $1 AND lease_token = $5::uuid`,
-        [delivery.id, result?.success === false ? 'failed' : 'sent', result?.notificationId || null, result?.reason || null, leaseToken]
+        [delivery.id, result?.success === false ? (Number(delivery.attempts) >= 5 || ['promo_cap', 'user_not_found'].includes(result?.reason) ? 'failed' : 'pending') : 'sent', result?.notificationId || null, String(result?.reason || result?.error || '').slice(0, 500) || null, leaseToken]
       );
-      if (result?.success !== false) sent += 1;
+      if (result?.success !== false && saved.rowCount > 0) sent += 1;
     } catch (error) {
       await db.query(
         `UPDATE restaurant_loyalty_campaign_deliveries
-            SET status = 'failed', lease_token = NULL, lease_expires_at = NULL,
+            SET status = CASE WHEN attempts>=5 THEN 'failed' ELSE 'pending' END, lease_token = NULL, lease_expires_at = NULL,
                 last_error = $2, next_attempt_at = NOW() + INTERVAL '15 minutes', updated_at = NOW()
           WHERE id = $1 AND lease_token = $3::uuid`,
         [delivery.id, String(error.message || 'delivery_failed').slice(0, 500), leaseToken]
       );
     }
   }
+  await db.query(`UPDATE restaurant_loyalty_campaigns c SET status='completed', completed_at=NOW()
+    WHERE c.status IN ('queued','sending') AND NOT EXISTS (
+      SELECT 1 FROM restaurant_loyalty_campaign_deliveries d
+      WHERE d.campaign_id=c.id AND d.status IN ('pending','sending'))`);
   return { claimed: rows.length, sent };
 }
 
-module.exports = { normalizeCampaignInput, shape, createCampaign, approveCampaign, queueCampaign, deliverBatch };
+module.exports = { deliveryEnabled, normalizeCampaignInput, shape, createCampaign, approveCampaign, queueCampaign, deliverBatch };

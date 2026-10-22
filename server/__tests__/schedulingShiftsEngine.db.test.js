@@ -69,6 +69,10 @@ describeDb('scheduling write path feeds the slot engine (P1-5-F02, P1-6-F03, P1-
     // cause the test to write shifts referencing public.users.
     const shiftMigration = fs.readFileSync(path.join(__dirname, '../migrations/238_staff_schedules.sql'), 'utf8');
     await db.query(shiftMigration.replaceAll('WHERE table_name =', 'WHERE table_schema = current_schema() AND table_name ='));
+    // Migration 994 added location_id to business_staff_shifts (explicit store
+    // attribution for payroll inputs). The fixture schema must mirror it so the
+    // real write path can insert; no FK because the fixture does not model stores.
+    await db.query(`ALTER TABLE ${schema}.business_staff_shifts ADD COLUMN IF NOT EXISTS location_id BIGINT`);
     const ownedTables = await db.query(`SELECT table_name FROM information_schema.tables
       WHERE table_schema=$1 AND table_name IN ('business_staff_shifts','business_time_entries')`, [schema]);
     expect(ownedTables.rows).toHaveLength(2);
