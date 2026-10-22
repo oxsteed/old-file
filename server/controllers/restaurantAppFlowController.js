@@ -48,6 +48,11 @@ const {
   resolveKitchenFireMode,
   fireKitchenTicketForOrder,
 } = require('../services/restaurantKitchenFireService');
+const {
+  resolveStoreTaxPolicyForOrder,
+  computeOrderTax,
+  orderTotalWithTax,
+} = require('../services/restaurantOrderTaxService');
 const { nextQueueNumber } = require('../services/restaurantQueueCounter');
 const restaurantLocationService = require('../services/restaurantLocationService');
 const { getLocationScope } = require('../services/restaurantLocationAccessService');
@@ -4158,7 +4163,8 @@ exports.createPosOrder = async (req, res, next) => {
       const { rows: menuRows } = await client.query(
         `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
                 fmi.manual_available, fmi.inventory_available, fmi.inventory_availability_state,
-                fmi.availability_schedule, ${storeMenu.overrideSql('fmi', '$3')},
+                fmi.availability_schedule, fmi.tax_rate_bps, fmi.tax_exempt,
+                ${storeMenu.overrideSql('fmi', '$3')},
                 COALESCE((
                   SELECT jsonb_agg(
                     jsonb_build_object(
@@ -4280,8 +4286,35 @@ exports.createPosOrder = async (req, res, next) => {
       const taxableSubtotal = Math.max(0, subtotal - discount);
       const taxRateBps = Math.max(0, Math.min(10000, Number(restaurantRow.tax_rate_bps || 0)));
       const serviceFeeBps = Math.max(0, Math.min(10000, Number(restaurantRow.service_fee_bps || 0)));
-      const tax = Math.round(taxableSubtotal * taxRateBps / 10000);
       const serviceFeeCents = Math.round(taxableSubtotal * serviceFeeBps / 10000);
+      // F-19: tax-exempt orders are a money-relevant override: managers
+      // only, with a recorded reason. Everyone else gets the historical
+      // refusal, unchanged.
+      const taxExempt = req.body.taxExempt === true || req.body.tax_exempt === true;
+      const taxExemptReason = normalizeString(
+        req.body.taxExemptReason || req.body.tax_exempt_reason, 160
+      );
+      if (taxExempt) {
+        // Tax-exempt is a money-relevant override: restaurant managers only.
+        // Cashiers (pos.manage without restaurant.manage) are refused.
+        const canMarkTaxExempt = await hasRestaurantPermission(restaurant, req.user.id, 'restaurant.manage');
+        if (!canMarkTaxExempt) {
+          throw new AppError('Only a manager can mark an order tax-exempt', 403, 'tax_exempt_forbidden');
+        }
+        if (!taxExemptReason) {
+          throw new AppError('Validation failed', 400, 'validation_failed', {
+            taxExemptReason: 'A reason is required for tax-exempt orders',
+          });
+        }
+      }
+      // F-19: chain-grade tax: per-store rules, VAT/GST inclusive mode,
+      // fee taxability flags, per-item rates. The applied rules are
+      // snapshotted on the order so later edits never rewrite history.
+      const taxPolicy = await resolveStoreTaxPolicyForOrder(client, {
+        restaurantId,
+        locationRow: posLocation,
+        restaurantRow,
+      });
       let deliveryAddress = null;
       let deliveryFeeCents = 0;
       if (fulfillment === 'delivery') {
@@ -4347,7 +4380,33 @@ exports.createPosOrder = async (req, res, next) => {
           'deliveryFeeCents'
         );
       }
-      const total = taxableSubtotal + tax + serviceFeeCents + deliveryFeeCents + tip;
+      // F-19: the tax is computed after every fee is known so taxable fees
+      // (service/delivery, per the store's flags) price into the total.
+      const orderTax = computeOrderTax({
+        lines: normalized.map((line) => ({
+          menuItemId: line.item.id,
+          lineTotalCents: line.lineTotal,
+          taxRateBps: line.item.tax_rate_bps,
+          taxExempt: line.item.tax_exempt === true,
+        })),
+        discountCents: discount,
+        policy: taxPolicy,
+        serviceFeeCents,
+        deliveryFeeCents,
+        taxExempt,
+        taxExemptReason,
+      });
+      const tax = orderTax.totalTaxCents;
+      // F-19: in tax-inclusive (VAT/GST) mode the tax is extracted from
+      // prices, never added; in exclusive mode item + taxable-fee taxes
+      // are added on top.
+      const total = orderTotalWithTax({
+        taxableSubtotalCents: taxableSubtotal,
+        tipCents: tip,
+        serviceFeeCents,
+        deliveryFeeCents,
+        tax: orderTax,
+      });
       const queueNumber = await nextQueueNumber(client, restaurantId, posTimezone, new Date(), posLocationId);
       const requestedPaymentStatus = normalizeString(req.body.paymentStatus || req.body.payment_status, 24);
       if (requestedPaymentStatus && requestedPaymentStatus !== 'unpaid') {
@@ -4373,7 +4432,7 @@ exports.createPosOrder = async (req, res, next) => {
         kitchenFireMode,
         ...(discountLines.length ? { posDiscounts: discountLines } : {}),
         ...(deliveryAddress ? { deliveryAddress, deliveryFeeCents } : {}),
-        pricing: { taxRateBps, serviceFeeBps, taxCents: tax, serviceFeeCents, deliveryFeeCents },
+        pricing: { taxRateBps, serviceFeeBps, taxCents: tax, serviceFeeCents, deliveryFeeCents, taxMode: orderTax.snapshot.mode },
       };
       const { rows: [order] } = await client.query(
         `INSERT INTO food_orders
@@ -4382,9 +4441,9 @@ exports.createPosOrder = async (req, res, next) => {
             service_fee_cents, delivery_fee_cents, tax_rate_bps, service_fee_bps,
             tip_cents, discount_cents, total_cents, currency_code, table_label,
             queue_number, promised_at, notes, metadata, client_order_id, acting_staff_user_id, location_id,
-            kitchen_ticket_fired_at)
+            kitchen_ticket_fired_at, tax_exempt, tax_exempt_reason, tax_rule_snapshot)
          VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW() + ($21 || ' minutes')::interval,$22,$23,$24,$25,$26,
-            ${fireKitchenOnCreate ? 'NOW()' : 'NULL'})
+            ${fireKitchenOnCreate ? 'NOW()' : 'NULL'},$27,$28,$29)
          RETURNING *`,
         [
           restaurantId,
@@ -4417,6 +4476,9 @@ exports.createPosOrder = async (req, res, next) => {
           clientOrderId,
           actingStaff?.staffUserId || null,
           posLocationId,
+          taxExempt,
+          taxExempt ? taxExemptReason : null,
+          JSON.stringify(orderTax.snapshot),
         ]
       );
       if (discountApproval) {

@@ -23,6 +23,13 @@ const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrin
 const { nextQueueNumber } = require('../services/restaurantQueueCounter');
 const { resolveLocationRow } = require('../services/restaurantLocationService');
 const storeMenu = require('../services/restaurantStoreMenuService');
+// F-19: chain-grade tax (per-store rules, VAT/GST inclusive mode, fee
+// taxability, tax-exempt orders, rule snapshots).
+const {
+  resolveStoreTaxPolicyForOrder,
+  computeOrderTax,
+  orderTotalWithTax,
+} = require('../services/restaurantOrderTaxService');
 const {
   reserveInventoryForOrder,
   releaseInventoryForOrder,
@@ -625,32 +632,9 @@ function parseOptionalFutureDate(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-// Apply discount allocation and item tax policy without trusting client
-// totals. A null item rate inherits the selected store/restaurant rate;
-// tax_exempt items contribute no tax while remaining in the order total.
-function calculateFoodTax(lineItems, discountCents, defaultRateBps, taxInclusive) {
-  const subtotal = lineItems.reduce((sum, item) => sum + Number(item.lineTotalCents ?? item.lineTotal ?? 0), 0);
-  let remainingDiscount = Math.max(0, Math.min(subtotal, Number(discountCents || 0)));
-  let tax = 0;
-  const breakdown = lineItems.map((item, index) => {
-    const lineTotal = Math.max(0, Number(item.lineTotalCents ?? item.lineTotal ?? 0));
-    const lineDiscount = index === lineItems.length - 1
-      ? Math.min(lineTotal, remainingDiscount)
-      : Math.min(lineTotal, subtotal > 0 ? Math.round(discountCents * lineTotal / subtotal) : 0, remainingDiscount);
-    remainingDiscount -= lineDiscount;
-    const taxableCents = Math.max(0, lineTotal - lineDiscount);
-    const rateBps = item.taxExempt || item.menuItem?.tax_exempt
-      ? 0
-      : Math.max(0, Math.min(10000, Number(item.taxRateBps ?? item.menuItem?.tax_rate_bps ?? defaultRateBps) || 0));
-    const lineTax = taxInclusive
-      ? Math.round(taxableCents * rateBps / (10000 + rateBps || 10000))
-      : Math.round(taxableCents * rateBps / 10000);
-    tax += lineTax;
-    return { menuItemId: item.menuItemId ?? item.menuItem?.id ?? null, taxableCents, taxRateBps: rateBps, taxCents: lineTax };
-  });
-  return { tax, breakdown };
-}
-
+// F-19: calculateFoodTax was superseded by
+// services/restaurantOrderTaxService (per-store rules, VAT/GST inclusive
+// mode, fee taxability, tax-exempt orders, rule snapshots).
 function normalizeTextArray(value, maxItems = 12) {
   if (!Array.isArray(value)) return [];
   return value
@@ -3071,11 +3055,29 @@ exports.quoteOrder = async (req, res, next) => {
     ) || 0));
     const taxRateBps = Math.max(0, Math.min(10000, Number(restaurant.tax_rate_bps || 0)));
     const serviceFeeBps = Math.max(0, Math.min(10000, Number(restaurant.service_fee_bps || 0)));
-    const taxInclusive = restaurant.tax_inclusive === true;
-    const quoteTax = calculateFoodTax(lineItems, discountCents, taxRateBps, taxInclusive);
-    const taxCents = quoteTax.tax;
     const serviceFeeCents = Math.round(taxableSubtotalCents * serviceFeeBps / 10000);
-    const totalCents = Math.max(0, taxableSubtotalCents + (taxInclusive ? 0 : taxCents) + serviceFeeCents + tipCents + deliveryFeeCents);
+    // F-19: the quote must match createOrder exactly, so it runs the same
+    // tax service (per-store rules, inclusive mode, fee taxability).
+    const quoteTaxPolicy = await resolveStoreTaxPolicyForOrder(pool, {
+      restaurantId,
+      locationRow: selectedStore,
+      restaurantRow: restaurant,
+    });
+    const quoteTax = computeOrderTax({
+      lines: lineItems,
+      discountCents,
+      policy: quoteTaxPolicy,
+      serviceFeeCents,
+      deliveryFeeCents,
+    });
+    const taxCents = quoteTax.totalTaxCents;
+    const totalCents = orderTotalWithTax({
+      taxableSubtotalCents: taxableSubtotalCents,
+      tipCents,
+      serviceFeeCents,
+      deliveryFeeCents,
+      tax: quoteTax,
+    });
     const legacyPaymentMode = FOOD_PAYMENT_LEGACY_MODE[paymentContract.canonical];
     const supportedPaymentModes = ['pay_at_counter', 'pay_at_restaurant', 'restaurant_credit', 'wallet_credit', 'direct_payment'];
     let oxsteedCreditEligibility = null;
@@ -3760,11 +3762,35 @@ exports.createOrder = async (req, res, next) => {
       const taxableSubtotal = Math.max(0, subtotal - discount);
       const taxRateBps = Math.max(0, Math.min(10000, Number(restaurant.tax_rate_bps || 0)));
       const serviceFeeBps = Math.max(0, Math.min(10000, Number(restaurant.service_fee_bps || 0)));
-      const taxInclusive = restaurant.tax_inclusive === true;
-      const orderTax = calculateFoodTax(normalizedItems, discount, taxRateBps, taxInclusive);
-      const tax = orderTax.tax;
       const serviceFeeCents = Math.round(taxableSubtotal * serviceFeeBps / 10000);
-      const total = Math.max(0, taxableSubtotal + (taxInclusive ? 0 : tax) + serviceFeeCents + tip + deliveryFeeCents);
+      // F-19: chain-grade tax (per-store rules, VAT/GST inclusive mode,
+      // fee taxability, per-item rates). Online checkout never marks an
+      // order tax-exempt; that override is manager-only on the POS path.
+      const taxPolicy = await resolveStoreTaxPolicyForOrder(client, {
+        restaurantId,
+        locationRow: orderLocation,
+        restaurantRow: restaurant,
+      });
+      const orderTax = computeOrderTax({
+        lines: normalizedItems.map((item) => ({
+          menuItemId: item.menuItem.id,
+          lineTotalCents: item.lineTotal,
+          taxRateBps: item.menuItem.tax_rate_bps,
+          taxExempt: item.menuItem.tax_exempt === true,
+        })),
+        discountCents: discount,
+        policy: taxPolicy,
+        serviceFeeCents,
+        deliveryFeeCents,
+      });
+      const tax = orderTax.totalTaxCents;
+      const total = orderTotalWithTax({
+        taxableSubtotalCents: taxableSubtotal,
+        tipCents: tip,
+        serviceFeeCents,
+        deliveryFeeCents,
+        tax: orderTax,
+      });
       const screenFingerprint=normalizedItems.map(i=>({id:String(i.menuItem.id),name:i.menuItem.name,price:Number(i.menuItem.price_cents),modifiers:i.modifiers.map(m=>({id:String(m.id),name:m.name,price:Number(m.price_delta_cents)})).sort((a,b)=>a.id.localeCompare(b.id))}));
       if(req.screenExpectedFingerprint&&JSON.stringify(req.screenExpectedFingerprint)!==JSON.stringify(screenFingerprint))throw new AppError('Menu changed; review your items again',409,'screen_price_conflict');
       if(req.screenExpectedTotal!==undefined&&req.screenExpectedTotal!==total)throw new AppError('Price changed; review the current total',409,'screen_price_conflict',{currentTotalCents:total});
@@ -4003,8 +4029,8 @@ exports.createOrder = async (req, res, next) => {
             tip_cents, discount_cents, total_cents, currency_code, table_label,
             queue_number, promised_at, notes, metadata,
             kitchen_notes, pickup_contact_name, pickup_contact_phone, scheduled_for,
-            stripe_payment_intent_id, location_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW() + ($22 || ' minutes')::interval,$23,$24,$25,$26,$27,$28,$29,$30)
+            stripe_payment_intent_id, location_id, tax_rule_snapshot)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW() + ($22 || ' minutes')::interval,$23,$24,$25,$26,$27,$28,$29,$30,$31)
          RETURNING *`,
         [
           restaurantId,
@@ -4039,6 +4065,7 @@ exports.createOrder = async (req, res, next) => {
           scheduledFor,
           cardPaymentIntentId,
           orderLocationId,
+          JSON.stringify(orderTax.snapshot),
         ]
       );
 
@@ -8001,8 +8028,9 @@ exports.createRestaurantLocation = async (req, res, next) => {
             address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours,
             tax_rate_bps, service_fee_bps, tax_inclusive, tax_jurisdiction,
             online_order_pacing_max_per_15_min, in_store_order_pacing_max_per_15_min,
-            prep_time_extension_min, region_id, kitchen_fire_mode, day_start_hour)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
+            prep_time_extension_min, region_id, kitchen_fire_mode, day_start_hour,
+            service_fee_taxable, delivery_fee_taxable)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
          RETURNING *`,
         [
           restaurantId,
@@ -8029,6 +8057,8 @@ exports.createRestaurantLocation = async (req, res, next) => {
           regionId,
           normalizeLocationKitchenFireMode(req.body.kitchenFireMode ?? req.body.kitchen_fire_mode),
           normalizeLocationDayStartHour(req.body.dayStartHour ?? req.body.day_start_hour),
+          (req.body.serviceFeeTaxable ?? req.body.service_fee_taxable) === true,
+          (req.body.deliveryFeeTaxable ?? req.body.delivery_fee_taxable) === true,
         ]
       );
       return created;
@@ -8052,6 +8082,8 @@ exports.createRestaurantLocation = async (req, res, next) => {
         region_id: location.region_id,
         kitchen_fire_mode: location.kitchen_fire_mode,
         day_start_hour: location.day_start_hour,
+        service_fee_taxable: location.service_fee_taxable,
+        delivery_fee_taxable: location.delivery_fee_taxable,
       },
     });
     res.status(201).json({ location: attachRestaurantHours(location) });
@@ -8089,6 +8121,8 @@ exports.updateRestaurantLocation = async (req, res, next) => {
     const hasPrepExtension = Object.hasOwn(req.body, 'prepTimeExtensionMin') || Object.hasOwn(req.body, 'prep_time_extension_min');
     const hasKitchenFireMode = Object.hasOwn(req.body, 'kitchenFireMode') || Object.hasOwn(req.body, 'kitchen_fire_mode');
     const hasDayStartHour = Object.hasOwn(req.body, 'dayStartHour') || Object.hasOwn(req.body, 'day_start_hour');
+    const hasServiceFeeTaxable = Object.hasOwn(req.body, 'serviceFeeTaxable') || Object.hasOwn(req.body, 'service_fee_taxable');
+    const hasDeliveryFeeTaxable = Object.hasOwn(req.body, 'deliveryFeeTaxable') || Object.hasOwn(req.body, 'delivery_fee_taxable');
     const hasRegion = Object.hasOwn(req.body, 'regionId') || Object.hasOwn(req.body, 'region_id');
     const regionValue = req.body.regionId ?? req.body.region_id;
     const regionId = hasRegion && regionValue !== null && regionValue !== '' ? parsePositiveInt(regionValue) : null;
@@ -8142,9 +8176,11 @@ exports.updateRestaurantLocation = async (req, res, next) => {
                 prep_time_extension_min = CASE WHEN $26 THEN $27 ELSE prep_time_extension_min END,
                 kitchen_fire_mode = CASE WHEN $28 THEN $29 ELSE kitchen_fire_mode END,
                 day_start_hour = CASE WHEN $30 THEN $31 ELSE day_start_hour END,
-                region_id = CASE WHEN $32 THEN $33 ELSE region_id END,
+                service_fee_taxable = CASE WHEN $32 THEN $33 ELSE service_fee_taxable END,
+                delivery_fee_taxable = CASE WHEN $34 THEN $35 ELSE delivery_fee_taxable END,
+                region_id = CASE WHEN $36 THEN $37 ELSE region_id END,
                 updated_at = NOW()
-          WHERE id = $34 AND restaurant_id = $35
+          WHERE id = $38 AND restaurant_id = $39
           RETURNING *`,
         [
           normalizeString(req.body.name, 160),
@@ -8178,6 +8214,10 @@ exports.updateRestaurantLocation = async (req, res, next) => {
           normalizeLocationKitchenFireMode(req.body.kitchenFireMode ?? req.body.kitchen_fire_mode),
           hasDayStartHour,
           hasDayStartHour ? normalizeLocationDayStartHour(req.body.dayStartHour ?? req.body.day_start_hour) : null,
+          hasServiceFeeTaxable,
+          (req.body.serviceFeeTaxable ?? req.body.service_fee_taxable) === true,
+          hasDeliveryFeeTaxable,
+          (req.body.deliveryFeeTaxable ?? req.body.delivery_fee_taxable) === true,
           hasRegion,
           regionId,
           locationId,
@@ -8204,6 +8244,8 @@ exports.updateRestaurantLocation = async (req, res, next) => {
         prep_time_extension_min: result.before.prep_time_extension_min,
         kitchen_fire_mode: result.before.kitchen_fire_mode,
         day_start_hour: result.before.day_start_hour,
+        service_fee_taxable: result.before.service_fee_taxable,
+        delivery_fee_taxable: result.before.delivery_fee_taxable,
         region_id: result.before.region_id,
       },
       after_state: {
@@ -8220,6 +8262,8 @@ exports.updateRestaurantLocation = async (req, res, next) => {
         prep_time_extension_min: result.updated.prep_time_extension_min,
         kitchen_fire_mode: result.updated.kitchen_fire_mode,
         day_start_hour: result.updated.day_start_hour,
+        service_fee_taxable: result.updated.service_fee_taxable,
+        delivery_fee_taxable: result.updated.delivery_fee_taxable,
         region_id: result.updated.region_id,
       },
     });
@@ -8228,6 +8272,235 @@ exports.updateRestaurantLocation = async (req, res, next) => {
     if (isMissingRelationError(err)) {
       return next(new AppError('Locations are not available yet', 503, 'locations_unavailable'));
     }
+    next(err);
+  }
+};
+
+// ── F-19: per-store tax rules ─────────────────────────────────────────────
+// Named, stackable tax rates with a target (line items, the delivery fee,
+// or the service fee). A rule with location_id NULL applies to every
+// store of the brand; a store-scoped rule applies to that store only.
+// All writes are restaurant.manage-gated and audit-logged with
+// before/after (tax rules are money-relevant).
+
+const TAX_RULE_APPLIES_TO = new Set(['items', 'delivery_fee', 'service_fee']);
+
+function normalizeTaxRuleAppliesTo(value) {
+  const appliesTo = normalizeString(value, 24);
+  if (!TAX_RULE_APPLIES_TO.has(appliesTo)) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      appliesTo: 'Must be items, delivery_fee, or service_fee',
+    });
+  }
+  return appliesTo;
+}
+
+function normalizeTaxRuleRate(value) {
+  if (value === undefined || value === null || value === '') {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      rateBps: 'A tax rate is required',
+    });
+  }
+  const rate = Math.round(Number(value));
+  if (!Number.isSafeInteger(rate) || rate < 0 || rate > 10000) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      rateBps: 'Enter a rate from 0 to 100 percent',
+    });
+  }
+  return rate;
+}
+
+async function resolveTaxRuleLocation(client, restaurantId, locationId) {
+  if (locationId === null || locationId === undefined || locationId === '') return null;
+  const id = parsePositiveInt(locationId);
+  if (!id) throw new AppError('Validation failed', 400, 'validation_failed', { locationId: 'Invalid store' });
+  const { rows: [location] } = await client.query(
+    'SELECT id FROM restaurant_locations WHERE id = $1 AND restaurant_id = $2',
+    [id, restaurantId]
+  );
+  if (!location) throw new AppError('Location not found', 404, 'location_not_found');
+  return id;
+}
+
+function taxRuleShape(row) {
+  return {
+    id: Number(row.id),
+    restaurant_id: Number(row.restaurant_id),
+    location_id: row.location_id === null ? null : Number(row.location_id),
+    name: row.name,
+    rate_bps: Number(row.rate_bps),
+    applies_to: row.applies_to,
+    is_active: row.is_active,
+    sort_order: Number(row.sort_order || 0),
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+exports.listTaxRules = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantManage(restaurant);
+    const locationId = req.query.locationId ?? req.query.location_id;
+    const { rows } = await pool.query(
+      `SELECT * FROM restaurant_tax_rules
+        WHERE restaurant_id = $1
+          ${locationId !== undefined && locationId !== null && locationId !== ''
+            ? 'AND (location_id IS NULL OR location_id = $2::bigint)'
+            : ''}
+        ORDER BY sort_order ASC, id ASC`,
+      locationId !== undefined && locationId !== null && locationId !== ''
+        ? [restaurantId, parsePositiveInt(locationId) || 0]
+        : [restaurantId]
+    );
+    res.json({ rules: rows.map(taxRuleShape) });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createTaxRule = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantManage(restaurant);
+    const name = normalizeString(req.body.name, 120);
+    if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
+    const rateBps = normalizeTaxRuleRate(req.body.rateBps ?? req.body.rate_bps);
+    const appliesTo = normalizeTaxRuleAppliesTo(req.body.appliesTo ?? req.body.applies_to);
+    const sortOrder = Number.isSafeInteger(Number(req.body.sortOrder ?? req.body.sort_order))
+      ? Number(req.body.sortOrder ?? req.body.sort_order)
+      : 0;
+    const rule = await withTransaction(pool, async (client) => {
+      const locationId = await resolveTaxRuleLocation(
+        client, restaurantId, req.body.locationId ?? req.body.location_id
+      );
+      const { rows: [created] } = await client.query(
+        `INSERT INTO restaurant_tax_rules
+           (restaurant_id, location_id, name, rate_bps, applies_to, is_active, sort_order, created_by)
+         VALUES ($1,$2,$3,$4,$5,TRUE,$6,$7)
+         RETURNING *`,
+        [restaurantId, locationId, name, rateBps, appliesTo, sortOrder, req.user.id]
+      );
+      await auditFoodChange(req, restaurant, {
+        client,
+        action: 'restaurant.tax_rule.created',
+        target_type: 'tax_rule',
+        target_id: created.id,
+        after_state: taxRuleShape(created),
+      });
+      return created;
+    }, 'food_create_tax_rule');
+    res.status(201).json({ rule: taxRuleShape(rule) });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateTaxRule = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const ruleId = parsePositiveInt(req.params.ruleId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantManage(restaurant);
+    const rule = await withTransaction(pool, async (client) => {
+      const { rows: [existing] } = await client.query(
+        'SELECT * FROM restaurant_tax_rules WHERE id = $1 AND restaurant_id = $2',
+        [ruleId, restaurantId]
+      );
+      if (!existing) throw new AppError('Tax rule not found', 404, 'tax_rule_not_found');
+      const sets = [];
+      const params = [];
+      if (req.body.name !== undefined) {
+        const name = normalizeString(req.body.name, 120);
+        if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
+        params.push(name);
+        sets.push(`name = $${params.length}`);
+      }
+      if (req.body.rateBps !== undefined || req.body.rate_bps !== undefined) {
+        params.push(normalizeTaxRuleRate(req.body.rateBps ?? req.body.rate_bps));
+        sets.push(`rate_bps = $${params.length}`);
+      }
+      if (req.body.appliesTo !== undefined || req.body.applies_to !== undefined) {
+        params.push(normalizeTaxRuleAppliesTo(req.body.appliesTo ?? req.body.applies_to));
+        sets.push(`applies_to = $${params.length}`);
+      }
+      if (req.body.isActive !== undefined || req.body.is_active !== undefined) {
+        params.push((req.body.isActive ?? req.body.is_active) !== false);
+        sets.push(`is_active = $${params.length}`);
+      }
+      if (req.body.sortOrder !== undefined || req.body.sort_order !== undefined) {
+        const sortOrder = Number(req.body.sortOrder ?? req.body.sort_order);
+        params.push(Number.isSafeInteger(sortOrder) ? sortOrder : 0);
+        sets.push(`sort_order = $${params.length}`);
+      }
+      let locationChanged = false;
+      let locationId = existing.location_id;
+      if (Object.hasOwn(req.body, 'locationId') || Object.hasOwn(req.body, 'location_id')) {
+        locationId = await resolveTaxRuleLocation(
+          client, restaurantId, req.body.locationId ?? req.body.location_id
+        );
+        locationChanged = true;
+        params.push(locationId);
+        sets.push(`location_id = $${params.length}`);
+      }
+      if (sets.length === 0 && !locationChanged) {
+        throw new AppError('Validation failed', 400, 'validation_failed', { body: 'No updatable fields provided' });
+      }
+      params.push(ruleId, restaurantId);
+      const { rows: [updated] } = await client.query(
+        `UPDATE restaurant_tax_rules
+            SET ${sets.join(', ')}, updated_at = NOW()
+          WHERE id = $${params.length - 1} AND restaurant_id = $${params.length}
+          RETURNING *`,
+        params
+      );
+      await auditFoodChange(req, restaurant, {
+        client,
+        action: 'restaurant.tax_rule.updated',
+        target_type: 'tax_rule',
+        target_id: updated.id,
+        before_state: taxRuleShape(existing),
+        after_state: taxRuleShape(updated),
+      });
+      return updated;
+    }, 'food_update_tax_rule');
+    res.json({ rule: taxRuleShape(rule) });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.deleteTaxRule = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const ruleId = parsePositiveInt(req.params.ruleId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantManage(restaurant);
+    await withTransaction(pool, async (client) => {
+      const { rows: [existing] } = await client.query(
+        'SELECT * FROM restaurant_tax_rules WHERE id = $1 AND restaurant_id = $2',
+        [ruleId, restaurantId]
+      );
+      if (!existing) throw new AppError('Tax rule not found', 404, 'tax_rule_not_found');
+      // Soft-delete: orders snapshot their rules at creation, but keeping
+      // the row preserves history for past snapshots that reference it.
+      await client.query(
+        'UPDATE restaurant_tax_rules SET is_active = FALSE, updated_at = NOW() WHERE id = $1',
+        [ruleId]
+      );
+      await auditFoodChange(req, restaurant, {
+        client,
+        action: 'restaurant.tax_rule.deleted',
+        target_type: 'tax_rule',
+        target_id: existing.id,
+        before_state: taxRuleShape(existing),
+        after_state: { ...taxRuleShape(existing), is_active: false },
+      });
+    }, 'food_delete_tax_rule');
+    res.json({ deleted: true });
+  } catch (err) {
     next(err);
   }
 };

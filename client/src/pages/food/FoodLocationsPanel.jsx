@@ -7,6 +7,7 @@ import { apiErrorMessage } from './foodShared';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 import TimezoneSelect, { DETECTED_TIMEZONE } from './TimezoneSelect.jsx';
 import StoreMenuPanel from './StoreMenuPanel.jsx';
+import TaxRulesPanel from './TaxRulesPanel.jsx';
 import RestaurantLocationAccessPanel from './RestaurantLocationAccessPanel.jsx';
 
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
@@ -87,7 +88,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
     phone: '', timezone: restaurant.timezone || DETECTED_TIMEZONE, status: 'active', isPrimary: false,
     taxRatePercent: '', serviceFeePercent: '', taxInclusive: false, taxJurisdiction: '', regionId: '',
     onlinePacingMax: '', inStorePacingMax: '', prepTimeExtensionMin: '0', kitchenFireMode: '',
-    dayStartHour: '0',
+    dayStartHour: '0', serviceFeeTaxable: false, deliveryFeeTaxable: false,
   }), [restaurant.timezone]);
   const [form, setForm] = useState(blankForm);
   const [editingId, setEditingId] = useState(null);
@@ -139,6 +140,8 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
       prepTimeExtensionMin: loc.prep_time_extension_min == null ? '0' : String(loc.prep_time_extension_min),
       kitchenFireMode: loc.kitchen_fire_mode || '',
       dayStartHour: loc.day_start_hour == null ? '0' : String(loc.day_start_hour),
+      serviceFeeTaxable: !!loc.service_fee_taxable,
+      deliveryFeeTaxable: !!loc.delivery_fee_taxable,
     });
     setDayHours(dayHoursFromLocation(loc));
     setSpecialDates(specialDatesFromLocation(loc));
@@ -264,6 +267,8 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
         prepTimeExtensionMin: form.prepTimeExtensionMin === '' ? 0 : Number(form.prepTimeExtensionMin),
         kitchenFireMode: form.kitchenFireMode || null,
         dayStartHour: form.dayStartHour === '' ? 0 : Number(form.dayStartHour),
+        serviceFeeTaxable: form.serviceFeeTaxable,
+        deliveryFeeTaxable: form.deliveryFeeTaxable,
         ...(hoursDirty ? { operatingHours: buildOperatingHours() } : {}),
       };
       if (editingId) {
@@ -378,6 +383,12 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
           </div>
           <label className="fd-field" style={{ flex: '0 1 180px', justifyContent: 'flex-end' }}>
             <span><input type="checkbox" checked={form.taxInclusive} onChange={(e) => setForm((f) => ({ ...f, taxInclusive: e.target.checked }))} data-track="ui.dbbd615872.10" />{' '}{t('food.merchant.taxInclusive', 'Tax inclusive')}</span>
+          </label>
+          <label className="fd-field" style={{ flex: '0 1 200px', justifyContent: 'flex-end' }}>
+            <span><input type="checkbox" checked={form.serviceFeeTaxable} onChange={(e) => setForm((f) => ({ ...f, serviceFeeTaxable: e.target.checked }))} />{' '}{t('food.merchant.serviceFeeTaxable')}</span>
+          </label>
+          <label className="fd-field" style={{ flex: '0 1 200px', justifyContent: 'flex-end' }}>
+            <span><input type="checkbox" checked={form.deliveryFeeTaxable} onChange={(e) => setForm((f) => ({ ...f, deliveryFeeTaxable: e.target.checked }))} />{' '}{t('food.merchant.deliveryFeeTaxable')}</span>
           </label>
           <div className="fd-field" style={{ flex: '0 1 150px' }}>
             <label htmlFor="fd-loc-online-pacing">{t('food.merchant.onlinePacingMax')}</label>
@@ -504,6 +515,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
         </div>
       </form>
       {editingId && <StoreMenuPanel restaurant={restaurant} locationId={editingId} t={t} />}
+      {editingId && <TaxRulesPanel restaurant={restaurant} locationId={editingId} t={t} />}
       <RestaurantLocationAccessPanel restaurant={restaurant} t={t} />
     </div>
   );

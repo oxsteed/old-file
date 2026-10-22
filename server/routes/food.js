@@ -148,6 +148,11 @@ router.get('/restaurants/:restaurantId/promotions/manage', authenticate, require
 router.patch('/restaurants/:restaurantId/promotions/:promotionId', authenticate, requireRestaurantAccess(), ctrl.updateRestaurantPromotion);
 router.post('/restaurants/:restaurantId/locations', authenticate, requireRestaurantAccess(), ctrl.createRestaurantLocation);
 router.patch('/restaurants/:restaurantId/locations/:locationId', authenticate, requireRestaurantAccess(), ctrl.updateRestaurantLocation);
+// F-19: per-store tax rules (restaurant.manage-gated in the controller).
+router.get('/restaurants/:restaurantId/tax-rules', authenticate, requireRestaurantAccess(), ctrl.listTaxRules);
+router.post('/restaurants/:restaurantId/tax-rules', authenticate, requireRestaurantAccess(), ctrl.createTaxRule);
+router.patch('/restaurants/:restaurantId/tax-rules/:ruleId', authenticate, requireRestaurantAccess(), ctrl.updateTaxRule);
+router.delete('/restaurants/:restaurantId/tax-rules/:ruleId', authenticate, requireRestaurantAccess(), ctrl.deleteTaxRule);
 router.get('/restaurants/:restaurantId/menu/manage', authenticate, requireRestaurantAccess(), ctrl.getManagedRestaurantMenu);
 router.post('/restaurants/:restaurantId/categories', authenticate, requireRestaurantAccess(), ctrl.createMenuCategory);
 router.patch('/restaurants/:restaurantId/categories/:categoryId', authenticate, requireRestaurantAccess(), ctrl.updateMenuCategory);
