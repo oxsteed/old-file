@@ -7457,15 +7457,18 @@ exports.listKitchenStations = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.view', 'kitchen.update', 'kitchen.manage', 'orders.manage']);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const { locationFilter, scopedParams } = locationScopeQueryHelpers(locationScope);
+    const params = scopedParams([restaurantId]);
     const { rows: stations } = await pool.query(
       `SELECT ks.*,
               d.device_name,
               d.status AS device_status
          FROM restaurant_kitchen_stations ks
          LEFT JOIN restaurant_app_devices d ON d.id = ks.device_id
-        WHERE ks.restaurant_id = $1
+        WHERE ks.restaurant_id = $1${locationFilter('ks', params.length)}
         ORDER BY ks.is_active DESC, ks.name ASC`,
-      [restaurantId]
+      params
     );
     res.json({ stations });
   } catch (err) {
@@ -7478,21 +7481,29 @@ exports.upsertKitchenStation = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertManage(restaurant, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const name = normalizeString(req.body.name, 120);
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Station name is required' });
     const deviceId = parsePositiveInt(req.body.deviceId || req.body.device_id);
+    let locationId = parsePositiveInt(req.body.locationId || req.body.location_id);
     if (deviceId) {
       const { rows: [device] } = await pool.query(
-        `SELECT id FROM restaurant_app_devices
+        `SELECT id, location_id FROM restaurant_app_devices
           WHERE id = $1 AND restaurant_id = $2 AND app_key = 'kitchen'`,
         [deviceId, restaurantId]
       );
       if (!device) throw new AppError('Kitchen device not found', 404, 'kitchen_device_not_found');
+      locationId = locationId || parsePositiveInt(device.location_id);
+    }
+    if (locationScope.mode === 'assigned') {
+      if (!locationId || !locationScope.location_ids.includes(locationId)) {
+        throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+      }
     }
     const { rows: [station] } = await pool.query(
       `INSERT INTO restaurant_kitchen_stations
-         (restaurant_id, name, device_id, printer_config, is_active, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6)
+         (restaurant_id, name, device_id, printer_config, is_active, created_by, location_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
        ON CONFLICT (restaurant_id, name)
        DO UPDATE SET device_id = COALESCE(EXCLUDED.device_id, restaurant_kitchen_stations.device_id),
                      printer_config = EXCLUDED.printer_config,
@@ -7506,6 +7517,7 @@ exports.upsertKitchenStation = async (req, res, next) => {
         safeJson(req.body.printerConfig || req.body.printer_config),
         req.body.isActive !== false && req.body.is_active !== false,
         req.user.id,
+        locationId,
       ]
     );
     res.status(201).json({ station });
@@ -7519,22 +7531,28 @@ exports.routeMenuItemToStation = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertManage(restaurant, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const menuItemId = parsePositiveInt(req.body.menuItemId || req.body.menu_item_id);
     const stationId = parsePositiveInt(req.body.stationId || req.body.station_id);
     if (!menuItemId || !stationId) {
       throw new AppError('Validation failed', 400, 'validation_failed', { route: 'menuItemId and stationId are required' });
     }
+    const params = [restaurantId, menuItemId, stationId, req.user.id];
+    const stationLocationFilter = locationScope.mode === 'assigned'
+      ? ' AND ks.location_id = ANY($5::bigint[])'
+      : '';
+    if (locationScope.mode === 'assigned') params.push(locationScope.location_ids);
     const { rows: [route] } = await pool.query(
       `INSERT INTO restaurant_menu_item_station_routes
          (restaurant_id, menu_item_id, station_id, created_by)
        SELECT $1, fmi.id, ks.id, $4
          FROM food_menu_items fmi
          JOIN restaurant_kitchen_stations ks ON ks.id = $3 AND ks.restaurant_id = $1
-        WHERE fmi.id = $2 AND fmi.restaurant_id = $1
+        WHERE fmi.id = $2 AND fmi.restaurant_id = $1${stationLocationFilter}
        ON CONFLICT (restaurant_id, menu_item_id)
        DO UPDATE SET station_id = EXCLUDED.station_id
        RETURNING *`,
-      [restaurantId, menuItemId, stationId, req.user.id]
+      params
     );
     if (!route) throw new AppError('Menu item or station not found', 404, 'route_target_not_found');
     res.json({ route });
@@ -8928,12 +8946,17 @@ exports.listRunnerSettlements = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const status = normalizeString(req.query.status, 24);
     const params = [restaurantId];
     let filter = '';
+    if (locationScope.mode === 'assigned') {
+      params.push(locationScope.location_ids);
+      filter += ` AND location_id = ANY($${params.length}::bigint[])`;
+    }
     if (status && RUNNER_SETTLEMENT_STATUSES.has(status)) {
       params.push(status);
-      filter = `AND status = $${params.length}`;
+      filter += ` AND status = $${params.length}`;
     }
     const canManage = await hasRestaurantPermission(restaurant, req.user.id, 'runner.manage');
     if (!canManage) {
@@ -8959,6 +8982,7 @@ exports.upsertRunnerSettlement = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId || req.body.taskId || req.body.task_id);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const canManage = await hasRestaurantPermission(restaurant, req.user.id, 'runner.manage');
     const status = normalizeString(req.body.status, 24) || 'pending';
     if (!RUNNER_SETTLEMENT_STATUSES.has(status)) {
@@ -8982,16 +9006,20 @@ exports.upsertRunnerSettlement = async (req, res, next) => {
       voided: new Set(['voided']),
     };
     const settlement = await withTransaction(pool, async (client) => {
+      const taskParams = [taskId, restaurantId];
+      const taskLocationFilter = locationScope.mode === 'assigned'
+        ? ` AND t.location_id = ANY($${taskParams.push(locationScope.location_ids)}::bigint[])`
+        : '';
       const { rows: [task] } = await client.query(
-        `SELECT t.id, t.food_order_id, t.assigned_to, t.status AS task_status,
+        `SELECT t.id, t.location_id, t.food_order_id, t.assigned_to, t.status AS task_status,
                 t.handoff_at, t.cash_collection_required,
                 fo.delivery_fee_cents, fo.tip_cents, fo.total_cents,
                 fo.payment_status, fo.fulfillment_type
            FROM restaurant_runner_tasks t
            LEFT JOIN food_orders fo ON fo.id = t.food_order_id
-          WHERE t.id = $1 AND t.restaurant_id = $2
+          WHERE t.id = $1 AND t.restaurant_id = $2${taskLocationFilter}
           FOR UPDATE OF t`,
-        [taskId, restaurantId]
+        taskParams
       );
       if (!task) throw new AppError('Runner task not found', 404, 'runner_task_not_found');
       if (!canManage && String(task.assigned_to || '') !== String(req.user.id)) {
@@ -9069,16 +9097,16 @@ exports.upsertRunnerSettlement = async (req, res, next) => {
       }
       const { rows: [updated] } = await client.query(
         `INSERT INTO restaurant_runner_settlements
-         (restaurant_id, task_id, food_order_id, runner_user_id, delivery_fee_cents, tip_cents,
+         (restaurant_id, location_id, task_id, food_order_id, runner_user_id, delivery_fee_cents, tip_cents,
           cash_collected_cents, cash_remitted_cents, remitted_at, remitted_by,
           status, note, approved_by, approved_at, paid_at, payment_reference, metadata)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,
-               CASE WHEN $8 > 0 THEN NOW() ELSE NULL END,
-               CASE WHEN $8 > 0 THEN $9 ELSE NULL END,
-               $10,$11,$12,
-               CASE WHEN $10 = 'approved' THEN NOW() ELSE NULL END,
-               CASE WHEN $10 = 'paid' THEN NOW() ELSE NULL END,
-               $14, $13)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,
+               CASE WHEN $9 > 0 THEN NOW() ELSE NULL END,
+               CASE WHEN $9 > 0 THEN $10 ELSE NULL END,
+               $11,$12,$13,
+               CASE WHEN $11 = 'approved' THEN NOW() ELSE NULL END,
+               CASE WHEN $11 = 'paid' THEN NOW() ELSE NULL END,
+               $15, $14)
        ON CONFLICT (restaurant_id, task_id) WHERE task_id IS NOT NULL
        DO UPDATE SET food_order_id = EXCLUDED.food_order_id,
                      runner_user_id = EXCLUDED.runner_user_id,
@@ -9099,6 +9127,7 @@ exports.upsertRunnerSettlement = async (req, res, next) => {
        RETURNING *`,
         [
           restaurantId,
+          task.location_id,
           taskId,
           task.food_order_id,
           task.assigned_to,

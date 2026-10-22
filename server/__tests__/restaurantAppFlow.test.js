@@ -98,6 +98,7 @@ function buildApp(userId = USER_ID) {
   app.post('/api/restaurants/:restaurantId/kitchen/orders/:orderId/ack', appFlow.ackKitchenTicket);
   app.post('/api/restaurants/:restaurantId/kitchen/orders/:orderId/action', appFlow.performKitchenOrderAction);
   app.post('/api/restaurants/:restaurantId/kitchen/items/:orderItemId/action', appFlow.performKitchenItemAction);
+  app.get('/api/restaurants/:restaurantId/kitchen/stations', appFlow.listKitchenStations);
   app.post('/api/restaurants/:restaurantId/kitchen/stations', appFlow.upsertKitchenStation);
   app.post('/api/restaurants/:restaurantId/kitchen/station-routes', appFlow.routeMenuItemToStation);
   app.post('/api/restaurants/:restaurantId/kitchen/printer-jobs', appFlow.createPrinterJob);
@@ -109,6 +110,7 @@ function buildApp(userId = USER_ID) {
   app.post('/api/restaurants/:restaurantId/runner/tasks/:taskId/location', appFlow.logRunnerLocation);
   app.post('/api/restaurants/:restaurantId/runner/tasks/:taskId/handoff', appFlow.completeRunnerHandoff);
   app.post('/api/restaurants/:restaurantId/runner/tasks/:taskId/settlements', appFlow.upsertRunnerSettlement);
+  app.get('/api/restaurants/:restaurantId/runner/settlements', appFlow.listRunnerSettlements);
   app.get('/api/restaurants/:restaurantId/inventory/hooks/status', appFlow.getInventoryHookStatus);
   app.post('/api/restaurants/:restaurantId/inventory/items/:itemId/adjust', inventory.adjustItem);
   app.get('/api/food/customer/favorite-items', food.listCustomerFavoriteItems);
@@ -1773,6 +1775,45 @@ describe('restaurant app-flow backend', () => {
     expect(jobInsert[1]).toContain(77);
   });
 
+  test('scopes kitchen station reads and writes to assigned stores', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 46 })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 31, location_id: 77, name: 'Grill', is_active: true }] });
+
+    const createRes = await request(buildApp('00000000-0000-4000-8000-000000000126'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/kitchen/stations`)
+      .send({ name: 'Grill', locationId: 77 });
+
+    expect(createRes.status).toBe(201);
+    const insert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO restaurant_kitchen_stations/.test(sql));
+    expect(insert[0]).toContain('location_id');
+    expect(insert[1]).toContain(77);
+
+    permissionsService.invalidateCache();
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 46 })] })
+      .mockResolvedValueOnce({ rows: [
+        { code: 'kitchen.view', allow: true },
+        { code: 'kitchen.update', allow: true },
+        { code: 'kitchen.manage', allow: true },
+        { code: 'orders.manage', allow: true },
+      ] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 31, location_id: 77, name: 'Grill' }] });
+
+    const listRes = await request(buildApp('00000000-0000-4000-8000-000000000126'))
+      .get(`/api/restaurants/${RESTAURANT_ID}/kitchen/stations`);
+
+    expect(listRes.status).toBe(200);
+    const list = mockQuery.mock.calls.at(-1);
+    expect(list[0]).toContain('ks.location_id = ANY($2::bigint[])');
+    expect(list[1]).toEqual([RESTAURANT_ID, [77]]);
+  });
+
   test('denies printer-job creation to members without a kitchen permission', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'employee' })] });
 
@@ -1905,6 +1946,29 @@ describe('restaurant app-flow backend', () => {
     expect(res.status).toBe(201);
     expect(res.body.settlement.status).toBe('approved');
     expect(res.body.settlement.tip_cents).toBe(200);
+  });
+
+  test('scopes runner settlements to the assigned store', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 47 })] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ code: 'runner.manage', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 901, location_id: 77, food_order_id: ORDER_ID, assigned_to: USER_ID, task_status: 'Completed', handoff_at: '2026-06-21T04:10:00.000Z' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1100, status: 'pending' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1101, location_id: 77, task_id: 901, delivery_fee_cents: 300, tip_cents: 200, status: 'approved' }] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000127'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/runner/tasks/901/settlements`)
+      .send({ status: 'approved' });
+
+    expect(res.status).toBe(201);
+    const taskQuery = mockQuery.mock.calls.find(([sql]) => /FROM restaurant_runner_tasks/.test(sql));
+    expect(taskQuery[0]).toContain('t.location_id = ANY($3::bigint[])');
+    expect(taskQuery[1]).toEqual([901, RESTAURANT_ID, [77]]);
+    const insert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO restaurant_runner_settlements/.test(sql));
+    expect(insert[0]).toContain('location_id');
+    expect(insert[1][1]).toBe(77);
   });
 
   test('reports inventory hook status for menu availability automation', async () => {
