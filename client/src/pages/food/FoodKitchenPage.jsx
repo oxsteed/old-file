@@ -10,6 +10,7 @@ import {
   dropDisplayPairing,
   getRestaurantKitchenFeed,
   performRestaurantKitchenItemAction,
+  performRestaurantKitchenCourseAction,
   performRestaurantKitchenOrderAction,
   readDisplayToken,
   updateFoodOrderStatus,
