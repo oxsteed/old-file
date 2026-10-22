@@ -297,10 +297,13 @@ async function resolveBusinessAccess(userId, businessId, { includeDeleted = fals
  *                            // read unconstrained (or fail closed when a
  *                            // grant is required — see regionRestricted).
  *     regionRestricted,     // admin has unexpired region-scoped grants.
- *                            // INFORMATIONAL ONLY: no row-level region
- *                            // scoping exists anywhere in the codebase, so
- *                            // consumers must keep today's fail-closed
- *                            // behavior and never treat this as enforced.
+ *                            // INFORMATIONAL ONLY in this model: row-level
+ *                            // region scoping itself lives in
+ *                            // utils/scopeFilter.js (regionIdsScopeClause /
+ *                            // userLocationScopeClause), which regional-admin
+ *                            // routes apply directly. No region scoping is
+ *                            // applied on restaurant routes; consumers must
+ *                            // never treat this flag as enforced.
  *     regionIds,              // region ids from those grants (admins only).
  *     businesses:   [{ id, role }],  // owned + active memberships;
  *                                     // soft-deleted businesses excluded

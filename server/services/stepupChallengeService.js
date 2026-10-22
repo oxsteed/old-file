@@ -47,6 +47,8 @@ const STEPUP_ACTION_TYPES = Object.freeze([
   'restaurant_topup',
   'settlement_payout',
   'withdrawal',
+  'instant_payout',
+  'agent_job_cancel',
   'customer_transfer',
   'restaurant_conversion',
   'pending_action_approve',

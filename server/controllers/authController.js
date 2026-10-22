@@ -1772,6 +1772,10 @@ async function getMe(req, res) {
   try {
     return res.json({
       success: true,
+      // Audit fix (finding 35): let the client know this session is
+      // impersonated so admin UIs can show the banner / block sensitive
+      // actions (req.impersonatedBy is stamped by the auth middleware).
+      isImpersonated: Boolean(req.impersonatedBy),
       user: formatAuthUser(req.user)
     });
   } catch (err) {

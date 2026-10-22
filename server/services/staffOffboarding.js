@@ -41,7 +41,7 @@
  */
 async function applyStaffOffboarding(client, { businessId, userId, reason } = {}) {
   if (!client || !businessId || !userId) {
-    return { pinsDeactivated: 0, sessionsEnded: 0, drawersFlagged: 0, crewTasksUnassigned: 0, correctiveActionsUnassigned: 0 };
+    return { pinsDeactivated: 0, sessionsEnded: 0, drawersFlagged: 0, crewTasksUnassigned: 0, correctiveActionsUnassigned: 0, refreshTokensRevoked: 0 };
   }
 
   const pins = await client.query(
@@ -115,12 +115,22 @@ async function applyStaffOffboarding(client, { businessId, userId, reason } = {}
     [userId, businessId]
   );
 
+  // Audit fix (finding 32): a refresh token is a long-lived credential, not
+  // a membership row. Revoke every refresh token for the offboarded user
+  // inside the same transaction, so a revoked member cannot silently mint
+  // new access tokens. Any failure rolls the offboarding back (fail closed).
+  const refreshTokens = await client.query(
+    `DELETE FROM refresh_tokens WHERE user_id = $1 RETURNING id`,
+    [userId]
+  );
+
   return {
     pinsDeactivated: pins.rowCount || 0,
     sessionsEnded: sessions.rowCount || 0,
     drawersFlagged: drawers.rowCount || 0,
     crewTasksUnassigned: crewTasks.rowCount || 0,
     correctiveActionsUnassigned: correctiveActions.rowCount || 0,
+    refreshTokensRevoked: refreshTokens.rowCount || 0,
   };
 }
 
