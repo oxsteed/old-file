@@ -33,8 +33,8 @@ describe('restaurant CRM loyalty segment contracts', () => {
       location_id: 4,
     });
     expect(result.params).toEqual([100, 2, 30, 4]);
-    expect(result.clauses.join(' AND ')).toMatch(/lifetime_points >= \$1/);
-    expect(result.clauses.join(' AND ')).toMatch(/paid_orders >= \$2/);
+    expect(result.clauses.join(' AND ')).toMatch(/lifetime_points >= \$2/);
+    expect(result.clauses.join(' AND ')).toMatch(/paid_orders >= \$3/);
     expect(result.clauses.join(' AND ')).toMatch(/last_paid_order_at/);
     expect(result.clauses.join(' AND ')).toContain('has_location_order = TRUE');
   });

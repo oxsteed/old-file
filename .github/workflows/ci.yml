@@ -143,6 +143,26 @@ jobs:
           NODE
           npx jest --runInBand __tests__/restaurantInventoryAvailability.db.test.js
 
+      - name: Restaurant payroll, hosting and CRM PostgreSQL regressions
+        working-directory: server
+        env:
+          NODE_ENV: test
+          FRANCHISE_SCOPE_TEST_DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/franchise_scope_test?sslmode=disable
+        run: |
+          node - <<'NODE'
+          const { Client } = require('pg');
+          const url = new URL(process.env.FRANCHISE_SCOPE_TEST_DATABASE_URL);
+          url.pathname = '/postgres';
+          const db = new Client({ connectionString: url.toString() });
+          (async () => {
+            try {
+              await db.connect();
+              await db.query('CREATE DATABASE franchise_scope_test');
+            } finally { await db.end(); }
+          })().catch(error => { console.error(error.message); process.exitCode = 1; });
+          NODE
+          npx jest --runInBand __tests__/restaurantThirtyFixes.db.test.js
+
       - name: Logistics isolated database integration
         working-directory: server
         env:

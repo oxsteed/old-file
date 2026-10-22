@@ -1,3 +1,4 @@
+const { payrollLocation } = require('../services/restaurantPayrollLocation');
 const pool = require('../db');
 const { businessScopeSatisfies } = require('../middleware/scopeGates');
 const { logBusinessAction } = require('../services/businessAuditLog');
@@ -84,9 +85,9 @@ exports.createShift = async (req, res, next) => {
     }
 
     const { rows } = await pool.query(
-      `INSERT INTO business_staff_shifts (business_id, user_id, shift_date, start_time, end_time, role_label, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [businessId, user_id, shift_date, start_time, end_time, role_label || null, notes || null]
+      `INSERT INTO business_staff_shifts (business_id, user_id, shift_date, start_time, end_time, role_label, notes, location_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [businessId, user_id, shift_date, start_time, end_time, role_label || null, notes || null, await payrollLocation(businessId, req.user?.id, req.body.locationId ?? req.body.location_id ?? null)]
     );
     res.status(201).json({ shift: rows[0] });
   } catch (err) {
@@ -136,9 +137,9 @@ exports.logHours = async (req, res, next) => {
     }
 
     const { rows } = await pool.query(
-      `INSERT INTO business_time_entries (business_id, user_id, entry_date, hours_worked, description, approved_by, source)
-       VALUES ($1,$2,$3,$4,$5,$6,'manual') RETURNING *`,
-      [businessId, user_id, entry_date || new Date().toISOString().split('T')[0], hours, description || null, userId]
+      `INSERT INTO business_time_entries (business_id, user_id, entry_date, hours_worked, description, approved_by, source, location_id)
+       VALUES ($1,$2,$3,$4,$5,$6,'manual',$7) RETURNING *`,
+      [businessId, user_id, entry_date || new Date().toISOString().split('T')[0], hours, description || null, userId, await payrollLocation(businessId, req.user?.id, req.body.locationId ?? req.body.location_id ?? null)]
     );
     // S-16: time entries feed payroll; creating one is an auditable
     // staff action (deletion below was previously unaudited entirely).
