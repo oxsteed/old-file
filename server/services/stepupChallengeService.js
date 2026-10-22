@@ -77,6 +77,9 @@ const STEPUP_ACTION_TYPES = Object.freeze([
   // ADM-016: the second admin (checker) in dual approval must prove a fresh
   // step-up challenge before the queued money movement executes.
   'money_movement_approve',
+  // Auth audit item 8: unfreezing the credit rail lifts the emergency stop
+  // on money initiation; a fresh step-up is required.
+  'credit_rail_unfreeze',
 ]);
 
 function getStepupPepper() {

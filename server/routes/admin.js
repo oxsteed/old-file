@@ -509,7 +509,10 @@ router.post('/super/oxsteed-credit/rail', requireSuperAdmin, creditAdminMutation
 // Operator freeze on money initiation (external reconciliation, migration
 // 637). Independent of the rail enabled/suspended toggle above.
 router.post('/super/oxsteed-credit/rail/freeze', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.freezeAdminCreditRail);
-router.post('/super/oxsteed-credit/rail/unfreeze', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.unfreezeAdminCreditRail);
+// Auth audit item 8: unfreeze lifts the fraud emergency stop. Freeze stays
+// unilateral by design; unfreeze additionally rejects impersonated sessions
+// and requires a fresh step-up challenge in the controller.
+router.post('/super/oxsteed-credit/rail/unfreeze', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.unfreezeAdminCreditRail);
 // External reconciliation vs Stripe (Phase 4): run history and manual
 // triggers. Manual periods are capped at 31 days by the service.
 router.get('/super/oxsteed-credit/external-reconciliation', requireSuperAdmin, oxsteedCreditCtrl.listAdminCreditExternalReconciliationRuns);
