@@ -44,6 +44,10 @@ const {
 const { finalizeCreditSpendInTransaction } = require('../services/creditSpendAdapter');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
+const {
+  resolveKitchenFireMode,
+  fireKitchenTicketForOrder,
+} = require('../services/restaurantKitchenFireService');
 const { nextQueueNumber } = require('../services/restaurantQueueCounter');
 const restaurantLocationService = require('../services/restaurantLocationService');
 const { getLocationScope } = require('../services/restaurantLocationAccessService');
@@ -2917,6 +2921,9 @@ async function buildQueueBoardPayload(restaurantId, device = null, { publicOnly 
       WHERE restaurant_id = $1
         AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date
         AND status IN ('received','accepted','preparing','ready')
+        -- F-04: fire-on-pay tickets stay invisible to the kitchen until
+        -- the first payment fires them (kitchen_ticket_fired_at set).
+        AND kitchen_ticket_fired_at IS NOT NULL
         ${deviceLocationFilter}
       ORDER BY queue_number ASC`,
     orderParams
@@ -4137,6 +4144,16 @@ exports.createPosOrder = async (req, res, next) => {
       storeMenu.useStoreDetails(restaurantRow, posLocation);
       const posLocationId = posLocation ? Number(posLocation.id) : null;
       const posTimezone = posLocation?.timezone || restaurantRow.timezone;
+      // F-04: per-store fire-on-pay setting (store column, else the
+      // restaurant-level kitchenFireMode settings key, else on_send).
+      // In on_pay mode the order is created with kitchen_ticket_fired_at
+      // NULL: no printer jobs are enqueued and the KDS board hides the
+      // ticket until the first payment reconciles.
+      const kitchenFireMode = resolveKitchenFireMode({
+        locationRow: posLocation,
+        restaurantSettings: restaurantRow.settings,
+      });
+      const fireKitchenOnCreate = kitchenFireMode !== 'on_pay';
       const ids = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
       const { rows: menuRows } = await client.query(
         `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
@@ -4353,6 +4370,7 @@ exports.createPosOrder = async (req, res, next) => {
           source: 'pos_order_create',
           initialPaymentStatus: paymentStatus,
         }),
+        kitchenFireMode,
         ...(discountLines.length ? { posDiscounts: discountLines } : {}),
         ...(deliveryAddress ? { deliveryAddress, deliveryFeeCents } : {}),
         pricing: { taxRateBps, serviceFeeBps, taxCents: tax, serviceFeeCents, deliveryFeeCents },
@@ -4363,8 +4381,10 @@ exports.createPosOrder = async (req, res, next) => {
             order_source, fulfillment_type, payment_status, subtotal_cents, tax_cents,
             service_fee_cents, delivery_fee_cents, tax_rate_bps, service_fee_bps,
             tip_cents, discount_cents, total_cents, currency_code, table_label,
-            queue_number, promised_at, notes, metadata, client_order_id, acting_staff_user_id, location_id)
-         VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW() + ($21 || ' minutes')::interval,$22,$23,$24,$25,$26)
+            queue_number, promised_at, notes, metadata, client_order_id, acting_staff_user_id, location_id,
+            kitchen_ticket_fired_at)
+         VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW() + ($21 || ' minutes')::interval,$22,$23,$24,$25,$26,
+            ${fireKitchenOnCreate ? 'NOW()' : 'NULL'})
          RETURNING *`,
         [
           restaurantId,
@@ -4449,11 +4469,16 @@ exports.createPosOrder = async (req, res, next) => {
         orderItems: createdOrderItems,
         locationId: order.location_id,
       });
-      const printerJobs = await enqueueKitchenPrinterJobs(client, {
-        restaurantId,
-        orderId: order.id,
-        createdBy: req.user.id,
-      });
+      // F-04: in fire-on-pay mode the kitchen ticket stays unfired until
+      // the first payment reconciles (see reconcilePosOrderPayment); the
+      // printer-job idempotency key makes a later fire exactly-once.
+      const printerJobs = fireKitchenOnCreate
+        ? await enqueueKitchenPrinterJobs(client, {
+          restaurantId,
+          orderId: order.id,
+          createdBy: req.user.id,
+        })
+        : [];
       const runnerTask = await createPosDeliveryRunnerTask(client, order, deliveryAddress, req.user.id);
       if (shiftId) {
         await insertPosReceiptAudit(client, {
@@ -4474,11 +4499,13 @@ exports.createPosOrder = async (req, res, next) => {
             : null,
         });
       }
-      return { order, printerJobs, runnerTask };
+      return { order, printerJobs, runnerTask, kitchenFireMode };
     });
     // F-04: a replayed checkout returns the original order with 200 and
-    // does not re-fire the creation broadcast.
-    if (!result.replayed) {
+    // does not re-fire the creation broadcast. In fire-on-pay mode the
+    // creation broadcast is deferred until the kitchen ticket actually
+    // fires (on first payment), so the KDS never sees an unpaid ticket.
+    if (!result.replayed && result.kitchenFireMode !== 'on_pay') {
       broadcastRestaurant(restaurant, 'food:order:created', result);
     }
     res.status(result.replayed ? 200 : 201).json(result);
@@ -6041,6 +6068,16 @@ exports.recordPosPayment = async (req, res, next) => {
       }).catch(() => { /* helper already logged */ });
     }
     broadcastRestaurant(restaurant, 'food:pos:payment:recorded', result);
+    // F-04: the deferred fire-on-pay creation broadcast: the KDS sees the
+    // ticket only now that the kitchen ticket has actually fired.
+    if (result.kitchenTicketFired && result.order && !result.replayed) {
+      broadcastRestaurant(restaurant, 'food:order:created', {
+        order: result.order,
+        printerJobs: result.kitchenTicketJobs || [],
+        runnerTask: null,
+        fired: true,
+      });
+    }
     res.status(result.replayed ? 200 : 201).json(result);
   } catch (err) {
     next(err);
@@ -6267,6 +6304,15 @@ exports.capturePosCardPayment = async (req, res, next) => {
       return { payment: capturedPayment, ...reconciliation };
     });
     broadcastRestaurant(restaurant, 'food:pos:card:captured', result);
+    // F-04: deferred fire-on-pay creation broadcast for card captures.
+    if (result.kitchenTicketFired && result.order && !result.replayed) {
+      broadcastRestaurant(restaurant, 'food:order:created', {
+        order: result.order,
+        printerJobs: result.kitchenTicketJobs || [],
+        runnerTask: null,
+        fired: true,
+      });
+    }
     res.json(result);
   } catch (err) {
     if (err.code === 'stripe_not_configured') {

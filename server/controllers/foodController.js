@@ -410,6 +410,20 @@ function normalizeLocationTaxJurisdiction(value) {
   return normalizeString(value, 160);
 }
 
+// F-04: per-store kitchen fire mode. null/empty clears back to inheriting
+// the restaurant-level kitchenFireMode settings key.
+function normalizeLocationKitchenFireMode(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const { normalizeKitchenFireMode } = require('../services/restaurantKitchenFireService');
+  const mode = normalizeKitchenFireMode(value);
+  if (!mode) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      kitchenFireMode: 'Kitchen fire mode must be on_send or on_pay',
+    });
+  }
+  return mode;
+}
+
 function normalizeLocationInteger(value, field, { nullable = true, max = 1000 } = {}) {
   if (value === undefined || value === null || value === '') return nullable ? null : 0;
   const parsed = Number(value);
@@ -5726,6 +5740,19 @@ function normalizeFoodPacingSettingsPatch(settings = {}) {
   return { onlineOrderPacingMaxPer15Min: Math.max(0, Math.min(1000, value)) };
 }
 
+// F-04: fire-on-pay kitchen ticket mode. Stored in
+// food_restaurants.settings as kitchenFireMode; a per-store
+// restaurant_locations.kitchen_fire_mode overrides it (NULL inherits).
+function normalizeKitchenFireSettingsPatch(settings = {}) {
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return {};
+  const { normalizeKitchenFireMode } = require('../services/restaurantKitchenFireService');
+  const raw = settings.kitchenFireMode ?? settings.kitchen_fire_mode;
+  if (raw === undefined) return {};
+  const mode = normalizeKitchenFireMode(raw);
+  if (!mode) return {};
+  return { kitchenFireMode: mode };
+}
+
 function normalizeFoodExternalPaymentSettingsPatch(settings = {}) {
   if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return {};
   const patch = {};
@@ -5911,6 +5938,7 @@ exports.updateRestaurant = async (req, res, next) => {
       ...normalizeRestaurantCheckoutSettingsPatch(settingsInput),
       ...normalizeFoodExternalPaymentSettingsPatch(settingsInput),
       ...normalizeFoodPacingSettingsPatch(settingsInput),
+      ...normalizeKitchenFireSettingsPatch(settingsInput),
     };
     if (Object.keys(settingsPatch).length > 0) {
       params.push(JSON.stringify(settingsPatch));
@@ -7960,8 +7988,8 @@ exports.createRestaurantLocation = async (req, res, next) => {
             address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours,
             tax_rate_bps, service_fee_bps, tax_inclusive, tax_jurisdiction,
             online_order_pacing_max_per_15_min, in_store_order_pacing_max_per_15_min,
-            prep_time_extension_min, region_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+            prep_time_extension_min, region_id, kitchen_fire_mode)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
          RETURNING *`,
         [
           restaurantId,
@@ -7986,6 +8014,7 @@ exports.createRestaurantLocation = async (req, res, next) => {
           normalizeLocationInteger(req.body.inStoreOrderPacingMaxPer15Min ?? req.body.in_store_order_pacing_max_per_15_min, 'inStoreOrderPacingMaxPer15Min'),
           normalizeLocationInteger(req.body.prepTimeExtensionMin ?? req.body.prep_time_extension_min, 'prepTimeExtensionMin', { nullable: false, max: 240 }),
           regionId,
+          normalizeLocationKitchenFireMode(req.body.kitchenFireMode ?? req.body.kitchen_fire_mode),
         ]
       );
       return created;
@@ -8007,6 +8036,7 @@ exports.createRestaurantLocation = async (req, res, next) => {
         in_store_order_pacing_max_per_15_min: location.in_store_order_pacing_max_per_15_min,
         prep_time_extension_min: location.prep_time_extension_min,
         region_id: location.region_id,
+        kitchen_fire_mode: location.kitchen_fire_mode,
       },
     });
     res.status(201).json({ location: attachRestaurantHours(location) });
@@ -8042,6 +8072,7 @@ exports.updateRestaurantLocation = async (req, res, next) => {
     const hasOnlinePacing = Object.hasOwn(req.body, 'onlineOrderPacingMaxPer15Min') || Object.hasOwn(req.body, 'online_order_pacing_max_per_15_min');
     const hasInStorePacing = Object.hasOwn(req.body, 'inStoreOrderPacingMaxPer15Min') || Object.hasOwn(req.body, 'in_store_order_pacing_max_per_15_min');
     const hasPrepExtension = Object.hasOwn(req.body, 'prepTimeExtensionMin') || Object.hasOwn(req.body, 'prep_time_extension_min');
+    const hasKitchenFireMode = Object.hasOwn(req.body, 'kitchenFireMode') || Object.hasOwn(req.body, 'kitchen_fire_mode');
     const hasRegion = Object.hasOwn(req.body, 'regionId') || Object.hasOwn(req.body, 'region_id');
     const regionValue = req.body.regionId ?? req.body.region_id;
     const regionId = hasRegion && regionValue !== null && regionValue !== '' ? parsePositiveInt(regionValue) : null;
@@ -8093,9 +8124,10 @@ exports.updateRestaurantLocation = async (req, res, next) => {
                 online_order_pacing_max_per_15_min = CASE WHEN $22 THEN $23 ELSE online_order_pacing_max_per_15_min END,
                 in_store_order_pacing_max_per_15_min = CASE WHEN $24 THEN $25 ELSE in_store_order_pacing_max_per_15_min END,
                 prep_time_extension_min = CASE WHEN $26 THEN $27 ELSE prep_time_extension_min END,
-                region_id = CASE WHEN $28 THEN $29 ELSE region_id END,
+                kitchen_fire_mode = CASE WHEN $28 THEN $29 ELSE kitchen_fire_mode END,
+                region_id = CASE WHEN $30 THEN $31 ELSE region_id END,
                 updated_at = NOW()
-          WHERE id = $30 AND restaurant_id = $31
+          WHERE id = $32 AND restaurant_id = $33
           RETURNING *`,
         [
           normalizeString(req.body.name, 160),
@@ -8125,6 +8157,8 @@ exports.updateRestaurantLocation = async (req, res, next) => {
           normalizeLocationInteger(req.body.inStoreOrderPacingMaxPer15Min ?? req.body.in_store_order_pacing_max_per_15_min, 'inStoreOrderPacingMaxPer15Min'),
           hasPrepExtension,
           normalizeLocationInteger(req.body.prepTimeExtensionMin ?? req.body.prep_time_extension_min, 'prepTimeExtensionMin', { nullable: false, max: 240 }),
+          hasKitchenFireMode,
+          normalizeLocationKitchenFireMode(req.body.kitchenFireMode ?? req.body.kitchen_fire_mode),
           hasRegion,
           regionId,
           locationId,
@@ -8149,6 +8183,7 @@ exports.updateRestaurantLocation = async (req, res, next) => {
         online_order_pacing_max_per_15_min: result.before.online_order_pacing_max_per_15_min,
         in_store_order_pacing_max_per_15_min: result.before.in_store_order_pacing_max_per_15_min,
         prep_time_extension_min: result.before.prep_time_extension_min,
+        kitchen_fire_mode: result.before.kitchen_fire_mode,
         region_id: result.before.region_id,
       },
       after_state: {
@@ -8163,6 +8198,7 @@ exports.updateRestaurantLocation = async (req, res, next) => {
         online_order_pacing_max_per_15_min: result.updated.online_order_pacing_max_per_15_min,
         in_store_order_pacing_max_per_15_min: result.updated.in_store_order_pacing_max_per_15_min,
         prep_time_extension_min: result.updated.prep_time_extension_min,
+        kitchen_fire_mode: result.updated.kitchen_fire_mode,
         region_id: result.updated.region_id,
       },
     });
