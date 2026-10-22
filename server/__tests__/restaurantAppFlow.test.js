@@ -1921,6 +1921,25 @@ describe('restaurant app-flow backend', () => {
     expect(mockQuery.mock.calls.some(([, params]) => JSON.stringify(params).includes('approved'))).toBe(true);
   });
 
+  test('does not review a crew task outside the manager store assignment', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 47 })] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000127'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/crew/tasks/701/review`)
+      .send({ approved: true, note: 'Looks good.' });
+
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('crew_task_not_found');
+    const taskQuery = mockQuery.mock.calls.find(([sql]) => /FROM restaurant_crew_tasks/.test(sql));
+    expect(taskQuery[0]).toContain('location_id = ANY($3::bigint[])');
+    expect(taskQuery[1]).toEqual([RESTAURANT_ID, 701, [77]]);
+  });
+
   test('logs runner GPS ping and updates task location snapshot', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })

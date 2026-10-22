@@ -8168,14 +8168,19 @@ exports.updateCrewTask = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const status = normalizeString(req.body.status, 32);
     if (status && !CREW_STATUS.has(status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported task status' });
     }
     const canManage = await hasRestaurantPermission(restaurant, req.user.id, 'crew.manage');
+    const taskParams = [restaurantId, taskId];
+    const taskLocationFilter = locationScope.mode === 'assigned'
+      ? ` AND location_id = ANY($${taskParams.push(locationScope.location_ids)}::bigint[])`
+      : '';
     const { rows: [existing] } = await pool.query(
-      `SELECT * FROM restaurant_crew_tasks WHERE restaurant_id = $1 AND id = $2`,
-      [restaurantId, taskId]
+      `SELECT * FROM restaurant_crew_tasks WHERE restaurant_id = $1 AND id = $2${taskLocationFilter}`,
+      taskParams
     );
     if (!existing) throw new AppError('Crew task not found', 404, 'crew_task_not_found');
     if (!canManage && String(existing.assigned_to || '') !== String(req.user.id)) {
@@ -8198,10 +8203,12 @@ exports.updateCrewTask = async (req, res, next) => {
     }
     if (['needs_approval', 'completed'].includes(status) && existing.requires_photo) {
       const { rows: [photoProof] } = await pool.query(
-        `SELECT 1 FROM restaurant_crew_task_proofs
-          WHERE restaurant_id = $1 AND task_id = $2 AND proof_type = 'photo'
+        `SELECT 1 FROM restaurant_crew_task_proofs p
+           JOIN restaurant_crew_tasks t ON t.id = p.task_id
+          WHERE p.restaurant_id = $1 AND p.task_id = $2 AND p.proof_type = 'photo'
+            ${locationScope.mode === 'assigned' ? 'AND t.location_id = ANY($3::bigint[])' : ''}
           LIMIT 1`,
-        [restaurantId, taskId]
+        [restaurantId, taskId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
       );
       if (!photoProof) throw new AppError('Photo proof is required before submission', 409, 'crew_photo_required');
     }
@@ -8215,7 +8222,7 @@ exports.updateCrewTask = async (req, res, next) => {
     const assignedTo = hasAssignee ? (req.body.assignedTo || req.body.assigned_to || null) : existing.assigned_to;
     const shiftId = hasShift ? parsePositiveInt(req.body.shiftId || req.body.shift_id) : existing.shift_id;
     if (hasAssignee) await validateCrewAssignee(restaurantId, assignedTo);
-    if (hasShift) await loadCrewShift(restaurantId, shiftId);
+    if (hasShift) await loadCrewShift(restaurantId, shiftId, locationScope);
     const approve = false;
     const task = await withTransaction(pool, async (client) => {
       const { rows: [updated] } = await client.query(
@@ -8234,6 +8241,7 @@ exports.updateCrewTask = async (req, res, next) => {
               shift_id = $7,
               updated_at = NOW()
         WHERE restaurant_id = $8 AND id = $9 AND status = $10
+          ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($11::bigint[])' : ''}
         RETURNING *`,
       [
         status,
@@ -8246,6 +8254,7 @@ exports.updateCrewTask = async (req, res, next) => {
         restaurantId,
         taskId,
           existing.status,
+          ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : []),
         ]
       );
       if (!updated) throw new AppError('Crew task changed before this update was applied', 409, 'crew_task_conflict');
@@ -8284,6 +8293,7 @@ exports.reviewCrewTask = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     await assertManage(restaurant, req.user.id);
 
     const approved = req.body.approved === true || req.body.approve === true || req.body.status === 'approved';
@@ -8292,9 +8302,13 @@ exports.reviewCrewTask = async (req, res, next) => {
       throw new AppError('Validation failed', 400, 'validation_failed', { review: 'Send either approved=true or rejected=true' });
     }
     const note = normalizeString(req.body.note || req.body.reviewNote || req.body.review_note, 2000);
+    const taskParams = [restaurantId, taskId];
+    const taskLocationFilter = locationScope.mode === 'assigned'
+      ? ` AND location_id = ANY($${taskParams.push(locationScope.location_ids)}::bigint[])`
+      : '';
     const { rows: [existing] } = await pool.query(
-      `SELECT * FROM restaurant_crew_tasks WHERE restaurant_id = $1 AND id = $2`,
-      [restaurantId, taskId]
+      `SELECT * FROM restaurant_crew_tasks WHERE restaurant_id = $1 AND id = $2${taskLocationFilter}`,
+      taskParams
     );
     if (!existing) throw new AppError('Crew task not found', 404, 'crew_task_not_found');
     if (existing.status !== 'needs_approval') {
@@ -8302,10 +8316,12 @@ exports.reviewCrewTask = async (req, res, next) => {
     }
     if (existing.requires_photo) {
       const { rows: [photoProof] } = await pool.query(
-        `SELECT 1 FROM restaurant_crew_task_proofs
-          WHERE restaurant_id = $1 AND task_id = $2 AND proof_type = 'photo'
+        `SELECT 1 FROM restaurant_crew_task_proofs p
+           JOIN restaurant_crew_tasks t ON t.id = p.task_id
+          WHERE p.restaurant_id = $1 AND p.task_id = $2 AND p.proof_type = 'photo'
+            ${locationScope.mode === 'assigned' ? 'AND t.location_id = ANY($3::bigint[])' : ''}
           LIMIT 1`,
-        [restaurantId, taskId]
+        [restaurantId, taskId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
       );
       if (!photoProof) throw new AppError('Photo proof is required before approval', 409, 'crew_photo_required');
     }
@@ -8320,8 +8336,9 @@ exports.reviewCrewTask = async (req, res, next) => {
               completion_note = COALESCE($4, completion_note),
               updated_at = NOW()
         WHERE restaurant_id = $5 AND id = $6 AND status = 'needs_approval'
+          ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($7::bigint[])' : ''}
         RETURNING *`,
-        [nextStatus, approved, req.user.id, note, restaurantId, taskId]
+        [nextStatus, approved, req.user.id, note, restaurantId, taskId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
       );
       if (!updated) throw new AppError('Crew task changed before review was applied', 409, 'crew_task_conflict');
       await client.query(
@@ -8351,13 +8368,16 @@ exports.listCrewTaskEvents = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const { rows: events } = await pool.query(
-      `SELECT *
-         FROM restaurant_crew_task_events
-        WHERE restaurant_id = $1 AND task_id = $2
-        ORDER BY created_at ASC`,
-      [restaurantId, taskId]
+      `SELECT e.*
+         FROM restaurant_crew_task_events e
+         JOIN restaurant_crew_tasks t ON t.id = e.task_id
+        WHERE e.restaurant_id = $1 AND e.task_id = $2
+          ${locationScope.mode === 'assigned' ? 'AND t.location_id = ANY($3::bigint[])' : ''}
+        ORDER BY e.created_at ASC`,
+      [restaurantId, taskId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
     );
     res.json({ events });
   } catch (err) {
@@ -8367,9 +8387,14 @@ exports.listCrewTaskEvents = async (req, res, next) => {
 
 async function loadCrewProofTask(userId, restaurantId, taskId) {
   const restaurant = await requireRestaurantAccess(userId, restaurantId);
+  const locationScope = await getLocationScope(restaurant, userId);
+  const taskParams = [restaurantId, taskId];
+  const taskLocationFilter = locationScope.mode === 'assigned'
+    ? ` AND location_id = ANY($${taskParams.push(locationScope.location_ids)}::bigint[])`
+    : '';
   const { rows: [task] } = await pool.query(
-    `SELECT * FROM restaurant_crew_tasks WHERE restaurant_id = $1 AND id = $2`,
-    [restaurantId, taskId]
+    `SELECT * FROM restaurant_crew_tasks WHERE restaurant_id = $1 AND id = $2${taskLocationFilter}`,
+    taskParams
   );
   if (!task) throw new AppError('Crew task not found', 404, 'crew_task_not_found');
   if (!(await hasRestaurantPermission(restaurant, userId, 'crew.manage'))
@@ -8447,8 +8472,9 @@ async function persistCrewProof({
               END,
               updated_at = NOW()
         WHERE restaurant_id = $4 AND id = $5
+          AND location_id = $7
         RETURNING *`,
-      [privateReference, note, nextStatus, restaurantId, task.id, proofSatisfiesRequirement]
+      [privateReference, note, nextStatus, restaurantId, task.id, proofSatisfiesRequirement, task.location_id]
     );
     await client.query(
       `INSERT INTO restaurant_crew_task_events
@@ -8472,14 +8498,17 @@ exports.listCrewTaskProofs = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const { rows: proofs } = await pool.query(
       `SELECT p.*, u.first_name, u.last_name
          FROM restaurant_crew_task_proofs p
          LEFT JOIN users u ON u.id = p.submitted_by
+         JOIN restaurant_crew_tasks t ON t.id = p.task_id
         WHERE p.restaurant_id = $1 AND p.task_id = $2
+          ${locationScope.mode === 'assigned' ? 'AND t.location_id = ANY($3::bigint[])' : ''}
         ORDER BY p.created_at ASC`,
-      [restaurantId, taskId]
+      [restaurantId, taskId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
     );
     res.json({ proofs: await Promise.all(proofs.map(presentCrewProof)) });
   } catch (err) {
@@ -8573,14 +8602,17 @@ exports.listCrewTaskComments = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const { rows: comments } = await pool.query(
       `SELECT c.*, u.first_name, u.last_name
          FROM restaurant_crew_task_comments c
          LEFT JOIN users u ON u.id = c.author_user_id
+         JOIN restaurant_crew_tasks t ON t.id = c.task_id
         WHERE c.restaurant_id = $1 AND c.task_id = $2
+          ${locationScope.mode === 'assigned' ? 'AND t.location_id = ANY($3::bigint[])' : ''}
         ORDER BY c.created_at ASC`,
-      [restaurantId, taskId]
+      [restaurantId, taskId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
     );
     res.json({ comments });
   } catch (err) {
@@ -8592,12 +8624,15 @@ exports.addCrewTaskComment = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const comment = normalizeString(req.body.comment, 2000);
     if (!comment) throw new AppError('Validation failed', 400, 'validation_failed', { comment: 'Comment is required' });
     const { rows: [task] } = await pool.query(
-      `SELECT id FROM restaurant_crew_tasks WHERE id = $1 AND restaurant_id = $2`,
-      [taskId, restaurantId]
+      `SELECT id FROM restaurant_crew_tasks
+        WHERE id = $1 AND restaurant_id = $2
+          ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}`,
+      [taskId, restaurantId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
     );
     if (!task) throw new AppError('Crew task not found', 404, 'crew_task_not_found');
     const { rows: [created] } = await pool.query(
