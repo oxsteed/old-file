@@ -1885,7 +1885,7 @@
         "description": "Esto reembolsará el pago al cliente.",
         "confirm": "Emitir reembolso",
         "reasonPlaceholder": "Razón del reembolso…",
-        "stepupPrompt": "Se envio un codigo de verificacion a tu correo. Ingresalo para autorizar este reembolso:",
+        "stepupPrompt": "Ingresa el código actual de 6 dígitos de tu aplicación de autenticación para autorizar este reembolso:",
         "stepupFailed": "No se pudo emitir un desafio de verificacion. El reembolso no fue procesado.",
         "stepupRequired": "Se requiere un codigo de verificacion para emitir el reembolso.",
         "pendingApproval": "Reembolso en cola para la aprobación de un segundo administrador. Aún no se han movido fondos."

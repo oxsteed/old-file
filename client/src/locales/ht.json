@@ -1885,7 +1885,7 @@
         "description": "Sa ap ranbouse peman an bay kliyan an.",
         "confirm": "Ranbouse",
         "reasonPlaceholder": "Rezon ranbousman…",
-        "stepupPrompt": "Yo voye yon kod verifikasyon nan imel ou. Antre li pou otorize ranbousman sa a:",
+        "stepupPrompt": "Antre kòd 6 chif aktyèl la nan aplikasyon otantifikatè w la pou otorize ranbousman sa a:",
         "stepupFailed": "Pa t ka bay yon defi verifikasyon. Ranbousman an pa t trete.",
         "stepupRequired": "Yo bezwen yon kod verifikasyon pou bay ranbousman an.",
         "pendingApproval": "Ranbousman an nan ke pou yon dezyèm admin apwouve li. Okenn lajan pa ko bouje."
