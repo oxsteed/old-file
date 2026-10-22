@@ -18,6 +18,7 @@ import {
   dateTime,
   dollarsToCents,
   money,
+  requestStepupChallengeCode,
   transactionPartyLabel,
   useCreditDialog,
   useCreditDialogFocusTrap,
@@ -124,7 +125,17 @@ export default function OxsteedCreditLedgerPage() {
     const confirmed = await requestDialog({ kind: 'confirm', title: t('adminConfirmCreditRefund'), description: t('adminCreditRefundDescription', { amount: refundForm.amount, currency: transactionDetail.currencyCode }) });
     if (!confirmed) return;
     setBusy(true); setNotice(''); setError('');
-    const payload = { amountCents, reason };
+    // Auth audit item 11: dedicated maker routes verify a fresh
+    // 'pending_action_request' step-up challenge before queueing.
+    const stepup = await requestStepupChallengeCode({
+      requestDialog, setNotice, setError, t,
+      actionType: 'pending_action_request',
+      description: t('creditStepupConfirmDescription'),
+      amountCents,
+      currencyCode: transactionDetail.currencyCode,
+    });
+    if (!stepup) { setBusy(false); return; }
+    const payload = { amountCents, reason, ...stepup };
     const keyPayload = { transactionId: transactionDetail.id, ...payload };
     try {
       const response = await adminApi.post(`/admin/super/oxsteed-credit/transactions/${transactionDetail.id}/refund`, payload, { headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-refund', keyPayload) } });

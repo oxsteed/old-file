@@ -216,6 +216,67 @@ function DropdownDivider() {
 
 // ─── main component ──────────────────────────────────────────────────────────
 
+// ─── TOTP step-up prompt for impersonation ────────────────────────────────
+// Auth audit item 9: starting an impersonation session requires a fresh TOTP
+// proof (POST /admin/super/stepup/verify, purpose 'impersonation_start').
+// The dialog resolves with the entered code, or null when cancelled.
+function TotpStepUpDialog({ open, verifying, error, onSubmit, onCancel }) {
+  const { t } = useTranslation();
+  const [code, setCode] = useState('');
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (open) {
+      setCode('');
+      const id = setTimeout(() => inputRef.current?.focus(), 50);
+      return () => clearTimeout(id);
+    }
+    return undefined;
+  }, [open ]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') onCancel?.(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onCancel]);
+
+  if (!open) return null;
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-black/50" onClick={onCancel} aria-hidden="true" />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden">
+          <form onSubmit={(e) => { e.preventDefault(); if (code.trim() && !verifying) onSubmit(code.trim()); }}>
+            <div className="px-6 py-5">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('adminUserDetail.impersonate.stepupTitle')}</h3>
+              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{t('adminUserDetail.impersonate.stepupBody')}</p>
+              <label className="mt-4 block">
+                <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{t('adminUserDetail.impersonate.stepupCode')}</span>
+                <input
+                  ref={inputRef}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  disabled={verifying}
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2.5 font-mono text-sm text-gray-900 dark:text-white outline-none focus:border-orange-400"
+                />
+              </label>
+              {error && <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 bg-gray-50 dark:bg-gray-900">
+              <button type="button" onClick={onCancel} disabled={verifying} className="rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">{t('adminUserDetail.impersonate.stepupCancel')}</button>
+              <button type="submit" disabled={verifying || !code.trim()} className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-500 disabled:opacity-50">{t('adminUserDetail.impersonate.stepupVerify')}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function UserDetail() {
   const { t }        = useTranslation();
   const { userId }   = useParams();
@@ -269,6 +330,31 @@ export default function UserDetail() {
   const [pwSaving,    setPwSaving]    = useState(false);
 
   const [impersonating, setImpersonating] = useState(false);
+  // Auth audit item 9: fresh TOTP step-up before impersonation.
+  const [stepUpOpen, setStepUpOpen] = useState(false);
+  const [stepUpVerifying, setStepUpVerifying] = useState(false);
+  const [stepUpError, setStepUpError] = useState('');
+  const stepUpResolverRef = useRef(null);
+  const promptStepUpCode = () => new Promise((resolve) => {
+    stepUpResolverRef.current = resolve;
+    setStepUpError('');
+    setStepUpOpen(true);
+  });
+  const closeStepUp = (result) => {
+    setStepUpOpen(false);
+    const resolve = stepUpResolverRef.current;
+    stepUpResolverRef.current = null;
+    if (resolve) resolve(result);
+  };
+  const submitStepUpCode = async (code) => {
+    setStepUpVerifying(true); setStepUpError('');
+    try {
+      await adminApi.post('/admin/super/stepup/verify', { code, purpose: 'impersonation_start' });
+      closeStepUp(code);
+    } catch (err) {
+      setStepUpError(parseApiError(err, t('adminUserDetail.impersonate.stepupFailed')));
+    } finally { setStepUpVerifying(false); }
+  };
 
   const [statusModal,  setStatusModal]  = useState(null);
   const [statusReason, setStatusReason] = useState('');
@@ -392,6 +478,10 @@ export default function UserDetail() {
       description: t('adminUserDetail.impersonate.confirm', { name: `${data?.user?.first_name} ${data?.user?.last_name}` }),
     });
     if (!ok) return;
+    // Auth audit item 9: the server requires a fresh 'impersonation_start'
+    // step-up (15-min TTL, fail-closed); without it the call 401s.
+    const code = await promptStepUpCode();
+    if (!code) return;
     setImpersonating(true);
     try {
       const { data: res } = await adminApi.post(`/admin/users/${userId}/impersonate`);
@@ -706,6 +796,13 @@ export default function UserDetail() {
   return (
     <div className="p-4 sm:p-8 max-w-5xl space-y-6" style={{ background: 'transparent' }}>
       {confirmDialog}
+      <TotpStepUpDialog
+        open={stepUpOpen}
+        verifying={stepUpVerifying}
+        error={stepUpError}
+        onSubmit={submitStepUpCode}
+        onCancel={() => closeStepUp(null)}
+      />
 
       {/* Back link */}
       <Link to="/admin/users" className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition">

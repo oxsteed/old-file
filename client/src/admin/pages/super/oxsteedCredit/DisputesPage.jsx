@@ -10,6 +10,7 @@ import adminApi from '../../../../lib/adminApi';
 import { safeCreditErrorMessage } from '../../../../lib/creditErrors';
 import { localizeCreditOrderTypes, localizeCreditStatus } from '../../../../lib/creditStatus';
 import {
+  AdminActionDialog,
   Badge,
   CreditSubNav,
   CUSTOMER_ACCOUNT_PAGE_SIZE,
@@ -18,6 +19,8 @@ import {
   dateTime,
   disputeReasonLabel,
   money,
+  requestStepupChallengeCode,
+  useCreditDialog,
   useCreditPageState,
 } from './shared';
 import OxsteedCreditCustomerDetail from '../OxsteedCreditCustomerDetail';
@@ -116,6 +119,7 @@ export default function OxsteedCreditDisputesPage() {
   const [disputeCompensationDrafts, setDisputeCompensationDrafts] = useState({});
   const [disputeProvisionalDrafts, setDisputeProvisionalDrafts] = useState({});
   const { confirmDestructive, dialog: destructiveDialog } = useDestructiveConfirm();
+  const { dialog, requestDialog, resolveDialog } = useCreditDialog();
 
   const load = useCallback(async ({ quiet = false, appendDisputes = false, disputeOffset = 0 } = {}) => {
     const requestId = ++loadRequestRef.current;
@@ -185,6 +189,16 @@ export default function OxsteedCreditDisputesPage() {
       return;
     }
     setBusy(true); setNotice(''); setError('');
+    // Auth audit item 11: dedicated maker routes verify a fresh
+    // 'pending_action_request' step-up challenge before queueing.
+    const stepup = await requestStepupChallengeCode({
+      requestDialog, setNotice, setError, t,
+      actionType: 'pending_action_request',
+      description: t('creditStepupConfirmDescription'),
+      amountCents: compensationCents || undefined,
+      currencyCode: dispute.currencyCode || 'USD',
+    });
+    if (!stepup) { setBusy(false); return; }
     try {
       // Review P2-1-F07: resolutions queue for checker approval (maker-checker);
       // the server answers 202 with the pending action.
@@ -192,6 +206,7 @@ export default function OxsteedCreditDisputesPage() {
         status,
         resolution: resolution || undefined,
         compensationCents: status === 'resolved_customer' ? compensationCents : undefined,
+        ...stepup,
       }, {
         headers: { 'Idempotency-Key': crypto.randomUUID() },
       });
@@ -226,12 +241,23 @@ export default function OxsteedCreditDisputesPage() {
     });
     if (!confirmed) return;
     setBusy(true); setNotice(''); setError('');
+    // Auth audit item 11: dedicated maker routes verify a fresh
+    // 'pending_action_request' step-up challenge before queueing.
+    const stepup = await requestStepupChallengeCode({
+      requestDialog, setNotice, setError, t,
+      actionType: 'pending_action_request',
+      description: t('creditStepupConfirmDescription'),
+      amountCents,
+      currencyCode: dispute.currencyCode || 'USD',
+    });
+    if (!stepup) { setBusy(false); return; }
     try {
       // Review P2-1-F07: provisional credit queues for checker approval; the
       // server answers 202 with the pending action.
       const response = await adminApi.post(`/admin/super/oxsteed-credit/disputes/${dispute.id}/provisional-credit`, {
         amountCents,
         reason: resolution,
+        ...stepup,
       }, {
         headers: { 'Idempotency-Key': crypto.randomUUID() },
       });
@@ -272,6 +298,7 @@ export default function OxsteedCreditDisputesPage() {
   return (
     <>
       {destructiveDialog}
+      <AdminActionDialog dialog={dialog} onResolve={resolveDialog} />
       <main className="mx-auto w-full max-w-[1500px] space-y-6 pb-10">
         <CreditSubNav />
       <header className="rounded-3xl border border-gray-200 dark:border-gray-800 bg-gradient-to-br from-[#17131d] via-[#111318] to-[#101923] p-5 sm:p-7">
