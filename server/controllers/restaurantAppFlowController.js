@@ -459,16 +459,17 @@ async function insertPosReceiptAudit(client, {
 }) {
   const { rows: [event] } = await client.query(
     `INSERT INTO restaurant_pos_receipt_events
-       (restaurant_id, food_order_id, queue_number, guest_name, total_cents,
+       (restaurant_id, location_id, food_order_id, queue_number, guest_name, total_cents,
         payment_status, channel, event_type, reason, metadata, idempotency_key, created_by,
         acting_staff_user_id)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14)
      ON CONFLICT (restaurant_id, idempotency_key)
        WHERE idempotency_key IS NOT NULL
      DO NOTHING
      RETURNING *`,
     [
       restaurantId,
+      order.location_id,
       order.id,
       order.queue_number,
       order.guest_name,
@@ -6331,15 +6332,16 @@ exports.reprintReceipt = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const { rows: [order] } = await pool.query(
-      `SELECT id, queue_number, guest_name, guest_phone, guest_email, table_label,
+      `SELECT id, location_id, queue_number, guest_name, guest_phone, guest_email, table_label,
               order_source, fulfillment_type, status, payment_status,
               subtotal_cents, discount_cents, tax_cents, service_fee_cents,
               delivery_fee_cents, tip_cents, total_cents, currency_code,
               notes, created_at, updated_at
          FROM food_orders
-        WHERE id = $1 AND restaurant_id = $2`,
-      [orderId, restaurantId]
+        WHERE id = $1 AND restaurant_id = $2${locationScope.mode === 'assigned' ? ' AND location_id = ANY($3::bigint[])' : ''}`,
+      locationScope.mode === 'assigned' ? [orderId, restaurantId, locationScope.location_ids] : [orderId, restaurantId]
     );
     if (!order) throw new AppError('Order not found', 404, 'order_not_found');
     const [{ rows: items }, { rows: modifiers }, { rows: payments }] = await Promise.all([
