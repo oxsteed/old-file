@@ -47,6 +47,10 @@ async function erase(conn, userId, reason = "account_erasure") {
     SELECT $1,COALESCE(array_agg(device_key::text),'{}'),$2 FROM growth_device_links WHERE subject_key=$1`,
     [subject, reason],
   );
+  // The queue row captured the device keys the ClickHouse step needs; the
+  // link rows themselves are erased now, not retained.
+  const links = await conn.query('DELETE FROM growth_device_links WHERE subject_key=$1', [subject]);
+  summary.growth_device_links = links.rowCount || 0;
   for (const table of [
     "user_interest_profiles",
     "propensity_scores",
@@ -79,6 +83,30 @@ async function erase(conn, userId, reason = "account_erasure") {
   summary.offer_recipients_removed = recipients.rowCount || 0;
   const outbox = await conn.query("DELETE FROM activity_outbox WHERE user_id=$1", [userId]);
   summary.activity_outbox = outbox.rowCount || 0;
+  // Privacy retention policy (Emile 2026-10-22): delivered campaign/contact
+  // history is anonymized to the internal recipient_id rather than deleted,
+  // so aggregates and audit trails survive while the subject link is gone.
+  // Suppression lists (marketing_suppressions) and financial conversions
+  // (affiliate_conversions) are intentionally NOT touched here: suppressions
+  // must persist to keep an unsubscribe effective, and conversions are a
+  // retained financial record. offer_clicks carries no user_id of its own;
+  // it becomes unattributable once the recipient rows below are anonymized.
+  const anonRecipients = await conn.query(
+    `UPDATE offer_campaign_recipients SET user_id=NULL WHERE user_id=$1`,
+    [userId],
+  );
+  summary.offer_recipients_anonymized = anonRecipients.rowCount || 0;
+  const anonContacts = await conn.query(
+    `UPDATE marketing_contact_log SET user_id=NULL WHERE user_id=$1`,
+    [userId],
+  );
+  summary.marketing_contact_log_anonymized = anonContacts.rowCount || 0;
+  // Personal settings and eligibility evidence have no recipient_id to keep;
+  // the rows themselves are personal data and are removed.
+  const prefs = await conn.query("DELETE FROM offer_preferences WHERE user_id=$1", [userId]);
+  summary.offer_preferences = prefs.rowCount || 0;
+  const eligibility = await conn.query("DELETE FROM growth_subject_eligibility WHERE user_id=$1", [userId]);
+  summary.growth_subject_eligibility = eligibility.rowCount || 0;
   // Account erasure removes the denormalized current pointer. Consent history
   // remains append-only; withdrawal paths retain the current denial so a
   // notice-basis gate cannot accidentally re-enable collection.
