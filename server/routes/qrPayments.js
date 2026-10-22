@@ -19,6 +19,7 @@ const crypto = require('crypto');
 const router = express.Router();
 const { scopeExempt } = require('../middleware/scopeGates');
 const { authenticate } = require('../middleware/auth');
+const { isImpersonatedRequest } = require('../middleware/rejectImpersonated');
 const { paymentsLimiter, strictLimiter, generalLimiter } = require('../middleware/rateLimiter');
 const pool = require('../db');
 const logger = require('../utils/logger');
@@ -472,6 +473,16 @@ router.post('/pay/:code/checkout', qrCheckoutLimiter, async (req, res, next) => 
           code: 'feature_disabled',
         });
       }
+      // Audit finding 1: this public route carries no auth middleware, so the
+      // adapter's isImpersonated flag can never be set here. Block
+      // impersonated sessions explicitly (self-sufficient token-claim check)
+      // before the victim's Credit can be spent.
+      if (isImpersonatedRequest(req)) {
+        return res.status(403).json({
+          error: 'Impersonated sessions cannot perform this action.',
+          code: 'impersonation_blocked',
+        });
+      }
       return payQrWithCredit(req, res, next, code, { amountCents, payerEmail, clientRequestId });
     }
 
@@ -677,7 +688,7 @@ async function payQrWithCredit(req, res, next, code, { amountCents, payerEmail, 
       referenceType: 'qr_payment',
       referenceId: `${code.id}:${clientRequestId}`,
       idempotencyKey: `qr-credit:${code.id}:${clientRequestId}`,
-      isImpersonated: Boolean(req.impersonated),
+      isImpersonated: Boolean(req.isImpersonated),
       metadata: { qrCode: code.code, label: code.label, payerEmail: payerEmail || null },
     });
 

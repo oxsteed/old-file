@@ -3156,7 +3156,7 @@ exports.payQuoteWithCredit = async (req, res) => {
       mode,
       referenceType: 'direct_quote',
       referenceId: String(request.id),
-      isImpersonated: Boolean(req.impersonated),
+      isImpersonated: Boolean(req.isImpersonated),
       metadata: { quotePublicReference: request.public_reference },
     });
 

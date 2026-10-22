@@ -54,7 +54,7 @@ router.get('/:id/appointment', authenticate, async (req, res, next) => {
 // checkRestrictions('job_posting') blocks customers with active job-posting restrictions
 // Review P2-7-F08: server-side terms gate (was client-side only).
 router.post('/',       authenticate, requireEmailVerified, requireTermsAcceptance, checkRestrictions('job_posting'), upload.array('media', 10), validateFileUpload, createJob);
-router.post('/assign', authenticate, assignHelper);
+router.post('/assign', authenticate, rejectImpersonated, assignHelper);
 
 // ── Public ────────────────────────────────────────────────────────────────────
 router.get('/',            generalLimiter, getJobs);
