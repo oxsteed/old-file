@@ -1,5 +1,5 @@
 'use strict';
-const provider=require('../services/aiChatProvider');
+const provider=require('../services/metaChatProvider');
 const { validateBuilderQuery }=require('./queryBuilder');
 
 function modelTranslationAvailable(){

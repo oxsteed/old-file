@@ -417,7 +417,7 @@ exports.assistant = async (req, res, next) => {
       total: s.total,
       groups: s.groups?.map((g) => ({ status: g.status, count: g.count })),
     }));
-    const provider = require("../services/aiChatProvider");
+    const provider = require("../services/metaChatProvider");
     let draft = null;
     if (provider.isMetaConfigured()) {
       const result = await provider.fetchMetaChat(
@@ -454,11 +454,13 @@ exports.assistant = async (req, res, next) => {
       throwOnError: true,
     });
     res.set("Cache-Control", "private, no-store");
+    // No provider-availability flag is exposed: whether the Meta provider is
+    // configured is server internals, and no client reads it. The draft is
+    // simply null when no provider answered.
     res.json({
       draft,
       evidence,
       generatedAt: data.generatedAt,
-      providerAvailable: provider.isMetaConfigured(),
       requiresReview: true,
     });
   } catch (e) {

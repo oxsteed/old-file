@@ -1,6 +1,6 @@
 'use strict';
-jest.mock('../services/aiChatProvider',()=>({isMetaConfigured:jest.fn(()=>true),getMetaModel:()=> 'synthetic-model',fetchMetaChat:jest.fn()}));
-const provider=require('../services/aiChatProvider');
+jest.mock('../services/metaChatProvider',()=>({isMetaConfigured:jest.fn(()=>true),getMetaModel:()=> 'synthetic-model',fetchMetaChat:jest.fn()}));
+const provider=require('../services/metaChatProvider');
 const {translateWithModel}=require('../analytics/nlModelTranslator');
 const catalog=[{name:'platform_revenue_cents',dimensions:['period'],filters:[],periods:['7d','30d']}];
 const old=process.env.ANALYTICS_NL_MODEL_ENABLED;
