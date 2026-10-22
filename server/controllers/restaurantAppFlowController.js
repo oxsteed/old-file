@@ -7504,7 +7504,8 @@ exports.routeMenuItemToStation = async (req, res, next) => {
 exports.createPrinterJob = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.update', 'kitchen.manage', 'orders.manage']);
     const jobType = normalizeString(req.body.jobType || req.body.job_type, 40) || 'kitchen_ticket';
     if (!PRINTER_JOB_TYPES.has(jobType)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { jobType: 'Unsupported printer job type' });
@@ -7558,7 +7559,10 @@ exports.listPrinterJobs = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const device = req.restaurantDevice || null;
     if (device) assertDeviceApp(device, 'kitchen');
-    else await requireRestaurantAccess(req.user.id, restaurantId);
+    else {
+      const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+      await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.view', 'kitchen.update', 'kitchen.manage', 'orders.manage']);
+    }
     const deviceId = device?.id || parsePositiveInt(req.query.deviceId || req.query.device_id);
     const stationId = parsePositiveInt(req.query.stationId || req.query.station_id);
     const status = normalizeString(req.query.status, 24);

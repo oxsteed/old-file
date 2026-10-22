@@ -1700,6 +1700,18 @@ describe('restaurant app-flow backend', () => {
     expect(jobInsert[1]).toContain(77);
   });
 
+  test('denies printer-job creation to members without a kitchen permission', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'employee' })] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000889'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/kitchen/printer-jobs`)
+      .send({ jobType: 'kitchen_ticket', payload: { queue: 12 } });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('forbidden');
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO restaurant_printer_jobs/.test(sql))).toBe(false);
+  });
+
   test('creates crew task and comment history', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
