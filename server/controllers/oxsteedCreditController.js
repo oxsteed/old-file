@@ -725,6 +725,21 @@ async function adminAdjustCredit(req, res, next) {
     if (!referenceId) {
       throw new AppError('A funding reference is required for an administrative credit adjustment', 400, 'credit_funding_reference_required');
     }
+    // P3-10-F01 (auth audit item 2): admin adjustments move real customer
+    // balances in both directions, so they pass through the same funding
+    // compliance choke point as admin loads (identity tier + sanctions
+    // screening), recorded as fundingMethod 'admin_adjustment'. Any
+    // compliance uncertainty fails closed here, before the intent is
+    // queued; the checker re-evaluates at approval time.
+    await evaluateFundingCompliance({
+      customerId,
+      amountCents: req.body?.amountCents ?? req.body?.amount_cents,
+      currencyCode: req.body?.currencyCode || req.body?.currency_code,
+      fundingMethod: 'admin_adjustment',
+      actorUserId: req.user.id,
+      requestIp: req.ip || null,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+    });
     const result = await requestMoneyMovement(req, 'credit_adjustment', {
       customerId,
       amountCents: req.body?.amountCents ?? req.body?.amount_cents,
