@@ -215,6 +215,37 @@ export const createRestaurantHQRegion = (restaurantId, payload) =>
 export const updateRestaurantHQRegion = (restaurantId, regionId, payload) =>
   api.patch(`/restaurants/${restaurantId}/hq/regions/${regionId}`, payload).then((r) => r.data?.region);
 
+// Brand HQ console (F-02 phase 2): the brand groups restaurants across
+// businesses; every call is scoped server-side to accessible restaurants.
+export const listRestaurantBrands = () =>
+  api.get('/restaurant-brands').then((r) => r.data?.brands || []);
+export const getBrandOverview = (brandId) =>
+  api.get(`/restaurant-brands/${brandId}/overview`).then((r) => r.data);
+export const getBrandStoreComparison = (brandId, params = {}) =>
+  api.get(`/restaurant-brands/${brandId}/store-comparison`, { params }).then((r) => r.data);
+export const getBrandCompliance = (brandId, params = {}) =>
+  api.get(`/restaurant-brands/${brandId}/compliance`, { params }).then((r) => r.data);
+export const publishBrandMenu = (brandId, payload) =>
+  api.post(`/restaurant-brands/${brandId}/menu/publish`, payload).then((r) => r.data);
+export const attachBrandRestaurant = (brandId, payload) =>
+  api.post(`/restaurant-brands/${brandId}/restaurants`, payload).then((r) => r.data);
+export const detachBrandRestaurant = (brandId, restaurantId) =>
+  api.delete(`/restaurant-brands/${brandId}/restaurants/${restaurantId}`).then((r) => r.data);
+
+// In-store hub + offline cash replay (F-08 phase 2). The hub is the
+// designated per-store device that relays LAN traffic while offline and
+// uploads queued cash sales for idempotent replay on reconnect.
+export const listStoreHubs = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/hubs`).then((r) => r.data?.hubs || []);
+export const registerStoreHub = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/hubs`, payload).then((r) => r.data?.hub);
+export const replayHubSales = (restaurantId, hubId) =>
+  api.post(`/restaurants/${restaurantId}/hubs/${hubId}/replay`).then((r) => r.data);
+export const listHubOfflineSales = (restaurantId, hubId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/hubs/${hubId}/offline-sales`, { params }).then((r) => r.data?.sales || []);
+export const resolveHubOfflineSale = (restaurantId, hubId, saleId, payload) =>
+  api.post(`/restaurants/${restaurantId}/hubs/${hubId}/offline-sales/${saleId}/resolve`, payload).then((r) => r.data?.sale);
+
 // Restaurant host stand (floor-plan tables, reservations, and walk-in queue).
 export const listRestaurantTables = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/tables`, { params }).then((r) => r.data || { tables: [], location: null });

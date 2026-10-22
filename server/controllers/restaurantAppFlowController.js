@@ -1034,9 +1034,17 @@ function normalizeLocationPatch(value) {
     regionId,
     phone: normalizeString(source.phone, 40),
     status: normalizeString(source.status, 24),
+    storeCode: normalizeStoreCodeValue(source.storeCode ?? source.store_code),
     operatingHours: safeJson(source.operatingHours ?? source.operating_hours, null),
     isPrimary: source.isPrimary ?? source.is_primary ?? true,
   };
+}
+
+// F-02 phase 2 (migration 1527): the franchise store number. Normalized to
+// upper case; format is validated in validateManagedLocation.
+function normalizeStoreCodeValue(value) {
+  if (value === undefined || value === null || value === '') return null;
+  return String(value).trim().toUpperCase();
 }
 
 function appModuleFlags(restaurant, role, permissions = []) {
@@ -2510,6 +2518,9 @@ function validateManagedLocation(location) {
       throw new AppError('Validation failed', 400, 'validation_failed', { timezone: 'Must be a valid IANA timezone' });
     }
   }
+  if (location.storeCode && !/^[A-Z0-9-]{2,24}$/.test(location.storeCode)) {
+    throw new AppError('Validation failed', 400, 'validation_failed', { storeCode: 'Use 2-24 letters, numbers or dashes' });
+  }
 }
 
 exports.createRestaurantLocation = async (req, res, next) => {
@@ -2549,11 +2560,19 @@ exports.createRestaurantLocation = async (req, res, next) => {
           [restaurantId]
         );
       }
+      if (location.storeCode) {
+        const { rows: [taken] } = await client.query(
+          `SELECT id FROM restaurant_locations WHERE restaurant_id = $1 AND store_code = $2`,
+          [restaurantId, location.storeCode]
+        );
+        if (taken) throw new AppError('This store code is already used at another store', 409, 'store_code_taken');
+      }
       const { rows: [created] } = await client.query(
         `INSERT INTO restaurant_locations
            (restaurant_id, name, address_street, address_city, address_state, address_zip,
-            address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours, region_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+            address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours, region_id,
+            store_code)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
          RETURNING *`,
         [
           restaurantId,
@@ -2571,6 +2590,7 @@ exports.createRestaurantLocation = async (req, res, next) => {
           location.status || 'active',
           JSON.stringify(location.operatingHours || {}),
           region.id,
+          location.storeCode || null,
         ]
       );
       const { rows: locations } = await client.query(
@@ -2656,6 +2676,10 @@ exports.updateRestaurantLocation = async (req, res, next) => {
       }
       add('region_id', normalized.regionId);
     }
+    if (Object.prototype.hasOwnProperty.call(req.body, 'storeCode')
+      || Object.prototype.hasOwnProperty.call(req.body, 'store_code')) {
+      add('store_code', normalized.storeCode);
+    }
     const hasPrimary = Object.prototype.hasOwnProperty.call(req.body, 'isPrimary')
       || Object.prototype.hasOwnProperty.call(req.body, 'is_primary');
     const isPrimary = hasPrimary
@@ -2681,6 +2705,13 @@ exports.updateRestaurantLocation = async (req, res, next) => {
       }
       if (existing.is_primary && hasPrimary && isPrimary === false) {
         throw new AppError('Promote another location before demoting the primary location', 409, 'primary_location_required');
+      }
+      if (normalized.storeCode) {
+        const { rows: [taken] } = await client.query(
+          `SELECT id FROM restaurant_locations WHERE restaurant_id = $1 AND store_code = $2 AND id <> $3`,
+          [restaurantId, normalized.storeCode, locationId]
+        );
+        if (taken) throw new AppError('This store code is already used at another store', 409, 'store_code_taken');
       }
       if (isPrimary === true) {
         await client.query(
