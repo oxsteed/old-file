@@ -68,6 +68,7 @@ describe('food loyalty redeem (B4)', () => {
       })
       .mockResolvedValueOnce({ rows: [{ id: 7 }] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // F-19 tax rules
       .mockResolvedValueOnce({ rows: [{ last_queue_number: 3 }] })
       .mockResolvedValueOnce({
         rows: [{
@@ -125,6 +126,7 @@ describe('food loyalty redeem (B4)', () => {
       })
       .mockResolvedValueOnce({ rows: [{ id: 7 }] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // F-19 tax rules
       .mockResolvedValueOnce({ rows: [{ last_queue_number: 4 }] })
       .mockResolvedValueOnce({
         rows: [{
@@ -172,6 +174,7 @@ describe('food loyalty redeem (B4)', () => {
       })
       .mockResolvedValueOnce({ rows: [{ id: 7 }] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // F-19 tax rules
       .mockResolvedValueOnce({ rows: [{ last_queue_number: 5 }] })
       .mockResolvedValueOnce({
         rows: [{

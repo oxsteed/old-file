@@ -185,6 +185,7 @@ describe('food order validation guards', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 1 }] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // F-19 tax rules
       .mockResolvedValueOnce({ rows: [{ last_queue_number: 7 }] })
       .mockResolvedValueOnce({ rows: [createdOrderRow({ fulfillment_type: 'delivery' })] })
       .mockResolvedValueOnce({ rows: [{ id: 501 }] });
@@ -232,6 +233,7 @@ describe('food order validation guards', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 1 }] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // F-19 tax rules
       .mockResolvedValueOnce({ rows: [{ last_queue_number: 7 }] })
       .mockResolvedValueOnce({ rows: [createdOrderRow()] })
       .mockResolvedValueOnce({ rows: [{ id: 501 }] });
@@ -262,6 +264,7 @@ describe('food order validation guards', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 1 }] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // F-19 tax rules
       .mockResolvedValueOnce({ rows: [{ last_queue_number: 7 }] })
       .mockResolvedValueOnce({ rows: [createdOrderRow()] })
       .mockResolvedValueOnce({ rows: [{ id: 501 }] });
@@ -280,6 +283,7 @@ describe('food order validation guards', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 1 }] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // F-19 tax rules
       .mockResolvedValueOnce({ rows: [{ last_queue_number: 7 }] })
       .mockResolvedValueOnce({ rows: [createdOrderRow({ fulfillment_type: 'delivery' })] })
       .mockResolvedValueOnce({ rows: [{ id: 501 }] });
@@ -308,6 +312,7 @@ describe('food order validation guards', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 1 }] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // F-19 tax rules
       .mockResolvedValueOnce({ rows: [{ last_queue_number: 7 }] })
       .mockResolvedValueOnce({ rows: [createdOrderRow()] })
       .mockResolvedValueOnce({ rows: [{ id: 501 }] });
