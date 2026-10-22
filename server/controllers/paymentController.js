@@ -651,11 +651,21 @@ const usdAmount = (list) => (list || [])
 exports.getPayoutBalance = async (req, res, next) => {
   try {
     const { rows: [account] } = await pool.query('SELECT * FROM connect_accounts WHERE user_id = $1', [req.user.id]);
+    // Surface the tax-identity gate state so the payout UI can show the W-9
+    // unlock path proactively instead of only after a blocked attempt.
+    // Mirrors requireTaxIdentity (helperOnboardingMiddleware): W-9 on file +
+    // fresh Didit verification.
+    const { isDiditVerificationFresh } = require('../utils/diditGate');
+    const w9Completed = !!req.user.w9_completed;
+    const taxIdentityReady = w9Completed
+      && req.user.didit_status === 'verified'
+      && isDiditVerificationFresh(req.user.didit_verified_at);
+    const taxIdentity = { w9_completed: w9Completed, ready: taxIdentityReady };
     if (!account?.stripe_account_id) {
-      return res.json({ connected: false, payouts_enabled: false });
+      return res.json({ connected: false, payouts_enabled: false, tax_identity: taxIdentity });
     }
     if (!process.env.STRIPE_SECRET_KEY) {
-      return res.json({ connected: true, payouts_enabled: Boolean(account.payouts_enabled), configured: false });
+      return res.json({ connected: true, payouts_enabled: Boolean(account.payouts_enabled), configured: false, tax_identity: taxIdentity });
     }
     const balance = await stripe.balance.retrieve({ stripeAccount: account.stripe_account_id });
     const instant = usdAmount(balance.instant_available);
@@ -669,6 +679,7 @@ exports.getPayoutBalance = async (req, res, next) => {
       instant_available_cents: instant,
       instant_payout_max_cents: INSTANT_PAYOUT_MAX_CENTS_PUBLIC,
       instant_payout_amount_cents: Math.min(instant, INSTANT_PAYOUT_MAX_CENTS_PUBLIC),
+      tax_identity: taxIdentity,
     });
   } catch (err) {
     logger.error('Payout balance lookup failed', { userId: req.user?.id, error: err.message });
