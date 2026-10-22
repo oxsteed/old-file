@@ -203,6 +203,19 @@ export const createFoodLocation = (restaurantId, payload) =>
 export const updateFoodLocation = (restaurantId, locationId, payload) =>
   api.patch(`/food/restaurants/${restaurantId}/locations/${locationId}`, payload).then((r) => r.data?.location);
 
+// F-19: per-store tax rules.
+export const listTaxRules = (restaurantId, params = {}) =>
+  api.get(`/food/restaurants/${restaurantId}/tax-rules`, { params }).then((r) => r.data?.rules || []);
+
+export const createTaxRule = (restaurantId, payload) =>
+  api.post(`/food/restaurants/${restaurantId}/tax-rules`, payload).then((r) => r.data?.rule);
+
+export const updateTaxRule = (restaurantId, ruleId, payload) =>
+  api.patch(`/food/restaurants/${restaurantId}/tax-rules/${ruleId}`, payload).then((r) => r.data?.rule);
+
+export const deleteTaxRule = (restaurantId, ruleId) =>
+  api.delete(`/food/restaurants/${restaurantId}/tax-rules/${ruleId}`).then((r) => r.data);
+
 export const getRestaurantHQRollup = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/hq/rollup`, { params }).then((r) => r.data || { stores: [], scope: null });
 
