@@ -417,7 +417,9 @@ exports.assistant = async (req, res, next) => {
       total: s.total,
       groups: s.groups?.map((g) => ({ status: g.status, count: g.count })),
     }));
-    const provider = require("../services/metaChatProvider");
+    // OpenRouter-only per Emile's 2026-10-14 standing rule: the Meta Model API
+    // (server/services/metaChatProvider.js) is not used on any user-facing path.
+    const openRouter = require("../services/openRouterChat");
     let draft = null;
     if (openRouter.isOpenRouterConfigured()) {
       const result = await openRouter.fetchOpenRouterChat(

@@ -249,7 +249,10 @@ test("watch evaluation rechecks permissions and keeps stable per-record notifica
   expect(candidate[1][1]).toEqual(["published"]);
 });
 test("assistant sends only permitted aggregate counts and statuses, never customer PII or money", async () => {
-  const provider = require("../services/metaChatProvider");
+  // The draft path must go through OpenRouter, never the Meta Model API
+  // (Emile's 2026-10-14 standing rule: OpenRouter-only on user-facing paths).
+  const openRouter = require("../services/openRouterChat");
+  const metaProvider = require("../services/metaChatProvider");
   const configured = jest
     .spyOn(openRouter, "isOpenRouterConfigured")
     .mockReturnValue(true);
