@@ -165,6 +165,8 @@ router.get('/:restaurantId/delivery/marketplaces/:provider/menu', requireRestaur
 router.post('/:restaurantId/delivery/marketplaces/:provider/orders', requireRestaurantAccess(), deliveryMarketplaces.ingestOrder);
 router.patch('/:restaurantId/delivery/marketplace-orders/:orderId', requireRestaurantAccess(), deliveryMarketplaces.transitionOrder);
 router.get('/:restaurantId/hq/rollup', requireRestaurantAccess(), hq.rollup);
+// S-18: HQ cross-store labor rollup (per-store hours, cost, labor %).
+router.get('/:restaurantId/hq/labor-rollup', requireRestaurantAccess(), hq.laborRollup);
 router.post('/:restaurantId/hq/menu/publish', requireRestaurantAccess(), hq.publishMenuOverrides);
 router.get('/:restaurantId/hq/regions', requireRestaurantAccess(), hq.listRegions);
 router.post('/:restaurantId/hq/regions', requireRestaurantAccess(), hq.createRegion);
@@ -280,8 +282,13 @@ router.post(
 );
 router.patch('/:restaurantId/staff-documents/:documentId', requireRestaurantAccess(), staffDocuments.verifyDocument);
 router.delete('/:restaurantId/staff-documents/:documentId', requireRestaurantAccess(), staffDocuments.deleteDocument);
-// SOP read-and-sign acknowledgements (S-14)
-router.post('/:restaurantId/sops/:sopId/acknowledge', requireRestaurantAccess(), staffDocuments.acknowledgeSop);
+// SOP read-and-sign acknowledgements (S-14). The optional multipart
+// `signature` field carries the drawn e-signature image.
+router.post('/:restaurantId/sops/:sopId/acknowledge',
+  requireRestaurantAccess(),
+  upload.single('signature'),
+  validateFileUpload,
+  staffDocuments.acknowledgeSop);
 router.get('/:restaurantId/sop-acknowledgements', requireRestaurantAccess(), staffDocuments.listSopAcknowledgements);
 
 // Quality audits (franchise system)

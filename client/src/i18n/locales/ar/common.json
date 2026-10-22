@@ -4877,6 +4877,59 @@
       "restaurant_announcement": {
         "title": "إعلان من {{restaurantName}}",
         "body": "{{announcementTitle}}"
+      },
+      "crew_task_completed": {
+        "title": "اكتملت المهمة",
+        "body": "{{taskTitle}} في {{restaurantName}}"
+      },
+      "training_completed": {
+        "title": "اكتمل التدريب",
+        "body": "اكتمل {{moduleTitle}}"
+      },
+      "training_recertification_due": {
+        "title": "إعادة اعتماد التدريب مستحقة",
+        "body": "انتهت صلاحية شهادتك لـ {{moduleTitle}}. يرجى إكمال التدريب مرة أخرى."
+      },
+      "member_invite": {
+        "title": "تمت دعوتك للانضمام إلى {{businessName}}",
+        "body": "تمت دعوتك للانضمام إلى \"{{businessName}}\" بصفة {{role}}."
+      },
+      "member_invite_resent": {
+        "title": "تمت إعادة إرسال الدعوة من {{businessName}}",
+        "body": "تمت إعادة إرسال دعوتك للانضمام إلى \"{{businessName}}\" بصفة {{role}}."
+      },
+      "member_invite_withdrawn": {
+        "title": "تم سحب الدعوة من {{businessName}}",
+        "body": "تم سحب دعوتك للانضمام إلى \"{{businessName}}\" بصفة {{role}} قبل قبولها."
+      },
+      "member_removed": {
+        "title": "تمت إزالتك من {{businessName}}",
+        "body": "تمت إزالتك بصفة {{role}} من \"{{businessName}}\"."
+      },
+      "member_rehired": {
+        "title": "مرحبًا بعودتك إلى {{businessName}}",
+        "body": "تمت إعادة توظيفك في \"{{businessName}}\" بصفة {{role}}."
+      },
+      "career_hired": {
+        "title": "تم توظيفك في {{businessName}}",
+        "body": "تم قبول طلبك لـ {{openingTitle}} بصفة {{role}}."
+      },
+      "crew_task_reviewed": {
+        "approved": {
+          "title": "تمت الموافقة على المهمة",
+          "body": "تمت الموافقة على {{taskTitle}} في {{restaurantName}}"
+        },
+        "rejected": {
+          "title": "أُعيدت المهمة",
+          "body": "{{taskTitle}} في {{restaurantName}} تحتاج إلى مزيد من العمل"
+        }
+      },
+      "roles": {
+        "owner": "مالك",
+        "manager": "مدير",
+        "representative": "ممثل",
+        "employee": "موظف",
+        "support_agent": "وكيل دعم"
       }
     }
   },

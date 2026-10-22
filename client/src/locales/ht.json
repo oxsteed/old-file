@@ -26,7 +26,11 @@
     "comparedValue": "Valè konpare",
     "smsDelivery": "Livrezon SMS",
     "smsUncertainNote": "SMS ki entèwonp yo pa voye ankò otomatikman. Verifye bò founisè a anvan ou eseye ankò.",
-    "smsStatus": {"sent":"Voye","uncertain":"Livrezon pa sèten","sending":"Rezève; fini an poko konfime"},
+    "smsStatus": {
+      "sent": "Voye",
+      "uncertain": "Livrezon pa sèten",
+      "sending": "Rezève; fini an poko konfime"
+    },
     "modelNlHint": "Modèl opsyonèl la pwopoze yon rechèch pou ou verifye. Se sèlman metrik ou gen pèmisyon pou yo ki disponib. Konfime metrik la, filtè yo ak peryòd la anvan ou lanse li.",
     "columns": {
       "redemption_id": "Itilizasyon",
@@ -108,7 +112,7 @@
       "customer_id": "ID kliyan",
       "customer_orders": "Kòmand kliyan",
       "quantity": "Kantite"
-    } ,
+    },
     "businessRevenue": "Revni anrejistre nan fakti peye",
     "businessRevenueNote": "Fakti peye sèlman, separe dapre lajan ki anrejistre a. Depans ak lòt revni pa ladan.",
     "paidInvoices": "Fakti peye",
@@ -151,7 +155,7 @@
       "consulting_cancel_rate_pct": "To anilasyon konsiltasyon",
       "sla_first_response_compliance_pct": "Respè SLA premye repons"
     }
-  } ,
+  },
   "helperEarningsV2": {
     "unpriced_one": "{{count}} travay fini poko gen yon peman ki anrejistre.",
     "unpriced_other": "{{count}} travay fini poko gen yon peman ki anrejistre.",
@@ -805,14 +809,12 @@
     "dataFreshness": "Frekans done yo",
     "fresh": "Ajou",
     "catchingUp": "Bezwen mete ajou",
-
     "localRecovery": "Rekiperasyon lokal sou navigatè sa a",
     "localRecoveryHint": "Revize travay ki poko voye nan ansyen sesyon oswa aparèy ki dezaktive. Yon bouyon ki poko peye toujou bezwen akseptasyon anplwaye. Ansyen dosye yo rete; konpare aksyon kwizin ak dyagnostik finansye ak dosye aktyèl sèvè a.",
     "recoverUnpaid": "Enpòte bouyon ki poko peye",
     "reconcileManually": "Konpare ak dosye aktyèl yo",
     "reviewCurrentWork": "Revize travay aktyèl la",
     "lastHeartbeat": "Dènye siyal",
-
     "controlTitle": "Sant kontwòl ekran anndan restoran",
     "storeOperations": "Operasyon restoran",
     "controlHint": "Jere ekran konekte yo, swiv senkronizasyon yo epi revize kòmand san peye ki rekipere yo.",
@@ -1014,7 +1016,6 @@
     "downloadHandbook": "Telechaje manyèl la (PDF)",
     "imageUnavailable": "Ekran an pa disponib. Eseye chaje li ankò.",
     "libraryLink": "Gid vizyèl etap pa etap",
-
     "guideButton": "Gid etap pa etap",
     "englishBadge": "English",
     "modal": {
@@ -2229,6 +2230,59 @@
       "restaurant_announcement": {
         "title": "Anons soti nan {{restaurantName}}",
         "body": "{{announcementTitle}}"
+      },
+      "crew_task_completed": {
+        "title": "Travay la fini",
+        "body": "{{taskTitle}} nan {{restaurantName}}"
+      },
+      "training_completed": {
+        "title": "Fòmasyon an fini",
+        "body": "{{moduleTitle}} fini"
+      },
+      "training_recertification_due": {
+        "title": "Resètifikasyon fòmasyon dwe fèt",
+        "body": "Sètifikasyon ou pou {{moduleTitle}} ekspire. Tanpri fè fòmasyon an ankò."
+      },
+      "member_invite": {
+        "title": "Yo envite ou pou rantre nan {{businessName}}",
+        "body": "Yo envite ou pou rantre nan \"{{businessName}}\" kòm {{role}}."
+      },
+      "member_invite_resent": {
+        "title": "Envitasyon voye ankò soti nan {{businessName}}",
+        "body": "Envitasyon ou pou rantre nan \"{{businessName}}\" kòm {{role}} voye ankò."
+      },
+      "member_invite_withdrawn": {
+        "title": "Envitasyon anile pa {{businessName}}",
+        "body": "Envitasyon ou pou rantre nan \"{{businessName}}\" kòm {{role}} anile anvan ou te aksepte li."
+      },
+      "member_removed": {
+        "title": "Yo retire ou nan {{businessName}}",
+        "body": "Yo retire ou kòm {{role}} nan \"{{businessName}}\"."
+      },
+      "member_rehired": {
+        "title": "Byenveni tounen nan {{businessName}}",
+        "body": "Yo anboche ou ankò nan \"{{businessName}}\" kòm {{role}}."
+      },
+      "career_hired": {
+        "title": "Yo anboche ou nan {{businessName}}",
+        "body": "Aplikasyon ou pou {{openingTitle}} anboche kounye a kòm {{role}}."
+      },
+      "crew_task_reviewed": {
+        "approved": {
+          "title": "Travay la apwouve",
+          "body": "{{taskTitle}} nan {{restaurantName}} apwouve"
+        },
+        "rejected": {
+          "title": "Travay la voye tounen",
+          "body": "{{taskTitle}} nan {{restaurantName}} bezwen plis travay"
+        }
+      },
+      "roles": {
+        "owner": "pwopriyetè",
+        "manager": "manadjè",
+        "representative": "reprezantan",
+        "employee": "anplwaye",
+        "support_agent": "ajan sipò"
       }
     },
     "title": "Preferans Notifikasyon",
@@ -7752,7 +7806,8 @@
       "subtitle": "Jere chanj (shift) epi swiv tan",
       "tabs": {
         "shifts": "Shift",
-        "timeEntries": "Antre tan"
+        "timeEntries": "Antre tan",
+        "timeOff": "Konje"
       },
       "clockIn": "Kòmanse tan",
       "addShift": "Ajoute shift",
@@ -7768,6 +7823,48 @@
       "emptyTime": "Pa gen antre tan ankò. Sèvi ak «Kòmanse tan» pou kòmanse.",
       "unassigned": "Pa asiyen",
       "confirmDeleteShift": "Efase shift sa a?",
+      "publishDrafts": "Pibliye {{count}} orè bouyon",
+      "ruleWarningsTitle": "Avètisman lwa travay ({{count}})",
+      "draftBadge": "Bouyon",
+      "deleteShiftLabel": "Efase orè a",
+      "confirmDeleteTitle": "Efase orè a",
+      "toastPublished": "{{count}} orè pibliye",
+      "toastPublishFail": "Piblikasyon orè yo echwe",
+      "timeOff": {
+        "requestTitle": "Mande konje",
+        "type": "Kalite",
+        "types": {
+          "vacation": "Vakans",
+          "sick": "Konje maladi",
+          "personal": "Pèsonèl",
+          "unpaid": "San peye",
+          "other": "Lòt"
+        },
+        "start": "Dat kòmansman",
+        "end": "Dat fen",
+        "reason": "Rezon",
+        "request": "Mande",
+        "empty": "Poko gen demann konje.",
+        "approve": "Apwouve",
+        "deny": "Refize",
+        "cancel": "Anile demann lan",
+        "status": {
+          "pending": "Annatant",
+          "approved": "Apwouve",
+          "denied": "Refize",
+          "cancelled": "Anile",
+          "withdrawn": "Retire"
+        },
+        "toastDatesRequired": "Dat kòmansman ak dat fen obligatwa",
+        "toastRequested": "Demann konje voye",
+        "toastRequestedWithConflicts": "Demann voye, men li antrekwaze ak {{count}} orè pibliye",
+        "toastRequestFail": "Voye demann lan echwe",
+        "toastDecided": "Demann lan mete ajou",
+        "toastDecideFail": "Mete demann lan ajou echwe",
+        "toastCancelled": "Demann lan anile",
+        "toastCancelFail": "Anilasyon demann lan echwe",
+        "toastLoadFail": "Chaje demann konje yo echwe"
+      },
       "time": {
         "in": "Antre:",
         "out": "Sòti:",
@@ -8505,6 +8602,21 @@
     "statusActive": "Aktif",
     "btnCancelInvite": "Anile",
     "btnResendInvite": "Revoye",
+    "btnExpireInvite": "Ekspire kounye a",
+    "confirmExpireInvite": "Ekspire envitasyon pou {{email}} kounye a? Yo pap ka aksepte li ankò.",
+    "toastInviteExpired": "Envitasyon ekspire",
+    "toastInviteExpireFail": "Ekspire envitasyon an echwe",
+    "confirmRehire": "Anboche {{name}} ankò? Wòl ak salè anvan yo ap retabli.",
+    "toastRehired": "Manm anboche ankò",
+    "toastRehireFail": "Anboche ankò echwe",
+    "offboardingTitle": "Istorik depa",
+    "offboardingSubtitle": "Manm yo retire, travay yo reasigne, ak konbyen tan pou kenbe dosye yo.",
+    "offboardingRemoved": "Retire",
+    "offboardingReassigned": "Reasigne",
+    "offboardingRetainUntil": "Kenbe jiska",
+    "offboardingRehired": "Anboche ankò",
+    "offboardingReassignedDetail": "{{tasks}} tach reasigne, {{pins}} PIN dezaktive",
+    "btnRehire": "Anboche ankò",
     "btnRemoveMember": "Retire",
     "btnPermissions": "Pèmisyon",
     "permissionsEditor": {
@@ -23928,7 +24040,43 @@
     "ops": {
       "title": "Operasyon",
       "subtitle": "Jere restoran ou ak sistèm nivo franchiz.",
-      "hosting": {"title": "Resepsyon", "subtitle": "Jere tab, rezèvasyon ak moun ki vini san rezèvasyon.", "tablesTitle": "Tab", "floorPlanTitle": "Plan sal la", "floorPlanHint": "Trennen tab yo pou òganize sal la.", "reservationsTitle": "Rezèvasyon", "waitlistTitle": "Lis datant", "tableName": "Non tab", "capacity": "Kapasite", "section": "Seksyon", "addTable": "Ajoute tab", "guestName": "Non kliyan", "phone": "Telefòn", "partySize": "Gwosè gwoup", "table": "Tab", "anyTable": "Nenpòt tab", "startsAt": "Kòmanse", "endsAt": "Fini", "addReservation": "Ajoute rezèvasyon", "reservationStatus": "Estati rezèvasyon", "confirmed": "Konfime", "seated": "Chita", "completed": "Fini", "cancelled": "Anile", "quotedWait": "Datant estime (minit)", "addToWaitlist": "Ajoute nan lis", "notify": "Notifye", "seat": "Fè chita", "loadError": "Pa t kapab chaje resepsyon an", "saveError": "Pa t kapab sove", "smsError": "Pa t kapab voye SMS la", "pending": "An atant", "notifyReservation": "Voye SMS", "reservationNotified": "SMS voye", "reservationSmsError": "Pa t kapab voye SMS rezèvasyon an"},
+      "hosting": {
+        "title": "Resepsyon",
+        "subtitle": "Jere tab, rezèvasyon ak moun ki vini san rezèvasyon.",
+        "tablesTitle": "Tab",
+        "floorPlanTitle": "Plan sal la",
+        "floorPlanHint": "Trennen tab yo pou òganize sal la.",
+        "reservationsTitle": "Rezèvasyon",
+        "waitlistTitle": "Lis datant",
+        "tableName": "Non tab",
+        "capacity": "Kapasite",
+        "section": "Seksyon",
+        "addTable": "Ajoute tab",
+        "guestName": "Non kliyan",
+        "phone": "Telefòn",
+        "partySize": "Gwosè gwoup",
+        "table": "Tab",
+        "anyTable": "Nenpòt tab",
+        "startsAt": "Kòmanse",
+        "endsAt": "Fini",
+        "addReservation": "Ajoute rezèvasyon",
+        "reservationStatus": "Estati rezèvasyon",
+        "confirmed": "Konfime",
+        "seated": "Chita",
+        "completed": "Fini",
+        "cancelled": "Anile",
+        "quotedWait": "Datant estime (minit)",
+        "addToWaitlist": "Ajoute nan lis",
+        "notify": "Notifye",
+        "seat": "Fè chita",
+        "loadError": "Pa t kapab chaje resepsyon an",
+        "saveError": "Pa t kapab sove",
+        "smsError": "Pa t kapab voye SMS la",
+        "pending": "An atant",
+        "notifyReservation": "Voye SMS",
+        "reservationNotified": "SMS voye",
+        "reservationSmsError": "Pa t kapab voye SMS rezèvasyon an"
+      },
       "comingSoon": "Ap vini talè",
       "opAtAGlance": "Yon ti gade",
       "opChipChecklists": "{{count}} lis verifikasyon",
@@ -24241,6 +24389,10 @@
         "signedOn": "Siyen {{date}}",
         "signatures": "{{count}} siyen",
         "signCta": "Li epi siyen",
+        "signModalTitle": "Siyen: {{title}}",
+        "signModalHint": "Desine siyati ou anba a. Yon non tape pa konte kòm siyati.",
+        "signing": "Ap siyen...",
+        "signAndSubmit": "Siyen epi voye",
         "type": {
           "certificate_food_handler": "Sètifika moun k ap manyen manje",
           "certificate_allergen": "Sètifika alèjèn",
@@ -24378,16 +24530,16 @@
           "lines": "liy",
           "providerNote": "Ekspòtasyon yo nan keu pou yon travayè ki otantifye apa; navigatè a pa estoke kalifikasyon founisè yo.",
           "status": {
-              "disconnected": "Dekonekte",
-              "configured": "Konfigire",
-              "active": "Aktif",
-              "paused": "Poz",
-              "error": "Erè",
-              "pending": "An atant",
-              "sending": "Ap voye",
-              "posted": "Pibliye",
-              "failed": "Echwe",
-              "requires_reconciliation": "Bezwen rekonsilyasyon"
+            "disconnected": "Dekonekte",
+            "configured": "Konfigire",
+            "active": "Aktif",
+            "paused": "Poz",
+            "error": "Erè",
+            "pending": "An atant",
+            "sending": "Ap voye",
+            "posted": "Pibliye",
+            "failed": "Echwe",
+            "requires_reconciliation": "Bezwen rekonsilyasyon"
           }
         },
         "downloadCsv": "Telechaje CSV",
@@ -24467,10 +24619,72 @@
         "range7": "7 dènye jou yo",
         "range30": "30 dènye jou yo",
         "range90": "90 dènye jou yo",
-        "payroll": {"title": "Travay ak pewòl", "permissionNote": "Chif pewòl yo bezwen pèmisyon payroll.view. Mande pwopriyetè a ba ou li.", "loadError": "Nou pa t kapab chaje pewòl la.", "laborPercent": "% travay sou vant nèt", "laborCost": "Pri travay", "netSales": "Vant nèt yo kolekte", "hoursWorked": "Èdtan travay", "scheduledHours": "{{hours}} pwograme", "salesPerLaborHour": "Vant pa èdtan travay", "missingWage": "{{count}} manm ekip la gen èdtan men pa gen salè anrejistre, kidonk pri travay yo pa la.", "noData": "Pa gen èdtan ni tibwa nan peryòd sa a.", "employee": "Anplwaye", "jobRole": "Wòl travay", "hours": "Èdtan", "wages": "Salè", "netTips": "Tibwa nèt", "totalPay": "Peman total", "exportCsv": "Ekspòte pewòl CSV", "exportError": "Nou pa t kapab telechaje ekspòtasyon pewòl la."},
-        "tipPool": {"title": "Fon tibwa ak tibwa kach", "enablePooling": "Aktive fon komen ak pataj tibwa", "ruleTarget": "Destinasyon règ la", "targetRole": "Pataj bay yon wòl travay", "targetPool": "Pataje nan fon komen an", "ruleRole": "Wòl travay", "ruleRolePlaceholder": "egz. Kizinyè", "rulePercent": "Pousantaj tibwa", "removeRule": "Retire", "addRule": "Ajoute règ", "save": "Anrejistre paramèt tibwa", "saved": "Paramèt tibwa anrejistre.", "saveError": "Nou pa t kapab anrejistre paramèt tibwa yo.", "hint": "Pataj yo soti nan total tibwa peryòd la epi yo separe egalego ant anplwaye ki nan wòl sa a epi ki te travay. Fon an separe ant moun ki te genyen tibwa.", "cashTitle": "Deklare tibwa kach pou yon manm ekip", "cashSelectStaff": "Chwazi anplwaye", "cashDate": "Dat", "cashAmount": "Montan", "cashAdd": "Ajoute deklarasyon", "cashSaved": "Tibwa kach deklare.", "cashInvalid": "Chwazi yon manm ekip, yon dat ak yon montan pozitif.", "cashError": "Nou pa t kapab anrejistre deklarasyon tibwa kach la."},
-        "exceptions": {"title": "Eksepsyon pa anplwaye", "none": "Pa gen eksepsyon nan peryòd sa a.", "voids": "Anilasyon", "refunds": "Ranbousman", "comps": "Koutwazi", "discounts": "Rabè", "noSales": "Ouvèti san vant", "payouts": "Peman kès", "missingPunches": "Anrejistreman èdtan ki manke", "missingPunchesHint": "Anrejistreman ki manke yo konte orè ki pwograme san èdtan anrejistre. Pou konnen reta egzak, fòk gen lè antre yo, sa jounal èdtan an pa konsève."},
-        "activity": {"title": "Aktivite ekip la", "permissionNote": "Jounal aktivite a bezwen pèmisyon audit.view.", "filterPerson": "Filtre pa moun", "allPeople": "Tout moun", "filterAction": "Filtre pa aksyon", "filterActionPlaceholder": "egz. business.member", "none": "Pa gen aktivite nan vizyon sa a."},
+        "payroll": {
+          "title": "Travay ak pewòl",
+          "permissionNote": "Chif pewòl yo bezwen pèmisyon payroll.view. Mande pwopriyetè a ba ou li.",
+          "loadError": "Nou pa t kapab chaje pewòl la.",
+          "laborPercent": "% travay sou vant nèt",
+          "laborCost": "Pri travay",
+          "netSales": "Vant nèt yo kolekte",
+          "hoursWorked": "Èdtan travay",
+          "scheduledHours": "{{hours}} pwograme",
+          "salesPerLaborHour": "Vant pa èdtan travay",
+          "missingWage": "{{count}} manm ekip la gen èdtan men pa gen salè anrejistre, kidonk pri travay yo pa la.",
+          "noData": "Pa gen èdtan ni tibwa nan peryòd sa a.",
+          "employee": "Anplwaye",
+          "jobRole": "Wòl travay",
+          "hours": "Èdtan",
+          "wages": "Salè",
+          "netTips": "Tibwa nèt",
+          "totalPay": "Peman total",
+          "exportCsv": "Ekspòte pewòl CSV",
+          "exportError": "Nou pa t kapab telechaje ekspòtasyon pewòl la."
+        },
+        "tipPool": {
+          "title": "Fon tibwa ak tibwa kach",
+          "enablePooling": "Aktive fon komen ak pataj tibwa",
+          "ruleTarget": "Destinasyon règ la",
+          "targetRole": "Pataj bay yon wòl travay",
+          "targetPool": "Pataje nan fon komen an",
+          "ruleRole": "Wòl travay",
+          "ruleRolePlaceholder": "egz. Kizinyè",
+          "rulePercent": "Pousantaj tibwa",
+          "removeRule": "Retire",
+          "addRule": "Ajoute règ",
+          "save": "Anrejistre paramèt tibwa",
+          "saved": "Paramèt tibwa anrejistre.",
+          "saveError": "Nou pa t kapab anrejistre paramèt tibwa yo.",
+          "hint": "Pataj yo soti nan total tibwa peryòd la epi yo separe egalego ant anplwaye ki nan wòl sa a epi ki te travay. Fon an separe ant moun ki te genyen tibwa.",
+          "cashTitle": "Deklare tibwa kach pou yon manm ekip",
+          "cashSelectStaff": "Chwazi anplwaye",
+          "cashDate": "Dat",
+          "cashAmount": "Montan",
+          "cashAdd": "Ajoute deklarasyon",
+          "cashSaved": "Tibwa kach deklare.",
+          "cashInvalid": "Chwazi yon manm ekip, yon dat ak yon montan pozitif.",
+          "cashError": "Nou pa t kapab anrejistre deklarasyon tibwa kach la."
+        },
+        "exceptions": {
+          "title": "Eksepsyon pa anplwaye",
+          "none": "Pa gen eksepsyon nan peryòd sa a.",
+          "voids": "Anilasyon",
+          "refunds": "Ranbousman",
+          "comps": "Koutwazi",
+          "discounts": "Rabè",
+          "noSales": "Ouvèti san vant",
+          "payouts": "Peman kès",
+          "missingPunches": "Anrejistreman èdtan ki manke",
+          "missingPunchesHint": "Anrejistreman ki manke yo konte orè ki pwograme san èdtan anrejistre. Pou konnen reta egzak, fòk gen lè antre yo, sa jounal èdtan an pa konsève."
+        },
+        "activity": {
+          "title": "Aktivite ekip la",
+          "permissionNote": "Jounal aktivite a bezwen pèmisyon audit.view.",
+          "filterPerson": "Filtre pa moun",
+          "allPeople": "Tout moun",
+          "filterAction": "Filtre pa aksyon",
+          "filterActionPlaceholder": "egz. business.member",
+          "none": "Pa gen aktivite nan vizyon sa a."
+        },
         "loyalty": {
           "title": "Fidelite kliyan",
           "repeatRate": "To retou kòmann",
@@ -35768,36 +35982,36 @@
     "validation": "Antre yon SKU, yon non ak yon valè pozitif."
   },
   "printer": {
-      "title": "Enprimant resi",
-      "desc": "Enprime resi kòmand sou yon enprimant rezo ESC/POS epi louvri tiwa lajan an pou vant kach.",
-      "locationLabel": "Magazen",
-      "enable": "Aktive enpresyon resi",
-      "hostLabel": "Adrès enprimant lan",
-      "hostPlaceholder": "192.168.1.100",
-      "hostHint": "Adrès IP oswa non enprimant lan sou rezo lokal ou a. Pifò enprimant resi rezo tande sou pò 9100.",
-      "portLabel": "Pò enprimant lan",
-      "drawerKick": "Louvri tiwa a pou vant kach",
-      "drawerKickHint": "Voye yon siyal bay tiwa a lè w ap enprime yon resi pou yon kòmand yo peye kach.",
-      "save": "Anrejistre paramèt enprimant lan",
-      "printTest": "Enprime yon paj tès",
-      "testing": "Ap enprime...",
-      "saved": "Paramèt enprimant lan anrejistre.",
-      "loadError": "Pa t kapab chaje paramèt enprimant lan.",
-      "saveError": "Pa t kapab anrejistre paramèt enprimant lan.",
-      "testSuccess": "Paj tès la voye. Tcheke enprimant lan.",
-      "testQueued": "Paj tès la nan liy. Yon aparèy ki konekte nan magazen an ap enprime li.",
-      "testFailed": "Enpresyon an echwe. Tcheke koneksyon an epi eseye ankò.",
-      "enableFirst": "Aktive enpresyon resi a epi anrejistre anvan.",
-      "hostNotLocal": "Host enprimant lan dwe yon adrès rezo lokal.",
-      "labelOrderId": "ID kòmand pou etikèt alèji",
-      "labelOrderPlaceholder": "eg. 12345",
-      "labelOrderHint": "Enprime etikèt pou alèji yo deklare nan kòmand sa a.",
-      "printLabels": "Enprime etikèt alèji",
-      "labelsPrinting": "Ap enprime etikèt...",
-      "labelsQueued": "Etikèt alèji yo nan liy pou aparèy ki konekte a.",
-      "labelsSent": "Etikèt alèji yo voye bay enprimant lan.",
-      "labelsFailed": "Pa t kapab enprime etikèt alèji yo.",
-      "labelOrderRequired": "Antre yon ID kòmand ki valab anvan."
+    "title": "Enprimant resi",
+    "desc": "Enprime resi kòmand sou yon enprimant rezo ESC/POS epi louvri tiwa lajan an pou vant kach.",
+    "locationLabel": "Magazen",
+    "enable": "Aktive enpresyon resi",
+    "hostLabel": "Adrès enprimant lan",
+    "hostPlaceholder": "192.168.1.100",
+    "hostHint": "Adrès IP oswa non enprimant lan sou rezo lokal ou a. Pifò enprimant resi rezo tande sou pò 9100.",
+    "portLabel": "Pò enprimant lan",
+    "drawerKick": "Louvri tiwa a pou vant kach",
+    "drawerKickHint": "Voye yon siyal bay tiwa a lè w ap enprime yon resi pou yon kòmand yo peye kach.",
+    "save": "Anrejistre paramèt enprimant lan",
+    "printTest": "Enprime yon paj tès",
+    "testing": "Ap enprime...",
+    "saved": "Paramèt enprimant lan anrejistre.",
+    "loadError": "Pa t kapab chaje paramèt enprimant lan.",
+    "saveError": "Pa t kapab anrejistre paramèt enprimant lan.",
+    "testSuccess": "Paj tès la voye. Tcheke enprimant lan.",
+    "testQueued": "Paj tès la nan liy. Yon aparèy ki konekte nan magazen an ap enprime li.",
+    "testFailed": "Enpresyon an echwe. Tcheke koneksyon an epi eseye ankò.",
+    "enableFirst": "Aktive enpresyon resi a epi anrejistre anvan.",
+    "hostNotLocal": "Host enprimant lan dwe yon adrès rezo lokal.",
+    "labelOrderId": "ID kòmand pou etikèt alèji",
+    "labelOrderPlaceholder": "eg. 12345",
+    "labelOrderHint": "Enprime etikèt pou alèji yo deklare nan kòmand sa a.",
+    "printLabels": "Enprime etikèt alèji",
+    "labelsPrinting": "Ap enprime etikèt...",
+    "labelsQueued": "Etikèt alèji yo nan liy pou aparèy ki konekte a.",
+    "labelsSent": "Etikèt alèji yo voye bay enprimant lan.",
+    "labelsFailed": "Pa t kapab enprime etikèt alèji yo.",
+    "labelOrderRequired": "Antre yon ID kòmand ki valab anvan."
   },
   "displayPairing": {
     "pairThisDisplay": "Konekte ekran sa a",
@@ -35843,8 +36057,7 @@
     "roleKiosk": "Kyòs kliyan",
     "roleKitchen": "Ekran kwizin",
     "roleQueueBoard": "Tablo kyou a"
-  }
-,
+  },
   "kitchenPairing": {
     "title": "Konekte ekran kwizin nan",
     "intro": "Sou tablèt la, louvri dyalòg koneksyon an pou jwenn yon kòd, apre sa reklame li nan tablò bò a pou konekte ekran sa a.",
@@ -35857,7 +36070,7 @@
     "scheduleHours": "Orè (èdtan)",
     "fieldMapping": "Kat jaden (JSON)",
     "runNow": "Kouri kounye a",
-    "lastRun": "Dènye ekzekisyon",
+    "lastRun": "Dènye kalkil lannwit",
     "feedLastRun": "Dènye ekzekisyon flux la",
     "categoryMapping": "Kat kategori",
     "categoryPath": "Chemen kategori",
@@ -35873,7 +36086,7 @@
     "capsSkipped": "Sote pa limit",
     "quietHeld": "Kenbe pa èd silans",
     "noPushDevice": "Pa gen aparèy push",
-    "overlap": "Chevauche",
+    "overlap": "Kouvèti ak kanpay aktif yo",
     "delivered": "Livre",
     "opened": "Ouvri",
     "clicked": "Klike",
@@ -35994,7 +36207,6 @@
     "freshness": "Jan done yo fre",
     "demandThrough": "Demann rive jiska",
     "supplyThrough": "Pwovizyon rive jiska",
-    "lastRun": "Dènye kalkil lannwit",
     "anchorNote": "Zòn yo se sant kòd postal sèlman; pa gen pozisyon egzak.",
     "snapshots": "Endikatè gouvène",
     "gapIndex": "Endèks diferans demann",
@@ -36003,7 +36215,6 @@
     "reject": "Rejte",
     "rejectReason": "Rezon rejè a",
     "produce": "Jenere sijesyon",
-    "overlap": "Kouvèti ak kanpay aktif yo",
     "shared": "manm pataje",
     "miles": "Mil ant manm yo",
     "minimum": "Kantite minimòm nan gwoup la",

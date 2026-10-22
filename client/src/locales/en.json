@@ -26,7 +26,11 @@
     "comparedValue": "Compared value",
     "smsDelivery": "SMS delivery",
     "smsUncertainNote": "Interrupted SMS attempts are not automatically resent. Check the provider before arranging a retry.",
-    "smsStatus": {"sent":"Sent","uncertain":"Delivery uncertain","sending":"Claimed; completion unconfirmed"},
+    "smsStatus": {
+      "sent": "Sent",
+      "uncertain": "Delivery uncertain",
+      "sending": "Claimed; completion unconfirmed"
+    },
     "modelNlHint": "The optional model proposes a query for your review. Only permitted metrics are available. Confirm the metric, filters and trailing time window before running.",
     "columns": {
       "redemption_id": "Redemption",
@@ -108,7 +112,7 @@
       "customer_id": "Customer ID",
       "customer_orders": "Customer orders",
       "quantity": "Quantity"
-    } ,
+    },
     "businessRevenue": "Recorded paid-invoice revenue",
     "businessRevenueNote": "Paid invoices only, separated by recorded currency. Expenses and other income are excluded from this report.",
     "paidInvoices": "Paid invoices",
@@ -151,7 +155,7 @@
       "consulting_cancel_rate_pct": "Consulting cancellation rate",
       "sla_first_response_compliance_pct": "First-response SLA compliance"
     }
-  } ,
+  },
   "helperEarningsV2": {
     "unpriced_one": "{{count}} completed job does not yet have a recorded payout.",
     "unpriced_other": "{{count}} completed jobs do not yet have a recorded payout.",
@@ -805,14 +809,12 @@
     "dataFreshness": "Data freshness",
     "fresh": "Caught up",
     "catchingUp": "Catch-up required",
-
     "localRecovery": "Local recovery on this browser",
     "localRecoveryHint": "Review unsent work left by earlier sessions or disabled devices. Importing an unpaid draft still requires staff acceptance. Original legacy records are retained; reconcile kitchen and financial diagnostics against current server records.",
     "recoverUnpaid": "Import unpaid draft",
     "reconcileManually": "Reconcile against current records",
     "reviewCurrentWork": "Review current work",
     "lastHeartbeat": "Last heartbeat",
-
     "controlTitle": "In-store screen control center",
     "storeOperations": "Restaurant operations",
     "controlHint": "Manage connected screens, follow synchronization health, and review recovered unpaid orders.",
@@ -1014,7 +1016,6 @@
     "downloadHandbook": "Download handbook (PDF)",
     "imageUnavailable": "Screenshot unavailable. Try loading it again.",
     "libraryLink": "Visual step-by-step guides",
-
     "guideButton": "Step-by-step guide",
     "englishBadge": "English",
     "modal": {
@@ -8071,6 +8072,21 @@
     "statusActive": "Active",
     "btnCancelInvite": "Cancel",
     "btnResendInvite": "Resend",
+    "btnExpireInvite": "Expire now",
+    "confirmExpireInvite": "Expire the invite for {{email}} now? It can no longer be accepted.",
+    "toastInviteExpired": "Invite expired",
+    "toastInviteExpireFail": "Failed to expire the invite",
+    "confirmRehire": "Rehire {{name}}? Their previous role and pay will be restored.",
+    "toastRehired": "Team member rehired",
+    "toastRehireFail": "Failed to rehire",
+    "offboardingTitle": "Offboarding history",
+    "offboardingSubtitle": "Removed members, reassigned work, and how long records must be kept.",
+    "offboardingRemoved": "Removed",
+    "offboardingReassigned": "Reassigned",
+    "offboardingRetainUntil": "Keep until",
+    "offboardingRehired": "Rehired",
+    "offboardingReassignedDetail": "{{tasks}} open tasks reassigned, {{pins}} PINs deactivated",
+    "btnRehire": "Rehire",
     "btnRemoveMember": "Remove",
     "btnPermissions": "Permissions",
     "permissionsEditor": {
@@ -8222,7 +8238,8 @@
       "subtitle": "Manage shifts and track time",
       "tabs": {
         "shifts": "Shifts",
-        "timeEntries": "Time Entries"
+        "timeEntries": "Time Entries",
+        "timeOff": "Time Off"
       },
       "clockIn": "Clock In",
       "addShift": "Add Shift",
@@ -8238,6 +8255,48 @@
       "emptyTime": "No time entries yet. Use Clock In to start tracking.",
       "unassigned": "Unassigned",
       "confirmDeleteShift": "Delete this shift?",
+      "publishDrafts": "Publish {{count}} draft shifts",
+      "ruleWarningsTitle": "Labor-law warnings ({{count}})",
+      "draftBadge": "Draft",
+      "deleteShiftLabel": "Delete shift",
+      "confirmDeleteTitle": "Delete shift",
+      "toastPublished": "Published {{count}} shifts",
+      "toastPublishFail": "Failed to publish shifts",
+      "timeOff": {
+        "requestTitle": "Request time off",
+        "type": "Type",
+        "types": {
+          "vacation": "Vacation",
+          "sick": "Sick leave",
+          "personal": "Personal",
+          "unpaid": "Unpaid",
+          "other": "Other"
+        },
+        "start": "Start date",
+        "end": "End date",
+        "reason": "Reason",
+        "request": "Request",
+        "empty": "No time-off requests yet.",
+        "approve": "Approve",
+        "deny": "Deny",
+        "cancel": "Cancel request",
+        "status": {
+          "pending": "Pending",
+          "approved": "Approved",
+          "denied": "Denied",
+          "cancelled": "Cancelled",
+          "withdrawn": "Withdrawn"
+        },
+        "toastDatesRequired": "Start and end dates are required",
+        "toastRequested": "Time-off request submitted",
+        "toastRequestedWithConflicts": "Request submitted, but it overlaps {{count}} published shifts",
+        "toastRequestFail": "Failed to submit request",
+        "toastDecided": "Request updated",
+        "toastDecideFail": "Failed to update request",
+        "toastCancelled": "Request cancelled",
+        "toastCancelFail": "Failed to cancel request",
+        "toastLoadFail": "Failed to load time-off requests"
+      },
       "time": {
         "in": "In:",
         "out": "Out:",
@@ -9862,6 +9921,59 @@
       "restaurant_announcement": {
         "title": "Announcement from {{restaurantName}}",
         "body": "{{announcementTitle}}"
+      },
+      "crew_task_completed": {
+        "title": "Task completed",
+        "body": "{{taskTitle}} at {{restaurantName}}"
+      },
+      "training_completed": {
+        "title": "Training completed",
+        "body": "{{moduleTitle}} was completed"
+      },
+      "training_recertification_due": {
+        "title": "Training recertification due",
+        "body": "Your certification for {{moduleTitle}} has expired. Please complete the training again."
+      },
+      "member_invite": {
+        "title": "You have been invited to join {{businessName}}",
+        "body": "You have been invited to join \"{{businessName}}\" as a {{role}}."
+      },
+      "member_invite_resent": {
+        "title": "Invitation resent from {{businessName}}",
+        "body": "Your invitation to join \"{{businessName}}\" as a {{role}} has been resent."
+      },
+      "member_invite_withdrawn": {
+        "title": "Invitation withdrawn by {{businessName}}",
+        "body": "Your invitation to join \"{{businessName}}\" as a {{role}} was withdrawn before you accepted it."
+      },
+      "member_removed": {
+        "title": "Removed from {{businessName}}",
+        "body": "You have been removed as a {{role}} from \"{{businessName}}\"."
+      },
+      "member_rehired": {
+        "title": "Welcome back to {{businessName}}",
+        "body": "You have been rehired at \"{{businessName}}\" as a {{role}}."
+      },
+      "career_hired": {
+        "title": "You were hired at {{businessName}}",
+        "body": "Your application for {{openingTitle}} is now hired as {{role}}."
+      },
+      "crew_task_reviewed": {
+        "approved": {
+          "title": "Task approved",
+          "body": "{{taskTitle}} at {{restaurantName}} was approved"
+        },
+        "rejected": {
+          "title": "Task sent back",
+          "body": "{{taskTitle}} at {{restaurantName}} needs more work"
+        }
+      },
+      "roles": {
+        "owner": "owner",
+        "manager": "manager",
+        "representative": "representative",
+        "employee": "employee",
+        "support_agent": "support agent"
       }
     },
     "title": "Notification Settings",
@@ -23928,7 +24040,43 @@
     "ops": {
       "title": "Operations",
       "subtitle": "Run your restaurant with franchise-grade systems.",
-      "hosting": {"title": "Host stand", "subtitle": "Manage tables, reservations, and walk-ins for this restaurant.", "tablesTitle": "Tables", "floorPlanTitle": "Floor plan", "floorPlanHint": "Drag tables to arrange the store layout.", "reservationsTitle": "Reservations", "waitlistTitle": "Walk-in waitlist", "tableName": "Table name", "capacity": "Capacity", "section": "Section", "addTable": "Add table", "guestName": "Guest name", "phone": "Phone", "partySize": "Party size", "table": "Table", "anyTable": "Any table", "startsAt": "Starts", "endsAt": "Ends", "addReservation": "Add reservation", "reservationStatus": "Reservation status", "confirmed": "Confirmed", "seated": "Seated", "completed": "Completed", "cancelled": "Cancelled", "quotedWait": "Quoted wait (minutes)", "addToWaitlist": "Add to waitlist", "notify": "Notify", "seat": "Seat", "loadError": "Could not load host stand", "saveError": "Could not save", "smsError": "Could not send SMS", "pending": "Pending", "notifyReservation": "Send SMS", "reservationNotified": "SMS sent", "reservationSmsError": "Could not send reservation SMS"},
+      "hosting": {
+        "title": "Host stand",
+        "subtitle": "Manage tables, reservations, and walk-ins for this restaurant.",
+        "tablesTitle": "Tables",
+        "floorPlanTitle": "Floor plan",
+        "floorPlanHint": "Drag tables to arrange the store layout.",
+        "reservationsTitle": "Reservations",
+        "waitlistTitle": "Walk-in waitlist",
+        "tableName": "Table name",
+        "capacity": "Capacity",
+        "section": "Section",
+        "addTable": "Add table",
+        "guestName": "Guest name",
+        "phone": "Phone",
+        "partySize": "Party size",
+        "table": "Table",
+        "anyTable": "Any table",
+        "startsAt": "Starts",
+        "endsAt": "Ends",
+        "addReservation": "Add reservation",
+        "reservationStatus": "Reservation status",
+        "confirmed": "Confirmed",
+        "seated": "Seated",
+        "completed": "Completed",
+        "cancelled": "Cancelled",
+        "quotedWait": "Quoted wait (minutes)",
+        "addToWaitlist": "Add to waitlist",
+        "notify": "Notify",
+        "seat": "Seat",
+        "loadError": "Could not load host stand",
+        "saveError": "Could not save",
+        "smsError": "Could not send SMS",
+        "pending": "Pending",
+        "notifyReservation": "Send SMS",
+        "reservationNotified": "SMS sent",
+        "reservationSmsError": "Could not send reservation SMS"
+      },
       "comingSoon": "Coming next",
       "opAtAGlance": "At a glance",
       "opChipChecklists": "{{count}} checklists",
@@ -24200,6 +24348,10 @@
         "signedOn": "Signed {{date}}",
         "signatures": "{{count}} signed",
         "signCta": "Read and sign",
+        "signModalTitle": "Sign: {{title}}",
+        "signModalHint": "Draw your signature below. A typed name does not count as a signature.",
+        "signing": "Signing...",
+        "signAndSubmit": "Sign and submit",
         "type": {
           "certificate_food_handler": "Food handler certificate",
           "certificate_allergen": "Allergen certificate",
@@ -24346,16 +24498,16 @@
           "lines": "lines",
           "providerNote": "Exports are queued for a separately authenticated provider worker; no provider credentials are stored in the browser.",
           "status": {
-              "disconnected": "Disconnected",
-              "configured": "Configured",
-              "active": "Active",
-              "paused": "Paused",
-              "error": "Error",
-              "pending": "Pending",
-              "sending": "Sending",
-              "posted": "Posted",
-              "failed": "Failed",
-              "requires_reconciliation": "Needs reconciliation"
+            "disconnected": "Disconnected",
+            "configured": "Configured",
+            "active": "Active",
+            "paused": "Paused",
+            "error": "Error",
+            "pending": "Pending",
+            "sending": "Sending",
+            "posted": "Posted",
+            "failed": "Failed",
+            "requires_reconciliation": "Needs reconciliation"
           }
         },
         "downloadCsv": "Download CSV",
@@ -24435,10 +24587,72 @@
         "range7": "Last 7 days",
         "range30": "Last 30 days",
         "range90": "Last 90 days",
-        "payroll": {"title": "Labor & payroll", "permissionNote": "Payroll figures need the payroll.view permission. Ask the owner to grant it.", "loadError": "Could not load payroll.", "laborPercent": "Labor % of net sales", "laborCost": "Labor cost", "netSales": "Net collected sales", "hoursWorked": "Hours worked", "scheduledHours": "{{hours}} scheduled", "salesPerLaborHour": "Sales per labor hour", "missingWage": "{{count}} team member(s) have hours but no wage on file, so their labor cost is missing.", "noData": "No hours or tips in this period.", "employee": "Employee", "jobRole": "Job role", "hours": "Hours", "wages": "Wages", "netTips": "Net tips", "totalPay": "Total pay", "exportCsv": "Export payroll CSV", "exportError": "Could not download the payroll export."},
-        "tipPool": {"title": "Tip pool & cash tips", "enablePooling": "Enable tip pooling and tip-outs", "ruleTarget": "Rule target", "targetRole": "Tip-out to a job role", "targetPool": "Share into the tip pool", "ruleRole": "Job role", "ruleRolePlaceholder": "e.g. Cook", "rulePercent": "Percent of tips", "removeRule": "Remove", "addRule": "Add rule", "save": "Save tip settings", "saved": "Tip settings saved.", "saveError": "Could not save tip settings.", "hint": "Tip-outs are taken from the period's total tips and shared equally among the staff in that role who worked. Pool shares go to staff who earned tips.", "cashTitle": "Declare cash tips for a team member", "cashSelectStaff": "Select staff", "cashDate": "Date", "cashAmount": "Amount", "cashAdd": "Add declaration", "cashSaved": "Cash tips declared.", "cashInvalid": "Pick a team member, a date and a positive amount.", "cashError": "Could not save the cash tip declaration."},
-        "exceptions": {"title": "Exceptions by employee", "none": "No exceptions in this period.", "voids": "Voids", "refunds": "Refunds", "comps": "Comps", "discounts": "Discounts", "noSales": "No-sales", "payouts": "Payouts", "missingPunches": "Missing time entries", "missingPunchesHint": "Missing time entries count scheduled shifts with no matching hours record. Punch-level lateness needs clock-in times, which the hours log does not store."},
-        "activity": {"title": "Team activity", "permissionNote": "The activity log needs the audit.view permission.", "filterPerson": "Filter by person", "allPeople": "Everyone", "filterAction": "Filter by action", "filterActionPlaceholder": "e.g. business.member", "none": "No activity in this view."},
+        "payroll": {
+          "title": "Labor & payroll",
+          "permissionNote": "Payroll figures need the payroll.view permission. Ask the owner to grant it.",
+          "loadError": "Could not load payroll.",
+          "laborPercent": "Labor % of net sales",
+          "laborCost": "Labor cost",
+          "netSales": "Net collected sales",
+          "hoursWorked": "Hours worked",
+          "scheduledHours": "{{hours}} scheduled",
+          "salesPerLaborHour": "Sales per labor hour",
+          "missingWage": "{{count}} team member(s) have hours but no wage on file, so their labor cost is missing.",
+          "noData": "No hours or tips in this period.",
+          "employee": "Employee",
+          "jobRole": "Job role",
+          "hours": "Hours",
+          "wages": "Wages",
+          "netTips": "Net tips",
+          "totalPay": "Total pay",
+          "exportCsv": "Export payroll CSV",
+          "exportError": "Could not download the payroll export."
+        },
+        "tipPool": {
+          "title": "Tip pool & cash tips",
+          "enablePooling": "Enable tip pooling and tip-outs",
+          "ruleTarget": "Rule target",
+          "targetRole": "Tip-out to a job role",
+          "targetPool": "Share into the tip pool",
+          "ruleRole": "Job role",
+          "ruleRolePlaceholder": "e.g. Cook",
+          "rulePercent": "Percent of tips",
+          "removeRule": "Remove",
+          "addRule": "Add rule",
+          "save": "Save tip settings",
+          "saved": "Tip settings saved.",
+          "saveError": "Could not save tip settings.",
+          "hint": "Tip-outs are taken from the period's total tips and shared equally among the staff in that role who worked. Pool shares go to staff who earned tips.",
+          "cashTitle": "Declare cash tips for a team member",
+          "cashSelectStaff": "Select staff",
+          "cashDate": "Date",
+          "cashAmount": "Amount",
+          "cashAdd": "Add declaration",
+          "cashSaved": "Cash tips declared.",
+          "cashInvalid": "Pick a team member, a date and a positive amount.",
+          "cashError": "Could not save the cash tip declaration."
+        },
+        "exceptions": {
+          "title": "Exceptions by employee",
+          "none": "No exceptions in this period.",
+          "voids": "Voids",
+          "refunds": "Refunds",
+          "comps": "Comps",
+          "discounts": "Discounts",
+          "noSales": "No-sales",
+          "payouts": "Payouts",
+          "missingPunches": "Missing time entries",
+          "missingPunchesHint": "Missing time entries count scheduled shifts with no matching hours record. Punch-level lateness needs clock-in times, which the hours log does not store."
+        },
+        "activity": {
+          "title": "Team activity",
+          "permissionNote": "The activity log needs the audit.view permission.",
+          "filterPerson": "Filter by person",
+          "allPeople": "Everyone",
+          "filterAction": "Filter by action",
+          "filterActionPlaceholder": "e.g. business.member",
+          "none": "No activity in this view."
+        },
         "loyalty": {
           "title": "Customer loyalty",
           "repeatRate": "Repeat order rate",
@@ -35768,36 +35982,36 @@
     "validation": "Enter a SKU, name, and positive value."
   },
   "printer": {
-      "title": "Receipt printer",
-      "desc": "Print order receipts on a network ESC/POS printer and kick the cash drawer on cash sales.",
-      "locationLabel": "Store",
-      "enable": "Enable receipt printing",
-      "hostLabel": "Printer host",
-      "hostPlaceholder": "192.168.1.100",
-      "hostHint": "The printer's IP address or hostname on your local network. Most network receipt printers listen on port 9100.",
-      "portLabel": "Printer port",
-      "drawerKick": "Kick cash drawer on cash sales",
-      "drawerKickHint": "Sends a drawer pulse when printing a receipt for an order paid in cash.",
-      "save": "Save printer settings",
-      "printTest": "Print test page",
-      "testing": "Printing...",
-      "saved": "Printer settings saved.",
-      "loadError": "Could not load printer settings.",
-      "saveError": "Could not save printer settings.",
-      "testSuccess": "Test page sent. Check the printer.",
-      "testQueued": "Test page queued. A paired in-store device will print it.",
-      "testFailed": "Print failed. Check the printer connection and try again.",
-      "enableFirst": "Enable receipt printing and save first.",
-      "hostNotLocal": "Printer host must be a local network address.",
-      "labelOrderId": "Order ID for allergen labels",
-      "labelOrderPlaceholder": "e.g. 12345",
-      "labelOrderHint": "Print labels for declared allergens on this order.",
-      "printLabels": "Print allergen labels",
-      "labelsPrinting": "Printing labels...",
-      "labelsQueued": "Allergen labels queued for the paired store device.",
-      "labelsSent": "Allergen labels sent to the printer.",
-      "labelsFailed": "Could not print allergen labels.",
-      "labelOrderRequired": "Enter a valid order ID first."
+    "title": "Receipt printer",
+    "desc": "Print order receipts on a network ESC/POS printer and kick the cash drawer on cash sales.",
+    "locationLabel": "Store",
+    "enable": "Enable receipt printing",
+    "hostLabel": "Printer host",
+    "hostPlaceholder": "192.168.1.100",
+    "hostHint": "The printer's IP address or hostname on your local network. Most network receipt printers listen on port 9100.",
+    "portLabel": "Printer port",
+    "drawerKick": "Kick cash drawer on cash sales",
+    "drawerKickHint": "Sends a drawer pulse when printing a receipt for an order paid in cash.",
+    "save": "Save printer settings",
+    "printTest": "Print test page",
+    "testing": "Printing...",
+    "saved": "Printer settings saved.",
+    "loadError": "Could not load printer settings.",
+    "saveError": "Could not save printer settings.",
+    "testSuccess": "Test page sent. Check the printer.",
+    "testQueued": "Test page queued. A paired in-store device will print it.",
+    "testFailed": "Print failed. Check the printer connection and try again.",
+    "enableFirst": "Enable receipt printing and save first.",
+    "hostNotLocal": "Printer host must be a local network address.",
+    "labelOrderId": "Order ID for allergen labels",
+    "labelOrderPlaceholder": "e.g. 12345",
+    "labelOrderHint": "Print labels for declared allergens on this order.",
+    "printLabels": "Print allergen labels",
+    "labelsPrinting": "Printing labels...",
+    "labelsQueued": "Allergen labels queued for the paired store device.",
+    "labelsSent": "Allergen labels sent to the printer.",
+    "labelsFailed": "Could not print allergen labels.",
+    "labelOrderRequired": "Enter a valid order ID first."
   },
   "displayPairing": {
     "pairThisDisplay": "Pair this display",
@@ -35843,8 +36057,7 @@
     "roleKiosk": "Customer kiosk",
     "roleKitchen": "Kitchen display",
     "roleQueueBoard": "Queue board"
-  }
-,
+  },
   "kitchenPairing": {
     "title": "Pair kitchen display",
     "intro": "On the tablet, open the pairing dialog to get a code, then claim the code in the dashboard to link this display.",
@@ -35857,7 +36070,7 @@
     "scheduleHours": "Schedule (hours)",
     "fieldMapping": "Field mapping (JSON)",
     "runNow": "Run now",
-    "lastRun": "Last run",
+    "lastRun": "Last rollup run",
     "feedLastRun": "Last feed run",
     "categoryMapping": "Category mapping",
     "categoryPath": "Category path",
@@ -35873,7 +36086,7 @@
     "capsSkipped": "Skipped by caps",
     "quietHeld": "Held by quiet hours",
     "noPushDevice": "No push device",
-    "overlap": "Overlap",
+    "overlap": "Overlap with active campaigns",
     "delivered": "Delivered",
     "opened": "Opened",
     "clicked": "Clicked",
@@ -35994,7 +36207,6 @@
     "freshness": "Data freshness",
     "demandThrough": "Demand through",
     "supplyThrough": "Supply through",
-    "lastRun": "Last rollup run",
     "anchorNote": "Areas are postal code centres only; no exact locations.",
     "snapshots": "Governed metrics",
     "gapIndex": "Demand gap index",
@@ -36003,7 +36215,6 @@
     "reject": "Reject",
     "rejectReason": "Rejection reason",
     "produce": "Generate suggestions",
-    "overlap": "Overlap with active campaigns",
     "shared": "shared members",
     "miles": "Miles between members",
     "minimum": "Minimum group size",

@@ -663,7 +663,11 @@ async function hireIntoBusiness(actor, application, openingMeta, dbClient = pool
         application.user_id,
         `You were hired at ${biz.business_name}`,
         `Your application for ${openingMeta.opening_title} is now hired as ${role}.`,
-        JSON.stringify({ business_id: biz.id, opening_id: application.opening_id, role }),
+        JSON.stringify({
+          business_id: biz.id, opening_id: application.opening_id, role,
+          // S-19: the client renders the localized template from type + params.
+          params: { businessName: biz.business_name, openingTitle: openingMeta.opening_title, role },
+        }),
       ]
     );
   }
