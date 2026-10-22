@@ -7618,7 +7618,8 @@
       "subtitle": "Gestiona turnos y registra horas",
       "tabs": {
         "shifts": "Turnos",
-        "timeEntries": "Registros de tiempo"
+        "timeEntries": "Registros de tiempo",
+        "timeOff": "Ausencias"
       },
       "clockIn": "Fichar",
       "addShift": "Agregar turno",
@@ -7634,6 +7635,47 @@
       "emptyTime": "Aún no hay registros de tiempo. Usa «Fichar» para empezar.",
       "unassigned": "Sin asignar",
       "confirmDeleteShift": "¿Eliminar este turno?",
+      "publishDrafts": "Publicar {{count}} turnos en borrador",
+      "draftBadge": "Borrador",
+      "deleteShiftLabel": "Eliminar turno",
+      "confirmDeleteTitle": "Eliminar turno",
+      "toastPublished": "{{count}} turnos publicados",
+      "toastPublishFail": "No se pudieron publicar los turnos",
+      "timeOff": {
+        "requestTitle": "Solicitar ausencia",
+        "type": "Tipo",
+        "types": {
+          "vacation": "Vacaciones",
+          "sick": "Baja por enfermedad",
+          "personal": "Personal",
+          "unpaid": "No remunerado",
+          "other": "Otro"
+        },
+        "start": "Fecha de inicio",
+        "end": "Fecha de fin",
+        "reason": "Motivo",
+        "request": "Solicitar",
+        "empty": "Aún no hay solicitudes de ausencia.",
+        "approve": "Aprobar",
+        "deny": "Rechazar",
+        "cancel": "Cancelar solicitud",
+        "status": {
+          "pending": "Pendiente",
+          "approved": "Aprobada",
+          "denied": "Rechazada",
+          "cancelled": "Cancelada",
+          "withdrawn": "Retirada"
+        },
+        "toastDatesRequired": "Las fechas de inicio y fin son obligatorias",
+        "toastRequested": "Solicitud de ausencia enviada",
+        "toastRequestedWithConflicts": "Solicitud enviada, pero se solapa con {{count}} turnos publicados",
+        "toastRequestFail": "No se pudo enviar la solicitud",
+        "toastDecided": "Solicitud actualizada",
+        "toastDecideFail": "No se pudo actualizar la solicitud",
+        "toastCancelled": "Solicitud cancelada",
+        "toastCancelFail": "No se pudo cancelar la solicitud",
+        "toastLoadFail": "No se pudieron cargar las solicitudes de ausencia"
+      },
       "time": {
         "in": "Entrada:",
         "out": "Salida:",

@@ -8222,7 +8222,8 @@
       "subtitle": "Manage shifts and track time",
       "tabs": {
         "shifts": "Shifts",
-        "timeEntries": "Time Entries"
+        "timeEntries": "Time Entries",
+        "timeOff": "Time Off"
       },
       "clockIn": "Clock In",
       "addShift": "Add Shift",
@@ -8238,6 +8239,47 @@
       "emptyTime": "No time entries yet. Use Clock In to start tracking.",
       "unassigned": "Unassigned",
       "confirmDeleteShift": "Delete this shift?",
+      "publishDrafts": "Publish {{count}} draft shifts",
+      "draftBadge": "Draft",
+      "deleteShiftLabel": "Delete shift",
+      "confirmDeleteTitle": "Delete shift",
+      "toastPublished": "Published {{count}} shifts",
+      "toastPublishFail": "Failed to publish shifts",
+      "timeOff": {
+        "requestTitle": "Request time off",
+        "type": "Type",
+        "types": {
+          "vacation": "Vacation",
+          "sick": "Sick leave",
+          "personal": "Personal",
+          "unpaid": "Unpaid",
+          "other": "Other"
+        },
+        "start": "Start date",
+        "end": "End date",
+        "reason": "Reason",
+        "request": "Request",
+        "empty": "No time-off requests yet.",
+        "approve": "Approve",
+        "deny": "Deny",
+        "cancel": "Cancel request",
+        "status": {
+          "pending": "Pending",
+          "approved": "Approved",
+          "denied": "Denied",
+          "cancelled": "Cancelled",
+          "withdrawn": "Withdrawn"
+        },
+        "toastDatesRequired": "Start and end dates are required",
+        "toastRequested": "Time-off request submitted",
+        "toastRequestedWithConflicts": "Request submitted, but it overlaps {{count}} published shifts",
+        "toastRequestFail": "Failed to submit request",
+        "toastDecided": "Request updated",
+        "toastDecideFail": "Failed to update request",
+        "toastCancelled": "Request cancelled",
+        "toastCancelFail": "Failed to cancel request",
+        "toastLoadFail": "Failed to load time-off requests"
+      },
       "time": {
         "in": "In:",
         "out": "Out:",

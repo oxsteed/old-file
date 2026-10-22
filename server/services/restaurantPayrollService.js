@@ -393,6 +393,9 @@ async function getScheduledHoursByUser(businessId, restaurantId, fromDate, toDat
       WHERE business_id = $1
         AND shift_date >= $2 AND shift_date <= $3
         AND (restaurant_id IS NULL OR restaurant_id = $4)
+        -- S-04: planned labor counts published shifts; drafts are not
+        -- commitments yet.
+        AND published_at IS NOT NULL
       GROUP BY user_id`,
     [businessId, fromDate, toDate, restaurantId]
   );
@@ -872,6 +875,8 @@ async function computeExceptions({ restaurant, fromDate, toDate }) {
         WHERE sh.business_id = $1
           AND sh.shift_date >= $2 AND sh.shift_date <= $3
           AND (sh.restaurant_id IS NULL OR sh.restaurant_id = $4)
+          -- S-04: only published shifts can be "missed punches".
+          AND sh.published_at IS NOT NULL
           AND NOT EXISTS (
             SELECT 1 FROM business_time_entries te
              WHERE te.business_id = sh.business_id

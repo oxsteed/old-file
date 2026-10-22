@@ -7752,7 +7752,8 @@
       "subtitle": "Jere chanj (shift) epi swiv tan",
       "tabs": {
         "shifts": "Shift",
-        "timeEntries": "Antre tan"
+        "timeEntries": "Antre tan",
+        "timeOff": "Konje"
       },
       "clockIn": "Kòmanse tan",
       "addShift": "Ajoute shift",
@@ -7768,6 +7769,47 @@
       "emptyTime": "Pa gen antre tan ankò. Sèvi ak «Kòmanse tan» pou kòmanse.",
       "unassigned": "Pa asiyen",
       "confirmDeleteShift": "Efase shift sa a?",
+      "publishDrafts": "Pibliye {{count}} orè bouyon",
+      "draftBadge": "Bouyon",
+      "deleteShiftLabel": "Efase orè a",
+      "confirmDeleteTitle": "Efase orè a",
+      "toastPublished": "{{count}} orè pibliye",
+      "toastPublishFail": "Piblikasyon orè yo echwe",
+      "timeOff": {
+        "requestTitle": "Mande konje",
+        "type": "Kalite",
+        "types": {
+          "vacation": "Vakans",
+          "sick": "Konje maladi",
+          "personal": "Pèsonèl",
+          "unpaid": "San peye",
+          "other": "Lòt"
+        },
+        "start": "Dat kòmansman",
+        "end": "Dat fen",
+        "reason": "Rezon",
+        "request": "Mande",
+        "empty": "Poko gen demann konje.",
+        "approve": "Apwouve",
+        "deny": "Refize",
+        "cancel": "Anile demann lan",
+        "status": {
+          "pending": "Annatant",
+          "approved": "Apwouve",
+          "denied": "Refize",
+          "cancelled": "Anile",
+          "withdrawn": "Retire"
+        },
+        "toastDatesRequired": "Dat kòmansman ak dat fen obligatwa",
+        "toastRequested": "Demann konje voye",
+        "toastRequestedWithConflicts": "Demann voye, men li antrekwaze ak {{count}} orè pibliye",
+        "toastRequestFail": "Voye demann lan echwe",
+        "toastDecided": "Demann lan mete ajou",
+        "toastDecideFail": "Mete demann lan ajou echwe",
+        "toastCancelled": "Demann lan anile",
+        "toastCancelFail": "Anilasyon demann lan echwe",
+        "toastLoadFail": "Chaje demann konje yo echwe"
+      },
       "time": {
         "in": "Antre:",
         "out": "Sòti:",

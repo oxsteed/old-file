@@ -8,6 +8,13 @@ router.get   ('/:businessId/staff/shifts',               requireAuth, requireBus
 router.post  ('/:businessId/staff/shifts',               requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.createShift);
 router.put   ('/:businessId/staff/shifts/:shiftId',      requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.updateShift);
 router.delete('/:businessId/staff/shifts/:shiftId',      requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.deleteShift);
+// S-04: schedule publishing — drafts go live and notify assigned staff.
+router.post  ('/:businessId/staff/shifts/publish',       requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.publishShifts);
+// S-04: time-off / PTO requests.
+router.get   ('/:businessId/staff/time-off',             requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.listTimeOffRequests);
+router.post  ('/:businessId/staff/time-off',             requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.createTimeOffRequest);
+router.post  ('/:businessId/staff/time-off/:requestId/decide', requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.decideTimeOffRequest);
+router.post  ('/:businessId/staff/time-off/:requestId/cancel', requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.cancelTimeOffRequest);
 router.get   ('/:businessId/staff/availability',          requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.listAvailability);
 router.put   ('/:businessId/staff/availability',          requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.replaceAvailability);
 router.get   ('/:businessId/staff/shift-swaps',           requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.listShiftSwapRequests);

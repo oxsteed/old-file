@@ -2229,7 +2229,7 @@ function BusinessHubInner() {
 
             {/* ── Staff Scheduler ──────────────────────────────────── */}
             {tab === 'staff' && bizId && canEditBizProfile && (
-              <StaffScheduler businessId={bizId} />
+              <StaffScheduler businessId={bizId} isManager={canEditBizProfile} />
             )}
 
             {/* ── Review Manager ───────────────────────────────────── */}

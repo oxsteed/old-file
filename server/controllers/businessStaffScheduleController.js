@@ -70,6 +70,10 @@ exports.listShifts = async (req, res, next) => {
     if (user_id) { where += ` AND s.user_id = $${p++}`; params.push(user_id); }
     if (from) { where += ` AND s.shift_date >= $${p++}::date`; params.push(from); }
     if (to)   { where += ` AND s.shift_date <= $${p++}::date`; params.push(to); }
+    // S-04: drafts stay manager-only until published. Managers see every
+    // row with its published flag; everyone else sees published shifts.
+    const manager = await isBusinessManager(req, businessId, req.user.id);
+    if (!manager) where += ' AND s.published_at IS NOT NULL';
     const rows = await pool.query(
       `SELECT s.*,
               u.email AS user_email,
@@ -78,9 +82,12 @@ exports.listShifts = async (req, res, next) => {
               -- renders new Date(shift_start)/new Date(shift_end).
               (s.shift_date::text || 'T' || s.start_time::text) AS shift_start,
               (s.shift_date::text || 'T' || s.end_time::text) AS shift_end,
-              s.role_label AS role
+              s.role_label AS role,
+              (s.published_at IS NOT NULL) AS published
          FROM business_staff_shifts s
-         JOIN users u ON s.user_id = u.id
+         -- LEFT JOIN: S-11 keeps shift rows after an account hard-delete
+         -- (user_id SET NULL); the row must stay visible as history.
+         LEFT JOIN users u ON s.user_id = u.id
          ${where} ORDER BY s.shift_date, s.start_time`,
       params
     );
@@ -679,4 +686,279 @@ exports.voidTimeEntry = async (req, res, next) => {
       client.release();
     }
   } catch (err) { next(err); }
+};
+
+// ── Schedule publishing (S-04) ──────────────────────────────────────────
+// New shifts are drafts (published_at IS NULL) until a manager publishes
+// them. Publishing flips the rows and notifies each assigned staff member
+// once (S-17, type + params so the client localizes per S-19). Non-
+// managers only ever see published shifts (listShifts filters below); the
+// booking slot engine and the payroll scheduled-hours read likewise only
+// count published shifts, so a draft never blocks customer bookings or
+// inflates planned labor.
+
+const { sendNotification } = require('../services/notificationService');
+
+function shiftSummaryLabel(shifts) {
+  if (shifts.length === 1) return shifts[0].role_label || 'Shift';
+  return `${shifts.length} shifts`;
+}
+
+// node-pg returns DATE columns as Date objects and TIME as text;
+// normalize both to an ISO instant for notification params.
+function shiftStartIso(shift) {
+  const d = shift.shift_date instanceof Date
+    ? shift.shift_date.toISOString().slice(0, 10)
+    : String(shift.shift_date).slice(0, 10);
+  const t = shift.start_time instanceof Date
+    ? shift.start_time.toISOString().slice(11, 19)
+    : String(shift.start_time).slice(0, 8);
+  return new Date(`${d}T${t}Z`).toISOString();
+}
+
+exports.publishShifts = async (req, res, next) => {
+  const { businessId } = req.params;
+  const { from, to, shift_ids, restaurant_id } = req.body || {};
+  try {
+    if (!await isBusinessManager(req, businessId, req.user.id)) {
+      return res.status(403).json({ error: 'Only a manager can publish schedules' });
+    }
+    const { rows: [biz] } = await pool.query(
+      'SELECT id, business_name FROM businesses WHERE id = $1',
+      [businessId]
+    );
+    if (!biz) return res.status(404).json({ error: 'Business not found' });
+
+    const params = [businessId];
+    let where = 'business_id = $1 AND published_at IS NULL';
+    if (Array.isArray(shift_ids) && shift_ids.length) {
+      const ids = shift_ids.map(Number).filter(Number.isFinite);
+      if (!ids.length) return res.status(400).json({ error: 'shift_ids must be a non-empty array of ids' });
+      params.push(ids);
+      where += ` AND id = ANY($${params.length}::bigint[])`;
+    }
+    if (from) { params.push(from); where += ` AND shift_date >= $${params.length}::date`; }
+    if (to) { params.push(to); where += ` AND shift_date <= $${params.length}::date`; }
+    if (restaurant_id) {
+      const rid = Number(restaurant_id);
+      if (!Number.isFinite(rid)) return res.status(400).json({ error: 'restaurant_id must be a number' });
+      params.push(rid);
+      where += ` AND (restaurant_id = $${params.length} OR restaurant_id IS NULL)`;
+    }
+
+    params.push(req.user.id);
+    const { rows: published } = await pool.query(
+      `UPDATE business_staff_shifts
+          SET published_at = NOW(), published_by = $${params.length}
+        WHERE ${where}
+        RETURNING id, user_id, shift_date, start_time, role_label`,
+      params
+    );
+
+    // One summary notification per assigned staff member (S-17). The
+    // crew_shift_published locale strings render from type + params
+    // (S-19); restaurantName carries the business name for business-hub
+    // schedules.
+    const byUser = new Map();
+    for (const shift of published) {
+      if (!shift.user_id || String(shift.user_id) === String(req.user.id)) continue;
+      const list = byUser.get(shift.user_id) || [];
+      list.push(shift);
+      byUser.set(shift.user_id, list);
+    }
+    for (const [userId, list] of byUser) {
+      list.sort((a, b) => String(a.shift_date).localeCompare(String(b.shift_date)));
+      const earliest = list[0];
+      await sendNotification({
+        userId,
+        type: 'crew_shift_published',
+        title: 'New shifts published',
+        body: `${list.length} shift${list.length === 1 ? '' : 's'} at ${biz.business_name}`,
+        action_url: '/business',
+        data: {
+          business_id: biz.id,
+          shift_ids: list.map((s) => s.id),
+          params: {
+            restaurantName: biz.business_name,
+            shiftLabel: shiftSummaryLabel(list),
+            startsAt: shiftStartIso(earliest),
+          },
+        },
+      }).catch(() => {});
+    }
+
+    await logBusinessAction(req, {
+      business_id: Number(businessId),
+      action: 'business.staff.shifts.published',
+      target_type: 'staff_schedule',
+      after_state: { published: published.length, shift_ids: published.map((s) => s.id) },
+    });
+    return res.json({ published: published.length, shift_ids: published.map((s) => s.id) });
+  } catch (err) { return next(err); }
+};
+
+// ── Time-off / PTO requests (S-04) ─────────────────────────────────────
+// Members request time off for themselves; managers approve or deny.
+// Approved ranges surface as conflicts on new requests so double-booking
+// a shift against approved leave is visible before it happens.
+
+const TIME_OFF_TYPES = new Set(['vacation', 'sick', 'personal', 'unpaid', 'other']);
+const TIME_OFF_STATUSES = new Set(['pending', 'approved', 'denied', 'cancelled', 'withdrawn']);
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function validateTimeOffInput(body) {
+  const requestType = String(body?.request_type || body?.requestType || 'vacation').toLowerCase();
+  const startDate = String(body?.start_date || body?.startDate || '');
+  const endDate = String(body?.end_date || body?.endDate || '');
+  if (!TIME_OFF_TYPES.has(requestType)) return { error: `request_type must be one of: ${[...TIME_OFF_TYPES].join(', ')}` };
+  if (!DATE_ONLY_RE.test(startDate) || !DATE_ONLY_RE.test(endDate)) {
+    return { error: 'start_date and end_date are required as YYYY-MM-DD' };
+  }
+  if (endDate < startDate) return { error: 'end_date must be on or after start_date' };
+  return { requestType, startDate, endDate };
+}
+
+async function findTimeOffConflicts(businessId, userId, startDate, endDate) {
+  const { rows } = await pool.query(
+    `SELECT id, shift_date, start_time, end_time, role_label
+       FROM business_staff_shifts
+      WHERE business_id = $1 AND user_id = $2 AND published_at IS NOT NULL
+        AND shift_date BETWEEN $3::date AND $4::date
+      ORDER BY shift_date, start_time`,
+    [businessId, userId, startDate, endDate]
+  );
+  return rows;
+}
+
+exports.createTimeOffRequest = async (req, res, next) => {
+  const { businessId } = req.params;
+  try {
+    if (!await assertBusinessMember(businessId, req.user.id)) {
+      return res.status(403).json({ error: 'Not a member of this business' });
+    }
+    const valid = validateTimeOffInput(req.body);
+    if (valid.error) return res.status(400).json({ error: valid.error });
+    let restaurantId = null;
+    if (req.body?.restaurant_id || req.body?.restaurantId) {
+      const rid = Number(req.body.restaurant_id || req.body.restaurantId);
+      if (!Number.isFinite(rid)) return res.status(400).json({ error: 'restaurant_id must be a number' });
+      const { rows: [rest] } = await pool.query(
+        `SELECT r.id FROM food_restaurants r JOIN businesses b ON b.id = r.business_id
+          WHERE r.id = $1 AND b.id = $2`,
+        [rid, businessId]
+      );
+      if (!rest) return res.status(400).json({ error: 'Restaurant does not belong to this business' });
+      restaurantId = rid;
+    }
+    const { rows: [request] } = await pool.query(
+      `INSERT INTO business_time_off_requests
+         (business_id, user_id, restaurant_id, request_type, start_date, end_date, reason)
+       VALUES ($1,$2,$3,$4,$5::date,$6::date,$7)
+       RETURNING *`,
+      [businessId, req.user.id, restaurantId, valid.requestType, valid.startDate, valid.endDate,
+        req.body?.reason ? String(req.body.reason).slice(0, 2000) : null]
+    );
+    const conflicts = await findTimeOffConflicts(businessId, req.user.id, valid.startDate, valid.endDate);
+    await logBusinessAction(req, {
+      business_id: Number(businessId),
+      action: 'business.staff.time_off.requested',
+      target_type: 'time_off_request',
+      target_id: request.id,
+      after_state: request,
+    });
+    return res.status(201).json({ request, conflicts });
+  } catch (err) { return next(err); }
+};
+
+exports.listTimeOffRequests = async (req, res, next) => {
+  const { businessId } = req.params;
+  const { status, user_id } = req.query;
+  try {
+    const manager = await isBusinessManager(req, businessId, req.user.id);
+    const params = [businessId];
+    let where = 'r.business_id = $1';
+    if (!manager) {
+      params.push(req.user.id);
+      where += ` AND r.user_id = $${params.length}`;
+    } else if (user_id) {
+      params.push(user_id);
+      where += ` AND r.user_id = $${params.length}`;
+    }
+    if (status) {
+      if (!TIME_OFF_STATUSES.has(String(status))) return res.status(400).json({ error: 'Invalid status filter' });
+      params.push(String(status));
+      where += ` AND r.status = $${params.length}`;
+    }
+    const { rows } = await pool.query(
+      `SELECT r.*,
+              COALESCE(u.display_name_preference, u.first_name || ' ' || u.last_name) AS user_name
+         FROM business_time_off_requests r
+         JOIN users u ON u.id = r.user_id
+        WHERE ${where}
+        ORDER BY r.start_date DESC, r.created_at DESC`,
+      params
+    );
+    return res.json({ requests: rows });
+  } catch (err) { return next(err); }
+};
+
+exports.decideTimeOffRequest = async (req, res, next) => {
+  const { businessId, requestId } = req.params;
+  const decision = String(req.body?.decision || '').toLowerCase();
+  try {
+    if (!await isBusinessManager(req, businessId, req.user.id)) {
+      return res.status(403).json({ error: 'Only a manager can decide time-off requests' });
+    }
+    if (!['approved', 'denied'].includes(decision)) {
+      return res.status(400).json({ error: 'decision must be approved or denied' });
+    }
+    const { rows: [request] } = await pool.query(
+      `UPDATE business_time_off_requests
+          SET status = $1, decided_by = $2, decided_at = NOW(), updated_at = NOW()
+        WHERE id = $3 AND business_id = $4 AND status = 'pending'
+        RETURNING *`,
+      [decision, req.user.id, requestId, businessId]
+    );
+    if (!request) return res.status(404).json({ error: 'Pending time-off request not found' });
+    await logBusinessAction(req, {
+      business_id: Number(businessId),
+      action: `business.staff.time_off.${decision}`,
+      target_type: 'time_off_request',
+      target_id: request.id,
+      before_state: { status: 'pending' },
+      after_state: request,
+    });
+    // Fire-and-forget: the requester hears the decision.
+    sendNotification({
+      userId: request.user_id,
+      type: 'time_off_decided',
+      title: `Time-off ${decision}`,
+      body: `Your ${request.request_type} request for ${String(request.start_date).slice(0, 10)} to ${String(request.end_date).slice(0, 10)} was ${decision}.`,
+      data: { business_id: Number(businessId), request_id: request.id, decision },
+    }).catch(() => {});
+    return res.json({ request });
+  } catch (err) { return next(err); }
+};
+
+exports.cancelTimeOffRequest = async (req, res, next) => {
+  const { businessId, requestId } = req.params;
+  try {
+    const { rows: [request] } = await pool.query(
+      `UPDATE business_time_off_requests
+          SET status = 'cancelled', updated_at = NOW()
+        WHERE id = $1 AND business_id = $2 AND user_id = $3 AND status = 'pending'
+        RETURNING *`,
+      [requestId, businessId, req.user.id]
+    );
+    if (!request) return res.status(404).json({ error: 'Pending time-off request not found' });
+    await logBusinessAction(req, {
+      business_id: Number(businessId),
+      action: 'business.staff.time_off.cancelled',
+      target_type: 'time_off_request',
+      target_id: request.id,
+      before_state: { status: 'pending' },
+      after_state: request,
+    });
+    return res.json({ request });
+  } catch (err) { return next(err); }
 };

@@ -8222,7 +8222,8 @@
       "subtitle": "إدارة التحولات وتتبع الوقت",
       "tabs": {
         "shifts": "التحولات",
-        "timeEntries": "إدخالات الوقت"
+        "timeEntries": "إدخالات الوقت",
+        "timeOff": "الإجازات"
       },
       "clockIn": "الساعة في",
       "addShift": "إضافة التحول",
@@ -8238,6 +8239,47 @@
       "emptyTime": "لا يوجد إدخالات الوقت حتى الآن. استخدم Clock In لبدء التتبع.",
       "unassigned": "غير معين",
       "confirmDeleteShift": "هل تريد حذف هذا التحول؟",
+      "publishDrafts": "نشر {{count}} مناوبات مسودة",
+      "draftBadge": "مسودة",
+      "deleteShiftLabel": "حذف المناوبة",
+      "confirmDeleteTitle": "حذف المناوبة",
+      "toastPublished": "تم نشر {{count}} مناوبات",
+      "toastPublishFail": "فشل نشر المناوبات",
+      "timeOff": {
+        "requestTitle": "طلب إجازة",
+        "type": "النوع",
+        "types": {
+          "vacation": "إجازة سنوية",
+          "sick": "إجازة مرضية",
+          "personal": "شخصية",
+          "unpaid": "غير مدفوعة",
+          "other": "أخرى"
+        },
+        "start": "تاريخ البدء",
+        "end": "تاريخ الانتهاء",
+        "reason": "السبب",
+        "request": "طلب",
+        "empty": "لا توجد طلبات إجازة بعد.",
+        "approve": "اعتماد",
+        "deny": "رفض",
+        "cancel": "إلغاء الطلب",
+        "status": {
+          "pending": "قيد الانتظار",
+          "approved": "معتمدة",
+          "denied": "مرفوضة",
+          "cancelled": "ملغاة",
+          "withdrawn": "مسحوبة"
+        },
+        "toastDatesRequired": "تاريخا البدء والانتهاء مطلوبان",
+        "toastRequested": "تم إرسال طلب الإجازة",
+        "toastRequestedWithConflicts": "تم إرسال الطلب، لكنه يتداخل مع {{count}} مناوبات منشورة",
+        "toastRequestFail": "فشل إرسال الطلب",
+        "toastDecided": "تم تحديث الطلب",
+        "toastDecideFail": "فشل تحديث الطلب",
+        "toastCancelled": "تم إلغاء الطلب",
+        "toastCancelFail": "فشل إلغاء الطلب",
+        "toastLoadFail": "فشل تحميل طلبات الإجازة"
+      },
       "time": {
         "in": "في:",
         "out": "خارج:",

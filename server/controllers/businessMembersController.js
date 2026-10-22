@@ -406,6 +406,68 @@ async function resendMemberInvite(req, res) {
   }
 }
 
+// ── POST /api/businesses/:id/members/:memberId/expire ─────────────────────────
+// S-10: manually expire a pending invite right now (no waiting for the
+// nightly sweep). The invite becomes inert: it can no longer be accepted
+// and drops out of the invitee's pending list. A resend restarts it.
+async function expireMemberInvite(req, res) {
+  try {
+    const biz = await managedBusiness(req);
+    if (!biz) return res.status(404).json({ error: 'Business not found' });
+
+    const memberRes = await pool.query(
+      `SELECT id, member_id, role, status, invite_email FROM business_members
+       WHERE id = $1 AND business_id = $2 AND owner_id = $3`,
+      [req.params.memberId, biz.id, biz.owner_id]
+    );
+    if (!memberRes.rows.length) return res.status(404).json({ error: 'Member not found' });
+    const member = memberRes.rows[0];
+    if (member.status !== 'pending') {
+      return res.status(409).json({ error: 'Only pending invites can be expired' });
+    }
+    if (!canActOnRole(biz.actor_role, member.role)) {
+      return res.status(403).json({ error: 'You can only manage members with roles below your own' });
+    }
+
+    const updated = await withTransaction(pool, async (client) => {
+      const { rows: [row] } = await client.query(
+        `UPDATE business_members
+            SET status = 'expired', expires_at = NOW()
+          WHERE id = $1 AND status = 'pending'
+          RETURNING *`,
+        [member.id]
+      );
+      if (!row) return null;
+      if (member.member_id) {
+        await insertNotification(client, {
+          userId: member.member_id,
+          type: 'business_invite_expired',
+          title: `Invitation to "${biz.business_name}" expired`,
+          body: `Your invitation to join "${biz.business_name}" as a ${member.role} was withdrawn before you accepted it.`,
+          data: { invite_id: row.id, business_id: biz.id, business_name: biz.business_name, role: member.role },
+        });
+      }
+      await logBusinessAction(req, {
+        action: 'business.member.invite_expired',
+        target_type: 'business_member',
+        target_id: row.id,
+        before_state: { status: 'pending' },
+        after_state: { status: 'expired' },
+        business_id: biz.id,
+        actor_role: biz.actor_role,
+        client,
+      });
+      return row;
+    });
+
+    if (!updated) return res.status(409).json({ error: 'Only pending invites can be expired' });
+    return res.json({ member: updated });
+  } catch (err) {
+    logger.error('expireMemberInvite error', { err: err.message });
+    return res.status(500).json({ error: 'Failed to expire invite' });
+  }
+}
+
 // ── GET /api/businesses/:id/team/job-roles ────────────────────────────────────
 // Job-role presets (S-03) the invite form offers.
 async function listJobRoles(req, res) {
@@ -593,6 +655,7 @@ module.exports = {
   inviteMember,
   revokeMember,
   resendMemberInvite,
+  expireMemberInvite,
   listJobRoles,
   listMyInvitations,
   acceptInvitation,

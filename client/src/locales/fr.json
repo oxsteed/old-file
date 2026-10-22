@@ -8222,7 +8222,8 @@
       "subtitle": "Gérer les shifts et suivre le temps",
       "tabs": {
         "shifts": "Changements",
-        "timeEntries": "Pointages"
+        "timeEntries": "Pointages",
+        "timeOff": "Congés"
       },
       "clockIn": "Pointer",
       "addShift": "Ajouter un shift",
@@ -8238,6 +8239,47 @@
       "emptyTime": "Aucun pointage pour l’instant. Utilisez « Pointer » pour commencer.",
       "unassigned": "Non attribué",
       "confirmDeleteShift": "Supprimer ce shift ?",
+      "publishDrafts": "Publier {{count}} quarts en brouillon",
+      "draftBadge": "Brouillon",
+      "deleteShiftLabel": "Supprimer le quart",
+      "confirmDeleteTitle": "Supprimer le quart",
+      "toastPublished": "{{count}} quarts publiés",
+      "toastPublishFail": "Échec de la publication des quarts",
+      "timeOff": {
+        "requestTitle": "Demander un congé",
+        "type": "Type",
+        "types": {
+          "vacation": "Vacances",
+          "sick": "Congé maladie",
+          "personal": "Personnel",
+          "unpaid": "Non payé",
+          "other": "Autre"
+        },
+        "start": "Date de début",
+        "end": "Date de fin",
+        "reason": "Motif",
+        "request": "Demander",
+        "empty": "Aucune demande de congé pour le moment.",
+        "approve": "Approuver",
+        "deny": "Refuser",
+        "cancel": "Annuler la demande",
+        "status": {
+          "pending": "En attente",
+          "approved": "Approuvée",
+          "denied": "Refusée",
+          "cancelled": "Annulée",
+          "withdrawn": "Retirée"
+        },
+        "toastDatesRequired": "Les dates de début et de fin sont requises",
+        "toastRequested": "Demande de congé envoyée",
+        "toastRequestedWithConflicts": "Demande envoyée, mais elle chevauche {{count}} quarts publiés",
+        "toastRequestFail": "Échec de l'envoi de la demande",
+        "toastDecided": "Demande mise à jour",
+        "toastDecideFail": "Échec de la mise à jour de la demande",
+        "toastCancelled": "Demande annulée",
+        "toastCancelFail": "Échec de l'annulation de la demande",
+        "toastLoadFail": "Échec du chargement des demandes de congé"
+      },
       "time": {
         "in": "Entrée :",
         "out": "Sortie :",
