@@ -601,6 +601,25 @@ html.dark .fd-order-empty > span { background: rgba(249,115,22,.14); }
 .fd-kds-num { display: flex; justify-content: space-between; align-items: baseline; font-size: 1.6rem; font-weight: 900; color: #f97316; }
 .fd-kds-timer { font-size: 0.85rem; color: #94a3b8; }
 .fd-kds-items { font-size: 0.9rem; margin: 0.3rem 0; }
+.fd-kds-course { border: 1px solid #253349; border-radius: 10px; margin-bottom: 0.5rem; overflow: hidden; }
+.fd-kds-course:last-child { margin-bottom: 0; }
+.fd-kds-course-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+  padding: 0.4rem 0.6rem; background: #1e293b; font-weight: 800; font-size: 0.8rem;
+  text-transform: uppercase; letter-spacing: 0.04em; color: #cbd5e1;
+}
+.fd-kds-course-actions { display: flex; gap: 0.4rem; }
+.fd-kds-course-actions button {
+  border: 0; border-radius: 8px; padding: 0.35rem 0.6rem;
+  background: #f97316; color: white; font-weight: 800; font-size: 0.75rem; cursor: pointer;
+}
+.fd-kds-course-actions button:disabled { opacity: 0.5; cursor: wait; }
+.fd-kds-course .fd-kds-item { padding: 0.65rem 0.6rem; }
+.fd-kds-item-seat {
+  display: inline-flex; margin-inline-start: 0.45rem; padding: 0.12rem 0.4rem;
+  border-radius: 999px; background: #1e3a5f; color: #bfdbfe;
+  font-size: 0.67rem; font-weight: 800;
+}
 .fd-kds-meta { font-size: 0.75rem; color: #94a3b8; }
 .fd-kds-item {
   display: grid; gap: 0.5rem; padding: 0.65rem 0;
@@ -3157,6 +3176,9 @@ input[type="color"].fd-settings-color {
 .fd-credit-grant-form input { min-height: 38px; padding: 0 0.7rem; border: 1px solid var(--border-color, #d8dee5); border-radius: 9px; color: var(--app-text, #0f172a); background: var(--card-bg, #fff); font-weight: 400; }
 
 .fd-split-items { display: flex; flex-direction: column; gap: 0.5rem; margin: 1rem 0; max-height: 300px; overflow-y: auto; }
+.fd-split-seats { margin: 1rem 0 0; padding-top: 1rem; border-top: 1px solid var(--border-color, #e2e8f0); }
+.fd-split-seats h4 { margin: 0 0 0.6rem; font-size: 0.95rem; }
+.fd-split-seat-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .fd-split-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem; border: 1px solid var(--border-color, #e2e8f0); border-radius: 8px; cursor: pointer; }
 .fd-split-item:hover { background: var(--hover-bg, #f8fafc); }
 .fd-split-item input[type="checkbox"] { width: 18px; height: 18px; }

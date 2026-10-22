@@ -314,6 +314,22 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
     }
   };
 
+  // Seat-level split: move every line assigned to one seat to a new ticket.
+  const seatsOnTicket = [...new Set(
+    items.map((item) => Number(item.seatNumber)).filter((seat) => Number.isInteger(seat) && seat > 0)
+  )].sort((a, b) => a - b);
+
+  const handleSeatSplit = async (seatNumber) => {
+    setSplitting(true);
+    try {
+      await onSplit(order, [], { seatNumbers: [seatNumber] });
+      setShowSplitModal(false);
+      setSelectedItems(new Set());
+    } finally {
+      setSplitting(false);
+    }
+  };
+
   const handleMergeConfirm = async () => {
     const sourceId = parseInt(mergeSourceId, 10);
     if (!sourceId) return;
@@ -486,6 +502,25 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
               ))}
             </div>
             {items.length === 0 && <p>{t('food.merchant.noItems')}</p>}
+            {seatsOnTicket.length > 0 && (
+              <div className="fd-split-seats">
+                <h4>{t('food.merchant.splitBySeat')}</h4>
+                <div className="fd-split-seat-buttons">
+                  {seatsOnTicket.map((seat) => (
+                    <button
+                      key={seat}
+                      type="button"
+                      className="fd-btn fd-btn-secondary"
+                      disabled={splitting}
+                      onClick={() => handleSeatSplit(seat)}
+                      data-track="ui.17b0c32a57.17"
+                    >
+                      {t('food.merchant.splitSeat', { n: seat })}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="fd-modal-actions">
               <button
                 type="button"
@@ -712,13 +747,14 @@ function OrdersTab({ t, restaurant }) {
     }
   };
 
-  const split = async (order, itemIds) => {
+  const split = async (order, itemIds, options = {}) => {
     try {
       // P2-4-F02: the server reads orderItemIds (or order_item_ids); the
-      // old { itemIds } payload always 400d.
-      const { data } = await api.post(`/restaurants/${restaurant.id}/pos/orders/${order.id}/split`, {
-        orderItemIds: itemIds,
-      });
+      // old { itemIds } payload always 400d. Seat splits pass seatNumbers.
+      const payload = options.seatNumbers
+        ? { seatNumbers: options.seatNumbers }
+        : { orderItemIds: itemIds };
+      const { data } = await api.post(`/restaurants/${restaurant.id}/pos/orders/${order.id}/split`, payload);
       toast.success(t('food.merchant.splitSuccess', { newOrderId: data.newOrderId }));
       reloadAfterAction();
     } catch (err) {

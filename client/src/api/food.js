@@ -460,6 +460,17 @@ export const performRestaurantKitchenItemAction = (restaurantId, orderItemId, pa
   ).then((r) => r.data);
 };
 
+export const performRestaurantKitchenCourseAction = (restaurantId, orderId, courseNumber, payload = {}) => {
+  const idempotencyKey = payload.idempotencyKey || payload.idempotency_key;
+  const headers = { ...displayDeviceAuthHeaders(restaurantId) };
+  if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
+  return api.post(
+    `/restaurants/${restaurantId}/kitchen/orders/${orderId}/courses/${courseNumber}/action`,
+    payload,
+    { headers }
+  ).then((r) => r.data);
+};
+
 export const recordFoodOrderManualPayment = (restaurantId, orderId, payload) => {
   const idempotencyKey = payload.idempotencyKey || payload.idempotency_key;
   return api.post(

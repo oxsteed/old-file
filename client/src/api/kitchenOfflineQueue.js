@@ -1,4 +1,5 @@
 import {
+  performRestaurantKitchenCourseAction,
   performRestaurantKitchenItemAction,
   performRestaurantKitchenOrderAction,
   updateFoodOrderStatus,
@@ -36,6 +37,9 @@ async function dispatch(entry) {
   if (entry.type === 'item_action') {
     return performRestaurantKitchenItemAction(entry.restaurantId, entry.entityId, entry.payload);
   }
+  if (entry.type === 'course_action') {
+    return performRestaurantKitchenCourseAction(entry.restaurantId, entry.orderId, entry.courseNumber, entry.payload);
+  }
   if (entry.type === 'order_action') {
     return performRestaurantKitchenOrderAction(entry.restaurantId, entry.entityId, entry.payload);
   }
@@ -57,6 +61,7 @@ function isSupersededConflict(error) {
     'illegal_state_transition',
     'kitchen_ticket_terminal',
     'kitchen_order_terminal',
+    'course_action_not_allowed',
   ]).has(responseErrorCode(error));
 }
 
