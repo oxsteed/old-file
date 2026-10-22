@@ -4,6 +4,7 @@ const { authenticate } = require('../middleware/auth');
 const subCtrl = require('../controllers/subscriptionController');
 const db = require('../db');
 const { paymentsLimiter, strictLimiter } = require('../middleware/rateLimiter');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const { requireFeatureEnabled } = require('../middleware/featureFlags');
 const checkRestrictions = require('../middleware/checkRestrictions');
 // Review P3-942: subscriptions are unlaunched in the client; new purchases are
@@ -13,7 +14,7 @@ const requireSubscriptionsLaunched = requireFeatureEnabled('Subscriptions', 'SUB
 // Subscription routes
 router.get('/plans', subCtrl.getPlans);
 // Review P2-7-F07: creating a subscription checkout honors admin checkout restrictions.
-router.post('/checkout', authenticate, requireSubscriptionsLaunched, checkRestrictions('checkout'), paymentsLimiter, subCtrl.createCheckout);
+router.post('/checkout', authenticate, rejectImpersonated, requireSubscriptionsLaunched, checkRestrictions('checkout'), paymentsLimiter, subCtrl.createCheckout);
 router.get('/current', authenticate, subCtrl.getSubscription);
 router.get('/badges/:userId', async (req, res, next) => {
   try {

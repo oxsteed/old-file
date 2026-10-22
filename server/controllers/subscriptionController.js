@@ -559,7 +559,7 @@ async function createCreditSubscription(req, res, next, plan, userId) {
         mode: 'debit',
         referenceType: 'subscription',
         referenceId: `plan:${plan.id}:user:${userId}:${now.toISOString().slice(0, 10)}`,
-        isImpersonated: Boolean(req.impersonated),
+        isImpersonated: Boolean(req.isImpersonated),
         metadata: { planSlug: plan.slug, interval },
       });
 

@@ -1005,7 +1005,7 @@ exports.assignHelper = async (req, res, next) => {
         paymentMethod: payment_method,
         requestedRail,
         body: req.body,
-        isImpersonated: Boolean(req.impersonated),
+        isImpersonated: Boolean(req.isImpersonated),
       });
 
       // 5. Auto-create a calendar appointment for the accepted job.
@@ -1138,7 +1138,7 @@ exports.assignHelper = async (req, res, next) => {
           mode: 'hold',
           referenceType: 'job_escrow_collateral',
           referenceId: String(bid.job_id),
-          isImpersonated: Boolean(req.impersonated),
+          isImpersonated: Boolean(req.isImpersonated),
           metadata: { bidId: String(bid_id), jobTitle: bid.title },
         });
         await client.query(

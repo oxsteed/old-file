@@ -37,6 +37,8 @@ const oxsteedCreditFeeScheduleService = require('../services/oxsteedCreditFeeSch
 const oxsteedCreditReserveService = require('../services/oxsteedCreditReserveService');
 const oxsteedCreditRestaurantConversionPolicyService = require('../services/oxsteedCreditRestaurantConversionPolicyService');
 const { verifyStepupChallenge } = require('../services/stepupChallengeService');
+const { requireFreshAuth } = require('../middleware/requireFreshAuth');
+const refundsCtrl = require('../controllers/logisticsRefundsController');
 const { AppError } = require('../middleware/errorHandler');
 const { creditAdminMutationLimiter, creditExportLimiter, adminPhoneVerificationLimiter, strictLimiter } = require('../middleware/rateLimiter');
 const moneyApprovalCtrl = require('../controllers/moneyApprovalController');
@@ -272,7 +274,15 @@ router.get('/super/users/:userId/sessions', requireSuperAdmin, superCtrl.listUse
 router.post('/users/:userId/password', requireSuperAdmin, superCtrl.setUserPasswordBySuperAdmin);
 
 // Impersonation (super-admin only)
-router.post('/users/:userId/impersonate',     requireSuperAdmin, superCtrl.impersonateUser);
+// Audit finding 9: starting an impersonation mints a 30-minute token that
+// acts as the victim across the product, so it requires a FRESH TOTP proof,
+// not merely an enrolled one. The admin first calls POST /super/stepup/verify
+// with their current TOTP code and purpose 'impersonation_start', which
+// records a 15-minute fresh-auth event; the impersonate route then requires
+// that event.
+const requireImpersonationStepUp = requireFreshAuth('impersonation_start');
+router.post('/super/stepup/verify', requireSuperAdmin, strictLimiter, refundsCtrl.verifyStepUp);
+router.post('/users/:userId/impersonate',     requireSuperAdmin, requireImpersonationStepUp, superCtrl.impersonateUser);
 router.post('/users/impersonate/exchange', requireSuperAdmin, superCtrl.exchangeImpersonationCode);
 router.post('/users/:userId/impersonate/end', requireSuperAdmin, superCtrl.endImpersonation);
 
