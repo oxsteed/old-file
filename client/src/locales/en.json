@@ -21356,7 +21356,20 @@
     "appointmentsByStatus": "Appointments by Status",
     "servicesPerformance": "Services Performance",
     "keyInsights": "Key Insights",
-    "noInsights": "No insights available yet"
+    "noInsights": "No insights available yet",
+    "overview": "Overview",
+    "invoiceRevenue": "Invoice revenue",
+    "mtdRevenue": "Revenue (this month)",
+    "mtdExpenses": "Expenses (this month)",
+    "mtdProfit": "Profit (this month)",
+    "ytdRevenue": "Revenue (year to date)",
+    "outstandingInvoices": "Outstanding invoices",
+    "overdueInvoices": "Overdue invoices",
+    "jobsCompleted": "Jobs completed (6 mo)",
+    "avgJobValue": "Avg job value",
+    "expenses": "Expenses",
+    "profit": "Profit",
+    "month": "Month"
   },
   "businessMessaging": {
     "title": "Conversations",

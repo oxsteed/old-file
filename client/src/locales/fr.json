@@ -21356,7 +21356,20 @@
     "appointmentsByStatus": "Rendez-vous par statut",
     "servicesPerformance": "Performance des services",
     "keyInsights": "Points clés",
-    "noInsights": "Aucun insight disponible pour le moment"
+    "noInsights": "Aucun insight disponible pour le moment",
+    "overview": "Aperçu",
+    "invoiceRevenue": "Revenus des factures",
+    "mtdRevenue": "Revenus (ce mois-ci)",
+    "mtdExpenses": "Dépenses (ce mois-ci)",
+    "mtdProfit": "Bénéfice (ce mois-ci)",
+    "ytdRevenue": "Revenus (année en cours)",
+    "outstandingInvoices": "Factures impayées",
+    "overdueInvoices": "Factures en retard",
+    "jobsCompleted": "Missions terminées (6 mois)",
+    "avgJobValue": "Valeur moyenne par mission",
+    "expenses": "Dépenses",
+    "profit": "Bénéfice",
+    "month": "Mois"
   },
   "businessMessaging": {
     "title": "Conversations",

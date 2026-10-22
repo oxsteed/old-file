@@ -21356,7 +21356,20 @@
     "appointmentsByStatus": "Randevou pa estati",
     "servicesPerformance": "Pèfòmans sèvis",
     "keyInsights": "Pwen kle",
-    "noInsights": "Pa gen insight ki disponib ankò"
+    "noInsights": "Pa gen insight ki disponib ankò",
+    "overview": "Apèsi",
+    "invoiceRevenue": "Revni fakti",
+    "mtdRevenue": "Revni (mwa sa a)",
+    "mtdExpenses": "Depans (mwa sa a)",
+    "mtdProfit": "Pwofi (mwa sa a)",
+    "ytdRevenue": "Revni (ane an kou)",
+    "outstandingInvoices": "Fakti ki poko peye",
+    "overdueInvoices": "Fakti ki an reta",
+    "jobsCompleted": "Travay ki fini (6 mwa)",
+    "avgJobValue": "Vale mwayèn pa travay",
+    "expenses": "Depans",
+    "profit": "Pwofi",
+    "month": "Mwa"
   },
   "businessMessaging": {
     "title": "Konvèsasyon",

@@ -5,7 +5,54 @@ import { moneyMajor } from '../../lib/moneyExact';
 import '../../styles/BusinessAnalyticsTab.css';
 
 export function BusinessAnalyticsTab({businessId,onInvoices,viewerId}) {
-  return <BusinessInvoiceRevenue key={`${viewerId || ''}:${businessId}`} businessId={businessId} onInvoices={onInvoices}/>;
+  const {t}=useTranslation();
+  const [view,setView]=useState('overview');
+  return <section className="bat-container">
+    <nav aria-label={t('businessAnalytics.title')}>
+      <button onClick={()=>setView('overview')} aria-pressed={view==='overview'} data-track="ui.36f9c6e03c.10">{t('businessAnalytics.overview')}</button>
+      <button onClick={()=>setView('invoice-revenue')} aria-pressed={view==='invoice-revenue'} data-track="ui.36f9c6e03c.11">{t('businessAnalytics.invoiceRevenue')}</button>
+    </nav>
+    {view==='overview'
+      ? <BusinessOverview key={`${viewerId || ''}:${businessId}`} businessId={businessId}/>
+      : <BusinessInvoiceRevenue key={`${viewerId || ''}:${businessId}`} businessId={businessId} onInvoices={onInvoices}/>}
+  </section>;
+}
+
+function BusinessOverview({businessId}) {
+  const {t,i18n}=useTranslation();
+  const [retry,setRetry]=useState(0);
+  const key=`${businessId}:${retry}`;
+  const [state,setState]=useState({key:null,data:null,error:false});
+  useEffect(()=>{
+    const controller=new AbortController();
+    api.get(`/businesses/${businessId}/analytics`,{signal:controller.signal})
+      .then(response=>{if(!controller.signal.aborted)setState({key,data:response.data,error:false});})
+      .catch(()=>{if(!controller.signal.aborted)setState({key,data:null,error:true});});
+    return()=>controller.abort();
+  },[businessId,retry,key]);
+  const data=state.key===key?state.data:null,error=state.key===key&&state.error;
+  const num=value=>new Intl.NumberFormat(i18n.language==='ht'?'fr-HT':i18n.language,{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(value)||0);
+  return <section aria-busy={!data&&!error}>
+    <h2>{t('businessAnalytics.overview')}</h2>
+    {!data&&!error&&<p role="status">{t('businessAnalytics.loading')}</p>}
+    {error&&<div role="alert"><p>{t('businessAnalytics.toastLoadFailed')}</p><button onClick={()=>setRetry(n=>n+1)} data-track="ui.36f9c6e03c.12">{t('queryBuilder.retry')}</button></div>}
+    {data&&<>
+      <dl className="bat-stats-grid">
+        <div className="bat-stat-card"><dt>{t('businessAnalytics.mtdRevenue')}</dt><dd>{num(data.mtd?.revenue)}</dd></div>
+        <div className="bat-stat-card"><dt>{t('businessAnalytics.mtdExpenses')}</dt><dd>{num(data.mtd?.expenses)}</dd></div>
+        <div className="bat-stat-card"><dt>{t('businessAnalytics.mtdProfit')}</dt><dd>{num(data.mtd?.profit)}</dd></div>
+        <div className="bat-stat-card"><dt>{t('businessAnalytics.ytdRevenue')}</dt><dd>{num(data.ytd?.revenue)}</dd></div>
+        <div className="bat-stat-card"><dt>{t('businessAnalytics.outstandingInvoices')}</dt><dd>{num(data.invoices?.outstanding_total)}</dd></div>
+        <div className="bat-stat-card"><dt>{t('businessAnalytics.overdueInvoices')}</dt><dd>{num(data.invoices?.overdue_total)}</dd></div>
+        <div className="bat-stat-card"><dt>{t('businessAnalytics.jobsCompleted')}</dt><dd>{data.jobs?.completed_6m ?? 0}</dd></div>
+        <div className="bat-stat-card"><dt>{t('businessAnalytics.avgJobValue')}</dt><dd>{num(data.jobs?.avg_value)}</dd></div>
+      </dl>
+      <div className="bat-records"><table><caption>{t('businessAnalytics.revenueTrend')}</caption>
+        <thead><tr><th>{t('businessAnalytics.month')}</th><th>{t('businessAnalytics.totalRevenue')}</th><th>{t('businessAnalytics.expenses')}</th><th>{t('businessAnalytics.profit')}</th></tr></thead>
+        <tbody>{(data.monthly||[]).map(row=><tr key={row.month}><td>{row.month}</td><td>{num(row.revenue)}</td><td>{num(row.expenses)}</td><td>{num(row.profit)}</td></tr>)}</tbody>
+      </table></div>
+    </>}
+  </section>;
 }
 
 function BusinessInvoiceRevenue({businessId,onInvoices}) {
@@ -22,7 +69,7 @@ function BusinessInvoiceRevenue({businessId,onInvoices}) {
   },[businessId,period,currency,offset,retry,key]);
   const data=state.key===key?state.data:null,error=state.key===key&&state.error;
   const money=value=>moneyMajor(value,data?.currency_code,i18n.language);
-  return <section className="bat-container" aria-busy={!data&&!error}>
+  return <section aria-busy={!data&&!error}>
     <h2>{t('analyticsCompletion.businessRevenue')}</h2><p>{t('analyticsCompletion.businessRevenueNote')}</p>
     <label>{t('queryBuilder.periodLabel')} <select aria-label={t('queryBuilder.periodLabel')} value={period} onChange={e=>{setPeriod(e.target.value);setOffset(0);}}>
       {['7d','30d','90d','1y'].map(p=><option key={p} value={p}>{t(`businessAnalytics.dateRange.${p}`)}</option>)}
