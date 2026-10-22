@@ -8,6 +8,15 @@
  */
 
 const { mockQuery, resetMocks } = require('./setup');
+
+// Audit T4 item 13: approveChange now requires a fresh step-up challenge.
+// These tests cover the approval business logic (apply, separation of
+// duties, status guards), so the challenge is stubbed verified here; the
+// step-up enforcement itself is covered by auditT4SettingsChangeApproval.
+jest.mock('../services/stepupChallengeService', () => ({
+  verifyStepupChallenge: jest.fn().mockResolvedValue({ verified: true }),
+}));
+
 const settingsChangeController = require('../controllers/settingsChangeController');
 
 const PROPOSER_ID = '00000000-0000-4000-8000-000000000101';
