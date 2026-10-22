@@ -1428,6 +1428,20 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.event.amount_cents).toBe(5000);
   });
 
+  test('denies drawer events to members without POS permissions', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'representative', effective_membership_id: 46 })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000126'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/shifts/55/drawer-events`)
+      .send({ eventType: 'cash_drop', amountCents: 5000 });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('forbidden');
+  });
+
   test('splits and merges POS tickets while preserving food order items', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })

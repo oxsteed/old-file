@@ -3840,7 +3840,10 @@ exports.listHeldTickets = async (req, res, next) => {
 exports.listDrawerEvents = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage', 'orders.manage']);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const { locationFilter, scopedParams } = locationScopeQueryHelpers(locationScope);
     const shiftId = parsePositiveInt(req.params.shiftId);
     const limit = Math.min(parsePositiveInt(req.query.limit, 100), 200);
     const { rows: events } = await pool.query(
@@ -3850,9 +3853,10 @@ exports.listDrawerEvents = async (req, res, next) => {
         WHERE de.restaurant_id = $1
           AND de.shift_id = $2
           AND s.restaurant_id = $1
+          ${locationFilter('de', 4)}
         ORDER BY de.created_at DESC, de.id DESC
         LIMIT $3`,
-      [restaurantId, shiftId, limit]
+      scopedParams([restaurantId, shiftId, limit])
     );
     res.json({ events });
   } catch (err) {
@@ -3864,6 +3868,7 @@ exports.recordDrawerEvent = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage', 'orders.manage']);
     const canManagePos = await hasRestaurantPermission(restaurant, req.user.id, 'pos.manage');
     const shiftId = parsePositiveInt(req.params.shiftId);
     const eventType = normalizeString(req.body.eventType || req.body.event_type, 32);
