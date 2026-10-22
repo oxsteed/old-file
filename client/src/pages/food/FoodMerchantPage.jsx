@@ -496,7 +496,7 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
                     checked={selectedItems.has(item.id)}
                     onChange={() => toggleItem(item.id)} data-track="ui.17b0c32a57.14"
                   />
-                  <span>{item.quantity}x {item.item_name}</span>
+                  <span>{item.quantity}x {item.item_name}{item.seatNumber ? ` · ${t('food.pos.seatOption', { n: item.seatNumber })}` : ''}</span>
                   <span>${(item.line_total_cents / 100).toFixed(2)}</span>
                 </label>
               ))}
@@ -755,7 +755,7 @@ function OrdersTab({ t, restaurant }) {
         ? { seatNumbers: options.seatNumbers }
         : { orderItemIds: itemIds };
       const { data } = await api.post(`/restaurants/${restaurant.id}/pos/orders/${order.id}/split`, payload);
-      toast.success(t('food.merchant.splitSuccess', { newOrderId: data.newOrderId }));
+      toast.success(t('food.merchant.splitSuccess', { newOrderId: data.splitOrder?.id || data.newOrderId }));
       reloadAfterAction();
     } catch (err) {
       toast.error(apiErrorMessage(err, t('food.merchant.splitError')));
