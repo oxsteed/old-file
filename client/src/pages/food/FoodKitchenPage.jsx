@@ -344,7 +344,7 @@ export default function FoodKitchenPage() {
                               {item.delayReason && <small>{item.delayReason}</small>}
                             </div>
                             <div className="fd-kds-item-actions">
-                              {['queued', 'held', 'delayed', 'problem'].includes(item.kitchenStatus || 'queued') && (
+                              {['queued', 'delayed', 'problem'].includes(item.kitchenStatus || 'queued') && (
                                 <button disabled={itemBusy} onClick={() => performItemAction(order, item, 'start')} data-track="ui.c0077c088e.2">{t('food.kds.startItem')}</button>
                               )}
                               {['preparing', 'delayed', 'problem'].includes(item.kitchenStatus) && (

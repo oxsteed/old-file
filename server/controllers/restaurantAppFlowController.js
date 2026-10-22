@@ -94,8 +94,10 @@ const KITCHEN_COURSE_ACTION_STATUS = {
   fire: { from: new Set(['held']), to: 'queued' },
 };
 const KITCHEN_ACTION_FROM = {
-  start: new Set(['queued', 'held', 'delayed', 'problem']),
-  prepare: new Set(['queued', 'held', 'delayed', 'problem']),
+  // A course-held item cannot be fired (start/prepare) until the course is
+  // released with the course fire action; the hold must actually hold.
+  start: new Set(['queued', 'delayed', 'problem']),
+  prepare: new Set(['queued', 'delayed', 'problem']),
   ready: new Set(['preparing', 'delayed', 'problem']),
   bump: new Set(['ready']),
   recall: new Set(['ready', 'bumped']),

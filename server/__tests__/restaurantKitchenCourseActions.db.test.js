@@ -214,6 +214,48 @@ ddescribe('course hold/fire controls', () => {
     expect((await printerJobs(orderId))).toHaveLength(0);
   });
 
+  test('held items cannot be fired until the course fire releases them', async () => {
+    const orderId = await newOrder(restaurantId, businessId, locationId);
+    const steak = await addItem(orderId, { name: 'Steak', course: 2 });
+    await addItem(orderId, { name: 'Salad', course: 1 });
+
+    const hold = await invoke(appFlow.performKitchenCourseAction, {
+      params: { restaurantId: String(restaurantId), orderId: String(orderId), courseNumber: '2' },
+      body: { action: 'hold' },
+      user: { id: ownerId },
+    });
+    expect(hold.error).toBeUndefined();
+
+    // The line cannot fire a held item: fail closed until the course fires.
+    const blocked = await invoke(appFlow.performKitchenItemAction, {
+      params: { restaurantId: String(restaurantId), orderItemId: String(steak.id) },
+      body: { action: 'start' },
+      user: { id: ownerId },
+    });
+    expect(blocked.error).toBeDefined();
+    expect(blocked.error.code).toBe('illegal_kitchen_transition');
+    expect(blocked.error.statusCode).toBe(409);
+    const stillHeld = await itemStatuses(orderId);
+    expect(stillHeld.find((i) => Number(i.id) === Number(steak.id)).kitchen_status).toBe('held');
+
+    const fire = await invoke(appFlow.performKitchenCourseAction, {
+      params: { restaurantId: String(restaurantId), orderId: String(orderId), courseNumber: '2' },
+      body: { action: 'fire' },
+      user: { id: ownerId },
+    });
+    expect(fire.error).toBeUndefined();
+
+    // After the release, the normal flow resumes.
+    const started = await invoke(appFlow.performKitchenItemAction, {
+      params: { restaurantId: String(restaurantId), orderItemId: String(steak.id) },
+      body: { action: 'start' },
+      user: { id: ownerId },
+    });
+    expect(started.error).toBeUndefined();
+    const afterStart = await itemStatuses(orderId);
+    expect(afterStart.find((i) => Number(i.id) === Number(steak.id)).kitchen_status).toBe('preparing');
+  });
+
   test('unknown course is a 404 and terminal orders are rejected', async () => {
     const orderId = await newOrder(restaurantId, businessId, locationId);
     await addItem(orderId, { name: 'Soup', course: 1 });
