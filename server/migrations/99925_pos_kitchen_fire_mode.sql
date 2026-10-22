@@ -1,4 +1,4 @@
--- Migration 1400: F-04 fire-on-pay kitchen ticket mode.
+-- Migration 99925: F-04 fire-on-pay kitchen ticket mode.
 --
 -- A per-store kitchen fire mode for the POS checkout:
 --   'on_send' (default) — kitchen tickets fire when the order is created

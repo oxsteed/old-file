@@ -1,4 +1,4 @@
--- Migration 1401: F-07 configurable day-start hour per store.
+-- Migration 99926: F-07 configurable day-start hour per store.
 --
 -- The sales report defines the business day in each store's local
 -- timezone; day_start_hour shifts the day boundary (a store closing at
