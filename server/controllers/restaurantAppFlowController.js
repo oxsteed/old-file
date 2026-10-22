@@ -6962,6 +6962,7 @@ exports.recordKitchenEvent = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.update', 'kitchen.manage', 'orders.manage']);
     const orderId = parsePositiveInt(req.body.orderId || req.body.order_id);
     const orderItemId = parsePositiveInt(req.body.orderItemId || req.body.order_item_id);
     const eventType = normalizeString(req.body.eventType || req.body.event_type, 48) || 'status';
@@ -7334,7 +7335,8 @@ exports.performKitchenItemAction = async (req, res, next) => {
 exports.listKitchenEvents = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.view', 'kitchen.update', 'kitchen.manage', 'orders.manage']);
     const orderId = parsePositiveInt(req.query.orderId || req.query.order_id);
     const params = [restaurantId];
     let filter = '';
@@ -7360,7 +7362,8 @@ exports.listKitchenEvents = async (req, res, next) => {
 exports.listKitchenAuditEvents = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.view', 'kitchen.update', 'kitchen.manage', 'orders.manage']);
     const orderId = parsePositiveInt(req.query.orderId || req.query.order_id);
     const itemId = parsePositiveInt(req.query.orderItemId || req.query.order_item_id || req.query.itemId || req.query.item_id);
     const sinceEventId = parsePositiveInt(req.query.sinceEventId || req.query.since_event_id || req.query.cursor, 0) || 0;
@@ -7414,7 +7417,8 @@ exports.listKitchenAuditEvents = async (req, res, next) => {
 exports.listKitchenStations = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.view', 'kitchen.update', 'kitchen.manage', 'orders.manage']);
     const { rows: stations } = await pool.query(
       `SELECT ks.*,
               d.device_name,

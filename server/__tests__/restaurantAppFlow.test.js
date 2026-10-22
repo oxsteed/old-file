@@ -1577,6 +1577,17 @@ describe('restaurant app-flow backend', () => {
     expect(auditRes.body.events[0].event_type).toBe('ticket_ack');
   });
 
+  test('denies kitchen audit reads to members without a kitchen permission', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'employee' })] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000890'))
+      .get(`/api/restaurants/${RESTAURANT_ID}/kitchen/audit-events`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('forbidden');
+    expect(mockQuery.mock.calls.some(([sql]) => /FROM restaurant_kitchen_events/.test(sql))).toBe(false);
+  });
+
   test('performs kitchen item action with delay reason and prep timer metadata', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
