@@ -417,11 +417,13 @@ exports.assistant = async (req, res, next) => {
       total: s.total,
       groups: s.groups?.map((g) => ({ status: g.status, count: g.count })),
     }));
-    const provider = require("../services/aiChatProvider");
+    // OpenRouter-only per Emile's 2026-10-14 standing rule: the Meta Model API
+    // (server/services/aiChatProvider.js) is not used on any user-facing path.
+    const openRouter = require("../services/openRouterChat");
     let draft = null;
-    if (provider.isMetaConfigured()) {
-      const result = await provider.fetchMetaChat(
-        provider.getMetaModel(),
+    if (openRouter.isOpenRouterConfigured()) {
+      const result = await openRouter.fetchOpenRouterChat(
+        openRouter.openRouterChatModel(),
         [
           {
             role: "system",
@@ -458,7 +460,7 @@ exports.assistant = async (req, res, next) => {
       draft,
       evidence,
       generatedAt: data.generatedAt,
-      providerAvailable: provider.isMetaConfigured(),
+      providerAvailable: openRouter.isOpenRouterConfigured(),
       requiresReview: true,
     });
   } catch (e) {

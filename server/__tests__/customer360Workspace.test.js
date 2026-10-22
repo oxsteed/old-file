@@ -249,16 +249,20 @@ test("watch evaluation rechecks permissions and keeps stable per-record notifica
   expect(candidate[1][1]).toEqual(["published"]);
 });
 test("assistant sends only permitted aggregate counts and statuses, never customer PII or money", async () => {
-  const provider = require("../services/aiChatProvider");
+  // The draft path must go through OpenRouter, never the Meta Model API
+  // (Emile's 2026-10-14 standing rule: OpenRouter-only on user-facing paths).
+  const openRouter = require("../services/openRouterChat");
+  const metaProvider = require("../services/aiChatProvider");
   const configured = jest
-    .spyOn(provider, "isMetaConfigured")
+    .spyOn(openRouter, "isOpenRouterConfigured")
     .mockReturnValue(true);
   const model = jest
-    .spyOn(provider, "getMetaModel")
+    .spyOn(openRouter, "openRouterChatModel")
     .mockReturnValue("synthetic-model");
   const chat = jest
-    .spyOn(provider, "fetchMetaChat")
+    .spyOn(openRouter, "fetchOpenRouterChat")
     .mockResolvedValue({ ok: true, reply: "Review the source [jobs]." });
+  const metaChat = jest.spyOn(metaProvider, "fetchMetaChat");
   const snapshot = jest.spyOn(service, "workspace").mockResolvedValue({
     generatedAt: new Date().toISOString(),
     sections: {
@@ -294,11 +298,13 @@ test("assistant sends only permitted aggregate counts and statuses, never custom
     expect(payload).not.toMatch(
       /Sensitive person|private@example|balance_cents|9007199254740993/,
     );
+    expect(metaChat).not.toHaveBeenCalled();
   } finally {
     snapshot.mockRestore();
     configured.mockRestore();
     model.mockRestore();
     chat.mockRestore();
+    metaChat.mockRestore();
   }
 });
 
