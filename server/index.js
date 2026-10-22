@@ -786,6 +786,7 @@ app.use('/api/restaurants', restaurantSupportRoutes);
 app.use('/api/admin/restaurants/support', adminRestaurantSupportRoutes);
 app.use('/api/restaurants', restaurantRoutes);
 app.use('/api/restaurants', require('./routes/storeHubs'));
+app.use('/api/restaurants', require('./routes/restaurantDevices'));
 app.use('/api/restaurant-brands', require('./routes/restaurantBrands'));
 app.use('/api/restaurant/displays', require('./routes/restaurantDisplays'));
 app.use('/api/restaurants', restaurantPayoutRoutes);
