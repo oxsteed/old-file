@@ -22,10 +22,7 @@ const { logInventoryAudit } = require('../services/restaurantInventoryAuditServi
 const restaurantLocationService = require('../services/restaurantLocationService');
 const { getLocationScope, assertLocationAccess } = require('../services/restaurantLocationAccessService');
 
-function parsePositiveInt(value) {
-  const n = Number.parseInt(value, 10);
-  return Number.isInteger(n) && n > 0 ? n : null;
-}
+const { inventoryId: parsePositiveInt } = require('../services/restaurantInventoryValidation');
 
 function normalizeString(value, max = 255) {
   if (value === undefined || value === null) return null;
@@ -390,6 +387,7 @@ exports.deleteItem = async (req, res, next) => {
         locationId: existing.location_id, apply: true, createdBy: req.user.id,
       });
       await logInventoryAudit(client, auditEntry(restaurant, 'item_deleted', 'item', item.id, req, {
+        locationId: existing.location_id,
         name: item.name,
         category: item.category,
       }));
@@ -524,7 +522,7 @@ exports.listAdjustments = async (req, res, next) => {
     const params = [restaurantId];
     let where = 'a.restaurant_id = $1';
     if (itemId) { params.push(itemId); where += ` AND a.item_id = $${params.length}`; }
-    const scope = locationScopeClause(restaurant.locationScope, 'i', params.length + 1);
+    const scope = locationScopeClause(restaurant.locationScope, 'a', params.length + 1);
     where += scope.sql;
     params.push(...scope.values);
     params.push(limit, offset);
@@ -563,7 +561,7 @@ exports.listPurchaseRequests = async (req, res, next) => {
          LEFT JOIN users u ON u.id = r.requested_by
         WHERE r.restaurant_id = $1${scope.sql}
         ORDER BY r.created_at DESC
-        LIMIT $${scope.mode === 'assigned' ? 3 : 2} OFFSET $${scope.mode === 'assigned' ? 4 : 3}`,
+        LIMIT $${2 + scope.values.length} OFFSET $${3 + scope.values.length}`,
       [restaurantId, ...scope.values, limit, offset]
     );
     res.json({ requests: rows, limit, offset });
@@ -698,7 +696,7 @@ exports.listSupplierIssues = async (req, res, next) => {
          LEFT JOIN users u ON u.id = i.reported_by
         WHERE i.restaurant_id = $1${scope.sql}
         ORDER BY i.created_at DESC
-        LIMIT $${scope.mode === 'assigned' ? 3 : 2} OFFSET $${scope.mode === 'assigned' ? 4 : 3}`,
+        LIMIT $${2 + scope.values.length} OFFSET $${3 + scope.values.length}`,
       [restaurantId, ...scope.values, limit, offset]
     );
     res.json({ issues: rows, limit, offset });
@@ -993,6 +991,7 @@ exports.deleteMapping = async (req, res, next) => {
         menuItemId: mapping.menu_item_id, locationId: existing.location_id, apply: true, createdBy: req.user.id,
       });
       await logInventoryAudit(client, auditEntry(restaurant, 'mapping_deleted', 'mapping', mapping.id, req, {
+        locationId: existing.location_id,
         inventoryItemId: mapping.inventory_item_id,
         menuItemId: mapping.menu_item_id,
       }));

@@ -278,6 +278,19 @@ adapter adoption and populated production acceptance remain open.
 
 These close the named follow-ups; full review implementation and populated-store/provider/hardware acceptance remain open.
 
+### Further ten inventory fixes
+
+1. Assigned-store procurement pagination now binds the store array, limit, and offset at distinct positions for both purchase requests and supplier issues.
+2. Receipt idempotency replays check the saved receipt's location before exposing its lines.
+3. Adjustment history scopes the adjustment's stored location, retaining permitted history after an item is deleted.
+4. Food-cost dates reject invalid calendar days before querying PostgreSQL.
+5. Food-cost ranges are capped at 366 inclusive days, matching sales reports; an omitted start is relative to the selected end date.
+6. Marketplace menu snapshots exclude draft and archived menu items in SQL, retaining available published items only.
+7. Inventory record IDs require complete positive safe integers instead of permissive numeric prefixes.
+8. Inventory dashboard risk, priority, and menu-impact queries subtract active, unexpired stock holds.
+9. Order completion checks combined ingredient demand before writing and enforces sufficient stock in each decrement.
+10. Migration 992 snapshots store identity onto inventory audit events, backfills resolvable entity locations, and adds a tenant location foreign key. New events resolve location from their entity; deletion events carry the known store explicitly. Assigned-store readers exclude global or unresolvable historical events, while all-store readers retain access.
+
 ## Requirements matrix
 
 `Existing source` means an earlier branch change exists; it is not a fresh
@@ -388,6 +401,7 @@ hardware decisions do not excuse independent software work on these flows.
 
 ## Verification
 
+- Further ten fixes: `server`: the inventory availability DB, validation, store-scope, operations, controller, order-service, availability-service, app-flow, store-menu, and marketplace suites — **183 passed across 10 suites** with explicit disposable PostgreSQL opt-in. Ten PostgreSQL tests cover real pagination, retained adjustment history, reserved-stock dashboard alerts, aggregate consumption rejection/exact depletion, published marketplace menus, and audit backfill/replay/deleted-entity isolation with cross-tenant FK rejection, alongside earlier two-store/recipe/timezone cases. `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **967/967 migrations passed**, including migration 992 and runner replay/checksum verification. No production migration or deployment was performed.
 - Ten follow-ups: `server`: the focused inventory availability DB, store-scope, operations, controller, order-service, availability-service, app-flow, and store-menu suites — **155 passed across 8 suites**, with the explicit `INVENTORY_SCOPE_TEST_DATABASE_URL` pointing to a fresh disposable Colima PostgreSQL container. Four DB tests exercise two-store isolation, conversion/yield stock holds, local-day reporting/DST boundaries, and store-correct food-cost periods. The exact new CI database-create/Jest shell step also passed locally (**4 DB tests**); CI YAML parsing and shell syntax checks passed. No production database, deployment, client, or migration changes were needed.
 - Inventory follow-up: `server`: `INVENTORY_SCOPE_TEST_DATABASE_URL=<disposable-loopback-url> npx jest --runInBand __tests__/restaurantInventoryAvailability.db.test.js __tests__/restaurantInventoryStoreScope.test.js __tests__/restaurantStoreMenu.test.js __tests__/restaurantAppFlow.test.js __tests__/restaurantInventoryController.test.js __tests__/restaurantInventoryOperations.test.js __tests__/restaurantInventoryAvailabilityService.test.js __tests__/restaurantInventoryOrderService.test.js` — **140 passed across 8 suites**. The PostgreSQL test ran in a fresh disposable Colima container with connection-local temporary fixtures, proving two-store sell-out/restock/hold isolation and repeat-sync audit stability. It does not replace full-schema populated-store acceptance. Controller tests cover sibling-store mapping/sync denial and store inventory recovery in POS/editor responses. No migration or client changes in this follow-up.
 - `server`: `npx jest --runInBand --testPathPatterns='restaurantStoreMenu|restaurantAppFlow|foodController|foodOrderValidation|routeScopeGuard'` — **137 passed** (including bounded course, seat, and split-by-amount validation).

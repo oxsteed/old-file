@@ -14,13 +14,8 @@ const AREA_TYPES = new Set(['dry_storage', 'walk_in_cooler', 'freezer', 'bar', '
 const SUPPLIER_STATUSES = new Set(['active', 'inactive', 'issue_reported']);
 const TRANSFER_STATUSES = new Set(['pending', 'completed', 'cancelled']);
 const INVOICE_MATCH_STATUSES = new Set(['unmatched', 'matched', 'exception']);
-const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const { inventoryId: positiveInt, foodCostRange } = require('../services/restaurantInventoryValidation');
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function positiveInt(value) {
-  const number = Number.parseInt(value, 10);
-  return Number.isInteger(number) && number > 0 ? number : null;
-}
 
 function text(value, max = 255) {
   if (value === undefined || value === null) return null;
@@ -160,6 +155,17 @@ async function inventoryReadContext(restaurant, userId) {
     stores: scope?.mode === 'assigned' ? ' AND id = ANY($3::bigint[])' : '',
     query: (sql) => pool.query(`WITH inventory_clock AS (
       SELECT (NOW() AT TIME ZONE $2::text)::date AS today
+    ), inventory_stock AS (
+      SELECT i.*, GREATEST(0, i.quantity - COALESCE(holds.quantity, 0)) AS available_quantity
+        FROM restaurant_inventory_items i
+        LEFT JOIN (
+          SELECT inventory_item_id, SUM(quantity) AS quantity
+            FROM restaurant_inventory_order_reservations
+           WHERE restaurant_id = $1 AND status = 'reserved'
+             AND (expires_at IS NULL OR expires_at > NOW())
+           GROUP BY inventory_item_id
+        ) holds ON holds.inventory_item_id = i.id
+       WHERE i.restaurant_id = $1
     ) ${sql}`, params),
   };
 }
@@ -178,14 +184,14 @@ exports.getDashboard = async (req, res, next) => {
           ORDER BY is_primary DESC, id ASC LIMIT 1`
       ),
       context.query(
-        `SELECT COUNT(*) FILTER (WHERE quantity > 0 AND reorder_point > 0 AND quantity <= reorder_point)::int AS low_stock,
-                COUNT(*) FILTER (WHERE quantity <= 0)::int AS out_of_stock,
+        `SELECT COUNT(*) FILTER (WHERE available_quantity > 0 AND reorder_point > 0 AND available_quantity <= reorder_point)::int AS low_stock,
+                COUNT(*) FILTER (WHERE available_quantity <= 0)::int AS out_of_stock,
                 COUNT(*) FILTER (WHERE last_counted_at IS NULL OR last_counted_at < NOW() - INTERVAL '7 days')::int AS needs_count,
                 (SELECT COUNT(*)::int FROM restaurant_inventory_supplier_issues
                   WHERE restaurant_id = $1${context.filter()} AND status IN ('open','monitoring','in_progress')) AS supplier_issues,
                 (SELECT COUNT(*)::int FROM restaurant_inventory_purchase_requests
                   WHERE restaurant_id = $1${context.filter()} AND status IN ('pending','approved')) AS pending_requests
-           FROM restaurant_inventory_items
+           FROM inventory_stock
           WHERE restaurant_id = $1${context.filter()} AND is_active = TRUE`
       ),
       context.query(
@@ -198,10 +204,10 @@ exports.getDashboard = async (req, res, next) => {
           WHERE restaurant_id = $1${context.filter()} AND created_at >= ((SELECT today FROM inventory_clock)::timestamp AT TIME ZONE $2)`
       ),
       context.query(
-        `SELECT i.id, i.name, i.quantity, i.unit, i.par_level, i.reorder_point,
+        `SELECT i.id, i.name, i.quantity, i.available_quantity, i.unit, i.par_level, i.reorder_point,
                 i.critical_level, a.name AS area_name,
                 COUNT(m.id)::int AS affected_menu_count
-           FROM restaurant_inventory_items i
+           FROM inventory_stock i
            LEFT JOIN restaurant_inventory_storage_areas a
              ON a.id = i.storage_area_id
             AND a.restaurant_id = i.restaurant_id
@@ -209,24 +215,24 @@ exports.getDashboard = async (req, res, next) => {
              ON m.inventory_item_id = i.id
             AND m.restaurant_id = i.restaurant_id
           WHERE i.restaurant_id = $1${context.filter('i')} AND i.is_active = TRUE
-            AND (i.quantity <= 0 OR (i.reorder_point > 0 AND i.quantity <= i.reorder_point)
+            AND (i.available_quantity <= 0 OR (i.reorder_point > 0 AND i.available_quantity <= i.reorder_point)
                  OR i.last_counted_at IS NULL OR i.last_counted_at < NOW() - INTERVAL '7 days')
-          GROUP BY i.id, a.name
-          ORDER BY CASE WHEN i.quantity <= 0 THEN 0
-                        WHEN i.critical_level > 0 AND i.quantity <= i.critical_level THEN 1
-                        ELSE 2 END, i.quantity ASC
+          GROUP BY i.id, i.name, i.quantity, i.available_quantity, i.unit, i.par_level, i.reorder_point, i.critical_level, a.name
+          ORDER BY CASE WHEN i.available_quantity <= 0 THEN 0
+                        WHEN i.critical_level > 0 AND i.available_quantity <= i.critical_level THEN 1
+                        ELSE 2 END, i.available_quantity ASC
           LIMIT 10`
       ),
       context.query(
         `SELECT fmi.id AS menu_item_id, fmi.name AS menu_item_name,
                 i.id AS inventory_item_id, i.name AS inventory_item_name,
-                i.quantity, i.reorder_point, i.critical_level
+                i.quantity, i.available_quantity, i.reorder_point, i.critical_level
            FROM restaurant_inventory_item_mappings m
-           JOIN restaurant_inventory_items i ON i.id = m.inventory_item_id AND i.restaurant_id = m.restaurant_id
+           JOIN inventory_stock i ON i.id = m.inventory_item_id AND i.restaurant_id = m.restaurant_id
            JOIN food_menu_items fmi ON fmi.id = m.menu_item_id AND fmi.restaurant_id = m.restaurant_id
           WHERE m.restaurant_id = $1${context.filter('i')} AND m.auto_manage = TRUE
-            AND (i.quantity <= 0 OR (i.reorder_point > 0 AND i.quantity <= i.reorder_point))
-          ORDER BY i.quantity ASC, fmi.name ASC
+            AND (i.available_quantity <= 0 OR (i.reorder_point > 0 AND i.available_quantity <= i.reorder_point))
+          ORDER BY i.available_quantity ASC, fmi.name ASC
           LIMIT 20`
       ),
     ]);
@@ -361,11 +367,7 @@ exports.foodCostSummary = async (req, res, next) => {
     await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
     const timezone = safeTimezone(restaurant.timezone);
     const today = zonedParts(new Date(), timezone).dateKey;
-    const fromDate = req.query.from || new Date(Date.parse(`${today}T12:00:00Z`) - 29 * 86400000).toISOString().slice(0, 10);
-    const toDate = req.query.to || today;
-    if (!DATE_ONLY_RE.test(fromDate) || !DATE_ONLY_RE.test(toDate) || fromDate > toDate) {
-      throw new AppError('A valid from/to date range is required', 400, 'invalid_range');
-    }
+    const { fromDate, toDate } = foodCostRange(req.query, today);
     const scope = await getTransferScope(restaurant, req.user.id);
     const params = [restaurantId, fromDate, toDate, timezone];
     let locationFilter = '';
@@ -455,6 +457,11 @@ exports.listAuditEvents = async (req, res, next) => {
     const eventType = text(req.query.eventType, 80);
     const params = [restaurantId];
     const where = ['e.restaurant_id = $1'];
+    const scope = await getTransferScope(restaurant, req.user.id);
+    if (scope?.mode === 'assigned') {
+      params.push(scope.location_ids);
+      where.push(`e.location_id = ANY($${params.length}::bigint[])`);
+    }
 
     if (entityType) {
       params.push(entityType);
@@ -1004,10 +1011,13 @@ exports.createReceipt = async (req, res, next) => {
       if (clientOperationId) {
         await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`inventory-receipt:${restaurantId}:${clientOperationId}`]);
         const { rows: [existing] } = await client.query(
-          `SELECT id FROM restaurant_inventory_receipts WHERE restaurant_id = $1 AND client_operation_id = $2`,
+          `SELECT id, location_id FROM restaurant_inventory_receipts WHERE restaurant_id = $1 AND client_operation_id = $2`,
           [restaurantId, clientOperationId]
         );
-        if (existing) return { receipt: await receiptWithLines(client, restaurantId, existing.id), replayed: true };
+        if (existing) {
+          await assertLocationAccess(restaurant, req.user.id, existing.location_id, client);
+          return { receipt: await receiptWithLines(client, restaurantId, existing.id), replayed: true };
+        }
       }
       const supplierId = positiveInt(req.body.supplierId);
       if (supplierId) {

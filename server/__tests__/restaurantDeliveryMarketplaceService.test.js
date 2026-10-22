@@ -16,6 +16,8 @@ describe('restaurant delivery marketplace contracts', () => {
       { category_id: 1, category_name: 'Mains', item_id: 3, item_name: 'Sold out', description: null, price_cents: 900, currency_code: 'USD', is_available: false, tags: [] },
     ] }) };
     const snapshot = await service.menuSnapshot(client, 9);
+    expect(client.query.mock.calls[0][0]).toContain("i.publication_status = 'published'");
+    expect(client.query.mock.calls[0][0]).toContain('i.archived_at IS NULL');
     expect(snapshot).toEqual([{ id: 1, name: 'Mains', items: [{ id: 2, name: 'Soup', description: null, priceCents: 1200, currencyCode: 'USD', tags: [] }] }]);
   });
 

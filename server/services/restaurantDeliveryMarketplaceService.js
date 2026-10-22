@@ -100,6 +100,7 @@ async function menuSnapshot(client, restaurantId) {
             i.currency_code, i.is_available, i.sort_order AS item_sort, i.tags
        FROM food_menu_categories c
        LEFT JOIN food_menu_items i ON i.category_id = c.id AND i.restaurant_id = c.restaurant_id
+         AND i.publication_status = 'published' AND i.archived_at IS NULL
       WHERE c.restaurant_id = $1 AND c.is_active = TRUE
       ORDER BY c.sort_order, c.id, i.sort_order, i.id`,
     [restaurantId]

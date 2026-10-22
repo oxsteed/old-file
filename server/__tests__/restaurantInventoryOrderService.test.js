@@ -98,6 +98,15 @@ describe('restaurant inventory order service', () => {
     expect(mockQuery.mock.calls[3][0]).toMatch(/SET status = 'consumed'/);
   });
 
+  test('combined demand for one ingredient fails before any write', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [
+      { id: 1, inventory_item_id: 17, quantity: '3', on_hand_quantity: '5' },
+      { id: 2, inventory_item_id: 17, quantity: '3', on_hand_quantity: '5' },
+    ] });
+    await expect(consumeInventoryForOrder(client, { restaurantId: 5, orderId: 7 })).rejects.toMatchObject({ code: 'inventory_consistency_conflict' });
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
   test('releases open reservations without changing on-hand stock', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ inventory_item_id: 17 }] });
 

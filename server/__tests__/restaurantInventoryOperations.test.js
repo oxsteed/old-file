@@ -75,6 +75,27 @@ beforeEach(() => {
 });
 
 describe('restaurant Inventory operations backend', () => {
+  test('receipt retries reject sibling-store access before reading receipt lines', async () => {
+    locationAccess.assertLocationAccess.mockRejectedValueOnce(Object.assign(new Error('Store denied'), { statusCode: 403, code: 'location_scope_forbidden' }));
+    mockQuery.mockResolvedValueOnce({ rows: [access({ effective_role: 'manager', effective_membership_id: 88 })] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 77, location_id: 202 }] });
+    const res = await request(app()).post(`/api/restaurants/${RESTAURANT_ID}/inventory/receipts`).send({
+      supplierName: 'Test', clientOperationId: '9a1ef8e4-832f-4c34-8aa1-b5f7f65b7e09', lines: [{ itemId: 5 }],
+    });
+    expect(res.status).toBe(403);
+    expect(mockQuery.mock.calls.some(([sql]) => /jsonb_agg/.test(sql))).toBe(false);
+  });
+
+  test('assigned managers only see audit events with their stored location', async () => {
+    locationAccess.getLocationScope.mockResolvedValueOnce({ mode: 'assigned', location_ids: [11] });
+    mockQuery.mockResolvedValueOnce({ rows: [access({ effective_role: 'manager', effective_membership_id: 88 })] })
+      .mockResolvedValueOnce({ rows: [] });
+    const res = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/inventory/audit-events`);
+    expect(res.status).toBe(200);
+    expect(mockQuery.mock.calls[1][0]).toContain('e.location_id = ANY($2::bigint[])');
+    expect(mockQuery.mock.calls[1][1]).toEqual([RESTAURANT_ID, [11], 50, 0]);
+  });
   test.each(['dashboard', 'reports'])('%s filters every query by store and uses the restaurant timezone', async (route) => {
     locationAccess.getLocationScope.mockResolvedValueOnce({ mode: 'assigned', location_ids: [11] });
     mockQuery.mockResolvedValueOnce({ rows: [access({ effective_role: 'manager', effective_membership_id: 88 })] });

@@ -227,10 +227,28 @@ async function consumeInventoryForOrder(client, { restaurantId, orderId, locatio
     );
   }
 
+  // One ingredient can have multiple reservations for different menu lines.
+  // The locked SELECT snapshots its stock once; validate cumulative demand
+  // before any writes and keep a running balance for each following line.
+  const requiredByItem = new Map();
+  const remainingByItem = new Map();
+  for (const reservation of reservations) {
+    const id = Number(reservation.inventory_item_id);
+    requiredByItem.set(id, (requiredByItem.get(id) || 0) + Math.round(Number(reservation.quantity) * 1000));
+    remainingByItem.set(id, Number(reservation.on_hand_quantity));
+  }
+  for (const reservation of reservations) {
+    const id = Number(reservation.inventory_item_id);
+    if (Math.round(remainingByItem.get(id) * 1000) < requiredByItem.get(id)) {
+      throw new AppError('Inventory changed before this order could be completed', 409,
+        'inventory_consistency_conflict', { inventoryItemId: id, inventoryItemName: reservation.inventory_item_name });
+    }
+  }
   const consumedInventoryItemIds = [];
   for (const reservation of reservations) {
     const quantity = Number(reservation.quantity);
-    const onHand = Number(reservation.on_hand_quantity);
+    const inventoryItemId = Number(reservation.inventory_item_id);
+    const onHand = remainingByItem.get(inventoryItemId);
     if (onHand < quantity) {
       throw new AppError(
         'Inventory changed before this order could be completed',
@@ -242,10 +260,12 @@ async function consumeInventoryForOrder(client, { restaurantId, orderId, locatio
     const { rows: [updatedItem] } = await client.query(
       `UPDATE restaurant_inventory_items
           SET quantity = quantity - $1, updated_at = NOW()
-        WHERE id = $2 AND restaurant_id = $3
+        WHERE id = $2 AND restaurant_id = $3 AND quantity >= $1
         RETURNING quantity`,
       [quantity, reservation.inventory_item_id, restaurantId]
     );
+    if (!updatedItem) throw new AppError('Inventory changed before this order could be completed', 409, 'inventory_consistency_conflict');
+    remainingByItem.set(inventoryItemId, Number(updatedItem.quantity));
     await client.query(
       `INSERT INTO restaurant_inventory_adjustments
          (restaurant_id, item_id, item_name, adjustment_type, quantity_delta, quantity_after,

@@ -205,7 +205,7 @@ describe('restaurant Inventory item backend', () => {
 
     expect(response.status).toBe(200);
     const [sql, params] = mockQuery.mock.calls[2];
-    expect(sql).toMatch(/i\.location_id = ANY\(\$2::bigint\[\]\)/);
+    expect(sql).toMatch(/a\.location_id = ANY\(\$2::bigint\[\]\)/);
     expect(params).toEqual([RESTAURANT_ID, [101], 50, 0]);
   });
 
