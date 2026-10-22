@@ -23,6 +23,19 @@ function parsePositiveInt(value) {
   return strictInteger(value);
 }
 
+// Background-jobs audit (finding P1): client-generated idempotency keys
+// for cash-tip declarations. Optional for backward compatibility; when
+// present the key must look like an opaque token (same character class as
+// the payment-refund request ids).
+function normalizeCashTipIdempotencyKey(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const key = String(value).trim();
+  if (!/^[A-Za-z0-9:._-]{8,128}$/.test(key)) {
+    throw new AppError('Validation failed', 400, 'validation_failed', { idempotencyKey: 'Idempotency key must be 8-128 characters (letters, digits, : . _ -)' });
+  }
+  return key;
+}
+
 async function restaurantAccess(req) {
   const restaurantId = parsePositiveInt(req.params.restaurantId);
   if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
@@ -278,6 +291,10 @@ exports.declareCashTip = async (req, res, next) => {
       amountCents,
       declaredBy: req.user.id,
       note: body.note ? String(body.note).slice(0, 500) : null,
+      // Background-jobs audit (finding P1): a client-generated idempotency
+      // key lets POS retries deduplicate instead of double-declaring.
+      // Optional for backward compatibility; validated when present.
+      idempotencyKey: normalizeCashTipIdempotencyKey(req.get?.('Idempotency-Key') || body.idempotencyKey || body.idempotency_key),
     });
     await logBusinessAction(req, {
       business_id: restaurant.business_id,
@@ -287,6 +304,6 @@ exports.declareCashTip = async (req, res, next) => {
       target_id: staffUserId,
       after_state: { location_id: locationId, amount_cents: amountCents, business_date: String(businessDate), declaration_id: declaration.id },
     });
-    res.status(201).json({ declaration });
+    res.status(declaration.replayed ? 200 : 201).json({ declaration, replayed: !!declaration.replayed });
   } catch (err) { next(err); }
 };

@@ -70,9 +70,14 @@ const startWeeklySummaryJob = () => {
           u.preferred_language
         FROM users u
         JOIN helper_profiles hp ON hp.user_id = u.id
-        JOIN notification_preferences np ON np.user_id = u.id
+        -- Notifications audit: preferences rows are created lazily (only
+        -- when the user opens notification settings) while
+        -- email_weekly_summary defaults to TRUE. An INNER JOIN would
+        -- silently exclude every helper who never touched settings, so
+        -- LEFT JOIN and treat a missing row as opted in.
+        LEFT JOIN notification_preferences np ON np.user_id = u.id
         WHERE u.is_active = true
-          AND np.email_weekly_summary = true
+          AND COALESCE(np.email_weekly_summary, true) = true
           AND u.role IN ($1, $2, $3)`,
         [ROLES.HELPER_FREE, ROLES.HELPER_PRO, ROLES.HELPER_BROKER]
       );

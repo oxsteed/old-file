@@ -1665,6 +1665,12 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
         }
         // C8: a lost dispute moves real money. Record the financial impact
         // (payment marked disputed, loss posted to the ledger) on closed.
+        // Fail closed: recordLostDisputeFinancials is replay-idempotent
+        // (dispute_status check + loss deduped on the dispute id), so a
+        // throw here marks the receipt failed and Stripe retries instead of
+        // silently leaving escrow releasable with no ledger loss. A
+        // reconciliation exception is the durable operator trail in case
+        // the retries themselves keep failing.
         if (event.type === 'charge.dispute.closed' && dispute?.status === 'lost') {
           try {
             await recordLostDisputeFinancials(dispute, event.account);
@@ -1673,6 +1679,18 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
               disputeId: dispute?.id,
               error: err.message,
             });
+            await recordException({
+              domain: 'dispute_financials',
+              referenceId: `stripe-dispute:${dispute?.id}:financials`,
+              severity: 'critical',
+              summary: 'Lost Stripe dispute financials failed to record; webhook will retry',
+              details: {
+                disputeId: dispute?.id,
+                error: String(err?.message || err).slice(0, 500),
+                stripeAccountId: event.account || null,
+              },
+            });
+            throw err;
           }
         }
         // Phase 8: OxSteed Credit chargeback ingestion (see

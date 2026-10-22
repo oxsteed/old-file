@@ -9851,6 +9851,10 @@
         "title": "Nueva capacitación asignada",
         "body": "{{moduleTitle}} en {{restaurantName}}"
       },
+      "training_recertification_due": {
+        "title": "Recertificación vencida",
+        "body": "Tu certificación de {{moduleTitle}} en {{restaurantName}} ha vencido. Completa la capacitación nuevamente."
+      },
       "crew_shift_published": {
         "title": "Nuevo turno publicado",
         "body": "{{shiftLabel}} · {{startsAt}} en {{restaurantName}}"

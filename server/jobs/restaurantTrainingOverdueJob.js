@@ -12,7 +12,6 @@
 //      expiring within 30 days (once per expiry date).
 // Each step is isolated: one failing step does not block the others.
 
-const pool = require('../db');
 const logger = require('../utils/logger');
 const { withFencedJobLock } = require('./jobLockingService');
 const {
@@ -54,6 +53,7 @@ async function sweep(db) {
         restaurantId: row.restaurant_id,
         dueAt: row.due_at,
         recertification: true,
+        completionId: row.completion_id,
       });
     }
   } catch (err) {
@@ -94,11 +94,17 @@ async function sweep(db) {
   return result;
 }
 
-async function runRestaurantTrainingOverdueJob(db = pool) {
+async function runRestaurantTrainingOverdueJob() {
   let result = { locked: false };
   await withFencedJobLock(JOB_NAME, async (fence) => {
     fence.assertActive();
-    result = { locked: true, ...(await sweep(db)) };
+    // Background-jobs audit (finding T2): the sweep's writes must go
+    // through fence.db, not the raw pool. The fence contract is explicit:
+    // every query through the fenced handle re-checks the lease, so a
+    // mid-run lease loss stops this node's writes instead of letting a
+    // second node run the same sweep concurrently (duplicate recert and
+    // certificate alerts).
+    result = { locked: true, ...(await sweep(fence.db)) };
   }, 900, { throwOnError: true });
   logger.info('Restaurant training overdue run finished', result);
   return result;

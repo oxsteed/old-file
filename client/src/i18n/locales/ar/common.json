@@ -4866,6 +4866,10 @@
         "title": "تدريب جديد مسند",
         "body": "{{moduleTitle}} في {{restaurantName}}"
       },
+      "training_recertification_due": {
+        "title": "إعادة الاعتماد مستحقة",
+        "body": "انتهت صلاحية شهادتك في {{moduleTitle}} لدى {{restaurantName}}. يُرجى إكمال التدريب مرة أخرى."
+      },
       "crew_shift_published": {
         "title": "تم نشر وردية جديدة",
         "body": "{{shiftLabel}} · {{startsAt}} في {{restaurantName}}"

@@ -20,6 +20,12 @@ const { errorHandler } = require('../middleware/errorHandler');
 jest.mock('../services/reconciliationExceptions', () => ({
   recordException: jest.fn().mockResolvedValue(1),
 }));
+jest.mock('../services/localDeliveryPaymentService', () => ({
+  handleStripeEvent: jest.fn().mockResolvedValue({ handled: false }),
+}));
+jest.mock('../services/logisticsPaymentService', () => ({
+  handleStripeEvent: jest.fn().mockResolvedValue({ handled: false }),
+}));
 jest.mock('../services/sanctionsScreeningService', () => ({
   assertSanctionsClear: jest.fn().mockResolvedValue({ cleared: false }),
 }));
@@ -350,6 +356,36 @@ describe('C8 recordLostDisputeFinancials', () => {
     expect(result).toBeNull();
     expect(mockQuery).not.toHaveBeenCalled();
   });
+
+  test('a lost-dispute financials failure records an exception and fails the receipt so Stripe retries', async () => {
+    // Money-flows audit: the old catch only logged, the receipt was marked
+    // processed, and charge.dispute.closed never redelivers — escrow could
+    // release with no ledger loss recorded.
+    keyed(async (sql) => {
+      if (sql.includes('INSERT INTO webhook_event_receipts')) return { rows: [{ id: 99 }] };
+      if (sql.includes('FROM payments')) throw new Error('connection reset');
+      return { rows: [], rowCount: 0 };
+    });
+    const res = mockRes();
+    const next = jest.fn();
+    await webhookController.handleVerifiedStripeEvent(
+      { id: 'evt_dp_1', type: 'charge.dispute.closed', data: { object: { ...dispute } } },
+      'platform',
+      res,
+      next
+    );
+    expect(recordException).toHaveBeenCalledWith(expect.objectContaining({
+      domain: 'dispute_financials',
+      severity: 'critical',
+      referenceId: 'stripe-dispute:dp_1:financials',
+    }));
+    // The receipt is marked failed (not processed) so Stripe retries; the
+    // financials function is replay-idempotent.
+    expect(mockQuery.mock.calls.some(([sql]) =>
+      sql.includes('UPDATE webhook_event_receipts') && sql.includes("SET status = 'failed'"))).toBe(true);
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 500 }));
+    expect(res.json).not.toHaveBeenCalledWith({ received: true });
+  });
 });
 
 // ── H5: admin-hidden restaurants stay out of public surfaces ──────────────────
@@ -377,6 +413,10 @@ describe('H7 affiliate payout audit', () => {
       if (sql.includes("SET status = 'processing'")) return { rows: [{ ...payout, status: 'processing' }], rowCount: 1 };
       if (sql.includes("SET status = 'completed'")) return { rows: [{ ...payout, status: 'completed' }], rowCount: 1 };
       if (sql.includes('UPDATE affiliate_programs')) return { rows: [], rowCount: 1 };
+      // Money-flows audit: the affiliate payout entry honors the
+      // credit-rail kill switch; the rail reads as enabled and unfrozen.
+      if (sql.includes('FROM feature_flags')) return { rows: [{ is_enabled: true }], rowCount: 1 };
+      if (sql.includes('FROM oxsteed_credit_rail_freezes')) return { rows: [], rowCount: 0 };
       return { rows: [], rowCount: 0 };
     });
     // Review P3-787: payouts are Stripe Connect transfers to the owner's account.
@@ -393,7 +433,7 @@ describe('H7 affiliate payout audit', () => {
     expect(auditCall[1][1]).toBe('affiliate_payout_processed');
     expect(stripeMock.transfers.create).toHaveBeenCalledWith(
       expect.objectContaining({ destination: 'acct_9', amount: 3000 }),
-      expect.objectContaining({ idempotencyKey: 'affiliate-payout-pay-1' }));
+      expect.objectContaining({ idempotencyKey: 'affiliate-payout:pay-1' }));
   });
 });
 

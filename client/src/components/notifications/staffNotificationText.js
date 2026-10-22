@@ -7,6 +7,7 @@
 export const STAFF_NOTIFICATION_TYPES = new Set([
   'crew_task_assigned',
   'training_assigned',
+  'training_recertification_due',
   'crew_shift_published',
   'crew_shift_cancelled',
   'restaurant_announcement',

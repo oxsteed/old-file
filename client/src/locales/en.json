@@ -9851,6 +9851,10 @@
         "title": "New training assigned",
         "body": "{{moduleTitle}} at {{restaurantName}}"
       },
+      "training_recertification_due": {
+        "title": "Training recertification due",
+        "body": "Your certification for {{moduleTitle}} at {{restaurantName}} has expired. Please complete the training again."
+      },
       "crew_shift_published": {
         "title": "New shift posted",
         "body": "{{shiftLabel}} · {{startsAt}} at {{restaurantName}}"

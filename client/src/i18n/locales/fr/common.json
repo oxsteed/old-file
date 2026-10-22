@@ -4866,6 +4866,10 @@
         "title": "Nouvelle formation assignée",
         "body": "{{moduleTitle}} chez {{restaurantName}}"
       },
+      "training_recertification_due": {
+        "title": "Recertification à renouveler",
+        "body": "Votre certification {{moduleTitle}} chez {{restaurantName}} a expiré. Veuillez suivre à nouveau la formation."
+      },
       "crew_shift_published": {
         "title": "Nouveau poste publié",
         "body": "{{shiftLabel}} · {{startsAt}} chez {{restaurantName}}"
