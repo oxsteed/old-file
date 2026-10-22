@@ -1,6 +1,7 @@
 {
   "_comment": "Routes allowed to use scopeExempt('resource-scoped'). Each was reviewed: authorization is decided from the loaded resource and its own business. Adding an entry is a reviewed change.",
   "routes": [
+    "routes/restaurantBrands.js DELETE /:brandId/restaurants/:restaurantId",
     "routes/support.js GET /:businessId/agents/:agentId",
     "routes/support.js GET /:businessId/agents/:agentId/assignments",
     "routes/support.js GET /:businessId/agents/:agentId/availability-log",

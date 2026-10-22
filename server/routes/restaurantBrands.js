@@ -9,6 +9,7 @@ const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const { authenticatedLimiter } = require('../middleware/rateLimiter');
+const { scopeExempt } = require('../middleware/scopeGates');
 const brand = require('../controllers/restaurantBrandController');
 
 router.use(authenticate, rejectImpersonated, authenticatedLimiter);
@@ -19,6 +20,6 @@ router.get('/:brandId/store-comparison', brand.getStoreComparison);
 router.get('/:brandId/compliance', brand.getCompliance);
 router.post('/:brandId/menu/publish', brand.publishMenu);
 router.post('/:brandId/restaurants', brand.attachRestaurant);
-router.delete('/:brandId/restaurants/:restaurantId', brand.detachRestaurant);
+router.delete('/:brandId/restaurants/:restaurantId', scopeExempt('resource-scoped'), brand.detachRestaurant);
 
 module.exports = router;
