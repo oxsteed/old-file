@@ -87,6 +87,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
     phone: '', timezone: restaurant.timezone || DETECTED_TIMEZONE, status: 'active', isPrimary: false,
     taxRatePercent: '', serviceFeePercent: '', taxInclusive: false, taxJurisdiction: '', regionId: '',
     onlinePacingMax: '', inStorePacingMax: '', prepTimeExtensionMin: '0', kitchenFireMode: '',
+    dayStartHour: '0',
   }), [restaurant.timezone]);
   const [form, setForm] = useState(blankForm);
   const [editingId, setEditingId] = useState(null);
@@ -137,6 +138,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
       inStorePacingMax: loc.in_store_order_pacing_max_per_15_min == null ? '' : String(loc.in_store_order_pacing_max_per_15_min),
       prepTimeExtensionMin: loc.prep_time_extension_min == null ? '0' : String(loc.prep_time_extension_min),
       kitchenFireMode: loc.kitchen_fire_mode || '',
+      dayStartHour: loc.day_start_hour == null ? '0' : String(loc.day_start_hour),
     });
     setDayHours(dayHoursFromLocation(loc));
     setSpecialDates(specialDatesFromLocation(loc));
@@ -261,6 +263,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
         inStoreOrderPacingMaxPer15Min: form.inStorePacingMax === '' ? null : Number(form.inStorePacingMax),
         prepTimeExtensionMin: form.prepTimeExtensionMin === '' ? 0 : Number(form.prepTimeExtensionMin),
         kitchenFireMode: form.kitchenFireMode || null,
+        dayStartHour: form.dayStartHour === '' ? 0 : Number(form.dayStartHour),
         ...(hoursDirty ? { operatingHours: buildOperatingHours() } : {}),
       };
       if (editingId) {
@@ -395,6 +398,10 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
               <option value="on_send">{t('food.merchant.kitchenFireOnSend')}</option>
               <option value="on_pay">{t('food.merchant.kitchenFireOnPay')}</option>
             </select>
+          </div>
+          <div className="fd-field" style={{ flex: '0 1 130px' }}>
+            <label htmlFor="fd-loc-day-start">{t('food.merchant.dayStartHour')}</label>
+            <input id="fd-loc-day-start" type="number" min="0" max="23" step="1" value={form.dayStartHour} onChange={(e) => setForm((f) => ({ ...f, dayStartHour: e.target.value }))} />
           </div>
           <div className="fd-field" style={{ flex: '0 1 100px' }}>
             <label htmlFor="fd-loc-lat">{t('food.merchant.latitude')}</label>

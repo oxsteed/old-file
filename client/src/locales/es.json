@@ -23329,6 +23329,7 @@
       "kitchenFireInherit": "Heredar marca",
       "kitchenFireOnSend": "Al enviar el pedido",
       "kitchenFireOnPay": "Al recibir el pago",
+      "dayStartHour": "El día empieza a la (hora)",
       "taxRateInvalid": "Introduce una tasa de impuesto entre 0 y 100.",
       "locationsTitle": "Ubicaciones",
       "locationName": "Nombre de la ubicación",

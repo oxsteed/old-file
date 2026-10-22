@@ -23340,6 +23340,7 @@
       "kitchenFireInherit": "وراثة العلامة",
       "kitchenFireOnSend": "عند إرسال الطلب",
       "kitchenFireOnPay": "عند الدفع",
+      "dayStartHour": "بداية اليوم (الساعة)",
       "taxRateInvalid": "أدخل معدل ضريبة بين 0 و100.",
       "locationsTitle": "المواقع",
       "locationName": "اسم الموقع",

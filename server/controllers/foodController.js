@@ -412,6 +412,19 @@ function normalizeLocationTaxJurisdiction(value) {
 
 // F-04: per-store kitchen fire mode. null/empty clears back to inheriting
 // the restaurant-level kitchenFireMode settings key.
+// F-07: per-store day-start hour for the sales report business day.
+// 0-23 local hour; 0 (midnight) preserves the old boundary.
+function normalizeLocationDayStartHour(value) {
+  if (value === undefined || value === null || value === '') return 0;
+  const hour = Number(value);
+  if (!Number.isSafeInteger(hour) || hour < 0 || hour > 23) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      dayStartHour: 'Enter an hour from 0 to 23',
+    });
+  }
+  return hour;
+}
+
 function normalizeLocationKitchenFireMode(value) {
   if (value === undefined || value === null || value === '') return null;
   const { normalizeKitchenFireMode } = require('../services/restaurantKitchenFireService');
@@ -7988,8 +8001,8 @@ exports.createRestaurantLocation = async (req, res, next) => {
             address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours,
             tax_rate_bps, service_fee_bps, tax_inclusive, tax_jurisdiction,
             online_order_pacing_max_per_15_min, in_store_order_pacing_max_per_15_min,
-            prep_time_extension_min, region_id, kitchen_fire_mode)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
+            prep_time_extension_min, region_id, kitchen_fire_mode, day_start_hour)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
          RETURNING *`,
         [
           restaurantId,
@@ -8015,6 +8028,7 @@ exports.createRestaurantLocation = async (req, res, next) => {
           normalizeLocationInteger(req.body.prepTimeExtensionMin ?? req.body.prep_time_extension_min, 'prepTimeExtensionMin', { nullable: false, max: 240 }),
           regionId,
           normalizeLocationKitchenFireMode(req.body.kitchenFireMode ?? req.body.kitchen_fire_mode),
+          normalizeLocationDayStartHour(req.body.dayStartHour ?? req.body.day_start_hour),
         ]
       );
       return created;
@@ -8037,6 +8051,7 @@ exports.createRestaurantLocation = async (req, res, next) => {
         prep_time_extension_min: location.prep_time_extension_min,
         region_id: location.region_id,
         kitchen_fire_mode: location.kitchen_fire_mode,
+        day_start_hour: location.day_start_hour,
       },
     });
     res.status(201).json({ location: attachRestaurantHours(location) });
@@ -8073,6 +8088,7 @@ exports.updateRestaurantLocation = async (req, res, next) => {
     const hasInStorePacing = Object.hasOwn(req.body, 'inStoreOrderPacingMaxPer15Min') || Object.hasOwn(req.body, 'in_store_order_pacing_max_per_15_min');
     const hasPrepExtension = Object.hasOwn(req.body, 'prepTimeExtensionMin') || Object.hasOwn(req.body, 'prep_time_extension_min');
     const hasKitchenFireMode = Object.hasOwn(req.body, 'kitchenFireMode') || Object.hasOwn(req.body, 'kitchen_fire_mode');
+    const hasDayStartHour = Object.hasOwn(req.body, 'dayStartHour') || Object.hasOwn(req.body, 'day_start_hour');
     const hasRegion = Object.hasOwn(req.body, 'regionId') || Object.hasOwn(req.body, 'region_id');
     const regionValue = req.body.regionId ?? req.body.region_id;
     const regionId = hasRegion && regionValue !== null && regionValue !== '' ? parsePositiveInt(regionValue) : null;
@@ -8125,9 +8141,10 @@ exports.updateRestaurantLocation = async (req, res, next) => {
                 in_store_order_pacing_max_per_15_min = CASE WHEN $24 THEN $25 ELSE in_store_order_pacing_max_per_15_min END,
                 prep_time_extension_min = CASE WHEN $26 THEN $27 ELSE prep_time_extension_min END,
                 kitchen_fire_mode = CASE WHEN $28 THEN $29 ELSE kitchen_fire_mode END,
-                region_id = CASE WHEN $30 THEN $31 ELSE region_id END,
+                day_start_hour = CASE WHEN $30 THEN $31 ELSE day_start_hour END,
+                region_id = CASE WHEN $32 THEN $33 ELSE region_id END,
                 updated_at = NOW()
-          WHERE id = $32 AND restaurant_id = $33
+          WHERE id = $34 AND restaurant_id = $35
           RETURNING *`,
         [
           normalizeString(req.body.name, 160),
@@ -8159,6 +8176,8 @@ exports.updateRestaurantLocation = async (req, res, next) => {
           normalizeLocationInteger(req.body.prepTimeExtensionMin ?? req.body.prep_time_extension_min, 'prepTimeExtensionMin', { nullable: false, max: 240 }),
           hasKitchenFireMode,
           normalizeLocationKitchenFireMode(req.body.kitchenFireMode ?? req.body.kitchen_fire_mode),
+          hasDayStartHour,
+          hasDayStartHour ? normalizeLocationDayStartHour(req.body.dayStartHour ?? req.body.day_start_hour) : null,
           hasRegion,
           regionId,
           locationId,
@@ -8184,6 +8203,7 @@ exports.updateRestaurantLocation = async (req, res, next) => {
         in_store_order_pacing_max_per_15_min: result.before.in_store_order_pacing_max_per_15_min,
         prep_time_extension_min: result.before.prep_time_extension_min,
         kitchen_fire_mode: result.before.kitchen_fire_mode,
+        day_start_hour: result.before.day_start_hour,
         region_id: result.before.region_id,
       },
       after_state: {
@@ -8199,6 +8219,7 @@ exports.updateRestaurantLocation = async (req, res, next) => {
         in_store_order_pacing_max_per_15_min: result.updated.in_store_order_pacing_max_per_15_min,
         prep_time_extension_min: result.updated.prep_time_extension_min,
         kitchen_fire_mode: result.updated.kitchen_fire_mode,
+        day_start_hour: result.updated.day_start_hour,
         region_id: result.updated.region_id,
       },
     });

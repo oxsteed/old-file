@@ -133,23 +133,40 @@ function parseSalesRange(query, timezone) {
 
 // Per-order financials, mirroring the net-collected definition in
 // getManagerReports (restaurantAppFlowController) exactly. $1 restaurant,
-// $2 from local date, $3 to local date, $4 timezone.
+// $2 from local date, $3 to local date, $4 restaurant timezone.
+//
+// F-07: the business day is per store, not per restaurant. Each order's
+// business_date is its local calendar date in ITS store's timezone,
+// shifted back by the store's day_start_hour (a store closing at 2 AM
+// attributes late-night sales to the previous business day). Orders
+// without a store row inherit the restaurant timezone with a midnight
+// boundary, preserving the old behavior.
 function orderFinancialsCte(locationScope) {
   const locationPredicate = locationScope?.mode === 'assigned'
-    ? '\n       AND fo.location_id = ANY($5::bigint[])'
+    ? '\n       AND dated.location_id = ANY($5::bigint[])'
     : '';
   return `
   WITH order_financials AS (
-    SELECT fo.*,
+    SELECT dated.*,
            CASE
              WHEN COALESCE(pos.payment_count, 0) > 0
                THEN GREATEST(0, pos.collected_cents - pos.refunded_cents)
-             WHEN fo.payment_status = 'paid' THEN fo.total_cents
+             WHEN dated.payment_status = 'paid' THEN dated.total_cents
              ELSE 0
            END::int AS net_collected_cents,
            COALESCE(pos.collected_cents, 0)::int AS collected_cents,
            COALESCE(pos.refunded_cents, 0)::int AS refunded_cents
-      FROM food_orders fo
+      FROM (
+        SELECT fo.*,
+               COALESCE(NULLIF(loc.timezone, ''), $4) AS store_timezone,
+               COALESCE(loc.day_start_hour, 0) AS store_day_start_hour,
+               (((fo.created_at AT TIME ZONE COALESCE(NULLIF(loc.timezone, ''), $4))
+                 - (COALESCE(loc.day_start_hour, 0) * INTERVAL '1 hour'))::date) AS business_date
+          FROM food_orders fo
+          LEFT JOIN restaurant_locations loc
+            ON loc.id = fo.location_id AND loc.restaurant_id = fo.restaurant_id
+         WHERE fo.restaurant_id = $1
+      ) dated
       LEFT JOIN LATERAL (
         SELECT COUNT(*) FILTER (
                  WHERE payment_type <> 'refund' AND status IN ('recorded','captured')
@@ -161,11 +178,10 @@ function orderFinancialsCte(locationScope) {
                  WHERE payment_type = 'refund' AND status IN ('recorded','captured','refunded')
                ), 0)::int AS refunded_cents
           FROM restaurant_pos_payments p
-         WHERE p.food_order_id = fo.id
+         WHERE p.food_order_id = dated.id
       ) pos ON TRUE
-     WHERE fo.restaurant_id = $1
-       AND fo.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
-       AND fo.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)${locationPredicate}
+     WHERE dated.business_date >= $2::date
+       AND dated.business_date < ($3::date + 1)${locationPredicate}
   )`;
 }
 
@@ -176,7 +192,7 @@ function scopedParams(baseParams, locationScope) {
 }
 
 const SALES_COMPONENT_SUMS = `
-  COUNT(*) FILTER (WHERE status NOT IN ('cancelled', 'refunded'))::int AS orders,
+  COUNT(*) FILTER (WHERE o.status NOT IN ('cancelled', 'refunded'))::int AS orders,
   COUNT(*) FILTER (WHERE net_collected_cents > 0)::int AS paid_orders,
   COALESCE(SUM(net_collected_cents), 0)::int AS revenue_cents,
   COALESCE(SUM(subtotal_cents) FILTER (WHERE net_collected_cents > 0), 0)::int AS gross_cents,
@@ -249,9 +265,9 @@ async function computeSalesReport(restaurantId, restaurant, query) {
       `${cte}
        SELECT COALESCE(NULLIF(currency_code, ''), 'USD') AS currency,
               ${SALES_COMPONENT_SUMS},
-              COUNT(*) FILTER (WHERE status = 'cancelled')::int AS cancelled,
-              COUNT(*) FILTER (WHERE status = 'refunded')::int AS refunded
-         FROM order_financials
+              COUNT(*) FILTER (WHERE o.status = 'cancelled')::int AS cancelled,
+              COUNT(*) FILTER (WHERE o.status = 'refunded')::int AS refunded
+         FROM order_financials o
         GROUP BY 1
         ORDER BY revenue_cents DESC`,
       params
@@ -259,9 +275,9 @@ async function computeSalesReport(restaurantId, restaurant, query) {
     pool.query(
       `${cte}
        SELECT COALESCE(NULLIF(currency_code, ''), 'USD') AS currency,
-              to_char((created_at AT TIME ZONE $4)::date, 'YYYY-MM-DD') AS day,
+              to_char(business_date, 'YYYY-MM-DD') AS day,
               ${SALES_COMPONENT_SUMS}
-         FROM order_financials
+         FROM order_financials o
         GROUP BY 1, 2
         ORDER BY 2 ASC`,
       params
@@ -270,10 +286,10 @@ async function computeSalesReport(restaurantId, restaurant, query) {
       `${cte}
        SELECT COALESCE(NULLIF(currency_code, ''), 'USD') AS currency,
               fulfillment_type,
-              COUNT(*) FILTER (WHERE status NOT IN ('cancelled', 'refunded'))::int AS orders,
+              COUNT(*) FILTER (WHERE o.status NOT IN ('cancelled', 'refunded'))::int AS orders,
               COUNT(*) FILTER (WHERE net_collected_cents > 0)::int AS paid_orders,
               COALESCE(SUM(net_collected_cents), 0)::int AS revenue_cents
-         FROM order_financials
+         FROM order_financials o
         GROUP BY 1, 2
         ORDER BY revenue_cents DESC`,
       params
@@ -282,27 +298,29 @@ async function computeSalesReport(restaurantId, restaurant, query) {
       `${cte}
        SELECT COALESCE(NULLIF(currency_code, ''), 'USD') AS currency,
               order_source,
-              COUNT(*) FILTER (WHERE status NOT IN ('cancelled', 'refunded'))::int AS orders,
+              COUNT(*) FILTER (WHERE o.status NOT IN ('cancelled', 'refunded'))::int AS orders,
               COUNT(*) FILTER (WHERE net_collected_cents > 0)::int AS paid_orders,
               COALESCE(SUM(net_collected_cents), 0)::int AS revenue_cents
-         FROM order_financials
+         FROM order_financials o
         GROUP BY 1, 2
         ORDER BY revenue_cents DESC`,
       params
     ),
     pool.query(
-      `SELECT COALESCE(NULLIF(fo.currency_code, ''), 'USD') AS currency,
+      // F-07: the payment mix covers the same business-dated order set as
+      // the rest of the report (joining order_financials), not a
+      // restaurant-tz instant window, so per-store day boundaries agree.
+      `${cte}
+       SELECT COALESCE(NULLIF(fo.currency_code, ''), 'USD') AS currency,
               p.payment_type,
               COUNT(*)::int AS payments,
               COALESCE(SUM(p.amount_cents), 0)::int AS amount_cents
          FROM restaurant_pos_payments p
          JOIN food_orders fo ON fo.id = p.food_order_id
+         JOIN order_financials of2 ON of2.id = fo.id
         WHERE p.restaurant_id = $1
           AND p.payment_type <> 'refund'
           AND p.status IN ('recorded', 'captured')
-          AND fo.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
-          AND fo.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
-          ${restaurant.locationScope?.mode === 'assigned' ? 'AND fo.location_id = ANY($5::bigint[])' : ''}
         GROUP BY 1, 2
         ORDER BY amount_cents DESC`,
       params
@@ -463,7 +481,9 @@ async function computeDailyClose(restaurantId, restaurant, query = {}) {
       params
     ),
     pool.query(
-      `SELECT fo.location_id,
+      // F-07: same business-dated order set as the close totals above.
+      `${cte}
+       SELECT fo.location_id,
               COALESCE(l.name, 'Unassigned') AS location_name,
               COALESCE(NULLIF(fo.currency_code, ''), 'USD') AS currency,
               p.payment_type,
@@ -471,13 +491,11 @@ async function computeDailyClose(restaurantId, restaurant, query = {}) {
               COALESCE(SUM(p.amount_cents), 0)::int AS amount_cents
          FROM restaurant_pos_payments p
          JOIN food_orders fo ON fo.id = p.food_order_id
+         JOIN order_financials of2 ON of2.id = fo.id
          LEFT JOIN restaurant_locations l
            ON l.restaurant_id = fo.restaurant_id AND l.id = fo.location_id
         WHERE p.restaurant_id = $1
           AND p.status IN ('recorded', 'captured', 'refunded')
-          AND fo.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
-          AND fo.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
-          ${restaurant.locationScope?.mode === 'assigned' ? 'AND fo.location_id = ANY($5::bigint[])' : ''}
         GROUP BY fo.location_id, l.name, 3, p.payment_type
         ORDER BY location_name ASC, currency ASC, amount_cents DESC`,
       params
@@ -903,7 +921,10 @@ async function loadSalesJournalRows(restaurantId, restaurant, reqQuery) {
   const timezone = resolveReportTimezone(restaurant);
   const { fromDate, toDate } = parseSalesRange(reqQuery || {}, timezone);
   const { rows } = await pool.query(
-    `SELECT to_char((o.created_at AT TIME ZONE $4)::date, 'YYYY-MM-DD') AS business_date,
+    // F-07: business_date follows the same per-store definition as the
+    // sales fact CTE (store timezone + day-start hour).
+    `SELECT to_char((((o.created_at AT TIME ZONE COALESCE(NULLIF(l.timezone, ''), $4))
+                       - (COALESCE(l.day_start_hour, 0) * INTERVAL '1 hour'))::date), 'YYYY-MM-DD') AS business_date,
             o.id AS order_id, o.location_id, l.name AS location_name,
             COALESCE(NULLIF(o.currency_code, ''), 'USD') AS currency,
             o.order_source, o.fulfillment_type, o.status AS order_status,
@@ -920,8 +941,10 @@ async function loadSalesJournalRows(restaurantId, restaurant, reqQuery) {
          ON p.restaurant_id = o.restaurant_id AND p.food_order_id = o.id
         AND p.status IN ('recorded', 'captured', 'refunded')
       WHERE o.restaurant_id = $1
-        AND o.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
-        AND o.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
+        AND ((((o.created_at AT TIME ZONE COALESCE(NULLIF(l.timezone, ''), $4))
+               - (COALESCE(l.day_start_hour, 0) * INTERVAL '1 hour'))::date) >= $2::date
+        AND ((((o.created_at AT TIME ZONE COALESCE(NULLIF(l.timezone, ''), $4))
+               - (COALESCE(l.day_start_hour, 0) * INTERVAL '1 hour'))::date) < ($3::date + 1)
         ${restaurant.locationScope?.mode === 'assigned' ? 'AND o.location_id = ANY($5::bigint[])' : ''}
       ORDER BY o.created_at ASC, o.id ASC, p.created_at ASC NULLS FIRST, p.id ASC`,
     scopedParams([restaurantId, fromDate, toDate, timezone], restaurant.locationScope)
