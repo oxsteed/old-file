@@ -43,7 +43,7 @@ const {
 } = require('../services/oxsteedCreditService');
 const { finalizeCreditSpendInTransaction } = require('../services/creditSpendAdapter');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
-const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
+const { enqueueKitchenPrinterJobs, enqueueCourseChitJobs } = require('../services/restaurantKitchenPrinterService');
 const { nextQueueNumber } = require('../services/restaurantQueueCounter');
 const restaurantLocationService = require('../services/restaurantLocationService');
 const { getLocationScope } = require('../services/restaurantLocationAccessService');
@@ -86,6 +86,13 @@ const PAYMENT_STATUS = new Set(['unpaid', 'requires_payment', 'paid', 'failed', 
 const KITCHEN_ITEM_STATUS = new Set(['queued', 'preparing', 'ready', 'held', 'bumped', 'delayed', 'problem', 'cancelled']);
 const KITCHEN_ACTIONS = new Set(['start', 'prepare', 'ready', 'bump', 'recall', 'hold', 'delay', 'problem', 'cancel']);
 const KITCHEN_ORDER_ACTIONS = new Set(['acknowledge', 'start', 'ready_for_check', 'reopen', 'delay']);
+// Course-level coursing controls: hold parks every actionable item of a course
+// (the line stops on it), fire releases the hold so the course can be started.
+const KITCHEN_COURSE_ACTIONS = new Set(['hold', 'fire']);
+const KITCHEN_COURSE_ACTION_STATUS = {
+  hold: { from: new Set(['queued', 'preparing', 'delayed', 'problem']), to: 'held' },
+  fire: { from: new Set(['held']), to: 'queued' },
+};
 const KITCHEN_ACTION_FROM = {
   start: new Set(['queued', 'held', 'delayed', 'problem']),
   prepare: new Set(['queued', 'held', 'delayed', 'problem']),
@@ -4715,7 +4722,24 @@ exports.splitPosOrder = async (req, res, next) => {
       throw new AppError('Validation failed', 400, 'validation_failed', { evenSplitCount: 'Must be between 2 and 10' });
     }
     const automaticSplit = Boolean(splitAmountCents || evenSplitCount);
-    if ((!splitRequests.length && !automaticSplit) || splitRequests.some((entry) => !entry.id || (rawSplitItems && entry.quantity === null))) {
+    // Seat-level split: move every line assigned to the requested seat(s) to
+    // the new ticket as whole lines. Mutually exclusive with item selection
+    // and automatic (amount/even) splits.
+    const seatNumbersInput = req.body.seatNumbers ?? req.body.seat_numbers
+      ?? req.body.seatNumber ?? req.body.seat_number;
+    let seatNumbers = null;
+    if (seatNumbersInput !== undefined && seatNumbersInput !== null && seatNumbersInput !== '') {
+      const raw = Array.isArray(seatNumbersInput) ? seatNumbersInput : [seatNumbersInput];
+      seatNumbers = [...new Set(raw.map((seat) => parsePositiveInt(seat)))];
+      if (!seatNumbers.length || seatNumbers.some((seat) => !seat)) {
+        throw new AppError('Validation failed', 400, 'validation_failed', { seatNumbers: 'Each seat must be a positive integer' });
+      }
+    }
+    if (seatNumbers && (rawSplitItems || itemIdsInput || automaticSplit)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { seatNumbers: 'Choose a seat split, an item selection, or an automatic split — not more than one' });
+    }
+    const seatSplit = Boolean(seatNumbers);
+    if ((!splitRequests.length && !automaticSplit && !seatSplit) || splitRequests.some((entry) => !entry.id || (rawSplitItems && entry.quantity === null))) {
       throw new AppError('Validation failed', 400, 'validation_failed', { orderItemIds: 'Each split item must include a valid order item and positive quantity' });
     }
     let itemIds = splitRequests.map((entry) => entry.id);
@@ -4759,6 +4783,27 @@ exports.splitPosOrder = async (req, res, next) => {
       }
       if (!items.length) {
         throw new AppError('Validation failed', 400, 'validation_failed', { items: 'This ticket has no order lines to split' });
+      }
+      if (seatSplit) {
+        const seatsOnTicket = [...new Set(
+          items.map((item) => Number(item.seat_number)).filter((seat) => Number.isInteger(seat) && seat > 0)
+        )].sort((a, b) => a - b);
+        if (!seatsOnTicket.length) {
+          throw new AppError('This ticket has no seat assignments; assign seats before splitting by seat', 409, 'seat_split_unavailable');
+        }
+        const unknownSeats = seatNumbers.filter((seat) => !seatsOnTicket.includes(seat));
+        if (unknownSeats.length) {
+          throw new AppError('Validation failed', 400, 'validation_failed', {
+            seatNumbers: `Seat${unknownSeats.length > 1 ? 's' : ''} ${unknownSeats.join(', ')} ${unknownSeats.length > 1 ? 'have' : 'has'} no items on this ticket`,
+            seatsOnTicket,
+          });
+        }
+        // Seat splits move whole lines: one guest's check is atomic.
+        splitRequests = items
+          .filter((item) => seatNumbers.includes(Number(item.seat_number)))
+          .map((item) => ({ id: Number(item.id), quantity: null }));
+        itemIds = splitRequests.map((entry) => entry.id);
+        items = items.filter((item) => itemIds.includes(Number(item.id)));
       }
       if (!splitRequests.length && automaticSplit) {
         const targetCents = splitAmountCents || Math.floor(Number(source.subtotal_cents || 0) / evenSplitCount);
@@ -4837,7 +4882,7 @@ exports.splitPosOrder = async (req, res, next) => {
           queueNumber,
           source.promised_at,
           normalizeString(req.body.notes, 1000) || source.notes,
-          JSON.stringify({ ...(source.metadata || {}), splitFromOrderId: source.id }),
+          JSON.stringify({ ...(source.metadata || {}), splitFromOrderId: source.id, ...(seatSplit ? { splitSeats: seatNumbers } : {}) }),
           source.id,
           // F-02 phase 1: a split child stays in the source ticket's store.
           source.location_id || null,
@@ -7556,6 +7601,180 @@ exports.performKitchenItemAction = async (req, res, next) => {
       return { item, order, event, replayed: false };
     });
     broadcastRestaurant(restaurant, 'food:kitchen:item:action', {
+      ...result,
+      restaurantId,
+      cursor: Number(result.event.id),
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Course-level hold/fire. One transaction moves every actionable item of the
+// course and records a single course_hold/course_fire kitchen event (location
+// resolved by the operational-location trigger from the order). Firing a
+// course enqueues a FIRE chit per station so the line knows to start it; a
+// hold enqueues a matching HOLD chit. Fail closed: nothing prints unless the
+// status moves committed inside the same transaction.
+exports.performKitchenCourseAction = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const orderId = parsePositiveInt(req.params.orderId || req.body.orderId || req.body.order_id);
+    const courseNumber = parsePositiveInt(req.params.courseNumber || req.body.courseNumber || req.body.course_number);
+    const restaurant = await screenKitchenContext(req, restaurantId);
+    const action = normalizeString(req.body.action, 32);
+    if (!KITCHEN_COURSE_ACTIONS.has(action)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { action: 'Unsupported course action: use hold or fire' });
+    }
+    if (!courseNumber) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { courseNumber: 'Course number is required' });
+    }
+    const { from: allowedFrom, to: toStatus } = KITCHEN_COURSE_ACTION_STATUS[action];
+    const reason = normalizeString(req.body.reason, 1000);
+    const idempotencyKey = normalizeString(
+      req.get('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key,
+      160
+    );
+
+    const result = await withTransaction(pool, async (client) => {
+      if (idempotencyKey) {
+        await client.query(
+          `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
+          [`kitchen-course:${restaurantId}:${orderId}:${courseNumber}:${action}:${idempotencyKey}`]
+        );
+        const { rows: [existingEvent] } = await client.query(
+          `SELECT * FROM restaurant_kitchen_events
+            WHERE restaurant_id = $1 AND idempotency_key = $2`,
+          [restaurantId, idempotencyKey]
+        );
+        if (existingEvent) {
+          const { rows: [replayedOrder] } = await client.query(
+            `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
+            [existingEvent.food_order_id, restaurantId]
+          );
+          if (restaurant.locationScope?.mode === 'assigned'
+            && !restaurant.locationScope.location_ids.includes(Number(replayedOrder?.location_id))) {
+            throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+          }
+          const { rows: items } = await client.query(
+            `SELECT * FROM food_order_items
+              WHERE order_id = $1 AND COALESCE(course_number, 1) = $2
+              ORDER BY id`,
+            [existingEvent.food_order_id, Number(existingEvent.metadata?.courseNumber || courseNumber)]
+          );
+          return { items, order: replayedOrder, event: existingEvent, replayed: true, courseNumber, action };
+        }
+      }
+      const { rows: [order] } = await client.query(
+        `SELECT * FROM food_orders
+          WHERE id = $1 AND restaurant_id = $2
+          FOR UPDATE`,
+        [orderId, restaurantId]
+      );
+      if (!order) throw new AppError('Order not found', 404, 'order_not_found');
+      if (restaurant.locationScope?.mode === 'assigned'
+        && !restaurant.locationScope.location_ids.includes(Number(order.location_id))) {
+        throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+      }
+      screenRevision(req, {
+        screen_revision: order.screen_revision,
+        location_id: order.location_id,
+        metadata: order.metadata,
+        payment_status: order.payment_status,
+      });
+      if (['completed', 'cancelled', 'refunded'].includes(order.status)) {
+        throw new AppError('Kitchen order is terminal', 409, 'kitchen_order_terminal');
+      }
+      const { rows: items } = await client.query(
+        `SELECT * FROM food_order_items
+          WHERE order_id = $1 AND COALESCE(course_number, 1) = $2
+          ORDER BY id
+          FOR UPDATE`,
+        [orderId, courseNumber]
+      );
+      if (!items.length) {
+        throw new AppError('Course not found on this ticket', 404, 'kitchen_course_not_found', { courseNumber });
+      }
+      // Station-scoped KDS devices may only move their own station's items;
+      // expeditor devices (and staff) move the whole course.
+      const deviceStation = req.screenDevice?.config?.stationLabel || null;
+      const stationScoped = Boolean(deviceStation) && req.screenDevice?.config?.screenRole !== 'expeditor';
+      const eligible = [];
+      const skipped = [];
+      for (const item of items) {
+        if (stationScoped && item.station_label !== deviceStation) {
+          skipped.push({ itemId: Number(item.id), reason: 'station_mismatch' });
+          continue;
+        }
+        if (!allowedFrom.has(item.kitchen_status)) {
+          skipped.push({ itemId: Number(item.id), reason: `status_${item.kitchen_status || 'unknown'}` });
+          continue;
+        }
+        eligible.push(item);
+      }
+      if (!eligible.length) {
+        throw new AppError(
+          `No ${action === 'hold' ? 'holdable' : 'fireable'} items in course ${courseNumber}`,
+          409,
+          'course_action_not_allowed',
+          {
+            courseNumber,
+            action,
+            itemStates: items.map((item) => ({ itemId: Number(item.id), kitchenStatus: item.kitchen_status })),
+          }
+        );
+      }
+      const transitions = eligible.map((item) => ({
+        itemId: Number(item.id),
+        from: item.kitchen_status,
+        to: toStatus,
+      }));
+      await client.query(
+        `UPDATE food_order_items
+            SET kitchen_status = $1::varchar, updated_at = NOW()
+          WHERE id = ANY($2::bigint[])`,
+        [toStatus, eligible.map((item) => item.id)]
+      );
+      const updatedOrder = await syncKitchenOrderStatus(client, restaurantId, orderId, 'preparing');
+      const { rows: [event] } = await client.query(
+        `INSERT INTO restaurant_kitchen_events
+           (restaurant_id, food_order_id, food_order_item_id, event_type, from_status, to_status,
+            station_label, reason, metadata, idempotency_key, created_by)
+         VALUES ($1,$2,NULL,$3,NULL,$4,$5,$6,$7,$8,$9)
+         RETURNING *`,
+        [
+          restaurantId,
+          orderId,
+          `course_${action}`,
+          toStatus,
+          stationScoped ? deviceStation : null,
+          reason,
+          JSON.stringify({
+            action,
+            courseNumber,
+            itemIds: eligible.map((item) => Number(item.id)),
+            transitions,
+            skipped,
+          }),
+          idempotencyKey || null,
+          req.user?.id || null,
+        ]
+      );
+      const movedItems = eligible.map((item) => ({ ...item, kitchen_status: toStatus }));
+      const printerJobs = await enqueueCourseChitJobs(client, {
+        restaurantId,
+        orderId,
+        courseNumber,
+        action,
+        eventId: Number(event.id),
+        items: movedItems,
+        order: updatedOrder,
+        createdBy: req.user?.id || null,
+      });
+      return { items: movedItems, order: updatedOrder, event, replayed: false, courseNumber, action, printerJobs, skipped };
+    });
+    broadcastRestaurant(restaurant, 'food:kitchen:course:action', {
       ...result,
       restaurantId,
       cursor: Number(result.event.id),

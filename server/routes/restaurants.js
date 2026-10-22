@@ -114,6 +114,7 @@ router.get('/:restaurantId/kitchen/feed', requireKitchenDeviceOrStaff, scopeExem
 router.post('/:restaurantId/kitchen/orders/:orderId/ack', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.ackKitchenTicket);
 router.post('/:restaurantId/kitchen/orders/:orderId/action', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.performKitchenOrderAction);
 router.post('/:restaurantId/kitchen/items/:orderItemId/action', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.performKitchenItemAction);
+router.post('/:restaurantId/kitchen/orders/:orderId/courses/:courseNumber/action', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.performKitchenCourseAction);
 
 // All routes require a signed-in user; the controller verifies the user belongs
 // to the restaurant (and that nested rows belong to it) on every call.

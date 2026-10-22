@@ -5,11 +5,15 @@ const service = require('../services/restaurantLoyaltyCampaignService');
 describe('restaurant loyalty campaign service', () => {
   test('normalizes approval-gated campaign inputs and requires email subjects', () => {
     expect(service.normalizeCampaignInput({ name: 'Weekend', channel: 'in_app', body: 'Come back soon' }))
-      .toEqual({ name: 'Weekend', channel: 'in_app', subject: null, body: 'Come back soon' });
+      .toEqual({ name: 'Weekend', channel: 'in_app', subject: null, body: 'Come back soon', locationIds: null });
+    expect(service.normalizeCampaignInput({ name: 'Weekend', channel: 'in_app', body: 'Come back soon', locationIds: [3, 1, 3] }).locationIds)
+      .toEqual([1, 3]);
     expect(() => service.normalizeCampaignInput({ name: 'Email', channel: 'email', body: 'Body' }))
       .toThrow(/subject/i);
     expect(() => service.normalizeCampaignInput({ name: 'Bad', channel: 'sms', body: 'Body' }))
       .toThrow(/channel/i);
+    expect(() => service.normalizeCampaignInput({ name: 'Bad', channel: 'in_app', body: 'Body', locationIds: 'nope' }))
+      .toThrow(/list/i);
   });
 
   test('creates only against an active restaurant segment', async () => {

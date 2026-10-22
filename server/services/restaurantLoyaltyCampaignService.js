@@ -24,7 +24,46 @@ function normalizeCampaignInput(input = {}) {
   const body = normalizeText(input.body, 'body', 4000);
   const subject = channel === 'email' ? normalizeText(input.subject, 'subject', 180) : normalizeText(input.subject, 'subject', 180, { required: false });
   const name = normalizeText(input.name, 'name', 120);
-  return { name, channel, subject, body };
+  const locationIds = normalizeLocationIds(input.locationIds ?? input.location_ids);
+  return { name, channel, subject, body, locationIds };
+}
+
+// Per-store campaign targeting: a subset of the restaurant's store ids, or
+// null for the legacy all-stores audience.
+function normalizeLocationIds(value) {
+  if (value === undefined || value === null) return null;
+  if (!Array.isArray(value)) {
+    throw new AppError('Campaign store targeting must be a list', 400, 'validation_failed', { locationIds: 'Array required' });
+  }
+  const ids = [...new Set(value.map((entry) => {
+    const id = Number.parseInt(entry, 10);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      throw new AppError('Campaign store ids must be positive integers', 400, 'validation_failed', { locationIds: 'Positive integers required' });
+    }
+    return id;
+  }))].sort((a, b) => a - b);
+  if (ids.length > 200) {
+    throw new AppError('A campaign targets at most 200 stores', 400, 'validation_failed', { locationIds: 'Max 200 stores' });
+  }
+  return ids;
+}
+
+// Fail closed: every targeted store must belong to the campaign's restaurant.
+// The migration's trigger re-checks this at the database boundary.
+async function validateCampaignStores(client, restaurantId, locationIds) {
+  if (!locationIds) return null;
+  const { rows } = await client.query(
+    `SELECT id FROM restaurant_locations WHERE restaurant_id = $1 AND id = ANY($2::bigint[])`,
+    [restaurantId, locationIds]
+  );
+  const found = new Set(rows.map((row) => Number(row.id)));
+  const missing = locationIds.filter((id) => !found.has(id));
+  if (missing.length) {
+    throw new AppError('Campaign targets stores outside this restaurant', 400, 'validation_failed', {
+      locationIds: `Unknown store ids: ${missing.join(', ')}`,
+    });
+  }
+  return locationIds;
 }
 
 function shape(row, counts = null) {
@@ -32,6 +71,7 @@ function shape(row, counts = null) {
     id: Number(row.id),
     restaurantId: Number(row.restaurant_id),
     segmentId: Number(row.segment_id),
+    locationIds: Array.isArray(row.location_ids) ? row.location_ids.map(Number) : null,
     name: row.name,
     channel: row.channel,
     subject: row.subject || null,
@@ -55,12 +95,13 @@ async function createCampaign(client, { restaurantId, segmentId, actorUserId, in
     [segmentId, restaurantId]
   );
   if (!segment) throw new AppError('Active loyalty segment not found', 404, 'loyalty_segment_not_found');
+  const locationIds = await validateCampaignStores(client, restaurantId, normalized.locationIds);
   const { rows: [row] } = await client.query(
     `INSERT INTO restaurant_loyalty_campaigns
-       (restaurant_id, segment_id, name, channel, subject, body, created_by, updated_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$7)
+       (restaurant_id, segment_id, name, channel, subject, body, location_ids, created_by, updated_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8)
      RETURNING *`,
-    [restaurantId, segmentId, normalized.name, normalized.channel, normalized.subject, normalized.body, actorUserId]
+    [restaurantId, segmentId, normalized.name, normalized.channel, normalized.subject, normalized.body, locationIds, actorUserId]
   );
   return shape(row);
 }
@@ -89,18 +130,48 @@ async function queueCampaign(client, { restaurantId, campaignId, actorUserId }) 
   if (!campaign) throw new AppError('Loyalty campaign not found', 404, 'loyalty_campaign_not_found');
   if (campaign.status !== 'approved') throw new AppError('Campaign must be approved before queueing', 409, 'loyalty_campaign_not_approved');
   const criteria = campaign.criteria || {};
+  // Per-store targeting: campaign.location_ids narrows the audience to
+  // customers with paid orders at the targeted stores. Segment-level store
+  // criteria (location_id / location_ids) still apply on top.
+  const campaignStores = Array.isArray(campaign.location_ids) && campaign.location_ids.length
+    ? campaign.location_ids.map(Number)
+    : null;
+  const segmentStores = Array.isArray(criteria.location_ids) && criteria.location_ids.length
+    ? criteria.location_ids.map(Number)
+    : (criteria.location_id != null ? [Number(criteria.location_id)] : null);
+  const effectiveStores = campaignStores && segmentStores
+    ? campaignStores.filter((id) => segmentStores.includes(id))
+    : (campaignStores || segmentStores);
   const params = [campaignId, restaurantId];
   const conditions = ['fla.restaurant_id = $2'];
   if (criteria.min_lifetime_points != null) { params.push(Number(criteria.min_lifetime_points)); conditions.push(`fla.lifetime_points >= $${params.length}`); }
   if (criteria.min_orders != null) { params.push(Number(criteria.min_orders)); conditions.push(`(SELECT COUNT(*) FROM food_orders fo WHERE fo.restaurant_id = fla.restaurant_id AND fo.customer_id = fla.customer_id AND fo.payment_status = 'paid' AND fo.status NOT IN ('cancelled','refunded')) >= $${params.length}`); }
   if (criteria.days_since_last_order != null) { params.push(Number(criteria.days_since_last_order)); conditions.push(`(NOT EXISTS (SELECT 1 FROM food_orders fo WHERE fo.restaurant_id = fla.restaurant_id AND fo.customer_id = fla.customer_id AND fo.payment_status = 'paid' AND fo.status NOT IN ('cancelled','refunded') AND fo.created_at > NOW() - ($${params.length}::int * INTERVAL '1 day')))`); }
-  if (criteria.location_id != null) { params.push(Number(criteria.location_id)); conditions.push(`EXISTS (SELECT 1 FROM food_orders fo WHERE fo.restaurant_id = fla.restaurant_id AND fo.customer_id = fla.customer_id AND fo.location_id = $${params.length})`); }
+  if (effectiveStores) {
+    params.push(effectiveStores);
+    conditions.push(`EXISTS (SELECT 1 FROM food_orders fo WHERE fo.restaurant_id = fla.restaurant_id AND fo.customer_id = fla.customer_id AND fo.location_id = ANY($${params.length}::bigint[]) AND fo.payment_status = 'paid' AND fo.status NOT IN ('cancelled','refunded'))`);
+  }
+  // Attribute each delivery to a store for store-scoped reporting: the
+  // targeted store of the customer's most recent paid order (falling back to
+  // their most recent paid store when nothing is targeted, or NULL when they
+  // have no paid orders, e.g. points-only accounts).
+  const attributionScope = effectiveStores ? `AND fo.location_id = ANY($${params.length}::bigint[])` : '';
   const emailConsent = campaign.channel === 'email'
     ? `AND COALESCE(np.marketing_emails, TRUE) = TRUE AND COALESCE(np.email_notifications, TRUE) = TRUE`
     : '';
   const inserted = await client.query(
-    `INSERT INTO restaurant_loyalty_campaign_deliveries (campaign_id, customer_id, channel)
-     SELECT $1, fla.customer_id, $${params.length + 1}
+    `INSERT INTO restaurant_loyalty_campaign_deliveries (campaign_id, customer_id, channel, location_id)
+     SELECT $1, fla.customer_id, $${params.length + 1}, (
+       SELECT fo.location_id
+         FROM food_orders fo
+        WHERE fo.restaurant_id = fla.restaurant_id
+          AND fo.customer_id = fla.customer_id
+          AND fo.payment_status = 'paid'
+          AND fo.status NOT IN ('cancelled','refunded')
+          ${attributionScope}
+        ORDER BY fo.created_at DESC, fo.id DESC
+        LIMIT 1
+     )
        FROM food_loyalty_accounts fla
        JOIN users u ON u.id = fla.customer_id
        LEFT JOIN notification_preferences np ON np.user_id = u.id
@@ -183,4 +254,4 @@ async function deliverBatch({ limit = 25 } = {}) {
   return { claimed: rows.length, sent };
 }
 
-module.exports = { normalizeCampaignInput, shape, createCampaign, approveCampaign, queueCampaign, deliverBatch };
+module.exports = { normalizeCampaignInput, normalizeLocationIds, shape, createCampaign, approveCampaign, queueCampaign, deliverBatch };
