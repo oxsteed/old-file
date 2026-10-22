@@ -90,7 +90,7 @@ describe('restaurant training backend', () => {
       .mockResolvedValueOnce({ rows: [] });
     const notFound = await request(app())
       .post(`/api/restaurants/${RESTAURANT_ID}/training/modules/3/assign`)
-      .send({ userId: 'nope' });
+      .send({ userId: STAFF_ID });
     expect(notFound.status).toBe(404);
 
     mockQuery

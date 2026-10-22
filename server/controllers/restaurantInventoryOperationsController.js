@@ -498,6 +498,8 @@ exports.listAreas = async (req, res, next) => {
     const restaurantId = positiveInt(req.params.restaurantId);
     const restaurant = await restaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const scope = await getTransferScope(restaurant, req.user.id);
+    const assigned = scope?.mode === 'assigned';
     const { rows } = await pool.query(
       `SELECT a.*, COUNT(i.id)::int AS item_count,
               COUNT(i.id) FILTER (WHERE i.quantity <= i.reorder_point AND i.reorder_point > 0)::int AS critical_count,
@@ -507,12 +509,12 @@ exports.listAreas = async (req, res, next) => {
          LEFT JOIN restaurant_inventory_items i
            ON i.storage_area_id = a.id
           AND i.restaurant_id = a.restaurant_id
-          AND i.is_active = TRUE
+          AND i.is_active = TRUE${assigned ? ' AND i.location_id = ANY($2::bigint[])' : ''}
          LEFT JOIN users u ON u.id = a.responsible_user_id
         WHERE a.restaurant_id = $1 AND a.is_active = TRUE
         GROUP BY a.id, u.first_name, u.last_name
         ORDER BY a.name`,
-      [restaurantId]
+      [restaurantId, ...(assigned ? [scope.location_ids] : [])]
     );
     res.json({ areas: rows });
   } catch (error) { next(error); }
@@ -552,6 +554,8 @@ exports.listSuppliers = async (req, res, next) => {
     const restaurantId = positiveInt(req.params.restaurantId);
     const restaurant = await restaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const scope = await getTransferScope(restaurant, req.user.id);
+    const assigned = scope?.mode === 'assigned';
     const { rows } = await pool.query(
       `SELECT s.*, COUNT(DISTINCT i.id)::int AS item_count,
               COUNT(DISTINCT si.id) FILTER (WHERE si.status IN ('open','monitoring','in_progress'))::int AS open_issue_count
@@ -559,12 +563,12 @@ exports.listSuppliers = async (req, res, next) => {
          LEFT JOIN restaurant_inventory_items i
            ON i.supplier_id = s.id
           AND i.restaurant_id = s.restaurant_id
-          AND i.is_active = TRUE
+          AND i.is_active = TRUE${assigned ? ' AND i.location_id = ANY($2::bigint[])' : ''}
          LEFT JOIN restaurant_inventory_supplier_issues si
-           ON si.restaurant_id = s.restaurant_id AND LOWER(si.supplier_name) = LOWER(s.name)
+           ON si.restaurant_id = s.restaurant_id AND LOWER(si.supplier_name) = LOWER(s.name)${assigned ? ' AND si.location_id = ANY($2::bigint[])' : ''}
         WHERE s.restaurant_id = $1 AND s.is_active = TRUE
         GROUP BY s.id ORDER BY s.name`,
-      [restaurantId]
+      [restaurantId, ...(assigned ? [scope.location_ids] : [])]
     );
     res.json({ suppliers: rows });
   } catch (error) { next(error); }

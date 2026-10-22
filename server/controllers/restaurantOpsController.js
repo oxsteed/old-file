@@ -13,6 +13,7 @@
 // The food_* ordering tables and /api/food are untouched.
 
 const pool = require('../db');
+const { attachScope, resolveStore, assertStore, requireBrand } = require('../services/restaurantReviewScope');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
 const permissionsService = require('../services/permissionsService');
@@ -20,8 +21,7 @@ const { withTransaction } = require('../utils/transaction');
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 function parsePositiveInt(value) {
-  const n = Number.parseInt(value, 10);
-  return Number.isInteger(n) && n > 0 ? n : null;
+  return require('../utils/strictInteger').strictInteger(value);
 }
 
 function normalizeString(value, max = 255) {
@@ -64,6 +64,7 @@ async function assertManage(restaurant, userId) {
   if (!allowed) {
     throw new AppError('You do not have permission to manage this restaurant', 403, 'forbidden');
   }
+  requireBrand(await attachScope(restaurant, userId));
 }
 
 // ── Checklists (templates) ─────────────────────────────────────────────────────
@@ -111,7 +112,7 @@ exports.createChecklist = async (req, res, next) => {
     const type = CHECKLIST_TYPES.includes(req.body.checklistType) ? req.body.checklistType : 'opening';
     const tasksInput = Array.isArray(req.body.tasks) ? req.body.tasks.slice(0, 50) : [];
 
-    const created = await withTransaction(async (client) => {
+    const created = await withTransaction(pool, async (client) => {
       const { rows: [checklist] } = await client.query(
         `INSERT INTO restaurant_checklists
            (restaurant_id, name, checklist_type, description, sort_order, created_by)
@@ -283,12 +284,13 @@ exports.deleteTask = async (req, res, next) => {
 };
 
 // ── Checklist runs (execution) ─────────────────────────────────────────────────
-async function loadRunWithItems(runId, restaurantId) {
+async function loadRunWithItems(runId, restaurantId, restaurant = null) {
   const { rows: [run] } = await pool.query(
     `SELECT * FROM restaurant_checklist_runs WHERE id = $1 AND restaurant_id = $2`,
     [runId, restaurantId]
   );
   if (!run) throw new AppError('Run not found', 404, 'run_not_found');
+  if (restaurant) assertStore(restaurant, run.location_id);
   const { rows: items } = await pool.query(
     `SELECT * FROM restaurant_checklist_run_items WHERE run_id = $1 ORDER BY sort_order ASC, id ASC`,
     [runId]
@@ -300,10 +302,11 @@ exports.startRun = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const checklistId = parsePositiveInt(req.params.checklistId);
-    await requireRestaurantAccess(req.user.id, restaurantId); // any active member may run
+    const restaurant = await attachScope(await requireRestaurantAccess(req.user.id, restaurantId), req.user.id); // any active member may run
     await assertChecklistInRestaurant(checklistId, restaurantId);
 
-    const run = await withTransaction(async (client) => {
+    const run = await withTransaction(pool, async (client) => {
+      const locationId = await resolveStore(restaurant, req.body?.locationId, client);
       const { rows: tasks } = await client.query(
         `SELECT * FROM restaurant_checklist_tasks
           WHERE checklist_id = $1 AND is_active = TRUE
@@ -312,10 +315,10 @@ exports.startRun = async (req, res, next) => {
       );
       const { rows: [created] } = await client.query(
         `INSERT INTO restaurant_checklist_runs
-           (checklist_id, restaurant_id, started_by, total_tasks)
-         VALUES ($1,$2,$3,$4)
+           (checklist_id, restaurant_id, started_by, total_tasks, location_id)
+         VALUES ($1,$2,$3,$4,$5)
          RETURNING *`,
-        [checklistId, restaurantId, req.user.id, tasks.length]
+        [checklistId, restaurantId, req.user.id, tasks.length, locationId]
       );
       let sort = 0;
       for (const tk of tasks) {
@@ -339,8 +342,8 @@ exports.getRun = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const runId = parsePositiveInt(req.params.runId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
-    res.json({ run: await loadRunWithItems(runId, restaurantId) });
+    const restaurant = await attachScope(await requireRestaurantAccess(req.user.id, restaurantId), req.user.id);
+    res.json({ run: await loadRunWithItems(runId, restaurantId, restaurant) });
   } catch (err) {
     next(err);
   }
@@ -351,15 +354,16 @@ exports.toggleRunItem = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const runId = parsePositiveInt(req.params.runId);
     const itemId = parsePositiveInt(req.params.itemId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await attachScope(await requireRestaurantAccess(req.user.id, restaurantId), req.user.id);
 
-    const run = await withTransaction(async (client) => {
+    const run = await withTransaction(pool, async (client) => {
       // Lock the run; confirm it belongs to this restaurant and is open.
       const { rows: [r] } = await client.query(
         `SELECT * FROM restaurant_checklist_runs WHERE id = $1 AND restaurant_id = $2 FOR UPDATE`,
         [runId, restaurantId]
       );
       if (!r) throw new AppError('Run not found', 404, 'run_not_found');
+      assertStore(restaurant, r.location_id);
       if (r.status !== 'in_progress') throw new AppError('Run is already closed', 409, 'run_closed');
 
       const isDone = asBool(req.body.isDone, true);
@@ -367,7 +371,7 @@ exports.toggleRunItem = async (req, res, next) => {
         `UPDATE restaurant_checklist_run_items
             SET is_done = $1,
                 note = COALESCE($2, note),
-                done_by = CASE WHEN $1 THEN $3 ELSE NULL END,
+                done_by = CASE WHEN $1 THEN $3::uuid ELSE NULL END,
                 done_at = CASE WHEN $1 THEN NOW() ELSE NULL END
           WHERE id = $4 AND run_id = $5
           RETURNING *`,
@@ -385,7 +389,7 @@ exports.toggleRunItem = async (req, res, next) => {
       );
       return updated;
     });
-    const full = await loadRunWithItems(run.id, restaurantId);
+    const full = await loadRunWithItems(run.id, restaurantId, restaurant);
     res.json({ run: full });
   } catch (err) {
     next(err);
@@ -396,9 +400,13 @@ exports.completeRun = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const runId = parsePositiveInt(req.params.runId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await attachScope(await requireRestaurantAccess(req.user.id, restaurantId), req.user.id);
 
-    const { rows: [run] } = await pool.query(
+    const run = await withTransaction(pool, async (client) => {
+      const { rows: [current] } = await client.query('SELECT * FROM restaurant_checklist_runs WHERE id=$1 AND restaurant_id=$2 FOR UPDATE', [runId,restaurantId]);
+      if (!current) throw new AppError('Run not found',404,'run_not_found');
+      assertStore(restaurant,current.location_id);
+      const { rows: [run] } = await client.query(
       `UPDATE restaurant_checklist_runs
           SET status = 'completed', completed_at = NOW(), completed_by = $1,
               notes = COALESCE($2, notes)
@@ -406,8 +414,10 @@ exports.completeRun = async (req, res, next) => {
         RETURNING *`,
       [req.user.id, normalizeString(req.body.notes, 2000), runId, restaurantId]
     );
-    if (!run) throw new AppError('Run not found or already closed', 404, 'run_not_found');
-    res.json({ run: await loadRunWithItems(run.id, restaurantId) });
+      if (!run) throw new AppError('Run not found or already closed', 404, 'run_not_found');
+      return run;
+    }, 'checklist_complete');
+    res.json({ run: await loadRunWithItems(run.id, restaurantId, restaurant) });
   } catch (err) {
     next(err);
   }
@@ -416,13 +426,14 @@ exports.completeRun = async (req, res, next) => {
 exports.listRuns = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await attachScope(await requireRestaurantAccess(req.user.id, restaurantId), req.user.id);
     const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 50, 1), 100);
     const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
     const checklistId = parsePositiveInt(req.query.checklistId);
 
     const params = [restaurantId];
     let where = 'r.restaurant_id = $1';
+    if (restaurant.locationScope.mode === 'assigned') { params.push(restaurant.locationScope.location_ids); where += ` AND r.location_id=ANY($${params.length}::bigint[])`; }
     if (checklistId) { params.push(checklistId); where += ` AND r.checklist_id = $${params.length}`; }
     params.push(limit, offset);
 

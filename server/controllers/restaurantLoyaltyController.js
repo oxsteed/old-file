@@ -2,20 +2,22 @@
 
 // Restaurant-scoped CRM segment definitions. This surface returns aggregate
 // audience counts only: it never exposes customer IDs, names, or contact data.
-// Campaign delivery is intentionally not wired to this contract yet.
+// Delivery capability follows the explicit dispatch activation gate.
 const pool = require('../db');
+const { strictInteger } = require('../utils/strictInteger');
 const AppError = require('../utils/appError');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
 const permissions = require('../services/permissionsService');
 const { logBusinessAction } = require('../services/businessAuditLog');
 const { withTransaction } = require('../utils/transaction');
 const campaignService = require('../services/restaurantLoyaltyCampaignService');
+const { getLocationScope, assertLocationAccess } = require('../services/restaurantLocationAccessService');
 
 const MAX_NAME_LENGTH = 120;
 const MAX_SEGMENTS = 200;
 
 async function access(req) {
-  const restaurantId = Number.parseInt(req.params.restaurantId, 10);
+  const restaurantId = strictInteger(req.params.restaurantId);
   if (!Number.isSafeInteger(restaurantId) || restaurantId <= 0) {
     throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
   }
@@ -23,12 +25,38 @@ async function access(req) {
   if (!(await permissions.hasRestaurantPermission(restaurant, req.user.id, ['analytics.view_financial']))) {
     throw new AppError('You do not have permission to manage CRM segments', 403, 'forbidden');
   }
+  restaurant.locationScope = await getLocationScope(restaurant, req.user.id);
   return restaurant;
+}
+
+function requireBrandAccess(restaurant) {
+  if (restaurant.locationScope.mode === 'assigned') throw new AppError('Brand CRM management requires all-store access', 403, 'location_scope_forbidden');
+}
+function visibleCriteria(criteria, scope) {
+  if (scope.mode !== 'assigned') return true;
+  // Multi-store targeting (location_ids) or the legacy single location_id:
+  // every targeted store must sit inside the operator's assigned stores.
+  const stores = criteriaStores(criteria);
+  if (!stores || !stores.length) return false;
+  return stores.every((id) => scope.location_ids.includes(id)) && criteria.min_lifetime_points == null;
+}
+async function assertCriteriaAccess(restaurant, userId, criteria, db = pool) {
+  if (!visibleCriteria(criteria, restaurant.locationScope)) throw new AppError('CRM criteria exceed the assigned store scope', 403, 'location_scope_forbidden');
+  // Every targeted store (multi-store location_ids or legacy location_id)
+  // must exist under this restaurant and be inside the operator's access.
+  const stores = criteriaStores(criteria);
+  if (stores) {
+    for (const storeId of stores) {
+      const { rows } = await db.query('SELECT id FROM restaurant_locations WHERE restaurant_id=$1 AND id=$2', [restaurant.id, storeId]);
+      if (!rows.length) throw new AppError('Location not found', 404, 'location_not_found');
+      await assertLocationAccess(restaurant, userId, storeId, db);
+    }
+  }
 }
 
 function positiveInt(value, field, { max = 1000000000, allowZero = true } = {}) {
   if (value === undefined || value === null || value === '') return null;
-  const n = Number(value);
+  const n = strictInteger(value, { min: allowZero ? 0 : 1, max });
   if (!Number.isSafeInteger(n) || (allowZero ? n < 0 : n <= 0) || n > max) {
     throw new AppError('Invalid CRM segment criteria', 400, 'validation_failed', { [field]: 'Must be a bounded integer' });
   }
@@ -141,7 +169,8 @@ function audienceWhere(criteria, paramOffset = 1) {
   return { clauses, params };
 }
 
-async function audienceFor(restaurantId, criteria) {
+async function audienceFor(restaurantId, criteria, scope = { mode: 'all' }) {
+  if (!visibleCriteria(criteria, scope)) throw new AppError('CRM criteria exceed the assigned store scope', 403, 'location_scope_forbidden');
   const { clauses, params } = audienceWhere(criteria);
   const stores = criteriaStores(criteria);
   const queryParams = [restaurantId, ...params];
@@ -149,6 +178,8 @@ async function audienceFor(restaurantId, criteria) {
   // orders at one of the targeted stores.
   const locationPredicate = stores ? `
           BOOL_OR(fo.location_id = ANY($${queryParams.length}::bigint[]) AND fo.payment_status = 'paid' AND fo.status NOT IN ('cancelled','refunded')) AS has_location_order,` : '          FALSE AS has_location_order,';
+  const scoped = scope.mode === 'assigned';
+  if (scoped) queryParams.push(scope.location_ids);
   const { rows: [row] } = await pool.query(
     `WITH customer_rollup AS (
        SELECT fla.customer_id,
@@ -163,7 +194,7 @@ async function audienceFor(restaurantId, criteria) {
               COUNT(*) OVER ()::int AS total_customers
          FROM food_loyalty_accounts fla
          LEFT JOIN food_orders fo ON fo.restaurant_id = fla.restaurant_id AND fo.customer_id = fla.customer_id
-        WHERE fla.restaurant_id = $1
+        WHERE fla.restaurant_id = $1${scoped ? ` AND fo.location_id = ANY($${queryParams.length}::bigint[])` : ''}
         GROUP BY fla.customer_id, fla.lifetime_points
      )
      SELECT COALESCE(MAX(total_customers), 0)::int AS total_customers,
@@ -207,39 +238,55 @@ exports.listSegments = async (req, res, next) => {
     const { rows } = await pool.query(
       `SELECT id, restaurant_id, name, criteria, is_active, created_at, updated_at
          FROM restaurant_loyalty_segments
-        WHERE restaurant_id = $1
+        WHERE restaurant_id = $1${restaurant.locationScope.mode === 'assigned' ? ` AND (
+          criteria->>'location_id' = ANY($3::text[])
+          OR (
+            jsonb_typeof(criteria->'location_ids') = 'array'
+            AND jsonb_array_length(criteria->'location_ids') > 0
+            AND NOT EXISTS (
+              SELECT 1 FROM jsonb_array_elements_text(criteria->'location_ids') AS target(store_id)
+              WHERE target.store_id <> ALL($3::text[])
+            )
+          )
+        ) AND criteria->>'min_lifetime_points' IS NULL` : ''}
         ORDER BY is_active DESC, name ASC, id ASC
         LIMIT $2`,
-      [restaurant.id, MAX_SEGMENTS]
+      [restaurant.id, MAX_SEGMENTS, ...(restaurant.locationScope.mode === 'assigned' ? [restaurant.locationScope.location_ids.map(String)] : [])]
     );
-    const segments = await Promise.all(rows.map(async (row) => shape(row, await audienceFor(restaurant.id, row.criteria || {}))));
-    res.json({ segments, campaignDeliveryEnabled: false });
+    const segments = await Promise.all(rows.filter((row) => visibleCriteria(row.criteria || {}, restaurant.locationScope)).map(async (row) => shape(row, await audienceFor(restaurant.id, row.criteria || {}, restaurant.locationScope))));
+    res.json({ segments, campaignDeliveryEnabled: campaignService.deliveryEnabled() });
   } catch (err) { next(err); }
 };
 
 exports.createSegment = async (req, res, next) => {
   try {
     const restaurant = await access(req);
+    requireBrandAccess(restaurant);
     const name = normalizeName(req.body?.name);
     const criteria = normalizeCriteria(req.body?.criteria);
-    const { rows: [row] } = await pool.query(
-      `INSERT INTO restaurant_loyalty_segments (restaurant_id, name, criteria, created_by, updated_by)
-       VALUES ($1, $2, $3, $4, $4)
-       RETURNING id, restaurant_id, name, criteria, is_active, created_at, updated_at`,
-      [restaurant.id, name, JSON.stringify(criteria), req.user.id]
-    );
-    await logBusinessAction(req, {
-      business_id: restaurant.business_id,
-      actor_role: restaurant.effective_role,
-      action: 'restaurant.loyalty_segment.created',
-      target_type: 'restaurant_loyalty_segment',
-      target_id: row.id,
-      before_state: {},
-      after_state: row,
-      metadata: { campaign_delivery_enabled: false },
-      throwOnError: true,
-    });
-    res.status(201).json({ segment: shape(row, await audienceFor(restaurant.id, criteria)), campaignDeliveryEnabled: false });
+    await assertCriteriaAccess(restaurant, req.user.id, criteria);
+    const row = await withTransaction(pool, async (client) => {
+      const { rows: [row] } = await client.query(
+        `INSERT INTO restaurant_loyalty_segments (restaurant_id, name, criteria, created_by, updated_by)
+         VALUES ($1, $2, $3, $4, $4)
+         RETURNING id, restaurant_id, name, criteria, is_active, created_at, updated_at`,
+        [restaurant.id, name, JSON.stringify(criteria), req.user.id]
+      );
+      await logBusinessAction(req, {
+        client,
+        business_id: restaurant.business_id,
+        actor_role: restaurant.effective_role,
+        action: 'restaurant.loyalty_segment.created',
+        target_type: 'restaurant_loyalty_segment',
+        target_id: row.id,
+        before_state: {},
+        after_state: row,
+        metadata: { campaign_delivery_enabled: campaignService.deliveryEnabled() },
+        throwOnError: true,
+      });
+      return row;
+    }, 'restaurantLoyaltyController_createSegment');
+    res.status(201).json({ segment: shape(row, await audienceFor(restaurant.id, criteria, restaurant.locationScope)), campaignDeliveryEnabled: campaignService.deliveryEnabled() });
   } catch (err) {
     if (err?.code === '23505') return next(new AppError('That segment name already exists', 409, 'loyalty_segment_exists'));
     next(err);
@@ -249,33 +296,39 @@ exports.createSegment = async (req, res, next) => {
 exports.updateSegment = async (req, res, next) => {
   try {
     const restaurant = await access(req);
+    requireBrandAccess(restaurant);
     const id = positiveInt(req.params.segmentId, 'segmentId', { allowZero: false });
     if (!id) throw new AppError('Segment not found', 404, 'loyalty_segment_not_found');
-    const { rows: [before] } = await pool.query('SELECT * FROM restaurant_loyalty_segments WHERE id = $1 AND restaurant_id = $2', [id, restaurant.id]);
-    if (!before) throw new AppError('Segment not found', 404, 'loyalty_segment_not_found');
-    const name = req.body?.name === undefined ? before.name : normalizeName(req.body.name);
-    const criteria = req.body?.criteria === undefined ? (before.criteria || {}) : normalizeCriteria(req.body.criteria);
-    const isActive = req.body?.isActive === undefined && req.body?.is_active === undefined
-      ? Boolean(before.is_active) : normalizeActive(req.body.isActive ?? req.body.is_active);
-    const { rows: [row] } = await pool.query(
-      `UPDATE restaurant_loyalty_segments
-          SET name = $3, criteria = $4, is_active = $5, updated_by = $6, updated_at = NOW()
-        WHERE id = $1 AND restaurant_id = $2
-       RETURNING id, restaurant_id, name, criteria, is_active, created_at, updated_at`,
-      [id, restaurant.id, name, JSON.stringify(criteria), isActive, req.user.id]
-    );
-    await logBusinessAction(req, {
-      business_id: restaurant.business_id,
-      actor_role: restaurant.effective_role,
-      action: 'restaurant.loyalty_segment.updated',
-      target_type: 'restaurant_loyalty_segment',
-      target_id: id,
-      before_state: before,
-      after_state: row,
-      metadata: { campaign_delivery_enabled: false },
-      throwOnError: true,
-    });
-    res.json({ segment: shape(row, await audienceFor(restaurant.id, criteria)), campaignDeliveryEnabled: false });
+    const row = await withTransaction(pool, async (client) => {
+      const { rows: [before] } = await client.query('SELECT * FROM restaurant_loyalty_segments WHERE id = $1 AND restaurant_id = $2 FOR UPDATE', [id, restaurant.id]);
+      if (!before) throw new AppError('Segment not found', 404, 'loyalty_segment_not_found');
+      const name = req.body?.name === undefined ? before.name : normalizeName(req.body.name);
+      const criteria = req.body?.criteria === undefined ? (before.criteria || {}) : normalizeCriteria(req.body.criteria);
+      await assertCriteriaAccess(restaurant, req.user.id, criteria, client);
+      const isActive = req.body?.isActive === undefined && req.body?.is_active === undefined
+        ? Boolean(before.is_active) : normalizeActive(req.body.isActive ?? req.body.is_active);
+      const { rows: [row] } = await client.query(
+        `UPDATE restaurant_loyalty_segments
+            SET name = $3, criteria = $4, is_active = $5, updated_by = $6, updated_at = NOW()
+          WHERE id = $1 AND restaurant_id = $2
+         RETURNING id, restaurant_id, name, criteria, is_active, created_at, updated_at`,
+        [id, restaurant.id, name, JSON.stringify(criteria), isActive, req.user.id]
+      );
+      await logBusinessAction(req, {
+        client,
+        business_id: restaurant.business_id,
+        actor_role: restaurant.effective_role,
+        action: 'restaurant.loyalty_segment.updated',
+        target_type: 'restaurant_loyalty_segment',
+        target_id: id,
+        before_state: before,
+        after_state: row,
+        metadata: { campaign_delivery_enabled: campaignService.deliveryEnabled() },
+        throwOnError: true,
+      });
+      return row;
+    }, 'restaurantLoyaltyController_updateSegment');
+    res.json({ segment: shape(row, await audienceFor(restaurant.id, row.criteria || {}, restaurant.locationScope)), campaignDeliveryEnabled: campaignService.deliveryEnabled() });
   } catch (err) {
     if (err?.code === '23505') return next(new AppError('That segment name already exists', 409, 'loyalty_segment_exists'));
     next(err);
@@ -285,26 +338,31 @@ exports.updateSegment = async (req, res, next) => {
 exports.deleteSegment = async (req, res, next) => {
   try {
     const restaurant = await access(req);
+    requireBrandAccess(restaurant);
     const id = positiveInt(req.params.segmentId, 'segmentId', { allowZero: false });
     if (!id) throw new AppError('Segment not found', 404, 'loyalty_segment_not_found');
-    const { rows: [before] } = await pool.query(
-      'SELECT * FROM restaurant_loyalty_segments WHERE id = $1 AND restaurant_id = $2',
-      [id, restaurant.id]
-    );
-    if (!before) throw new AppError('Segment not found', 404, 'loyalty_segment_not_found');
-    const result = await pool.query('DELETE FROM restaurant_loyalty_segments WHERE id = $1 AND restaurant_id = $2', [id, restaurant.id]);
-    if (!result.rowCount) throw new AppError('Segment not found', 404, 'loyalty_segment_not_found');
-    await logBusinessAction(req, {
-      business_id: restaurant.business_id,
-      actor_role: restaurant.effective_role,
-      action: 'restaurant.loyalty_segment.deleted',
-      target_type: 'restaurant_loyalty_segment',
-      target_id: id,
-      before_state: before,
-      after_state: {},
-      metadata: {},
-      throwOnError: true,
-    });
+    const deleted = await withTransaction(pool, async (client) => {
+      const { rows: [before] } = await client.query(
+        'SELECT * FROM restaurant_loyalty_segments WHERE id = $1 AND restaurant_id = $2 FOR UPDATE',
+        [id, restaurant.id]
+      );
+      if (!before) throw new AppError('Segment not found', 404, 'loyalty_segment_not_found');
+      const result = await client.query('DELETE FROM restaurant_loyalty_segments WHERE id = $1 AND restaurant_id = $2 FOR UPDATE', [id, restaurant.id]);
+      if (!result.rowCount) throw new AppError('Segment not found', 404, 'loyalty_segment_not_found');
+      await logBusinessAction(req, {
+        client,
+        business_id: restaurant.business_id,
+        actor_role: restaurant.effective_role,
+        action: 'restaurant.loyalty_segment.deleted',
+        target_type: 'restaurant_loyalty_segment',
+        target_id: id,
+        before_state: before,
+        after_state: {},
+        metadata: {},
+        throwOnError: true,
+      });
+      return true;
+    }, 'restaurantLoyaltyController_deleteSegment');
     res.status(204).end();
   } catch (err) { next(err); }
 };
@@ -319,20 +377,28 @@ exports.previewSegment = async (req, res, next) => {
     // Optional per-store preview: ?locationId= scopes the audience to one
     // store, overriding any stored targeting for this preview only.
     const locationId = positiveInt(req.query.locationId ?? req.query.location_id, 'locationId', { allowZero: false });
+    if (locationId) {
+      const { rows: [storeRow] } = await pool.query(
+        'SELECT id FROM restaurant_locations WHERE restaurant_id = $1 AND id = $2',
+        [restaurant.id, locationId]
+      );
+      if (!storeRow) throw new AppError('Location not found', 404, 'location_not_found');
+      await assertLocationAccess(restaurant, req.user.id, locationId);
+    }
     const criteria = { ...(segment.criteria || {}) };
     if (locationId) {
       delete criteria.location_id;
       delete criteria.location_ids;
       criteria.location_ids = [locationId];
     }
-    const audience = await audienceFor(restaurant.id, criteria);
+    const audience = await audienceFor(restaurant.id, criteria, restaurant.locationScope);
     let byLocation = null;
     if (!locationId && !criteriaStores(criteria)) {
       const stores = await restaurantStores(restaurant.id);
       byLocation = [];
       for (const store of stores) {
-        const scoped = { ...criteria, location_ids: [store.id] };
-        const storeAudienceResult = await audienceFor(restaurant.id, scoped);
+        const storeCriteria = { ...criteria, location_ids: [store.id] };
+        const storeAudienceResult = await audienceFor(restaurant.id, storeCriteria, restaurant.locationScope);
         byLocation.push({
           locationId: store.id,
           locationName: store.name,
@@ -343,7 +409,7 @@ exports.previewSegment = async (req, res, next) => {
     }
     res.json({
       segment: shape(segment, { ...audience, ...(byLocation ? { byLocation } : {}) }),
-      campaignDeliveryEnabled: false,
+      campaignDeliveryEnabled: campaignService.deliveryEnabled(),
     });
   } catch (err) { next(err); }
 };
@@ -351,6 +417,7 @@ exports.previewSegment = async (req, res, next) => {
 exports.listCampaigns = async (req, res, next) => {
   try {
     const restaurant = await access(req);
+    requireBrandAccess(restaurant);
     const { rows } = await pool.query(
       `SELECT c.*,
               COUNT(d.id)::int AS delivery_count,
@@ -428,23 +495,28 @@ exports.listCampaigns = async (req, res, next) => {
       }
       campaigns.push({ ...campaign, storeBreakdown });
     }
-    res.json({ campaigns, campaignDeliveryEnabled: true });
+    res.json({ campaigns, campaignDeliveryEnabled: campaignService.deliveryEnabled() });
   } catch (err) { next(err); }
 };
 
 exports.createCampaign = async (req, res, next) => {
   try {
     const restaurant = await access(req);
+    requireBrandAccess(restaurant);
     const segmentId = positiveInt(req.body?.segmentId ?? req.body?.segment_id, 'segmentId', { allowZero: false });
-    const campaign = await withTransaction(pool, (client) => campaignService.createCampaign(client, {
-      restaurantId: restaurant.id, segmentId, actorUserId: req.user.id, input: req.body || {},
-    }), 'restaurant_loyalty_campaign_create');
-    await logBusinessAction(req, {
-      business_id: restaurant.business_id, actor_role: restaurant.effective_role,
-      action: 'restaurant.loyalty_campaign.created', target_type: 'restaurant_loyalty_campaign',
-      target_id: campaign.id, before_state: {}, after_state: campaign, metadata: { status: campaign.status }, throwOnError: true,
-    });
-    res.status(201).json({ campaign, campaignDeliveryEnabled: true });
+    const campaign = await withTransaction(pool, async (client) => {
+      const campaign = await campaignService.createCampaign(client, {
+        restaurantId: restaurant.id, segmentId, actorUserId: req.user.id, input: req.body || {},
+      });
+      await logBusinessAction(req, {
+        client,
+        business_id: restaurant.business_id, actor_role: restaurant.effective_role,
+        action: 'restaurant.loyalty_campaign.created', target_type: 'restaurant_loyalty_campaign',
+        target_id: campaign.id, before_state: {}, after_state: campaign, metadata: { status: campaign.status }, throwOnError: true,
+      });
+      return campaign;
+    }, 'restaurant_loyalty_campaign_create');
+    res.status(201).json({ campaign, campaignDeliveryEnabled: campaignService.deliveryEnabled() });
   } catch (err) {
     if (err?.code === '23505') return next(new AppError('That campaign name already exists', 409, 'loyalty_campaign_exists'));
     next(err);
@@ -454,34 +526,44 @@ exports.createCampaign = async (req, res, next) => {
 exports.approveCampaign = async (req, res, next) => {
   try {
     const restaurant = await access(req);
+    requireBrandAccess(restaurant);
     const campaignId = positiveInt(req.params.campaignId, 'campaignId', { allowZero: false });
-    const campaign = await withTransaction(pool, (client) => campaignService.approveCampaign(client, {
-      restaurantId: restaurant.id, campaignId, actorUserId: req.user.id,
-    }), 'restaurant_loyalty_campaign_approve');
-    await logBusinessAction(req, {
-      business_id: restaurant.business_id, actor_role: restaurant.effective_role,
-      action: 'restaurant.loyalty_campaign.approved', target_type: 'restaurant_loyalty_campaign',
-      target_id: campaign.id, before_state: { status: 'draft' }, after_state: campaign, metadata: {}, throwOnError: true,
-    });
-    res.json({ campaign, campaignDeliveryEnabled: true });
+    const campaign = await withTransaction(pool, async (client) => {
+      const campaign = await campaignService.approveCampaign(client, {
+        restaurantId: restaurant.id, campaignId, actorUserId: req.user.id,
+      });
+      await logBusinessAction(req, {
+        client,
+        business_id: restaurant.business_id, actor_role: restaurant.effective_role,
+        action: 'restaurant.loyalty_campaign.approved', target_type: 'restaurant_loyalty_campaign',
+        target_id: campaign.id, before_state: { status: 'draft' }, after_state: campaign, metadata: {}, throwOnError: true,
+      });
+      return campaign;
+    }, 'restaurant_loyalty_campaign_approve');
+    res.json({ campaign, campaignDeliveryEnabled: campaignService.deliveryEnabled() });
   } catch (err) { next(err); }
 };
 
 exports.queueCampaign = async (req, res, next) => {
   try {
     const restaurant = await access(req);
+    requireBrandAccess(restaurant);
     const campaignId = positiveInt(req.params.campaignId, 'campaignId', { allowZero: false });
-    const result = await withTransaction(pool, (client) => campaignService.queueCampaign(client, {
-      restaurantId: restaurant.id, campaignId, actorUserId: req.user.id,
-    }), 'restaurant_loyalty_campaign_queue');
-    await logBusinessAction(req, {
-      business_id: restaurant.business_id, actor_role: restaurant.effective_role,
-      action: 'restaurant.loyalty_campaign.queued', target_type: 'restaurant_loyalty_campaign',
-      target_id: result.campaign.id, before_state: { status: 'approved' }, after_state: result.campaign,
-      metadata: { queued_recipients: result.queuedRecipients }, throwOnError: true,
-    });
-    res.json({ ...result, campaignDeliveryEnabled: true });
+    const result = await withTransaction(pool, async (client) => {
+      const result = await campaignService.queueCampaign(client, {
+        restaurantId: restaurant.id, campaignId, actorUserId: req.user.id,
+      });
+      await logBusinessAction(req, {
+        client,
+        business_id: restaurant.business_id, actor_role: restaurant.effective_role,
+        action: 'restaurant.loyalty_campaign.queued', target_type: 'restaurant_loyalty_campaign',
+        target_id: result.campaign.id, before_state: { status: 'approved' }, after_state: result.campaign,
+        metadata: { queued_recipients: result.queuedRecipients }, throwOnError: true,
+      });
+      return result;
+    }, 'restaurant_loyalty_campaign_queue');
+    res.json({ ...result, campaignDeliveryEnabled: campaignService.deliveryEnabled() });
   } catch (err) { next(err); }
 };
 
-exports._normalize = { normalizeName, normalizeCriteria, normalizeActive, positiveInt, audienceWhere, criteriaStores };
+exports._normalize = { normalizeName, normalizeCriteria, normalizeActive, positiveInt, audienceWhere, audienceFor, criteriaStores };
