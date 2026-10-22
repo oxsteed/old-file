@@ -34,7 +34,7 @@ const logger = require('../utils/logger');
 const { encrypt, decrypt } = require('../utils/encryption');
 const { resolveScope, resolveRestaurantAccess } = require('../services/scopeModel');
 const permissionsService = require('../services/permissionsService');
-const { assertLocationAccess } = require('../services/restaurantLocationAccessService');
+const { assertLocationAccess, getLocationScope } = require('../services/restaurantLocationAccessService');
 // Imported as module objects (not destructured) so tests can stub the staff
 // path at the module boundary.
 const authMiddleware = require('../middleware/auth');
@@ -593,14 +593,21 @@ async function listPairings(req, res, next) {
     if (!userId) throw new AppError('Sign in required', 401, 'unauthorized');
     const scope = await resolveScope({ id: userId, role: req.user?.role });
     const manageableIds = [];
+    const locationScopes = new Map();
     for (const entry of scope.restaurants) {
       if (entry.role === 'owner') {
         manageableIds.push(entry.id);
+        locationScopes.set(Number(entry.id), null);
         continue;
       }
       try {
-        await requireDisplayManager(userId, entry.id);
+        const restaurant = await requireDisplayManager(userId, entry.id);
+        const locationScope = await getLocationScope(restaurant, userId);
         manageableIds.push(entry.id);
+        locationScopes.set(
+          Number(entry.id),
+          locationScope.mode === 'assigned' ? new Set(locationScope.location_ids.map(Number)) : null,
+        );
       } catch (_) {
         // No display standing for this restaurant: not part of the fleet view.
       }
@@ -614,7 +621,12 @@ async function listPairings(req, res, next) {
         ORDER BY dp.created_at DESC`,
       [manageableIds]
     );
-    return res.json({ displays: rows.map(publicPairingShape) });
+    const scopedRows = rows.filter((row) => {
+      const allowedLocations = locationScopes.get(Number(row.restaurant_id));
+      return allowedLocations === null
+        || (allowedLocations && allowedLocations.has(Number(row.location_id)));
+    });
+    return res.json({ displays: scopedRows.map(publicPairingShape) });
   } catch (err) {
     return next(err);
   }
