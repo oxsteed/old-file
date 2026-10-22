@@ -80,13 +80,10 @@ function installFakeDb() {
   mockQuery.mockImplementation(async (text, params = []) => {
     const sql = String(text);
     if (/^\s*BEGIN|^\s*COMMIT|^\s*ROLLBACK/.test(sql)) return { rows: [] };
-    // scopeModel.getRegionRestrictedRegions: role lookup.
-    if (sql.includes('SELECT role FROM users WHERE id = $1')) {
-      const user = users.get(params[0]);
-      return { rows: user ? [{ role: user.role }] : [] };
-    }
-    // scopeModel.getRegionRestrictedRegions: active region grants.
+    // scopeModel.getRegionRestrictedRegions: active region grants (admin role only).
     if (sql.includes('FROM admin_permission_grants g') && sql.includes('JOIN admin_regions r')) {
+      const user = users.get(params[0]);
+      if (!user || user.role !== 'admin') return { rows: [] };
       const rows = (grants.get(params[0]) || [])
         .filter((g) => g.region_id && !g.revoked_at && new Date(g.expires_at).getTime() > Date.now())
         .map((g) => ({ id: g.region_id, boundary_definition: regions.get(g.region_id).boundary_definition }));

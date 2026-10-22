@@ -181,12 +181,13 @@ const EFFECTIVE_MEMBERSHIP_ID_SUBQUERY = `(
  */
 async function getRegionRestrictedRegions(userId) {
   if (!userId) return null;
-  const { rows: [user] } = await pool.query('SELECT role FROM users WHERE id = $1', [userId]);
-  if (!user || user.role !== 'admin') return null;
+  // Single query: the users join both excludes super-admins (who keep the
+  // platform bypass) and scopes the grant lookup to active region grants.
   const { rows } = await pool.query(
     `SELECT r.id, r.boundary_definition
        FROM admin_permission_grants g
        JOIN admin_regions r ON r.id = g.region_id
+       JOIN users u ON u.id = g.grantee_id AND u.role = 'admin'
       WHERE g.grantee_id = $1
         AND g.region_id IS NOT NULL
         AND g.revoked_at IS NULL
