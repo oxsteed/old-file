@@ -357,7 +357,7 @@ function normalizeDiscountLines(body, subtotalCents, { allowManual = false } = {
 // transaction; managers (restaurant.manage via the resolver) never need
 // the PIN. Without the PIN the request fails 403
 // 'discount_approval_required' so the POS can prompt and retry.
-async function resolveDefinitionDiscount({ client, restaurant, req, restaurantId, subtotal, definitionId, shiftId, actingStaff }) {
+async function resolveDefinitionDiscount({ client, restaurant, req, restaurantId, subtotal, definitionId, shiftId, locationId, actingStaff }) {
   const { rows: [definition] } = await client.query(
     `SELECT * FROM restaurant_discount_definitions
       WHERE id = $1 AND restaurant_id = $2`,
@@ -427,6 +427,7 @@ async function resolveDefinitionDiscount({ client, restaurant, req, restaurantId
         action: 'discount',
         amountCents: amount,
         shiftId,
+        locationId,
         actingStaff,
       });
     }
@@ -4150,6 +4151,7 @@ exports.createPosOrder = async (req, res, next) => {
           subtotal,
           definitionId: discountDefinitionId,
           shiftId,
+          locationId: pinnedStore,
           actingStaff,
         }));
       } else {
@@ -5419,6 +5421,7 @@ exports.recordPosPayment = async (req, res, next) => {
           action: paymentType === 'refund' ? 'refund' : 'comp',
           amountCents,
           orderId,
+          locationId: order.location_id,
           actingStaff,
           reasonCodes: paymentType === 'comp' ? POS_COMP_REASON_CODES : null,
         });

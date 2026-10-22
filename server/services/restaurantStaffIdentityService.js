@@ -449,6 +449,7 @@ async function consumeManagerApproval({
   amountCents = 0,
   shiftId = null,
   orderId = null,
+  locationId = null,
   actingStaff = null,
   reasonCodes = null,
 }) {
@@ -483,12 +484,20 @@ async function consumeManagerApproval({
   });
   const { rows: [approval] } = await client.query(
     `INSERT INTO restaurant_pos_approvals
-       (restaurant_id, action, amount_cents, requester_user_id, requester_staff_user_id,
+       (restaurant_id, location_id, action, amount_cents, requester_user_id, requester_staff_user_id,
         approver_user_id, approver_staff_pin_id, reason_code, reason, shift_id, food_order_id, status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'approved')
+     VALUES ($1,
+             COALESCE(
+               $2,
+               (SELECT location_id FROM food_orders WHERE id = $12 AND restaurant_id = $1),
+               (SELECT location_id FROM restaurant_pos_shifts WHERE id = $11 AND restaurant_id = $1),
+               (SELECT id FROM restaurant_locations WHERE restaurant_id = $1 ORDER BY is_primary DESC, id ASC LIMIT 1)
+             ),
+             $3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'approved')
      RETURNING *`,
     [
       restaurant.id,
+      locationId,
       action,
       Math.max(0, Math.floor(Number(amountCents) || 0)),
       req.user.id,
