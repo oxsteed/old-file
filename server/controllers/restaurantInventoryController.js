@@ -354,7 +354,7 @@ exports.updateItem = async (req, res, next) => {
         || req.body.isActive !== undefined;
       const availability = affectsAvailability
         ? await syncMappedMenuAvailability(client, restaurantId, {
-          inventoryItemId: itemId, apply: true, createdBy: req.user.id,
+          inventoryItemId: itemId, locationId: item.location_id, apply: true, createdBy: req.user.id,
         })
         : { changes: [], applied: false };
       await logInventoryAudit(client, auditEntry(restaurant, 'item_updated', 'item', item.id, req, {
@@ -386,7 +386,9 @@ exports.deleteItem = async (req, res, next) => {
         [itemId, restaurantId]
       );
       if (!item) throw new AppError('Item not found', 404, 'inventory_item_not_found');
-      const syncResult = await syncMappedMenuAvailability(client, restaurantId, { apply: true, createdBy: req.user.id });
+      const syncResult = await syncMappedMenuAvailability(client, restaurantId, {
+        locationId: existing.location_id, apply: true, createdBy: req.user.id,
+      });
       await logInventoryAudit(client, auditEntry(restaurant, 'item_deleted', 'item', item.id, req, {
         name: item.name,
         category: item.category,
@@ -476,6 +478,7 @@ exports.adjustItem = async (req, res, next) => {
       );
       const availability = await syncMappedMenuAvailability(client, restaurantId, {
         inventoryItemId: itemId,
+        locationId: updated.location_id,
         apply: true,
         createdBy: req.user.id,
       });

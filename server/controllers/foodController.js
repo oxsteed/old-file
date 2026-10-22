@@ -2361,7 +2361,8 @@ async function loadRestaurantMenu(restaurantId, { managed = false, locationId = 
   );
   const { rows: items } = await pool.query(
     `SELECT fmi.id, category_id, name, description, image_url, price_cents,
-            currency_code, is_available, sort_order, tags, allergens,
+            currency_code, is_available, manual_available, inventory_available,
+            inventory_availability_state, sort_order, tags, allergens,
             tax_rate_bps, tax_exempt,
             publication_status, archived_at, availability_schedule,
             ${storeMenu.overrideSql('fmi', '$2')}
@@ -2855,6 +2856,7 @@ exports.quoteOrder = async (req, res, next) => {
     );
     const { rows: menuRows } = await pool.query(
       `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
+              fmi.manual_available, fmi.inventory_available, fmi.inventory_availability_state,
               fmi.allergens, fmi.tax_rate_bps, fmi.tax_exempt,
               fmi.availability_schedule, ${storeMenu.overrideSql('fmi', '$3')},
               fmc.name AS category_name,
@@ -3438,6 +3440,7 @@ exports.createOrder = async (req, res, next) => {
       const ids = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
       const { rows: menuRows } = await client.query(
         `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
+                fmi.manual_available, fmi.inventory_available, fmi.inventory_availability_state,
                 fmi.allergens, fmi.tax_rate_bps, fmi.tax_exempt,
                 fmi.availability_schedule, ${storeMenu.overrideSql('fmi', '$3')},
                 fmc.name AS category_name,
@@ -4063,6 +4066,7 @@ exports.createOrder = async (req, res, next) => {
         restaurantId,
         orderId: created.id,
         orderItems: createdOrderItems,
+        locationId: created.location_id,
         reservationExpiresAt: paymentContract.canonical === 'pay_now'
           ? new Date(Date.now() + 30 * 60 * 1000)
           : null,
@@ -5273,6 +5277,7 @@ exports.updateOrderStatus = async (req, res, next) => {
         await consumeInventoryForOrder(client, {
           restaurantId,
           orderId: order.id,
+          locationId: order.location_id,
           actorUserId: req.user?.id || null,
         });
         // P3-9-F05: loyalty earn commits in the SAME transaction as the
@@ -5294,6 +5299,7 @@ exports.updateOrderStatus = async (req, res, next) => {
         await releaseInventoryForOrder(client, {
           restaurantId,
           orderId: order.id,
+          locationId: order.location_id,
         });
         // M13: claw back loyalty points earned on completion so refunded
         // orders cannot farm points.

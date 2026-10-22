@@ -1084,7 +1084,7 @@ exports.createReceipt = async (req, res, next) => {
             [restaurantId, item.id, item.name, accepted, after, text(line.issueNote, 1000), req.user.id, receipt.id]
           );
           await syncMappedMenuAvailability(client, restaurantId, {
-            inventoryItemId: item.id, apply: true, createdBy: req.user.id,
+            inventoryItemId: item.id, locationId: item.location_id, apply: true, createdBy: req.user.id,
           });
         }
       }

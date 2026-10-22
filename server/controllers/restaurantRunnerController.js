@@ -475,6 +475,7 @@ exports.updateTaskStatus = async (req, res, next) => {
           await consumeInventoryForOrder(client, {
             restaurantId,
             orderId: completedOrder.id,
+            locationId: completedOrder.location_id,
             actorUserId: req.user.id,
           });
           await client.query(
@@ -566,6 +567,7 @@ exports.logProof = async (req, res, next) => {
           await consumeInventoryForOrder(client, {
             restaurantId,
             orderId: completedOrder.id,
+            locationId: completedOrder.location_id,
             actorUserId: req.user.id,
           });
           await client.query(

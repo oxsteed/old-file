@@ -1204,7 +1204,7 @@ async function syncKitchenOrderStatus(client, restaurantId, orderId, preferredSt
     [orderId, nextStatus]
   );
   if (order?.status === 'cancelled') {
-    await releaseInventoryForOrder(client, { restaurantId, orderId });
+    await releaseInventoryForOrder(client, { restaurantId, orderId, locationId: order.location_id });
   }
   return order;
 }
@@ -4405,6 +4405,7 @@ exports.createPosOrder = async (req, res, next) => {
         restaurantId,
         orderId: order.id,
         orderItems: createdOrderItems,
+        locationId: order.location_id,
       });
       const printerJobs = await enqueueKitchenPrinterJobs(client, {
         restaurantId,
@@ -4583,7 +4584,7 @@ exports.updatePosTicket = async (req, res, next) => {
       );
       if (!order) throw new AppError('Ticket transition is no longer allowed', 409, 'illegal_ticket_transition');
       if (order.status === 'cancelled') {
-        await releaseInventoryForOrder(client, { restaurantId, orderId: order.id });
+        await releaseInventoryForOrder(client, { restaurantId, orderId: order.id, locationId: order.location_id });
       }
       const event = await insertPosReceiptAudit(client, {
         restaurantId,
@@ -9013,6 +9014,7 @@ exports.completeRunnerHandoff = async (req, res, next) => {
           await consumeInventoryForOrder(client, {
             restaurantId,
             orderId: order.id,
+            locationId: order.location_id,
             actorUserId: req.user.id,
           });
           await client.query(

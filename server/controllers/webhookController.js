@@ -1475,6 +1475,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
                 await releaseInventoryForOrder(client, {
                   restaurantId: updated.restaurant_id,
                   orderId: updated.id,
+                  locationId: updated.location_id,
                 });
               } catch (releaseErr) {
                 logger.warn('[Stripe] failed to release inventory after failed food payment', {

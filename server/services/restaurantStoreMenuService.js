@@ -14,7 +14,9 @@ function locationId(value) {
 function overrideSql(alias, locationParameter) {
   if (!['fmi'].includes(alias) || !/^\$[1-9]\d*$/.test(locationParameter)) throw new Error('invalid_store_menu_sql');
   return `COALESCE((SELECT jsonb_build_object('price_cents', sm.price_cents,
-    'is_available', sm.is_available, 'available_again_at', sm.available_again_at)
+    'is_available', sm.is_available, 'available_again_at', sm.available_again_at,
+    'inventory_available', sm.inventory_available,
+    'inventory_availability_state', sm.inventory_availability_state)
     FROM restaurant_store_menu_overrides sm
     WHERE sm.restaurant_id=${alias}.restaurant_id AND sm.menu_item_id=${alias}.id
       AND sm.location_id=${locationParameter}::bigint), '{}'::jsonb) AS store_override`;
@@ -25,10 +27,17 @@ function overrideSql(alias, locationParameter) {
 function applyOverride(item, now = new Date()) {
   const override = item.store_override || {};
   const expired = override.available_again_at && new Date(override.available_again_at).getTime() <= now.getTime();
+  const inventoryAvailable = override.inventory_available ?? (item.inventory_available !== false);
+  const manualAvailable = item.manual_available ?? item.is_available !== false;
   return {
     ...item,
     price_cents: override.price_cents ?? item.price_cents,
-    is_available: item.is_available !== false && (expired || override.is_available !== false),
+    inventory_available: inventoryAvailable,
+    inventory_availability_state: override.inventory_availability_state
+      ?? item.inventory_availability_state
+      ?? (inventoryAvailable ? 'available' : 'unavailable'),
+    is_available: manualAvailable && inventoryAvailable
+      && (expired || override.is_available !== false),
   };
 }
 
