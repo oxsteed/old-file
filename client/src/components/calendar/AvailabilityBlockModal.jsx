@@ -89,10 +89,10 @@ export default function AvailabilityBlockModal({ initialDate, initialHour, onClo
       <div className="abm-modal" onClick={(e) => e.stopPropagation()}>
         <div className="abm-header">
           <h2>{t('calendar.blockTime')}</h2>
-          <button className="abm-close" onClick={onClose}>✕</button>
+          <button className="abm-close" onClick={onClose} data-track="ui.bb03d1c024.1">✕</button>
         </div>
 
-        <form onSubmit={handleSubmit} className="abm-form">
+        <form onSubmit={handleSubmit} className="abm-form" data-track="ui.bb03d1c024.2">
           <div className="abm-form-group">
             <label>{t('calendar.blockType')} *</label>
             <select
@@ -190,14 +190,14 @@ export default function AvailabilityBlockModal({ initialDate, initialHour, onClo
               type="button"
               className="abm-btn abm-btn-secondary"
               onClick={onClose}
-              disabled={loading}
+              disabled={loading} data-track="ui.bb03d1c024.3"
             >
               {t('common.cancel')}
             </button>
             <button
               type="submit"
               className="abm-btn abm-btn-primary"
-              disabled={loading}
+              disabled={loading} data-track="ui.bb03d1c024.4"
             >
               {t('calendar.createBlock')}
             </button>

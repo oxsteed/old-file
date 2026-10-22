@@ -218,7 +218,7 @@ export default function MediaPostDetailPage() {
         {error && !loading && (
           <div className="media-error" role="alert">
             <p>{error}</p>
-            <button type="button" onClick={load}>{t('common.retry', 'Retry')}</button>
+            <button type="button" onClick={load} data-track="ui.1f8d65c440.1">{t('common.retry', 'Retry')}</button>
           </div>
         )}
         {!loading && !error && !post && user?.id && !moderationUnavailable && (
@@ -235,24 +235,24 @@ export default function MediaPostDetailPage() {
             {user?.id && String(post.owner_user_id) === String(user.id) && (
               <section className="media-owner-controls">
                 <div className="media-owner-actions">
-                  <button type="button" className="media-text-button" onClick={() => setEditingBody((value) => !value)}>
+                  <button type="button" className="media-text-button" onClick={() => setEditingBody((value) => !value)} data-track="ui.1f8d65c440.2">
                     {editingBody ? t('media.post.cancelEdit', { defaultValue: 'Cancel edit' }) : t('media.post.edit', { defaultValue: 'Edit post' })}
                   </button>
-                  <button type="button" className="media-text-button media-danger-button" onClick={handleDelete}>
+                  <button type="button" className="media-text-button media-danger-button" onClick={handleDelete} data-track="ui.1f8d65c440.3">
                     {t('media.post.delete', { defaultValue: 'Delete post' })}
                   </button>
                 </div>
                 {editingBody && (
-                  <form className="media-links-editor-panel" onSubmit={saveBody}>
+                  <form className="media-links-editor-panel" onSubmit={saveBody} data-track="ui.1f8d65c440.4">
                     <label htmlFor="media-edit-body">{t('media.post.editLabel', { defaultValue: 'Post text' })}</label>
                     <textarea id="media-edit-body" value={bodyDraft} onChange={(event) => setBodyDraft(event.target.value)} maxLength={2000} rows={4} />
-                    <button type="submit" className="media-primary-button" disabled={savingBody || !bodyDraft.trim()}>
+                    <button type="submit" className="media-primary-button" disabled={savingBody || !bodyDraft.trim()} data-track="ui.1f8d65c440.5">
                       {savingBody ? t('media.post.saving', { defaultValue: 'Saving…' }) : t('media.post.save', { defaultValue: 'Save changes' })}
                     </button>
                   </form>
                 )}
                 <div className="media-links-editor">
-                <button type="button" className="media-text-button" onClick={() => setEditingLinks((value) => !value)}>
+                <button type="button" className="media-text-button" onClick={() => setEditingLinks((value) => !value)} data-track="ui.1f8d65c440.6">
                   {editingLinks ? t('media.post.cancelLinks') : t('media.post.editLinks')}
                 </button>
                 {editingLinks && (
@@ -261,11 +261,11 @@ export default function MediaPostDetailPage() {
                       {draftLinks.map((link, index) => (
                         <div className="media-compose-link" key={`${link.id || link.target_id}-${index}`}>
                           <span>{link.name || link.name_snapshot}</span>
-                          <button type="button" onClick={() => setDraftLinks((current) => current.filter((_, i) => i !== index))}>{t('media.compose.remove')}</button>
+                          <button type="button" onClick={() => setDraftLinks((current) => current.filter((_, i) => i !== index))} data-track="ui.1f8d65c440.7">{t('media.compose.remove')}</button>
                         </div>
                       ))}
                     </div>
-                    <form className="media-link-picker" onSubmit={addDraftLink}>
+                    <form className="media-link-picker" onSubmit={addDraftLink} data-track="ui.1f8d65c440.8">
                       <select aria-label={t('media.compose.linkTypeLabel')} value={linkType} onChange={(event) => {
                         setLinkType(event.target.value);
                         setLinkName('');
@@ -284,7 +284,7 @@ export default function MediaPostDetailPage() {
                         }}
                         placeholder={t('media.compose.entitySearchPlaceholder')}
                       />
-                      <button type="submit" disabled={draftLinks.length >= 5}>{t('media.compose.addLink')}</button>
+                      <button type="submit" disabled={draftLinks.length >= 5} data-track="ui.1f8d65c440.9">{t('media.compose.addLink')}</button>
                     </form>
                     {selectedEntity && (
                       <p className="media-selected-entity" role="status">
@@ -295,14 +295,14 @@ export default function MediaPostDetailPage() {
                       <div className="media-entity-suggestions" role="group" aria-label={t('media.compose.entitySearchHint')}>
                         {searchingEntities && <span className="media-entity-suggestion-status">{t('media.compose.searchingEntities')}</span>}
                         {entitySuggestions.map((entity) => (
-                          <button type="button" key={entity.target_id} className="media-entity-suggestion" onClick={() => chooseEntity(entity)}>
+                          <button type="button" key={entity.target_id} className="media-entity-suggestion" onClick={() => chooseEntity(entity)} data-track="ui.1f8d65c440.10">
                             <span>{entity.name}</span>
                             {entity.price_snapshot_cents != null && <small>${(Number(entity.price_snapshot_cents) / 100).toFixed(2)}</small>}
                           </button>
                         ))}
                       </div>
                     )}
-                    <button type="button" className="media-primary-button" onClick={saveLinks} disabled={savingLinks}>
+                    <button type="button" className="media-primary-button" onClick={saveLinks} disabled={savingLinks} data-track="ui.1f8d65c440.11">
                       {savingLinks ? t('media.post.savingLinks') : t('media.post.saveLinks')}
                     </button>
                   </div>
@@ -310,7 +310,7 @@ export default function MediaPostDetailPage() {
                 </div>
               </section>
             )}
-            <button type="button" className="media-view-quotes" onClick={loadQuotes}>
+            <button type="button" className="media-view-quotes" onClick={loadQuotes} data-track="ui.1f8d65c440.12">
               {quotesOpen ? t('media.post.hideQuotes') : t('media.post.viewQuotes')} ({post.quote_count || 0})
             </button>
             {quotesOpen && (
@@ -319,7 +319,7 @@ export default function MediaPostDetailPage() {
                 {!quotes.length && <p className="media-empty">{t('media.post.noQuotes')}</p>}
               </div>
             )}
-            <form className="media-quote-composer" onSubmit={handleQuote}>
+            <form className="media-quote-composer" onSubmit={handleQuote} data-track="ui.1f8d65c440.13">
               <label htmlFor="media-quote-body">{t('media.post.quoteLabel')}</label>
               <textarea
                 id="media-quote-body"
@@ -329,7 +329,7 @@ export default function MediaPostDetailPage() {
                 maxLength={2000}
                 rows={3}
               />
-              <button type="submit" disabled={quoting || !quoteBody.trim()}>
+              <button type="submit" disabled={quoting || !quoteBody.trim()} data-track="ui.1f8d65c440.14">
                 {quoting ? t('media.post.quotePosting') : t('media.post.quote')}
               </button>
             </form>

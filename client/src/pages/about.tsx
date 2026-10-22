@@ -147,8 +147,8 @@ export default function AboutPage() {
             <p>{t('aboutPage.experience.contactBody')}</p>
           </div>
           <div className="about-contact__links">
-            <a href="mailto:support@oxsteed.com"><Mail size={17} aria-hidden="true" /> support@oxsteed.com</a>
-            <a href="https://oxsteed.com"><ArrowRight size={17} aria-hidden="true" /> oxsteed.com</a>
+            <a href="mailto:support@oxsteed.com" data-track="ui.1b4935bebe.1"><Mail size={17} aria-hidden="true" /> support@oxsteed.com</a>
+            <a href="https://oxsteed.com" data-track="ui.1b4935bebe.2"><ArrowRight size={17} aria-hidden="true" /> oxsteed.com</a>
             <span>{t('aboutPage.experience.legalNote')}</span>
           </div>
         </section>

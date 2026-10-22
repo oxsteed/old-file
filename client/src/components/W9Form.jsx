@@ -108,7 +108,7 @@ export default function W9Form() {
   const inputCls = 'w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-white text-sm placeholder-gray-500 focus:border-orange-500 focus:outline-none';
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-xl">
+    <form onSubmit={handleSubmit} className="space-y-4 max-w-xl" data-track="ui.51b6279d52.1" data-track-private>
       <p className="text-sm text-gray-400">{t('w9.intro')}</p>
 
       <div>
@@ -169,12 +169,12 @@ export default function W9Form() {
 
       <label className="flex items-start gap-2 text-sm text-gray-300 cursor-pointer">
         <input type="checkbox" checked={certify} onChange={(e) => setCertify(e.target.checked)}
-          className="mt-1 w-4 h-4 accent-orange-500" />
+          className="mt-1 w-4 h-4 accent-orange-500" data-track="ui.51b6279d52.2" />
         <span>{t('w9.certify')}</span>
       </label>
 
       <button type="submit" disabled={submitting}
-        className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-50">
+        className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-50" data-track="ui.51b6279d52.3">
         {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
         {submitting ? t('w9.submitting') : t('w9.submit')}
       </button>

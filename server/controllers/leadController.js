@@ -95,9 +95,9 @@ exports.createLead = async (req, res) => {
       // Create notification for business owner (non-critical failure)
       try {
         await client.query(
-          `INSERT INTO notifications (user_id, type, title, message, reference_id, reference_type)
-           VALUES ($1, 'lead_received', 'New Service Request', $2, $3, 'business_lead')`,
-          [bizOwnerId, `New lead request from customer: ${lead.lead_number}`, lead.id]
+          `INSERT INTO notifications (user_id, type, title, body, data)
+           VALUES ($1, 'lead_received', 'New Service Request', $2, $3)`,
+          [bizOwnerId, `New lead request from customer: ${lead.lead_number}`, JSON.stringify({ reference_id: lead.id, reference_type: 'business_lead' })]
         );
       } catch (notifErr) {
         logger.warn('Failed to create lead notification', { leadId: lead.id, error: notifErr.message });
@@ -372,9 +372,9 @@ exports.submitQuote = async (req, res) => {
       // Create notification for customer (non-critical failure)
       try {
         await client.query(
-          `INSERT INTO notifications (user_id, type, title, message, reference_id, reference_type)
-           VALUES ($1, 'quote_received', 'New Quote Received', $2, $3, 'lead_quote')`,
-          [lead.customer_id, `Quote ${quote.quote_number} for your service request`, quote.id]
+          `INSERT INTO notifications (user_id, type, title, body, data)
+           VALUES ($1, 'quote_received', 'New Quote Received', $2, $3)`,
+          [lead.customer_id, `Quote ${quote.quote_number} for your service request`, JSON.stringify({ reference_id: quote.id, reference_type: 'lead_quote' })]
         );
       } catch (notifErr) {
         logger.warn('Failed to create quote notification', { quoteId: quote.id, error: notifErr.message });
@@ -466,9 +466,9 @@ exports.acceptQuote = async (req, res) => {
 
         if (bizOwnerRes.rows[0]) {
           await client.query(
-            `INSERT INTO notifications (user_id, type, title, message, reference_id, reference_type)
-             VALUES ($1, 'lead_accepted', 'Quote Accepted', $2, $3, 'lead_quote')`,
-            [bizOwnerRes.rows[0].user_id, `Your quote ${quote.quote_number} has been accepted!`, quoteId]
+            `INSERT INTO notifications (user_id, type, title, body, data)
+             VALUES ($1, 'lead_accepted', 'Quote Accepted', $2, $3)`,
+            [bizOwnerRes.rows[0].user_id, `Your quote ${quote.quote_number} has been accepted!`, JSON.stringify({ reference_id: quoteId, reference_type: 'lead_quote' })]
           );
         }
       } catch (notifErr) {
@@ -526,9 +526,9 @@ exports.rejectLead = async (req, res) => {
       // Notify customer (non-critical failure)
       try {
         await client.query(
-          `INSERT INTO notifications (user_id, type, title, message, reference_id, reference_type)
-           VALUES ($1, 'lead_rejected', 'Request Update', 'Your service request was not accepted', $2, 'business_lead')`,
-          [lead.customer_id, leadId]
+          `INSERT INTO notifications (user_id, type, title, body, data)
+           VALUES ($1, 'lead_rejected', 'Request Update', 'Your service request was not accepted', $2)`,
+          [lead.customer_id, JSON.stringify({ reference_id: leadId, reference_type: 'business_lead' })]
         );
       } catch (notifErr) {
         logger.warn('Failed to create lead rejection notification', { leadId, error: notifErr.message });

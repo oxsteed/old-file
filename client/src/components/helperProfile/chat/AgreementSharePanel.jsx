@@ -60,7 +60,7 @@ export default function AgreementSharePanel({
       <div className="messenger-share-panel-head">
         <ScrollText size={16} aria-hidden />
         <strong>{t('messages.agreementShare.title')}</strong>
-        <button type="button" className="messenger-share-close" onClick={onClose}>
+        <button type="button" className="messenger-share-close" onClick={onClose} data-track-private>
           <X size={16} />
         </button>
       </div>
@@ -77,7 +77,7 @@ export default function AgreementSharePanel({
           <input
             type="checkbox"
             checked={requiredBeforeSchedule}
-            onChange={(e) => setRequiredBeforeSchedule(e.target.checked)}
+            onChange={(e) => setRequiredBeforeSchedule(e.target.checked)} data-track-private
           />
           {t('messages.agreementShare.requiredBeforeSchedule')}
         </label>
@@ -88,7 +88,7 @@ export default function AgreementSharePanel({
         {error ? <p className="artifact-error">{error}</p> : null}
       </div>
       <div className="messenger-share-panel-foot">
-        <button type="button" className="artifact-btn primary" disabled={sharing} onClick={share}>
+        <button type="button" className="artifact-btn primary" disabled={sharing} onClick={share} data-track-private>
           {sharing ? <Loader2 className="spin" size={14} /> : <Send size={14} />} {t('messages.agreementShare.send')}
         </button>
       </div>

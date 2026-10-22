@@ -318,7 +318,7 @@ function RequestCard({ request, onClick, featured = false }) {
       }}
       onBlur={(e) => {
         e.currentTarget.style.boxShadow = featured ? '0 18px 50px rgba(2,6,23,0.28)' : 'none';
-      }}
+      }} data-track="ui.478f2e3593.1"
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div style={{ minWidth: 0 }}>
@@ -473,7 +473,7 @@ function DetailModal({ request, onClose }) {
               fontSize: '1.35rem',
               lineHeight: 1,
               flexShrink: 0,
-            }}
+            }} data-track="ui.478f2e3593.2"
           >
             ×
           </button>
@@ -631,7 +631,7 @@ function DetailModal({ request, onClose }) {
               </div>
               <p style={{ margin: '0 0 0.8rem', color: 'var(--muted-text)', lineHeight: 1.6 }}>
                 {t('businessLaunchStatus.contactSupport', { defaultValue: 'Questions? Email us at' })}{' '}
-                <a href="mailto:support@oxsteed.com" style={{ color: '#FDBA74', fontWeight: 700, textDecoration: 'none' }}>
+                <a href="mailto:support@oxsteed.com" style={{ color: '#FDBA74', fontWeight: 700, textDecoration: 'none' }} data-track="ui.478f2e3593.3">
                   support@oxsteed.com
                 </a>
               </p>
@@ -818,7 +818,7 @@ export default function BusinessLaunchStatusPage() {
                     gridTemplateColumns: 'minmax(0, 1fr) auto auto',
                     gap: '0.75rem',
                     alignItems: 'center',
-                  }}
+                  }} data-track="ui.478f2e3593.4"
                 >
                   <div
                     style={{
@@ -866,7 +866,7 @@ export default function BusinessLaunchStatusPage() {
                       color: 'white',
                       fontWeight: 700,
                       cursor: searching ? 'wait' : 'pointer',
-                    }}
+                    }} data-track="ui.478f2e3593.5"
                   >
                     <Search size={16} />
                     {searching
@@ -885,7 +885,7 @@ export default function BusinessLaunchStatusPage() {
                       color: 'var(--app-text)',
                       fontWeight: 700,
                       cursor: loading ? 'wait' : 'pointer',
-                    }}
+                    }} data-track="ui.478f2e3593.6"
                   >
                     {t('common.retry', { defaultValue: 'Retry' })}
                   </button>
@@ -1043,7 +1043,7 @@ export default function BusinessLaunchStatusPage() {
                       color: '#FDBA74',
                       fontWeight: 700,
                       textDecoration: 'none',
-                  }}
+                  }} data-track="ui.478f2e3593.7"
                 >
                     {t('businessLaunchStatus.emailSupport', { defaultValue: 'Email support@oxsteed.com' })}{' '}
                     <ArrowRight size={14} />

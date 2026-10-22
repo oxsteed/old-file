@@ -290,7 +290,7 @@ export default function InvestorDashboardPage() {
                       period === p.key
                         ? 'bg-emerald-600 text-white font-semibold'
                         : 'text-gray-400 hover:text-white'
-                    }`}
+                    }`} data-track="ui.183b878c73.1"
                   >
                     {p.label}
                   </button>
@@ -299,7 +299,7 @@ export default function InvestorDashboardPage() {
               <button
                 onClick={() => load(period)}
                 className="p-2 rounded-xl bg-gray-900 border border-gray-800 text-gray-400 hover:text-white"
-                title={t('investorDashboard.actions.refresh')}
+                title={t('investorDashboard.actions.refresh')} data-track="ui.183b878c73.2"
               >
                 <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
               </button>

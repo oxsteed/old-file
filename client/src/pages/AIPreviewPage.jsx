@@ -218,7 +218,7 @@ export default function AIPreviewPage({ profileType = 'helper' }) {
             <p className="text-sm text-gray-400 mt-1">{t('aiPreview.subtitle')}</p>
           </div>
           <div className="flex gap-2">
-            <button type="button" onClick={loadContext} className="px-4 py-2 rounded-lg bg-gray-800 border border-gray-600 text-sm">
+            <button type="button" onClick={loadContext} className="px-4 py-2 rounded-lg bg-gray-800 border border-gray-600 text-sm" data-track="ui.02b9f89d71.1">
               {t('aiPreview.refreshBtn')}
             </button>
             <Link to={editLink} className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold">
@@ -261,13 +261,13 @@ export default function AIPreviewPage({ profileType = 'helper' }) {
                   placeholder={t('aiPreview.sandboxPlaceholder')}
                   className="flex-1 rounded-lg bg-gray-900 border border-gray-700 px-3 py-2 text-sm"
                 />
-              <button type="button" onClick={sendSandbox} disabled={sending} className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold disabled:opacity-50">
+              <button type="button" onClick={sendSandbox} disabled={sending} className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold disabled:opacity-50" data-track="ui.02b9f89d71.2">
                   {t('aiPreview.sandboxSend')}
                 </button>
                 <button
                   type="button"
                   onClick={() => { setMessages([]); setThreadId(null); }}
-                  className="px-3 py-2 rounded-lg bg-gray-800 border border-gray-600 text-sm"
+                  className="px-3 py-2 rounded-lg bg-gray-800 border border-gray-600 text-sm" data-track="ui.02b9f89d71.3"
                 >
                   {t('aiPreview.sandboxClear')}
                 </button>

@@ -187,3 +187,73 @@ describe('businessStaffScheduleController shift updates (node-pg types)', () => 
     expect(params.slice(0, 3)).toEqual(['2026-10-14', '09:00:00', '18:00:00']);
   });
 });
+
+describe('businessStaffScheduleController availability and shift swaps', () => {
+  test('replaceAvailability atomically replaces a member’s weekly windows', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] }) // membership check
+      .mockResolvedValueOnce({ rows: [] }) // delete
+      .mockResolvedValueOnce({ rows: [] }) // insert Monday
+      .mockResolvedValueOnce({ rows: [{ id: 11, day_of_week: 1, start_time: '09:00:00', end_time: '17:00:00' }] });
+    const req = {
+      params: { businessId: '2' },
+      user: { id: '00000000-0000-4000-8000-0000000000aa' },
+      body: { windows: [{ day_of_week: 1, start_time: '09:00', end_time: '17:00', notes: 'Front counter' }] },
+    };
+    const res = mockRes();
+    await ctrl.replaceAvailability(req, res, next);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.windows).toHaveLength(1);
+    expect(mockQuery.mock.calls[2][1]).toEqual(['2', req.user.id, 1, '09:00:00', '17:00:00', 'Front counter']);
+  });
+
+  test('replaceAvailability rejects duplicate or overnight windows before touching the database', async () => {
+    const req = {
+      params: { businessId: '2' },
+      user: { id: '00000000-0000-4000-8000-0000000000aa' },
+      body: { windows: [
+        { day_of_week: 1, start_time: '22:00', end_time: '02:00' },
+      ] },
+    };
+    const res = mockRes();
+    await ctrl.replaceAvailability(req, res, next);
+    expect(res.statusCode).toBe(400);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('staff can request a swap for their own shift and nominate a member', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 7, user_id: '00000000-0000-4000-8000-0000000000aa' }] })
+      .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] }) // target membership
+      .mockResolvedValueOnce({ rows: [{ id: 19, status: 'requested' }] });
+    const req = {
+      params: { businessId: '2', shiftId: '7' },
+      user: { id: '00000000-0000-4000-8000-0000000000aa' },
+      businessRole: 'employee',
+      body: { target_user_id: '00000000-0000-4000-8000-0000000000bb', note: 'Need coverage' },
+    };
+    const res = mockRes();
+    await ctrl.createShiftSwapRequest(req, res, next);
+    expect(res.statusCode).toBe(201);
+    expect(res.body.request.status).toBe('requested');
+    expect(mockQuery.mock.calls[2][0]).toMatch(/INSERT INTO business_shift_swap_requests/);
+  });
+
+  test('manager approval atomically reassigns the shift and closes the request', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 19, shift_id: 7, status: 'requested', target_user_id: '00000000-0000-4000-8000-0000000000bb', assigned_user_id: '00000000-0000-4000-8000-0000000000aa' }] })
+      .mockResolvedValueOnce({ rows: [] }) // shift reassignment
+      .mockResolvedValueOnce({ rows: [{ id: 19, status: 'approved' }] });
+    const req = {
+      params: { businessId: '2', requestId: '19' },
+      user: { id: '00000000-0000-4000-8000-0000000000cc' },
+      businessRole: 'manager',
+    };
+    const res = mockRes();
+    await ctrl.approveShiftSwapRequest(req, res, next);
+    expect(res.statusCode).toBe(200);
+    expect(res.body.request.status).toBe('approved');
+    expect(mockQuery.mock.calls[1][0]).toMatch(/UPDATE business_staff_shifts SET user_id/);
+  });
+});

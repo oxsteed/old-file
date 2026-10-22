@@ -2,13 +2,19 @@
 // previously server-only. The server exposes:
 //   GET  /restaurants/:id/pos/sync/status        (degraded/error overview)
 //   POST /restaurants/:id/pos/sync/ack           (report operation states)
-// Failed mutations are never auto-retried (money fails closed); they are
-// recorded locally and reported to the server as 'failed' so the manager's
-// sync view shows them, and surfaced in the POS page as a degraded banner.
+// Generic failed mutations are never auto-retried (money fails closed). Cash
+// checkout is the deliberate exception: its order and payment requests carry
+// stable idempotency keys, so a cash-only network failure can be replayed
+// safely after reconnecting. Card, mobile and credit operations are never
+// replayed by this browser queue.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '../../api/axios';
+import { isNetworkFailure, replayCashOutboxEntries } from './offlineCashReplay';
+
+export { isNetworkFailure, replayCashOutboxEntries } from './offlineCashReplay';
 
 const OUTBOX_KEY = (restaurantId) => `oxsteed:pos-sync-outbox:${restaurantId}`;
+const CASH_OUTBOX_KEY = (restaurantId) => `oxsteed:pos-cash-outbox:${restaurantId}`;
 const MAX_OUTBOX = 50;
 
 function readOutbox(restaurantId) {
@@ -29,9 +35,36 @@ function writeOutbox(restaurantId, ops) {
   }
 }
 
+function readCashOutbox(restaurantId) {
+  try {
+    const raw = localStorage.getItem(CASH_OUTBOX_KEY(restaurantId));
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeCashOutbox(restaurantId, ops) {
+  try {
+    localStorage.setItem(CASH_OUTBOX_KEY(restaurantId), JSON.stringify(ops));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const operationId = (prefix) => `webpos-${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+export function cashOutboxStorageKey(restaurantId) {
+  return CASH_OUTBOX_KEY(restaurantId);
+}
+
 export function usePosSync(restaurantId, enabled) {
   const [syncState, setSyncState] = useState({ status: 'healthy', operations: { failed_operations: 0, pending_operations: 0 } });
   const [outboxCount, setOutboxCount] = useState(0);
+  const [cashOutboxCount, setCashOutboxCount] = useState(0);
+  const flushingCash = useRef(false);
   const restaurantRef = useRef(restaurantId);
   restaurantRef.current = restaurantId;
 
@@ -72,9 +105,55 @@ export function usePosSync(restaurantId, enabled) {
     pollStatus();
   }, [restaurantId, pollStatus]);
 
+  const replayCashEntry = useCallback(async (entry) => {
+    let order = entry.orderId ? { id: entry.orderId, total_cents: entry.orderTotalCents } : null;
+    if (!order) {
+      const response = await api.post(`/restaurants/${restaurantId}/pos/orders`, entry.orderPayload);
+      order = response.data?.order;
+      if (!order?.id) throw new Error('Cash order replay did not return an order');
+    }
+    await api.post(`/restaurants/${restaurantId}/pos/orders/${order.id}/payments`, {
+      ...entry.paymentPayload,
+      amountCents: Number(entry.paymentPayload?.amountCents || order.total_cents || 0),
+    });
+    return order;
+  }, [restaurantId]);
+
+  const flushCashOutbox = useCallback(async () => {
+    if (flushingCash.current || !navigator.onLine) return;
+    flushingCash.current = true;
+    try {
+      const remaining = await replayCashOutboxEntries(readCashOutbox(restaurantId), replayCashEntry);
+    writeCashOutbox(restaurantId, remaining);
+      setCashOutboxCount(remaining.length);
+    } finally {
+      flushingCash.current = false;
+      pollStatus();
+    }
+  }, [restaurantId, pollStatus, replayCashEntry]);
+
+  const queueOfflineCashCheckout = useCallback((payload) => {
+    if (!payload || payload.method !== 'cash') return false;
+    const entry = {
+      operationId: operationId('cash'),
+      createdAt: new Date().toISOString(),
+      attempts: 0,
+      orderId: payload.orderId || null,
+      orderTotalCents: payload.orderTotalCents || null,
+      orderPayload: payload.orderPayload || null,
+      paymentPayload: payload.paymentPayload,
+    };
+    const existing = readCashOutbox(restaurantId);
+    if (existing.length >= MAX_OUTBOX) return false;
+    const entries = [...existing, entry];
+    if (!writeCashOutbox(restaurantId, entries)) return false;
+    setCashOutboxCount(entries.length);
+    return true;
+  }, [restaurantId]);
+
   const reportFailedOperation = useCallback((operationType, errorMessage) => {
     const op = {
-      operationId: `webpos-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+      operationId: operationId('failed'),
       operationType,
       entityType: 'pos_mutation',
       status: 'failed',
@@ -99,28 +178,32 @@ export function usePosSync(restaurantId, enabled) {
   useEffect(() => {
     if (!enabled) return;
     setOutboxCount(readOutbox(restaurantId).length);
+    setCashOutboxCount(readCashOutbox(restaurantId).length);
     pollStatus();
+    if (navigator.onLine) flushCashOutbox();
     const timer = setInterval(pollStatus, 30000);
-    const onOnline = () => flushOutbox();
+    const onOnline = () => { flushOutbox(); flushCashOutbox(); };
     window.addEventListener('online', onOnline);
     return () => {
       clearInterval(timer);
       window.removeEventListener('online', onOnline);
     };
-  }, [enabled, restaurantId, pollStatus, flushOutbox]);
+  }, [enabled, restaurantId, pollStatus, flushOutbox, flushCashOutbox]);
 
   const degraded = syncState.status === 'degraded' || syncState.status === 'error'
     || Number(syncState.operations?.failed_operations || 0) > 0
     || Number(syncState.operations?.pending_operations || 0) > 0
-    || outboxCount > 0;
+    || outboxCount > 0 || cashOutboxCount > 0;
 
   return {
     syncStatus: syncState.status,
     failedOperations: Number(syncState.operations?.failed_operations || 0),
     pendingOperations: Number(syncState.operations?.pending_operations || 0),
-    outboxCount,
+    outboxCount: outboxCount + cashOutboxCount,
+    offlineCashCount: cashOutboxCount,
     degraded,
     reportFailedOperation,
+    queueOfflineCashCheckout,
     refreshSyncStatus: pollStatus,
   };
 }

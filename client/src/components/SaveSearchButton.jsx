@@ -84,7 +84,7 @@ export default function SaveSearchButton({ searchType, query, filters, dark = fa
         className={dark
           ? 'inline-flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-full border border-gray-600 bg-gray-800/80 hover:bg-gray-700 text-sm font-medium text-gray-200 hover:text-white transition-colors'
           : 'inline-flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-full border border-gray-300 bg-white hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors'}
-        aria-haspopup="dialog"
+        aria-haspopup="dialog" data-track="ui.6c76f46255.1"
       >
         <BookmarkPlus className="w-4 h-4" aria-hidden="true" />
         {t('savedSearch.saveThisSearch')}
@@ -110,7 +110,7 @@ export default function SaveSearchButton({ searchType, query, filters, dark = fa
                 type="button"
                 onClick={() => setOpen(false)}
                 className="p-1.5 rounded-lg text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
-                aria-label={t('savedSearch.cancel')}
+                aria-label={t('savedSearch.cancel')} data-track="ui.6c76f46255.2"
               >
                 <X className="w-4 h-4" aria-hidden="true" />
               </button>
@@ -118,7 +118,7 @@ export default function SaveSearchButton({ searchType, query, filters, dark = fa
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               {t('savedSearch.dialogSubtitle')}
             </p>
-            <form onSubmit={handleSave}>
+            <form onSubmit={handleSave} data-track="ui.6c76f46255.3">
               <label
                 htmlFor="save-search-name"
                 className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5"
@@ -147,14 +147,14 @@ export default function SaveSearchButton({ searchType, query, filters, dark = fa
                   <button
                     type="button"
                     onClick={() => setOpen(false)}
-                    className="min-h-[44px] px-4 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    className="min-h-[44px] px-4 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" data-track="ui.6c76f46255.4"
                   >
                     {t('savedSearch.cancel')}
                   </button>
                   <button
                     type="submit"
                     disabled={!name.trim() || saving}
-                    className="min-h-[44px] px-5 rounded-xl text-sm font-semibold bg-brand-500 hover:bg-brand-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="min-h-[44px] px-5 rounded-xl text-sm font-semibold bg-brand-500 hover:bg-brand-600 text-white disabled:opacity-50 disabled:cursor-not-allowed" data-track="ui.6c76f46255.5"
                   >
                     {saving ? t('savedSearch.saving') : t('savedSearch.save')}
                   </button>

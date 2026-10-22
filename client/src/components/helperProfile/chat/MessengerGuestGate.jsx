@@ -153,7 +153,7 @@ export default function MessengerGuestGate({
 
   if (step === 'otp') {
     return (
-      <form className="messenger-guest-gate" onSubmit={submitCode} noValidate>
+      <form className="messenger-guest-gate" onSubmit={submitCode} noValidate data-track-private>
         <p className="messenger-guest-gate__eyebrow">
           {t('helperProfile.messenger.guestOtpEyebrow')}
         </p>
@@ -219,7 +219,7 @@ export default function MessengerGuestGate({
           <button
             type="submit"
             className="messenger-guest-gate__primary"
-            disabled={busy || code.trim().length !== 6 || (accessCodeRequired && accessCode.trim().length < 8)}
+            disabled={busy || code.trim().length !== 6 || (accessCodeRequired && accessCode.trim().length < 8)} data-track-private
           >
             {busy
               ? t('helperProfile.messenger.guestOtpVerifying')
@@ -229,7 +229,7 @@ export default function MessengerGuestGate({
             type="button"
             className="messenger-guest-gate__secondary"
             onClick={resendCode}
-            disabled={busy}
+            disabled={busy} data-track-private
           >
             {t('helperProfile.messenger.guestOtpResend')}
           </button>
@@ -237,7 +237,7 @@ export default function MessengerGuestGate({
             type="button"
             className="messenger-guest-gate__secondary"
             onClick={() => { setStep('contact'); setCode(''); setError(''); }}
-            disabled={busy}
+            disabled={busy} data-track-private
           >
             {t('helperProfile.messenger.guestOtpBack')}
           </button>
@@ -247,7 +247,7 @@ export default function MessengerGuestGate({
   }
 
   return (
-    <form className="messenger-guest-gate" onSubmit={startVerification} noValidate>
+    <form className="messenger-guest-gate" onSubmit={startVerification} noValidate data-track-private>
       <p className="messenger-guest-gate__eyebrow">
         {t('helperProfile.messenger.guestEyebrow')}
       </p>
@@ -304,7 +304,7 @@ export default function MessengerGuestGate({
         <button
           type="submit"
           className="messenger-guest-gate__primary"
-          disabled={!ready || busy}
+          disabled={!ready || busy} data-track-private
         >
           {busy
             ? t('helperProfile.messenger.guestVerifySending')

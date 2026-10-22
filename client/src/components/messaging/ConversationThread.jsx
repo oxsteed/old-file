@@ -62,11 +62,11 @@ function MessageAttachments({ attachments }) {
         att?.type === 'shared_cart' ? (
           <SharedCartCard key={att.share_token || att.url || 'shared-cart'} att={att} />
         ) : isImageAttachment(att) ? (
-          <a key={att.url} href={att.url} target="_blank" rel="noopener noreferrer">
+          <a key={att.url} href={att.url} target="_blank" rel="noopener noreferrer" data-track="ui.5e3226263f.1">
             <img src={att.url} alt={attachmentLabel(att)} />
           </a>
         ) : (
-          <a key={att.url} href={att.url} target="_blank" rel="noopener noreferrer">
+          <a key={att.url} href={att.url} target="_blank" rel="noopener noreferrer" data-track="ui.5e3226263f.2">
             <Paperclip size={14} aria-hidden />
             {attachmentLabel(att)}
           </a>
@@ -244,7 +244,7 @@ export default function ConversationThread({
             ? t('messages.recipientInactiveText')
             : t('messages.conversationNotFound')}
         </p>
-        <button type="button" onClick={onBack}>
+        <button type="button" onClick={onBack} data-track="ui.5e3226263f.3">
           {t('messages.backToMessages')}
         </button>
       </div>
@@ -256,7 +256,7 @@ export default function ConversationThread({
   return (
     <section className="messages-thread" aria-label={t('messages.chatWith', { name: otherName || '...' })}>
       <header className="messages-thread-head">
-        <button type="button" className="messages-back mobile-only" onClick={onBack}>
+        <button type="button" className="messages-back mobile-only" onClick={onBack} data-track="ui.5e3226263f.4">
           <ArrowLeft size={16} aria-hidden />
           {t('common.back')}
         </button>
@@ -296,7 +296,7 @@ export default function ConversationThread({
               className="messages-thread-action-icon"
               onClick={archiveAction}
               aria-label={isArchived ? t('messages.restore') : t('messages.archive')}
-              title={isArchived ? t('messages.restore') : t('messages.archive')}
+              title={isArchived ? t('messages.restore') : t('messages.archive')} data-track="ui.5e3226263f.5"
             >
               {isArchived ? <RotateCcw size={16} aria-hidden /> : <Archive size={16} aria-hidden />}
               <span className="messages-thread-action-label">
@@ -311,7 +311,7 @@ export default function ConversationThread({
               className="messages-thread-action-icon"
               onClick={() => setShowPopShare(true)}
               aria-label={t('messages.popShare.title')}
-              title={t('messages.popShare.title')}
+              title={t('messages.popShare.title')} data-track="ui.5e3226263f.6"
             >
               <Receipt size={16} aria-hidden />
               <span className="messages-thread-action-label">{t('messages.popShare.button')}</span>
@@ -323,7 +323,7 @@ export default function ConversationThread({
             onClick={toggleTranslate}
             aria-pressed={translateEnabled}
             aria-label={translateEnabled ? t('messages.translateOff') : t('messages.translateOn')}
-            title={translateEnabled ? t('messages.translateOff') : t('messages.translateOn')}
+            title={translateEnabled ? t('messages.translateOff') : t('messages.translateOn')} data-track="ui.5e3226263f.7"
           >
             <Globe size={16} aria-hidden />
             <span className="messages-thread-action-label">
@@ -336,7 +336,7 @@ export default function ConversationThread({
             onClick={() => setShowAdvisor((value) => !value)}
             aria-label={t('messages.shell.aiAdvisorAria')}
             title={t('messages.shell.aiAdvisorAria')}
-            aria-pressed={showAdvisor}
+            aria-pressed={showAdvisor} data-track="ui.5e3226263f.8"
           >
             <Calculator size={16} aria-hidden />
             <span className="messages-thread-action-label">{t('messages.shell.aiAdvisorAria')}</span>
@@ -348,7 +348,7 @@ export default function ConversationThread({
         <div className="messages-inline-alert" role="alert">
           <p>{t('messages.loadFailed')}</p>
           <div className="messages-inline-alert-actions">
-            <button type="button" onClick={fetchMessages} disabled={loading}>
+            <button type="button" onClick={fetchMessages} disabled={loading} data-track="ui.5e3226263f.9">
               {t('messages.retry')}
             </button>
             <Link to="/support/escalation">{t('messages.contactSupport')}</Link>
@@ -381,7 +381,7 @@ export default function ConversationThread({
             type="button"
             className="messages-archive-more"
             onClick={loadMoreMessages}
-            disabled={olderLoading}
+            disabled={olderLoading} data-track="ui.5e3226263f.10"
           >
             {olderLoading ? t('messages.loadingMessages') : t('messages.loadMoreMessages')}
           </button>
@@ -421,8 +421,8 @@ export default function ConversationThread({
                     autoFocus
                   />
                   <div>
-                    <button type="button" onClick={() => handleSaveEdit(msg.id)}>{t('common.save')}</button>
-                    <button type="button" onClick={() => setEditingId(null)}>{t('common.cancel')}</button>
+                    <button type="button" onClick={() => handleSaveEdit(msg.id)} data-track="ui.5e3226263f.11">{t('common.save')}</button>
+                    <button type="button" onClick={() => setEditingId(null)} data-track="ui.5e3226263f.12">{t('common.cancel')}</button>
                   </div>
                 </div>
               ) : (
@@ -535,7 +535,7 @@ export default function ConversationThread({
                       <span className="failed">
                         {t('messages.failed')}
                         {!composerDisabled && (
-                          <button type="button" onClick={() => retryMessage(msg.id)}>
+                          <button type="button" onClick={() => retryMessage(msg.id)} data-track="ui.5e3226263f.13">
                             {t('messages.retry')}
                           </button>
                         )}
@@ -582,7 +582,7 @@ export default function ConversationThread({
       )}
 
       {!stickToBottom && (
-        <button type="button" className="messages-jump-latest" onClick={() => scrollToLatest('smooth')}>
+        <button type="button" className="messages-jump-latest" onClick={() => scrollToLatest('smooth')} data-track="ui.5e3226263f.14">
           <ChevronDown size={16} aria-hidden />
           {t('messages.jumpToLatest')}
         </button>
@@ -797,7 +797,7 @@ export default function ConversationThread({
         <div className="messages-archived-notice" role="status">
           <p>{t('messages.archivedReadOnly', { defaultValue: 'This conversation is archived. Restore it to continue messaging.' })}</p>
           {onRestore ? (
-            <button type="button" onClick={onRestore}>
+            <button type="button" onClick={onRestore} data-track="ui.5e3226263f.15">
               <RotateCcw size={15} aria-hidden />
               {t('messages.restore')}
             </button>

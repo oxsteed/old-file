@@ -164,7 +164,7 @@ export default function ConfirmDialog({
             type="button"
             onClick={handleClose}
             disabled={busy}
-            className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
+            className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50" data-track-private
           >
             {resolvedCancelLabel}
           </button>
@@ -174,7 +174,7 @@ export default function ConfirmDialog({
             disabled={busy || !reasonOk}
             className={`px-4 py-2 rounded-md text-sm font-medium text-gray-900 dark:text-white disabled:opacity-50 ${
               danger ? 'bg-red-600 hover:bg-red-500' : 'bg-blue-600 hover:bg-blue-500'
-            }`}
+            }`} data-track-private
           >
             {busy ? t('adminConfirmDialog.working') : resolvedConfirmLabel}
           </button>

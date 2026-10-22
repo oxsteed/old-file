@@ -134,28 +134,28 @@ export default function ArbitrationPage() {
                 {t(pk('onThisPage'))}
               </p>
               <nav className="flex flex-col gap-2 text-sm">
-                <a href="#binding-arbitration" className="text-gray-400 hover:text-purple-400 transition">
+                <a href="#binding-arbitration" className="text-gray-400 hover:text-purple-400 transition" data-track="ui.7796fd90f5.1">
                   {t(pk('sections.bindingArbitration'))}
                 </a>
-                <a href="#process" className="text-gray-400 hover:text-purple-400 transition">
+                <a href="#process" className="text-gray-400 hover:text-purple-400 transition" data-track="ui.7796fd90f5.2">
                   {t(pk('sections.process'))}
                 </a>
-                <a href="#fees" className="text-gray-400 hover:text-purple-400 transition">
+                <a href="#fees" className="text-gray-400 hover:text-purple-400 transition" data-track="ui.7796fd90f5.3">
                   {t(pk('sections.fees'))}
                 </a>
-                <a href="#class-action" className="text-gray-400 hover:text-purple-400 transition">
+                <a href="#class-action" className="text-gray-400 hover:text-purple-400 transition" data-track="ui.7796fd90f5.4">
                   {t(pk('sections.classAction'))}
                 </a>
-                <a href="#exceptions" className="text-gray-400 hover:text-purple-400 transition">
+                <a href="#exceptions" className="text-gray-400 hover:text-purple-400 transition" data-track="ui.7796fd90f5.5">
                   {t(pk('sections.exceptions'))}
                 </a>
-                <a href="#limitation" className="text-gray-400 hover:text-purple-400 transition">
+                <a href="#limitation" className="text-gray-400 hover:text-purple-400 transition" data-track="ui.7796fd90f5.6">
                   {t(pk('sections.limitation'))}
                 </a>
-                <a href="#state-disclaimers" className="text-gray-400 hover:text-purple-400 transition">
+                <a href="#state-disclaimers" className="text-gray-400 hover:text-purple-400 transition" data-track="ui.7796fd90f5.7">
                   {t(pk('sections.stateDisclaimers'))}
                 </a>
-                <a href="#initiate" className="text-gray-400 hover:text-purple-400 transition">
+                <a href="#initiate" className="text-gray-400 hover:text-purple-400 transition" data-track="ui.7796fd90f5.8">
                   {t(pk('sections.initiate'))}
                 </a>
               </nav>
@@ -398,7 +398,7 @@ export default function ArbitrationPage() {
                     >
                       <button
                         onClick={() => setExpandedState(expandedState === index ? null : index)}
-                        className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-800/50 transition text-left"
+                        className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-800/50 transition text-left" data-track="ui.7796fd90f5.9"
                       >
                         <span className="font-semibold text-white">
                           {disclosure.state} - {disclosure.title}
@@ -479,7 +479,7 @@ export default function ArbitrationPage() {
                       type="checkbox"
                       checked={acceptanceChecked}
                       onChange={(e) => setAcceptanceChecked(e.target.checked)}
-                      className="w-5 h-5 rounded border-gray-600 text-purple-600 focus:ring-2 focus:ring-purple-400 mt-0.5"
+                      className="w-5 h-5 rounded border-gray-600 text-purple-600 focus:ring-2 focus:ring-purple-400 mt-0.5" data-track="ui.7796fd90f5.10"
                     />
                     <span className="text-gray-300">
                       {highlightText(t(pk('acceptance.checkbox')))}
@@ -489,14 +489,14 @@ export default function ArbitrationPage() {
                   {acceptanceChecked && !showSignature && (
                     <button
                       onClick={() => setShowSignature(true)}
-                      className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition w-full"
+                      className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition w-full" data-track="ui.7796fd90f5.11"
                     >
                       {t(pk('acceptance.signBtn'))}
                     </button>
                   )}
 
                   {showSignature && (
-                    <form onSubmit={handleSignatureSubmit} className="space-y-4 p-6 bg-gray-800/50 rounded-lg border border-gray-700">
+                    <form onSubmit={handleSignatureSubmit} className="space-y-4 p-6 bg-gray-800/50 rounded-lg border border-gray-700" data-track="ui.7796fd90f5.12">
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">
                           {t(pk('acceptance.form.signature'))}
@@ -516,14 +516,14 @@ export default function ArbitrationPage() {
                       <div className="flex gap-3">
                         <button
                           type="submit"
-                          className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded font-semibold transition"
+                          className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded font-semibold transition" data-track="ui.7796fd90f5.13"
                         >
                           {t(pk('acceptance.form.submit'))}
                         </button>
                         <button
                           type="button"
                           onClick={() => setShowSignature(false)}
-                          className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded font-semibold transition"
+                          className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded font-semibold transition" data-track="ui.7796fd90f5.14"
                         >
                           {t('common.cancel')}
                         </button>

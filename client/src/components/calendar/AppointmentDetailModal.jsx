@@ -81,7 +81,7 @@ export default function AppointmentDetailModal({ appointment, onClose, onUpdate,
       <div className="adm-modal" onClick={(e) => e.stopPropagation()}>
         <div className="adm-header">
           <h2>{t('calendar.appointmentDetails')}</h2>
-          <button className="adm-close" onClick={onClose}>✕</button>
+          <button className="adm-close" onClick={onClose} data-track="ui.7ed45b7fe4.1">✕</button>
         </div>
 
         <div className="adm-content">
@@ -132,7 +132,7 @@ export default function AppointmentDetailModal({ appointment, onClose, onUpdate,
               <div className="adm-detail">
                 <label>{t('calendar.email')}</label>
                 <div className="adm-value">
-                  <a href={`mailto:${appointment.customer_email}`}>{appointment.customer_email}</a>
+                  <a href={`mailto:${appointment.customer_email}`} data-track="ui.7ed45b7fe4.2">{appointment.customer_email}</a>
                 </div>
               </div>
             )}
@@ -140,7 +140,7 @@ export default function AppointmentDetailModal({ appointment, onClose, onUpdate,
               <div className="adm-detail">
                 <label>{t('calendar.phone')}</label>
                 <div className="adm-value">
-                  <a href={`tel:${appointment.guest_phone}`}>{appointment.guest_phone}</a>
+                  <a href={`tel:${appointment.guest_phone}`} data-track="ui.7ed45b7fe4.3">{appointment.guest_phone}</a>
                 </div>
               </div>
             )}
@@ -162,7 +162,7 @@ export default function AppointmentDetailModal({ appointment, onClose, onUpdate,
                 )}
                 <button
                   className="adm-job-link"
-                  onClick={() => { onClose(); navigate(`/jobs/${appointment.job_id}`); }}
+                  onClick={() => { onClose(); navigate(`/jobs/${appointment.job_id}`); }} data-track="ui.7ed45b7fe4.4"
                 >
                   {t('calendar.viewJob')} →
                 </button>
@@ -212,7 +212,7 @@ export default function AppointmentDetailModal({ appointment, onClose, onUpdate,
               href={`/api/calendar/appointments/${appointment.id}/ical`}
               download={`oxsteed-appointment-${appointment.id}.ics`}
               className="adm-export-btn"
-              aria-label={t('calendar.downloadIcal', { defaultValue: 'Download .ics file' })}
+              aria-label={t('calendar.downloadIcal', { defaultValue: 'Download .ics file' })} data-track="ui.7ed45b7fe4.5"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
               {t('calendar.downloadIcal', { defaultValue: 'Download .ics' })}
@@ -222,7 +222,7 @@ export default function AppointmentDetailModal({ appointment, onClose, onUpdate,
               target="_blank"
               rel="noopener noreferrer"
               className="adm-export-btn"
-              aria-label={t('calendar.addToGoogle', { defaultValue: 'Add to Google Calendar' })}
+              aria-label={t('calendar.addToGoogle', { defaultValue: 'Add to Google Calendar' })} data-track="ui.7ed45b7fe4.6"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M18 2h-3a2 2 0 0 0-2 2v3"/><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               {t('calendar.addToGoogle', { defaultValue: 'Add to Google Calendar' })}
@@ -237,7 +237,7 @@ export default function AppointmentDetailModal({ appointment, onClose, onUpdate,
                 <button
                   className="adm-btn adm-btn-primary"
                   onClick={handleConfirm}
-                  disabled={loading}
+                  disabled={loading} data-track="ui.7ed45b7fe4.7"
                 >
                   {t('calendar.confirmAppointment')}
                 </button>
@@ -246,7 +246,7 @@ export default function AppointmentDetailModal({ appointment, onClose, onUpdate,
                 <button
                   className="adm-btn adm-btn-secondary"
                   onClick={() => setShowReschedule(true)}
-                  disabled={loading}
+                  disabled={loading} data-track="ui.7ed45b7fe4.8"
                 >
                   {t('calendar.reschedule', { defaultValue: 'Reschedule' })}
                 </button>
@@ -254,7 +254,7 @@ export default function AppointmentDetailModal({ appointment, onClose, onUpdate,
               {canCancel && (
                 <button
                   className="adm-btn adm-btn-danger"
-                  onClick={() => setShowCancelConfirm(true)}
+                  onClick={() => setShowCancelConfirm(true)} data-track="ui.7ed45b7fe4.9"
                 >
                   {t('calendar.cancelAppointment')}
                 </button>
@@ -266,21 +266,21 @@ export default function AppointmentDetailModal({ appointment, onClose, onUpdate,
               <button
                 className="adm-btn adm-btn-danger"
                 onClick={handleCancel}
-                disabled={loading || !cancelReason.trim()}
+                disabled={loading || !cancelReason.trim()} data-track="ui.7ed45b7fe4.10"
               >
                 {t('calendar.confirmCancel')}
               </button>
               <button
                 className="adm-btn adm-btn-secondary"
                 onClick={() => setShowCancelConfirm(false)}
-                disabled={loading}
+                disabled={loading} data-track="ui.7ed45b7fe4.11"
               >
                 {t('calendar.keepAppointment')}
               </button>
             </>
           )}
           {!showCancelConfirm && (
-            <button className="adm-btn adm-btn-secondary" onClick={onClose} disabled={loading}>
+            <button className="adm-btn adm-btn-secondary" onClick={onClose} disabled={loading} data-track="ui.7ed45b7fe4.12">
               {t('common.close')}
             </button>
           )}

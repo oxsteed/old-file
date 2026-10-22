@@ -1,0 +1,220 @@
+{
+  "sections": {
+    "1": {
+      "search": "1. Pendahuluan OxSteed LLC menyediakan daftar layanan lokal, pekerjaan dan penawaran, ruang kerja bisnis, pemesanan makanan, pengiriman, media, serta alat akun dan pembayaran terkait. Kebijakan ini menjelaskan informasi yang diproses saat Anda menggunakan fitur-fitur ini, termasuk kontak tamu dan dukungan. Ketersediaan bergantung pada fitur, akun, wilayah, dan penyedia layanan.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "1. Pendahuluan"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed LLC menyediakan daftar layanan lokal, pekerjaan dan penawaran, ruang kerja bisnis, pemesanan makanan, pengiriman, media, serta alat akun dan pembayaran terkait. Kebijakan ini menjelaskan informasi yang diproses saat Anda menggunakan fitur-fitur ini, termasuk kontak tamu dan dukungan. Ketersediaan bergantung pada fitur, akun, wilayah, dan penyedia layanan."
+        }
+      ]
+    },
+    "2": {
+      "search": "2. Informasi yang Kami Kumpulkan Kami memproses informasi yang Anda berikan: detail kontak dan akun, informasi profil dan bisnis, detail pekerjaan dan pesanan, pesan, permintaan dukungan, ulasan, media yang diunggah, catatan pembayaran, dan informasi verifikasi jika diperlukan. Kami juga memproses informasi perangkat dan permintaan, seperti alamat IP, detail peramban, log keamanan, dan peristiwa penggunaan yang disetujui. Lokasi dapat berasal dari alamat yang Anda masukkan, profil Anda, atau izin perangkat. Penyedia pembayaran dapat mengumpulkan kredensial pembayaran secara langsung.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "2. Informasi yang Kami Kumpulkan"
+        },
+        {
+          "type": "p",
+          "text": "Kami memproses informasi yang Anda berikan: detail kontak dan akun, informasi profil dan bisnis, detail pekerjaan dan pesanan, pesan, permintaan dukungan, ulasan, media yang diunggah, catatan pembayaran, dan informasi verifikasi jika diperlukan. Kami juga memproses informasi perangkat dan permintaan, seperti alamat IP, detail peramban, log keamanan, dan peristiwa penggunaan yang disetujui. Lokasi dapat berasal dari alamat yang Anda masukkan, profil Anda, atau izin perangkat. Penyedia pembayaran dapat mengumpulkan kredensial pembayaran secara langsung."
+        }
+      ]
+    },
+    "3": {
+      "search": "3. Cara Kami Menggunakan Informasi Anda Kami menggunakan informasi untuk mengoperasikan akun dan ruang kerja; mencocokkan pekerjaan dan layanan; memenuhi pesanan; menyampaikan pesan dan pemberitahuan; memproses dan merekonsiliasi pembayaran; menangani dukungan, sengketa, dan permintaan privasi; mencegah penyalahgunaan; dan memenuhi kewajiban hukum. Analitik opsional membantu kami memahami penggunaan. Jika Anda menggunakan fitur berbantuan AI, prompt Anda dan konteks fitur yang relevan dapat dikirim ke penyedia AI yang dikonfigurasi untuk menghasilkan respons. Hindari mengirimkan informasi sensitif yang tidak perlu; output AI bisa tidak akurat.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "3. Cara Kami Menggunakan Informasi Anda"
+        },
+        {
+          "type": "p",
+          "text": "Kami menggunakan informasi untuk mengoperasikan akun dan ruang kerja; mencocokkan pekerjaan dan layanan; memenuhi pesanan; menyampaikan pesan dan pemberitahuan; memproses dan merekonsiliasi pembayaran; menangani dukungan, sengketa, dan permintaan privasi; mencegah penyalahgunaan; dan memenuhi kewajiban hukum. Analitik opsional membantu kami memahami penggunaan. Jika Anda menggunakan fitur berbantuan AI, prompt Anda dan konteks fitur yang relevan dapat dikirim ke penyedia AI yang dikonfigurasi untuk menghasilkan respons. Hindari mengirimkan informasi sensitif yang tidak perlu; output AI bisa tidak akurat."
+        }
+      ]
+    },
+    "4": {
+      "search": "4. Cara Kami Membagikan Informasi Anda Informasi diungkapkan kepada peserta dan bisnis yang diperlukan untuk menyediakan layanan yang Anda minta, staf yang berwenang, dan penyedia layanan untuk pembayaran, hosting dan penyimpanan, pengiriman konten dan keamanan, email atau pemberitahuan lainnya, peta, dan fitur AI. Integrasi mencakup Stripe dan Cloudflare; penyedia lain bergantung pada fitur dan konfigurasi. Profil publik, daftar, ulasan, dan media yang diterbitkan terlihat oleh audiens yang dituju. Pengungkapan hukum dan transfer bisnis juga mungkin memerlukan pembagian. Integrasi analitik atau periklanan opsional dijelaskan dalam Kebijakan Cookie.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "4. Cara Kami Membagikan Informasi Anda"
+        },
+        {
+          "type": "p",
+          "text": "Informasi diungkapkan kepada peserta dan bisnis yang diperlukan untuk menyediakan layanan yang Anda minta, staf yang berwenang, dan penyedia layanan untuk pembayaran, hosting dan penyimpanan, pengiriman konten dan keamanan, email atau pemberitahuan lainnya, peta, dan fitur AI. Integrasi mencakup Stripe dan Cloudflare; penyedia lain bergantung pada fitur dan konfigurasi. Profil publik, daftar, ulasan, dan media yang diterbitkan terlihat oleh audiens yang dituju. Pengungkapan hukum dan transfer bisnis juga mungkin memerlukan pembagian. Integrasi analitik atau periklanan opsional dijelaskan dalam Kebijakan Cookie."
+        }
+      ]
+    },
+    "5": {
+      "search": "5. Privasi Alamat dan Penyamaran Data Visibilitas lokasi pekerjaan bergantung pada peran, penugasan, jadwal, dan pemeriksaan akses yang berlaku. Detail pesanan dan pengiriman dibagikan kepada bisnis dan peserta yang membutuhkannya untuk pemenuhan. Informasi yang Anda tempatkan dalam deskripsi publik, foto, ulasan, atau media dapat mengungkapkan alamat bahkan ketika kolom alamat terstruktur dibatasi. Jangan mempublikasikan alamat pribadi atau instruksi akses dalam konten publik.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "5. Privasi Alamat dan Penyamaran Data"
+        },
+        {
+          "type": "p",
+          "text": "Visibilitas lokasi pekerjaan bergantung pada peran, penugasan, jadwal, dan pemeriksaan akses yang berlaku. Detail pesanan dan pengiriman dibagikan kepada bisnis dan peserta yang membutuhkannya untuk pemenuhan. Informasi yang Anda tempatkan dalam deskripsi publik, foto, ulasan, atau media dapat mengungkapkan alamat bahkan ketika kolom alamat terstruktur dibatasi. Jangan mempublikasikan alamat pribadi atau instruksi akses dalam konten publik."
+        }
+      ]
+    },
+    "6": {
+      "search": "6. Penyimpanan Data Penyimpanan bervariasi menurut catatan dan tujuan. Catatan akun, pesanan, pesan, keamanan, dan media memiliki siklus hidup yang berbeda. Buku besar keuangan, catatan pembayaran dan penyelesaian, bukti persetujuan, dan riwayat audit dapat tetap ada setelah penutupan akun untuk akuntansi, sengketa, pencegahan penipuan, dan kewajiban hukum. Penghapusan dapat tertunda karena pekerjaan aktif, dana yang ditahan, sengketa, bukti audit yang diperlukan, atau siklus hidup cadangan. Kami tidak menjanjikan bahwa menutup akun segera menghapus setiap catatan atau salinan pihak ketiga.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "6. Penyimpanan Data"
+        },
+        {
+          "type": "p",
+          "text": "Penyimpanan bervariasi menurut catatan dan tujuan. Catatan akun, pesanan, pesan, keamanan, dan media memiliki siklus hidup yang berbeda. Buku besar keuangan, catatan pembayaran dan penyelesaian, bukti persetujuan, dan riwayat audit dapat tetap ada setelah penutupan akun untuk akuntansi, sengketa, pencegahan penipuan, dan kewajiban hukum. Penghapusan dapat tertunda karena pekerjaan aktif, dana yang ditahan, sengketa, bukti audit yang diperlukan, atau siklus hidup cadangan. Kami tidak menjanjikan bahwa menutup akun segera menghapus setiap catatan atau salinan pihak ketiga."
+        }
+      ]
+    },
+    "7": {
+      "search": "7. Hak Anda Tergantung pada hukum yang berlaku, Anda dapat meminta akses, koreksi, penghapusan, portabilitas, batasan penggunaan informasi sensitif, atau penolakan (opt-out) penjualan, pembagian, atau iklan tertarget. Anda dapat menghubungi privacy@oxsteed.com atau menggunakan /do-not-sell tanpa masuk. Kami dapat memverifikasi identitas untuk akses atau penghapusan dan menjelaskan pengecualian yang berlaku. Kami akan menangani permintaan dalam tenggat hukum yang berlaku dan tidak akan mendiskriminasi karena menjalankan hak privasi.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "7. Hak Anda"
+        },
+        {
+          "type": "p",
+          "text": "Tergantung pada hukum yang berlaku, Anda dapat meminta akses, koreksi, penghapusan, portabilitas, batasan penggunaan informasi sensitif, atau penolakan (opt-out) penjualan, pembagian, atau iklan tertarget. Anda dapat menghubungi privacy@oxsteed.com atau menggunakan /do-not-sell tanpa masuk. Kami dapat memverifikasi identitas untuk akses atau penghapusan dan menjelaskan pengecualian yang berlaku. Kami akan menangani permintaan dalam tenggat hukum yang berlaku dan tidak akan mendiskriminasi karena menjalankan hak privasi."
+        }
+      ]
+    },
+    "8": {
+      "search": "8. Cookie dan Teknologi Pelacakan Cookie esensial dan penyimpanan peramban mendukung masuk, keamanan, pilihan persetujuan, dan fitur yang diminta. Kelola Cookie mengontrol analitik opsional, pemasaran, dan integrasi fungsional tambahan di peramban ini. Analitik dapat mencakup peristiwa tampilan halaman pihak pertama dan Google Analytics; pemasaran dapat mencakup Meta Pixel saat dikonfigurasi. Pengaturan dasar dan draf dapat menggunakan penyimpanan peramban terlepas dari integrasi opsional. Lihat Kebijakan Cookie untuk kontrol dan batasan.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "8. Cookie dan Teknologi Pelacakan"
+        },
+        {
+          "type": "p",
+          "text": "Cookie esensial dan penyimpanan peramban mendukung masuk, keamanan, pilihan persetujuan, dan fitur yang diminta. Kelola Cookie mengontrol analitik opsional, pemasaran, dan integrasi fungsional tambahan di peramban ini. Analitik dapat mencakup peristiwa tampilan halaman pihak pertama dan Google Analytics; pemasaran dapat mencakup Meta Pixel saat dikonfigurasi. Pengaturan dasar dan draf dapat menggunakan penyimpanan peramban terlepas dari integrasi opsional. Lihat Kebijakan Cookie untuk kontrol dan batasan."
+        }
+      ]
+    },
+    "9": {
+      "search": "9. Keamanan Data dan Pemberitahuan Pelanggaran Kami menggunakan kontrol akses, hashing kata sandi, perlindungan sesi, validasi, batas kecepatan, dan pencatatan keamanan. Tidak ada sistem yang sepenuhnya aman. Cakupan bergantung pada layanan dan konfigurasi; kebijakan ini tidak mensertifikasi setiap penyimpanan data atau layanan pihak ketiga. Jika insiden memerlukan pemberitahuan, kami akan memberi tahu orang dan otoritas yang terdampak sebagaimana diwajibkan oleh hukum yang berlaku. Lihat /security untuk panduan pelaporan.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "9. Keamanan Data dan Pemberitahuan Pelanggaran"
+        },
+        {
+          "type": "p",
+          "text": "Kami menggunakan kontrol akses, hashing kata sandi, perlindungan sesi, validasi, batas kecepatan, dan pencatatan keamanan. Tidak ada sistem yang sepenuhnya aman. Cakupan bergantung pada layanan dan konfigurasi; kebijakan ini tidak mensertifikasi setiap penyimpanan data atau layanan pihak ketiga. Jika insiden memerlukan pemberitahuan, kami akan memberi tahu orang dan otoritas yang terdampak sebagaimana diwajibkan oleh hukum yang berlaku. Lihat /security untuk panduan pelaporan."
+        }
+      ]
+    },
+    "10": {
+      "search": "10. Penghapusan Akun Minta penghapusan akun melalui pengaturan akun yang tersedia atau privacy@oxsteed.com. Penghapusan dapat menghapus atau menganonimkan kolom pribadi sambil mempertahankan catatan transaksi dan audit yang diperlukan. Kewajiban aktif mungkin perlu diselesaikan terlebih dahulu. Salinan yang telah diterima oleh pengguna atau penyedia lain tunduk pada kewajiban mereka masing-masing. Hubungi kami untuk cakupan dan status permintaan Anda.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "10. Penghapusan Akun"
+        },
+        {
+          "type": "p",
+          "text": "Minta penghapusan akun melalui pengaturan akun yang tersedia atau privacy@oxsteed.com. Penghapusan dapat menghapus atau menganonimkan kolom pribadi sambil mempertahankan catatan transaksi dan audit yang diperlukan. Kewajiban aktif mungkin perlu diselesaikan terlebih dahulu. Salinan yang telah diterima oleh pengguna atau penyedia lain tunduk pada kewajiban mereka masing-masing. Hubungi kami untuk cakupan dan status permintaan Anda."
+        }
+      ]
+    },
+    "11": {
+      "search": "11 privasi anak di bawah 18 tahun anak di bawah umur",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "11. Privasi Anak"
+        },
+        {
+          "type": "p",
+          "segments": [
+            "OxSteed tidak dimaksudkan untuk digunakan oleh siapa pun yang berusia di bawah 18 tahun. Kami tidak secara sadar mengumpulkan informasi pribadi dari anak di bawah 18 tahun. Jika kami mengetahui bahwa kami telah mengumpulkan informasi pribadi dari anak di bawah 18 tahun, kami akan segera menghapusnya. Jika Anda meyakini anak di bawah 18 tahun telah memberikan kami informasi pribadi, hubungi kami di ",
+            {
+              "mailto": "legal@oxsteed.com"
+            },
+            "."
+          ]
+        }
+      ]
+    },
+    "12": {
+      "search": "12 perubahan kebijakan privasi email 14 hari diperbarui",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "12. Perubahan terhadap Kebijakan Privasi Ini"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed dapat memperbarui Kebijakan Privasi ini kapan saja. Kami akan memberi tahu pengguna tentang perubahan material melalui email setidaknya 14 hari sebelum perubahan berlaku. Tanggal \"Last updated\" di bagian atas halaman ini mencerminkan revisi terbaru."
+        }
+      ]
+    },
+    "13": {
+      "search": "13 hubungi kami springfield legal@oxsteed.com",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "13. Hubungi Kami"
+        },
+        {
+          "type": "p",
+          "text": "Untuk pertanyaan tentang Kebijakan Privasi ini atau untuk menjalankan hak privasi Anda, hubungi kami di:"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed LLC"
+        },
+        {
+          "type": "p",
+          "text": "Springfield, Ohio"
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "mailto": "legal@oxsteed.com"
+            }
+          ]
+        }
+      ]
+    },
+    "14": {
+      "search": "Aktivitas, penawaran dan tautan mitra Setelah masa pemberitahuan, kami mencatat halaman, klik, pencarian dan tindakan di pasar. Pusat kode pos, bukan koordinat pribadi, digunakan untuk menganalisis permintaan dan memilih penawaran. Staf menyetujui setiap kampanye. AI hanya berjalan di server yang dikendalikan OxSteed. Di EEA dan Inggris, pelacakan serta penawaran berdasarkan aktivitas memerlukan persetujuan terpisah yang dapat dicabut di Pengaturan. Negara bagian AS yang berlaku menyediakan pilihan menolak penjualan atau pembagian dan menghormati Global Privacy Control. Di wilayah lain, pengaturan analitik mengontrol Google Analytics dan penyimpanan persisten; aktivitas dicakup pemberitahuan ini. Rincian aktivitas disimpan hingga 90 hari, dan ringkasan akun hingga 13 bulan. Mitra hanya menerima kode klik acak, tanpa nama, email atau aktivitas. Pembelian di mitra mengikuti kebijakan privasinya. Notifikasi penawaran memerlukan persetujuan terpisah dan dapat dimatikan di Pengaturan → Privasi. Harga, akses dan peringkat pencarian tidak berubah. Promote dapat menghubungkan pengunjung masuk dengan kode akun selama tujuh hari. Akses, koreksi atau penghapusan: privacy@oxsteed.com.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "14. Aktivitas, penawaran dan tautan mitra"
+        },
+        {
+          "type": "p",
+          "text": "Setelah masa pemberitahuan, kami mencatat halaman, klik, pencarian dan tindakan di pasar. Pusat kode pos, bukan koordinat pribadi, digunakan untuk menganalisis permintaan dan memilih penawaran. Staf menyetujui setiap kampanye. AI hanya berjalan di server yang dikendalikan OxSteed."
+        },
+        {
+          "type": "p",
+          "text": "Di EEA dan Inggris, pelacakan serta penawaran berdasarkan aktivitas memerlukan persetujuan terpisah yang dapat dicabut di Pengaturan. Negara bagian AS yang berlaku menyediakan pilihan menolak penjualan atau pembagian dan menghormati Global Privacy Control. Di wilayah lain, pengaturan analitik mengontrol Google Analytics dan penyimpanan persisten; aktivitas dicakup pemberitahuan ini."
+        },
+        {
+          "type": "p",
+          "text": "Rincian aktivitas disimpan hingga 90 hari, dan ringkasan akun hingga 13 bulan. Mitra hanya menerima kode klik acak, tanpa nama, email atau aktivitas. Pembelian di mitra mengikuti kebijakan privasinya."
+        },
+        {
+          "type": "p",
+          "text": "Notifikasi penawaran memerlukan persetujuan terpisah dan dapat dimatikan di Pengaturan → Privasi. Harga, akses dan peringkat pencarian tidak berubah. Promote dapat menghubungkan pengunjung masuk dengan kode akun selama tujuh hari. Akses, koreksi atau penghapusan: privacy@oxsteed.com."
+        }
+      ]
+    }
+  }
+}

@@ -226,7 +226,7 @@ function ActiveSessionHero({ session, t }) {
               <button
                 type="button"
                 onClick={() => toast(t('consultingPortal.meetingLinkSoon', { defaultValue: 'Meeting link will be available 15 min before.' }))}
-                className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-orange-400 hover:text-orange-300"
+                className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-orange-400 hover:text-orange-300" data-track="ui.719d896ad2.1"
               >
                 <Video size={11} /> {t('consultingPortal.joinMeeting', { defaultValue: 'Join meeting' })}
               </button>

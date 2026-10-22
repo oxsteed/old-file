@@ -112,7 +112,7 @@ const FilterDrawer = ({ open, onClose, children, activeCount }) => {
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
-            aria-label={t('common.close')}
+            aria-label={t('common.close')} data-track="ui.654f39ee89.1"
           >
             <X className="w-5 h-5" aria-hidden="true" />
           </button>
@@ -123,7 +123,7 @@ const FilterDrawer = ({ open, onClose, children, activeCount }) => {
         <div className="px-4 py-3 border-t border-gray-800 flex-shrink-0">
           <button
             onClick={onClose}
-            className="w-full py-3 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-xl transition-colors"
+            className="w-full py-3 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-xl transition-colors" data-track="ui.654f39ee89.2"
           >
             {t('toolRentalsDir.showResults')}
           </button>
@@ -155,7 +155,7 @@ const ToolTileGrid = ({ tiles, selectedId, onSelect }) => {
                   active
                     ? 'bg-brand-500/20 border-brand-500 text-brand-300 shadow-sm shadow-brand-500/20'
                     : 'bg-gray-800/60 border-gray-700 text-gray-400 hover:bg-gray-800 hover:border-gray-600 hover:text-gray-200'
-                }`}
+                }`} data-track="ui.654f39ee89.3"
               >
                 <span className="text-xl leading-none" aria-hidden="true">{tile.icon}</span>
                 <span className="text-xs font-medium leading-tight">{tile.label}</span>
@@ -195,7 +195,7 @@ const SubTypeStrip = ({ tile, selectedSubTypes, onToggleSubType, onClearTile }) 
                   active
                     ? 'bg-brand-500 border-brand-500 text-white'
                     : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200'
-                }`}
+                }`} data-track="ui.654f39ee89.4"
               >
                 {displayLabel}
               </button>
@@ -205,7 +205,7 @@ const SubTypeStrip = ({ tile, selectedSubTypes, onToggleSubType, onClearTile }) 
         <button
           onClick={onClearTile}
           className="ml-auto text-xs text-gray-600 hover:text-gray-400 flex items-center gap-1 transition-colors whitespace-nowrap"
-          aria-label={t('toolRentalsDir.clearFilter')}
+          aria-label={t('toolRentalsDir.clearFilter')} data-track="ui.654f39ee89.5"
         >
           <X className="w-3 h-3" aria-hidden="true" />
           {t('toolRentalsDir.clearFilter')}
@@ -274,7 +274,7 @@ const DirectoryHero = ({ searchValue, onSearch, categoryChips, suggestTiles, fil
                   key={key}
                   type="button"
                   onClick={() => onSearch(key)}
-                  className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 hover:text-white transition-colors"
+                  className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 hover:text-white transition-colors" data-track="ui.654f39ee89.6"
                 >
                   {label}
                 </button>
@@ -627,7 +627,7 @@ const ToolRentalsBrowse = () => {
                   details: t('toolRentalsDir.openFiltersActiveDetails', { count: activeFilterCount }),
                 })
               : t('toolRentalsDir.openFiltersAria', { details: '' })
-          }
+          } data-track="ui.654f39ee89.7"
         >
           <SlidersHorizontal className="w-4 h-4" aria-hidden="true" />
           {t('toolRentalsDir.filters')}
@@ -707,7 +707,7 @@ const ToolRentalsBrowse = () => {
                 </div>
                 <button
                   onClick={() => load(filters, sort, 0)}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow shadow-brand-500/20"
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow shadow-brand-500/20" data-track="ui.654f39ee89.8"
                 >
                   {t('common.retry')}
                 </button>
@@ -752,7 +752,7 @@ const ToolRentalsBrowse = () => {
                       onClick={handleShowMore}
                       disabled={loadState === 'loading'}
                       className="flex items-center gap-2 px-8 py-3 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors text-sm font-medium disabled:opacity-50"
-                      aria-label={t('toolRentalsDir.loadMoreToolsAria')}
+                      aria-label={t('toolRentalsDir.loadMoreToolsAria')} data-track="ui.654f39ee89.9"
                     >
                       {loadState === 'loading' ? t('common.loading') : t('toolRentalsDir.showMore')}
                       <ChevronDown className="w-4 h-4" aria-hidden="true" />

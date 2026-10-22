@@ -330,7 +330,7 @@ export default function Login({ embedded = false, returnTo } = {}) {
               </p>
             </div>
 
-            <form onSubmit={mfaToken ? handleTwoFactorSubmit : handleSubmit} className="space-y-5">
+            <form onSubmit={mfaToken ? handleTwoFactorSubmit : handleSubmit} className="space-y-5" data-track-private>
 
               {mfaToken ? (
                 <div className="space-y-4">
@@ -359,7 +359,7 @@ export default function Login({ embedded = false, returnTo } = {}) {
                   <button
                     type="button"
                     onClick={resetTwoFactor}
-                    className="text-sm font-medium text-orange-400 hover:text-orange-300 transition"
+                    className="text-sm font-medium text-orange-400 hover:text-orange-300 transition" data-track-private
                   >
                     {t('login.twoFactorBack')}
                   </button>
@@ -409,7 +409,7 @@ export default function Login({ embedded = false, returnTo } = {}) {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-0 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-800 hover:text-gray-300 transition"
-                    aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
+                    aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')} data-track-private
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -427,7 +427,7 @@ export default function Login({ embedded = false, returnTo } = {}) {
                     checked={termsAgreed}
                     onChange={(e) => setTermsAgreed(e.target.checked)}
                     className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-gray-600 bg-gray-800 text-orange-500 focus:ring-orange-500 focus:ring-offset-gray-950 cursor-pointer"
-                    aria-required="true"
+                    aria-required="true" data-track-private
                   />
                   <label htmlFor="terms-agree" className="text-sm text-gray-300 leading-relaxed cursor-pointer select-none">
                     {t('login.termsAgreeLabel')}{' '}
@@ -489,7 +489,7 @@ export default function Login({ embedded = false, returnTo } = {}) {
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-600 bg-gray-800 text-orange-500 focus:ring-orange-500 focus:ring-offset-gray-950"
+                  className="h-4 w-4 rounded border-gray-600 bg-gray-800 text-orange-500 focus:ring-orange-500 focus:ring-offset-gray-950" data-track-private
                 />
                 {t('login.rememberMe')}
               </label>
@@ -501,7 +501,7 @@ export default function Login({ embedded = false, returnTo } = {}) {
                 type="submit"
                 disabled={loading || (mfaToken ? !twoFactorCode.trim() : !canSubmit)}
                 className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-action hover:bg-action-hover text-on-action font-semibold rounded-xl shadow-lg shadow-orange-500/25 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-[var(--color-bg)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
-                aria-disabled={mfaToken ? !twoFactorCode.trim() : !canSubmit}
+                aria-disabled={mfaToken ? !twoFactorCode.trim() : !canSubmit} data-track-private
               >
                 {loading ? (
                   <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
@@ -521,7 +521,7 @@ export default function Login({ embedded = false, returnTo } = {}) {
                   type="button"
                   onClick={handlePasskeySignIn}
                   disabled={passkeyLoading || loading || !email.trim()}
-                  className="w-full flex items-center justify-center gap-2 py-3 px-4 border border-gray-700 hover:border-gray-500 text-[var(--color-text)] font-semibold rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 border border-gray-700 hover:border-gray-500 text-[var(--color-text)] font-semibold rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200" data-track-private
                 >
                   <KeyRound size={18} />
                   {passkeyLoading ? t('login.passkeyWorking') : t('login.signInWithPasskey')}

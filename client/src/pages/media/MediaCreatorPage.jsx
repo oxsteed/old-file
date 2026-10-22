@@ -299,9 +299,9 @@ export default function MediaCreatorPage() {
           <h1>{t('media.creator.title')}</h1>
           <p>{t('media.creator.subtitle')}</p>
         </div>
-        {user && <button type="button" className="media-primary-button" onClick={() => { setGigIdempotencyKey(`media-gig-${Date.now()}-${Math.random().toString(16).slice(2)}`); setCreateOpen(true); }}>{t('media.creator.createGig')}</button>}
+        {user && <button type="button" className="media-primary-button" onClick={() => { setGigIdempotencyKey(`media-gig-${Date.now()}-${Math.random().toString(16).slice(2)}`); setCreateOpen(true); }} data-track="ui.3080bca441.1">{t('media.creator.createGig')}</button>}
       </header>
-      {error && !activeDialog && <div className="media-error" role="alert"><p>{error}</p><button type="button" onClick={load}>{t('media.feed.refresh')}</button></div>}
+      {error && !activeDialog && <div className="media-error" role="alert"><p>{error}</p><button type="button" onClick={load} data-track="ui.3080bca441.2">{t('media.feed.refresh')}</button></div>}
       {actionMessage && <p className="media-status" role="status">{actionMessage}</p>}
       {loading && <div className="media-skeleton" role="status"><div className="skeleton-line" /><div className="skeleton-line" /></div>}
       {!loading && !error && !gigs.length && <div className="media-empty"><CheckCircle2 size={26} aria-hidden="true" /><h2>{t('media.creator.empty')}</h2></div>}
@@ -314,14 +314,14 @@ export default function MediaCreatorPage() {
           <p>{statusLabel(gig.status || 'open')}</p>
           {String(gig.owner_user_id) !== String(user?.id) ? (
             <div className="media-creator-actions">
-              <button type="button" className="media-primary-button" onClick={() => { if (!ensureAuth()) return; setSelected(gig); setPitch(''); setProposedCents(majorText(gig.budget_cents, gig.currency_code)); setSubmitted(false); }}>{t('media.creator.apply')}</button>
-              <button type="button" className="media-secondary-button" onClick={() => { if (!ensureAuth()) return; openSupport(gig, 'tip'); }}>{t('media.creator.tip')}</button>
-              <button type="button" className="media-secondary-button" onClick={() => { if (!ensureAuth()) return; openSupport(gig, 'sponsorship'); }}>{t('media.creator.sponsor')}</button>
+              <button type="button" className="media-primary-button" onClick={() => { if (!ensureAuth()) return; setSelected(gig); setPitch(''); setProposedCents(majorText(gig.budget_cents, gig.currency_code)); setSubmitted(false); }} data-track="ui.3080bca441.3">{t('media.creator.apply')}</button>
+              <button type="button" className="media-secondary-button" onClick={() => { if (!ensureAuth()) return; openSupport(gig, 'tip'); }} data-track="ui.3080bca441.4">{t('media.creator.tip')}</button>
+              <button type="button" className="media-secondary-button" onClick={() => { if (!ensureAuth()) return; openSupport(gig, 'sponsorship'); }} data-track="ui.3080bca441.5">{t('media.creator.sponsor')}</button>
             </div>
           ) : user ? (
             <div className="media-creator-actions">
-              <button type="button" className="media-secondary-button" onClick={() => openApplications(gig)}>{t('media.creator.reviewApplications')}</button>
-              {['open', 'awarded', 'in_progress', 'submitted'].includes(gig.status) && <button type="button" className="media-secondary-button" onClick={() => cancelGig(gig.id)} disabled={submitting || openReview('gig', gig.id)}>{t('media.creator.cancel', { defaultValue: 'Cancel' })}</button>}
+              <button type="button" className="media-secondary-button" onClick={() => openApplications(gig)} data-track="ui.3080bca441.6">{t('media.creator.reviewApplications')}</button>
+              {['open', 'awarded', 'in_progress', 'submitted'].includes(gig.status) && <button type="button" className="media-secondary-button" onClick={() => cancelGig(gig.id)} disabled={submitting || openReview('gig', gig.id)} data-track="ui.3080bca441.7">{t('media.creator.cancel', { defaultValue: 'Cancel' })}</button>}
             </div>
           ) : null}
         </article>
@@ -332,15 +332,15 @@ export default function MediaCreatorPage() {
         {sponsorships.map((offer) => <article className="media-card media-creator-gig" key={offer.id}>
           <div className="media-creator-gig-heading"><div><h3>{offer.brief}</h3><p>{offer.creator_name || offer.creator_handle}</p></div><strong>{amountText(offer.amount_cents, offer.currency_code)}</strong></div>
           <p>{statusLabel(offer.status)}</p>
-          {String(offer.creator_user_id) === String(user.id) && offer.status === 'pending_credit' && <button type="button" className="media-primary-button" onClick={() => acceptOffer(offer.id)} disabled={submitting}>{t('media.creator.accept')}</button>}
-          {(String(offer.sponsor_user_id) === String(user.id) || String(offer.creator_user_id) === String(user.id)) && ['pending_credit', 'accepted', 'delivered'].includes(offer.status) && <button type="button" className="media-secondary-button" onClick={() => cancelOffer(offer.id)} disabled={submitting || openReview('sponsorship', offer.id)}>{t('media.creator.cancel')}</button>}
-          {String(offer.creator_user_id) === String(user.id) && offer.status === 'accepted' && <button type="button" className="media-primary-button" onClick={() => { setSponsorshipDeliverableTarget(offer); setSponsorshipDeliverablePostId(''); setSponsorshipDeliverableNote(''); }}>{t('media.creator.submitDeliverable')}</button>}
+          {String(offer.creator_user_id) === String(user.id) && offer.status === 'pending_credit' && <button type="button" className="media-primary-button" onClick={() => acceptOffer(offer.id)} disabled={submitting} data-track="ui.3080bca441.8">{t('media.creator.accept')}</button>}
+          {(String(offer.sponsor_user_id) === String(user.id) || String(offer.creator_user_id) === String(user.id)) && ['pending_credit', 'accepted', 'delivered'].includes(offer.status) && <button type="button" className="media-secondary-button" onClick={() => cancelOffer(offer.id)} disabled={submitting || openReview('sponsorship', offer.id)} data-track="ui.3080bca441.9">{t('media.creator.cancel')}</button>}
+          {String(offer.creator_user_id) === String(user.id) && offer.status === 'accepted' && <button type="button" className="media-primary-button" onClick={() => { setSponsorshipDeliverableTarget(offer); setSponsorshipDeliverablePostId(''); setSponsorshipDeliverableNote(''); }} data-track="ui.3080bca441.10">{t('media.creator.submitDeliverable')}</button>}
           {offer.review_note && <p>{offer.review_note}</p>}
           {String(offer.sponsor_user_id) === String(user.id) && offer.status === 'delivered' && <>
-            <button type="button" className="media-primary-button" onClick={() => settleOffer(offer.id)} disabled={submitting || openReview('sponsorship', offer.id)}>{t('media.creator.settle')}</button>
-            <button type="button" className="media-secondary-button" onClick={() => { setRevisionTarget(offer); setRevisionReason(''); }} disabled={submitting || openReview('sponsorship', offer.id)}>{t('media.creator.requestChanges')}</button>
+            <button type="button" className="media-primary-button" onClick={() => settleOffer(offer.id)} disabled={submitting || openReview('sponsorship', offer.id)} data-track="ui.3080bca441.11">{t('media.creator.settle')}</button>
+            <button type="button" className="media-secondary-button" onClick={() => { setRevisionTarget(offer); setRevisionReason(''); }} disabled={submitting || openReview('sponsorship', offer.id)} data-track="ui.3080bca441.12">{t('media.creator.requestChanges')}</button>
           </>}
-          {String(offer.sponsor_user_id) === String(user.id) && offer.status === 'completed' && <button type="button" className="media-secondary-button" onClick={() => { setDisputeTarget({ ...offer, kind: 'sponsorship' }); setDisputeDescription(''); }} disabled={submitting}>{t('media.creator.dispute')}</button>}
+          {String(offer.sponsor_user_id) === String(user.id) && offer.status === 'completed' && <button type="button" className="media-secondary-button" onClick={() => { setDisputeTarget({ ...offer, kind: 'sponsorship' }); setDisputeDescription(''); }} disabled={submitting} data-track="ui.3080bca441.13">{t('media.creator.dispute')}</button>}
         </article>)}
       </section>}
       {!loading && user && payments.length > 0 && <section className="media-creator-offers" aria-labelledby="creator-payments-title">
@@ -349,8 +349,8 @@ export default function MediaCreatorPage() {
         {payments.map((payment) => <article className="media-card media-creator-gig" key={`${payment.kind}-${payment.id}`}>
           <div className="media-creator-gig-heading"><div><h3>{paymentLabel(payment.kind)}</h3><p>{statusLabel(payment.status)}</p></div><strong>{amountText(payment.amount_cents, payment.currency_code)}</strong></div>
           {payment.dispute_status && <p className="media-form-hint" role="status">{t('media.creator.disputeStatus', { status: disputeStatusLabel(payment.dispute_status) })}{payment.dispute_resolution ? ` · ${payment.dispute_resolution}` : ''}</p>}
-          {payment.kind === 'boost' && payment.status === 'pending_credit' && <button type="button" className="media-secondary-button" onClick={() => cancelPendingBoost(payment)} disabled={submitting}>{t('media.creator.cancel')}</button>}
-          {payment.credit_transaction_id && !payment.dispute_status && ['completed', 'posted', 'active', 'scheduled'].includes(payment.status) && <button type="button" className="media-secondary-button" onClick={() => { setDisputeTarget(payment); setDisputeDescription(''); }} disabled={submitting}>{t('media.creator.dispute')}</button>}
+          {payment.kind === 'boost' && payment.status === 'pending_credit' && <button type="button" className="media-secondary-button" onClick={() => cancelPendingBoost(payment)} disabled={submitting} data-track="ui.3080bca441.14">{t('media.creator.cancel')}</button>}
+          {payment.credit_transaction_id && !payment.dispute_status && ['completed', 'posted', 'active', 'scheduled'].includes(payment.status) && <button type="button" className="media-secondary-button" onClick={() => { setDisputeTarget(payment); setDisputeDescription(''); }} disabled={submitting} data-track="ui.3080bca441.15">{t('media.creator.dispute')}</button>}
         </article>)}
       </section>}
       {!loading && user && myApplications.length > 0 && <section className="media-creator-offers" aria-labelledby="creator-my-applications-title">
@@ -359,8 +359,8 @@ export default function MediaCreatorPage() {
         {myApplications.map((application) => <article className="media-card media-creator-gig" key={application.id}>
           <div className="media-creator-gig-heading"><div><h3>{application.gig_title}</h3><p>{statusLabel(application.status)}</p></div><strong>{amountText(application.proposed_cents, application.currency_code)}</strong></div>
           <p>{application.gig_brief}</p>
-          {application.status === 'awarded' && !application.accepted_at && <div className="media-creator-actions"><button type="button" className="media-primary-button" onClick={() => acceptWork(application)} disabled={submitting}>{t('media.creator.acceptWork')}</button><button type="button" className="media-secondary-button" onClick={() => declineWork(application)} disabled={submitting}>{t('media.creator.declineWork')}</button></div>}
-          {['awarded', 'delivered'].includes(application.status) && application.accepted_at && (!application.deliverable_id || application.deliverable_status === 'changes_requested') && <button type="button" className="media-primary-button" onClick={() => { setDeliverableTarget(application); setDeliverablePostId(application.deliverable_post_id || ''); setDeliverableNote(''); }} disabled={openReview('gig', application.gig_id)}>{t('media.creator.submitDeliverable')}</button>}
+          {application.status === 'awarded' && !application.accepted_at && <div className="media-creator-actions"><button type="button" className="media-primary-button" onClick={() => acceptWork(application)} disabled={submitting} data-track="ui.3080bca441.16">{t('media.creator.acceptWork')}</button><button type="button" className="media-secondary-button" onClick={() => declineWork(application)} disabled={submitting} data-track="ui.3080bca441.17">{t('media.creator.declineWork')}</button></div>}
+          {['awarded', 'delivered'].includes(application.status) && application.accepted_at && (!application.deliverable_id || application.deliverable_status === 'changes_requested') && <button type="button" className="media-primary-button" onClick={() => { setDeliverableTarget(application); setDeliverablePostId(application.deliverable_post_id || ''); setDeliverableNote(''); }} disabled={openReview('gig', application.gig_id)} data-track="ui.3080bca441.18">{t('media.creator.submitDeliverable')}</button>}
           {application.deliverable_status && <p>{t('media.creator.deliverableStatus')}: {statusLabel(application.deliverable_status)}</p>}
         </article>)}
       </section>}
@@ -374,61 +374,61 @@ export default function MediaCreatorPage() {
         </article>)}
       </section>}
       {selected && <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }}>
-        <form className="media-verification-form" onSubmit={submit} role="dialog" aria-modal="true" aria-labelledby="creator-apply-title">
+        <form className="media-verification-form" onSubmit={submit} role="dialog" aria-modal="true" aria-labelledby="creator-apply-title" data-track="ui.3080bca441.19">
           {error && <p className="media-error" role="alert">{error}</p>}
-          <button type="button" className="media-dialog-close" onClick={() => setSelected(null)} aria-label={t('media.shell.close')}><X size={18} /></button>
+          <button type="button" className="media-dialog-close" onClick={() => setSelected(null)} aria-label={t('media.shell.close')} data-track="ui.3080bca441.20"><X size={18} /></button>
           <h2 id="creator-apply-title">{selected.title}</h2>
           {submitted ? <p role="status">{t('media.creator.submitted')}</p> : <>
             <label htmlFor="creator-pitch">{t('media.creator.pitch')}</label><textarea id="creator-pitch" value={pitch} onChange={(event) => setPitch(event.target.value)} rows={5} required />
             <label htmlFor="creator-budget">{t('media.creator.amountCurrency', { currency: selected.currency_code || 'USD' })}</label><input id="creator-budget" inputMode="decimal" value={proposedCents} onChange={(event) => setProposedCents(event.target.value)} required />
-            <button type="submit" className="media-primary-button" disabled={submitting}>{submitting ? t('media.compose.posting') : t('media.creator.submit')}</button>
+            <button type="submit" className="media-primary-button" disabled={submitting} data-track="ui.3080bca441.21">{submitting ? t('media.compose.posting') : t('media.creator.submit')}</button>
           </>}
         </form>
       </div>}
       {createOpen && <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCreateOpen(false); }}>
-        <form className="media-verification-form" onSubmit={createGig} role="dialog" aria-modal="true" aria-labelledby="creator-gig-title">
+        <form className="media-verification-form" onSubmit={createGig} role="dialog" aria-modal="true" aria-labelledby="creator-gig-title" data-track="ui.3080bca441.22">
           {error && <p className="media-error" role="alert">{error}</p>}
-          <button type="button" className="media-dialog-close" onClick={() => setCreateOpen(false)} aria-label={t('media.shell.close')}><X size={18} /></button>
+          <button type="button" className="media-dialog-close" onClick={() => setCreateOpen(false)} aria-label={t('media.shell.close')} data-track="ui.3080bca441.23"><X size={18} /></button>
           <h2 id="creator-gig-title">{t('media.creator.createGig')}</h2>
           <label htmlFor="creator-gig-name">{t('media.creator.gigTitle')}</label><input id="creator-gig-name" value={gigTitle} onChange={(event) => setGigTitle(event.target.value)} maxLength={160} required />
           <label htmlFor="creator-gig-brief">{t('media.creator.gigBrief')}</label><textarea id="creator-gig-brief" value={gigBrief} onChange={(event) => setGigBrief(event.target.value)} maxLength={5000} rows={5} required />
           <label htmlFor="creator-gig-currency">{t('media.creator.currency')}</label><select id="creator-gig-currency" value={gigCurrency} onChange={event => setGigCurrency(event.target.value)}>{DEFAULT_CREDIT_CURRENCIES.map(currency => <option key={currency} value={currency}>{currency}</option>)}</select>
           <label htmlFor="creator-gig-budget">{t('media.creator.amountCurrency', { currency: gigCurrency })}</label><input id="creator-gig-budget" inputMode="decimal" value={gigBudget} onChange={(event) => setGigBudget(event.target.value)} required />
-          <button type="submit" className="media-primary-button" disabled={submitting}>{submitting ? t('media.compose.posting') : t('media.creator.submit')}</button>
+          <button type="submit" className="media-primary-button" disabled={submitting} data-track="ui.3080bca441.24">{submitting ? t('media.compose.posting') : t('media.creator.submit')}</button>
         </form>
       </div>}
       {supportTarget && <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSupportTarget(null); }}>
-        <form className="media-verification-form" onSubmit={submitSupport} role="dialog" aria-modal="true" aria-labelledby="creator-support-title">
+        <form className="media-verification-form" onSubmit={submitSupport} role="dialog" aria-modal="true" aria-labelledby="creator-support-title" data-track="ui.3080bca441.25">
           {error && <p className="media-error" role="alert">{error}</p>}
-          <button type="button" className="media-dialog-close" onClick={() => setSupportTarget(null)} aria-label={t('media.shell.close')}><X size={18} /></button>
+          <button type="button" className="media-dialog-close" onClick={() => setSupportTarget(null)} aria-label={t('media.shell.close')} data-track="ui.3080bca441.26"><X size={18} /></button>
           <h2 id="creator-support-title">{supportMode === 'tip' ? t('media.creator.tip') : t('media.creator.sponsor')} · {supportTarget.owner_name || supportTarget.owner_handle}</h2>
           {supportMessage ? <p role="status">{supportMessage}</p> : <>
             <label htmlFor="creator-support-amount">{t('media.creator.amountCurrency', { currency: supportTarget.currency_code || 'USD' })}</label>
             <input id="creator-support-amount" inputMode="decimal" value={supportAmount} onChange={(event) => setSupportAmount(event.target.value)} required />
             {supportMode === 'sponsorship' && <><label htmlFor="creator-support-brief">{t('media.creator.brief')}</label><textarea id="creator-support-brief" value={supportBrief} onChange={(event) => setSupportBrief(event.target.value)} rows={4} required /></>}
             <p className="media-form-hint">{t('media.creator.creditNotice')}</p>
-            <button type="submit" className="media-primary-button" disabled={submitting}>{submitting ? t('media.compose.posting') : t('media.creator.send')}</button>
+            <button type="submit" className="media-primary-button" disabled={submitting} data-track="ui.3080bca441.27">{submitting ? t('media.compose.posting') : t('media.creator.send')}</button>
           </>}
         </form>
       </div>}
       {applicationsGig && <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setApplicationsGig(null); }}>
         <div className="media-verification-form" role="dialog" aria-modal="true" aria-labelledby="creator-applications-title">
           {error && <p className="media-error" role="alert">{error}</p>}
-          <button type="button" className="media-dialog-close" onClick={() => setApplicationsGig(null)} aria-label={t('media.shell.close')}><X size={18} /></button>
+          <button type="button" className="media-dialog-close" onClick={() => setApplicationsGig(null)} aria-label={t('media.shell.close')} data-track="ui.3080bca441.28"><X size={18} /></button>
           <h2 id="creator-applications-title">{t('media.creator.applications')}</h2>
           {applicationsLoading ? <p role="status">{t('media.compose.posting')}</p> : applications.length === 0 ? <p>{t('media.creator.noApplications')}</p> : applications.map((application) => <article className="media-creator-application" key={application.id}>
             <strong>{application.applicant_name || application.applicant_handle}</strong>
             <p>{application.pitch}</p>
             <span>{amountText(application.proposed_cents, application.currency_code)} · {statusLabel(application.status)}</span>
-            {application.status === 'submitted' && <button type="button" className="media-primary-button" onClick={() => awardApplication(application.id)} disabled={submitting}>{t('media.creator.award')}</button>}
-            {application.deliverable_status === 'submitted' && <div className="media-creator-actions"><button type="button" className="media-primary-button" onClick={() => reviewDeliverable(application, 'approved')} disabled={submitting}>{t('media.creator.approveDeliverable')}</button><button type="button" className="media-secondary-button" onClick={() => reviewDeliverable(application, 'changes_requested')} disabled={submitting}>{t('media.creator.requestChanges')}</button></div>}
+            {application.status === 'submitted' && <button type="button" className="media-primary-button" onClick={() => awardApplication(application.id)} disabled={submitting} data-track="ui.3080bca441.29">{t('media.creator.award')}</button>}
+            {application.deliverable_status === 'submitted' && <div className="media-creator-actions"><button type="button" className="media-primary-button" onClick={() => reviewDeliverable(application, 'approved')} disabled={submitting} data-track="ui.3080bca441.30">{t('media.creator.approveDeliverable')}</button><button type="button" className="media-secondary-button" onClick={() => reviewDeliverable(application, 'changes_requested')} disabled={submitting} data-track="ui.3080bca441.31">{t('media.creator.requestChanges')}</button></div>}
           </article>)}
         </div>
       </div>}
       {deliverableTarget && <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDeliverableTarget(null); }}>
-        <form className="media-verification-form" onSubmit={submitDeliverableForApplication} role="dialog" aria-modal="true" aria-labelledby="creator-deliverable-title">
+        <form className="media-verification-form" onSubmit={submitDeliverableForApplication} role="dialog" aria-modal="true" aria-labelledby="creator-deliverable-title" data-track="ui.3080bca441.32">
           {error && <p className="media-error" role="alert">{error}</p>}
-          <button type="button" className="media-dialog-close" onClick={() => setDeliverableTarget(null)} aria-label={t('media.shell.close')}><X size={18} /></button>
+          <button type="button" className="media-dialog-close" onClick={() => setDeliverableTarget(null)} aria-label={t('media.shell.close')} data-track="ui.3080bca441.33"><X size={18} /></button>
           <h2 id="creator-deliverable-title">{t('media.creator.submitDeliverable')}</h2>
           <label htmlFor="creator-deliverable-post">{t('media.creator.choosePost')}</label>
           <select id="creator-deliverable-post" value={deliverablePostId} onChange={(event) => setDeliverablePostId(event.target.value)} required>
@@ -436,13 +436,13 @@ export default function MediaCreatorPage() {
             {myPosts.map((post) => <option key={post.id} value={post.id}>{post.body?.slice(0, 80) || post.id}</option>)}
           </select>
           <label htmlFor="creator-deliverable-note">{t('media.creator.deliverableNote')}</label><textarea id="creator-deliverable-note" value={deliverableNote} onChange={(event) => setDeliverableNote(event.target.value)} rows={4} />
-          <button type="submit" className="media-primary-button" disabled={submitting}>{submitting ? t('media.compose.posting') : t('media.creator.submit')}</button>
+          <button type="submit" className="media-primary-button" disabled={submitting} data-track="ui.3080bca441.34">{submitting ? t('media.compose.posting') : t('media.creator.submit')}</button>
         </form>
       </div>}
       {sponsorshipDeliverableTarget && <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSponsorshipDeliverableTarget(null); }}>
-        <form className="media-verification-form" onSubmit={submitSponsorshipDeliverable} role="dialog" aria-modal="true" aria-labelledby="creator-sponsorship-deliverable-title">
+        <form className="media-verification-form" onSubmit={submitSponsorshipDeliverable} role="dialog" aria-modal="true" aria-labelledby="creator-sponsorship-deliverable-title" data-track="ui.3080bca441.35">
           {error && <p className="media-error" role="alert">{error}</p>}
-          <button type="button" className="media-dialog-close" onClick={() => setSponsorshipDeliverableTarget(null)} aria-label={t('media.shell.close')}><X size={18} /></button>
+          <button type="button" className="media-dialog-close" onClick={() => setSponsorshipDeliverableTarget(null)} aria-label={t('media.shell.close')} data-track="ui.3080bca441.36"><X size={18} /></button>
           <h2 id="creator-sponsorship-deliverable-title">{t('media.creator.submitDeliverable')}</h2>
           <label htmlFor="creator-sponsorship-deliverable-post">{t('media.creator.choosePost')}</label>
           <select id="creator-sponsorship-deliverable-post" value={sponsorshipDeliverablePostId} onChange={(event) => setSponsorshipDeliverablePostId(event.target.value)} required>
@@ -450,27 +450,27 @@ export default function MediaCreatorPage() {
             {myPosts.map((post) => <option key={post.id} value={post.id}>{post.body?.slice(0, 80) || post.id}</option>)}
           </select>
           <label htmlFor="creator-sponsorship-deliverable-note">{t('media.creator.deliverableNote')}</label><textarea id="creator-sponsorship-deliverable-note" value={sponsorshipDeliverableNote} onChange={(event) => setSponsorshipDeliverableNote(event.target.value)} rows={4} />
-          <button type="submit" className="media-primary-button" disabled={submitting}>{submitting ? t('media.compose.posting') : t('media.creator.submit')}</button>
+          <button type="submit" className="media-primary-button" disabled={submitting} data-track="ui.3080bca441.37">{submitting ? t('media.compose.posting') : t('media.creator.submit')}</button>
         </form>
       </div>}
       {disputeTarget && <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDisputeTarget(null); }}>
-        <form className="media-verification-form" onSubmit={submitDispute} role="dialog" aria-modal="true" aria-labelledby="creator-dispute-title">
+        <form className="media-verification-form" onSubmit={submitDispute} role="dialog" aria-modal="true" aria-labelledby="creator-dispute-title" data-track="ui.3080bca441.38">
           {error && <p className="media-error" role="alert">{error}</p>}
-          <button type="button" className="media-dialog-close" onClick={() => setDisputeTarget(null)} aria-label={t('media.shell.close')}><X size={18} /></button>
+          <button type="button" className="media-dialog-close" onClick={() => setDisputeTarget(null)} aria-label={t('media.shell.close')} data-track="ui.3080bca441.39"><X size={18} /></button>
           <h2 id="creator-dispute-title">{t('media.creator.dispute')}</h2>
           <label htmlFor="creator-dispute-description">{t('media.creator.disputeDescription')}</label>
           <textarea id="creator-dispute-description" value={disputeDescription} onChange={(event) => setDisputeDescription(event.target.value)} rows={5} maxLength={4000} required />
           <p className="media-form-hint">{t('media.creator.disputeHint')}</p>
-          <button type="submit" className="media-primary-button" disabled={submitting}>{submitting ? t('media.creator.settling') : t('media.creator.submitDispute')}</button>
+          <button type="submit" className="media-primary-button" disabled={submitting} data-track="ui.3080bca441.40">{submitting ? t('media.creator.settling') : t('media.creator.submitDispute')}</button>
         </form>
       </div>}
       {revisionTarget && <div className="media-verification-dialog" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setRevisionTarget(null); }}>
-        <form className="media-verification-form" onSubmit={requestRevision} role="dialog" aria-modal="true" aria-labelledby="creator-revision-title">
+        <form className="media-verification-form" onSubmit={requestRevision} role="dialog" aria-modal="true" aria-labelledby="creator-revision-title" data-track="ui.3080bca441.41">
           {error && <p className="media-error" role="alert">{error}</p>}
-          <button type="button" className="media-dialog-close" onClick={() => setRevisionTarget(null)} aria-label={t('media.shell.close')}><X size={18} /></button>
+          <button type="button" className="media-dialog-close" onClick={() => setRevisionTarget(null)} aria-label={t('media.shell.close')} data-track="ui.3080bca441.42"><X size={18} /></button>
           <h2 id="creator-revision-title">{t('media.creator.requestChanges')}</h2>
           <label htmlFor="creator-revision-reason">{t('media.creator.revisionReason')}</label><textarea id="creator-revision-reason" value={revisionReason} onChange={event => setRevisionReason(event.target.value)} rows={4} maxLength={2000} required />
-          <button type="submit" className="media-primary-button" disabled={submitting}>{t('media.creator.requestChanges')}</button>
+          <button type="submit" className="media-primary-button" disabled={submitting} data-track="ui.3080bca441.43">{t('media.creator.requestChanges')}</button>
         </form>
       </div>}
     </section>

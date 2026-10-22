@@ -64,7 +64,7 @@ export default function ProfileMediaSection({ userId }) {
     return (
       <div className="media-error">
         <p>{error}</p>
-        <button type="button" onClick={load}>
+        <button type="button" onClick={load} data-track="ui.e607db324f.1">
           <RefreshCw size={16} /> {t('common.retry', 'Retry')}
         </button>
       </div>
@@ -84,7 +84,7 @@ export default function ProfileMediaSection({ userId }) {
           type="button"
           onClick={handlePost}
           disabled={posting || !draft.trim()}
-          className="business-media-post-btn"
+          className="business-media-post-btn" data-track="ui.e607db324f.2"
         >
           <Plus size={16} /> {t('profileMedia.post')}
         </button>

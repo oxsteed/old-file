@@ -84,7 +84,7 @@ export default function CompliancePage() {
                 <h2>{tx('logistics.workspace.dataError.title', 'Data unavailable')}</h2>
                 <p>{tx('logistics.compliance.error', "We couldn't load compliance data right now. Please try again.")}</p>
               </div>
-              <button type="button" className="lx-btn-secondary" onClick={load}>
+              <button type="button" className="lx-btn-secondary" onClick={load} data-track="ui.0262853349.1">
                 {tx('logistics.workspace.dataError.retry', 'Try again')}
               </button>
             </div>

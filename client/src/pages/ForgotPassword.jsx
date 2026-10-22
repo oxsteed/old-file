@@ -41,7 +41,7 @@ export default function ForgotPasswordPage({ embedded = false } = {}) {
         </div>
 
         {!sent ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" data-track-private>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-[var(--color-text-muted)] mb-1.5">
                 {t('auth.email')}
@@ -60,7 +60,7 @@ export default function ForgotPasswordPage({ embedded = false } = {}) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/25 disabled:opacity-50 transition"
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/25 disabled:opacity-50 transition" data-track-private
             >
               {loading ? t('forgotPassword.sending') : (<><Mail size={18} /> {t('forgotPassword.sendButton')}</>)}
             </button>
@@ -73,7 +73,7 @@ export default function ForgotPasswordPage({ embedded = false } = {}) {
             <p className="text-[var(--color-text-muted)] text-sm">{t('forgotPassword.checkSpam')}</p>
             <button
               onClick={() => setSent(false)}
-              className="text-orange-500 hover:text-orange-400 text-sm font-medium transition"
+              className="text-orange-500 hover:text-orange-400 text-sm font-medium transition" data-track-private
             >
               {t('forgotPassword.tryAgain')}
             </button>

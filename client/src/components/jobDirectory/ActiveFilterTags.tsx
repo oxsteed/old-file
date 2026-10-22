@@ -23,7 +23,7 @@ const Tag: React.FC<{ label: string; onRemove: () => void }> = ({ label, onRemov
       <button
         onClick={onRemove}
         className="w-9 h-9 rounded-full bg-brand-800/60 hover:bg-brand-700 flex items-center justify-center transition-colors flex-shrink-0"
-        aria-label={t('jobsDir.removeFilter', { label })}
+        aria-label={t('jobsDir.removeFilter', { label })} data-track="ui.a596109eb0.1"
       >
         <X className="w-3.5 h-3.5" aria-hidden="true" />
       </button>

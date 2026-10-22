@@ -25,6 +25,7 @@ const { checkScheduleAgreementGate } = require('../services/chatAgreements');
 const { mirrorLegacyMessage } = require('../services/businessConversationSync');
 const { enqueueConversationMessageNotifications } = require('../services/messageNotificationService');
 const { withTransaction } = require('../utils/transaction');
+const { emitDomainEvent, serviceEventProps } = require('../growth/emit');
 
 function bad(res, status, error, code = 'error', extra = {}) {
   return res.status(status).json({ error, code, ...extra });
@@ -719,7 +720,8 @@ exports.createChatBookingRequest = async (req, res, next) => {
     if (!booking) {
       const bookingId = crypto.randomUUID();
       const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
-      const { rows } = await pool.query(
+      const { rows } = await withTransaction(pool, async (client) => {
+        const inserted = await client.query(
         `INSERT INTO booking_requests (
          id, customer_id, helper_id, business_id, service_name, requested_date,
          requested_start_time, requested_end_time, service_location,
@@ -752,7 +754,15 @@ exports.createChatBookingRequest = async (req, res, next) => {
           initialStatus,
           clientRequestId,
         ],
-      );
+        );
+        if (inserted.rows.length) {
+          await emitDomainEvent(client, 'booking.requested', serviceEventProps({ service_id: serviceId }), {
+            userId: customerId || userId,
+            req,
+          });
+        }
+        return inserted;
+      }, 'chat_booking_requested_growth');
       booking = rows[0] || null;
       if (!booking && clientRequestId) {
         const replay = await pool.query(

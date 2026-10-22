@@ -108,6 +108,46 @@ export const submitTrainingQuiz = (restaurantId, assignmentId, payload) =>
 export const listTrainingCompletions = (restaurantId) =>
   api.get(`/restaurants/${restaurantId}/training/completions`).then((r) => r.data?.completions || []);
 
+// Auto-assignment rules (S-12)
+export const listTrainingAutoAssignRules = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/training/auto-assign-rules`).then((r) => r.data?.rules || []);
+
+export const createTrainingAutoAssignRule = (restaurantId, moduleId, payload) =>
+  api.post(`/restaurants/${restaurantId}/training/modules/${moduleId}/auto-assign-rules`, payload).then((r) => r.data);
+
+export const updateTrainingAutoAssignRule = (restaurantId, ruleId, payload) =>
+  api.patch(`/restaurants/${restaurantId}/training/auto-assign-rules/${ruleId}`, payload).then((r) => r.data);
+
+export const deleteTrainingAutoAssignRule = (restaurantId, ruleId) =>
+  api.delete(`/restaurants/${restaurantId}/training/auto-assign-rules/${ruleId}`);
+
+// Staff compliance document vault (S-14). Files are served only through
+// short-lived signed URLs minted by the server.
+export const listStaffDocuments = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/staff-documents`, { params }).then((r) => r.data?.documents || []);
+
+export const uploadStaffDocument = (restaurantId, fields, file) => {
+  const form = new FormData();
+  Object.entries(fields || {}).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') form.append(k, v); });
+  if (file) form.append('file', file);
+  return api.post(`/restaurants/${restaurantId}/staff-documents`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then((r) => r.data?.document);
+};
+
+export const verifyStaffDocument = (restaurantId, documentId, payload) =>
+  api.patch(`/restaurants/${restaurantId}/staff-documents/${documentId}`, payload).then((r) => r.data?.document);
+
+export const deleteStaffDocument = (restaurantId, documentId) =>
+  api.delete(`/restaurants/${restaurantId}/staff-documents/${documentId}`);
+
+// SOP read-and-sign acknowledgements (S-14)
+export const acknowledgeSop = (restaurantId, sopId) =>
+  api.post(`/restaurants/${restaurantId}/sops/${sopId}/acknowledge`).then((r) => r.data);
+
+export const listSopAcknowledgements = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/sop-acknowledgements`, { params }).then((r) => r.data?.acknowledgements || []);
+
 // ── Quality audits (franchise system) ────────────────────────────────────────
 export const listAuditTemplates = (restaurantId) =>
   api.get(`/restaurants/${restaurantId}/audits/templates`).then((r) => r.data?.templates || []);
@@ -152,6 +192,44 @@ export const updateCorrectiveAction = (restaurantId, actionId, payload) =>
 export const getSalesReport = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/reports/sales`, { params }).then((r) => r.data);
 
+export const downloadSalesReportCsv = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/sales/export.csv`, { params, responseType: 'blob' }).then((r) => r.data);
+
+export const downloadSalesJournalCsv = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/sales/journal.csv`, { params, responseType: 'blob' }).then((r) => r.data);
+
+export const downloadSalesAccountingCsv = (restaurantId, provider, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/sales/accounting/${provider}.csv`, { params, responseType: 'blob' }).then((r) => r.data);
+
+export const downloadSalesBiNdjson = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/sales/bi.ndjson`, { params, responseType: 'blob' }).then((r) => r.data);
+
+export const getSalesLocationComparison = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/sales/locations`, { params }).then((r) => r.data);
+
+export const downloadSalesLocationComparisonCsv = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/sales/locations.csv`, { params, responseType: 'blob' }).then((r) => r.data);
+
+export const downloadSalesLocationComparisonXlsx = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/sales/locations.xlsx`, { params, responseType: 'blob' }).then((r) => r.data);
+
+export const getSalesClose = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/sales/close`, { params }).then((r) => r.data);
+
+export const downloadSalesCloseCsv = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/sales/close.csv`, { params, responseType: 'blob' }).then((r) => r.data);
+
+// F-02: optional store-scoped staff boundaries. Members without assignments
+// retain all-store access; assigning stores narrows their operational scope.
+export const getRestaurantLocationAccess = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/location-access`).then((r) => r.data);
+
+export const replaceRestaurantLocationAccess = (restaurantId, membershipId, payload) =>
+  api.put(`/restaurants/${restaurantId}/location-access/${membershipId}`, payload).then((r) => r.data);
+
+export const clearRestaurantLocationAccess = (restaurantId, membershipId) =>
+  api.delete(`/restaurants/${restaurantId}/location-access/${membershipId}`).then((r) => r.data);
+
 export const getInventoryReport = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/reports/inventory`, { params }).then((r) => r.data);
 
@@ -162,3 +240,50 @@ export const getOperationsReport = (restaurantId, params = {}) =>
 // Repeat-order rate + top items by revenue. Fixed 90-day window server-side.
 export const getLoyaltyReport = (restaurantId) =>
   api.get(`/restaurants/${restaurantId}/reports/loyalty`).then((r) => r.data);
+
+export const listAccountingIntegrations = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/accounting/integrations`).then((r) => r.data?.integrations || []);
+
+export const listAccountingExports = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/accounting/exports`, { params }).then((r) => r.data?.exports || []);
+
+// CRM segments are aggregate-only; customer identity and campaign delivery are
+// intentionally excluded from this contract.
+export const listLoyaltySegments = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/crm/segments`).then((r) => r.data?.segments || []);
+
+export const createLoyaltySegment = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/crm/segments`, payload).then((r) => r.data?.segment);
+
+export const updateLoyaltySegment = (restaurantId, segmentId, payload) =>
+  api.patch(`/restaurants/${restaurantId}/crm/segments/${segmentId}`, payload).then((r) => r.data?.segment);
+
+export const deleteLoyaltySegment = (restaurantId, segmentId) =>
+  api.delete(`/restaurants/${restaurantId}/crm/segments/${segmentId}`);
+
+export const previewLoyaltySegment = (restaurantId, segmentId) =>
+  api.get(`/restaurants/${restaurantId}/crm/segments/${segmentId}/audience`).then((r) => r.data?.segment);
+
+// ── Payroll, tips, labor + team activity (S-04/S-15/S-16) ───────────────────
+// Labor and payroll endpoints require the payroll.view permission on the
+// server (fail closed); team activity requires audit.view.
+export const getLaborReport = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/labor`, { params }).then((r) => r.data);
+
+export const downloadPayrollCsv = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/payroll/export.csv`, { params, responseType: 'blob' }).then((r) => r.data);
+
+export const getExceptionsReport = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/exceptions`, { params }).then((r) => r.data);
+
+export const getTeamActivity = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/team/activity`, { params }).then((r) => r.data);
+
+export const getTipPoolSettings = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/tip-pool`).then((r) => r.data?.settings);
+
+export const updateTipPoolSettings = (restaurantId, payload) =>
+  api.put(`/restaurants/${restaurantId}/tip-pool`, payload).then((r) => r.data?.settings);
+
+export const declareCashTip = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/tips/cash-declarations`, payload).then((r) => r.data?.declaration);

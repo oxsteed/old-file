@@ -1,0 +1,128 @@
+{
+  "learn.buy_click": [
+    "entity_type",
+    "entity_id",
+    "route"
+  ],
+  "learn.guide_view": [
+    "entity_type",
+    "entity_id",
+    "route"
+  ],
+  "media.view": [
+    "entity_type",
+    "entity_id",
+    "route"
+  ],
+  "offer.click": [
+    "campaign_id",
+    "offer_id",
+    "delivery_id",
+    "feedback",
+    "route"
+  ],
+  "offer.dismiss": [
+    "campaign_id",
+    "offer_id",
+    "delivery_id",
+    "feedback",
+    "route"
+  ],
+  "offer.feedback": [
+    "campaign_id",
+    "offer_id",
+    "delivery_id",
+    "feedback",
+    "route"
+  ],
+  "offer.impression": [
+    "campaign_id",
+    "offer_id",
+    "delivery_id",
+    "feedback",
+    "route"
+  ],
+  "page.leave": [
+    "route",
+    "dwell_seconds",
+    "referrer_kind"
+  ],
+  "page.view": [
+    "route",
+    "dwell_seconds",
+    "referrer_kind"
+  ],
+  "profile.view": [
+    "entity_type",
+    "entity_id",
+    "route"
+  ],
+  "screen.view": [
+    "route",
+    "dwell_seconds",
+    "referrer_kind"
+  ],
+  "search.performed": [
+    "surface",
+    "query_norm",
+    "result_count",
+    "radius_bucket",
+    "entity_type",
+    "entity_id",
+    "route"
+  ],
+  "search.result_click": [
+    "surface",
+    "query_norm",
+    "result_count",
+    "radius_bucket",
+    "entity_type",
+    "entity_id",
+    "route"
+  ],
+  "search.zero_results": [
+    "surface",
+    "query_norm",
+    "result_count",
+    "radius_bucket",
+    "entity_type",
+    "entity_id",
+    "route"
+  ],
+  "ui.click": [
+    "route",
+    "element_key",
+    "component",
+    "position"
+  ],
+  "ui.copy": [
+    "route",
+    "element_key",
+    "component",
+    "position"
+  ],
+  "ui.share": [
+    "route",
+    "element_key",
+    "component",
+    "position"
+  ],
+  "ui.submit": [
+    "route",
+    "element_key",
+    "component",
+    "position"
+  ],
+  "ui.tab": [
+    "route",
+    "element_key",
+    "component",
+    "position"
+  ],
+  "ui.toggle": [
+    "route",
+    "element_key",
+    "component",
+    "position"
+  ]
+}

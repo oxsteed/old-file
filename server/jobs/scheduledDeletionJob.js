@@ -229,6 +229,8 @@ async function hardDeleteUser(user) {
 
   try {
     await client.query('BEGIN');
+    await require('../services/privacyActivityData').erase(client,userId);
+    if(process.env.GROWTH_SUBJECT_PEPPER)await require('../growth/rights').erase(client,userId);
 
     const q = (sql, params) => client.query(sql, params);
 

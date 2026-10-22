@@ -123,7 +123,7 @@ function AttentionRow({ item, onSelect }) {
         type="button"
         className="attention-row"
         onClick={() => onSelect(item)}
-        aria-label={`${reasonText}${context ? ` — ${context}` : ''}`}
+        aria-label={`${reasonText}${context ? ` — ${context}` : ''}`} data-track="ui.d267ab4eff.1"
       >
         <span className={`attention-urgency attention-urgency--${item.urgency || 'normal'}`}>
           <span className="attention-urgency__dot" aria-hidden="true" />
@@ -200,7 +200,7 @@ export default function AttentionList({
         <AlertTriangle size={32} className="text-amber-500" aria-hidden="true" />
         <p className="attention-state__title">{t('list.partialFailure')}</p>
         {error && <p className="attention-state__text">{String(error)}</p>}
-        <button type="button" className="attention-btn attention-btn--primary" onClick={onRetry}>
+        <button type="button" className="attention-btn attention-btn--primary" onClick={onRetry} data-track="ui.d267ab4eff.2">
           <RefreshCw size={16} aria-hidden="true" /> {t('list.retry')}
         </button>
       </div>
@@ -295,7 +295,7 @@ export default function AttentionList({
                   type="button"
                   className="attention-btn"
                   disabled={page <= 1}
-                  onClick={() => onPageChange(page - 1)}
+                  onClick={() => onPageChange(page - 1)} data-track="ui.d267ab4eff.3"
                 >
                   {t('list.pagination.previous')}
                 </button>
@@ -306,7 +306,7 @@ export default function AttentionList({
                   type="button"
                   className="attention-btn"
                   disabled={page >= totalPages}
-                  onClick={() => onPageChange(page + 1)}
+                  onClick={() => onPageChange(page + 1)} data-track="ui.d267ab4eff.4"
                 >
                   {t('list.pagination.next')}
                 </button>

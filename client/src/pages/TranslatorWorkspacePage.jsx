@@ -180,10 +180,10 @@ export default function TranslatorWorkspacePage() {
               />
 
               <div className="translator-actions">
-                <button type="button" className="translator-primary-button" onClick={handleTranslate} disabled={submitting || !text.trim()}>
+                <button type="button" className="translator-primary-button" onClick={handleTranslate} disabled={submitting || !text.trim()} data-track="ui.6117caadb3.1">
                   {submitting ? `${t('common:actions.loading')}...` : t('translator:form.translateNow')}
                 </button>
-                <button type="button" className="translator-secondary-button" onClick={handleCreateBatch} disabled={submitting || batchSections.length < 2}>
+                <button type="button" className="translator-secondary-button" onClick={handleCreateBatch} disabled={submitting || batchSections.length < 2} data-track="ui.6117caadb3.2">
                   {t('translator:form.createBatchJob')}
                 </button>
               </div>

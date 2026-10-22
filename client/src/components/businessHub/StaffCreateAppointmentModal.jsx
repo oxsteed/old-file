@@ -89,9 +89,9 @@ export function StaffCreateAppointmentModal({ businessId, services, onClose, onC
       <div className="scam-modal" onClick={(e) => e.stopPropagation()}>
         <div className="scam-header">
           <h4>{t('businessAppointments.newAppointment')}</h4>
-          <button className="scam-close" onClick={onClose}>×</button>
+          <button className="scam-close" onClick={onClose} data-track="ui.1d98805aba.1">×</button>
         </div>
-        <form onSubmit={handleSubmit} className="scam-form">
+        <form onSubmit={handleSubmit} className="scam-form" data-track="ui.1d98805aba.2">
           <label>
             <span>{t('businessAppointments.selectService')}</span>
             <select value={serviceId} onChange={(e) => setServiceId(e.target.value)} required>
@@ -168,16 +168,16 @@ export function StaffCreateAppointmentModal({ businessId, services, onClose, onC
             <input
               type="checkbox"
               checked={confirmImmediately}
-              onChange={(e) => setConfirmImmediately(e.target.checked)}
+              onChange={(e) => setConfirmImmediately(e.target.checked)} data-track="ui.1d98805aba.3"
             />
             <span>{t('businessAppointments.confirmImmediately')}</span>
           </label>
 
           <div className="scam-actions">
-            <button type="button" className="scam-btn scam-btn-secondary" onClick={onClose}>
+            <button type="button" className="scam-btn scam-btn-secondary" onClick={onClose} data-track="ui.1d98805aba.4">
               {t('businessAppointments.cancel')}
             </button>
-            <button type="submit" className="scam-btn scam-btn-primary" disabled={submitting}>
+            <button type="submit" className="scam-btn scam-btn-primary" disabled={submitting} data-track="ui.1d98805aba.5">
               {submitting ? t('businessAppointments.creating') : t('businessAppointments.create')}
             </button>
           </div>

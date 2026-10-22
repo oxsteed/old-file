@@ -3,6 +3,7 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const permissionsService = require('../services/permissionsService');
 const { withTransaction } = require('../utils/transaction');
 const { processExternalRefund } = require('../services/externalRefundService');
 
@@ -41,8 +42,6 @@ const RESOLUTIONS = new Set([
   'no_action',
   'escalate_to_oxsteed',
 ]);
-const MANAGE_ROLES = new Set(['owner', 'manager']);
-const RESPOND_ROLES = new Set(['owner', 'manager', 'representative', 'employee', 'support_agent']);
 const SENSITIVE_RE = /\b(allerg(?:y|ic|en)|illness|sick|vomit|poison|unsafe|raw|blood|chok(?:e|ing)|harass|threat|fraud|scam|duplicate charge|missing payment|payment dispute|driver safety)\b/i;
 
 function parsePositiveInt(value) {
@@ -226,14 +225,16 @@ async function requireRestaurantAccess(userId, restaurantId) {
   return resolveRestaurantAccess(userId, restaurantId);
 }
 
-function assertManage(restaurant) {
-  if (!MANAGE_ROLES.has(restaurant.effective_role)) {
-    throw new AppError('Owner or manager access required', 403, 'forbidden');
+async function assertManage(restaurant, userId) {
+  const allowed = await permissionsService.hasRestaurantPermission(restaurant, userId, ['support.manage']);
+  if (!allowed) {
+    throw new AppError('Support management permission required', 403, 'forbidden');
   }
 }
 
-function assertRespond(restaurant) {
-  if (!RESPOND_ROLES.has(restaurant.effective_role)) {
+async function assertRespond(restaurant, userId) {
+  const allowed = await permissionsService.hasRestaurantPermission(restaurant, userId, ['support.view']);
+  if (!allowed) {
     throw new AppError('You do not have permission to respond for this restaurant', 403, 'forbidden');
   }
 }
@@ -267,8 +268,8 @@ async function assertCaseRestaurant(client, caseId, restaurantId, userId, { mana
     throw new AppError('Support case not found', 404, 'case_not_found');
   }
   const restaurant = await requireRestaurantAccess(userId, restaurantId);
-  if (manage) assertManage(restaurant);
-  if (respond) assertRespond(restaurant);
+  if (manage) await assertManage(restaurant, userId);
+  if (respond) await assertRespond(restaurant, userId);
   return { supportCase, restaurant };
 }
 
@@ -778,12 +779,15 @@ exports.acceptResolution = async (req, res, next) => {
         [supportCase.id, processorRefundId]
       );
       if (processorRefundId && supportCase.final_resolution === 'refund' && supportCase.order_id) {
-        await client.query(
+        const refundUpdate = await client.query(
           `UPDATE food_orders
               SET status = 'refunded', payment_status = 'refunded', updated_at = NOW()
             WHERE id = $1 AND payment_status = 'paid'`,
           [supportCase.order_id]
         );
+        if (refundUpdate.rowCount > 0) {
+          await require('../growth/emit').emitDomainEvent(client, 'food.order_refunded', require('../growth/emit').foodEventProps({ restaurant_id: supportCase.restaurant_id }), { userId: req.user.id, req });
+        }
       }
       await logEvent(client, supportCase.id, {
         actorUserId: req.user.id,
@@ -805,7 +809,8 @@ exports.acceptResolution = async (req, res, next) => {
 exports.listRestaurantCases = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRespond(restaurant, req.user.id);
     const status = normalizeString(req.query.status, 40);
     const values = [restaurantId];
     let where = 'rsc.restaurant_id = $1 AND rsc.archived_at IS NULL';
@@ -832,7 +837,7 @@ exports.getRestaurantCase = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const caseId = parsePositiveInt(req.params.caseId);
-    const { supportCase } = await assertCaseRestaurant(pool, caseId, restaurantId, req.user.id);
+    const { supportCase } = await assertCaseRestaurant(pool, caseId, restaurantId, req.user.id, { respond: true });
     res.json(await getCaseDetails(pool, supportCase, 'restaurant'));
   } catch (err) {
     next(err);

@@ -145,7 +145,7 @@ export default function NewRequestPage() {
                   type="button"
                   className="lx-step lx-step--done"
                   onClick={() => setStep(s)}
-                  aria-label={tx('logistics.requests.goToStep', 'Go to {{label}}', { label })}
+                  aria-label={tx('logistics.requests.goToStep', 'Go to {{label}}', { label })} data-track="ui.7c5201362b.1"
                 >
                   <span className="lx-visually-hidden">{label}</span>
                 </button>
@@ -210,7 +210,7 @@ export default function NewRequestPage() {
                   </div>
                 </div>
                 <div className="lx-btn-row lx-mt-6">
-                  <button type="button" className="lx-btn-primary" onClick={() => setStep(2)}>
+                  <button type="button" className="lx-btn-primary" onClick={() => setStep(2)} data-track="ui.7c5201362b.2">
                     {tx('common.next', 'Next')} →
                   </button>
                 </div>
@@ -278,17 +278,17 @@ export default function NewRequestPage() {
                 </div>
                 <div className="lx-btn-row">
                   <label className="lx-t-small lx-t-semibold" style={{ display: 'flex', gap: '.4rem', alignItems: 'center', minBlockSize: '2.75rem' }}>
-                    <input type="checkbox" checked={form.private_label} onChange={(e) => set('private_label', e.target.checked)} />
+                    <input type="checkbox" checked={form.private_label} onChange={(e) => set('private_label', e.target.checked)} data-track="ui.7c5201362b.3" />
                     {tx('logistics.requests.privateLabel', 'Private Label')}
                   </label>
                   <label className="lx-t-small lx-t-semibold" style={{ display: 'flex', gap: '.4rem', alignItems: 'center', minBlockSize: '2.75rem' }}>
-                    <input type="checkbox" checked={form.custom_mfg} onChange={(e) => set('custom_mfg', e.target.checked)} />
+                    <input type="checkbox" checked={form.custom_mfg} onChange={(e) => set('custom_mfg', e.target.checked)} data-track="ui.7c5201362b.4" />
                     {tx('logistics.requests.customMfg', 'Custom Manufacturing')}
                   </label>
                 </div>
                 <div className="lx-btn-row lx-mt-6">
-                  <button type="button" className="lx-btn-secondary" onClick={() => setStep(1)}>← {tx('common.back', 'Back')}</button>
-                  <button type="button" className="lx-btn-primary" disabled={laneAccess?.allowed === false} onClick={() => setStep(3)}>{tx('common.next', 'Next')} →</button>
+                  <button type="button" className="lx-btn-secondary" onClick={() => setStep(1)} data-track="ui.7c5201362b.5">← {tx('common.back', 'Back')}</button>
+                  <button type="button" className="lx-btn-primary" disabled={laneAccess?.allowed === false} onClick={() => setStep(3)} data-track="ui.7c5201362b.6">{tx('common.next', 'Next')} →</button>
                 </div>
               </>
             )}
@@ -321,8 +321,8 @@ export default function NewRequestPage() {
                     onChange={(e) => set('notes', e.target.value)} />
                 </div>
                 <div className="lx-btn-row lx-mt-6">
-                  <button type="button" className="lx-btn-secondary" onClick={() => setStep(2)}>← {tx('common.back', 'Back')}</button>
-                  <button type="button" className="lx-btn-primary" onClick={handleSubmit} disabled={submitting}>
+                  <button type="button" className="lx-btn-secondary" onClick={() => setStep(2)} data-track="ui.7c5201362b.7">← {tx('common.back', 'Back')}</button>
+                  <button type="button" className="lx-btn-primary" onClick={handleSubmit} disabled={submitting} data-track="ui.7c5201362b.8">
                     {submitting ? tx('common.loading', 'Submitting…') : tx('logistics.requests.submit', 'Submit Request')}
                   </button>
                 </div>

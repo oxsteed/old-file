@@ -135,7 +135,7 @@ export default function RoleMenu({ businessId, activeTab, onSelectTab }) {
                   fontWeight: isActive ? 600 : 500,
                   cursor: 'pointer',
                   transition: 'all 120ms ease',
-                }}
+                }} data-track="ui.1b3c1b0fc1.1"
               >
                 {t(item.label, { defaultValue: item.id })}
               </button>

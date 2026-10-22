@@ -65,7 +65,7 @@ const ToolReviewsList: React.FC<ToolReviewsListProps> = ({ toolId, avgRating = 0
 
       <button
         onClick={() => setShowForm(!showForm)}
-        className="tool-reviews-button"
+        className="tool-reviews-button" data-track="ui.0947142a1e.1"
       >
         {t('toolRentals.leaveReview')}
       </button>

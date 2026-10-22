@@ -51,7 +51,7 @@ function JobEditContent() {
       <PageShell>
         <div className="jdp-page jdp-state" aria-busy={loading}>
           {error ? <><h1>{t('jobDetail.loadFailed')}</h1>
-            <button type="button" className="jdp-btn-primary" onClick={() => fetchJob(id)}>{t('jobDetail.retry')}</button></>
+            <button type="button" className="jdp-btn-primary" onClick={() => fetchJob(id)} data-track="ui.72b588b129.1">{t('jobDetail.retry')}</button></>
             : <p role="status">{t('jobDetail.loadingJob')}</p>}
         </div>
       </PageShell>
@@ -157,11 +157,11 @@ function JobEditContent() {
           <div ref={summaryRef} tabIndex={-1} aria-live="assertive">
             {failure && <div className="jdp-bid-error" role="alert">
               <p>{t(`jobEdit.failures.${failure}`)}</p>
-              {failure === 'conflict' && <button type="button" className="jdp-btn-ghost" onClick={reloadLatest}>{t('jobEdit.reloadLatest')}</button>}
+              {failure === 'conflict' && <button type="button" className="jdp-btn-ghost" onClick={reloadLatest} data-track="ui.72b588b129.2">{t('jobEdit.reloadLatest')}</button>}
             </div>}
             {Object.keys(fieldErrors).length > 0 && <p className="jdp-bid-error" role="alert">{t('jobEdit.fixErrors', { count: Object.keys(fieldErrors).length })}</p>}
           </div>
-          <form onSubmit={handleSubmit} className="jdp-bid-form" noValidate>
+          <form onSubmit={handleSubmit} className="jdp-bid-form" noValidate data-track="ui.72b588b129.3">
             <fieldset disabled={saving}>
               <legend className="jdp-small-heading">{t('jobEdit.sections.basics')}</legend>
               {textField('title', { max: SCHEMA_LIMITS.titleMax, min: SCHEMA_LIMITS.titleMin, required: true })}
@@ -206,7 +206,7 @@ function JobEditContent() {
             </fieldset>
             <div className="jdp-modal-actions">
               <Link className="jdp-btn-ghost" to={`/jobs/${id}`}>{t('jobEdit.cancel')}</Link>
-              <button type="submit" className="jdp-btn-primary" disabled={saving || !draft?.changedFields.length}>
+              <button type="submit" className="jdp-btn-primary" disabled={saving || !draft?.changedFields.length} data-track="ui.72b588b129.4">
                 {saving ? t('jobEdit.saving') : t('jobEdit.save')}
               </button>
             </div>

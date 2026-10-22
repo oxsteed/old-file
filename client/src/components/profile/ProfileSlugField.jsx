@@ -164,7 +164,7 @@ export default function ProfileSlugField({ type, businessId, initialSlug, slugUp
           type="button"
           onClick={handleSave}
           disabled={!dirty || status !== 'available' || saving}
-          className="px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold transition"
+          className="px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold transition" data-track="ui.3e2df510b4.1"
         >
           {saving
             ? t('profileSlug.saving', { defaultValue: 'Saving…' })
@@ -204,7 +204,7 @@ export default function ProfileSlugField({ type, businessId, initialSlug, slugUp
               key={s}
               type="button"
               onClick={() => applySuggestion(s)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-teal-50 dark:bg-teal-900/30 border border-teal-200 dark:border-teal-700 text-teal-700 dark:text-teal-300 text-xs font-mono hover:bg-teal-100 dark:hover:bg-teal-900/60 transition"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-teal-50 dark:bg-teal-900/30 border border-teal-200 dark:border-teal-700 text-teal-700 dark:text-teal-300 text-xs font-mono hover:bg-teal-100 dark:hover:bg-teal-900/60 transition" data-track="ui.3e2df510b4.2"
             >
               <Sparkles className="w-3 h-3" />
               {s}
@@ -221,7 +221,7 @@ export default function ProfileSlugField({ type, businessId, initialSlug, slugUp
             href={`${prefix}${initialSlug}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="font-mono text-teal-600 dark:text-teal-400 hover:underline"
+            className="font-mono text-teal-600 dark:text-teal-400 hover:underline" data-track="ui.3e2df510b4.3"
           >
             {typeof window !== 'undefined' ? window.location.host : ''}{prefix}{initialSlug}
           </a>

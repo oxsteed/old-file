@@ -280,7 +280,7 @@ export default function HelperCancellationConfirmation({
             onChange={e => setAcknowledged(e.target.checked)}
             disabled={loading}
             aria-required="true"
-            className="hcc-ack-input"
+            className="hcc-ack-input" data-track="ui.c1f0de9f5f.1"
           />
           <span className="hcc-ack-text">
             {t('helperCancelConfirm.ackText',
@@ -296,7 +296,7 @@ export default function HelperCancellationConfirmation({
             className="hcc-btn-keep"
             onClick={onCancel}
             disabled={loading}
-            type="button"
+            type="button" data-track="ui.c1f0de9f5f.2"
           >
             {t('helperCancelConfirm.keepJob', 'Keep the job')}
           </button>
@@ -305,7 +305,7 @@ export default function HelperCancellationConfirmation({
             onClick={handleConfirm}
             disabled={loading || !acknowledged}
             type="button"
-            aria-disabled={!acknowledged}
+            aria-disabled={!acknowledged} data-track="ui.c1f0de9f5f.3"
           >
             {loading
               ? t('helperCancelConfirm.cancelling', 'Cancelling…')

@@ -65,7 +65,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
         {canExpandRadius && (
           <button
             onClick={onExpandRadius}
-            className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium rounded-xl transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium rounded-xl transition-colors" data-track="ui.9741c4aa10.1"
           >
             <MapPin className="w-4 h-4" aria-hidden="true" />
             {t('helpersDir.expandRadius', { miles: nextRadius })}
@@ -76,7 +76,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
         {hasFilters && (
           <button
             onClick={onReset}
-            className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-sm font-medium rounded-xl transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-sm font-medium rounded-xl transition-colors" data-track="ui.9741c4aa10.2"
           >
             <RotateCcw className="w-4 h-4" aria-hidden="true" />
             {t('helpersDir.clearAllFilters')}

@@ -238,12 +238,13 @@ const shutdown = async (signal) => {
     }, 10000);
 
     // Wait for all active jobs to drain
-    while (Array.from(activeJobs.values()).some(count => count > 0)) {
+    while (Array.from(activeJobs.values()).some(count => count > 0) || trackingInFlight.size > 0) {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     clearTimeout(timeout);
     await closeQueue();
+    await require('./growth/workerSchedule').close();
     logger.info('Worker shutdown complete');
     process.exit(0);
   } catch (err) {

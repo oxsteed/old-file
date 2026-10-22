@@ -120,7 +120,7 @@ export default function ReviewsList({ userId }) {
           onClick={() => fetchReviews(false)}
           className="w-full py-3 border border-gray-200 text-gray-500
                      text-sm font-medium rounded-xl hover:bg-gray-50
-                     transition flex items-center justify-center gap-2"
+                     transition flex items-center justify-center gap-2" data-track="ui.bb48ed4fdc.1"
         >
           <ChevronDown size={16} />
           {t('jobDetail.loadMoreReviews')}
@@ -223,7 +223,7 @@ function ReviewCard({ review }) {
         <button
           type="button"
           onClick={() => setReportOpen(true)}
-          className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors"
+          className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors" data-track="ui.bb48ed4fdc.2"
         >
           <Flag size={12} />
           {t('reviewReport.report')}

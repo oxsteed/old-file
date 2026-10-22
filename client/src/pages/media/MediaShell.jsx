@@ -157,7 +157,7 @@ function MediaShellContent({ children }) {
       </Link>;
     })}
   </nav>;
-  const locationButton = <button type="button" className="media-global-location" onClick={openLocation}><MapPin size={21} aria-hidden="true" /><span>{label}</span><ChevronDown size={17} aria-hidden="true" /></button>;
+  const locationButton = <button type="button" className="media-global-location" onClick={openLocation} data-track="ui.c4f38e2448.1"><MapPin size={21} aria-hidden="true" /><span>{label}</span><ChevronDown size={17} aria-hidden="true" /></button>;
   const preferences = <div className="media-preferences"><LanguageSelector appearance="media" /><ThemeToggle /></div>;
 
   return <MediaGuestGateProvider><PageShell hideNav hideFooter>
@@ -167,13 +167,13 @@ function MediaShellContent({ children }) {
         <div className="media-app-header-inner">
           <Link to="/" className="media-wordmark" aria-label={t('media.shell.homepage')}><span className="media-brand-mark"><OxSteedIcon size={44} /></span><span>OxSteed<span className="media-wordmark-branch"> Media</span></span></Link>
           <div className="media-header-location">{locationButton}</div>
-          <form className="media-header-search" role="search" onSubmit={event => { event.preventDefault(); navigate(`/media/search${query.trim() ? `?q=${encodeURIComponent(query.trim())}` : ''}`); }}>
+          <form className="media-header-search" role="search" onSubmit={event => { event.preventDefault(); navigate(`/media/search${query.trim() ? `?q=${encodeURIComponent(query.trim())}` : ''}`); }} data-track="ui.c4f38e2448.2">
             <Search size={21} aria-hidden="true" /><input type="search" aria-label={t('media.search.placeholder')} placeholder={t('media.shell.search')} value={query} onChange={event => setQuery(event.target.value)} />
           </form>
           <div className="media-header-tools">
             <div className="media-desktop-preferences">{preferences}</div>
             {!loading && (user ? <div className="media-account-tools" ref={accountRef}>
-              <button type="button" className="media-account-trigger" aria-expanded={accountOpen} aria-controls="media-account-menu" aria-label={displayName} onClick={() => setAccountOpen(value => !value)}>
+              <button type="button" className="media-account-trigger" aria-expanded={accountOpen} aria-controls="media-account-menu" aria-label={displayName} onClick={() => setAccountOpen(value => !value)} data-track="ui.c4f38e2448.3">
                 <span className="media-account-avatar">{user.profile_photo_url ? <img src={user.profile_photo_url} alt="" /> : <UserRound size={23} aria-hidden="true" />}</span><span className="media-account-name">{displayName}</span><ChevronDown size={17} aria-hidden="true" />
               </button>
               {accountOpen && <div id="media-account-menu" className="media-account-menu">
@@ -184,7 +184,7 @@ function MediaShellContent({ children }) {
                 <Link to="/media/creator" onClick={() => setAccountOpen(false)}>{t('media.shell.creatorEarnings')}</Link>
                 <Link to="/settings/notifications" onClick={() => setAccountOpen(false)}>{t('media.shell.notificationSettings')}</Link>
                 <Link to="/support" onClick={() => setAccountOpen(false)}>{t('media.shell.helpSupport')}</Link>
-                <button className="media-account-action" type="button" onClick={() => { setAccountOpen(false); void logout(); }}>{t('nav.signOut')}</button>
+                <button className="media-account-action" type="button" onClick={() => { setAccountOpen(false); void logout(); }} data-track="ui.c4f38e2448.4">{t('nav.signOut')}</button>
               </div>}
             </div> : <div className="media-auth-links"><Link to="/login" state={{ from: `${pathname}${search}` }} className="media-auth-link">{t('nav.signIn')}</Link><Link to="/join" className="media-auth-link media-auth-link-primary"><span className="media-desktop-label">{t('nav.joinOxsteed')}</span><span className="media-mobile-label">{t('media.landing.join')}</span></Link></div>)}
           </div>
@@ -200,10 +200,10 @@ function MediaShellContent({ children }) {
         <div className="media-content">{children}</div>
         <aside className="media-discovery" aria-label={t('media.shell.discover')}><div className="media-rail-sticky">
           {user ? <>
-            <section className="media-reference-card media-neighborhood-card"><h2>{t('media.landing.yourNeighborhood')}</h2><p>{label}</p><button type="button" className="media-discovery-card-link" onClick={openLocation}>{t('media.landing.changeLocation')}</button></section>
+            <section className="media-reference-card media-neighborhood-card"><h2>{t('media.landing.yourNeighborhood')}</h2><p>{label}</p><button type="button" className="media-discovery-card-link" onClick={openLocation} data-track="ui.c4f38e2448.5">{t('media.landing.changeLocation')}</button></section>
             <section className="media-reference-card media-spaces-card"><h2>{t('media.landing.suggestedSpaces')}</h2>
               {suggested.map(community => <div className="media-suggested-space" key={community.id}><Link className="media-space-name" to={`/media/communities/${encodeURIComponent(community.slug)}`}><span className="media-space-avatar"><Users size={20} /></span><strong>{community.title}</strong></Link>
-                {community.joined ? <Link className="media-space-join" to={`/media/communities/${encodeURIComponent(community.slug)}`}>{t('media.landing.open')}</Link> : <button type="button" className="media-space-join" disabled={joining !== null} onClick={() => join(community)}>{t(joining === community.id ? 'media.landing.joining' : 'media.landing.join')}</button>}
+                {community.joined ? <Link className="media-space-join" to={`/media/communities/${encodeURIComponent(community.slug)}`}>{t('media.landing.open')}</Link> : <button type="button" className="media-space-join" disabled={joining !== null} onClick={() => join(community)} data-track="ui.c4f38e2448.6">{t(joining === community.id ? 'media.landing.joining' : 'media.landing.join')}</button>}
               </div>)}
               {communityError && <p role="alert">{communityError}</p>}
               {!suggested.length && !communityError && <p>{t('media.landing.spacesEmpty')}</p>}
@@ -212,7 +212,7 @@ function MediaShellContent({ children }) {
             {isComposePage ? <section className="media-reference-card media-profile-card"><h2>{t('media.compose.videoVerificationPanel')}</h2><p>{t(verified ? 'media.compose.videoVerificationReady' : 'media.compose.videoVerificationRequired')}</p><Link className="media-outline-button" to="/media/verification?returnTo=/media/compose">{t(verified ? 'media.landing.reviewVerification' : 'media.landing.verifyAccount')}</Link></section>
               : <section className="media-reference-card media-profile-card"><h2>{t('media.landing.completeProfile')}</h2><progress max={4} value={completed} aria-label={t('media.landing.completeProfile')} /><Link className="media-discovery-card-link" to="/media/verification">{t(verified ? 'media.landing.reviewVerification' : 'media.landing.verifyAccount')}</Link></section>}
           </> : <>
-            <section className="media-reference-card media-how-card"><h2>{t('media.landing.howItWorks')}</h2><ol><li><button type="button" onClick={openLocation}>{t('media.landing.chooseYourLocation')}</button></li><li><Link to="/media/communities">{t('media.landing.exploreCommunity')}</Link></li><li><Link to="/join">{t('media.landing.joinConversation')}</Link></li></ol></section>
+            <section className="media-reference-card media-how-card"><h2>{t('media.landing.howItWorks')}</h2><ol><li><button type="button" onClick={openLocation} data-track="ui.c4f38e2448.7">{t('media.landing.chooseYourLocation')}</button></li><li><Link to="/media/communities">{t('media.landing.exploreCommunity')}</Link></li><li><Link to="/join">{t('media.landing.joinConversation')}</Link></li></ol></section>
             <section className="media-reference-card media-creators-card"><h2>{t('media.landing.forCreators')}</h2><p>{t('media.landing.creatorDescription')}</p><Link className="media-outline-button" to="/media/creator">{t('media.landing.exploreMarketplace')}</Link></section>
           </>}
         </div></aside>

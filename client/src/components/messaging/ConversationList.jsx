@@ -70,7 +70,7 @@ export default function ConversationList({
             type="button"
             onClick={() => onSelect?.(conv)}
             className={`messages-row sms-conversation-row${unread ? ' unread' : ''}${isActive ? ' active' : ''}`}
-            aria-current={isActive ? 'page' : undefined}
+            aria-current={isActive ? 'page' : undefined} data-track="ui.dbc4186eb0.1"
           >
             <div className="messages-avatar">
               {(name || '?').charAt(0).toUpperCase()}
@@ -104,7 +104,7 @@ export default function ConversationList({
               }}
               disabled={String(restorePendingId) === String(conv.id)}
               aria-label={`${restoreLabel || t('messages.restore')} ${name}`}
-              title={restoreLabel || t('messages.restore')}
+              title={restoreLabel || t('messages.restore')} data-track="ui.dbc4186eb0.2"
             >
               <RotateCcw size={14} aria-hidden />
               <span>{restoreLabel || t('messages.restore')}</span>

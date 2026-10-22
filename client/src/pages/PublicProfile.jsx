@@ -133,7 +133,7 @@ export default function PublicProfile() {
                     type="button"
                     onClick={copyId}
                     className="px-3 py-1 text-sm rounded-full border border-gray-700 text-gray-300 hover:border-gray-500"
-                    title={t('publicProfile.oxsteedIdHint', 'Your permanent account ID. Share it with support if you ever need help.')}
+                    title={t('publicProfile.oxsteedIdHint', 'Your permanent account ID. Share it with support if you ever need help.')} data-track="ui.74fed0f7c4.1"
                   >
                     {copied ? t('publicProfile.copied', 'Copied') : t('publicProfile.copy', 'Copy')}
                   </button>

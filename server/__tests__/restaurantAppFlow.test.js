@@ -43,11 +43,11 @@ function accessRow(overrides = {}) {
   };
 }
 
-function buildApp() {
+function buildApp(userId = USER_ID) {
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => {
-    req.user = { id: USER_ID, email: 'owner@example.com', role: 'customer' };
+    req.user = { id: userId, email: 'staff@example.com', role: 'customer' };
     next();
   });
 
@@ -58,11 +58,15 @@ function buildApp() {
   app.get('/api/restaurants/:restaurantId/kitchen/prep-device-config', appFlow.getPrepDeviceConfig);
   app.patch('/api/restaurants/:restaurantId/kitchen/prep-device-config', appFlow.updatePrepDeviceConfig);
   app.post('/api/restaurants/:restaurantId/devices/pairing-codes', appFlow.createDevicePairingCode);
+  app.get('/api/restaurants/:restaurantId/devices', appFlow.listRestaurantDevices);
   app.post('/api/restaurants/:restaurantId/devices/:deviceId/rotate-token', appFlow.rotateDeviceToken);
   app.get('/api/restaurants/:restaurantId/devices/:deviceId/runtime-config', appFlow.getDeviceRuntimeConfig);
   app.post('/api/restaurants/:restaurantId/devices/:deviceId/heartbeat', appFlow.deviceHeartbeat);
   app.get('/api/restaurants/:restaurantId/devices/:deviceId/kitchen-feed', appFlow.getKitchenFeed);
   app.post('/api/restaurants/:restaurantId/devices/:deviceId/kitchen-feed/ack', appFlow.ackKitchenFeed);
+  app.get('/api/restaurants/:restaurantId/devices/:deviceId/printer-jobs', appFlow.authenticateKitchenPrinterDevice, appFlow.listPrinterJobs);
+  app.post('/api/restaurants/:restaurantId/devices/:deviceId/printer-jobs/:jobId/claim', appFlow.authenticateKitchenPrinterDevice, appFlow.claimPrinterJob);
+  app.patch('/api/restaurants/:restaurantId/devices/:deviceId/printer-jobs/:jobId', appFlow.authenticateKitchenPrinterDevice, appFlow.updatePrinterJob);
   app.get('/api/restaurants/:restaurantId/devices/:deviceId/queue-board', appFlow.getDeviceQueueBoard);
   app.get('/api/restaurants/:restaurantId/devices/:deviceId/config', appFlow.getDeviceConfig);
   app.patch('/api/restaurants/:restaurantId/devices/:deviceId', appFlow.updateDeviceConfig);
@@ -82,7 +86,10 @@ function buildApp() {
   app.post('/api/restaurants/:restaurantId/pos/orders/:orderId/merge', appFlow.mergePosOrders);
   app.post('/api/restaurants/:restaurantId/pos/orders/:orderId/payments', appFlow.recordPosPayment);
   app.post('/api/restaurants/:restaurantId/pos/orders/:orderId/payment', appFlow.recordPosPayment);
+  app.post('/api/restaurants/:restaurantId/pos/terminal/connection-token', appFlow.createPosTerminalConnectionToken);
+  app.post('/api/restaurants/:restaurantId/pos/orders/:orderId/card-intents', appFlow.createPosCardIntent);
   app.post('/api/restaurants/:restaurantId/pos/orders/:orderId/refund', appFlow.refundPosOrder);
+  app.get('/api/restaurants/:restaurantId/pos/payments/:paymentId', appFlow.getPosPaymentStatus);
   app.post('/api/restaurants/:restaurantId/menu-items/:itemId/availability', appFlow.setMenuItemAvailability);
   app.get('/api/restaurants/:restaurantId/pos/shifts/:shiftId/drawer-events', appFlow.listDrawerEvents);
   app.post('/api/restaurants/:restaurantId/pos/shifts/:shiftId/drawer-events', appFlow.recordDrawerEvent);
@@ -92,6 +99,7 @@ function buildApp() {
   app.post('/api/restaurants/:restaurantId/kitchen/orders/:orderId/ack', appFlow.ackKitchenTicket);
   app.post('/api/restaurants/:restaurantId/kitchen/orders/:orderId/action', appFlow.performKitchenOrderAction);
   app.post('/api/restaurants/:restaurantId/kitchen/items/:orderItemId/action', appFlow.performKitchenItemAction);
+  app.get('/api/restaurants/:restaurantId/kitchen/stations', appFlow.listKitchenStations);
   app.post('/api/restaurants/:restaurantId/kitchen/stations', appFlow.upsertKitchenStation);
   app.post('/api/restaurants/:restaurantId/kitchen/station-routes', appFlow.routeMenuItemToStation);
   app.post('/api/restaurants/:restaurantId/kitchen/printer-jobs', appFlow.createPrinterJob);
@@ -103,6 +111,7 @@ function buildApp() {
   app.post('/api/restaurants/:restaurantId/runner/tasks/:taskId/location', appFlow.logRunnerLocation);
   app.post('/api/restaurants/:restaurantId/runner/tasks/:taskId/handoff', appFlow.completeRunnerHandoff);
   app.post('/api/restaurants/:restaurantId/runner/tasks/:taskId/settlements', appFlow.upsertRunnerSettlement);
+  app.get('/api/restaurants/:restaurantId/runner/settlements', appFlow.listRunnerSettlements);
   app.get('/api/restaurants/:restaurantId/inventory/hooks/status', appFlow.getInventoryHookStatus);
   app.post('/api/restaurants/:restaurantId/inventory/items/:itemId/adjust', inventory.adjustItem);
   app.get('/api/food/customer/favorite-items', food.listCustomerFavoriteItems);
@@ -133,12 +142,56 @@ function buildDeviceApp() {
   return app;
 }
 
+const permissionsService = require('../services/permissionsService');
+
 beforeEach(() => {
   resetMocks();
+  // S-08: manage gates and bootstrap resolve permissions through
+  // permissionsService. Clear its cache per test so each scripted chain
+  // deterministically includes the resolver's catalog rows.
+  permissionsService.invalidateCache();
   notifyRefundIssued.mockClear();
 });
 
 describe('restaurant app-flow backend', () => {
+  test('paired kitchen devices can read only their location printer queue', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 31, restaurant_id: RESTAURANT_ID, app_key: 'kitchen', status: 'paired', location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 51, restaurant_id: RESTAURANT_ID, location_id: 77, status: 'queued', job_type: 'kitchen_ticket' }] });
+
+    const res = await request(buildApp())
+      .get(`/api/restaurants/${RESTAURANT_ID}/devices/31/printer-jobs`)
+      .set('X-Device-Token', 'bridge-secret');
+
+    expect(res.status).toBe(200);
+    expect(res.body.jobs).toHaveLength(1);
+    const queueQuery = mockQuery.mock.calls[1];
+    expect(queueQuery[0]).toMatch(/pj\.location_id = \$5/);
+    expect(queueQuery[1]).toEqual([RESTAURANT_ID, 31, null, null, 77]);
+  });
+
+  test('paired kitchen devices can claim and acknowledge their own printer jobs', async () => {
+    const device = { id: 31, restaurant_id: RESTAURANT_ID, app_key: 'kitchen', status: 'paired', location_id: 77 };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [device] })
+      .mockResolvedValueOnce({ rows: [{ id: 51, status: 'sent', claimed_by_device_id: 31 }] });
+    const claimRes = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/devices/31/printer-jobs/51/claim`)
+      .set('X-Device-Token', 'bridge-secret');
+    expect(claimRes.status).toBe(200);
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [device] })
+      .mockResolvedValueOnce({ rows: [{ id: 51, status: 'printed', claimed_by_device_id: 31 }] });
+    const updateRes = await request(buildApp())
+      .patch(`/api/restaurants/${RESTAURANT_ID}/devices/31/printer-jobs/51`)
+      .set('X-Device-Token', 'bridge-secret')
+      .send({ status: 'printed' });
+    expect(updateRes.status).toBe(200);
+    const updateQuery = mockQuery.mock.calls.at(-1);
+    expect(updateQuery[1]).toEqual(['printed', null, 51, RESTAURANT_ID, false, 31, 77]);
+  });
+
   test('requires all supplied POS customer identity fields to match', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
@@ -165,6 +218,7 @@ describe('restaurant app-flow backend', () => {
       .mockResolvedValueOnce({ rows: [{ id: 1, app_key: 'pos', device_name: 'Front POS', status: 'paired', location_id: 77, location: { id: 77, name: 'Front Counter' } }] })
       .mockResolvedValueOnce({ rows: [{ id: 77, name: 'Front Counter', is_primary: true }] })
       .mockResolvedValueOnce({ rows: [{ id: BUSINESS_ID, business_name: 'Ox Burger Group' }] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [accessRow({ tax_rate_bps: 725, service_fee_bps: 0 })] });
 
     const res = await request(buildApp())
@@ -180,11 +234,13 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.app.settings.taxRateBps).toBe(725);
     expect(res.body.app.enabledModules.pos).toBe(true);
     expect(res.body.devices[0].app_key).toBe('pos');
+    expect(res.body.discountDefinitions).toEqual([]);
   });
 
   test('returns manager dashboard metrics from live order/inventory/support data', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({ rows: [{ order_count: 4, sales_cents: 8900, tips_cents: 500 }] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, queue_number: 8, is_delayed: true, status: 'preparing' }] })
       .mockResolvedValueOnce({ rows: [{ item_name: 'Burger', quantity: 7, revenue_cents: 6300 }] })
@@ -265,9 +321,28 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.topItems[0].item_name).toBe('Burger');
   });
 
+  test('scopes manager dashboard rollups to assigned stores', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 44 })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 77, location_id: 77, location_name: 'Front Counter' }] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000124'))
+      .get(`/api/restaurants/${RESTAURANT_ID}/manager/dashboard?days=14`);
+
+    expect(res.status).toBe(200);
+    const sqls = mockQuery.mock.calls.map(([sql]) => String(sql));
+    expect(sqls.some((sql) => /FROM food_orders fo/.test(sql) && /location_id = ANY\(\$4::bigint\[\]\)/.test(sql))).toBe(true);
+    expect(sqls.some((sql) => /restaurant_inventory_items/.test(sql) && /location_id = ANY\(\$2::bigint\[\]\)/.test(sql))).toBe(true);
+    expect(sqls.some((sql) => /FROM restaurant_runner_tasks/.test(sql) && /location_id = ANY\(\$2::bigint\[\]\)/.test(sql))).toBe(true);
+    expect(sqls.some((sql) => /FROM restaurant_app_devices/.test(sql) && /location_id = ANY\(\$2::bigint\[\]\)/.test(sql))).toBe(true);
+  });
+
   test('returns manager report rollups for dashboards', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({ rows: [{ day: '2026-06-30', order_count: 6, sales_cents: 14800 }] })
       .mockResolvedValueOnce({ rows: [{ status: 'completed', payment_status: 'paid', order_count: 5 }] })
       .mockResolvedValueOnce({ rows: [{ station_label: 'Grill', item_count: 12, average_prep_seconds: 420 }] })
@@ -285,9 +360,28 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.posSync.pending_operations).toBe(1);
   });
 
+  test('scopes manager reports to assigned stores', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 45 })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 78, location_id: 78, location_name: 'Patio Store' }] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000125'))
+      .get(`/api/restaurants/${RESTAURANT_ID}/manager/reports?days=30`);
+
+    expect(res.status).toBe(200);
+    const sqls = mockQuery.mock.calls.map(([sql]) => String(sql));
+    expect(sqls.some((sql) => /FROM food_orders fo/.test(sql) && /location_id = ANY\(\$4::bigint\[\]\)/.test(sql))).toBe(true);
+    expect(sqls.some((sql) => /FROM restaurant_runner_tasks/.test(sql) && /location_id = ANY\(\$4::bigint\[\]\)/.test(sql))).toBe(true);
+    expect(sqls.some((sql) => /restaurant_inventory_items/.test(sql) && /location_id = ANY\(\$2::bigint\[\]\)/.test(sql))).toBe(true);
+    expect(sqls.some((sql) => /FROM restaurant_pos_pending_operations/.test(sql) && /location_id = ANY\(\$2::bigint\[\]\)/.test(sql))).toBe(true);
+  });
+
   test('updates full manager publishing controls and primary location', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({
         rows: [accessRow({
           status: 'active',
@@ -300,6 +394,9 @@ describe('restaurant app-flow backend', () => {
           currency_code: 'USD',
         })],
       })
+      // F-20: the fee change writes one business_audit_log row inside the
+      // transaction, between the restaurant UPDATE and the location reads.
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 77 }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
@@ -355,6 +452,7 @@ describe('restaurant app-flow backend', () => {
           },
         })],
       })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({
         rows: [{
           id: 901,
@@ -419,6 +517,7 @@ describe('restaurant app-flow backend', () => {
   test('creates display pairing code and remotely updates device config', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({ rows: [{ id: 77 }] })
       .mockResolvedValueOnce({
         rows: [{
@@ -493,9 +592,59 @@ describe('restaurant app-flow backend', () => {
     expect(configRes.body.contract.routes.queueBoard).toBe('/api/restaurants/3/devices/801/queue-board');
   });
 
+  test('returns a unified device fleet view across app and legacy display pairings', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 801,
+        restaurant_id: RESTAURANT_ID,
+        app_key: 'kitchen',
+        device_name: 'Expo KDS',
+        location_id: 77,
+        status: 'paired',
+        config: {},
+        last_seen_at: null,
+        config_version: 2,
+      }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 901,
+        restaurant_id: RESTAURANT_ID,
+        location_id: 77,
+        label: 'Dining room TV',
+        device_role: 'queue_board',
+        paired_at: new Date().toISOString(),
+        last_seen_at: null,
+      }] });
+
+    const res = await request(buildApp()).get(`/api/restaurants/${RESTAURANT_ID}/devices`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.version).toBe(1);
+    expect(res.body.devices.map((device) => device.canonicalId)).toEqual(['app:801', 'display:901']);
+    expect(res.body.devices[1]).toMatchObject({ source: 'display_pairings', appKey: 'display', deviceRole: 'queue_board' });
+  });
+
+  test('scopes the unified device fleet to assigned locations', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 99 })] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, location_id: 77, role_override: 'manager', membership_id: 99 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp()).get(`/api/restaurants/${RESTAURANT_ID}/devices`);
+
+    expect(res.status).toBe(200);
+    const fleetQueries = mockQuery.mock.calls.slice(-2);
+    expect(fleetQueries[0][0]).toContain('location_id = ANY($2::bigint[])');
+    expect(fleetQueries[1][0]).toContain('location_id = ANY($2::bigint[])');
+    expect(fleetQueries[0][1]).toEqual([RESTAURANT_ID, [77]]);
+    expect(fleetQueries[1][1]).toEqual([RESTAURANT_ID, [77]]);
+  });
+
   test('rotates a paired device token for a restaurant manager', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({ rows: [{
         id: 801,
         restaurant_id: RESTAURANT_ID,
@@ -718,13 +867,16 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.supportedPaymentModes).toContain('restaurant_credit');
   });
 
-  test('creates POS orders in the same food_orders flow', async () => {
+  test.each([true, false])('creates POS orders with the store inventory state (legacy brand availability: %s)', async (brandAvailable) => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
       .mockResolvedValueOnce({ rows: [{ id: 55, restaurant_id: RESTAURANT_ID, status: 'open', staff_user_id: USER_ID }] })
       .mockResolvedValueOnce({ rows: [accessRow()] })
-      .mockResolvedValueOnce({ rows: [{ id: 11, name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }] })
-      .mockResolvedValueOnce({ rows: [{ next_queue: 12 }] })
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations -> restaurant fallback)
+      .mockResolvedValueOnce({ rows: [{ id: 11, name: 'Classic Burger', price_cents: 899,
+        currency_code: 'USD', is_available: brandAvailable, manual_available: true,
+        inventory_available: brandAvailable, store_override: { inventory_available: true } }] })
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 12 }] })
       .mockResolvedValueOnce({
         rows: [{
           id: ORDER_ID,
@@ -745,13 +897,93 @@ describe('restaurant app-flow backend', () => {
         orderSource: 'counter',
         fulfillmentType: 'pickup',
         shiftId: 55,
-        items: [{ menuItemId: 11, quantity: 1, stationLabel: 'Grill' }],
+        items: [{ menuItemId: 11, quantity: 1, courseNumber: 2, seatNumber: 3, stationLabel: 'Grill' }],
       });
 
     expect(res.status).toBe(201);
     expect(res.body.order.queue_number).toBe(12);
+    const menuSql = mockQuery.mock.calls.find(([sql]) => /FROM food_menu_items fmi/.test(sql))[0];
+    expect(menuSql).toContain('fmi.manual_available');
+    expect(menuSql).toContain('fmi.inventory_available');
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_orders/.test(sql))).toBe(true);
-    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_order_items/.test(sql))).toBe(true);
+    const itemInsert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO food_order_items/.test(sql));
+    expect(itemInsert).toBeTruthy();
+    expect(itemInsert[1][8]).toBe(2);
+    expect(itemInsert[1][9]).toBe(3);
+  });
+
+  test('rejects POS order items outside their daypart window (F-11)', async () => {
+    const closedAllWeek = {
+      weekly: Object.fromEntries(['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].map((day) => [day, { closed: true }])),
+    };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 55, restaurant_id: RESTAURANT_ID, status: 'open', staff_user_id: USER_ID }] })
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations -> restaurant timezone)
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 11, name: 'Breakfast Plate', price_cents: 899, currency_code: 'USD',
+          is_available: true, availability_schedule: closedAllWeek,
+        }],
+      });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders`)
+      .send({
+        orderSource: 'counter',
+        fulfillmentType: 'pickup',
+        shiftId: 55,
+        items: [{ menuItemId: 11, quantity: 1 }],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.fields['items.0.menuItemId']).toMatch(/not available at this time of day/);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_orders/.test(sql))).toBe(false);
+  });
+
+  test('rejects POS course numbers outside the bounded coursing range', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 55, restaurant_id: RESTAURANT_ID, status: 'open', staff_user_id: USER_ID }] })
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 11, name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }] });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders`)
+      .send({
+        orderSource: 'counter',
+        fulfillmentType: 'pickup',
+        shiftId: 55,
+        items: [{ menuItemId: 11, quantity: 1, courseNumber: 21 }],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.fields['items.0.courseNumber']).toMatch(/between 1 and 20/);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_orders/.test(sql))).toBe(false);
+  });
+
+  test('rejects POS seat numbers outside the bounded seating range', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 55, restaurant_id: RESTAURANT_ID, status: 'open', staff_user_id: USER_ID }] })
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 11, name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }] });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders`)
+      .send({
+        orderSource: 'counter',
+        fulfillmentType: 'pickup',
+        shiftId: 55,
+        items: [{ menuItemId: 11, quantity: 1, seatNumber: 100 }],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.fields['items.0.seatNumber']).toMatch(/between 1 and 99/);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_orders/.test(sql))).toBe(false);
   });
 
   test('creates POS tickets through alias route with modifiers and discount lines', async () => {
@@ -759,6 +991,7 @@ describe('restaurant app-flow backend', () => {
       .mockResolvedValueOnce({ rows: [accessRow()] })
       .mockResolvedValueOnce({ rows: [{ id: 55, restaurant_id: RESTAURANT_ID, status: 'open', staff_user_id: USER_ID }] })
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations)
       .mockResolvedValueOnce({ rows: [{
         id: 11,
         name: 'Classic Burger',
@@ -774,7 +1007,7 @@ describe('restaurant app-flow backend', () => {
           options: [{ id: 91, name: 'Extra Cheese', price_delta_cents: 200, is_available: true }],
         }],
       }] })
-      .mockResolvedValueOnce({ rows: [{ next_queue: 14 }] })
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 14 }] })
       .mockResolvedValueOnce({
         rows: [{
           id: ORDER_ID,
@@ -981,6 +1214,7 @@ describe('restaurant app-flow backend', () => {
   test('voids unpaid POS tickets through compatibility route', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({ rows: [{ net_paid_cents: 0 }] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, pos_ticket_state: 'voided', status: 'cancelled', payment_status: 'unpaid' }] });
 
@@ -1008,6 +1242,7 @@ describe('restaurant app-flow backend', () => {
   test('allows managers to void unpaid POS tickets', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager' })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage', allow: true }] })
       .mockResolvedValueOnce({ rows: [{ net_paid_cents: 0 }] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, pos_ticket_state: 'voided', status: 'cancelled', payment_status: 'unpaid' }] });
 
@@ -1019,7 +1254,7 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.order.pos_ticket_state).toBe('voided');
   });
 
-  test('denies cash payment recording to non-manager staff', async () => {
+  test('denies cash payment recording to staff without pos.use', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'employee' })] });
 
     const res = await request(buildApp())
@@ -1031,7 +1266,7 @@ describe('restaurant app-flow backend', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO restaurant_pos_payments/.test(sql))).toBe(false);
   });
 
-  test('denies external payment recording to non-manager staff', async () => {
+  test('denies external payment recording to staff without pos.use', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'employee' })] });
 
     const res = await request(buildApp())
@@ -1042,9 +1277,23 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.code).toBe('forbidden');
   });
 
+  test('denies Terminal card intent reservation to staff without pos.use', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'employee' })] });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/card-intents`)
+      .set('Idempotency-Key', 'terminal-intent-denied-1')
+      .send({ amountCents: 899, shiftId: 12 });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('forbidden');
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO restaurant_pos_payments/.test(sql))).toBe(false);
+  });
+
   test('allows managers to record cash POS payments', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager' })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'pos.manage', allow: true }] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, restaurant_id: RESTAURANT_ID, total_cents: 899, payment_status: 'unpaid' }] })
       .mockResolvedValueOnce({ rows: [{ paid_cents: 0, refunded_cents: 0 }] })
       .mockResolvedValueOnce({ rows: [{ id: 501, amount_cents: 899, payment_type: 'cash' }] })
@@ -1060,13 +1309,18 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.payment.payment_type).toBe('cash');
   });
 
-  test('still allows non-manager staff to hold tickets (non-money routing)', async () => {
+  test('still allows staff with pos.use to hold tickets (non-money routing)', async () => {
+    // F-31: hold/reopen now require pos.use (or orders.manage). The
+    // seeded catalog grants pos.use to the employee role by default, so
+    // the mocked catalog returns that grant row. A fresh user id keeps
+    // the permissions cache from the no-grant tests above out of the way.
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'employee' })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'pos.use', allow: true }] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, pos_ticket_state: 'held', status: 'received', payment_status: 'unpaid' }] })
       .mockResolvedValueOnce({ rows: [{ id: 9001 }] });
 
-    const res = await request(buildApp())
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000777'))
       .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/hold`)
       .send({ reason: 'Waiting on customer' });
 
@@ -1074,21 +1328,35 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.order.pos_ticket_state).toBe('held');
   });
 
-  test('toggles menu availability for sold-out POS flows', async () => {
+  test('denies ticket hold to members without pos.use (F-31)', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'representative' })] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000888'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/hold`)
+      .send({ reason: 'Waiting on customer' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('forbidden');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(false);
+  });
+
+  test('toggles only the primary store availability for legacy sold-out POS URLs', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
-      .mockResolvedValueOnce({ rows: [{ id: 11, is_available: true }] })
-      .mockResolvedValueOnce({ rows: [{ id: 11, name: 'Classic Burger', is_available: false }] })
-      .mockResolvedValueOnce({ rows: [{ id: 700, menu_item_id: 11, next_available: false }] });
-
+      .mockResolvedValueOnce({ rows: [{ code: 'menu.manage' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 77, restaurant_id: RESTAURANT_ID, status: 'active' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 11, name: 'Classic Burger', price_cents: 1000, is_available: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ menu_item_id: 11, location_id: 77, is_available: false }] });
     const res = await request(buildApp())
       .post(`/api/restaurants/${RESTAURANT_ID}/menu-items/11/availability`)
       .send({ isAvailable: false, reason: 'Sold out' });
-
     expect(res.status).toBe(200);
     expect(res.body.item.is_available).toBe(false);
-    expect(res.body.event.next_available).toBe(false);
-    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_menu_items/.test(sql))).toBe(true);
+    expect(res.body.event).toMatchObject({ location_id: 77, next_available: false });
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_menu_items/.test(sql))).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO restaurant_store_menu_overrides/.test(sql))).toBe(true);
   });
 
   test('acknowledges pending local POS operations idempotently', async () => {
@@ -1112,9 +1380,28 @@ describe('restaurant app-flow backend', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /restaurant_pos_pending_operations/.test(sql))).toBe(true);
   });
 
+  test('requires assigned stores when acknowledging POS operations', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 49 })] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, location_id: 77, client_operation_id: 'local-3', status: 'acked' }] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000129'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/sync/ack`)
+      .send({
+        operations: [{ operationId: 'local-3', type: 'drawer_event', locationId: 77 }],
+      });
+
+    expect(res.status).toBe(200);
+    const insert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO restaurant_pos_pending_operations/.test(sql));
+    expect(insert[0]).toContain('location_id');
+    expect(insert[1][1]).toBe(77);
+  });
+
   test('reports POS sync health for device replacement UI', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({
         rows: [{
           id: 801,
@@ -1167,16 +1454,32 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.event.amount_cents).toBe(5000);
   });
 
+  test('denies drawer events to members without POS permissions', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'representative', effective_membership_id: 46 })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000126'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/shifts/55/drawer-events`)
+      .send({ eventType: 'cash_drop', amountCents: 5000 });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('forbidden');
+  });
+
   test('splits and merges POS tickets while preserving food order items', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, restaurant_id: RESTAURANT_ID, business_id: BUSINESS_ID, status: 'received', payment_status: 'unpaid', order_source: 'counter', fulfillment_type: 'pickup', currency_code: 'USD', metadata: {} }] })
       .mockResolvedValueOnce({ rows: [{ payment_count: 0 }] })
       .mockResolvedValueOnce({ rows: [{ id: 201, line_total_cents: 500, order_item_count: 2 }] })
-      .mockResolvedValueOnce({ rows: [{ next_queue: 13 }] })
+      .mockResolvedValueOnce({ rows: [{ timezone: 'UTC' }] })
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 13 }] })
       .mockResolvedValueOnce({ rows: [{ id: 101, queue_number: 13 }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // F-02: split reservations UPDATE is its own statement now (parameterized queries cannot batch)
       .mockResolvedValueOnce({ rows: [{ subtotal_cents: 399 }] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, subtotal_cents: 399, total_cents: 399 }] })
       .mockResolvedValueOnce({ rows: [{ subtotal_cents: 500 }] })
@@ -1209,6 +1512,114 @@ describe('restaurant app-flow backend', () => {
 
     expect(mergeRes.status).toBe(200);
     expect(mockQuery.mock.calls.some(([, params]) => JSON.stringify(params).includes('mergedIntoOrderId'))).toBe(true);
+  });
+
+  test('does not split a POS ticket outside the manager store assignment', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 52 })] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ code: 'pos.use', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000130'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/split`)
+      .send({ orderItemIds: [201] });
+
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('order_not_found');
+    const sourceQuery = mockQuery.mock.calls.find(([sql]) => /FROM food_orders/.test(sql));
+    expect(sourceQuery[0]).toContain('location_id = ANY($3::bigint[])');
+    expect(sourceQuery[1]).toEqual([ORDER_ID, RESTAURANT_ID, [77]]);
+  });
+
+  test('does not read a POS payment outside the manager store assignment', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 53 })] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000131'))
+      .get(`/api/restaurants/${RESTAURANT_ID}/pos/payments/501`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('pos_payment_not_found');
+    const paymentQuery = mockQuery.mock.calls.find(([sql]) => /FROM restaurant_pos_payments/.test(sql));
+    expect(paymentQuery[0]).toContain('location_id = ANY($3::bigint[])');
+    expect(paymentQuery[1]).toEqual([501, RESTAURANT_ID, [77]]);
+  });
+
+  test('splits a partial line quantity while cloning modifiers and reservations', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, restaurant_id: RESTAURANT_ID, business_id: BUSINESS_ID, status: 'received', payment_status: 'unpaid', order_source: 'counter', fulfillment_type: 'pickup', currency_code: 'USD', subtotal_cents: 1000, discount_cents: 0, tip_cents: 0, metadata: {} }] })
+      .mockResolvedValueOnce({ rows: [{ payment_count: 0 }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 201,
+        quantity: 2,
+        unit_price_cents: 500,
+        modifier_total_cents: 0,
+        line_total_cents: 1000,
+        item_name: 'Burger',
+        order_item_count: 1,
+        kitchen_status: 'queued',
+        station_label: 'grill',
+        special_instructions: null,
+      }] })
+      .mockResolvedValueOnce({ rows: [{ timezone: 'UTC' }] })
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 14 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 102, queue_number: 14 }] })
+      .mockResolvedValueOnce({ rows: [] }) // source tip/discount update
+      .mockResolvedValueOnce({ rows: [{ id: 202 }] }) // child line
+      .mockResolvedValueOnce({ rows: [] }) // source line remainder
+      .mockResolvedValueOnce({ rows: [] }) // cloned modifiers
+      .mockResolvedValueOnce({ rows: [] }) // no inventory reservations
+      .mockResolvedValueOnce({ rows: [{ subtotal_cents: 500 }] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, subtotal_cents: 500, total_cents: 500 }] })
+      .mockResolvedValueOnce({ rows: [{ subtotal_cents: 500 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 102, subtotal_cents: 500, total_cents: 500 }] });
+
+    const splitRes = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/split`)
+      .send({ items: [{ orderItemId: 201, quantity: 1 }] });
+
+    expect(splitRes.status).toBe(201);
+    expect(splitRes.body.splitOrder.id).toBe(102);
+    expect(mockQuery.mock.calls.some(([sql]) => /SET quantity =/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_order_item_modifiers/.test(sql))).toBe(true);
+  });
+
+  test('allocates an exact split-by-amount request from whole item quantities', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, restaurant_id: RESTAURANT_ID, business_id: BUSINESS_ID, status: 'received', payment_status: 'unpaid', order_source: 'counter', fulfillment_type: 'pickup', currency_code: 'USD', subtotal_cents: 1500, discount_cents: 0, tip_cents: 0, metadata: {} }] })
+      .mockResolvedValueOnce({ rows: [{ payment_count: 0 }] })
+      .mockResolvedValueOnce({ rows: [
+        { id: 201, quantity: 2, unit_price_cents: 500, modifier_total_cents: 0, line_total_cents: 1000, item_name: 'Burger', order_item_count: 2, kitchen_status: 'queued', station_label: 'grill', special_instructions: null },
+        { id: 202, quantity: 1, unit_price_cents: 500, modifier_total_cents: 0, line_total_cents: 500, item_name: 'Fries', order_item_count: 2, kitchen_status: 'queued', station_label: 'fry', special_instructions: null },
+      ] })
+      .mockResolvedValueOnce({ rows: [{ timezone: 'UTC' }] })
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 14 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 102, queue_number: 14 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 202 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ subtotal_cents: 1000 }] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, subtotal_cents: 1000, total_cents: 1000 }] })
+      .mockResolvedValueOnce({ rows: [{ subtotal_cents: 500 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 102, subtotal_cents: 500, total_cents: 500 }] });
+
+    const splitRes = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/split`)
+      .send({ splitAmountCents: 500 });
+
+    expect(splitRes.status).toBe(201);
+    expect(splitRes.body.splitOrder.id).toBe(102);
+    const childLineInsert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO food_order_items/.test(sql));
+    expect(childLineInsert[1][3]).toBe(1);
+    expect(childLineInsert[1][6]).toBe(500);
   });
 
   test('returns kitchen feed with item-level station state', async () => {
@@ -1275,6 +1686,67 @@ describe('restaurant app-flow backend', () => {
     expect(auditRes.status).toBe(200);
     expect(auditRes.body.cursor).toBe(993);
     expect(auditRes.body.events[0].event_type).toBe('ticket_ack');
+  });
+
+  test('does not acknowledge a kitchen ticket outside the assigned store', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 46 })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'kitchen.update', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000126'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/kitchen/orders/${ORDER_ID}/ack`)
+      .send({ startPreparing: true });
+
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('order_not_found');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(false);
+    const orderLookup = mockQuery.mock.calls.at(-1);
+    expect(orderLookup[0]).toMatch(/location_id = ANY\(\$3::bigint\[\]\)/);
+    expect(orderLookup[1]).toEqual([ORDER_ID, RESTAURANT_ID, [77]]);
+  });
+
+  test('denies kitchen audit reads to members without a kitchen permission', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'employee' })] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000890'))
+      .get(`/api/restaurants/${RESTAURANT_ID}/kitchen/audit-events`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('forbidden');
+    expect(mockQuery.mock.calls.some(([sql]) => /FROM restaurant_kitchen_events/.test(sql))).toBe(false);
+  });
+
+  test('denies kitchen feed acknowledgements to members without a kitchen permission', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'employee' })] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000891'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/kitchen/feed/ack`)
+      .send({ deviceId: 31, cursor: 991 });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('forbidden');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE restaurant_app_devices/.test(sql))).toBe(false);
+  });
+
+  test('does not acknowledge a kitchen device outside the assigned store', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 46 })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'kitchen.update', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 31, restaurant_id: RESTAURANT_ID, app_key: 'kitchen', status: 'paired', location_id: 88 }] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000126'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/kitchen/feed/ack`)
+      .set('X-Device-Token', 'bridge-secret')
+      .send({ deviceId: 31, cursor: 991 });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('location_scope_forbidden');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE restaurant_app_devices/.test(sql))).toBe(false);
   });
 
   test('performs kitchen item action with delay reason and prep timer metadata', async () => {
@@ -1359,9 +1831,30 @@ describe('restaurant app-flow backend', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(false);
   });
 
+  test('does not replay an offline kitchen action from an unassigned store', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 46 })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'kitchen.update', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 994, food_order_id: ORDER_ID, event_type: 'order_start', idempotency_key: 'offline-start-100' }] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, location_id: 88, status: 'preparing', kitchen_stage: 'preparing' }] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000126'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/kitchen/orders/${ORDER_ID}/action`)
+      .set('Idempotency-Key', 'offline-start-100')
+      .send({ action: 'start', idempotencyKey: 'offline-start-100' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('location_scope_forbidden');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(false);
+  });
+
   test('configures kitchen station routing and printer jobs', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({ rows: [{ id: 31, name: 'Grill', is_active: true }] });
 
     const stationRes = await request(buildApp())
@@ -1386,6 +1879,7 @@ describe('restaurant app-flow backend', () => {
       .mockResolvedValueOnce({ rows: [accessRow()] })
       .mockResolvedValueOnce({ rows: [{ id: 31 }] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID }] })
+      .mockResolvedValueOnce({ rows: [{ id: 77 }] }) // F-02: order has no store -> primary location resolution
       .mockResolvedValueOnce({ rows: [{ id: 51, status: 'queued', job_type: 'kitchen_ticket' }] });
 
     const printRes = await request(buildApp())
@@ -1394,11 +1888,83 @@ describe('restaurant app-flow backend', () => {
 
     expect(printRes.status).toBe(201);
     expect(printRes.body.job.status).toBe('queued');
+    const jobInsert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO restaurant_printer_jobs/.test(sql));
+    expect(jobInsert[1]).toContain(77);
+  });
+
+  test('scopes kitchen station reads and writes to assigned stores', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 46 })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 31, location_id: 77, name: 'Grill', is_active: true }] });
+
+    const createRes = await request(buildApp('00000000-0000-4000-8000-000000000126'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/kitchen/stations`)
+      .send({ name: 'Grill', locationId: 77 });
+
+    expect(createRes.status).toBe(201);
+    const insert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO restaurant_kitchen_stations/.test(sql));
+    expect(insert[0]).toContain('location_id');
+    expect(insert[1]).toContain(77);
+
+    permissionsService.invalidateCache();
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 46 })] })
+      .mockResolvedValueOnce({ rows: [
+        { code: 'kitchen.view', allow: true },
+        { code: 'kitchen.update', allow: true },
+        { code: 'kitchen.manage', allow: true },
+        { code: 'orders.manage', allow: true },
+      ] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 31, location_id: 77, name: 'Grill' }] });
+
+    const listRes = await request(buildApp('00000000-0000-4000-8000-000000000126'))
+      .get(`/api/restaurants/${RESTAURANT_ID}/kitchen/stations`);
+
+    expect(listRes.status).toBe(200);
+    const list = mockQuery.mock.calls.at(-1);
+    expect(list[0]).toContain('ks.location_id = ANY($2::bigint[])');
+    expect(list[1]).toEqual([RESTAURANT_ID, [77]]);
+  });
+
+  test('denies printer-job creation to members without a kitchen permission', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'employee' })] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000889'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/kitchen/printer-jobs`)
+      .send({ jobType: 'kitchen_ticket', payload: { queue: 12 } });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('forbidden');
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO restaurant_printer_jobs/.test(sql))).toBe(false);
+  });
+
+  test('does not create a printer job for an order outside the assigned store', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 46 })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'kitchen.update', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 31, location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, location_id: 88 }] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000126'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/kitchen/printer-jobs`)
+      .send({ stationId: 31, orderId: ORDER_ID, jobType: 'kitchen_ticket', payload: { queue: 12 } });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('location_scope_forbidden');
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO restaurant_printer_jobs/.test(sql))).toBe(false);
   });
 
   test('creates crew task and comment history', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({ rows: [{ id: 701, title: 'Restock pickup shelf', status: 'not_started' }] });
 
     const createRes = await request(buildApp())
@@ -1421,6 +1987,24 @@ describe('restaurant app-flow backend', () => {
     expect(commentRes.body.comment.comment).toBe('Done, needs review.');
   });
 
+  test('requires crew tasks for assigned managers to name an assigned store', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 48 })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 702, location_id: 77, title: 'Restock pickup shelf', status: 'not_started' }] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000128'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/crew/tasks`)
+      .send({ title: 'Restock pickup shelf', locationId: 77 });
+
+    expect(res.status).toBe(201);
+    const insert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO restaurant_crew_tasks/.test(sql));
+    expect(insert[0]).toContain('location_id');
+    expect(insert[1]).toContain(77);
+  });
+
   test('submits crew task proof and records manager approval history', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
@@ -1440,6 +2024,7 @@ describe('restaurant app-flow backend', () => {
 
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({ rows: [{ id: 701, status: 'needs_approval' }] })
       .mockResolvedValueOnce({ rows: [{ id: 701, status: 'completed', approved_by: USER_ID }] })
       .mockResolvedValueOnce({ rows: [] });
@@ -1451,6 +2036,25 @@ describe('restaurant app-flow backend', () => {
     expect(reviewRes.status).toBe(200);
     expect(reviewRes.body.task.status).toBe('completed');
     expect(mockQuery.mock.calls.some(([, params]) => JSON.stringify(params).includes('approved'))).toBe(true);
+  });
+
+  test('does not review a crew task outside the manager store assignment', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 47 })] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000127'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/crew/tasks/701/review`)
+      .send({ approved: true, note: 'Looks good.' });
+
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('crew_task_not_found');
+    const taskQuery = mockQuery.mock.calls.find(([sql]) => /FROM restaurant_crew_tasks/.test(sql));
+    expect(taskQuery[0]).toContain('location_id = ANY($3::bigint[])');
+    expect(taskQuery[1]).toEqual([RESTAURANT_ID, 701, [77]]);
   });
 
   test('logs runner GPS ping and updates task location snapshot', async () => {
@@ -1516,9 +2120,33 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.settlement.tip_cents).toBe(200);
   });
 
+  test('scopes runner settlements to the assigned store', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 47 })] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ code: 'runner.manage', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 901, location_id: 77, food_order_id: ORDER_ID, assigned_to: USER_ID, task_status: 'Completed', handoff_at: '2026-06-21T04:10:00.000Z' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1100, status: 'pending' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1101, location_id: 77, task_id: 901, delivery_fee_cents: 300, tip_cents: 200, status: 'approved' }] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000127'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/runner/tasks/901/settlements`)
+      .send({ status: 'approved' });
+
+    expect(res.status).toBe(201);
+    const taskQuery = mockQuery.mock.calls.find(([sql]) => /FROM restaurant_runner_tasks/.test(sql));
+    expect(taskQuery[0]).toContain('t.location_id = ANY($3::bigint[])');
+    expect(taskQuery[1]).toEqual([901, RESTAURANT_ID, [77]]);
+    const insert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO restaurant_runner_settlements/.test(sql));
+    expect(insert[0]).toContain('location_id');
+    expect(insert[1][1]).toBe(77);
+  });
+
   test('reports inventory hook status for menu availability automation', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
       .mockResolvedValueOnce({
         rows: [{
           mapped_items: 4,

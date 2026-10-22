@@ -48,7 +48,7 @@ export default function RequestDetailPage() {
         <div className="lx-empty" role="alert">
           <p>{tx('logistics.requestDetail.notFound', 'Sourcing request not found.')}</p>
           <div className="lx-btn-row" style={{ justifyContent: 'center' }}>
-            <button type="button" onClick={load} className="lx-action-secondary">
+            <button type="button" onClick={load} className="lx-action-secondary" data-track="ui.426706938f.1">
               {tx('logistics.workspace.dataError.retry', 'Try again')}
             </button>
             <Link to="/logistics/sourcing" className="lx-link">{tx('logistics.requestDetail.backToSourcing', '← Back to Sourcing')}</Link>

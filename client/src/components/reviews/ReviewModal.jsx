@@ -61,7 +61,7 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
       <button
         onClick={() => setOpen(true)}
         className="w-full py-3 bg-orange-500 text-white font-semibold
-                   rounded-xl hover:bg-orange-600 transition"
+                   rounded-xl hover:bg-orange-600 transition" data-track="ui.f3a0f958a7.1"
       >
         {t('jobDetail.reviewBtn')}
       </button>
@@ -91,13 +91,13 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
                   <button
                     onClick={() => setOpen(false)}
                     aria-label={t('common.aria.closeButton')}
-                    className="p-2 -me-1 text-gray-400 hover:text-gray-600 transition rounded-lg"
+                    className="p-2 -me-1 text-gray-400 hover:text-gray-600 transition rounded-lg" data-track="ui.f3a0f958a7.2"
                   >
                     ✕
                   </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} className="space-y-5" data-track="ui.f3a0f958a7.3">
                   {/* Star rating */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2" id="rating-label">
@@ -111,7 +111,7 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
                           onClick={() => setRating(star)}
                           onMouseEnter={() => setHovered(star)}
                           onMouseLeave={() => setHovered(0)}
-                          className="p-0.5 transition-transform hover:scale-110"
+                          className="p-0.5 transition-transform hover:scale-110" data-track="ui.f3a0f958a7.4"
                         >
                           <Star
                             size={32}
@@ -193,7 +193,7 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
                       onClick={() => setOpen(false)}
                       className="flex-1 py-2.5 border border-gray-200
                                  text-gray-600 rounded-xl text-sm
-                                 font-medium hover:bg-gray-50 transition"
+                                 font-medium hover:bg-gray-50 transition" data-track="ui.f3a0f958a7.5"
                     >
                       {t('common.cancel')}
                     </button>
@@ -203,7 +203,7 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
                       className="flex-1 py-2.5 bg-orange-500 text-white
                                  rounded-xl text-sm font-semibold
                                  hover:bg-orange-600 disabled:opacity-50
-                                 disabled:cursor-not-allowed transition"
+                                 disabled:cursor-not-allowed transition" data-track="ui.f3a0f958a7.6"
                     >
                       {loading ? t('jobDetail.submitting') : t('jobDetail.submitReview')}
                     </button>

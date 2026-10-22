@@ -103,7 +103,7 @@ export default function LogisticsFinancePage() {
                 <h2>{tx('logistics.workspace.dataError.title', 'Data unavailable')}</h2>
                 <p>{tx('logistics.finance.error', "We couldn't load finance data right now. Please try again.")}</p>
               </div>
-              <button type="button" className="lx-btn-secondary" onClick={load}>
+              <button type="button" className="lx-btn-secondary" onClick={load} data-track="ui.9356869936.1">
                 {tx('logistics.workspace.dataError.retry', 'Try again')}
               </button>
             </div>
@@ -171,7 +171,7 @@ export default function LogisticsFinancePage() {
                       {lanes.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                     </select>
                   </div>
-                  <button type="button" className="lx-btn-primary lx-btn-block" onClick={runSimulator} disabled={simLoading}>
+                  <button type="button" className="lx-btn-primary lx-btn-block" onClick={runSimulator} disabled={simLoading} data-track="ui.9356869936.2">
                     {simLoading ? tx('logistics.finance.simulator.calculating', 'Calculating…') : tx('logistics.finance.simulator.calculate', 'Calculate Landed Cost')}
                   </button>
 
@@ -283,7 +283,7 @@ export default function LogisticsFinancePage() {
                     <label className="lx-label" htmlFor="lx-refund-notes">{tx('logistics.finance.refundForm.notes', 'Notes')}</label>
                     <textarea id="lx-refund-notes" className="lx-textarea" value={refundForm.notes} onChange={(e) => setRefundForm((f) => ({ ...f, notes: e.target.value }))} />
                   </div>
-                  <button type="button" className="lx-btn-primary" onClick={submitRefund} disabled={refundSubmitting}>
+                  <button type="button" className="lx-btn-primary" onClick={submitRefund} disabled={refundSubmitting} data-track="ui.9356869936.3">
                     {refundSubmitting ? tx('logistics.finance.refundForm.submitting', 'Submitting…') : tx('logistics.finance.refundForm.submit', 'Submit Refund Case')}
                   </button>
                 </div>

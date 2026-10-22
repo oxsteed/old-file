@@ -33543,5 +33543,13 @@
   "adminCreditApprovalGraceEnds": "유예 기간 종료",
   "adminCreditApprovalRevokedAt": "취소 일시",
   "adminCreditApprovalMigratedAt": "잔액 이관됨",
-  "adminCreditApprovalGrandfathered": "승인됨 (승인 기록 없음)"
+  "adminCreditApprovalGrandfathered": "승인됨 (승인 기록 없음)",
+  "growthInsights": {
+    "analyticsStorage": "Google Analytics 및 기기 저장소",
+    "analyticsStorageDescription": "EEA, 영국, 스위스, 퀘벡에서는 활동 추적과 활동 기반 혜택에 각각 동의가 필요하며 설정에서 철회할 수 있습니다. 해당 미국 주에서는 판매·공유 거부와 Global Privacy Control을 지원합니다. 다른 지역의 분석 설정은 Google Analytics 및 기기의 영구 저장을 제어하며 활동은 이 고지에 따라 처리됩니다.",
+    "policy": "개인정보처리방침",
+    "changedOn": "개인정보처리방침이 {{date}}에 변경되었습니다.",
+    "changesOn": "개인정보처리방침이 {{date}}에 변경됩니다.",
+    "dismiss": "닫기"
+  }
 }

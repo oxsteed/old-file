@@ -585,7 +585,7 @@ export default function SettingsPage() {
 
   const tabProfile = (
     <div className="sp-profile-grid">
-      <form onSubmit={saveProfile}>
+      <form onSubmit={saveProfile} data-track="ui.9d994c4cb4.1">
         <div className="sp-card">
           <h2 className="sp-card-title">{t('settings.profile.title')}</h2>
           <p className="sp-card-subtitle">{t('settings.profile.subtitle')}</p>
@@ -596,7 +596,7 @@ export default function SettingsPage() {
               className="sp-avatar sp-avatar-button"
               onClick={() => profile.profile_photo_url && setShowPhotoPreview(true)}
               disabled={!profile.profile_photo_url}
-              aria-label={t('settings.profile.previewPhoto', 'Preview profile photo')}
+              aria-label={t('settings.profile.previewPhoto', 'Preview profile photo')} data-track="ui.9d994c4cb4.2"
             >
               {profile.profile_photo_url ? (
                 <img src={profile.profile_photo_url} alt={t('settings.profile.photoAlt', 'Profile photo')} />
@@ -612,7 +612,7 @@ export default function SettingsPage() {
                   className="sp-btn sp-btn-ghost"
                   style={{ padding: '0.35rem 0.8rem', fontSize: '0.8125rem' }}
                   onClick={() => fileInputRef.current && fileInputRef.current.click()}
-                  disabled={uploadingPhoto}
+                  disabled={uploadingPhoto} data-track="ui.9d994c4cb4.3"
                 >
                   {uploadingPhoto
                     ? t('settings.profile.photoUploading', 'Uploading...')
@@ -626,7 +626,7 @@ export default function SettingsPage() {
                     className="sp-btn sp-btn-ghost"
                     style={{ padding: '0.35rem 0.8rem', fontSize: '0.8125rem' }}
                     onClick={removePhoto}
-                    disabled={uploadingPhoto}
+                    disabled={uploadingPhoto} data-track="ui.9d994c4cb4.4"
                   >
                     {t('settings.profile.removePhoto', 'Remove')}
                   </button>
@@ -672,9 +672,9 @@ export default function SettingsPage() {
             </svg>
             <span>
               {t('settings.profile.verificationNotice')}{' '}
-              <a href="mailto:support@oxsteed.com" className="underline opacity-80 hover:opacity-100">support@oxsteed.com</a>
+              <a href="mailto:support@oxsteed.com" className="underline opacity-80 hover:opacity-100" data-track="ui.9d994c4cb4.5">support@oxsteed.com</a>
               {' '}or use the{' '}
-              <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('oxsteed:open-support'))} className="underline opacity-80 hover:opacity-100">{t('settings.profile.supportChat')}</button>.
+              <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('oxsteed:open-support'))} className="underline opacity-80 hover:opacity-100" data-track="ui.9d994c4cb4.6">{t('settings.profile.supportChat')}</button>.
             </span>
           </div>
 
@@ -776,7 +776,7 @@ export default function SettingsPage() {
                   key={opt.value}
                   type="button"
                   onClick={() => { setNamePrefTouched(true); setProfile(p => ({ ...p, display_name_preference: opt.value })); }}
-                  className={`sp-name-opt ${profile.display_name_preference === opt.value ? 'selected' : ''}`}
+                  className={`sp-name-opt ${profile.display_name_preference === opt.value ? 'selected' : ''}`} data-track="ui.9d994c4cb4.7"
                 >
                   <span className="sp-name-opt-label">{opt.label}</span>
                   <span className="sp-name-opt-example">{opt.example}</span>
@@ -789,7 +789,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="sp-save-row">
-            <button type="submit" disabled={saving || !isProfileDirty} className="sp-btn sp-btn-primary">
+            <button type="submit" disabled={saving || !isProfileDirty} className="sp-btn sp-btn-primary" data-track="ui.9d994c4cb4.8">
               {saving ? t('settings.profile.saving') : t('settings.profile.saveChanges')}
             </button>
             {isProfileDirty && !saving && (
@@ -828,7 +828,7 @@ export default function SettingsPage() {
 
   const tabSecurity = (
     <>
-      <form onSubmit={changePassword}>
+      <form onSubmit={changePassword} data-track="ui.9d994c4cb4.9" data-track-private>
         <div className="sp-card">
           <h2 className="sp-card-title">{t('settings.security.changePassword')}</h2>
           <p className="sp-card-subtitle">{t('settings.security.passwordDesc')}</p>
@@ -846,7 +846,7 @@ export default function SettingsPage() {
               <input type="password" className="sp-input" placeholder="••••••••" value={passwords.confirm} onChange={e => setPasswords({ ...passwords, confirm: e.target.value })} />
             </div>
           </div>
-          <button type="submit" className="sp-btn sp-btn-primary">{t('settings.security.updatePassword')}</button>
+          <button type="submit" className="sp-btn sp-btn-primary" data-track="ui.9d994c4cb4.10">{t('settings.security.updatePassword')}</button>
         </div>
       </form>
 
@@ -917,7 +917,7 @@ export default function SettingsPage() {
     <div className="sp-card">
       <div className="flex items-center justify-between mb-1">
         <h2 className="sp-card-title">{t('settings.businesses.title')}</h2>
-        <button onClick={openAddBiz} className="sp-btn sp-btn-primary" style={{ padding: '0.4rem 0.9rem', fontSize: '0.8125rem' }}>{t('settings.businesses.add')}</button>
+        <button onClick={openAddBiz} className="sp-btn sp-btn-primary" style={{ padding: '0.4rem 0.9rem', fontSize: '0.8125rem' }} data-track="ui.9d994c4cb4.11">{t('settings.businesses.add')}</button>
       </div>
       <p className="sp-card-subtitle">{t('settings.businesses.subtitle')}</p>
 
@@ -951,10 +951,10 @@ export default function SettingsPage() {
               </div>
               <div className="flex items-center gap-1 shrink-0 ml-3">
                 {!biz.is_primary && (
-                  <button onClick={() => setPrimaryBiz(biz.id)} title={t('settings.businesses.setPrimary')} className="sp-btn sp-btn-ghost" style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem' }}>★</button>
+                  <button onClick={() => setPrimaryBiz(biz.id)} title={t('settings.businesses.setPrimary')} className="sp-btn sp-btn-ghost" style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem' }} data-track="ui.9d994c4cb4.12">★</button>
                 )}
-                <button onClick={() => openEditBiz(biz)} className="sp-btn sp-btn-ghost" style={{ padding: '0.35rem 0.7rem', fontSize: '0.8rem' }}>{t('common.edit')}</button>
-                <button onClick={() => deleteBusiness(biz.id)} className="sp-btn sp-btn-danger" style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem' }}>✕</button>
+                <button onClick={() => openEditBiz(biz)} className="sp-btn sp-btn-ghost" style={{ padding: '0.35rem 0.7rem', fontSize: '0.8rem' }} data-track="ui.9d994c4cb4.13">{t('common.edit')}</button>
+                <button onClick={() => deleteBusiness(biz.id)} className="sp-btn sp-btn-danger" style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem' }} data-track="ui.9d994c4cb4.14">✕</button>
               </div>
             </div>
           ))}
@@ -962,7 +962,7 @@ export default function SettingsPage() {
       )}
 
       {showAddBiz && (
-        <form onSubmit={saveBusiness} className="sp-biz-form-panel">
+        <form onSubmit={saveBusiness} className="sp-biz-form-panel" data-track="ui.9d994c4cb4.15">
           <h3 className="font-semibold text-sm mb-4" style={{ color: 'var(--app-text,#f1f5f9)' }}>
             {editingBiz ? t('settings.businesses.edit') : t('settings.businesses.addHeader')}
           </h3>
@@ -1024,10 +1024,10 @@ export default function SettingsPage() {
             </div>
           </div>
           <div className="flex gap-3">
-            <button type="submit" disabled={bizSaving} className="sp-btn sp-btn-primary">
+            <button type="submit" disabled={bizSaving} className="sp-btn sp-btn-primary" data-track="ui.9d994c4cb4.16">
               {bizSaving ? t('common.saving') : editingBiz ? t('settings.businesses.update') : t('settings.businesses.add')}
             </button>
-            <button type="button" onClick={resetBizForm} className="sp-btn sp-btn-ghost">{t('common.cancel')}</button>
+            <button type="button" onClick={resetBizForm} className="sp-btn sp-btn-ghost" data-track="ui.9d994c4cb4.17">{t('common.cancel')}</button>
           </div>
         </form>
       )}
@@ -1086,7 +1086,7 @@ export default function SettingsPage() {
                   className="w-4 h-4 rounded border-gray-600"
                   checked={allowGuestContact}
                   disabled={privacySaving === 'allow_guest_contact'}
-                  onChange={(e) => savePrivacySetting('allow_guest_contact', e.target.checked)}
+                  onChange={(e) => savePrivacySetting('allow_guest_contact', e.target.checked)} data-track="ui.9d994c4cb4.18"
                 />
                 <span className="text-sm" style={{ color: 'var(--app-text,#f1f5f9)' }}>
                   {t('settings.privacy.guestContactLabel')}
@@ -1108,7 +1108,7 @@ export default function SettingsPage() {
                   className="w-4 h-4 rounded border-gray-600"
                   checked={allowLiveChat}
                   disabled={privacySaving === 'allow_live_chat'}
-                  onChange={(e) => savePrivacySetting('allow_live_chat', e.target.checked)}
+                  onChange={(e) => savePrivacySetting('allow_live_chat', e.target.checked)} data-track="ui.9d994c4cb4.19"
                 />
                 <span className="text-sm" style={{ color: 'var(--app-text,#f1f5f9)' }}>
                   {t('settings.privacy.liveChatLabel')}
@@ -1138,7 +1138,7 @@ export default function SettingsPage() {
                   className="w-4 h-4 rounded border-gray-600"
                   checked={allowBooking}
                   disabled={privacySaving === 'allow_booking'}
-                  onChange={(e) => savePrivacySetting('allow_booking', e.target.checked)}
+                  onChange={(e) => savePrivacySetting('allow_booking', e.target.checked)} data-track="ui.9d994c4cb4.20"
                 />
                 <span className="text-sm" style={{ color: 'var(--app-text,#f1f5f9)' }}>
                   {t('settings.privacy.bookingLabel')}
@@ -1160,7 +1160,7 @@ export default function SettingsPage() {
                   className="w-4 h-4 rounded border-gray-600"
                   checked={allowScheduling}
                   disabled={privacySaving === 'allow_scheduling'}
-                  onChange={(e) => savePrivacySetting('allow_scheduling', e.target.checked)}
+                  onChange={(e) => savePrivacySetting('allow_scheduling', e.target.checked)} data-track="ui.9d994c4cb4.21"
                 />
                 <span className="text-sm" style={{ color: 'var(--app-text,#f1f5f9)' }}>
                   {t('settings.privacy.schedulingLabel')}
@@ -1174,13 +1174,13 @@ export default function SettingsPage() {
         <button
           className="sp-btn sp-btn-ghost"
           type="button"
-          onClick={() => setExportVerification((current) => ({ ...current, step: 'password' }))}
+          onClick={() => setExportVerification((current) => ({ ...current, step: 'password' }))} data-track="ui.9d994c4cb4.22" data-track-private
         >
           {t('settings.privacy.exportBtn')}
         </button>
       )}
       {exportVerification.step === 'password' && (
-        <form className="mt-4 p-4 rounded-lg border border-[var(--border-color,#334155)]" onSubmit={requestExportCode}>
+        <form className="mt-4 p-4 rounded-lg border border-[var(--border-color,#334155)]" onSubmit={requestExportCode} data-track="ui.9d994c4cb4.23" data-track-private>
           <p className="text-sm font-semibold" style={{ color: 'var(--app-text,#f1f5f9)' }}>
             {t('settings.privacy.verifyTitle', { defaultValue: 'Verify before exporting' })}
           </p>
@@ -1197,17 +1197,17 @@ export default function SettingsPage() {
             disabled={exportVerification.submitting}
           />
           <div className="flex gap-2">
-            <button className="sp-btn sp-btn-primary" type="submit" disabled={exportVerification.submitting}>
+            <button className="sp-btn sp-btn-primary" type="submit" disabled={exportVerification.submitting} data-track="ui.9d994c4cb4.24">
               {t('settings.privacy.sendCode', { defaultValue: 'Send email code' })}
             </button>
-            <button className="sp-btn sp-btn-ghost" type="button" onClick={resetExportVerification} disabled={exportVerification.submitting}>
+            <button className="sp-btn sp-btn-ghost" type="button" onClick={resetExportVerification} disabled={exportVerification.submitting} data-track="ui.9d994c4cb4.25">
               {t('common.cancel', { defaultValue: 'Cancel' })}
             </button>
           </div>
         </form>
       )}
       {exportVerification.step === 'code' && (
-        <form className="mt-4 p-4 rounded-lg border border-[var(--border-color,#334155)]" onSubmit={verifyAndDownloadExport}>
+        <form className="mt-4 p-4 rounded-lg border border-[var(--border-color,#334155)]" onSubmit={verifyAndDownloadExport} data-track="ui.9d994c4cb4.26">
           <p className="text-sm font-semibold" style={{ color: 'var(--app-text,#f1f5f9)' }}>
             {t('settings.privacy.enterCodeTitle', { defaultValue: 'Enter your email code' })}
           </p>
@@ -1227,10 +1227,10 @@ export default function SettingsPage() {
             disabled={exportVerification.submitting}
           />
           <div className="flex gap-2">
-            <button className="sp-btn sp-btn-primary" type="submit" disabled={exportVerification.submitting}>
+            <button className="sp-btn sp-btn-primary" type="submit" disabled={exportVerification.submitting} data-track="ui.9d994c4cb4.27">
               {exportVerification.submitting ? t('settings.privacy.exporting', { defaultValue: 'Verifying...' }) : t('settings.privacy.verifyAndExport', { defaultValue: 'Verify and export' })}
             </button>
-            <button className="sp-btn sp-btn-ghost" type="button" onClick={resetExportVerification} disabled={exportVerification.submitting}>
+            <button className="sp-btn sp-btn-ghost" type="button" onClick={resetExportVerification} disabled={exportVerification.submitting} data-track="ui.9d994c4cb4.28">
               {t('common.cancel', { defaultValue: 'Cancel' })}
             </button>
           </div>
@@ -1284,7 +1284,7 @@ export default function SettingsPage() {
                   onClick={() => handleSwitchMode(m)}
                   disabled={!!switchingMode}
                   className="sp-btn sp-btn-ghost text-xs whitespace-nowrap disabled:opacity-50"
-                  style={{ padding: '0.4rem 0.75rem' }}
+                  style={{ padding: '0.4rem 0.75rem' }} data-track="ui.9d994c4cb4.29"
                 >
                   {isSwitching ? t('common.switching', { defaultValue: 'Switching...' }) : t('settings.account.switchTo', { defaultValue: 'Switch' })}
                 </button>
@@ -1337,7 +1337,7 @@ export default function SettingsPage() {
       <p className="sp-card-subtitle">{t('settings.danger.subtitle')}</p>
 
       {!showDelete ? (
-        <button onClick={() => { setShowDelete(true); setDeleteConfirmText(''); setDeleteError(''); setDeleteActiveJobs([]); }} className="sp-btn sp-btn-danger">
+        <button onClick={() => { setShowDelete(true); setDeleteConfirmText(''); setDeleteError(''); setDeleteActiveJobs([]); }} className="sp-btn sp-btn-danger" data-track="ui.9d994c4cb4.30">
           {t('settings.danger.deleteAccount')}
         </button>
       ) : (
@@ -1393,13 +1393,13 @@ export default function SettingsPage() {
               onClick={deleteAccount}
               disabled={deletePending || deleteConfirmText !== 'DELETE MY ACCOUNT'}
               className="sp-btn sp-btn-danger"
-              style={{ opacity: deleteConfirmText !== 'DELETE MY ACCOUNT' ? 0.5 : 1 }}
+              style={{ opacity: deleteConfirmText !== 'DELETE MY ACCOUNT' ? 0.5 : 1 }} data-track="ui.9d994c4cb4.31"
             >
               {deletePending ? 'Deleting…' : t('settings.danger.yesDelete')}
             </button>
             <button
               onClick={() => { setShowDelete(false); setDeleteConfirmText(''); setDeleteError(''); setDeleteActiveJobs([]); }}
-              className="sp-btn sp-btn-ghost"
+              className="sp-btn sp-btn-ghost" data-track="ui.9d994c4cb4.32"
             >
               {t('common.cancel')}
             </button>
@@ -1448,7 +1448,7 @@ export default function SettingsPage() {
                   <button
                     className={`sp-tab ${activeTab === tab.key ? 'active' : ''} ${tab.danger ? 'danger' : ''}`}
                     onClick={() => setActiveTab(tab.key)}
-                    aria-current={activeTab === tab.key ? 'page' : undefined}
+                    aria-current={activeTab === tab.key ? 'page' : undefined} data-track="ui.9d994c4cb4.33"
                   >
                     {tab.icon}
                     <span>{tab.label}</span>
@@ -1497,7 +1497,7 @@ export default function SettingsPage() {
               type="button"
               className="sp-photo-preview-close"
               onClick={() => setShowPhotoPreview(false)}
-              aria-label={t('common.close', 'Close')}
+              aria-label={t('common.close', 'Close')} data-track="ui.9d994c4cb4.34"
             >
               ×
             </button>

@@ -598,7 +598,7 @@ export default function PlannedNeedsPage() {
             <h1>{t('plannedNeeds.title')}</h1>
             <p>{t('plannedNeeds.subtitle')}</p>
           </div>
-          <button type="button" className="pn-add-btn pn-add-btn-desktop" onClick={openAdd}>
+          <button type="button" className="pn-add-btn pn-add-btn-desktop" onClick={openAdd} data-track="ui.9f3c395c29.1">
             {t('plannedNeeds.addBtn')}
           </button>
         </div>
@@ -649,7 +649,7 @@ export default function PlannedNeedsPage() {
                   key={w}
                   type="button"
                   className={`pn-window-tab${window_ === w ? ' active' : ''}`}
-                  onClick={() => setWindow(w)}
+                  onClick={() => setWindow(w)} data-track="ui.9f3c395c29.2"
                 >
                   {t(`plannedNeeds.window${w}`)}
                 </button>
@@ -695,7 +695,7 @@ export default function PlannedNeedsPage() {
                         type="button"
                         onClick={() => setShowSettings(true)}
                         className="pn-pulse-settings-btn"
-                        title={t('plannedNeeds.configSources')}
+                        title={t('plannedNeeds.configSources')} data-track="ui.9f3c395c29.3"
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <circle cx="12" cy="12" r="3" />
@@ -753,7 +753,7 @@ export default function PlannedNeedsPage() {
                         type="button"
                         onClick={() => setShowSettings(true)}
                         className="pn-pulse-settings-btn"
-                        title={t('plannedNeeds.configScoreSourcesTitle')}
+                        title={t('plannedNeeds.configScoreSourcesTitle')} data-track="ui.9f3c395c29.4"
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <circle cx="12" cy="12" r="3" />
@@ -763,7 +763,7 @@ export default function PlannedNeedsPage() {
                     </div>
                   )}
 
-                  <button type="button" className="pn-sources-toggle" onClick={() => setShowSrcs((v) => !v)}>
+                  <button type="button" className="pn-sources-toggle" onClick={() => setShowSrcs((v) => !v)} data-track="ui.9f3c395c29.5">
                     {showSrcs ? t('plannedNeeds.hideSources') : t('plannedNeeds.showSources')}
                   </button>
                   {showSrcs && projection.sources && (() => {
@@ -893,7 +893,7 @@ export default function PlannedNeedsPage() {
                   <div className="value warn">{fmt$(sinkAnim, currency)}</div>
                   {!projection.no_data && activeNeeds.length === 0 && (
                     <p className="pn-inline-cta">
-                      <button type="button" className="pn-linkish" onClick={openAdd}>
+                      <button type="button" className="pn-linkish" onClick={openAdd} data-track="ui.9f3c395c29.6">
                         {t('plannedNeeds.ctaSinking')}
                       </button>
                     </p>
@@ -970,7 +970,7 @@ export default function PlannedNeedsPage() {
                     </ul>
                   ) : (
                     <p className="pn-inline-cta">
-                      <button type="button" className="pn-linkish" onClick={openAdd}>
+                      <button type="button" className="pn-linkish" onClick={openAdd} data-track="ui.9f3c395c29.7">
                         {t('plannedNeeds.autoPublishSetup')}
                       </button>
                     </p>
@@ -1012,7 +1012,7 @@ export default function PlannedNeedsPage() {
                 key={f}
                 type="button"
                 className={`pn-filter-chip${filter === f ? ' active' : ''}`}
-                onClick={() => setFilter(f)}
+                onClick={() => setFilter(f)} data-track="ui.9f3c395c29.8"
               >
                 {t(`plannedNeeds.filter.${f}`)}
               </button>
@@ -1032,7 +1032,7 @@ export default function PlannedNeedsPage() {
                 type="button"
                 className={viewMode === 'list' ? 'active' : ''}
                 onClick={() => setViewMode('list')}
-                title={t('plannedNeeds.viewList')}
+                title={t('plannedNeeds.viewList')} data-track="ui.9f3c395c29.9"
               >
                 <List size={18} />
               </button>
@@ -1040,7 +1040,7 @@ export default function PlannedNeedsPage() {
                 type="button"
                 className={viewMode === 'calendar' ? 'active' : ''}
                 onClick={() => setViewMode('calendar')}
-                title={t('plannedNeeds.viewCalendar')}
+                title={t('plannedNeeds.viewCalendar')} data-track="ui.9f3c395c29.10"
               >
                 <LayoutGrid size={18} />
               </button>
@@ -1115,7 +1115,7 @@ export default function PlannedNeedsPage() {
 
             {activeNeeds.length > 0 && (
               <div className="pn-sinking-section">
-                <button type="button" className="pn-sinking-toggle" onClick={() => setSinkingOpen((o) => !o)}>
+                <button type="button" className="pn-sinking-toggle" onClick={() => setSinkingOpen((o) => !o)} data-track="ui.9f3c395c29.11">
                   {sinkingOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                   {t('plannedNeeds.sinkingBreakdownTitle')}
                 </button>
@@ -1152,12 +1152,12 @@ export default function PlannedNeedsPage() {
               </h3>
               <div className="pn-suggestion-chips">
                 {suggestions.suggestions.map((s, i) => (
-                  <button key={i} type="button" className="pn-chip" onClick={() => applyQuickChip(s)}>
+                  <button key={i} type="button" className="pn-chip" onClick={() => applyQuickChip(s)} data-track="ui.9f3c395c29.12">
                     {t('plannedNeeds.suggestionRepeat', { title: s.title, days: s.days_since_completed })}
                   </button>
                 ))}
                 {suggestions.defaults.map((d, i) => (
-                  <button key={`d-${i}`} type="button" className="pn-chip pn-chip-muted" onClick={() => applyQuickChip(d)}>
+                  <button key={`d-${i}`} type="button" className="pn-chip pn-chip-muted" onClick={() => applyQuickChip(d)} data-track="ui.9f3c395c29.13">
                     {d.title}
                   </button>
                 ))}
@@ -1188,7 +1188,7 @@ export default function PlannedNeedsPage() {
           </>
         )}
 
-        <button type="button" className="pn-add-fab" onClick={openAdd} aria-label={t('plannedNeeds.addBtn')}>
+        <button type="button" className="pn-add-fab" onClick={openAdd} aria-label={t('plannedNeeds.addBtn')} data-track="ui.9f3c395c29.14">
           +
         </button>
 
@@ -1360,10 +1360,10 @@ export default function PlannedNeedsPage() {
 
               {error && <p style={{ color: '#f87171', fontSize: '0.85rem', margin: '0 0 0.5rem' }}>{error}</p>}
               <div className="pn-modal-actions">
-                <button type="button" className="btn-ghost" onClick={closeModal}>
+                <button type="button" className="btn-ghost" onClick={closeModal} data-track="ui.9f3c395c29.15">
                   {t('plannedNeeds.cancelBtn')}
                 </button>
-                <button type="button" className="btn-primary" onClick={handleSave} disabled={saving}>
+                <button type="button" className="btn-primary" onClick={handleSave} disabled={saving} data-track="ui.9f3c395c29.16">
                   {saving ? t('plannedNeeds.saving') : modal === 'add' ? t('plannedNeeds.addNeedBtn') : t('plannedNeeds.saveChangesBtn')}
                 </button>
               </div>
@@ -1378,10 +1378,10 @@ export default function PlannedNeedsPage() {
               <p>{renderStrongInterpolation(t, 'plannedNeeds.cancelNeedConfirm', selected.title)}</p>
               {error && <p style={{ color: '#f87171', fontSize: '0.85rem' }}>{error}</p>}
               <div className="pn-modal-actions">
-                <button type="button" className="btn-ghost" onClick={closeModal}>
+                <button type="button" className="btn-ghost" onClick={closeModal} data-track="ui.9f3c395c29.17">
                   {t('plannedNeeds.keepIt')}
                 </button>
-                <button type="button" className="btn-danger" onClick={handleCancel} disabled={saving}>
+                <button type="button" className="btn-danger" onClick={handleCancel} disabled={saving} data-track="ui.9f3c395c29.18">
                   {saving ? t('plannedNeeds.cancelling') : t('plannedNeeds.yesCancel')}
                 </button>
               </div>
@@ -1411,10 +1411,10 @@ export default function PlannedNeedsPage() {
               )}
               {error && <p style={{ color: '#f87171', fontSize: '0.85rem' }}>{error}</p>}
               <div className="pn-modal-actions">
-                <button type="button" className="btn-ghost" onClick={closeModal}>
+                <button type="button" className="btn-ghost" onClick={closeModal} data-track="ui.9f3c395c29.19">
                   {t('plannedNeeds.goBack')}
                 </button>
-                <button type="button" className="btn-primary" onClick={handleComplete} disabled={saving}>
+                <button type="button" className="btn-primary" onClick={handleComplete} disabled={saving} data-track="ui.9f3c395c29.20">
                   {saving ? t('plannedNeeds.saving') : t('plannedNeeds.markComplete')}
                 </button>
               </div>
@@ -1427,7 +1427,7 @@ export default function PlannedNeedsPage() {
             <div className="pn-modal">
               <h2>{t('plannedNeeds.topUpTitle')}</h2>
               <p>{fundNeed.title}</p>
-              <form onSubmit={submitTopUp} className="pn-form-group">
+              <form onSubmit={submitTopUp} className="pn-form-group" data-track="ui.9f3c395c29.21">
                 <label>{t('plannedNeeds.topUpAmount')}</label>
                 <input
                   type="number"
@@ -1438,10 +1438,10 @@ export default function PlannedNeedsPage() {
                   required
                 />
                 <div className="pn-modal-actions">
-                  <button type="button" className="btn-ghost" onClick={() => setFundNeed(null)}>
+                  <button type="button" className="btn-ghost" onClick={() => setFundNeed(null)} data-track="ui.9f3c395c29.22">
                     {t('plannedNeeds.cancelBtn')}
                   </button>
-                  <button type="submit" className="btn-primary">
+                  <button type="submit" className="btn-primary" data-track="ui.9f3c395c29.23">
                     {t('plannedNeeds.topUpSubmit')}
                   </button>
                 </div>
@@ -1473,7 +1473,7 @@ function SinkingRow({ need, currency, onTopUp, t }) {
           <div className="pn-meter-fill" style={{ width: `${pct}%` }} />
         </div>
       </div>
-      <button type="button" className="pn-topup-btn" onClick={onTopUp}>
+      <button type="button" className="pn-topup-btn" onClick={onTopUp} data-track="ui.9f3c395c29.24">
         {t('plannedNeeds.topUp')}
       </button>
     </li>
@@ -1507,13 +1507,13 @@ function PlannedNeedsCalendar({ month, setMonth, needs, currency, t }) {
   return (
     <div className="pn-cal">
       <div className="pn-cal-nav">
-        <button type="button" onClick={() => setMonth(new Date(y, m - 1, 1))}>
+        <button type="button" onClick={() => setMonth(new Date(y, m - 1, 1))} data-track="ui.9f3c395c29.25">
           ‹
         </button>
         <span>
           {month.toLocaleString(undefined, { month: 'long', year: 'numeric' })}
         </span>
-        <button type="button" onClick={() => setMonth(new Date(y, m + 1, 1))}>
+        <button type="button" onClick={() => setMonth(new Date(y, m + 1, 1))} data-track="ui.9f3c395c29.26">
           ›
         </button>
       </div>
@@ -1684,7 +1684,7 @@ function NeedCard({ need, currency = 'USD', onEdit, onCancel, onComplete, onUpda
             <input
               type="checkbox"
               checked={paused}
-              onChange={() => onPause(need.id, !paused)}
+              onChange={() => onPause(need.id, !paused)} data-track="ui.9f3c395c29.27"
             />
           </label>
         )}
@@ -1693,32 +1693,32 @@ function NeedCard({ need, currency = 'USD', onEdit, onCancel, onComplete, onUpda
       {isActive && (onEdit || onComplete || onCancel || onDelete || onFund || onPause || (readyForJob && onPostJob)) && (
         <div className="pn-card-actions pn-card-actions-v2">
           {onEdit && (
-            <button type="button" className="pn-card-action-btn" onClick={onEdit} title={t('plannedNeeds.editBtn')}>
+            <button type="button" className="pn-card-action-btn" onClick={onEdit} title={t('plannedNeeds.editBtn')} data-track="ui.9f3c395c29.28">
               <Pencil size={16} />
             </button>
           )}
           {onFund && (
-            <button type="button" className="pn-card-action-btn" onClick={onFund} title={t('plannedNeeds.topUp')}>
+            <button type="button" className="pn-card-action-btn" onClick={onFund} title={t('plannedNeeds.topUp')} data-track="ui.9f3c395c29.29">
               +
             </button>
           )}
           {readyForJob && onPostJob && (
-            <button type="button" className="pn-card-action-btn primary" onClick={onPostJob}>
+            <button type="button" className="pn-card-action-btn primary" onClick={onPostJob} data-track="ui.9f3c395c29.30">
               {t('plannedNeeds.postJobNow', { defaultValue: 'Post job' })}
             </button>
           )}
           {onComplete && (
-            <button type="button" className="pn-card-action-btn primary" onClick={onComplete}>
+            <button type="button" className="pn-card-action-btn primary" onClick={onComplete} data-track="ui.9f3c395c29.31">
               {t('plannedNeeds.completeBtn')}
             </button>
           )}
           {onCancel && (
-            <button type="button" className="pn-card-action-btn danger" onClick={onCancel}>
+            <button type="button" className="pn-card-action-btn danger" onClick={onCancel} data-track="ui.9f3c395c29.32">
               {t('plannedNeeds.cancelBtn')}
             </button>
           )}
           {onDelete && (
-            <button type="button" className="pn-card-action-btn danger" onClick={onDelete} title={t('plannedNeeds.deleteBtn')}>
+            <button type="button" className="pn-card-action-btn danger" onClick={onDelete} title={t('plannedNeeds.deleteBtn')} data-track="ui.9f3c395c29.33">
               <Trash2 size={16} />
             </button>
           )}

@@ -2,6 +2,8 @@ const db     = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
+const { withTransaction } = require('../utils/transaction');
+const { emitDomainEvent } = require('../growth/emit');
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -201,21 +203,29 @@ exports.createPlannedNeed = async (req, res, next) => {
 
     const status = deriveInitialStatus(estimated_cost, due_date, parseInt(lead_time_days));
 
-    const { rows } = await db.query(`
-      INSERT INTO planned_needs
-        (user_id, title, description, category, status, due_date, estimated_cost,
-         lead_time_days, recurrence_type, recurrence_interval_days,
-         preferred_helper_id, notes, vehicle_id, home_id)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-      RETURNING *
-    `, [
-      userId, String(title).trim(), description || null, category, status, due_date,
-      estimated_cost || null, parseInt(lead_time_days), recurrence_type,
-      recurrence_interval_days || null,
-      preferred_helper_id || null, notes || null,
-      vehicle_id ? parseInt(vehicle_id) : null,
-      home_id    ? parseInt(home_id)    : null,
-    ]);
+    const { rows } = await withTransaction(db, async (client) => {
+      const result = await client.query(`
+        INSERT INTO planned_needs
+          (user_id, title, description, category, status, due_date, estimated_cost,
+           lead_time_days, recurrence_type, recurrence_interval_days,
+           preferred_helper_id, notes, vehicle_id, home_id)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+        RETURNING *
+      `, [
+        userId, String(title).trim(), description || null, category, status, due_date,
+        estimated_cost || null, parseInt(lead_time_days), recurrence_type,
+        recurrence_interval_days || null,
+        preferred_helper_id || null, notes || null,
+        vehicle_id ? parseInt(vehicle_id) : null,
+        home_id    ? parseInt(home_id)    : null,
+      ]);
+      const dueMonth = /^\d{4}-\d{2}/.test(String(due_date)) ? String(due_date).slice(0, 7) : undefined;
+      await emitDomainEvent(client, 'planned_need.created', {
+        category,
+        ...(dueMonth ? { due_month: dueMonth } : {}),
+      }, { userId, req });
+      return result;
+    }, 'planned_need_created_growth');
 
     res.status(201).json(rows[0]);
   } catch (err) {

@@ -123,16 +123,16 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
         </div>
         <div className="fd-ox-credit-partner-actions">
           {partnerStatus && <span className={statusClass(partnerStatus)}>{localizeCreditStatus(partnerStatus, t)}</span>}
-          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={downloadReport} disabled={loading || refreshing || downloading || !!error || notEnrolled}>
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={downloadReport} disabled={loading || refreshing || downloading || !!error || notEnrolled} data-track-private>
             <Download size={14} /> {downloading ? t('preparingReport') : t('downloadReport')}
           </button>
-          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => load({ quiet: true })} disabled={loading || refreshing}>
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => load({ quiet: true })} disabled={loading || refreshing} data-track-private>
             <RefreshCw size={14} className={refreshing ? 'fd-ox-credit-spin' : ''} /> {t('refresh')}
           </button>
         </div>
       </div>
 
-      {error && <div className="fd-ox-credit-error" role="alert">{error} <button type="button" onClick={() => load()}>{t('retry')}</button></div>}
+      {error && <div className="fd-ox-credit-error" role="alert">{error} <button type="button" onClick={() => load()} data-track-private>{t('retry')}</button></div>}
 
       {notEnrolled && <div className="fd-finance-notice" role="status"><strong>{financeT('merchantFinance.notEnrolled')}</strong><p>{financeT('merchantFinance.notEnrolledHint')}</p></div>}
       {loading ? <div className="fd-empty">{t('loadingPartnerActivity')}</div> : error || notEnrolled ? null : (
@@ -168,7 +168,7 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
                   ))}
                 </div>
               )}
-              {transactionPagination.hasMore && <button type="button" className="fd-ox-credit-load-more" onClick={() => load({ appendTransactions: true, transactionOffset: transactionPagination.nextOffset || 0 })} disabled={loadingMore || loading || refreshing}>{loadingMore ? t('loading') : t('loadOlderActivity')}</button>}
+              {transactionPagination.hasMore && <button type="button" className="fd-ox-credit-load-more" onClick={() => load({ appendTransactions: true, transactionOffset: transactionPagination.nextOffset || 0 })} disabled={loadingMore || loading || refreshing} data-track-private>{loadingMore ? t('loading') : t('loadOlderActivity')}</button>}
             </div>
 
             <div className="fd-ox-credit-panel">
@@ -200,7 +200,7 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
                   ))}
                 </div>
               )}
-              {settlementPagination.hasMore && <button type="button" className="fd-ox-credit-load-more" onClick={() => load({ appendSettlements: true, settlementOffset: settlementPagination.nextOffset || 0 })} disabled={loadingMore || loading || refreshing}>{loadingMore ? t('loading') : t('loadOlderSettlements')}</button>}
+              {settlementPagination.hasMore && <button type="button" className="fd-ox-credit-load-more" onClick={() => load({ appendSettlements: true, settlementOffset: settlementPagination.nextOffset || 0 })} disabled={loadingMore || loading || refreshing} data-track-private>{loadingMore ? t('loading') : t('loadOlderSettlements')}</button>}
             </div>
           </div>
         </>

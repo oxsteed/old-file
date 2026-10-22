@@ -4,6 +4,8 @@ const { sendError, sendSuccess } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { verifyConversationAccess } = require('../utils/conversationAccess');
 const { enqueueConversationMessageNotifications } = require('../services/messageNotificationService');
+const { withTransaction } = require('../utils/transaction');
+const { emitDomainEvent } = require('../growth/emit');
 
 /**
  * Post the shared-cart card message into a conversation.
@@ -222,14 +224,21 @@ const shareCart = async (req, res) => {
       RETURNING id, share_token, created_at, expires_at, can_modify
     `;
 
-    const result = await pool.query(query, [
-      cartId,
-      shareToken,
-      helperId,
-      customerId || null,
-      canModify,
-      expiresAt,
-    ]);
+    const result = await withTransaction(pool, async (client) => {
+      const inserted = await client.query(query, [
+        cartId,
+        shareToken,
+        helperId,
+        customerId || null,
+        canModify,
+        expiresAt,
+      ]);
+      const shareRecord = inserted.rows[0];
+      await emitDomainEvent(client, 'marketplace.cart_shared', {
+        ...(shareRecord?.id != null ? { entity_id: String(shareRecord.id) } : {}),
+      }, { userId: helperId, req });
+      return inserted;
+    }, 'marketplace_cart_shared_growth');
 
     const shareRecord = result.rows[0];
 

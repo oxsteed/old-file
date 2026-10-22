@@ -248,7 +248,7 @@ export default function CustomerCalendarView({
     <div className="ccv-container">
       <div className="ccv-header">
         {showNav ? (
-          <button className="ccv-nav-btn" onClick={() => navigate(-1)}>
+          <button className="ccv-nav-btn" onClick={() => navigate(-1)} data-track="ui.d8dedf54e6.1">
             ← {t('calendar.previous')}
           </button>
         ) : (
@@ -259,14 +259,14 @@ export default function CustomerCalendarView({
           <h2 className="ccv-date">{getHeaderLabel()}</h2>
           <button
             className="ccv-today-btn"
-            onClick={() => onDateChange(new Date())}
+            onClick={() => onDateChange(new Date())} data-track="ui.d8dedf54e6.2"
           >
             {t('calendar.today', { defaultValue: 'Today' })}
           </button>
         </div>
 
         {showNav ? (
-          <button className="ccv-nav-btn" onClick={() => navigate(1)}>
+          <button className="ccv-nav-btn" onClick={() => navigate(1)} data-track="ui.d8dedf54e6.3">
             {t('calendar.next')} →
           </button>
         ) : (
@@ -734,7 +734,7 @@ function AgendaView({ events, onEventClick, t, locale }) {
                     key={evt.id}
                     className={`ccv-agenda-event ccv-event-${evt.type}`}
                     onClick={() => onEventClick?.(evt)}
-                    style={{ borderLeftColor: color }}
+                    style={{ borderLeftColor: color }} data-track="ui.d8dedf54e6.4"
                   >
                     <div className="ccv-agenda-event-time">
                       {start.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}

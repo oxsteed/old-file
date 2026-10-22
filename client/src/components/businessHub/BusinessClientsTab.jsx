@@ -69,7 +69,7 @@ function ClientFormModal({ open, initial, onClose, onSave, onDelete }) {
       <div className="bct-modal">
         <div className="bct-modal-head">
           <h3>{draft.id ? t('businessClients.modalEdit') : t('businessClients.modalAdd')}</h3>
-          <button type="button" onClick={onClose} aria-label={t('businessClients.close')}><X size={18} /></button>
+          <button type="button" onClick={onClose} aria-label={t('businessClients.close')} data-track="ui.abb74c9eaf.1"><X size={18} /></button>
         </div>
         <div className="bct-modal-body">
           <label className="bct-field">
@@ -151,13 +151,13 @@ function ClientFormModal({ open, initial, onClose, onSave, onDelete }) {
         </div>
         <div className="bct-modal-foot">
           {draft.id ? (
-            <button type="button" className="bct-btn danger" onClick={() => onDelete(draft)} disabled={busy}>
+            <button type="button" className="bct-btn danger" onClick={() => onDelete(draft)} disabled={busy} data-track="ui.abb74c9eaf.2">
               <Trash2 size={14} /> {t('businessClients.btnArchive')}
             </button>
           ) : <span />}
           <div className="bct-modal-actions">
-            <button type="button" className="bct-btn ghost" onClick={onClose}>{t('businessClients.btnCancel')}</button>
-            <button type="button" className="bct-btn primary" onClick={save} disabled={busy}>
+            <button type="button" className="bct-btn ghost" onClick={onClose} data-track="ui.abb74c9eaf.3">{t('businessClients.btnCancel')}</button>
+            <button type="button" className="bct-btn primary" onClick={save} disabled={busy} data-track="ui.abb74c9eaf.4">
               {draft.id ? t('businessClients.btnSave') : t('businessClients.btnAdd')}
             </button>
           </div>
@@ -172,7 +172,7 @@ function ClientCard({ client, currency, onOpen }) {
   const tags = Array.isArray(client.tags) ? client.tags : [];
   const { t } = useTranslation();
   return (
-    <button type="button" className="bct-card" onClick={() => onOpen(client)}>
+    <button type="button" className="bct-card" onClick={() => onOpen(client)} data-track="ui.abb74c9eaf.5">
       <div className="bct-card-head">
         <div className="bct-avatar" aria-hidden="true">
           {(client.display_name || '?').slice(0, 1).toUpperCase()}
@@ -303,7 +303,7 @@ export default function BusinessClientsTab({ bizId, businessName, currency }) {
             {t('businessClients.intro')}
           </p>
         </div>
-        <button type="button" className="bct-btn primary" onClick={handleOpenNew}>
+        <button type="button" className="bct-btn primary" onClick={handleOpenNew} data-track="ui.abb74c9eaf.6">
           <Plus size={14} /> {t('businessClients.btnAdd')}
         </button>
       </div>
@@ -333,7 +333,7 @@ export default function BusinessClientsTab({ bizId, businessName, currency }) {
               key={s.id}
               type="button"
               className={'bct-status-pill' + (statusFilter === s.id ? ' active' : '')}
-              onClick={() => setStatusFilter(s.id)}
+              onClick={() => setStatusFilter(s.id)} data-track="ui.abb74c9eaf.7"
             >
               {t(`businessClients.status.${s.label}`)}
               {s.id !== 'all' && counts[s.id] != null && <em>{counts[s.id]}</em>}
@@ -358,7 +358,7 @@ export default function BusinessClientsTab({ bizId, businessName, currency }) {
             <Search size={28} />
             <h3>{t('businessClients.emptySearchTitle', { query: search })}</h3>
             <p>{t('businessClients.emptySearchBody')}</p>
-            <button type="button" className="bct-btn ghost" onClick={() => setSearch('')}>
+            <button type="button" className="bct-btn ghost" onClick={() => setSearch('')} data-track="ui.abb74c9eaf.8">
               <X size={14} /> {t('businessClients.clearSearch')}
             </button>
           </div>
@@ -367,7 +367,7 @@ export default function BusinessClientsTab({ bizId, businessName, currency }) {
             <MessageSquare size={28} />
             <h3>{t('businessClients.emptyTitle')}</h3>
             <p>{t('businessClients.emptyBody')}</p>
-            <button type="button" className="bct-btn primary" onClick={handleOpenNew}>
+            <button type="button" className="bct-btn primary" onClick={handleOpenNew} data-track="ui.abb74c9eaf.9">
               <Plus size={14} /> {t('businessClients.btnAddFirst')}
             </button>
           </div>

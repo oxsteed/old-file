@@ -68,7 +68,7 @@ export default function LegalPageLayout({ title, description, effectiveDate, chi
             <li style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                 <a
                   href="/"
-                  style={{ color: 'var(--color-primary)', textDecoration: 'none' }}
+                  style={{ color: 'var(--color-primary)', textDecoration: 'none' }} data-track="ui.22f0797a1d.1"
                 >
                   {t('legalPage.home')}
                 </a>
@@ -140,14 +140,14 @@ export default function LegalPageLayout({ title, description, effectiveDate, chi
             <button
               onClick={() => navigate(-1)}
               className="ox-btn ox-btn-outline ox-btn-sm"
-              aria-label={t('legalPage.goBackAria')}
+              aria-label={t('legalPage.goBackAria')} data-track="ui.22f0797a1d.2"
             >
               {t('legalPage.goBack')}
             </button>
             <button
               onClick={scrollToTop}
               className="ox-btn ox-btn-secondary ox-btn-sm"
-              aria-label={t('legalPage.backToTopAria')}
+              aria-label={t('legalPage.backToTopAria')} data-track="ui.22f0797a1d.3"
             >
               {t('legalPage.backToTop')}
             </button>

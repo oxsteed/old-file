@@ -33,6 +33,17 @@ const EXPORT_CSV_COLUMNS = {
   bids: ['id', 'job_id', 'amount', 'message', 'status', 'created_at'],
   reviews: ['id', 'job_id', 'rating', 'comment', 'created_at'],
   consents: ['consent_type', 'version', 'accepted_at'],
+  site_visits: ['visited_at','path','referrer','country_code','region_name','city','device_type'],
+  discover_search_log: ['created_at','query_normalized','result_count','radius_miles'],
+  promotion_link_events: ['event_type','source','medium','campaign','content','occurred_at'],
+  segments: ['name'],
+  propensity_scores: ['model','score','reasons','model_version','computed_at'],
+  tracking_consents: ['purpose','granted','jurisdiction','source','consent_text_version','recorded_at'],
+  interests: ['labels','score','last_seen'],
+  offers: ['name','title','channel','status','sent_at','opened_at','clicked_at'],
+  // Export the human-readable event envelope only. Raw props can contain
+  // internal entity identifiers and are not part of the portability contract.
+  activity_events: ['event_name','occurred_at','route'],
   messages: ['id', 'sender_id', 'receiver_id', 'conversation_id', 'content', 'created_at'],
   payments: ['id', 'job_id', 'payer_id', 'payee_id', 'amount', 'status', 'created_at', 'updated_at'],
   invoices: ['id', 'business_id', 'invoice_number', 'client_name', 'client_email', 'status', 'due_date', 'total', 'amount_paid', 'created_at', 'updated_at'],
@@ -76,7 +87,7 @@ function buildExportArchive(exportData) {
     archive.append(rowsToCsv(exportData.user ? [exportData.user] : [], EXPORT_CSV_COLUMNS.user), { name: 'user.csv' });
     for (const [name, columns] of Object.entries(EXPORT_CSV_COLUMNS)) {
       if (name === 'user') continue;
-      archive.append(rowsToCsv(exportData[name], columns), { name: `${name}.csv` });
+      archive.append(rowsToCsv(exportData[name] || [], columns), { name: `${name}.csv` });
     }
     archive.append(
       [
@@ -162,6 +173,18 @@ async function queryOptional(sql, params = []) {
     logger.warn('Optional privacy export section unavailable', { error: error.message });
     return [];
   }
+}
+
+// Capped export sections fetch cap+1 rows; one row over the cap fails the
+// export explicitly instead of silently truncating the subject's archive.
+function enforceExportCap(section, rows, cap) {
+  if (rows.length > cap) {
+    const error = new Error('export_section_limit_exceeded');
+    error.code = 'EXPORT_RESULT_LIMIT_EXCEEDED';
+    error.section = section;
+    throw error;
+  }
+  return rows;
 }
 
 // POST /api/privacy/export/verification/request
@@ -339,23 +362,23 @@ router.get('/export', authenticate, async (req, res) => {
         queryOptional(
           `SELECT id, sender_id, receiver_id, conversation_id, content, created_at
            FROM messages WHERE ${userIdEq('sender_id')} OR ${userIdEq('receiver_id')}
-           ORDER BY created_at DESC LIMIT 10000`,
+           ORDER BY created_at DESC LIMIT 10001`,
           [String(userId)],
-        ),
+        ).then((rows) => enforceExportCap('messages', rows, 10000)),
         queryOptional(
           `SELECT id, job_id, payer_id, payee_id, amount, status, created_at, updated_at
            FROM payments WHERE ${userIdEq('payer_id')} OR ${userIdEq('payee_id')}
-           ORDER BY created_at DESC LIMIT 5000`,
+           ORDER BY created_at DESC LIMIT 5001`,
           [String(userId)],
-        ),
+        ).then((rows) => enforceExportCap('payments', rows, 5000)),
         queryOptional(
           `SELECT id, business_id, invoice_number, client_name, client_email, status,
                   due_date, total, amount_paid, created_at, updated_at
            FROM business_invoices
            WHERE ${userIdEq('user_id')} OR lower(client_email) = lower((SELECT email FROM users WHERE ${userIdEq('id')}))
-           ORDER BY created_at DESC LIMIT 5000`,
+           ORDER BY created_at DESC LIMIT 5001`,
           [String(userId), String(userId)],
-        ),
+        ).then((rows) => enforceExportCap('invoices', rows, 5000)),
       ]);
     // P3-11-F05: the export previously omitted whole product surfaces.
     // Provider secrets stay out: Stripe subscription/customer ids are not
@@ -387,17 +410,17 @@ router.get('/export', authenticate, async (req, res) => {
            WHERE debit_account_id IN (SELECT id FROM oxsteed_credit_accounts WHERE ${userIdEq('customer_id')})
               OR credit_account_id IN (SELECT id FROM oxsteed_credit_accounts WHERE ${userIdEq('customer_id')})
               OR ${userIdEq('actor_user_id')}
-           ORDER BY created_at DESC LIMIT 5000`,
+           ORDER BY created_at DESC LIMIT 5001`,
           [String(userId)],
-        ),
+        ).then((rows) => enforceExportCap('credit_transactions', rows, 5000)),
         queryOptional(
           `SELECT id, restaurant_id, fulfillment_type, status, payment_status,
                   subtotal_cents, tax_cents, tip_cents, total_cents, currency_code, created_at
            FROM food_orders
            WHERE ${userIdEq('customer_id')}
-           ORDER BY created_at DESC LIMIT 5000`,
+           ORDER BY created_at DESC LIMIT 5001`,
           [String(userId)],
-        ),
+        ).then((rows) => enforceExportCap('food_orders', rows, 5000)),
         queryOptional(
           `SELECT id, plan_id, status, current_period_start, current_period_end,
                   cancelled_at, cancel_at_period_end, created_at, updated_at
@@ -425,9 +448,9 @@ router.get('/export', authenticate, async (req, res) => {
           `SELECT id, type, title, body, is_read, created_at
            FROM notifications
            WHERE ${userIdEq('user_id')}
-           ORDER BY created_at DESC LIMIT 10000`,
+           ORDER BY created_at DESC LIMIT 10001`,
           [String(userId)],
-        ),
+        ).then((rows) => enforceExportCap('notifications', rows, 10000)),
       ]);
     const exportData = {
       exportDate: new Date().toISOString(),
@@ -448,6 +471,8 @@ router.get('/export', authenticate, async (req, res) => {
       helper_profiles: helperProfiles,
       notifications: userNotifications,
     };
+    Object.assign(exportData,await require('../services/privacyActivityData').exportData(pool,userId));
+    Object.assign(exportData,await require('../growth/rights').exportData(pool,userId));
     const archiveBuffer = await buildExportArchive(exportData);
     const consumed = await pool.query(
       `UPDATE privacy_export_verifications
@@ -681,10 +706,11 @@ router.delete('/delete-account', strictLimiter, authenticate, async (req, res) =
       params.push(originalEmailHash);
     }
 
-    await pool.query(
-      `UPDATE users SET ${baseSets.join(', ')} WHERE ${userIdEq('id')}`,
-      params
-    );
+    await require('../utils/transaction').withTransaction(pool,async conn=>{
+      await require('../services/privacyActivityData').erase(conn,userId);
+      if(process.env.GROWTH_SUBJECT_PEPPER)await require('../growth/rights').erase(conn,userId);
+      await conn.query(`UPDATE users SET ${baseSets.join(', ')} WHERE ${userIdEq('id')}`,params);
+    },'privacy_delete_growth');
 
     // Retain the deletion decision in the legal audit trail. user_consents is
     // intentionally deleted by scheduled cleanup and is not an audit log.
@@ -717,6 +743,7 @@ router.get('/data-categories', strictLimiter, (req, res) => {
       { category: 'Professional Information', examples: 'Skills, hourly rate, availability, bio', purpose: 'Helper profile and job matching' },
       { category: 'Internet Activity', examples: 'IP address, browser type, pages visited', purpose: 'Analytics and security' },
       { category: 'Geolocation', examples: 'City, state, zip code', purpose: 'Location-based job matching' },
+      { category: 'Growth Insights', examples: 'Permitted activity events, inferred interests, offer history, segment memberships and consent choices', purpose: 'Demand analysis and optional offers after the reviewed policy effective date' },
       { category: 'Background Check', examples: 'Pass/fail status from Checkr', purpose: 'Verified badge eligibility' },
     ],
     thirdParties: [

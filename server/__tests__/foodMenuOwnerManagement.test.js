@@ -18,6 +18,9 @@ function buildApp() {
   });
   app.get('/api/food/restaurants/:restaurantId', ctrl.getRestaurant);
   app.get('/api/food/restaurants/:restaurantId/menu/manage', ctrl.getManagedRestaurantMenu);
+  app.post('/api/food/restaurants/:restaurantId/menu-categories', ctrl.createMenuCategory);
+  app.patch('/api/food/restaurants/:restaurantId/menu-categories/:categoryId', ctrl.updateMenuCategory);
+  app.delete('/api/food/restaurants/:restaurantId/menu-categories/:categoryId', ctrl.deleteMenuCategory);
   app.patch('/api/food/restaurants/:restaurantId/menu-items/:itemId', ctrl.updateMenuItem);
   app.patch('/api/food/restaurants/:restaurantId/modifier-groups/:groupId', ctrl.updateModifierGroup);
   app.use(errorHandler);
@@ -79,6 +82,8 @@ describe('restaurant owner menu management', () => {
   test('owner can save publishing, archive, tags, and uncategorized state together', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [restaurant()] })
+      // F-20: updateMenuItem reads the before-image for the audit log first.
+      .mockResolvedValueOnce({ rows: [{ id: 12, restaurant_id: RESTAURANT_ID, category_id: 1, publication_status: 'published', archived_at: null }] })
       .mockResolvedValueOnce({ rows: [{ id: 12, restaurant_id: RESTAURANT_ID, category_id: null, publication_status: 'draft', archived_at: '2026-08-09T00:00:00Z' }] });
 
     const response = await request(buildApp())
@@ -96,6 +101,10 @@ describe('restaurant owner menu management', () => {
   test('modifier editing replaces option rows atomically', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [restaurant()] })
+      // F-20: updateModifierGroup reads the before-image (group + its prior
+      // options) for the audit log before applying the update.
+      .mockResolvedValueOnce({ rows: [{ id: 5, restaurant_id: RESTAURANT_ID, name: 'Choose a size' }] })
+      .mockResolvedValueOnce({ rows: [{ name: 'Small', price_delta_cents: 0 }, { name: 'Large', price_delta_cents: 200 }] })
       .mockResolvedValueOnce({ rows: [{ id: 5, restaurant_id: RESTAURANT_ID, name: 'Choose a size' }] })
       .mockResolvedValueOnce({ rows: [], rowCount: 2 })
       .mockResolvedValueOnce({ rows: [{ id: 91, name: 'Small', price_delta_cents: 0 }] })
@@ -117,5 +126,35 @@ describe('restaurant owner menu management', () => {
     expect(response.body.modifierGroup.options).toHaveLength(2);
     expect(mockQuery.mock.calls.some(([sql]) => /DELETE FROM food_modifiers/.test(sql))).toBe(true);
     expect(mockQuery.mock.calls.filter(([sql]) => /INSERT INTO food_modifiers/.test(sql))).toHaveLength(2);
+  });
+
+  test('menu category writes leave before/after audit events', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [restaurant()] })
+      .mockResolvedValueOnce({ rows: [{ id: 21, name: 'Sides', sort_order: 1, is_active: true }] });
+
+    const createResponse = await request(buildApp())
+      .post(`/api/food/restaurants/${RESTAURANT_ID}/menu-categories`)
+      .send({ name: 'Sides', sortOrder: 1 });
+
+    expect(createResponse.status).toBe(201);
+    const createAudit = mockQuery.mock.calls.find(([, params]) => params?.[3] === 'menu.category.created');
+    expect(createAudit).toBeTruthy();
+
+    resetMocks();
+    mockQuery
+      .mockResolvedValueOnce({ rows: [restaurant()] })
+      .mockResolvedValueOnce({ rows: [{ id: 21, name: 'Sides', sort_order: 1, is_active: true }] })
+      .mockResolvedValueOnce({ rows: [{ id: 21, name: 'Cold sides', sort_order: 2, is_active: true }] });
+
+    const updateResponse = await request(buildApp())
+      .patch(`/api/food/restaurants/${RESTAURANT_ID}/menu-categories/21`)
+      .send({ name: 'Cold sides', sortOrder: 2 });
+
+    expect(updateResponse.status).toBe(200);
+    const updateAudit = mockQuery.mock.calls.find(([, params]) => params?.[3] === 'menu.category.updated');
+    expect(updateAudit).toBeTruthy();
+    expect(JSON.parse(updateAudit[1][6])).toEqual(expect.objectContaining({ name: 'Sides' }));
+    expect(JSON.parse(updateAudit[1][7])).toEqual(expect.objectContaining({ name: 'Cold sides' }));
   });
 });

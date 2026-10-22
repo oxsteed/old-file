@@ -59,7 +59,7 @@ function SessionRow({ session, onRevoke, busy, t }) {
           onClick={() => onRevoke(session)}
           disabled={busy}
           className="shrink-0 text-xs hover:opacity-90 disabled:opacity-50"
-          style={{ color: 'var(--color-error)' }}
+          style={{ color: 'var(--color-error)' }} data-track="ui.f970d649f7.1"
         >
           {t('sessions.revoke')}
         </button>
@@ -171,7 +171,7 @@ export default function SessionsSetup() {
                 <button
                   type="button"
                   onClick={fetchSessions}
-                  className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-content hover:bg-surface-2"
+                  className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-content hover:bg-surface-2" data-track="ui.f970d649f7.2"
                 >
                   {t('sessions.retry')}
                 </button>
@@ -204,7 +204,7 @@ export default function SessionsSetup() {
                     type="button"
                     onClick={() => setLogoutAllOpen(true)}
                     disabled={busy}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-content hover:bg-surface-2 disabled:opacity-50"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-content hover:bg-surface-2 disabled:opacity-50" data-track="ui.f970d649f7.3"
                   >
                     <LogOut size={16} />
                     {busy ? t('sessions.working') : t('sessions.logoutEverywhere')}
@@ -239,7 +239,7 @@ export default function SessionsSetup() {
                 type="button"
                 onClick={() => setRevokeTarget(null)}
                 disabled={busy}
-                className="flex-1 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-content hover:bg-surface-2 disabled:opacity-50"
+                className="flex-1 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-content hover:bg-surface-2 disabled:opacity-50" data-track="ui.f970d649f7.4"
               >
                 {t('sessions.cancel')}
               </button>
@@ -248,7 +248,7 @@ export default function SessionsSetup() {
                 onClick={confirmRevokeSession}
                 disabled={busy}
                 className="flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-on-solid hover:opacity-90 disabled:opacity-50"
-                style={{ background: 'var(--color-error)' }}
+                style={{ background: 'var(--color-error)' }} data-track="ui.f970d649f7.5"
               >
                 {busy ? t('sessions.working') : t('sessions.confirmRevoke')}
               </button>
@@ -279,7 +279,7 @@ export default function SessionsSetup() {
                 type="button"
                 onClick={() => setLogoutAllOpen(false)}
                 disabled={busy}
-                className="flex-1 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-content hover:bg-surface-2 disabled:opacity-50"
+                className="flex-1 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-content hover:bg-surface-2 disabled:opacity-50" data-track="ui.f970d649f7.6"
               >
                 {t('sessions.cancel')}
               </button>
@@ -288,7 +288,7 @@ export default function SessionsSetup() {
                 onClick={confirmLogoutEverywhere}
                 disabled={busy}
                 className="flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-on-solid hover:opacity-90 disabled:opacity-50"
-                style={{ background: 'var(--color-error)' }}
+                style={{ background: 'var(--color-error)' }} data-track="ui.f970d649f7.7"
               >
                 {busy ? t('sessions.working') : t('sessions.confirmLogoutEverywhere')}
               </button>

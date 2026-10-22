@@ -361,6 +361,12 @@ async function verifyOTP(req, res) {
          WHERE id = $2`,
         [userId, reg.id]
       );
+
+      // Growth: role only. membership_tier 'tier1' has no coded mapping to
+      // the schema's tier enum, and reg.country is not selected by this
+      // flow's pending_registrations read, so neither is emitted.
+      await require('../growth/emit').emitDomainEvent(client, 'account.signed_up', { role: 'helper' }, { userId, req });
+      await require('../growth/emit').emitDomainEvent(client, 'account.verified', { role: 'helper' }, { userId, req });
     }
 
     await client.query('COMMIT');

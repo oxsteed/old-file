@@ -1,0 +1,52 @@
+name: oxsteed-growth-clickhouse
+
+# Staging/rehearsal topology only. Production credentials, TLS certificates,
+# disks, provider and region are supplied by the deployment system.
+services:
+  keeper01:
+    image: clickhouse/clickhouse-keeper:25.8
+    hostname: keeper01
+    volumes:
+      - ./keeper-01.xml:/etc/clickhouse-keeper/config.d/growth-keeper.xml:ro
+      - keeper01-data:/var/lib/clickhouse-keeper
+  keeper02:
+    image: clickhouse/clickhouse-keeper:25.8
+    hostname: keeper02
+    volumes:
+      - ./keeper-02.xml:/etc/clickhouse-keeper/config.d/growth-keeper.xml:ro
+      - keeper02-data:/var/lib/clickhouse-keeper
+  keeper03:
+    image: clickhouse/clickhouse-keeper:25.8
+    hostname: keeper03
+    volumes:
+      - ./keeper-03.xml:/etc/clickhouse-keeper/config.d/growth-keeper.xml:ro
+      - keeper03-data:/var/lib/clickhouse-keeper
+  clickhouse01:
+    image: clickhouse/clickhouse-server:25.8
+    hostname: clickhouse01
+    depends_on: [keeper01, keeper02, keeper03]
+    environment:
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+      CLICKHOUSE_PASSWORD: "${GROWTH_CH_PASSWORD:?set a staging-only password}"
+      GROWTH_CH_PASSWORD: "${GROWTH_CH_PASSWORD:?set a staging-only password}"
+    volumes:
+      - ./server-01.xml:/etc/clickhouse-server/config.d/growth-server.xml:ro
+      - clickhouse01-data:/var/lib/clickhouse
+  clickhouse02:
+    image: clickhouse/clickhouse-server:25.8
+    hostname: clickhouse02
+    depends_on: [keeper01, keeper02, keeper03]
+    environment:
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+      CLICKHOUSE_PASSWORD: "${GROWTH_CH_PASSWORD:?set a staging-only password}"
+      GROWTH_CH_PASSWORD: "${GROWTH_CH_PASSWORD:?set a staging-only password}"
+    volumes:
+      - ./server-02.xml:/etc/clickhouse-server/config.d/growth-server.xml:ro
+      - clickhouse02-data:/var/lib/clickhouse
+
+volumes:
+  keeper01-data:
+  keeper02-data:
+  keeper03-data:
+  clickhouse01-data:
+  clickhouse02-data:

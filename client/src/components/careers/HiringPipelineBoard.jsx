@@ -202,7 +202,7 @@ export default function HiringPipelineBoard({ employerType = 'business', busines
         {employerType === 'platform' ? t('careers.employer.platformHelp') : t('careers.employer.businessHelp')}
       </p>
 
-      <form className="ox-careers-panel" onSubmit={saveOpening}>
+      <form className="ox-careers-panel" onSubmit={saveOpening} data-track="ui.79490ac5e0.1">
         <h3>{editingId ? t('careers.employer.editRole') : t('careers.employer.newRole')}</h3>
         <div className="ox-careers-form-grid">
           <div>
@@ -303,11 +303,11 @@ export default function HiringPipelineBoard({ employerType = 'business', busines
           </div>
         </div>
         <div className="ox-careers-actions">
-          <button className="ox-careers-btn primary" type="submit" disabled={saving}>
+          <button className="ox-careers-btn primary" type="submit" disabled={saving} data-track="ui.79490ac5e0.2">
             {saving ? t('careers.employer.saving') : t('careers.employer.saveRole')}
           </button>
           {editingId && (
-            <button type="button" className="ox-careers-btn" onClick={() => { setEditingId(null); setForm(EMPTY_FORM); }}>
+            <button type="button" className="ox-careers-btn" onClick={() => { setEditingId(null); setForm(EMPTY_FORM); }} data-track="ui.79490ac5e0.3">
               {t('careers.employer.cancelEdit')}
             </button>
           )}
@@ -322,7 +322,7 @@ export default function HiringPipelineBoard({ employerType = 'business', busines
               key={row.id}
               className="ox-careers-card"
               onClick={() => setSelectedId(row.id)}
-              style={{ textAlign: 'left', cursor: 'pointer', outline: String(row.id) === String(selectedId) ? '2px solid #ea580c' : 'none' }}
+              style={{ textAlign: 'left', cursor: 'pointer', outline: String(row.id) === String(selectedId) ? '2px solid #ea580c' : 'none' }} data-track="ui.79490ac5e0.4"
             >
               <strong>{row.title}</strong>
               <div className="ox-careers-meta">
@@ -336,7 +336,7 @@ export default function HiringPipelineBoard({ employerType = 'business', busines
             </button>
           ))}
           {openingsPagination?.hasMore && (
-            <button type="button" className="ox-careers-btn" onClick={() => loadOpenings({ append: true, offset: openings.length })}>
+            <button type="button" className="ox-careers-btn" onClick={() => loadOpenings({ append: true, offset: openings.length })} data-track="ui.79490ac5e0.5">
               {t('careers.employer.loadMore', { defaultValue: 'Load more openings' })}
             </button>
           )}
@@ -357,13 +357,13 @@ export default function HiringPipelineBoard({ employerType = 'business', busines
                     <p>{[app.city, app.country_code].filter(Boolean).join(', ') || t('careers.remoteWorldwide')}</p>
                     <p>{t(`careers.authorization.${app.work_authorization_status}`)}</p>
                     <div className="ox-careers-actions">
-                      {column.stage === 'received' && <button type="button" className="ox-careers-btn" onClick={() => moveStage(app, 'screening')}>{t('careers.stage.screening')}</button>}
-                      {column.stage === 'screening' && <button type="button" className="ox-careers-btn" onClick={() => moveStage(app, 'interview')}>{t('careers.stage.interview')}</button>}
-                      {column.stage === 'interview' && <button type="button" className="ox-careers-btn" onClick={() => moveStage(app, 'assessment')}>{t('careers.stage.assessment')}</button>}
-                      {['received', 'screening'].includes(column.stage) && <button type="button" className="ox-careers-btn" onClick={() => bookInterview(app)}>{t('careers.employer.interview')}</button>}
-                      {['interview', 'assessment'].includes(column.stage) && <button type="button" className="ox-careers-btn" onClick={() => sendOffer(app)}>{t('careers.employer.offer')}</button>}
-                      {column.stage === 'offer' && <button type="button" className="ox-careers-btn primary" onClick={() => moveStage(app, 'hired')}>{t('careers.employer.hire')}</button>}
-                      <button type="button" className="ox-careers-btn" onClick={() => moveStage(app, 'rejected')}>{t('careers.stage.rejected')}</button>
+                      {column.stage === 'received' && <button type="button" className="ox-careers-btn" onClick={() => moveStage(app, 'screening')} data-track="ui.79490ac5e0.6">{t('careers.stage.screening')}</button>}
+                      {column.stage === 'screening' && <button type="button" className="ox-careers-btn" onClick={() => moveStage(app, 'interview')} data-track="ui.79490ac5e0.7">{t('careers.stage.interview')}</button>}
+                      {column.stage === 'interview' && <button type="button" className="ox-careers-btn" onClick={() => moveStage(app, 'assessment')} data-track="ui.79490ac5e0.8">{t('careers.stage.assessment')}</button>}
+                      {['received', 'screening'].includes(column.stage) && <button type="button" className="ox-careers-btn" onClick={() => bookInterview(app)} data-track="ui.79490ac5e0.9">{t('careers.employer.interview')}</button>}
+                      {['interview', 'assessment'].includes(column.stage) && <button type="button" className="ox-careers-btn" onClick={() => sendOffer(app)} data-track="ui.79490ac5e0.10">{t('careers.employer.offer')}</button>}
+                      {column.stage === 'offer' && <button type="button" className="ox-careers-btn primary" onClick={() => moveStage(app, 'hired')} data-track="ui.79490ac5e0.11">{t('careers.employer.hire')}</button>}
+                      <button type="button" className="ox-careers-btn" onClick={() => moveStage(app, 'rejected')} data-track="ui.79490ac5e0.12">{t('careers.stage.rejected')}</button>
                     </div>
                   </div>
                 ))}
@@ -371,7 +371,7 @@ export default function HiringPipelineBoard({ employerType = 'business', busines
             ))}
           </div>
           {applicationsPagination?.hasMore && (
-            <button type="button" className="ox-careers-btn" onClick={loadMoreApplications}>
+            <button type="button" className="ox-careers-btn" onClick={loadMoreApplications} data-track="ui.79490ac5e0.13">
               {t('careers.employer.loadMoreApplications', { defaultValue: 'Load more applicants' })}
             </button>
           )}

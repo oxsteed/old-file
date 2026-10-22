@@ -12,8 +12,9 @@ async function logInventoryAudit(client, entry) {
   const { rows: [event] } = await client.query(
     `INSERT INTO restaurant_inventory_audit_events
        (restaurant_id, business_id, event_type, entity_type, entity_id,
-        actor_user_id, client_operation_id, metadata)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb)
+        actor_user_id, client_operation_id, metadata, location_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,
+       COALESCE($9::bigint, restaurant_inventory_audit_location($1,$4,$5)))
      RETURNING *`,
     [
       entry.restaurantId,
@@ -24,6 +25,7 @@ async function logInventoryAudit(client, entry) {
       entry.actorUserId || null,
       entry.clientOperationId || null,
       JSON.stringify(entry.metadata || {}),
+      entry.locationId ?? entry.metadata?.locationId ?? null,
     ]
   );
   return event || null;

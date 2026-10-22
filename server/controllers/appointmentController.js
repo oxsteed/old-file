@@ -324,6 +324,8 @@ exports.createAppointment = async (req, res, next) => {
       );
       const appointment = apptInsert.rows[0];
 
+      await require('../growth/emit').emitDomainEvent(client, 'appointment.booked', {}, { userId: customer_id, req });
+
       if (normalizedRecurrence !== 'one_time') {
         await client.query(
           `INSERT INTO appointment_recurrence_rules

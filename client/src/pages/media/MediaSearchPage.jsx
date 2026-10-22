@@ -54,7 +54,7 @@ export default function MediaSearchPage() {
   return (
     <div className="media-search">
       <h1>{t('media.search.title')}</h1>
-      <form onSubmit={handleSearch}>
+      <form onSubmit={handleSearch} data-track="ui.1de06bd3a2.1">
         <input
           type="search"
           aria-label={t('media.search.placeholder')}
@@ -62,7 +62,7 @@ export default function MediaSearchPage() {
           onChange={e => setQuery(e.target.value)}
           placeholder={t('media.search.placeholder')}
         />
-        <button type="submit">{t('media.search.submit')}</button>
+        <button type="submit" data-track="ui.1de06bd3a2.2">{t('media.search.submit')}</button>
       </form>
       {loading && <p role="status">{t('media.search.loading')}</p>}
       {error && <p className="media-error" role="alert">{error}</p>}

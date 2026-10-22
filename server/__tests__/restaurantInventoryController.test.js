@@ -37,6 +37,9 @@ function app() {
     next();
   });
   server.get('/api/restaurants/:restaurantId/inventory/items', inventory.listItems);
+  server.get('/api/restaurants/:restaurantId/inventory/adjustments', inventory.listAdjustments);
+  server.get('/api/restaurants/:restaurantId/inventory/purchase-requests', inventory.listPurchaseRequests);
+  server.get('/api/restaurants/:restaurantId/inventory/supplier-issues', inventory.listSupplierIssues);
   server.post('/api/restaurants/:restaurantId/inventory/items', inventory.createItem);
   server.post('/api/restaurants/:restaurantId/inventory/items/:itemId/adjust', inventory.adjustItem);
   server.use(errorHandler);
@@ -190,5 +193,37 @@ describe('restaurant Inventory item backend', () => {
     const listSql = mockQuery.mock.calls[1][0];
     const groupBy = listSql.match(/GROUP BY([\s\S]*?)ORDER BY/)[1];
     expect(groupBy).toMatch(/reserved\.quantity/);
+  });
+
+  test('limits assigned members to inventory adjustments from their stores', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access({ effective_role: 'employee', effective_membership_id: 88 })] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, location_id: 101, location_name: 'Downtown' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/inventory/adjustments`);
+
+    expect(response.status).toBe(200);
+    const [sql, params] = mockQuery.mock.calls[2];
+    expect(sql).toMatch(/a\.location_id = ANY\(\$2::bigint\[\]\)/);
+    expect(params).toEqual([RESTAURANT_ID, [101], 50, 0]);
+  });
+
+  test('limits assigned members to store-scoped procurement records', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access({ effective_role: 'employee', effective_membership_id: 88 })] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, location_id: 101, location_name: 'Downtown' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [access({ effective_role: 'employee', effective_membership_id: 88 })] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, location_id: 101, location_name: 'Downtown' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const requests = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/inventory/purchase-requests`);
+    const issues = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/inventory/supplier-issues`);
+
+    expect(requests.status).toBe(200);
+    expect(issues.status).toBe(200);
+    expect(mockQuery.mock.calls[2][0]).toMatch(/r\.location_id = ANY\(\$2::bigint\[\]\)/);
+    expect(mockQuery.mock.calls[5][0]).toMatch(/i\.location_id = ANY\(\$2::bigint\[\]\)/);
   });
 });

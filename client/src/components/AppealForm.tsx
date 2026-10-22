@@ -83,14 +83,14 @@ const AppealForm: React.FC<AppealFormProps> = ({
           <button
             onClick={onClose}
             className="p-1 hover:bg-gray-800 rounded-lg transition-colors"
-            aria-label={t('common.close')}
+            aria-label={t('common.close')} data-track="ui.381ab219f9.1"
           >
             <X className="w-5 h-5 text-gray-400" />
           </button>
         </div>
 
         {/* Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6" data-track="ui.381ab219f9.2">
           {/* Info box */}
           <div className="bg-blue-900/20 border border-blue-800/50 rounded-lg p-4">
             <p className="text-sm text-blue-200">
@@ -132,7 +132,7 @@ const AppealForm: React.FC<AppealFormProps> = ({
                   <button
                     type="button"
                     onClick={() => handleRemoveEvidence(idx)}
-                    className="ms-2 p-1 hover:bg-gray-700 rounded transition-colors text-gray-400"
+                    className="ms-2 p-1 hover:bg-gray-700 rounded transition-colors text-gray-400" data-track="ui.381ab219f9.3"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -151,7 +151,7 @@ const AppealForm: React.FC<AppealFormProps> = ({
                   type="button"
                   onClick={handleAddEvidence}
                   disabled={newEvidenceContent.trim().length === 0}
-                  className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors disabled:opacity-50 font-semibold"
+                  className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors disabled:opacity-50 font-semibold" data-track="ui.381ab219f9.4"
                 >
                   {t('appeal.addEvidence')}
                 </button>
@@ -173,14 +173,14 @@ const AppealForm: React.FC<AppealFormProps> = ({
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 rounded-lg border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors disabled:opacity-50"
+              className="px-4 py-2 rounded-lg border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors disabled:opacity-50" data-track="ui.381ab219f9.5"
             >
               {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={isSubmitting || appealText.trim().length < 50}
-              className="px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white font-semibold transition-colors disabled:opacity-50 flex items-center gap-2"
+              className="px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white font-semibold transition-colors disabled:opacity-50 flex items-center gap-2" data-track="ui.381ab219f9.6"
             >
               {isSubmitting ? (
                 <>

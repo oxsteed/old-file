@@ -242,18 +242,18 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
           {!embedded && <h2 id="signup-title">{msg('title')}</h2>}
           <p>{msg('subtitle')}</p>
         </header>
-        {!otpSent ? <form ref={formRef} onSubmit={handleSubmit} noValidate aria-busy={busy === 'submit'}>
+        {!otpSent ? <form ref={formRef} onSubmit={handleSubmit} noValidate aria-busy={busy === 'submit'} data-track="ui.663f47c956.1" data-track-private>
           {entries.length > 0 && <div className="signup-error-summary" role="alert"><p>{msg('errorSummary')}</p><ul>{entries.map(([field, value]) => <li key={field}>
-            {field === 'general' ? value : <button type="button" onClick={() => focusField(field)}>{value}</button>}
+            {field === 'general' ? value : <button type="button" onClick={() => focusField(field)} data-track="ui.663f47c956.2">{value}</button>}
           </li>)}</ul>{errors.email === msg('emailTaken') && <Link to="/login">{t('nav.signIn')}</Link>}</div>}
-          {registrationExpired && <button type="button" className="signup-secondary" onClick={editDetails}>{msg('restart')}</button>}
+          {registrationExpired && <button type="button" className="signup-secondary" onClick={editDetails} data-track="ui.663f47c956.3">{msg('restart')}</button>}
           <fieldset disabled={Boolean(busy)} className="signup-section signup-mode-section"><legend>{msg('modePrompt')}</legend>
             <div className="signup-mode-grid">{MODES.map((mode, index) => {
               const Icon = ICONS[mode] || UserRound;
               return <label className={'signup-mode-card' + (form.defaultMode === mode ? ' selected' : '')} key={mode}>
                 <input type="radio" id={index === 0 ? 'defaultMode' : 'mode-' + mode} name="defaultMode" value={mode}
                   checked={form.defaultMode === mode} onChange={() => set('defaultMode', mode)}
-                  aria-describedby="signup-mode-help" aria-invalid={Boolean(errors.defaultMode) || undefined} />
+                  aria-describedby="signup-mode-help" aria-invalid={Boolean(errors.defaultMode) || undefined} data-track="ui.663f47c956.4" />
                 <Icon size={27} aria-hidden="true" /><strong>{t(MODE_CATALOG[mode].labelKey)}</strong>
                 <span className="signup-mode-description">{t(MODE_CATALOG[mode].hintKey)}</span>
                 {form.defaultMode === mode && <Check className="signup-mode-check" size={16} aria-hidden="true" />}
@@ -292,14 +292,14 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
             <PasswordField value={form.password} onChange={value => set('password', value)} error={errors.password}
               signupPolicy inputClassName="signup-input signup-password-input" labelClassName="signup-label" />
             <label className="signup-consent" htmlFor="ageConfirmed"><input id="ageConfirmed" type="checkbox" checked={form.ageConfirmed}
-              onChange={event => set('ageConfirmed', event.target.checked)} {...aria('ageConfirmed')} /><span>{msg('ageLabel')}</span></label>{fieldError('ageConfirmed')}
+              onChange={event => set('ageConfirmed', event.target.checked)} {...aria('ageConfirmed')} data-track="ui.663f47c956.5" /><span>{msg('ageLabel')}</span></label>{fieldError('ageConfirmed')}
             <label className="signup-consent" htmlFor="termsAccepted"><input id="termsAccepted" type="checkbox" checked={form.termsAccepted}
-              onChange={event => set('termsAccepted', event.target.checked)} {...aria('termsAccepted')} />
+              onChange={event => set('termsAccepted', event.target.checked)} {...aria('termsAccepted')} data-track="ui.663f47c956.6" />
               <span>{msg('agreePrefix')} <Link to="/terms" target="_blank" rel="noopener noreferrer">{t('footer.terms')}</Link>
                 {' '}{msg('and')}{' '}<Link to="/privacy" target="_blank" rel="noopener noreferrer">{t('footer.privacy')}</Link>.</span>
             </label>{fieldError('termsAccepted')}
           </fieldset>
-          <button type="submit" className="signup-primary" disabled={Boolean(busy) || (Boolean(registrationToken) && waitSeconds > 0) || registrationExpired}>
+          <button type="submit" className="signup-primary" disabled={Boolean(busy) || (Boolean(registrationToken) && waitSeconds > 0) || registrationExpired} data-track="ui.663f47c956.7">
             {busy === 'submit' ? msg('submitting') : waitSeconds > 0 && registrationToken ? t('signupUpgrade.resendWait', { seconds: waitSeconds }) : t('join.submit')}
             {!busy && <ArrowRight size={18} aria-hidden="true" />}
           </button>
@@ -313,10 +313,10 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
             invalid={Boolean(otpError || registrationExpired || otpExpired || isLocked)} />
           {notice && <p className="signup-notice" role="status">{notice}</p>}
           {busy && <p role="status">{msg(busy === 'verify' ? 'verifying' : 'sending')}</p>}
-          {registrationExpired ? <button type="button" className="signup-primary" onClick={editDetails} disabled={Boolean(busy)}>{msg('restart')}</button>
-            : <><button type="button" className="signup-secondary" onClick={handleResend} disabled={Boolean(busy) || waitSeconds > 0}>
+          {registrationExpired ? <button type="button" className="signup-primary" onClick={editDetails} disabled={Boolean(busy)} data-track="ui.663f47c956.8">{msg('restart')}</button>
+            : <><button type="button" className="signup-secondary" onClick={handleResend} disabled={Boolean(busy) || waitSeconds > 0} data-track="ui.663f47c956.9">
               {waitSeconds > 0 ? t('signupUpgrade.resendWait', { seconds: waitSeconds }) : t('join.resend')}</button>
-              <button type="button" className="signup-text-button" onClick={editDetails} disabled={Boolean(busy)}>{t('join.editDetails')}</button></>}
+              <button type="button" className="signup-text-button" onClick={editDetails} disabled={Boolean(busy)} data-track="ui.663f47c956.10">{t('join.editDetails')}</button></>}
         </section>}
         <p className="signup-signin">{msg('alreadyMember')} <Link to="/login">{t('nav.signIn')}</Link></p>
       </section>

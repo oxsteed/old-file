@@ -93,19 +93,19 @@ export default function HelperOnboardingChecklist() {
         <Row done={steps.terms} label={t('helperOnboarding.terms')}>
           <p className="text-sm">{t('helperOnboarding.termsHelp')}</p>
           {!steps.terms && (
-            <button type="button" disabled={busy} onClick={acceptTerms} className="underline text-start">
+            <button type="button" disabled={busy} onClick={acceptTerms} className="underline text-start" data-track="ui.6b938e0bab.1">
               {t('helperOnboarding.acceptTerms')}
             </button>
           )}
         </Row>
         <Row done={steps.profile} label={t('helperOnboarding.profile')}>
-          <form onSubmit={saveProfile} className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <form onSubmit={saveProfile} className="grid grid-cols-1 sm:grid-cols-2 gap-2" data-track="ui.6b938e0bab.2">
             {field('phone', 'helperOnboarding.phone')}
             {field('city', 'helperOnboarding.city')}
             {field('state', 'helperOnboarding.state')}
             {field('zip_code', 'helperOnboarding.zip')}
             {field('bio', 'helperOnboarding.bio')}
-            <button type="submit" disabled={busy} className="rounded bg-orange-500 px-3 py-1 self-end">{t('helperOnboarding.saveProfile')}</button>
+            <button type="submit" disabled={busy} className="rounded bg-orange-500 px-3 py-1 self-end" data-track="ui.6b938e0bab.3">{t('helperOnboarding.saveProfile')}</button>
           </form>
         </Row>
         <Row done={steps.identityVerified} label={t('helperOnboarding.identity')}>
@@ -114,7 +114,7 @@ export default function HelperOnboardingChecklist() {
         </Row>
         <Row done={steps.background === 'passed'} label={t('helperOnboarding.background')}>
           {steps.background === 'none'
-            ? <button type="button" disabled={busy || !steps.identitySubmitted} onClick={consentBackground} className="underline text-start">{t('helperOnboarding.backgroundConsent')}</button>
+            ? <button type="button" disabled={busy || !steps.identitySubmitted} onClick={consentBackground} className="underline text-start" data-track="ui.6b938e0bab.4">{t('helperOnboarding.backgroundConsent')}</button>
             : <p className="text-sm">{t('helperOnboarding.backgroundPending')}</p>}
         </Row>
       </ul>
@@ -122,7 +122,7 @@ export default function HelperOnboardingChecklist() {
         type="button"
         onClick={finalize}
         disabled={busy || (status.missing || []).length > 0}
-        className="mt-4 rounded bg-orange-500 px-4 py-2 disabled:opacity-50"
+        className="mt-4 rounded bg-orange-500 px-4 py-2 disabled:opacity-50" data-track="ui.6b938e0bab.5"
       >
         {t('helperOnboarding.finalize')}
       </button>

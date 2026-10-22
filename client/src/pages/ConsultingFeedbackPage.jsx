@@ -129,7 +129,7 @@ export default function ConsultingFeedbackPage() {
           Your feedback helps us deliver better consulting services
         </p>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} data-track="ui.1b4d9a13c9.1">
           {/* Rating */}
           <div style={formGroupStyle}>
             <label style={labelStyle}>Rate Your Session</label>
@@ -140,7 +140,7 @@ export default function ConsultingFeedbackPage() {
                   type="button"
                   style={starStyle(star)}
                   onClick={() => setRating(star)}
-                  title={`${star} star${star > 1 ? 's' : ''}`}
+                  title={`${star} star${star > 1 ? 's' : ''}`} data-track="ui.1b4d9a13c9.2"
                 >
                   ★
                 </button>
@@ -200,7 +200,7 @@ export default function ConsultingFeedbackPage() {
           <button
             type="submit"
             style={buttonStyle}
-            disabled={loading || rating === 0}
+            disabled={loading || rating === 0} data-track="ui.1b4d9a13c9.3"
           >
             {loading ? 'Submitting...' : 'Submit Feedback'}
           </button>

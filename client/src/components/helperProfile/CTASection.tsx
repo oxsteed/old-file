@@ -69,7 +69,7 @@ const CTASection: React.FC<CTASectionProps> = ({
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full px-5 py-3 flex items-center justify-between border-b border-gray-800 hover:bg-gray-800/50 transition-colors"
         aria-expanded={isExpanded}
-        aria-label={isExpanded ? t('helperProfile.cta.hideDetails') : t('helperProfile.cta.showDetails')}
+        aria-label={isExpanded ? t('helperProfile.cta.hideDetails') : t('helperProfile.cta.showDetails')} data-track="ui.0afefb5172.1"
       >
         <div className="flex items-baseline gap-1 text-start">
           <span className="text-2xl font-bold text-white">{priceLabel}</span>
@@ -114,7 +114,7 @@ const CTASection: React.FC<CTASectionProps> = ({
         <button
           onClick={primaryAction}
           className="w-full flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-brand-500 hover:bg-brand-600 shadow-lg shadow-brand-500/20 text-white font-semibold text-sm transition-colors active:scale-[0.98]"
-          aria-label={primaryEnabled ? t('helperProfile.cta.bookNowAria') : t('helperProfile.cta.messageHelperAria')}
+          aria-label={primaryEnabled ? t('helperProfile.cta.bookNowAria') : t('helperProfile.cta.messageHelperAria')} data-track="ui.0afefb5172.2"
         >
           {primaryEnabled ? (
             <CalendarCheck className="w-4 h-4" aria-hidden="true" />

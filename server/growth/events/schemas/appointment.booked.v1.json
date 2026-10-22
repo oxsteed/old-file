@@ -1,0 +1,19 @@
+{
+  "$id": "appointment.booked.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "service_id": {
+      "type": "string",
+      "maxLength": 36
+    },
+    "category_id": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "postal_ref": {
+      "type": "integer",
+      "minimum": 1
+    }
+  }
+}

@@ -7,6 +7,7 @@ const { errorHandler } = require('../middleware/errorHandler');
 const controller = require('../controllers/runnerWorkspaceController');
 const teamController = require('../controllers/businessTeamController');
 const restaurantRunner = require('../controllers/restaurantRunnerController');
+const permissionsService = require('../services/permissionsService');
 
 const USER_ID = '00000000-0000-4000-8000-000000000123';
 
@@ -25,7 +26,9 @@ function buildApp() {
   return app;
 }
 
-beforeEach(() => resetMocks());
+// S-08: runner actor gates resolve through permissionsService; clear its
+// cache per test so each scripted chain includes the resolver's rows.
+beforeEach(() => { resetMocks(); permissionsService.invalidateCache(); });
 
 test('returns business and restaurant ids for every authorized workspace', async () => {
   mockQuery.mockResolvedValueOnce({ rows: [
@@ -97,7 +100,8 @@ test('keeps a paused restaurant workspace visible with truthful operating state'
 test('rejects a task update when the task belongs to another runner', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{ id: 7, business_id: 40, effective_role: 'employee' }] })
-    .mockResolvedValueOnce({ rows: [{ id: 81, restaurant_id: 7, assigned_to: 'another-user', status: 'Ready' }] });
+    .mockResolvedValueOnce({ rows: [{ id: 81, restaurant_id: 7, assigned_to: 'another-user', status: 'Ready' }] })
+    .mockResolvedValueOnce({ rows: [] }); // S-08: role defaults (no runner.manage)
 
   const res = await request(buildApp())
     .patch('/api/restaurants/7/runner/tasks/81/status')
@@ -105,14 +109,33 @@ test('rejects a task update when the task belongs to another runner', async () =
 
   expect(res.status).toBe(403);
   expect(res.body.code).toBe('runner_task_not_assigned');
-  expect(mockQuery).toHaveBeenCalledTimes(2);
+  expect(mockQuery).toHaveBeenCalledTimes(3);
   expect(mockQuery.mock.calls[1][0]).toMatch(/restaurant_id = \$1 AND id = \$2/);
+  expect(mockQuery.mock.calls[2][0]).toMatch(/team_role_permissions/);
+});
+
+test('does not resolve a runner task outside the manager store assignment', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: 7, business_id: 40, effective_role: 'manager', effective_membership_id: 88 }] })
+    .mockResolvedValueOnce({ rows: [{ location_id: 101, membership_id: 88 }] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const res = await request(buildApp())
+    .patch('/api/restaurants/7/runner/tasks/81/status')
+    .send({ status: 'Picked up' });
+
+  expect(res.status).toBe(404);
+  expect(res.body.code).toBe('runner_task_not_found');
+  expect(mockQuery.mock.calls[1][0]).toMatch(/restaurant_location_memberships/);
+  expect(mockQuery.mock.calls[2][0]).toMatch(/location_id = ANY\(\$3::bigint\[\]\)/);
+  expect(mockQuery.mock.calls[2][1]).toEqual([7, 81, [101]]);
 });
 
 test('rechecks the locked task before completing a delivery', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{ id: 7, business_id: 40, effective_role: 'employee' }] })
     .mockResolvedValueOnce({ rows: [{ id: 81, restaurant_id: 7, assigned_to: USER_ID, status: 'En route' }] })
+    .mockResolvedValueOnce({ rows: [] }) // S-08: role defaults (no runner.manage)
     .mockResolvedValueOnce({ rows: [{ id: 81, restaurant_id: 7, assigned_to: USER_ID, status: 'Ready' }] });
 
   const res = await request(buildApp())
@@ -121,14 +144,15 @@ test('rechecks the locked task before completing a delivery', async () => {
 
   expect(res.status).toBe(409);
   expect(res.body.code).toBe('illegal_runner_status_transition');
-  expect(mockQuery).toHaveBeenCalledTimes(3);
-  expect(mockQuery.mock.calls[2][0]).toMatch(/FOR UPDATE/);
+  expect(mockQuery).toHaveBeenCalledTimes(4);
+  expect(mockQuery.mock.calls[3][0]).toMatch(/FOR UPDATE/);
 });
 
 test('completes the runner task, order, inventory, and kitchen event in one flow', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{ id: 7, business_id: 40, effective_role: 'employee' }] })
     .mockResolvedValueOnce({ rows: [{ id: 81, restaurant_id: 7, assigned_to: USER_ID, status: 'En route', food_order_id: 501, requires_proof: false }] })
+    .mockResolvedValueOnce({ rows: [] }) // S-08: role defaults (no runner.manage)
     .mockResolvedValueOnce({ rows: [{ id: 81, restaurant_id: 7, assigned_to: USER_ID, status: 'En route', food_order_id: 501, requires_proof: false }] })
     .mockResolvedValueOnce({ rows: [{ id: 81, status: 'Completed', food_order_id: 501 }] })
     .mockResolvedValueOnce({ rows: [{ id: 501, payment_status: 'paid', metadata: { paymentMode: 'pay_at_restaurant' } }] }) // M14 payment gate
@@ -142,11 +166,11 @@ test('completes the runner task, order, inventory, and kitchen event in one flow
 
   expect(res.status).toBe(200);
   expect(res.body.task).toMatchObject({ id: 81, status: 'Completed' });
-  expect(mockQuery.mock.calls[2][0]).toMatch(/FOR UPDATE/);
-  expect(mockQuery.mock.calls[3][0]).toMatch(/UPDATE restaurant_runner_tasks/);
-  expect(mockQuery.mock.calls[4][0]).toMatch(/SELECT id, payment_status, metadata/);
-  expect(mockQuery.mock.calls[5][0]).toMatch(/UPDATE food_orders/);
-  expect(mockQuery.mock.calls[7][0]).toMatch(/restaurant_kitchen_events/);
+  expect(mockQuery.mock.calls[3][0]).toMatch(/FOR UPDATE/);
+  expect(mockQuery.mock.calls[4][0]).toMatch(/UPDATE restaurant_runner_tasks/);
+  expect(mockQuery.mock.calls[5][0]).toMatch(/SELECT id, payment_status, metadata/);
+  expect(mockQuery.mock.calls[6][0]).toMatch(/UPDATE food_orders/);
+  expect(mockQuery.mock.calls[8][0]).toMatch(/restaurant_kitchen_events/);
 });
 
 test('returns restaurant-labelled offers and assigned tasks across workspaces', async () => {
@@ -165,6 +189,22 @@ test('returns restaurant-labelled offers and assigned tasks across workspaces', 
   expect(res.body.assignments[0]).toMatchObject({ restaurant_id: 7, restaurant_name: 'North Kitchen' });
   expect(mockQuery.mock.calls[1][1]).toEqual([USER_ID, 7, 9]);
   expect(mockQuery.mock.calls[2][0]).toMatch(/t\.assigned_to = \$1/);
+});
+
+test('runner inbox queries enforce assigned store scope for operational tasks', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [
+      { restaurant_id: 7, business_id: 40, restaurant_name: 'North Kitchen', business_name: 'Ox Group', role: 'employee' },
+    ] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const res = await request(buildApp()).get('/api/runner/inbox');
+
+  expect(res.status).toBe(200);
+  expect(mockQuery.mock.calls[1][0]).toMatch(/restaurant_location_memberships/);
+  expect(mockQuery.mock.calls[1][0]).toMatch(/t\.location_id IN/);
+  expect(mockQuery.mock.calls[2][0]).toMatch(/scope_lm\.location_id/);
 });
 
 test('returns an empty inbox when the user has no active restaurant access', async () => {

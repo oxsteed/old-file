@@ -163,7 +163,7 @@ if(attempt.status==='superseded')return <div className="lx-callout" role="status
           </p>
           {onRetry && (
             <div className="lx-btn-row lx-mt-6">
-              <button type="button" className="lx-action-primary" onClick={onRetry}>
+              <button type="button" className="lx-action-primary" onClick={onRetry} data-track-private>
                 {tx('logistics.checkout.status.retry', 'Try again with a new payment attempt')}
               </button>
             </div>
@@ -184,7 +184,7 @@ if(attempt.status==='superseded')return <div className="lx-callout" role="status
           className="lx-action-secondary"
           onClick={refresh}
           disabled={checking || !attempt?.id}
-          aria-busy={checking}
+          aria-busy={checking} data-track-private
         >
           {checking
             ? tx('logistics.checkout.status.checking', 'Checking payment status…')

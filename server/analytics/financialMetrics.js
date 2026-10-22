@@ -3,7 +3,8 @@
 // Shared executable definitions. Each result row belongs to exactly one
 // currency and BIGINTs remain strings through the PostgreSQL driver.
 const MONEY_METRICS = Object.freeze(['platform_revenue_cents', 'investor_gmv_cents',
-  'investor_take_rate_pct', 'mrr_cents', 'escrow_held_cents', 'promo_discount_cents']);
+  'investor_take_rate_pct', 'mrr_cents', 'escrow_held_cents', 'promo_discount_cents',
+  'growth_affiliate_commission_cents', 'growth_promo_redeemed_cents']);
 
 function majorUnitScaleSql(expression) {
   const cases = [];
@@ -69,6 +70,30 @@ function financialMetricSql(metric, { interval = '30 days', trunc = null } = {})
           AND redeemed_at >= NOW() - $1::interval AND redeemed_at < NOW()
         GROUP BY 1 ORDER BY 1`, params: [interval],
         columns: ['currency_code', 'promo_discount_cents', 'redemptions', 'platform_funded_cents', 'gross_cents'] };
+    case 'growth_affiliate_commission_cents':
+      // Demand & Sales Engine spec 21.1: approved commission minus
+      // reversals, per currency, exact minor units from the postback
+      // ledger. Assisted conversions are excluded (spec 13.1), like every
+      // other finance surface in the branch.
+      return { text: `SELECT UPPER(currency) AS currency_code,
+          COALESCE(SUM(CASE WHEN status IN ('approved','paid') THEN commission_minor
+                            WHEN status='reversed' THEN -commission_minor ELSE 0 END),0)::BIGINT AS growth_affiliate_commission_cents,
+          COUNT(*) FILTER (WHERE status IN ('approved','paid'))::INT AS conversions
+        FROM affiliate_conversions WHERE assisted = FALSE
+          AND created_at >= NOW() - $1::interval AND created_at < NOW()
+        GROUP BY 1 ORDER BY 1`, params: [interval],
+        columns: ['currency_code', 'growth_affiliate_commission_cents', 'conversions'] };
+    case 'growth_promo_redeemed_cents':
+      // Campaign codes only (discount_codes.offer_campaign_id set); the
+      // all-codes total remains promo_discount_cents.
+      return { text: `SELECT UPPER(pr.currency_code) AS currency_code,
+          COALESCE(SUM(pr.discount_cents),0)::BIGINT AS growth_promo_redeemed_cents,
+          COUNT(*)::INT AS redemptions
+        FROM promo_redemptions pr JOIN discount_codes dc ON dc.id = pr.discount_code_id
+        WHERE pr.status='redeemed' AND dc.offer_campaign_id IS NOT NULL
+          AND pr.redeemed_at >= NOW() - $1::interval AND pr.redeemed_at < NOW()
+        GROUP BY 1 ORDER BY 1`, params: [interval],
+        columns: ['currency_code', 'growth_promo_redeemed_cents', 'redemptions'] };
     default: throw new Error('Unsupported financial metric');
   }
 }

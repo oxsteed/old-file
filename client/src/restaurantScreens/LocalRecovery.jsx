@@ -121,7 +121,7 @@ export default function LocalRecovery({ restaurantId, onRecovered }) {
             <button
               className="fd-btn fd-btn-secondary"
               disabled={busy}
-              onClick={() => recover(row)}
+              onClick={() => recover(row)} data-track="ui.a220321d27.1"
             >
               {f("recoverUnpaid")}
             </button>
@@ -151,12 +151,12 @@ export default function LocalRecovery({ restaurantId, onRecovered }) {
             )}
           </p>
           <p>{f("offlineRule")}</p>
-          <button disabled={busy} className="fd-btn" onClick={confirm}>
+          <button disabled={busy} className="fd-btn" onClick={confirm} data-track="ui.a220321d27.2">
             {f("recoverUnpaid")}
           </button>
           <button
             className="fd-btn fd-btn-secondary"
-            onClick={() => setReview(null)}
+            onClick={() => setReview(null)} data-track="ui.a220321d27.3"
           >
             {f("close")}
           </button>

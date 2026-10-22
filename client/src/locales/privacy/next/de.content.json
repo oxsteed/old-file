@@ -1,0 +1,220 @@
+{
+  "sections": {
+    "1": {
+      "search": "1. Einleitung OxSteed LLC stellt lokale Dienstleistungsinserate, Aufträge und Gebote, Unternehmensarbeitsbereiche, Essensbestellungen, Lieferung, Medien sowie zugehörige Konto- und Zahlungstools bereit. Diese Richtlinie beschreibt Informationen, die verarbeitet werden, wenn Sie diese Funktionen nutzen, einschließlich Gastkontakt und Support. Die Verfügbarkeit hängt von der Funktion, dem Konto, der Region und dem Dienstleister ab.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "1. Einleitung"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed LLC stellt lokale Dienstleistungsinserate, Aufträge und Gebote, Unternehmensarbeitsbereiche, Essensbestellungen, Lieferung, Medien sowie zugehörige Konto- und Zahlungstools bereit. Diese Richtlinie beschreibt Informationen, die verarbeitet werden, wenn Sie diese Funktionen nutzen, einschließlich Gastkontakt und Support. Die Verfügbarkeit hängt von der Funktion, dem Konto, der Region und dem Dienstleister ab."
+        }
+      ]
+    },
+    "2": {
+      "search": "2. Informationen, die wir erheben Wir verarbeiten Informationen, die Sie bereitstellen: Kontakt- und Kontodaten, Profil- und Unternehmensinformationen, Auftrags- und Bestelldetails, Nachrichten, Supportanfragen, Bewertungen, hochgeladene Medien, Zahlungsdatensätze und gegebenenfalls Verifizierungsinformationen. Wir verarbeiten auch Geräte- und Anfrageinformationen wie IP-Adressen, Browserdetails, Sicherheitsprotokolle und eingewilligte Nutzungsereignisse. Der Standort kann aus einer von Ihnen eingegebenen Adresse, Ihrem Profil oder einer Geräteberechtigung stammen. Zahlungsanbieter können Zahlungsdaten direkt erheben.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "2. Informationen, die wir erheben"
+        },
+        {
+          "type": "p",
+          "text": "Wir verarbeiten Informationen, die Sie bereitstellen: Kontakt- und Kontodaten, Profil- und Unternehmensinformationen, Auftrags- und Bestelldetails, Nachrichten, Supportanfragen, Bewertungen, hochgeladene Medien, Zahlungsdatensätze und gegebenenfalls Verifizierungsinformationen. Wir verarbeiten auch Geräte- und Anfrageinformationen wie IP-Adressen, Browserdetails, Sicherheitsprotokolle und eingewilligte Nutzungsereignisse. Der Standort kann aus einer von Ihnen eingegebenen Adresse, Ihrem Profil oder einer Geräteberechtigung stammen. Zahlungsanbieter können Zahlungsdaten direkt erheben."
+        }
+      ]
+    },
+    "3": {
+      "search": "3. Wie wir Ihre Informationen verwenden Wir verwenden Informationen, um Konten und Arbeitsbereiche zu betreiben; Aufträge und Dienste zu vermitteln; Bestellungen zu erfüllen; Nachrichten und Mitteilungen zuzustellen; Zahlungen zu verarbeiten und abzustimmen; Support, Streitigkeiten und Datenschutzanfragen zu bearbeiten; Missbrauch zu verhindern; und rechtliche Verpflichtungen zu erfüllen. Optionale Analysen helfen uns, die Nutzung zu verstehen. Wenn Sie KI-gestützte Funktionen nutzen, können Ihre Eingabe und der relevante Funktionskontext an den konfigurierten KI-Anbieter gesendet werden, um eine Antwort zu erzeugen. Vermeiden Sie die Übermittlung unnötiger sensibler Informationen; KI-Ausgaben können ungenau sein.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "3. Wie wir Ihre Informationen verwenden"
+        },
+        {
+          "type": "p",
+          "text": "Wir verwenden Informationen, um Konten und Arbeitsbereiche zu betreiben; Aufträge und Dienste zu vermitteln; Bestellungen zu erfüllen; Nachrichten und Mitteilungen zuzustellen; Zahlungen zu verarbeiten und abzustimmen; Support, Streitigkeiten und Datenschutzanfragen zu bearbeiten; Missbrauch zu verhindern; und rechtliche Verpflichtungen zu erfüllen. Optionale Analysen helfen uns, die Nutzung zu verstehen. Wenn Sie KI-gestützte Funktionen nutzen, können Ihre Eingabe und der relevante Funktionskontext an den konfigurierten KI-Anbieter gesendet werden, um eine Antwort zu erzeugen. Vermeiden Sie die Übermittlung unnötiger sensibler Informationen; KI-Ausgaben können ungenau sein."
+        }
+      ]
+    },
+    "4": {
+      "search": "4. Wie wir Ihre Informationen weitergeben Informationen werden an die Teilnehmer und Unternehmen offengelegt, die zur Erbringung Ihrer angeforderten Dienstleistung erforderlich sind, an autorisierte Mitarbeiter sowie an Dienstleister für Zahlungen, Hosting und Speicherung, Inhaltsbereitstellung und Sicherheit, E-Mail- oder sonstige Mitteilungen, Karten und KI-Funktionen. Zu den Integrationen gehören Stripe und Cloudflare; weitere Anbieter hängen von der Funktion und der Konfiguration ab. Öffentliche Profile, Inserate, Bewertungen und veröffentlichte Medien sind für ihr jeweiliges Publikum sichtbar. Gesetzliche Offenlegungen und Unternehmensübertragungen können ebenfalls eine Weitergabe erfordern. Optionale Analyse- oder Werbeintegrationen werden in der Cookie-Richtlinie beschrieben.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "4. Wie wir Ihre Informationen weitergeben"
+        },
+        {
+          "type": "p",
+          "text": "Informationen werden an die Teilnehmer und Unternehmen offengelegt, die zur Erbringung Ihrer angeforderten Dienstleistung erforderlich sind, an autorisierte Mitarbeiter sowie an Dienstleister für Zahlungen, Hosting und Speicherung, Inhaltsbereitstellung und Sicherheit, E-Mail- oder sonstige Mitteilungen, Karten und KI-Funktionen. Zu den Integrationen gehören Stripe und Cloudflare; weitere Anbieter hängen von der Funktion und der Konfiguration ab. Öffentliche Profile, Inserate, Bewertungen und veröffentlichte Medien sind für ihr jeweiliges Publikum sichtbar. Gesetzliche Offenlegungen und Unternehmensübertragungen können ebenfalls eine Weitergabe erfordern. Optionale Analyse- oder Werbeintegrationen werden in der Cookie-Richtlinie beschrieben."
+        }
+      ]
+    },
+    "5": {
+      "search": "5. Adressdatenschutz und Datenmaskierung Die Sichtbarkeit des Auftragsorts hängt von Ihrer Rolle, Zuweisung, Planung und den anwendbaren Zugriffsprüfungen ab. Bestell- und Lieferdetails werden mit dem Unternehmen und den Teilnehmern geteilt, die sie für die Erfüllung benötigen. Informationen, die Sie in öffentlichen Beschreibungen, Fotos, Bewertungen oder Medien platzieren, können eine Adresse offenbaren, auch wenn strukturierte Adressfelder eingeschränkt sind. Veröffentlichen Sie keine privaten Adressen oder Zugangshinweise in öffentlichen Inhalten.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "5. Adressdatenschutz und Datenmaskierung"
+        },
+        {
+          "type": "p",
+          "text": "Die Sichtbarkeit des Auftragsorts hängt von Ihrer Rolle, Zuweisung, Planung und den anwendbaren Zugriffsprüfungen ab. Bestell- und Lieferdetails werden mit dem Unternehmen und den Teilnehmern geteilt, die sie für die Erfüllung benötigen. Informationen, die Sie in öffentlichen Beschreibungen, Fotos, Bewertungen oder Medien platzieren, können eine Adresse offenbaren, auch wenn strukturierte Adressfelder eingeschränkt sind. Veröffentlichen Sie keine privaten Adressen oder Zugangshinweise in öffentlichen Inhalten."
+        }
+      ]
+    },
+    "6": {
+      "search": "6. Datenspeicherung Die Speicherdauer variiert je nach Datensatz und Zweck. Konto-, Bestell-, Nachrichten-, Sicherheits- und Mediendatensätze haben unterschiedliche Lebenszyklen. Finanzbücher, Zahlungs- und Abrechnungsdatensätze, Einwilligungsnachweise und Prüfprotokolle können nach Kontoschließung für Buchhaltung, Streitigkeiten, Betrugsprävention und rechtliche Verpflichtungen verbleiben. Die Löschung kann durch laufende Arbeiten, einbehaltene Gelder, Streitigkeiten, erforderliche Prüfbelege oder Backup-Lebenszyklen verzögert werden. Wir versprechen nicht, dass die Schließung eines Kontos jeden Datensatz oder jede Drittkopie sofort löscht.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "6. Datenspeicherung"
+        },
+        {
+          "type": "p",
+          "text": "Die Speicherdauer variiert je nach Datensatz und Zweck. Konto-, Bestell-, Nachrichten-, Sicherheits- und Mediendatensätze haben unterschiedliche Lebenszyklen. Finanzbücher, Zahlungs- und Abrechnungsdatensätze, Einwilligungsnachweise und Prüfprotokolle können nach Kontoschließung für Buchhaltung, Streitigkeiten, Betrugsprävention und rechtliche Verpflichtungen verbleiben. Die Löschung kann durch laufende Arbeiten, einbehaltene Gelder, Streitigkeiten, erforderliche Prüfbelege oder Backup-Lebenszyklen verzögert werden. Wir versprechen nicht, dass die Schließung eines Kontos jeden Datensatz oder jede Drittkopie sofort löscht."
+        }
+      ]
+    },
+    "7": {
+      "search": "7. Ihre Rechte Je nach anwendbarem Recht können Sie Auskunft, Berichtigung, Löschung, Datenübertragbarkeit, Beschränkungen der Nutzung sensibler Informationen oder einen Opt-out aus Verkauf, Weitergabe oder gezielter Werbung verlangen. Sie können sich an privacy@oxsteed.com wenden oder /do-not-sell ohne Anmeldung nutzen. Wir können die Identität für Auskunft oder Löschung verifizieren und anwendbare Ausnahmen erläutern. Wir bearbeiten Anfragen innerhalb der geltenden gesetzlichen Fristen und werden Sie wegen der Ausübung von Datenschutzrechten nicht diskriminieren.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "7. Ihre Rechte"
+        },
+        {
+          "type": "p",
+          "text": "Je nach anwendbarem Recht können Sie Auskunft, Berichtigung, Löschung, Datenübertragbarkeit, Beschränkungen der Nutzung sensibler Informationen oder einen Opt-out aus Verkauf, Weitergabe oder gezielter Werbung verlangen. Sie können sich an privacy@oxsteed.com wenden oder /do-not-sell ohne Anmeldung nutzen. Wir können die Identität für Auskunft oder Löschung verifizieren und anwendbare Ausnahmen erläutern. Wir bearbeiten Anfragen innerhalb der geltenden gesetzlichen Fristen und werden Sie wegen der Ausübung von Datenschutzrechten nicht diskriminieren."
+        }
+      ]
+    },
+    "8": {
+      "search": "8. Cookies und Tracking-Technologien Essenzielle Cookies und Browserspeicher unterstützen Anmeldung, Sicherheit, Einwilligungsentscheidungen und angeforderte Funktionen. „Cookies verwalten“ steuert optionale Analyse-, Marketing- und zusätzliche funktionale Integrationen in diesem Browser. Analysen können First-Party-Seitenaufrufereignisse und Google Analytics umfassen; Marketing kann Meta Pixel umfassen, wenn konfiguriert. Grundeinstellungen und Entwürfe können den Browserspeicher unabhängig von optionalen Integrationen nutzen. Siehe die Cookie-Richtlinie für Steuerungen und Einschränkungen.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "8. Cookies und Tracking-Technologien"
+        },
+        {
+          "type": "p",
+          "text": "Essenzielle Cookies und Browserspeicher unterstützen Anmeldung, Sicherheit, Einwilligungsentscheidungen und angeforderte Funktionen. „Cookies verwalten“ steuert optionale Analyse-, Marketing- und zusätzliche funktionale Integrationen in diesem Browser. Analysen können First-Party-Seitenaufrufereignisse und Google Analytics umfassen; Marketing kann Meta Pixel umfassen, wenn konfiguriert. Grundeinstellungen und Entwürfe können den Browserspeicher unabhängig von optionalen Integrationen nutzen. Siehe die Cookie-Richtlinie für Steuerungen und Einschränkungen."
+        }
+      ]
+    },
+    "9": {
+      "search": "9. Datensicherheit und Benachrichtigung bei Sicherheitsvorfällen Wir verwenden Zugriffskontrollen, Passwort-Hashing, Sitzungsschutz, Validierung, Ratenbegrenzungen und Sicherheitsprotokollierung. Kein System ist vollständig sicher. Die Abdeckung hängt vom Dienst und der Konfiguration ab; diese Richtlinie zertifiziert nicht jeden Datenspeicher oder Drittanbieterdienst. Wenn ein Vorfall eine Mitteilung erfordert, benachrichtigen wir betroffene Personen und Behörden wie nach anwendbarem Recht erforderlich. Siehe /security für Meldehinweise.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "9. Datensicherheit und Benachrichtigung bei Sicherheitsvorfällen"
+        },
+        {
+          "type": "p",
+          "text": "Wir verwenden Zugriffskontrollen, Passwort-Hashing, Sitzungsschutz, Validierung, Ratenbegrenzungen und Sicherheitsprotokollierung. Kein System ist vollständig sicher. Die Abdeckung hängt vom Dienst und der Konfiguration ab; diese Richtlinie zertifiziert nicht jeden Datenspeicher oder Drittanbieterdienst. Wenn ein Vorfall eine Mitteilung erfordert, benachrichtigen wir betroffene Personen und Behörden wie nach anwendbarem Recht erforderlich. Siehe /security für Meldehinweise."
+        }
+      ]
+    },
+    "10": {
+      "search": "10. Kontolöschung Beantragen Sie die Kontolöschung über die verfügbaren Kontoeinstellungen oder privacy@oxsteed.com. Die Löschung kann personenbezogene Felder entfernen oder anonymisieren, während notwendige Transaktions- und Prüfdatensätze erhalten bleiben. Aktive Verpflichtungen müssen möglicherweise zuerst erfüllt werden. Kopien, die bereits von anderen Nutzern oder Anbietern erhalten wurden, unterliegen deren eigenen Verpflichtungen. Kontaktieren Sie uns für Umfang und Status Ihrer Anfrage.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "10. Kontolöschung"
+        },
+        {
+          "type": "p",
+          "text": "Beantragen Sie die Kontolöschung über die verfügbaren Kontoeinstellungen oder privacy@oxsteed.com. Die Löschung kann personenbezogene Felder entfernen oder anonymisieren, während notwendige Transaktions- und Prüfdatensätze erhalten bleiben. Aktive Verpflichtungen müssen möglicherweise zuerst erfüllt werden. Kopien, die bereits von anderen Nutzern oder Anbietern erhalten wurden, unterliegen deren eigenen Verpflichtungen. Kontaktieren Sie uns für Umfang und Status Ihrer Anfrage."
+        }
+      ]
+    },
+    "11": {
+      "search": "11 Datenschutz von Kindern unter 18 Minderjährige",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "11. Datenschutz von Kindern"
+        },
+        {
+          "type": "p",
+          "segments": [
+            "OxSteed ist nicht für die Nutzung durch Personen unter 18 Jahren bestimmt. Wir erheben wissentlich keine personenbezogenen Informationen von Kindern unter 18 Jahren. Wenn wir feststellen, dass wir personenbezogene Informationen von einem Kind unter 18 Jahren erhoben haben, werden wir sie unverzüglich löschen. Wenn Sie glauben, dass ein Kind unter 18 Jahren uns personenbezogene Informationen bereitgestellt hat, kontaktieren Sie uns unter ",
+            {
+              "mailto": "legal@oxsteed.com"
+            },
+            "."
+          ]
+        }
+      ]
+    },
+    "12": {
+      "search": "12 Änderungen Datenschutzrichtlinie E-Mail 14 Tage aktualisiert",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "12. Änderungen dieser Datenschutzrichtlinie"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed kann diese Datenschutzrichtlinie jederzeit aktualisieren. Wir werden Nutzer über wesentliche Änderungen mindestens 14 Tage vor deren Wirksamwerden per E-Mail benachrichtigen. Das Datum „Zuletzt aktualisiert“ oben auf dieser Seite spiegelt die jüngste Überarbeitung wider."
+        }
+      ]
+    },
+    "13": {
+      "search": "13 Kontakt Springfield legal@oxsteed.com",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "13. Kontakt"
+        },
+        {
+          "type": "p",
+          "text": "Bei Fragen zu dieser Datenschutzrichtlinie oder zur Ausübung Ihrer Datenschutzrechte kontaktieren Sie uns unter:"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed LLC"
+        },
+        {
+          "type": "p",
+          "text": "Springfield, Ohio"
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "mailto": "legal@oxsteed.com"
+            }
+          ]
+        }
+      ]
+    },
+    "14": {
+      "search": "Aktivität, Angebote und Partnerlinks Nach der Ankündigungsfrist erfassen wir Seiten, Klicks, Suchen und Marktplatzaktionen. Postleitzahlzentren statt persönlicher Koordinaten dienen der Nachfrageanalyse und Angebotsauswahl. Mitarbeiter genehmigen jede Kampagne. Die KI läuft ausschließlich auf OxSteed-kontrollierten Servern. Im EWR und Vereinigten Königreich erfordern Aktivitätserfassung und personalisierte Angebote getrennte, widerrufbare Einwilligungen. Betroffene US-Staaten bieten Widerspruch gegen Verkauf oder Weitergabe einschließlich Global Privacy Control. Andernorts steuert die Analyse-Einstellung Google Analytics und dauerhaften Gerätespeicher; diese Mitteilung deckt die Aktivität ab. Detaillierte Aktivität bleibt höchstens 90 Tage, Kontozusammenfassungen 13 Monate. Partner erhalten nur einen zufälligen Klickcode, keinen Namen, keine E-Mail und keine Aktivität. Für Käufe dort gilt deren Datenschutzrichtlinie. Angebotsbenachrichtigungen benötigen eine eigene Zustimmung und lassen sich unter Einstellungen → Datenschutz abschalten. Preise, Zugang und Suchrang bleiben gleich. Promote kann angemeldete Besucher sieben Tage einem Kontocode zuordnen. Auskunft, Berichtigung oder Löschung: privacy@oxsteed.com.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "14. Aktivität, Angebote und Partnerlinks"
+        },
+        {
+          "type": "p",
+          "text": "Nach der Ankündigungsfrist erfassen wir Seiten, Klicks, Suchen und Marktplatzaktionen. Postleitzahlzentren statt persönlicher Koordinaten dienen der Nachfrageanalyse und Angebotsauswahl. Mitarbeiter genehmigen jede Kampagne. Die KI läuft ausschließlich auf OxSteed-kontrollierten Servern."
+        },
+        {
+          "type": "p",
+          "text": "Im EWR und Vereinigten Königreich erfordern Aktivitätserfassung und personalisierte Angebote getrennte, widerrufbare Einwilligungen. Betroffene US-Staaten bieten Widerspruch gegen Verkauf oder Weitergabe einschließlich Global Privacy Control. Andernorts steuert die Analyse-Einstellung Google Analytics und dauerhaften Gerätespeicher; diese Mitteilung deckt die Aktivität ab."
+        },
+        {
+          "type": "p",
+          "text": "Detaillierte Aktivität bleibt höchstens 90 Tage, Kontozusammenfassungen 13 Monate. Partner erhalten nur einen zufälligen Klickcode, keinen Namen, keine E-Mail und keine Aktivität. Für Käufe dort gilt deren Datenschutzrichtlinie."
+        },
+        {
+          "type": "p",
+          "text": "Angebotsbenachrichtigungen benötigen eine eigene Zustimmung und lassen sich unter Einstellungen → Datenschutz abschalten. Preise, Zugang und Suchrang bleiben gleich. Promote kann angemeldete Besucher sieben Tage einem Kontocode zuordnen. Auskunft, Berichtigung oder Löschung: privacy@oxsteed.com."
+        }
+      ]
+    }
+  }
+}

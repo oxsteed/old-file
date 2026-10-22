@@ -90,6 +90,9 @@ async function renewSubscriptionCredit({ limit } = {}) {
             after: { status: 'cancelled' },
             throwOnError: true,
           });
+          // Entity only: amounts in this worker are OxSteed Credit amounts
+          // and are never emitted.
+          await require('../growth/emit').emitDomainEvent(client, 'subscription.cancelled', require('../growth/emit').commerceEventProps({ id: sub.id }), { userId: locked[0].user_id });
           ended += 1;
           return;
         }

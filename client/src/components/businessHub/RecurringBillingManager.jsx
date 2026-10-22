@@ -67,7 +67,7 @@ export function RecurringBillingManager({ businessId }) {
           <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{tRecurring('title')}</h3>
           <p style={{ margin: '0.25rem 0 0', color: 'var(--muted-text)', fontSize: '0.875rem' }}>{tRecurring('subtitle')}</p>
         </div>
-        <button onClick={() => { setEditing(null); setShowForm(true); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.6rem 1.2rem', cursor: 'pointer', fontWeight: 600 }}>
+        <button onClick={() => { setEditing(null); setShowForm(true); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.6rem 1.2rem', cursor: 'pointer', fontWeight: 600 }} data-track="ui.27920a0f43.1">
           <Plus size={16} /> {tRecurring('addRecurring')}
         </button>
       </div>
@@ -108,8 +108,8 @@ export function RecurringBillingManager({ businessId }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
-            <button onClick={() => { setShowForm(false); setEditing(null); }} style={{ padding: '0.6rem 1.2rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'transparent', color: 'var(--app-text)', cursor: 'pointer' }}>{t('common.cancel')}</button>
-            <button onClick={save} style={{ padding: '0.6rem 1.2rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>{tRecurring('save')}</button>
+            <button onClick={() => { setShowForm(false); setEditing(null); }} style={{ padding: '0.6rem 1.2rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'transparent', color: 'var(--app-text)', cursor: 'pointer' }} data-track="ui.27920a0f43.2">{t('common.cancel')}</button>
+            <button onClick={save} style={{ padding: '0.6rem 1.2rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }} data-track="ui.27920a0f43.3">{tRecurring('save')}</button>
           </div>
         </div>
       )}
@@ -134,11 +134,11 @@ export function RecurringBillingManager({ businessId }) {
                 </div>
               </div>
               <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>${(item.amount_cents / 100).toFixed(2)}</div>
-              <button onClick={() => toggle(item)} title={item.status === 'active' ? tRecurring('pause') : tRecurring('resume')} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: item.status === 'active' ? '#f59e0b' : '#10b981' }}>
+              <button onClick={() => toggle(item)} title={item.status === 'active' ? tRecurring('pause') : tRecurring('resume')} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: item.status === 'active' ? '#f59e0b' : '#10b981' }} data-track="ui.27920a0f43.4">
                 {item.status === 'active' ? <Pause size={16} /> : <Play size={16} />}
               </button>
-              <button onClick={() => { setEditing(item); setForm({ client_name: item.client_name || '', client_email: item.client_email || '', description: item.description || '', amount_cents: (item.amount_cents / 100).toFixed(2), frequency: item.frequency, start_date: item.next_billing_date?.split('T')[0] || '', notes: item.notes || '' }); setShowForm(true); }} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)' }}><Edit2 size={14} /></button>
-              <button onClick={() => remove(item.id)} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={14} /></button>
+              <button onClick={() => { setEditing(item); setForm({ client_name: item.client_name || '', client_email: item.client_email || '', description: item.description || '', amount_cents: (item.amount_cents / 100).toFixed(2), frequency: item.frequency, start_date: item.next_billing_date?.split('T')[0] || '', notes: item.notes || '' }); setShowForm(true); }} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)' }} data-track="ui.27920a0f43.5"><Edit2 size={14} /></button>
+              <button onClick={() => remove(item.id)} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }} data-track="ui.27920a0f43.6"><Trash2 size={14} /></button>
             </div>
           ))}
         </div>

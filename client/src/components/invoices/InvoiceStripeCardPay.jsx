@@ -54,7 +54,7 @@ function InvoiceCardForm({ clientSecret, amountCents, invoiceId, paymentIntentId
   const amountLabel = formatMoneyFromCents(amountCents, i18n.language);
 
   return (
-    <form className="invoice-stripe-card-pay-form" onSubmit={submit}>
+    <form className="invoice-stripe-card-pay-form" onSubmit={submit} data-track="ui.893f3d0d3e.1">
       <label className="invoice-stripe-card-label">
         <span>{t('invoices.stripeCardDetails', { defaultValue: 'Card details' })}</span>
         <div className="invoice-stripe-card-element">
@@ -62,7 +62,7 @@ function InvoiceCardForm({ clientSecret, amountCents, invoiceId, paymentIntentId
         </div>
       </label>
       {cardError && <p className="invoice-stripe-card-error" role="alert">{cardError}</p>}
-      <button type="submit" className="invoice-stripe-card-cta" disabled={submitting || !stripe}>
+      <button type="submit" className="invoice-stripe-card-cta" disabled={submitting || !stripe} data-track="ui.893f3d0d3e.2">
         {submitting ? (
           <>
             <Loader2 className="invoice-spin" size={18} aria-hidden="true" />

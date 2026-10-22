@@ -11,7 +11,7 @@ function renderSegments(segments: TextSeg[]): ReactNode[] {
         <a
           key={i}
           href={`mailto:${seg.mailto}`}
-          className="text-orange-500 underline"
+          className="text-orange-500 underline" data-track="ui.3961b9bc8d.1"
         >
           {seg.mailto}
         </a>
@@ -154,7 +154,7 @@ export function TermsBlocks({
                   {resolvedEmailLabel}{' '}
                   <a
                     href={`mailto:${b.email}`}
-                    className="text-orange-500 underline"
+                    className="text-orange-500 underline" data-track="ui.3961b9bc8d.2"
                   >
                     {b.email}
                   </a>
@@ -178,7 +178,7 @@ export function TermsBlocks({
                   href={b.href}
                   className="text-orange-500 underline"
                   target="_blank"
-                  rel="noopener noreferrer"
+                  rel="noopener noreferrer" data-track="ui.3961b9bc8d.3"
                 >
                   {b.linkLabel}
                 </a>

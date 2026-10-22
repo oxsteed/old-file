@@ -32,7 +32,7 @@ const ToolReviewForm: React.FC<ToolReviewFormProps> = ({ toolId, onSubmitted }) 
   };
 
   return (
-    <form onSubmit={handleSubmit} className="tool-review-form">
+    <form onSubmit={handleSubmit} className="tool-review-form" data-track="ui.2f0fd9fb63.1">
       <div className="tool-review-form-group">
         <label>{t('toolRentals.rating')}</label>
         <div className="tool-review-rating-selector">
@@ -41,7 +41,7 @@ const ToolReviewForm: React.FC<ToolReviewFormProps> = ({ toolId, onSubmitted }) 
               key={i}
               type="button"
               onClick={() => setRating(i + 1)}
-              className="tool-review-star-btn"
+              className="tool-review-star-btn" data-track="ui.2f0fd9fb63.2"
             >
               <Star className={`w-6 h-6 ${i < rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
             </button>
@@ -62,7 +62,7 @@ const ToolReviewForm: React.FC<ToolReviewFormProps> = ({ toolId, onSubmitted }) 
         <small>{reviewText.length}/500</small>
       </div>
 
-      <button type="submit" disabled={loading} className="tool-review-submit-btn">
+      <button type="submit" disabled={loading} className="tool-review-submit-btn" data-track="ui.2f0fd9fb63.3">
         {loading ? t('common.sending') : t('common.submit')}
       </button>
     </form>

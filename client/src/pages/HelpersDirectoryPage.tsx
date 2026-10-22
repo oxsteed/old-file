@@ -200,7 +200,7 @@ const FilterDrawer: React.FC<{
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
-            aria-label={t('common.close')}
+            aria-label={t('common.close')} data-track="ui.184cdf1d7c.1"
           >
             <X className="w-5 h-5" aria-hidden="true" />
           </button>
@@ -211,7 +211,7 @@ const FilterDrawer: React.FC<{
         <div className="px-4 py-3 border-t border-gray-800 flex-shrink-0">
           <button
             onClick={onClose}
-            className="w-full py-3 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-xl transition-colors"
+            className="w-full py-3 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-xl transition-colors" data-track="ui.184cdf1d7c.2"
           >
             {t('helpersDir.showResults')}
           </button>
@@ -249,7 +249,7 @@ const SkillTileGrid: React.FC<{
                   ? 'bg-brand-500/20 border-brand-500 text-brand-300 shadow-sm shadow-brand-500/20'
                   : 'bg-gray-800/60 border-gray-700 text-gray-400 hover:bg-gray-800 hover:border-gray-600 hover:text-gray-200'
                 }
-              `}
+              `} data-track="ui.184cdf1d7c.3"
             >
               <span className="text-xl leading-none" aria-hidden="true">{tile.icon}</span>
               <span className="text-xs font-medium leading-tight">{tile.label}</span>
@@ -296,7 +296,7 @@ const SubSkillStrip: React.FC<{
                   ? 'bg-brand-500 border-brand-500 text-white'
                   : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200'
                 }
-              `}
+              `} data-track="ui.184cdf1d7c.4"
             >
               {displayLabel}
             </button>
@@ -306,7 +306,7 @@ const SubSkillStrip: React.FC<{
       <button
         onClick={onClearTile}
         className="ml-auto text-xs text-gray-600 hover:text-gray-400 flex items-center gap-1 transition-colors whitespace-nowrap"
-        aria-label={t('helpersDir.clearFilter')}
+        aria-label={t('helpersDir.clearFilter')} data-track="ui.184cdf1d7c.5"
       >
         <X className="w-3 h-3" aria-hidden="true" />
         {t('helpersDir.clearFilter')}
@@ -391,7 +391,7 @@ const DirectoryHero: React.FC<{
               key={key}
               type="button"
               onClick={() => onSearch(key)}
-              className="min-h-[44px] px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 hover:text-white transition-colors"
+              className="min-h-[44px] px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 hover:text-white transition-colors" data-track="ui.184cdf1d7c.6"
             >
               {label}
             </button>
@@ -712,7 +712,7 @@ const HelpersDirectoryPage: React.FC<{ entryPoint?: 'helpers' | 'direct' }> = ({
                   details: t('helpersDir.openFiltersActiveDetails', { count: activeFilterCount }),
                 })
               : t('helpersDir.openFiltersAria', { details: '' })
-          }
+          } data-track="ui.184cdf1d7c.7"
         >
           <SlidersHorizontal className="w-4 h-4" aria-hidden="true" />
           {t('helpersDir.filters')}
@@ -787,7 +787,7 @@ const HelpersDirectoryPage: React.FC<{ entryPoint?: 'helpers' | 'direct' }> = ({
                 <p className="text-sm mb-4">{t('helpersDir.loadError')}</p>
                 <button
                   onClick={() => load(filters, sort, 1)}
-                  className="px-6 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-medium text-sm transition-colors"
+                  className="px-6 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-medium text-sm transition-colors" data-track="ui.184cdf1d7c.8"
                 >
                   {t('common.retry')}
                 </button>
@@ -829,7 +829,7 @@ const HelpersDirectoryPage: React.FC<{ entryPoint?: 'helpers' | 'direct' }> = ({
                       className="flex items-center gap-2 px-8 py-3 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors text-sm font-medium disabled:opacity-50"
                       aria-label={t('helpersDir.loadMoreHelpersAria', {
                         count: total - displayed.length,
-                      })}
+                      })} data-track="ui.184cdf1d7c.9"
                     >
                       {loadState === 'loading' ? t('common.loading') : t('helpersDir.showMore')}
                       <ChevronDown className="w-4 h-4" aria-hidden="true" />

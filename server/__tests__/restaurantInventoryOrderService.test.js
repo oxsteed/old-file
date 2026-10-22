@@ -98,6 +98,15 @@ describe('restaurant inventory order service', () => {
     expect(mockQuery.mock.calls[3][0]).toMatch(/SET status = 'consumed'/);
   });
 
+  test('combined demand for one ingredient fails before any write', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [
+      { id: 1, inventory_item_id: 17, quantity: '3', on_hand_quantity: '5' },
+      { id: 2, inventory_item_id: 17, quantity: '3', on_hand_quantity: '5' },
+    ] });
+    await expect(consumeInventoryForOrder(client, { restaurantId: 5, orderId: 7 })).rejects.toMatchObject({ code: 'inventory_consistency_conflict' });
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
   test('releases open reservations without changing on-hand stock', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ inventory_item_id: 17 }] });
 
@@ -106,5 +115,39 @@ describe('restaurant inventory order service', () => {
     expect(result).toEqual({ released: 1 });
     expect(mockQuery.mock.calls[0][0]).toMatch(/SET status = 'released'/);
     expect(availability.syncMappedMenuAvailability).toHaveBeenCalledTimes(1);
+  });
+
+  test('keeps a store-scoped reservation and refresh scoped availability', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          inventory_item_id: 17,
+          menu_item_id: 41,
+          required_quantity: '1',
+          active_inventory_item_id: 17,
+          inventory_item_name: 'Buns',
+          on_hand_quantity: '10',
+          reserved_quantity: '0',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: 100, inventory_item_id: 17, location_id: 22 }] });
+
+    await reserveInventoryForOrder(client, {
+      restaurantId: 5,
+      orderId: 7,
+      locationId: 22,
+      orderItems: [{ id: 8, menuItemId: 41, quantity: 1 }],
+    });
+
+    expect(mockQuery.mock.calls[0][0]).toMatch(/rii\.location_id = \$3/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/location_id = \$3/);
+    expect(mockQuery.mock.calls[2][0]).toMatch(/location_id/);
+    expect(mockQuery.mock.calls[2][1]).toEqual([5, 22, 7, 8, 17, 41, 1, null]);
+    expect(availability.syncMappedMenuAvailability).toHaveBeenCalledWith(client, 5, expect.objectContaining({
+      inventoryItemId: 17,
+      locationId: 22,
+      apply: true,
+    }));
   });
 });

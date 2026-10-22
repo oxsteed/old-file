@@ -26,6 +26,16 @@ export function useCookieConsent() {
   const [preferences, setPreferences] = useState<CookiePreferences | null>(null);
   const [showBanner, setShowBanner] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [growthPolicyEffective, setGrowthPolicyEffective] = useState(false);
+  const consentVersion = growthPolicyEffective ? `${CONSENT_VERSION}:growth-v1` : CONSENT_VERSION;
+  useEffect(() => {
+    let active = true;
+    fetch('/api/activity/policy', {credentials:'same-origin',cache:'no-store'})
+      .then(response=>response.ok?response.json():null).then(policy=>{
+        if(active&&policy?.effective_at&&new Date(policy.effective_at).getTime()<=Date.now())setGrowthPolicyEffective(true);
+      }).catch(()=>{});
+    return ()=>{active=false;};
+  },[]);
 
   // Load saved preferences on mount
   useEffect(() => {
@@ -34,7 +44,7 @@ export function useCookieConsent() {
       if (stored) {
         const parsed: CookiePreferences = JSON.parse(stored);
         // Show banner again if version changed
-        if (parsed.version !== CONSENT_VERSION) {
+        if (parsed.version !== consentVersion) {
           setShowBanner(true);
           setPreferences(null);
         } else {
@@ -55,7 +65,7 @@ export function useCookieConsent() {
     } catch {
       setShowBanner(true);
     }
-  }, []);
+  }, [consentVersion]);
 
   const savePreferences = useCallback((prefs: Partial<CookiePreferences>) => {
     const full: CookiePreferences = {
@@ -65,7 +75,7 @@ export function useCookieConsent() {
       analytics: prefs.analytics === true,
       marketing: prefs.marketing === true && !hasGlobalPrivacyControl(),
       functional: prefs.functional === true,
-      version: CONSENT_VERSION,
+      version: consentVersion,
       timestamp: new Date().toISOString(),
     };
     // Browser privacy settings may block persistence; still apply this visit's choice.
@@ -80,7 +90,7 @@ export function useCookieConsent() {
     if (full.marketing)  initMarketing();
     else                 { disableMarketing(); removeMarketingCookies(); }
     if (full.functional) initFunctional();
-  }, []);
+  }, [consentVersion]);
 
   const acceptAll = useCallback(() => {
     savePreferences({
@@ -111,6 +121,7 @@ export function useCookieConsent() {
   );
 
   return {
+    growthPolicyEffective,
     preferences,
     showBanner,
     showSettings,

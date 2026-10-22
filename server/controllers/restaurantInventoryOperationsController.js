@@ -1,27 +1,33 @@
 'use strict';
 
 const pool = require('../db');
+const { safeTimezone, zonedParts } = require('../utils/foodOperatingHours');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
 const { withTransaction } = require('../utils/transaction');
 const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
 const { getEffectivePermissions, hasAny } = require('../services/permissionsService');
 const { logInventoryAudit } = require('../services/restaurantInventoryAuditService');
+const { getLocationScope, assertLocationAccess } = require('../services/restaurantLocationAccessService');
 
 const AREA_TYPES = new Set(['dry_storage', 'walk_in_cooler', 'freezer', 'bar', 'packaging', 'receiving', 'prep', 'other']);
 const SUPPLIER_STATUSES = new Set(['active', 'inactive', 'issue_reported']);
 const TRANSFER_STATUSES = new Set(['pending', 'completed', 'cancelled']);
+const INVOICE_MATCH_STATUSES = new Set(['unmatched', 'matched', 'exception']);
+const { inventoryId: positiveInt, foodCostRange } = require('../services/restaurantInventoryValidation');
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function positiveInt(value) {
-  const number = Number.parseInt(value, 10);
-  return Number.isInteger(number) && number > 0 ? number : null;
-}
 
 function text(value, max = 255) {
   if (value === undefined || value === null) return null;
   const normalized = String(value).trim();
   return normalized ? normalized.slice(0, max) : null;
+}
+
+function csvCell(value) {
+  const normalized = value === undefined || value === null ? '' : String(value);
+  return /[",\r\n]/.test(normalized)
+    ? `"${normalized.replaceAll('"', '""')}"`
+    : normalized;
 }
 
 function quantity(value, field = 'quantity') {
@@ -30,6 +36,17 @@ function quantity(value, field = 'quantity') {
     throw new AppError('Validation failed', 400, 'validation_failed', { [field]: 'Must be a non-negative number' });
   }
   return Math.round(number * 1000) / 1000;
+}
+
+function invoiceTotalCents(value, field = 'invoiceTotalCents') {
+  if (value === undefined || value === null || value === '') return null;
+  const number = Number(value);
+  if (!Number.isInteger(number) || number < 0) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      [field]: 'Invoice total must be non-negative cents',
+    });
+  }
+  return number;
 }
 
 function operationId(value) {
@@ -47,6 +64,17 @@ function operationId(value) {
 async function restaurantAccess(userId, restaurantId) {
   if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
   return resolveRestaurantAccess(userId, restaurantId);
+}
+
+function transferScopeClause(scope, parameterIndex) {
+  return scope?.mode === 'assigned'
+    ? { sql: ` AND (t.location_id IS NULL OR t.location_id = ANY($${parameterIndex}::bigint[]))`, values: [scope.location_ids] }
+    : { sql: '', values: [] };
+}
+
+async function getTransferScope(restaurant, userId) {
+  if (restaurant.effective_role === 'owner' || !restaurant.effective_membership_id) return null;
+  return getLocationScope(restaurant, userId);
 }
 
 async function requireInventoryPermission(userId, restaurant, permissions) {
@@ -95,74 +123,117 @@ async function receiptWithLines(client, restaurantId, receiptId) {
   return receipt || null;
 }
 
+async function requireReceiptLocation(client, restaurant, userId, { requestedLocationId, requestLocationId }) {
+  const locationId = requestLocationId || requestedLocationId;
+  if (locationId) {
+    await assertLocationAccess(restaurant, userId, locationId, client);
+    if (requestLocationId && requestedLocationId && Number(requestLocationId) !== Number(requestedLocationId)) {
+      throw new AppError('Receipt store does not match the purchase request', 400, 'location_mismatch');
+    }
+    return locationId;
+  }
+  const resolved = await client.query(
+    `SELECT id FROM restaurant_locations
+      WHERE restaurant_id = $1 AND status <> 'inactive'
+      ORDER BY is_primary DESC, id ASC LIMIT 1`,
+    [restaurant.id]
+  );
+  const primary = resolved.rows[0]?.id || null;
+  if (primary) await assertLocationAccess(restaurant, userId, primary, client);
+  return primary;
+}
+
+// Every query uses the same typed timezone/store parameters. The clock is
+// evaluated by PostgreSQL so local midnight and DST boundaries stay consistent.
+async function inventoryReadContext(restaurant, userId) {
+  const scope = await getTransferScope(restaurant, userId);
+  const params = [restaurant.id, safeTimezone(restaurant.timezone)];
+  if (scope?.mode === 'assigned') params.push(scope.location_ids);
+  return {
+    filter: (alias = '') => scope?.mode === 'assigned'
+      ? ` AND ${alias ? `${alias}.` : ''}location_id = ANY($3::bigint[])` : '',
+    stores: scope?.mode === 'assigned' ? ' AND id = ANY($3::bigint[])' : '',
+    query: (sql) => pool.query(`WITH inventory_clock AS (
+      SELECT (NOW() AT TIME ZONE $2::text)::date AS today
+    ), inventory_stock AS (
+      SELECT i.*, GREATEST(0, i.quantity - COALESCE(holds.quantity, 0)) AS available_quantity
+        FROM restaurant_inventory_items i
+        LEFT JOIN (
+          SELECT inventory_item_id, SUM(quantity) AS quantity
+            FROM restaurant_inventory_order_reservations
+           WHERE restaurant_id = $1 AND status = 'reserved'
+             AND (expires_at IS NULL OR expires_at > NOW())
+           GROUP BY inventory_item_id
+        ) holds ON holds.inventory_item_id = i.id
+       WHERE i.restaurant_id = $1
+    ) ${sql}`, params),
+  };
+}
+
 exports.getDashboard = async (req, res, next) => {
   try {
     const restaurantId = positiveInt(req.params.restaurantId);
     const restaurant = await restaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const context = await inventoryReadContext(restaurant, req.user.id);
     const [locationResult, riskResult, activityResult, prioritiesResult, impactsResult] = await Promise.all([
-      pool.query(
+      context.query(
         `SELECT name, address_city, address_state
            FROM restaurant_locations
-          WHERE restaurant_id = $1 AND status <> 'inactive'
-          ORDER BY is_primary DESC, id ASC LIMIT 1`,
-        [restaurantId]
+          WHERE restaurant_id = $1 AND status <> 'inactive'${context.stores}
+          ORDER BY is_primary DESC, id ASC LIMIT 1`
       ),
-      pool.query(
-        `SELECT COUNT(*) FILTER (WHERE quantity > 0 AND reorder_point > 0 AND quantity <= reorder_point)::int AS low_stock,
-                COUNT(*) FILTER (WHERE quantity <= 0)::int AS out_of_stock,
+      context.query(
+        `SELECT COUNT(*) FILTER (WHERE available_quantity > 0 AND reorder_point > 0 AND available_quantity <= reorder_point)::int AS low_stock,
+                COUNT(*) FILTER (WHERE available_quantity <= 0)::int AS out_of_stock,
                 COUNT(*) FILTER (WHERE last_counted_at IS NULL OR last_counted_at < NOW() - INTERVAL '7 days')::int AS needs_count,
                 (SELECT COUNT(*)::int FROM restaurant_inventory_supplier_issues
-                  WHERE restaurant_id = $1 AND status IN ('open','monitoring','in_progress')) AS supplier_issues,
+                  WHERE restaurant_id = $1${context.filter()} AND status IN ('open','monitoring','in_progress')) AS supplier_issues,
                 (SELECT COUNT(*)::int FROM restaurant_inventory_purchase_requests
-                  WHERE restaurant_id = $1 AND status IN ('pending','approved')) AS pending_requests
-           FROM restaurant_inventory_items
-          WHERE restaurant_id = $1 AND is_active = TRUE`,
-        [restaurantId]
+                  WHERE restaurant_id = $1${context.filter()} AND status IN ('pending','approved')) AS pending_requests
+           FROM inventory_stock
+          WHERE restaurant_id = $1${context.filter()} AND is_active = TRUE`
       ),
-      pool.query(
+      context.query(
         `SELECT COUNT(*) FILTER (WHERE adjustment_type = 'count')::int AS counts_done,
                 COUNT(DISTINCT source_id) FILTER (WHERE adjustment_type = 'receive' AND source_type = 'receipt')::int AS deliveries,
                 COUNT(*) FILTER (WHERE adjustment_type = 'waste')::int AS waste_reports,
                 (SELECT COUNT(*)::int FROM restaurant_inventory_purchase_requests
-                  WHERE restaurant_id = $1 AND created_at >= CURRENT_DATE) AS requests
+                  WHERE restaurant_id = $1${context.filter()} AND created_at >= ((SELECT today FROM inventory_clock)::timestamp AT TIME ZONE $2)) AS requests
            FROM restaurant_inventory_adjustments
-          WHERE restaurant_id = $1 AND created_at >= CURRENT_DATE`,
-        [restaurantId]
+          WHERE restaurant_id = $1${context.filter()} AND created_at >= ((SELECT today FROM inventory_clock)::timestamp AT TIME ZONE $2)`
       ),
-      pool.query(
-        `SELECT i.id, i.name, i.quantity, i.unit, i.par_level, i.reorder_point,
+      context.query(
+        `SELECT i.id, i.name, i.quantity, i.available_quantity, i.unit, i.par_level, i.reorder_point,
                 i.critical_level, a.name AS area_name,
                 COUNT(m.id)::int AS affected_menu_count
-           FROM restaurant_inventory_items i
+           FROM inventory_stock i
            LEFT JOIN restaurant_inventory_storage_areas a
              ON a.id = i.storage_area_id
             AND a.restaurant_id = i.restaurant_id
            LEFT JOIN restaurant_inventory_item_mappings m
              ON m.inventory_item_id = i.id
             AND m.restaurant_id = i.restaurant_id
-          WHERE i.restaurant_id = $1 AND i.is_active = TRUE
-            AND (i.quantity <= 0 OR (i.reorder_point > 0 AND i.quantity <= i.reorder_point)
+          WHERE i.restaurant_id = $1${context.filter('i')} AND i.is_active = TRUE
+            AND (i.available_quantity <= 0 OR (i.reorder_point > 0 AND i.available_quantity <= i.reorder_point)
                  OR i.last_counted_at IS NULL OR i.last_counted_at < NOW() - INTERVAL '7 days')
-          GROUP BY i.id, a.name
-          ORDER BY CASE WHEN i.quantity <= 0 THEN 0
-                        WHEN i.critical_level > 0 AND i.quantity <= i.critical_level THEN 1
-                        ELSE 2 END, i.quantity ASC
-          LIMIT 10`,
-        [restaurantId]
+          GROUP BY i.id, i.name, i.quantity, i.available_quantity, i.unit, i.par_level, i.reorder_point, i.critical_level, a.name
+          ORDER BY CASE WHEN i.available_quantity <= 0 THEN 0
+                        WHEN i.critical_level > 0 AND i.available_quantity <= i.critical_level THEN 1
+                        ELSE 2 END, i.available_quantity ASC
+          LIMIT 10`
       ),
-      pool.query(
+      context.query(
         `SELECT fmi.id AS menu_item_id, fmi.name AS menu_item_name,
                 i.id AS inventory_item_id, i.name AS inventory_item_name,
-                i.quantity, i.reorder_point, i.critical_level
+                i.quantity, i.available_quantity, i.reorder_point, i.critical_level
            FROM restaurant_inventory_item_mappings m
-           JOIN restaurant_inventory_items i ON i.id = m.inventory_item_id AND i.restaurant_id = m.restaurant_id
+           JOIN inventory_stock i ON i.id = m.inventory_item_id AND i.restaurant_id = m.restaurant_id
            JOIN food_menu_items fmi ON fmi.id = m.menu_item_id AND fmi.restaurant_id = m.restaurant_id
-          WHERE m.restaurant_id = $1 AND m.auto_manage = TRUE
-            AND (i.quantity <= 0 OR (i.reorder_point > 0 AND i.quantity <= i.reorder_point))
-          ORDER BY i.quantity ASC, fmi.name ASC
-          LIMIT 20`,
-        [restaurantId]
+          WHERE m.restaurant_id = $1${context.filter('i')} AND m.auto_manage = TRUE
+            AND (i.available_quantity <= 0 OR (i.reorder_point > 0 AND i.available_quantity <= i.reorder_point))
+          ORDER BY i.available_quantity ASC, fmi.name ASC
+          LIMIT 20`
       ),
     ]);
 
@@ -201,56 +272,52 @@ exports.getReports = async (req, res, next) => {
     const restaurantId = positiveInt(req.params.restaurantId);
     const restaurant = await restaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const context = await inventoryReadContext(restaurant, req.user.id);
     const [wasteDaily, wasteSummary, countSummary, varianceDaily, topWasted, deliverySummary, deliverySuppliers] = await Promise.all([
-      pool.query(
-        `SELECT created_at::date AS day,
+      context.query(
+        `SELECT (created_at AT TIME ZONE $2)::date AS day,
                 COUNT(*)::int AS reports,
                 COALESCE(SUM(ABS(quantity_delta)), 0) AS quantity
            FROM restaurant_inventory_adjustments
-          WHERE restaurant_id = $1 AND adjustment_type = 'waste'
-            AND created_at >= CURRENT_DATE - INTERVAL '6 days'
-          GROUP BY created_at::date ORDER BY day`,
-        [restaurantId]
+          WHERE restaurant_id = $1${context.filter()} AND adjustment_type = 'waste'
+            AND created_at >= (((SELECT today FROM inventory_clock) - 6)::timestamp AT TIME ZONE $2)
+          GROUP BY (created_at AT TIME ZONE $2)::date ORDER BY day`
       ),
-      pool.query(
+      context.query(
         `SELECT COUNT(*)::int AS reports,
                 COALESCE(SUM(ABS(a.quantity_delta)), 0) AS quantity,
                 COALESCE(SUM(ABS(a.quantity_delta) * i.unit_cost), 0) AS estimated_cost
            FROM restaurant_inventory_adjustments a
            LEFT JOIN restaurant_inventory_items i ON i.id = a.item_id AND i.restaurant_id = a.restaurant_id
-          WHERE a.restaurant_id = $1 AND a.adjustment_type = 'waste'
-            AND a.created_at >= date_trunc('week', CURRENT_DATE)`,
-        [restaurantId]
+          WHERE a.restaurant_id = $1${context.filter('a')} AND a.adjustment_type = 'waste'
+            AND a.created_at >= (date_trunc('week', (SELECT today FROM inventory_clock)::timestamp) AT TIME ZONE $2)`
       ),
-      pool.query(
+      context.query(
         `SELECT COUNT(*) FILTER (WHERE ABS(quantity_delta) = 0)::int AS exact,
                 COUNT(*) FILTER (WHERE ABS(quantity_delta) > 0 AND ABS(quantity_delta) <= 1)::int AS minor,
                 COUNT(*) FILTER (WHERE ABS(quantity_delta) > 1)::int AS major
            FROM restaurant_inventory_adjustments
-          WHERE restaurant_id = $1 AND adjustment_type = 'count'
-            AND created_at >= CURRENT_DATE`,
-        [restaurantId]
+          WHERE restaurant_id = $1${context.filter()} AND adjustment_type = 'count'
+            AND created_at >= ((SELECT today FROM inventory_clock)::timestamp AT TIME ZONE $2)`
       ),
-      pool.query(
-        `SELECT created_at::date AS day, COALESCE(SUM(ABS(quantity_delta)), 0) AS variance
+      context.query(
+        `SELECT (created_at AT TIME ZONE $2)::date AS day, COALESCE(SUM(ABS(quantity_delta)), 0) AS variance
            FROM restaurant_inventory_adjustments
-          WHERE restaurant_id = $1 AND adjustment_type = 'count'
-            AND created_at >= CURRENT_DATE - INTERVAL '6 days'
-          GROUP BY created_at::date ORDER BY day`,
-        [restaurantId]
+          WHERE restaurant_id = $1${context.filter()} AND adjustment_type = 'count'
+            AND created_at >= (((SELECT today FROM inventory_clock) - 6)::timestamp AT TIME ZONE $2)
+          GROUP BY (created_at AT TIME ZONE $2)::date ORDER BY day`
       ),
-      pool.query(
+      context.query(
         `SELECT a.item_name, COALESCE(i.unit, 'unit') AS unit,
                 COALESCE(SUM(ABS(a.quantity_delta)), 0) AS quantity,
                 COALESCE(SUM(ABS(a.quantity_delta) * i.unit_cost), 0) AS estimated_cost
            FROM restaurant_inventory_adjustments a
            LEFT JOIN restaurant_inventory_items i ON i.id = a.item_id AND i.restaurant_id = a.restaurant_id
-          WHERE a.restaurant_id = $1 AND a.adjustment_type = 'waste'
-            AND a.created_at >= date_trunc('week', CURRENT_DATE)
-          GROUP BY a.item_name, i.unit ORDER BY quantity DESC LIMIT 5`,
-        [restaurantId]
+          WHERE a.restaurant_id = $1${context.filter('a')} AND a.adjustment_type = 'waste'
+            AND a.created_at >= (date_trunc('week', (SELECT today FROM inventory_clock)::timestamp) AT TIME ZONE $2)
+          GROUP BY a.item_name, i.unit ORDER BY quantity DESC LIMIT 5`
       ),
-      pool.query(
+      context.query(
         `SELECT COUNT(DISTINCT r.id)::int AS total,
                 COUNT(DISTINCT r.id) FILTER (WHERE l.received_quantity > l.accepted_quantity)::int AS with_issues,
                 CASE WHEN COALESCE(SUM(l.expected_quantity), 0) > 0
@@ -260,21 +327,19 @@ exports.getReports = async (req, res, next) => {
            LEFT JOIN restaurant_inventory_receipt_lines l
              ON l.receipt_id = r.id
             AND l.restaurant_id = r.restaurant_id
-          WHERE r.restaurant_id = $1
-            AND r.received_at >= date_trunc('week', CURRENT_DATE)`,
-        [restaurantId]
+          WHERE r.restaurant_id = $1${context.filter('r')}
+            AND r.received_at >= (date_trunc('week', (SELECT today FROM inventory_clock)::timestamp) AT TIME ZONE $2)`
       ),
-      pool.query(
+      context.query(
         `SELECT r.supplier_name, COUNT(l.id)::int AS lines,
                 COUNT(l.id) FILTER (WHERE l.received_quantity > l.accepted_quantity)::int AS issue_lines
            FROM restaurant_inventory_receipts r
            LEFT JOIN restaurant_inventory_receipt_lines l
              ON l.receipt_id = r.id
             AND l.restaurant_id = r.restaurant_id
-          WHERE r.restaurant_id = $1
-            AND r.received_at >= date_trunc('week', CURRENT_DATE)
-          GROUP BY r.supplier_name ORDER BY lines DESC, r.supplier_name LIMIT 8`,
-        [restaurantId]
+          WHERE r.restaurant_id = $1${context.filter('r')}
+            AND r.received_at >= (date_trunc('week', (SELECT today FROM inventory_clock)::timestamp) AT TIME ZONE $2)
+          GROUP BY r.supplier_name ORDER BY lines DESC, r.supplier_name LIMIT 8`
       ),
     ]);
     res.json({
@@ -295,6 +360,90 @@ exports.getReports = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+exports.foodCostSummary = async (req, res, next) => {
+  try {
+    const restaurantId = positiveInt(req.params.restaurantId);
+    const restaurant = await restaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const timezone = safeTimezone(restaurant.timezone);
+    const today = zonedParts(new Date(), timezone).dateKey;
+    const { fromDate, toDate } = foodCostRange(req.query, today);
+    const scope = await getTransferScope(restaurant, req.user.id);
+    const params = [restaurantId, fromDate, toDate, timezone];
+    let locationFilter = '';
+    let salesLocationFilter = '';
+    if (scope?.mode === 'assigned') {
+      params.push(scope.location_ids);
+      locationFilter = ' AND i.location_id = ANY($5::bigint[])';
+      salesLocationFilter = ' AND fo.location_id = ANY($5::bigint[])';
+    }
+    const { rows } = await pool.query(
+      `WITH sales AS (
+         SELECT COALESCE(SUM(fo.total_cents), 0) / 100.0 AS net_sales
+           FROM food_orders fo
+          WHERE fo.restaurant_id = $1
+            AND fo.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
+            AND fo.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
+            AND fo.payment_status = 'paid'
+            AND fo.status NOT IN ('cancelled', 'refunded')${salesLocationFilter}
+       ), theoretical AS (
+         SELECT rim.inventory_item_id,
+                COALESCE(SUM(foi.quantity * rim.required_quantity * rim.conversion_factor
+                  * (100.0 / NULLIF(rim.yield_percent, 0))), 0) AS quantity
+           FROM food_orders fo
+           JOIN food_order_items foi ON foi.order_id = fo.id
+           JOIN restaurant_inventory_item_mappings rim
+             ON rim.menu_item_id = foi.menu_item_id AND rim.restaurant_id = fo.restaurant_id
+           JOIN restaurant_inventory_items mapped_stock
+             ON mapped_stock.id = rim.inventory_item_id AND mapped_stock.restaurant_id = fo.restaurant_id
+            AND mapped_stock.location_id = fo.location_id
+          WHERE fo.restaurant_id = $1
+            AND fo.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
+            AND fo.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
+            AND fo.payment_status = 'paid'
+            AND fo.status NOT IN ('cancelled', 'refunded')${salesLocationFilter}
+          GROUP BY rim.inventory_item_id
+       ), actual AS (
+         SELECT item_id, COALESCE(SUM(ABS(quantity_delta)), 0) AS quantity
+           FROM restaurant_inventory_adjustments
+          WHERE restaurant_id = $1 AND adjustment_type = 'usage'${scope?.mode === 'assigned' ? ' AND location_id = ANY($5::bigint[])' : ''}
+            AND created_at >= (($2::date)::timestamp AT TIME ZONE $4)
+            AND created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
+          GROUP BY item_id
+       )
+       SELECT i.id AS inventory_item_id, i.name, i.unit, i.unit_cost,
+              sales.net_sales,
+              COALESCE(t.quantity, 0) AS theoretical_quantity,
+              COALESCE(a.quantity, 0) AS actual_quantity,
+              COALESCE(a.quantity, 0) - COALESCE(t.quantity, 0) AS variance_quantity,
+              COALESCE(t.quantity, 0) * i.unit_cost AS theoretical_cost,
+              COALESCE(a.quantity, 0) * i.unit_cost AS actual_cost,
+              (COALESCE(a.quantity, 0) - COALESCE(t.quantity, 0)) * i.unit_cost AS variance_cost
+         FROM restaurant_inventory_items i
+         LEFT JOIN theoretical t ON t.inventory_item_id = i.id
+         LEFT JOIN actual a ON a.item_id = i.id
+        CROSS JOIN sales
+        WHERE i.restaurant_id = $1 AND i.is_active = TRUE${locationFilter}
+        ORDER BY ABS((COALESCE(a.quantity, 0) - COALESCE(t.quantity, 0)) * i.unit_cost) DESC, i.name ASC`,
+      params
+    );
+    const totals = rows.reduce((sum, row) => {
+      sum.net_sales = Number(row.net_sales) || sum.net_sales;
+      sum.theoretical_cost += Number(row.theoretical_cost) || 0;
+      sum.actual_cost += Number(row.actual_cost) || 0;
+      sum.variance_cost += Number(row.variance_cost) || 0;
+      return sum;
+    }, { net_sales: 0, theoretical_cost: 0, actual_cost: 0, variance_cost: 0 });
+    totals.theoretical_cost_pct = totals.net_sales > 0
+      ? Number(((totals.theoretical_cost / totals.net_sales) * 100).toFixed(2)) : null;
+    totals.actual_cost_pct = totals.net_sales > 0
+      ? Number(((totals.actual_cost / totals.net_sales) * 100).toFixed(2)) : null;
+    totals.variance_cost_pct = totals.net_sales > 0
+      ? Number(((totals.variance_cost / totals.net_sales) * 100).toFixed(2)) : null;
+    res.json({ from_date: fromDate, to_date: toDate, rows, totals });
+  } catch (error) { next(error); }
+};
+
 exports.listAuditEvents = async (req, res, next) => {
   try {
     const restaurantId = positiveInt(req.params.restaurantId);
@@ -308,6 +457,11 @@ exports.listAuditEvents = async (req, res, next) => {
     const eventType = text(req.query.eventType, 80);
     const params = [restaurantId];
     const where = ['e.restaurant_id = $1'];
+    const scope = await getTransferScope(restaurant, req.user.id);
+    if (scope?.mode === 'assigned') {
+      params.push(scope.location_ids);
+      where.push(`e.location_id = ANY($${params.length}::bigint[])`);
+    }
 
     if (entityType) {
       params.push(entityType);
@@ -451,17 +605,123 @@ exports.createSupplier = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+exports.listSupplierCatalog = async (req, res, next) => {
+  try {
+    const restaurantId = positiveInt(req.params.restaurantId);
+    const restaurant = await restaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const scope = await getTransferScope(restaurant, req.user.id);
+    const params = [restaurantId];
+    const where = ['c.restaurant_id = $1', 'c.is_active = TRUE'];
+    if (positiveInt(req.query.supplierId)) {
+      params.push(positiveInt(req.query.supplierId));
+      where.push(`c.supplier_id = $${params.length}`);
+    }
+    if (positiveInt(req.query.inventoryItemId)) {
+      params.push(positiveInt(req.query.inventoryItemId));
+      where.push(`c.inventory_item_id = $${params.length}`);
+    }
+    if (scope?.mode === 'assigned') {
+      params.push(scope.location_ids);
+      where.push(`(i.location_id IS NULL OR i.location_id = ANY($${params.length}::bigint[]))`);
+    }
+    const { rows } = await pool.query(
+      `SELECT c.*, s.name AS supplier_name, i.name AS inventory_item_name, i.unit AS inventory_unit
+         FROM restaurant_inventory_supplier_catalog c
+         JOIN restaurant_inventory_suppliers s ON s.id = c.supplier_id AND s.restaurant_id = c.restaurant_id
+         JOIN restaurant_inventory_items i ON i.id = c.inventory_item_id AND i.restaurant_id = c.restaurant_id
+        WHERE ${where.join(' AND ')}
+        ORDER BY s.name ASC, i.name ASC`,
+      params
+    );
+    res.json({ catalog: rows });
+  } catch (error) { next(error); }
+};
+
+exports.upsertSupplierCatalog = async (req, res, next) => {
+  try {
+    const restaurantId = positiveInt(req.params.restaurantId);
+    const restaurant = await restaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
+    const supplierId = positiveInt(req.body.supplierId || req.body.supplier_id);
+    const inventoryItemId = positiveInt(req.body.inventoryItemId || req.body.inventory_item_id);
+    const packQuantity = quantity(req.body.packQuantity ?? req.body.pack_quantity ?? 1, 'packQuantity');
+    const packUnit = text(req.body.packUnit || req.body.pack_unit, 24);
+    const unitCost = Number(req.body.unitCost ?? req.body.unit_cost ?? 0);
+    const currencyCode = String(req.body.currencyCode || req.body.currency_code || 'USD').trim().toUpperCase();
+    const leadTimeDays = req.body.leadTimeDays ?? req.body.lead_time_days;
+    if (!supplierId || !inventoryItemId || !packUnit) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        supplierId: 'Supplier is required', inventoryItemId: 'Inventory item is required', packUnit: 'Pack unit is required',
+      });
+    }
+    if (!Number.isFinite(unitCost) || unitCost < 0 || unitCost > 100000000) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { unitCost: 'Unit cost must be non-negative' });
+    }
+    if (!/^[A-Z]{3}$/.test(currencyCode)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { currencyCode: 'Currency must be a 3-letter code' });
+    }
+    if (packQuantity <= 0) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { packQuantity: 'Pack quantity must be greater than zero' });
+    }
+    const lead = leadTimeDays === undefined || leadTimeDays === null || leadTimeDays === '' ? null : Number(leadTimeDays);
+    if (lead !== null && (!Number.isInteger(lead) || lead < 0 || lead > 365)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { leadTimeDays: 'Lead time must be between 0 and 365 days' });
+    }
+    const result = await withTransaction(pool, async (client) => {
+      const { rows: [refs] } = await client.query(
+        `SELECT s.id AS supplier_id, i.id AS inventory_item_id, i.location_id
+           FROM restaurant_inventory_suppliers s
+           CROSS JOIN restaurant_inventory_items i
+          WHERE s.id = $1 AND s.restaurant_id = $3 AND s.is_active = TRUE
+            AND i.id = $2 AND i.restaurant_id = $3 AND i.is_active = TRUE`,
+        [supplierId, inventoryItemId, restaurantId]
+      );
+      if (!refs) throw new AppError('Supplier or inventory item not found', 404, 'inventory_reference_not_found');
+      if (restaurant.effective_role !== 'owner' && restaurant.effective_membership_id && refs.location_id != null) {
+        await assertLocationAccess(restaurant, req.user.id, refs.location_id, client);
+      }
+      const { rows: [catalog] } = await client.query(
+        `INSERT INTO restaurant_inventory_supplier_catalog
+           (restaurant_id, supplier_id, inventory_item_id, supplier_sku, pack_quantity,
+            pack_unit, unit_cost, currency_code, lead_time_days, is_preferred, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+         ON CONFLICT (restaurant_id, supplier_id, inventory_item_id)
+         DO UPDATE SET supplier_sku = EXCLUDED.supplier_sku,
+                       pack_quantity = EXCLUDED.pack_quantity,
+                       pack_unit = EXCLUDED.pack_unit,
+                       unit_cost = EXCLUDED.unit_cost,
+                       currency_code = EXCLUDED.currency_code,
+                       lead_time_days = EXCLUDED.lead_time_days,
+                       is_preferred = EXCLUDED.is_preferred,
+                       is_active = TRUE,
+                       updated_at = NOW()
+         RETURNING *`,
+        [restaurantId, supplierId, inventoryItemId, text(req.body.supplierSku || req.body.supplier_sku, 80),
+          packQuantity, packUnit, Math.round(unitCost * 100) / 100, currencyCode, lead,
+          req.body.isPreferred === true || req.body.is_preferred === true, req.user.id]
+      );
+      await logInventoryAudit(client, auditEntry(restaurant, 'supplier_catalog_upserted', 'supplier_catalog', catalog.id, req, {
+        supplierId, inventoryItemId, unitCost: catalog.unit_cost, currencyCode: catalog.currency_code,
+      }));
+      return catalog;
+    });
+    res.status(201).json({ catalog: result });
+  } catch (error) { next(error); }
+};
+
 exports.listTransfers = async (req, res, next) => {
   try {
     const restaurantId = positiveInt(req.params.restaurantId);
     const restaurant = await restaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const scope = transferScopeClause(await getTransferScope(restaurant, req.user.id), 2);
     const { rows } = await pool.query(
       `SELECT t.*, TRIM(CONCAT(u.first_name, ' ', u.last_name)) AS transferred_by_name
          FROM restaurant_inventory_transfers t
          LEFT JOIN users u ON u.id = t.transferred_by
-        WHERE t.restaurant_id = $1 ORDER BY t.created_at DESC LIMIT 200`,
-      [restaurantId]
+        WHERE t.restaurant_id = $1${scope.sql} ORDER BY t.created_at DESC LIMIT 200`,
+      [restaurantId, ...scope.values]
     );
     res.json({ transfers: rows });
   } catch (error) { next(error); }
@@ -472,6 +732,7 @@ exports.createTransfer = async (req, res, next) => {
     const restaurantId = positiveInt(req.params.restaurantId);
     const restaurant = await restaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, UPDATE_INVENTORY);
+    const scope = await getTransferScope(restaurant, req.user.id);
     const itemId = positiveInt(req.body.itemId);
     const amount = quantity(req.body.quantity);
     if (!itemId || amount <= 0) throw new AppError('Validation failed', 400, 'validation_failed', { itemId: 'Item is required', quantity: 'Must be greater than zero' });
@@ -483,13 +744,22 @@ exports.createTransfer = async (req, res, next) => {
           `SELECT * FROM restaurant_inventory_transfers WHERE restaurant_id = $1 AND client_operation_id = $2`,
           [restaurantId, clientOperationId]
         );
-        if (existing) return { transfer: existing, replayed: true };
+        if (existing) {
+          if (scope?.mode === 'assigned' && existing.location_id != null
+            && !scope.location_ids.includes(Number(existing.location_id))) {
+            throw new AppError('Transfer not found', 404, 'inventory_transfer_not_found');
+          }
+          return { transfer: existing, replayed: true };
+        }
       }
       const { rows: [item] } = await client.query(
-        `SELECT id, name, unit FROM restaurant_inventory_items WHERE id = $1 AND restaurant_id = $2 AND is_active = TRUE`,
+        `SELECT id, name, unit, location_id FROM restaurant_inventory_items WHERE id = $1 AND restaurant_id = $2 AND is_active = TRUE`,
         [itemId, restaurantId]
       );
       if (!item) throw new AppError('Item not found', 404, 'inventory_item_not_found');
+      if (restaurant.effective_role !== 'owner' && restaurant.effective_membership_id && item.location_id != null) {
+        await assertLocationAccess(restaurant, req.user.id, item.location_id, client);
+      }
       const fromAreaId = positiveInt(req.body.fromAreaId);
       const toAreaId = positiveInt(req.body.toAreaId);
       const { rows: areas } = await client.query(
@@ -505,10 +775,10 @@ exports.createTransfer = async (req, res, next) => {
       const status = TRANSFER_STATUSES.has(req.body.status) ? req.body.status : 'completed';
       const { rows: [transfer] } = await client.query(
         `INSERT INTO restaurant_inventory_transfers
-           (restaurant_id, item_id, item_name, quantity, unit, from_area_id, to_area_id,
+           (restaurant_id, location_id, item_id, item_name, quantity, unit, from_area_id, to_area_id,
             from_area_name, to_area_name, status, note, transferred_by, client_operation_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
-        [restaurantId, item.id, item.name, amount, item.unit, fromAreaId, toAreaId,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+        [restaurantId, item.location_id || null, item.id, item.name, amount, item.unit, fromAreaId, toAreaId,
           fromName, toName, status, text(req.body.note, 1000), req.user.id, clientOperationId]
       );
       await logInventoryAudit(client, auditEntry(restaurant, 'transfer_created', 'transfer', transfer.id, req, {
@@ -532,19 +802,22 @@ exports.updateTransfer = async (req, res, next) => {
     const transferId = positiveInt(req.params.transferId);
     const restaurant = await restaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
+    const scope = await getTransferScope(restaurant, req.user.id);
     if (!transferId) throw new AppError('Transfer not found', 404, 'inventory_transfer_not_found');
     if (!TRANSFER_STATUSES.has(req.body.status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', {
         status: 'Status must be pending, completed, or cancelled',
       });
     }
+    const scopeClause = scope?.mode === 'assigned'
+      ? ' AND (location_id IS NULL OR location_id = ANY($4::bigint[]))' : '';
     const transfer = await withTransaction(pool, async (client) => {
       const { rows: [updated] } = await client.query(
         `UPDATE restaurant_inventory_transfers
             SET status = $1, updated_at = NOW()
-          WHERE id = $2 AND restaurant_id = $3
+          WHERE id = $2 AND restaurant_id = $3${scopeClause}
           RETURNING *`,
-        [req.body.status, transferId, restaurantId]
+        [req.body.status, transferId, restaurantId, ...(scope?.mode === 'assigned' ? [scope.location_ids] : [])]
       );
       if (!updated) throw new AppError('Transfer not found', 404, 'inventory_transfer_not_found');
       await logInventoryAudit(client, auditEntry(restaurant, 'transfer_updated', 'transfer', updated.id, req, {
@@ -561,6 +834,7 @@ exports.listReceipts = async (req, res, next) => {
     const restaurantId = positiveInt(req.params.restaurantId);
     const restaurant = await restaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const scope = transferScopeClause(await getTransferScope(restaurant, req.user.id), 2);
     const { rows } = await pool.query(
       `SELECT r.*, TRIM(CONCAT(u.first_name, ' ', u.last_name)) AS received_by_name,
               COALESCE(jsonb_agg(to_jsonb(l) ORDER BY l.id) FILTER (WHERE l.id IS NOT NULL), '[]'::jsonb) AS lines
@@ -569,12 +843,145 @@ exports.listReceipts = async (req, res, next) => {
            ON l.receipt_id = r.id
           AND l.restaurant_id = r.restaurant_id
          LEFT JOIN users u ON u.id = r.received_by
-        WHERE r.restaurant_id = $1
+        WHERE r.restaurant_id = $1${scope.sql.replaceAll('t.location_id', 'r.location_id')}
         GROUP BY r.id, u.first_name, u.last_name
         ORDER BY r.created_at DESC LIMIT 100`,
-      [restaurantId]
+      [restaurantId, ...scope.values]
     );
     res.json({ receipts: rows });
+  } catch (error) { next(error); }
+};
+
+exports.exportReceiptsCsv = async (req, res, next) => {
+  try {
+    const restaurantId = positiveInt(req.params.restaurantId);
+    const restaurant = await restaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const scope = transferScopeClause(await getTransferScope(restaurant, req.user.id), 2);
+    const { rows } = await pool.query(
+      `SELECT r.id, r.received_at, r.location_id, l.name AS location_name,
+              r.supplier_id, r.supplier_name, r.invoice_number, r.status,
+              r.purchase_request_id, r.invoice_match_status,
+              r.invoice_total_cents, r.invoice_currency_code,
+              r.general_note, r.received_by,
+              TRIM(CONCAT(u.first_name, ' ', u.last_name)) AS received_by_name
+         FROM restaurant_inventory_receipts r
+         LEFT JOIN restaurant_locations l ON l.id = r.location_id
+         LEFT JOIN users u ON u.id = r.received_by
+        WHERE r.restaurant_id = $1${scope.sql.replaceAll('t.location_id', 'r.location_id')}
+        ORDER BY r.received_at DESC LIMIT 10000`,
+      [restaurantId, ...scope.values]
+    );
+    const columns = [
+      'receipt_id', 'received_at', 'location_id', 'location_name', 'supplier_id',
+      'supplier_name', 'invoice_number', 'status', 'purchase_request_id',
+      'invoice_match_status', 'invoice_total_cents', 'invoice_currency_code',
+      'general_note', 'received_by', 'received_by_name',
+    ];
+    const lines = [columns.join(',')];
+    for (const row of rows) {
+      lines.push([
+        row.id, row.received_at, row.location_id, row.location_name, row.supplier_id,
+        row.supplier_name, row.invoice_number, row.status, row.purchase_request_id,
+        row.invoice_match_status, row.invoice_total_cents, row.invoice_currency_code,
+        row.general_note, row.received_by, row.received_by_name,
+      ].map(csvCell).join(','));
+    }
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="inventory-receipts.csv"');
+    res.send(`${lines.join('\n')}\n`);
+  } catch (error) { next(error); }
+};
+
+// External invoice systems often deliver their document after the stock
+// receipt. Keep that reconciliation inside the same restaurant/store scope as
+// receipt creation, and record every state change for later accounting export.
+exports.updateReceiptInvoiceMatch = async (req, res, next) => {
+  try {
+    const restaurantId = positiveInt(req.params.restaurantId);
+    const receiptId = positiveInt(req.params.receiptId);
+    const restaurant = await restaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, UPDATE_INVENTORY);
+    const status = text(req.body.invoiceMatchStatus || req.body.invoice_match_status, 24) || 'unmatched';
+    if (!INVOICE_MATCH_STATUSES.has(status)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        invoiceMatchStatus: 'Unsupported invoice match status',
+      });
+    }
+    const hasTotal = Object.prototype.hasOwnProperty.call(req.body, 'invoiceTotalCents')
+      || Object.prototype.hasOwnProperty.call(req.body, 'invoice_total_cents');
+    const parsedInvoiceTotal = invoiceTotalCents(
+      req.body.invoiceTotalCents ?? req.body.invoice_total_cents,
+    );
+    const hasCurrency = Object.prototype.hasOwnProperty.call(req.body, 'invoiceCurrencyCode')
+      || Object.prototype.hasOwnProperty.call(req.body, 'invoice_currency_code');
+    const invoiceCurrency = hasCurrency
+      ? String(req.body.invoiceCurrencyCode || req.body.invoice_currency_code || '').trim().toUpperCase()
+      : null;
+    if (hasCurrency && !/^[A-Z]{3}$/.test(invoiceCurrency)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        invoiceCurrencyCode: 'Currency must be a 3-letter code',
+      });
+    }
+    const purchaseRequestId = positiveInt(req.body.purchaseRequestId || req.body.purchase_request_id);
+    if (status === 'matched' && !purchaseRequestId && !hasTotal && !hasCurrency) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        invoiceMatchStatus: 'A matched invoice needs a purchase request or invoice metadata',
+      });
+    }
+    const receipt = await withTransaction(pool, async (client) => {
+      const { rows: [current] } = await client.query(
+        `SELECT * FROM restaurant_inventory_receipts
+          WHERE id = $1 AND restaurant_id = $2
+          FOR UPDATE`,
+        [receiptId, restaurantId]
+      );
+      if (!current) throw new AppError('Receipt not found', 404, 'inventory_receipt_not_found');
+      await assertLocationAccess(restaurant, req.user.id, current.location_id, client);
+
+      let request = null;
+      if (purchaseRequestId) {
+        const { rows: [found] } = await client.query(
+          `SELECT id, location_id, status
+             FROM restaurant_inventory_purchase_requests
+            WHERE id = $1 AND restaurant_id = $2
+            FOR UPDATE`,
+          [purchaseRequestId, restaurantId]
+        );
+        if (!found || found.status === 'cancelled') {
+          throw new AppError('Purchase request not found or cancelled', 404, 'purchase_request_not_found');
+        }
+        await assertLocationAccess(restaurant, req.user.id, found.location_id, client);
+        if (current.location_id != null && found.location_id != null
+          && Number(current.location_id) !== Number(found.location_id)) {
+          throw new AppError('Invoice purchase request must belong to the receipt store', 400, 'location_mismatch');
+        }
+        request = found;
+      }
+      const { rows: [updated] } = await client.query(
+        `UPDATE restaurant_inventory_receipts
+            SET purchase_request_id = COALESCE($1, purchase_request_id),
+                invoice_match_status = $2,
+                invoice_total_cents = CASE WHEN $3::boolean THEN $4 ELSE invoice_total_cents END,
+                invoice_currency_code = CASE WHEN $5::boolean THEN $6 ELSE invoice_currency_code END,
+                matched_at = CASE WHEN $2 = 'unmatched' THEN NULL ELSE NOW() END,
+                matched_by = CASE WHEN $2 = 'unmatched' THEN NULL ELSE $7 END
+          WHERE id = $8 AND restaurant_id = $9
+          RETURNING *`,
+        [request?.id || null, status, hasTotal, parsedInvoiceTotal, hasCurrency, invoiceCurrency,
+          status === 'unmatched' ? null : req.user.id, receiptId, restaurantId]
+      );
+      await logInventoryAudit(client, auditEntry(restaurant, 'receipt_invoice_match_updated', 'receipt', receiptId, req, {
+        previousStatus: current.invoice_match_status,
+        invoiceMatchStatus: updated.invoice_match_status,
+        previousPurchaseRequestId: current.purchase_request_id,
+        purchaseRequestId: updated.purchase_request_id,
+        invoiceTotalCents: updated.invoice_total_cents,
+        invoiceCurrencyCode: updated.invoice_currency_code,
+      }));
+      return receiptWithLines(client, restaurantId, updated.id);
+    });
+    res.json({ receipt });
   } catch (error) { next(error); }
 };
 
@@ -591,15 +998,26 @@ exports.createReceipt = async (req, res, next) => {
         lines: lines.length ? undefined : 'At least one line is required',
       });
     }
+    const purchaseRequestId = positiveInt(req.body.purchaseRequestId || req.body.purchase_request_id);
+    const invoiceTotalInput = req.body.invoiceTotalCents ?? req.body.invoice_total_cents;
+    const parsedInvoiceTotal = invoiceTotalInput === undefined || invoiceTotalInput === null || invoiceTotalInput === ''
+      ? null : invoiceTotalCents(invoiceTotalInput);
+    const invoiceCurrency = String(req.body.invoiceCurrencyCode || req.body.invoice_currency_code || 'USD').trim().toUpperCase();
+    if (!/^[A-Z]{3}$/.test(invoiceCurrency)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { invoiceCurrencyCode: 'Currency must be a 3-letter code' });
+    }
     const clientOperationId = operationId(req.body.clientOperationId);
     const result = await withTransaction(pool, async (client) => {
       if (clientOperationId) {
         await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`inventory-receipt:${restaurantId}:${clientOperationId}`]);
         const { rows: [existing] } = await client.query(
-          `SELECT id FROM restaurant_inventory_receipts WHERE restaurant_id = $1 AND client_operation_id = $2`,
+          `SELECT id, location_id FROM restaurant_inventory_receipts WHERE restaurant_id = $1 AND client_operation_id = $2`,
           [restaurantId, clientOperationId]
         );
-        if (existing) return { receipt: await receiptWithLines(client, restaurantId, existing.id), replayed: true };
+        if (existing) {
+          await assertLocationAccess(restaurant, req.user.id, existing.location_id, client);
+          return { receipt: await receiptWithLines(client, restaurantId, existing.id), replayed: true };
+        }
       }
       const supplierId = positiveInt(req.body.supplierId);
       if (supplierId) {
@@ -609,13 +1027,35 @@ exports.createReceipt = async (req, res, next) => {
         );
         if (!supplier) throw new AppError('Supplier not found', 404, 'supplier_not_found');
       }
+      let purchaseRequest = null;
+      if (purchaseRequestId) {
+        const { rows: [request] } = await client.query(
+          `SELECT id, location_id, supplier_name, status
+             FROM restaurant_inventory_purchase_requests
+            WHERE id = $1 AND restaurant_id = $2 FOR UPDATE`,
+          [purchaseRequestId, restaurantId]
+        );
+        if (!request || request.status === 'cancelled') {
+          throw new AppError('Purchase request not found or cancelled', 404, 'purchase_request_not_found');
+        }
+        await assertLocationAccess(restaurant, req.user.id, request.location_id, client);
+        purchaseRequest = request;
+      }
+      const receiptLocationId = await requireReceiptLocation(client, restaurant, req.user.id, {
+        requestedLocationId: parsePositiveInt(req.body.locationId || req.body.location_id),
+        requestLocationId: purchaseRequest?.location_id || null,
+      });
       const { rows: [receipt] } = await client.query(
         `INSERT INTO restaurant_inventory_receipts
-           (restaurant_id, supplier_id, supplier_name, invoice_number, status, general_note,
-            received_by, received_at, client_operation_id)
-         VALUES ($1,$2,$3,$4,'received',$5,$6,NOW(),$7) RETURNING *`,
-        [restaurantId, supplierId, supplierName, text(req.body.invoiceNumber, 120),
-          text(req.body.generalNote, 2000), req.user.id, clientOperationId]
+           (restaurant_id, location_id, supplier_id, supplier_name, invoice_number, status, general_note,
+            purchase_request_id, invoice_match_status, invoice_total_cents, invoice_currency_code,
+            matched_at, matched_by, received_by, received_at, client_operation_id)
+         VALUES ($1,$2,$3,$4,$5,'received',$6,$7,$8,$9,$10,$11,$12,$13,NOW(),$14) RETURNING *`,
+        [restaurantId, receiptLocationId, supplierId, supplierName, text(req.body.invoiceNumber, 120),
+          text(req.body.generalNote, 2000), purchaseRequestId,
+          purchaseRequestId ? 'matched' : 'unmatched', parsedInvoiceTotal, invoiceCurrency,
+          purchaseRequestId ? new Date() : null, purchaseRequestId ? req.user.id : null,
+          req.user.id, clientOperationId]
       );
       const auditLines = [];
       for (const [index, line] of lines.entries()) {
@@ -630,6 +1070,10 @@ exports.createReceipt = async (req, res, next) => {
           [itemId, restaurantId]
         );
         if (!item) throw new AppError('Item not found', 404, 'inventory_item_not_found');
+        if (item.location_id != null && receiptLocationId != null && Number(item.location_id) !== Number(receiptLocationId)) {
+          throw new AppError('Receipt items must belong to the receipt store', 400, 'location_mismatch');
+        }
+        if (item.location_id != null) await assertLocationAccess(restaurant, req.user.id, item.location_id, client);
         auditLines.push({
           itemId: item.id,
           itemName: item.name,
@@ -661,7 +1105,7 @@ exports.createReceipt = async (req, res, next) => {
             [restaurantId, item.id, item.name, accepted, after, text(line.issueNote, 1000), req.user.id, receipt.id]
           );
           await syncMappedMenuAvailability(client, restaurantId, {
-            inventoryItemId: item.id, apply: true, createdBy: req.user.id,
+            inventoryItemId: item.id, locationId: item.location_id, apply: true, createdBy: req.user.id,
           });
         }
       }
@@ -672,10 +1116,21 @@ exports.createReceipt = async (req, res, next) => {
           [supplierId, restaurantId]
         );
       }
+      if (purchaseRequestId) {
+        await client.query(
+          `UPDATE restaurant_inventory_purchase_requests
+              SET status = 'received', updated_at = NOW()
+            WHERE id = $1 AND restaurant_id = $2`,
+          [purchaseRequestId, restaurantId]
+        );
+      }
       await logInventoryAudit(client, auditEntry(restaurant, 'receipt_created', 'receipt', receipt.id, req, {
         supplierId,
         supplierName: receipt.supplier_name,
         invoiceNumber: receipt.invoice_number,
+        locationId: receipt.location_id,
+        purchaseRequestId: receipt.purchase_request_id,
+        invoiceMatchStatus: receipt.invoice_match_status,
         lineCount: auditLines.length,
         acceptedLineCount: auditLines.filter((line) => line.acceptedQuantity > 0).length,
         lines: auditLines.slice(0, 50),

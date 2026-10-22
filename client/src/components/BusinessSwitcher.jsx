@@ -144,7 +144,7 @@ export default function BusinessSwitcher({ compact = false }) {
         aria-controls={panelId}
         aria-expanded={open}
         aria-label={`${t('businessHub.switchBusiness', { defaultValue: 'Switch business' })}: ${active?.business_name || t('businessHub.title')}`}
-        title={active?.business_name || t('businessHub.title')}
+        title={active?.business_name || t('businessHub.title')} data-track="ui.6e97f177c4.1"
       >
         <BizAvatar name={active && active.business_name} />
         {!compact && (
@@ -169,7 +169,7 @@ export default function BusinessSwitcher({ compact = false }) {
                 aria-current={isActive ? 'true' : undefined}
                 title={b.business_name}
                 className={`ox-biz-switcher__item ${isActive ? 'ox-biz-switcher__item--active' : ''}`}
-                onClick={() => switchTo(b.id)}
+                onClick={() => switchTo(b.id)} data-track="ui.6e97f177c4.2"
               >
                 <BizAvatar name={b.business_name} />
                 <span className="ox-biz-switcher__item-text">

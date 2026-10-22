@@ -138,16 +138,16 @@ export default function ProofOfPaymentCard({
       </div>
       <div className="artifact-card-actions">
         {pop?.has_attachment ? (
-          <button type="button" className="artifact-btn" onClick={download}>
+          <button type="button" className="artifact-btn" onClick={download} data-track-private>
             <Download size={14} aria-hidden /> {t('helperProfile.messenger.popDownload')}
           </button>
         ) : null}
         {!readOnly && isProvider && status === 'submitted' ? (
           <>
-            <button type="button" className="artifact-btn primary" disabled={busy} onClick={() => confirm('confirm')}>
+            <button type="button" className="artifact-btn primary" disabled={busy} onClick={() => confirm('confirm')} data-track-private>
               <Check size={14} aria-hidden /> {t('helperProfile.messenger.popConfirm')}
             </button>
-            <button type="button" className="artifact-btn danger" disabled={busy} onClick={() => confirm('reject')}>
+            <button type="button" className="artifact-btn danger" disabled={busy} onClick={() => confirm('reject')} data-track-private>
               <X size={14} aria-hidden /> {t('helperProfile.messenger.popReject')}
             </button>
             <input
@@ -176,7 +176,7 @@ export default function ProofOfPaymentCard({
                 ),
                 currency: pop?.currency || 'USD',
               })
-            }
+            } data-track-private
           >
             {t('messages.creditRefund.button')}
           </button>

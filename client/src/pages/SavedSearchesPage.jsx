@@ -155,7 +155,7 @@ export default function SavedSearchesPage() {
                   disabled={busyId === search.id}
                   className="p-2.5 rounded-xl text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50"
                   aria-label={search.notify ? t('savedSearch.muteAlerts') : t('savedSearch.unmuteAlerts')}
-                  title={search.notify ? t('savedSearch.muteAlerts') : t('savedSearch.unmuteAlerts')}
+                  title={search.notify ? t('savedSearch.muteAlerts') : t('savedSearch.unmuteAlerts')} data-track="ui.d61ad73530.1"
                 >
                   {search.notify
                     ? <Bell className="w-4 h-4" aria-hidden="true" />
@@ -169,7 +169,7 @@ export default function SavedSearchesPage() {
                     confirmId === search.id
                       ? 'bg-red-600 hover:bg-red-700 text-white'
                       : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-gray-800'
-                  }`}
+                  }`} data-track="ui.d61ad73530.2"
                 >
                   <Trash2 className="w-4 h-4" aria-hidden="true" />
                   <span className="hidden sm:inline">

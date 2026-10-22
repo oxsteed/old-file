@@ -59,7 +59,7 @@ const ToolFavoriteButton: React.FC<ToolFavoriteButtonProps> = ({ toolId, onFavor
       onClick={handleToggleFavorite}
       disabled={loading}
       className={`tool-favorite-button ${isFavorited ? 'favorited' : ''}`}
-      aria-label={isFavorited ? t('toolRentals.removedFromFavorites') : t('toolRentals.addedToFavorites')}
+      aria-label={isFavorited ? t('toolRentals.removedFromFavorites') : t('toolRentals.addedToFavorites')} data-track="ui.feb2a59aef.1"
     >
       <Heart className={`w-5 h-5 ${isFavorited ? 'fill-red-500' : ''}`} />
     </button>

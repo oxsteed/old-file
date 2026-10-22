@@ -209,7 +209,7 @@ export default function MessengerAvailabilityPicker({
           type="button"
           className="messenger-availability__close"
           onClick={onClose}
-          aria-label={t('helperProfile.messenger.close')}
+          aria-label={t('helperProfile.messenger.close')} data-track-private
         >
           <X className="w-4 h-4" aria-hidden="true" />
         </button>
@@ -231,7 +231,7 @@ export default function MessengerAvailabilityPicker({
               aria-selected={String(selectedServiceId) === String(svc.id)}
               className={`messenger-availability__service${String(selectedServiceId) === String(svc.id) ? ' is-active' : ''}`}
               onClick={() => onServiceChange(svc.id)}
-              disabled={busy}
+              disabled={busy} data-track-private
             >
               {svc.name}
             </button>
@@ -272,7 +272,7 @@ export default function MessengerAvailabilityPicker({
                 role="option"
                 aria-selected={selectedDate === dateKey}
                 className={`messenger-availability__date${selectedDate === dateKey ? ' is-active' : ''}`}
-                onClick={() => setSelectedDate(dateKey)}
+                onClick={() => setSelectedDate(dateKey)} data-track-private
               >
                 {formatDayChip(dateKey, locale)}
               </button>
@@ -296,7 +296,7 @@ export default function MessengerAvailabilityPicker({
                       serviceName: slot.serviceName || selectedService?.name || '',
                       timezone: slot.timezone || resolveClientTimezone(),
                     })
-                  }
+                  } data-track-private
                 >
                   {formatTimeRange(slot, locale)}
                 </button>

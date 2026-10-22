@@ -82,7 +82,7 @@ export function LeadPipeline({ businessId }) {
           <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{t('businessHub.leads.title')}</h3>
           <p style={{ margin: '0.25rem 0 0', color: 'var(--muted-text)', fontSize: '0.875rem' }}>{t('businessHub.leads.subtitle')}</p>
         </div>
-        <button onClick={() => { setEditing(null); setShowForm(true); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.6rem 1.2rem', cursor: 'pointer', fontWeight: 600 }}>
+        <button onClick={() => { setEditing(null); setShowForm(true); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.6rem 1.2rem', cursor: 'pointer', fontWeight: 600 }} data-track="ui.a1e19d90b6.1">
           <Plus size={16} /> {t('businessHub.leads.addLead')}
         </button>
       </div>
@@ -91,7 +91,7 @@ export function LeadPipeline({ businessId }) {
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
         {STAGES.map((stage, i) => (
           <React.Fragment key={stage.id}>
-            <button onClick={() => setFilter(filter === stage.id ? '' : stage.id)} style={{ flexShrink: 0, padding: '0.5rem 1rem', border: `2px solid ${filter === stage.id ? stage.color : 'var(--border-color)'}`, borderRadius: '0.5rem', background: filter === stage.id ? stage.color + '22' : 'transparent', color: filter === stage.id ? stage.color : 'var(--muted-text)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
+            <button onClick={() => setFilter(filter === stage.id ? '' : stage.id)} style={{ flexShrink: 0, padding: '0.5rem 1rem', border: `2px solid ${filter === stage.id ? stage.color : 'var(--border-color)'}`, borderRadius: '0.5rem', background: filter === stage.id ? stage.color + '22' : 'transparent', color: filter === stage.id ? stage.color : 'var(--muted-text)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }} data-track="ui.a1e19d90b6.2">
               {stageLabel(stage)}<br /><span style={{ color: stage.color, fontSize: '1.1rem' }}>{getStageCount(stage)}</span>
             </button>
             {i < STAGES.length - 1 && <ChevronRight size={16} style={{ alignSelf: 'center', color: 'var(--border-color)', flexShrink: 0 }} />}
@@ -119,8 +119,8 @@ export function LeadPipeline({ businessId }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
-            <button onClick={() => { setShowForm(false); setEditing(null); }} style={{ padding: '0.5rem 1rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'transparent', color: 'var(--app-text)', cursor: 'pointer' }}>{t('common.cancel')}</button>
-            <button onClick={save} style={{ padding: '0.5rem 1rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>{t('common.save')}</button>
+            <button onClick={() => { setShowForm(false); setEditing(null); }} style={{ padding: '0.5rem 1rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'transparent', color: 'var(--app-text)', cursor: 'pointer' }} data-track="ui.a1e19d90b6.3">{t('common.cancel')}</button>
+            <button onClick={save} style={{ padding: '0.5rem 1rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }} data-track="ui.a1e19d90b6.4">{t('common.save')}</button>
           </div>
         </div>
       )}
@@ -153,8 +153,8 @@ export function LeadPipeline({ businessId }) {
                   {STAGES.map(s => <option key={s.id} value={s.id}>{stageLabel(s)}</option>)}
                 </select>
 
-                <button onClick={e => { e.stopPropagation(); startEdit(lead); }} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)' }}><Edit2 size={14} /></button>
-                <button onClick={e => { e.stopPropagation(); remove(lead.id); }} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={14} /></button>
+                <button onClick={e => { e.stopPropagation(); startEdit(lead); }} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)' }} data-track="ui.a1e19d90b6.5"><Edit2 size={14} /></button>
+                <button onClick={e => { e.stopPropagation(); remove(lead.id); }} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }} data-track="ui.a1e19d90b6.6"><Trash2 size={14} /></button>
               </div>
             );
           })}

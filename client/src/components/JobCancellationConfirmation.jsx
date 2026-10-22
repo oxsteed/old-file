@@ -232,7 +232,7 @@ export default function JobCancellationConfirmation({
             onChange={e => setAcknowledged(e.target.checked)}
             disabled={loading}
             aria-required="true"
-            className="jcc-ack-input"
+            className="jcc-ack-input" data-track="ui.0d9af49592.1"
           />
           <span className="jcc-ack-text">
             {activeFee > 0
@@ -254,7 +254,7 @@ export default function JobCancellationConfirmation({
             className="jcc-btn-keep"
             onClick={onCancel}
             disabled={loading}
-            type="button"
+            type="button" data-track="ui.0d9af49592.2"
           >
             {t('cancellationConfirm.keepJob', 'Keep the job')}
           </button>
@@ -264,7 +264,7 @@ export default function JobCancellationConfirmation({
             disabled={loading || !acknowledged}
             type="button"
             aria-disabled={!acknowledged}
-            title={!acknowledged ? t('cancellationConfirm.checkboxRequired', 'Please check the box above to continue') : ''}
+            title={!acknowledged ? t('cancellationConfirm.checkboxRequired', 'Please check the box above to continue') : ''} data-track="ui.0d9af49592.3"
           >
             {loading
               ? t('cancellationConfirm.cancelling', 'Cancelling…')

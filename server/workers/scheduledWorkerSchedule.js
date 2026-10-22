@@ -29,6 +29,7 @@ function buildSchedule() {
   const { processRevocationGracePeriods } = require('../services/restaurantCreditRevocationService');
 
   return [
+    ...require('../growth/workerSchedule').entries(),
     // [name, workerFn, intervalMs, options]
     ['normalizeLocations', normalizeLocations, 2 * 60 * 1000, { limit: 200 }],
     ['refreshEtas', refreshEtas, 60 * 1000, { limit: 100 }],
@@ -110,15 +111,27 @@ function runScheduledWorkerOnce([name, workerFn, intervalMs, options], { log = l
 // In-process runner for the API. Returns a handle with stop() so
 // BackgroundWorkers can shut it down.
 function startScheduledWorkers({ log = logger, schedule = SCHEDULED_WORKERS } = {}) {
-  const inFlight = new Set();
+  const inFlight = new Map();
   const timers = [];
   let stopped = false;
+  let stopPromise = null;
   for (const entry of schedule) {
     const [name, , intervalMs] = entry;
     const timer = setInterval(() => {
       if (stopped || inFlight.has(name)) return;
-      inFlight.add(name);
-      runScheduledWorkerOnce(entry, { log }).finally(() => inFlight.delete(name));
+      const run = Promise.resolve()
+        .then(() => runScheduledWorkerOnce(entry, { log }))
+        // runScheduledWorkerOnce normally contains the worker error boundary;
+        // keep the scheduler drain-safe if a mocked or future implementation
+        // rejects before reaching that boundary.
+        .catch((error) => {
+          log.error('Scheduled worker failed', { worker: name, error: error.message });
+          return { failed: true, error: error.message };
+        })
+        .finally(() => {
+          if (inFlight.get(name) === run) inFlight.delete(name);
+        });
+      inFlight.set(name, run);
     }, intervalMs);
     timer.unref?.();
     timers.push(timer);
@@ -126,9 +139,15 @@ function startScheduledWorkers({ log = logger, schedule = SCHEDULED_WORKERS } = 
   log.info('Scheduled workers running in the API process', { workers: schedule.map(([n]) => n) });
   return {
     stop() {
+      if (stopPromise) return stopPromise;
       stopped = true;
       for (const t of timers) clearInterval(t);
       timers.length = 0;
+      // Stop accepting new ticks, then let already-claimed work commit or
+      // fail before the API tears down its database, Redis and ClickHouse
+      // clients. This mirrors the dedicated worker's drain contract.
+      stopPromise = Promise.allSettled([...inFlight.values()]).then(() => undefined);
+      return stopPromise;
     },
     get size() { return timers.length; },
   };

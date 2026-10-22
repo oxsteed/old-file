@@ -4,7 +4,7 @@
 // hides, so we re-acquire on visibilitychange. Graceful no-op where the
 // API is unsupported (iPad Safari).
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { isWakeLockSupported } from '../utils/displayWakeLock';
+import { isWakeLockSupported } from '../utils/displayWakeLock.js';
 
 export function useWakeLock(active) {
   const [held, setHeld] = useState(false);

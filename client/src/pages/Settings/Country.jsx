@@ -55,7 +55,7 @@ export default function CountrySettings() {
             ? 'border-orange-500/50 bg-orange-500/10'
             : 'border-gray-800 bg-gray-900'
         } ${selectable ? 'hover:border-gray-600 cursor-pointer' : 'opacity-60 cursor-default'}`}
-        aria-pressed={isSelected}
+        aria-pressed={isSelected} data-track="ui.67aa023f55.1"
       >
         <span className="text-2xl w-11 h-11 flex items-center justify-center rounded-xl bg-gray-800 shrink-0">
           {entry.flag_emoji || '🌍'}

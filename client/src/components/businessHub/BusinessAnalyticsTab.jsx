@@ -28,7 +28,7 @@ function BusinessInvoiceRevenue({businessId,onInvoices}) {
       {['7d','30d','90d','1y'].map(p=><option key={p} value={p}>{t(`businessAnalytics.dateRange.${p}`)}</option>)}
     </select></label>
     {!data&&!error&&<p role="status">{t('businessAnalytics.loading')}</p>}
-    {error&&<div role="alert"><p>{t('businessAnalytics.toastLoadFailed')}</p><button onClick={()=>setRetry(n=>n+1)}>{t('queryBuilder.retry')}</button></div>}
+    {error&&<div role="alert"><p>{t('businessAnalytics.toastLoadFailed')}</p><button onClick={()=>setRetry(n=>n+1)} data-track="ui.36f9c6e03c.1">{t('queryBuilder.retry')}</button></div>}
     {data&&<>
       <label>{t('helperEarningsV2.currency')} <select aria-label={t('helperEarningsV2.currency')} value={data.currency_code} onChange={e=>{setCurrency(e.target.value);setOffset(0);}}>
         {(data.accounts.length?data.accounts:[data.currency_code]).map(code=><option key={code}>{code}</option>)}
@@ -41,10 +41,10 @@ function BusinessInvoiceRevenue({businessId,onInvoices}) {
       </table></div>
       <h3>{t('analyticsCompletion.records')}</h3>
       {!data.invoices.length&&<p>{t('businessAnalytics.noData')}</p>}
-      <ul>{data.invoices.map(row=><li key={row.id}><button onClick={onInvoices}>{row.invoice_number}</button> · {money(row.revenue)}</li>)}</ul>
+      <ul>{data.invoices.map(row=><li key={row.id}><button onClick={onInvoices} data-track="ui.36f9c6e03c.2">{row.invoice_number}</button> · {money(row.revenue)}</li>)}</ul>
       <nav aria-label={t('analyticsCompletion.paidInvoices')}>
-        <button disabled={!offset} onClick={()=>setOffset(Math.max(0,offset-20))}>{t('helperEarningsV2.previous')}</button>
-        <button disabled={!data.hasMore} onClick={()=>setOffset(offset+20)}>{t('helperEarningsV2.next')}</button>
+        <button disabled={!offset} onClick={()=>setOffset(Math.max(0,offset-20))} data-track="ui.36f9c6e03c.3">{t('helperEarningsV2.previous')}</button>
+        <button disabled={!data.hasMore} onClick={()=>setOffset(offset+20)} data-track="ui.36f9c6e03c.4">{t('helperEarningsV2.next')}</button>
       </nav>
     </>}
   </section>;

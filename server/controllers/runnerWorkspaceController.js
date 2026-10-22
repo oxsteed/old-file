@@ -31,6 +31,34 @@ const AUTHORIZED_RESTAURANTS_SQL = `
    ORDER BY fr.id, uwc.last_selected_at DESC NULLS LAST
 `;
 
+// A runner may belong to a business but be assigned to only some stores. Keep
+// workspace discovery broad while restricting operational tasks to those
+// assignments; owners retain all-store access and legacy members without an
+// active assignment keep the staged all-store behavior.
+const ASSIGNED_LOCATION_SCOPE_SQL = `
+            AND (
+              fr.owner_user_id = $1
+              OR b.user_id = $1
+              OR NOT EXISTS (
+                SELECT 1
+                  FROM restaurant_location_memberships scope_lm
+                  JOIN business_members scope_bm ON scope_bm.id = scope_lm.membership_id
+                 WHERE scope_lm.restaurant_id = t.restaurant_id
+                   AND scope_bm.member_id = $1
+                   AND scope_bm.status = 'active'
+                   AND scope_lm.status = 'active'
+              )
+              OR t.location_id IN (
+                SELECT scope_lm.location_id
+                  FROM restaurant_location_memberships scope_lm
+                  JOIN business_members scope_bm ON scope_bm.id = scope_lm.membership_id
+                 WHERE scope_lm.restaurant_id = t.restaurant_id
+                   AND scope_bm.member_id = $1
+                   AND scope_bm.status = 'active'
+                   AND scope_lm.status = 'active'
+              )
+            )`;
+
 async function loadWorkspaces(userId) {
   const { rows } = await pool.query(AUTHORIZED_RESTAURANTS_SQL, [userId]);
   return rows.map((row) => ({
@@ -95,6 +123,7 @@ exports.getUnifiedInbox = async (req, res, next) => {
            ) w
            LEFT JOIN food_orders o ON o.id = t.food_order_id
           WHERE t.assigned_to IS NULL
+            ${ASSIGNED_LOCATION_SCOPE_SQL}
             AND t.status IN ('Queued','Ready')
             AND (t.offer_expires_at IS NULL OR t.offer_expires_at > NOW())
             AND NOT EXISTS (
@@ -124,6 +153,7 @@ exports.getUnifiedInbox = async (req, res, next) => {
            JOIN businesses b ON b.id = fr.business_id
            LEFT JOIN food_orders o ON o.id = t.food_order_id
           WHERE t.assigned_to = $1
+            ${ASSIGNED_LOCATION_SCOPE_SQL}
           ORDER BY CASE t.status
                      WHEN 'Ready' THEN 0
                      WHEN 'Assigned' THEN 1

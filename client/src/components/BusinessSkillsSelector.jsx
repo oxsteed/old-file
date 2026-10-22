@@ -160,13 +160,13 @@ export default function BusinessSkillsSelector({
                       />
                       <button
                         onClick={() => handleSaveMinExp(skill.skill_id, editingMinExp)}
-                        className="px-2 py-1 bg-brand-500 hover:bg-brand-600 text-white text-xs rounded"
+                        className="px-2 py-1 bg-brand-500 hover:bg-brand-600 text-white text-xs rounded" data-track="ui.885dac7b2d.1"
                       >
                         {t('common.save')}
                       </button>
                       <button
                         onClick={() => setEditingSkillId(null)}
-                        className="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded"
+                        className="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded" data-track="ui.885dac7b2d.2"
                       >
                         {t('common.cancel')}
                       </button>
@@ -183,7 +183,7 @@ export default function BusinessSkillsSelector({
                             setEditingSkillId(skill.skill_id);
                             setEditingMinExp(skill.min_years_experience || '');
                           }}
-                          className="text-xs text-gray-500 hover:text-gray-400"
+                          className="text-xs text-gray-500 hover:text-gray-400" data-track="ui.885dac7b2d.3"
                         >
                           {t('businessSkills.addExperience') || 'Add experience requirement'}
                         </button>
@@ -195,7 +195,7 @@ export default function BusinessSkillsSelector({
                   <button
                     onClick={() => handleRemoveSkill(skill.skill_id)}
                     className="ms-2 p-1 text-gray-400 hover:text-red-400 transition-colors"
-                    aria-label={t('businessSkills.removeSkillAria', { defaultValue: 'Remove skill' })}
+                    aria-label={t('businessSkills.removeSkillAria', { defaultValue: 'Remove skill' })} data-track="ui.885dac7b2d.4"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -210,7 +210,7 @@ export default function BusinessSkillsSelector({
       {!readOnly && skills.length < maxSkills && (
         <button
           onClick={() => setShowSearch(!showSearch)}
-          className="flex items-center gap-2 w-full px-4 py-3 bg-gray-800 border border-dashed border-gray-600 hover:border-brand-500 rounded-lg text-sm text-gray-400 hover:text-brand-400 transition-colors"
+          className="flex items-center gap-2 w-full px-4 py-3 bg-gray-800 border border-dashed border-gray-600 hover:border-brand-500 rounded-lg text-sm text-gray-400 hover:text-brand-400 transition-colors" data-track="ui.885dac7b2d.5"
         >
           <Plus className="w-4 h-4" />
           {t('businessSkills.addSkill') || 'Add skill'}

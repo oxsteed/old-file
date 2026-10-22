@@ -226,7 +226,7 @@ export default function CampaignDetailPage() {
               )}
             </div>
             {canJoin && (
-              <button type="button" className="lx-btn-primary lx-next-step-action" onClick={() => setShowJoinForm(true)}>
+              <button type="button" className="lx-btn-primary lx-next-step-action" onClick={() => setShowJoinForm(true)} data-track="ui.6a7fa3bbd0.1">
                 {tx('logistics.campaigns.joinCampaign', 'Join Campaign')}
               </button>
             )}
@@ -299,7 +299,7 @@ export default function CampaignDetailPage() {
                     </ul>
                   </div>
                 )}
-                <button type="button" className="lx-btn-primary" onClick={handleSubmitForReview} disabled={submitting}>
+                <button type="button" className="lx-btn-primary" onClick={handleSubmitForReview} disabled={submitting} data-track="ui.6a7fa3bbd0.2">
                   {submitting
                     ? tx('logistics.campaigns.approval.submitting', 'Submitting…')
                     : tx('logistics.campaigns.approval.submitForReview', 'Submit for review')}
@@ -315,7 +315,7 @@ export default function CampaignDetailPage() {
             {/* Organizer: withdraw a submitted draft back to draft */}
             {isOwner && availableActions.includes('withdraw_from_review') && (
               <div className="lx-mt-4">
-                <button type="button" className="lx-btn-secondary" onClick={handleWithdraw} disabled={withdrawing}>
+                <button type="button" className="lx-btn-secondary" onClick={handleWithdraw} disabled={withdrawing} data-track="ui.6a7fa3bbd0.3">
                   {withdrawing
                     ? tx('logistics.campaigns.approval.withdrawing', 'Withdrawing…')
                     : tx('logistics.campaigns.approval.withdraw', 'Withdraw from review')}
@@ -338,15 +338,15 @@ export default function CampaignDetailPage() {
                   </div>
                 )}
                 <div className="lx-btn-row">
-                  <button type="button" className="lx-btn-primary" onClick={() => handleReview('approve')} disabled={reviewing}>
+                  <button type="button" className="lx-btn-primary" onClick={() => handleReview('approve')} disabled={reviewing} data-track="ui.6a7fa3bbd0.4">
                     {reviewing
                       ? tx('logistics.campaigns.approval.reviewing', 'Reviewing…')
                       : tx('logistics.campaigns.approval.approve', 'Approve and publish')}
                   </button>
-                  <button type="button" className="lx-btn-secondary" onClick={() => handleReview('request_changes')} disabled={reviewing}>
+                  <button type="button" className="lx-btn-secondary" onClick={() => handleReview('request_changes')} disabled={reviewing} data-track="ui.6a7fa3bbd0.5">
                     {tx('logistics.campaigns.approval.requestRevisions', 'Request revisions')}
                   </button>
-                  <button type="button" className="lx-btn-secondary" style={{ color: 'var(--color-error)', borderColor: 'var(--color-error)' }} onClick={() => handleReview('reject')} disabled={reviewing}>
+                  <button type="button" className="lx-btn-secondary" style={{ color: 'var(--color-error)', borderColor: 'var(--color-error)' }} onClick={() => handleReview('reject')} disabled={reviewing} data-track="ui.6a7fa3bbd0.6">
                     {tx('logistics.campaigns.approval.reject', 'Reject')}
                   </button>
                 </div>
@@ -453,10 +453,10 @@ export default function CampaignDetailPage() {
               </div>
             )}
             <div className="lx-btn-row">
-              <button type="button" className="lx-btn-primary" onClick={handleJoin} disabled={joining}>
+              <button type="button" className="lx-btn-primary" onClick={handleJoin} disabled={joining} data-track="ui.6a7fa3bbd0.7">
                 {joining ? tx('common.loading', 'Loading…') : tx('logistics.campaignDetail.join.confirm', 'Confirm Commitment')}
               </button>
-              <button type="button" className="lx-btn-secondary" onClick={() => setShowJoinForm(false)}>
+              <button type="button" className="lx-btn-secondary" onClick={() => setShowJoinForm(false)} data-track="ui.6a7fa3bbd0.8">
                 {tx('common.cancel', 'Cancel')}
               </button>
             </div>

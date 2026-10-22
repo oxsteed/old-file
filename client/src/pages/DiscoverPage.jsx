@@ -398,7 +398,7 @@ export default function DiscoverPage() {
                 type="button"
                 onClick={saveAlert}
                 disabled={savingAlert}
-                className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium disabled:opacity-50"
+                className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium disabled:opacity-50" data-track="ui.1fbc0342b4.1"
               >
                 {savingAlert ? t('common.saving') : t('discover.saveAlertBtn')}
               </button>
@@ -417,7 +417,7 @@ export default function DiscoverPage() {
                       {' · '}
                       {a.radius_miles} mi
                     </span>
-                    <button type="button" onClick={() => removeAlert(a.id)} className="text-red-400 hover:underline shrink-0">
+                    <button type="button" onClick={() => removeAlert(a.id)} className="text-red-400 hover:underline shrink-0" data-track="ui.1fbc0342b4.2">
                       {t('common.remove')}
                     </button>
                   </li>
@@ -439,7 +439,7 @@ export default function DiscoverPage() {
                 type="button"
                 onClick={widenRadius}
                 disabled={radius >= 150}
-                className="px-4 py-2 rounded-lg bg-gray-800 border border-gray-600 text-sm text-white hover:bg-gray-700 disabled:opacity-40"
+                className="px-4 py-2 rounded-lg bg-gray-800 border border-gray-600 text-sm text-white hover:bg-gray-700 disabled:opacity-40" data-track="ui.1fbc0342b4.3"
               >
                 {t('discover.widenRadius', { next: Math.min(150, radius + 25) })}
               </button>
@@ -552,7 +552,7 @@ export default function DiscoverPage() {
               <button
                 type="button"
                 onClick={() => load(offset + limit, true)}
-                className="mt-6 w-full py-3 rounded-xl border border-gray-600 text-sm text-gray-200 hover:bg-gray-800"
+                className="mt-6 w-full py-3 rounded-xl border border-gray-600 text-sm text-gray-200 hover:bg-gray-800" data-track="ui.1fbc0342b4.4"
               >
                 {t('discover.loadMore')}
               </button>
@@ -561,7 +561,7 @@ export default function DiscoverPage() {
               <button
                 type="button"
                 onClick={widenRadius}
-                className="mt-3 w-full py-2 text-sm text-gray-400 hover:text-white"
+                className="mt-3 w-full py-2 text-sm text-gray-400 hover:text-white" data-track="ui.1fbc0342b4.5"
               >
                 {t('discover.widenRadius', { next: Math.min(150, radius + 25) })}
               </button>

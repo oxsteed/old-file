@@ -106,7 +106,7 @@ export default function SignaturePad({ onChange, disabled = false, height = 180 
         )}
       </div>
       <div className="sigpad__actions">
-        <button type="button" onClick={clear} disabled={disabled || isEmpty} className="sigpad__btn">
+        <button type="button" onClick={clear} disabled={disabled || isEmpty} className="sigpad__btn" data-track="ui.ea069d578c.1">
           <Eraser size={16} aria-hidden="true" />
           {t('workAgreement.clearSignature', { defaultValue: 'Clear' })}
         </button>

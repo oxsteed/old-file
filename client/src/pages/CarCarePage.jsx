@@ -267,7 +267,7 @@ export default function CarCarePage() {
                 />
                 {selectedMake && (
                   <button className="cc-clear-btn" onClick={handleMakeClear} type="button"
-                    aria-label={t('dashboard.carCare.clearMake')}>×</button>
+                    aria-label={t('dashboard.carCare.clearMake')} data-track="ui.9b1b8e6249.1">×</button>
                 )}
               </div>
               {showMakeDD && filteredMakes.length > 0 && (
@@ -305,7 +305,7 @@ export default function CarCarePage() {
                 />
                 {selectedModel && (
                   <button className="cc-clear-btn" onClick={handleModelClear} type="button"
-                    aria-label={t('dashboard.carCare.clearModel')}>×</button>
+                    aria-label={t('dashboard.carCare.clearModel')} data-track="ui.9b1b8e6249.2">×</button>
                 )}
               </div>
               {showModelDD && filteredModels.length > 0 && (
@@ -346,7 +346,7 @@ export default function CarCarePage() {
           <button
             className="cc-add-btn"
             onClick={handleAdd}
-            disabled={adding || !selectedMake || !selectedModel}
+            disabled={adding || !selectedMake || !selectedModel} data-track="ui.9b1b8e6249.3"
           >
             {adding ? t('dashboard.carCare.adding') : t('dashboard.carCare.addToGarageBtn')}
           </button>
@@ -413,8 +413,8 @@ export default function CarCarePage() {
               {editError && <p className="cc-error">{editError}</p>}
 
               <div className="cc-modal-actions">
-                <button className="btn-ghost" onClick={() => setEditItem(null)}>{t('common.cancel')}</button>
-                <button className="btn-primary" onClick={handleEditSave} disabled={editSaving}>
+                <button className="btn-ghost" onClick={() => setEditItem(null)} data-track="ui.9b1b8e6249.4">{t('common.cancel')}</button>
+                <button className="btn-primary" onClick={handleEditSave} disabled={editSaving} data-track="ui.9b1b8e6249.5">
                   {editSaving ? t('dashboard.carCare.saving') : t('dashboard.carCare.saveChanges')}
                 </button>
               </div>
@@ -429,8 +429,8 @@ export default function CarCarePage() {
               <h2>{t('dashboard.carCare.removeVehicle')}</h2>
               <p>{t('dashboard.carCare.removeConfirm', { name: deleteTarget.nickname || `${deleteTarget.make_name} ${deleteTarget.model_name}` })}</p>
               <div className="cc-modal-actions">
-                <button className="btn-ghost" onClick={() => setDeleteTarget(null)}>{t('dashboard.carCare.keepIt')}</button>
-                <button className="btn-danger" onClick={handleDelete} disabled={deleting}>
+                <button className="btn-ghost" onClick={() => setDeleteTarget(null)} data-track="ui.9b1b8e6249.6">{t('dashboard.carCare.keepIt')}</button>
+                <button className="btn-danger" onClick={handleDelete} disabled={deleting} data-track="ui.9b1b8e6249.7">
                   {deleting ? t('dashboard.carCare.removing') : t('dashboard.carCare.removeBtn')}
                 </button>
               </div>
@@ -461,8 +461,8 @@ function VehicleCard({ vehicle: v, onEdit, onDelete, t }) {
         </div>
       </div>
       <div className="cc-vehicle-actions">
-        <button className="cc-action-btn" onClick={onEdit}>{t('dashboard.carCare.editBtn')}</button>
-        <button className="cc-action-btn danger" onClick={onDelete}>{t('dashboard.carCare.removeBtn')}</button>
+        <button className="cc-action-btn" onClick={onEdit} data-track="ui.9b1b8e6249.8">{t('dashboard.carCare.editBtn')}</button>
+        <button className="cc-action-btn danger" onClick={onDelete} data-track="ui.9b1b8e6249.9">{t('dashboard.carCare.removeBtn')}</button>
       </div>
     </div>
   );

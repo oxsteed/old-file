@@ -220,7 +220,7 @@ function CrossSellPanel({ vehicles, homes, goals, expenses, summary, loaded, t }
               key={s.id}
               href={s.href}
               className="flex flex-col gap-2 rounded-xl p-3 transition hover:opacity-90"
-              style={{ background: c.bg, border: `1px solid ${c.border}` }}
+              style={{ background: c.bg, border: `1px solid ${c.border}` }} data-track="ui.3a64f0eab7.1"
             >
               <div className="flex items-center gap-2">
                 {s.icon}

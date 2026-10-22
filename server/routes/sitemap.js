@@ -64,6 +64,7 @@ router.get('/', async (_req, res) => {
       { loc: `${origin}/restaurants`, changefreq: 'daily', priority: '0.7', localized: true },
       { loc: `${origin}/terms`, changefreq: 'yearly', priority: '0.2', localized: true },
       { loc: `${origin}/privacy`, changefreq: 'yearly', priority: '0.2', localized: true },
+      { loc: `${origin}/privacy/upcoming`, changefreq: 'yearly', priority: '0.2', localized: true },
       { loc: `${origin}/security`, changefreq: 'yearly', priority: '0.2', localized: true },
       { loc: `${origin}/accessibility`, changefreq: 'yearly', priority: '0.2', localized: true },
       { loc: `${origin}/enforcement-policy`, changefreq: 'yearly', priority: '0.2', localized: true },

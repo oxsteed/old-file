@@ -337,7 +337,7 @@ export default function ConsultantAvailabilityPage() {
                   type="checkbox"
                   checked={newAvailability.isActive}
                   onChange={(e) => setNewAvailability({ ...newAvailability, isActive: e.target.checked })}
-                  className="h-4 w-4 accent-orange-500"
+                  className="h-4 w-4 accent-orange-500" data-track="ui.b5abfc3c26.1"
                 />
               </label>
 
@@ -345,7 +345,7 @@ export default function ConsultantAvailabilityPage() {
                 <button
                 onClick={handleSaveAvailability}
                   disabled={loading}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50" data-track="ui.b5abfc3c26.2"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                   {loading ? t('common.saving') : t('consultantAvailabilityPage.saveAvailability')}
@@ -466,7 +466,7 @@ export default function ConsultantAvailabilityPage() {
                 <button
                   onClick={handleAddBlockedDate}
                   disabled={loading}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50" data-track="ui.b5abfc3c26.3"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                   {loading ? t('common.saving') : t('scheduling.addBlockedDate')}
@@ -505,7 +505,7 @@ export default function ConsultantAvailabilityPage() {
                         <button
                           onClick={() => handleRemoveBlockedDate(blocked.id)}
                           disabled={loading}
-                          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-200 transition hover:bg-red-500/20 disabled:opacity-50"
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-200 transition hover:bg-red-500/20 disabled:opacity-50" data-track="ui.b5abfc3c26.4"
                         >
                           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                           {t('common.remove')}

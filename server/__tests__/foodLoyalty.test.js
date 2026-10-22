@@ -53,6 +53,7 @@ describe('food loyalty redeem (B4)', () => {
       .mockResolvedValueOnce({ rows: [] }) // replay lookup (pre-lock): no existing order
       .mockResolvedValueOnce({ rows: [restaurantRow()] })
       .mockResolvedValueOnce({ rows: [] }) // replay lookup (post-lock recheck): no existing order
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations -> restaurant fallback)
       .mockResolvedValueOnce({
         rows: [{
           id: MENU_ITEM_ID,
@@ -65,7 +66,9 @@ describe('food loyalty redeem (B4)', () => {
       .mockResolvedValueOnce({
         rows: [{ id: ACCOUNT_ID, points_balance: 500 }],
       })
-      .mockResolvedValueOnce({ rows: [{ next_queue: 3 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 7 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 3 }] })
       .mockResolvedValueOnce({
         rows: [{
           id: 200,
@@ -96,8 +99,8 @@ describe('food loyalty redeem (B4)', () => {
     expect(res.status).toBe(201);
     expect(res.body.order.discount_cents).toBe(500);
     expect(res.body.order.total_cents).toBe(399);
-    expect(mockQuery.mock.calls[4][0]).toMatch(/FROM food_loyalty_accounts/);
-    expect(mockQuery.mock.calls[4][0]).toMatch(/FOR UPDATE/);
+    expect(mockQuery.mock.calls[5][0]).toMatch(/FROM food_loyalty_accounts/);
+    expect(mockQuery.mock.calls[5][0]).toMatch(/FOR UPDATE/);
     const loyaltyAccountUpdateCall = mockQuery.mock.calls.find(([sql]) => /UPDATE food_loyalty_accounts/.test(sql));
     const loyaltyLedgerInsertCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO food_loyalty_ledger/.test(sql));
     expect(loyaltyAccountUpdateCall?.[0]).toMatch(/UPDATE food_loyalty_accounts/);
@@ -110,6 +113,7 @@ describe('food loyalty redeem (B4)', () => {
       .mockResolvedValueOnce({ rows: [] }) // replay lookup (pre-lock): no existing order
       .mockResolvedValueOnce({ rows: [restaurantRow()] })
       .mockResolvedValueOnce({ rows: [] }) // replay lookup (post-lock recheck): no existing order
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations -> restaurant fallback)
       .mockResolvedValueOnce({
         rows: [{
           id: MENU_ITEM_ID,
@@ -119,7 +123,9 @@ describe('food loyalty redeem (B4)', () => {
           is_available: true,
         }],
       })
-      .mockResolvedValueOnce({ rows: [{ next_queue: 4 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 7 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 4 }] })
       .mockResolvedValueOnce({
         rows: [{
           id: 201,
@@ -154,6 +160,7 @@ describe('food loyalty redeem (B4)', () => {
       .mockResolvedValueOnce({ rows: [] }) // replay lookup (pre-lock): no existing order
       .mockResolvedValueOnce({ rows: [restaurantRow()] })
       .mockResolvedValueOnce({ rows: [] }) // replay lookup (post-lock recheck): no existing order
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations -> restaurant fallback)
       .mockResolvedValueOnce({
         rows: [{
           id: MENU_ITEM_ID,
@@ -163,7 +170,9 @@ describe('food loyalty redeem (B4)', () => {
           is_available: true,
         }],
       })
-      .mockResolvedValueOnce({ rows: [{ next_queue: 5 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 7 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 5 }] })
       .mockResolvedValueOnce({
         rows: [{
           id: 202,

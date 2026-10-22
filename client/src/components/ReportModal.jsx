@@ -77,7 +77,7 @@ const ReportModal = ({ userId, userName, businessId = null, jobId = null, conver
             <AlertTriangle size={20} />
             <h2 id="report-modal-title" className="report-modal-title">{t('reportModal.reportUser')}</h2>
           </div>
-          <button className="report-modal-close" onClick={onClose} aria-label={t('reportModal.close')}>
+          <button className="report-modal-close" onClick={onClose} aria-label={t('reportModal.close')} data-track="ui.74f615b9c3.1">
             <X size={20} />
           </button>
         </div>
@@ -87,7 +87,7 @@ const ReportModal = ({ userId, userName, businessId = null, jobId = null, conver
             {t('reportModal.reportingUser', { name: userName })}
           </p>
 
-          <form onSubmit={handleSubmit} className="report-form">
+          <form onSubmit={handleSubmit} className="report-form" data-track="ui.74f615b9c3.2">
             <div className="report-form-group">
               <label htmlFor="reason" className="report-label">
                 {t('reportModal.reason')} <span className="required">*</span>
@@ -152,14 +152,14 @@ const ReportModal = ({ userId, userName, businessId = null, jobId = null, conver
                 type="button"
                 onClick={onClose}
                 className="report-btn-cancel"
-                disabled={loading}
+                disabled={loading} data-track="ui.74f615b9c3.3"
               >
                 {t('reportModal.cancel')}
               </button>
               <button
                 type="submit"
                 className="report-btn-submit"
-                disabled={loading}
+                disabled={loading} data-track="ui.74f615b9c3.4"
               >
                 {loading ? t('reportModal.submitting') : t('reportModal.submitReport')}
               </button>

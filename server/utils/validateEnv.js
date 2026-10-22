@@ -77,6 +77,7 @@ function getProductionConfigurationErrors(env = process.env) {
   if ((env.NODE_ENV || 'production') !== 'production') return [];
 
   const errors = [];
+  errors.push(...require('../growth/config').configurationErrors(env));
   const requiredProductionSecrets = [
     'JWT_SECRET',
     'DATABASE_URL',

@@ -201,7 +201,7 @@ export default function StatusPage() {
             fontWeight: 900,
             fontSize: 24,
             letterSpacing: '-.04em',
-          }}>
+          }} data-track="ui.e42bf47766.1">
             <span style={{
               width: 42,
               height: 42,
@@ -232,7 +232,7 @@ export default function StatusPage() {
               padding: '10px 14px',
               fontWeight: 800,
               cursor: refreshing ? 'wait' : 'pointer',
-            }}
+            }} data-track="ui.e42bf47766.2"
           >
             <RefreshCw size={16} style={{ animation: refreshing ? 'ox-status-spin 1s linear infinite' : 'none' }} />
             {t('statusPage.refresh', { defaultValue: 'Refresh' })}
@@ -378,7 +378,7 @@ export default function StatusPage() {
             color: '#94a3b8',
             fontSize: 14,
           }}>
-            <span>{t('statusPage.needHelp', { defaultValue: 'Need help?' })} <a href="mailto:support@oxsteed.com" style={{ color: '#fb923c' }}>support@oxsteed.com</a></span>
+            <span>{t('statusPage.needHelp', { defaultValue: 'Need help?' })} <a href="mailto:support@oxsteed.com" style={{ color: '#fb923c' }} data-track="ui.e42bf47766.3">support@oxsteed.com</a></span>
             <span>{t('statusPage.poweredBy', { defaultValue: 'Powered by OxSteed Network' })}</span>
           </footer>
         </main>

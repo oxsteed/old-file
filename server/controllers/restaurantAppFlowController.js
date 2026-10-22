@@ -6,10 +6,12 @@ const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 // Canonical restaurant access gate (analytics scope model, Phase 1 Item 6).
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const { logBusinessAction } = require('../services/businessAuditLog');
 const { withTransaction } = require('../utils/transaction');
 const socketService = require('../services/socketService');
 const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
 const { maybeUnpublishBusinessIfIncomplete } = require('./businessController');
+const { serializeDiscountDefinition } = require('./restaurantPosController');
 const {
   reserveInventoryForOrder,
   releaseInventoryForOrder,
@@ -42,19 +44,40 @@ const {
 const { finalizeCreditSpendInTransaction } = require('../services/creditSpendAdapter');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
-const { getEffectivePermissions } = require('../services/permissionsService');
+const { nextQueueNumber } = require('../services/restaurantQueueCounter');
+const restaurantLocationService = require('../services/restaurantLocationService');
+const { getLocationScope } = require('../services/restaurantLocationAccessService');
+const storeMenu = require('../services/restaurantStoreMenuService');
+const permissionsService = require('../services/permissionsService');
+const { getEffectivePermissions } = permissionsService;
+const {
+  POS_VOID_REASON_CODES,
+  POS_COMP_REASON_CODES,
+  staffPinDigest,
+  validateStaffPinForRestaurant,
+  createStaffSession,
+  staffSessionTokenFromRequest,
+  resolveStaffSession,
+  endStaffSession,
+  resolveActingStaff,
+  consumeManagerApproval,
+  linkApproval,
+} = require('../services/restaurantStaffIdentityService');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
 const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
 const { getClientRequestId } = require('../utils/idempotency');
 const { notifyRefundIssued } = require('../services/refundNotification');
+const { sendNotification } = require('../services/notificationService');
 const { resolveOrderItemModifiers } = require('./foodController');
+const { isItemAvailableAt } = require('../utils/menuDayparts');
 const { calculateRoute: calculateGeoRoute } = require('../services/geoRouteProviderService');
+const giftCardValue = require('../services/restaurantGiftCardService');
 
 // Absolute ceiling for a POS ticket tip, in cents ($500).
 const POS_TIP_ABSOLUTE_MAX_CENTS = 50000;
 
-const MANAGE_ROLES = new Set(['owner', 'manager']);
 const APP_KEYS = new Set(['manager', 'pos', 'kitchen', 'display', 'inventory', 'crew', 'runner', 'restaurant', 'credit_kiosk']);
+const DEFAULT_DISPLAY_DEVICE_ROLE = 'kiosk';
 const DEVICE_STATUSES = new Set(['pending', 'paired', 'disabled']);
 const DEVICE_SYNC_STATUSES = new Set(['healthy', 'degraded', 'error']);
 const ORDER_SOURCES = new Set(['counter', 'kiosk', 'tablet']);
@@ -132,33 +155,18 @@ const LEGACY_PAYMENT_MODE = {
   oxsteed_credit: 'oxsteed_credit',
   direct_payment: 'direct_payment',
 };
-const ROLE_PERMISSIONS = {
-  owner: ['*'],
-  manager: [
-    'restaurant.manage',
-    'orders.manage',
-    'pos.manage',
-    'kitchen.manage',
-    'display.manage',
-    'inventory.manage',
-    'crew.manage',
-    'runner.manage',
-    'support.manage',
-  ],
-  representative: ['orders.view', 'kitchen.view', 'inventory.view', 'display.view', 'support.view'],
-  employee: [
-    'orders.view',
-    'pos.use',
-    'kitchen.view',
-    'kitchen.update',
-    'inventory.view',
-    'inventory.update',
-    'crew.update',
-    'runner.update',
-    'display.view',
-  ],
-  support_agent: ['support.manage'],
-};
+
+function locationScopeQueryHelpers(locationScope) {
+  const assignedStores = locationScope.mode === 'assigned';
+  return {
+    locationFilter: (alias, parameterIndex) => assignedStores
+      ? ` AND ${alias ? `${alias}.` : ''}location_id = ANY($${parameterIndex}::bigint[])`
+      : '',
+    scopedParams: (base) => assignedStores
+      ? [...base, locationScope.location_ids]
+      : base,
+  };
+}
 
 function parsePositiveInt(value, fallback = null) {
   const n = Number.parseInt(String(value), 10);
@@ -172,6 +180,33 @@ function parseCents(value, field, fallback = 0) {
     throw new AppError('Validation failed', 400, 'validation_failed', { [field]: 'Must be a non-negative amount in cents' });
   }
   return Math.round(n);
+}
+
+// Find a quantity allocation whose server-calculated line totals equal the
+// requested child amount. Quantities are integral, so this avoids inventing a
+// fractional item while still supporting even splits when an exact allocation
+// exists. The state cap prevents a pathological ticket from turning a split
+// request into an unbounded memory operation.
+function allocateExactSplitQuantities(items, targetCents) {
+  const target = Number(targetCents);
+  if (!Number.isSafeInteger(target) || target <= 0 || target > 2_000_000) return null;
+  let states = new Map([[0, []]]);
+  for (const item of items) {
+    const quantity = Math.max(1, Number(item.quantity || 1));
+    const lineTotal = Math.max(0, Number(item.line_total_cents || 0));
+    const next = new Map(states);
+    for (const [sum, allocation] of states) {
+      for (let units = 1; units <= quantity; units += 1) {
+        const lineShare = Math.round(lineTotal * units / quantity);
+        const nextSum = sum + lineShare;
+        if (nextSum > target || next.has(nextSum)) continue;
+        next.set(nextSum, [...allocation, { id: Number(item.id), quantity: units }]);
+      }
+    }
+    if (next.size > 200_000) return null;
+    states = next;
+  }
+  return states.get(target) || null;
 }
 
 function normalizeString(value, max = 255) {
@@ -310,6 +345,108 @@ function normalizeDiscountLines(body, subtotalCents, { allowManual = false } = {
   return { discountCents: total, discountLines: normalized };
 }
 
+// F-15 + S-07: apply one of the restaurant's own discount definitions
+// (migration 953). The amount is computed here from the stored
+// definition, never from a client-supplied figure: percent of the order
+// subtotal or the fixed amount, clamped to max_discount_cents and to the
+// subtotal so a discount can never push a total negative. Approval: when
+// the definition requires approval, or the computed discount exceeds
+// settings.posApprovalPolicy.discountAboveCents (absent/null = no
+// threshold), a non-manager caller must supply a manager approvalPin,
+// consumed through the shared S-07 machinery inside the order's write
+// transaction; managers (restaurant.manage via the resolver) never need
+// the PIN. Without the PIN the request fails 403
+// 'discount_approval_required' so the POS can prompt and retry.
+async function resolveDefinitionDiscount({ client, restaurant, req, restaurantId, subtotal, definitionId, shiftId, locationId, actingStaff }) {
+  const { rows: [definition] } = await client.query(
+    `SELECT * FROM restaurant_discount_definitions
+      WHERE id = $1 AND restaurant_id = $2`,
+    [definitionId, restaurantId]
+  );
+  if (!definition) {
+    throw new AppError('Discount definition not found', 404, 'discount_definition_not_found');
+  }
+  if (!definition.is_active) {
+    throw new AppError('This discount is not active', 400, 'discount_definition_inactive');
+  }
+  const minSubtotalCents = Number(definition.min_subtotal_cents || 0);
+  if (subtotal < minSubtotalCents) {
+    throw new AppError('Order subtotal is below this discount minimum', 400, 'discount_min_subtotal_not_met', {
+      minSubtotalCents,
+      subtotalCents: subtotal,
+    });
+  }
+  let amount = definition.kind === 'percent'
+    ? Math.round(subtotal * Number(definition.value) / 100)
+    : Number(definition.value);
+  if (definition.max_discount_cents !== null && definition.max_discount_cents !== undefined) {
+    amount = Math.min(amount, Number(definition.max_discount_cents));
+  }
+  amount = Math.max(0, Math.min(amount, subtotal));
+
+  const settings = safeJson(restaurant.settings, {});
+  const policy = safeJson(settings.posApprovalPolicy, {});
+  const rawThreshold = policy.discountAboveCents ?? policy.discount_above_cents;
+  const threshold = rawThreshold === null || rawThreshold === undefined
+    ? null
+    : Math.max(0, Math.floor(Number(rawThreshold) || 0));
+  const approvalRequired = definition.requires_approval === true
+    || (threshold !== null && amount > threshold);
+
+  let approval = null;
+  if (approvalRequired && amount > 0) {
+    const isManager = await permissionsService.hasRestaurantPermission(restaurant, req.user.id, ['restaurant.manage']);
+    if (!isManager) {
+      const approvalPin = normalizeString(
+        req.body.approvalPin || req.body.approval_pin || req.body.managerPin || req.body.manager_pin,
+        12
+      );
+      if (!approvalPin) {
+        throw new AppError('A manager approval is required for this discount', 403, 'discount_approval_required', {
+          definitionId: Number(definition.id),
+          discountCents: amount,
+        });
+      }
+      // The definition/threshold decision above is authoritative, so the
+      // per-action policy for 'discount' is pinned to always-on for this
+      // call only, on a copy: consumeManagerApproval then verifies the
+      // PIN and writes the restaurant_pos_approvals row (action
+      // 'discount') on this transaction. The caller's access row and its
+      // stored settings are not mutated.
+      const approvalRestaurant = {
+        ...restaurant,
+        settings: {
+          ...settings,
+          posApprovalPolicy: { ...policy, discount: { always: true } },
+        },
+      };
+      approval = await consumeManagerApproval({
+        client,
+        restaurant: approvalRestaurant,
+        req,
+        action: 'discount',
+        amountCents: amount,
+        shiftId,
+        locationId,
+        actingStaff,
+      });
+    }
+  }
+  const discountLines = amount > 0
+    ? [{
+      code: definition.code,
+      label: definition.name,
+      amountCents: amount,
+      source: 'discount_definition',
+      metadata: {
+        definitionId: Number(definition.id),
+        ...(approval ? { approvalId: Number(approval.id) } : {}),
+      },
+    }]
+    : [];
+  return { discountCents: amount, discountLines, approval };
+}
+
 async function insertPosReceiptAudit(client, {
   restaurantId,
   order,
@@ -319,18 +456,21 @@ async function insertPosReceiptAudit(client, {
   reason = null,
   metadata = {},
   idempotencyKey = null,
+  actingStaffUserId = null,
 }) {
   const { rows: [event] } = await client.query(
     `INSERT INTO restaurant_pos_receipt_events
-       (restaurant_id, food_order_id, queue_number, guest_name, total_cents,
-        payment_status, channel, event_type, reason, metadata, idempotency_key, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12)
+       (restaurant_id, location_id, food_order_id, queue_number, guest_name, total_cents,
+        payment_status, channel, event_type, reason, metadata, idempotency_key, created_by,
+        acting_staff_user_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14)
      ON CONFLICT (restaurant_id, idempotency_key)
        WHERE idempotency_key IS NOT NULL
      DO NOTHING
      RETURNING *`,
     [
       restaurantId,
+      order.location_id,
       order.id,
       order.queue_number,
       order.guest_name,
@@ -342,6 +482,7 @@ async function insertPosReceiptAudit(client, {
       JSON.stringify(safeJson(metadata)),
       idempotencyKey,
       createdBy,
+      actingStaffUserId,
     ]
   );
   return event || null;
@@ -830,8 +971,13 @@ async function requireRestaurantAccess(userId, restaurantId) {
   return resolveRestaurantAccess(userId, restaurantId);
 }
 
-function assertManage(restaurant) {
-  if (!MANAGE_ROLES.has(restaurant.effective_role)) {
+// S-08: the manage gate resolves through the permission catalog
+// ('restaurant.manage': owners and managers by default) via the single
+// resolver, so per-membership deny overrides close manager surfaces here
+// too. Replaces the role-name-only MANAGE_ROLES check for this gate.
+async function assertManage(restaurant, userId) {
+  const allowed = await permissionsService.hasRestaurantPermission(restaurant, userId, ['restaurant.manage']);
+  if (!allowed) {
     throw new AppError('You do not have permission to manage this restaurant', 403, 'forbidden');
   }
 }
@@ -849,9 +995,20 @@ async function assertRestaurantPermission(restaurant, userId, allowedPermissions
   throw new AppError('You do not have permission to update this kitchen', 403, 'forbidden');
 }
 
+async function hasRestaurantPermission(restaurant, userId, permission) {
+  if (restaurant?.effective_role === 'owner') return true;
+  return permissionsService.hasRestaurantPermission(restaurant, userId, [permission]);
+}
+
 function normalizeLocationPatch(value) {
   const source = safeJson(value, null);
   if (!source) return null;
+  const regionValue = source.regionId ?? source.region_id;
+  const hasRegion = source.regionId !== undefined || source.region_id !== undefined;
+  const regionId = hasRegion && regionValue !== null && regionValue !== '' ? parsePositiveInt(regionValue) : null;
+  if (hasRegion && regionValue !== null && regionValue !== '' && !regionId) {
+    throw new AppError('Validation failed', 400, 'validation_failed', { regionId: 'A valid region is required' });
+  }
   return {
     id: parsePositiveInt(source.id),
     name: normalizeString(source.name, 160),
@@ -863,6 +1020,7 @@ function normalizeLocationPatch(value) {
     latitude: source.latitude === undefined || source.latitude === null || source.latitude === '' ? null : parseFiniteNumber(source.latitude, 'latitude'),
     longitude: source.longitude === undefined || source.longitude === null || source.longitude === '' ? null : parseFiniteNumber(source.longitude, 'longitude'),
     timezone: normalizeString(source.timezone, 80),
+    regionId,
     phone: normalizeString(source.phone, 40),
     status: normalizeString(source.status, 24),
     operatingHours: safeJson(source.operatingHours ?? source.operating_hours, null),
@@ -870,19 +1028,13 @@ function normalizeLocationPatch(value) {
   };
 }
 
-function effectivePermissions(role, override = null) {
-  const base = new Set(ROLE_PERMISSIONS[role] || []);
-  const source = safeJson(override, {});
-  for (const permission of source.allow || source.allowed || []) base.add(permission);
-  for (const permission of source.deny || source.denied || []) base.delete(permission);
-  return Array.from(base);
-}
-
 function appModuleFlags(restaurant, role, permissions = []) {
-  const canManage = MANAGE_ROLES.has(role);
-  const allowed = (permission) => canManage || permissions.includes('*') || permissions.includes(permission);
+  // S-08: module visibility is driven by the resolved permission set alone
+  // (role defaults + overrides from the catalog). 'restaurant.manage'
+  // reproduces the old manager flag for owners/managers without overrides.
+  const allowed = (permission) => permissions.includes('*') || permissions.includes(permission);
   return {
-    manager: canManage,
+    manager: allowed('restaurant.manage'),
     pos: restaurant.accepts_in_store_orders !== false && (allowed('pos.use') || allowed('pos.manage')),
     kitchen: restaurant.kitchen_display_enabled !== false && (allowed('kitchen.view') || allowed('kitchen.update') || allowed('kitchen.manage')),
     display: allowed('display.view') || allowed('display.manage'),
@@ -973,7 +1125,11 @@ async function recalcOrderTotals(client, orderId) {
   return order;
 }
 
-async function assertMutablePosOrders(client, restaurantId, orders) {
+async function assertMutablePosOrders(client, restaurantId, orders, locationScope = null) {
+  if (locationScope?.mode === 'assigned'
+    && orders.some((order) => !locationScope.location_ids.includes(Number(order.location_id)))) {
+    throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+  }
   const invalid = orders.find((order) => !['open', 'held'].includes(order.pos_ticket_state || 'open')
     || !['unpaid', 'requires_payment'].includes(order.payment_status)
     || ['cancelled', 'refunded', 'completed'].includes(order.status));
@@ -1048,7 +1204,7 @@ async function syncKitchenOrderStatus(client, restaurantId, orderId, preferredSt
     [orderId, nextStatus]
   );
   if (order?.status === 'cancelled') {
-    await releaseInventoryForOrder(client, { restaurantId, orderId });
+    await releaseInventoryForOrder(client, { restaurantId, orderId, locationId: order.location_id });
   }
   return order;
 }
@@ -1074,7 +1230,7 @@ async function buildBootstrapPayload(user, restaurantId, query = {}) {
     }
     const requestedDeviceId = parsePositiveInt(query.deviceId || query.device_id);
 
-    const [{ rows: membershipRows }, { rows: devices }, { rows: locations }, { rows: businessRows }, snapshot] = await Promise.all([
+    const [{ rows: membershipRows }, { rows: devices }, { rows: locations }, { rows: businessRows }, { rows: discountDefinitionRows }, snapshot] = await Promise.all([
       pool.query(
         `SELECT id, role, status
            FROM business_members
@@ -1109,6 +1265,14 @@ async function buildBootstrapPayload(user, restaurantId, query = {}) {
           LIMIT 1`,
         [restaurant.business_id]
       ),
+      // F-15: active discount definitions ride the bootstrap payload so
+      // the POS picker needs no extra round trip.
+      pool.query(
+        `SELECT * FROM restaurant_discount_definitions
+          WHERE restaurant_id = $1 AND is_active = TRUE
+          ORDER BY code ASC`,
+        [restaurantId]
+      ),
       loadRestaurantSnapshot(restaurantId),
     ]);
     const businessMember = membershipRows[0] || null;
@@ -1120,7 +1284,7 @@ async function buildBootstrapPayload(user, restaurantId, query = {}) {
       membershipId: businessMember?.id || null,
     });
     const permissions = Array.from(new Set([
-      ...effectivePermissions(role),
+      ...(role === 'owner' ? ['*'] : []),
       ...teamPermissionResult.permissions,
     ]));
     const enabledModules = appModuleFlags(snapshot, role, permissions);
@@ -1157,7 +1321,7 @@ async function buildBootstrapPayload(user, restaurantId, query = {}) {
         permissions,
         permissionSource: teamPermissionResult.raw,
         isOwner: role === 'owner',
-        canManage: MANAGE_ROLES.has(role),
+        canManage: permissions.includes('*') || permissions.includes('restaurant.manage'),
       },
       app: {
         key: appKey || null,
@@ -1179,6 +1343,7 @@ async function buildBootstrapPayload(user, restaurantId, query = {}) {
       },
       device: activeDevice,
       devices,
+      discountDefinitions: discountDefinitionRows.map(serializeDiscountDefinition),
     };
 }
 
@@ -1270,7 +1435,7 @@ exports.discoverBootstrap = async (req, res, next) => {
         membershipId: row.membership_id || null,
       });
       const permissions = Array.from(new Set([
-        ...effectivePermissions(row.effective_role),
+        ...(row.effective_role === 'owner' ? ['*'] : []),
         ...teamPermissionResult.permissions,
       ]));
       return {
@@ -1304,10 +1469,12 @@ exports.getManagerDashboard = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const { locationFilter, scopedParams } = locationScopeQueryHelpers(locationScope);
     const days = Math.min(parsePositiveInt(req.query.days, 7), 90);
     const timezone = normalizeString(restaurant.timezone, 80) || 'UTC';
-    const rangeParams = [restaurantId, days, timezone];
+    const rangeParams = scopedParams([restaurantId, days, timezone]);
 
     const [
       { rows: [today] },
@@ -1351,6 +1518,7 @@ exports.getManagerDashboard = async (req, res, next) => {
                 WHERE p.food_order_id = fo.id
              ) pos ON TRUE
             WHERE fo.restaurant_id = $1
+              ${locationFilter('fo', 3)}
               AND (fo.created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date
          )
          SELECT COUNT(*) FILTER (WHERE status NOT IN ('cancelled','refunded'))::int AS order_count,
@@ -1361,7 +1529,7 @@ exports.getManagerDashboard = async (req, res, next) => {
                 COALESCE(SUM(tip_cents) FILTER (WHERE net_collected_cents > 0),0)::int AS tips_cents,
                 COALESCE(AVG(net_collected_cents) FILTER (WHERE net_collected_cents > 0),0)::int AS average_ticket_cents
            FROM order_financials`,
-        [restaurantId, timezone]
+        scopedParams([restaurantId, timezone])
       ),
       pool.query(
         `SELECT id, queue_number, guest_name, fulfillment_type, status, payment_status,
@@ -1369,6 +1537,7 @@ exports.getManagerDashboard = async (req, res, next) => {
                 (promised_at IS NOT NULL AND promised_at < NOW() AND status NOT IN ('ready','completed','cancelled','refunded')) AS is_delayed
            FROM food_orders
           WHERE restaurant_id = $1
+            ${locationFilter('', 2)}
             AND status IN ('received','accepted','preparing','ready')
           ORDER BY created_at ASC
           LIMIT 25`,
@@ -1398,6 +1567,7 @@ exports.getManagerDashboard = async (req, res, next) => {
                 WHERE p.food_order_id = fo.id
              ) pos ON TRUE
             WHERE fo.restaurant_id = $1
+              ${locationFilter('fo', 4)}
               AND fo.created_at >= (
                 ((NOW() AT TIME ZONE $3)::date - ($2::int - 1))::timestamp AT TIME ZONE $3
               )
@@ -1419,8 +1589,9 @@ exports.getManagerDashboard = async (req, res, next) => {
         `SELECT COUNT(*)::int AS total_items,
                 COUNT(*) FILTER (WHERE quantity <= low_stock_threshold OR quantity <= 0)::int AS low_stock_items
            FROM restaurant_inventory_items
-          WHERE restaurant_id = $1 AND is_active = TRUE`,
-        [restaurantId]
+          WHERE restaurant_id = $1 AND is_active = TRUE
+            ${locationFilter('', 2)}`,
+        scopedParams([restaurantId])
       ),
       pool.query(
         `SELECT COUNT(*)::int AS open_cases,
@@ -1465,6 +1636,7 @@ exports.getManagerDashboard = async (req, res, next) => {
                 WHERE p.food_order_id = fo.id
              ) pos ON TRUE
             WHERE fo.restaurant_id = $1
+              ${locationFilter('fo', 4)}
               AND fo.created_at >= (
                 ((NOW() AT TIME ZONE $3)::date - ($2::int - 1))::timestamp AT TIME ZONE $3
               )
@@ -1516,6 +1688,7 @@ exports.getManagerDashboard = async (req, res, next) => {
                 WHERE p.food_order_id = fo.id
              ) pos ON TRUE
             WHERE fo.restaurant_id = $1
+              ${locationFilter('fo', 4)}
               AND fo.created_at >= (
                 ((NOW() AT TIME ZONE $3)::date - ($2::int - 1))::timestamp AT TIME ZONE $3
               )
@@ -1546,6 +1719,7 @@ exports.getManagerDashboard = async (req, res, next) => {
            FROM food_order_items foi
            JOIN food_orders fo ON fo.id = foi.order_id
           WHERE fo.restaurant_id = $1
+            ${locationFilter('fo', 4)}
             AND fo.created_at >= (
               ((NOW() AT TIME ZONE $3)::date - ($2::int - 1))::timestamp AT TIME ZONE $3
             )`,
@@ -1560,8 +1734,9 @@ exports.getManagerDashboard = async (req, res, next) => {
                 COUNT(*) FILTER (WHERE status = 'Issue')::int AS issue_tasks,
                 COALESCE(AVG(EXTRACT(EPOCH FROM (completed_at - picked_up_at))),0)::int AS average_delivery_seconds
            FROM restaurant_runner_tasks
-          WHERE restaurant_id = $1`,
-        [restaurantId, timezone]
+          WHERE restaurant_id = $1
+            ${locationFilter('', 2)}`,
+        scopedParams([restaurantId, timezone])
       ),
       pool.query(
         `SELECT COUNT(*) FILTER (WHERE status = 'paired')::int AS paired_devices,
@@ -1572,8 +1747,9 @@ exports.getManagerDashboard = async (req, res, next) => {
                 )::int AS stale_devices,
                 MAX(last_seen_at) AS last_seen_at
            FROM restaurant_app_devices
-          WHERE restaurant_id = $1`,
-        [restaurantId]
+          WHERE restaurant_id = $1
+            ${locationFilter('', 2)}`,
+        scopedParams([restaurantId])
       ),
     ]);
 
@@ -1645,10 +1821,12 @@ exports.getManagerReports = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const { locationFilter, scopedParams } = locationScopeQueryHelpers(locationScope);
     const days = Math.min(parsePositiveInt(req.query.days, 30), 180);
     const timezone = normalizeString(restaurant.timezone, 80) || 'UTC';
-    const params = [restaurantId, days, timezone];
+    const params = scopedParams([restaurantId, days, timezone]);
 
     const [
       { rows: salesByDay },
@@ -1682,6 +1860,7 @@ exports.getManagerReports = async (req, res, next) => {
                 WHERE p.food_order_id = fo.id
              ) pos ON TRUE
             WHERE fo.restaurant_id = $1
+              ${locationFilter('fo', 4)}
               AND fo.created_at >= (
                 ((NOW() AT TIME ZONE $3)::date - ($2::int - 1))::timestamp AT TIME ZONE $3
               )
@@ -1706,6 +1885,7 @@ exports.getManagerReports = async (req, res, next) => {
                 COALESCE(SUM(total_cents),0)::int AS gross_cents
            FROM food_orders
           WHERE restaurant_id = $1
+            ${locationFilter('', 4)}
             AND created_at >= (
               ((NOW() AT TIME ZONE $3)::date - ($2::int - 1))::timestamp AT TIME ZONE $3
             )
@@ -1728,6 +1908,7 @@ exports.getManagerReports = async (req, res, next) => {
            FROM food_order_items foi
            JOIN food_orders fo ON fo.id = foi.order_id
           WHERE fo.restaurant_id = $1
+            ${locationFilter('fo', 4)}
             AND fo.created_at >= (
               ((NOW() AT TIME ZONE $3)::date - ($2::int - 1))::timestamp AT TIME ZONE $3
             )
@@ -1744,6 +1925,7 @@ exports.getManagerReports = async (req, res, next) => {
                 ),0)::int AS average_delivery_seconds
            FROM restaurant_runner_tasks
           WHERE restaurant_id = $1
+            ${locationFilter('', 4)}
             AND created_at >= (
               ((NOW() AT TIME ZONE $3)::date - ($2::int - 1))::timestamp AT TIME ZONE $3
             )
@@ -1759,8 +1941,9 @@ exports.getManagerReports = async (req, res, next) => {
                 )::int AS blocked_or_low_items
            FROM restaurant_inventory_item_mappings m
            JOIN restaurant_inventory_items i ON i.id = m.inventory_item_id AND i.restaurant_id = m.restaurant_id
-          WHERE m.restaurant_id = $1`,
-        [restaurantId]
+          WHERE m.restaurant_id = $1
+            ${locationFilter('i', 2)}`,
+        scopedParams([restaurantId])
       ),
       pool.query(
         `SELECT COUNT(*) FILTER (WHERE status = 'failed')::int AS failed_operations,
@@ -1768,8 +1951,9 @@ exports.getManagerReports = async (req, res, next) => {
                 COUNT(*) FILTER (WHERE status = 'applied')::int AS applied_operations,
                 MAX(acknowledged_at) AS last_acknowledged_at
            FROM restaurant_pos_pending_operations
-          WHERE restaurant_id = $1`,
-        [restaurantId]
+          WHERE restaurant_id = $1
+            ${locationFilter('', 2)}`,
+        scopedParams([restaurantId])
       ),
     ]);
 
@@ -1792,7 +1976,7 @@ exports.updatePublishing = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
 
     const allowedStatus = new Set(['draft', 'active', 'paused']);
     const status = normalizeString(req.body.status, 24);
@@ -1852,11 +2036,23 @@ exports.updatePublishing = async (req, res, next) => {
     if (locationPatch?.status && !['active', 'paused', 'closed'].includes(locationPatch.status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { locationStatus: 'Status must be active, paused, or closed' });
     }
-    if (locationPatch?.latitude !== null && (locationPatch.latitude < -90 || locationPatch.latitude > 90)) {
+    if (locationPatch?.latitude != null && (locationPatch.latitude < -90 || locationPatch.latitude > 90)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { latitude: 'Must be between -90 and 90' });
     }
-    if (locationPatch?.longitude !== null && (locationPatch.longitude < -180 || locationPatch.longitude > 180)) {
+    if (locationPatch?.longitude != null && (locationPatch.longitude < -180 || locationPatch.longitude > 180)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { longitude: 'Must be between -180 and 180' });
+    }
+    // F-10 (Track F-T1): validate the timezone that will be written below
+    // (locationPatch.timezone wins over the top-level field, mirroring the
+    // resolution inside the transaction). An invalid IANA name is a 400,
+    // never a stored value that later crashes the hours evaluator.
+    const requestedTimezone = locationPatch?.timezone ?? normalizeString(req.body.timezone, 80);
+    if (requestedTimezone) {
+      try {
+        new Intl.DateTimeFormat('en-US', { timeZone: requestedTimezone }).format();
+      } catch (_) {
+        throw new AppError('Validation failed', 400, 'validation_failed', { timezone: 'Must be a valid IANA timezone' });
+      }
     }
 
     const pauseReasonProvided = Object.prototype.hasOwnProperty.call(req.body, 'onlineOrderPauseReason')
@@ -1925,6 +2121,33 @@ exports.updatePublishing = async (req, res, next) => {
         ]
       );
 
+      // F-20: tax-rate and service-fee changes are money-relevant; record
+      // before/after in the audit trail inside the same transaction.
+      if (restaurant.business_id && (taxRateBps !== null || serviceFeeBps !== null)) {
+        const priorFees = {};
+        const nextFees = {};
+        if (taxRateBps !== null && Number(updated.tax_rate_bps) !== Number(restaurant.tax_rate_bps)) {
+          priorFees.tax_rate_bps = restaurant.tax_rate_bps;
+          nextFees.tax_rate_bps = updated.tax_rate_bps;
+        }
+        if (serviceFeeBps !== null && Number(updated.service_fee_bps) !== Number(restaurant.service_fee_bps)) {
+          priorFees.service_fee_bps = restaurant.service_fee_bps;
+          nextFees.service_fee_bps = updated.service_fee_bps;
+        }
+        if (Object.keys(nextFees).length > 0) {
+          await logBusinessAction(req, {
+            client,
+            business_id: restaurant.business_id,
+            actor_role: restaurant.effective_role || null,
+            action: 'restaurant.settings.updated',
+            target_type: 'restaurant',
+            target_id: updated.id,
+            before_state: priorFees,
+            after_state: nextFees,
+          });
+        }
+      }
+
       let primaryLocation = null;
       if (locationPatch) {
         let existingPrimary = null;
@@ -1941,6 +2164,15 @@ exports.updatePublishing = async (req, res, next) => {
             [restaurantId]
           );
         }
+        let locationRegion = null;
+        if (locationPatch.regionId != null) {
+          const result = await client.query(
+            `SELECT id FROM restaurant_regions WHERE restaurant_id = $1 AND id = $2 LIMIT 1`,
+            [restaurantId, locationPatch.regionId]
+          );
+          locationRegion = result.rows[0] || null;
+          if (!locationRegion) throw new AppError('Region not found', 404, 'region_not_found');
+        }
         const locationValues = [
           restaurantId,
           locationPatch.name || updated.display_name || 'Primary location',
@@ -1956,6 +2188,7 @@ exports.updatePublishing = async (req, res, next) => {
           locationPatch.isPrimary !== false,
           locationPatch.status,
           locationPatch.operatingHours ? JSON.stringify(locationPatch.operatingHours) : JSON.stringify(operatingHours || {}),
+          locationRegion?.id ?? null,
         ];
         if (locationPatch.id) {
           const { rows: [location] } = await client.query(
@@ -1973,8 +2206,9 @@ exports.updatePublishing = async (req, res, next) => {
                     is_primary = COALESCE($12, is_primary),
                     status = COALESCE($13, status),
                     operating_hours = CASE WHEN $14::jsonb = '{}'::jsonb THEN operating_hours ELSE $14::jsonb END,
+                    region_id = COALESCE($15, region_id),
                     updated_at = NOW()
-              WHERE restaurant_id = $1 AND id = $15
+              WHERE restaurant_id = $1 AND id = $16
               RETURNING *`,
             [...locationValues, locationPatch.id]
           );
@@ -1997,8 +2231,9 @@ exports.updatePublishing = async (req, res, next) => {
                       is_primary = COALESCE($12, is_primary),
                       status = COALESCE($13, status),
                       operating_hours = CASE WHEN $14::jsonb = '{}'::jsonb THEN operating_hours ELSE $14::jsonb END,
+                      region_id = COALESCE($15, region_id),
                       updated_at = NOW()
-                WHERE restaurant_id = $1 AND id = $15
+                WHERE restaurant_id = $1 AND id = $16
                 RETURNING *`,
               [...locationValues, existingPrimary.id]
             );
@@ -2007,13 +2242,21 @@ exports.updatePublishing = async (req, res, next) => {
             const { rows: [location] } = await client.query(
               `INSERT INTO restaurant_locations
                  (restaurant_id, name, address_street, address_city, address_state, address_zip,
-                  address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours)
-               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,COALESCE($13,'active'),$14)
+                 address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours, region_id)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,COALESCE($13,'active'),$14,$15)
                RETURNING *`,
               locationValues
             );
             primaryLocation = location || null;
           }
+        }
+      }
+
+      const priorModes = Array.isArray(restaurant.fulfillment_modes) ? restaurant.fulfillment_modes : [];
+      if (fulfillmentModes !== null && fulfillmentModes.includes('delivery') && !priorModes.includes('delivery')) {
+        const ownerId = restaurant.owner_user_id || restaurant.business_owner_id || null;
+        if (ownerId) {
+          await require('../growth/emit').emitDomainEvent(client, 'food.delivery_enabled', { restaurant_id: String(restaurantId), fulfilment: 'delivery' }, { userId: ownerId });
         }
       }
 
@@ -2030,7 +2273,7 @@ exports.getPublishing = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const [{ rows: [publishing] }, { rows: locations }] = await Promise.all([
       pool.query(
         `SELECT id, business_id, display_name, status, accepts_online_orders,
@@ -2059,7 +2302,7 @@ exports.getPrepDeviceConfig = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const { rows: devices } = await pool.query(
       `SELECT d.id, d.restaurant_id, d.app_key, d.device_name, d.mode, d.location_id,
               d.status, d.config, d.last_seen_at, d.last_sync_at, d.sync_status,
@@ -2094,7 +2337,7 @@ exports.updatePrepDeviceConfig = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const prepTimeMin = parseOptionalInteger(req.body.prepTimeMin ?? req.body.prep_time_min, 'prepTimeMin', 1, 240);
     const kitchenDisplayEnabled = parseOptionalBoolean(
       req.body.kitchenDisplayEnabled ?? req.body.kitchen_display_enabled,
@@ -2221,7 +2464,7 @@ exports.createRestaurantLocation = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const location = normalizeLocationPatch(req.body);
     if (!location?.name) {
       throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Location name is required' });
@@ -2239,6 +2482,15 @@ exports.createRestaurantLocation = async (req, res, next) => {
         : isPrimaryProvided
           ? location.isPrimary === true
           : false;
+      const { rows: [region] } = await client.query(
+        `SELECT id
+           FROM restaurant_regions
+          WHERE restaurant_id = $1
+            AND id = COALESCE($2, (SELECT id FROM restaurant_regions WHERE restaurant_id = $1 AND LOWER(code) = 'all-stores' LIMIT 1))
+          LIMIT 1`,
+        [restaurantId, location.regionId ?? null]
+      );
+      if (!region) throw new AppError('Region not found', 404, 'region_not_found');
       if (isPrimary) {
         await client.query(
           `UPDATE restaurant_locations SET is_primary = FALSE, updated_at = NOW() WHERE restaurant_id = $1`,
@@ -2248,8 +2500,8 @@ exports.createRestaurantLocation = async (req, res, next) => {
       const { rows: [created] } = await client.query(
         `INSERT INTO restaurant_locations
            (restaurant_id, name, address_street, address_city, address_state, address_zip,
-            address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+            address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours, region_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
          RETURNING *`,
         [
           restaurantId,
@@ -2266,6 +2518,7 @@ exports.createRestaurantLocation = async (req, res, next) => {
           isPrimary,
           location.status || 'active',
           JSON.stringify(location.operatingHours || {}),
+          region.id,
         ]
       );
       const { rows: locations } = await client.query(
@@ -2285,7 +2538,7 @@ exports.updateRestaurantLocation = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const locationId = parsePositiveInt(req.params.locationId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const normalized = normalizeLocationPatch(req.body);
     validateManagedLocation(normalized);
     const fields = [
@@ -2344,6 +2597,13 @@ exports.updateRestaurantLocation = async (req, res, next) => {
       if (!hours) throw new AppError('Validation failed', 400, 'validation_failed', { operatingHours: 'Must be an object' });
       add('operating_hours', JSON.stringify(hours));
     }
+    if (Object.prototype.hasOwnProperty.call(req.body, 'regionId')
+      || Object.prototype.hasOwnProperty.call(req.body, 'region_id')) {
+      if (!normalized.regionId) {
+        throw new AppError('Validation failed', 400, 'validation_failed', { regionId: 'A valid region is required' });
+      }
+      add('region_id', normalized.regionId);
+    }
     const hasPrimary = Object.prototype.hasOwnProperty.call(req.body, 'isPrimary')
       || Object.prototype.hasOwnProperty.call(req.body, 'is_primary');
     const isPrimary = hasPrimary
@@ -2359,6 +2619,14 @@ exports.updateRestaurantLocation = async (req, res, next) => {
         [restaurantId, locationId]
       );
       if (!existing) throw new AppError('Location not found', 404, 'location_not_found');
+      if (Object.prototype.hasOwnProperty.call(req.body, 'regionId')
+        || Object.prototype.hasOwnProperty.call(req.body, 'region_id')) {
+        const { rows: [region] } = await client.query(
+          `SELECT id FROM restaurant_regions WHERE restaurant_id = $1 AND id = $2`,
+          [restaurantId, normalized.regionId]
+        );
+        if (!region) throw new AppError('Region not found', 404, 'region_not_found');
+      }
       if (existing.is_primary && hasPrimary && isPrimary === false) {
         throw new AppError('Promote another location before demoting the primary location', 409, 'primary_location_required');
       }
@@ -2451,7 +2719,11 @@ function deviceRouteContract(device, options = {}) {
   if (appKey === 'kitchen') {
     contract.routes.kitchenFeed = `${base}/devices/${deviceId}/kitchen-feed`;
     contract.routes.kitchenFeedAck = `${base}/devices/${deviceId}/kitchen-feed/ack`;
+    contract.routes.printerJobs = `${base}/devices/${deviceId}/printer-jobs`;
+    contract.routes.printerJobClaim = `${base}/devices/${deviceId}/printer-jobs/:jobId/claim`;
+    contract.routes.printerJobUpdate = `${base}/devices/${deviceId}/printer-jobs/:jobId`;
     contract.polling.kitchenFeedAfterMs = 2000;
+    contract.polling.printerJobsAfterMs = 2000;
   }
   if (appKey === 'display') {
     contract.routes.queueBoard = `${base}/devices/${deviceId}/queue-board`;
@@ -2534,6 +2806,25 @@ exports.authenticateDisplayDevice = async (req, res, next) => {
   }
 };
 
+// Printer bridges use the same paired kitchen-device credential as the
+// managed screen. Keeping this transport-only path separate from staff
+// sessions prevents a browser bridge from inheriting restaurant-wide access.
+exports.authenticateKitchenPrinterDevice = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const deviceId = parsePositiveInt(req.params.deviceId);
+    if (!restaurantId || !deviceId) {
+      throw new AppError('Restaurant and device are required', 400, 'invalid_device_scope');
+    }
+    const device = await requireDeviceCredential(req, restaurantId, deviceId);
+    assertDeviceApp(device, 'kitchen');
+    req.restaurantDevice = device;
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
 function assertDeviceApp(device, appKey) {
   if (!device || device.app_key !== appKey) {
     throw new AppError(`${appKey} device credential is required`, 403, `${appKey}_device_required`);
@@ -2575,14 +2866,19 @@ async function buildQueueBoardPayload(restaurantId, device = null, { publicOnly 
   const restaurant = restaurants[0];
   if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
   const timezone = normalizeString(restaurant.timezone, 80) || 'UTC';
+  const orderParams = [restaurantId, timezone];
+  const deviceLocationFilter = device?.location_id != null
+    ? ` AND location_id = ANY($${orderParams.push([Number(device.location_id)])}::bigint[])`
+    : '';
   const { rows } = await pool.query(
     `SELECT queue_number, status, table_label, fulfillment_type, promised_at, updated_at
        FROM food_orders
       WHERE restaurant_id = $1
         AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date
         AND status IN ('received','accepted','preparing','ready')
+        ${deviceLocationFilter}
       ORDER BY queue_number ASC`,
-    [restaurantId, timezone]
+    orderParams
   );
   const preparingRows = rows.filter((row) => row.status !== 'ready');
   const readyRows = rows.filter((row) => row.status === 'ready');
@@ -2644,7 +2940,7 @@ function displaySettingsFromDevice(device) {
   };
 }
 
-async function buildDisplayStatsPayload(restaurantId, device = null) {
+async function buildDisplayStatsPayload(restaurantId, device = null, locationIds = null) {
   const { rows: [restaurant] } = await pool.query(
     `SELECT id, display_name, timezone
        FROM food_restaurants
@@ -2653,6 +2949,12 @@ async function buildDisplayStatsPayload(restaurantId, device = null) {
   );
   if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
   const timezone = normalizeString(restaurant.timezone, 80) || 'UTC';
+  const orderParams = [restaurantId, timezone];
+  const locationFilter = locationIds?.length
+    ? ` AND location_id = ANY($${orderParams.push(locationIds)}::bigint[])`
+    : device?.location_id != null
+      ? ` AND location_id = ANY($${orderParams.push([Number(device.location_id)])}::bigint[])`
+      : '';
   const { rows: [orders] } = await pool.query(
     `SELECT
         COUNT(*) FILTER (WHERE status IN ('received','accepted','preparing','ready'))::int AS active_orders,
@@ -2662,9 +2964,16 @@ async function buildDisplayStatsPayload(restaurantId, device = null) {
         COUNT(*) FILTER (WHERE order_source = 'kiosk')::int AS kiosk_orders
        FROM food_orders
       WHERE restaurant_id = $1
-        AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date`,
-    [restaurantId, timezone]
+        AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date
+        ${locationFilter}`,
+    orderParams
   );
+  const deviceParams = [restaurantId];
+  const deviceLocationFilter = locationIds?.length
+    ? ` AND location_id = ANY($${deviceParams.push(locationIds)}::bigint[])`
+    : device?.location_id != null
+      ? ` AND location_id = ANY($${deviceParams.push([Number(device.location_id)])}::bigint[])`
+      : '';
   const { rows: [devices] } = await pool.query(
     `SELECT
         COUNT(*) FILTER (WHERE app_key = 'display' AND status = 'paired')::int AS paired_displays,
@@ -2675,8 +2984,8 @@ async function buildDisplayStatsPayload(restaurantId, device = null) {
         )::int AS stale_displays,
         MAX(last_seen_at) FILTER (WHERE app_key = 'display' AND status = 'paired') AS last_display_seen_at
        FROM restaurant_app_devices
-      WHERE restaurant_id = $1`,
-    [restaurantId]
+      WHERE restaurant_id = $1${deviceLocationFilter}`,
+    deviceParams
   );
   return {
     restaurant: {
@@ -2713,7 +3022,7 @@ exports.createDevicePairingCode = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const appKey = normalizeString(req.body.appKey || req.body.app_key, 32);
     if (!APP_KEYS.has(appKey)) throw new AppError('Validation failed', 400, 'validation_failed', { appKey: 'Unsupported app key' });
     const deviceName = normalizeString(req.body.deviceName || req.body.device_name, 160) || `${appKey} device`;
@@ -2804,7 +3113,7 @@ exports.rotateDeviceToken = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const deviceId = parsePositiveInt(req.params.deviceId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     if (!deviceId) throw new AppError('Device is required', 400, 'invalid_device_scope');
     const deviceToken = crypto.randomBytes(32).toString('base64url');
     const deviceTokenHash = crypto.createHash('sha256').update(deviceToken).digest('hex');
@@ -2946,7 +3255,7 @@ exports.updateDeviceConfig = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const deviceId = parsePositiveInt(req.params.deviceId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const locationId = parsePositiveInt(req.body.locationId || req.body.location_id);
     if (locationId) {
       const { rows: [location] } = await pool.query(
@@ -3029,6 +3338,72 @@ exports.getDeviceConfig = async (req, res, next) => {
   }
 };
 
+// F-26: expose one read model for the device fleet while legacy display
+// pairing tokens and managed-screen credentials remain valid during the
+// migration.  Callers can render one fleet view without knowing which
+// credential store owns a device.
+exports.listRestaurantDevices = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const scoped = locationScope.mode === 'assigned';
+    const locationFilter = scoped ? ' AND location_id = ANY($2::bigint[])' : '';
+    const queryParams = scoped ? [restaurantId, locationScope.location_ids] : [restaurantId];
+    const [{ rows: appDevices }, { rows: displayPairings }] = await Promise.all([
+      pool.query(
+        `SELECT id, restaurant_id, app_key, device_name, mode, location_id,
+                status, config, last_seen_at, created_at, updated_at,
+                paired_at, device_token_expires_at, config_version
+           FROM restaurant_app_devices
+          WHERE restaurant_id = $1${locationFilter}
+          ORDER BY updated_at DESC, id DESC`,
+        queryParams
+      ),
+      pool.query(
+        `SELECT id, restaurant_id, location_id, label, device_role, paired_at,
+                last_seen_at, pairing_token_expires_at, created_at
+           FROM display_pairings
+          WHERE restaurant_id = $1${locationFilter}
+          ORDER BY created_at DESC, id DESC`,
+        queryParams
+      ),
+    ]);
+    const devices = [
+      ...appDevices.map((device) => ({
+        ...publicDevice(device),
+        canonicalId: `app:${device.id}`,
+        source: 'restaurant_app_devices',
+        capabilities: [device.app_key],
+      })),
+      ...displayPairings.map((pairing) => ({
+        id: Number(pairing.id),
+        canonicalId: `display:${pairing.id}`,
+        source: 'display_pairings',
+        restaurantId: Number(pairing.restaurant_id),
+        locationId: pairing.location_id == null ? null : Number(pairing.location_id),
+        deviceName: pairing.label || `Display ${pairing.id}`,
+        appKey: 'display',
+        deviceRole: pairing.device_role || DEFAULT_DISPLAY_DEVICE_ROLE,
+        status: pairing.paired_at ? 'paired' : 'pending',
+        pairedAt: pairing.paired_at,
+        lastSeenAt: pairing.last_seen_at,
+        tokenExpiresAt: pairing.pairing_token_expires_at || null,
+        createdAt: pairing.created_at,
+        capabilities: [pairing.device_role || DEFAULT_DISPLAY_DEVICE_ROLE],
+      })),
+    ];
+    res.json({
+      version: 1,
+      devices,
+      sources: ['restaurant_app_devices', 'display_pairings'],
+      serverTime: new Date().toISOString(),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.getDeviceQueueBoard = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
@@ -3058,11 +3433,14 @@ exports.getDisplayStats = async (req, res, next) => {
     const deviceId = parsePositiveInt(req.params.deviceId);
     const device = deviceId ? await requireDeviceCredential(req, restaurantId, deviceId) : null;
     if (device) assertDeviceApp(device, 'display');
+    let locationIds = null;
     if (!device) {
       if (!req.user?.id) throw new AppError('Authentication required', 401, 'authentication_required');
-      await requireRestaurantAccess(req.user.id, restaurantId);
+      const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+      const locationScope = await getLocationScope(restaurant, req.user.id);
+      if (locationScope.mode === 'assigned') locationIds = locationScope.location_ids;
     }
-    res.json(await buildDisplayStatsPayload(restaurantId, device));
+    res.json(await buildDisplayStatsPayload(restaurantId, device, locationIds));
   } catch (err) {
     next(err);
   }
@@ -3177,12 +3555,16 @@ exports.reportDeviceIssue = async (req, res, next) => {
   }
 };
 
-async function requireOpenPosShift(client, restaurantId, shiftId, userId, canManage) {
+async function requireOpenPosShift(client, restaurantId, shiftId, userId, canManage, locationScope = null) {
   if (!shiftId) throw new AppError('An open POS shift is required', 409, 'open_pos_shift_required');
+  const params = [shiftId, restaurantId];
+  const locationFilter = locationScope?.mode === 'assigned'
+    ? ` AND location_id = ANY($${params.push(locationScope.location_ids)}::bigint[])`
+    : '';
   const { rows: [shift] } = await client.query(
     `SELECT * FROM restaurant_pos_shifts
-      WHERE id = $1 AND restaurant_id = $2 AND status = 'open'`,
-    [shiftId, restaurantId]
+      WHERE id = $1 AND restaurant_id = $2 AND status = 'open'${locationFilter}`,
+    params
   );
   if (!shift) throw new AppError('Open POS shift not found', 409, 'open_pos_shift_required');
   if (!canManage && String(shift.staff_user_id) !== String(userId)) {
@@ -3195,8 +3577,15 @@ exports.openShift = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    // S-07: opening a cash drawer is a POS capability, not a side effect
+    // of membership. Representatives and support agents hold restaurant
+    // access but no pos.use, and previously could open a drawer in their
+    // own name.
+    await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage']);
+    const canManagePos = await hasRestaurantPermission(restaurant, req.user.id, 'pos.manage');
     const staffUserId = req.body.staffUserId || req.body.staff_user_id || req.user.id;
-    if (!MANAGE_ROLES.has(restaurant.effective_role) && String(staffUserId) !== String(req.user.id)) {
+    if (!canManagePos && String(staffUserId) !== String(req.user.id)) {
       throw new AppError('Only a manager can open a shift for another staff member', 403, 'forbidden');
     }
     try {
@@ -3206,10 +3595,29 @@ exports.openShift = async (req, res, next) => {
         staffUserId: 'Staff member must be active at this restaurant',
       });
     }
+    // F-02 phase 1: a drawer belongs to a store. The request's device
+    // (explicit device id, or the acting staff session's device) pins it;
+    // otherwise the restaurant's primary location.
+    const shiftActingStaff = await resolveActingStaff(req, restaurantId);
+    const shiftDeviceId = parsePositiveInt(req.body.deviceId || req.body.device_id)
+      || shiftActingStaff?.deviceId
+      || null;
+    const shiftDeviceLocationId = shiftDeviceId
+      ? await restaurantLocationService.deviceLocationId(pool, { restaurantId, deviceId: shiftDeviceId })
+      : null;
+    const shiftLocationId = await restaurantLocationService.resolveLocationId(pool, {
+      restaurantId,
+      requestedLocationId: parsePositiveInt(req.body.locationId || req.body.location_id),
+      deviceLocationId: shiftDeviceLocationId,
+    });
+    if (locationScope.mode === 'assigned'
+      && (!shiftLocationId || !locationScope.location_ids.includes(Number(shiftLocationId)))) {
+      throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+    }
     const { rows: [shift] } = await pool.query(
       `INSERT INTO restaurant_pos_shifts
-         (restaurant_id, staff_user_id, staff_label, drawer_name, opening_cash_cents, metadata)
-       VALUES ($1,$2,$3,$4,$5,$6)
+         (restaurant_id, staff_user_id, staff_label, drawer_name, opening_cash_cents, metadata, location_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
        ON CONFLICT (restaurant_id, staff_user_id)
          WHERE status = 'open' AND staff_user_id IS NOT NULL
        DO NOTHING
@@ -3221,6 +3629,7 @@ exports.openShift = async (req, res, next) => {
         normalizeString(req.body.drawerName || req.body.drawer_name, 120),
         parseCents(req.body.openingCashCents ?? req.body.opening_cash_cents, 'openingCashCents'),
         safeJson(req.body.metadata),
+        shiftLocationId,
       ]
     );
     if (!shift) throw new AppError('Staff member already has an open POS shift', 409, 'pos_shift_already_open');
@@ -3234,15 +3643,22 @@ exports.closeShift = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const canManagePos = await hasRestaurantPermission(restaurant, req.user.id, 'pos.manage');
     const shiftId = parsePositiveInt(req.params.shiftId);
     const closingCashCents = parseCents(req.body.closingCashCents ?? req.body.closing_cash_cents, 'closingCashCents');
     const result = await withTransaction(pool, async (client) => {
+      const shiftParams = [shiftId, restaurantId, req.user.id, canManagePos];
+      const shiftLocationFilter = locationScope.mode === 'assigned'
+        ? ` AND location_id = ANY($${shiftParams.push(locationScope.location_ids)}::bigint[])`
+        : '';
       const { rows: [currentShift] } = await client.query(
         `SELECT * FROM restaurant_pos_shifts
           WHERE id = $1 AND restaurant_id = $2 AND status = 'open'
             AND (staff_user_id = $3 OR $4 = TRUE)
+            ${shiftLocationFilter}
           FOR UPDATE`,
-        [shiftId, restaurantId, req.user.id, MANAGE_ROLES.has(restaurant.effective_role)]
+        shiftParams
       );
       if (!currentShift) throw new AppError('Open shift not found', 404, 'shift_not_found');
 
@@ -3338,8 +3754,9 @@ exports.closeShift = async (req, res, next) => {
                 closed_at = NOW(),
                 metadata = metadata || $2::jsonb
           WHERE id = $3 AND restaurant_id = $4
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($5::bigint[])' : ''}
           RETURNING *`,
-        [closingCashCents, JSON.stringify(closeSummary), shiftId, restaurantId]
+        [closingCashCents, JSON.stringify(closeSummary), shiftId, restaurantId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
       );
       return { shift, summary: closeSummary };
     });
@@ -3352,7 +3769,9 @@ exports.closeShift = async (req, res, next) => {
 exports.listShifts = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const { locationFilter, scopedParams } = locationScopeQueryHelpers(locationScope);
     const limit = Math.min(parsePositiveInt(req.query.limit, 50), 100);
     const { rows: shifts } = await pool.query(
       `SELECT s.*,
@@ -3393,9 +3812,10 @@ exports.listShifts = async (req, res, next) => {
               ) AS latest_drawer_count_cents
          FROM restaurant_pos_shifts s
         WHERE s.restaurant_id = $1
+          ${locationFilter('s', 4)}
         ORDER BY s.opened_at DESC
         LIMIT $2`,
-      [restaurantId, limit, req.user.id]
+      scopedParams([restaurantId, limit, req.user.id])
     );
     res.json({ shifts });
   } catch (err) {
@@ -3409,6 +3829,7 @@ exports.listPosOrders = async (req, res, next) => {
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     // POS surfaces require pos.use, not just membership.
     await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage', 'orders.manage']);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const limit = Math.min(parsePositiveInt(req.query.limit, 50), 100);
     const ticketState = normalizeString(req.query.ticketState || req.query.ticket_state, 24);
     const status = normalizeString(req.query.status, 32);
@@ -3417,6 +3838,10 @@ exports.listPosOrders = async (req, res, next) => {
       'fo.restaurant_id = $1',
       "fo.order_source IN ('counter','kiosk','tablet')",
     ];
+    if (locationScope.mode === 'assigned') {
+      params.push(locationScope.location_ids);
+      filters.push(`fo.location_id = ANY($${params.length}::bigint[])`);
+    }
     if (ticketState) {
       if (!POS_TICKET_STATES.has(ticketState)) {
         throw new AppError('Validation failed', 400, 'validation_failed', { ticketState: 'Unsupported ticket state' });
@@ -3438,10 +3863,12 @@ exports.listPosOrders = async (req, res, next) => {
                 'unitPriceCents', foi.unit_price_cents,
                 'modifierTotalCents', foi.modifier_total_cents,
                 'lineTotalCents', foi.line_total_cents,
+                'courseNumber', foi.course_number,
+                'seatNumber', foi.seat_number,
                 'kitchenStatus', foi.kitchen_status,
                 'stationLabel', foi.station_label,
                 'specialInstructions', foi.special_instructions
-              ) ORDER BY foi.id) FILTER (WHERE foi.id IS NOT NULL), '[]') AS items
+              ) ORDER BY foi.course_number, foi.id) FILTER (WHERE foi.id IS NOT NULL), '[]') AS items
          FROM food_orders fo
          LEFT JOIN food_order_items foi ON foi.order_id = fo.id
         WHERE ${filters.join(' AND ')}
@@ -3464,7 +3891,10 @@ exports.listHeldTickets = async (req, res, next) => {
 exports.listDrawerEvents = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage', 'orders.manage']);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const { locationFilter, scopedParams } = locationScopeQueryHelpers(locationScope);
     const shiftId = parsePositiveInt(req.params.shiftId);
     const limit = Math.min(parsePositiveInt(req.query.limit, 100), 200);
     const { rows: events } = await pool.query(
@@ -3474,9 +3904,10 @@ exports.listDrawerEvents = async (req, res, next) => {
         WHERE de.restaurant_id = $1
           AND de.shift_id = $2
           AND s.restaurant_id = $1
+          ${locationFilter('de', 4)}
         ORDER BY de.created_at DESC, de.id DESC
         LIMIT $3`,
-      [restaurantId, shiftId, limit]
+      scopedParams([restaurantId, shiftId, limit])
     );
     res.json({ events });
   } catch (err) {
@@ -3488,42 +3919,88 @@ exports.recordDrawerEvent = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage', 'orders.manage']);
+    const canManagePos = await hasRestaurantPermission(restaurant, req.user.id, 'pos.manage');
     const shiftId = parsePositiveInt(req.params.shiftId);
     const eventType = normalizeString(req.body.eventType || req.body.event_type, 32);
     if (!POS_DRAWER_EVENT_TYPES.has(eventType)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { eventType: 'Unsupported drawer event type' });
     }
     const amountCents = parseCents(req.body.amountCents ?? req.body.amount_cents, 'amountCents');
-    const { rows: [event] } = await pool.query(
-       `WITH checked_shift AS (
-         SELECT id
-           FROM restaurant_pos_shifts
-          WHERE id = $1
-            AND restaurant_id = $2
-            AND status = 'open'
-            AND (staff_user_id = $9 OR $10 = TRUE)
-       )
-       INSERT INTO restaurant_pos_drawer_events
-         (restaurant_id, shift_id, event_type, amount_cents, reason, note, metadata, created_by)
-       SELECT $2, id, $3, $4, $5, $6, $7::jsonb, $8
-         FROM checked_shift
-       RETURNING *`,
-      [
-        shiftId,
-        restaurantId,
-        eventType,
-        amountCents,
-        normalizeString(req.body.reason, 160),
-        normalizeString(req.body.note, 1000),
-        JSON.stringify(safeJson(req.body.metadata)),
-        req.user.id,
-        req.user.id,
-        MANAGE_ROLES.has(restaurant.effective_role),
-      ]
-    );
-    if (!event) throw new AppError('Shift not found', 404, 'shift_not_found');
-    broadcastRestaurant(restaurant, 'food:pos:drawer:event', { event });
-    res.status(201).json({ event });
+    const actingStaff = await resolveActingStaff(req, restaurantId);
+    // S-07: cash leaving the drawer without a sale (payout, cash-out) and
+    // opening it without a transaction (no-sale) need a manager-PIN
+    // approval above the restaurant's thresholds. The approval row is
+    // written on the same transaction as the event and linked to it, so
+    // a refused or rolled-back event leaves no orphan approval.
+    const approvalAction = eventType === 'payout'
+      ? 'payout'
+      : eventType === 'cash_out'
+        ? 'cash_out'
+        : eventType === 'no_sale'
+          ? 'no_sale'
+          : null;
+    const result = await withTransaction(pool, async (client) => {
+      let approval = null;
+      if (approvalAction) {
+        approval = await consumeManagerApproval({
+          client,
+          restaurant,
+          req,
+          action: approvalAction,
+          amountCents,
+          shiftId,
+          actingStaff,
+        });
+      }
+      const metadata = {
+        ...safeJson(req.body.metadata),
+        ...(approval ? { approvalId: approval.id } : {}),
+      };
+      const { rows: [event] } = await client.query(
+         `WITH checked_shift AS (
+           SELECT id
+             FROM restaurant_pos_shifts
+            WHERE id = $1
+              AND restaurant_id = $2
+              AND status = 'open'
+              AND (staff_user_id = $9 OR $10 = TRUE)
+              ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($12::bigint[])' : ''}
+         )
+         INSERT INTO restaurant_pos_drawer_events
+           (restaurant_id, shift_id, event_type, amount_cents, reason, note, metadata, created_by, acting_staff_user_id)
+         SELECT $2, id, $3, $4, $5, $6, $7::jsonb, $8, $11
+           FROM checked_shift
+         RETURNING *`,
+        [
+          shiftId,
+          restaurantId,
+          eventType,
+          amountCents,
+          normalizeString(req.body.reason, 160),
+          normalizeString(req.body.note, 1000),
+          JSON.stringify(metadata),
+          req.user.id,
+          req.user.id,
+          canManagePos,
+          actingStaff?.staffUserId || null,
+          ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : []),
+        ]
+      );
+      if (!event) throw new AppError('Shift not found', 404, 'shift_not_found');
+      if (approval) {
+        await linkApproval(client, approval.id, { drawerEventId: event.id });
+        approval.status = 'consumed';
+        approval.drawer_event_id = event.id;
+      }
+      return { event, approval };
+    });
+    broadcastRestaurant(restaurant, 'food:pos:drawer:event', { event: result.event });
+    res.status(201).json({
+      event: result.event,
+      ...(result.approval ? { approval: result.approval } : {}),
+    });
   } catch (err) {
     next(err);
   }
@@ -3533,7 +4010,9 @@ exports.createPosOrder = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage', 'orders.manage']);
+    const canManagePos = await hasRestaurantPermission(restaurant, req.user.id, 'pos.manage');
     const items = Array.isArray(req.body.items) ? req.body.items : [];
     if (!items.length) throw new AppError('Validation failed', 400, 'validation_failed', { items: 'At least one item is required' });
     const source = normalizeString(req.body.orderSource || req.body.order_source, 24) || 'counter';
@@ -3548,25 +4027,80 @@ exports.createPosOrder = async (req, res, next) => {
       req.body.paymentMode || req.body.payment_mode,
       'pay_at_restaurant'
     );
+    // F-04: one stable id per checkout attempt. A retry of the pay flow
+    // resends it and replays on the order the first attempt created
+    // (enforced by the partial unique index from migration 942).
+    const clientOrderId = normalizeString(req.body.clientOrderId || req.body.client_order_id, 120) || null;
+    // S-06: the staff member who unlocked this terminal, when a staff
+    // sub-session is attached to the request.
+    const actingStaff = await resolveActingStaff(req, restaurantId);
 
     const result = await withTransaction(pool, async (client) => {
-      if (shiftId) {
-        await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, MANAGE_ROLES.has(restaurant.effective_role));
+      const openShift = shiftId
+        ? await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, canManagePos, locationScope)
+        : null;
+      const posDeviceLocationId = actingStaff?.deviceId
+        ? await restaurantLocationService.deviceLocationId(client, { restaurantId, deviceId: actingStaff.deviceId })
+        : null;
+      const requestedStore = storeMenu.pinnedLocation(req.body.locationId ?? req.body.location_id, openShift?.location_id);
+      let pinnedStore = storeMenu.pinnedLocation(requestedStore, posDeviceLocationId);
+      if (locationScope.mode === 'assigned') {
+        if (!pinnedStore && locationScope.location_ids.length === 1) pinnedStore = locationScope.location_ids[0];
+        if (!pinnedStore || !locationScope.location_ids.includes(Number(pinnedStore))) {
+          throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+        }
       }
-      const { rows: [lockedRestaurant] } = await client.query(
-        `SELECT * FROM food_restaurants WHERE id = $1 FOR UPDATE`,
+      // Read WITHOUT the row lock (F-18). This SELECT used to take
+      // FOR UPDATE, which held the restaurant row across the external
+      // routing call below (and every other POS order for the restaurant
+      // queued behind it). In this flow the lock guarded only the
+      // MAX(queue_number) allocation, which now comes from the atomic
+      // per-day counter, so no lock is needed here at all.
+      const { rows: [restaurantRow] } = await client.query(
+        `SELECT * FROM food_restaurants WHERE id = $1`,
         [restaurantId]
       );
-      if (!lockedRestaurant || lockedRestaurant.status !== 'active' || !lockedRestaurant.accepts_in_store_orders) {
+      if (!restaurantRow || restaurantRow.status !== 'active' || !restaurantRow.accepts_in_store_orders) {
         throw new AppError('Restaurant is not accepting in-store orders', 409, 'restaurant_not_accepting_orders');
       }
-      if (!Array.isArray(lockedRestaurant.fulfillment_modes)
-        || !lockedRestaurant.fulfillment_modes.includes(fulfillment)) {
+      if (clientOrderId) {
+        const { rows: [existingOrder] } = await client.query(
+          `SELECT * FROM food_orders WHERE restaurant_id = $1 AND client_order_id = $2`,
+          [restaurantId, clientOrderId]
+        );
+        if (existingOrder) {
+          storeMenu.pinnedLocation(existingOrder.location_id, pinnedStore);
+          return { order: existingOrder, printerJobs: [], runnerTask: null, replayed: true };
+        }
+      }
+      // F-12: onboarding could persist an empty fulfillment_modes array,
+      // which rejected every POS order. Treat empty like the schema
+      // default set so a fresh restaurant's first dine-in order works.
+      const fulfillmentModes = Array.isArray(restaurantRow.fulfillment_modes)
+        && restaurantRow.fulfillment_modes.length
+        ? restaurantRow.fulfillment_modes
+        : ['pickup', 'dine_in', 'kiosk'];
+      if (!fulfillmentModes.includes(fulfillment)) {
         throw new AppError('This fulfillment mode is not available', 409, 'fulfillment_mode_unavailable');
       }
+      // F-02 phase 1: stamp the store this ticket belongs to (explicit
+      // request, else the acting terminal's store, else primary) and run
+      // daypart checks in that store's timezone. The queue counter is
+      // per store since migration 952, keyed on the resolved location.
+      const posLocation = await restaurantLocationService.resolveLocationRow(client, {
+        restaurantId,
+        requestedLocationId: pinnedStore,
+        deviceLocationId: posDeviceLocationId,
+      });
+      storeMenu.assertLocation(posLocation, null);
+      storeMenu.useStoreDetails(restaurantRow, posLocation);
+      const posLocationId = posLocation ? Number(posLocation.id) : null;
+      const posTimezone = posLocation?.timezone || restaurantRow.timezone;
       const ids = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
       const { rows: menuRows } = await client.query(
         `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
+                fmi.manual_available, fmi.inventory_available, fmi.inventory_availability_state,
+                fmi.availability_schedule, ${storeMenu.overrideSql('fmi', '$3')},
                 COALESCE((
                   SELECT jsonb_agg(
                     jsonb_build_object(
@@ -3598,24 +4132,43 @@ exports.createPosOrder = async (req, res, next) => {
             AND fmi.id = ANY($2::bigint[])
             AND fmi.publication_status = 'published'
             AND fmi.archived_at IS NULL`,
-        [restaurantId, ids]
+        [restaurantId, ids, posLocationId]
       );
-      const menu = new Map(menuRows.map((row) => [Number(row.id), row]));
+      const menu = new Map(menuRows.map((row) => [Number(row.id), storeMenu.applyOverride(row)]));
       const normalized = items.map((line, index) => {
         const item = menu.get(parsePositiveInt(line.menuItemId || line.menu_item_id));
         if (!item || item.is_available === false) {
           throw new AppError('Validation failed', 400, 'validation_failed', { [`items.${index}.menuItemId`]: 'Menu item is unavailable' });
+        }
+        // F-11: POS orders are immediate, so dayparts are enforced at the
+        // current time in the store's timezone, same as online orders.
+        if (!isItemAvailableAt(item, new Date(), posTimezone)) {
+          throw new AppError('Validation failed', 400, 'validation_failed', { [`items.${index}.menuItemId`]: 'Menu item is not available at this time of day' });
         }
         const quantity = Math.min(parsePositiveInt(line.quantity, 1), 99);
         const requestedUnitPrice = line.unitPriceCents ?? line.unit_price_cents;
         const unitPrice = parseCents(requestedUnitPrice, 'unitPriceCents', Number(item.price_cents));
         if (requestedUnitPrice !== undefined
           && unitPrice !== Number(item.price_cents)
-          && !MANAGE_ROLES.has(restaurant.effective_role)) {
+          && !canManagePos) {
           throw new AppError('Only a manager can override menu prices', 403, 'price_override_forbidden');
         }
         const modifiers = resolveOrderItemModifiers(item, line, index);
         const modifierTotal = Math.max(0, modifiers.reduce((sum, modifier) => sum + Number(modifier.price_delta_cents || 0), 0));
+        const requestedCourse = line.courseNumber ?? line.course_number;
+        const courseNumber = requestedCourse === undefined || requestedCourse === null || requestedCourse === ''
+          ? 1
+          : parsePositiveInt(requestedCourse);
+        if (!courseNumber || courseNumber > 20) {
+          throw new AppError('Validation failed', 400, 'validation_failed', { [`items.${index}.courseNumber`]: 'Must be between 1 and 20' });
+        }
+        const requestedSeat = line.seatNumber ?? line.seat_number;
+        const seatNumber = requestedSeat === undefined || requestedSeat === null || requestedSeat === ''
+          ? null
+          : parsePositiveInt(requestedSeat);
+        if (requestedSeat !== undefined && requestedSeat !== null && requestedSeat !== '' && (!seatNumber || seatNumber > 99)) {
+          throw new AppError('Validation failed', 400, 'validation_failed', { [`items.${index}.seatNumber`]: 'Must be between 1 and 99' });
+        }
         return {
           item,
           quantity,
@@ -3623,6 +4176,8 @@ exports.createPosOrder = async (req, res, next) => {
           modifiers,
           modifierTotal,
           lineTotal: (unitPrice + modifierTotal) * quantity,
+          courseNumber,
+          seatNumber,
           stationLabel: normalizeString(line.stationLabel || line.station_label, 80),
           specialInstructions: normalizeString(line.specialInstructions || line.special_instructions, 500),
         };
@@ -3639,12 +4194,34 @@ exports.createPosOrder = async (req, res, next) => {
           tipCents: `Must not exceed ${maxTip} cents`,
         });
       }
-      const { discountCents: discount, discountLines } = normalizeDiscountLines(req.body, subtotal, {
-        allowManual: MANAGE_ROLES.has(restaurant.effective_role),
-      });
+      // F-15: when the request names one of the restaurant's discount
+      // definitions, the definition path computes and (S-07) approves
+      // the discount; legacy fields are ignored for that request. With
+      // no definition id the legacy global-code path runs unchanged.
+      const discountDefinitionId = parsePositiveInt(req.body.discountDefinitionId || req.body.discount_definition_id);
+      let discount;
+      let discountLines;
+      let discountApproval = null;
+      if (discountDefinitionId) {
+        ({ discountCents: discount, discountLines, approval: discountApproval } = await resolveDefinitionDiscount({
+          client,
+          restaurant,
+          req,
+          restaurantId,
+          subtotal,
+          definitionId: discountDefinitionId,
+          shiftId,
+          locationId: pinnedStore,
+          actingStaff,
+        }));
+      } else {
+        ({ discountCents: discount, discountLines } = normalizeDiscountLines(req.body, subtotal, {
+          allowManual: canManagePos,
+        }));
+      }
       const taxableSubtotal = Math.max(0, subtotal - discount);
-      const taxRateBps = Math.max(0, Math.min(10000, Number(lockedRestaurant.tax_rate_bps || 0)));
-      const serviceFeeBps = Math.max(0, Math.min(10000, Number(lockedRestaurant.service_fee_bps || 0)));
+      const taxRateBps = Math.max(0, Math.min(10000, Number(restaurantRow.tax_rate_bps || 0)));
+      const serviceFeeBps = Math.max(0, Math.min(10000, Number(restaurantRow.service_fee_bps || 0)));
       const tax = Math.round(taxableSubtotal * taxRateBps / 10000);
       const serviceFeeCents = Math.round(taxableSubtotal * serviceFeeBps / 10000);
       let deliveryAddress = null;
@@ -3680,47 +4257,40 @@ exports.createPosOrder = async (req, res, next) => {
           lat,
           lng,
         };
-        if (Number(lockedRestaurant.delivery_radius_meters || 0) > 0) {
-          if (![lockedRestaurant.latitude, lockedRestaurant.longitude, lat, lng]
+        if (Number(restaurantRow.delivery_radius_meters || 0) > 0) {
+          if (![restaurantRow.latitude, restaurantRow.longitude, lat, lng]
             .every((coordinate) => Number.isFinite(Number(coordinate)))) {
             throw new AppError('Delivery coordinates are required to verify the delivery area', 400, 'delivery_coordinates_required');
           }
           const routedDelivery = await calculateGeoRoute({
-            origin: [Number(lockedRestaurant.longitude), Number(lockedRestaurant.latitude)],
+            origin: [Number(restaurantRow.longitude), Number(restaurantRow.latitude)],
             destination: [Number(lng), Number(lat)],
             travelMode: 'Car',
           });
           const deliveryDistanceMeters = Number.isFinite(Number(routedDelivery?.distanceMeters))
             ? Number(routedDelivery.distanceMeters)
             : geoDistanceMeters(
-              Number(lockedRestaurant.latitude),
-              Number(lockedRestaurant.longitude),
+              Number(restaurantRow.latitude),
+              Number(restaurantRow.longitude),
               Number(lat),
               Number(lng)
             );
-          if (deliveryDistanceMeters > Number(lockedRestaurant.delivery_radius_meters)) {
+          if (deliveryDistanceMeters > Number(restaurantRow.delivery_radius_meters)) {
             throw new AppError('Delivery address is outside this restaurant\'s delivery area', 409, 'outside_delivery_area', {
               deliveryDistanceMeters: Math.round(deliveryDistanceMeters),
-              deliveryRadiusMeters: Number(lockedRestaurant.delivery_radius_meters),
+              deliveryRadiusMeters: Number(restaurantRow.delivery_radius_meters),
             });
           }
           deliveryAddress.distanceMeters = Math.round(deliveryDistanceMeters);
         }
-        const publishedSettings = safeJson(lockedRestaurant.settings);
+        const publishedSettings = safeJson(restaurantRow.settings);
         deliveryFeeCents = parseCents(
           publishedSettings.deliveryFeeCents ?? publishedSettings.delivery_fee_cents,
           'deliveryFeeCents'
         );
       }
       const total = taxableSubtotal + tax + serviceFeeCents + deliveryFeeCents + tip;
-      const { rows: queueRows } = await client.query(
-        `SELECT COALESCE(MAX(queue_number), 0) + 1 AS next_queue
-           FROM food_orders
-          WHERE restaurant_id = $1
-            AND (created_at AT TIME ZONE COALESCE($2, 'UTC'))::date =
-                (CURRENT_TIMESTAMP AT TIME ZONE COALESCE($2, 'UTC'))::date`,
-        [restaurantId, lockedRestaurant.timezone || 'UTC']
-      );
+      const queueNumber = await nextQueueNumber(client, restaurantId, posTimezone, new Date(), posLocationId);
       const requestedPaymentStatus = normalizeString(req.body.paymentStatus || req.body.payment_status, 24);
       if (requestedPaymentStatus && requestedPaymentStatus !== 'unpaid') {
         throw new AppError(
@@ -3734,7 +4304,7 @@ exports.createPosOrder = async (req, res, next) => {
         ...safeJson(req.body.metadata),
         pos: true,
         shiftId,
-        clientOrderId: normalizeString(req.body.clientOrderId || req.body.client_order_id, 120),
+        clientOrderId,
         paymentMode: paymentContract.legacy,
         payment_mode: paymentContract.legacy,
         restaurantPaymentMode: paymentContract.canonical,
@@ -3752,12 +4322,12 @@ exports.createPosOrder = async (req, res, next) => {
             order_source, fulfillment_type, payment_status, subtotal_cents, tax_cents,
             service_fee_cents, delivery_fee_cents, tax_rate_bps, service_fee_bps,
             tip_cents, discount_cents, total_cents, currency_code, table_label,
-            queue_number, promised_at, notes, metadata)
-         VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW() + ($21 || ' minutes')::interval,$22,$23)
+            queue_number, promised_at, notes, metadata, client_order_id, acting_staff_user_id, location_id)
+         VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW() + ($21 || ' minutes')::interval,$22,$23,$24,$25,$26)
          RETURNING *`,
         [
           restaurantId,
-          lockedRestaurant.business_id,
+          restaurantRow.business_id,
           normalizeString(req.body.guestName || req.body.guest_name, 140),
           normalizeString(req.body.guestPhone || req.body.guest_phone, 40),
           normalizeString(req.body.guestEmail || req.body.guest_email, 255),
@@ -3773,20 +4343,36 @@ exports.createPosOrder = async (req, res, next) => {
           tip,
           discount,
           total,
-          lockedRestaurant.currency_code || 'USD',
-          normalizeString(req.body.tableLabel || req.body.table_label, 80),
-          Number(queueRows[0]?.next_queue || 1),
-          lockedRestaurant.prep_time_min || 15,
+          restaurantRow.currency_code || 'USD',
+          // F-13: the web POS sends table_name; accept every spelling.
+          normalizeString(
+            req.body.tableLabel || req.body.table_label || req.body.tableName || req.body.table_name,
+            80
+          ),
+          queueNumber,
+          restaurantRow.prep_time_min || 15,
           normalizeString(req.body.notes, 1000),
           metadata,
+          clientOrderId,
+          actingStaff?.staffUserId || null,
+          posLocationId,
         ]
       );
+      if (discountApproval) {
+        // S-07: link the consumed manager approval to the order it
+        // authorized (the approvals row was written before the order
+        // existed, inside this same transaction).
+        await client.query(
+          'UPDATE restaurant_pos_approvals SET food_order_id = $2 WHERE id = $1',
+          [discountApproval.id, order.id]
+        );
+      }
       const createdOrderItems = [];
       for (const line of normalized) {
         const { rows: [orderItem] } = await client.query(
           `INSERT INTO food_order_items
-             (order_id, menu_item_id, item_name, quantity, unit_price_cents, modifier_total_cents, line_total_cents, special_instructions, station_label)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+             (order_id, menu_item_id, item_name, quantity, unit_price_cents, modifier_total_cents, line_total_cents, special_instructions, course_number, seat_number, station_label)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
            RETURNING id`,
           [
             order.id,
@@ -3797,6 +4383,8 @@ exports.createPosOrder = async (req, res, next) => {
             line.modifierTotal,
             line.lineTotal,
             line.specialInstructions,
+            line.courseNumber,
+            line.seatNumber,
             normalizeString(line.stationLabel, 80),
           ]
         );
@@ -3818,6 +4406,7 @@ exports.createPosOrder = async (req, res, next) => {
         restaurantId,
         orderId: order.id,
         orderItems: createdOrderItems,
+        locationId: order.location_id,
       });
       const printerJobs = await enqueueKitchenPrinterJobs(client, {
         restaurantId,
@@ -3838,15 +4427,20 @@ exports.createPosOrder = async (req, res, next) => {
             fulfillmentType: fulfillment,
             paymentContract: paymentContractMetadata(paymentContract),
           },
-          idempotencyKey: normalizeString(req.body.clientOrderId || req.body.client_order_id, 120)
-            ? `pos-order-created:${restaurantId}:${normalizeString(req.body.clientOrderId || req.body.client_order_id, 120)}`
+          actingStaffUserId: actingStaff?.staffUserId || null,
+          idempotencyKey: clientOrderId
+            ? `pos-order-created:${restaurantId}:${clientOrderId}`
             : null,
         });
       }
       return { order, printerJobs, runnerTask };
     });
-    broadcastRestaurant(restaurant, 'food:order:created', result);
-    res.status(201).json(result);
+    // F-04: a replayed checkout returns the original order with 200 and
+    // does not re-fire the creation broadcast.
+    if (!result.replayed) {
+      broadcastRestaurant(restaurant, 'food:order:created', result);
+    }
+    res.status(result.replayed ? 200 : 201).json(result);
   } catch (err) {
     next(err);
   }
@@ -3857,14 +4451,38 @@ exports.updatePosTicket = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const canManageRestaurant = await hasRestaurantPermission(restaurant, req.user.id, 'restaurant.manage');
     const ticketState = normalizeString(req.body.ticketState || req.body.ticket_state, 24);
     if (!POS_TICKET_STATES.has(ticketState)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { ticketState: 'Unsupported ticket state' });
     }
     // Voiding erases what the customer owes: owner/manager only. Hold and
-    // reopen are non-money ticket routing and stay employee-accessible.
+    // reopen are non-money ticket routing, but F-31: membership alone no
+    // longer suffices; the caller needs pos.use (or orders.manage), which
+    // representative and support-agent memberships do not hold.
+    // S-07: a non-manager can void when a manager approves with their PIN
+    // on this device (approvalPin in the body) plus a void reason code;
+    // without a PIN the historical manager-only refusal is unchanged.
+    const actingStaff = await resolveActingStaff(req, restaurantId);
+    let voidApprovalRequested = false;
     if (ticketState === 'voided') {
-      assertManage(restaurant);
+      const approvalPin = normalizeString(
+        req.body.approvalPin || req.body.approval_pin || req.body.managerPin || req.body.manager_pin,
+        12
+      );
+      // S-07 + S-08: a non-manager with a manager approval PIN voids via
+      // the approval, consumed inside the write transaction. Everyone
+      // else (owners and managers included, so a deny override on
+      // restaurant.manage actually closes this gate) must hold
+      // restaurant.manage through the unified resolver.
+      if (approvalPin && !canManageRestaurant) {
+        voidApprovalRequested = true;
+      } else {
+        await assertManage(restaurant, req.user.id);
+      }
+    } else {
+      await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'orders.manage']);
     }
     if (ticketState === 'refunded') {
       throw new AppError(
@@ -3890,8 +4508,11 @@ exports.updatePosTicket = async (req, res, next) => {
                         WHERE payment_type = 'refund' AND status IN ('recorded','captured','refunded')
                       ), 0)::int AS net_paid_cents
            FROM restaurant_pos_payments
-          WHERE restaurant_id = $1 AND food_order_id = $2`,
-        [restaurantId, orderId]
+          WHERE restaurant_id = $1 AND food_order_id = $2
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}`,
+        locationScope.mode === 'assigned'
+          ? [restaurantId, orderId, locationScope.location_ids]
+          : [restaurantId, orderId]
       );
       if (Number(paymentTotals.net_paid_cents || 0) > 0) {
         throw new AppError(
@@ -3903,7 +4524,35 @@ exports.updatePosTicket = async (req, res, next) => {
     }
     const status = ticketState === 'voided' ? 'cancelled' : ticketState === 'refunded' ? 'refunded' : null;
     const paymentStatus = ticketState === 'refunded' ? 'refunded' : null;
+    const voidReasonCode = ticketState === 'voided'
+      ? normalizeString(req.body.reasonCode || req.body.reason_code, 60)
+      : null;
+    if (voidReasonCode && !POS_VOID_REASON_CODES.has(voidReasonCode)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { reasonCode: 'Unsupported void reason code' });
+    }
     const result = await withTransaction(pool, async (client) => {
+      let voidApproval = null;
+      if (voidApprovalRequested) {
+        const { rows: [voidOrder] } = await client.query(
+          `SELECT total_cents FROM food_orders
+            WHERE id = $1 AND restaurant_id = $2
+              ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}`,
+          locationScope.mode === 'assigned'
+            ? [orderId, restaurantId, locationScope.location_ids]
+            : [orderId, restaurantId]
+        );
+        if (!voidOrder) throw new AppError('Order not found', 404, 'order_not_found');
+        voidApproval = await consumeManagerApproval({
+          client,
+          restaurant,
+          req,
+          action: 'void',
+          amountCents: Number(voidOrder.total_cents || 0),
+          orderId,
+          actingStaff,
+          reasonCodes: POS_VOID_REASON_CODES,
+        });
+      }
       const { rows: [order] } = await client.query(
         `UPDATE food_orders
             SET pos_ticket_state = $1,
@@ -3915,6 +4564,7 @@ exports.updatePosTicket = async (req, res, next) => {
                 updated_at = NOW()
           WHERE id = $5 AND restaurant_id = $6
             AND pos_ticket_state = ANY($7::varchar[])
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($8::bigint[])' : ''}
             AND ($1 <> 'voided' OR NOT EXISTS (
               SELECT 1 FROM restaurant_pos_payments p
                WHERE p.food_order_id = food_orders.id
@@ -3930,11 +4580,12 @@ exports.updatePosTicket = async (req, res, next) => {
           orderId,
           restaurantId,
           allowedCurrentStates,
+          ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : []),
         ]
       );
       if (!order) throw new AppError('Ticket transition is no longer allowed', 409, 'illegal_ticket_transition');
       if (order.status === 'cancelled') {
-        await releaseInventoryForOrder(client, { restaurantId, orderId: order.id });
+        await releaseInventoryForOrder(client, { restaurantId, orderId: order.id, locationId: order.location_id });
       }
       const event = await insertPosReceiptAudit(client, {
         restaurantId,
@@ -3950,7 +4601,10 @@ exports.updatePosTicket = async (req, res, next) => {
         metadata: {
           ticketState,
           previousAllowedStates: allowedCurrentStates,
+          ...(voidReasonCode ? { reasonCode: voidReasonCode } : {}),
+          ...(voidApproval ? { approvalId: voidApproval.id } : {}),
         },
+        actingStaffUserId: actingStaff?.staffUserId || null,
         idempotencyKey: normalizeString(
           req.get('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key,
           200
@@ -3991,65 +4645,136 @@ exports.splitPosOrder = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const sourceOrderId = parsePositiveInt(req.params.orderId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage', 'orders.manage']);
-    const itemIds = Array.isArray(req.body.orderItemIds || req.body.order_item_ids || req.body.itemIds)
-      ? (req.body.orderItemIds || req.body.order_item_ids || req.body.itemIds).map((id) => parsePositiveInt(id)).filter(Boolean)
-      : [];
-    if (!itemIds.length) throw new AppError('Validation failed', 400, 'validation_failed', { orderItemIds: 'At least one order item is required' });
+    const rawSplitItems = Array.isArray(req.body.items || req.body.splitItems || req.body.split_items)
+      ? (req.body.items || req.body.splitItems || req.body.split_items)
+      : null;
+    const itemIdsInput = req.body.orderItemIds || req.body.order_item_ids || req.body.itemIds;
+    let splitRequests = rawSplitItems
+      ? rawSplitItems.map((entry) => ({
+        id: parsePositiveInt(entry?.orderItemId || entry?.order_item_id || entry?.itemId || entry?.id),
+        quantity: entry?.quantity === undefined || entry?.quantity === null || entry?.quantity === ''
+          ? null
+          : parsePositiveInt(entry.quantity),
+      }))
+      : (Array.isArray(itemIdsInput) ? itemIdsInput.map((id) => ({ id: parsePositiveInt(id), quantity: null })) : []);
+    const splitAmountRaw = req.body.splitAmountCents ?? req.body.split_amount_cents;
+    const splitAmountCents = splitAmountRaw === undefined || splitAmountRaw === null || splitAmountRaw === ''
+      ? null
+      : parsePositiveInt(splitAmountRaw);
+    const evenSplitRaw = req.body.evenSplitCount ?? req.body.even_split_count;
+    const evenSplitCount = evenSplitRaw === undefined || evenSplitRaw === null || evenSplitRaw === ''
+      ? null
+      : parsePositiveInt(evenSplitRaw);
+    if (splitAmountCents && evenSplitCount) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { splitAmountCents: 'Choose an amount or an even split count, not both' });
+    }
+    if (evenSplitCount && (evenSplitCount < 2 || evenSplitCount > 10)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { evenSplitCount: 'Must be between 2 and 10' });
+    }
+    const automaticSplit = Boolean(splitAmountCents || evenSplitCount);
+    if ((!splitRequests.length && !automaticSplit) || splitRequests.some((entry) => !entry.id || (rawSplitItems && entry.quantity === null))) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { orderItemIds: 'Each split item must include a valid order item and positive quantity' });
+    }
+    let itemIds = splitRequests.map((entry) => entry.id);
+    if (new Set(itemIds).size !== itemIds.length) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { orderItemIds: 'An order item may appear only once' });
+    }
 
     const result = await withTransaction(pool, async (client) => {
       const { rows: [source] } = await client.query(
-        `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2 FOR UPDATE`,
-        [sourceOrderId, restaurantId]
+        `SELECT * FROM food_orders
+          WHERE id = $1 AND restaurant_id = $2
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}
+          FOR UPDATE`,
+        locationScope.mode === 'assigned'
+          ? [sourceOrderId, restaurantId, locationScope.location_ids]
+          : [sourceOrderId, restaurantId]
       );
       if (!source) throw new AppError('Order not found', 404, 'order_not_found');
-      await assertMutablePosOrders(client, restaurantId, [source]);
+      await assertMutablePosOrders(client, restaurantId, [source], locationScope);
       if (source.fulfillment_type === 'delivery') {
         throw new AppError('Delivery tickets cannot be split', 409, 'delivery_ticket_split_not_supported');
       }
-      const { rows: items } = await client.query(
-        `SELECT *, (
-           SELECT COUNT(*)::int
-             FROM food_order_items all_items
-            WHERE all_items.order_id = $1
-         ) AS order_item_count
-           FROM food_order_items
-          WHERE order_id = $1 AND id = ANY($2::bigint[])`,
-        [sourceOrderId, itemIds]
-      );
-      if (items.length !== itemIds.length) {
+      const itemQuery = itemIds.length
+        ? `SELECT *, (
+             SELECT COUNT(*)::int
+               FROM food_order_items all_items
+              WHERE all_items.order_id = $1
+           ) AS order_item_count
+             FROM food_order_items
+            WHERE order_id = $1 AND id = ANY($2::bigint[])`
+        : `SELECT *, (
+             SELECT COUNT(*)::int
+               FROM food_order_items all_items
+              WHERE all_items.order_id = $1
+           ) AS order_item_count
+             FROM food_order_items
+            WHERE order_id = $1`;
+      let { rows: items } = await client.query(itemQuery, itemIds.length ? [sourceOrderId, itemIds] : [sourceOrderId]);
+      if (itemIds.length && items.length !== itemIds.length) {
         throw new AppError('Validation failed', 400, 'validation_failed', { orderItemIds: 'Some order items do not belong to this order' });
       }
-      if (items.length >= Number(items[0]?.order_item_count || 0)) {
+      if (!items.length) {
+        throw new AppError('Validation failed', 400, 'validation_failed', { items: 'This ticket has no order lines to split' });
+      }
+      if (!splitRequests.length && automaticSplit) {
+        const targetCents = splitAmountCents || Math.floor(Number(source.subtotal_cents || 0) / evenSplitCount);
+        const allocation = allocateExactSplitQuantities(items, targetCents);
+        if (!allocation || !allocation.length) {
+          throw new AppError('The requested split amount cannot be represented by whole item quantities', 409, 'split_amount_unavailable', { targetCents });
+        }
+        splitRequests = allocation;
+        itemIds = allocation.map((entry) => entry.id);
+        items = items.filter((item) => itemIds.includes(Number(item.id)));
+      }
+      const splitItems = items.map((item) => {
+        const requested = splitRequests.find((entry) => entry.id === Number(item.id));
+        const lineQuantity = Number(item.quantity || 1);
+        const splitQuantity = requested?.quantity || lineQuantity;
+        if (!Number.isInteger(splitQuantity) || splitQuantity < 1 || splitQuantity > lineQuantity) {
+          throw new AppError('Validation failed', 400, 'validation_failed', { items: 'Split quantity must be between one and the line quantity' });
+        }
+        return { ...item, quantity: lineQuantity, splitQuantity };
+      });
+      const allLinesSelected = splitItems.length >= Number(items[0]?.order_item_count || 0);
+      const emptiesEverySelectedLine = splitItems.every((item) => item.splitQuantity >= Number(item.quantity || 1));
+      if (allLinesSelected && emptiesEverySelectedLine) {
         throw new AppError('A split must leave at least one item on the original ticket', 409, 'split_would_empty_ticket');
       }
-      const splitSubtotal = items.reduce((sum, item) => sum + Number(item.line_total_cents || 0), 0);
+      // A partial split carries the line price and modifier total per unit;
+      // rounding is applied only to the child line, with the remainder left
+      // on the source ticket so the two lines always reconcile exactly.
+      const splitSubtotal = splitItems.reduce((sum, item) => (
+        sum + Math.round(Number(item.line_total_cents || 0) * item.splitQuantity / Number(item.quantity || 1))
+      ), 0);
+      if (splitAmountCents && splitSubtotal !== splitAmountCents) {
+        throw new AppError('The selected lines do not equal the requested split amount', 409, 'split_amount_mismatch', {
+          requestedCents: splitAmountCents,
+          calculatedCents: splitSubtotal,
+        });
+      }
       const splitRatio = Number(source.subtotal_cents || 0) > 0 ? splitSubtotal / Number(source.subtotal_cents) : 0;
       const childDiscount = Math.round(Number(source.discount_cents || 0) * splitRatio);
       const childTip = Math.round(Number(source.tip_cents || 0) * splitRatio);
-      const { rows: queueRows } = await client.query(
-        `WITH locked_restaurant AS (
-           SELECT id, timezone
-             FROM food_restaurants
-            WHERE id = $1
-            FOR UPDATE
-         )
-         SELECT COALESCE(MAX(fo.queue_number), 0) + 1 AS next_queue
-           FROM food_orders fo
-           JOIN locked_restaurant lr ON lr.id = fo.restaurant_id
-          WHERE fo.restaurant_id = $1
-            AND (fo.created_at AT TIME ZONE COALESCE(lr.timezone, 'UTC'))::date =
-                (CURRENT_TIMESTAMP AT TIME ZONE COALESCE(lr.timezone, 'UTC'))::date`,
+      // Queue number for the split child ticket (F-18/F-32): the atomic
+      // per-day counter replaces the MAX computation whose CTE locked the
+      // restaurant row. The source order row lock above still serializes
+      // splits of the same ticket.
+      const { rows: [restaurantTz] } = await client.query(
+        `SELECT timezone FROM food_restaurants WHERE id = $1`,
         [restaurantId]
       );
+      const queueNumber = await nextQueueNumber(client, restaurantId, restaurantTz?.timezone, new Date(), source.location_id || null);
       const { rows: [child] } = await client.query(
         `INSERT INTO food_orders
          (restaurant_id, business_id, customer_id, guest_name, guest_phone, guest_email,
             order_source, fulfillment_type, status, payment_status, subtotal_cents, tax_cents,
             service_fee_cents, delivery_fee_cents, tax_rate_bps, service_fee_bps,
             tip_cents, discount_cents, total_cents, currency_code, table_label, queue_number,
-            promised_at, notes, metadata, pos_ticket_state, pos_parent_order_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'unpaid',$10,0,0,0,$11,$12,$13,$14,0,$15,$16,$17,$18,$19,$20,'open',$21)
+            promised_at, notes, metadata, pos_ticket_state, pos_parent_order_id, location_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'unpaid',$10,0,0,0,$11,$12,$13,$14,0,$15,$16,$17,$18,$19,$20,'open',$21,$22)
          RETURNING *`,
         [
           restaurantId,
@@ -4068,11 +4793,13 @@ exports.splitPosOrder = async (req, res, next) => {
           childDiscount,
           source.currency_code,
           source.table_label,
-          Number(queueRows[0]?.next_queue || 1),
+          queueNumber,
           source.promised_at,
           normalizeString(req.body.notes, 1000) || source.notes,
           JSON.stringify({ ...(source.metadata || {}), splitFromOrderId: source.id }),
           source.id,
+          // F-02 phase 1: a split child stays in the source ticket's store.
+          source.location_id || null,
         ]
       );
       await client.query(
@@ -4083,15 +4810,99 @@ exports.splitPosOrder = async (req, res, next) => {
           WHERE id = $3`,
         [childTip, childDiscount, sourceOrderId]
       );
-      await client.query(
-        `UPDATE food_order_items
-            SET order_id = $1
-          WHERE order_id = $2 AND id = ANY($3::bigint[]);
-         UPDATE restaurant_inventory_order_reservations
-            SET food_order_id = $1
-          WHERE restaurant_id = $4 AND food_order_item_id = ANY($3::bigint[])`,
-        [child.id, sourceOrderId, itemIds, restaurantId]
-      );
+      // Issued as two statements: a parameterized pg query cannot batch
+      // multiple commands (the combined form always failed on a real
+      // database with "cannot insert multiple commands into a prepared
+      // statement", which made every split 500 — found by the F-02
+      // location plumbing DB suite).
+      const wholeLineItemIds = splitItems
+        .filter((item) => item.splitQuantity >= Number(item.quantity || 1))
+        .map((item) => item.id);
+      if (wholeLineItemIds.length) {
+        await client.query(
+          `UPDATE food_order_items
+              SET order_id = $1
+            WHERE order_id = $2 AND id = ANY($3::bigint[])`,
+          [child.id, sourceOrderId, wholeLineItemIds]
+        );
+        await client.query(
+          `UPDATE restaurant_inventory_order_reservations
+              SET food_order_id = $1
+            WHERE restaurant_id = $2 AND food_order_item_id = ANY($3::bigint[])`,
+          [child.id, restaurantId, wholeLineItemIds]
+        );
+      }
+      for (const item of splitItems.filter((candidate) => candidate.splitQuantity < Number(candidate.quantity || 1))) {
+        const sourceQuantity = Number(item.quantity);
+        const childQuantity = item.splitQuantity;
+        const childLineTotal = Math.round(Number(item.line_total_cents || 0) * childQuantity / sourceQuantity);
+        const { rows: [childItem] } = await client.query(
+          `INSERT INTO food_order_items
+             (order_id, menu_item_id, item_name, quantity, unit_price_cents,
+              modifier_total_cents, line_total_cents, special_instructions,
+              course_number, seat_number, kitchen_status, station_label, bumped_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+           RETURNING id`,
+          [
+            child.id,
+            item.menu_item_id,
+            item.item_name,
+            childQuantity,
+            item.unit_price_cents,
+            item.modifier_total_cents,
+            childLineTotal,
+            item.special_instructions,
+            item.course_number || 1,
+            item.seat_number,
+            item.kitchen_status,
+            item.station_label,
+            item.bumped_at,
+          ]
+        );
+        await client.query(
+          `UPDATE food_order_items
+              SET quantity = $1, line_total_cents = $2
+            WHERE id = $3 AND order_id = $4`,
+          [sourceQuantity - childQuantity, Number(item.line_total_cents || 0) - childLineTotal, item.id, sourceOrderId]
+        );
+        await client.query(
+          `INSERT INTO food_order_item_modifiers
+             (order_item_id, modifier_id, modifier_name, price_delta_cents)
+           SELECT $1, modifier_id, modifier_name, price_delta_cents
+             FROM food_order_item_modifiers
+            WHERE order_item_id = $2`,
+          [childItem.id, item.id]
+        );
+        const { rows: reservations } = await client.query(
+          `SELECT id, inventory_item_id, menu_item_id, quantity, status, expires_at
+             FROM restaurant_inventory_order_reservations
+            WHERE food_order_item_id = $1
+            FOR UPDATE`,
+          [item.id]
+        );
+        if (reservations.some((reservation) => reservation.status !== 'reserved')) {
+          throw new AppError('Partially split items must have active inventory reservations', 409, 'partial_split_inventory_state');
+        }
+        for (const reservation of reservations) {
+          const childReservationQuantity = Math.round(Number(reservation.quantity) * childQuantity / sourceQuantity * 1000) / 1000;
+          if (childReservationQuantity <= 0) continue;
+          await client.query(
+            `UPDATE restaurant_inventory_order_reservations
+                SET quantity = quantity - $1
+              WHERE id = $2`,
+            [childReservationQuantity, reservation.id]
+          );
+          await client.query(
+            `INSERT INTO restaurant_inventory_order_reservations
+               (restaurant_id, food_order_id, food_order_item_id, inventory_item_id,
+                menu_item_id, quantity, expires_at)
+             SELECT restaurant_id, $1, $2, inventory_item_id, menu_item_id, $3, expires_at
+               FROM restaurant_inventory_order_reservations
+              WHERE id = $4`,
+            [child.id, childItem.id, childReservationQuantity, reservation.id]
+          );
+        }
+      }
       const updatedSource = await recalcOrderTotals(client, sourceOrderId);
       const updatedChild = await recalcOrderTotals(client, child.id);
       return { sourceOrder: updatedSource, splitOrder: updatedChild };
@@ -4109,6 +4920,7 @@ exports.mergePosOrders = async (req, res, next) => {
     const targetOrderId = parsePositiveInt(req.params.orderId);
     const sourceOrderId = parsePositiveInt(req.body.sourceOrderId || req.body.source_order_id);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage', 'orders.manage']);
     if (!sourceOrderId || sourceOrderId === targetOrderId) {
       throw new AppError('Validation failed', 400, 'validation_failed', { sourceOrderId: 'A different source order is required' });
@@ -4117,14 +4929,21 @@ exports.mergePosOrders = async (req, res, next) => {
       const { rows: orders } = await client.query(
         `SELECT * FROM food_orders
           WHERE restaurant_id = $1 AND id = ANY($2::bigint[])
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}
           FOR UPDATE`,
-        [restaurantId, [targetOrderId, sourceOrderId]]
+        locationScope.mode === 'assigned'
+          ? [restaurantId, [targetOrderId, sourceOrderId], locationScope.location_ids]
+          : [restaurantId, [targetOrderId, sourceOrderId]]
       );
       if (orders.length !== 2) throw new AppError('Order not found', 404, 'order_not_found');
-      await assertMutablePosOrders(client, restaurantId, orders);
+      await assertMutablePosOrders(client, restaurantId, orders, locationScope);
       const target = orders.find((order) => Number(order.id) === targetOrderId);
       const source = orders.find((order) => Number(order.id) === sourceOrderId);
       if (!target || !source) throw new AppError('Order not found', 404, 'order_not_found');
+      if (target.location_id != null && source.location_id != null
+        && Number(target.location_id) !== Number(source.location_id)) {
+        throw new AppError('Tickets must belong to the same store to merge', 409, 'pos_ticket_location_mismatch');
+      }
       if (target.currency_code !== source.currency_code
         || target.fulfillment_type !== source.fulfillment_type
         || Number(target.tax_rate_bps || 0) !== Number(source.tax_rate_bps || 0)
@@ -4140,12 +4959,17 @@ exports.mergePosOrders = async (req, res, next) => {
           WHERE id = $4`,
         [source.tip_cents, source.discount_cents, source.delivery_fee_cents, targetOrderId]
       );
+      // Two statements for the same reason as splitPosOrder above:
+      // parameterized queries cannot batch multiple commands.
       await client.query(
-        `UPDATE food_order_items SET order_id = $1 WHERE order_id = $2;
-         UPDATE restaurant_inventory_order_reservations
+        `UPDATE food_order_items SET order_id = $1 WHERE order_id = $2`,
+        [targetOrderId, sourceOrderId]
+      );
+      await client.query(
+        `UPDATE restaurant_inventory_order_reservations
             SET food_order_id = $1
-          WHERE restaurant_id = $3 AND food_order_id = $2`,
-        [targetOrderId, sourceOrderId, restaurantId]
+          WHERE restaurant_id = $2 AND food_order_id = $3`,
+        [targetOrderId, restaurantId, sourceOrderId]
       );
       await client.query(
         `UPDATE food_orders
@@ -4321,8 +5145,8 @@ async function recordPosOxsteedCreditPayment(client, {
   const { rows: [payment] } = await client.query(
     `INSERT INTO restaurant_pos_payments
        (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
-        provider, reference, note, metadata, idempotency_key, created_by)
-     VALUES ($1,$2,$3,'oxsteed_credit',$4,'captured','oxsteed_credit',$5,$6,$7::jsonb,$8,$9)
+        provider, reference, note, metadata, idempotency_key, created_by, location_id)
+     VALUES ($1,$2,$3,'oxsteed_credit',$4,'captured','oxsteed_credit',$5,$6,$7::jsonb,$8,$9,$10)
      RETURNING *`,
     [
       restaurantId,
@@ -4342,6 +5166,7 @@ async function recordPosOxsteedCreditPayment(client, {
       }),
       idempotencyKey,
       createdByUserId,
+      order.location_id ?? null,
     ]
   );
   const reconciliation = await reconcilePosOrderPayment(client, orderId);
@@ -4458,8 +5283,8 @@ async function refundPosOxsteedCreditPayment(client, {
     const { rows: [recordedRefund] } = await client.query(
       `INSERT INTO restaurant_pos_payments
          (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
-          provider, reference, note, metadata, idempotency_key, created_by)
-       VALUES ($1,$2,$3,'refund',$4,'refunded','oxsteed_credit',$5,$6,$7::jsonb,$8,$9)
+          provider, reference, note, metadata, idempotency_key, created_by, location_id)
+       VALUES ($1,$2,$3,'refund',$4,'refunded','oxsteed_credit',$5,$6,$7::jsonb,$8,$9,$10)
        RETURNING *`,
       [
         restaurantId,
@@ -4478,6 +5303,7 @@ async function refundPosOxsteedCreditPayment(client, {
         }),
         `${idempotencyKey}:${original.id}`,
         createdByUserId,
+        order.location_id ?? null,
       ]
     );
     refunds.push({ payment: recordedRefund, originalPayment: refundPayment, transactionId: refundTransactionId, amountCents: portionCents });
@@ -4520,6 +5346,7 @@ exports.recordPosPayment = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const paymentType = normalizePosPaymentType(
       req.body.paymentType || req.body.payment_type || req.body.paymentMode || req.body.payment_mode,
       null
@@ -4535,11 +5362,18 @@ exports.recordPosPayment = async (req, res, next) => {
         'card_payment_requires_processor'
       );
     }
-    // Every manual POS payment records or moves real money (cash tender,
-    // external receipt confirmation, customer wallet debits, refunds):
-    // owner/manager only. Order taking and non-money ticket updates stay
-    // employee-accessible elsewhere.
-    assertManage(restaurant);
+    // Authorization is resolved after shiftId is parsed below (F-03):
+    // tendering is a pos.use capability inside the staff member's own
+    // open drawer shift; refunds stay manager-only.
+    const isManager = await hasRestaurantPermission(restaurant, req.user.id, 'pos.manage');
+    // S-06: acting staff identity from the request's staff sub-session.
+    const actingStaff = await resolveActingStaff(req, restaurantId);
+    const compReasonCode = paymentType === 'comp'
+      ? normalizeString(req.body.reasonCode || req.body.reason_code, 60)
+      : null;
+    if (compReasonCode && !POS_COMP_REASON_CODES.has(compReasonCode)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { reasonCode: 'Unsupported comp reason code' });
+    }
     if (!POS_PAYMENT_STATUSES.has(status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported payment status' });
     }
@@ -4551,11 +5385,40 @@ exports.recordPosPayment = async (req, res, next) => {
       throw new AppError('Validation failed', 400, 'validation_failed', { amountCents: 'Must be greater than zero' });
     }
     const shiftId = parsePositiveInt(req.body.shiftId || req.body.shift_id);
+    // F-03: staff holding the catalog permission pos.use may tender cash,
+    // external/mobile, wallet-credit and OxSteed-credit payments, but
+    // only against their own open drawer shift (ownership is enforced by
+    // requireOpenPosShift inside the transaction); without one the
+    // payment is refused. Refunds keep requiring a manager, by role or
+    // via the pos.manage permission.
+    // S-07: a refund by non-manager staff can instead carry a manager's
+    // PIN approval (approvalPin), consumed inside the transaction below;
+    // without a PIN the denial is exactly the pre-S-07 one.
+    const approvalPin = normalizeString(
+      req.body.approvalPin || req.body.approval_pin || req.body.managerPin || req.body.manager_pin,
+      12
+    );
+    let refundApprovalRequested = false;
+    if (paymentType === 'refund') {
+      if (!isManager) {
+        try {
+          await assertRestaurantPermission(restaurant, req.user.id, ['pos.manage']);
+        } catch (err) {
+          if (!approvalPin) throw err;
+          refundApprovalRequested = true;
+        }
+      }
+    } else if (!isManager) {
+      await assertRestaurantPermission(restaurant, req.user.id, ['pos.use']);
+      if (!shiftId) {
+        throw new AppError('An open POS shift is required to record a payment', 409, 'open_pos_shift_required');
+      }
+    }
     const idempotencyKey = normalizeString(
       req.get('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key,
       200
     );
-    if (['refund', 'wallet_credit', 'oxsteed_credit'].includes(paymentType) && !idempotencyKey) {
+    if (['refund', 'gift_card', 'wallet_credit', 'oxsteed_credit'].includes(paymentType) && !idempotencyKey) {
       throw new AppError(
         'Idempotency-Key is required for stored-value payments and refunds',
         400,
@@ -4574,8 +5437,10 @@ exports.recordPosPayment = async (req, res, next) => {
     );
     const result = await withTransaction(pool, async (client) => {
       const { rows: [order] } = await client.query(
-        `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2 FOR UPDATE`,
-        [orderId, restaurantId]
+        `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2
+          ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}
+          FOR UPDATE`,
+        [orderId, restaurantId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
       );
       if (!order) throw new AppError('Order not found', 404, 'order_not_found');
       if (paymentType === 'refund' && idempotencyKey) {
@@ -4631,14 +5496,32 @@ exports.recordPosPayment = async (req, res, next) => {
           return { payment: existing, ...reconciliation, replayed: true };
         }
       }
+      // S-07: consume the manager-PIN approval for a refund that needed
+      // one, and for a comp above the restaurant's threshold. This runs
+      // after the idempotency replay checks above, so a retried request
+      // never burns a second approval.
+      let paymentApproval = null;
+      if (refundApprovalRequested || paymentType === 'comp') {
+        paymentApproval = await consumeManagerApproval({
+          client,
+          restaurant,
+          req,
+          action: paymentType === 'refund' ? 'refund' : 'comp',
+          amountCents,
+          orderId,
+          locationId: order.location_id,
+          actingStaff,
+          reasonCodes: paymentType === 'comp' ? POS_COMP_REASON_CODES : null,
+        });
+      }
       if (['voided', 'refunded'].includes(order.pos_ticket_state) || order.status === 'cancelled') {
         throw new AppError('This ticket cannot accept payments', 409, 'ticket_not_payable');
       }
-      // Managers may record payments without an open shift. Non-managers are
-      // already rejected by assertManage above, so the old
-      // `!MANAGE_ROLES.has(...)` disjunct here was dead.
+      // Managers may record payments without an open shift, or against
+      // any open shift. Staff tender only inside their own open shift:
+      // canManage=false makes requireOpenPosShift enforce ownership.
       if (shiftId) {
-        await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, true);
+        await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, isManager, locationScope);
       }
       const { rows: [ledger] } = await client.query(
         `SELECT COALESCE(SUM(amount_cents) FILTER (
@@ -4744,15 +5627,26 @@ exports.recordPosPayment = async (req, res, next) => {
         // Stripe Terminal. Fail closed and route the operator to the card
         // refund endpoint.
         const { rows: [processorCard] } = await client.query(
+          // The refunded side joins refunds to this order's processor
+          // card payments on the recorded originalPaymentId. (The prior
+          // form referenced the aggregate query's own ungrouped columns
+          // inside the subquery, which Postgres rejects with 42803, so a
+          // generic refund could never execute on a real database.)
           `SELECT COALESCE(SUM(p.amount_cents), 0)::int AS captured_cents,
                   COALESCE((
                     SELECT SUM(r.amount_cents)
                       FROM restaurant_pos_payments r
-                     WHERE r.restaurant_id = p.restaurant_id
-                       AND r.food_order_id = p.food_order_id
+                      JOIN restaurant_pos_payments cp
+                        ON cp.id::text = r.metadata->>'originalPaymentId'
+                     WHERE r.restaurant_id = $1
+                       AND r.food_order_id = $2
                        AND r.payment_type = 'refund'
                        AND r.status IN ('pending','recorded','captured','refunded')
-                       AND r.metadata->>'originalPaymentId' = p.id::text
+                       AND cp.restaurant_id = $1
+                       AND cp.food_order_id = $2
+                       AND cp.payment_type = 'card'
+                       AND cp.provider_payment_intent_id IS NOT NULL
+                       AND cp.status IN ('recorded','captured')
                   ), 0)::int AS refunded_cents
              FROM restaurant_pos_payments p
             WHERE p.restaurant_id = $1
@@ -4967,11 +5861,69 @@ exports.recordPosPayment = async (req, res, next) => {
         });
       }
 
+      if (paymentType === 'gift_card') {
+        const giftCard = await giftCardValue.redeemGiftCard(client, {
+          restaurantId,
+          code: req.body.giftCardCode || req.body.gift_card_code || req.body.code,
+          amountCents,
+          currencyCode,
+          actorUserId: req.user.id,
+          idempotencyKey,
+          foodOrderId: orderId,
+          metadata: { source: 'pos_payment', shiftId },
+        });
+        const { rows: [payment] } = await client.query(
+          `INSERT INTO restaurant_pos_payments
+             (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
+              reference, note, metadata, idempotency_key, created_by, acting_staff_user_id, location_id)
+           VALUES ($1,$2,$3,'gift_card',$4,$5,$6,$7,$8,$9,$10,$11,$12)
+           RETURNING *`,
+          [
+            restaurantId, orderId, shiftId, amountCents, status,
+            giftCard.card.codeLast4 ? `gift-card:${giftCard.card.codeLast4}` : null,
+            normalizeString(req.body.note, 1000),
+            {
+              ...safeJson(req.body.metadata),
+              giftCardId: giftCard.card.id,
+              giftCardLedgerId: giftCard.ledger.id,
+              giftCardBalanceAfterCents: giftCard.card.balanceCents,
+              paymentContract: paymentContractMetadata(paymentContract, { source: 'restaurant_gift_card' }),
+            },
+            idempotencyKey, req.user.id, actingStaff?.staffUserId || null, order.location_id ?? null,
+          ]
+        );
+        const reconciliation = await reconcilePosOrderPayment(client, orderId);
+        if (reconciliation?.order) {
+          await insertPosReceiptAudit(client, {
+            restaurantId,
+            order: reconciliation.order,
+            eventType: 'payment_recorded',
+            channel: 'Gift card',
+            createdBy: req.user.id,
+            reason: normalizeString(req.body.reason || req.body.note, 1000) || 'Paid with gift card',
+            metadata: { paymentId: payment.id, paymentType, amountCents, giftCardId: giftCard.card.id, giftCardLedgerId: giftCard.ledger.id },
+            actingStaffUserId: actingStaff?.staffUserId || null,
+            idempotencyKey: `receipt:${restaurantId}:${idempotencyKey}`,
+          });
+        }
+        return {
+          payment,
+          ...reconciliation,
+          giftCard: {
+            id: giftCard.card.id,
+            codeLast4: giftCard.card.codeLast4,
+            balanceCents: giftCard.card.balanceCents,
+            currencyCode,
+            replayed: giftCard.replayed === true,
+          },
+        };
+      }
+
       const { rows: [payment] } = await client.query(
         `INSERT INTO restaurant_pos_payments
            (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
-            reference, note, metadata, idempotency_key, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+            reference, note, metadata, idempotency_key, created_by, acting_staff_user_id, location_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
          RETURNING *`,
         [
           restaurantId,
@@ -4992,12 +5944,21 @@ exports.recordPosPayment = async (req, res, next) => {
                 receiptConfirmedByUserId: String(req.user.id),
               },
             } : {}),
+            ...(paymentApproval ? { approvalId: paymentApproval.id } : {}),
+            ...(compReasonCode ? { reasonCode: compReasonCode } : {}),
             paymentContract: paymentContractMetadata(paymentContract, { source: 'manual_pos_payment' }),
           },
           idempotencyKey,
           req.user.id,
+          actingStaff?.staffUserId || null,
+          order.location_id ?? null,
         ]
       );
+      if (paymentApproval) {
+        await linkApproval(client, paymentApproval.id, { paymentId: payment.id });
+        paymentApproval.status = 'consumed';
+        paymentApproval.payment_id = payment.id;
+      }
       const reconciliation = await reconcilePosOrderPayment(client, orderId);
       if (reconciliation?.order) {
         await insertPosReceiptAudit(client, {
@@ -5013,12 +5974,15 @@ exports.recordPosPayment = async (req, res, next) => {
             amountCents,
             status,
             shiftId,
+            ...(paymentApproval ? { approvalId: paymentApproval.id } : {}),
+            ...(compReasonCode ? { reasonCode: compReasonCode } : {}),
             paymentContract: paymentContractMetadata(paymentContract),
           },
+          actingStaffUserId: actingStaff?.staffUserId || null,
           idempotencyKey: idempotencyKey ? `receipt:${restaurantId}:${idempotencyKey}` : null,
         });
       }
-      return { payment, ...reconciliation };
+      return { payment, ...(paymentApproval ? { approval: paymentApproval } : {}), ...reconciliation };
     });
     // P3-3-F07: a recorded POS refund notifies the customer in-app + email.
     // Replays are deduped by the notification idempotency key; best-effort
@@ -5046,16 +6010,23 @@ exports.createPosTerminalConnectionToken = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    // F-06: a connection token registers card readers, so it requires POS
+    // permission (pos.use), not mere restaurant membership, and the token
+    // is minted on the restaurant's Connect account.
+    await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage']);
     const settings = safeJson(restaurant.settings);
     const location = normalizeString(
       settings.stripeTerminalLocationId || settings.stripe_terminal_location_id,
       255
     );
-    const token = await posTerminal.createConnectionToken(location);
+    const token = await posTerminal.createConnectionToken(location, { restaurantId });
     res.json({ secret: token.secret, location: location || null });
   } catch (err) {
     if (err.code === 'stripe_not_configured') {
       return next(new AppError('Stripe Terminal is not configured', 503, 'stripe_not_configured'));
+    }
+    if (err.code === 'restaurant_connect_account_missing') {
+      return next(new AppError('This restaurant has not connected a Stripe account for POS Terminal', 409, 'restaurant_connect_account_missing'));
     }
     next(err);
   }
@@ -5067,6 +6038,11 @@ exports.createPosCardIntent = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    // F-06: reserving a Terminal payment moves money, so restaurant
+    // membership alone must not mint a processor-backed card intent.
+    await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage']);
+    const canManagePos = await hasRestaurantPermission(restaurant, req.user.id, 'pos.manage');
     const amountCents = parseCents(req.body.amountCents ?? req.body.amount_cents, 'amountCents');
     if (amountCents < 1) {
       throw new AppError('Validation failed', 400, 'validation_failed', { amountCents: 'Amount must be greater than zero' });
@@ -5085,8 +6061,10 @@ exports.createPosCardIntent = async (req, res, next) => {
     );
     reservedPayment = await withTransaction(pool, async (client) => {
       const { rows: [order] } = await client.query(
-        `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2 FOR UPDATE`,
-        [orderId, restaurantId]
+        `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2
+          ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}
+          FOR UPDATE`,
+        [orderId, restaurantId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
       );
       if (!order) throw new AppError('Order not found', 404, 'order_not_found');
       const { rows: [existing] } = await client.query(
@@ -5109,7 +6087,7 @@ exports.createPosCardIntent = async (req, res, next) => {
       if (['voided', 'refunded'].includes(order.pos_ticket_state) || order.status === 'cancelled') {
         throw new AppError('This ticket cannot accept payments', 409, 'ticket_not_payable');
       }
-      await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, MANAGE_ROLES.has(restaurant.effective_role));
+      await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, canManagePos, locationScope);
       const { rows: [ledger] } = await client.query(
         `SELECT COALESCE(SUM(amount_cents) FILTER (
                         WHERE payment_type <> 'refund' AND status IN ('pending','recorded','captured')
@@ -5128,8 +6106,8 @@ exports.createPosCardIntent = async (req, res, next) => {
       const { rows: [payment] } = await client.query(
         `INSERT INTO restaurant_pos_payments
            (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
-            provider, idempotency_key, metadata, created_by)
-         VALUES ($1,$2,$3,'card',$4,'pending','stripe_terminal',$5,$6,$7)
+            provider, idempotency_key, metadata, created_by, location_id)
+         VALUES ($1,$2,$3,'card',$4,'pending','stripe_terminal',$5,$6,$7,$8)
          RETURNING *`,
         [
           restaurantId,
@@ -5142,6 +6120,7 @@ exports.createPosCardIntent = async (req, res, next) => {
             paymentContract: paymentContractMetadata(paymentContract, { source: 'pos_card_intent' }),
           },
           req.user.id,
+          order.location_id ?? null,
         ]
       );
       await reconcilePosOrderPayment(client, orderId);
@@ -5195,10 +6174,17 @@ exports.capturePosCardPayment = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const paymentId = parsePositiveInt(req.params.paymentId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    // F-31: capturing a card payment moves money; membership alone is not
+    // enough, the caller needs pos.use (or orders.manage).
+    await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'orders.manage']);
     const { rows: [payment] } = await pool.query(
       `SELECT * FROM restaurant_pos_payments
-        WHERE id = $1 AND restaurant_id = $2 AND payment_type = 'card'`,
-      [paymentId, restaurantId]
+        WHERE id = $1 AND restaurant_id = $2 AND payment_type = 'card'
+          ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}`,
+      locationScope.mode === 'assigned'
+        ? [paymentId, restaurantId, locationScope.location_ids]
+        : [paymentId, restaurantId]
     );
     if (!payment) throw new AppError('POS payment not found', 404, 'pos_payment_not_found');
     if (!payment.provider_payment_intent_id) {
@@ -5258,7 +6244,8 @@ exports.refundPosCardPayment = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const paymentId = parsePositiveInt(req.params.paymentId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    await assertManage(restaurant, req.user.id);
     const amountCents = parseCents(req.body.amountCents ?? req.body.amount_cents, 'amountCents');
     if (amountCents < 1) {
       throw new AppError('Validation failed', 400, 'validation_failed', { amountCents: 'Amount must be greater than zero' });
@@ -5272,8 +6259,11 @@ exports.refundPosCardPayment = async (req, res, next) => {
       const { rows: [original] } = await client.query(
         `SELECT * FROM restaurant_pos_payments
           WHERE id = $1 AND restaurant_id = $2 AND payment_type = 'card'
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}
           FOR UPDATE`,
-        [paymentId, restaurantId]
+        locationScope.mode === 'assigned'
+          ? [paymentId, restaurantId, locationScope.location_ids]
+          : [paymentId, restaurantId]
       );
       if (!original) throw new AppError('POS payment not found', 404, 'pos_payment_not_found');
       if (original.status !== 'captured' || !original.provider_payment_intent_id) {
@@ -5314,8 +6304,8 @@ exports.refundPosCardPayment = async (req, res, next) => {
       const { rows: [refundPayment] } = await client.query(
         `INSERT INTO restaurant_pos_payments
            (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
-            provider, provider_payment_intent_id, idempotency_key, note, metadata, created_by)
-         VALUES ($1,$2,$3,'refund',$4,'pending','stripe_terminal',$5,$6,$7,$8,$9)
+            provider, provider_payment_intent_id, idempotency_key, note, metadata, created_by, location_id)
+         VALUES ($1,$2,$3,'refund',$4,'pending','stripe_terminal',$5,$6,$7,$8,$9,$10)
          RETURNING *`,
         [
           restaurantId,
@@ -5327,6 +6317,7 @@ exports.refundPosCardPayment = async (req, res, next) => {
           normalizeString(req.body.reason || req.body.note, 1000),
           JSON.stringify({ originalPaymentId: original.id }),
           req.user.id,
+          original.location_id ?? null,
         ]
       );
       return { original, refundPayment, replayed: false };
@@ -5422,11 +6413,16 @@ exports.getPosPaymentStatus = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const paymentId = parsePositiveInt(req.params.paymentId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const result = await withTransaction(pool, async (client) => {
       const { rows: [payment] } = await client.query(
-        `SELECT * FROM restaurant_pos_payments WHERE id = $1 AND restaurant_id = $2`,
-        [paymentId, restaurantId]
+        `SELECT * FROM restaurant_pos_payments
+          WHERE id = $1 AND restaurant_id = $2
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}`,
+        locationScope.mode === 'assigned'
+          ? [paymentId, restaurantId, locationScope.location_ids]
+          : [paymentId, restaurantId]
       );
       if (!payment) throw new AppError('POS payment not found', 404, 'pos_payment_not_found');
       const reconciliation = await reconcilePosOrderPayment(client, payment.food_order_id);
@@ -5443,24 +6439,25 @@ exports.reprintReceipt = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const { rows: [order] } = await pool.query(
-      `SELECT id, queue_number, guest_name, guest_phone, guest_email, table_label,
+      `SELECT id, location_id, queue_number, guest_name, guest_phone, guest_email, table_label,
               order_source, fulfillment_type, status, payment_status,
               subtotal_cents, discount_cents, tax_cents, service_fee_cents,
               delivery_fee_cents, tip_cents, total_cents, currency_code,
               notes, created_at, updated_at
          FROM food_orders
-        WHERE id = $1 AND restaurant_id = $2`,
-      [orderId, restaurantId]
+        WHERE id = $1 AND restaurant_id = $2${locationScope.mode === 'assigned' ? ' AND location_id = ANY($3::bigint[])' : ''}`,
+      locationScope.mode === 'assigned' ? [orderId, restaurantId, locationScope.location_ids] : [orderId, restaurantId]
     );
     if (!order) throw new AppError('Order not found', 404, 'order_not_found');
     const [{ rows: items }, { rows: modifiers }, { rows: payments }] = await Promise.all([
       pool.query(
         `SELECT id, menu_item_id, item_name, quantity, unit_price_cents,
-                modifier_total_cents, line_total_cents, special_instructions
+                modifier_total_cents, line_total_cents, course_number, seat_number, special_instructions
            FROM food_order_items
           WHERE order_id = $1
-          ORDER BY id ASC`,
+          ORDER BY course_number ASC, id ASC`,
         [orderId]
       ),
       pool.query(
@@ -5539,13 +6536,14 @@ exports.setStaffPin = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const pin = normalizeString(req.body.pin, 12);
     if (!pin || !/^\d{4,12}$/.test(pin)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { pin: 'PIN must be 4-12 digits' });
     }
     const staffUserId = req.body.staffUserId || req.body.staff_user_id || null;
-    if (!staffUserId && !normalizeString(req.body.staffLabel || req.body.staff_label, 160)) {
+    const staffLabel = normalizeString(req.body.staffLabel || req.body.staff_label, 160);
+    if (!staffUserId && !staffLabel) {
       throw new AppError('Validation failed', 400, 'validation_failed', { staffLabel: 'Staff label is required when staffUserId is missing' });
     }
     if (staffUserId) {
@@ -5557,62 +6555,252 @@ exports.setStaffPin = async (req, res, next) => {
         });
       }
     }
-    const pinHash = await bcrypt.hash(pin, 10);
-    const { rows: [staffPin] } = await pool.query(
-      `INSERT INTO restaurant_staff_pins
-         (restaurant_id, staff_user_id, staff_label, pin_hash, role_label, is_active, created_by)
-       VALUES ($1,$2,$3,$4,$5,TRUE,$6)
-       ON CONFLICT (restaurant_id, staff_user_id)
-       DO UPDATE SET pin_hash = EXCLUDED.pin_hash,
-                     staff_label = COALESCE(EXCLUDED.staff_label, restaurant_staff_pins.staff_label),
-                     role_label = COALESCE(EXCLUDED.role_label, restaurant_staff_pins.role_label),
-                     is_active = TRUE,
-                     updated_at = NOW()
-       RETURNING id, restaurant_id, staff_user_id, staff_label, role_label, is_active, updated_at`,
-      [
-        restaurantId,
-        staffUserId,
-        normalizeString(req.body.staffLabel || req.body.staff_label, 160),
-        pinHash,
-        normalizeString(req.body.roleLabel || req.body.role_label, 120),
-        req.user.id,
-      ]
+    // S-06: one PIN value per store. The digest identifies the target row
+    // being (re)set so re-setting your own PIN is not a conflict, while a
+    // value already held by anyone else at this restaurant is refused
+    // (previously the first bcrypt match won and label PINs duplicated).
+    const pinDigest = staffPinDigest(restaurantId, pin);
+    const { rows: digestRows } = await pool.query(
+      `SELECT id, staff_user_id, staff_label FROM restaurant_staff_pins
+        WHERE restaurant_id = $1 AND pin_digest = $2 AND is_active = TRUE`,
+      [restaurantId, pinDigest]
     );
+    const targetClash = digestRows.find((row) => {
+      if (staffUserId) return String(row.staff_user_id || '') !== String(staffUserId);
+      return !(row.staff_user_id === null && staffLabel && row.staff_label === staffLabel);
+    });
+    if (targetClash) {
+      throw new AppError('This PIN is already in use at this restaurant', 409, 'pin_already_in_use');
+    }
+    const pinHash = await bcrypt.hash(pin, 10);
+    const roleLabel = normalizeString(req.body.roleLabel || req.body.role_label, 120);
+    let staffPin;
+    try {
+      if (staffUserId) {
+        ({ rows: [staffPin] } = await pool.query(
+          `INSERT INTO restaurant_staff_pins
+             (restaurant_id, staff_user_id, staff_label, pin_hash, pin_digest, role_label, is_active, created_by)
+           VALUES ($1,$2,$3,$4,$5,$6,TRUE,$7)
+           ON CONFLICT (restaurant_id, staff_user_id)
+           DO UPDATE SET pin_hash = EXCLUDED.pin_hash,
+                         pin_digest = EXCLUDED.pin_digest,
+                         staff_label = COALESCE(EXCLUDED.staff_label, restaurant_staff_pins.staff_label),
+                         role_label = COALESCE(EXCLUDED.role_label, restaurant_staff_pins.role_label),
+                         is_active = TRUE,
+                         updated_at = NOW()
+           RETURNING id, restaurant_id, staff_user_id, staff_label, role_label, is_active, updated_at`,
+          [restaurantId, staffUserId, staffLabel, pinHash, pinDigest, roleLabel, req.user.id]
+        ));
+      } else {
+        // Label-only PINs have no (restaurant_id, staff_user_id) conflict
+        // target: rotate the active row carrying this label, else insert.
+        const { rows: [existingLabelPin] } = await pool.query(
+          `SELECT id FROM restaurant_staff_pins
+            WHERE restaurant_id = $1 AND staff_user_id IS NULL AND staff_label = $2 AND is_active = TRUE
+            ORDER BY updated_at DESC LIMIT 1`,
+          [restaurantId, staffLabel]
+        );
+        if (existingLabelPin) {
+          ({ rows: [staffPin] } = await pool.query(
+            `UPDATE restaurant_staff_pins
+                SET pin_hash = $1, pin_digest = $2,
+                    role_label = COALESCE($3, role_label), updated_at = NOW()
+              WHERE id = $4
+              RETURNING id, restaurant_id, staff_user_id, staff_label, role_label, is_active, updated_at`,
+            [pinHash, pinDigest, roleLabel, existingLabelPin.id]
+          ));
+        } else {
+          ({ rows: [staffPin] } = await pool.query(
+            `INSERT INTO restaurant_staff_pins
+               (restaurant_id, staff_user_id, staff_label, pin_hash, pin_digest, role_label, is_active, created_by)
+             VALUES ($1,NULL,$2,$3,$4,$5,TRUE,$6)
+             RETURNING id, restaurant_id, staff_user_id, staff_label, role_label, is_active, updated_at`,
+            [restaurantId, staffLabel, pinHash, pinDigest, roleLabel, req.user.id]
+          ));
+        }
+      }
+    } catch (err) {
+      if (err.code === '23505') {
+        throw new AppError('This PIN is already in use at this restaurant', 409, 'pin_already_in_use');
+      }
+      throw err;
+    }
+    // S-16: PIN set/rotation is an auditable security event (the PIN
+    // value itself is never logged).
+    await logBusinessAction(req, {
+      action: 'restaurant.staff_pin.updated',
+      target_type: 'restaurant_staff_pin',
+      target_id: staffPin.id,
+      after_state: {
+        staff_user_id: staffPin.staff_user_id,
+        staff_label: staffPin.staff_label,
+        role_label: staffPin.role_label,
+        is_active: true,
+      },
+      business_id: restaurant.business_id,
+    });
     res.status(201).json({ staffPin });
   } catch (err) {
     next(err);
   }
 };
 
+// Shared unlock path for validateStaffPin and the staff-session endpoints:
+// validates the PIN (lockout + membership enforced in the service) and
+// issues the staff sub-session. The device id comes from the paired
+// device credential when present, else from the request body.
+async function issueStaffSession(req, restaurant, restaurantId) {
+  const pin = normalizeString(req.body.pin, 12);
+  if (!pin) throw new AppError('Validation failed', 400, 'validation_failed', { pin: 'PIN is required' });
+  let deviceId = req.restaurantDevice?.id
+    || parsePositiveInt(req.body.deviceId || req.body.device_id);
+  if (deviceId && !req.restaurantDevice) {
+    // A body-supplied device id is only honored when it names a real
+    // device of this restaurant (attempts/sessions FK to it).
+    const { rows: [device] } = await pool.query(
+      'SELECT id FROM restaurant_app_devices WHERE id = $1 AND restaurant_id = $2',
+      [deviceId, restaurantId]
+    );
+    if (!device) deviceId = null;
+  }
+  const { pinRow, staff } = await validateStaffPinForRestaurant({ restaurantId, pin, deviceId });
+  const { token, session, idleMinutes } = await createStaffSession({
+    restaurantId,
+    deviceId,
+    pinRow,
+    createdByUserId: req.user?.id || null,
+    settings: restaurant?.settings,
+  });
+  return {
+    token,
+    session,
+    idleMinutes,
+    staff: {
+      id: pinRow.id,
+      pinId: pinRow.id,
+      userId: pinRow.staff_user_id,
+      label: pinRow.staff_label,
+      roleLabel: pinRow.role_label,
+      effectiveRole: staff.effectiveRole,
+    },
+  };
+}
+
+function staffSessionResponse(token, session, staff, idleMinutes) {
+  return {
+    token,
+    sessionToken: token,
+    expiresAt: session.expires_at,
+    idleTimeoutSeconds: idleMinutes * 60,
+    staff,
+    staffSession: {
+      id: session.id,
+      token,
+      expiresAt: session.expires_at,
+      idleTimeoutSeconds: idleMinutes * 60,
+      staff,
+    },
+  };
+}
+
 exports.validateStaffPin = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
-    const pin = normalizeString(req.body.pin, 12);
-    if (!pin) throw new AppError('Validation failed', 400, 'validation_failed', { pin: 'PIN is required' });
-    const { rows } = await pool.query(
-      `SELECT id, staff_user_id, staff_label, pin_hash, role_label
-         FROM restaurant_staff_pins
-        WHERE restaurant_id = $1 AND is_active = TRUE
-        ORDER BY updated_at DESC`,
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const { token, session, staff, idleMinutes } = await issueStaffSession(req, restaurant, restaurantId);
+    return res.json({
+      valid: true,
+      staff,
+      ...staffSessionResponse(token, session, staff, idleMinutes),
+    });
+  } catch (err) {
+    if (err instanceof AppError && err.code === 'invalid_pin') {
+      return res.status(401).json({ valid: false, error: { code: 'invalid_pin', message: 'Invalid staff PIN' } });
+    }
+    return next(err);
+  }
+};
+
+exports.createStaffSession = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const { token, session, staff, idleMinutes } = await issueStaffSession(req, restaurant, restaurantId);
+    return res.status(201).json(staffSessionResponse(token, session, staff, idleMinutes));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Paired POS appliances have no user session; the device credential is
+// the transport auth and the staff PIN is the person auth.
+exports.authenticatePosDevice = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const deviceId = parsePositiveInt(req.params.deviceId);
+    if (!restaurantId || !deviceId) {
+      throw new AppError('Restaurant and device are required', 400, 'invalid_device_scope');
+    }
+    const device = await requireDeviceCredential(req, restaurantId, deviceId);
+    assertDeviceApp(device, 'pos');
+    req.restaurantDevice = device;
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createDeviceStaffSession = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const { rows: [restaurant] } = await pool.query(
+      'SELECT id, settings FROM food_restaurants WHERE id = $1',
       [restaurantId]
     );
-    for (const row of rows) {
-      // Constant-time enough for a short local staff unlock flow; bcrypt does
-      // the actual hash comparison.
-      if (await bcrypt.compare(pin, row.pin_hash)) {
-        return res.json({
-          valid: true,
-          staff: {
-            id: row.id,
-            userId: row.staff_user_id,
-            label: row.staff_label,
-            roleLabel: row.role_label,
-          },
-        });
-      }
+    if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const { token, session, staff, idleMinutes } = await issueStaffSession(req, restaurant, restaurantId);
+    return res.status(201).json(staffSessionResponse(token, session, staff, idleMinutes));
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getStaffSession = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const session = await resolveStaffSession(req, restaurantId);
+    if (!session) {
+      return res.status(401).json({ error: { code: 'staff_session_required', message: 'No active staff session' } });
+
     }
-    return res.status(401).json({ valid: false, error: { code: 'invalid_pin', message: 'Invalid staff PIN' } });
+    const metadata = safeJson(session.metadata, {});
+    return res.json({
+      staffSession: {
+        id: session.id,
+        expiresAt: session.expires_at,
+        idleTimeoutSeconds: (Number(metadata.idleMinutes) || 10) * 60,
+        staff: {
+          pinId: session.staff_pin_id,
+          userId: session.staff_user_id,
+          label: metadata.staffLabel || null,
+          roleLabel: metadata.roleLabel || null,
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.endStaffSession = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const token = staffSessionTokenFromRequest(req);
+    const reason = normalizeString(req.body.reason, 40) || 'manual_lock';
+    const session = await endStaffSession(token, reason);
+    return res.json({ ended: Boolean(session), staffSession: session ? { id: session.id } : null });
   } catch (err) {
     next(err);
   }
@@ -5623,6 +6811,7 @@ exports.ackKitchenTicket = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId || req.body.orderId || req.body.order_id);
     let restaurant;
+    let locationScope = null;
     if (req.displayDevice) {
       // Track B paired display: the pairing token is the authorization,
       // scoped to this restaurant's ticket actions only.
@@ -5635,6 +6824,7 @@ exports.ackKitchenTicket = async (req, res, next) => {
     } else {
       restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
       await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.update', 'kitchen.manage', 'orders.manage']);
+      locationScope = await getLocationScope(restaurant, req.user.id);
     }
     if (!orderId) throw new AppError('Validation failed', 400, 'validation_failed', { orderId: 'Order is required' });
     const requestedStatus = normalizeString(req.body.status || req.body.toStatus || req.body.to_status, 32);
@@ -5657,8 +6847,9 @@ exports.ackKitchenTicket = async (req, res, next) => {
         `SELECT *
            FROM food_orders
           WHERE id = $1 AND restaurant_id = $2
+            ${locationScope?.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}
           FOR UPDATE`,
-        [orderId, restaurantId]
+        locationScope?.mode === 'assigned' ? [orderId, restaurantId, locationScope.location_ids] : [orderId, restaurantId]
       );
       if (!existing) throw new AppError('Order not found', 404, 'order_not_found');
       if (['completed', 'cancelled', 'refunded'].includes(existing.status)) {
@@ -5688,8 +6879,9 @@ exports.ackKitchenTicket = async (req, res, next) => {
                 promised_at = COALESCE($2::timestamptz, promised_at, NOW() + ($3::int * INTERVAL '1 minute')),
                 updated_at = NOW()
           WHERE id = $4 AND restaurant_id = $5
+            ${locationScope?.mode === 'assigned' ? 'AND location_id = ANY($6::bigint[])' : ''}
           RETURNING *`,
-        [nextStatus, promisedAt, prepTimeMin, orderId, restaurantId]
+        [nextStatus, promisedAt, prepTimeMin, orderId, restaurantId, ...(locationScope?.mode === 'assigned' ? [locationScope.location_ids] : [])]
       );
       const { rows: [event] } = await client.query(
         `INSERT INTO restaurant_kitchen_events
@@ -5741,7 +6933,7 @@ async function screenKitchenContext(req, restaurantId, elevated = false) {
  if (!req.screenDevice) {
   const restaurant=await requireRestaurantAccess(req.user.id,restaurantId);
   await assertRestaurantPermission(restaurant,req.user.id,elevated?['kitchen.manage','orders.manage']:['kitchen.update','kitchen.manage','orders.manage']);
-  return restaurant;
+  return { ...restaurant, locationScope: await getLocationScope(restaurant, req.user.id) };
  }
  const device=req.screenDevice;
  if(elevated || device.app_key!=='kitchen' || String(device.restaurant_id)!==String(restaurantId)) throw new AppError('Operation requires authorized staff',403,'forbidden');
@@ -5752,6 +6944,7 @@ async function screenKitchenContext(req, restaurantId, elevated = false) {
 function screenRevision(req,row) {
  if(req.body.expectedRevision!==undefined && String(req.body.expectedRevision)!==String(row.screen_revision)) throw new AppError('Ticket changed; refresh before retrying',409,'screen_revision_conflict',{currentRevision:row.screen_revision,currentState:{id:row.id,status:row.status,kitchenStatus:row.kitchen_status,revision:row.screen_revision}});
  if(req.screenDevice && String(req.screenDevice.location_id||'')!==String(row.location_id||''))throw new AppError('Wrong device location',403,'screen_location_mismatch');
+ if(req.displayDevice && req.displayDevice.locationId != null && String(req.displayDevice.locationId)!==String(row.location_id||''))throw new AppError('Wrong display store',403,'display_location_mismatch');
  if(req.screenDevice){const paymentMode=(row.order_metadata||row.metadata||{}).paymentMode;if(['pay_now','oxsteed_credit','wallet_credit','wallet'].includes(paymentMode)&&(row.order_payment_status||row.payment_status)!=='paid')throw new AppError('Payment confirmation required before preparation',409,'order_payment_pending');}
 }
 
@@ -5792,6 +6985,10 @@ exports.performKitchenOrderAction = async (req, res, next) => {
             `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
             [existingEvent.food_order_id, restaurantId]
           );
+          if (restaurant.locationScope?.mode === 'assigned'
+            && !restaurant.locationScope.location_ids.includes(Number(replayedOrder?.location_id))) {
+            throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+          }
           if(req.screenDevice&&String(replayedOrder?.location_id||'')!==String(req.screenDevice.location_id||''))throw new AppError('Wrong device location',403,'screen_location_mismatch');
           return { order: replayedOrder, event: existingEvent, replayed: true };
         }
@@ -5802,6 +6999,10 @@ exports.performKitchenOrderAction = async (req, res, next) => {
         [orderId, restaurantId]
       );
       if (!existing) throw new AppError('Order not found', 404, 'order_not_found');
+      if (restaurant.locationScope?.mode === 'assigned'
+        && !restaurant.locationScope.location_ids.includes(Number(existing.location_id))) {
+        throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+      }
       screenRevision(req,existing);
       if(req.screenDevice?.config?.screenRole!=='expeditor' && req.screenDevice && ['ready_for_check','finish_check','hand_off'].includes(action))throw new AppError('Expeditor screen required',403,'forbidden');
       if (['completed', 'cancelled', 'refunded'].includes(existing.status)) {
@@ -5919,6 +7120,8 @@ exports.recordKitchenEvent = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.update', 'kitchen.manage', 'orders.manage']);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const orderId = parsePositiveInt(req.body.orderId || req.body.order_id);
     const orderItemId = parsePositiveInt(req.body.orderItemId || req.body.order_item_id);
     const eventType = normalizeString(req.body.eventType || req.body.event_type, 48) || 'status';
@@ -5936,8 +7139,8 @@ exports.recordKitchenEvent = async (req, res, next) => {
     let order = null;
     if (orderId) {
       const { rows: [loadedOrder] } = await pool.query(
-        `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
-        [orderId, restaurantId]
+        `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2${locationScope.mode === 'assigned' ? ' AND location_id = ANY($3::bigint[])' : ''}`,
+        locationScope.mode === 'assigned' ? [orderId, restaurantId, locationScope.location_ids] : [orderId, restaurantId]
       );
       if (!loadedOrder) throw new AppError('Order not found', 404, 'order_not_found');
       order = loadedOrder;
@@ -5985,6 +7188,7 @@ exports.getKitchenFeed = async (req, res, next) => {
     let sinceEventId = parsePositiveInt(requestedCursor, 0) || 0;
     let device = null;
     let restaurant = null;
+    let locationScope = null;
     if (req.displayDevice) {
       // Track B paired display: the pairing token is the authorization,
       // scoped to this restaurant's ticket feed only. Mirrors the minimal
@@ -5998,6 +7202,7 @@ exports.getKitchenFeed = async (req, res, next) => {
     } else if (req.user?.id) {
       restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
       await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.view', 'kitchen.update', 'kitchen.manage', 'orders.manage']);
+      locationScope = await getLocationScope(restaurant, req.user.id);
     } else if (!deviceId) {
       throw new AppError('Device credential is required', 401, 'device_credential_required');
     }
@@ -6031,6 +7236,16 @@ exports.getKitchenFeed = async (req, res, next) => {
       itemFilter = `AND (foi.station_label = $${params.length} OR foi.station_label IS NULL)`;
       itemHaving = 'HAVING COUNT(foi.id) > 0';
     }
+    const feedLocationIds = device?.location_id
+      ? [Number(device.location_id)]
+      : locationScope?.mode === 'assigned'
+        ? locationScope.location_ids
+        : null;
+    let locationFilter = '';
+    if (feedLocationIds) {
+      params.push(feedLocationIds);
+      locationFilter = `AND fo.location_id = ANY($${params.length}::bigint[])`;
+    }
     const { rows: orders } = await pool.query(
       `SELECT fo.id, fo.restaurant_id, fo.business_id, fo.order_source,
               fo.fulfillment_type, fo.status, fo.payment_status,
@@ -6043,6 +7258,8 @@ exports.getKitchenFeed = async (req, res, next) => {
                 'menuItemId', foi.menu_item_id,
                 'itemName', foi.item_name,
                 'quantity', foi.quantity,
+                'courseNumber', foi.course_number,
+                'seatNumber', foi.seat_number,
                 'kitchenStatus', foi.kitchen_status,
                 'stationLabel', foi.station_label,
                 'bumpedAt', foi.bumped_at,
@@ -6052,14 +7269,16 @@ exports.getKitchenFeed = async (req, res, next) => {
                 'targetPrepSeconds', foi.target_prep_seconds,
                 'elapsedPrepSeconds', GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (NOW() - COALESCE(foi.kitchen_started_at, fo.created_at))))::int),
                 'specialInstructions', foi.special_instructions
-              ) ORDER BY foi.id) FILTER (WHERE foi.id IS NOT NULL), '[]') AS items
+              ) ORDER BY foi.course_number, foi.id) FILTER (WHERE foi.id IS NOT NULL), '[]') AS items
          FROM food_orders fo
          LEFT JOIN food_order_items foi
            ON foi.order_id = fo.id
           ${itemFilter}
         WHERE fo.restaurant_id = $1
+          ${locationFilter}
           AND fo.status IN ('received','accepted','preparing','ready')
           AND fo.created_at >= NOW() - INTERVAL '1 day'
+          AND (fo.scheduled_for IS NULL OR fo.scheduled_for <= NOW() + (COALESCE((SELECT fr.prep_time_min FROM food_restaurants fr WHERE fr.id = fo.restaurant_id), 30) * INTERVAL '1 minute'))
         GROUP BY fo.id
         ${itemHaving}
         ORDER BY
@@ -6075,14 +7294,19 @@ exports.getKitchenFeed = async (req, res, next) => {
         LIMIT 100`,
       params
     );
+    const eventParams = [restaurantId, sinceEventId];
+    const eventLocationFilter = feedLocationIds
+      ? ` AND location_id = ANY($${eventParams.push(feedLocationIds)}::bigint[])`
+      : '';
     const { rows: events } = await pool.query(
       `SELECT *
          FROM restaurant_kitchen_events
         WHERE restaurant_id = $1
           AND id > $2
+          ${eventLocationFilter}
         ORDER BY id ASC
         LIMIT 100`,
-      [restaurantId, sinceEventId]
+      eventParams
     );
     const cursor = events.length ? Number(events[events.length - 1].id) : sinceEventId;
     res.json({
@@ -6114,19 +7338,27 @@ exports.ackKitchenFeed = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const deviceId = parsePositiveInt(req.params.deviceId || req.body.deviceId || req.body.device_id);
     const cursor = parsePositiveInt(req.body.cursor || req.body.lastKitchenEventId || req.body.last_kitchen_event_id, 0) || 0;
+    let locationScope = null;
     if (req.user?.id) {
-      await requireRestaurantAccess(req.user.id, restaurantId);
+      const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+      await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.update', 'kitchen.manage', 'orders.manage']);
+      locationScope = await getLocationScope(restaurant, req.user.id);
     } else if (!deviceId) {
       throw new AppError('Device credential is required', 401, 'device_credential_required');
     }
     const credentialDevice = await requireDeviceCredential(req, restaurantId, deviceId);
     assertDeviceApp(credentialDevice, 'kitchen');
+    if (locationScope?.mode === 'assigned'
+      && (!credentialDevice.location_id || !locationScope.location_ids.includes(Number(credentialDevice.location_id)))) {
+      throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+    }
     const { rows: [device] } = await pool.query(
       `UPDATE restaurant_app_devices d
           SET last_kitchen_event_id = GREATEST(
                 d.last_kitchen_event_id,
                 LEAST($1, COALESCE((
-                  SELECT MAX(e.id) FROM restaurant_kitchen_events e WHERE e.restaurant_id = $2
+                  SELECT MAX(e.id) FROM restaurant_kitchen_events e
+                   WHERE e.restaurant_id = $2 AND e.location_id = d.location_id
                 ), 0))
               ),
               last_sync_at = NOW(),
@@ -6204,6 +7436,10 @@ exports.performKitchenItemAction = async (req, res, next) => {
             `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
             [existingEvent.food_order_id, restaurantId]
           );
+          if (restaurant.locationScope?.mode === 'assigned'
+            && !restaurant.locationScope.location_ids.includes(Number(replayedOrder?.location_id))) {
+            throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+          }
           if(req.screenDevice&&String(replayedOrder?.location_id||'')!==String(req.screenDevice.location_id||''))throw new AppError('Wrong device location',403,'screen_location_mismatch');
           return { item: replayedItem, order: replayedOrder, event: existingEvent, replayed: true };
         }
@@ -6217,6 +7453,10 @@ exports.performKitchenItemAction = async (req, res, next) => {
         [orderItemId, restaurantId]
       );
       if (!existing) throw new AppError('Order item not found', 404, 'order_item_not_found');
+      if (restaurant.locationScope?.mode === 'assigned'
+        && !restaurant.locationScope.location_ids.includes(Number(existing.location_id))) {
+        throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+      }
       screenRevision(req,existing);
       if(req.screenDevice?.config?.stationLabel && req.screenDevice.config.screenRole!=='expeditor' && req.screenDevice.config.stationLabel!==existing.station_label)throw new AppError('Wrong kitchen station',403,'screen_station_mismatch');
       if (['completed', 'cancelled', 'refunded'].includes(existing.order_status)) {
@@ -6288,13 +7528,19 @@ exports.performKitchenItemAction = async (req, res, next) => {
 exports.listKitchenEvents = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.view', 'kitchen.update', 'kitchen.manage', 'orders.manage']);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const orderId = parsePositiveInt(req.query.orderId || req.query.order_id);
     const params = [restaurantId];
     let filter = '';
     if (orderId) {
       params.push(orderId);
       filter = `AND food_order_id = $${params.length}`;
+    }
+    if (locationScope.mode === 'assigned') {
+      params.push(locationScope.location_ids);
+      filter += ` AND location_id = ANY($${params.length}::bigint[])`;
     }
     params.push(Math.min(parsePositiveInt(req.query.limit, 50), 100));
     const { rows: events } = await pool.query(
@@ -6314,7 +7560,9 @@ exports.listKitchenEvents = async (req, res, next) => {
 exports.listKitchenAuditEvents = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.view', 'kitchen.update', 'kitchen.manage', 'orders.manage']);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const orderId = parsePositiveInt(req.query.orderId || req.query.order_id);
     const itemId = parsePositiveInt(req.query.orderItemId || req.query.order_item_id || req.query.itemId || req.query.item_id);
     const sinceEventId = parsePositiveInt(req.query.sinceEventId || req.query.since_event_id || req.query.cursor, 0) || 0;
@@ -6333,6 +7581,10 @@ exports.listKitchenAuditEvents = async (req, res, next) => {
     if (eventType) {
       params.push(eventType);
       filters.push(`e.event_type = $${params.length}`);
+    }
+    if (locationScope.mode === 'assigned') {
+      params.push(locationScope.location_ids);
+      filters.push(`e.location_id = ANY($${params.length}::bigint[])`);
     }
     params.push(limit);
     const { rows: events } = await pool.query(
@@ -6368,16 +7620,20 @@ exports.listKitchenAuditEvents = async (req, res, next) => {
 exports.listKitchenStations = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.view', 'kitchen.update', 'kitchen.manage', 'orders.manage']);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const { locationFilter, scopedParams } = locationScopeQueryHelpers(locationScope);
+    const params = scopedParams([restaurantId]);
     const { rows: stations } = await pool.query(
       `SELECT ks.*,
               d.device_name,
               d.status AS device_status
          FROM restaurant_kitchen_stations ks
          LEFT JOIN restaurant_app_devices d ON d.id = ks.device_id
-        WHERE ks.restaurant_id = $1
+        WHERE ks.restaurant_id = $1${locationFilter('ks', params.length)}
         ORDER BY ks.is_active DESC, ks.name ASC`,
-      [restaurantId]
+      params
     );
     res.json({ stations });
   } catch (err) {
@@ -6389,22 +7645,30 @@ exports.upsertKitchenStation = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const name = normalizeString(req.body.name, 120);
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Station name is required' });
     const deviceId = parsePositiveInt(req.body.deviceId || req.body.device_id);
+    let locationId = parsePositiveInt(req.body.locationId || req.body.location_id);
     if (deviceId) {
       const { rows: [device] } = await pool.query(
-        `SELECT id FROM restaurant_app_devices
+        `SELECT id, location_id FROM restaurant_app_devices
           WHERE id = $1 AND restaurant_id = $2 AND app_key = 'kitchen'`,
         [deviceId, restaurantId]
       );
       if (!device) throw new AppError('Kitchen device not found', 404, 'kitchen_device_not_found');
+      locationId = locationId || parsePositiveInt(device.location_id);
+    }
+    if (locationScope.mode === 'assigned') {
+      if (!locationId || !locationScope.location_ids.includes(locationId)) {
+        throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+      }
     }
     const { rows: [station] } = await pool.query(
       `INSERT INTO restaurant_kitchen_stations
-         (restaurant_id, name, device_id, printer_config, is_active, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6)
+         (restaurant_id, name, device_id, printer_config, is_active, created_by, location_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
        ON CONFLICT (restaurant_id, name)
        DO UPDATE SET device_id = COALESCE(EXCLUDED.device_id, restaurant_kitchen_stations.device_id),
                      printer_config = EXCLUDED.printer_config,
@@ -6418,6 +7682,7 @@ exports.upsertKitchenStation = async (req, res, next) => {
         safeJson(req.body.printerConfig || req.body.printer_config),
         req.body.isActive !== false && req.body.is_active !== false,
         req.user.id,
+        locationId,
       ]
     );
     res.status(201).json({ station });
@@ -6430,23 +7695,29 @@ exports.routeMenuItemToStation = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const menuItemId = parsePositiveInt(req.body.menuItemId || req.body.menu_item_id);
     const stationId = parsePositiveInt(req.body.stationId || req.body.station_id);
     if (!menuItemId || !stationId) {
       throw new AppError('Validation failed', 400, 'validation_failed', { route: 'menuItemId and stationId are required' });
     }
+    const params = [restaurantId, menuItemId, stationId, req.user.id];
+    const stationLocationFilter = locationScope.mode === 'assigned'
+      ? ' AND ks.location_id = ANY($5::bigint[])'
+      : '';
+    if (locationScope.mode === 'assigned') params.push(locationScope.location_ids);
     const { rows: [route] } = await pool.query(
       `INSERT INTO restaurant_menu_item_station_routes
          (restaurant_id, menu_item_id, station_id, created_by)
        SELECT $1, fmi.id, ks.id, $4
          FROM food_menu_items fmi
          JOIN restaurant_kitchen_stations ks ON ks.id = $3 AND ks.restaurant_id = $1
-        WHERE fmi.id = $2 AND fmi.restaurant_id = $1
+        WHERE fmi.id = $2 AND fmi.restaurant_id = $1${stationLocationFilter}
        ON CONFLICT (restaurant_id, menu_item_id)
        DO UPDATE SET station_id = EXCLUDED.station_id
        RETURNING *`,
-      [restaurantId, menuItemId, stationId, req.user.id]
+      params
     );
     if (!route) throw new AppError('Menu item or station not found', 404, 'route_target_not_found');
     res.json({ route });
@@ -6458,31 +7729,57 @@ exports.routeMenuItemToStation = async (req, res, next) => {
 exports.createPrinterJob = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.update', 'kitchen.manage', 'orders.manage']);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const jobType = normalizeString(req.body.jobType || req.body.job_type, 40) || 'kitchen_ticket';
     if (!PRINTER_JOB_TYPES.has(jobType)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { jobType: 'Unsupported printer job type' });
     }
     const stationId = parsePositiveInt(req.body.stationId || req.body.station_id);
     const orderId = parsePositiveInt(req.body.orderId || req.body.order_id);
+    let stationLocationId = null;
     if (stationId) {
       const { rows: [station] } = await pool.query(
-        `SELECT id FROM restaurant_kitchen_stations WHERE id = $1 AND restaurant_id = $2`,
+        `SELECT id, location_id FROM restaurant_kitchen_stations WHERE id = $1 AND restaurant_id = $2`,
         [stationId, restaurantId]
       );
       if (!station) throw new AppError('Kitchen station not found', 404, 'kitchen_station_not_found');
+      stationLocationId = station.location_id || null;
+      if (locationScope.mode === 'assigned'
+        && (!stationLocationId || !locationScope.location_ids.includes(Number(stationLocationId)))) {
+        throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+      }
     }
+    let jobLocationId = null;
     if (orderId) {
       const { rows: [order] } = await pool.query(
-        `SELECT id FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
+        `SELECT id, location_id FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
         [orderId, restaurantId]
       );
       if (!order) throw new AppError('Order not found', 404, 'order_not_found');
+      jobLocationId = order.location_id || null;
+      if (locationScope.mode === 'assigned'
+        && (!jobLocationId || !locationScope.location_ids.includes(Number(jobLocationId)))) {
+        throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+      }
+    }
+    if (jobLocationId === null) {
+      // F-02 phase 1: order-less jobs (test prints, manual tickets) belong
+      // to the restaurant's primary store when it has one.
+      jobLocationId = await restaurantLocationService.resolveLocationId(pool, { restaurantId });
+    }
+    if (stationLocationId && jobLocationId && Number(stationLocationId) !== Number(jobLocationId)) {
+      throw new AppError('The printer station store must match the order store', 409, 'location_scope_conflict');
+    }
+    if (locationScope.mode === 'assigned'
+      && (!jobLocationId || !locationScope.location_ids.includes(Number(jobLocationId)))) {
+      throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
     }
     const { rows: [job] } = await pool.query(
       `INSERT INTO restaurant_printer_jobs
-         (restaurant_id, station_id, food_order_id, job_type, payload, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6)
+         (restaurant_id, station_id, food_order_id, job_type, payload, created_by, location_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
        RETURNING *`,
       [
         restaurantId,
@@ -6491,6 +7788,7 @@ exports.createPrinterJob = async (req, res, next) => {
         jobType,
         safeJson(req.body.payload),
         req.user.id,
+        jobLocationId,
       ]
     );
     res.status(201).json({ job });
@@ -6502,8 +7800,13 @@ exports.createPrinterJob = async (req, res, next) => {
 exports.listPrinterJobs = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
-    const deviceId = parsePositiveInt(req.query.deviceId || req.query.device_id);
+    const device = req.restaurantDevice || null;
+    if (device) assertDeviceApp(device, 'kitchen');
+    else {
+      const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+      await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.view', 'kitchen.update', 'kitchen.manage', 'orders.manage']);
+    }
+    const deviceId = device?.id || parsePositiveInt(req.query.deviceId || req.query.device_id);
     const stationId = parsePositiveInt(req.query.stationId || req.query.station_id);
     const status = normalizeString(req.query.status, 24);
     if (status && !PRINTER_JOB_STATUSES.has(status)) {
@@ -6519,10 +7822,11 @@ exports.listPrinterJobs = async (req, res, next) => {
           AND ($2::bigint IS NULL OR ks.device_id = $2 OR pj.claimed_by_device_id = $2)
           AND ($3::bigint IS NULL OR pj.station_id = $3)
           AND ($4::text IS NULL OR pj.status = $4)
+          AND ($5::bigint IS NULL OR pj.location_id = $5)
         ORDER BY CASE pj.status WHEN 'queued' THEN 0 WHEN 'failed' THEN 1 ELSE 2 END,
                  pj.created_at ASC
         LIMIT 200`,
-      [restaurantId, deviceId, stationId, status]
+      [restaurantId, deviceId, stationId, status, device?.location_id || null]
     );
     res.json({ jobs });
   } catch (err) {
@@ -6534,10 +7838,12 @@ exports.claimPrinterJob = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const jobId = parsePositiveInt(req.params.jobId);
-    const deviceId = parsePositiveInt(req.body.deviceId || req.body.device_id);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const device = req.restaurantDevice || null;
+    if (device) assertDeviceApp(device, 'kitchen');
+    else await requireRestaurantAccess(req.user.id, restaurantId);
+    const deviceId = device?.id || parsePositiveInt(req.body.deviceId || req.body.device_id);
     if (!deviceId) throw new AppError('Validation failed', 400, 'validation_failed', { deviceId: 'Kitchen device is required' });
-    await requireDeviceCredential(req, restaurantId, deviceId);
+    if (!device) await requireDeviceCredential(req, restaurantId, deviceId);
     const { rows: [job] } = await pool.query(
       `UPDATE restaurant_printer_jobs pj
           SET status = 'sent',
@@ -6557,8 +7863,9 @@ exports.claimPrinterJob = async (req, res, next) => {
           AND d.app_key = 'kitchen'
           AND d.status = 'paired'
           AND pj.status IN ('queued','failed')
+          AND ($4::bigint IS NULL OR pj.location_id = $4)
         RETURNING pj.*`,
-      [deviceId, jobId, restaurantId]
+      [deviceId, jobId, restaurantId, device?.location_id || null]
     );
     if (!job) throw new AppError('Printer job is no longer claimable by this device', 409, 'printer_job_unavailable');
     res.json({ job });
@@ -6570,20 +7877,26 @@ exports.claimPrinterJob = async (req, res, next) => {
 exports.updatePrinterJob = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const device = req.restaurantDevice || null;
+    const restaurant = device
+      ? { effective_role: 'screen_expeditor' }
+      : await requireRestaurantAccess(req.user.id, restaurantId);
+    const canManageKitchen = device
+      ? false
+      : await hasRestaurantPermission(restaurant, req.user.id, 'kitchen.manage');
     const jobId = parsePositiveInt(req.params.jobId);
     const status = normalizeString(req.body.status, 24);
     if (!PRINTER_JOB_STATUSES.has(status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported printer job status' });
     }
-    const deviceId = parsePositiveInt(req.body.deviceId || req.body.device_id);
-    const managerCancel = status === 'cancelled' && MANAGE_ROLES.has(restaurant.effective_role);
+    const deviceId = device?.id || parsePositiveInt(req.body.deviceId || req.body.device_id);
+    const managerCancel = status === 'cancelled' && canManageKitchen;
     if (!managerCancel && !['printed', 'failed'].includes(status)) {
       throw new AppError('Printer job transition is not allowed', 409, 'invalid_printer_job_transition');
     }
     if (!managerCancel) {
       if (!deviceId) throw new AppError('Validation failed', 400, 'validation_failed', { deviceId: 'Claiming device is required' });
-      await requireDeviceCredential(req, restaurantId, deviceId);
+      if (!device) await requireDeviceCredential(req, restaurantId, deviceId);
     }
     const { rows: [job] } = await pool.query(
       `UPDATE restaurant_printer_jobs
@@ -6596,8 +7909,9 @@ exports.updatePrinterJob = async (req, res, next) => {
             ($5 = TRUE AND status IN ('queued','sent','failed'))
             OR ($5 = FALSE AND status = 'sent' AND claimed_by_device_id = $6)
           )
+          AND ($7::bigint IS NULL OR location_id = $7)
         RETURNING *`,
-      [status, normalizeString(req.body.errorMessage || req.body.error_message, 1000), jobId, restaurantId, managerCancel, deviceId]
+      [status, normalizeString(req.body.errorMessage || req.body.error_message, 1000), jobId, restaurantId, managerCancel, deviceId, device?.location_id || null]
     );
     if (!job) throw new AppError('Printer job transition is no longer allowed', 409, 'invalid_printer_job_transition');
     res.json({ job });
@@ -6608,11 +7922,15 @@ exports.updatePrinterJob = async (req, res, next) => {
 
 const CREW_SHIFT_STATUSES = new Set(['scheduled', 'open', 'closed', 'cancelled']);
 
-async function loadCrewShift(restaurantId, shiftId) {
+async function loadCrewShift(restaurantId, shiftId, locationScope = null) {
   if (!shiftId) return null;
+  const params = [restaurantId, shiftId];
+  const locationFilter = locationScope?.mode === 'assigned'
+    ? ` AND location_id = ANY($${params.push(locationScope.location_ids)}::bigint[])`
+    : '';
   const { rows: [shift] } = await pool.query(
-    `SELECT * FROM restaurant_crew_shifts WHERE restaurant_id = $1 AND id = $2`,
-    [restaurantId, shiftId]
+    `SELECT * FROM restaurant_crew_shifts WHERE restaurant_id = $1 AND id = $2${locationFilter}`,
+    params
   );
   if (!shift) throw new AppError('Crew shift not found', 404, 'crew_shift_not_found');
   return shift;
@@ -6630,12 +7948,40 @@ async function validateCrewAssignee(restaurantId, assignedTo) {
   return assignedTo;
 }
 
+// S-17: fan a team notification out to every active member of the
+// restaurant's business (plus the business owner), except the actor.
+// Notifications carry type + params (S-19) so clients translate them;
+// sendNotification never throws, and this guard keeps a notification
+// outage from failing the underlying crew write.
+async function notifyRestaurantTeam(restaurant, excludeUserId, payload) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT bm.member_id AS user_id FROM business_members bm
+        WHERE bm.business_id = $1 AND bm.status = 'active' AND bm.member_id IS NOT NULL
+       UNION
+       SELECT b.user_id AS user_id FROM businesses b WHERE b.id = $1`,
+      [restaurant.business_id]
+    );
+    const recipients = rows
+      .map((r) => r.user_id)
+      .filter((id) => id && String(id) !== String(excludeUserId));
+    await Promise.all(recipients.map((userId) => sendNotification({ userId, ...payload })));
+  } catch (_) {
+    // Notification fan-out is best-effort; the crew write already succeeded.
+  }
+}
+
 exports.listCrewShifts = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const params = [restaurantId];
     const filters = ['s.restaurant_id = $1'];
+    if (locationScope.mode === 'assigned') {
+      params.push(locationScope.location_ids);
+      filters.push(`s.location_id = ANY($${params.length}::bigint[])`);
+    }
     const status = normalizeString(req.query.status, 24);
     if (status) {
       if (!CREW_SHIFT_STATUSES.has(status)) {
@@ -6675,7 +8021,8 @@ exports.createCrewShift = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const label = normalizeString(req.body.label, 160);
     const startsAt = req.body.startsAt || req.body.starts_at;
     const endsAt = req.body.endsAt || req.body.ends_at;
@@ -6687,13 +8034,34 @@ exports.createCrewShift = async (req, res, next) => {
     if (Date.parse(endsAt) <= Date.parse(startsAt)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { endsAt: 'Shift must end after it starts' });
     }
+    const locationId = parsePositiveInt(req.body.locationId || req.body.location_id);
+    if (locationScope.mode === 'assigned'
+      && (!locationId || !locationScope.location_ids.includes(locationId))) {
+      throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+    }
     const { rows: [shift] } = await pool.query(
       `INSERT INTO restaurant_crew_shifts
-         (restaurant_id, label, starts_at, ends_at, notes, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6)
+         (restaurant_id, location_id, label, starts_at, ends_at, notes, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
        RETURNING *`,
-      [restaurantId, label, startsAt, endsAt, normalizeString(req.body.notes, 2000), req.user.id]
+      [restaurantId, locationId, label, startsAt, endsAt, normalizeString(req.body.notes, 2000), req.user.id]
     );
+    // S-17: a new shift on the board notifies the team.
+    await notifyRestaurantTeam(restaurant, req.user.id, {
+      type: 'crew_shift_published',
+      title: `New shift at ${restaurant.display_name}`,
+      body: label,
+      action_url: '/restaurants/merchant?tab=myshift',
+      data: {
+        restaurantId,
+        shiftId: shift.id,
+        params: {
+          restaurantName: restaurant.display_name,
+          shiftLabel: label,
+          startsAt: new Date(shift.starts_at).toISOString(),
+        },
+      },
+    });
     res.status(201).json({ shift });
   } catch (err) {
     next(err);
@@ -6705,8 +8073,9 @@ exports.updateCrewShift = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const shiftId = parsePositiveInt(req.params.shiftId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
-    const existing = await loadCrewShift(restaurantId, shiftId);
+    await assertManage(restaurant, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const existing = await loadCrewShift(restaurantId, shiftId, locationScope);
     const status = normalizeString(req.body.status, 24);
     if (status && !CREW_SHIFT_STATUSES.has(status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported shift status' });
@@ -6725,23 +8094,47 @@ exports.updateCrewShift = async (req, res, next) => {
     if (Date.parse(endsAt) <= Date.parse(startsAt)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { endsAt: 'Shift must end after it starts' });
     }
+    const locationId = parsePositiveInt(req.body.locationId || req.body.location_id) || existing.location_id;
+    if (locationScope.mode === 'assigned'
+      && (!locationId || !locationScope.location_ids.includes(locationId))) {
+      throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+    }
     const { rows: [shift] } = await pool.query(
       `UPDATE restaurant_crew_shifts
-          SET label = COALESCE($1, label),
-              starts_at = $2,
-              ends_at = $3,
-              notes = COALESCE($4, notes),
-              status = COALESCE($5, status),
-              opened_by = CASE WHEN $5 = 'open' AND opened_at IS NULL THEN $6 ELSE opened_by END,
-              opened_at = CASE WHEN $5 = 'open' AND opened_at IS NULL THEN NOW() ELSE opened_at END,
-              closed_by = CASE WHEN $5 = 'closed' AND closed_at IS NULL THEN $6 ELSE closed_by END,
-              closed_at = CASE WHEN $5 = 'closed' AND closed_at IS NULL THEN NOW() ELSE closed_at END,
+          SET location_id = $1,
+              label = COALESCE($2, label),
+              starts_at = $3,
+              ends_at = $4,
+              notes = COALESCE($5, notes),
+              status = COALESCE($6, status),
+              opened_by = CASE WHEN $6 = 'open' AND opened_at IS NULL THEN $7 ELSE opened_by END,
+              opened_at = CASE WHEN $6 = 'open' AND opened_at IS NULL THEN NOW() ELSE opened_at END,
+              closed_by = CASE WHEN $6 = 'closed' AND closed_at IS NULL THEN $7 ELSE closed_by END,
+              closed_at = CASE WHEN $6 = 'closed' AND closed_at IS NULL THEN NOW() ELSE closed_at END,
               updated_at = NOW()
-        WHERE restaurant_id = $7 AND id = $8
+        WHERE restaurant_id = $8 AND id = $9
         RETURNING *`,
-      [normalizeString(req.body.label, 160), startsAt, endsAt,
+      [locationId, normalizeString(req.body.label, 160), startsAt, endsAt,
         normalizeString(req.body.notes, 2000), status, req.user.id, restaurantId, shiftId]
     );
+    // S-17: a cancelled shift notifies the team so nobody shows up for it.
+    if (status === 'cancelled' && existing.status !== 'cancelled') {
+      await notifyRestaurantTeam(restaurant, req.user.id, {
+        type: 'crew_shift_cancelled',
+        title: `Shift cancelled at ${restaurant.display_name}`,
+        body: shift.label,
+        action_url: '/restaurants/merchant?tab=myshift',
+        data: {
+          restaurantId,
+          shiftId: shift.id,
+          params: {
+            restaurantName: restaurant.display_name,
+            shiftLabel: shift.label,
+            startsAt: new Date(shift.starts_at).toISOString(),
+          },
+        },
+      });
+    }
     res.json({ shift });
   } catch (err) {
     next(err);
@@ -6752,35 +8145,38 @@ exports.getCrewShiftHistory = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const shiftId = parsePositiveInt(req.params.shiftId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
-    const shift = await loadCrewShift(restaurantId, shiftId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const shift = await loadCrewShift(restaurantId, shiftId, locationScope);
+    const taskLocationFilter = locationScope.mode === 'assigned' ? ' AND t.location_id = ANY($3::bigint[])' : '';
+    const taskParams = locationScope.mode === 'assigned' ? [restaurantId, shiftId, locationScope.location_ids] : [restaurantId, shiftId];
     const [{ rows: tasks }, { rows: proofs }, { rows: comments }, { rows: events }] = await Promise.all([
       pool.query(
         `SELECT * FROM restaurant_crew_tasks
-          WHERE restaurant_id = $1 AND shift_id = $2
+          WHERE restaurant_id = $1 AND shift_id = $2${locationScope.mode === 'assigned' ? ' AND location_id = ANY($3::bigint[])' : ''}
           ORDER BY due_at NULLS LAST, created_at ASC`,
-        [restaurantId, shiftId]
+        taskParams
       ),
       pool.query(
         `SELECT p.* FROM restaurant_crew_task_proofs p
           JOIN restaurant_crew_tasks t ON t.id = p.task_id
-         WHERE t.restaurant_id = $1 AND t.shift_id = $2
+         WHERE t.restaurant_id = $1 AND t.shift_id = $2${taskLocationFilter}
          ORDER BY p.created_at ASC`,
-        [restaurantId, shiftId]
+        taskParams
       ),
       pool.query(
         `SELECT c.* FROM restaurant_crew_task_comments c
           JOIN restaurant_crew_tasks t ON t.id = c.task_id
-         WHERE t.restaurant_id = $1 AND t.shift_id = $2
+         WHERE t.restaurant_id = $1 AND t.shift_id = $2${taskLocationFilter}
          ORDER BY c.created_at ASC`,
-        [restaurantId, shiftId]
+        taskParams
       ),
       pool.query(
         `SELECT e.* FROM restaurant_crew_task_events e
           JOIN restaurant_crew_tasks t ON t.id = e.task_id
-         WHERE t.restaurant_id = $1 AND t.shift_id = $2
+         WHERE t.restaurant_id = $1 AND t.shift_id = $2${taskLocationFilter}
          ORDER BY e.created_at ASC`,
-        [restaurantId, shiftId]
+        taskParams
       ),
     ]);
     const presentedProofs = await Promise.all(proofs.map(presentCrewProof));
@@ -6793,7 +8189,8 @@ exports.getCrewShiftHistory = async (req, res, next) => {
 exports.listCrewTasks = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const mine = req.query.mine === '1' || req.query.mine === 'true';
     const params = [restaurantId];
     let where = 'restaurant_id = $1';
@@ -6803,9 +8200,13 @@ exports.listCrewTasks = async (req, res, next) => {
     }
     const shiftId = parsePositiveInt(req.query.shiftId || req.query.shift_id);
     if (shiftId) {
-      await loadCrewShift(restaurantId, shiftId);
+      await loadCrewShift(restaurantId, shiftId, locationScope);
       params.push(shiftId);
       where += ` AND shift_id = $${params.length}`;
+    }
+    if (locationScope.mode === 'assigned') {
+      params.push(locationScope.location_ids);
+      where += ` AND location_id = ANY($${params.length}::bigint[])`;
     }
     const status = normalizeString(req.query.status, 32);
     if (status) {
@@ -6833,22 +8234,29 @@ exports.createCrewTask = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const title = normalizeString(req.body.title, 200);
     if (!title) throw new AppError('Validation failed', 400, 'validation_failed', { title: 'Title is required' });
     const assignedTo = req.body.assignedTo || req.body.assigned_to || null;
     const shiftId = parsePositiveInt(req.body.shiftId || req.body.shift_id);
     await validateCrewAssignee(restaurantId, assignedTo);
-    await loadCrewShift(restaurantId, shiftId);
+    const shift = await loadCrewShift(restaurantId, shiftId, locationScope);
+    const locationId = parsePositiveInt(req.body.locationId || req.body.location_id) || parsePositiveInt(shift?.location_id);
+    if (locationScope.mode === 'assigned'
+      && (!locationId || !locationScope.location_ids.includes(locationId))) {
+      throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+    }
     const task = await withTransaction(pool, async (client) => {
       const { rows: [created] } = await client.query(
         `INSERT INTO restaurant_crew_tasks
-           (restaurant_id, assigned_to, shift_id, title, detail, role_label, priority, due_at,
+           (restaurant_id, location_id, assigned_to, shift_id, title, detail, role_label, priority, due_at,
             requires_photo, requires_approval, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
          RETURNING *`,
         [
           restaurantId,
+          locationId,
           assignedTo,
           shiftId,
           title,
@@ -6863,12 +8271,32 @@ exports.createCrewTask = async (req, res, next) => {
       );
       await client.query(
         `INSERT INTO restaurant_crew_task_events
-           (restaurant_id, task_id, actor_user_id, event_type, new_status, metadata)
-         VALUES ($1,$2,$3,'created',$4,$5)`,
-        [restaurantId, created.id, req.user.id, created.status, JSON.stringify({ title: created.title })]
+           (restaurant_id, location_id, task_id, actor_user_id, event_type, new_status, metadata)
+         VALUES ($1,$2,$3,$4,'created',$5,$6)`,
+        [restaurantId, created.location_id || locationId, created.id, req.user.id, created.status, JSON.stringify({ title: created.title })]
       );
       return created;
     }, 'restaurant_crew_task_create');
+    // S-17: the assignee hears about a new task right away (type + params,
+    // S-19). Not sent when a manager assigns a task to themselves.
+    if (task.assigned_to && String(task.assigned_to) !== String(req.user.id)) {
+      await sendNotification({
+        userId: task.assigned_to,
+        type: 'crew_task_assigned',
+        title: `New task at ${restaurant.display_name}`,
+        body: task.title,
+        action_url: '/restaurants/merchant?tab=myshift',
+        emailChannel: false,
+        data: {
+          restaurantId,
+          taskId: task.id,
+          params: {
+            restaurantName: restaurant.display_name,
+            taskTitle: task.title,
+          },
+        },
+      });
+    }
     res.status(201).json({ task });
   } catch (err) {
     next(err);
@@ -6880,14 +8308,19 @@ exports.updateCrewTask = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const status = normalizeString(req.body.status, 32);
     if (status && !CREW_STATUS.has(status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported task status' });
     }
-    const canManage = MANAGE_ROLES.has(restaurant.effective_role);
+    const canManage = await hasRestaurantPermission(restaurant, req.user.id, 'crew.manage');
+    const taskParams = [restaurantId, taskId];
+    const taskLocationFilter = locationScope.mode === 'assigned'
+      ? ` AND location_id = ANY($${taskParams.push(locationScope.location_ids)}::bigint[])`
+      : '';
     const { rows: [existing] } = await pool.query(
-      `SELECT * FROM restaurant_crew_tasks WHERE restaurant_id = $1 AND id = $2`,
-      [restaurantId, taskId]
+      `SELECT * FROM restaurant_crew_tasks WHERE restaurant_id = $1 AND id = $2${taskLocationFilter}`,
+      taskParams
     );
     if (!existing) throw new AppError('Crew task not found', 404, 'crew_task_not_found');
     if (!canManage && String(existing.assigned_to || '') !== String(req.user.id)) {
@@ -6910,10 +8343,12 @@ exports.updateCrewTask = async (req, res, next) => {
     }
     if (['needs_approval', 'completed'].includes(status) && existing.requires_photo) {
       const { rows: [photoProof] } = await pool.query(
-        `SELECT 1 FROM restaurant_crew_task_proofs
-          WHERE restaurant_id = $1 AND task_id = $2 AND proof_type = 'photo'
+        `SELECT 1 FROM restaurant_crew_task_proofs p
+           JOIN restaurant_crew_tasks t ON t.id = p.task_id
+          WHERE p.restaurant_id = $1 AND p.task_id = $2 AND p.proof_type = 'photo'
+            ${locationScope.mode === 'assigned' ? 'AND t.location_id = ANY($3::bigint[])' : ''}
           LIMIT 1`,
-        [restaurantId, taskId]
+        [restaurantId, taskId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
       );
       if (!photoProof) throw new AppError('Photo proof is required before submission', 409, 'crew_photo_required');
     }
@@ -6927,7 +8362,7 @@ exports.updateCrewTask = async (req, res, next) => {
     const assignedTo = hasAssignee ? (req.body.assignedTo || req.body.assigned_to || null) : existing.assigned_to;
     const shiftId = hasShift ? parsePositiveInt(req.body.shiftId || req.body.shift_id) : existing.shift_id;
     if (hasAssignee) await validateCrewAssignee(restaurantId, assignedTo);
-    if (hasShift) await loadCrewShift(restaurantId, shiftId);
+    if (hasShift) await loadCrewShift(restaurantId, shiftId, locationScope);
     const approve = false;
     const task = await withTransaction(pool, async (client) => {
       const { rows: [updated] } = await client.query(
@@ -6946,6 +8381,7 @@ exports.updateCrewTask = async (req, res, next) => {
               shift_id = $7,
               updated_at = NOW()
         WHERE restaurant_id = $8 AND id = $9 AND status = $10
+          ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($11::bigint[])' : ''}
         RETURNING *`,
       [
         status,
@@ -6958,15 +8394,17 @@ exports.updateCrewTask = async (req, res, next) => {
         restaurantId,
         taskId,
           existing.status,
+          ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : []),
         ]
       );
       if (!updated) throw new AppError('Crew task changed before this update was applied', 409, 'crew_task_conflict');
       await client.query(
         `INSERT INTO restaurant_crew_task_events
-         (restaurant_id, task_id, actor_user_id, event_type, old_status, new_status, metadata)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+         (restaurant_id, location_id, task_id, actor_user_id, event_type, old_status, new_status, metadata)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
         [
           restaurantId,
+          existing.location_id,
           taskId,
           req.user.id,
           approve ? 'approved' : 'updated',
@@ -6995,7 +8433,8 @@ exports.reviewCrewTask = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    await assertManage(restaurant, req.user.id);
 
     const approved = req.body.approved === true || req.body.approve === true || req.body.status === 'approved';
     const rejected = req.body.rejected === true || req.body.reject === true || req.body.status === 'rejected';
@@ -7003,9 +8442,13 @@ exports.reviewCrewTask = async (req, res, next) => {
       throw new AppError('Validation failed', 400, 'validation_failed', { review: 'Send either approved=true or rejected=true' });
     }
     const note = normalizeString(req.body.note || req.body.reviewNote || req.body.review_note, 2000);
+    const taskParams = [restaurantId, taskId];
+    const taskLocationFilter = locationScope.mode === 'assigned'
+      ? ` AND location_id = ANY($${taskParams.push(locationScope.location_ids)}::bigint[])`
+      : '';
     const { rows: [existing] } = await pool.query(
-      `SELECT * FROM restaurant_crew_tasks WHERE restaurant_id = $1 AND id = $2`,
-      [restaurantId, taskId]
+      `SELECT * FROM restaurant_crew_tasks WHERE restaurant_id = $1 AND id = $2${taskLocationFilter}`,
+      taskParams
     );
     if (!existing) throw new AppError('Crew task not found', 404, 'crew_task_not_found');
     if (existing.status !== 'needs_approval') {
@@ -7013,10 +8456,12 @@ exports.reviewCrewTask = async (req, res, next) => {
     }
     if (existing.requires_photo) {
       const { rows: [photoProof] } = await pool.query(
-        `SELECT 1 FROM restaurant_crew_task_proofs
-          WHERE restaurant_id = $1 AND task_id = $2 AND proof_type = 'photo'
+        `SELECT 1 FROM restaurant_crew_task_proofs p
+           JOIN restaurant_crew_tasks t ON t.id = p.task_id
+          WHERE p.restaurant_id = $1 AND p.task_id = $2 AND p.proof_type = 'photo'
+            ${locationScope.mode === 'assigned' ? 'AND t.location_id = ANY($3::bigint[])' : ''}
           LIMIT 1`,
-        [restaurantId, taskId]
+        [restaurantId, taskId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
       );
       if (!photoProof) throw new AppError('Photo proof is required before approval', 409, 'crew_photo_required');
     }
@@ -7031,16 +8476,18 @@ exports.reviewCrewTask = async (req, res, next) => {
               completion_note = COALESCE($4, completion_note),
               updated_at = NOW()
         WHERE restaurant_id = $5 AND id = $6 AND status = 'needs_approval'
+          ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($7::bigint[])' : ''}
         RETURNING *`,
-        [nextStatus, approved, req.user.id, note, restaurantId, taskId]
+        [nextStatus, approved, req.user.id, note, restaurantId, taskId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
       );
       if (!updated) throw new AppError('Crew task changed before review was applied', 409, 'crew_task_conflict');
       await client.query(
         `INSERT INTO restaurant_crew_task_events
-         (restaurant_id, task_id, actor_user_id, event_type, old_status, new_status, metadata)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+         (restaurant_id, location_id, task_id, actor_user_id, event_type, old_status, new_status, metadata)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
         [
           restaurantId,
+          existing.location_id,
           taskId,
           req.user.id,
           approved ? 'approved' : 'rejected',
@@ -7061,13 +8508,16 @@ exports.listCrewTaskEvents = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const { rows: events } = await pool.query(
-      `SELECT *
-         FROM restaurant_crew_task_events
-        WHERE restaurant_id = $1 AND task_id = $2
-        ORDER BY created_at ASC`,
-      [restaurantId, taskId]
+      `SELECT e.*
+         FROM restaurant_crew_task_events e
+         JOIN restaurant_crew_tasks t ON t.id = e.task_id
+        WHERE e.restaurant_id = $1 AND e.task_id = $2
+          ${locationScope.mode === 'assigned' ? 'AND t.location_id = ANY($3::bigint[])' : ''}
+        ORDER BY e.created_at ASC`,
+      [restaurantId, taskId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
     );
     res.json({ events });
   } catch (err) {
@@ -7077,12 +8527,17 @@ exports.listCrewTaskEvents = async (req, res, next) => {
 
 async function loadCrewProofTask(userId, restaurantId, taskId) {
   const restaurant = await requireRestaurantAccess(userId, restaurantId);
+  const locationScope = await getLocationScope(restaurant, userId);
+  const taskParams = [restaurantId, taskId];
+  const taskLocationFilter = locationScope.mode === 'assigned'
+    ? ` AND location_id = ANY($${taskParams.push(locationScope.location_ids)}::bigint[])`
+    : '';
   const { rows: [task] } = await pool.query(
-    `SELECT * FROM restaurant_crew_tasks WHERE restaurant_id = $1 AND id = $2`,
-    [restaurantId, taskId]
+    `SELECT * FROM restaurant_crew_tasks WHERE restaurant_id = $1 AND id = $2${taskLocationFilter}`,
+    taskParams
   );
   if (!task) throw new AppError('Crew task not found', 404, 'crew_task_not_found');
-  if (!MANAGE_ROLES.has(restaurant.effective_role)
+  if (!(await hasRestaurantPermission(restaurant, userId, 'crew.manage'))
     && task.assigned_to
     && String(task.assigned_to) !== String(userId)) {
     throw new AppError('You do not have permission to update this task', 403, 'forbidden');
@@ -7157,15 +8612,17 @@ async function persistCrewProof({
               END,
               updated_at = NOW()
         WHERE restaurant_id = $4 AND id = $5
+          AND location_id = $7
         RETURNING *`,
-      [privateReference, note, nextStatus, restaurantId, task.id, proofSatisfiesRequirement]
+      [privateReference, note, nextStatus, restaurantId, task.id, proofSatisfiesRequirement, task.location_id]
     );
     await client.query(
       `INSERT INTO restaurant_crew_task_events
-         (restaurant_id, task_id, actor_user_id, event_type, old_status, new_status, metadata)
-       VALUES ($1,$2,$3,'proof_submitted',$4,$5,$6)`,
+         (restaurant_id, location_id, task_id, actor_user_id, event_type, old_status, new_status, metadata)
+       VALUES ($1,$2,$3,$4,'proof_submitted',$5,$6,$7)`,
       [
         restaurantId,
+        task.location_id,
         task.id,
         userId,
         task.status,
@@ -7181,14 +8638,17 @@ exports.listCrewTaskProofs = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const { rows: proofs } = await pool.query(
       `SELECT p.*, u.first_name, u.last_name
          FROM restaurant_crew_task_proofs p
          LEFT JOIN users u ON u.id = p.submitted_by
+         JOIN restaurant_crew_tasks t ON t.id = p.task_id
         WHERE p.restaurant_id = $1 AND p.task_id = $2
+          ${locationScope.mode === 'assigned' ? 'AND t.location_id = ANY($3::bigint[])' : ''}
         ORDER BY p.created_at ASC`,
-      [restaurantId, taskId]
+      [restaurantId, taskId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
     );
     res.json({ proofs: await Promise.all(proofs.map(presentCrewProof)) });
   } catch (err) {
@@ -7282,14 +8742,17 @@ exports.listCrewTaskComments = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const { rows: comments } = await pool.query(
       `SELECT c.*, u.first_name, u.last_name
          FROM restaurant_crew_task_comments c
          LEFT JOIN users u ON u.id = c.author_user_id
+         JOIN restaurant_crew_tasks t ON t.id = c.task_id
         WHERE c.restaurant_id = $1 AND c.task_id = $2
+          ${locationScope.mode === 'assigned' ? 'AND t.location_id = ANY($3::bigint[])' : ''}
         ORDER BY c.created_at ASC`,
-      [restaurantId, taskId]
+      [restaurantId, taskId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
     );
     res.json({ comments });
   } catch (err) {
@@ -7301,12 +8764,15 @@ exports.addCrewTaskComment = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const comment = normalizeString(req.body.comment, 2000);
     if (!comment) throw new AppError('Validation failed', 400, 'validation_failed', { comment: 'Comment is required' });
     const { rows: [task] } = await pool.query(
-      `SELECT id FROM restaurant_crew_tasks WHERE id = $1 AND restaurant_id = $2`,
-      [taskId, restaurantId]
+      `SELECT id FROM restaurant_crew_tasks
+        WHERE id = $1 AND restaurant_id = $2
+          ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}`,
+      [taskId, restaurantId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
     );
     if (!task) throw new AppError('Crew task not found', 404, 'crew_task_not_found');
     const { rows: [created] } = await pool.query(
@@ -7327,7 +8793,8 @@ exports.updateRunnerDispatch = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const canManage = MANAGE_ROLES.has(restaurant.effective_role);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const canManage = await hasRestaurantPermission(restaurant, req.user.id, 'runner.manage');
     // Require runner.update permission for dispatch changes (parity with claim).
     await assertRestaurantPermission(restaurant, req.user.id, ['runner.update', 'runner.manage', 'orders.manage']);
     const hasAssignedTo = Object.prototype.hasOwnProperty.call(req.body, 'assignedTo')
@@ -7345,9 +8812,13 @@ exports.updateRunnerDispatch = async (req, res, next) => {
       throw new AppError('You do not have permission to release runner tasks', 403, 'forbidden');
     }
     const task = await withTransaction(pool, async (client) => {
+      const taskParams = [restaurantId, taskId];
+      const taskLocationFilter = locationScope.mode === 'assigned'
+        ? ` AND location_id = ANY($${taskParams.push(locationScope.location_ids)}::bigint[])`
+        : '';
       const { rows: [currentTask] } = await client.query(
-        `SELECT * FROM restaurant_runner_tasks WHERE restaurant_id = $1 AND id = $2 FOR UPDATE`,
-        [restaurantId, taskId]
+        `SELECT * FROM restaurant_runner_tasks WHERE restaurant_id = $1 AND id = $2${taskLocationFilter} FOR UPDATE`,
+        taskParams
       );
       if (!currentTask) throw new AppError('Runner task not found', 404, 'runner_task_not_found');
       if (!canManage && String(currentTask.assigned_to || '') !== String(req.user.id)) {
@@ -7405,6 +8876,7 @@ exports.updateRunnerDispatch = async (req, res, next) => {
                 -- proof submission. The old CASE WHEN $7 branch was dead.
                 updated_at = NOW()
           WHERE restaurant_id = $7 AND id = $8
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($9::bigint[])' : ''}
           RETURNING *`,
         [
           release,
@@ -7415,6 +8887,7 @@ exports.updateRunnerDispatch = async (req, res, next) => {
           req.body.deliveryEtaAt || req.body.delivery_eta_at || null,
           restaurantId,
           taskId,
+          ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : []),
         ]
       );
       return updated;
@@ -7432,17 +8905,22 @@ exports.completeRunnerHandoff = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const canManage = MANAGE_ROLES.has(restaurant.effective_role);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const canManage = await hasRestaurantPermission(restaurant, req.user.id, 'runner.manage');
     // Use server time; ignore client-supplied handoffAt (prevents backdating).
     const handoffAt = new Date().toISOString();
     const note = normalizeString(req.body.note || req.body.handoffNote || req.body.handoff_note, 1000);
     const result = await withTransaction(pool, async (client) => {
+      const taskParams = [restaurantId, taskId];
+      const taskLocationFilter = locationScope.mode === 'assigned'
+        ? ` AND location_id = ANY($${taskParams.push(locationScope.location_ids)}::bigint[])`
+        : '';
       const { rows: [currentTask] } = await client.query(
         `SELECT *
            FROM restaurant_runner_tasks
-          WHERE restaurant_id = $1 AND id = $2
+          WHERE restaurant_id = $1 AND id = $2${taskLocationFilter}
           FOR UPDATE`,
-        [restaurantId, taskId]
+        taskParams
       );
       if (!currentTask) throw new AppError('Runner task not found', 404, 'runner_task_not_found');
       if (!canManage && String(currentTask.assigned_to || '') !== String(req.user.id)) {
@@ -7484,8 +8962,9 @@ exports.completeRunnerHandoff = async (req, res, next) => {
                 completed_at = COALESCE(completed_at, COALESCE($1::timestamptz, NOW())),
                 updated_at = NOW()
           WHERE restaurant_id = $2 AND id = $3
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($4::bigint[])' : ''}
           RETURNING *`,
-        [handoffAt, restaurantId, taskId]
+        [handoffAt, restaurantId, taskId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
       );
       let proof = null;
       // A proof row is recorded only when there is actual proof content
@@ -7536,6 +9015,7 @@ exports.completeRunnerHandoff = async (req, res, next) => {
           await consumeInventoryForOrder(client, {
             restaurantId,
             orderId: order.id,
+            locationId: order.location_id,
             actorUserId: req.user.id,
           });
           await client.query(
@@ -7560,6 +9040,11 @@ exports.listRunnerOffers = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, req.user.id, ['runner.update', 'runner.manage', 'orders.manage']);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const offerParams = [restaurantId, req.user.id];
+    const offerLocationFilter = locationScope.mode === 'assigned'
+      ? ` AND t.location_id = ANY($${offerParams.push(locationScope.location_ids)}::bigint[])`
+      : '';
     const { rows: offers } = await pool.query(
       `SELECT t.*,
               o.guest_name AS customer_name,
@@ -7578,10 +9063,11 @@ exports.listRunnerOffers = async (req, res, next) => {
               FROM restaurant_runner_task_declines d
              WHERE d.task_id = t.id AND d.runner_user_id = $2
           )
+          ${offerLocationFilter}
         ORDER BY CASE WHEN t.status = 'Ready' THEN 0 ELSE 1 END,
                  COALESCE(t.delivery_eta_at, t.created_at) ASC
         LIMIT 100`,
-      [restaurantId, req.user.id]
+      offerParams
     );
     res.json({ offers });
   } catch (err) {
@@ -7595,7 +9081,12 @@ exports.claimRunnerTask = async (req, res, next) => {
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, req.user.id, ['runner.update', 'runner.manage', 'orders.manage']);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const task = await withTransaction(pool, async (client) => {
+      const taskParams = [req.user.id, restaurantId, taskId];
+      const taskLocationFilter = locationScope.mode === 'assigned'
+        ? ` AND location_id = ANY($${taskParams.push(locationScope.location_ids)}::bigint[])`
+        : '';
       const { rows: [claimed] } = await client.query(
         `UPDATE restaurant_runner_tasks
             SET assigned_to = $1,
@@ -7608,6 +9099,7 @@ exports.claimRunnerTask = async (req, res, next) => {
             AND assigned_to IS NULL
             AND status IN ('Queued','Ready')
             AND (offer_expires_at IS NULL OR offer_expires_at > NOW())
+            ${taskLocationFilter}
             AND NOT EXISTS (
               SELECT 1
                 FROM restaurant_runner_task_declines d
@@ -7615,14 +9107,18 @@ exports.claimRunnerTask = async (req, res, next) => {
                  AND d.runner_user_id = $1
             )
           RETURNING *`,
-        [req.user.id, restaurantId, taskId]
+        taskParams
       );
       if (!claimed) {
+        const existingParams = [restaurantId, taskId];
+        const existingLocationFilter = locationScope.mode === 'assigned'
+          ? ` AND location_id = ANY($${existingParams.push(locationScope.location_ids)}::bigint[])`
+          : '';
         const { rows: [existing] } = await client.query(
           `SELECT assigned_to, status, offer_expires_at
              FROM restaurant_runner_tasks
-            WHERE restaurant_id = $1 AND id = $2`,
-          [restaurantId, taskId]
+            WHERE restaurant_id = $1 AND id = $2${existingLocationFilter}`,
+          existingParams
         );
         if (!existing) throw new AppError('Runner task not found', 404, 'runner_task_not_found');
         throw new AppError('This delivery offer is no longer available', 409, 'runner_offer_unavailable');
@@ -7642,6 +9138,11 @@ exports.declineRunnerTask = async (req, res, next) => {
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, req.user.id, ['runner.update', 'runner.manage', 'orders.manage']);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const declineParams = [restaurantId, taskId, req.user.id, normalizeString(req.body.reason, 1000)];
+    const declineLocationFilter = locationScope.mode === 'assigned'
+      ? ` AND t.location_id = ANY($${declineParams.push(locationScope.location_ids)}::bigint[])`
+      : '';
     const { rows: [decline] } = await pool.query(
       `INSERT INTO restaurant_runner_task_declines
          (restaurant_id, task_id, runner_user_id, reason)
@@ -7651,10 +9152,11 @@ exports.declineRunnerTask = async (req, res, next) => {
           AND t.id = $2
           AND t.assigned_to IS NULL
           AND t.status IN ('Queued','Ready')
+          ${declineLocationFilter}
        ON CONFLICT (task_id, runner_user_id)
        DO UPDATE SET reason = EXCLUDED.reason, created_at = NOW()
        RETURNING *`,
-      [restaurantId, taskId, req.user.id, normalizeString(req.body.reason, 1000)]
+      declineParams
     );
     if (!decline) throw new AppError('This delivery offer is no longer available', 409, 'runner_offer_unavailable');
     broadcastRestaurant(restaurant, 'food:runner:task:declined', { taskId, runnerUserId: req.user.id });
@@ -7669,23 +9171,28 @@ exports.logRunnerLocation = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId || req.body.taskId || req.body.task_id);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const canManage = await hasRestaurantPermission(restaurant, req.user.id, 'runner.manage');
     const latitude = parseFiniteNumber(req.body.latitude ?? req.body.lat, 'latitude');
     const longitude = parseFiniteNumber(req.body.longitude ?? req.body.lng, 'longitude');
     if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
       throw new AppError('Validation failed', 400, 'validation_failed', { location: 'Invalid latitude/longitude' });
     }
     if (taskId) {
+      const taskParams = [taskId, restaurantId];
+      const taskLocationFilter = locationScope.mode === 'assigned'
+        ? ` AND location_id = ANY($${taskParams.push(locationScope.location_ids)}::bigint[])`
+        : '';
       const { rows: [task] } = await pool.query(
-        `SELECT id, assigned_to, status FROM restaurant_runner_tasks WHERE id = $1 AND restaurant_id = $2`,
-        [taskId, restaurantId]
+        `SELECT id, assigned_to, status FROM restaurant_runner_tasks WHERE id = $1 AND restaurant_id = $2${taskLocationFilter}`,
+        taskParams
       );
       if (!task) throw new AppError('Runner task not found', 404, 'runner_task_not_found');
-      if (!MANAGE_ROLES.has(restaurant.effective_role)
+      if (!canManage
         && String(task.assigned_to || '') !== String(req.user.id)) {
         throw new AppError('This runner task is assigned to another user', 403, 'runner_task_not_assigned');
       }
     }
-    const canManage = MANAGE_ROLES.has(restaurant.effective_role);
     let runnerUserId = req.user.id;
     if (canManage && (req.body.runnerUserId || req.body.runner_user_id)) {
       // Validate the specified runner is a restaurant member.
@@ -7717,14 +9224,18 @@ exports.logRunnerLocation = async (req, res, next) => {
       ]
     );
     if (taskId) {
+      const updateParams = [latitude, longitude, ping.captured_at, taskId, restaurantId];
+      const taskLocationFilter = locationScope.mode === 'assigned'
+        ? ` AND location_id = ANY($${updateParams.push(locationScope.location_ids)}::bigint[])`
+        : '';
       await pool.query(
         `UPDATE restaurant_runner_tasks
             SET last_latitude = $1,
                 last_longitude = $2,
                 last_location_at = $3,
                 updated_at = NOW()
-          WHERE id = $4 AND restaurant_id = $5`,
-        [latitude, longitude, ping.captured_at, taskId, restaurantId]
+          WHERE id = $4 AND restaurant_id = $5${taskLocationFilter}`,
+        updateParams
       );
     }
     broadcastRestaurant(restaurant, 'food:runner:location', { ping });
@@ -7738,14 +9249,20 @@ exports.listRunnerSettlements = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const status = normalizeString(req.query.status, 24);
     const params = [restaurantId];
     let filter = '';
+    if (locationScope.mode === 'assigned') {
+      params.push(locationScope.location_ids);
+      filter += ` AND location_id = ANY($${params.length}::bigint[])`;
+    }
     if (status && RUNNER_SETTLEMENT_STATUSES.has(status)) {
       params.push(status);
-      filter = `AND status = $${params.length}`;
+      filter += ` AND status = $${params.length}`;
     }
-    if (!MANAGE_ROLES.has(restaurant.effective_role)) {
+    const canManage = await hasRestaurantPermission(restaurant, req.user.id, 'runner.manage');
+    if (!canManage) {
       params.push(req.user.id);
       filter += ` AND runner_user_id = $${params.length}`;
     }
@@ -7768,7 +9285,8 @@ exports.upsertRunnerSettlement = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId || req.body.taskId || req.body.task_id);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const canManage = MANAGE_ROLES.has(restaurant.effective_role);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const canManage = await hasRestaurantPermission(restaurant, req.user.id, 'runner.manage');
     const status = normalizeString(req.body.status, 24) || 'pending';
     if (!RUNNER_SETTLEMENT_STATUSES.has(status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported settlement status' });
@@ -7791,16 +9309,20 @@ exports.upsertRunnerSettlement = async (req, res, next) => {
       voided: new Set(['voided']),
     };
     const settlement = await withTransaction(pool, async (client) => {
+      const taskParams = [taskId, restaurantId];
+      const taskLocationFilter = locationScope.mode === 'assigned'
+        ? ` AND t.location_id = ANY($${taskParams.push(locationScope.location_ids)}::bigint[])`
+        : '';
       const { rows: [task] } = await client.query(
-        `SELECT t.id, t.food_order_id, t.assigned_to, t.status AS task_status,
+        `SELECT t.id, t.location_id, t.food_order_id, t.assigned_to, t.status AS task_status,
                 t.handoff_at, t.cash_collection_required,
                 fo.delivery_fee_cents, fo.tip_cents, fo.total_cents,
                 fo.payment_status, fo.fulfillment_type
            FROM restaurant_runner_tasks t
            LEFT JOIN food_orders fo ON fo.id = t.food_order_id
-          WHERE t.id = $1 AND t.restaurant_id = $2
+          WHERE t.id = $1 AND t.restaurant_id = $2${taskLocationFilter}
           FOR UPDATE OF t`,
-        [taskId, restaurantId]
+        taskParams
       );
       if (!task) throw new AppError('Runner task not found', 404, 'runner_task_not_found');
       if (!canManage && String(task.assigned_to || '') !== String(req.user.id)) {
@@ -7878,16 +9400,16 @@ exports.upsertRunnerSettlement = async (req, res, next) => {
       }
       const { rows: [updated] } = await client.query(
         `INSERT INTO restaurant_runner_settlements
-         (restaurant_id, task_id, food_order_id, runner_user_id, delivery_fee_cents, tip_cents,
+         (restaurant_id, location_id, task_id, food_order_id, runner_user_id, delivery_fee_cents, tip_cents,
           cash_collected_cents, cash_remitted_cents, remitted_at, remitted_by,
           status, note, approved_by, approved_at, paid_at, payment_reference, metadata)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,
-               CASE WHEN $8 > 0 THEN NOW() ELSE NULL END,
-               CASE WHEN $8 > 0 THEN $9 ELSE NULL END,
-               $10,$11,$12,
-               CASE WHEN $10 = 'approved' THEN NOW() ELSE NULL END,
-               CASE WHEN $10 = 'paid' THEN NOW() ELSE NULL END,
-               $14, $13)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,
+               CASE WHEN $9 > 0 THEN NOW() ELSE NULL END,
+               CASE WHEN $9 > 0 THEN $10 ELSE NULL END,
+               $11,$12,$13,
+               CASE WHEN $11 = 'approved' THEN NOW() ELSE NULL END,
+               CASE WHEN $11 = 'paid' THEN NOW() ELSE NULL END,
+               $15, $14)
        ON CONFLICT (restaurant_id, task_id) WHERE task_id IS NOT NULL
        DO UPDATE SET food_order_id = EXCLUDED.food_order_id,
                      runner_user_id = EXCLUDED.runner_user_id,
@@ -7908,6 +9430,7 @@ exports.upsertRunnerSettlement = async (req, res, next) => {
        RETURNING *`,
         [
           restaurantId,
+          task.location_id,
           taskId,
           task.food_order_id,
           task.assigned_to,
@@ -7935,7 +9458,16 @@ exports.getInventoryHookStatus = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
+    const scope = await getLocationScope(restaurant, req.user.id);
+    const params = [restaurantId, ...(scope.mode === 'assigned' ? [scope.location_ids] : [])];
+    const itemScope = scope.mode === 'assigned' ? ' AND i.location_id = ANY($2::bigint[])' : '';
+    const eventScope = scope.mode === 'assigned' ? ' AND location_id = ANY($2::bigint[])' : '';
+    const available = `(fmi.manual_available AND COALESCE(sm.inventory_available, fmi.inventory_available)
+      AND (sm.is_available IS DISTINCT FROM FALSE OR COALESCE(sm.available_again_at <= NOW(), FALSE)))`;
+    const storeJoin = `LEFT JOIN restaurant_store_menu_overrides sm
+      ON sm.restaurant_id = fmi.restaurant_id AND sm.menu_item_id = fmi.id
+      AND sm.location_id = i.location_id`;
     const [
       { rows: [summary] },
       { rows: affectedMenuItems },
@@ -7944,7 +9476,7 @@ exports.getInventoryHookStatus = async (req, res, next) => {
       pool.query(
         `SELECT COUNT(*)::int AS mapped_items,
                 COUNT(*) FILTER (WHERE m.auto_manage = TRUE)::int AS auto_managed_items,
-                COUNT(*) FILTER (WHERE fmi.is_available = FALSE)::int AS unavailable_menu_items,
+                COUNT(DISTINCT fmi.id) FILTER (WHERE NOT ${available})::int AS unavailable_menu_items,
                 COUNT(*) FILTER (
                   WHERE i.quantity <= 0 OR (i.reorder_point > 0 AND i.quantity <= i.reorder_point)
                 )::int AS blocked_or_low_inventory_items,
@@ -7954,13 +9486,15 @@ exports.getInventoryHookStatus = async (req, res, next) => {
              ON i.id = m.inventory_item_id AND i.restaurant_id = m.restaurant_id
            JOIN food_menu_items fmi
              ON fmi.id = m.menu_item_id AND fmi.restaurant_id = m.restaurant_id
-          WHERE m.restaurant_id = $1`,
-        [restaurantId]
+           ${storeJoin}
+          WHERE m.restaurant_id = $1${itemScope}`,
+        params
       ),
       pool.query(
         `SELECT fmi.id AS menu_item_id,
                 fmi.name AS menu_item_name,
-                fmi.is_available,
+                ${available} AS is_available,
+                i.location_id,
                 i.id AS inventory_item_id,
                 i.name AS inventory_item_name,
                 i.quantity,
@@ -7973,20 +9507,21 @@ exports.getInventoryHookStatus = async (req, res, next) => {
              ON i.id = m.inventory_item_id AND i.restaurant_id = m.restaurant_id
            JOIN food_menu_items fmi
              ON fmi.id = m.menu_item_id AND fmi.restaurant_id = m.restaurant_id
-          WHERE m.restaurant_id = $1
+           ${storeJoin}
+          WHERE m.restaurant_id = $1${itemScope}
             AND m.auto_manage = TRUE
-            AND (i.quantity <= 0 OR (i.reorder_point > 0 AND i.quantity <= i.reorder_point) OR fmi.is_available = FALSE)
+            AND (i.quantity <= 0 OR (i.reorder_point > 0 AND i.quantity <= i.reorder_point) OR NOT ${available})
           ORDER BY i.quantity ASC, fmi.name ASC
           LIMIT 50`,
-        [restaurantId]
+        params
       ),
       pool.query(
         `SELECT *
            FROM restaurant_inventory_availability_events
-          WHERE restaurant_id = $1
+          WHERE restaurant_id = $1${eventScope}
           ORDER BY created_at DESC
           LIMIT 50`,
-        [restaurantId]
+        params
       ),
     ]);
     res.json({
@@ -8011,13 +9546,30 @@ exports.syncMenuAvailability = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const locationId = storeMenu.locationId(req.body.locationId ?? req.body.location_id ?? req.query.locationId);
+    if (locationId && locationScope.mode === 'assigned' && !locationScope.location_ids.includes(locationId)) {
+      throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+    }
     const apply = req.body.apply === true || req.query.apply === 'true';
     const result = await withTransaction(pool, async (client) => {
-      return syncMappedMenuAvailability(client, restaurantId, {
-        apply,
-        createdBy: req.user.id,
-      });
+      const { rows: stores } = await client.query(
+        `SELECT id FROM restaurant_locations WHERE restaurant_id = $1
+           AND ($2::bigint IS NULL OR id = $2)
+           ${locationScope.mode === 'assigned' ? 'AND id = ANY($3::bigint[])' : ''}
+         ORDER BY id`,
+        [restaurantId, locationId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
+      );
+      if (locationId && !stores.length) throw new AppError('Store not found', 404, 'location_not_found');
+      const changes = [];
+      for (const store of stores) {
+        const synced = await syncMappedMenuAvailability(client, restaurantId, {
+          locationId: store.id, apply, createdBy: req.user.id,
+        });
+        changes.push(...synced.changes.map((change) => ({ ...change, location_id: store.id })));
+      }
+      return { changes, applied: apply };
     });
     res.json(result);
   } catch (err) {
@@ -8025,81 +9577,35 @@ exports.syncMenuAvailability = async (req, res, next) => {
   }
 };
 
+// Compatibility adapters retain the existing POS/KDS URLs and response shape.
+// An omitted store resolves to the primary store; it never changes the brand.
 exports.setMenuItemAvailability = async (req, res, next) => {
   try {
-    const restaurantId = parsePositiveInt(req.params.restaurantId);
-    const itemId = parsePositiveInt(req.params.itemId || req.body.itemId || req.body.item_id);
-    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
-    const available = parseOptionalBoolean(
-      req.body.isAvailable ?? req.body.is_available ?? req.body.available,
-      'isAvailable'
-    );
-    if (available === null) {
-      throw new AppError('Validation failed', 400, 'validation_failed', { isAvailable: 'Must be true or false' });
-    }
-    const reason = normalizeString(req.body.reason || req.body.note, 1000);
-    const result = await withTransaction(pool, async (client) => {
-      const { rows: [current] } = await client.query(
-        `SELECT id, is_available, manual_available, inventory_available
-           FROM food_menu_items
-          WHERE id = $1 AND restaurant_id = $2
-          FOR UPDATE`,
-        [itemId, restaurantId]
-      );
-      if (!current) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
-      const { rows: [item] } = await client.query(
-        `UPDATE food_menu_items
-            SET manual_available = $1,
-                is_available = $1 AND inventory_available,
-                updated_at = NOW()
-          WHERE id = $2 AND restaurant_id = $3
-          RETURNING *`,
-        [available, itemId, restaurantId]
-      );
-      if (!item) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
-      const { rows: [event] } = await client.query(
-        `INSERT INTO restaurant_inventory_availability_events
-           (restaurant_id, menu_item_id, previous_available, next_available, reason, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6)
-         RETURNING *`,
-        [
-          restaurantId,
-          item.id,
-          current.is_available,
-          item.is_available,
-          reason,
-          req.user.id,
-        ]
-      );
-      return { item, event };
-    });
-    broadcastRestaurant(restaurant, 'food:menu:availability', result);
-    // Audit fix (P2-3-F13): toggling the last available menu item off breaks
-    // publish readiness. Re-check and auto-unpublish if now incomplete.
-    if (restaurant.business_id) {
-      const { unpublished, missing } = await maybeUnpublishBusinessIfIncomplete(pool, restaurant.business_id, {
-        actorUserId: req.user.id, actorRole: 'owner',
-      });
-      if (unpublished) {
-        result.businessUnpublished = true;
-        result.unpublishMissing = missing;
-      }
-    }
-    res.json(result);
-  } catch (err) {
-    next(err);
-  }
+    const available = parseOptionalBoolean(req.body.isAvailable ?? req.body.is_available ?? req.body.available, 'isAvailable');
+    if (available === null) throw new AppError('Availability is required', 400, 'invalid_store_availability');
+    req.params.locationId = storeMenu.locationId(req.body.locationId ?? req.body.location_id);
+    const body = { isAvailable: available };
+    if (req.body.reason || req.body.note) body.reason = normalizeString(req.body.reason || req.body.note, 1000);
+    if (Object.hasOwn(req.body, 'availableAgainAt')) body.availableAgainAt = req.body.availableAgainAt;
+    req.body = body;
+    return require('./restaurantStoreMenuController').update(req, res, next);
+  } catch (error) { next(error); }
 };
 
 exports.getPosSyncStatus = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const deviceId = parsePositiveInt(req.query.deviceId || req.query.device_id);
     const params = [restaurantId];
     let deviceFilter = '';
+    let locationFilter = '';
+    if (locationScope.mode === 'assigned') {
+      params.push(locationScope.location_ids);
+      locationFilter = `AND d.location_id = ANY($${params.length}::bigint[])`;
+    }
     if (deviceId) {
       params.push(deviceId);
       deviceFilter = `AND d.id = $${params.length}`;
@@ -8118,6 +9624,7 @@ exports.getPosSyncStatus = async (req, res, next) => {
             AND o.restaurant_id = d.restaurant_id
           WHERE d.restaurant_id = $1
             AND d.app_key = 'pos'
+            ${locationFilter}
             ${deviceFilter}
           GROUP BY d.id
           ORDER BY d.status DESC, d.last_seen_at DESC NULLS LAST, d.device_name ASC`,
@@ -8129,16 +9636,16 @@ exports.getPosSyncStatus = async (req, res, next) => {
                 COUNT(*) FILTER (WHERE status = 'failed')::int AS failed_operations,
                 MAX(acknowledged_at) AS last_acknowledged_at
            FROM restaurant_pos_pending_operations
-          WHERE restaurant_id = $1`,
-        [restaurantId]
+          WHERE restaurant_id = $1${locationScope.mode === 'assigned' ? ' AND location_id = ANY($2::bigint[])' : ''}`,
+        locationScope.mode === 'assigned' ? [restaurantId, locationScope.location_ids] : [restaurantId]
       ),
       pool.query(
         `SELECT *
            FROM restaurant_pos_pending_operations
-          WHERE restaurant_id = $1
+          WHERE restaurant_id = $1${locationScope.mode === 'assigned' ? ' AND location_id = ANY($2::bigint[])' : ''}
           ORDER BY acknowledged_at DESC
           LIMIT 25`,
-        [restaurantId]
+        locationScope.mode === 'assigned' ? [restaurantId, locationScope.location_ids] : [restaurantId]
       ),
     ]);
     const hasFailed = Number(operations?.failed_operations || 0) > 0
@@ -8161,7 +9668,8 @@ exports.getPosSyncStatus = async (req, res, next) => {
 exports.ackPendingOperations = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const rawOperations = Array.isArray(req.body.operations)
       ? req.body.operations
       : Array.isArray(req.body.pendingOperations || req.body.pending_operations)
@@ -8203,13 +9711,19 @@ exports.ackPendingOperations = async (req, res, next) => {
         if (!['received', 'acked', 'applied', 'failed'].includes(operationStatus)) {
           throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported sync status' });
         }
+        const operationLocationId = parsePositiveInt(operation.locationId || operation.location_id);
+        if (locationScope.mode === 'assigned'
+          && (!operationLocationId || !locationScope.location_ids.includes(operationLocationId))) {
+          throw new AppError('Each POS operation must name an assigned store', 403, 'location_scope_forbidden');
+        }
         const { rows: [ack] } = await client.query(
           `INSERT INTO restaurant_pos_pending_operations
-             (restaurant_id, device_id, client_operation_id, operation_type, entity_type,
+             (restaurant_id, location_id, device_id, client_operation_id, operation_type, entity_type,
               entity_id, status, error_code, error_message, payload, created_by, acknowledged_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,NOW())
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,NOW())
            ON CONFLICT (restaurant_id, client_operation_id)
-           DO UPDATE SET device_id = COALESCE(EXCLUDED.device_id, restaurant_pos_pending_operations.device_id),
+           DO UPDATE SET location_id = COALESCE(EXCLUDED.location_id, restaurant_pos_pending_operations.location_id),
+                         device_id = COALESCE(EXCLUDED.device_id, restaurant_pos_pending_operations.device_id),
                          operation_type = EXCLUDED.operation_type,
                          entity_type = COALESCE(EXCLUDED.entity_type, restaurant_pos_pending_operations.entity_type),
                          entity_id = COALESCE(EXCLUDED.entity_id, restaurant_pos_pending_operations.entity_id),
@@ -8222,6 +9736,7 @@ exports.ackPendingOperations = async (req, res, next) => {
            RETURNING *`,
           [
             restaurantId,
+            operationLocationId,
             deviceId,
             clientOperationId,
             operationType,
@@ -8252,7 +9767,7 @@ exports.ackPendingOperations = async (req, res, next) => {
 // Shared permission boundary for managed browser screens; no duplicated role rules.
 exports.requireScreenStaff = async (userId, restaurantId, manage = false) => {
  const restaurant = await requireRestaurantAccess(userId, restaurantId);
- if (manage) assertManage(restaurant);
+ if (manage) await assertManage(restaurant, userId);
  else await assertRestaurantPermission(restaurant,userId,['kitchen.view','kitchen.update','orders.view','orders.manage','pos.use','display.manage']);
  return restaurant;
 };

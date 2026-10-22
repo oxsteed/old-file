@@ -833,7 +833,7 @@ const QRCodeGeneratorPage = () => {
                   role="radio"
                   aria-checked={codeType === type}
                   className={`qrg-code-type-option ${codeType === type ? 'is-selected' : ''}`}
-                  onClick={() => handleCodeTypeChange(type)}
+                  onClick={() => handleCodeTypeChange(type)} data-track="ui.9d2f611605.1"
                 >
                   <strong>{t(`qrGenerator.${details.labelKey}`)}</strong>
                   <span>{t(`qrGenerator.${details.descriptionKey}`)}</span>
@@ -850,7 +850,7 @@ const QRCodeGeneratorPage = () => {
                   type="button"
                   className={`qrg-template-card ${templateKey === template.key ? 'is-selected' : ''}`}
                   onClick={() => applyOperationalTemplate(template.key)}
-                  aria-pressed={templateKey === template.key}
+                  aria-pressed={templateKey === template.key} data-track="ui.9d2f611605.2"
                 >
                   <span className="qrg-template-icon"><Icon size={18} /></span>
                   <span className="qrg-template-copy">
@@ -987,7 +987,7 @@ const QRCodeGeneratorPage = () => {
                       )}
                     </span>
                     {logoProcessing && (
-                      <button type="button" className="qrg-processing-cancel" onClick={handleCancelLogoProcessing}>
+                      <button type="button" className="qrg-processing-cancel" onClick={handleCancelLogoProcessing} data-track="ui.9d2f611605.3">
                         <X size={14} />
                         {t('qrGenerator.logoCancel')}
                       </button>
@@ -1000,7 +1000,7 @@ const QRCodeGeneratorPage = () => {
                     <strong>{t('qrGenerator.logoProcessingFailed')}</strong>
                     <small>{t('qrGenerator.logoRetryDetail')}</small>
                     {logoFileInfo?.file && (
-                      <button type="button" className="qrg-button qrg-button-secondary" onClick={handleRetryLogo}>
+                      <button type="button" className="qrg-button qrg-button-secondary" onClick={handleRetryLogo} data-track="ui.9d2f611605.4">
                         <RotateCcw size={16} />
                         {t('qrGenerator.logoRetry')}
                       </button>
@@ -1012,7 +1012,7 @@ const QRCodeGeneratorPage = () => {
                     type="button"
                     onClick={handleRemoveLogo}
                     className="qrg-button qrg-button-secondary"
-                    style={{ marginTop: '12px' }}
+                    style={{ marginTop: '12px' }} data-track="ui.9d2f611605.5"
                   >
                     <Trash2 size={16} />
                     {t('qrGenerator.removeLogo')}
@@ -1129,7 +1129,7 @@ const QRCodeGeneratorPage = () => {
                   role="radio"
                   aria-checked={watermarkChoice === 'watermarked'}
                   className={`qrg-export-choice-card ${watermarkChoice === 'watermarked' ? 'is-selected' : ''}`}
-                  onClick={() => setWatermarkChoice('watermarked')}
+                  onClick={() => setWatermarkChoice('watermarked')} data-track="ui.9d2f611605.6"
                 >
                   <span className="qrg-choice-dot" aria-hidden="true" />
                   <span><strong>{t('qrGenerator.watermarkedOption')}</strong><small>{t('qrGenerator.watermarkedHelp')}</small></span>
@@ -1140,7 +1140,7 @@ const QRCodeGeneratorPage = () => {
                   role="radio"
                   aria-checked={watermarkChoice === 'clean'}
                   className={`qrg-export-choice-card ${watermarkChoice === 'clean' ? 'is-selected' : ''}`}
-                  onClick={() => setWatermarkChoice('clean')}
+                  onClick={() => setWatermarkChoice('clean')} data-track="ui.9d2f611605.7"
                 >
                   <span className="qrg-choice-dot" aria-hidden="true" />
                   <span><strong>{t('qrGenerator.cleanOption')}</strong><small>{t('qrGenerator.cleanHelp')}</small></span>
@@ -1157,7 +1157,7 @@ const QRCodeGeneratorPage = () => {
                     if (!checked) {
                       try { window.localStorage.removeItem(QR_DOWNLOAD_DEFAULT_KEY); } catch (_) { /* ignore */ }
                     }
-                  }}
+                  }} data-track="ui.9d2f611605.8"
                 />
                 {t('qrGenerator.rememberFormat')}
               </label>
@@ -1167,7 +1167,7 @@ const QRCodeGeneratorPage = () => {
               <button
                 onClick={handleDownloadQR}
                 disabled={!previewReady || paymentLoading}
-                className="qrg-button qrg-button-primary"
+                className="qrg-button qrg-button-primary" data-track="ui.9d2f611605.9"
               >
                 <Download size={16} />
                 {paymentLoading ? t('qrGenerator.paymentProcessing') : watermarkChoice === 'clean' ? t('qrGenerator.payAndDownload') : t('qrGenerator.downloadSelected')}
@@ -1178,7 +1178,7 @@ const QRCodeGeneratorPage = () => {
             <button
               onClick={() => setShowSaveModal(true)}
               className="qrg-button qrg-button-accent"
-              disabled={!formData.title.trim() || !previewReady || loading}
+              disabled={!formData.title.trim() || !previewReady || loading} data-track="ui.9d2f611605.10"
             >
               <Plus size={16} />
               {t('qrGenerator.save')}
@@ -1217,7 +1217,7 @@ const QRCodeGeneratorPage = () => {
                     key={filter}
                     type="button"
                     className={savedFilter === filter ? 'is-selected' : ''}
-                    onClick={() => setSavedFilter(filter)}
+                    onClick={() => setSavedFilter(filter)} data-track="ui.9d2f611605.11"
                   >
                     {t(`qrGenerator.operations.filter${filter[0].toUpperCase()}${filter.slice(1)}`)}
                   </button>
@@ -1252,28 +1252,28 @@ const QRCodeGeneratorPage = () => {
                     <button
                       onClick={() => handleCopyURL(qr.url)}
                       className="qrg-action-btn"
-                      title={t('common.copy')}
+                      title={t('common.copy')} data-track="ui.9d2f611605.12"
                     >
                       {copiedId === qr.url ? <Check size={18} /> : <Copy size={18} />}
                     </button>
                     <button
                       onClick={() => handleDuplicateQR(qr)}
                       className="qrg-action-btn"
-                      title={t('qrGenerator.operations.duplicateLabel')}
+                      title={t('qrGenerator.operations.duplicateLabel')} data-track="ui.9d2f611605.13"
                     >
                       <CopyPlus size={18} />
                     </button>
                     <button
                       onClick={() => handleDownloadSavedQR(qr)}
                       className="qrg-action-btn"
-                      title={t(qr.image_format === 'svg' ? 'qrGenerator.downloadSVG' : 'qrGenerator.downloadPNG')}
+                      title={t(qr.image_format === 'svg' ? 'qrGenerator.downloadSVG' : 'qrGenerator.downloadPNG')} data-track="ui.9d2f611605.14"
                     >
                       <Download size={18} />
                     </button>
                     <button
                       onClick={() => handleDeleteQR(qr.id)}
                       className="qrg-action-btn qrg-action-delete"
-                      title={t('common.delete')}
+                      title={t('common.delete')} data-track="ui.9d2f611605.15"
                     >
                       <Trash2 size={18} />
                     </button>
@@ -1304,14 +1304,14 @@ const QRCodeGeneratorPage = () => {
               <button
                 onClick={() => setShowSaveModal(false)}
                 className="qrg-button qrg-button-secondary"
-                disabled={loading}
+                disabled={loading} data-track="ui.9d2f611605.16"
               >
                 {t('common.cancel')}
               </button>
               <button
                 onClick={handleSaveQR}
                 className="qrg-button qrg-button-primary"
-                disabled={loading || !previewReady}
+                disabled={loading || !previewReady} data-track="ui.9d2f611605.17"
               >
                 {loading ? t('common.saving') : t('qrGenerator.save')}
               </button>

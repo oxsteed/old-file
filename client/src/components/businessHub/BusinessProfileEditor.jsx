@@ -100,7 +100,7 @@ function PhotoDrop({
         }}
         role="button"
         tabIndex={0}
-        aria-label={emptyLabel}
+        aria-label={emptyLabel} data-track="ui.fba4e02912.1"
       >
         {preview ? (
           <img src={preview} alt={alt} />
@@ -111,7 +111,7 @@ function PhotoDrop({
           <button
             type="button"
             className="bpe-photo-remove"
-            onClick={(e) => { e.stopPropagation(); onRemove(); }}
+            onClick={(e) => { e.stopPropagation(); onRemove(); }} data-track="ui.fba4e02912.2"
           >
             {removeLabel}
           </button>
@@ -157,7 +157,7 @@ function CheckList({ items, t, onJump }) {
               <button
                 type="button"
                 className="bpe-jump"
-                onClick={() => onJump(item.tab || item.section, item)}
+                onClick={() => onJump(item.tab || item.section, item)} data-track="ui.fba4e02912.3"
               >
                 <span className="bpe-dot" aria-hidden="true" />
                 <span>{jumpLabel}</span>
@@ -454,14 +454,14 @@ export default function BusinessProfileEditor({
       </span>
       {bizId && (
         <>
-          <button type="button" className="bpe-ghost" onClick={copyPublicLink}>
+          <button type="button" className="bpe-ghost" onClick={copyPublicLink} data-track="ui.fba4e02912.4">
             {copied ? t('businessHub.profileEditor.copied') : t('businessHub.profileEditor.copyLink')}
           </button>
           <a
             href={publicPath}
             target="_blank"
             rel="noopener noreferrer"
-            className="bpe-ghost"
+            className="bpe-ghost" data-track="ui.fba4e02912.5"
           >
             {t('businessHub.profileEditor.openPage')}
           </a>
@@ -476,7 +476,7 @@ export default function BusinessProfileEditor({
       className="ps-btn"
       onClick={handlePublishClick}
       disabled={publishing || saving || !listingReady || !onPublish}
-      title={!listingReady ? t('businessHub.profileEditor.publishHint') : undefined}
+      title={!listingReady ? t('businessHub.profileEditor.publishHint') : undefined} data-track="ui.fba4e02912.6"
     >
       {publishing ? t('businessHub.profileEditor.publishing') : t('businessHub.profileEditor.publish')}
     </button>
@@ -722,7 +722,7 @@ export default function BusinessProfileEditor({
                 <input
                   type="checkbox"
                   checked={form[key] !== false}
-                  onChange={(e) => patch(key, e.target.checked)}
+                  onChange={(e) => patch(key, e.target.checked)} data-track="ui.fba4e02912.7"
                 />
               </label>
             </li>

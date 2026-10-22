@@ -245,7 +245,7 @@ export default function BookingFlow({ helperId, helperName, businessId, business
           type="button"
           onClick={handleGoBack}
           className="booking-flow-back-btn"
-          aria-label={t('common.back')}
+          aria-label={t('common.back')} data-track="ui.47f0b637c3.1"
         >
           <ChevronLeft size={20} />
         </button>
@@ -259,7 +259,7 @@ export default function BookingFlow({ helperId, helperName, businessId, business
             type="button"
             onClick={onClose}
             className="booking-flow-close-btn"
-            aria-label={t('common.close')}
+            aria-label={t('common.close')} data-track="ui.47f0b637c3.2"
           >
             <X size={20} />
           </button>

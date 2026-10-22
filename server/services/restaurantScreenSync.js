@@ -28,9 +28,15 @@ function deviceHealth(device, now = Date.now()) {
       ? "degraded"
       : "online";
 }
+function scopeLocationIds(scope) {
+  if (Array.isArray(scope.locationIds)) return scope.locationIds;
+  if (scope.locationId === null || scope.locationId === undefined) return [];
+  return [scope.locationId];
+}
 async function changes(scope, after, limit = 250) {
   const since = cursor(after),
     count = Math.max(1, Math.min(Number(limit) || 250, 500));
+  const locationIds = scopeLocationIds(scope);
   const {
     rows: [head],
   } = await pool.query(
@@ -58,7 +64,7 @@ async function changes(scope, after, limit = 250) {
         (e) =>
           scope.allLocations ||
           e.location_id === null ||
-          String(e.location_id) === String(scope.locationId),
+          locationIds.some((locationId) => String(e.location_id) === String(locationId)),
       )
       .map((e) =>
         scope.readOrders === false
@@ -73,6 +79,7 @@ async function changes(scope, after, limit = 250) {
   };
 }
 async function snapshot(scope, query = {}) {
+  const locationIds = scopeLocationIds(scope);
   return withTransaction(
     pool,
     async (client) => {
@@ -108,15 +115,16 @@ async function snapshot(scope, query = {}) {
         ? await client.query(
             `SELECT o.id,o.restaurant_id,o.location_id,o.queue_number,o.status,o.kitchen_stage,o.payment_status,o.screen_revision,o.fulfillment_type,o.created_at,o.preparation_started_at,o.promised_at,o.table_label,
      COALESCE((SELECT jsonb_agg(jsonb_build_object('id',i.id,'itemName',i.item_name,'quantity',i.quantity,'specialInstructions',i.special_instructions,'kitchenStatus',i.kitchen_status,'stationLabel',i.station_label,'screenRevision',i.screen_revision,'targetPrepSeconds',i.target_prep_seconds,'kitchenStartedAt',i.kitchen_started_at,'modifiers',COALESCE((SELECT jsonb_agg(m.modifier_name) FROM food_order_item_modifiers m WHERE m.order_item_id=i.id),'[]'::jsonb)) ORDER BY i.id) FROM food_order_items i WHERE i.order_id=o.id),'[]'::jsonb) AS items
-    FROM food_orders o WHERE o.restaurant_id=$1 AND ($2::boolean OR o.location_id IS NOT DISTINCT FROM $3::bigint)
-    AND o.id>$4 AND o.status IN ('received','accepted','preparing','ready') AND COALESCE(o.pos_ticket_state,'open') NOT IN ('held','voided') ORDER BY o.id LIMIT 251`,
-            [scope.restaurantId, scope.allLocations, scope.locationId, after],
+    FROM food_orders o WHERE o.restaurant_id=$1 AND ($2::boolean OR o.location_id = ANY($3::bigint[]))
+    AND o.id>$4 AND o.status IN ('received','accepted','preparing','ready') AND COALESCE(o.pos_ticket_state,'open') NOT IN ('held','voided')
+    AND (o.scheduled_for IS NULL OR o.scheduled_for <= NOW() + (COALESCE((SELECT fr.prep_time_min FROM food_restaurants fr WHERE fr.id = o.restaurant_id), 30) * INTERVAL '1 minute')) ORDER BY o.id LIMIT 251`,
+            [scope.restaurantId, scope.allLocations, locationIds, after],
           )
         : { rows: [] };
       const page = orders.slice(0, 250);
       const { rows: publicOrders } = await client.query(
-        `SELECT queue_number,status FROM food_orders WHERE restaurant_id=$1 AND ($2::boolean OR location_id IS NOT DISTINCT FROM $3::bigint) AND status IN ('received','accepted','preparing','ready') AND COALESCE(pos_ticket_state,'open') NOT IN ('held','voided') AND NOT(payment_status='requires_payment' AND COALESCE(metadata->>'paymentMode','')='pay_now') ORDER BY created_at`,
-        [scope.restaurantId, scope.allLocations, scope.locationId],
+        `SELECT queue_number,status FROM food_orders WHERE restaurant_id=$1 AND ($2::boolean OR location_id = ANY($3::bigint[])) AND status IN ('received','accepted','preparing','ready') AND COALESCE(pos_ticket_state,'open') NOT IN ('held','voided') AND NOT(payment_status='requires_payment' AND COALESCE(metadata->>'paymentMode','')='pay_now') AND (scheduled_for IS NULL OR scheduled_for <= NOW() + (COALESCE((SELECT fr.prep_time_min FROM food_restaurants fr WHERE fr.id = food_orders.restaurant_id), 30) * INTERVAL '1 minute')) ORDER BY created_at`,
+        [scope.restaurantId, scope.allLocations, locationIds],
       );
       const board = {
         restaurant: { display_name: restaurant.display_name },

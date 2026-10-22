@@ -208,7 +208,7 @@ export default function VortexPage() {
                   onClick={() => openWorkspace(b)}
                   className="group text-left rounded-2xl border border-[color:var(--border-color)] bg-[color:var(--card-bg)] p-4 hover:border-orange-400 hover:shadow-md transition-all"
                   disabled={b.status === 'pending'}
-                  aria-disabled={b.status === 'pending'}
+                  aria-disabled={b.status === 'pending'} data-track="ui.8277289111.1"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
@@ -271,7 +271,7 @@ export default function VortexPage() {
             </div>
           ) : null}
 
-          <form onSubmit={handlePreview} className="flex flex-col sm:flex-row gap-2 mb-2">
+          <form onSubmit={handlePreview} className="flex flex-col sm:flex-row gap-2 mb-2" data-track="ui.8277289111.2">
             <input
               type="text"
               value={code}
@@ -286,7 +286,7 @@ export default function VortexPage() {
             <button
               type="submit"
               disabled={previewing || !code.trim()}
-              className="px-5 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-5 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors" data-track="ui.8277289111.3"
             >
               {previewing
                 ? t('vortex.checking', { defaultValue: 'Checking...' })
@@ -322,7 +322,7 @@ export default function VortexPage() {
                 type="button"
                 onClick={handleRedeem}
                 disabled={redeeming}
-                className="mt-3 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-50 transition-colors"
+                className="mt-3 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-50 transition-colors" data-track="ui.8277289111.4"
               >
                 {redeeming
                   ? t('vortex.joining', { defaultValue: 'Joining...' })
@@ -347,7 +347,7 @@ export default function VortexPage() {
             <button
               type="button"
               onClick={() => navigate('/business-hub')}
-              className="px-4 py-2 rounded-lg border border-[color:var(--border-color)] hover:bg-[color:var(--app-bg)] text-sm font-medium text-[color:var(--app-text)] transition-colors"
+              className="px-4 py-2 rounded-lg border border-[color:var(--border-color)] hover:bg-[color:var(--app-bg)] text-sm font-medium text-[color:var(--app-text)] transition-colors" data-track="ui.8277289111.5"
             >
               {t('vortex.launchCta', { defaultValue: 'Open business setup' })}
             </button>
@@ -356,14 +356,14 @@ export default function VortexPage() {
                 <button
                   type="button"
                   onClick={() => navigate('/business-hub?tab=team')}
-                  className="px-4 py-2 rounded-lg border border-[color:var(--border-color)] hover:bg-[color:var(--app-bg)] text-sm font-medium text-[color:var(--app-text)] transition-colors"
+                  className="px-4 py-2 rounded-lg border border-[color:var(--border-color)] hover:bg-[color:var(--app-bg)] text-sm font-medium text-[color:var(--app-text)] transition-colors" data-track="ui.8277289111.6"
                 >
                   {t('vortex.manageAccessCodes')}
                 </button>
                 <button
                   type="button"
                   onClick={() => openWorkspace(owned[0])}
-                  className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium transition-colors"
+                  className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium transition-colors" data-track="ui.8277289111.7"
                 >
                   {t('vortex.openOwnerWorkspace', {
                     defaultValue: 'Open {{name}}',

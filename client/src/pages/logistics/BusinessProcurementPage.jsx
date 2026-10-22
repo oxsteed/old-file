@@ -200,7 +200,7 @@ export default function BusinessProcurementPage() {
         actions={
           hasAccess && (
             <>
-              <button type="button" className="lx-btn-primary lx-next-step-action" onClick={() => setShowForm((current) => !current)}>
+              <button type="button" className="lx-btn-primary lx-next-step-action" onClick={() => setShowForm((current) => !current)} data-track="ui.dfab316fe8.1">
                 {showForm
                   ? tx('logistics.procurement.actions.closePlanner', 'Close planner')
                   : tx('logistics.procurement.actions.newProgram', 'New recurring program')}
@@ -385,8 +385,8 @@ export default function BusinessProcurementPage() {
                     <div className="lx-form-group lx-form-group--full"><label className="lx-label" htmlFor="lx-program-notes">{tx('logistics.procurement.form.notes', 'Notes')}</label><textarea id="lx-program-notes" className="lx-textarea" value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} /></div>
                   </div>
                   <div className="lx-btn-row">
-                    <button type="button" className="lx-btn-primary" disabled={saving} onClick={createProgramFromForm}>{saving ? tx('logistics.procurement.form.saving', 'Saving…') : tx('logistics.procurement.form.create', 'Create program')}</button>
-                    <button type="button" className="lx-btn-secondary" onClick={() => setShowForm(false)}>{tx('common.cancel', 'Cancel')}</button>
+                    <button type="button" className="lx-btn-primary" disabled={saving} onClick={createProgramFromForm} data-track="ui.dfab316fe8.2">{saving ? tx('logistics.procurement.form.saving', 'Saving…') : tx('logistics.procurement.form.create', 'Create program')}</button>
+                    <button type="button" className="lx-btn-secondary" onClick={() => setShowForm(false)} data-track="ui.dfab316fe8.3">{tx('common.cancel', 'Cancel')}</button>
                   </div>
                 </div>
               )}
@@ -421,7 +421,7 @@ export default function BusinessProcurementPage() {
                               type="button"
                               className="lx-action-secondary"
                               style={{ fontSize: '.72rem', padding: '.25rem .65rem', minBlockSize: '2.75rem' }}
-                              onClick={() => toggleProgram(program)}
+                              onClick={() => toggleProgram(program)} data-track="ui.dfab316fe8.4"
                             >
                               {program.status === 'active'
                                 ? tx('logistics.procurement.programs.pause', 'Pause')

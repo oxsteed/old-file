@@ -22,7 +22,7 @@ export default function RestaurantFinanceWorkspace({ restaurant, canManagePayout
         <Link className="fd-btn fd-btn-secondary" to="/statements"><Receipt size={18} aria-hidden="true" />{t('merchantFinance.statements')}</Link>
       </header>
       <nav className="fd-finance-shortcuts" aria-label={t('merchantFinance.navigation')}>
-        {sections.map(({ key, icon: Icon }) => <a key={key} href={`#${id}-${key}`} onClick={() => document.getElementById(`${id}-${key}`)?.focus()}>
+        {sections.map(({ key, icon: Icon }) => <a key={key} href={`#${id}-${key}`} onClick={() => document.getElementById(`${id}-${key}`)?.focus()} data-track="ui.ac20c86b33.1">
           <Icon size={20} aria-hidden="true" /><span><strong>{t(`merchantFinance.${key}`)}</strong><small>{t(`merchantFinance.${key}Hint`)}</small></span><ArrowDown size={16} aria-hidden="true" />
         </a>)}
       </nav>

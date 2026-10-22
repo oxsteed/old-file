@@ -147,7 +147,7 @@ export default function DeliveryDetailPage() {
 
   if (!job) return <PageShell><div className="delivery-page" dir={i18n.dir()}>
     {loading ? <p role="status">{t('delivery.detail.loading')}</p> : <p className="delivery-alert delivery-alert--error" role="alert">{error || t('delivery.errors.detail')}</p>}
-    {!loading && <button className="delivery-button delivery-button--secondary" onClick={load}>{t('delivery.ui.retry')}</button>}
+    {!loading && <button className="delivery-button delivery-button--secondary" onClick={load} data-track="ui.4c1e141977.1">{t('delivery.ui.retry')}</button>}
     {denied && <p>{t('delivery.ui.permissionHint')}</p>}
     <Link className="delivery-button delivery-button--secondary" to="/delivery">{t('delivery.detail.back')}</Link>
   </div></PageShell>;
@@ -169,9 +169,9 @@ export default function DeliveryDetailPage() {
       <header className="delivery-hero">
         <div><Link className="delivery-back-link" to="/delivery"><ArrowLeft size={15} />{t('delivery.detail.back')}</Link><h1>{job.reference}</h1><p>{t('delivery.detail.subtitle')}</p></div>
         <span className="delivery-hero__badge"><Truck size={24} />{label('helper.status', job.status)}</span>
-        <button className="delivery-button delivery-button--secondary" disabled={loading || busy} onClick={load}><RefreshCw size={16} />{t('delivery.helper.refresh')}</button>
+        <button className="delivery-button delivery-button--secondary" disabled={loading || busy} onClick={load} data-track="ui.4c1e141977.2"><RefreshCw size={16} />{t('delivery.helper.refresh')}</button>
       </header>
-      {error && <div className="delivery-alert delivery-alert--error" role="alert">{error}<button className="delivery-button delivery-button--secondary" disabled={loading || busy} onClick={load}>{t('delivery.helper.refresh')}</button></div>}
+      {error && <div className="delivery-alert delivery-alert--error" role="alert">{error}<button className="delivery-button delivery-button--secondary" disabled={loading || busy} onClick={load} data-track="ui.4c1e141977.3">{t('delivery.helper.refresh')}</button></div>}
       {notice && <p className="delivery-alert delivery-alert--success" role="status">{notice}</p>}
       {trackable && <DeliveryTrackingCard jobId={id} />}
       <div className="delivery-detail-grid">
@@ -188,19 +188,19 @@ export default function DeliveryDetailPage() {
               {eta?.available && eta.updatedAt && <small>{t('delivery.ui.updated', { date: date(eta.updatedAt) })}</small>}</dd></div>
             {['pickup', 'delivery'].map((kind) => job[`${kind}_window_start`] && <div key={kind}><dt>{t(kind === 'pickup' ? 'delivery.customer.pickup' : 'delivery.customer.dropoff')}</dt><dd>{date(job[`${kind}_window_start`])} – {date(job[`${kind}_window_end`])}</dd></div>)}
           </dl>
-          {isAssigned && nextStatus && <button className="delivery-button delivery-button--primary" disabled={busy} onClick={() => act(() => updateDeliveryStatus(id, nextStatus))}>{t('delivery.helper.moveTo', { status: label('helper.status', nextStatus) })}</button>}
-          {isCustomer && active && job.proof_preference === 'pin' && <div className="delivery-proof-list"><p>{t('delivery.ui.pinHint')}</p><button className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => act(async () => { const result = await obtainDeliveryPin(id); setPin(result.proofPin || ''); })}>{t('delivery.ui.obtainPin')}</button>{pin && <p role="status"><strong>{t('delivery.detail.pin')}: <bdi>{pin}</bdi></strong></p>}</div>}
+          {isAssigned && nextStatus && <button className="delivery-button delivery-button--primary" disabled={busy} onClick={() => act(() => updateDeliveryStatus(id, nextStatus))} data-track="ui.4c1e141977.4">{t('delivery.helper.moveTo', { status: label('helper.status', nextStatus) })}</button>}
+          {isCustomer && active && job.proof_preference === 'pin' && <div className="delivery-proof-list"><p>{t('delivery.ui.pinHint')}</p><button className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => act(async () => { const result = await obtainDeliveryPin(id); setPin(result.proofPin || ''); })} data-track="ui.4c1e141977.5">{t('delivery.ui.obtainPin')}</button>{pin && <p role="status"><strong>{t('delivery.detail.pin')}: <bdi>{pin}</bdi></strong></p>}</div>}
           <div className="delivery-proof-list"><h3>{t('delivery.detail.proof')}</h3>{proofs.length ? proofs.map((proof) => <p key={proof.id}>{label('proofTypes', proof.proof_type)} · {label('ui.proofStates', proof.verification_status)}</p>) : <p>{t('delivery.detail.noProof')}</p>}</div>
-          {isAssigned && job.status === 'in_transit' && <form onSubmit={submitProof} className="delivery-form"><fieldset className="delivery-form-fields" disabled={busy}>
+          {isAssigned && job.status === 'in_transit' && <form onSubmit={submitProof} className="delivery-form" data-track="ui.4c1e141977.6"><fieldset className="delivery-form-fields" disabled={busy}>
             <h3>{t('delivery.detail.submitProof')}</h3><p>{t('delivery.detail.proofPreference', { type: label('proofTypes', job.proof_preference) })}</p>
             {job.proof_preference === 'pin' && <label className="delivery-field">{t('delivery.detail.pin')}<input className="delivery-input" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={proofValue} onChange={(event) => setProofValue(event.target.value)} required /></label>}
             {job.proof_preference === 'recipient_confirmation' && <>
               <label className="delivery-field">{t('delivery.detail.recipientName')}<input className="delivery-input" value={recipientName} onChange={(event) => setRecipientName(event.target.value)} maxLength={160} required /></label>
               <label className="delivery-field">{t('delivery.ui.recipientContact')}<input className="delivery-input" value={recipientContact} onChange={(event) => setRecipientContact(event.target.value)} maxLength={160} required /></label>
-              <label><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} required /> {t('delivery.ui.recipientConfirmed')}</label>
+              <label><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} required data-track="ui.4c1e141977.7" /> {t('delivery.ui.recipientConfirmed')}</label>
             </>}
             {['photo', 'signature'].includes(job.proof_preference) && <label className="delivery-field">{t('delivery.detail.proofFile')}<input type="file" accept={job.proof_preference === 'signature' ? 'image/jpeg,image/png,image/webp,application/pdf' : 'image/jpeg,image/png,image/webp'} required onChange={(event) => { const file = event.target.files?.[0]; uploaded.current = null; if (file && file.size > 10485760) { setProofFile(null); event.target.value = ''; setError(t('delivery.ui.fileTooLarge')); } else setProofFile(file || null); }} /><small>{t('delivery.ui.proofFileHint')}</small></label>}
-            <button className="delivery-button delivery-button--primary" disabled={!['pin', 'photo', 'signature', 'recipient_confirmation'].includes(job.proof_preference)}>{t('delivery.detail.markDelivered')}</button>
+            <button className="delivery-button delivery-button--primary" disabled={!['pin', 'photo', 'signature', 'recipient_confirmation'].includes(job.proof_preference)} data-track="ui.4c1e141977.8">{t('delivery.detail.markDelivered')}</button>
           </fieldset></form>}
         </section>
         <section className="delivery-panel"><h2>{t('delivery.detail.timeline')}</h2><ol className="delivery-timeline">{activity.map((event) => <li key={event.id}><span className="delivery-timeline__dot" /><div><strong>{label('events', event.event_type)}</strong><time dateTime={event.created_at}>{date(event.created_at)}</time></div></li>)}</ol>{!activity.length && <p>{t('delivery.ui.noActivity')}</p>}</section>
@@ -209,28 +209,28 @@ export default function DeliveryDetailPage() {
       <section className="delivery-panel"><h2>{t('delivery.ui.extras')}</h2>
         <div className="delivery-extra-list">{extras.map((item) => <div key={item.id}>
           <span>{label('extraCategories', item.category)}<p>{item.notes}</p></span><strong>{money(item.amount_cents, item.currency)}</strong><small>{paymentLabel(item)}</small>
-          {isCustomer && item.status === 'pending' && ['approved', 'rejected'].map((decision) => <button key={decision} className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => act(() => reviewDeliveryExtra(item.id, decision), 'delivery.ui.saved', 'delivery.errors.extra')}>{t(decision === 'approved' ? 'delivery.detail.approve' : 'delivery.detail.reject')}</button>)}
-          {isCustomer && item.status === 'approved' && ['requires_action', 'failed', 'cancelled'].includes(item.payment_status) && <button className="delivery-button delivery-button--primary" disabled={busy} onClick={() => checkout(item.id)}>{t('delivery.detail.payExtra')}</button>}
-          {isCustomer && item.status === 'approved' && !['paid', 'captured', 'not_required'].includes(item.payment_status) && <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => act(() => syncDeliveryExtraPayment(item.id), 'delivery.ui.paymentChecked', 'delivery.errors.payment')}>{t('delivery.ui.checkPayment')}</button>}
+          {isCustomer && item.status === 'pending' && ['approved', 'rejected'].map((decision) => <button key={decision} className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => act(() => reviewDeliveryExtra(item.id, decision), 'delivery.ui.saved', 'delivery.errors.extra')} data-track="ui.4c1e141977.9">{t(decision === 'approved' ? 'delivery.detail.approve' : 'delivery.detail.reject')}</button>)}
+          {isCustomer && item.status === 'approved' && ['requires_action', 'failed', 'cancelled'].includes(item.payment_status) && <button className="delivery-button delivery-button--primary" disabled={busy} onClick={() => checkout(item.id)} data-track="ui.4c1e141977.10">{t('delivery.detail.payExtra')}</button>}
+          {isCustomer && item.status === 'approved' && !['paid', 'captured', 'not_required'].includes(item.payment_status) && <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => act(() => syncDeliveryExtraPayment(item.id), 'delivery.ui.paymentChecked', 'delivery.errors.payment')} data-track="ui.4c1e141977.11">{t('delivery.ui.checkPayment')}</button>}
         </div>)}</div>
-        {isAssigned && active && <form onSubmit={(event) => { event.preventDefault(); act(async () => { await requestDeliveryExtra(id, { category: extra.category, amountCents: Math.round(Number(extra.amount) * 100), notes: extra.notes }); setExtra({ category: 'waiting', amount: '', notes: '' }); }, 'delivery.ui.saved', 'delivery.errors.extra'); }}><fieldset className="delivery-form-fields" disabled={busy}>
+        {isAssigned && active && <form onSubmit={(event) => { event.preventDefault(); act(async () => { await requestDeliveryExtra(id, { category: extra.category, amountCents: Math.round(Number(extra.amount) * 100), notes: extra.notes }); setExtra({ category: 'waiting', amount: '', notes: '' }); }, 'delivery.ui.saved', 'delivery.errors.extra'); }} data-track="ui.4c1e141977.12"><fieldset className="delivery-form-fields" disabled={busy}>
           <label className="delivery-field">{t('delivery.ui.extraCategory')}<select className="delivery-input" value={extra.category} onChange={(event) => setExtra({ ...extra, category: event.target.value })}>{EXTRA_CATEGORIES.map((category) => <option key={category} value={category}>{label('extraCategories', category)}</option>)}</select></label>
           <label className="delivery-field">{t('delivery.ui.amount')}<input className="delivery-input" type="number" min="0.01" step="0.01" required value={extra.amount} onChange={(event) => setExtra({ ...extra, amount: event.target.value })} /></label>
           <label className="delivery-field">{t('delivery.customer.notes')}<textarea className="delivery-input" required maxLength={2000} value={extra.notes} onChange={(event) => setExtra({ ...extra, notes: event.target.value })} /></label>
-          <button className="delivery-button delivery-button--secondary">{t('delivery.ui.requestExtra')}</button>
+          <button className="delivery-button delivery-button--secondary" data-track="ui.4c1e141977.13">{t('delivery.ui.requestExtra')}</button>
         </fieldset></form>}
       </section>
       {isCustomer && <section className="delivery-panel"><h2>{t('delivery.detail.payments')}</h2>
         {!payments.length && <p>{t('delivery.ui.noPayments')}</p>}
-        {!['cancelled', 'returned'].includes(job.status) && !['paid', 'captured', 'refunded'].includes(basePayment?.status) && <button className="delivery-button delivery-button--primary" disabled={busy} onClick={() => checkout()}>{t('delivery.ui.payDelivery')}</button>}
+        {!['cancelled', 'returned'].includes(job.status) && !['paid', 'captured', 'refunded'].includes(basePayment?.status) && <button className="delivery-button delivery-button--primary" disabled={busy} onClick={() => checkout()} data-track="ui.4c1e141977.14">{t('delivery.ui.payDelivery')}</button>}
         <div className="delivery-extra-list">{payments.map((payment) => <div key={payment.id}><span>{t(payment.delivery_extra_id == null ? 'delivery.ui.basePayment' : 'delivery.ui.extraPayment')}</span><strong>{money(payment.amount_cents, payment.currency)}</strong><span>{label('ui.paymentStates', payment.status)}</span>
           {Number(payment.refunded_amount_cents) > 0 && <span>{t('delivery.ui.refundedAmount', { amount: money(payment.refunded_amount_cents, payment.currency) })}</span>}
-          {payment.receipt_url?.startsWith('https://') && <a href={payment.receipt_url} target="_blank" rel="noreferrer">{t('delivery.detail.receipt')}</a>}
-          {!['paid', 'captured', 'refunded', 'cancelled'].includes(payment.status) && <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => act(() => syncDeliveryPayment(payment.id), 'delivery.ui.paymentChecked', 'delivery.errors.payment')}>{t('delivery.ui.checkPayment')}</button>}
+          {payment.receipt_url?.startsWith('https://') && <a href={payment.receipt_url} target="_blank" rel="noreferrer" data-track="ui.4c1e141977.15">{t('delivery.detail.receipt')}</a>}
+          {!['paid', 'captured', 'refunded', 'cancelled'].includes(payment.status) && <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => act(() => syncDeliveryPayment(payment.id), 'delivery.ui.paymentChecked', 'delivery.errors.payment')} data-track="ui.4c1e141977.16">{t('delivery.ui.checkPayment')}</button>}
         </div>)}</div>
       </section>}
       {active && participant && <section className="delivery-panel"><h2>{t('delivery.detail.recoveryTitle')}</h2><p>{t('delivery.detail.recoveryHint')}</p>
-        <form onSubmit={reschedule}><fieldset className="delivery-form-fields" disabled={busy}>
+        <form onSubmit={reschedule} data-track="ui.4c1e141977.17"><fieldset className="delivery-form-fields" disabled={busy}>
           <label className="delivery-field">{t('delivery.ui.reason')}<textarea className="delivery-input" value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} required /></label>
           <label className="delivery-field">{t('delivery.ui.windowType')}<select className="delivery-input" value={windowType} onChange={(event) => setWindowType(event.target.value)}><option value="deliveryWindow">{t('delivery.customer.dropoff')}</option><option value="pickupWindow">{t('delivery.customer.pickup')}</option></select></label>
           <p>{t('delivery.ui.localTime', { zone: Intl.DateTimeFormat().resolvedOptions().timeZone })}</p>
@@ -238,19 +238,19 @@ export default function DeliveryDetailPage() {
             <label className="delivery-field">{t('delivery.ui.windowStart')}<input className="delivery-input" type="datetime-local" value={windowStart} onChange={(event) => setWindowStart(event.target.value)} required /></label>
             <label className="delivery-field">{t('delivery.ui.windowEnd')}<input className="delivery-input" type="datetime-local" min={windowStart || undefined} value={windowEnd} onChange={(event) => setWindowEnd(event.target.value)} required /></label>
           </div>
-          <button className="delivery-button delivery-button--secondary">{t('delivery.detail.requestReschedule')}</button>
-          {canReturn && <button type="button" className="delivery-button delivery-button--secondary" disabled={!reason.trim() || returns.some((item) => ['requested', 'approved', 'in_transit'].includes(item.status))} onClick={() => act(() => requestDeliveryReturn(id, { reason }), 'delivery.detail.returnSent', 'delivery.errors.return')}>{t('delivery.detail.requestReturn')}</button>}
-          {canCancel && <button type="button" className="delivery-button delivery-button--secondary" onClick={() => setCancelOpen(!cancelOpen)}>{t('delivery.ui.cancelDelivery')}</button>}
-          {cancelOpen && canCancel && <div role="group" aria-label={t('delivery.ui.cancelDelivery')}><p>{t('delivery.ui.cancelHint')}</p><button type="button" className="delivery-button delivery-button--danger" disabled={!reason.trim()} onClick={() => act(async () => { await updateDeliveryStatus(id, 'cancelled', { reason }); setCancelOpen(false); })}>{t('delivery.ui.confirmCancel')}</button></div>}
+          <button className="delivery-button delivery-button--secondary" data-track="ui.4c1e141977.18">{t('delivery.detail.requestReschedule')}</button>
+          {canReturn && <button type="button" className="delivery-button delivery-button--secondary" disabled={!reason.trim() || returns.some((item) => ['requested', 'approved', 'in_transit'].includes(item.status))} onClick={() => act(() => requestDeliveryReturn(id, { reason }), 'delivery.detail.returnSent', 'delivery.errors.return')} data-track="ui.4c1e141977.19">{t('delivery.detail.requestReturn')}</button>}
+          {canCancel && <button type="button" className="delivery-button delivery-button--secondary" onClick={() => setCancelOpen(!cancelOpen)} data-track="ui.4c1e141977.20">{t('delivery.ui.cancelDelivery')}</button>}
+          {cancelOpen && canCancel && <div role="group" aria-label={t('delivery.ui.cancelDelivery')}><p>{t('delivery.ui.cancelHint')}</p><button type="button" className="delivery-button delivery-button--danger" disabled={!reason.trim()} onClick={() => act(async () => { await updateDeliveryStatus(id, 'cancelled', { reason }); setCancelOpen(false); })} data-track="ui.4c1e141977.21">{t('delivery.ui.confirmCancel')}</button></div>}
         </fieldset></form>
       </section>}
       {(rescheduleRequests.length > 0 || returns.length > 0) && <section className="delivery-panel"><h2>{t('delivery.ui.requests')}</h2>{rescheduleRequests.map((item) => <p key={item.id}>{t('delivery.detail.requestReschedule')} · {label('ui.requestStates', item.status)} · {date(item.delivery_window_start || item.pickup_window_start)} · {item.reason}</p>)}{returns.map((item) => <p key={item.id}>{t('delivery.detail.requestReturn')} · {label('ui.requestStates', item.status)} · {item.reason}</p>)}</section>}
       <section className="delivery-panel"><h2>{t('delivery.detail.supportTitle')}</h2><p>{t('delivery.detail.supportHint')}</p>
         {issues.map((item) => <p key={item.id}>{label('ui.issueCodes', item.code)} · {item.description} · {label('ui.requestStates', item.status)} {item.resolution}</p>)}
-        {participant && <form onSubmit={(event) => { event.preventDefault(); act(async () => { await reportDeliveryIssue(id, { code: issueCode, description: issue }); setIssue(''); }, 'delivery.ui.saved', 'delivery.errors.issue'); }}><fieldset className="delivery-form-fields" disabled={busy}>
+        {participant && <form onSubmit={(event) => { event.preventDefault(); act(async () => { await reportDeliveryIssue(id, { code: issueCode, description: issue }); setIssue(''); }, 'delivery.ui.saved', 'delivery.errors.issue'); }} data-track="ui.4c1e141977.22"><fieldset className="delivery-form-fields" disabled={busy}>
           <label className="delivery-field">{t('delivery.ui.issueType')}<select className="delivery-input" value={issueCode} onChange={(event) => setIssueCode(event.target.value)}>{['delay', 'damage', 'access_problem', 'missing_shipment', 'customer_report'].map((code) => <option key={code} value={code}>{label('ui.issueCodes', code)}</option>)}</select></label>
           <label className="delivery-field">{t('delivery.detail.issuePlaceholder')}<textarea className="delivery-input" value={issue} onChange={(event) => setIssue(event.target.value)} maxLength={2000} required /></label>
-          <button className="delivery-button delivery-button--secondary">{t('delivery.detail.report')}</button>
+          <button className="delivery-button delivery-button--secondary" data-track="ui.4c1e141977.23">{t('delivery.detail.report')}</button>
         </fieldset></form>}
       </section>
     </div>

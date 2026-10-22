@@ -15,6 +15,7 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const permissionsService = require('../services/permissionsService');
 const { withTransaction } = require('../utils/transaction');
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -40,7 +41,6 @@ function asBool(value, fallback = false) {
 
 const CHECKLIST_TYPES = ['opening', 'closing', 'cleaning', 'food_safety', 'custom'];
 const SOP_CATEGORIES = ['general', 'kitchen', 'front_of_house', 'cleaning', 'food_safety', 'opening', 'closing', 'safety'];
-const MANAGE_ROLES = new Set(['owner', 'manager']);
 
 // Identical access query to foodController.requireRestaurantAccess.
 // Canonical restaurant access gate (analytics scope model, Phase 1 Item 6).
@@ -53,8 +53,15 @@ async function requireRestaurantAccess(userId, restaurantId) {
 
 // Templates + SOP authoring are owner/manager only. Viewing + running are open
 // to any active member (cashier/kitchen/etc. complete the daily checklist).
-function assertManage(restaurant) {
-  if (!MANAGE_ROLES.has(restaurant.effective_role)) {
+// S-08: manage gates resolve through the permission catalog (role defaults
+// + per-membership overrides) via permissionsService, the single resolver.
+// MANAGE_PERMISSION_CODES reproduces the previous owner/manager-only gate
+// for members without overrides; deny overrides now take effect here too.
+const MANAGE_PERMISSION_CODES = ['crew.manage'];
+
+async function assertManage(restaurant, userId) {
+  const allowed = await permissionsService.hasRestaurantPermission(restaurant, userId, MANAGE_PERMISSION_CODES);
+  if (!allowed) {
     throw new AppError('You do not have permission to manage this restaurant', 403, 'forbidden');
   }
 }
@@ -97,7 +104,7 @@ exports.createChecklist = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
 
     const name = normalizeString(req.body.name, 160);
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
@@ -140,7 +147,7 @@ exports.updateChecklist = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const checklistId = parsePositiveInt(req.params.checklistId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
 
     const sets = [];
     const vals = [];
@@ -177,7 +184,7 @@ exports.deleteChecklist = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const checklistId = parsePositiveInt(req.params.checklistId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const { rowCount } = await pool.query(
       `DELETE FROM restaurant_checklists WHERE id = $1 AND restaurant_id = $2`,
       [checklistId, restaurantId]
@@ -203,7 +210,7 @@ exports.addTask = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const checklistId = parsePositiveInt(req.params.checklistId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     await assertChecklistInRestaurant(checklistId, restaurantId);
 
     const label = normalizeString(req.body.label, 255);
@@ -226,7 +233,7 @@ exports.updateTask = async (req, res, next) => {
     const checklistId = parsePositiveInt(req.params.checklistId);
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     await assertChecklistInRestaurant(checklistId, restaurantId);
 
     const sets = [];
@@ -262,7 +269,7 @@ exports.deleteTask = async (req, res, next) => {
     const checklistId = parsePositiveInt(req.params.checklistId);
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     await assertChecklistInRestaurant(checklistId, restaurantId);
     const { rowCount } = await pool.query(
       `DELETE FROM restaurant_checklist_tasks WHERE id = $1 AND checklist_id = $2`,
@@ -453,7 +460,7 @@ exports.createSop = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const title = normalizeString(req.body.title, 200);
     if (!title) throw new AppError('Validation failed', 400, 'validation_failed', { title: 'Title is required' });
     const category = SOP_CATEGORIES.includes(req.body.category) ? req.body.category : 'general';
@@ -474,7 +481,7 @@ exports.updateSop = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const sopId = parsePositiveInt(req.params.sopId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
 
     const sets = [];
     const vals = [];
@@ -509,7 +516,7 @@ exports.deleteSop = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const sopId = parsePositiveInt(req.params.sopId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
     const { rowCount } = await pool.query(
       `DELETE FROM restaurant_sops WHERE id = $1 AND restaurant_id = $2`,
       [sopId, restaurantId]

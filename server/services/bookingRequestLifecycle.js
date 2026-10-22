@@ -1079,6 +1079,10 @@ async function acceptBookingRequest({ booking, actorId, actorType = 'helper', ap
         appointment_id: updated.business_id ? updated.appointment_id : appointment.id,
         business_appointment_id: updated.business_id ? appointment.id : updated.business_appointment_id,
       };
+      if (actorId) {
+        const { emitDomainEvent, serviceEventProps } = require('../growth/emit');
+        await emitDomainEvent(client, 'booking.confirmed', serviceEventProps(updated), { userId: actorId });
+      }
       return { booking: linked, appointment };
     },
     'acceptBookingRequest',
@@ -1390,6 +1394,10 @@ async function customerAcceptBookingRequest({
         appointment_id: updated.business_id ? updated.appointment_id : appointment.id,
         business_appointment_id: updated.business_id ? appointment.id : updated.business_appointment_id,
       };
+      if (actorId) {
+        const { emitDomainEvent, serviceEventProps } = require('../growth/emit');
+        await emitDomainEvent(client, 'booking.confirmed', serviceEventProps(updated), { userId: actorId });
+      }
       return { booking: linked, appointment };
     },
     'customerAcceptBookingRequest',

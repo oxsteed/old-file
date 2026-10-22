@@ -4,10 +4,12 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const permissionsService = require('../services/permissionsService');
 const { withTransaction } = require('../utils/transaction');
 const socketService = require('../services/socketService');
 const smsNotificationService = require('../services/smsNotificationService');
 const { consumeInventoryForOrder } = require('../services/restaurantInventoryOrderService');
+const { getLocationScope } = require('../services/restaurantLocationAccessService');
 
 // P2-8-F08: the per-type order_shipped SMS had zero callers. A runner picking
 // up a delivery food order is the food-order analog of "shipped".
@@ -59,6 +61,15 @@ function asBool(value, fallback = false) {
   return fallback;
 }
 
+function resolveTaskLocation(locationScope, value) {
+  const locationId = parsePositiveInt(value);
+  if (!locationId) return null;
+  if (locationScope?.mode === 'assigned' && !locationScope.location_ids.includes(locationId)) {
+    throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+  }
+  return locationId;
+}
+
 // Delivery proof must be an attested method, not an arbitrary string. The
 // runner page posts `method` (older clients post `proof_type`); both are
 // accepted and normalized to the allowlist.
@@ -80,7 +91,6 @@ function parseAmount(value, field = 'amount') {
   return Math.round(n * 100) / 100;
 }
 
-const MANAGE_ROLES = new Set(['owner', 'manager']);
 const TASK_TYPES = new Set(['Delivery', 'Customer pickup', 'Catering', 'Logistics', 'Supplier return']);
 const TASK_STATUSES = new Set(['Queued', 'Assigned', 'Ready', 'Picked up', 'En route', 'Completed', 'Issue', 'Cancelled']);
 const TASK_INITIAL_STATUSES = new Set(['Queued', 'Assigned', 'Ready']);
@@ -140,24 +150,36 @@ async function requireRestaurantAccess(userId, restaurantId) {
   return resolveRestaurantAccess(userId, restaurantId);
 }
 
-function assertManage(restaurant) {
-  if (!MANAGE_ROLES.has(restaurant.effective_role)) {
+// S-08: manage gates resolve through the permission catalog (role defaults
+// + per-membership overrides) via permissionsService, the single resolver.
+// MANAGE_PERMISSION_CODES reproduces the previous owner/manager-only gate
+// for members without overrides; deny overrides now take effect here too.
+const MANAGE_PERMISSION_CODES = ['runner.manage'];
+
+async function assertManage(restaurant, userId) {
+  const allowed = await permissionsService.hasRestaurantPermission(restaurant, userId, MANAGE_PERMISSION_CODES);
+  if (!allowed) {
     throw new AppError('You do not have permission to manage this restaurant', 403, 'forbidden');
   }
 }
 
-async function assertTask(restaurantId, taskId) {
+async function assertTask(restaurantId, taskId, locationScope = null) {
+  const locationPredicate = locationScope?.mode === 'assigned'
+    ? ' AND location_id = ANY($3::bigint[])'
+    : '';
+  const params = [restaurantId, taskId];
+  if (locationScope?.mode === 'assigned') params.push(locationScope.location_ids);
   const { rows } = await pool.query(
-    `SELECT * FROM restaurant_runner_tasks WHERE restaurant_id = $1 AND id = $2`,
-    [restaurantId, taskId]
+    `SELECT * FROM restaurant_runner_tasks WHERE restaurant_id = $1 AND id = $2${locationPredicate}`,
+    params
   );
   const task = rows[0];
   if (!task) throw new AppError('Runner task not found', 404, 'runner_task_not_found');
   return task;
 }
 
-function assertTaskActor(restaurant, task, userId) {
-  if (MANAGE_ROLES.has(restaurant.effective_role)) return true;
+async function assertTaskActor(restaurant, task, userId) {
+  if (await permissionsService.hasRestaurantPermission(restaurant, userId, MANAGE_PERMISSION_CODES)) return true;
   if (!task.assigned_to || String(task.assigned_to) !== String(userId)) {
     throw new AppError('This runner task is assigned to another user', 403, 'runner_task_not_assigned');
   }
@@ -168,15 +190,27 @@ exports.getDashboard = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const canManage = MANAGE_ROLES.has(restaurant.effective_role);
+    const canManage = await permissionsService.hasRestaurantPermission(restaurant, req.user.id, MANAGE_PERMISSION_CODES);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     // Non-managers only see their own tasks.
-    const taskScope = canManage ? '' : 'AND assigned_to = $2';
-    const taskParams = canManage ? [restaurantId] : [restaurantId, req.user.id];
+    const taskClauses = ['restaurant_id = $1'];
+    const taskParams = [restaurantId];
+    if (!canManage) {
+      taskParams.push(req.user.id);
+      taskClauses.push(`assigned_to = $${taskParams.length}`);
+    }
+    if (locationScope.mode === 'assigned') {
+      taskParams.push(locationScope.location_ids);
+      taskClauses.push(`location_id = ANY($${taskParams.length}::bigint[])`);
+    }
+    const taskScope = taskClauses.join(' AND ');
+    const artifactScope = locationScope.mode === 'assigned' ? ' AND t.location_id = ANY($2::bigint[])' : '';
+    const artifactParams = locationScope.mode === 'assigned' ? [restaurantId, locationScope.location_ids] : [restaurantId];
 
     const [{ rows: tasks }, { rows: contactRules }, { rows: proofs }, { rows: issues }, { rows: paymentNotes }] = await Promise.all([
       pool.query(
         `SELECT * FROM restaurant_runner_tasks
-          WHERE restaurant_id = $1 ${taskScope}
+          WHERE ${taskScope}
           ORDER BY
             CASE status
               WHEN 'Ready' THEN 0
@@ -201,28 +235,28 @@ exports.getDashboard = async (req, res, next) => {
         `SELECT p.*, t.order_reference, t.stop_name
            FROM restaurant_runner_proofs p
            JOIN restaurant_runner_tasks t ON t.id = p.task_id
-          WHERE p.restaurant_id = $1
+          WHERE p.restaurant_id = $1${artifactScope}
           ORDER BY p.created_at DESC
           LIMIT 50`,
-        [restaurantId]
+        artifactParams
       ),
       pool.query(
         `SELECT i.*, t.order_reference, t.stop_name
            FROM restaurant_runner_issue_reports i
            JOIN restaurant_runner_tasks t ON t.id = i.task_id
-          WHERE i.restaurant_id = $1
+          WHERE i.restaurant_id = $1${artifactScope}
           ORDER BY i.created_at DESC
           LIMIT 50`,
-        [restaurantId]
+        artifactParams
       ),
       pool.query(
         `SELECT p.*, t.order_reference
            FROM restaurant_runner_payment_notes p
            JOIN restaurant_runner_tasks t ON t.id = p.task_id
-          WHERE p.restaurant_id = $1
+          WHERE p.restaurant_id = $1${artifactScope}
           ORDER BY p.created_at DESC
           LIMIT 50`,
-        [restaurantId]
+        artifactParams
       ),
     ]);
 
@@ -236,7 +270,8 @@ exports.createTask = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
 
     const orderReference = normalizeString(req.body.orderReference, 80);
     const stopName = normalizeString(req.body.stopName, 200);
@@ -249,14 +284,26 @@ exports.createTask = async (req, res, next) => {
     const taskType = TASK_TYPES.has(req.body.taskType) ? req.body.taskType : 'Delivery';
     const foodOrderId = parsePositiveInt(req.body.foodOrderId);
     const assignedTo = req.body.assignedTo || null;
+    const requestedLocationId = resolveTaskLocation(locationScope, req.body.locationId);
+    let taskLocationId = requestedLocationId;
     if (foodOrderId) {
       const { rows: [order] } = await pool.query(
-        `SELECT id, fulfillment_type FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
+        `SELECT id, fulfillment_type, location_id FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
         [foodOrderId, restaurantId]
       );
       if (!order) throw new AppError('Order not found', 404, 'order_not_found');
       if (taskType === 'Delivery' && order.fulfillment_type !== 'delivery') {
         throw new AppError('Delivery tasks must reference a delivery order', 409, 'runner_order_not_delivery');
+      }
+      if (requestedLocationId && order.location_id && requestedLocationId !== Number(order.location_id)) {
+        throw new AppError('The runner task store must match the order store', 409, 'location_scope_conflict');
+      }
+      taskLocationId = resolveTaskLocation(locationScope, order.location_id || requestedLocationId);
+    }
+    if (locationScope.mode === 'assigned') {
+      if (!taskLocationId && locationScope.location_ids.length === 1) taskLocationId = locationScope.location_ids[0];
+      if (!taskLocationId) {
+        throw new AppError('A store is required when creating a runner task', 400, 'invalid_location_id');
       }
     }
     if (assignedTo) {
@@ -279,13 +326,14 @@ exports.createTask = async (req, res, next) => {
 
     const { rows: [task] } = await pool.query(
       `INSERT INTO restaurant_runner_tasks
-         (restaurant_id, food_order_id, order_reference, stop_name, task_type, status,
+         (restaurant_id, location_id, food_order_id, order_reference, stop_name, task_type, status,
           route_window, customer_contact_rule, requires_proof, cash_collection_required,
           notes, assigned_to, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
        RETURNING *`,
       [
         restaurantId,
+        taskLocationId,
         foodOrderId,
         orderReference,
         stopName,
@@ -310,7 +358,7 @@ exports.createContactRule = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
 
     const title = normalizeString(req.body.title, 160);
     const detail = normalizeString(req.body.detail, 2000);
@@ -339,8 +387,9 @@ exports.updateTaskStatus = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const currentTask = await assertTask(restaurantId, taskId);
-    assertTaskActor(restaurant, currentTask, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const currentTask = await assertTask(restaurantId, taskId, locationScope);
+    await assertTaskActor(restaurant, currentTask, req.user.id);
 
     const status = TASK_STATUSES.has(req.body.status) ? req.body.status : null;
     if (!status) {
@@ -354,15 +403,20 @@ exports.updateTaskStatus = async (req, res, next) => {
       );
     }
     const result = await withTransaction(pool, async (client) => {
+      const lockLocationPredicate = locationScope.mode === 'assigned'
+        ? ' AND location_id = ANY($3::bigint[])'
+        : '';
+      const lockParams = [restaurantId, taskId];
+      if (locationScope.mode === 'assigned') lockParams.push(locationScope.location_ids);
       const { rows: [lockedTask] } = await client.query(
         `SELECT *
            FROM restaurant_runner_tasks
-          WHERE restaurant_id = $1 AND id = $2
+          WHERE restaurant_id = $1 AND id = $2${lockLocationPredicate}
           FOR UPDATE`,
-        [restaurantId, taskId]
+        lockParams
       );
       if (!lockedTask) throw new AppError('Runner task not found', 404, 'runner_task_not_found');
-      assertTaskActor(restaurant, lockedTask, req.user.id);
+      await assertTaskActor(restaurant, lockedTask, req.user.id);
       if (status !== lockedTask.status && !TASK_TRANSITIONS[lockedTask.status]?.has(status)) {
         throw new AppError(
           `Runner task cannot move from ${lockedTask.status} to ${status}`,
@@ -386,8 +440,9 @@ exports.updateTaskStatus = async (req, res, next) => {
                 handoff_at = CASE WHEN $1 = 'Completed' THEN COALESCE(handoff_at, NOW()) ELSE handoff_at END,
                 updated_at = NOW()
           WHERE restaurant_id = $2 AND id = $3 AND status = $4
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($5::bigint[])' : ''}
           RETURNING *`,
-        [status, restaurantId, taskId, lockedTask.status]
+        [status, restaurantId, taskId, lockedTask.status, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
       );
       if (!task) throw new AppError('Runner task changed before the update completed', 409, 'runner_task_conflict');
 
@@ -420,6 +475,7 @@ exports.updateTaskStatus = async (req, res, next) => {
           await consumeInventoryForOrder(client, {
             restaurantId,
             orderId: completedOrder.id,
+            locationId: completedOrder.location_id,
             actorUserId: req.user.id,
           });
           await client.query(
@@ -448,8 +504,9 @@ exports.logProof = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const task = await assertTask(restaurantId, taskId);
-    assertTaskActor(restaurant, task, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const task = await assertTask(restaurantId, taskId, locationScope);
+    await assertTaskActor(restaurant, task, req.user.id);
     // M14: logProof completes the task, so it must obey the transition map
     // (only 'En route' -> 'Completed' is legal), not a wider allowlist.
     assertLegalRunnerCompletion(task.status);
@@ -478,8 +535,9 @@ exports.logProof = async (req, res, next) => {
         `UPDATE restaurant_runner_tasks
             SET status = 'Completed', completed_at = NOW(), handoff_at = COALESCE(handoff_at, NOW()), updated_at = NOW()
           WHERE restaurant_id = $1 AND id = $2 AND status = $3
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($4::bigint[])' : ''}
           RETURNING *`,
-        [restaurantId, taskId, task.status]
+        [restaurantId, taskId, task.status, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
       );
       if (!updatedTask) throw new AppError('Runner task changed before proof was submitted', 409, 'runner_task_conflict');
       if (updatedTask.food_order_id) {
@@ -509,6 +567,7 @@ exports.logProof = async (req, res, next) => {
           await consumeInventoryForOrder(client, {
             restaurantId,
             orderId: completedOrder.id,
+            locationId: completedOrder.location_id,
             actorUserId: req.user.id,
           });
           await client.query(
@@ -534,8 +593,9 @@ exports.reportIssue = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const task = await assertTask(restaurantId, taskId);
-    assertTaskActor(restaurant, task, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const task = await assertTask(restaurantId, taskId, locationScope);
+    await assertTaskActor(restaurant, task, req.user.id);
     if (['Completed', 'Cancelled'].includes(task.status)) {
       throw new AppError('A terminal runner task cannot report a new issue', 409, 'runner_task_terminal');
     }
@@ -559,8 +619,9 @@ exports.reportIssue = async (req, res, next) => {
     await pool.query(
       `UPDATE restaurant_runner_tasks
           SET status = 'Issue', updated_at = NOW()
-        WHERE restaurant_id = $1 AND id = $2`,
-      [restaurantId, taskId]
+        WHERE restaurant_id = $1 AND id = $2
+          ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}`,
+      [restaurantId, taskId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
     );
     res.status(201).json({ issue });
   } catch (err) {
@@ -573,8 +634,9 @@ exports.logPaymentNote = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const task = await assertTask(restaurantId, taskId);
-    assertTaskActor(restaurant, task, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const task = await assertTask(restaurantId, taskId, locationScope);
+    await assertTaskActor(restaurant, task, req.user.id);
 
     const amount = parseAmount(req.body.amount);
     const note = normalizeString(req.body.note, 2000);

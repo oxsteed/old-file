@@ -44,7 +44,7 @@ const FilterSection: React.FC<{
       <button
         onClick={() => setOpen((p) => !p)}
         className="w-full flex items-center justify-between py-3.5 px-1 text-start group"
-        aria-expanded={open}
+        aria-expanded={open} data-track="ui.5fb231fcea.1"
       >
         <span className="flex items-center gap-2 text-sm font-semibold text-gray-200 group-hover:text-white transition-colors">
           <Icon className="w-4 h-4 text-gray-500" aria-hidden="true" />
@@ -78,7 +78,7 @@ const CheckboxRow: React.FC<{
       checked={checked}
       onChange={(e) => onChange(e.target.checked)}
       className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-brand-500 focus:ring-brand-500 focus:ring-offset-gray-900 cursor-pointer"
-      aria-label={label}
+      aria-label={label} data-track="ui.5fb231fcea.2"
     />
     <span
       className={`text-sm flex-1 leading-snug group-hover:text-white transition-colors ${
@@ -120,7 +120,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
           <button
             onClick={onReset}
             className="flex items-center gap-1 text-xs text-brand-400 hover:text-brand-300 transition-colors"
-            aria-label={t('toolRentalsDir.resetAll')}
+            aria-label={t('toolRentalsDir.resetAll')} data-track="ui.5fb231fcea.3"
           >
             <RotateCcw className="w-3 h-3" aria-hidden="true" />
             {t('toolRentalsDir.resetAll')}
@@ -144,7 +144,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
               onClick={() => onChange({ availableNow: !filters.availableNow })}
               className={`relative w-9 h-5 rounded-full transition-colors ${
                 filters.availableNow ? 'bg-brand-500' : 'bg-gray-700'
-              }`}
+              }`} data-track="ui.5fb231fcea.4"
             >
               <span
                 className={`absolute top-0.5 start-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
@@ -164,7 +164,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
               onClick={() => onChange({ deliveryAvailable: !filters.deliveryAvailable })}
               className={`relative w-9 h-5 rounded-full transition-colors ${
                 filters.deliveryAvailable ? 'bg-brand-500' : 'bg-gray-700'
-              }`}
+              }`} data-track="ui.5fb231fcea.5"
             >
               <span
                 className={`absolute top-0.5 start-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
@@ -205,7 +205,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
                       ? 'bg-brand-500 text-white'
                       : 'bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700'
                   }`}
-                  aria-pressed={filters.radius === null}
+                  aria-pressed={filters.radius === null} data-track="ui.5fb231fcea.6"
                 >
                   {t('toolRentalsDir.radiusAny')}
                 </button>
@@ -218,7 +218,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
                         ? 'bg-brand-500 text-white'
                         : 'bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700'
                     }`}
-                    aria-pressed={filters.radius === r}
+                    aria-pressed={filters.radius === r} data-track="ui.5fb231fcea.7"
                   >
                     {t('toolRentalsDir.radiusMi', { miles: r })}
                   </button>
@@ -284,7 +284,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
                     ? 'bg-brand-500 text-white'
                     : 'bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700'
                 }`}
-                aria-pressed={filters.requiresDeposit === opt.value}
+                aria-pressed={filters.requiresDeposit === opt.value} data-track="ui.5fb231fcea.8"
               >
                 {t(`toolRentalsDir.${opt.key}`)}
               </button>
@@ -336,7 +336,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
                 <button
                   key={key}
                   onClick={() => onChange({ priceRange: range })}
-                  className="px-2.5 py-1 rounded-lg text-xs bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700 transition-colors"
+                  className="px-2.5 py-1 rounded-lg text-xs bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700 transition-colors" data-track="ui.5fb231fcea.9"
                 >
                   {t(`toolRentalsDir.${key}`)}
                 </button>

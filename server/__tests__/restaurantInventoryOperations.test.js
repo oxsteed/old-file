@@ -12,9 +12,17 @@ jest.mock('../services/permissionsService', () => ({
   getEffectivePermissions: jest.fn().mockResolvedValue({ permissions: new Set(['inventory.view', 'inventory.update']), raw: {} }),
   hasAny: (permissionSet, requested) => requested.some((permission) => permissionSet.has(permission)),
 }));
+jest.mock('../services/restaurantLocationAccessService', () => ({
+  getLocationScope: jest.fn().mockResolvedValue({ mode: 'all', location_ids: null, assignments: [] }),
+  assertLocationAccess: jest.fn().mockResolvedValue({ mode: 'all', location_ids: null, assignments: [] }),
+}));
+jest.mock('../services/restaurantInventoryAuditService', () => ({
+  logInventoryAudit: jest.fn().mockResolvedValue(undefined),
+}));
 
 const operations = require('../controllers/restaurantInventoryOperationsController');
 const permissions = require('../services/permissionsService');
+const locationAccess = require('../services/restaurantLocationAccessService');
 
 const USER_ID = '00000000-0000-4000-8000-000000000123';
 const RESTAURANT_ID = 9;
@@ -42,12 +50,18 @@ function app() {
   });
   server.get('/api/restaurants/:restaurantId/inventory/dashboard', operations.getDashboard);
   server.get('/api/restaurants/:restaurantId/inventory/reports', operations.getReports);
+  server.get('/api/restaurants/:restaurantId/inventory/reports/food-cost', operations.foodCostSummary);
   server.get('/api/restaurants/:restaurantId/inventory/audit-events', operations.listAuditEvents);
   server.get('/api/restaurants/:restaurantId/inventory/areas', operations.listAreas);
   server.post('/api/restaurants/:restaurantId/inventory/suppliers', operations.createSupplier);
+  server.get('/api/restaurants/:restaurantId/inventory/supplier-catalog', operations.listSupplierCatalog);
+  server.put('/api/restaurants/:restaurantId/inventory/supplier-catalog', operations.upsertSupplierCatalog);
   server.post('/api/restaurants/:restaurantId/inventory/transfers', operations.createTransfer);
+  server.get('/api/restaurants/:restaurantId/inventory/transfers', operations.listTransfers);
   server.patch('/api/restaurants/:restaurantId/inventory/transfers/:transferId', operations.updateTransfer);
   server.post('/api/restaurants/:restaurantId/inventory/receipts', operations.createReceipt);
+  server.get('/api/restaurants/:restaurantId/inventory/receipts/export.csv', operations.exportReceiptsCsv);
+  server.patch('/api/restaurants/:restaurantId/inventory/receipts/:receiptId/invoice-match', operations.updateReceiptInvoiceMatch);
   server.use(errorHandler);
   return server;
 }
@@ -61,6 +75,43 @@ beforeEach(() => {
 });
 
 describe('restaurant Inventory operations backend', () => {
+  test('receipt retries reject sibling-store access before reading receipt lines', async () => {
+    locationAccess.assertLocationAccess.mockRejectedValueOnce(Object.assign(new Error('Store denied'), { statusCode: 403, code: 'location_scope_forbidden' }));
+    mockQuery.mockResolvedValueOnce({ rows: [access({ effective_role: 'manager', effective_membership_id: 88 })] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 77, location_id: 202 }] });
+    const res = await request(app()).post(`/api/restaurants/${RESTAURANT_ID}/inventory/receipts`).send({
+      supplierName: 'Test', clientOperationId: '9a1ef8e4-832f-4c34-8aa1-b5f7f65b7e09', lines: [{ itemId: 5 }],
+    });
+    expect(res.status).toBe(403);
+    expect(mockQuery.mock.calls.some(([sql]) => /jsonb_agg/.test(sql))).toBe(false);
+  });
+
+  test('assigned managers only see audit events with their stored location', async () => {
+    locationAccess.getLocationScope.mockResolvedValueOnce({ mode: 'assigned', location_ids: [11] });
+    mockQuery.mockResolvedValueOnce({ rows: [access({ effective_role: 'manager', effective_membership_id: 88 })] })
+      .mockResolvedValueOnce({ rows: [] });
+    const res = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/inventory/audit-events`);
+    expect(res.status).toBe(200);
+    expect(mockQuery.mock.calls[1][0]).toContain('e.location_id = ANY($2::bigint[])');
+    expect(mockQuery.mock.calls[1][1]).toEqual([RESTAURANT_ID, [11], 50, 0]);
+  });
+  test.each(['dashboard', 'reports'])('%s filters every query by store and uses the restaurant timezone', async (route) => {
+    locationAccess.getLocationScope.mockResolvedValueOnce({ mode: 'assigned', location_ids: [11] });
+    mockQuery.mockResolvedValueOnce({ rows: [access({ effective_role: 'manager', effective_membership_id: 88 })] });
+    const res = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/inventory/${route}`);
+    expect(res.status).toBe(200);
+    const calls = mockQuery.mock.calls.slice(1);
+    expect(calls).toHaveLength(route === 'dashboard' ? 5 : 7);
+    for (const [sql, params] of calls) {
+      expect(sql).toContain('ANY($3::bigint[])');
+      expect(sql).toContain('NOW() AT TIME ZONE $2');
+      expect(sql).not.toContain('CURRENT_DATE');
+      expect(params).toEqual([RESTAURANT_ID, 'America/New_York', [11]]);
+    }
+    if (route === 'reports') expect(calls[0][0]).toContain('(created_at AT TIME ZONE $2)::date');
+  });
+
   test('returns the live dashboard contract scoped to the authenticated restaurant', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [access()] })
@@ -136,6 +187,80 @@ describe('restaurant Inventory operations backend', () => {
     expect(mockQuery.mock.calls[1][1][0]).toBe(RESTAURANT_ID);
   });
 
+  test('returns theoretical versus actual food cost for a period', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access()] })
+      .mockResolvedValueOnce({ rows: [{
+        inventory_item_id: 5,
+        name: 'Rice',
+        unit: 'kg',
+        unit_cost: '3.00',
+        theoretical_quantity: '4.000',
+        actual_quantity: '5.000',
+        variance_quantity: '1.000',
+        theoretical_cost: '12.00',
+        actual_cost: '15.00',
+        variance_cost: '3.00',
+        net_sales: '100.00',
+      }] });
+
+    const response = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/inventory/reports/food-cost?from=2026-10-01&to=2026-10-07`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.rows[0].variance_quantity).toBe('1.000');
+    expect(response.body.totals.variance_cost).toBe(3);
+    expect(response.body.totals.actual_cost_pct).toBe(15);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/conversion_factor/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/yield_percent/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/net_sales/);
+  });
+
+  test('exports receipt invoice and store fields for accounting ingestion', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access()] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 77,
+        received_at: '2026-10-21T15:00:00.000Z',
+        location_id: 11,
+        location_name: 'Main, Store',
+        supplier_id: 7,
+        supplier_name: 'Atlantic Foods',
+        invoice_number: 'INV-42',
+        status: 'received',
+        purchase_request_id: 21,
+        invoice_match_status: 'matched',
+        invoice_total_cents: 4250,
+        invoice_currency_code: 'USD',
+        general_note: 'Dock, A',
+        received_by: USER_ID,
+        received_by_name: 'Emile Jean Philippe',
+      }] });
+
+    const response = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/inventory/receipts/export.csv`);
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toMatch(/text\/csv/);
+    expect(response.text).toContain('invoice_match_status');
+    expect(response.text).toContain('"Main, Store"');
+    expect(response.text).toContain('"Dock, A"');
+    expect(mockQuery.mock.calls[1][0]).toMatch(/LIMIT 10000/);
+  });
+
+  test('upserts a supplier catalog entry with pack and price metadata', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access()] })
+      .mockResolvedValueOnce({ rows: [{ supplier_id: 7, inventory_item_id: 5, location_id: null }] })
+      .mockResolvedValueOnce({ rows: [{ id: 19, supplier_id: 7, inventory_item_id: 5, pack_quantity: ' case', unit_cost: '42.50', currency_code: 'USD' }] });
+
+    const response = await request(app())
+      .put(`/api/restaurants/${RESTAURANT_ID}/inventory/supplier-catalog`)
+      .send({ supplierId: 7, inventoryItemId: 5, packQuantity: 6, packUnit: 'case', unitCost: 42.5, currencyCode: 'usd' });
+
+    expect(response.status).toBe(201);
+    expect(response.body.catalog.unit_cost).toBe('42.50');
+    expect(mockQuery.mock.calls[2][0]).toMatch(/ON CONFLICT/);
+  });
+
   test('requires owner or manager access to create suppliers', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [access({ effective_role: 'employee', membership_id: 88 })] });
 
@@ -161,6 +286,21 @@ describe('restaurant Inventory operations backend', () => {
     expect(response.status).toBe(201);
     expect(response.body.transfer.item_name).toBe('Rice');
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE restaurant_inventory_items/.test(sql))).toBe(false);
+  });
+
+  test('filters transfers to assigned stores and preserves the location predicate', async () => {
+    locationAccess.getLocationScope.mockResolvedValueOnce({ mode: 'assigned', location_ids: [11], assignments: [] });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access({ effective_role: 'manager', effective_membership_id: 88 })] })
+      .mockResolvedValueOnce({ rows: [{ id: 12, location_id: 11, item_name: 'Rice' }] });
+
+    const response = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/inventory/transfers`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.transfers[0].location_id).toBe(11);
+    const [sql, params] = mockQuery.mock.calls[1];
+    expect(sql).toMatch(/t\.location_id = ANY\(\$2::bigint\[\]\)/);
+    expect(params).toEqual([RESTAURANT_ID, [11]]);
   });
 
   test('restricts transfer lifecycle changes to restaurant managers', async () => {
@@ -195,5 +335,57 @@ describe('restaurant Inventory operations backend', () => {
     expect(response.body.replayed).toBe(true);
     expect(response.body.receipt.id).toBe(77);
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE restaurant_inventory_items/.test(sql))).toBe(false);
+  });
+
+  test('reconciles a late invoice against a store-scoped purchase request', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access({ effective_role: 'manager', effective_membership_id: 88 })] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 77,
+        restaurant_id: RESTAURANT_ID,
+        location_id: 11,
+        invoice_match_status: 'unmatched',
+        purchase_request_id: null,
+      }] })
+      .mockResolvedValueOnce({ rows: [{ id: 21, location_id: 11, status: 'submitted' }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 77,
+        location_id: 11,
+        purchase_request_id: 21,
+        invoice_match_status: 'matched',
+        invoice_total_cents: 4250,
+        invoice_currency_code: 'USD',
+      }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 77,
+        location_id: 11,
+        purchase_request_id: 21,
+        invoice_match_status: 'matched',
+        invoice_total_cents: 4250,
+        invoice_currency_code: 'USD',
+        lines: [],
+      }] });
+
+    const response = await request(app())
+      .patch(`/api/restaurants/${RESTAURANT_ID}/inventory/receipts/77/invoice-match`)
+      .send({ invoiceMatchStatus: 'matched', purchaseRequestId: 21, invoiceTotalCents: 4250, invoiceCurrencyCode: 'usd' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.receipt.invoice_match_status).toBe('matched');
+    expect(response.body.receipt.purchase_request_id).toBe(21);
+    expect(mockQuery.mock.calls[3][0]).toMatch(/invoice_match_status = \$2/);
+    expect(mockQuery.mock.calls[3][1]).toEqual([21, 'matched', true, 4250, true, 'USD', USER_ID, 77, RESTAURANT_ID]);
+  });
+
+  test('rejects unsupported invoice match states before changing a receipt', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [access()] });
+
+    const response = await request(app())
+      .patch(`/api/restaurants/${RESTAURANT_ID}/inventory/receipts/77/invoice-match`)
+      .send({ invoiceMatchStatus: 'approved' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe('validation_failed');
+    expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 });

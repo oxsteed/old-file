@@ -20,6 +20,10 @@ import {
   resolveDisplayInstallRedirect,
 } from './utils/displayInstall';
 import PageviewBeacon from './components/PageviewBeacon';
+import ActivityTracker from './growth/ActivityTracker';
+import PolicyNotice from './growth/PolicyNotice';
+const GrowthPrivacy = lazyWithRetry(() => import('./growth/PrivacyControls'));
+const GrowthOffer = lazyWithRetry(() => import('./growth/OfferPage'));
 import ImpersonationBanner from './components/ImpersonationBanner';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 import { routeLoaders } from './utils/routePrefetch';
@@ -100,7 +104,6 @@ const FoodKioskPage = lazyWithRetry(() => import('./pages/food/FoodKioskPage'));
 const ManagedRestaurantScreen = lazyWithRetry(() => import('./restaurantScreens/ManagedScreen'));
 const RestaurantPOSPage = lazyWithRetry(() => import('./pages/food/RestaurantPOSPage'));
 const RestaurantInventoryPage = lazyWithRetry(() => import('./pages/food/RestaurantInventoryPage'));
-const RestaurantCrewPage = lazyWithRetry(() => import('./pages/food/RestaurantCrewPage'));
 const RestaurantRunnerPage = lazyWithRetry(() => import('./pages/food/RestaurantRunnerPage'));
 const RestaurantCreditPage = lazyWithRetry(() => import('./pages/food/RestaurantCreditPage'));
 const OxsteedCreditPage = lazyWithRetry(() => import('./pages/food/OxsteedCreditPage'));
@@ -400,6 +403,8 @@ export default function App() {
             <CookieConsentProvider>
               <RouterAwareErrorBoundary>
                 <AuthProvider>
+                <ActivityTracker>
+                <PolicyNotice />
                 <DisplayInstallRestore />
                 <ScrollToTop />
                 <PageviewBeacon />
@@ -560,6 +565,9 @@ export default function App() {
                     {/* ── Legal / policy pages ─────────────────────────────── */}
                     <Route path="/terms"          element={<Guarded><TermsPage /></Guarded>} />
                     <Route path="/privacy"        element={<Guarded><PrivacyPage /></Guarded>} />
+                    <Route path="/privacy/upcoming" element={<Guarded><PrivacyPage upcoming /></Guarded>} />
+                    <Route path="/settings/privacy" element={<Guarded><GrowthPrivacy /></Guarded>} />
+                    <Route path="/offers/:id" element={<Guarded><GrowthOffer /></Guarded>} />
                     <Route path="/do-not-sell"    element={<Guarded><DoNotSellPage /></Guarded>} />
                     <Route path="/security"       element={<Guarded><SecurityPage /></Guarded>} />
                     <Route path="/cookie-policy"  element={<Guarded><CookiePolicyPage /></Guarded>} />
@@ -658,7 +666,6 @@ export default function App() {
                     <Route path="/restaurants/kitchen/:restaurantId/pair" element={<RouteErrorBoundary><KitchenPairingPage /></RouteErrorBoundary>} />
                     <Route path="/restaurants/pos/:restaurantId"       element={<ProtectedRoute><RouteErrorBoundary><RestaurantPOSPage /></RouteErrorBoundary></ProtectedRoute>} />
                     <Route path="/restaurants/inventory/:restaurantId" element={<ProtectedRoute><RouteErrorBoundary><RestaurantInventoryPage /></RouteErrorBoundary></ProtectedRoute>} />
-                    <Route path="/restaurants/crew/:restaurantId"      element={<ProtectedRoute><RouteErrorBoundary><RestaurantCrewPage /></RouteErrorBoundary></ProtectedRoute>} />
                     <Route path="/restaurants/runner/:restaurantId"    element={<ProtectedRoute><RouteErrorBoundary><RestaurantRunnerPage /></RouteErrorBoundary></ProtectedRoute>} />
                     <Route path="/restaurant-credit" element={<Guarded><ProtectedRoute><RouteErrorBoundary><RestaurantCreditPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/statements" element={<Guarded><ProtectedRoute><RouteErrorBoundary><StatementCenterPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
@@ -772,6 +779,7 @@ export default function App() {
                 </TermsGate>
                 {!isStatusHost && <CookieConsent />}
                 {!isStatusHost && <SupportWidgetGate />}
+                </ActivityTracker>
                 </AuthProvider>
               </RouterAwareErrorBoundary>
             </CookieConsentProvider>

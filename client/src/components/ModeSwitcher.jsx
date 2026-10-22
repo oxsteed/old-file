@@ -117,7 +117,7 @@ export default function ModeSwitcher({ compact = false }) {
           color: 'var(--color-text)',
           fontSize: 'var(--text-sm)',
           fontWeight: 500,
-        }}
+        }} data-track="ui.c1dd96d5c4.1"
       >
         <span
           style={{
@@ -200,7 +200,7 @@ export default function ModeSwitcher({ compact = false }) {
                 }}
                 onClick={() => { if (!isCurrent && !switching) handleSwitch(m); }}
                 onMouseEnter={(e) => { if (!isCurrent && !switching) e.currentTarget.style.background = 'var(--color-surface-hover, rgba(0,0,0,0.04))'; }}
-                onMouseLeave={(e) => { if (!isCurrent && !switching) e.currentTarget.style.background = 'transparent'; }}
+                onMouseLeave={(e) => { if (!isCurrent && !switching) e.currentTarget.style.background = 'transparent'; }} data-track="ui.c1dd96d5c4.2"
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>

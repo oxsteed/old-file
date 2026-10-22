@@ -166,12 +166,12 @@ export function ContactRow({ phone, website, linkClass = '' }) {
   return (
     <div className="flex flex-wrap gap-3">
       {phone && (
-        <a href={`tel:${phone}`} className={`flex items-center gap-1.5 text-sm ${linkClass}`}>
+        <a href={`tel:${phone}`} className={`flex items-center gap-1.5 text-sm ${linkClass}`} data-track="ui.cde894ff50.1">
           <Phone size={13} />{phone}
         </a>
       )}
       {website && (
-        <a href={website} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-1.5 text-sm ${linkClass}`}>
+        <a href={website} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-1.5 text-sm ${linkClass}`} data-track="ui.cde894ff50.2">
           <Globe size={13} />{website.replace(/^https?:\/\//, '')}
         </a>
       )}

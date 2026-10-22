@@ -176,13 +176,36 @@ describe('F02 manager invite', () => {
   });
 });
 
+// ── S-09: rank guardrail on invites ───────────────────────────────────────────
+describe('S-09 invite rank guardrail', () => {
+  test('a manager cannot invite a peer manager (403, nothing written)', async () => {
+    const res = await request(buildInviteApp())
+      .post('/api/businesses/7/members')
+      .send({ email: 'peer@example.com', role: 'manager' });
+    expect(res.status).toBe(403);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO business_members/.test(sql))).toBe(false);
+  });
+
+  test('a manager can invite roles below manager', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 58, business_id: 7, owner_id: OWNER.id, status: 'pending' }] });
+    const res = await request(buildInviteApp())
+      .post('/api/businesses/7/members')
+      .send({ email: 'cook@example.com', role: 'employee' });
+    expect(res.status).toBe(201);
+  });
+});
+
 // ── F11: invite email to non-account users ────────────────────────────────────
 describe('F11 invite email', () => {
   test('emails the invitee when they have no account', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 56, business_id: 7, effective_role: 'manager', owner_id: OWNER.id, status: 'pending' }] });
-    const res = await request(buildInviteApp())
+    // Inviting a manager is an owner action under the S-09 rank guardrail,
+    // so this exercises the email branch as the owner.
+    const res = await request(buildInviteApp(OWNER))
       .post('/api/businesses/7/members')
       .send({ email: 'ghost@example.com', role: 'manager' });
     expect(res.status).toBe(201);
@@ -249,8 +272,11 @@ describe('F07 quote/create eligibility parity', () => {
     expect(sql).not.toMatch(/IN \('active','paused'\)/);
     expect(sql).toMatch(/fr\.discovery_status = 'visible'/);
     expect(sql).toMatch(/b\.is_listed = TRUE/);
-    expect(sql).not.toContain('$2');
-    expect(params).toEqual([44]);
+    // The store_location subquery attaches an optional $2 (store scope) to the
+    // strict eligibility query; the predicate itself stays single-restaurant.
+    expect(sql).toContain('store_location');
+    expect([...new Set(sql.match(/\$\d+/g))].sort()).toEqual(['$1', '$2']);
+    expect(params).toEqual([44, null]);
   });
 });
 

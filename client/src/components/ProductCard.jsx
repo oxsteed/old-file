@@ -22,7 +22,7 @@ export default function ProductCard({
     : 0;
 
   return (
-    <div className="pcard" onClick={onViewDetails} role="button" tabIndex="0">
+    <div className="pcard" onClick={onViewDetails} role="button" tabIndex="0" data-track="ui.68db003afa.1">
       {/* Image Section */}
       <div className="pcard-image-wrapper">
         {product.product_image_url ? (
@@ -130,7 +130,7 @@ export default function ProductCard({
             onAddToCart();
           }}
           disabled={disabled || !inStock}
-          aria-label={t('common:productCard.addToCartAriaLabel', { name: product.name })}
+          aria-label={t('common:productCard.addToCartAriaLabel', { name: product.name })} data-track="ui.68db003afa.2"
         >
           <ShoppingCart size={16} />
           {inStock ? t('marketplace.addToCart') : t('marketplace.outOfStock')}

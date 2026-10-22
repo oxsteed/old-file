@@ -18,6 +18,7 @@ export default function CookieConsent() {
     openSettings,
     closeSettings,
     preferences,
+    growthPolicyEffective,
   } = useCookieConsentContext();
 
   const [local, setLocal] = useState({
@@ -86,12 +87,12 @@ export default function CookieConsent() {
 
           <div className="cookie-consent-category">
             <label className="cookie-consent-category__header">
-              <span className="cookie-consent-category__title">{t('cookieConsent.analytics')}</span>
+              <span className="cookie-consent-category__title">{t(growthPolicyEffective?'growthInsights.analyticsStorage':'cookieConsent.analytics')}</span>
               <input type="checkbox" checked={local.analytics}
                 onChange={(e) => setLocal((p) => ({ ...p, analytics: e.target.checked }))}
                 className="cookie-consent-checkbox" />
             </label>
-            <p className="cookie-consent-category__description">{t('cookieConsent.analyticsDesc')}</p>
+            <p className="cookie-consent-category__description">{t(growthPolicyEffective?'growthInsights.analyticsStorageDescription':'cookieConsent.analyticsDesc')}</p>
           </div>
 
           <div className="cookie-consent-category">

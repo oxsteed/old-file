@@ -94,7 +94,7 @@ export default function CookiePolicyPage({ embedded = false }: { embedded?: bool
         <p className="mb-3">
           {t('cookiePolicyPage.section4Footer')}
         </p>
-        <button type="button" className="ox-btn ox-btn-outline" onClick={openSettings}>{t('footer.manageCookies')}</button>
+        <button type="button" className="ox-btn ox-btn-outline" onClick={openSettings} data-track="ui.aac235bfd0.1">{t('footer.manageCookies')}</button>
       </section>
 
       <section className="mb-8">
@@ -134,7 +134,7 @@ export default function CookiePolicyPage({ embedded = false }: { embedded?: bool
         </h2>
         <p className="mb-3">
           {t('cookiePolicyPage.section8Text')}
-          <a href="/do-not-sell" className="text-orange-400 underline">
+          <a href="/do-not-sell" className="text-orange-400 underline" data-track="ui.aac235bfd0.2">
             {t('cookiePolicyPage.section8Link')}
           </a>
           {t('cookiePolicyPage.section8Suffix')}
@@ -156,7 +156,7 @@ export default function CookiePolicyPage({ embedded = false }: { embedded?: bool
         </h2>
         <p className="mb-3">
           {t('cookiePolicyPage.section10Text')}
-          <a href="mailto:privacy@oxsteed.com" className="text-orange-400 underline">
+          <a href="mailto:privacy@oxsteed.com" className="text-orange-400 underline" data-track="ui.aac235bfd0.3">
             privacy@oxsteed.com
           </a>
           {t('cookiePolicyPage.section10Suffix')}

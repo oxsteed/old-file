@@ -10,6 +10,8 @@ const TERMS_CONFIG = {
   },
   privacy_policy: {
     version: '2026-10-13',
+    // Disclosure content evolves independently of the blocking clickwrap gate.
+    contentVersion: '2026-10-13',
     label: 'Privacy Policy',
     url: '/privacy',
   },

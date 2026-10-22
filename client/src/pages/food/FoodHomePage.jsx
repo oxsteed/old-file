@@ -487,7 +487,7 @@ export default function FoodHomePage() {
           <p className="rd-platform-note"><Store size={18} aria-hidden="true" />{t('food.home.redesign.independent')}</p>
 
           {/* Search bar lives inside the hero */}
-          <form className="fd-home-searchbar" onSubmit={search}>
+          <form className="fd-home-searchbar" onSubmit={search} data-track="ui.703b3d5218.1">
             <div className="fd-home-search-input-wrap">
               <Search className="fd-home-search-icon" size={20} aria-hidden="true" />
               <SuggestDropdown
@@ -501,7 +501,7 @@ export default function FoodHomePage() {
                 ariaLabel={t('food.home.searchPlaceholder')}
               />
             </div>
-            <button type="submit" className="fd-btn fd-home-search-btn">
+            <button type="submit" className="fd-btn fd-home-search-btn" data-track="ui.703b3d5218.2">
               {t('food.home.searchBtn')}<ArrowRight size={18} aria-hidden="true" />
             </button>
           </form>
@@ -518,7 +518,7 @@ export default function FoodHomePage() {
               type="button"
               className="fd-btn fd-btn-secondary fd-home-near-btn"
               onClick={useMyLocation}
-              disabled={locating}
+              disabled={locating} data-track="ui.703b3d5218.3"
             >
               <MapPin size={16} aria-hidden="true" />{locating ? t('food.home.locating') : t('food.home.nearMe')}
             </button>
@@ -537,12 +537,12 @@ export default function FoodHomePage() {
 
       <div className="rd-browse-heading">
         <div><span className="rd-eyebrow">{t('food.home.redesign.explore')}</span><h2>{t('food.home.redesign.browseTitle')}</h2></div>
-        <a href="#restaurant-owners" className="rd-owner-shortcut"><Store size={17} aria-hidden="true" />{t('food.home.redesign.forOwners')}<ArrowDown size={15} aria-hidden="true" /></a>
+        <a href="#restaurant-owners" className="rd-owner-shortcut" data-track="ui.703b3d5218.4"><Store size={17} aria-hidden="true" />{t('food.home.redesign.forOwners')}<ArrowDown size={15} aria-hidden="true" /></a>
       </div>
       {hasDiscoveryFilter && <div className="rd-active-filters" aria-live="polite">
         <SlidersHorizontal size={16} aria-hidden="true" />
         {submittedQuery && <span>{submittedQuery}</span>}{activeCuisine && <span>{activeCuisine}</span>}{geo && <span>{t('food.home.nearMe')}</span>}
-        <button type="button" onClick={clearFilters}>{t('food.home.clearFilter')}<X size={14} aria-hidden="true" /></button>
+        <button type="button" onClick={clearFilters} data-track="ui.703b3d5218.5">{t('food.home.clearFilter')}<X size={14} aria-hidden="true" /></button>
       </div>}
 
       {/* ── Cuisine category strip — built from live restaurant data ── */}
@@ -556,7 +556,7 @@ export default function FoodHomePage() {
                 type="button"
                 className={`fd-home-cat-btn${isActive ? ' fd-home-cat-btn--active' : ''}`}
                 aria-pressed={isActive}
-                onClick={() => selectCuisine(key)}
+                onClick={() => selectCuisine(key)} data-track="ui.703b3d5218.6"
               >
                 <span className="fd-home-cat-icon">{icon}</span>
                 <span className="fd-home-cat-label">{key}</span>
@@ -573,7 +573,7 @@ export default function FoodHomePage() {
           className="fd-btn fd-btn-secondary fd-btn-sm"
           onClick={() => setShowMap((v) => !v)}
           aria-expanded={showMap}
-          aria-controls="restaurant-discovery-map"
+          aria-controls="restaurant-discovery-map" data-track="ui.703b3d5218.7"
         >
           <Map size={16} aria-hidden="true" />{t(showMap ? 'food.home.hideMap' : 'food.home.showMap')}
         </button>
@@ -616,7 +616,7 @@ export default function FoodHomePage() {
         <div className="fd-home-empty">
           <p role="alert">{t('food.home.redesign.errorHint')}</p>
           <h2>{t('food.common.loadError')}</h2>
-          <button type="button" className="fd-btn" onClick={search}>
+          <button type="button" className="fd-btn" onClick={search} data-track="ui.703b3d5218.8">
             {t('food.common.retry')}
           </button>
         </div>
@@ -631,7 +631,7 @@ export default function FoodHomePage() {
           <div className="fd-home-empty-actions">
             <a
               href="mailto:restaurants@oxsteed.com"
-              className="fd-btn fd-btn-secondary"
+              className="fd-btn fd-btn-secondary" data-track="ui.703b3d5218.9"
             >
               {t('food.home.suggestRestaurant')}
             </a>
@@ -737,7 +737,7 @@ export default function FoodHomePage() {
                   <button
                     type="button"
                     className="fd-btn fd-btn-secondary fd-btn-sm"
-                    onClick={clearSearch}
+                    onClick={clearSearch} data-track="ui.703b3d5218.10"
                   >
                     {t('food.home.clearSearch')}
                   </button>
@@ -751,7 +751,7 @@ export default function FoodHomePage() {
                           key={key}
                           type="button"
                           className="fd-home-cat-btn"
-                          onClick={() => selectCuisine(key)}
+                          onClick={() => selectCuisine(key)} data-track="ui.703b3d5218.11"
                         >
                           <span className="fd-home-cat-icon">{icon}</span>
                           <span className="fd-home-cat-label">{key}</span>
@@ -768,7 +768,7 @@ export default function FoodHomePage() {
                   <p className="fd-discovery-load-error" role="alert">{t('food.common.loadError')}</p>
                 )}
                 {pagination.hasMore ? (
-                  <button type="button" className="fd-btn fd-btn-secondary" onClick={loadMore} disabled={loadingMore}>
+                  <button type="button" className="fd-btn fd-btn-secondary" onClick={loadMore} disabled={loadingMore} data-track="ui.703b3d5218.12">
                     {loadingMore ? t('food.home.loadingMore') : t('food.home.loadMore')}
                   </button>
                 ) : (

@@ -234,7 +234,7 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
         <Section
           title={copy('intakePipeline')}
           subtitle={copy('intakePipelineSubtitle')}
-          actions={<button type="button" className="bh-btn" onClick={() => onJumpTab?.('calendar')}>{copy('openSchedule')}</button>}
+          actions={<button type="button" className="bh-btn" onClick={() => onJumpTab?.('calendar')} data-track="ui.4488f299ad.1">{copy('openSchedule')}</button>}
         >
           <div className="space-y-4">
             {intakeRequests.slice(0, 12).map((item) => (
@@ -252,8 +252,8 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateRequest(item.id, { status: 'scheduled', workflow_stage: 'scheduling' })}>{copy('schedule')}</button>
-                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateRequest(item.id, { status: 'continuing', workflow_stage: 'retention' })}>{copy('continuing')}</button>
+                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateRequest(item.id, { status: 'scheduled', workflow_stage: 'scheduling' })} data-track="ui.4488f299ad.2">{copy('schedule')}</button>
+                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateRequest(item.id, { status: 'continuing', workflow_stage: 'retention' })} data-track="ui.4488f299ad.3">{copy('continuing')}</button>
                   </div>
                 </div>
               </div>
@@ -291,7 +291,7 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
       <Section
         title={copy('settingsTitle')}
         subtitle={copy('settingsSubtitle')}
-        actions={<button type="button" className="bh-btn primary" onClick={saveSettings} disabled={savingSettings}>{savingSettings ? t('common.saving') : copy('saveSettings')}</button>}
+        actions={<button type="button" className="bh-btn primary" onClick={saveSettings} disabled={savingSettings} data-track="ui.4488f299ad.4">{savingSettings ? t('common.saving') : copy('saveSettings')}</button>}
       >
         <div className="grid gap-4 md:grid-cols-2">
           <Input label={copy('responsePromise')}><TextInput type="number" min="1" value={settingsForm.response_promise_hours} onChange={(e) => setSettingsForm((current) => ({ ...current, response_promise_hours: e.target.value }))} /></Input>
@@ -313,7 +313,7 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         <Section title={copy('plansTitle')} subtitle={copy('plansSubtitle')}>
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={savePlan}>
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={savePlan} data-track="ui.4488f299ad.5">
             <Input label={copy('planName')}><TextInput value={planForm.plan_name} onChange={(e) => setPlanForm((current) => ({ ...current, plan_name: e.target.value }))} /></Input>
             <Input label={copy('type')}><Select value={planForm.plan_type} onChange={(e) => setPlanForm((current) => ({ ...current, plan_type: e.target.value }))}>{['membership', 'session_pack', 'care_plan', 'learning_plan', 'wellness_plan'].map((type) => <option key={type} value={type}>{copy(`planTypes.${type}`)}</option>)}</Select></Input>
             <Input label={copy('priceCents')}><TextInput type="number" min="0" value={planForm.price_cents} onChange={(e) => setPlanForm((current) => ({ ...current, price_cents: e.target.value }))} /></Input>
@@ -323,8 +323,8 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
             <Input label={copy('focusAreas')} wide><TextInput value={planForm.focus_areas} onChange={(e) => setPlanForm((current) => ({ ...current, focus_areas: e.target.value }))} placeholder={copy('focusAreasPlaceholder')} /></Input>
             <Input label={copy('descriptionField')} wide><TextArea rows={2} value={planForm.description} onChange={(e) => setPlanForm((current) => ({ ...current, description: e.target.value }))} /></Input>
             <div className="md:col-span-2 flex gap-3">
-              <button className="bh-btn primary" type="submit">{editingPlanId ? copy('updatePlan') : copy('addPlan')}</button>
-              {editingPlanId ? <button className="bh-btn" type="button" onClick={() => { setEditingPlanId(null); setPlanForm(EMPTY_PLAN); }}>{copy('cancel')}</button> : null}
+              <button className="bh-btn primary" type="submit" data-track="ui.4488f299ad.6">{editingPlanId ? copy('updatePlan') : copy('addPlan')}</button>
+              {editingPlanId ? <button className="bh-btn" type="button" onClick={() => { setEditingPlanId(null); setPlanForm(EMPTY_PLAN); }} data-track="ui.4488f299ad.7">{copy('cancel')}</button> : null}
             </div>
           </form>
           <div className="mt-5 space-y-3">
@@ -353,7 +353,7 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
                         focus_areas: (item.focus_areas || []).join(', '),
                         active: item.active !== false,
                       });
-                    }}>{copy('edit')}</button>
+                    }} data-track="ui.4488f299ad.8">{copy('edit')}</button>
                     <button className="bh-btn sm" type="button" onClick={async () => {
                       try {
                         await deleteContinuityPlan(businessId, item.id);
@@ -362,7 +362,7 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
                       } catch (error) {
                         toast.error(error?.response?.data?.error || copy('planRemoveFailed'));
                       }
-                    }}>{copy('delete')}</button>
+                    }} data-track="ui.4488f299ad.9">{copy('delete')}</button>
                   </div>
                 </div>
               </div>
@@ -372,7 +372,7 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
         </Section>
 
         <Section title={copy('trustTitle')} subtitle={copy('trustSubtitle')}>
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={saveTrustRecord}>
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={saveTrustRecord} data-track="ui.4488f299ad.10">
             <Input label={copy('recordType')}><TextInput value={trustForm.record_type} onChange={(e) => setTrustForm((current) => ({ ...current, record_type: e.target.value }))} /></Input>
             <Input label={copy('titleField')}><TextInput value={trustForm.title} onChange={(e) => setTrustForm((current) => ({ ...current, title: e.target.value }))} /></Input>
             <Input label={copy('issuer')}><TextInput value={trustForm.issuer} onChange={(e) => setTrustForm((current) => ({ ...current, issuer: e.target.value }))} /></Input>
@@ -381,8 +381,8 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
             <Input label={copy('documentUrl')}><TextInput value={trustForm.document_url} onChange={(e) => setTrustForm((current) => ({ ...current, document_url: e.target.value }))} /></Input>
             <Input label={copy('notesField')} wide><TextArea rows={3} value={trustForm.notes} onChange={(e) => setTrustForm((current) => ({ ...current, notes: e.target.value }))} /></Input>
             <div className="md:col-span-2 flex gap-3">
-              <button className="bh-btn primary" type="submit">{editingTrustId ? copy('updateRecord') : copy('addRecord')}</button>
-              {editingTrustId ? <button className="bh-btn" type="button" onClick={() => { setEditingTrustId(null); setTrustForm(EMPTY_TRUST); }}>{copy('cancel')}</button> : null}
+              <button className="bh-btn primary" type="submit" data-track="ui.4488f299ad.11">{editingTrustId ? copy('updateRecord') : copy('addRecord')}</button>
+              {editingTrustId ? <button className="bh-btn" type="button" onClick={() => { setEditingTrustId(null); setTrustForm(EMPTY_TRUST); }} data-track="ui.4488f299ad.12">{copy('cancel')}</button> : null}
             </div>
           </form>
           <div className="mt-5 space-y-3">
@@ -408,7 +408,7 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
                         document_url: item.document_url || '',
                         notes: item.notes || '',
                       });
-                    }}>{copy('edit')}</button>
+                    }} data-track="ui.4488f299ad.13">{copy('edit')}</button>
                     <button className="bh-btn sm" type="button" onClick={async () => {
                       try {
                         await deleteContinuityTrustRecord(businessId, item.id);
@@ -417,7 +417,7 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
                       } catch (error) {
                         toast.error(error?.response?.data?.error || copy('trustRecordRemoveFailed'));
                       }
-                    }}>{copy('delete')}</button>
+                    }} data-track="ui.4488f299ad.14">{copy('delete')}</button>
                   </div>
                 </div>
               </div>

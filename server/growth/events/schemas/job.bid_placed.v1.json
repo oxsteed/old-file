@@ -1,0 +1,27 @@
+{
+  "$id": "job.bid_placed.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "maxLength": 36
+    },
+    "category_id": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "job_type": {
+      "type": "string",
+      "pattern": "^[a-z_]{1,50}$"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "postal_ref": {
+      "type": "integer",
+      "minimum": 1
+    }
+  }
+}

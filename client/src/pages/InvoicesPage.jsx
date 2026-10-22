@@ -186,7 +186,7 @@ export default function InvoicesPage() {
               <CreditCard size={16} />
               {t('invoices.moneyDashboard', { defaultValue: 'Money dashboard' })}
             </Link>
-            <button type="button" className="invoices-btn" onClick={loadInvoices} disabled={loading}>
+            <button type="button" className="invoices-btn" onClick={loadInvoices} disabled={loading} data-track="ui.f6cb26e4c5.1">
               <RefreshCw size={16} />
               {t('invoices.refresh', { defaultValue: 'Refresh' })}
             </button>
@@ -210,7 +210,7 @@ export default function InvoicesPage() {
                 const next = new URLSearchParams(searchParams);
                 next.set('view', tab.key);
                 setSearchParams(next, { replace: true });
-              }}
+              }} data-track="ui.f6cb26e4c5.2"
             >
               {tab.label}
             </button>
@@ -275,7 +275,7 @@ export default function InvoicesPage() {
                       type="button"
                       onClick={() => setSelectedInvoice(invoice)}
                       title={t('invoices.view') || 'View'}
-                      aria-label={t('invoices.viewAriaLabel', { invoice: invoice.invoice_number || t('invoices.invoiceGeneric', { defaultValue: 'invoice' }), defaultValue: 'View {{invoice}}' })}
+                      aria-label={t('invoices.viewAriaLabel', { invoice: invoice.invoice_number || t('invoices.invoiceGeneric', { defaultValue: 'invoice' }), defaultValue: 'View {{invoice}}' })} data-track="ui.f6cb26e4c5.3"
                     >
                       <Eye size={16} />
                     </button>
@@ -308,7 +308,7 @@ export default function InvoicesPage() {
                         onClick={() => handleResendEmail(invoice.id)}
                         disabled={resendingEmail === invoice.id}
                         title={t('invoices.resendEmail') || 'Resend Email'}
-                        aria-label={t('invoices.resendAriaLabel', { invoice: invoice.invoice_number || t('invoices.invoiceGeneric', { defaultValue: 'invoice' }), defaultValue: 'Resend {{invoice}}' })}
+                        aria-label={t('invoices.resendAriaLabel', { invoice: invoice.invoice_number || t('invoices.invoiceGeneric', { defaultValue: 'invoice' }), defaultValue: 'Resend {{invoice}}' })} data-track="ui.f6cb26e4c5.4"
                       >
                         <Mail size={16} />
                       </button>
@@ -437,7 +437,7 @@ function InvoiceDetailModal({ invoice, language, notSetText, notListedText, rese
             <p>{t('invoices.detailsTitle', { defaultValue: 'Invoice details' })}</p>
             <h2>{invoice.invoice_number || t('invoices.invoiceIdFallback', { id: invoice.id, defaultValue: 'Invoice {{id}}' })}</h2>
           </div>
-          <button type="button" onClick={onClose} aria-label={t('invoices.closeDetails', { defaultValue: 'Close invoice details' })}>
+          <button type="button" onClick={onClose} aria-label={t('invoices.closeDetails', { defaultValue: 'Close invoice details' })} data-track="ui.f6cb26e4c5.5">
             <X size={18} />
           </button>
         </div>
@@ -477,11 +477,11 @@ function InvoiceDetailModal({ invoice, language, notSetText, notListedText, rese
         )}
 
         <div className="invoices-modal-footer">
-          <button type="button" className="invoices-btn invoices-btn-primary" onClick={onResend} disabled={resending}>
+          <button type="button" className="invoices-btn invoices-btn-primary" onClick={onResend} disabled={resending} data-track="ui.f6cb26e4c5.6">
             <Mail size={16} />
             {resending ? t('invoices.sending', { defaultValue: 'Sending...' }) : t('invoices.resendEmail', { defaultValue: 'Resend Email' })}
           </button>
-          <button type="button" className="invoices-btn" onClick={onClose}>
+          <button type="button" className="invoices-btn" onClick={onClose} data-track="ui.f6cb26e4c5.7">
             {t('common.close', { defaultValue: 'Close' })}
           </button>
         </div>

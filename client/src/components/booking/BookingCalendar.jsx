@@ -178,7 +178,7 @@ export default function BookingCalendar({
           ) : (
             <div className="booking-custom-service">
               <input id="booking-service-name" type="text" placeholder={t('booking.serviceName')} value={serviceData.serviceName} onChange={(e) => onDraftChange({ serviceName: e.target.value })} className="booking-input" />
-              {businessId && services.length > 0 && <button type="button" className="booking-inline-action" onClick={() => onDraftChange({ customService: false, serviceId: '', serviceName: '' })}>{t('booking.backToServices')}</button>}
+              {businessId && services.length > 0 && <button type="button" className="booking-inline-action" onClick={() => onDraftChange({ customService: false, serviceId: '', serviceName: '' })} data-track="ui.ac0691bf43.1">{t('booking.backToServices')}</button>}
             </div>
           )}
         </div>
@@ -189,26 +189,26 @@ export default function BookingCalendar({
       <section className="booking-calendar-container booking-panel">
         <div className="booking-panel-heading"><div><span className="booking-eyebrow">{t('booking.selectDateTime')}</span><h3>{t('booking.chooseDate')}</h3></div><span className="booking-step-pill">2 / 2</span></div>
         <div className="booking-date-grid">
-          {days.map((day) => <button type="button" key={day.toISOString()} onClick={() => loadAvailability(day)} className={`booking-date-btn ${selectedDate?.toDateString() === day.toDateString() ? 'selected' : ''}`} aria-pressed={selectedDate?.toDateString() === day.toDateString()}><div className="booking-date-day">{day.toLocaleDateString(locale, { weekday: 'short' })}</div><div className="booking-date-num">{day.getDate()}</div></button>)}
+          {days.map((day) => <button type="button" key={day.toISOString()} onClick={() => loadAvailability(day)} className={`booking-date-btn ${selectedDate?.toDateString() === day.toDateString() ? 'selected' : ''}`} aria-pressed={selectedDate?.toDateString() === day.toDateString()} data-track="ui.ac0691bf43.2"><div className="booking-date-day">{day.toLocaleDateString(locale, { weekday: 'short' })}</div><div className="booking-date-num">{day.getDate()}</div></button>)}
         </div>
         {selectedDate && (
           <div className="booking-time-slots">
             <div className="booking-slots-heading"><h4>{formatDate(selectedDate)}</h4>{availability && <span>{availability.slots?.filter((slot) => slot.available).length || 0} {t('booking.timesAvailable')}</span>}</div>
             {loading && <div className="booking-state-card"><RefreshCw size={17} className="booking-spin" />{t('booking.loadingAvailability')}</div>}
-            {!loading && error === 'availability_failed' && <div className="booking-state-card booking-state-error"><Info size={18} /><div><strong>{t('booking.availabilityLoadFailed')}</strong><p>{t('booking.tryAnotherDate')}</p></div><button type="button" className="booking-inline-action" onClick={() => loadAvailability(selectedDate)}>{t('common.retry')}</button></div>}
+            {!loading && error === 'availability_failed' && <div className="booking-state-card booking-state-error"><Info size={18} /><div><strong>{t('booking.availabilityLoadFailed')}</strong><p>{t('booking.tryAnotherDate')}</p></div><button type="button" className="booking-inline-action" onClick={() => loadAvailability(selectedDate)} data-track="ui.ac0691bf43.3">{t('common.retry')}</button></div>}
             {!loading && error === 'missing_details' && <div className="booking-error">{t('booking.detailsRequired')}</div>}
             {!loading && !error && availability?.scheduleConfigured === false && (
               <div className="booking-request-only">
                 <div className="booking-state-card"><Info size={18} /><div><strong>{t('booking.noScheduleTitle')}</strong><p>{t('booking.noScheduleDescription')}</p></div></div>
                 <div className="booking-choice-list" role="radiogroup" aria-label={t('booking.noScheduleChoiceLabel')}>
-                  <label className={`booking-choice ${fallbackChoice === 'post' ? 'selected' : ''}`}><input type="radio" name="fallbackChoice" value="post" checked={fallbackChoice === 'post'} onChange={() => onDraftChange({ fallbackChoice: 'post' })} /><span><strong>{t('booking.autoPostChoice')}</strong><small>{t('booking.autoPostChoiceHint')}</small></span></label>
-                  <label className={`booking-choice ${fallbackChoice === 'expire' ? 'selected' : ''}`}><input type="radio" name="fallbackChoice" value="expire" checked={fallbackChoice === 'expire'} onChange={() => onDraftChange({ fallbackChoice: 'expire' })} /><span><strong>{t('booking.expireChoice')}</strong><small>{t('booking.expireChoiceHint')}</small></span></label>
+                  <label className={`booking-choice ${fallbackChoice === 'post' ? 'selected' : ''}`}><input type="radio" name="fallbackChoice" value="post" checked={fallbackChoice === 'post'} onChange={() => onDraftChange({ fallbackChoice: 'post' })} data-track="ui.ac0691bf43.4" /><span><strong>{t('booking.autoPostChoice')}</strong><small>{t('booking.autoPostChoiceHint')}</small></span></label>
+                  <label className={`booking-choice ${fallbackChoice === 'expire' ? 'selected' : ''}`}><input type="radio" name="fallbackChoice" value="expire" checked={fallbackChoice === 'expire'} onChange={() => onDraftChange({ fallbackChoice: 'expire' })} data-track="ui.ac0691bf43.5" /><span><strong>{t('booking.expireChoice')}</strong><small>{t('booking.expireChoiceHint')}</small></span></label>
                 </div>
-                <button type="button" className="booking-btn-primary booking-request-button" onClick={handleRequestOnly}>{t('booking.requestWithoutSchedule')}</button>
+                <button type="button" className="booking-btn-primary booking-request-button" onClick={handleRequestOnly} data-track="ui.ac0691bf43.6">{t('booking.requestWithoutSchedule')}</button>
               </div>
             )}
             {!loading && !error && availability?.scheduleConfigured !== false && availability?.slots?.length === 0 && <div className="booking-state-card"><Info size={18} /><span>{t('booking.noAvailableSlots')}</span></div>}
-            {!loading && !error && availability?.scheduleConfigured !== false && availability?.slots?.length > 0 && <div className="booking-time-grid">{availability.slots.map((slot) => <button type="button" key={`${slot.startTime}-${slot.endTime}`} onClick={() => handleSelectTimeSlot(slot)} className="booking-time-slot" disabled={!slot.available}><Clock size={16} /><span>{formatTime(slot.startTime)} – {formatTime(slot.endTime)}</span></button>)}</div>}
+            {!loading && !error && availability?.scheduleConfigured !== false && availability?.slots?.length > 0 && <div className="booking-time-grid">{availability.slots.map((slot) => <button type="button" key={`${slot.startTime}-${slot.endTime}`} onClick={() => handleSelectTimeSlot(slot)} className="booking-time-slot" disabled={!slot.available} data-track="ui.ac0691bf43.7"><Clock size={16} /><span>{formatTime(slot.startTime)} – {formatTime(slot.endTime)}</span></button>)}</div>}
           </div>
         )}
       </section>

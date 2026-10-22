@@ -47,7 +47,7 @@ const FilterSection: React.FC<{
       <button
         onClick={() => setOpen((p) => !p)}
         className="w-full flex items-center justify-between py-3.5 px-1 text-start group"
-        aria-expanded={open}
+        aria-expanded={open} data-track="ui.4bcfa45cea.1"
       >
         <span className="flex items-center gap-2 text-sm font-semibold text-gray-200 group-hover:text-white transition-colors">
           <Icon className="w-4 h-4 text-gray-500" aria-hidden="true" />
@@ -82,7 +82,7 @@ const RadioRow: React.FC<{
       name={name}
       checked={checked}
       onChange={onChange}
-      className="w-4 h-4 border-gray-600 bg-gray-800 text-brand-500 focus:ring-brand-500 focus:ring-offset-gray-900 cursor-pointer"
+      className="w-4 h-4 border-gray-600 bg-gray-800 text-brand-500 focus:ring-brand-500 focus:ring-offset-gray-900 cursor-pointer" data-track="ui.4bcfa45cea.2"
     />
     <span
       className={`text-sm flex-1 leading-snug group-hover:text-white transition-colors ${
@@ -151,7 +151,7 @@ const LocationSection: React.FC<{
             type="button"
             onClick={handleUseMyLocation}
             disabled={geoStatus === 'locating'}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-brand-600 bg-brand-500/10 text-brand-400 hover:bg-brand-500/20 transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-wait"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-brand-600 bg-brand-500/10 text-brand-400 hover:bg-brand-500/20 transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-wait" data-track="ui.4bcfa45cea.3"
           >
             {geoStatus === 'locating' ? (
               <>
@@ -176,7 +176,7 @@ const LocationSection: React.FC<{
               type="button"
               onClick={handleClearLocation}
               className="text-gray-500 hover:text-gray-300 transition-colors"
-              aria-label={t('jobsDir.clearLocation')}
+              aria-label={t('jobsDir.clearLocation')} data-track="ui.4bcfa45cea.4"
             >
               <XCircle className="w-4 h-4" aria-hidden="true" />
             </button>
@@ -198,7 +198,7 @@ const LocationSection: React.FC<{
                     filters.radiusMiles === mi
                       ? 'bg-brand-500 text-white'
                       : 'bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700'
-                  }`}
+                  }`} data-track="ui.4bcfa45cea.5"
                 >
                   {t(`jobsDir.radius.${mi}`)}
                 </button>
@@ -285,7 +285,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
           <button
             onClick={onReset}
             className="flex items-center gap-1 text-xs text-brand-400 hover:text-brand-300 transition-colors"
-            aria-label={t('jobsDir.resetAll')}
+            aria-label={t('jobsDir.resetAll')} data-track="ui.4bcfa45cea.6"
           >
             <RotateCcw className="w-3 h-3" aria-hidden="true" />
             {t('jobsDir.resetAll')}
@@ -312,7 +312,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
               onClick={() => onChange({ urgentOnly: !filters.urgentOnly })}
               className={`relative w-9 h-5 rounded-full transition-colors ${
                 filters.urgentOnly ? 'bg-brand-500' : 'bg-gray-700'
-              }`}
+              }`} data-track="ui.4bcfa45cea.7"
             >
               <span
                 className={`absolute top-0.5 start-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
@@ -336,7 +336,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
               })}
               className={`relative w-9 h-5 rounded-full transition-colors ${
                 filters.noBidsYet ? 'bg-brand-500' : 'bg-gray-700'
-              }`}
+              }`} data-track="ui.4bcfa45cea.8"
             >
               <span
                 className={`absolute top-0.5 start-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
@@ -360,7 +360,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
               })}
               className={`relative w-9 h-5 rounded-full transition-colors ${
                 filters.hasBids ? 'bg-brand-500' : 'bg-gray-700'
-              }`}
+              }`} data-track="ui.4bcfa45cea.9"
             >
               <span
                 className={`absolute top-0.5 start-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
@@ -416,7 +416,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
                   filters.postedWithin === opt
                     ? 'bg-brand-500 text-white'
                     : 'bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700'
-                }`}
+                }`} data-track="ui.4bcfa45cea.10"
               >
                 {t(`jobsDir.posted.${opt}`)}
               </button>
@@ -470,7 +470,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
                 <button
                   key={key}
                   onClick={() => onChange({ budgetRange: range })}
-                  className="px-2.5 py-1 rounded-lg text-xs bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700 transition-colors"
+                  className="px-2.5 py-1 rounded-lg text-xs bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700 transition-colors" data-track="ui.4bcfa45cea.11"
                 >
                   {t(`jobsDir.${key}`)}
                 </button>

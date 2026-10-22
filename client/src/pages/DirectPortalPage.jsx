@@ -588,7 +588,7 @@ export function DirectQuoteRequestPage() {
         </div>
       )}
     >
-      <form onSubmit={handleSubmit} className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+      <form onSubmit={handleSubmit} className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]" data-track="ui.274fdc7e8e.1">
         <div className="space-y-6">
           <SectionCard title={t('directPortal.request.sections.yourDetails', { defaultValue: 'Your details' })} eyebrow={t('directPortal.request.eyebrows.customer', { defaultValue: 'Customer' })}>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -613,9 +613,9 @@ export function DirectQuoteRequestPage() {
               <div className="sm:col-span-2 rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4">
                 <div className="text-sm font-semibold text-white">{t('directPortal.request.fields.selectedServices', { defaultValue: 'Services for this request' })}</div>
                 <p className="mt-1 text-xs leading-5 text-slate-400">{t('directPortal.request.hints.selectedServices', { defaultValue: 'Choose the catalog services you want included. You can add more than one.' })}</p>
-                {selectedCatalogServices.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{selectedCatalogServices.map((service) => <button key={service.id} type="button" onClick={() => toggleCatalogService(service.id)} className="inline-flex items-center gap-1 rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1.5 text-xs font-semibold text-orange-100" aria-label={t('directPortal.request.actions.removeService', { service: service.name, defaultValue: 'Remove {{service}}' })}>{service.name}<X size={13} /></button>)}</div>}
+                {selectedCatalogServices.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{selectedCatalogServices.map((service) => <button key={service.id} type="button" onClick={() => toggleCatalogService(service.id)} className="inline-flex items-center gap-1 rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1.5 text-xs font-semibold text-orange-100" aria-label={t('directPortal.request.actions.removeService', { service: service.name, defaultValue: 'Remove {{service}}' })} data-track="ui.274fdc7e8e.2">{service.name}<X size={13} /></button>)}</div>}
                 <Input value={catalogServiceSearch} onChange={(event) => setCatalogServiceSearch(event.target.value)} className="mt-3" aria-label={t('directPortal.request.fields.searchServices', { defaultValue: 'Search catalog services' })} placeholder={t('directCatalog.searchServices', { category: t('directCatalog.directServices', { defaultValue: 'Direct' }), defaultValue: 'Search {{category}} services...' })} />
-                <div className="mt-3 grid max-h-64 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">{visibleCatalogServices.slice(0, 50).map((service) => <label key={service.id} className="flex cursor-pointer items-start gap-2 rounded-xl border border-white/10 bg-slate-950/50 px-3 py-2 text-xs text-slate-300"><input type="checkbox" checked={selectedServiceIds.includes(String(service.id).toLowerCase())} onChange={() => toggleCatalogService(service.id)} className="mt-0.5 accent-orange-500" /><span><span className="block font-semibold text-white">{service.name}</span><span className="block text-slate-500">{service.categoryName}</span></span></label>)}</div>
+                <div className="mt-3 grid max-h-64 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">{visibleCatalogServices.slice(0, 50).map((service) => <label key={service.id} className="flex cursor-pointer items-start gap-2 rounded-xl border border-white/10 bg-slate-950/50 px-3 py-2 text-xs text-slate-300"><input type="checkbox" checked={selectedServiceIds.includes(String(service.id).toLowerCase())} onChange={() => toggleCatalogService(service.id)} className="mt-0.5 accent-orange-500" data-track="ui.274fdc7e8e.3" /><span><span className="block font-semibold text-white">{service.name}</span><span className="block text-slate-500">{service.categoryName}</span></span></label>)}</div>
                 {!visibleCatalogServices.length && <p className="mt-3 text-xs text-slate-500">{t('directPortal.request.errors.noServices', { defaultValue: 'No requestable catalog services match that search.' })}</p>}
               </div>
               <div className="sm:col-span-2 rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">
@@ -627,7 +627,7 @@ export function DirectQuoteRequestPage() {
                   <button
                     type="button"
                     className="mt-2 text-xs font-semibold text-orange-200 underline"
-                    onClick={() => setForm((current) => ({ ...current, service_category: t('directPortal.request.serviceCategories.other', { defaultValue: 'Other' }) }))}
+                    onClick={() => setForm((current) => ({ ...current, service_category: t('directPortal.request.serviceCategories.other', { defaultValue: 'Other' }) }))} data-track="ui.274fdc7e8e.4"
                   >
                     {t('directPortal.request.useOtherCategory', { defaultValue: 'Use “Other / describe” without a catalog service' })}
                   </button>
@@ -683,7 +683,7 @@ export function DirectQuoteRequestPage() {
                         <div className="truncate font-medium text-white">{attachment.name || t('directPortal.request.photoAttachment', { defaultValue: 'Photo attachment' })}</div>
                         <div className="text-xs text-slate-500">{attachment.type || t('directPortal.request.attachmentType', { defaultValue: 'image' })}</div>
                       </div>
-                      <button type="button" onClick={() => removeAttachment(attachment.key)} aria-label={t('directPortal.request.actions.removeAttachment', { defaultValue: 'Remove attachment' })} className="rounded-full border border-white/10 p-2 text-slate-400 transition hover:bg-white/5 hover:text-white">
+                      <button type="button" onClick={() => removeAttachment(attachment.key)} aria-label={t('directPortal.request.actions.removeAttachment', { defaultValue: 'Remove attachment' })} className="rounded-full border border-white/10 p-2 text-slate-400 transition hover:bg-white/5 hover:text-white" data-track="ui.274fdc7e8e.5">
                         <X size={14} />
                       </button>
                     </div>
@@ -701,7 +701,7 @@ export function DirectQuoteRequestPage() {
               <p>{t('directPortal.request.summary.workflow', { defaultValue: 'Once the quote is ready, you can accept it, schedule the visit, and follow the case history here.' })}</p>
               <p>{t('directPortal.request.summary.history', { defaultValue: 'Proof uploads, receipts, and support messages stay attached to the same record.' })}</p>
             </div>
-            <button type="submit" disabled={loading || !canSubmit} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60">
+            <button type="submit" disabled={loading || !canSubmit} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60" data-track="ui.274fdc7e8e.6">
               {loading ? t('directPortal.request.actions.sending', { defaultValue: 'Sending...' }) : t('directPortal.request.actions.submit', { defaultValue: 'Request a quote' })}
             </button>
           </SectionCard>
@@ -916,7 +916,7 @@ export function DirectPublicQuoteLookupPage() {
     >
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <SectionCard title={t('directPortal.lookup.formTitle', { defaultValue: 'Find your quote' })} eyebrow={t('directPortal.lookup.formEyebrow', { defaultValue: 'Public lookup' })}>
-          <form onSubmit={handleLookup} className="space-y-4">
+          <form onSubmit={handleLookup} className="space-y-4" data-track="ui.274fdc7e8e.7">
             <Field label={t('directPortal.lookup.fields.referenceId', { defaultValue: 'Reference ID' })} required>
               <Input
                 value={referenceId}
@@ -936,7 +936,7 @@ export function DirectPublicQuoteLookupPage() {
               />
             </Field>
             <div className="flex flex-wrap gap-3">
-              <button type="submit" disabled={loading} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
+              <button type="submit" disabled={loading} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" data-track="ui.274fdc7e8e.8">
                 {loading ? t('directPortal.lookup.actions.searching', { defaultValue: 'Looking up…' }) : t('directPortal.lookup.actions.find', { defaultValue: 'Find quote' })}
               </button>
               <Link to="/direct/request-quote" className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">
@@ -986,7 +986,7 @@ export function DirectPublicQuoteLookupPage() {
               </div>
 
               <div className="flex flex-wrap gap-3">
-                <button type="button" onClick={handleSendCode} disabled={sending} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
+                <button type="button" onClick={handleSendCode} disabled={sending} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" data-track="ui.274fdc7e8e.9">
                   {sending ? t('directPortal.lookup.actions.sendingCode', { defaultValue: 'Sending code…' }) : t('directPortal.lookup.actions.sendCode', { defaultValue: 'Send verification code' })}
                 </button>
                 <Link to="/direct/request-quote" className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">
@@ -1004,7 +1004,7 @@ export function DirectPublicQuoteLookupPage() {
                 />
               </Field>
 
-              <button type="button" onClick={handleVerifyCode} disabled={verifying || !challengeToken} className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-200 disabled:cursor-not-allowed disabled:opacity-60">
+              <button type="button" onClick={handleVerifyCode} disabled={verifying || !challengeToken} className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-200 disabled:cursor-not-allowed disabled:opacity-60" data-track="ui.274fdc7e8e.10">
                 {verifying ? t('directPortal.lookup.actions.verifying', { defaultValue: 'Verifying…' }) : t('directPortal.lookup.actions.unlock', { defaultValue: 'Unlock details' })}
               </button>
 
@@ -1028,7 +1028,7 @@ export function DirectPublicQuoteLookupPage() {
                       <div className="mt-3 grid gap-2 sm:grid-cols-2">
                         {verifiedQuote.photoAttachments.map((attachment, index) => (
                           attachment.url ? (
-                            <a key={attachment.key || attachment.url || index} href={attachment.url} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/10 bg-slate-950/80 p-3 text-sm text-slate-200 hover:border-orange-500/30">
+                            <a key={attachment.key || attachment.url || index} href={attachment.url} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/10 bg-slate-950/80 p-3 text-sm text-slate-200 hover:border-orange-500/30" data-track="ui.274fdc7e8e.11">
                               <div className="font-medium text-white">{attachment.name || t('directPortal.lookup.labels.attachment', { defaultValue: 'Attachment' })}</div>
                               <div className="mt-1 text-xs text-slate-500">{attachment.type || 'file'}</div>
                             </a>
@@ -1278,7 +1278,7 @@ export function DirectSupportPage() {
           ) : (
             <div className="space-y-2">
               {history.map((item) => (
-                <button key={item.id} type="button" onClick={() => setSelectedId(item.id)} className={`w-full rounded-2xl border p-4 text-start transition ${String(selectedId) === String(item.id) ? 'border-orange-500/40 bg-orange-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'}`}>
+                <button key={item.id} type="button" onClick={() => setSelectedId(item.id)} className={`w-full rounded-2xl border p-4 text-start transition ${String(selectedId) === String(item.id) ? 'border-orange-500/40 bg-orange-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'}`} data-track="ui.274fdc7e8e.12">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="font-semibold text-white">{item.serviceCategory || t('directPortal.common.directRequest', { defaultValue: 'Direct request' })}</div>
@@ -1317,9 +1317,9 @@ export function DirectSupportPage() {
                 <Field label={t('directPortal.support.messageLabel', { defaultValue: 'Message' })}>
                   <Textarea rows={4} value={message} onChange={(e) => { setMessage(e.target.value); if (sendError) { setSendError(''); pendingMessageIdRef.current = null; } }} placeholder={t('directPortal.support.messagePlaceholder', { defaultValue: 'Type your message to the OxSteed team...' })} />
                 </Field>
-                {sendError && <div role="alert" className="rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-200"><div>{sendError}</div><button type="button" onClick={handleSend} disabled={sending || !message.trim()} className="mt-2 inline-flex items-center gap-2 font-semibold text-white underline disabled:opacity-60"><RefreshCw size={14} /> {t('common.retry', { defaultValue: 'Retry' })}</button></div>}
+                {sendError && <div role="alert" className="rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-200"><div>{sendError}</div><button type="button" onClick={handleSend} disabled={sending || !message.trim()} className="mt-2 inline-flex items-center gap-2 font-semibold text-white underline disabled:opacity-60" data-track="ui.274fdc7e8e.13"><RefreshCw size={14} /> {t('common.retry', { defaultValue: 'Retry' })}</button></div>}
                 <div className="flex flex-wrap gap-3">
-                  <button type="button" onClick={handleSend} disabled={sending || !message.trim()} className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
+                  <button type="button" onClick={handleSend} disabled={sending || !message.trim()} className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" data-track="ui.274fdc7e8e.14">
                     <Send size={15} /> {sending ? t('directPortal.support.sending', { defaultValue: 'Sending…' }) : t('directPortal.support.send', { defaultValue: 'Send' })}
                   </button>
                   <Link to="/support/escalation" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">
@@ -1428,8 +1428,8 @@ export function DirectAccountPage() {
                       <div className="text-sm text-slate-400">{location.city}{location.region ? `, ${location.region}` : ''} {location.postalCode}</div>
                     </div>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => editLocation(location)} className="rounded-full border border-white/10 bg-slate-950/70 px-3 py-1.5 text-xs font-semibold text-white">{t('directPortal.account.actions.edit', { defaultValue: 'Edit' })}</button>
-                      <button type="button" onClick={async () => { await deleteDirectLocation(location.id); toast.success(t('directPortal.account.messages.deleted', { defaultValue: 'Location deleted.' })); await load(); }} className="rounded-full border border-white/10 bg-slate-950/70 px-3 py-1.5 text-xs font-semibold text-white">{t('directPortal.account.actions.delete', { defaultValue: 'Delete' })}</button>
+                      <button type="button" onClick={() => editLocation(location)} className="rounded-full border border-white/10 bg-slate-950/70 px-3 py-1.5 text-xs font-semibold text-white" data-track="ui.274fdc7e8e.15">{t('directPortal.account.actions.edit', { defaultValue: 'Edit' })}</button>
+                      <button type="button" onClick={async () => { await deleteDirectLocation(location.id); toast.success(t('directPortal.account.messages.deleted', { defaultValue: 'Location deleted.' })); await load(); }} className="rounded-full border border-white/10 bg-slate-950/70 px-3 py-1.5 text-xs font-semibold text-white" data-track="ui.274fdc7e8e.16">{t('directPortal.account.actions.delete', { defaultValue: 'Delete' })}</button>
                     </div>
                   </div>
                 </div>
@@ -1458,9 +1458,9 @@ export function DirectAccountPage() {
             <Field label={t('directPortal.account.fields.notes', { defaultValue: 'Notes' })}><Textarea rows={4} value={form.notes} onChange={(e) => setForm((current) => ({ ...current, notes: e.target.value }))} placeholder={t('directPortal.account.placeholders.notes', { defaultValue: 'Gate code, parking, service instructions...' })} /></Field>
           </div>
           <div className="mt-4 flex gap-3">
-            <button type="button" onClick={save} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">{t('directPortal.account.actions.save', { defaultValue: 'Save location' })}</button>
+            <button type="button" onClick={save} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white" data-track="ui.274fdc7e8e.17">{t('directPortal.account.actions.save', { defaultValue: 'Save location' })}</button>
             {editingId && (
-              <button type="button" onClick={() => { setEditingId(null); setForm({ ...form, label: '', address_line1: '', address_line2: '', city: '', region: '', postal_code: '', notes: '' }); }} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">
+              <button type="button" onClick={() => { setEditingId(null); setForm({ ...form, label: '', address_line1: '', address_line2: '', city: '', region: '', postal_code: '', notes: '' }); }} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white" data-track="ui.274fdc7e8e.18">
                 {t('directPortal.account.actions.cancelEdit', { defaultValue: 'Cancel edit' })}
               </button>
             )}
@@ -1778,7 +1778,7 @@ function DirectCasePage({ mode }) {
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
                     {request.photoAttachments.map((attachment, index) => (
                       attachment.url ? (
-                        <a key={attachment.key || attachment.url || index} href={attachment.url} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/10 bg-slate-950/80 p-3 text-sm text-slate-200 hover:border-orange-500/30">
+                        <a key={attachment.key || attachment.url || index} href={attachment.url} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/10 bg-slate-950/80 p-3 text-sm text-slate-200 hover:border-orange-500/30" data-track="ui.274fdc7e8e.19">
                           <div className="font-medium text-white">{attachment.name || t('directPortal.case.photo', { defaultValue: 'Photo' })}</div>
                           <div className="mt-1 text-xs text-slate-500">{attachment.type || t('directPortal.lookup.labels.attachment', { defaultValue: 'Attachment' })}</div>
                         </a>
@@ -1798,27 +1798,27 @@ function DirectCasePage({ mode }) {
               <div className="flex flex-wrap gap-3">
                 {mode === 'quote' && (
                   <>
-                    <button type="button" onClick={accept} disabled={actionBusy} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{t('directPortal.case.actions.acceptQuote', { defaultValue: 'Accept quote' })}</button>
-                    <button type="button" onClick={reject} disabled={actionBusy} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{t('directPortal.case.actions.decline', { defaultValue: 'Decline' })}</button>
+                    <button type="button" onClick={accept} disabled={actionBusy} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" data-track="ui.274fdc7e8e.20">{t('directPortal.case.actions.acceptQuote', { defaultValue: 'Accept quote' })}</button>
+                    <button type="button" onClick={reject} disabled={actionBusy} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" data-track="ui.274fdc7e8e.21">{t('directPortal.case.actions.decline', { defaultValue: 'Decline' })}</button>
                     <Link to={`/direct/jobs/${id}/change`} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">{t('directPortal.case.actions.requestChanges', { defaultValue: 'Request changes' })}</Link>
                   </>
                 )}
                 {mode === 'book' && (
-                  <button type="button" onClick={saveSchedule} disabled={actionBusy} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{t('directPortal.case.actions.saveSchedule', { defaultValue: 'Save schedule' })}</button>
+                  <button type="button" onClick={saveSchedule} disabled={actionBusy} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" data-track="ui.274fdc7e8e.22">{t('directPortal.case.actions.saveSchedule', { defaultValue: 'Save schedule' })}</button>
                 )}
                 {mode === 'proof' && canPayWithCredit && (
-                  <button type="button" onClick={payWithCredit} disabled={actionBusy} className="rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{t('directPortal.case.actions.payWithCredit', { defaultValue: 'Pay with OxSteed Credit' })}</button>
+                  <button type="button" onClick={payWithCredit} disabled={actionBusy} className="rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" data-track="ui.274fdc7e8e.23" data-track-private>{t('directPortal.case.actions.payWithCredit', { defaultValue: 'Pay with OxSteed Credit' })}</button>
                 )}
                 {mode === 'proof' && (
-                  <button type="button" onClick={submitProof} disabled={actionBusy} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{t('directPortal.case.actions.submitProof', { defaultValue: 'Submit proof' })}</button>
+                  <button type="button" onClick={submitProof} disabled={actionBusy} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" data-track="ui.274fdc7e8e.24">{t('directPortal.case.actions.submitProof', { defaultValue: 'Submit proof' })}</button>
                 )}
                 {mode === 'receipt' && (
-                  <button type="button" onClick={confirmProof} disabled={actionBusy} className="rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{t('directPortal.case.actions.confirmReceipt', { defaultValue: 'Confirm receipt' })}</button>
+                  <button type="button" onClick={confirmProof} disabled={actionBusy} className="rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" data-track="ui.274fdc7e8e.25">{t('directPortal.case.actions.confirmReceipt', { defaultValue: 'Confirm receipt' })}</button>
                 )}
                 {mode === 'change' && (
                   <>
-                    <button type="button" onClick={() => saveChange('reschedule')} disabled={actionBusy} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{t('directPortal.case.actions.reschedule', { defaultValue: 'Reschedule' })}</button>
-                    <button type="button" onClick={() => saveChange('cancel')} disabled={actionBusy} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{t('directPortal.case.actions.cancelRequest', { defaultValue: 'Cancel request' })}</button>
+                    <button type="button" onClick={() => saveChange('reschedule')} disabled={actionBusy} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" data-track="ui.274fdc7e8e.26">{t('directPortal.case.actions.reschedule', { defaultValue: 'Reschedule' })}</button>
+                    <button type="button" onClick={() => saveChange('cancel')} disabled={actionBusy} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" data-track="ui.274fdc7e8e.27">{t('directPortal.case.actions.cancelRequest', { defaultValue: 'Cancel request' })}</button>
                   </>
                 )}
               </div>
@@ -1842,7 +1842,7 @@ function DirectCasePage({ mode }) {
                   {locationOptions.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {locationOptions.map((location) => (
-                        <button key={location.id} type="button" onClick={() => setScheduleForm((current) => ({ ...current, serviceAddress: location.addressLine1, serviceCity: location.city, accessNotes: location.notes || current.accessNotes }))} className="rounded-full border border-white/10 bg-slate-950/70 px-3 py-1.5 text-xs font-semibold text-white">
+                        <button key={location.id} type="button" onClick={() => setScheduleForm((current) => ({ ...current, serviceAddress: location.addressLine1, serviceCity: location.city, accessNotes: location.notes || current.accessNotes }))} className="rounded-full border border-white/10 bg-slate-950/70 px-3 py-1.5 text-xs font-semibold text-white" data-track="ui.274fdc7e8e.28">
                           {location.label}
                         </button>
                       ))}
@@ -1865,7 +1865,7 @@ function DirectCasePage({ mode }) {
                   <div className="space-y-2">
                     {attachments.map((attachment, index) => (
                       attachment.url ? (
-                        <a key={attachment.key || attachment.url || index} href={attachment.url} target="_blank" rel="noreferrer" className="block rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-slate-200">
+                        <a key={attachment.key || attachment.url || index} href={attachment.url} target="_blank" rel="noreferrer" className="block rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-slate-200" data-track="ui.274fdc7e8e.29">
                           {attachment.name || t('directPortal.case.receiptAttachment', { defaultValue: 'Receipt attachment' })}
                         </a>
                       ) : (
@@ -1890,7 +1890,7 @@ function DirectCasePage({ mode }) {
                 </div>
                 <div className="flex flex-wrap gap-3">
                   <Link to={`/direct/payments/${id}/proof`} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">{t('directPortal.case.actions.openProofUpload', { defaultValue: 'Open proof upload' })}</Link>
-                  <button type="button" onClick={confirmProof} disabled={actionBusy} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">{t('directPortal.case.actions.confirmReceipt', { defaultValue: 'Confirm receipt' })}</button>
+                  <button type="button" onClick={confirmProof} disabled={actionBusy} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white" data-track="ui.274fdc7e8e.30">{t('directPortal.case.actions.confirmReceipt', { defaultValue: 'Confirm receipt' })}</button>
                 </div>
               </div>
             )}
@@ -1903,8 +1903,8 @@ function DirectCasePage({ mode }) {
                   <Field label={t('directPortal.case.fields.newWindow', { defaultValue: 'New window' })}><Input value={scheduleForm.preferredTimeWindow} onChange={(e) => setScheduleForm((current) => ({ ...current, preferredTimeWindow: e.target.value }))} /></Field>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <button type="button" onClick={() => saveChange('reschedule')} disabled={actionBusy} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">{t('directPortal.case.actions.reschedule', { defaultValue: 'Reschedule' })}</button>
-                  <button type="button" onClick={() => saveChange('cancel')} disabled={actionBusy} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">{t('directPortal.case.actions.cancel', { defaultValue: 'Cancel' })}</button>
+                  <button type="button" onClick={() => saveChange('reschedule')} disabled={actionBusy} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white" data-track="ui.274fdc7e8e.31">{t('directPortal.case.actions.reschedule', { defaultValue: 'Reschedule' })}</button>
+                  <button type="button" onClick={() => saveChange('cancel')} disabled={actionBusy} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white" data-track="ui.274fdc7e8e.32">{t('directPortal.case.actions.cancel', { defaultValue: 'Cancel' })}</button>
                 </div>
               </div>
             )}
@@ -1915,8 +1915,8 @@ function DirectCasePage({ mode }) {
                   {t('directPortal.case.quoteReviewBody', { defaultValue: 'Review the quote and choose whether to accept it, decline it, or ask for changes.' })}
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <button type="button" onClick={accept} disabled={actionBusy} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">{t('directPortal.case.actions.acceptQuote', { defaultValue: 'Accept quote' })}</button>
-                  <button type="button" onClick={reject} disabled={actionBusy} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">{t('directPortal.case.actions.decline', { defaultValue: 'Decline' })}</button>
+                  <button type="button" onClick={accept} disabled={actionBusy} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white" data-track="ui.274fdc7e8e.33">{t('directPortal.case.actions.acceptQuote', { defaultValue: 'Accept quote' })}</button>
+                  <button type="button" onClick={reject} disabled={actionBusy} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white" data-track="ui.274fdc7e8e.34">{t('directPortal.case.actions.decline', { defaultValue: 'Decline' })}</button>
                   <Link to={`/direct/jobs/${id}/change`} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">{t('directPortal.case.actions.askForChanges', { defaultValue: 'Ask for changes' })}</Link>
                 </div>
               </div>

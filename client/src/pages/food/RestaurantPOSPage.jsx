@@ -10,7 +10,9 @@ import EmptyState from '../../components/EmptyState';
 import api from '../../api/axios';
 import { getFoodRestaurant, formatFoodMoney } from '../../api/food';
 import { FoodBrand } from './foodShared';
-import { usePosSync } from './usePosSync';
+import { isNetworkFailure, usePosSync } from './usePosSync';
+import { clearPersistedCheckout, readPersistedCheckout, writePersistedCheckout } from './posCheckoutPersistence';
+import PosStaffSessionBar from './PosStaffSession';
 import {subscribeRestaurantDisplay} from '../../api/restaurantDisplaySocket';
 import PageShell from '../../components/PageShell';
 import '../../styles/FoodPages.css';
@@ -72,7 +74,7 @@ function ModifierModal({ item, currency, onConfirm, onClose }) {
               const sel = (selections[g.group_id] || []).includes(m.modifier_id);
               return (
                 <label key={m.modifier_id} className={`fd-modoption${sel ? ' fd-selected' : ''}`}>
-                  <input type="checkbox" checked={sel} onChange={() => toggle(g.group_id, m.modifier_id, g.max_select)} />
+                  <input type="checkbox" checked={sel} onChange={() => toggle(g.group_id, m.modifier_id, g.max_select)} data-track="ui.c952aceb7c.1" />
                   {m.modifier_name}
                   {m.price_delta_cents > 0 && <span className="fd-pos-mod-delta"> +{formatFoodMoney(m.price_delta_cents, currency)}</span>}
                 </label>
@@ -87,21 +89,21 @@ function ModifierModal({ item, currency, onConfirm, onClose }) {
         </div>
 
         <div className="fd-qty-row">
-          <button className="fd-qty-btn" onClick={() => setQty((q) => Math.max(1, q - 1))}>−</button>
+          <button className="fd-qty-btn" onClick={() => setQty((q) => Math.max(1, q - 1))} data-track="ui.c952aceb7c.2">−</button>
           <strong>{qty}</strong>
-          <button className="fd-qty-btn" onClick={() => setQty((q) => q + 1)}>+</button>
+          <button className="fd-qty-btn" onClick={() => setQty((q) => q + 1)} data-track="ui.c952aceb7c.3">+</button>
           <span className="fd-price">{formatFoodMoney(unitCents * qty, currency)}</span>
         </div>
         <div className="fd-pos-modal-actions">
-          <button className="fd-btn-secondary" onClick={onClose}>{t('food.common.cancel')}</button>
-          <button className="fd-btn" onClick={handleConfirm}>{t('food.pos.addToTicket')}</button>
+          <button className="fd-btn-secondary" onClick={onClose} data-track="ui.c952aceb7c.4">{t('food.common.cancel')}</button>
+          <button className="fd-btn" onClick={handleConfirm} data-track="ui.c952aceb7c.5">{t('food.pos.addToTicket')}</button>
         </div>
       </div>
     </div>
   );
 }
 
-function PaymentModal({ total, currency, discounts, onPay, onClose }) {
+function PaymentModal({ total, currency, discounts, serverOrder, onCreateOrder, onConfirmPayment, onClose }) {
   const { t } = useTranslation();
   const [method, setMethod] = useState('cash');
   const [discountId, setDiscountId] = useState('');
@@ -109,29 +111,59 @@ function PaymentModal({ total, currency, discounts, onPay, onClose }) {
   const [tip, setTip] = useState('');
   const [creditHoldId, setCreditHoldId] = useState('');
   const [loading, setLoading] = useState(false);
+  // S-07: set when the server answers discount_approval_required; the
+  // modal then shows the manager-PIN prompt and the next review retries
+  // once with the PIN.
+  const [approvalNeeded, setApprovalNeeded] = useState(false);
+  const [approvalPin, setApprovalPin] = useState('');
 
   const selectedDiscount = discounts.find((d) => String(d.id) === discountId);
-  const discountCents = selectedDiscount
+  const rawDiscountCents = selectedDiscount
     ? selectedDiscount.discount_type === 'percent'
       ? Math.round(total * (selectedDiscount.value / 100))
       : Number(selectedDiscount.value_cents || 0)
     : 0;
+  const discountCents = selectedDiscount?.max_discount_cents !== null && selectedDiscount?.max_discount_cents !== undefined
+    ? Math.min(rawDiscountCents, Number(selectedDiscount.max_discount_cents))
+    : rawDiscountCents;
   const tipCents = Math.round((parseFloat(tip) || 0) * 100);
-  const finalTotal = Math.max(0, total - discountCents) + tipCents;
-  const changeCents = method === 'cash' ? Math.max(0, Math.round((parseFloat(amountGiven) || 0) * 100) - finalTotal) : 0;
+  // F-14: once the order exists, every figure the cashier sees (subtotal,
+  // tax, service fee, total, change) comes from the server-returned
+  // order. The client-side estimate is only used before creation, to pick
+  // a discount and tip; it never drives the payment.
+  const serverTotal = serverOrder ? Number(serverOrder.total_cents || 0) : null;
+  const changeCents = method === 'cash' && serverOrder
+    ? Math.max(0, Math.round((parseFloat(amountGiven) || 0) * 100) - serverTotal)
+    : 0;
 
-  const handlePay = async () => {
+  const handleReview = async () => {
+    setLoading(true);
+    const result = await onCreateOrder({
+      method,
+      discountId: discountId || null,
+      discountCents,
+      tipCents,
+      approvalPin: approvalNeeded ? approvalPin : undefined,
+    });
+    setLoading(false);
+    if (result && result.errorCode === 'discount_approval_required') {
+      setApprovalNeeded(true);
+    } else if (result?.offlineQueued) {
+      onClose();
+    } else if (result) {
+      setApprovalNeeded(false);
+      setApprovalPin('');
+    }
+  };
+
+  const handleConfirm = async () => {
     if (method === 'oxsteed_credit' && !creditHoldId.trim()) {
       toast.error(t('food.pos.creditHoldRequired', { defaultValue: 'Enter the customer authorization code to use OxSteed Credit.' }));
       return;
     }
     setLoading(true);
-    await onPay({
+    await onConfirmPayment({
       method,
-      discountId: discountId || null,
-      discountCents,
-      tipCents,
-      finalTotal,
       creditHoldId: creditHoldId.trim() || undefined,
     });
     setLoading(false);
@@ -141,12 +173,12 @@ function PaymentModal({ total, currency, discounts, onPay, onClose }) {
     <div className="fd-modal-overlay" onClick={onClose}>
       <div className="fd-modal fd-pos-pay-modal" onClick={(e) => e.stopPropagation()}>
         <h3>{t('food.pos.payment')}</h3>
-        <div className="fd-pos-pay-total">{formatFoodMoney(total, currency)}</div>
+        <div className="fd-pos-pay-total">{formatFoodMoney(serverOrder ? serverTotal : total, currency)}</div>
 
-        {discounts.length > 0 && (
+        {!serverOrder && discounts.length > 0 && (
           <div className="fd-field">
             <label>{t('food.pos.discount')}</label>
-            <select value={discountId} onChange={(e) => setDiscountId(e.target.value)}>
+            <select value={discountId} onChange={(e) => { setDiscountId(e.target.value); setApprovalNeeded(false); setApprovalPin(''); }}>
               <option value="">{t('food.pos.noDiscount')}</option>
               {discounts.map((d) => (
                 <option key={d.id} value={d.id}>{d.name} {d.discount_type === 'percent' ? `(${d.value}%)` : formatFoodMoney(d.value_cents, currency)}</option>
@@ -155,25 +187,78 @@ function PaymentModal({ total, currency, discounts, onPay, onClose }) {
           </div>
         )}
 
-        <div className="fd-field">
-          <label>{t('food.pos.tip')}</label>
-          <input type="number" min="0" step="0.01" value={tip} onChange={(e) => setTip(e.target.value)} placeholder="0.00" />
-        </div>
+        {!serverOrder && approvalNeeded && (
+          <div className="fd-field">
+            <label htmlFor="pos-discount-approval-pin">{t('food.pos.managerPin')}</label>
+            <p className="fd-pos-pay-hint">{t('food.pos.discountApprovalRequired')}</p>
+            <input
+              id="pos-discount-approval-pin"
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              value={approvalPin}
+              onChange={(e) => setApprovalPin(e.target.value)}
+              placeholder={t('food.pos.managerPinPlaceholder')}
+            />
+          </div>
+        )}
 
-        <div className="fd-pos-pay-methods">
-          {['cash', 'mobile', 'oxsteed_credit'].map((m) => (
-            <button key={m} className={`fd-pos-pay-method${method === m ? ' fd-active' : ''}`} onClick={() => setMethod(m)}>
-              {t(`food.pos.method_${m}`, { defaultValue: m === 'oxsteed_credit' ? 'OxSteed Credit' : undefined })}
-            </button>
-          ))}
-        </div>
+        {!serverOrder && (
+          <div className="fd-field">
+            <label>{t('food.pos.tip')}</label>
+            <input type="number" min="0" step="0.01" value={tip} onChange={(e) => setTip(e.target.value)} placeholder="0.00" />
+          </div>
+        )}
+
+        {!serverOrder && (
+          <div className="fd-pos-pay-methods">
+            {['cash', 'mobile', 'oxsteed_credit'].map((m) => (
+              <button key={m} className={`fd-pos-pay-method${method === m ? ' fd-active' : ''}`} onClick={() => setMethod(m)} data-track="ui.c952aceb7c.6" data-track-private>
+                {t(`food.pos.method_${m}`, { defaultValue: m === 'oxsteed_credit' ? 'OxSteed Credit' : undefined })}
+              </button>
+            ))}
+          </div>
+        )}
         <p className="fd-pos-pay-hint">
           {method === 'oxsteed_credit'
             ? t('food.pos.creditPaymentHint', { defaultValue: 'The customer must have an active OxSteed Credit balance and an agreement that includes this restaurant.' })
             : t('food.pos.cardTerminalRequired', { defaultValue: 'Card payments require a connected POS terminal. Use the POS app for card checkout.' })}
         </p>
 
-        {method === 'oxsteed_credit' && (
+        {serverOrder && (
+          <div className="fd-pos-pay-breakdown">
+            <div className="fd-total-row">
+              <span>{t('food.pos.subtotal')}</span>
+              <span>{formatFoodMoney(serverOrder.subtotal_cents, currency)}</span>
+            </div>
+            {Number(serverOrder.discount_cents || 0) > 0 && (
+              <div className="fd-total-row">
+                <span>{t('food.pos.discount')}</span>
+                <span>− {formatFoodMoney(serverOrder.discount_cents, currency)}</span>
+              </div>
+            )}
+            <div className="fd-total-row">
+              <span>{t('food.pos.tax')}</span>
+              <span>{formatFoodMoney(serverOrder.tax_cents, currency)}</span>
+            </div>
+            <div className="fd-total-row">
+              <span>{t('food.pos.serviceFee')}</span>
+              <span>{formatFoodMoney(serverOrder.service_fee_cents, currency)}</span>
+            </div>
+            {Number(serverOrder.tip_cents || 0) > 0 && (
+              <div className="fd-total-row">
+                <span>{t('food.pos.tip')}</span>
+                <span>{formatFoodMoney(serverOrder.tip_cents, currency)}</span>
+              </div>
+            )}
+            <div className="fd-total-row">
+              <span>{t('food.pos.total')}</span>
+              <span>{formatFoodMoney(serverTotal, currency)}</span>
+            </div>
+          </div>
+        )}
+
+        {serverOrder && method === 'oxsteed_credit' && (
           <div className="fd-pos-credit-fields">
             <div className="fd-field">
               <label htmlFor="pos-credit-hold">{t('food.pos.creditHoldId', { defaultValue: 'Customer authorization code' })}</label>
@@ -182,7 +267,7 @@ function PaymentModal({ total, currency, discounts, onPay, onClose }) {
                 type="text"
                 value={creditHoldId}
                 onChange={(e) => setCreditHoldId(e.target.value)}
-                placeholder="Paste the OxSteed Credit hold ID"
+                placeholder={t('food.pos.creditHoldPlaceholder')}
                 autoComplete="off"
               />
             </div>
@@ -190,7 +275,7 @@ function PaymentModal({ total, currency, discounts, onPay, onClose }) {
           </div>
         )}
 
-        {method === 'cash' && (
+        {serverOrder && method === 'cash' && (
           <div className="fd-field">
             <label>{t('food.pos.amountGiven')}</label>
             <input type="number" min="0" step="0.01" value={amountGiven} onChange={(e) => setAmountGiven(e.target.value)} placeholder="0.00" />
@@ -198,17 +283,17 @@ function PaymentModal({ total, currency, discounts, onPay, onClose }) {
           </div>
         )}
 
-        <div className="fd-total-row" style={{ marginTop: '1rem' }}>
-          <span>{t('food.pos.total')}</span>
-          <span>{formatFoodMoney(finalTotal, currency)}</span>
-        </div>
-        {discountCents > 0 && <div className="fd-pos-discount-line">− {formatFoodMoney(discountCents, currency)} {selectedDiscount?.name}</div>}
-
         <div className="fd-pos-modal-actions">
-          <button className="fd-btn-secondary" onClick={onClose}>{t('food.common.cancel')}</button>
-          <button className="fd-btn" onClick={handlePay} disabled={loading}>
-            {loading ? t('food.common.saving') : t('food.pos.confirmPay')}
-          </button>
+          <button className="fd-btn-secondary" onClick={onClose} data-track="ui.c952aceb7c.7">{t('food.common.cancel')}</button>
+          {serverOrder ? (
+            <button className="fd-btn" onClick={handleConfirm} disabled={loading} data-track="ui.c952aceb7c.8">
+              {loading ? t('food.common.saving') : t('food.pos.confirmPay')}
+            </button>
+          ) : (
+            <button className="fd-btn" onClick={handleReview} disabled={loading} data-track="ui.c952aceb7c.8">
+              {loading ? t('food.common.saving') : t('food.pos.reviewPayment')}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -223,9 +308,21 @@ export default function RestaurantPOSPage() {
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
   const [discounts, setDiscounts] = useState([]);
+  const [discountDefinitions, setDiscountDefinitions] = useState([]);
   const [activeShift, setActiveShift] = useState(null);
   const [canManage, setCanManage] = useState(false);
+  const [canUsePos, setCanUsePos] = useState(false);
   const [loading, setLoading] = useState(true);
+  // F-04: one stable checkout id per checkout attempt, plus the order it
+  // created. A payment retry reuses both; the id is cleared only when
+  // the checkout completes or the ticket changes.
+  const [checkoutId, setCheckoutId] = useState(null);
+  const [checkoutOrder, setCheckoutOrder] = useState(null);
+
+  const resetCheckout = useCallback(() => {
+    setCheckoutId(null);
+    setCheckoutOrder(null);
+  }, []);
 
   const [activeCat, setActiveCat] = useState(null);
   const [ticket, setTicket] = useState([]); // [{item, qty, note, mods, unitCents}]
@@ -237,42 +334,95 @@ export default function RestaurantPOSPage() {
   const [showPay, setShowPay] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState(null);
+  const [checkoutHydrated, setCheckoutHydrated] = useState(false);
 
-  // F13: wire the offline-sync pipeline into the web POS. Failed mutations
-  // are reported (never auto-retried) and the manager sees a degraded banner.
+  // F13/F-08: wire the offline-sync pipeline into the web POS. Generic
+  // failures are reported; cash-only network failures can be replayed with
+  // the stable order/payment ids already used by the online flow.
   const {
     degraded: syncDegraded,
     failedOperations: syncFailed,
     pendingOperations: syncPending,
     outboxCount: syncOutbox,
     reportFailedOperation,
-  } = usePosSync(restaurantId, canManage);
+    queueOfflineCashCheckout,
+  } = usePosSync(restaurantId, canManage || canUsePos);
 
   const ticketRef = useRef(null);
 
+  // F-04: keep an in-progress ticket and its stable retry identity across a
+  // browser reload. The two-hour bound prevents an abandoned checkout from
+  // reappearing indefinitely, while an existing server order remains
+  // recoverable for the same idempotent payment retry.
+  useEffect(() => {
+    const saved = readPersistedCheckout(restaurantId);
+    if (saved) {
+      setTicket(Array.isArray(saved.ticket) ? saved.ticket : []);
+      setFulfillment(saved.fulfillment || 'dine_in');
+      setTableName(saved.tableName || '');
+      setGuestName(saved.guestName || '');
+      setCheckoutId(saved.checkoutId || null);
+      setCheckoutOrder(saved.checkoutOrder || null);
+    }
+    setCheckoutHydrated(String(restaurantId));
+  }, [restaurantId]);
+
+  useEffect(() => {
+    if (checkoutHydrated !== String(restaurantId)) return;
+    if (!ticket.length && !checkoutId && !checkoutOrder) {
+      clearPersistedCheckout(restaurantId);
+      return;
+    }
+    writePersistedCheckout(restaurantId, {
+      ticket,
+      fulfillment,
+      tableName,
+      guestName,
+      checkoutId,
+      checkoutOrder,
+    });
+  }, [checkoutHydrated, restaurantId, ticket, fulfillment, tableName, guestName, checkoutId, checkoutOrder]);
+
   const load = useCallback(async () => {
     try {
-      const [r, shiftsResponse, bootstrapResponse] = await Promise.all([
+      let [r, shiftsResponse, bootstrapResponse] = await Promise.all([
         getFoodRestaurant(restaurantId),
         api.get(`/restaurants/${restaurantId}/pos/shifts?limit=50`).catch(() => ({ data: { shifts: [] } })),
         api.get(`/restaurants/${restaurantId}/app/bootstrap`).catch(() => null),
       ]);
-      const rest = r?.restaurant || r;
-      setRestaurant(rest);
-      // Recording a POS payment moves real money, so the pay flow is
-      // manager-only (the API enforces this too). Order taking stays
-      // available to every employee.
-      setCanManage(Boolean(bootstrapResponse?.data?.membership?.canManage));
       const openShifts = (shiftsResponse.data?.shifts || [])
         .filter((shift) => shift.status === 'open')
         .sort((a, b) => Number(Boolean(b.is_mine)) - Number(Boolean(a.is_mine)));
-      setActiveShift(openShifts[0] || null);
-      const cats = r?.categories || [];
-      const its = r?.items || [];
+      const selectedShift = openShifts[0] || null;
+      if (selectedShift?.location_id) r = await getFoodRestaurant(restaurantId, { locationId: selectedShift.location_id });
+      const rest = r?.restaurant || r;
+      setRestaurant({ ...rest, location_id: r?.location?.id ?? selectedShift?.location_id ?? null });
+      // F-03: tendering a payment is a pos.use capability exercised
+      // inside the cashier's own open drawer shift (the API enforces the
+      // permission and the shift ownership). Managers keep their wider
+      // access; refunds stay manager-only on the API.
+      const membership = bootstrapResponse?.data?.membership;
+      setCanManage(Boolean(membership?.canManage));
+      // F-15: the restaurant's own discount definitions ride the
+      // bootstrap payload; the discounts endpoint below also returns
+      // them as a fallback.
+      if (Array.isArray(bootstrapResponse?.data?.discountDefinitions)) {
+        setDiscountDefinitions(bootstrapResponse.data.discountDefinitions);
+      }
+      const membershipPermissions = membership?.permissions || [];
+      setCanUsePos(membershipPermissions.includes('*') || membershipPermissions.includes('pos.use'));
+      setActiveShift(selectedShift);
+      const cats = r?.categories || (r?.menu || []).map(({ items: _items, ...category }) => category);
+      const its = r?.items || [...(r?.menu || []).flatMap((category) => category.items || []), ...(r?.uncategorizedItems || [])];
       // attach modifier groups to items
       const modGroups = r?.modifierGroups || [];
       const itemMap = {};
-      its.forEach((item) => { itemMap[item.id] = { ...item, modifierGroups: [] }; });
+      its.forEach((item) => { itemMap[item.id] = { ...item, modifierGroups: (item.modifierGroups || []).map((group) => ({
+        group_id: group.id, group_name: group.name, min_select: group.minSelect, max_select: group.maxSelect,
+        is_required: group.isRequired, modifiers: (group.options || []).filter((option) => option.isAvailable !== false).map((option) => ({
+          modifier_id: option.id, modifier_name: option.name, price_delta_cents: option.priceDeltaCents,
+        })),
+      })) }; });
       modGroups.forEach((g) => {
         if (itemMap[g.menu_item_id]) {
           const existing = itemMap[g.menu_item_id].modifierGroups.find((eg) => eg.group_id === g.group_id);
@@ -296,11 +446,22 @@ export default function RestaurantPOSPage() {
   }, [restaurantId, t]);
 
   useEffect(()=>{return subscribeRestaurantDisplay(restaurantId,load);},[restaurantId,canManage,load]);
+  useEffect(() => {
+    const stamps = items.map((item) => Date.parse(item.store_override?.available_again_at)).filter((stamp) => stamp > Date.now());
+    if (!stamps.length) return undefined;
+    const timer = setTimeout(load, Math.min(2147483647, Math.max(100, Math.min(...stamps) - Date.now() + 100)));
+    return () => clearTimeout(timer);
+  }, [items, load]);
 
   useEffect(() => {
     load();
     api.get(`/restaurants/${restaurantId}/pos/discounts`)
-      .then((r) => setDiscounts(r.data?.discounts || []))
+      .then((r) => {
+        setDiscounts(r.data?.discounts || []);
+        if (Array.isArray(r.data?.discountDefinitions)) {
+          setDiscountDefinitions(r.data.discountDefinitions);
+        }
+      })
       .catch(() => {});
   }, [load, restaurantId]);
 
@@ -314,22 +475,25 @@ export default function RestaurantPOSPage() {
   };
 
   const addLine = ({ item, qty, note, mods, unitCents }) => {
+    // The ticket no longer matches any order a checkout already created.
+    resetCheckout();
     setTicket((prev) => {
       // merge identical lines (same item, same mods, no note)
       if (!note && mods.length === 0) {
-        const idx = prev.findIndex((l) => l.item.id === item.id && l.mods.length === 0 && !l.note);
+        const idx = prev.findIndex((l) => l.item.id === item.id && l.mods.length === 0 && !l.note && (l.courseNumber || 1) === 1);
         if (idx >= 0) {
           const next = [...prev];
           next[idx] = { ...next[idx], qty: next[idx].qty + qty };
           return next;
         }
       }
-      return [...prev, { item, qty, note, mods, unitCents }];
+      return [...prev, { item, qty, note, mods, unitCents, courseNumber: 1, seatNumber: null }];
     });
     setModItem(null);
   };
 
   const adjustQty = (idx, delta) => {
+    resetCheckout();
     setTicket((prev) => {
       const next = [...prev];
       const newQty = next[idx].qty + delta;
@@ -345,6 +509,8 @@ export default function RestaurantPOSPage() {
   const serializeTicket = () => ticket.map((l) => ({
     menuItemId: l.item.id,
     quantity: l.qty,
+      courseNumber: l.courseNumber || 1,
+      seatNumber: l.seatNumber || undefined,
     modifierIds: l.mods.map((modifier) => modifier.modifier_id),
     specialInstructions: l.note || undefined,
   }));
@@ -352,6 +518,20 @@ export default function RestaurantPOSPage() {
     if (activeShift) return true;
     toast.error(t('food.pos.openShiftRequired', { defaultValue: 'Open a POS shift before taking orders.' }));
     return false;
+  };
+
+  const changeCourse = (idx, courseNumber) => {
+    resetCheckout();
+    setTicket((prev) => prev.map((line, lineIndex) => (
+      lineIndex === idx ? { ...line, courseNumber: Number(courseNumber) || 1 } : line
+    )));
+  };
+
+  const changeSeat = (idx, seatNumber) => {
+    resetCheckout();
+    setTicket((prev) => prev.map((line, lineIndex) => (
+      lineIndex === idx ? { ...line, seatNumber: seatNumber ? Number(seatNumber) : null } : line
+    )));
   };
 
   const handleOpenShift = async () => {
@@ -372,62 +552,165 @@ export default function RestaurantPOSPage() {
     }
   };
 
-  const handlePay = async ({ method, discountId, discountCents, tipCents, finalTotal, creditHoldId }) => {
-    if (!requireOpenShift()) return;
-    if (!canManage) {
-      toast.error(t('food.pos.payManagerOnly'));
-      return;
-    }
+  const canPay = canManage || canUsePos;
+
+  // F-15: the discount picker lists the legacy global codes and the
+  // restaurant's own definitions together. Definitions carry a prefixed
+  // id so the two sets never collide; choosing one sends its
+  // discount_definition_id and the server computes the amount.
+  const pickerDiscounts = [
+    ...discounts,
+    ...discountDefinitions.map((definition) => ({
+      ...definition,
+      id: `definition-${definition.id}`,
+      definitionId: Number(definition.id),
+    })),
+  ];
+
+  // F-04 phase 1: create the order for this checkout. The stable
+  // client_order_id makes a retry return the same order from the server
+  // instead of duplicating the ticket; if this checkout already created
+  // its order, it is reused as-is.
+  const handleCreateCheckoutOrder = async ({ method, discountId, tipCents, approvalPin }) => {
+    if (!requireOpenShift()) return null;
+    const activeCheckoutId = checkoutId || crypto.randomUUID();
+    if (!checkoutId) setCheckoutId(activeCheckoutId);
+    if (checkoutOrder) return checkoutOrder;
     setSubmitting(true);
+    const selectedDiscount = pickerDiscounts.find((discount) => String(discount.id) === String(discountId));
+    const payload = {
+      items: serializeTicket(),
+      order_source: 'counter',
+      location_id: restaurant?.location_id ?? activeShift.location_id,
+      shift_id: activeShift.id,
+      fulfillment_type: fulfillment,
+      table_name: tableName || undefined,
+      guest_name: guestName || undefined,
+      client_order_id: activeCheckoutId,
+      payment_mode: method === 'oxsteed_credit' ? 'oxsteed_credit' : 'pay_at_restaurant',
+      payment_method: method,
+      discount_definition_id: selectedDiscount?.definitionId || undefined,
+      discount_lines: discountId && !selectedDiscount?.definitionId
+        ? [{
+            code: selectedDiscount?.code,
+            label: selectedDiscount?.name,
+            percent_bps: Math.round((selectedDiscount?.percentOff || 0) * 10000),
+          }]
+        : undefined,
+      approval_pin: approvalPin || undefined,
+      tip_cents: tipCents || undefined,
+    };
     try {
-      const payload = {
-        items: serializeTicket(),
-        order_source: 'counter',
-        shift_id: activeShift.id,
-        fulfillment_type: fulfillment,
-        table_name: tableName || undefined,
-        guest_name: guestName || undefined,
-        payment_mode: method === 'oxsteed_credit' ? 'oxsteed_credit' : 'pay_at_restaurant',
-        payment_method: method,
-        discount_lines: discountId
-          ? [{
-              code: discounts.find((discount) => String(discount.id) === String(discountId))?.code,
-              label: discounts.find((discount) => String(discount.id) === String(discountId))?.name,
-              percent_bps: Math.round((discounts.find((discount) => String(discount.id) === String(discountId))?.percentOff || 0) * 10000),
-            }]
-          : undefined,
-        tip_cents: tipCents || undefined,
-        total_cents: finalTotal,
-      };
       const res = await api.post(`/restaurants/${restaurantId}/pos/orders`, payload);
-      const order = res.data?.order;
-      if (order) {
-        // record payment
-        await api.post(`/restaurants/${restaurantId}/pos/orders/${order.id}/payments`, {
-          paymentType: method === 'mobile' ? 'external' : method,
-          paymentMode: method === 'mobile'
-            ? 'direct_payment'
-            : method === 'oxsteed_credit'
-              ? 'oxsteed_credit'
-              : 'pay_at_restaurant',
-          amountCents: Number(order.total_cents ?? finalTotal),
-          shiftId: activeShift.id,
-          idempotencyKey: crypto.randomUUID(),
-          creditHoldId,
+      const order = res.data?.order || null;
+      if (order) setCheckoutOrder(order);
+      return order;
+    } catch (err) {
+      // S-07: the server refused the definition discount until a manager
+      // approves it. Not a failure: hand the code back so the payment
+      // modal can prompt for the manager PIN and retry once with it.
+      if (err?.response?.data?.code === 'discount_approval_required') {
+        return { errorCode: 'discount_approval_required' };
+      }
+      if (method === 'cash' && isNetworkFailure(err)) {
+        const queued = queueOfflineCashCheckout({
+          method,
+          orderPayload: payload,
+          paymentPayload: {
+            paymentType: 'cash',
+            paymentMode: 'pay_at_restaurant',
+            shiftId: activeShift.id,
+            idempotencyKey: `pos-payment:${activeCheckoutId}`,
+          },
         });
-        setCompletedOrder(order);
+        if (!queued) {
+          const message = t('food.pos.offlineCashReplayWaiting');
+          reportFailedOperation('pos_order', message);
+          toast.error(message);
+          return null;
+        }
         setTicket([]);
         setTableName('');
         setGuestName('');
+        resetCheckout();
+        clearPersistedCheckout(restaurantId);
         setShowPay(false);
-        toast.success(t('food.pos.orderSent'));
+        toast.success(t('food.pos.offlineCashSaved'));
+        return { offlineQueued: true };
       }
+      const message = err?.response?.data?.message || t('food.pos.orderError');
+      reportFailedOperation('pos_order', message);
+      toast.error(message);
+      return null;
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // F-04 phase 2: record the payment against the order this checkout
+  // created. The payment idempotency key derives from the checkout id,
+  // so retrying after a failure is the same payment, never a second one.
+  // F-14: the amount is the server-returned order total.
+  const handleConfirmPayment = async ({ method, creditHoldId }) => {
+    if (!requireOpenShift() || !checkoutOrder) return false;
+    setSubmitting(true);
+    try {
+      await api.post(`/restaurants/${restaurantId}/pos/orders/${checkoutOrder.id}/payments`, {
+        paymentType: method === 'mobile' ? 'external' : method,
+        paymentMode: method === 'mobile'
+          ? 'direct_payment'
+          : method === 'oxsteed_credit'
+            ? 'oxsteed_credit'
+            : 'pay_at_restaurant',
+        amountCents: Number(checkoutOrder.total_cents),
+        shiftId: activeShift.id,
+        idempotencyKey: `pos-payment:${checkoutOrder.client_order_id || checkoutId}`,
+        creditHoldId,
+      });
+      setCompletedOrder(checkoutOrder);
+      setTicket([]);
+      setTableName('');
+      setGuestName('');
+      resetCheckout();
+      clearPersistedCheckout(restaurantId);
+      setShowPay(false);
+      toast.success(t('food.pos.orderSent'));
+      return true;
     } catch (err) {
       const message = err?.response?.data?.message || t('food.pos.orderError');
-      // Failed POS mutations are reported to the offline-sync pipeline so
-      // the manager's sync view shows them. Never auto-retried (money).
+      if (method === 'cash' && isNetworkFailure(err)) {
+        const queued = queueOfflineCashCheckout({
+          method,
+          orderId: checkoutOrder.id,
+          orderTotalCents: checkoutOrder.total_cents,
+          paymentPayload: {
+            paymentType: 'cash',
+            paymentMode: 'pay_at_restaurant',
+            amountCents: Number(checkoutOrder.total_cents),
+            shiftId: activeShift.id,
+            idempotencyKey: `pos-payment:${checkoutOrder.client_order_id || checkoutId}`,
+          },
+        });
+        if (!queued) {
+          const replayMessage = t('food.pos.offlineCashReplayWaiting');
+          reportFailedOperation('pos_payment', replayMessage);
+          toast.error(replayMessage);
+          return false;
+        }
+        setTicket([]);
+        setTableName('');
+        setGuestName('');
+        resetCheckout();
+        clearPersistedCheckout(restaurantId);
+        setShowPay(false);
+        toast.success(t('food.pos.offlineCashSaved'));
+        return true;
+      }
+      // Other failed POS mutations are reported to the offline-sync pipeline;
+      // they stay visible for reconciliation and are never auto-retried.
       reportFailedOperation('pos_payment', message);
       toast.error(message);
+      return false;
     } finally {
       setSubmitting(false);
     }
@@ -439,6 +722,7 @@ export default function RestaurantPOSPage() {
     try {
       const payload = {
         items: serializeTicket(),
+        location_id: restaurant?.location_id ?? activeShift.location_id,
         order_source: 'counter',
         shift_id: activeShift.id,
         fulfillment_type: fulfillment,
@@ -453,6 +737,8 @@ export default function RestaurantPOSPage() {
         setTicket([]);
         setTableName('');
         setGuestName('');
+        resetCheckout();
+        clearPersistedCheckout(restaurantId);
         toast.success(t('food.pos.sentToKitchen'));
       }
     } catch (err) {
@@ -495,12 +781,13 @@ export default function RestaurantPOSPage() {
           </div>
           <div className="fd-pos-fulfillment">
             {FULFILLMENT_TYPES.map((f) => (
-              <button key={f.value} className={`fd-pos-ftype${fulfillment === f.value ? ' fd-active' : ''}`} onClick={() => setFulfillment(f.value)}>
+              <button key={f.value} className={`fd-pos-ftype${fulfillment === f.value ? ' fd-active' : ''}`} onClick={() => { setFulfillment(f.value); resetCheckout(); }} data-track="ui.c952aceb7c.9">
                 {t(`food.pos.fulfillment_${f.label}`)}
               </button>
             ))}
           </div>
           <div className="fd-pos-header-meta">
+            <PosStaffSessionBar restaurantId={restaurantId} />
             {activeShift ? (
               <span className="fd-tag">
                 {t('food.pos.shiftOpen', { defaultValue: 'POS shift open' })}
@@ -510,7 +797,7 @@ export default function RestaurantPOSPage() {
                 <span className="fd-tag">
                   {t('food.pos.shiftRequired', { defaultValue: 'Open POS shift required' })}
                 </span>
-                <button type="button" className="fd-btn fd-btn-sm" onClick={handleOpenShift} disabled={submitting}>
+                <button type="button" className="fd-btn fd-btn-sm" onClick={handleOpenShift} disabled={submitting} data-track="ui.c952aceb7c.10">
                   {submitting ? t('food.common.saving') : t('food.merchant.posOpenShift', 'Open shift')}
                 </button>
               </>
@@ -527,7 +814,7 @@ export default function RestaurantPOSPage() {
             {/* Category rail */}
             <div className="fd-pos-cat-rail">
               {categories.map((c) => (
-                <button key={c.id} className={`fd-pos-cat${activeCat === c.id ? ' fd-active' : ''}`} onClick={() => setActiveCat(c.id)}>
+                <button key={c.id} className={`fd-pos-cat${activeCat === c.id ? ' fd-active' : ''}`} onClick={() => setActiveCat(c.id)} data-track="ui.c952aceb7c.11">
                   {c.name}
                 </button>
               ))}
@@ -542,7 +829,7 @@ export default function RestaurantPOSPage() {
                   key={item.id}
                   className={`fd-pos-item${!item.is_available ? ' fd-unavailable' : ''}`}
                   onClick={() => handleItemClick(item)}
-                  disabled={!item.is_available}
+                  disabled={!item.is_available} data-track="ui.c952aceb7c.12"
                 >
                   {item.image_url && <img src={item.image_url} alt={item.name} className="fd-pos-item-img" />}
                   <span className="fd-pos-item-name">{item.name}</span>
@@ -558,7 +845,7 @@ export default function RestaurantPOSPage() {
             <div className="fd-pos-ticket-head">
               <span>{t('food.pos.ticket')}</span>
               {ticket.length > 0 && (
-                <button className="fd-pos-clear" onClick={() => setTicket([])}>
+                <button className="fd-pos-clear" onClick={() => { setTicket([]); resetCheckout(); }} data-track="ui.c952aceb7c.13">
                   {t('food.pos.clear')}
                 </button>
               )}
@@ -577,10 +864,27 @@ export default function RestaurantPOSPage() {
                     {line.note && <div className="fd-pos-line-note">🗒 {line.note}</div>}
                   </div>
                   <div className="fd-pos-line-qty">
-                    <button className="fd-qty-btn" onClick={() => adjustQty(idx, -1)}>−</button>
+                    <button className="fd-qty-btn" onClick={() => adjustQty(idx, -1)} data-track="ui.c952aceb7c.14">−</button>
                     <span>{line.qty}</span>
-                    <button className="fd-qty-btn" onClick={() => adjustQty(idx, 1)}>+</button>
+                    <button className="fd-qty-btn" onClick={() => adjustQty(idx, 1)} data-track="ui.c952aceb7c.15">+</button>
                   </div>
+                  <label className="fd-pos-line-course">
+                    <span className="sr-only">{t('food.pos.course')}</span>
+                    <select value={line.courseNumber || 1} onChange={(e) => changeCourse(idx, e.target.value)} aria-label={t('food.pos.course')}>
+                      {Array.from({ length: 4 }, (_, courseIndex) => courseIndex + 1).map((course) => (
+                        <option key={course} value={course}>{t('food.pos.courseOption', { n: course })}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="fd-pos-line-seat">
+                    <span className="sr-only">{t('food.pos.seat')}</span>
+                    <select value={line.seatNumber || ''} onChange={(e) => changeSeat(idx, e.target.value)} aria-label={t('food.pos.seat')}>
+                      <option value="">{t('food.pos.noSeat')}</option>
+                      {Array.from({ length: 12 }, (_, seatIndex) => seatIndex + 1).map((seat) => (
+                        <option key={seat} value={seat}>{t('food.pos.seatOption', { n: seat })}</option>
+                      ))}
+                    </select>
+                  </label>
                   <div className="fd-price">{formatFoodMoney(line.unitCents * line.qty, currency)}</div>
                 </div>
               ))}
@@ -593,20 +897,20 @@ export default function RestaurantPOSPage() {
                   <span>{formatFoodMoney(totalCents, currency)}</span>
                 </div>
                 <div className="fd-pos-actions">
-                  <button className="fd-btn-secondary" onClick={handleSendToKitchen} disabled={submitting}>
+                  <button className="fd-btn-secondary" onClick={handleSendToKitchen} disabled={submitting} data-track="ui.c952aceb7c.16">
                     {t('food.pos.sendKitchen')}
                   </button>
                   <button
                     className="fd-btn"
-                    onClick={() => setShowPay(true)}
-                    disabled={submitting || !canManage}
-                    title={canManage ? undefined : t('food.pos.payManagerOnly')}
+                    onClick={() => { if (!checkoutId) setCheckoutId(crypto.randomUUID()); setShowPay(true); }}
+                    disabled={submitting || !canPay}
+                    title={canPay ? undefined : t('food.pos.payPermissionRequired')} data-track="ui.c952aceb7c.17"
                   >
                     {t('food.pos.payNow')}
                   </button>
                 </div>
-                {!canManage && (
-                  <div className="fd-pos-pay-hint">{t('food.pos.payManagerOnly')}</div>
+                {!canPay && (
+                  <div className="fd-pos-pay-hint">{t('food.pos.payPermissionRequired')}</div>
                 )}
               </div>
             )}
@@ -615,7 +919,7 @@ export default function RestaurantPOSPage() {
               <div className="fd-pos-order-done">
                 <div className="fd-pos-done-num">#{completedOrder.queue_number || completedOrder.id}</div>
                 <div>{t('food.pos.orderDone')}</div>
-                <button className="fd-btn-sm fd-btn-secondary" onClick={() => setCompletedOrder(null)}>
+                <button className="fd-btn-sm fd-btn-secondary" onClick={() => setCompletedOrder(null)} data-track="ui.c952aceb7c.18">
                   {t('food.pos.newOrder')}
                 </button>
               </div>
@@ -637,8 +941,10 @@ export default function RestaurantPOSPage() {
         <PaymentModal
           total={totalCents}
           currency={currency}
-          discounts={discounts}
-          onPay={handlePay}
+          discounts={pickerDiscounts}
+          serverOrder={checkoutOrder}
+          onCreateOrder={handleCreateCheckoutOrder}
+          onConfirmPayment={handleConfirmPayment}
           onClose={() => setShowPay(false)}
         />
       )}

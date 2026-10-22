@@ -5,6 +5,13 @@ import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+const ROLE_LABEL_KEYS = {
+  manager: 'businessHub.roleManager',
+  representative: 'businessHub.roleRepresentative',
+  employee: 'businessHub.roleEmployee',
+  support_agent: 'businessHub.roleSupportAgent',
+};
+
 const lazyDefault = (loader) => lazy(loader);
 const lazyNamed = (loader, exportName) => lazy(() => loader().then((module) => ({ default: module[exportName] })));
 
@@ -19,6 +26,7 @@ const MessagingWorkspace = lazyDefault(() => import('../components/messaging/Mes
 const AppointmentCalendarView = lazyNamed(() => import('../components/businessHub/AppointmentCalendarView'), 'AppointmentCalendarView');
 const BusinessServicesTab = lazyNamed(() => import('../components/businessHub/BusinessServicesTab'), 'BusinessServicesTab');
 import { PricingRulesManager } from '../components/businessHub/PricingRulesManager';
+import MemberPermissionsEditor from '../components/businessHub/MemberPermissionsEditor';
 import { ProductManagement } from '../components/businessHub/ProductManagement';
 import { ProductPricingManager } from '../components/businessHub/ProductPricingManager';
 const CustomerLoyaltyManager = lazyNamed(() => import('../components/businessHub/CustomerLoyaltyManager'), 'CustomerLoyaltyManager');
@@ -50,7 +58,7 @@ import {
   listInvoices, createInvoice, updateInvoice, markInvoicePaid, deleteInvoice, sendInvoice,
   getTax, refreshTax, markTaxPaid,
   listGoals, createGoal, updateGoal, deleteGoal,
-  inviteMember, revokeMember,
+  inviteMember, revokeMember, resendMemberInvite, listJobRoles,
   listMyInvitations, acceptInvitation, declineInvitation,
   listManagedBusinesses,
   listVortexTokens, generateVortexToken, revokeVortexToken,
@@ -181,6 +189,8 @@ function BusinessHubInner() {
 
   // modal state
   const [modal, setModal]     = useState(null); // 'add-biz' | 'add-inv' | 'edit-inv' | 'pay-inv' | 'add-goal' | 'edit-goal' | 'pay-tax'
+  const [jobRoles, setJobRoles] = useState([]);
+  const [roleChange, setRoleChange] = useState(null); // { member, newRole, reason } — S-09 confirmation
   const [selected, setSelected] = useState(null);
   const [form, setForm]       = useState({});
   const [saving, setSaving]   = useState(false);
@@ -221,6 +231,7 @@ function BusinessHubInner() {
 
   // team tab
   const [members, setMembers]             = useState([]);
+  const [permissionsMember, setPermissionsMember] = useState(null); // S-08 overrides editor
   const [membersLoading, setMembersLoading] = useState(false);
   const [invitations, setInvitations]     = useState([]);
   const [managedBiz, setManagedBiz]       = useState([]);
@@ -529,13 +540,15 @@ function BusinessHubInner() {
     if (!bizId) return;
     setMembersLoading(true);
     try {
-      const [m, inv, managed, tokens, codes] = await Promise.all([
+      const [m, inv, managed, tokens, codes, roles] = await Promise.all([
         listMemberships(bizId),
         listMyInvitations(),
         listManagedBusinesses(),
         LAUNCH_VISIBILITY.businessHubVortexAccess ? listVortexTokens(bizId).catch(() => []) : Promise.resolve([]),
         LAUNCH_VISIBILITY.businessHubVortexAccess ? listAccessCodes(bizId).catch(() => []) : Promise.resolve([]),
+        listJobRoles(bizId).catch(() => []),
       ]);
+      setJobRoles(roles);
       // listMemberships returns user_email; the team table expects member_email.
       setMembers(m.map((row) => ({ ...row, member_email: row.member_email || row.user_email })));
       setInvitations(inv);
@@ -908,9 +921,22 @@ function BusinessHubInner() {
   async function handleInviteMember() {
     if (!form.invite_email?.trim()) { setFormErr(t('businessHub.errEmailRequired')); return; }
     if (!form.invite_role) { setFormErr(t('businessHub.errRoleRequired')); return; }
+    // S-03: optional pay rate, entered in major units, stored as cents.
+    let payRateCents;
+    if (form.invite_pay_rate !== undefined && form.invite_pay_rate !== '') {
+      const parsed = Number(form.invite_pay_rate);
+      if (!Number.isFinite(parsed) || parsed < 0) { setFormErr(t('businessHub.errPayRateInvalid')); return; }
+      payRateCents = Math.round(parsed * 100);
+    }
     setSaving(true);
     try {
-      const result = await inviteMember(bizId, { email: form.invite_email.trim(), role: form.invite_role });
+      const result = await inviteMember(bizId, {
+        email: form.invite_email.trim(),
+        role: form.invite_role,
+        job_role: form.invite_job_role || undefined,
+        pay_rate_cents: payRateCents,
+        pay_rate_period: payRateCents !== undefined ? (form.invite_pay_period || 'hour') : undefined,
+      });
       toast.success(result.user_found ? t('businessHub.toastInviteSent') : t('businessHub.toastInviteRecorded'));
       closeModal();
       await loadTeam();
@@ -919,25 +945,34 @@ function BusinessHubInner() {
   }
 
   async function handleRevokeMember(member) {
-    const isCodePending = member.status === 'pending' && member.member_id;
     const isActive = member.status === 'active';
     const label = isActive
       ? t('businessHub.confirmRemoveMember', { name: member.first_name || member.invite_email })
       : t('businessHub.confirmCancelInvite', { email: member.invite_email });
     if (!window.confirm(label)) return;
     try {
-      // Active members are kicked via the dedicated remove endpoint (deny is
-      // pending-only). Pending email invites cancel via revokeMember.
+      // Active members are kicked via the dedicated remove endpoint.
+      // Pending invites — including invites sent to existing users — are
+      // cancelled through revokeMember (S-10): the Vortex-gated deny
+      // endpoint 503s while Vortex is launch-hidden, which left owners
+      // unable to withdraw an invite sent to the wrong person.
       if (isActive) {
         await removeMembership(bizId, member.id);
-      } else if (!isCodePending) {
-        await revokeMember(bizId, member.id);
       } else {
-        await denyMembership(bizId, member.id);
+        await revokeMember(bizId, member.id);
       }
       toast.success(t('businessHub.toastMemberRemoved'));
       await loadTeam();
     } catch { toast.error(t('businessHub.toastMemberRemoveFail')); }
+  }
+
+  async function handleResendInvite(member) {
+    if (!bizId) return;
+    try {
+      await resendMemberInvite(bizId, member.id);
+      toast.success(t('businessHub.toastInviteResent'));
+      await loadTeam();
+    } catch { toast.error(t('businessHub.toastInviteResendFail')); }
   }
 
   async function handleApproveMember(member) {
@@ -959,14 +994,29 @@ function BusinessHubInner() {
     } catch { toast.error(t('businessHub.toastMemberDenyFail')); }
   }
 
-  async function handleChangeMemberRole(member, newRole) {
+  // S-09: a role change no longer fires straight from the dropdown. It
+  // opens a confirmation that requires a reason; the server records the
+  // reason in the audit log and rejects unconfirmed changes.
+  function handleChangeMemberRole(member, newRole) {
     if (!bizId) return;
     if (newRole === member.role) return;
+    setFormErr('');
+    setRoleChange({ member, newRole, reason: '' });
+  }
+
+  async function confirmChangeMemberRole() {
+    if (!roleChange) return;
+    const reason = roleChange.reason.trim();
+    if (!reason) { setFormErr(t('businessHub.errReasonRequired')); return; }
+    setSaving(true);
     try {
-      await changeMembershipRole(bizId, member.id, newRole);
+      await changeMembershipRole(bizId, roleChange.member.id, roleChange.newRole, { reason, confirm: true });
       toast.success(t('businessHub.toastRoleChanged'));
+      setRoleChange(null);
+      setFormErr('');
       await loadTeam();
     } catch { toast.error(t('businessHub.toastRoleChangeFail')); }
+    finally { setSaving(false); }
   }
 
   async function handleAcceptInvitation(inv) {
@@ -1504,7 +1554,7 @@ function BusinessHubInner() {
                 Growth Center
               </Link>
             )}
-            <button className="bh-btn primary" onClick={() => { setFormErr(''); setModal('add-biz'); }}>
+            <button className="bh-btn primary" onClick={() => { setFormErr(''); setModal('add-biz'); }} data-track="ui.83b215c0c9.1">
               + {t('businessHub.addBusiness')}
             </button>
           </div>
@@ -1517,10 +1567,10 @@ function BusinessHubInner() {
           <div className="bh-empty">
             <p style={{ fontWeight: 700 }}>{t('businessHub.noBiz')}</p>
             <p>{t('businessHub.noBizDesc')}</p>
-            <button className="bh-btn" onClick={() => loadBusinesses()}>
+            <button className="bh-btn" onClick={() => loadBusinesses()} data-track="ui.83b215c0c9.2">
               {t('businessHub.tryAgain')}
             </button>
-            <button className="bh-btn primary" onClick={() => { setFormErr(''); setModal('add-biz'); }}>
+            <button className="bh-btn primary" onClick={() => { setFormErr(''); setModal('add-biz'); }} data-track="ui.83b215c0c9.3">
               {t('businessHub.addABusiness')}
             </button>
           </div>
@@ -1528,7 +1578,7 @@ function BusinessHubInner() {
           <div className="bh-empty">
             <p style={{ fontWeight: 700 }}>{t('businessHub.noBiz')}</p>
             <p>{t('businessHub.noBizDesc')}</p>
-            <button className="bh-btn primary" onClick={() => { setFormErr(''); setModal('add-biz'); }}>
+            <button className="bh-btn primary" onClick={() => { setFormErr(''); setModal('add-biz'); }} data-track="ui.83b215c0c9.4">
               {t('businessHub.addABusiness')}
             </button>
           </div>
@@ -1599,9 +1649,9 @@ function BusinessHubInner() {
                     </Link>
                   ) : (
                     <>
-                      <button className="bh-btn" type="button" onClick={() => setTab('profile')}>{t('businessCreation.editProfile', 'Edit profile')}</button>
-                      <button className="bh-btn" type="button" onClick={() => setTab('services')}>{t('businessCreation.addServices', 'Add services')}</button>
-                      <button className="bh-btn primary" type="button" onClick={handlePublishCurrentBusiness} disabled={saving}>
+                      <button className="bh-btn" type="button" onClick={() => setTab('profile')} data-track="ui.83b215c0c9.5">{t('businessCreation.editProfile', 'Edit profile')}</button>
+                      <button className="bh-btn" type="button" onClick={() => setTab('services')} data-track="ui.83b215c0c9.6">{t('businessCreation.addServices', 'Add services')}</button>
+                      <button className="bh-btn primary" type="button" onClick={handlePublishCurrentBusiness} disabled={saving} data-track="ui.83b215c0c9.7">
                         {saving ? t('businessCreation.checking', 'Checking...') : t('businessCreation.publish', 'Publish business')}
                       </button>
                     </>
@@ -1648,19 +1698,19 @@ function BusinessHubInner() {
                     </>
                   ) : (
                     <>
-                      <button className="bh-mode-action primary" type="button" onClick={() => setTab('services')}>
+                      <button className="bh-mode-action primary" type="button" onClick={() => setTab('services')} data-track="ui.83b215c0c9.8">
                         <strong>{t('businessHub.serviceList', { defaultValue: 'Services' })}</strong>
                         <span>{t('businessHub.serviceListHint', { defaultValue: 'What customers can book' })}</span>
                       </button>
-                      <button className="bh-mode-action" type="button" onClick={() => setTab('clients')}>
+                      <button className="bh-mode-action" type="button" onClick={() => setTab('clients')} data-track="ui.83b215c0c9.9">
                         <strong>{t('businessHub.serviceClients', { defaultValue: 'Clients' })}</strong>
                         <span>{t('businessHub.serviceClientsHint', { defaultValue: 'Relationships and follow-up' })}</span>
                       </button>
-                      <button className="bh-mode-action" type="button" onClick={() => setTab('calendar')}>
+                      <button className="bh-mode-action" type="button" onClick={() => setTab('calendar')} data-track="ui.83b215c0c9.10">
                         <strong>{t('businessHub.serviceSchedule', { defaultValue: 'Schedule' })}</strong>
                         <span>{t('businessHub.serviceScheduleHint', { defaultValue: 'Availability and appointments' })}</span>
                       </button>
-                      <button className="bh-mode-action" type="button" onClick={() => setTab('messages')}>
+                      <button className="bh-mode-action" type="button" onClick={() => setTab('messages')} data-track="ui.83b215c0c9.11">
                         <strong>{t('businessHub.serviceMessages', { defaultValue: 'Messages' })}</strong>
                         <span>{t('businessHub.serviceMessagesHint', { defaultValue: 'Customer conversations' })}</span>
                       </button>
@@ -1683,7 +1733,7 @@ function BusinessHubInner() {
             {/* Tabs */}
             <div className="bh-tabs">
               {visibleTabs.map(tb => (
-                <button key={tb} className={`bh-tab${tab === tb ? ' active' : ''}`} onClick={() => setTab(tb)}>
+                <button key={tb} className={`bh-tab${tab === tb ? ' active' : ''}`} onClick={() => setTab(tb)} data-track="ui.83b215c0c9.12">
                   {tabLabel(tb)}
                 </button>
               ))}
@@ -1700,7 +1750,7 @@ function BusinessHubInner() {
                   <p className="bh-error" style={{ marginBottom: '1rem' }}>
                     {typeof profileErr === 'string' ? profileErr : (profileErr?.message || t('businessHub.errorProfileLoad'))}
                   </p>
-                  <button type="button" className="bh-btn primary" onClick={() => loadProfile()}>
+                  <button type="button" className="bh-btn primary" onClick={() => loadProfile()} data-track="ui.83b215c0c9.13">
                     {t('businessHub.tryAgain')}
                   </button>
                 </div>
@@ -2111,10 +2161,13 @@ function BusinessHubInner() {
                 onOpenHiring={canEditBizProfile ? () => setTab('hiring') : null}
                 businessId={bizId}
                 onRevoke={handleRevokeMember}
+                onResend={handleResendInvite}
                 onApprove={handleApproveMember}
                 onDeny={handleDenyMember}
                 onChangeRole={handleChangeMemberRole}
                 isOwner={currentRole === 'owner'}
+                canEditPermissions={currentRole === 'owner' || currentRole === 'manager'}
+                onEditPermissions={(m) => setPermissionsMember(m)}
                 onAccept={handleAcceptInvitation}
                 onDecline={handleDeclineInvitation}
                 showOnceCode={showOnceCode}
@@ -2266,10 +2319,10 @@ function BusinessHubInner() {
                     <input placeholder={t('businessHub.placeholderLineDesc')} value={li.description || ''} onChange={e => updateLineItem(i, 'description', e.target.value)} />
                     <input type="number" placeholder={t('businessHub.placeholderLineQty')} value={li.quantity || ''} onChange={e => updateLineItem(i, 'quantity', e.target.value)} min="0" step="0.01" />
                     <input type="number" placeholder={t('businessHub.placeholderLineUnit')} value={li.unit_price || ''} onChange={e => updateLineItem(i, 'unit_price', e.target.value)} min="0" step="0.01" />
-                    <button className="bh-line-remove" onClick={() => removeLineItem(i)} disabled={(form.line_items || []).length <= 1}>×</button>
+                    <button className="bh-line-remove" onClick={() => removeLineItem(i)} disabled={(form.line_items || []).length <= 1} data-track="ui.83b215c0c9.14">×</button>
                   </div>
                 ))}
-                <button className="bh-line-add" onClick={addLineItem}>{t('businessHub.addLineItem')}</button>
+                <button className="bh-line-add" onClick={addLineItem} data-track="ui.83b215c0c9.15">{t('businessHub.addLineItem')}</button>
               </div>
 
               {/* Live totals preview */}
@@ -2289,8 +2342,8 @@ function BusinessHubInner() {
               <div className="bh-field"><label>{t('businessHub.fieldNotes')}</label><textarea name="notes" value={form.notes || ''} onChange={fc} rows={2} /></div>
               {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
               <div className="bh-modal-actions">
-                <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
-                <button className="bh-btn primary" onClick={handleSaveInvoice} disabled={saving}>{saving ? t('businessHub.btnSaving') : modal === 'add-inv' ? t('businessHub.btnCreateInvoice') : t('businessHub.btnSaveChanges')}</button>
+                <button className="bh-btn" onClick={closeModal} data-track="ui.83b215c0c9.16">{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={handleSaveInvoice} disabled={saving} data-track="ui.83b215c0c9.17">{saving ? t('businessHub.btnSaving') : modal === 'add-inv' ? t('businessHub.btnCreateInvoice') : t('businessHub.btnSaveChanges')}</button>
               </div>
             </div>
           </div>
@@ -2307,8 +2360,8 @@ function BusinessHubInner() {
               <div className="bh-field"><label>{t('businessHub.fieldAmountReceived')}</label><input type="number" name="amount" value={form.amount || ''} onChange={fc} min="0" step="0.01" /></div>
               {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
               <div className="bh-modal-actions">
-                <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
-                <button className="bh-btn primary" onClick={handleMarkInvoicePaid} disabled={saving}>{saving ? t('businessHub.btnSaving') : t('businessHub.btnMarkPaid')}</button>
+                <button className="bh-btn" onClick={closeModal} data-track="ui.83b215c0c9.18">{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={handleMarkInvoicePaid} disabled={saving} data-track="ui.83b215c0c9.19">{saving ? t('businessHub.btnSaving') : t('businessHub.btnMarkPaid')}</button>
               </div>
             </div>
           </div>
@@ -2347,8 +2400,8 @@ function BusinessHubInner() {
               </div>
               {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
               <div className="bh-modal-actions">
-                <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
-                <button className="bh-btn primary" onClick={handleSaveGoal} disabled={saving}>{saving ? t('businessHub.btnSaving') : modal === 'add-goal' ? t('businessHub.btnAddGoal') : t('businessHub.btnSaveChanges')}</button>
+                <button className="bh-btn" onClick={closeModal} data-track="ui.83b215c0c9.20">{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={handleSaveGoal} disabled={saving} data-track="ui.83b215c0c9.21">{saving ? t('businessHub.btnSaving') : modal === 'add-goal' ? t('businessHub.btnAddGoal') : t('businessHub.btnSaveChanges')}</button>
               </div>
             </div>
           </div>
@@ -2365,8 +2418,8 @@ function BusinessHubInner() {
               <div className="bh-field"><label>{t('businessHub.fieldAmountPaid')}</label><input type="number" name="amount" value={form.amount || ''} onChange={fc} min="0" step="0.01" /></div>
               {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
               <div className="bh-modal-actions">
-                <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
-                <button className="bh-btn primary" onClick={handleMarkTaxPaid} disabled={saving}>{saving ? t('businessHub.btnSaving') : t('businessHub.btnRecordPayment')}</button>
+                <button className="bh-btn" onClick={closeModal} data-track="ui.83b215c0c9.22">{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={handleMarkTaxPaid} disabled={saving} data-track="ui.83b215c0c9.23">{saving ? t('businessHub.btnSaving') : t('businessHub.btnRecordPayment')}</button>
               </div>
             </div>
           </div>
@@ -2393,17 +2446,91 @@ function BusinessHubInner() {
               <div className="bh-field">
                 <label>{t('businessHub.fieldRoleRequired')}</label>
                 <select name="invite_role" value={form.invite_role || 'representative'} onChange={fc}>
+                  <option value="employee">{t('businessHub.roleEmployeeDesc')}</option>
                   <option value="representative">{t('businessHub.roleRepresentativeDesc')}</option>
-                  <option value="manager">{t('businessHub.roleManagerDesc')}</option>
+                  <option value="support_agent">{t('businessHub.roleSupportAgentDesc')}</option>
+                  {/* S-09: only owners can create managers. */}
+                  {currentRole === 'owner' && (
+                    <option value="manager">{t('businessHub.roleManagerDesc')}</option>
+                  )}
                 </select>
+              </div>
+              <div className="bh-field">
+                <label>{t('businessHub.fieldJobRole')}</label>
+                <select name="invite_job_role" value={form.invite_job_role || ''} onChange={fc}>
+                  <option value="">{t('businessHub.jobRoleNone')}</option>
+                  {jobRoles.map((jr) => (
+                    <option key={jr.code} value={jr.code}>{jr.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="bh-field">
+                <label>{t('businessHub.fieldPayRate')}</label>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    name="invite_pay_rate"
+                    value={form.invite_pay_rate || ''}
+                    onChange={fc}
+                    placeholder={t('businessHub.placeholderPayRate')}
+                  />
+                  <select name="invite_pay_period" value={form.invite_pay_period || 'hour'} onChange={fc}>
+                    <option value="hour">{t('businessHub.payPeriodHour')}</option>
+                    <option value="week">{t('businessHub.payPeriodWeek')}</option>
+                    <option value="month">{t('businessHub.payPeriodMonth')}</option>
+                    <option value="year">{t('businessHub.payPeriodYear')}</option>
+                  </select>
+                </div>
               </div>
               {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
               <div className="bh-modal-actions">
-                <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
-                <button className="bh-btn primary" onClick={handleInviteMember} disabled={saving}>{saving ? t('businessHub.btnSending') : t('businessHub.btnSendInvite')}</button>
+                <button className="bh-btn" onClick={closeModal} data-track="ui.83b215c0c9.24">{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={handleInviteMember} disabled={saving} data-track="ui.83b215c0c9.25">{saving ? t('businessHub.btnSending') : t('businessHub.btnSendInvite')}</button>
               </div>
             </div>
           </div>
+        )}
+
+        {/* ── Modal: Confirm Role Change (S-09: confirmation + reason) ── */}
+        {roleChange && (
+          <div className="bh-modal-overlay" onClick={e => e.target === e.currentTarget && setRoleChange(null)}>
+            <div className="bh-modal">
+              <h2>{t('businessHub.modalChangeRole')}</h2>
+              <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)', marginBottom: '1rem' }}>
+                {t('businessHub.changeRoleDesc', {
+                  name: roleChange.member.first_name || roleChange.member.invite_email,
+                  from: t(ROLE_LABEL_KEYS[roleChange.member.role] || 'businessHub.roleEmployee'),
+                  to: t(ROLE_LABEL_KEYS[roleChange.newRole] || 'businessHub.roleEmployee'),
+                })}
+              </p>
+              <div className="bh-field">
+                <label>{t('businessHub.fieldChangeReason')}</label>
+                <textarea
+                  value={roleChange.reason}
+                  onChange={e => setRoleChange({ ...roleChange, reason: e.target.value })}
+                  placeholder={t('businessHub.placeholderChangeReason')}
+                  rows={3}
+                />
+              </div>
+              {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
+              <div className="bh-modal-actions">
+                <button className="bh-btn" onClick={() => { setRoleChange(null); setFormErr(''); }} data-track="ui.83b215c0c9.101">{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={confirmChangeMemberRole} disabled={saving} data-track="ui.83b215c0c9.102">{t('businessHub.btnConfirmChange')}</button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* ── S-08: per-member permission overrides editor ──────────── */}
+        {permissionsMember && (
+          <MemberPermissionsEditor
+            businessId={bizId}
+            member={permissionsMember}
+            onClose={() => setPermissionsMember(null)}
+            onSaved={() => { setPermissionsMember(null); loadTeam(); }}
+          />
+
         )}
 
         {/* ── Service Modal ────────────────────────────────────────────── */}
@@ -2446,18 +2573,18 @@ function BusinessHubInner() {
               </div>
               <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.85rem' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                  <input type="checkbox" name="popular" checked={form.popular || false} onChange={e => setForm(f => ({ ...f, popular: e.target.checked }))} />
+                  <input type="checkbox" name="popular" checked={form.popular || false} onChange={e => setForm(f => ({ ...f, popular: e.target.checked }))} data-track="ui.83b215c0c9.26" />
                   {t('businessHub.fieldPopular')}
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                  <input type="checkbox" name="is_active" checked={form.is_active !== false} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} />
+                  <input type="checkbox" name="is_active" checked={form.is_active !== false} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} data-track="ui.83b215c0c9.27" />
                   {t('businessHub.fieldActive')}
                 </label>
               </div>
               {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
               <div className="bh-modal-actions">
-                <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
-                <button className="bh-btn primary" onClick={handleSaveService} disabled={saving}>{saving ? t('businessHub.btnSaving') : t('businessHub.btnSaveService')}</button>
+                <button className="bh-btn" onClick={closeModal} data-track="ui.83b215c0c9.28">{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={handleSaveService} disabled={saving} data-track="ui.83b215c0c9.29">{saving ? t('businessHub.btnSaving') : t('businessHub.btnSaveService')}</button>
               </div>
             </div>
           </div>
@@ -2482,8 +2609,8 @@ function BusinessHubInner() {
               </div>
               {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
               <div className="bh-modal-actions">
-                <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
-                <button className="bh-btn primary" onClick={handleSavePhoto} disabled={saving}>{saving ? t('businessHub.btnSaving') : t('businessHub.btnSavePhoto')}</button>
+                <button className="bh-btn" onClick={closeModal} data-track="ui.83b215c0c9.30">{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={handleSavePhoto} disabled={saving} data-track="ui.83b215c0c9.31">{saving ? t('businessHub.btnSaving') : t('businessHub.btnSavePhoto')}</button>
               </div>
             </div>
           </div>
@@ -2508,8 +2635,8 @@ function BusinessHubInner() {
               </div>
               {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
               <div className="bh-modal-actions">
-                <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
-                <button className="bh-btn primary" onClick={handleSavePolicy} disabled={saving}>{saving ? t('businessHub.btnSaving') : t('businessHub.btnSavePolicy')}</button>
+                <button className="bh-btn" onClick={closeModal} data-track="ui.83b215c0c9.32">{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={handleSavePolicy} disabled={saving} data-track="ui.83b215c0c9.33">{saving ? t('businessHub.btnSaving') : t('businessHub.btnSavePolicy')}</button>
               </div>
             </div>
           </div>
@@ -2530,8 +2657,8 @@ function BusinessHubInner() {
               </div>
               {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
               <div className="bh-modal-actions">
-                <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
-                <button className="bh-btn primary" onClick={handleSaveFAQ} disabled={saving}>{saving ? t('businessHub.btnSaving') : t('businessHub.btnSaveFAQ')}</button>
+                <button className="bh-btn" onClick={closeModal} data-track="ui.83b215c0c9.34">{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={handleSaveFAQ} disabled={saving} data-track="ui.83b215c0c9.35">{saving ? t('businessHub.btnSaving') : t('businessHub.btnSaveFAQ')}</button>
               </div>
             </div>
           </div>
@@ -2551,7 +2678,7 @@ function BusinessHubInner() {
                     <div key={dayNum} style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '0.5rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                         <label style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                          <input type="checkbox" checked={isClosed} onChange={e => setForm(f => ({ ...f, [`closed_${dayNum}`]: e.target.checked }))} />
+                          <input type="checkbox" checked={isClosed} onChange={e => setForm(f => ({ ...f, [`closed_${dayNum}`]: e.target.checked }))} data-track="ui.83b215c0c9.36" />
                           <strong>{days[dayNum]}</strong>
                         </label>
                       </div>
@@ -2567,8 +2694,8 @@ function BusinessHubInner() {
               </div>
               {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem', marginTop: '1rem' }}>{formErr}</p>}
               <div className="bh-modal-actions">
-                <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
-                <button className="bh-btn primary" onClick={handleSaveHours} disabled={saving}>{saving ? t('businessHub.btnSaving') : t('businessHub.btnSaveHours')}</button>
+                <button className="bh-btn" onClick={closeModal} data-track="ui.83b215c0c9.37">{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={handleSaveHours} disabled={saving} data-track="ui.83b215c0c9.38">{saving ? t('businessHub.btnSaving') : t('businessHub.btnSaveHours')}</button>
               </div>
             </div>
           </div>
@@ -2656,19 +2783,19 @@ function OverviewTab({ analytics, currency, bizId, businessName, canManage, setT
           )}
         </div>
         <div className="bh-today-cards">
-          <button type="button" className="bh-today-card" onClick={goTo('calendar')}>
+          <button type="button" className="bh-today-card" onClick={goTo('calendar')} data-track="ui.83b215c0c9.39">
             <span className="bh-today-card-num">{calSummary?.today_count ?? '-'}</span>
             <span className="bh-today-card-label">{t('businessHub.overview.onCalendarToday')}</span>
           </button>
-          <button type="button" className="bh-today-card" onClick={goTo('calendar')}>
+          <button type="button" className="bh-today-card" onClick={goTo('calendar')} data-track="ui.83b215c0c9.40">
             <span className="bh-today-card-num">{calSummary?.this_week_count ?? '-'}</span>
             <span className="bh-today-card-label">{t('businessHub.overview.eventsThisWeek')}</span>
           </button>
-          <button type="button" className="bh-today-card" onClick={goTo('invoices')}>
+          <button type="button" className="bh-today-card" onClick={goTo('invoices')} data-track="ui.83b215c0c9.41">
             <span className="bh-today-card-num">{a?.invoices?.overdue_count ?? 0}</span>
             <span className="bh-today-card-label">{t('businessHub.overview.overdueInvoices')}</span>
           </button>
-          <button type="button" className="bh-today-card" onClick={goTo('invoices')}>
+          <button type="button" className="bh-today-card" onClick={goTo('invoices')} data-track="ui.83b215c0c9.42">
             <span className="bh-today-card-num">{fmt$(a?.invoices?.outstanding_total, currency)}</span>
             <span className="bh-today-card-label">{t('businessHub.overview.awaitingPayment')}</span>
           </button>
@@ -2678,31 +2805,31 @@ function OverviewTab({ analytics, currency, bizId, businessName, canManage, setT
       {/* ── Quick actions ribbon ──────────────────────────────────────────── */}
       <div className="bh-quick-actions" role="region" aria-label={t('businessHub.overview.quickActionsRegion')}>
         {canManage && (
-          <button type="button" className="bh-quick-btn" onClick={goTo('calendar')}>
+          <button type="button" className="bh-quick-btn" onClick={goTo('calendar')} data-track="ui.83b215c0c9.43">
             <span className="bh-quick-emoji" aria-hidden="true">📅</span>
             <strong>{t('businessHub.overview.quickActions.addEvent.title')}</strong>
             <span>{t('businessHub.overview.quickActions.addEvent.description')}</span>
           </button>
         )}
-        <button type="button" className="bh-quick-btn" onClick={goTo('invoices')}>
+        <button type="button" className="bh-quick-btn" onClick={goTo('invoices')} data-track="ui.83b215c0c9.44">
           <span className="bh-quick-emoji" aria-hidden="true">🧾</span>
           <strong>{t('businessHub.overview.quickActions.sendInvoice.title')}</strong>
           <span>{t('businessHub.overview.quickActions.sendInvoice.description')}</span>
         </button>
         {LAUNCH_VISIBILITY.businessHubFinancialPlanning && (
-          <button type="button" className="bh-quick-btn" onClick={goTo('goals')}>
+          <button type="button" className="bh-quick-btn" onClick={goTo('goals')} data-track="ui.83b215c0c9.45">
             <span className="bh-quick-emoji" aria-hidden="true">🎯</span>
             <strong>{t('businessHub.overview.quickActions.setGoal.title')}</strong>
             <span>{t('businessHub.overview.quickActions.setGoal.description')}</span>
           </button>
         )}
-        <button type="button" className="bh-quick-btn" onClick={goTo('team')}>
+        <button type="button" className="bh-quick-btn" onClick={goTo('team')} data-track="ui.83b215c0c9.46">
           <span className="bh-quick-emoji" aria-hidden="true">👥</span>
           <strong>{t('businessHub.overview.quickActions.inviteTeammate.title')}</strong>
           <span>{t('businessHub.overview.quickActions.inviteTeammate.description')}</span>
         </button>
         {LAUNCH_VISIBILITY.businessHubAdvancedOps && (
-          <button type="button" className="bh-quick-btn" onClick={goTo('maintenance')}>
+          <button type="button" className="bh-quick-btn" onClick={goTo('maintenance')} data-track="ui.83b215c0c9.47">
             <span className="bh-quick-emoji" aria-hidden="true">🛠</span>
             <strong>{t('businessHub.overview.quickActions.openMaintenance.title')}</strong>
             <span>{t('businessHub.overview.quickActions.openMaintenance.description')}</span>
@@ -2759,7 +2886,7 @@ function OverviewTab({ analytics, currency, bizId, businessName, canManage, setT
               <strong>{fmt$(a?.invoices?.overdue_total, currency)}</strong>
               <span>{t('businessHub.overview.outstandingOverdueRatio', { percent: outstandingPct })}</span>
             </p>
-            <button type="button" className="bh-link-btn" onClick={goTo('invoices')}>
+            <button type="button" className="bh-link-btn" onClick={goTo('invoices')} data-track="ui.83b215c0c9.48">
               {t('businessHub.overview.reviewInvoices')} →
             </button>
           </div>
@@ -2864,11 +2991,11 @@ function InvoicesTab({ data, onNew, onEdit, onPay, onDelete, onSend, currency })
       <div className="bh-card">
         <div className="bh-card-header">
           <div><h2>{t('businessHub.invoicesSection')}</h2></div>
-          <button className="bh-btn primary sm" onClick={onNew}>{t('businessHub.btnNewInvoice')}</button>
+          <button className="bh-btn primary sm" onClick={onNew} data-track="ui.83b215c0c9.49">{t('businessHub.btnNewInvoice')}</button>
         </div>
 
         {invoices.length === 0 ? (
-          <div className="bh-empty"><p>{t('businessHub.noInvoicesYet')}</p><button className="bh-btn primary" onClick={onNew}>{t('businessHub.btnCreateInvoiceShort')}</button></div>
+          <div className="bh-empty"><p>{t('businessHub.noInvoicesYet')}</p><button className="bh-btn primary" onClick={onNew} data-track="ui.83b215c0c9.50">{t('businessHub.btnCreateInvoiceShort')}</button></div>
         ) : (
           <div className="bh-table-wrap">
             <table className="bh-table">
@@ -2892,13 +3019,13 @@ function InvoicesTab({ data, onNew, onEdit, onPay, onDelete, onSend, currency })
                     <td className="num">{fmt$(inv.amount_paid, currency)}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       {inv.status === 'draft' && (
-                        <button className="bh-btn sm" style={{ marginRight: '0.3rem' }} onClick={() => onSend(inv)}>{t('businessHub.btnSendInvoice')}</button>
+                        <button className="bh-btn sm" style={{ marginRight: '0.3rem' }} onClick={() => onSend(inv)} data-track="ui.83b215c0c9.51">{t('businessHub.btnSendInvoice')}</button>
                       )}
                       {inv.status !== 'paid' && inv.status !== 'cancelled' && (
-                        <button className="bh-btn sm" style={{ marginRight: '0.3rem' }} onClick={() => onPay(inv)}>{t('businessHub.btnMarkPaid')}</button>
+                        <button className="bh-btn sm" style={{ marginRight: '0.3rem' }} onClick={() => onPay(inv)} data-track="ui.83b215c0c9.52">{t('businessHub.btnMarkPaid')}</button>
                       )}
-                      <button className="bh-btn sm" style={{ marginRight: '0.3rem' }} onClick={() => onEdit(inv)}>{t('businessHub.btnEdit')}</button>
-                      <button className="bh-btn sm danger" onClick={() => onDelete(inv)}>{t('businessHub.btnDelete')}</button>
+                      <button className="bh-btn sm" style={{ marginRight: '0.3rem' }} onClick={() => onEdit(inv)} data-track="ui.83b215c0c9.53">{t('businessHub.btnEdit')}</button>
+                      <button className="bh-btn sm danger" onClick={() => onDelete(inv)} data-track="ui.83b215c0c9.54">{t('businessHub.btnDelete')}</button>
                     </td>
                   </tr>
                 ))}
@@ -2933,7 +3060,7 @@ function TaxTab({ data, onRefresh, onPay, currency }) {
           <h2>{t('businessHub.taxSection')}</h2>
           <p>{t('businessHub.taxSectionDesc')}</p>
         </div>
-        <button className="bh-btn sm" onClick={onRefresh}>{t('businessHub.btnRefreshEstimates')}</button>
+        <button className="bh-btn sm" onClick={onRefresh} data-track="ui.83b215c0c9.55">{t('businessHub.btnRefreshEstimates')}</button>
       </div>
 
       {estimates.length === 0 ? (
@@ -2957,7 +3084,7 @@ function TaxTab({ data, onRefresh, onPay, currency }) {
                   <td className="num">{fmt$(est.estimated_tax, currency)}</td>
                   <td>
                     {est.status !== 'paid' && (
-                      <button className="bh-btn sm" onClick={() => onPay(est)}>{t('businessHub.btnMarkPaid')}</button>
+                      <button className="bh-btn sm" onClick={() => onPay(est)} data-track="ui.83b215c0c9.56">{t('businessHub.btnMarkPaid')}</button>
                     )}
                   </td>
                 </tr>
@@ -2998,11 +3125,11 @@ function GoalsTab({ goals, analytics, onNew, onEdit, onDelete, currency }) {
     <div className="bh-card">
       <div className="bh-card-header">
         <div><h2>{t('businessHub.goalsSection')}</h2></div>
-        <button className="bh-btn primary sm" onClick={onNew}>{t('businessHub.btnAddGoalShort')}</button>
+        <button className="bh-btn primary sm" onClick={onNew} data-track="ui.83b215c0c9.57">{t('businessHub.btnAddGoalShort')}</button>
       </div>
 
       {goals.length === 0 ? (
-        <div className="bh-empty"><p>{t('businessHub.noGoalsYet')}</p><button className="bh-btn primary" onClick={onNew}>{t('businessHub.btnAddAGoal')}</button></div>
+        <div className="bh-empty"><p>{t('businessHub.noGoalsYet')}</p><button className="bh-btn primary" onClick={onNew} data-track="ui.83b215c0c9.58">{t('businessHub.btnAddAGoal')}</button></div>
       ) : (
         <div className="bh-goal-list">
           {goals.map(g => {
@@ -3020,8 +3147,8 @@ function GoalsTab({ goals, analytics, onNew, onEdit, onDelete, currency }) {
                     <div className="bh-goal-meta">{goalTypeLabel(g.goal_type)} · {periodLabel(g.period)}</div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.4rem' }}>
-                    <button className="bh-btn sm" onClick={() => onEdit(g)}>{t('businessHub.btnEdit')}</button>
-                    <button className="bh-btn sm danger" onClick={() => onDelete(g)}>{t('businessHub.btnDelete')}</button>
+                    <button className="bh-btn sm" onClick={() => onEdit(g)} data-track="ui.83b215c0c9.59">{t('businessHub.btnEdit')}</button>
+                    <button className="bh-btn sm danger" onClick={() => onDelete(g)} data-track="ui.83b215c0c9.60">{t('businessHub.btnDelete')}</button>
                   </div>
                 </div>
                 <div className="bh-goal-progress-track">
@@ -3085,7 +3212,7 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
             <Link className="bh-btn" to={`/business/${businessId}/maintenance-request`} target="_blank" rel="noopener noreferrer">
               {t('businessHub.rooms.openTenantForm')}
             </Link>
-            <button className="bh-btn" onClick={onRefresh}>{t('businessHub.rooms.refresh')}</button>
+            <button className="bh-btn" onClick={onRefresh} data-track="ui.83b215c0c9.61">{t('businessHub.rooms.refresh')}</button>
           </div>
         </div>
 
@@ -3118,7 +3245,7 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
                   {(request.photo_urls || []).length > 0 && (
                     <div className="bh-maint-photos">
                       {request.photo_urls.slice(0, 5).map((url) => (
-                        <a key={url} href={url} target="_blank" rel="noopener noreferrer">
+                        <a key={url} href={url} target="_blank" rel="noopener noreferrer" data-track="ui.83b215c0c9.62">
                           <img src={url} alt="" loading="lazy" />
                         </a>
                       ))}
@@ -3187,8 +3314,8 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
                   </div>
 
                   <div className="bh-maint-actions">
-                    <button className="bh-btn primary" onClick={() => onUpdate(request.id, draft)}>{t('businessHub.rooms.saveUpdate')}</button>
-                    <button className="bh-btn" onClick={() => onConvert(request.id)} disabled={!!request.job_id}>
+                    <button className="bh-btn primary" onClick={() => onUpdate(request.id, draft)} data-track="ui.83b215c0c9.63">{t('businessHub.rooms.saveUpdate')}</button>
+                    <button className="bh-btn" onClick={() => onConvert(request.id)} disabled={!!request.job_id} data-track="ui.83b215c0c9.64">
                       {request.job_id ? t('businessHub.rooms.alreadyConverted') : t('businessHub.rooms.convertToJob')}
                     </button>
                     <Link className="bh-btn" to="/helpers">{t('businessHub.rooms.findHelper')}</Link>
@@ -3211,8 +3338,8 @@ function TeamTab({
   onRevokeToken, onRevokeAccessCode, onRotateAccessCode,
   showVortexAccess = false,
   onInvite, onOpenHiring, businessId,
-  onRevoke, onAccept, onDecline, onApprove, onDeny, onChangeRole,
-  isOwner = false,
+  onRevoke, onResend, onAccept, onDecline, onApprove, onDeny, onChangeRole,
+  isOwner = false, canEditPermissions = false, onEditPermissions,
   showOnceCode, onDismissShowOnceCode,
 }) {
   const { t } = useTranslation();
@@ -3268,8 +3395,8 @@ function TeamTab({
                   </span>
                 </div>
                 <div className="bh-team-invite-actions">
-                  <button className="bh-btn primary" onClick={() => onAccept(inv)}>{t('businessHub.btnAccept')}</button>
-                  <button className="bh-btn" onClick={() => onDecline(inv)}>{t('businessHub.btnDecline')}</button>
+                  <button className="bh-btn primary" onClick={() => onAccept(inv)} data-track="ui.83b215c0c9.65">{t('businessHub.btnAccept')}</button>
+                  <button className="bh-btn" onClick={() => onDecline(inv)} data-track="ui.83b215c0c9.66">{t('businessHub.btnDecline')}</button>
                 </div>
               </div>
             ))}
@@ -3334,7 +3461,7 @@ function TeamTab({
             <input
               type="checkbox"
               checked={accessCodeForm.requires_approval}
-              onChange={e => onAccessCodeFormChange({ requires_approval: e.target.checked })}
+              onChange={e => onAccessCodeFormChange({ requires_approval: e.target.checked })} data-track="ui.83b215c0c9.67"
             />
             <span>{t('businessHub.accessCodeRequireApproval')}</span>
           </label>
@@ -3356,7 +3483,7 @@ function TeamTab({
             aria-label={t('businessHub.accessCodeExpiresLabel')}
             onChange={e => onAccessCodeFormChange({ expires_in_days: e.target.value })}
           />
-          <button className="bh-btn primary" onClick={onCreateAccessCode} disabled={generatingAccessCode}>
+          <button className="bh-btn primary" onClick={onCreateAccessCode} disabled={generatingAccessCode} data-track="ui.83b215c0c9.68">
             {generatingAccessCode ? t('businessHub.btnCreatingAccessCode') : t('businessHub.btnCreateAccessCode')}
           </button>
         </div>
@@ -3392,7 +3519,7 @@ function TeamTab({
                         <button
                           className="bh-btn"
                           onClick={() => copyToken(code.code, code.id, 'access')}
-                          style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                          style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} data-track="ui.83b215c0c9.69"
                         >
                           {copiedAccessCodeId === code.id ? t('businessHub.btnCopied') : t('businessHub.btnCopy')}
                         </button>
@@ -3400,11 +3527,11 @@ function TeamTab({
                       <button
                         className="bh-btn"
                         onClick={() => onRotateAccessCode(code.id)}
-                        style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                        style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} data-track="ui.83b215c0c9.70"
                       >
                         {t('businessHub.btnRotateCode')}
                       </button>
-                      <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevokeAccessCode(code.id)}>{t('businessHub.btnRevoke')}</button>
+                      <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevokeAccessCode(code.id)} data-track="ui.83b215c0c9.71">{t('businessHub.btnRevoke')}</button>
                     </>
                   )}
                 </div>
@@ -3428,7 +3555,7 @@ function TeamTab({
                       navigator.clipboard.writeText(showOnceCode.code).then(() => {
                         toast.success(t('businessHub.btnCopied'));
                       }).catch(() => {});
-                    }}
+                    }} data-track="ui.83b215c0c9.72"
                   >
                     {t('businessHub.btnCopy')}
                   </button>
@@ -3439,7 +3566,7 @@ function TeamTab({
                   </p>
                 )}
                 <div className="bh-modal-actions">
-                  <button className="bh-btn primary" onClick={onDismissShowOnceCode}>
+                  <button className="bh-btn primary" onClick={onDismissShowOnceCode} data-track="ui.83b215c0c9.73">
                     {t('businessHub.showOnceDismiss')}
                   </button>
                 </div>
@@ -3473,7 +3600,7 @@ function TeamTab({
             <option value="30d">{t('businessHub.vortexExpires30d')}</option>
             <option value="60d">{t('businessHub.vortexExpires60d')}</option>
           </select>
-          <button className="bh-btn primary" onClick={onGenerateToken} disabled={generatingToken}>
+          <button className="bh-btn primary" onClick={onGenerateToken} disabled={generatingToken} data-track="ui.83b215c0c9.74">
             {generatingToken ? t('businessHub.btnGenerating') : t('businessHub.btnGenerateToken')}
           </button>
         </div>
@@ -3518,11 +3645,11 @@ function TeamTab({
                         <button
                           className="bh-btn"
                           onClick={() => copyToken(tokenStr, tk.id)}
-                          style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                          style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} data-track="ui.83b215c0c9.75"
                         >
                           {copiedTokenId === tk.id ? t('businessHub.btnCopied') : t('businessHub.btnCopy')}
                         </button>
-                        <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevokeToken(tk.id)}>{t('businessHub.btnRevoke')}</button>
+                        <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevokeToken(tk.id)} data-track="ui.83b215c0c9.76">{t('businessHub.btnRevoke')}</button>
                       </>
                     )}
                   </div>
@@ -3541,12 +3668,12 @@ function TeamTab({
           <h3 className="bh-team-heading">{t('businessHub.teamMembersSection')}</h3>
           <div className="bh-team-heading-actions" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
             {onOpenHiring && (
-              <button className="bh-btn" onClick={onOpenHiring}>{t('businessHub.openHiring')}</button>
+              <button className="bh-btn" onClick={onOpenHiring} data-track="ui.83b215c0c9.77">{t('businessHub.openHiring')}</button>
             )}
             {businessId && (
               <Link className="bh-btn" to={`/business/${businessId}/careers`}>{t('businessHub.viewPublicCareers')}</Link>
             )}
-            <button className="bh-btn primary" onClick={onInvite}>{t('businessHub.btnInvite')}</button>
+            <button className="bh-btn primary" onClick={onInvite} data-track="ui.83b215c0c9.78">{t('businessHub.btnInvite')}</button>
           </div>
         </div>
         {onOpenHiring && (
@@ -3610,32 +3737,55 @@ function TeamTab({
                       // Code-join approvals are a Vortex code flow: the
                       // approve/deny APIs 503 while VORTEX_ENABLED is off, so
                       // the buttons only render when the feature is launched.
+                      // Email invites to existing users also land in this
+                      // state; those are managed through resend/cancel
+                      // (revokeMember), which never depends on Vortex (S-10).
                       showVortexAccess ? (
                       <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                         <button
                           className="bh-btn primary"
                           style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
-                          onClick={() => onApprove(m)}
+                          onClick={() => onApprove(m)} data-track="ui.83b215c0c9.79"
                         >
                           {t('businessHub.btnApprove')}
                         </button>
-                        <button className="bh-btn bh-btn-danger-sm" onClick={() => onDeny(m)}>
+                        <button className="bh-btn bh-btn-danger-sm" onClick={() => onDeny(m)} data-track="ui.83b215c0c9.80">
                           {t('businessHub.btnDeny')}
                         </button>
                       </div>
                       ) : (
-                        <span style={{ fontSize: '0.78rem', color: 'var(--muted-text)' }}>
-                          {t('businessHub.statusAwaitingApproval')}
-                        </span>
+                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--muted-text)' }}>
+                            {t('businessHub.statusAwaitingApproval')}
+                          </span>
+                          <button className="bh-btn" style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => onResend(m)} data-track="ui.83b215c0c9.103">
+                            {t('businessHub.btnResendInvite')}
+                          </button>
+                          <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)} data-track="ui.83b215c0c9.104">
+                            {t('businessHub.btnCancelInvite')}
+                          </button>
+                        </div>
                       )
                     ) : m.status === 'pending' ? (
-                      <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)}>
-                        {t('businessHub.btnCancelInvite')}
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <button className="bh-btn" style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => onResend(m)} data-track="ui.83b215c0c9.105">
+                          {t('businessHub.btnResendInvite')}
+                        </button>
+                        <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)} data-track="ui.83b215c0c9.81">
+                          {t('businessHub.btnCancelInvite')}
+                        </button>
+                      </div>
                     ) : (
-                      <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)}>
-                        {t('businessHub.btnRemoveMember')}
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        {canEditPermissions && m.status === 'active' && (
+                          <button className="bh-btn" style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => onEditPermissions(m)} data-track="ui.83b215c0c9.106">
+                            {t('businessHub.btnPermissions')}
+                          </button>
+                        )}
+                        <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)} data-track="ui.83b215c0c9.82">
+                          {t('businessHub.btnRemoveMember')}
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -3662,7 +3812,7 @@ function ServicesTab({ services, businessId, onNew, onEdit, onDelete }) {
         <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)' }}>
           {t('businessHub.addServicesToYourBusiness')}
         </p>
-        <button className="bh-btn primary" style={{ marginTop: '1rem' }} onClick={onNew}>{t('businessHub.addService')}</button>
+        <button className="bh-btn primary" style={{ marginTop: '1rem' }} onClick={onNew} data-track="ui.83b215c0c9.83">{t('businessHub.addService')}</button>
       </div>
     );
   }
@@ -3679,13 +3829,13 @@ function ServicesTab({ services, businessId, onNew, onEdit, onDelete }) {
               {!svc.is_active && <span style={{ fontSize: '0.75rem', color: '#f87171', marginLeft: '0.5rem' }}>({t('businessHub.rooms.inactive')})</span>}
             </div>
             <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-              <button className="min-h-[44px] flex-1 px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded transition sm:flex-none" onClick={() => onEdit(svc)}>{t('businessHub.btnEdit')}</button>
-              <button className="min-h-[44px] flex-1 px-3 py-1 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition sm:flex-none" onClick={() => onDelete(svc)}>{t('businessHub.btnDelete')}</button>
+              <button className="min-h-[44px] flex-1 px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded transition sm:flex-none" onClick={() => onEdit(svc)} data-track="ui.83b215c0c9.84">{t('businessHub.btnEdit')}</button>
+              <button className="min-h-[44px] flex-1 px-3 py-1 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition sm:flex-none" onClick={() => onDelete(svc)} data-track="ui.83b215c0c9.85">{t('businessHub.btnDelete')}</button>
             </div>
           </div>
         </div>
       ))}
-      <button className="w-full py-2 px-4 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg transition border border-orange-600/30" onClick={onNew}>
+      <button className="w-full py-2 px-4 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg transition border border-orange-600/30" onClick={onNew} data-track="ui.83b215c0c9.86">
         {t('businessHub.addService')}
       </button>
     </div>
@@ -3702,7 +3852,7 @@ function GalleryTab({ gallery, businessId, onNew, onEdit, onDelete }) {
         <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)' }}>
           {t('businessHub.uploadPhotosToShowcase')}
         </p>
-        <button className="bh-btn primary" style={{ marginTop: '1rem' }} onClick={onNew}>{t('businessHub.uploadPhotos')}</button>
+        <button className="bh-btn primary" style={{ marginTop: '1rem' }} onClick={onNew} data-track="ui.83b215c0c9.87">{t('businessHub.uploadPhotos')}</button>
       </div>
     );
   }
@@ -3714,13 +3864,13 @@ function GalleryTab({ gallery, businessId, onNew, onEdit, onDelete }) {
           <div key={photo.id} className="relative bg-gray-900 rounded-lg overflow-hidden border border-gray-800 group">
             <img src={photo.url} alt={photo.alt || photo.caption || t('businessHub.galleryPhoto')} className="w-full h-48 object-cover" loading="lazy" />
             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
-              <button className="px-3 py-1 text-sm bg-orange-600 hover:bg-orange-700 rounded text-white" onClick={() => onEdit(photo)}>{t('businessHub.btnEdit')}</button>
-              <button className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 rounded text-white" onClick={() => onDelete(photo)}>{t('businessHub.btnDelete')}</button>
+              <button className="px-3 py-1 text-sm bg-orange-600 hover:bg-orange-700 rounded text-white" onClick={() => onEdit(photo)} data-track="ui.83b215c0c9.88">{t('businessHub.btnEdit')}</button>
+              <button className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 rounded text-white" onClick={() => onDelete(photo)} data-track="ui.83b215c0c9.89">{t('businessHub.btnDelete')}</button>
             </div>
           </div>
         ))}
       </div>
-      <button className="w-full py-2 px-4 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg transition border border-orange-600/30" onClick={onNew}>
+      <button className="w-full py-2 px-4 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg transition border border-orange-600/30" onClick={onNew} data-track="ui.83b215c0c9.90">
         {t('businessHub.uploadPhotos')}
       </button>
     </div>
@@ -3737,7 +3887,7 @@ function PoliciesTab({ policies, businessId, onNew, onEdit, onDelete }) {
         <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)' }}>
           {t('businessHub.addPoliciesForClients')}
         </p>
-        <button className="bh-btn primary" style={{ marginTop: '1rem' }} onClick={onNew}>{t('businessHub.addPolicy')}</button>
+        <button className="bh-btn primary" style={{ marginTop: '1rem' }} onClick={onNew} data-track="ui.83b215c0c9.91">{t('businessHub.addPolicy')}</button>
       </div>
     );
   }
@@ -3752,13 +3902,13 @@ function PoliciesTab({ policies, businessId, onNew, onEdit, onDelete }) {
               <p className="text-sm text-gray-400 mt-2" style={{ whiteSpace: 'pre-wrap' }}>{policy.content}</p>
             </div>
             <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-              <button className="min-h-[44px] flex-1 px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded transition sm:flex-none" onClick={() => onEdit(policy)}>{t('businessHub.btnEdit')}</button>
-              <button className="min-h-[44px] flex-1 px-3 py-1 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition sm:flex-none" onClick={() => onDelete(policy)}>{t('businessHub.btnDelete')}</button>
+              <button className="min-h-[44px] flex-1 px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded transition sm:flex-none" onClick={() => onEdit(policy)} data-track="ui.83b215c0c9.92">{t('businessHub.btnEdit')}</button>
+              <button className="min-h-[44px] flex-1 px-3 py-1 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition sm:flex-none" onClick={() => onDelete(policy)} data-track="ui.83b215c0c9.93">{t('businessHub.btnDelete')}</button>
             </div>
           </div>
         </div>
       ))}
-      <button className="w-full py-2 px-4 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg transition border border-orange-600/30" onClick={onNew}>
+      <button className="w-full py-2 px-4 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg transition border border-orange-600/30" onClick={onNew} data-track="ui.83b215c0c9.94">
         {t('businessHub.addPolicy')}
       </button>
     </div>
@@ -3776,7 +3926,7 @@ function FAQsTab({ faqs, businessId, onNew, onEdit, onDelete }) {
         <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)' }}>
           {t('businessHub.addFAQsForClients')}
         </p>
-        <button className="bh-btn primary" style={{ marginTop: '1rem' }} onClick={onNew}>{t('businessHub.addFAQ')}</button>
+        <button className="bh-btn primary" style={{ marginTop: '1rem' }} onClick={onNew} data-track="ui.83b215c0c9.95">{t('businessHub.addFAQ')}</button>
       </div>
     );
   }
@@ -3787,7 +3937,7 @@ function FAQsTab({ faqs, businessId, onNew, onEdit, onDelete }) {
         <div key={faq.id} className="bg-gray-900 border border-gray-800 rounded-lg">
           <button
             onClick={() => setExpandedId(expandedId === faq.id ? null : faq.id)}
-            className="w-full px-4 py-3 flex justify-between items-center hover:bg-gray-800/50 transition"
+            className="w-full px-4 py-3 flex justify-between items-center hover:bg-gray-800/50 transition" data-track="ui.83b215c0c9.96"
           >
             <h4 className="font-semibold text-white text-left">{faq.question}</h4>
             <span className="text-gray-400">{expandedId === faq.id ? '−' : '+'}</span>
@@ -3796,14 +3946,14 @@ function FAQsTab({ faqs, businessId, onNew, onEdit, onDelete }) {
             <div className="px-4 py-3 border-t border-gray-800 bg-gray-900/50">
               <p className="text-gray-300 text-sm" style={{ whiteSpace: 'pre-wrap' }}>{faq.answer}</p>
               <div className="flex gap-2 mt-3">
-                <button className="px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded transition" onClick={() => onEdit(faq)}>{t('businessHub.btnEdit')}</button>
-                <button className="px-3 py-1 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition" onClick={() => onDelete(faq)}>{t('businessHub.btnDelete')}</button>
+                <button className="px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded transition" onClick={() => onEdit(faq)} data-track="ui.83b215c0c9.97">{t('businessHub.btnEdit')}</button>
+                <button className="px-3 py-1 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition" onClick={() => onDelete(faq)} data-track="ui.83b215c0c9.98">{t('businessHub.btnDelete')}</button>
               </div>
             </div>
           )}
         </div>
       ))}
-      <button className="w-full py-2 px-4 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg transition border border-orange-600/30" onClick={onNew}>
+      <button className="w-full py-2 px-4 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg transition border border-orange-600/30" onClick={onNew} data-track="ui.83b215c0c9.99">
         {t('businessHub.addFAQ')}
       </button>
     </div>
@@ -3819,7 +3969,7 @@ function HoursTab({ hours, businessId, onEdit }) {
     <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-semibold text-white">{t('businessHub.businessHours')}</h3>
-        <button className="bh-btn sm" onClick={onEdit}>{t('businessHub.btnEdit')}</button>
+        <button className="bh-btn sm" onClick={onEdit} data-track="ui.83b215c0c9.100">{t('businessHub.btnEdit')}</button>
       </div>
       <div className="space-y-4">
         {[0, 1, 2, 3, 4, 5, 6].map(dayNum => {

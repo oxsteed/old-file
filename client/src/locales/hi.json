@@ -33543,5 +33543,13 @@
   "adminCreditApprovalGraceEnds": "अनुग्रह अवधि समाप्त",
   "adminCreditApprovalRevokedAt": "रद्द किए जाने का समय",
   "adminCreditApprovalMigratedAt": "बैलेंस स्थानांतरित",
-  "adminCreditApprovalGrandfathered": "अनुमोदित (कोई अनुमोदन रिकॉर्ड नहीं)"
+  "adminCreditApprovalGrandfathered": "अनुमोदित (कोई अनुमोदन रिकॉर्ड नहीं)",
+  "growthInsights": {
+    "analyticsStorage": "Google Analytics और डिवाइस संग्रहण",
+    "analyticsStorageDescription": "EEA, ब्रिटेन, स्विट्ज़रलैंड और क्यूबेक में ट्रैकिंग और गतिविधि आधारित ऑफ़र के लिए अलग सहमतियाँ चाहिए, जिन्हें सेटिंग में वापस लिया जा सकता है। लागू अमेरिकी राज्यों में बिक्री या साझाकरण से इनकार और Global Privacy Control उपलब्ध हैं। अन्य क्षेत्रों में एनालिटिक्स सेटिंग Google Analytics और स्थायी डिवाइस संग्रहण नियंत्रित करती है; गतिविधि इस सूचना के अंतर्गत आती है।",
+    "policy": "गोपनीयता नीति",
+    "changedOn": "हमारी गोपनीयता नीति {{date}} को बदल गई है।",
+    "changesOn": "हमारी गोपनीयता नीति {{date}} को बदल रही है।",
+    "dismiss": "बंद करें"
+  }
 }

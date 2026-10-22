@@ -82,8 +82,8 @@ const CardSkeleton = () => (
         <div className="h-3 bg-gray-800 rounded w-16" />
       </div>
       <div className="flex gap-2 pt-2">
-        <button className="flex-1 h-9 bg-gray-800 rounded-xl" disabled />
-        <button className="flex-1 h-9 bg-gray-800 rounded-xl" disabled />
+        <button className="flex-1 h-9 bg-gray-800 rounded-xl" disabled data-track="ui.038c715468.1" />
+        <button className="flex-1 h-9 bg-gray-800 rounded-xl" disabled data-track="ui.038c715468.2" />
       </div>
     </div>
   </div>
@@ -126,7 +126,7 @@ const FilterDrawer = ({ open, onClose, children, activeCount }) => {
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
-            aria-label={t('common.close')}
+            aria-label={t('common.close')} data-track="ui.038c715468.3"
           >
             <X className="w-5 h-5" />
           </button>
@@ -137,7 +137,7 @@ const FilterDrawer = ({ open, onClose, children, activeCount }) => {
         <div className="px-4 py-3 border-t border-gray-800 flex-shrink-0">
           <button
             onClick={onClose}
-            className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition-colors"
+            className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition-colors" data-track="ui.038c715468.4"
           >
             {t('marketplace.showResults')}
           </button>
@@ -171,7 +171,7 @@ const CategoryTileGrid = ({ selectedCategory, onSelect }) => {
                     ? 'bg-orange-500/20 border-orange-500 text-orange-300 shadow-sm shadow-orange-500/20'
                     : 'bg-gray-800/60 border-gray-700 text-gray-400 hover:bg-gray-800 hover:border-gray-600 hover:text-gray-200'
                   }
-                `}
+                `} data-track="ui.038c715468.5"
               >
                 <span className="text-xl leading-none" aria-hidden="true">{cat.icon}</span>
                 <span className="text-xs font-medium leading-tight">{cat.label}</span>
@@ -237,7 +237,7 @@ const DirectoryHero = ({ searchValue, onSearch }) => {
                 key={cat.id}
                 type="button"
                 onClick={() => onSearch(cat.label)}
-                className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 hover:text-white transition-colors"
+                className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 hover:text-white transition-colors" data-track="ui.038c715468.6"
               >
                 {cat.label}
               </button>
@@ -273,7 +273,7 @@ const SkillFilterStrip = ({ skills, selectedSkillId, onSelectSkill, showingRecom
               <button
                 type="button"
                 onClick={() => onSelectSkill('')}
-                className="text-sm text-orange-400 hover:text-orange-300 transition-colors"
+                className="text-sm text-orange-400 hover:text-orange-300 transition-colors" data-track="ui.038c715468.7"
               >
                 {t('marketplace.clearSkillFilter', { defaultValue: 'Clear skill filter' })}
               </button>
@@ -291,7 +291,7 @@ const SkillFilterStrip = ({ skills, selectedSkillId, onSelectSkill, showingRecom
                     active
                       ? 'bg-orange-500/20 border-orange-500 text-orange-200'
                       : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white'
-                  }`}
+                  }`} data-track="ui.038c715468.8"
                 >
                   {skill.skill_name}
                 </button>
@@ -317,15 +317,15 @@ const FilterPanel = ({ selectedCategory, selectedMinPrice, selectedMaxPrice, onC
         </h3>
         <div className="space-y-2">
           <label className="flex items-center gap-3 cursor-pointer group">
-            <input type="checkbox" className="w-4 h-4 rounded border-gray-600 bg-gray-800 accent-orange-500" />
+            <input type="checkbox" className="w-4 h-4 rounded border-gray-600 bg-gray-800 accent-orange-500" data-track="ui.038c715468.9" />
             <span className="text-sm text-gray-400 group-hover:text-gray-300">{t('marketplace.inStock')}</span>
           </label>
           <label className="flex items-center gap-3 cursor-pointer group">
-            <input type="checkbox" className="w-4 h-4 rounded border-gray-600 bg-gray-800 accent-orange-500" />
+            <input type="checkbox" className="w-4 h-4 rounded border-gray-600 bg-gray-800 accent-orange-500" data-track="ui.038c715468.10" />
             <span className="text-sm text-gray-400 group-hover:text-gray-300">{t('marketplace.discounted')}</span>
           </label>
           <label className="flex items-center gap-3 cursor-pointer group">
-            <input type="checkbox" className="w-4 h-4 rounded border-gray-600 bg-gray-800 accent-orange-500" />
+            <input type="checkbox" className="w-4 h-4 rounded border-gray-600 bg-gray-800 accent-orange-500" data-track="ui.038c715468.11" />
             <span className="text-sm text-gray-400 group-hover:text-gray-300">{t('marketplace.onSale')}</span>
           </label>
         </div>
@@ -343,7 +343,7 @@ const FilterPanel = ({ selectedCategory, selectedMinPrice, selectedMaxPrice, onC
                 type="checkbox"
                 checked={selectedCategory === cat.id}
                 onChange={(e) => onCategoryChange(e.target.checked ? cat.id : '')}
-                className="w-4 h-4 rounded border-gray-600 bg-gray-800 accent-orange-500"
+                className="w-4 h-4 rounded border-gray-600 bg-gray-800 accent-orange-500" data-track="ui.038c715468.12"
               />
               <span className="text-sm text-gray-400 group-hover:text-gray-300">{cat.label}</span>
             </label>
@@ -409,7 +409,7 @@ const EmptyState = ({ onReset }) => {
       <p className="text-gray-400 mb-6">{t('marketplace.tryDifferentFilters')}</p>
       <button
         onClick={onReset}
-        className="px-6 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-medium text-sm transition-colors"
+        className="px-6 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-medium text-sm transition-colors" data-track="ui.038c715468.13"
       >
         {t('marketplace.clearAll')}
       </button>
@@ -641,7 +641,7 @@ export default function ProductMarketplacePage() {
       <div className="lg:hidden sticky top-0 z-20 bg-gray-950/95 backdrop-blur border-b border-gray-800 px-4 py-2.5 flex items-center gap-3">
         <button
           onClick={() => setShowFilterDrawer(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-sm text-gray-200 hover:bg-gray-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-sm text-gray-200 hover:bg-gray-700 transition-colors" data-track="ui.038c715468.14"
         >
           <SlidersHorizontal className="w-4 h-4" />
           {t('marketplace.filters')}
@@ -733,13 +733,13 @@ export default function ProductMarketplacePage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowNewCartModal(false)}
-                className="flex-1 py-2 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors font-medium"
+                className="flex-1 py-2 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors font-medium" data-track="ui.038c715468.15"
               >
                 {t('common.cancel')}
               </button>
               <button
                 onClick={handleCreateCart}
-                className="flex-1 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white transition-colors font-medium"
+                className="flex-1 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white transition-colors font-medium" data-track="ui.038c715468.16"
               >
                 {t('common.create')}
               </button>

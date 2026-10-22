@@ -4,7 +4,7 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useSt
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, Tv } from 'lucide-react';
+import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, Tv, CalendarDays, CreditCard, Building2 } from 'lucide-react';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 import api from '../../api/axios';
 import {
@@ -33,13 +33,18 @@ import RestaurantMenuManager from './RestaurantMenuManager';
 import RestaurantFinanceWorkspace from './RestaurantFinanceWorkspace';
 import ScreenControlCenter from '../../restaurantScreens/ControlCenter';
 import LocationsPanel from './FoodLocationsPanel';
+import TimezoneSelect, { DETECTED_TIMEZONE } from './TimezoneSelect.jsx';
 import PromotionsPanel from './FoodPromotionsPanel';
 import { ChecklistsPanel, SopsPanel, InventoryPanel } from './RestaurantOpsPanels';
 import { TrainingPanel } from './RestaurantTrainingPanels';
+import RestaurantMyShiftPanel from './RestaurantMyShiftPanel';
 import { AuditsPanel } from './RestaurantAuditPanels';
 import { ReportsPanel } from './RestaurantReportsPanel';
 import PrinterSettingsPanel from './PrinterSettingsPanel';
+import GiftCardProductsPanel from './GiftCardProductsPanel';
 import DisplayFleetPanel from './DisplayFleetPanel';
+import RestaurantHostingPanel from './RestaurantHostingPanel';
+import RestaurantHQPanel from './RestaurantHQPanel';
 import { syncPendingMutations, countPendingMutations, isDeviceOnline } from '../../api/restaurantsOffline';
 import PageShell from '../../components/PageShell';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
@@ -57,7 +62,7 @@ function CreateRestaurantForm({ t, onCreated }) {
   const [form, setForm] = useState({
     displayName: '', description: '', phone: '', cuisine: '',
     addressStreet: '', addressCity: '', addressState: '', addressZip: '', addressCountry: 'US',
-    latitude: '', longitude: '', currencyCode: 'USD',
+    latitude: '', longitude: '', currencyCode: 'USD', timezone: DETECTED_TIMEZONE,
   });
   const [saving, setSaving] = useState(false);
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -80,6 +85,7 @@ function CreateRestaurantForm({ t, onCreated }) {
         latitude: form.latitude !== '' ? Number(form.latitude) : undefined,
         longitude: form.longitude !== '' ? Number(form.longitude) : undefined,
         currencyCode: form.currencyCode.trim() || 'USD',
+        timezone: form.timezone || undefined,
       });
       toast.success(t('food.merchant.created'));
       onCreated(restaurant);
@@ -91,7 +97,7 @@ function CreateRestaurantForm({ t, onCreated }) {
   };
 
   return (
-    <form onSubmit={submit} className="fd-section">
+    <form onSubmit={submit} className="fd-section" data-track="ui.17b0c32a57.1">
       <h2>{t('food.merchant.addRestaurant')}</h2>
       <div className="fd-field">
         <label htmlFor="fd-r-name">{t('food.merchant.name')} *</label>
@@ -166,7 +172,12 @@ function CreateRestaurantForm({ t, onCreated }) {
           <input id="fd-r-lng" value={form.longitude} onChange={set('longitude')} inputMode="decimal" />
         </div>
       </div>
-      <button type="submit" className="fd-btn" disabled={saving}>
+      <div className="fd-field">
+        <label htmlFor="fd-r-tz">{t('food.merchant.timezone')}</label>
+        <TimezoneSelect id="fd-r-tz" value={form.timezone} onChange={(value) => setForm((f) => ({ ...f, timezone: value }))} />
+        <p className="fd-card-meta">{t('food.merchant.timezoneHint')}</p>
+      </div>
+      <button type="submit" className="fd-btn" disabled={saving} data-track="ui.17b0c32a57.2">
         {saving ? t('food.common.saving') : t('food.merchant.createBtn')}
       </button>
     </form>
@@ -358,15 +369,15 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
             {paymentStatusLabel(t, order.payment_status)}
           </span>
         </div>
-        <button type="button" className="fd-order-detail-close" onClick={onClose} aria-label={t('food.common.close', 'Close')}>×</button>
+        <button type="button" className="fd-order-detail-close" onClick={onClose} aria-label={t('food.common.close', 'Close')} data-track="ui.17b0c32a57.3">×</button>
       </div>
 
       <section className="fd-order-detail-section">
         <h4>{t('food.merchant.orderCenter.customer', 'Customer')}</h4>
         <dl className="fd-order-detail-list">
           <div><dt>{t('food.merchant.orderCenter.name', 'Name')}</dt><dd>{order.customer_name || order.guest_name || t('food.merchant.guest')}</dd></div>
-          {order.customer_phone && <div><dt>{t('food.merchant.orderCenter.phone', 'Phone')}</dt><dd><a href={`tel:${order.customer_phone}`}>{order.customer_phone}</a></dd></div>}
-          {order.customer_email && <div><dt>{t('food.merchant.orderCenter.email', 'Email')}</dt><dd><a href={`mailto:${order.customer_email}`}>{order.customer_email}</a></dd></div>}
+          {order.customer_phone && <div><dt>{t('food.merchant.orderCenter.phone', 'Phone')}</dt><dd><a href={`tel:${order.customer_phone}`} data-track="ui.17b0c32a57.4">{order.customer_phone}</a></dd></div>}
+          {order.customer_email && <div><dt>{t('food.merchant.orderCenter.email', 'Email')}</dt><dd><a href={`mailto:${order.customer_email}`} data-track="ui.17b0c32a57.5">{order.customer_email}</a></dd></div>}
         </dl>
       </section>
 
@@ -413,7 +424,7 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
             {externalPayment?.handle && <div><dt>{t('food.merchant.orderCenter.paymentTo', 'Payment sent to')}</dt><dd>{externalPayment.handle}</dd></div>}
             {paymentReference && <div><dt>{t('food.merchant.orderCenter.reference', 'Reference')}</dt><dd>{paymentReference}</dd></div>}
           </dl>
-          {attachmentUrl && <a className="fd-btn fd-btn-secondary fd-btn-sm" href={attachmentUrl} target="_blank" rel="noreferrer">{t('food.merchant.orderCenter.viewProof', 'View payment proof')}</a>}
+          {attachmentUrl && <a className="fd-btn fd-btn-secondary fd-btn-sm" href={attachmentUrl} target="_blank" rel="noreferrer" data-track="ui.17b0c32a57.6">{t('food.merchant.orderCenter.viewProof', 'View payment proof')}</a>}
         </section>
       )}
 
@@ -440,20 +451,20 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
       )}
 
       <div className="fd-order-detail-actions">
-        {order.payment_status !== 'paid' && <button type="button" className="fd-btn fd-btn-secondary" onClick={() => onMarkPaid(order)}>{orderExternalPayment(order) ? t('food.merchant.confirmPayment') : t('food.merchant.markPaid')}</button>}
-        {NEXT_STATUS[order.status] && <button type="button" className="fd-btn" onClick={() => onAdvance(order)}>{t(`food.advance.${NEXT_STATUS[order.status]}`)}</button>}
-        {['received', 'accepted', 'preparing'].includes(order.status) && <button type="button" className="fd-btn fd-btn-danger" onClick={() => onCancel(order)}>{t('food.common.cancel')}</button>}
+        {order.payment_status !== 'paid' && <button type="button" className="fd-btn fd-btn-secondary" onClick={() => onMarkPaid(order)} data-track="ui.17b0c32a57.7">{orderExternalPayment(order) ? t('food.merchant.confirmPayment') : t('food.merchant.markPaid')}</button>}
+        {NEXT_STATUS[order.status] && <button type="button" className="fd-btn" onClick={() => onAdvance(order)} data-track="ui.17b0c32a57.8">{t(`food.advance.${NEXT_STATUS[order.status]}`)}</button>}
+        {['received', 'accepted', 'preparing'].includes(order.status) && <button type="button" className="fd-btn fd-btn-danger" onClick={() => onCancel(order)} data-track="ui.17b0c32a57.9">{t('food.common.cancel')}</button>}
         {/* POS ops: split/merge/refund/reprint for active orders */}
         {['received', 'accepted', 'preparing', 'ready'].includes(order.status) && (
           <>
-            <button type="button" className="fd-btn fd-btn-secondary" onClick={() => setShowSplitModal(true)}>{t('food.merchant.split')}</button>
-            <button type="button" className="fd-btn fd-btn-secondary" onClick={() => setShowMergeModal(true)}>{t('food.merchant.merge')}</button>
+            <button type="button" className="fd-btn fd-btn-secondary" onClick={() => setShowSplitModal(true)} data-track="ui.17b0c32a57.10">{t('food.merchant.split')}</button>
+            <button type="button" className="fd-btn fd-btn-secondary" onClick={() => setShowMergeModal(true)} data-track="ui.17b0c32a57.11">{t('food.merchant.merge')}</button>
           </>
         )}
         {['paid', 'partially_refunded'].includes(order.payment_status) && (
-          <button type="button" className="fd-btn fd-btn-secondary" onClick={() => setShowRefundModal(true)}>{t('food.merchant.refund')}</button>
+          <button type="button" className="fd-btn fd-btn-secondary" onClick={() => setShowRefundModal(true)} data-track="ui.17b0c32a57.12">{t('food.merchant.refund')}</button>
         )}
-        <button type="button" className="fd-btn fd-btn-secondary" onClick={() => window.print()}>{t('food.merchant.reprint')}</button>
+        <button type="button" className="fd-btn fd-btn-secondary" onClick={() => window.print()} data-track="ui.17b0c32a57.13">{t('food.merchant.reprint')}</button>
       </div>
 
       {showSplitModal && (
@@ -467,7 +478,7 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
                   <input
                     type="checkbox"
                     checked={selectedItems.has(item.id)}
-                    onChange={() => toggleItem(item.id)}
+                    onChange={() => toggleItem(item.id)} data-track="ui.17b0c32a57.14"
                   />
                   <span>{item.quantity}x {item.item_name}</span>
                   <span>${(item.line_total_cents / 100).toFixed(2)}</span>
@@ -480,7 +491,7 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
                 type="button"
                 className="fd-btn fd-btn-secondary"
                 onClick={() => { setShowSplitModal(false); setSelectedItems(new Set()); }}
-                disabled={splitting}
+                disabled={splitting} data-track="ui.17b0c32a57.15"
               >
                 {t('common.cancel', 'Cancel')}
               </button>
@@ -488,7 +499,7 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
                 type="button"
                 className="fd-btn"
                 onClick={handleSplitConfirm}
-                disabled={splitting || selectedItems.size === 0}
+                disabled={splitting || selectedItems.size === 0} data-track="ui.17b0c32a57.16"
               >
                 {splitting ? t('common.processing', 'Processing...') : t('food.merchant.splitConfirm', { count: selectedItems.size })}
               </button>
@@ -510,10 +521,10 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
               className="fd-modal-input"
             />
             <div className="fd-modal-actions">
-              <button type="button" className="fd-btn fd-btn-secondary" onClick={() => setShowMergeModal(false)} disabled={merging}>
+              <button type="button" className="fd-btn fd-btn-secondary" onClick={() => setShowMergeModal(false)} disabled={merging} data-track="ui.17b0c32a57.17">
                 {t('common.cancel', 'Cancel')}
               </button>
-              <button type="button" className="fd-btn" onClick={handleMergeConfirm} disabled={merging || !mergeSourceId}>
+              <button type="button" className="fd-btn" onClick={handleMergeConfirm} disabled={merging || !mergeSourceId} data-track="ui.17b0c32a57.18">
                 {merging ? t('common.processing', 'Processing...') : t('food.merchant.mergeConfirm')}
               </button>
             </div>
@@ -540,10 +551,10 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
               className="fd-modal-input"
             />
             <div className="fd-modal-actions">
-              <button type="button" className="fd-btn fd-btn-secondary" onClick={() => setShowRefundModal(false)} disabled={refunding}>
+              <button type="button" className="fd-btn fd-btn-secondary" onClick={() => setShowRefundModal(false)} disabled={refunding} data-track="ui.17b0c32a57.19">
                 {t('common.cancel', 'Cancel')}
               </button>
-              <button type="button" className="fd-btn fd-btn-danger" onClick={handleRefundConfirm} disabled={refunding || !refundReason.trim()}>
+              <button type="button" className="fd-btn fd-btn-danger" onClick={handleRefundConfirm} disabled={refunding || !refundReason.trim()} data-track="ui.17b0c32a57.20">
                 {refunding ? t('common.processing', 'Processing...') : t('food.merchant.refundConfirm')}
               </button>
             </div>
@@ -816,10 +827,10 @@ function OrdersTab({ t, restaurant }) {
       </div>
 
       <div className="fd-order-view-tabs" role="tablist" aria-label={t('food.merchant.orderCenter.orderViews', 'Order views')}>
-        <button type="button" role="tab" aria-selected={view === 'active'} className={view === 'active' ? 'fd-active' : ''} onClick={() => selectView('active')}>
+        <button type="button" role="tab" aria-selected={view === 'active'} className={view === 'active' ? 'fd-active' : ''} onClick={() => selectView('active')} data-track="ui.17b0c32a57.21">
           {t('food.merchant.orderCenter.live', 'Live')} <span>{view === 'active' ? meta.total : Number(summary?.new_orders || 0) + Number(summary?.preparing_orders || 0) + Number(summary?.ready_orders || 0)}</span>
         </button>
-        <button type="button" role="tab" aria-selected={view === 'history'} className={view === 'history' ? 'fd-active' : ''} onClick={() => selectView('history')}>
+        <button type="button" role="tab" aria-selected={view === 'history'} className={view === 'history' ? 'fd-active' : ''} onClick={() => selectView('history')} data-track="ui.17b0c32a57.22">
           {t('food.merchant.orderCenter.history', 'Order history')}
         </button>
       </div>
@@ -845,10 +856,10 @@ function OrdersTab({ t, restaurant }) {
             <option value="all">{t('food.merchant.orderCenter.allTime', 'All time')}</option>
           </select>
         )}
-        <button type="button" className="fd-order-refresh" onClick={() => load()} aria-label={t('food.merchant.orderCenter.refresh', 'Refresh orders')}>↻</button>
+        <button type="button" className="fd-order-refresh" onClick={() => load()} aria-label={t('food.merchant.orderCenter.refresh', 'Refresh orders')} data-track="ui.17b0c32a57.23">↻</button>
       </div>
 
-      {feedError && <div className="fd-order-feed-error" role="alert">{t('food.merchant.orderCenter.loadError', 'Some order information could not be loaded.')} <button type="button" onClick={() => load()}>{t('food.common.retry', 'Retry')}</button></div>}
+      {feedError && <div className="fd-order-feed-error" role="alert">{t('food.merchant.orderCenter.loadError', 'Some order information could not be loaded.')} <button type="button" onClick={() => load()} data-track="ui.17b0c32a57.24">{t('food.common.retry', 'Retry')}</button></div>}
 
       <div className="fd-order-workspace">
         <div className="fd-order-list" aria-busy={loading}>
@@ -865,7 +876,7 @@ function OrdersTab({ t, restaurant }) {
             const selected = String(order.id) === String(selectedOrderId);
             return (
               <article key={order.id} className={`fd-order-list-card fd-status-${order.status}${selected ? ' fd-selected' : ''}`}>
-                <button type="button" className="fd-order-list-select" onClick={() => openOrder(order.id)} aria-label={`${t('food.merchant.orderCenter.viewOrder', 'View order')} #${order.queue_number || order.id}`}>
+                <button type="button" className="fd-order-list-select" onClick={() => openOrder(order.id)} aria-label={`${t('food.merchant.orderCenter.viewOrder', 'View order')} #${order.queue_number || order.id}`} data-track="ui.17b0c32a57.25">
                   <div className="fd-order-list-top">
                     <div><strong>#{order.queue_number || order.id}</strong><span>{order.customer_name || order.guest_name || t('food.merchant.guest')}</span></div>
                     <time>{formatOrderDateTime(order.created_at)}</time>
@@ -883,7 +894,7 @@ function OrdersTab({ t, restaurant }) {
                 </button>
                 <div className="fd-order-list-actions">
                   <span className={order.payment_status === 'paid' ? 'fd-order-paid' : 'fd-order-unpaid'}>{order.payment_status === 'unpaid' ? paymentModeLabel(t, order) : paymentStatusLabel(t, order.payment_status)}</span>
-                  <button type="button" onClick={() => openOrder(order.id)}>{t('food.merchant.orderCenter.details', 'Details')} →</button>
+                  <button type="button" onClick={() => openOrder(order.id)} data-track="ui.17b0c32a57.26">{t('food.merchant.orderCenter.details', 'Details')} →</button>
                 </div>
               </article>
             );
@@ -891,9 +902,9 @@ function OrdersTab({ t, restaurant }) {
 
           {meta.total > ORDER_PAGE_SIZE && (
             <nav className="fd-order-pagination" aria-label={t('food.merchant.orderCenter.pagination', 'Order history pages')}>
-              <button type="button" disabled={page === 0} onClick={() => setPage((current) => Math.max(0, current - 1))}>{t('food.merchant.orderCenter.previous', 'Previous')}</button>
+              <button type="button" disabled={page === 0} onClick={() => setPage((current) => Math.max(0, current - 1))} data-track="ui.17b0c32a57.27">{t('food.merchant.orderCenter.previous', 'Previous')}</button>
               <span>{t('food.merchant.orderCenter.pageOf', 'Page {{page}} of {{pages}}', { page: page + 1, pages: totalPages })}</span>
-              <button type="button" disabled={!meta.hasMore} onClick={() => setPage((current) => current + 1)}>{t('food.merchant.orderCenter.next', 'Next')}</button>
+              <button type="button" disabled={!meta.hasMore} onClick={() => setPage((current) => current + 1)} data-track="ui.17b0c32a57.28">{t('food.merchant.orderCenter.next', 'Next')}</button>
             </nav>
           )}
         </div>
@@ -1025,7 +1036,7 @@ function MenuTab({ t, restaurant }) {
     <div className="fd-section">
       <h2>{t('food.merchant.menu')}</h2>
 
-      <form onSubmit={addCategory} className="fd-row" style={{ marginBottom: '1rem' }}>
+      <form onSubmit={addCategory} className="fd-row" style={{ marginBottom: '1rem' }} data-track="ui.17b0c32a57.29">
         <input
           value={newCategory}
           onChange={(e) => setNewCategory(e.target.value)}
@@ -1033,10 +1044,10 @@ function MenuTab({ t, restaurant }) {
           maxLength={120}
           style={{ flex: 1, padding: '0.55rem 0.7rem', borderRadius: 8, border: '1px solid var(--border-color, #e5e7eb)', background: 'var(--card-bg, #fff)', color: 'inherit' }}
         />
-        <button type="submit" className="fd-btn fd-btn-sm">{t('food.merchant.addCategory')}</button>
+        <button type="submit" className="fd-btn fd-btn-sm" data-track="ui.17b0c32a57.30">{t('food.merchant.addCategory')}</button>
       </form>
 
-      <form onSubmit={addItem} className="fd-section" style={{ border: '1px dashed var(--border-color, #e5e7eb)', borderRadius: 12, padding: '0.9rem' }}>
+      <form onSubmit={addItem} className="fd-section" style={{ border: '1px dashed var(--border-color, #e5e7eb)', borderRadius: 12, padding: '0.9rem' }} data-track="ui.17b0c32a57.31">
         <strong>{t('food.merchant.addItem')}</strong>
         <div className="fd-row" style={{ marginTop: '0.6rem' }}>
           <div className="fd-field" style={{ flex: 2 }}>
@@ -1059,7 +1070,7 @@ function MenuTab({ t, restaurant }) {
           <label htmlFor="fd-i-desc">{t('food.merchant.itemDescription')}</label>
           <input id="fd-i-desc" value={itemForm.description} onChange={(e) => setItemForm((f) => ({ ...f, description: e.target.value }))} maxLength={2000} />
         </div>
-        <button type="submit" className="fd-btn fd-btn-sm">{t('food.merchant.addItemBtn')}</button>
+        <button type="submit" className="fd-btn fd-btn-sm" data-track="ui.17b0c32a57.32">{t('food.merchant.addItemBtn')}</button>
       </form>
 
       {allSections.map((section) => (
@@ -1067,7 +1078,7 @@ function MenuTab({ t, restaurant }) {
           <div className="fd-row" style={{ justifyContent: 'space-between' }}>
             <h3 className="fd-cat-title" style={{ flex: 1 }}>{section.name}</h3>
             {section.id && (
-              <button type="button" className="fd-btn fd-btn-danger fd-btn-sm" onClick={() => removeCategory(section)}>
+              <button type="button" className="fd-btn fd-btn-danger fd-btn-sm" onClick={() => removeCategory(section)} data-track="ui.17b0c32a57.33">
                 {t('food.common.delete')}
               </button>
             )}
@@ -1079,13 +1090,13 @@ function MenuTab({ t, restaurant }) {
                 <p>{formatFoodMoney(item.price_cents, restaurant.currency_code)}{!item.is_available && ` · ${t('food.restaurant.soldOut')}`}</p>
               </div>
               <span className="fd-row">
-                <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setModifierTarget(item)}>
+                <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setModifierTarget(item)} data-track="ui.17b0c32a57.34">
                   {t('food.merchant.addModifiers')}
                 </button>
-                <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => toggleAvailability(item)}>
+                <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => toggleAvailability(item)} data-track="ui.17b0c32a57.35">
                   {item.is_available ? t('food.merchant.markSoldOut') : t('food.merchant.markAvailable')}
                 </button>
-                <button type="button" className="fd-btn fd-btn-danger fd-btn-sm" onClick={() => removeItem(item)}>
+                <button type="button" className="fd-btn fd-btn-danger fd-btn-sm" onClick={() => removeItem(item)} data-track="ui.17b0c32a57.36">
                   {t('food.common.delete')}
                 </button>
               </span>
@@ -1096,7 +1107,7 @@ function MenuTab({ t, restaurant }) {
 
       {modifierTarget && (
         <div className="fd-modal-overlay" onClick={() => setModifierTarget(null)} role="presentation">
-          <form className="fd-modal" onClick={(e) => e.stopPropagation()} onSubmit={addModifierGroup}>
+          <form className="fd-modal" onClick={(e) => e.stopPropagation()} onSubmit={addModifierGroup} data-track="ui.17b0c32a57.37">
             <h3>{t('food.merchant.modifiersFor', { item: modifierTarget.name })}</h3>
             <div className="fd-field">
               <label htmlFor="fd-m-name">{t('food.merchant.modifierGroupName')} *</label>
@@ -1120,8 +1131,8 @@ function MenuTab({ t, restaurant }) {
               <input id="fd-m-opts" value={modifierForm.options} onChange={(e) => setModifierForm((f) => ({ ...f, options: e.target.value }))} placeholder={t('food.merchant.modifierOptionsPlaceholder')} />
             </div>
             <div className="fd-row" style={{ justifyContent: 'flex-end' }}>
-              <button type="button" className="fd-btn fd-btn-secondary" onClick={() => setModifierTarget(null)}>{t('food.common.cancel')}</button>
-              <button type="submit" className="fd-btn">{t('food.common.save')}</button>
+              <button type="button" className="fd-btn fd-btn-secondary" onClick={() => setModifierTarget(null)} data-track="ui.17b0c32a57.38">{t('food.common.cancel')}</button>
+              <button type="submit" className="fd-btn" data-track="ui.17b0c32a57.39">{t('food.common.save')}</button>
             </div>
           </form>
         </div>
@@ -1172,7 +1183,7 @@ function FdSwitch({ checked, onChange, disabled, label }) {
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`fd-switch${checked ? ' fd-switch--on' : ''}`}
+      className={`fd-switch${checked ? ' fd-switch--on' : ''}`} data-track="ui.17b0c32a57.40"
     >
       <span className="fd-switch-knob" aria-hidden="true" />
     </button>
@@ -1212,6 +1223,7 @@ function SettingsCard({ icon: Icon, title, desc, cardKey, registerRef, wide, bar
 function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
   const [saving, setSaving] = useState(false);
   const [prep, setPrep] = useState(restaurant.prep_time_min || 15);
+  const [timezone, setTimezone] = useState(restaurant.timezone || DETECTED_TIMEZONE);
   const [dayHours, setDayHours] = useState(() => dayHoursFromRestaurant(restaurant));
   const [brandHex, setBrandHex] = useState(restaurant.brand_accent_hex || '');
   const [taxRatePct, setTaxRatePct] = useState(() => {
@@ -1262,6 +1274,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
     const nextSettings = restaurant.settings && typeof restaurant.settings === 'object' ? restaurant.settings : {};
     const nextTaxBps = Number(restaurant.tax_rate_bps);
     setTaxRatePct(Number.isFinite(nextTaxBps) && nextTaxBps > 0 ? String(nextTaxBps / 100) : '');
+    setTimezone(restaurant.timezone || DETECTED_TIMEZONE);
     setDayHours(dayHoursFromRestaurant(restaurant));
     setRequirePickupGuestName(nextSettings.requireGuestNameForPickup ?? nextSettings.require_guest_name_for_pickup ?? true);
     setRequireContactForUpdates(nextSettings.requireContactForUpdates ?? nextSettings.require_contact_for_updates ?? false);
@@ -1481,7 +1494,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
       <h2>{t('food.merchant.settings')}</h2>
       <div className="fd-settings-strip" role="navigation" aria-label={t('food.merchant.stAtAGlance')}>
         {statusChips.map((chip) => (
-          <button key={chip.key} type="button" className="fd-settings-chip" onClick={() => scrollToCard(chip.target)}>
+          <button key={chip.key} type="button" className="fd-settings-chip" onClick={() => scrollToCard(chip.target)} data-track="ui.17b0c32a57.41">
             <span className={`fd-settings-chip-dot fd-settings-chip-dot--${chip.tone}`} aria-hidden="true" />
             {chip.label}
           </button>
@@ -1498,11 +1511,11 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
         >
           <div className="fd-settings-actions">
             {restaurant.status !== 'active' ? (
-              <button type="button" className="fd-btn" disabled={saving} onClick={() => patch({ status: 'active' })}>
+              <button type="button" className="fd-btn" disabled={saving} onClick={() => patch({ status: 'active' })} data-track="ui.17b0c32a57.42">
                 {t('food.merchant.goLive')}
               </button>
             ) : (
-              <button type="button" className="fd-btn fd-btn-secondary" disabled={saving} onClick={() => patch({ status: 'paused' })}>
+              <button type="button" className="fd-btn fd-btn-secondary" disabled={saving} onClick={() => patch({ status: 'paused' })} data-track="ui.17b0c32a57.43">
                 {t('food.merchant.pause')}
               </button>
             )}
@@ -1524,10 +1537,20 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
               <label htmlFor="fd-prep">{t('food.merchant.prepTimeMin')}</label>
               <input id="fd-prep" type="number" min={0} max={240} value={prep} onChange={(e) => setPrep(e.target.value)} />
             </div>
-            <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={() => patch({ prepTimeMin: Number(prep) || 15 })}>
+            <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={() => patch({ prepTimeMin: Number(prep) || 15 })} data-track="ui.17b0c32a57.44">
               {t('food.common.save')}
             </button>
           </div>
+          <div className="fd-settings-field-row">
+            <div className="fd-field">
+              <label htmlFor="fd-tz">{t('food.merchant.timezone')}</label>
+              <TimezoneSelect id="fd-tz" value={timezone} onChange={setTimezone} disabled={saving} />
+            </div>
+            <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={() => patch({ timezone })} data-track="ui.17b0c32a57.65">
+              {t('food.common.save')}
+            </button>
+          </div>
+          <p className="fd-card-meta">{t('food.merchant.timezoneHint')}</p>
         </SettingsCard>
 
         <SettingsCard
@@ -1555,7 +1578,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
                 onChange={(event) => setHandoffDisplaySeconds(event.target.value)}
               />
             </div>
-            <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={saveHandoffDelay}>
+            <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={saveHandoffDelay} data-track="ui.17b0c32a57.45">
               {t('food.common.save')}
             </button>
           </div>
@@ -1583,7 +1606,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
             <span className="fd-settings-swatch" style={{ background: colorValue }} title={t('food.merchant.stColorPreview')} aria-hidden="true" />
           </div>
           <div className="fd-settings-actions">
-            <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={() => patch({ brandAccentHex: brandHex.trim() || null })}>
+            <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={() => patch({ brandAccentHex: brandHex.trim() || null })} data-track="ui.17b0c32a57.46">
               {t('food.common.save')}
             </button>
           </div>
@@ -1649,7 +1672,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
                   <input
                     type="checkbox"
                     checked={day.closed}
-                    onChange={(e) => setDayHours((current) => current.map((entry, i) => (i === index ? { ...entry, closed: e.target.checked } : entry)))}
+                    onChange={(e) => setDayHours((current) => current.map((entry, i) => (i === index ? { ...entry, closed: e.target.checked } : entry)))} data-track="ui.17b0c32a57.47"
                   />
                   {t('food.merchant.hoursClosed')}
                 </label>
@@ -1657,10 +1680,10 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
             ))}
           </div>
           <div className="fd-settings-actions">
-            <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={copyMondayToAll}>
+            <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={copyMondayToAll} data-track="ui.17b0c32a57.48">
               {t('food.merchant.stCopyMonday')}
             </button>
-            <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={saveHours}>
+            <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={saveHours} data-track="ui.17b0c32a57.49">
               {t('food.merchant.saveHours')}
             </button>
           </div>
@@ -1689,7 +1712,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
                 placeholder="8.5"
               />
             </div>
-            <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={saveTaxRate}>
+            <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={saveTaxRate} data-track="ui.17b0c32a57.50">
               {t('food.common.save')}
             </button>
           </div>
@@ -1720,7 +1743,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
               {String(restaurant?.oxsteed_pay_url ?? '').trim() && (
                 <div className="fd-settings-notice">
                   {t('food.merchant.oxsteedPayReplacesQr')}{' '}
-                  <a href="/qr-payments">{t('food.merchant.manageQrPayCodes')}</a>
+                  <a href="/qr-payments" data-track="ui.17b0c32a57.51">{t('food.merchant.manageQrPayCodes')}</a>
                 </div>
               )}
               <div className="fd-settings-field-grid">
@@ -1775,7 +1798,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
                   type="button"
                   className="fd-btn fd-btn-sm"
                   disabled={saving}
-                  onClick={() => savePaymentSettings()}
+                  onClick={() => savePaymentSettings()} data-track="ui.17b0c32a57.52"
                 >
                   {saving ? t('food.common.saving') : t('food.common.save')}
                 </button>
@@ -1804,7 +1827,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
                   />
                 </div>
                 <div className="fd-settings-actions">
-                  <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={() => savePaymentSettings()}>
+                  <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={() => savePaymentSettings()} data-track="ui.17b0c32a57.53">
                     {saving ? t('food.common.saving') : t('food.common.save')}
                   </button>
                 </div>
@@ -1851,6 +1874,17 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
         </SettingsCard>
 
         <PrinterSettingsPanel t={t} restaurant={restaurant} />
+
+        <SettingsCard
+          icon={CreditCard}
+          title={t('giftCards.title')}
+          desc={t('giftCards.desc')}
+          cardKey="gift-cards"
+          registerRef={registerCard}
+          wide
+        >
+          <GiftCardProductsPanel t={t} restaurant={restaurant} />
+        </SettingsCard>
       </div>
     </div>
   );
@@ -1969,6 +2003,10 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
           ? t('restaurants.ops.opChipOpenActions', '{{count}} open actions', { count: openActions })
           : t('restaurants.ops.opChipAudits', 'Audits'),
       },
+      {
+        key: 'hq', target: 'hq', tone: null,
+        label: t('restaurants.ops.hq.chip', 'HQ'),
+      },
     );
   }
   chips.push({
@@ -1998,7 +2036,7 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
             key={chip.key}
             type="button"
             className="fd-settings-chip"
-            onClick={() => (chip.action ? chip.action() : chip.target ? scrollToCard(chip.target) : undefined)}
+            onClick={() => (chip.action ? chip.action() : chip.target ? scrollToCard(chip.target) : undefined)} data-track="ui.17b0c32a57.54"
           >
             <span className={`fd-settings-chip-dot${chip.tone ? ` fd-settings-chip-dot--${chip.tone}` : ''}`} aria-hidden="true" />
             {chip.label}
@@ -2007,6 +2045,32 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
       </div>
 
       <div className="fd-settings-grid">
+        {canManageRestaurant && (
+          <SettingsCard
+            icon={Building2}
+            title={t('restaurants.ops.hq.title', 'HQ console')}
+            desc={t('restaurants.ops.hq.subtitle', 'Compare stores and publish approved menu policies.')}
+            cardKey="hq"
+            registerRef={registerCard}
+            wide
+          >
+            <RestaurantHQPanel t={t} restaurant={restaurant} bare />
+          </SettingsCard>
+        )}
+
+        {canManageRestaurant && (
+          <SettingsCard
+            icon={CalendarDays}
+            title={t('restaurants.ops.hosting.title', 'Host stand')}
+            desc={t('restaurants.ops.hosting.subtitle', 'Manage tables, reservations, and walk-ins for this restaurant.')}
+            cardKey="hosting"
+            registerRef={registerCard}
+            wide
+          >
+            <RestaurantHostingPanel t={t} restaurant={restaurant} />
+          </SettingsCard>
+        )}
+
         {canManageRestaurant && (
           <SettingsCard
             icon={ClipboardCheck}
@@ -2125,7 +2189,7 @@ function MerchantLanding({ t, onStart }) {
         <span className="fd-merchant-landing-eyebrow">{t('food.merchant.landing.eyebrow', 'Local Food Directory')}</span>
         <h2 className="fd-merchant-landing-headline">{t('food.merchant.landing.headline', 'Franchise-grade tools for independent restaurants')}</h2>
         <p className="fd-merchant-landing-sub">{t('food.merchant.landing.sub', 'Go live the same day. Accept orders at the counter, kiosk, kitchen display, and online, all from one shared backend.')}</p>
-        <button type="button" className="fd-btn fd-merchant-landing-cta" onClick={onStart}>
+        <button type="button" className="fd-btn fd-merchant-landing-cta" onClick={onStart} data-track="ui.17b0c32a57.55">
           {t('food.merchant.landing.cta', 'Add your restaurant')}
         </button>
       </div>
@@ -2271,7 +2335,7 @@ function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
             <h2>{accepting ? t('food.ownerHome.accepting', 'You are accepting orders') : restaurant.status === 'active' ? t('food.ownerHome.paused', 'Ordering is paused') : t('food.ownerHome.notLive', 'Your restaurant is not live yet')}</h2>
           </div>
         </div>
-        {restaurant.status === 'active' && <button type="button" className={accepting ? 'fd-btn fd-btn-secondary' : 'fd-btn'} disabled={saving} onClick={toggleOrders}>{accepting ? t('food.ownerHome.pauseOrders', 'Pause orders') : t('food.ownerHome.resumeOrders', 'Resume orders')}</button>}
+        {restaurant.status === 'active' && <button type="button" className={accepting ? 'fd-btn fd-btn-secondary' : 'fd-btn'} disabled={saving} onClick={toggleOrders} data-track="ui.17b0c32a57.56">{accepting ? t('food.ownerHome.pauseOrders', 'Pause orders') : t('food.ownerHome.resumeOrders', 'Resume orders')}</button>}
       </section>
 
       <section className="fd-owner-today" aria-label={t('food.ownerHome.today', 'Today')}>
@@ -2283,10 +2347,10 @@ function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
       </section>
 
       <div className="fd-owner-home-stats" aria-busy={loading}>
-        <button type="button" onClick={() => onGoTab('orders')}><strong>{loading ? '—' : summary.activeOrders}</strong><span>{t('food.ownerHome.activeOrders', 'Active orders')}</span></button>
-        <button type="button" onClick={() => onGoTab('menu')}><strong>{loading ? '—' : summary.menuItems}</strong><span>{t('food.ownerHome.menuItems', 'Menu items')}</span></button>
-        <button type="button" onClick={() => onGoTab('menu')}><strong>{loading ? '—' : summary.drafts}</strong><span>{t('food.ownerHome.draftItems', 'Draft items')}</span></button>
-        <button type="button" onClick={() => onGoTab('menu')}><strong>{loading ? '—' : summary.soldOut}</strong><span>{t('food.ownerHome.soldOutItems', 'Sold out')}</span></button>
+        <button type="button" onClick={() => onGoTab('orders')} data-track="ui.17b0c32a57.57"><strong>{loading ? '—' : summary.activeOrders}</strong><span>{t('food.ownerHome.activeOrders', 'Active orders')}</span></button>
+        <button type="button" onClick={() => onGoTab('menu')} data-track="ui.17b0c32a57.58"><strong>{loading ? '—' : summary.menuItems}</strong><span>{t('food.ownerHome.menuItems', 'Menu items')}</span></button>
+        <button type="button" onClick={() => onGoTab('menu')} data-track="ui.17b0c32a57.59"><strong>{loading ? '—' : summary.drafts}</strong><span>{t('food.ownerHome.draftItems', 'Draft items')}</span></button>
+        <button type="button" onClick={() => onGoTab('menu')} data-track="ui.17b0c32a57.60"><strong>{loading ? '—' : summary.soldOut}</strong><span>{t('food.ownerHome.soldOutItems', 'Sold out')}</span></button>
       </div>
 
       <section className="fd-owner-attention">
@@ -2297,7 +2361,7 @@ function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
           <ul className="fd-owner-attention-list">
             {attention.map((item) => (
               <li key={item.key}>
-                <button type="button" onClick={item.onClick}>
+                <button type="button" onClick={item.onClick} data-track="ui.17b0c32a57.61">
                   <span className="fd-owner-attention-dot" aria-hidden />
                   <span>{item.label}</span>
                   <span className="fd-owner-attention-go" aria-hidden>›</span>
@@ -2318,7 +2382,7 @@ function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
 }
 
 // ── Tab icon map ──────────────────────────────────────────────────────────────
-const TAB_ICONS = { home: Home, orders: Receipt, menu: UtensilsCrossed, payouts: Wallet, settings: Settings, operations: ClipboardList, displays: Tv };
+const TAB_ICONS = { home: Home, myshift: UserCheck, orders: Receipt, menu: UtensilsCrossed, payouts: Wallet, settings: Settings, operations: ClipboardList, displays: Tv };
 
 function hasRestaurantPermission(restaurant, requested) {
   if (restaurant?.effective_role === 'owner' || restaurant?.permissions?.includes('*')) return true;
@@ -2347,7 +2411,7 @@ export default function FoodMerchantPage() {
       setTab('settings'); // legacy deep link
       return;
     }
-    if (['home', 'orders', 'menu', 'payouts', 'settings', 'operations'].includes(requestedTab)) {
+    if (['home', 'myshift', 'orders', 'menu', 'payouts', 'settings', 'operations'].includes(requestedTab)) {
       setTab(requestedTab);
     }
   }, [requestedTab]);
@@ -2377,6 +2441,9 @@ export default function FoodMerchantPage() {
     if (!selected) return [];
     const tabs = [];
     if (canManageRestaurant) tabs.push('home');
+    // S-02: every team member gets the "My shift" staff home, regardless of
+    // management permissions.
+    tabs.push('myshift');
     if (hasRestaurantPermission(selected, ['orders.view', 'orders.manage', 'kitchen.view', 'kitchen.update'])) tabs.push('orders');
     if (hasRestaurantPermission(selected, ['menu.view', 'menu.manage'])) tabs.push('menu');
     if (canManagePayouts || canManageCredit) tabs.push('payouts');
@@ -2492,7 +2559,7 @@ export default function FoodMerchantPage() {
               <button
                 type="button"
                 className="fd-btn fd-btn-secondary fd-btn-sm"
-                onClick={() => { setSetupForNew(false); setShowOnboarding(true); }}
+                onClick={() => { setSetupForNew(false); setShowOnboarding(true); }} data-track="ui.17b0c32a57.62"
               >
                 {t('food.merchant.openSetupGuide')}
               </button>
@@ -2509,7 +2576,7 @@ export default function FoodMerchantPage() {
               <div className="fd-order-feed-error" style={{ marginBottom: '1rem' }}>
                 {t('food.merchant.restaurantListError')}
               </div>
-              <button type="button" className="fd-btn" onClick={() => load()}>
+              <button type="button" className="fd-btn" onClick={() => load()} data-track="ui.17b0c32a57.63">
                 {t('food.common.retry', 'Retry')}
               </button>
             </div>
@@ -2553,7 +2620,7 @@ export default function FoodMerchantPage() {
                     role="tab"
                     aria-selected={tab === key}
                     className={`fd-tab${tab === key ? ' fd-active' : ''}`}
-                    onClick={() => goToTab(key)}
+                    onClick={() => goToTab(key)} data-track="ui.17b0c32a57.64"
                   >
                     <span className="fd-tab-icon" aria-hidden="true">{TabIcon ? <TabIcon size={16} /> : null}</span>
                     {t(`food.merchant.tab.${key}`, key === 'home' ? 'Home' : key)}
@@ -2569,6 +2636,12 @@ export default function FoodMerchantPage() {
                 restaurant={selected}
                 onGoTab={goToTab}
                 onUpdated={(updated) => setRestaurants((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)))}
+              />
+            )}
+            {selected && tab === 'myshift' && (
+              <RestaurantMyShiftPanel
+                restaurant={selected}
+                canManageRestaurant={canManageRestaurant}
               />
             )}
             {selected && tab === 'orders' && <OrdersTab t={t} restaurant={selected} />}

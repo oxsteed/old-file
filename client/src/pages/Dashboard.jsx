@@ -80,7 +80,7 @@ const CardHeader = ({ icon: IconComp, title, right }) => (
 );
 const Btn = ({ children, onClick, variant = 'primary', className = '', ...rest }) => {
   const v = { primary:'bg-action hover:bg-action-hover text-on-action', secondary:'bg-gray-800 hover:bg-gray-700 text-gray-300', danger:'bg-red-500/20 hover:bg-red-500/30 text-red-400' };
-  return <button onClick={onClick} className={`text-xs font-semibold px-4 py-2 rounded-lg transition ${v[variant]} ${className}`} {...rest}>{children}</button>;
+  return <button onClick={onClick} className={`text-xs font-semibold px-4 py-2 rounded-lg transition ${v[variant]} ${className}`} {...rest} data-track="ui.f7da0d332b.1">{children}</button>;
 };
 const Input = ({ label, ...rest }) => (
   <div>
@@ -114,7 +114,7 @@ const Modal = ({ open, onClose, title, children }) => {
       <div className="relative bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h3 className="font-bold text-white">{title}</h3>
-          <button onClick={onClose} aria-label="Close" className="p-2 -mr-1 text-gray-500 hover:text-white transition rounded-lg hover:bg-gray-800"><IcoX size={18}/></button>
+          <button onClick={onClose} aria-label="Close" className="p-2 -mr-1 text-gray-500 hover:text-white transition rounded-lg hover:bg-gray-800" data-track="ui.f7da0d332b.2"><IcoX size={18}/></button>
         </div>
         {children}
       </div>
@@ -178,7 +178,7 @@ function LaunchCustomerDashboard({
       {error && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
           <span>{t('dashboard.pulse.loadError')}</span>
-          <button type="button" onClick={onRetry} className="font-bold text-amber-300 underline underline-offset-4 hover:text-amber-200">{t('dashboard.pulse.retry')}</button>
+          <button type="button" onClick={onRetry} className="font-bold text-amber-300 underline underline-offset-4 hover:text-amber-200" data-track="ui.f7da0d332b.3">{t('dashboard.pulse.retry')}</button>
         </div>
       )}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -1074,7 +1074,7 @@ export default function Dashboard() {
                     ? 'bg-gray-800/80 text-orange-500 border-b-2 border-orange-500'
                     : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/40'
                 }`}
-                style={{ whiteSpace: 'nowrap' }}
+                style={{ whiteSpace: 'nowrap' }} data-track="ui.f7da0d332b.4"
               >
                 <tabDef.icon size={14} cls={tab === tabDef.id ? 'text-orange-500' : 'text-gray-500'} />
                 {tabDef.label}
@@ -1104,13 +1104,13 @@ export default function Dashboard() {
           {error && (
             <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 flex items-center gap-2">
               <span>⚠</span>
-              <span>{t('dashboard.pulse.loadError')} <button onClick={retryLoad} className="underline hover:text-red-300">{t('dashboard.pulse.retry')}</button></span>
+              <span>{t('dashboard.pulse.loadError')} <button onClick={retryLoad} className="underline hover:text-red-300" data-track="ui.f7da0d332b.5">{t('dashboard.pulse.retry')}</button></span>
             </div>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             {SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS && (
-            <button type="button" onClick={() => selectTab('money')} className="text-left group">
+            <button type="button" onClick={() => selectTab('money')} className="text-left group" data-track="ui.f7da0d332b.6">
               <Card className="flex flex-col justify-between h-full group-hover:border-orange-500/50 transition-colors">
                 <div>
                   <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">{t('dashboard.summary.netThisMonth')}</p>
@@ -1143,7 +1143,7 @@ export default function Dashboard() {
 
             {SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS && (
             <>
-            <button type="button" onClick={openHomeTask} className="text-left group">
+            <button type="button" onClick={openHomeTask} className="text-left group" data-track="ui.f7da0d332b.7">
               <Card className="flex flex-col justify-between h-full group-hover:border-orange-500/50 transition-colors">
                 <div>
                   <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">{t('dashboard.summary.thisWeek')}</p>
@@ -1159,7 +1159,7 @@ export default function Dashboard() {
               </Card>
             </button>
 
-            <button type="button" onClick={openGoal} className="text-left group">
+            <button type="button" onClick={openGoal} className="text-left group" data-track="ui.f7da0d332b.8">
               <Card className="flex flex-col justify-between h-full group-hover:border-orange-500/50 transition-colors">
                 <div>
                   <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">{t('dashboard.summary.goalsProgress')}</p>
@@ -1185,7 +1185,7 @@ export default function Dashboard() {
                 <div className="bg-gradient-to-r from-gray-900/80 to-gray-900/40 border border-gray-700/40 rounded-2xl p-6 mb-6">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-[10px] uppercase tracking-widest text-orange-400 font-semibold">{t('dashboard.pulse.next30Days')}</p>
-                    <button onClick={() => setShowPulseSettings(true)} className="text-[11px] text-gray-600 hover:text-gray-400 transition flex items-center gap-1">
+                    <button onClick={() => setShowPulseSettings(true)} className="text-[11px] text-gray-600 hover:text-gray-400 transition flex items-center gap-1" data-track="ui.f7da0d332b.9">
                       <IcoSettings size={13} cls="text-gray-600" /> {t('dashboard.pulse.configure')}
                     </button>
                   </div>
@@ -1201,7 +1201,7 @@ export default function Dashboard() {
                       {t('dashboard.pulse.noDataSub')}
                     </p>
                     <div className="flex gap-2 mt-1">
-                      <button type="button" onClick={() => openMoneyTransaction('expense')} className="text-xs text-orange-400 hover:text-orange-300 underline underline-offset-2">
+                      <button type="button" onClick={() => openMoneyTransaction('expense')} className="text-xs text-orange-400 hover:text-orange-300 underline underline-offset-2" data-track="ui.f7da0d332b.10">
                         {t('dashboard.pulse.logTransaction')}
                       </button>
                     </div>
@@ -1252,7 +1252,7 @@ export default function Dashboard() {
                     <button
                       onClick={() => setShowPulseSettings(true)}
                       className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-gray-300 transition"
-                      title={t('dashboard.pulse.configure')}
+                      title={t('dashboard.pulse.configure')} data-track="ui.f7da0d332b.11"
                     >
                       <IcoSettings size={13} cls="text-gray-500" />
                       {activeCount !== null && (
@@ -1284,7 +1284,7 @@ export default function Dashboard() {
                         </p>
                         <button
                           onClick={() => setShowSources(v => !v)}
-                          className="text-[11px] text-gray-600 hover:text-orange-400 transition mt-1.5 underline underline-offset-2"
+                          className="text-[11px] text-gray-600 hover:text-orange-400 transition mt-1.5 underline underline-offset-2" data-track="ui.f7da0d332b.12"
                         >
                           {showSources ? t('dashboard.pulse.hideSources') : t('dashboard.pulse.whatsIncluded')}
                         </button>
@@ -1571,7 +1571,7 @@ export default function Dashboard() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`text-sm font-bold ${e.type==='income'?'text-emerald-400':'text-red-400'}`}>{e.type==='income'?'+':'-'}${parseFloat(e.amount).toFixed(2)}</span>
-                        <button onClick={async()=>{await life.deleteExpense(e.id);life.fetchSummary();life.fetchExpenses();toast.success(t('dashboard.money.deleteTransaction'));}} className="opacity-0 group-hover:opacity-100 transition"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button>
+                        <button onClick={async()=>{await life.deleteExpense(e.id);life.fetchSummary();life.fetchExpenses();toast.success(t('dashboard.money.deleteTransaction'));}} className="opacity-0 group-hover:opacity-100 transition" data-track="ui.f7da0d332b.13"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button>
                       </div>
                     </div>
                   ))}
@@ -1660,7 +1660,7 @@ export default function Dashboard() {
               />
               <button onClick={lookupHomeAddress}
                 disabled={homeLookupLoading || homeAddrInput.trim().length < 5}
-                className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">
+                className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap" data-track="ui.f7da0d332b.14">
                 {homeLookupLoading ? t('dashboard.home.lookingUp') : t('dashboard.home.lookUp')}
               </button>
             </div>
@@ -1696,7 +1696,7 @@ export default function Dashboard() {
                     onChange={e=>setHomeNickname(e.target.value)}
                     className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
                   <button onClick={addHome} disabled={homeAdding}
-                    className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-1.5 rounded-lg transition whitespace-nowrap">
+                    className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-1.5 rounded-lg transition whitespace-nowrap" data-track="ui.f7da0d332b.15">
                     {homeAdding ? t('common.saving') : t('dashboard.home.saveProperty')}
                   </button>
                 </div>
@@ -1720,7 +1720,7 @@ export default function Dashboard() {
                         {h.osm_building_levels && <span className="text-[10px] text-gray-500">{h.osm_building_levels}fl</span>}
                       </div>
                     </div>
-                    <button onClick={()=>setHomeDeleteTarget(h)} className="text-gray-700 hover:text-red-400 transition ml-1 flex-shrink-0"><IcoX size={12}/></button>
+                    <button onClick={()=>setHomeDeleteTarget(h)} className="text-gray-700 hover:text-red-400 transition ml-1 flex-shrink-0" data-track="ui.f7da0d332b.16"><IcoX size={12}/></button>
                   </div>
                 ))}
               </div>
@@ -1730,8 +1730,8 @@ export default function Dashboard() {
               <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-between gap-3">
                 <p className="text-sm text-red-300">{t('dashboard.home.removeConfirm', { name: homeDeleteTarget.nickname||homeDeleteTarget.address })}</p>
                 <div className="flex gap-2">
-                  <button onClick={()=>setHomeDeleteTarget(null)} className="text-xs text-gray-400 hover:text-white transition px-2 py-1 rounded-lg">{t('common.cancel')}</button>
-                  <button onClick={()=>deleteHome(homeDeleteTarget.id)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg transition">{t('common.remove')}</button>
+                  <button onClick={()=>setHomeDeleteTarget(null)} className="text-xs text-gray-400 hover:text-white transition px-2 py-1 rounded-lg" data-track="ui.f7da0d332b.17">{t('common.cancel')}</button>
+                  <button onClick={()=>deleteHome(homeDeleteTarget.id)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg transition" data-track="ui.f7da0d332b.18">{t('common.remove')}</button>
                 </div>
               </div>
             )}
@@ -1764,7 +1764,7 @@ export default function Dashboard() {
                     const overdue = homeTask?.due_date && new Date(homeTask.due_date) < new Date() && !homeTask?.is_completed;
                     return (
                       <div key={homeTask.id} className={`flex items-center gap-3 p-3 rounded-xl border transition ${homeTask.is_completed?'opacity-40 border-gray-800':overdue?'border-red-500/30 bg-red-500/5':'border-gray-800 hover:border-gray-700'}`}>
-                        <button onClick={()=>toggleHomeTask(homeTask)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${homeTask.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>
+                        <button onClick={()=>toggleHomeTask(homeTask)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${homeTask.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`} data-track="ui.f7da0d332b.19">
                           {homeTask.is_completed && <IcoCheck size={12} cls="text-gray-950"/>}
                         </button>
                         <div className="flex-1 min-w-0">
@@ -1802,7 +1802,7 @@ export default function Dashboard() {
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <Link to={`/helpers/${h.helper_id}`} className="text-xs text-orange-400 font-medium">{t('common.viewAll')}</Link>
-                        <button onClick={async()=>{await life.removeSavedHelper(h.id);toast.success(t('dashboard.home.removed'));}} className="opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 transition" aria-label={t('dashboard.home.unsaveHelper', { name: h.display_name || h.first_name || '' })}><IcoTrash size={13} cls="text-gray-600 hover:text-red-400"/></button>
+                        <button onClick={async()=>{await life.removeSavedHelper(h.id);toast.success(t('dashboard.home.removed'));}} className="opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 transition" aria-label={t('dashboard.home.unsaveHelper', { name: h.display_name || h.first_name || '' })} data-track="ui.f7da0d332b.20"><IcoTrash size={13} cls="text-gray-600 hover:text-red-400"/></button>
                       </div>
                     </div>
                   ))}
@@ -1841,12 +1841,12 @@ export default function Dashboard() {
                             <ProgressBar pct={pct} color="bg-orange-500"/>
                             <div className="flex justify-between items-center mt-2">
                               <span className="text-xs text-gray-500">${parseFloat(g.current_value).toLocaleString()} of ${parseFloat(g.target_value).toLocaleString()}</span>
-                              <button onClick={()=>{setUpdatingGoal(g);setGoalUpdateValue(String(g.current_value||''));setShowGoalUpdateModal(true);}} className="text-[10px] text-orange-400 font-semibold">{t('dashboard.goals.updateProgress')}</button>
+                              <button onClick={()=>{setUpdatingGoal(g);setGoalUpdateValue(String(g.current_value||''));setShowGoalUpdateModal(true);}} className="text-[10px] text-orange-400 font-semibold" data-track="ui.f7da0d332b.21">{t('dashboard.goals.updateProgress')}</button>
                             </div>
                           </>
                         )}
                         {!g.is_completed && !g.target_value && (
-                          <button onClick={()=>life.updateGoal(g.id,{is_completed:true}).then(()=>{life.fetchSummary();toast.success(t('dashboard.goals.goalComplete'));})} className="text-[10px] text-emerald-400 font-semibold mt-1">{t('dashboard.goals.markComplete')}</button>
+                          <button onClick={()=>life.updateGoal(g.id,{is_completed:true}).then(()=>{life.fetchSummary();toast.success(t('dashboard.goals.goalComplete'));})} className="text-[10px] text-emerald-400 font-semibold mt-1" data-track="ui.f7da0d332b.22">{t('dashboard.goals.markComplete')}</button>
                         )}
                       </div>
                     );
@@ -1865,14 +1865,14 @@ export default function Dashboard() {
                 <div className="space-y-1.5 max-h-96 overflow-y-auto">
                   {(life.checklist || []).map(item=>(
                     <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800/30 transition group">
-                      <button onClick={()=>toggleChecklist(item)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${item.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>
+                      <button onClick={()=>toggleChecklist(item)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${item.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`} data-track="ui.f7da0d332b.23">
                         {item.is_completed && <IcoCheck size={12} cls="text-gray-950"/>}
                       </button>
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm ${item.is_completed?'line-through text-gray-600':'text-white'}`}>{item.title}</p>
                         {item.due_date && <p className={`text-xs mt-0.5 ${new Date(item.due_date)<new Date()&&!item.is_completed?'text-red-400':'text-gray-600'}`}>{new Date(item.due_date).toLocaleDateString()}</p>}
                       </div>
-                      <button onClick={async()=>{await life.deleteChecklistItem(item.id);life.fetchSummary();toast.success(t('dashboard.goals.itemRemoved'));}} className="opacity-0 group-hover:opacity-100"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button>
+                      <button onClick={async()=>{await life.deleteChecklistItem(item.id);life.fetchSummary();toast.success(t('dashboard.goals.itemRemoved'));}} className="opacity-0 group-hover:opacity-100" data-track="ui.f7da0d332b.24"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button>
                     </div>
                   ))}
                 </div>
@@ -1912,7 +1912,7 @@ export default function Dashboard() {
                 {id:'cancelled',    label:t('jobs.cancelled')},
               ].map(f=>(
                 <button key={f.id} onClick={()=>setJobsFilter(f.id)}
-                  className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition ${jobsFilter===f.id?'bg-action text-on-action':'bg-gray-800 text-gray-400 hover:text-gray-300'}`}>
+                  className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition ${jobsFilter===f.id?'bg-action text-on-action':'bg-gray-800 text-gray-400 hover:text-gray-300'}`} data-track="ui.f7da0d332b.25">
                   {f.label}
                 </button>
               ))}
@@ -2010,8 +2010,8 @@ export default function Dashboard() {
                           </div>
                         </div>
                         <div className="flex gap-1 flex-shrink-0">
-                          <button onClick={()=>openEditSkill(s)} className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-gray-700/50 transition"><IcoSettings size={14}/></button>
-                          <button onClick={()=>handleDeleteSkill(s.id)} className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition"><IcoTrash size={14}/></button>
+                          <button onClick={()=>openEditSkill(s)} className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-gray-700/50 transition" data-track="ui.f7da0d332b.26"><IcoSettings size={14}/></button>
+                          <button onClick={()=>handleDeleteSkill(s.id)} className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition" data-track="ui.f7da0d332b.27"><IcoTrash size={14}/></button>
                         </div>
                       </div>
                     </Card>
@@ -2055,8 +2055,8 @@ export default function Dashboard() {
                           {(tool.brand||tool.model) && <p className="text-[11px] text-gray-500 truncate">{[tool.brand,tool.model].filter(Boolean).join(' · ')}</p>}
                         </div>
                         <div className="flex gap-1 flex-shrink-0">
-                          <button onClick={()=>openEditTool(tool)} className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-gray-700/50 transition"><IcoSettings size={14}/></button>
-                          <button onClick={()=>handleDeleteTool(tool.id)} className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition"><IcoTrash size={14}/></button>
+                          <button onClick={()=>openEditTool(tool)} className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-gray-700/50 transition" data-track="ui.f7da0d332b.28"><IcoSettings size={14}/></button>
+                          <button onClick={()=>handleDeleteTool(tool.id)} className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition" data-track="ui.f7da0d332b.29"><IcoTrash size={14}/></button>
                         </div>
                       </div>
 
@@ -2125,7 +2125,7 @@ export default function Dashboard() {
                   {title:'Gym / Workout',       category:'Fitness',       recurrence_days:3,   urgency:'low'},
                 ].map((t,i)=>(
                   <button key={i} onClick={()=>quickAddPcTask(t)}
-                    className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition">
+                    className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition" data-track="ui.f7da0d332b.30">
                     {t.category==='Medical'?'🩺':t.category==='Dental'?'🦷':t.category==='Vision'?'👁️':t.category==='Mental Health'?'🧠':t.category==='Grooming'?'💇':t.category==='Pharmacy'?'💊':t.category==='Fitness'?'💪':'✨'} {t.title}
                   </button>
                 ))}
@@ -2150,7 +2150,7 @@ export default function Dashboard() {
                     const recLabel=pcTask.recurrence_days===7?t('dashboard.carCare.recWeekly'):pcTask.recurrence_days===30?t('dashboard.carCare.recMonthly'):pcTask.recurrence_days===180?t('dashboard.carCare.recEvery6mo'):pcTask.recurrence_days===365?t('dashboard.carCare.recAnnually'):pcTask.recurrence_days?t('dashboard.carCare.recEveryNDays',{n:pcTask.recurrence_days}):null;
                     return (
                       <div key={pcTask.id} className={`flex items-center gap-3 p-3 rounded-xl border transition ${overdue?'border-red-500/30 bg-red-500/5':'border-gray-800 hover:border-gray-700'}`}>
-                        <button onClick={()=>togglePcTask(pcTask)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${pcTask.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>
+                        <button onClick={()=>togglePcTask(pcTask)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${pcTask.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`} data-track="ui.f7da0d332b.31">
                           {pcTask.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}
                         </button>
                         <div className="flex-1 min-w-0">
@@ -2165,7 +2165,7 @@ export default function Dashboard() {
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <Tag text={pcTask.urgency} color={pcTask.urgency==='high'?'red':pcTask.urgency==='medium'?'orange':'gray'}/>
                           <Link to="/post-job" className="text-[10px] text-orange-400 hover:text-orange-300 font-semibold whitespace-nowrap">{t('dashboard.personalCare.book')}</Link>
-                          <button onClick={()=>deletePcTask(pcTask.id)} className="text-gray-700 hover:text-red-400 transition"><IcoTrash size={13}/></button>
+                          <button onClick={()=>deletePcTask(pcTask.id)} className="text-gray-700 hover:text-red-400 transition" data-track="ui.f7da0d332b.32"><IcoTrash size={13}/></button>
                         </div>
                       </div>
                     );
@@ -2200,11 +2200,11 @@ export default function Dashboard() {
               {/* Mode tabs */}
               <div className="flex gap-1 mb-3 bg-gray-900 rounded-lg p-0.5 w-fit">
                 <button onClick={()=>{setGarageMode('search');setVinResult(null);setVinError('');}}
-                  className={`text-xs font-semibold px-3 py-1.5 rounded-md transition ${garageMode==='search'?'bg-gray-700 text-white':'text-gray-500 hover:text-gray-300'}`}>
+                  className={`text-xs font-semibold px-3 py-1.5 rounded-md transition ${garageMode==='search'?'bg-gray-700 text-white':'text-gray-500 hover:text-gray-300'}`} data-track="ui.f7da0d332b.33">
                   {t('dashboard.carCare.search')}
                 </button>
                 <button onClick={()=>setGarageMode('vin')}
-                  className={`text-xs font-semibold px-3 py-1.5 rounded-md transition ${garageMode==='vin'?'bg-gray-700 text-white':'text-gray-500 hover:text-gray-300'}`}>
+                  className={`text-xs font-semibold px-3 py-1.5 rounded-md transition ${garageMode==='vin'?'bg-gray-700 text-white':'text-gray-500 hover:text-gray-300'}`} data-track="ui.f7da0d332b.34">
                   {t('dashboard.carCare.vin')}
                 </button>
               </div>
@@ -2257,7 +2257,7 @@ export default function Dashboard() {
                     onChange={e=>setGarageForm(p=>({...p,nickname:e.target.value}))}
                     className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition flex-1 min-w-[120px]"/>
                   <button onClick={addToGarage} disabled={garageAdding||!garageForm.selectedMake||!garageForm.selectedModel}
-                    className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">
+                    className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap" data-track="ui.f7da0d332b.35">
                     {garageAdding ? t('dashboard.carCare.adding') : t('dashboard.carCare.addToGarage')}
                   </button>
                 </div>
@@ -2276,7 +2276,7 @@ export default function Dashboard() {
                     />
                     <button onClick={decodeVin}
                       disabled={vinDecoding || vinInput.length !== 17}
-                      className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">
+                      className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap" data-track="ui.f7da0d332b.36">
                       {vinDecoding ? t('dashboard.carCare.decoding') : t('dashboard.carCare.decode')}
                     </button>
                   </div>
@@ -2307,7 +2307,7 @@ export default function Dashboard() {
                           onChange={e=>setGarageForm(p=>({...p,nickname:e.target.value}))}
                           className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
                         <button onClick={addVinVehicle} disabled={garageAdding}
-                          className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-1.5 rounded-lg transition whitespace-nowrap">
+                          className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-1.5 rounded-lg transition whitespace-nowrap" data-track="ui.f7da0d332b.37">
                           {garageAdding ? t('dashboard.carCare.adding') : t('dashboard.carCare.addToGarageBtn')}
                         </button>
                       </div>
@@ -2331,7 +2331,7 @@ export default function Dashboard() {
                         {v.nickname && <span className="text-[10px] text-gray-500 ml-1.5">{v.make_name} {v.model_name}</span>}
                         {v.year && <span className="text-[10px] text-orange-400 ml-1.5">{v.year}</span>}
                       </div>
-                      <button onClick={()=>setGarageDeleteTarget(v)} className="text-gray-700 hover:text-red-400 transition ml-1"><IcoX size={12}/></button>
+                      <button onClick={()=>setGarageDeleteTarget(v)} className="text-gray-700 hover:text-red-400 transition ml-1" data-track="ui.f7da0d332b.38"><IcoX size={12}/></button>
                     </div>
                   ))}
                 </div>
@@ -2342,8 +2342,8 @@ export default function Dashboard() {
                 <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-between gap-3">
                   <p className="text-sm text-red-300">{t('dashboard.carCare.removeConfirm', { name: garageDeleteTarget.nickname||`${garageDeleteTarget.make_name} ${garageDeleteTarget.model_name}` })}</p>
                   <div className="flex gap-2">
-                    <button onClick={()=>setGarageDeleteTarget(null)} className="text-xs text-gray-400 hover:text-white transition px-2 py-1 rounded-lg">{t('dashboard.carCare.keepIt')}</button>
-                    <button onClick={()=>deleteFromGarage(garageDeleteTarget.id)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg transition">{t('dashboard.carCare.removeBtn')}</button>
+                    <button onClick={()=>setGarageDeleteTarget(null)} className="text-xs text-gray-400 hover:text-white transition px-2 py-1 rounded-lg" data-track="ui.f7da0d332b.39">{t('dashboard.carCare.keepIt')}</button>
+                    <button onClick={()=>deleteFromGarage(garageDeleteTarget.id)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg transition" data-track="ui.f7da0d332b.40">{t('dashboard.carCare.removeBtn')}</button>
                   </div>
                 </div>
               )}
@@ -2363,7 +2363,7 @@ export default function Dashboard() {
                   {title:'Check Tire Pressure',   category:'Tires',       recurrence_days:30,  urgency:'low'},
                 ].map((t,i)=>(
                   <button key={i} onClick={()=>quickAddCcTask(t)}
-                    className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition">
+                    className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition" data-track="ui.f7da0d332b.41">
                     {t.category==='Oil Change'?'🛢️':t.category==='Tires'?'🔄':t.category==='Registration'?'📋':t.category==='Inspection'?'🔍':t.category==='Detailing'?'🧼':t.category==='Battery'?'🔋':t.category==='Brakes'?'🔧':'🚗'} {t.title}
                   </button>
                 ))}
@@ -2388,7 +2388,7 @@ export default function Dashboard() {
                     const recLabel=ccTask.recurrence_days===90?t('dashboard.carCare.recQuarterly'):ccTask.recurrence_days===180?t('dashboard.carCare.recEvery6mo'):ccTask.recurrence_days===365?t('dashboard.carCare.recAnnually'):ccTask.recurrence_days===14?t('dashboard.carCare.recBiweekly'):ccTask.recurrence_days===30?t('dashboard.carCare.recMonthly'):ccTask.recurrence_days?t('dashboard.carCare.recEveryNDays',{n:ccTask.recurrence_days}):null;
                     return (
                       <div key={ccTask.id} className={`flex items-center gap-3 p-3 rounded-xl border transition ${overdue?'border-red-500/30 bg-red-500/5':'border-gray-800 hover:border-gray-700'}`}>
-                        <button onClick={()=>toggleCcTask(ccTask)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${ccTask.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>
+                        <button onClick={()=>toggleCcTask(ccTask)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${ccTask.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`} data-track="ui.f7da0d332b.42">
                           {ccTask.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}
                         </button>
                         <div className="flex-1 min-w-0">
@@ -2404,7 +2404,7 @@ export default function Dashboard() {
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <Tag text={ccTask.urgency} color={ccTask.urgency==='high'?'red':ccTask.urgency==='medium'?'orange':'gray'}/>
                           <Link to="/post-job" className="text-[10px] text-orange-400 hover:text-orange-300 font-semibold whitespace-nowrap">{t('dashboard.carCare.getHelp')}</Link>
-                          <button onClick={()=>deleteCcTask(ccTask.id)} className="text-gray-700 hover:text-red-400 transition"><IcoTrash size={13}/></button>
+                          <button onClick={()=>deleteCcTask(ccTask.id)} className="text-gray-700 hover:text-red-400 transition" data-track="ui.f7da0d332b.43"><IcoTrash size={13}/></button>
                         </div>
                       </div>
                     );
@@ -2419,7 +2419,7 @@ export default function Dashboard() {
 
       {/* ── MODALS ──────────────────────────────────────────────── */}
       <Modal open={showExpenseModal} onClose={()=>setShowExpenseModal(false)} title={t('dashboard.money.modalLogTransaction')}>
-        <form onSubmit={handleAddExpense} className="space-y-4">
+        <form onSubmit={handleAddExpense} className="space-y-4" data-track="ui.f7da0d332b.44">
           <Select label={t('dashboard.money.typeLabel')} value={expenseForm.type} onChange={e=>setExpenseForm(p=>({...p,type:e.target.value}))}>
             <option value="expense">{t('dashboard.money.expenseOption')}</option><option value="income">{t('dashboard.money.incomeOption')}</option>
           </Select>
@@ -2438,7 +2438,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">{t('dashboard.money.recurringLabel')}</label>
             <button type="button" onClick={()=>setExpenseForm(p=>({...p,is_recurring:!p.is_recurring,frequency:!p.is_recurring&&p.frequency==='one_time'?'monthly':p.frequency}))}
-              className={`w-10 h-5 rounded-full transition-colors relative ${expenseForm.is_recurring?'bg-orange-500':'bg-gray-700'}`}>
+              className={`w-10 h-5 rounded-full transition-colors relative ${expenseForm.is_recurring?'bg-orange-500':'bg-gray-700'}`} data-track="ui.f7da0d332b.45">
               <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${expenseForm.is_recurring?'translate-x-5':'translate-x-0.5'}`}/>
             </button>
             <span className="text-xs text-gray-400">{expenseForm.is_recurring?t('common.yes'):t('common.no')}</span>
@@ -2454,7 +2454,7 @@ export default function Dashboard() {
       </Modal>
 
       <Modal open={showGoalModal} onClose={()=>setShowGoalModal(false)} title={t('dashboard.goals.modalNewGoal')}>
-        <form onSubmit={handleAddGoal} className="space-y-4">
+        <form onSubmit={handleAddGoal} className="space-y-4" data-track="ui.f7da0d332b.46">
           <Input label={t('dashboard.goals.goalTitleLabel')} required placeholder={t('dashboard.goals.goalTitlePlaceholder')} value={goalForm.title} onChange={e=>setGoalForm(p=>({...p,title:e.target.value}))}/>
           <Select label={t('dashboard.goals.goalTypeLabel')} value={goalForm.goal_type} onChange={e=>setGoalForm(p=>({...p,goal_type:e.target.value}))}>
             <option value="financial">{t('dashboard.goals.goalTypeFinancial')}</option><option value="task">{t('dashboard.goals.goalTypeTask')}</option><option value="career">{t('dashboard.goals.goalTypeCareer')}</option>
@@ -2466,7 +2466,7 @@ export default function Dashboard() {
       </Modal>
 
       <Modal open={showHomeTaskModal} onClose={()=>setShowHomeTaskModal(false)} title={t('dashboard.goals.addHomeTaskModal')}>
-        <form onSubmit={handleAddHomeTask} className="space-y-4">
+        <form onSubmit={handleAddHomeTask} className="space-y-4" data-track="ui.f7da0d332b.47">
           <Input label={t('dashboard.goals.taskLabel')} required placeholder={t('dashboard.goals.taskPlaceholder')} value={homeTaskForm.title} onChange={e=>setHomeTaskForm(p=>({...p,title:e.target.value}))}/>
           <Input label={t('dashboard.goals.dueDateLabel')} type="date" value={homeTaskForm.due_date} onChange={e=>setHomeTaskForm(p=>({...p,due_date:e.target.value}))}/>
           <Select label={t('dashboard.goals.urgencyLabel')} value={homeTaskForm.urgency} onChange={e=>setHomeTaskForm(p=>({...p,urgency:e.target.value}))}>
@@ -2496,7 +2496,7 @@ export default function Dashboard() {
       </Modal>
 
       <Modal open={showChecklistModal} onClose={()=>setShowChecklistModal(false)} title={t('dashboard.goals.addChecklistModal')}>
-        <form onSubmit={handleAddChecklist} className="space-y-4">
+        <form onSubmit={handleAddChecklist} className="space-y-4" data-track="ui.f7da0d332b.48">
           <Input label={t('dashboard.goals.checklistItemLabel')} required placeholder={t('dashboard.goals.checklistItemPlaceholder')} value={checklistForm.title} onChange={e=>setChecklistForm(p=>({...p,title:e.target.value}))}/>
           <Input label={t('dashboard.goals.dueDateOptLabel')} type="date" value={checklistForm.due_date} onChange={e=>setChecklistForm(p=>({...p,due_date:e.target.value}))}/>
           <Btn className="w-full py-3" type="submit">{t('dashboard.goals.addItemBtn')}</Btn>
@@ -2505,7 +2505,7 @@ export default function Dashboard() {
 
       {/* ── Budget Modal ── */}
       <Modal open={showBudgetModal} onClose={()=>{setShowBudgetModal(false);setBudgetForm({category:'',period_amount:'',period:'monthly'})}} title={t('dashboard.money.modalSetBudget')}>
-        <form onSubmit={async(e)=>{e.preventDefault();try{await life.upsertBudget({category:budgetForm.category,period_amount:parseFloat(budgetForm.period_amount),period:budgetForm.period});life.fetchBudgets();toast.success(t('dashboard.money.budgetSaved'));setShowBudgetModal(false);setBudgetForm({category:'',period_amount:'',period:'monthly'});}catch{toast.error(t('dashboard.money.budgetSaveFailed'));}}} className="space-y-4">
+        <form onSubmit={async(e)=>{e.preventDefault();try{await life.upsertBudget({category:budgetForm.category,period_amount:parseFloat(budgetForm.period_amount),period:budgetForm.period});life.fetchBudgets();toast.success(t('dashboard.money.budgetSaved'));setShowBudgetModal(false);setBudgetForm({category:'',period_amount:'',period:'monthly'});}catch{toast.error(t('dashboard.money.budgetSaveFailed'));}}} className="space-y-4" data-track="ui.f7da0d332b.49">
           <Select label={t('dashboard.money.categoryLabel')} required value={budgetForm.category} onChange={e=>setBudgetForm(p=>({...p,category:e.target.value}))}>
             <option value="">{t('dashboard.money.selectCategoryPlaceholder')}</option>
             {['Housing / Rent','Food & Dining','Transportation','Utilities','Healthcare','Entertainment','Shopping','Personal Care','Auto','Education','Subscriptions','Savings','Other'].map(c=><option key={c} value={c}>{c}</option>)}
@@ -2533,7 +2533,7 @@ export default function Dashboard() {
       {/* ── Goal Update Modal ── */}
       <Modal open={showGoalUpdateModal} onClose={()=>{setShowGoalUpdateModal(false);setUpdatingGoal(null);}} title={t('dashboard.goals.modalUpdateProgress')}>
         {updatingGoal&&(
-          <form onSubmit={async(e)=>{e.preventDefault();await updateGoalProgress(updatingGoal,goalUpdateValue);setShowGoalUpdateModal(false);setUpdatingGoal(null);}} className="space-y-4">
+          <form onSubmit={async(e)=>{e.preventDefault();await updateGoalProgress(updatingGoal,goalUpdateValue);setShowGoalUpdateModal(false);setUpdatingGoal(null);}} className="space-y-4" data-track="ui.f7da0d332b.50">
             <p className="text-sm text-gray-400 bg-gray-800/50 px-3 py-2 rounded-lg">{updatingGoal.icon} {updatingGoal.title}</p>
             <Input label={t('dashboard.goals.currentAmountLabel')} type="number" step="0.01" min="0" required autoFocus value={goalUpdateValue} onChange={e=>setGoalUpdateValue(e.target.value)} placeholder={`Was: $${parseFloat(updatingGoal.current_value||0).toLocaleString()}`}/>
             {updatingGoal.target_value&&<p className="text-xs text-gray-500">{t('dashboard.goals.targetProgress',{target:parseFloat(updatingGoal.target_value).toLocaleString(),pct:Math.round(Math.min((parseFloat(goalUpdateValue||0)/parseFloat(updatingGoal.target_value))*100,100))})}</p>}
@@ -2547,7 +2547,7 @@ export default function Dashboard() {
 
       {/* ── Personal Care Task Modal ── */}
       <Modal open={showPcModal} onClose={()=>setShowPcModal(false)} title={t('dashboard.personalCare.addModal')}>
-        <form onSubmit={addPcTask} className="space-y-4">
+        <form onSubmit={addPcTask} className="space-y-4" data-track="ui.f7da0d332b.51">
           <Input label={t('dashboard.personalCare.apptServiceLabel')} required placeholder={t('dashboard.personalCare.apptServicePlaceholder')} value={pcForm.title} onChange={e=>setPcForm(p=>({...p,title:e.target.value}))}/>
           <Select label={t('dashboard.personalCare.categoryLabel')} value={pcForm.category} onChange={e=>setPcForm(p=>({...p,category:e.target.value}))}>
             <option value="Medical">{t('dashboard.personalCare.catMedical')}</option><option value="Dental">{t('dashboard.personalCare.catDental')}</option><option value="Vision">{t('dashboard.personalCare.catVision')}</option><option value="Mental Health">{t('dashboard.personalCare.catMentalHealth')}</option><option value="Grooming">{t('dashboard.personalCare.catGrooming')}</option><option value="Fitness">{t('dashboard.personalCare.catFitness')}</option><option value="Pharmacy">{t('dashboard.personalCare.catPharmacy')}</option><option value="Other">{t('dashboard.personalCare.catOther')}</option>
@@ -2568,7 +2568,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">{t('dashboard.personalCare.recurringLabel')}</label>
             <button type="button" onClick={()=>setPcForm(p=>({...p,is_recurring:!p.is_recurring,frequency:!p.is_recurring&&!p.frequency?'monthly':p.frequency}))}
-              className={`w-10 h-5 rounded-full transition-colors relative ${pcForm.is_recurring?'bg-orange-500':'bg-gray-700'}`}>
+              className={`w-10 h-5 rounded-full transition-colors relative ${pcForm.is_recurring?'bg-orange-500':'bg-gray-700'}`} data-track="ui.f7da0d332b.52">
               <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${pcForm.is_recurring?'translate-x-5':'translate-x-0.5'}`}/>
             </button>
             <span className="text-xs text-gray-400">{pcForm.is_recurring?t('common.yes'):t('common.no')}</span>
@@ -2586,7 +2586,7 @@ export default function Dashboard() {
 
       {/* ── Car Care Task Modal ── */}
       <Modal open={showCcModal} onClose={()=>setShowCcModal(false)} title={t('dashboard.carCare.addModal')}>
-        <form onSubmit={addCcTask} className="space-y-4">
+        <form onSubmit={addCcTask} className="space-y-4" data-track="ui.f7da0d332b.53">
           {/* Link to a vehicle */}
           {garage.length > 0 && (
             <div>
@@ -2622,7 +2622,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">{t('dashboard.carCare.recurringLabel')}</label>
             <button type="button" onClick={()=>setCcForm(p=>({...p,is_recurring:!p.is_recurring,frequency:!p.is_recurring&&!p.frequency?'monthly':p.frequency}))}
-              className={`w-10 h-5 rounded-full transition-colors relative ${ccForm.is_recurring?'bg-orange-500':'bg-gray-700'}`}>
+              className={`w-10 h-5 rounded-full transition-colors relative ${ccForm.is_recurring?'bg-orange-500':'bg-gray-700'}`} data-track="ui.f7da0d332b.54">
               <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${ccForm.is_recurring?'translate-x-5':'translate-x-0.5'}`}/>
             </button>
             <span className="text-xs text-gray-400">{ccForm.is_recurring?t('common.yes'):t('common.no')}</span>
@@ -2644,7 +2644,7 @@ export default function Dashboard() {
 
       {/* ── Add / Edit Skill Modal ── */}
       <Modal open={showSkillModal} onClose={()=>setShowSkillModal(false)} title={editingSkill ? t('dashboard.skillsTools.modalEditSkill') : t('dashboard.skillsTools.modalAddSkill')}>
-        <form onSubmit={handleSaveSkill} className="space-y-4">
+        <form onSubmit={handleSaveSkill} className="space-y-4" data-track="ui.f7da0d332b.55">
           <div>
             <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.skillsTools.skillNameLabel')}</label>
             <input
@@ -2668,7 +2668,7 @@ export default function Dashboard() {
                       setSkillForm(p => ({ ...p, skill_name: s.name, category: s.category || p.category }));
                       setSkillSearch(s.name);
                       setSkillLookup([]);
-                    }}
+                    }} data-track="ui.f7da0d332b.56"
                   >
                     <span className="font-medium">{s.name}</span>
                     {s.category && <span className="text-[10px] text-gray-500 ml-2">{s.category}</span>}
@@ -2695,7 +2695,7 @@ export default function Dashboard() {
                 {catLookup.map(c => (
                   <button key={c} type="button"
                     className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700/60 hover:text-white transition"
-                    onClick={() => { setSkillForm(p => ({ ...p, category: c })); setCatLookup([]); }}
+                    onClick={() => { setSkillForm(p => ({ ...p, category: c })); setCatLookup([]); }} data-track="ui.f7da0d332b.57"
                   >{c}</button>
                 ))}
               </div>
@@ -2710,7 +2710,7 @@ export default function Dashboard() {
             <textarea rows={3} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder={t('dashboard.skillsTools.descriptionPlaceholder')} value={skillForm.description} onChange={e=>setSkillForm(p=>({...p,description:e.target.value}))}/>
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={skillForm.is_available} onChange={e=>setSkillForm(p=>({...p,is_available:e.target.checked}))} className="accent-orange-500"/>
+            <input type="checkbox" checked={skillForm.is_available} onChange={e=>setSkillForm(p=>({...p,is_available:e.target.checked}))} className="accent-orange-500" data-track="ui.f7da0d332b.58"/>
             <span className="text-sm text-gray-400">{t('dashboard.skillsTools.availableForHire')}</span>
           </label>
           <Btn className="w-full py-3" type="submit">{editingSkill ? t('dashboard.skillsTools.saveChanges') : t('dashboard.skillsTools.addSkillBtn')}</Btn>
@@ -2719,7 +2719,7 @@ export default function Dashboard() {
 
       {/* ── Add / Edit Tool Modal ── */}
       <Modal open={showToolModal} onClose={()=>setShowToolModal(false)} title={editingTool ? t('dashboard.skillsTools.modalEditTool') : t('dashboard.skillsTools.modalAddTool')}>
-        <form onSubmit={handleSaveTool} className="space-y-4">
+        <form onSubmit={handleSaveTool} className="space-y-4" data-track="ui.f7da0d332b.59">
           <Input label={t('dashboard.skillsTools.toolNameLabel')} required placeholder={t('dashboard.skillsTools.toolNamePlaceholder')} value={toolForm.name} onChange={e=>setToolForm(p=>({...p,name:e.target.value}))}/>
           <div className="grid grid-cols-2 gap-3">
             <Input label={t('dashboard.skillsTools.brandLabel')} placeholder={t('dashboard.skillsTools.brandPlaceholder')} value={toolForm.brand} onChange={e=>setToolForm(p=>({...p,brand:e.target.value}))}/>
@@ -2742,7 +2742,7 @@ export default function Dashboard() {
                 {toolCatLookup.map(c => (
                   <button key={c} type="button"
                     className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700/60 hover:text-white transition"
-                    onClick={() => { setToolForm(p => ({ ...p, category: c })); setToolCatLookup([]); }}
+                    onClick={() => { setToolForm(p => ({ ...p, category: c })); setToolCatLookup([]); }} data-track="ui.f7da0d332b.60"
                   >{c}</button>
                 ))}
               </div>
@@ -2770,9 +2770,9 @@ export default function Dashboard() {
             <textarea rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder={t('dashboard.skillsTools.toolDescPlaceholder')} value={toolForm.description} onChange={e=>setToolForm(p=>({...p,description:e.target.value}))}/>
           </div>
           <div className="space-y-2">
-            <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={toolForm.is_available} onChange={e=>setToolForm(p=>({...p,is_available:e.target.checked}))} className="accent-orange-500"/><span className="text-sm text-gray-400">{t('dashboard.skillsTools.availableForRental')}</span></label>
-            <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={toolForm.requires_deposit} onChange={e=>setToolForm(p=>({...p,requires_deposit:e.target.checked}))} className="accent-orange-500"/><span className="text-sm text-gray-400">{t('dashboard.skillsTools.requireDeposit')}</span></label>
-            <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={toolForm.delivery_available} onChange={e=>setToolForm(p=>({...p,delivery_available:e.target.checked}))} className="accent-orange-500"/><span className="text-sm text-gray-400">{t('dashboard.skillsTools.offerDelivery')}</span></label>
+            <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={toolForm.is_available} onChange={e=>setToolForm(p=>({...p,is_available:e.target.checked}))} className="accent-orange-500" data-track="ui.f7da0d332b.61"/><span className="text-sm text-gray-400">{t('dashboard.skillsTools.availableForRental')}</span></label>
+            <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={toolForm.requires_deposit} onChange={e=>setToolForm(p=>({...p,requires_deposit:e.target.checked}))} className="accent-orange-500" data-track="ui.f7da0d332b.62"/><span className="text-sm text-gray-400">{t('dashboard.skillsTools.requireDeposit')}</span></label>
+            <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={toolForm.delivery_available} onChange={e=>setToolForm(p=>({...p,delivery_available:e.target.checked}))} className="accent-orange-500" data-track="ui.f7da0d332b.63"/><span className="text-sm text-gray-400">{t('dashboard.skillsTools.offerDelivery')}</span></label>
           </div>
           <Btn className="w-full py-3" type="submit">{editingTool ? t('dashboard.skillsTools.saveChanges') : t('dashboard.skillsTools.listTool')}</Btn>
         </form>

@@ -1,0 +1,177 @@
+'use strict';
+
+const pool = require('../db');
+const AppError = require('../utils/appError');
+const { resolveRestaurantAccess } = require('../services/scopeModel');
+const permissions = require('../services/permissionsService');
+const hq = require('../services/restaurantHQService');
+const { getLocationScope } = require('../services/restaurantLocationAccessService');
+const { withTransaction } = require('../utils/transaction');
+const { logBusinessAction } = require('../services/businessAuditLog');
+
+function dateRange(req) {
+  const to = req.query?.to ? new Date(`${req.query.to}T00:00:00.000Z`) : new Date();
+  const from = req.query?.from ? new Date(`${req.query.from}T00:00:00.000Z`) : new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from >= to) throw new AppError('Invalid HQ report date range', 400, 'validation_failed');
+  return { from: from.toISOString(), to: to.toISOString() };
+}
+
+async function loadHQRestaurant(req, permission) {
+  const restaurantId = Number.parseInt(req.params.restaurantId, 10);
+  if (!Number.isSafeInteger(restaurantId) || restaurantId <= 0) {
+    throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+  }
+  const restaurant = await resolveRestaurantAccess(req.user.id, restaurantId);
+  if (!(await permissions.hasRestaurantPermission(restaurant, req.user.id, [permission]))) {
+    throw new AppError('You do not have permission to manage the HQ hierarchy', 403, 'forbidden');
+  }
+  return restaurant;
+}
+
+exports.listRegions = async (req, res, next) => {
+  try {
+    const restaurant = await loadHQRestaurant(req, 'settings.view');
+    const regions = await hq.listRegions(pool, restaurant.id);
+    res.json({ regions });
+  } catch (error) { next(error); }
+};
+
+exports.createRegion = async (req, res, next) => {
+  try {
+    const restaurant = await loadHQRestaurant(req, 'settings.manage');
+    const parentRegionId = req.body?.parentRegionId ?? req.body?.parent_region_id ?? null;
+    const region = await withTransaction(pool, async (client) => {
+      const created = await hq.createRegion(client, {
+        restaurantId: restaurant.id,
+        code: req.body?.code,
+        name: req.body?.name,
+        parentRegionId: parentRegionId == null || parentRegionId === '' ? null : Number(parentRegionId),
+        actorUserId: req.user.id,
+      });
+      await logBusinessAction(req, {
+        business_id: restaurant.business_id,
+        actor_role: restaurant.effective_role,
+        action: 'restaurant.hq_region.created',
+        target_type: 'restaurant_region',
+        target_id: created.id,
+        after_state: created,
+        client,
+        throwOnError: true,
+      });
+      return created;
+    }, 'restaurant_hq_region_create');
+    res.status(201).json({ region });
+  } catch (error) { next(error); }
+};
+
+exports.updateRegion = async (req, res, next) => {
+  try {
+    const restaurant = await loadHQRestaurant(req, 'settings.manage');
+    const regionId = Number.parseInt(req.params.regionId, 10);
+    const patch = {};
+    for (const key of ['code', 'name', 'status']) {
+      if (Object.prototype.hasOwnProperty.call(req.body || {}, key)) patch[key] = req.body[key];
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'parentRegionId')
+      || Object.prototype.hasOwnProperty.call(req.body || {}, 'parent_region_id')) {
+      const value = req.body.parentRegionId ?? req.body.parent_region_id;
+      patch.parentRegionId = value == null || value === '' ? null : Number(value);
+    }
+    if (!Object.keys(patch).length) throw new AppError('No region fields provided', 400, 'validation_failed');
+    const result = await withTransaction(pool, async (client) => {
+      const updated = await hq.updateRegion(client, {
+        restaurantId: restaurant.id,
+        regionId,
+        patch,
+        actorUserId: req.user.id,
+      });
+      await logBusinessAction(req, {
+        business_id: restaurant.business_id,
+        actor_role: restaurant.effective_role,
+        action: 'restaurant.hq_region.updated',
+        target_type: 'restaurant_region',
+        target_id: regionId,
+        before_state: updated.before,
+        after_state: updated.after,
+        client,
+        throwOnError: true,
+      });
+      return updated;
+    }, 'restaurant_hq_region_update');
+    res.json({ region: result.after });
+  } catch (error) { next(error); }
+};
+
+exports.rollup = async (req, res, next) => {
+  try {
+    const anchorId = Number.parseInt(req.params.restaurantId, 10);
+    if (!Number.isSafeInteger(anchorId) || anchorId <= 0) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const anchor = await resolveRestaurantAccess(req.user.id, anchorId);
+    if (!(await permissions.hasRestaurantPermission(anchor, req.user.id, ['settings.manage']))) {
+      throw new AppError('You do not have permission to view the HQ rollup', 403, 'forbidden');
+    }
+    const locationScope = await getLocationScope(anchor, req.user.id);
+    const locationParams = [anchor.id];
+    const locationFilter = locationScope.mode === 'assigned' ? ' AND l.id = ANY($2::bigint[])' : '';
+    if (locationScope.mode === 'assigned') locationParams.push(locationScope.location_ids);
+    const { rows: accessible } = await pool.query(
+      `SELECT l.id, l.name AS display_name, l.address_city, l.address_state,
+              l.timezone, l.status, l.region_id, rr.name AS region_name
+         FROM restaurant_locations l
+         LEFT JOIN restaurant_regions rr
+           ON rr.restaurant_id = l.restaurant_id AND rr.id = l.region_id
+        WHERE l.restaurant_id = $1${locationFilter}
+        ORDER BY l.is_primary DESC, l.id`,
+      locationParams
+    );
+    const ids = accessible.map((row) => Number(row.id));
+    if (!ids.length) throw new AppError('No accessible stores found', 403, 'hq_scope_empty');
+    const range = dateRange(req);
+    const { salesRows, healthRows, complianceRows } = await hq.rollupLocations(pool, { restaurantId: anchor.id, locationIds: ids, ...range });
+    const healthById = new Map(healthRows.map((row) => [Number(row.location_id), row]));
+    const complianceById = new Map(complianceRows.map((row) => [Number(row.location_id), row]));
+    const stores = accessible.map((row) => hq.storeShape(row, salesRows.filter((entry) => Number(entry.location_id) === Number(row.id)), {
+      latestAuditScorePercent: healthById.get(Number(row.id))?.latest_audit_score_percent,
+      openFindings: healthById.get(Number(row.id))?.open_findings,
+      checklistCompletionPercent: complianceById.get(Number(row.id))?.checklist_completion_percent,
+      checklistRuns: complianceById.get(Number(row.id))?.checklist_runs,
+      trainingCompletionPercent: complianceById.get(Number(row.id))?.training_completion_percent,
+      trainingAssignments: complianceById.get(Number(row.id))?.training_assignments,
+      overdueTraining: complianceById.get(Number(row.id))?.overdue_training,
+    }));
+    res.json({ scope: { businessId: Number(anchor.business_id), restaurantId: Number(anchor.id), storeCount: stores.length, from: range.from, to: range.to }, stores });
+  } catch (err) { next(err); }
+};
+
+exports.publishMenuOverrides = async (req, res, next) => {
+  try {
+    const restaurantId = Number.parseInt(req.params.restaurantId, 10);
+    if (!Number.isSafeInteger(restaurantId) || restaurantId <= 0) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const restaurant = await resolveRestaurantAccess(req.user.id, restaurantId);
+    if (!(await permissions.hasRestaurantPermission(restaurant, req.user.id, ['settings.manage']))) {
+      throw new AppError('You do not have permission to publish the HQ menu', 403, 'forbidden');
+    }
+    const request = hq.normalizePublishRequest(req.body || {});
+    const scope = await getLocationScope(restaurant, req.user.id);
+    if (scope.mode === 'assigned' && [request.sourceLocationId, ...request.targetLocationIds].some((id) => !scope.location_ids.includes(id))) {
+      throw new AppError('You do not have access to every selected store', 403, 'location_scope_forbidden');
+    }
+    const result = await withTransaction(pool, async (client) => {
+      const published = await hq.publishMenuOverrides(client, { restaurantId, ...request, actorUserId: req.user.id });
+      for (const target of published.targets) {
+        await logBusinessAction(req, {
+          business_id: restaurant.business_id,
+          actor_role: restaurant.effective_role,
+          action: 'restaurant.hq_menu.published',
+          target_type: 'restaurant_location',
+          target_id: target.locationId,
+          metadata: { source_location_id: published.sourceLocationId, copied_overrides: target.copiedOverrides },
+          client,
+          throwOnError: true,
+        });
+      }
+      return published;
+    }, 'restaurant_hq_menu_publish');
+    res.status(200).json({ ...result, published: true });
+  } catch (error) { next(error); }
+};

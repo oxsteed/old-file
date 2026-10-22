@@ -204,7 +204,7 @@ export default function DirectBookSlotPage() {
                             key={`${slot.start}-${slot.end}`}
                             type="button"
                             onClick={() => setSelected(slot)}
-                            className={`rounded-xl border px-3 py-2 text-sm font-semibold ${active ? 'border-orange-400 bg-orange-500 text-white' : 'border-white/10 bg-white/5 text-slate-200 hover:border-orange-400/40'}`}
+                            className={`rounded-xl border px-3 py-2 text-sm font-semibold ${active ? 'border-orange-400 bg-orange-500 text-white' : 'border-white/10 bg-white/5 text-slate-200 hover:border-orange-400/40'}`} data-track="ui.f859045943.1"
                           >
                             {formatSlot(slot.start, i18n.resolvedLanguage)}
                             {slot.freeAssigneeCount != null && (
@@ -236,7 +236,7 @@ export default function DirectBookSlotPage() {
                 </Link>
               </section>
             ) : (
-            <form onSubmit={handleSubmit} className="rounded-3xl border border-white/10 bg-slate-900/70 p-5">
+            <form onSubmit={handleSubmit} className="rounded-3xl border border-white/10 bg-slate-900/70 p-5" data-track="ui.f859045943.2">
               <h2 className="text-lg font-semibold text-white">{t('directCatalog.confirmBooking', { defaultValue: 'Confirm booking' })}</h2>
               <p className="mt-1 text-xs text-slate-500">
                 {selected
@@ -258,7 +258,7 @@ export default function DirectBookSlotPage() {
               <button
                 type="submit"
                 disabled={!selected || submitting || !slots.length}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-bold text-white disabled:opacity-50" data-track="ui.f859045943.3"
               >
                 {submitting ? <Loader2 size={16} className="animate-spin" /> : null}
                 {t('directCatalog.confirmBook', { defaultValue: 'Confirm book' })}

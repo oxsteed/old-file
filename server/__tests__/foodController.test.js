@@ -98,6 +98,55 @@ describe('food controller', () => {
     expect(res.body.fields['items.0.modifierIds']).toMatch(/not available for this menu item/);
   });
 
+  test('rejects a quote when an item contains an excluded allergen', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [quoteRestaurant] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 10,
+          name: 'Peanut noodles',
+          price_cents: 1200,
+          currency_code: 'USD',
+          is_available: true,
+          allergens: ['peanuts', 'soy'],
+          modifier_groups: [],
+        }],
+      });
+
+    const res = await request(buildApp())
+      .post('/api/food/restaurants/3/orders/quote')
+      .send({
+        allergenExclusions: [' PEANUTS '],
+        items: [{ menuItemId: 10, quantity: 1 }],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('validation_failed');
+    expect(res.body.fields['items.0.menuItemId']).toMatch(/excluded allergen/);
+  });
+
+  test('applies item tax overrides and exemptions in the quote', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...quoteRestaurant, tax_rate_bps: 800 }] })
+      .mockResolvedValueOnce({
+        rows: [
+          { id: 10, name: 'Taxed bowl', price_cents: 1000, currency_code: 'USD', is_available: true, tax_rate_bps: 1000, tax_exempt: false, modifier_groups: [] },
+          { id: 11, name: 'Exempt drink', price_cents: 500, currency_code: 'USD', is_available: true, tax_rate_bps: 1000, tax_exempt: true, modifier_groups: [] },
+        ],
+      });
+
+    const res = await request(buildApp())
+      .post('/api/food/restaurants/3/orders/quote')
+      .send({ items: [{ menuItemId: 10, quantity: 1 }, { menuItemId: 11, quantity: 1 }] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.quote.tax_cents).toBe(100);
+    expect(res.body.quote.tax_breakdown).toEqual([
+      { menuItemId: 10, taxableCents: 1000, taxRateBps: 1000, taxCents: 100 },
+      { menuItemId: 11, taxableCents: 500, taxRateBps: 0, taxCents: 0 },
+    ]);
+  });
+
   test('rejects a quote that omits a required modifier selection', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [quoteRestaurant] })
@@ -496,11 +545,13 @@ describe('food controller', () => {
         }],
       })
       .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (post-lock recheck)
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations -> restaurant fallback)
       .mockResolvedValueOnce({
         rows: [{ id: '11', name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }],
       })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ next_queue: 5 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 3 }] }) // F-18 short lock before insert
+      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (locked recheck)
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 5 }] }) // F-18/F-32 daily counter
       .mockResolvedValueOnce({
         rows: [{
           id: 100,
@@ -524,7 +575,7 @@ describe('food controller', () => {
 
     expect(res.status).toBe(201);
     expect(mockQuery.mock.calls[1][0]).toMatch(/b\.is_active = TRUE/);
-    expect(mockQuery.mock.calls.some(([sql]) => /MAX\(queue_number\)/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO restaurant_daily_counters/.test(sql))).toBe(true);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_orders/.test(sql))).toBe(true);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_order_items/.test(sql))).toBe(true);
     const orderInsert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO food_orders/.test(sql));
@@ -543,7 +594,8 @@ describe('food controller', () => {
           prep_time_min: 12,
         }],
       })
-      .mockResolvedValueOnce({ rows: [] }); // H12 replay lookup (post-lock recheck)
+      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (post-lock recheck)
+      .mockResolvedValueOnce({ rows: [] }); // F-02 location resolution (no locations)
 
     const res = await request(buildApp())
       .post('/api/food/restaurants/3/orders')
@@ -558,7 +610,7 @@ describe('food controller', () => {
     expect(res.body.code).toBe('restaurant_card_payments_unavailable');
     expect(res.body.error).toMatch(/connected Stripe/i);
     expect(mockQuery.mock.calls[1][0]).toMatch(/LEFT JOIN businesses b ON b.id = fr.business_id/);
-    expect(mockQuery.mock.calls).toHaveLength(3);
+    expect(mockQuery.mock.calls).toHaveLength(4);
   });
 
   test('creates a hosted Stripe checkout session for pay_now orders when the restaurant is connected', async () => {
@@ -585,10 +637,13 @@ describe('food controller', () => {
         }],
       })
       .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (post-lock recheck)
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations)
       .mockResolvedValueOnce({
         rows: [{ id: '11', name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }],
       })
-      .mockResolvedValueOnce({ rows: [{ next_queue: 5 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 3 }] }) // F-18 short lock before insert
+      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (locked recheck)
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 5 }] }) // F-18/F-32 daily counter
       .mockResolvedValueOnce({
         rows: [{
           id: 100,
@@ -655,13 +710,16 @@ describe('food controller', () => {
         }],
       })
       .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (post-lock recheck)
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations)
       .mockResolvedValueOnce({
         rows: [{ id: '11', name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }],
       })
       .mockResolvedValueOnce({
         rows: [{ id: 7, code: 'FOOD10', title: 'Food 10', discount_cents: 100, min_subtotal_cents: 0 }],
       }) // promotion lookup
-      .mockResolvedValueOnce({ rows: [{ next_queue: 5 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 3 }] }) // F-18 short lock before insert
+      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (locked recheck)
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 5 }] }) // F-18/F-32 daily counter
       .mockResolvedValueOnce({
         rows: [{
           id: 100,
@@ -680,7 +738,8 @@ describe('food controller', () => {
       .mockResolvedValueOnce({ rows: [{ id: 200 }] })
       .mockResolvedValueOnce({ rows: [] }) // inventory item lookup: none tracked
       .mockResolvedValueOnce({ rows: [] }) // inventory mapping lookup: none
-      .mockResolvedValueOnce({ rows: [] }); // printer jobs: none
+      .mockResolvedValueOnce({ rows: [] }) // printer jobs: none
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 }); // promotion use_count increment
 
     const res = await request(buildApp())
       .post('/api/food/restaurants/3/orders')

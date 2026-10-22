@@ -249,7 +249,7 @@ export default function WorkAgreementPage() {
                 </p>
               </div>
               {myRole && !iSigned && version && agreement.status !== 'completed' && (
-                <button type="button" className="wa-primary" onClick={() => setSignOpen(true)}>
+                <button type="button" className="wa-primary" onClick={() => setSignOpen(true)} data-track="ui.fb4a7e71c3.1">
                   <PenLine size={16} aria-hidden="true" />
                   {t('workAgreement.signCta', { defaultValue: 'Sign this version' })}
                 </button>
@@ -275,7 +275,7 @@ export default function WorkAgreementPage() {
                     : t('workAgreement.completeBody', { defaultValue: 'Both of you confirm before the agreement is marked complete.' })}</p>
                 </div>
                 {!iConfirmed && (
-                  <button type="button" className="wa-btn" onClick={confirmComplete} disabled={completing}>
+                  <button type="button" className="wa-btn" onClick={confirmComplete} disabled={completing} data-track="ui.fb4a7e71c3.2">
                     {t('workAgreement.confirmComplete', { defaultValue: 'Confirm complete' })}
                   </button>
                 )}
@@ -288,7 +288,7 @@ export default function WorkAgreementPage() {
                   <strong>{t('workAgreement.issueTitle', { defaultValue: 'Having an issue with this work?' })}</strong>
                   <p>{t('workAgreement.issueBody', { defaultValue: 'Check your warranty terms below and file a claim here first. OxSteed records the claim; you and the other party resolve it.' })}</p>
                 </div>
-                <button type="button" className="wa-btn" onClick={() => { setClaimOpen(true); document.getElementById('wa-warranty')?.scrollIntoView({ behavior: 'smooth' }); }}>
+                <button type="button" className="wa-btn" onClick={() => { setClaimOpen(true); document.getElementById('wa-warranty')?.scrollIntoView({ behavior: 'smooth' }); }} data-track="ui.fb4a7e71c3.3">
                   {t('workAgreement.fileClaim', { defaultValue: 'File claim' })}
                 </button>
               </div>
@@ -353,7 +353,7 @@ export default function WorkAgreementPage() {
             </Section>
 
             <Section icon={FileText} title={t('workAgreement.changeOrders', { defaultValue: 'Change orders' })}
-              action={<button type="button" className="wa-btn" onClick={() => setCoOpen(true)}><Plus size={14} aria-hidden="true" /> {t('workAgreement.proposeCo', { defaultValue: 'Propose' })}</button>}>
+              action={<button type="button" className="wa-btn" onClick={() => setCoOpen(true)} data-track="ui.fb4a7e71c3.4"><Plus size={14} aria-hidden="true" /> {t('workAgreement.proposeCo', { defaultValue: 'Propose' })}</button>}>
               {(data.changeOrders || []).length === 0 && <p className="wa-muted">{t('workAgreement.noChangeOrders', { defaultValue: 'No change orders yet.' })}</p>}
               {(data.changeOrders || []).map((co) => (
                 <div key={co.id} className="wa-co">
@@ -365,8 +365,8 @@ export default function WorkAgreementPage() {
                   )}
                   {co.status === 'proposed' && user && String(co.proposed_by) !== String(user.id) && (
                     <div className="wa-row">
-                      <button type="button" className="wa-btn" onClick={() => decideChangeOrder(co.id, 'approve')}>{t('workAgreement.approve', { defaultValue: 'Approve' })}</button>
-                      <button type="button" className="wa-btn wa-btn--danger" onClick={() => decideChangeOrder(co.id, 'reject')}>{t('workAgreement.reject', { defaultValue: 'Reject' })}</button>
+                      <button type="button" className="wa-btn" onClick={() => decideChangeOrder(co.id, 'approve')} data-track="ui.fb4a7e71c3.5">{t('workAgreement.approve', { defaultValue: 'Approve' })}</button>
+                      <button type="button" className="wa-btn wa-btn--danger" onClick={() => decideChangeOrder(co.id, 'reject')} data-track="ui.fb4a7e71c3.6">{t('workAgreement.reject', { defaultValue: 'Reject' })}</button>
                     </div>
                   )}
                 </div>
@@ -378,8 +378,8 @@ export default function WorkAgreementPage() {
                   <label>{t('workAgreement.coPrice', { defaultValue: 'Price change (USD)' })}
                     <input type="number" step="0.01" value={coPrice} onChange={(e) => setCoPrice(e.target.value)} /></label>
                   <div className="wa-row">
-                    <button type="button" className="wa-primary" onClick={proposeChangeOrder} disabled={!coDesc.trim()}>{t('workAgreement.submit', { defaultValue: 'Submit' })}</button>
-                    <button type="button" className="wa-btn" onClick={() => setCoOpen(false)}>{t('workAgreement.cancel', { defaultValue: 'Cancel' })}</button>
+                    <button type="button" className="wa-primary" onClick={proposeChangeOrder} disabled={!coDesc.trim()} data-track="ui.fb4a7e71c3.7">{t('workAgreement.submit', { defaultValue: 'Submit' })}</button>
+                    <button type="button" className="wa-btn" onClick={() => setCoOpen(false)} data-track="ui.fb4a7e71c3.8">{t('workAgreement.cancel', { defaultValue: 'Cancel' })}</button>
                   </div>
                 </div>
               )}
@@ -394,7 +394,7 @@ export default function WorkAgreementPage() {
                     ) : ev.evidence_type !== 'testing_record' ? (
                       <img src={safeHttpUrl(ev.file_url)} alt={ev.description || ev.evidence_type} loading="lazy" />
                     ) : (
-                      <a href={safeHttpUrl(ev.file_url)} target="_blank" rel="noopener noreferrer" className="wa-ev__doc">{t('workAgreement.testingRecord', { defaultValue: 'Testing record' })}</a>
+                      <a href={safeHttpUrl(ev.file_url)} target="_blank" rel="noopener noreferrer" className="wa-ev__doc" data-track="ui.fb4a7e71c3.9">{t('workAgreement.testingRecord', { defaultValue: 'Testing record' })}</a>
                     )}
                     <figcaption><span className="wa-pill">{ev.evidence_type?.replaceAll('_', ' ')}</span> {ev.description}</figcaption>
                   </figure>
@@ -411,7 +411,7 @@ export default function WorkAgreementPage() {
                 <input type="url" dir="ltr" value={evUrl} onChange={(e) => setEvUrl(e.target.value)} disabled={!!evFile}
                   placeholder={t('workAgreement.fileUrlOptional', { defaultValue: 'Or paste an https link' })} />
                 <input value={evDesc} onChange={(e) => setEvDesc(e.target.value)} placeholder={t('workAgreement.description', { defaultValue: 'Description' })} />
-                <button type="button" className="wa-btn" onClick={addEvidence} disabled={!evFile && !evUrl.trim()}><Upload size={14} aria-hidden="true" /> {t('workAgreement.add', { defaultValue: 'Add' })}</button>
+                <button type="button" className="wa-btn" onClick={addEvidence} disabled={!evFile && !evUrl.trim()} data-track="ui.fb4a7e71c3.10"><Upload size={14} aria-hidden="true" /> {t('workAgreement.add', { defaultValue: 'Add' })}</button>
               </div>
             </Section>
 
@@ -420,7 +420,7 @@ export default function WorkAgreementPage() {
               <ul className="wa-docs">
                 {(data.documents || []).map((doc) => (
                   <li key={doc.id}>{safeHttpUrl(doc.file_url)
-                    ? <a href={safeHttpUrl(doc.file_url)} target="_blank" rel="noopener noreferrer">{doc.file_name}</a>
+                    ? <a href={safeHttpUrl(doc.file_url)} target="_blank" rel="noopener noreferrer" data-track="ui.fb4a7e71c3.11">{doc.file_name}</a>
                     : <span>{doc.file_name} <span className="wa-muted">({t('workAgreement.fileUnavailable', { defaultValue: 'File unavailable' })})</span></span>}</li>
                 ))}
               </ul>
@@ -430,12 +430,12 @@ export default function WorkAgreementPage() {
                 <input type="url" dir="ltr" value={docUrl} onChange={(e) => setDocUrl(e.target.value)} disabled={!!docFile}
                   placeholder={t('workAgreement.fileUrlOptional', { defaultValue: 'Or paste an https link' })} />
                 <input value={docName} onChange={(e) => setDocName(e.target.value)} placeholder={t('workAgreement.fileName', { defaultValue: 'File name' })} />
-                <button type="button" className="wa-btn" onClick={addDocument} disabled={(!docFile && !docUrl.trim()) || (!docFile && !docName.trim())}><Upload size={14} aria-hidden="true" /> {t('workAgreement.add', { defaultValue: 'Add' })}</button>
+                <button type="button" className="wa-btn" onClick={addDocument} disabled={(!docFile && !docUrl.trim()) || (!docFile && !docName.trim())} data-track="ui.fb4a7e71c3.12"><Upload size={14} aria-hidden="true" /> {t('workAgreement.add', { defaultValue: 'Add' })}</button>
               </div>
             </Section>
 
             <Section id="wa-warranty" icon={ShieldCheck} title={t('workAgreement.warranty', { defaultValue: 'Warranty claims' })}
-              action={<button type="button" className="wa-btn" onClick={() => setClaimOpen(true)}><Plus size={14} aria-hidden="true" /> {t('workAgreement.fileClaim', { defaultValue: 'File claim' })}</button>}>
+              action={<button type="button" className="wa-btn" onClick={() => setClaimOpen(true)} data-track="ui.fb4a7e71c3.13"><Plus size={14} aria-hidden="true" /> {t('workAgreement.fileClaim', { defaultValue: 'File claim' })}</button>}>
               <div className="wa-warranty-terms">
                 <p>
                   <strong>{t('workAgreement.warrantyMonths', { defaultValue: 'Warranty (months)' })}:</strong>{' '}
@@ -467,17 +467,17 @@ export default function WorkAgreementPage() {
                             onChange={(e) => setClaimNotes((prev) => ({ ...prev, [c.id]: e.target.value }))} /></label>
                         <div className="wa-row">
                           {!iFiled && c.status === 'filed' && (
-                            <button type="button" className="wa-btn" onClick={() => resolveClaim(c.id, 'under_review')}>
+                            <button type="button" className="wa-btn" onClick={() => resolveClaim(c.id, 'under_review')} data-track="ui.fb4a7e71c3.14">
                               {t('reviewW11.reviewClaim')}
                             </button>
                           )}
-                          <button type="button" className="wa-btn" onClick={() => resolveClaim(c.id, 'resolved')}>
+                          <button type="button" className="wa-btn" onClick={() => resolveClaim(c.id, 'resolved')} data-track="ui.fb4a7e71c3.15">
                             {iFiled
                               ? t('workAgreement.claimWithdraw', { defaultValue: 'Mark resolved' })
                               : t('workAgreement.claimResolve', { defaultValue: 'Resolved' })}
                           </button>
                           {!iFiled && (
-                            <button type="button" className="wa-btn wa-btn--danger" onClick={() => resolveClaim(c.id, 'denied')}>
+                            <button type="button" className="wa-btn wa-btn--danger" onClick={() => resolveClaim(c.id, 'denied')} data-track="ui.fb4a7e71c3.16">
                               {t('workAgreement.claimDeny', { defaultValue: 'Decline claim' })}
                             </button>
                           )}
@@ -492,8 +492,8 @@ export default function WorkAgreementPage() {
                   <label>{t('workAgreement.claimDesc', { defaultValue: 'What went wrong?' })}
                     <textarea rows={3} value={claimDesc} onChange={(e) => setClaimDesc(e.target.value)} /></label>
                   <div className="wa-row">
-                    <button type="button" className="wa-primary" onClick={fileClaim} disabled={!claimDesc.trim()}>{t('workAgreement.submit', { defaultValue: 'Submit' })}</button>
-                    <button type="button" className="wa-btn" onClick={() => setClaimOpen(false)}>{t('workAgreement.cancel', { defaultValue: 'Cancel' })}</button>
+                    <button type="button" className="wa-primary" onClick={fileClaim} disabled={!claimDesc.trim()} data-track="ui.fb4a7e71c3.17">{t('workAgreement.submit', { defaultValue: 'Submit' })}</button>
+                    <button type="button" className="wa-btn" onClick={() => setClaimOpen(false)} data-track="ui.fb4a7e71c3.18">{t('workAgreement.cancel', { defaultValue: 'Cancel' })}</button>
                   </div>
                 </div>
               )}
@@ -506,10 +506,10 @@ export default function WorkAgreementPage() {
                   <p className="wa-muted">{t('workAgreement.signWarning', { defaultValue: 'Your drawn signature is binding. A new version requires signing again.' })}</p>
                   <SignaturePad onChange={setSignatureData} />
                   <div className="wa-row">
-                    <button type="button" className="wa-primary" onClick={sign} disabled={!signatureData || signing}>
+                    <button type="button" className="wa-primary" onClick={sign} disabled={!signatureData || signing} data-track="ui.fb4a7e71c3.19">
                       {signing ? t('workAgreement.signing', { defaultValue: 'Signing…' }) : t('workAgreement.signSubmit', { defaultValue: 'Sign' })}
                     </button>
-                    <button type="button" className="wa-btn" onClick={() => { setSignOpen(false); setSignatureData(null); }}>
+                    <button type="button" className="wa-btn" onClick={() => { setSignOpen(false); setSignatureData(null); }} data-track="ui.fb4a7e71c3.20">
                       <XCircle size={14} aria-hidden="true" /> {t('workAgreement.cancel', { defaultValue: 'Cancel' })}
                     </button>
                   </div>
@@ -526,10 +526,10 @@ export default function WorkAgreementPage() {
                   <div className="wa-row">
                     <button type="button" className="wa-primary"
                       onClick={coPending.type === 'propose' ? submitChangeOrderProposal : submitChangeOrderDecision}
-                      disabled={!coSignatureData}>
+                      disabled={!coSignatureData} data-track="ui.fb4a7e71c3.21">
                       {t('workAgreement.coSignSubmit', { defaultValue: 'Sign and submit' })}
                     </button>
-                    <button type="button" className="wa-btn" onClick={() => { setCoSignOpen(false); setCoSignatureData(null); setCoPending(null); }}>
+                    <button type="button" className="wa-btn" onClick={() => { setCoSignOpen(false); setCoSignatureData(null); setCoPending(null); }} data-track="ui.fb4a7e71c3.22">
                       <XCircle size={14} aria-hidden="true" /> {t('workAgreement.cancel', { defaultValue: 'Cancel' })}
                     </button>
                   </div>

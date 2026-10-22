@@ -33543,5 +33543,13 @@
   "adminCreditApprovalGraceEnds": "Thời gian ân hạn kết thúc",
   "adminCreditApprovalRevokedAt": "Đã thu hồi lúc",
   "adminCreditApprovalMigratedAt": "Số dư đã được di chuyển",
-  "adminCreditApprovalGrandfathered": "Đã phê duyệt (không có hồ sơ phê duyệt)"
+  "adminCreditApprovalGrandfathered": "Đã phê duyệt (không có hồ sơ phê duyệt)",
+  "growthInsights": {
+    "analyticsStorage": "Google Analytics và lưu trữ thiết bị",
+    "analyticsStorageDescription": "Tại EEA, Anh, Thụy Sĩ và Québec, theo dõi và ưu đãi dựa trên hoạt động cần sự đồng ý riêng, có thể rút lại trong Cài đặt. Các bang Hoa Kỳ áp dụng có quyền từ chối bán hoặc chia sẻ và hỗ trợ Global Privacy Control. Ở nơi khác, tùy chọn phân tích kiểm soát Google Analytics và lưu trữ lâu dài; hoạt động thuộc thông báo này.",
+    "policy": "Chính sách quyền riêng tư",
+    "changedOn": "Chính sách quyền riêng tư của chúng tôi đã thay đổi vào {{date}}.",
+    "changesOn": "Chính sách quyền riêng tư của chúng tôi sẽ thay đổi vào {{date}}.",
+    "dismiss": "Đóng"
+  }
 }

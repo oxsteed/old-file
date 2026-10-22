@@ -122,7 +122,7 @@
   padding: 0.1rem 0.6rem;
   font-size: 0.75rem;
   font-weight: 600;
-  margin-right: 0.3rem;
+  margin-inline-end: 0.3rem;
 }
 html.dark .fd-tag { color: #fdba74; }
 
@@ -161,7 +161,7 @@ html.dark .fd-tag { color: #fdba74; }
 .fd-price { font-weight: 800; white-space: nowrap; }
 
 .fd-cartbar {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 40;
+  position: fixed; bottom: 0; inset-inline-start: 0; inset-inline-end: 0; z-index: 40;
   background: #16213e; color: #fff;
   display: flex; align-items: center; justify-content: space-between;
   padding: 0.8rem 1.2rem;
@@ -250,7 +250,7 @@ html.dark .fd-live-status-ready { color: #86efac; }
 }
 html.dark .fd-ready-callout { color: #86efac; }
 .fd-review-prompt {
-  max-width: 420px; margin: 1.4rem auto 0; text-align: left;
+  max-width: 420px; margin: 1.4rem auto 0; text-align: start;
   padding: 1rem; border-radius: 14px;
   border: 1px solid var(--border-color, #e5e7eb);
   background: var(--card-bg, #fff);
@@ -267,7 +267,7 @@ html.dark .fd-ready-callout { color: #86efac; }
   border-radius: 10px; border: 1px solid var(--border-color, #e5e7eb);
   padding: 0.65rem 0.75rem; font: inherit; resize: vertical;
 }
-.fd-card-rating { font-size: 0.82rem; font-weight: 700; color: #f59e0b; margin-left: 0.35rem; }
+.fd-card-rating { font-size: 0.82rem; font-weight: 700; color: #f59e0b; margin-inline-start: 0.35rem; }
 
 /* ── Merchant dashboard ── */
 .fd-tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; margin: 1rem 0; }
@@ -282,11 +282,11 @@ html.dark .fd-ready-callout { color: #86efac; }
 .fd-order-card {
   background: var(--card-bg, #fff);
   border: 1px solid var(--border-color, #e5e7eb);
-  border-left: 5px solid #f97316;
+  border-inline-start: 5px solid #f97316;
   border-radius: 12px; padding: 0.9rem; margin-bottom: 0.7rem;
 }
-.fd-order-card.fd-status-ready { border-left-color: #16a34a; }
-.fd-order-card.fd-status-preparing { border-left-color: #eab308; }
+.fd-order-card.fd-status-ready { border-inline-start-color: #16a34a; }
+.fd-order-card.fd-status-preparing { border-inline-start-color: #eab308; }
 .fd-order-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
 .fd-status-pill {
   display: inline-block; border-radius: 999px; padding: 0.12rem 0.65rem;
@@ -387,7 +387,7 @@ html.dark .fd-order-summary .fd-order-summary-sales { background: linear-gradien
   cursor: pointer;
 }
 .fd-order-view-tabs button.fd-active { background: var(--card-bg, #fff); color: #ea580c; box-shadow: 0 2px 10px rgba(15,23,42,.07); }
-.fd-order-view-tabs button span { margin-left: .35rem; padding: .08rem .38rem; border-radius: 999px; background: rgba(249,115,22,.13); font-size: .68rem; }
+.fd-order-view-tabs button span { margin-inline-start: .35rem; padding: .08rem .38rem; border-radius: 999px; background: rgba(249,115,22,.13); font-size: .68rem; }
 
 .fd-order-filters {
   display: grid;
@@ -435,18 +435,18 @@ html.dark .fd-order-feed-error { color: #fca5a5; background: rgba(127,29,29,.25)
 .fd-order-list-card {
   overflow: hidden;
   border: 1px solid var(--order-line);
-  border-left: 4px solid #f97316;
+  border-inline-start: 4px solid #f97316;
   border-radius: 14px;
   background: var(--card-bg, #fff);
   transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
 }
-.fd-order-list-card.fd-status-ready { border-left-color: #22c55e; }
-.fd-order-list-card.fd-status-preparing { border-left-color: #eab308; }
-.fd-order-list-card.fd-status-completed { border-left-color: #64748b; }
+.fd-order-list-card.fd-status-ready { border-inline-start-color: #22c55e; }
+.fd-order-list-card.fd-status-preparing { border-inline-start-color: #eab308; }
+.fd-order-list-card.fd-status-completed { border-inline-start-color: #64748b; }
 .fd-order-list-card.fd-status-cancelled,
-.fd-order-list-card.fd-status-refunded { border-left-color: #ef4444; }
+.fd-order-list-card.fd-status-refunded { border-inline-start-color: #ef4444; }
 .fd-order-list-card.fd-selected { border-color: #fb923c; box-shadow: 0 8px 24px rgba(249,115,22,.12); transform: translateY(-1px); }
-.fd-order-list-select { display: block; width: 100%; padding: .85rem; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.fd-order-list-select { display: block; width: 100%; padding: .85rem; border: 0; background: transparent; color: inherit; text-align: start; cursor: pointer; }
 .fd-order-list-top { display: flex; justify-content: space-between; gap: .75rem; align-items: flex-start; }
 .fd-order-list-top > div { display: flex; align-items: baseline; gap: .5rem; min-width: 0; }
 .fd-order-list-top strong { color: #ea580c; font-size: 1.05rem; }
@@ -512,7 +512,7 @@ html.dark .fd-order-detail-head { background: linear-gradient(145deg, #2b1b12, #
 .fd-order-detail-list dt,
 .fd-order-price-list dt { color: var(--order-muted); font-size: .72rem; }
 .fd-order-detail-list dd,
-.fd-order-price-list dd { color: var(--order-ink); margin: 0; max-width: 68%; text-align: right; font-size: .76rem; overflow-wrap: anywhere; }
+.fd-order-price-list dd { color: var(--order-ink); margin: 0; max-width: 68%; text-align: end; font-size: .76rem; overflow-wrap: anywhere; }
 .fd-order-detail-list a { color: #ea580c; text-decoration: none; }
 .fd-order-detail-items { display: grid; gap: .65rem; }
 .fd-order-detail-items > div { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .55rem; align-items: start; }
@@ -527,10 +527,10 @@ html.dark .fd-order-item-qty { background: rgba(249,115,22,.14); }
 .fd-order-price-total dt,
 .fd-order-price-total dd { color: var(--order-ink); font-size: .88rem; font-weight: 900; }
 .fd-order-timeline { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
-.fd-order-timeline li { position: relative; display: flex; justify-content: space-between; gap: .65rem; padding-left: 1rem; color: var(--order-muted); font-size: .69rem; }
-.fd-order-timeline li::before { content: ''; position: absolute; left: 0; top: .35rem; width: 6px; height: 6px; border-radius: 50%; background: #fb923c; }
+.fd-order-timeline li { position: relative; display: flex; justify-content: space-between; gap: .65rem; padding-inline-start: 1rem; color: var(--order-muted); font-size: .69rem; }
+.fd-order-timeline li::before { content: ''; position: absolute; inset-inline-start: 0; top: .35rem; width: 6px; height: 6px; border-radius: 50%; background: #fb923c; }
 .fd-order-timeline span { color: var(--order-ink); text-transform: capitalize; }
-.fd-order-timeline time { text-align: right; }
+.fd-order-timeline time { text-align: end; }
 .fd-order-detail-actions { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; gap: .45rem; padding: .8rem 1rem; background: color-mix(in srgb, var(--card-bg, #fff) 92%, transparent); backdrop-filter: blur(10px); }
 .fd-order-detail-actions .fd-btn { flex: 1; min-width: 105px; }
 
@@ -564,7 +564,7 @@ html.dark .fd-order-empty > span { background: rgba(249,115,22,.14); }
   .fd-order-refresh { width: 100%; }
   .fd-order-view-tabs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; box-sizing: border-box; }
   .fd-order-list-top { align-items: baseline; }
-  .fd-order-list-top time { max-width: 115px; white-space: normal; text-align: right; }
+  .fd-order-list-top time { max-width: 115px; white-space: normal; text-align: end; }
   .fd-order-detail-head { flex-direction: column; }
   .fd-order-detail-badges { align-items: flex-start; flex-direction: row; }
 }
@@ -610,7 +610,7 @@ html.dark .fd-order-empty > span { background: rgba(249,115,22,.14); }
 .fd-kds-item strong, .fd-kds-item em, .fd-kds-item small { display: block; }
 .fd-kds-item em, .fd-kds-item small { color: #cbd5e1; margin-top: 0.2rem; }
 .fd-kds-item-status {
-  display: inline-flex; margin-left: 0.45rem; padding: 0.12rem 0.4rem;
+  display: inline-flex; margin-inline-start: 0.45rem; padding: 0.12rem 0.4rem;
   border-radius: 999px; background: #334155; color: #cbd5e1;
   font-size: 0.67rem; font-weight: 800; text-transform: uppercase;
 }
@@ -829,7 +829,7 @@ html.dark .fd-order-empty > span { background: rgba(249,115,22,.14); }
   color: rgba(255, 255, 255, 0.55);
 }
 .fd-field-grid { display: grid; gap: 0.75rem; }
-.fd-tag-verified { margin-left: 0.4rem; background: #ecfdf5; color: #047857; }
+.fd-tag-verified { margin-inline-start: 0.4rem; background: #ecfdf5; color: #047857; }
 
 /* ── Onboarding field row (two-column) ── */
 .fd-onboarding-field-row {
@@ -1124,7 +1124,7 @@ html.dark .fd-tag-closed { background: rgba(239,68,68,0.15); color: #f87171; }
   width: 72px; height: 72px;
   border-radius: 10px;
   object-fit: cover;
-  margin-left: 0.9rem;
+  margin-inline-start: 0.9rem;
   background: var(--border-color, #334155);
   align-self: flex-start;
 }
@@ -1133,7 +1133,7 @@ html.dark .fd-tag-closed { background: rgba(239,68,68,0.15); color: #f87171; }
   width: 72px; height: 72px;
   border-radius: 10px;
   background: rgba(249,115,22,0.07);
-  margin-left: 0.9rem;
+  margin-inline-start: 0.9rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1234,7 +1234,7 @@ html:not(.dark) .fd-home-hero-sub { color: #6b7280; }
 }
 .fd-home-search-icon {
   position: absolute;
-  left: 0.85rem;
+  inset-inline-start: 0.85rem;
   top: 50%;
   transform: translateY(-50%);
   font-size: 1rem;
@@ -2162,7 +2162,7 @@ html.dark .fd-merchant-step { color: #e2e8f0; }
 .fd-owner-attention-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem; }
 .fd-owner-attention-list button { display: flex; align-items: center; gap: .7rem; width: 100%; padding: .85rem 1rem; text-align: start; border: 1px solid rgba(245,158,11,.35); border-radius: 14px; background: rgba(245,158,11,.06); color: inherit; cursor: pointer; font-size: .9rem; font-weight: 600; }
 .fd-owner-attention-dot { width: .55rem; height: .55rem; flex: none; border-radius: 50%; background: #f59e0b; }
-.fd-owner-attention-go { margin-left: auto; color: var(--muted-text, #64748b); font-size: 1.2rem; line-height: 1; }
+.fd-owner-attention-go { margin-inline-start: auto; color: var(--muted-text, #64748b); font-size: 1.2rem; line-height: 1; }
 .fd-owner-view-customer { display: inline-flex; align-items: center; gap: .5rem; padding: .6rem 0; color: var(--muted-text, #64748b); font-size: .85rem; text-decoration: none; }
 .fd-owner-view-customer:hover { text-decoration: underline; }
 .fd-owner-advanced-section { margin-top: 1rem; border: 1px solid var(--border-color, #e2e8f0); border-radius: 16px; background: var(--card-bg, #fff); }
@@ -2241,7 +2241,7 @@ html.dark .fd-pos-header { background: #1e293b; }
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 .fd-pos-meta-input {
   padding: 0.3rem 0.6rem;
@@ -2280,7 +2280,7 @@ html.dark .fd-pos-ftype { color: #e2e8f0; border-color: #334155; }
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-right: 1px solid var(--border-color, #e2e8f0);
+  border-inline-end: 1px solid var(--border-color, #e2e8f0);
 }
 html.dark .fd-pos-menu { border-color: #334155; }
 .fd-pos-cat-rail {
@@ -2421,7 +2421,7 @@ html.dark .fd-pos-line { border-color: #334155; }
   color: var(--app-text, #0f172a);
 }
 html.dark .fd-pos-line-qty button { color: #e2e8f0; border-color: #475569; }
-.fd-pos-line-price { font-size: 0.82rem; font-weight: 700; color: #f97316; min-width: 46px; text-align: right; }
+.fd-pos-line-price { font-size: 0.82rem; font-weight: 700; color: #f97316; min-width: 46px; text-align: end; }
 .fd-pos-ticket-foot {
   padding: 0.75rem 1rem;
   border-top: 1px solid var(--border-color, #e2e8f0);
@@ -2589,7 +2589,7 @@ html.dark .fd-inv-alert { background: #431407; border-color: #9a3412; color: #fd
   padding: 0.75rem 1rem;
 }
 html.dark .fd-inv-item { background: #1e293b; border-color: #334155; }
-.fd-inv-item--low { border-left: 3px solid #f97316; }
+.fd-inv-item--low { border-inline-start: 3px solid #f97316; }
 .fd-inv-item-main { flex: 1; }
 .fd-inv-item-main strong { font-size: 0.9rem; }
 .fd-inv-item-stock {
@@ -2820,7 +2820,7 @@ html.dark .fd-credit-approval-banner[data-status="revoked"] { background: #450a0
 .fd-credit-proof-row a { padding: 0.55rem 0.7rem; border-radius: 10px; color: #a95108; background: #fff1df; font-size: 0.78rem; font-weight: 800; text-decoration: none; }
 .fd-credit-request-note { margin: 0.7rem 0 0; color: var(--muted-text, #64748b); font-size: 0.82rem; }
 .fd-credit-request-actions, .fd-credit-confirm-row, .fd-credit-decline-form { display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap; margin-top: 0.85rem; }
-.fd-credit-confirm-row > strong { margin-right: auto; font-size: 0.82rem; }
+.fd-credit-confirm-row > strong { margin-inline-end: auto; font-size: 0.82rem; }
 .fd-credit-decline-form input { flex: 1 1 260px; min-height: 38px; padding: 0 0.7rem; border: 1px solid var(--border-color, #d8dee5); border-radius: 9px; color: var(--app-text, #0f172a); background: var(--card-bg, #fff); }
 .fd-ox-credit-partner { margin-bottom: 1rem; }
 .fd-ox-credit-partner-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
@@ -2848,7 +2848,7 @@ html.dark .fd-credit-approval-banner[data-status="revoked"] { background: #450a0
 .fd-ox-credit-filter { flex-shrink: 0; }
 .fd-ox-credit-filter select { max-width: 150px; padding: 0.45rem 1.8rem 0.45rem 0.55rem; border: 1px solid var(--border-color, #e2e8f0); border-radius: 8px; color: var(--text-color, #334155); background: var(--card-bg, #fff); font-size: 0.72rem; font-weight: 700; }
 .fd-ox-credit-filter select:disabled { cursor: wait; opacity: 0.55; }
-.fd-ox-credit-list { display: grid; gap: 0.5rem; max-height: 360px; overflow-y: auto; padding-right: 0.15rem; }
+.fd-ox-credit-list { display: grid; gap: 0.5rem; max-height: 360px; overflow-y: auto; padding-inline-end: 0.15rem; }
 .fd-ox-credit-row { display: flex; justify-content: space-between; gap: 0.8rem; padding: 0.7rem 0; border-bottom: 1px solid var(--border-color, #e2e8f0); }
 .fd-ox-credit-row:last-child { border-bottom: 0; }
 .fd-ox-credit-row > div:first-child { display: grid; min-width: 0; gap: 0.16rem; }
@@ -2929,11 +2929,13 @@ html.dark .fd-credit-proof-row a { color: #fdba74; background: #431407; }
 }
 .fd-switch--on { background: #16a34a; border-color: #16a34a; }
 .fd-switch-knob {
-  position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%;
+  position: absolute; top: 2px; inset-inline-start: 2px; width: 20px; height: 20px; border-radius: 50%;
   background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
   transition: transform 0.15s ease;
 }
 .fd-switch--on .fd-switch-knob { transform: translateX(20px); }
+/* F-25: the knob anchors to the inline start, so in RTL it travels the other way. */
+[dir='rtl'] .fd-switch--on .fd-switch-knob { transform: translateX(-20px); }
 .fd-switch:disabled { opacity: 0.5; cursor: not-allowed; }
 .fd-switch:focus-visible { outline: 2px solid #f97316; outline-offset: 2px; }
 
@@ -3074,7 +3076,7 @@ input[type="color"].fd-settings-color {
 .fd-ops-sop-top {
   display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; flex-wrap: wrap;
 }
-.fd-ops-sop-tag { margin-left: 0.5rem; }
+.fd-ops-sop-tag { margin-inline-start: 0.5rem; }
 .fd-ops-sop-actions { display: flex; gap: 0.5rem; }
 .fd-ops-sop-body { white-space: pre-wrap; margin: 0.5rem 0 0; }
 
@@ -3166,7 +3168,7 @@ input[type="color"].fd-settings-color {
 .food-track-page h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem; }
 .food-track-restaurant { color: var(--text-muted, #64748b); margin-bottom: 1.5rem; }
 .food-track-timeline { display: flex; justify-content: space-between; margin: 2rem 0; position: relative; }
-.food-track-timeline::before { content: ''; position: absolute; top: 12px; left: 24px; right: 24px; height: 2px; background: var(--border-color, #e2e8f0); }
+.food-track-timeline::before { content: ''; position: absolute; top: 12px; inset-inline-start: 24px; inset-inline-end: 24px; height: 2px; background: var(--border-color, #e2e8f0); }
 .food-track-step { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; position: relative; z-index: 1; font-size: 0.75rem; color: var(--text-muted, #64748b); }
 .food-track-dot { width: 24px; height: 24px; border-radius: 50%; background: var(--card-bg, #fff); border: 2px solid var(--border-color, #e2e8f0); }
 .food-track-step.done .food-track-dot { background: var(--success, #22c55e); border-color: var(--success, #22c55e); }
@@ -3193,7 +3195,7 @@ input[type="color"].fd-settings-color {
    install prompt, sound-blocked notice. Fixed-position so they work on every
    display page regardless of layout. */
 .fd-display-fs-toggle {
-  position: fixed; right: 12px; bottom: 12px; z-index: 60;
+  position: fixed; inset-inline-end: 12px; bottom: 12px; z-index: 60;
   width: 44px; height: 44px; border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.25);
   background: rgba(15, 23, 42, 0.55); color: #fff;
@@ -3202,11 +3204,11 @@ input[type="color"].fd-settings-color {
 }
 .fd-display-fs-toggle:hover, .fd-display-fs-toggle:focus-visible { opacity: 1; }
 .fd-display-offline-banner {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 70;
+  position: fixed; top: 0; inset-inline-start: 0; inset-inline-end: 0; z-index: 70;
   background: #b45309; color: #fff; text-align: center;
   padding: 0.55rem 1rem; font-weight: 700; font-size: 0.95rem;
 }
-.fd-display-offline-retry { margin-left: 0.6rem; font-weight: 400; opacity: 0.9; }
+.fd-display-offline-retry { margin-inline-start: 0.6rem; font-weight: 400; opacity: 0.9; }
 .fd-display-install {
   position: fixed; left: 50%; bottom: 72px; transform: translateX(-50%);
   z-index: 65; max-width: 340px; width: calc(100% - 3rem);
@@ -3217,7 +3219,7 @@ input[type="color"].fd-settings-color {
 /* Collapsed install affordance: a small floating button that never covers
    page actions. Tapping it expands the full install card above. */
 .fd-display-install-fab {
-  position: fixed; right: 12px; bottom: 64px; z-index: 60;
+  position: fixed; inset-inline-end: 12px; bottom: 64px; z-index: 60;
   width: 44px; height: 44px; border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.25);
   background: rgba(15, 23, 42, 0.55); color: #fff;
@@ -3226,7 +3228,7 @@ input[type="color"].fd-settings-color {
 }
 .fd-display-install-fab:hover, .fd-display-install-fab:focus-visible { opacity: 1; }
 .fd-display-install-close {
-  position: absolute; top: 6px; right: 10px;
+  position: absolute; top: 6px; inset-inline-end: 10px;
   background: none; border: none; color: #94a3b8;
   font-size: 22px; line-height: 1; cursor: pointer; padding: 4px;
 }
@@ -3241,3 +3243,27 @@ input[type="color"].fd-settings-color {
   color: #fbbf24; border-radius: 999px; padding: 0.5rem 0.9rem;
   font-weight: 700; cursor: pointer; font-size: 0.9rem;
 }
+
+/* My shift (S-02): task action cluster + screen-reader-only file input.
+   Logical properties only, so the layout mirrors correctly in RTL. */
+.fd-myshift-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-inline-start: 0.75rem;
+}
+.fd-visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+  padding: 0;
+  margin: -1px;
+}
+.fd-myshift-section { margin-block-end: 1rem; }
+.fd-myshift-section:hover { transform: none; box-shadow: none; }

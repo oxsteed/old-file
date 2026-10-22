@@ -64,7 +64,7 @@ function DishBar({ dishes, onDishTap, t }) {
                 background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.35)',
                 color: '#fff', borderRadius: 9999, padding: '7px 12px', fontSize: 13,
                 fontWeight: 600, cursor: 'pointer', backdropFilter: 'blur(6px)', whiteSpace: 'nowrap',
-              }}
+              }} data-track="ui.e39bedc6a2.1"
             >
               <span aria-hidden="true">🛒</span>
               <span style={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>
@@ -182,7 +182,7 @@ function MediaView({
           style={{
             width: '100%', height: '100%', border: 'none', padding: 0, cursor: 'pointer',
             position: 'relative', display: 'block', background: '#0b0f16',
-          }}
+          }} data-track="ui.e39bedc6a2.2"
         >
           {posterImg ? (
             <img src={posterImg} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.85 }} />
@@ -213,7 +213,7 @@ function MediaView({
               background: 'rgba(0,0,0,0.45)', color: media.liked_by_me ? '#f43f5e' : '#fff',
               fontSize: 22, display: 'flex', alignItems: 'center', justifyContent: 'center',
               backdropFilter: 'blur(6px)',
-            }}
+            }} data-track="ui.e39bedc6a2.3"
           >
             {media.liked_by_me ? '❤️' : '🤍'}
           </button>
@@ -228,7 +228,7 @@ function MediaView({
             width: 46, height: 46, borderRadius: '50%', border: 'none', cursor: 'pointer',
             background: 'rgba(0,0,0,0.45)', color: '#fff', fontSize: 19,
             display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(6px)',
-          }}
+          }} data-track="ui.e39bedc6a2.4"
         >
           🚩
         </button>
@@ -241,7 +241,7 @@ function MediaView({
               width: 46, height: 46, borderRadius: '50%', border: 'none', cursor: 'pointer',
               background: confirmDelete ? '#dc2626' : 'rgba(0,0,0,0.45)', color: '#fff', fontSize: 18,
               display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(6px)',
-            }}
+            }} data-track="ui.e39bedc6a2.5"
           >
             {confirmDelete ? '✓' : '🗑️'}
           </button>
@@ -264,7 +264,7 @@ function MediaView({
               style={{
                 display: 'block', width: '100%', textAlign: 'left', border: 'none', background: 'none',
                 padding: '9px 10px', fontSize: 14, color: '#334155', cursor: 'pointer', borderRadius: 8,
-              }}
+              }} data-track="ui.e39bedc6a2.6"
             >
               {t(`food.restaurant.media.flagReasons.${reason}`)}
             </button>
@@ -274,7 +274,7 @@ function MediaView({
             style={{
               display: 'block', width: '100%', textAlign: 'left', border: 'none', background: 'none',
               padding: '9px 10px', fontSize: 14, color: '#94a3b8', cursor: 'pointer', borderRadius: 8,
-            }}
+            }} data-track="ui.e39bedc6a2.7"
           >
             {t('food.restaurant.media.cancel')}
           </button>
@@ -556,14 +556,14 @@ export default function RestaurantMediaFeed({
         {signedIn ? (
           <button
             onClick={() => setPostOpen(true)}
-            style={{ padding: '9px 16px', borderRadius: 9999, border: 'none', background: '#f97316', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+            style={{ padding: '9px 16px', borderRadius: 9999, border: 'none', background: '#f97316', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }} data-track="ui.e39bedc6a2.8"
           >
             ＋ {t('food.restaurant.media.postVideo')}
           </button>
         ) : (
           <button
             onClick={onRequireLogin}
-            style={{ padding: '9px 16px', borderRadius: 9999, border: '1.5px solid var(--color-border, #e2e8f0)', background: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: 'var(--color-text, #0f172a)' }}
+            style={{ padding: '9px 16px', borderRadius: 9999, border: '1.5px solid var(--color-border, #e2e8f0)', background: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: 'var(--color-text, #0f172a)' }} data-track="ui.e39bedc6a2.9"
           >
             {t('food.restaurant.media.loginToPost')}
           </button>
@@ -594,7 +594,7 @@ export default function RestaurantMediaFeed({
                 </p>
                 <button
                   onClick={refreshFeed}
-                  style={{ marginTop: 8, padding: '7px 14px', borderRadius: 9999, border: 'none', background: '#f97316', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                  style={{ marginTop: 8, padding: '7px 14px', borderRadius: 9999, border: 'none', background: '#f97316', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }} data-track="ui.e39bedc6a2.10"
                 >
                   {t('food.restaurant.media.upload.processingNotice.refresh')}
                 </button>
@@ -602,7 +602,7 @@ export default function RestaurantMediaFeed({
               <button
                 onClick={() => dismissProcessingNotice(notice.id)}
                 aria-label={t('food.restaurant.media.upload.processingNotice.dismiss')}
-                style={{ border: 'none', background: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--color-text-muted, #64748b)', padding: 2 }}
+                style={{ border: 'none', background: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--color-text-muted, #64748b)', padding: 2 }} data-track="ui.e39bedc6a2.11"
               >
                 ×
               </button>
@@ -623,14 +623,14 @@ export default function RestaurantMediaFeed({
           {signedIn ? (
             <button
               onClick={() => setPostOpen(true)}
-              style={{ padding: '12px 26px', borderRadius: 9999, border: 'none', background: '#f97316', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+              style={{ padding: '12px 26px', borderRadius: 9999, border: 'none', background: '#f97316', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }} data-track="ui.e39bedc6a2.12"
             >
               {t('food.restaurant.media.postVideo')}
             </button>
           ) : (
             <button
               onClick={onRequireLogin}
-              style={{ padding: '12px 26px', borderRadius: 9999, border: '1.5px solid var(--color-border, #e2e8f0)', background: 'var(--color-surface, #fff)', fontSize: 14, fontWeight: 700, cursor: 'pointer', color: 'var(--color-text, #0f172a)' }}
+              style={{ padding: '12px 26px', borderRadius: 9999, border: '1.5px solid var(--color-border, #e2e8f0)', background: 'var(--color-surface, #fff)', fontSize: 14, fontWeight: 700, cursor: 'pointer', color: 'var(--color-text, #0f172a)' }} data-track="ui.e39bedc6a2.13"
             >
               {t('food.restaurant.media.loginButton')}
             </button>
@@ -670,7 +670,7 @@ export default function RestaurantMediaFeed({
               <button
                 onClick={loadMore}
                 disabled={loadingMore}
-                style={{ padding: '10px 24px', borderRadius: 9999, border: '1.5px solid var(--color-border, #e2e8f0)', background: 'var(--color-surface, #fff)', fontSize: 14, fontWeight: 600, cursor: loadingMore ? 'wait' : 'pointer', color: 'var(--color-text, #0f172a)' }}
+                style={{ padding: '10px 24px', borderRadius: 9999, border: '1.5px solid var(--color-border, #e2e8f0)', background: 'var(--color-surface, #fff)', fontSize: 14, fontWeight: 600, cursor: loadingMore ? 'wait' : 'pointer', color: 'var(--color-text, #0f172a)' }} data-track="ui.e39bedc6a2.14"
               >
                 {loadingMore ? t('food.restaurant.media.loadingMore') : t('food.restaurant.media.loadMore')}
               </button>

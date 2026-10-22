@@ -61,7 +61,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
         {state && onClearState && (
           <button
             onClick={onClearState}
-            className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium rounded-xl transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium rounded-xl transition-colors" data-track="ui.fea2fcee33.1"
           >
             <MapPin className="w-4 h-4" aria-hidden="true" />
             {t('jobsDir.showAllStates')}
@@ -72,7 +72,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
         {hasFilters && (
           <button
             onClick={onReset}
-            className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-sm font-medium rounded-xl transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-sm font-medium rounded-xl transition-colors" data-track="ui.fea2fcee33.2"
           >
             <RotateCcw className="w-4 h-4" aria-hidden="true" />
             {t('jobsDir.clearAllFilters')}

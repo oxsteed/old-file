@@ -107,7 +107,7 @@ export function ProductPricingManager({ businessId }) {
           <h2>{t('pricing.productRulesTitle', { defaultValue: 'Product Pricing Rules' })}</h2>
           <p className="ppm-desc">{t('pricing.productRulesDesc', { defaultValue: 'Volume discounts, promotions, bundles, and seasonal pricing for your products.' })}</p>
         </div>
-        <button className="ppm-btn-primary" onClick={() => setShowModal(true)}>
+        <button className="ppm-btn-primary" onClick={() => setShowModal(true)} data-track="ui.13087bac6c.1">
           + {t('pricing.addRule', { defaultValue: 'Add Rule' })}
         </button>
       </div>
@@ -117,7 +117,7 @@ export function ProductPricingManager({ businessId }) {
       ) : rules.length === 0 ? (
         <div className="ppm-empty">
           <p>{t('pricing.noRules', { defaultValue: 'No pricing rules yet' })}</p>
-          <button className="ppm-btn-secondary" onClick={() => setShowModal(true)}>
+          <button className="ppm-btn-secondary" onClick={() => setShowModal(true)} data-track="ui.13087bac6c.2">
             {t('pricing.createFirst', { defaultValue: 'Create your first rule' })}
           </button>
         </div>
@@ -131,7 +131,7 @@ export function ProductPricingManager({ businessId }) {
                   <h4>{rule.name}</h4>
                 </div>
                 <label className="ppm-toggle" onClick={e => e.stopPropagation()}>
-                  <input type="checkbox" checked={rule.isActive} onChange={() => handleToggle(rule.id, rule.isActive)} />
+                  <input type="checkbox" checked={rule.isActive} onChange={() => handleToggle(rule.id, rule.isActive)} data-track="ui.13087bac6c.3" />
                   <span className="ppm-slider" />
                 </label>
               </div>
@@ -149,7 +149,7 @@ export function ProductPricingManager({ businessId }) {
               <button
                 className="ppm-delete-btn"
                 onClick={e => { e.stopPropagation(); handleDelete(rule.id); }}
-                title={t('common.delete')}
+                title={t('common.delete')} data-track="ui.13087bac6c.4"
               >
                 🗑️
               </button>
@@ -163,7 +163,7 @@ export function ProductPricingManager({ businessId }) {
         <div className="ppm-modal-overlay" onClick={() => setShowModal(false)}>
           <div className="ppm-modal" onClick={e => e.stopPropagation()}>
             <h3>{t('pricing.createNewRule', { defaultValue: 'New Pricing Rule' })}</h3>
-            <form onSubmit={handleCreate}>
+            <form onSubmit={handleCreate} data-track="ui.13087bac6c.5">
               <label>{t('common.name')} *</label>
               <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
 
@@ -195,8 +195,8 @@ export function ProductPricingManager({ businessId }) {
               <input type="datetime-local" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} />
 
               <div className="ppm-modal-actions">
-                <button type="button" onClick={() => setShowModal(false)}>{t('common.cancel')}</button>
-                <button type="submit" className="ppm-btn-primary">{t('common.create')}</button>
+                <button type="button" onClick={() => setShowModal(false)} data-track="ui.13087bac6c.6">{t('common.cancel')}</button>
+                <button type="submit" className="ppm-btn-primary" data-track="ui.13087bac6c.7">{t('common.create')}</button>
               </div>
             </form>
           </div>
@@ -208,7 +208,7 @@ export function ProductPricingManager({ businessId }) {
         <div className="ppm-detail">
           <div className="ppm-detail-head">
             <h3>{selectedRule.name}</h3>
-            <button className="ppm-close-btn" onClick={() => setSelectedRule(null)}>✕</button>
+            <button className="ppm-close-btn" onClick={() => setSelectedRule(null)} data-track="ui.13087bac6c.8">✕</button>
           </div>
           <p><strong>{t('pricing.type', { defaultValue: 'Type' })}:</strong> {typeLabel(selectedRule.type)}</p>
           <p><strong>{t('pricing.priority', { defaultValue: 'Priority' })}:</strong> {selectedRule.priority}</p>

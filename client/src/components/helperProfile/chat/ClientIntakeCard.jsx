@@ -58,7 +58,7 @@ export default function ClientIntakeCard({
       ) : isProvider ? (
         <p className="client-intake-card__waiting mt-3 text-xs text-gray-400">{t('messages.clientIntake.waiting')}</p>
       ) : (
-        <form className="mt-3 space-y-2.5" onSubmit={submit}>
+        <form className="mt-3 space-y-2.5" onSubmit={submit} data-track-private>
           {fields.map((field) => (
             <label key={field.id} className="client-intake-card__label block text-xs text-gray-300">
               <span className="mb-1 block font-medium">{field.label}{field.required ? ' *' : ''}</span>
@@ -92,7 +92,7 @@ export default function ClientIntakeCard({
             </label>
           ))}
           {error ? <p className="client-intake-card__error text-xs text-red-300" role="alert">{error}</p> : null}
-          <button type="submit" disabled={busy || !guestVerified} className="client-intake-card__submit inline-flex items-center gap-2 rounded-lg bg-orange-500 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">
+          <button type="submit" disabled={busy || !guestVerified} className="client-intake-card__submit inline-flex items-center gap-2 rounded-lg bg-orange-500 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50" data-track-private>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
             {t('messages.clientIntake.submit')}
           </button>

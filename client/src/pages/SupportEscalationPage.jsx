@@ -47,18 +47,18 @@ function ConversationReviewForm({ t, review, rating, setRating, npsScore, setNps
   if (review) {
     return <div className="mb-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4"><p className="font-semibold text-emerald-200">{t('support.escalation.reviewThanks', { defaultValue: 'Thanks for your feedback.' })}</p><p className="mt-1 text-sm text-slate-300">{t('support.escalation.reviewSaved', { defaultValue: 'Your review has been saved.' })}</p></div>;
   }
-  return <form onSubmit={onSubmit} className="mb-5 rounded-2xl border border-slate-700 bg-slate-950/60 p-4">
+  return <form onSubmit={onSubmit} className="mb-5 rounded-2xl border border-slate-700 bg-slate-950/60 p-4" data-track-private>
     <p className="font-semibold text-white">{t('support.escalation.reviewTitle', { defaultValue: 'How did we do?' })}</p>
     <p className="mt-1 text-sm text-slate-400">{t('support.escalation.reviewBody', { defaultValue: 'Please rate your support experience.' })}</p>
     <div className="mt-3 flex gap-1" role="radiogroup" aria-label={t('support.escalation.reviewTitle', { defaultValue: 'How did we do?' })}>
-      {[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" onClick={() => setRating(value)} aria-label={`${value} / 5`} aria-pressed={rating === value} className={`rounded-lg p-1 transition ${value <= rating ? 'text-orange-300' : 'text-slate-600 hover:text-orange-200'}`}><Star size={22} fill="currentColor" /></button>)}
+      {[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" onClick={() => setRating(value)} aria-label={`${value} / 5`} aria-pressed={rating === value} className={`rounded-lg p-1 transition ${value <= rating ? 'text-orange-300' : 'text-slate-600 hover:text-orange-200'}`} data-track-private><Star size={22} fill="currentColor" /></button>)}
     </div>
     <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">{t('support.escalation.npsQuestion', { defaultValue: 'How likely are you to recommend OxSteed?' })}</p>
     <div className="mt-2 grid grid-cols-6 gap-1.5 sm:grid-cols-11" role="radiogroup" aria-label={t('support.escalation.npsQuestion', { defaultValue: 'How likely are you to recommend OxSteed?' })}>
-      {Array.from({ length: 11 }, (_, value) => <button key={value} type="button" onClick={() => setNpsScore(value)} aria-label={`${value} / 10`} aria-pressed={npsScore === value} className={`rounded-lg border px-1.5 py-1 text-xs font-semibold transition ${npsScore === value ? 'border-orange-400 bg-orange-500 text-white' : 'border-slate-700 text-slate-400 hover:border-orange-300 hover:text-orange-200'}`}>{value}</button>)}
+      {Array.from({ length: 11 }, (_, value) => <button key={value} type="button" onClick={() => setNpsScore(value)} aria-label={`${value} / 10`} aria-pressed={npsScore === value} className={`rounded-lg border px-1.5 py-1 text-xs font-semibold transition ${npsScore === value ? 'border-orange-400 bg-orange-500 text-white' : 'border-slate-700 text-slate-400 hover:border-orange-300 hover:text-orange-200'}`} data-track-private>{value}</button>)}
     </div>
     <textarea value={comment} onChange={(event) => setComment(event.target.value)} maxLength={1000} rows={2} className="mt-3 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" placeholder={t('support.escalation.reviewPlaceholder', { defaultValue: 'Optional feedback' })} />
-    <button type="submit" disabled={busy || !rating || npsScore === null} className="mt-3 rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? t('support.escalation.savingReview', { defaultValue: 'Saving...' }) : t('support.escalation.submitReview', { defaultValue: 'Submit review' })}</button>
+    <button type="submit" disabled={busy || !rating || npsScore === null} className="mt-3 rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" data-track-private>{busy ? t('support.escalation.savingReview', { defaultValue: 'Saving...' }) : t('support.escalation.submitReview', { defaultValue: 'Submit review' })}</button>
   </form>;
 }
 
@@ -333,7 +333,7 @@ function PublicGuestSupport({ t, handoff }) {
                   <button
                     type="button"
                     onClick={() => navigate(handoff.returnTo)}
-                    className="mt-3 text-sm font-semibold text-violet-200 underline hover:text-white"
+                    className="mt-3 text-sm font-semibold text-violet-200 underline hover:text-white" data-track-private
                   >
                     {t('support.escalation.returnToProfile', { defaultValue: 'Return to profile' })}
                   </button>
@@ -373,16 +373,16 @@ function PublicGuestSupport({ t, handoff }) {
                 <p className="text-slate-300 text-sm leading-6">
                   {t('support.escalation.directContactBody', { defaultValue: 'When no specialist is available, call or text OxSteed Support directly.' })}
                 </p>
-                <a href="tel:+19374085169" className="block my-4 text-orange-300 text-lg font-semibold" dir="ltr">{OXSTEED_SUPPORT_PHONE}</a>
+                <a href="tel:+19374085169" className="block my-4 text-orange-300 text-lg font-semibold" dir="ltr" data-track-private>{OXSTEED_SUPPORT_PHONE}</a>
                 <div className="grid grid-cols-2 gap-3">
-                  <a href="tel:+19374085169" className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-3 py-3 text-white font-semibold hover:bg-orange-700">
+                  <a href="tel:+19374085169" className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-3 py-3 text-white font-semibold hover:bg-orange-700" data-track-private>
                     <Phone size={17} aria-hidden="true" />{t('support.escalation.callSupport', { defaultValue: 'Call' })}
                   </a>
-                  <a href="sms:+19374085169" className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 px-3 py-3 text-white font-semibold hover:border-orange-500">
+                  <a href="sms:+19374085169" className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 px-3 py-3 text-white font-semibold hover:border-orange-500" data-track-private>
                     <MessageSquare size={17} aria-hidden="true" />{t('support.escalation.textSupport', { defaultValue: 'Text' })}
                   </a>
                 </div>
-                <a href={`mailto:${OXSTEED_SUPPORT_EMAIL}`} className="mt-4 flex items-center gap-2 text-slate-300 text-sm break-all"><Mail size={16} aria-hidden="true" />{OXSTEED_SUPPORT_EMAIL}</a>
+                <a href={`mailto:${OXSTEED_SUPPORT_EMAIL}`} className="mt-4 flex items-center gap-2 text-slate-300 text-sm break-all" data-track-private><Mail size={16} aria-hidden="true" />{OXSTEED_SUPPORT_EMAIL}</a>
               </section>
               <section className="guest-support-banner rounded-3xl border p-6">
                 <h2 className="text-white font-semibold mb-3">{t('support.escalation.includeTitle')}</h2>
@@ -404,8 +404,8 @@ function PublicGuestSupport({ t, handoff }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div><h1 className="text-3xl font-bold">{t('support.escalation.liveTitle', { defaultValue: 'OxSteed Support' })}</h1><p className="mt-2 text-slate-300">{t('support.escalation.guestChatBody', { defaultValue: 'Your verified support conversation is open.' })}</p></div>
         <div className="flex flex-wrap gap-2">
-          {conversationStatus === 'resolved' && <button type="button" onClick={reopen} disabled={reopenBusy} className="inline-flex items-center gap-2 rounded-xl border border-orange-500/40 px-3 py-2 text-sm text-orange-200 hover:border-orange-400 disabled:opacity-50">{reopenBusy ? t('support.escalation.reopening', { defaultValue: 'Reopening…' }) : t('support.escalation.reopen', { defaultValue: 'Reopen conversation' })}</button>}
-          <button type="button" onClick={download} disabled={downloadBusy} className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:border-orange-500 disabled:opacity-50"><Download size={16} />{downloadBusy ? t('support.escalation.downloading', { defaultValue: 'Preparing…' }) : t('support.escalation.download', { defaultValue: 'Download' })}</button>
+          {conversationStatus === 'resolved' && <button type="button" onClick={reopen} disabled={reopenBusy} className="inline-flex items-center gap-2 rounded-xl border border-orange-500/40 px-3 py-2 text-sm text-orange-200 hover:border-orange-400 disabled:opacity-50" data-track-private>{reopenBusy ? t('support.escalation.reopening', { defaultValue: 'Reopening…' }) : t('support.escalation.reopen', { defaultValue: 'Reopen conversation' })}</button>}
+          <button type="button" onClick={download} disabled={downloadBusy} className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:border-orange-500 disabled:opacity-50" data-track-private><Download size={16} />{downloadBusy ? t('support.escalation.downloading', { defaultValue: 'Preparing…' }) : t('support.escalation.download', { defaultValue: 'Download' })}</button>
         </div>
       </div>
       {realtimeState !== 'connected' && <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100" role="status" aria-live="polite">
@@ -421,13 +421,13 @@ function PublicGuestSupport({ t, handoff }) {
         }}
         className="my-6 max-h-[420px] space-y-3 overflow-y-auto"
       >
-        {showNewMessages && <button type="button" onClick={() => { stickToBottomRef.current = true; setShowNewMessages(false); scheduleChatScroll(messageListRef.current); }} className="sticky top-2 z-10 mx-auto block rounded-full border border-orange-500/40 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-orange-200 shadow-lg">{t('support.escalation.newMessages', { defaultValue: 'New messages' })} ↓</button>}
+        {showNewMessages && <button type="button" onClick={() => { stickToBottomRef.current = true; setShowNewMessages(false); scheduleChatScroll(messageListRef.current); }} className="sticky top-2 z-10 mx-auto block rounded-full border border-orange-500/40 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-orange-200 shadow-lg" data-track-private>{t('support.escalation.newMessages', { defaultValue: 'New messages' })} ↓</button>}
         {messages.map((item) => {
           const isCustomer = item.sender?.type === 'customer';
           const canEdit = isCustomer && item.content && !['resolved', 'closed'].includes(conversationStatus) && Date.now() - new Date(item.timestamp).getTime() < 15 * 60 * 1000;
           return <div key={item.id || `${item.timestamp}-${item.content}`} className={`rounded-2xl px-4 py-3 ${isCustomer ? 'ml-8 bg-orange-600' : 'bg-slate-800'}`}>
-            {item.attachmentUrl && <a href={item.attachmentUrl} download={item.attachmentName || undefined} target="_blank" rel="noreferrer" className="group relative mb-2 block w-fit" aria-label={`${t('support.escalation.downloadAttachment', { defaultValue: 'Download' })} ${item.attachmentName || t('support.escalation.attachImage', { defaultValue: 'support attachment' })}`}><img src={item.attachmentUrl} alt={item.attachmentName || t('support.escalation.attachImage', { defaultValue: 'Support attachment' })} onLoad={() => { if (stickToBottomRef.current) scheduleChatScroll(messageListRef.current, 'auto'); }} className="max-h-64 max-w-full rounded-xl object-contain transition group-hover:opacity-90" /><span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-lg bg-slate-950/85 px-2 py-1 text-[11px] font-semibold text-white opacity-0 shadow transition group-hover:opacity-100 group-focus-visible:opacity-100"><Download size={12} /> {t('support.escalation.downloadAttachment', { defaultValue: 'Download' })}</span></a>}
-            {editingMessageId === item.id ? <div className="space-y-2"><textarea value={editingContent} onChange={(event) => setEditingContent(event.target.value)} maxLength={5000} rows={3} className="w-full rounded-xl bg-slate-900 px-3 py-2 text-white" /><div className="flex gap-2"><button type="button" onClick={() => editMessage(item.id)} disabled={busy || !editingContent.trim()} className="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold">{t('common.save', { defaultValue: 'Save' })}</button><button type="button" onClick={() => setEditingMessageId(null)} className="rounded-lg px-3 py-1.5 text-xs text-white/70">{t('common.cancel', { defaultValue: 'Cancel' })}</button></div></div> : <>{item.content && <p className="whitespace-pre-wrap">{item.content}</p>}{item.editedAt && <span className="mt-2 block text-xs opacity-70">{t('support.escalation.edited', { defaultValue: 'Edited' })}</span>}{canEdit && <button type="button" onClick={() => { setEditingMessageId(item.id); setEditingContent(item.content); }} className="mt-2 inline-flex items-center gap-1 text-xs text-white/75 hover:text-white"><Pencil size={12} />{t('support.escalation.edit', { defaultValue: 'Edit' })}</button>}</>}
+            {item.attachmentUrl && <a href={item.attachmentUrl} download={item.attachmentName || undefined} target="_blank" rel="noreferrer" className="group relative mb-2 block w-fit" aria-label={`${t('support.escalation.downloadAttachment', { defaultValue: 'Download' })} ${item.attachmentName || t('support.escalation.attachImage', { defaultValue: 'support attachment' })}`} data-track-private><img src={item.attachmentUrl} alt={item.attachmentName || t('support.escalation.attachImage', { defaultValue: 'Support attachment' })} onLoad={() => { if (stickToBottomRef.current) scheduleChatScroll(messageListRef.current, 'auto'); }} className="max-h-64 max-w-full rounded-xl object-contain transition group-hover:opacity-90" /><span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-lg bg-slate-950/85 px-2 py-1 text-[11px] font-semibold text-white opacity-0 shadow transition group-hover:opacity-100 group-focus-visible:opacity-100"><Download size={12} /> {t('support.escalation.downloadAttachment', { defaultValue: 'Download' })}</span></a>}
+            {editingMessageId === item.id ? <div className="space-y-2"><textarea value={editingContent} onChange={(event) => setEditingContent(event.target.value)} maxLength={5000} rows={3} className="w-full rounded-xl bg-slate-900 px-3 py-2 text-white" /><div className="flex gap-2"><button type="button" onClick={() => editMessage(item.id)} disabled={busy || !editingContent.trim()} className="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold" data-track-private>{t('common.save', { defaultValue: 'Save' })}</button><button type="button" onClick={() => setEditingMessageId(null)} className="rounded-lg px-3 py-1.5 text-xs text-white/70" data-track-private>{t('common.cancel', { defaultValue: 'Cancel' })}</button></div></div> : <>{item.content && <p className="whitespace-pre-wrap">{item.content}</p>}{item.editedAt && <span className="mt-2 block text-xs opacity-70">{t('support.escalation.edited', { defaultValue: 'Edited' })}</span>}{canEdit && <button type="button" onClick={() => { setEditingMessageId(item.id); setEditingContent(item.content); }} className="mt-2 inline-flex items-center gap-1 text-xs text-white/75 hover:text-white" data-track-private><Pencil size={12} />{t('support.escalation.edit', { defaultValue: 'Edit' })}</button>}</>}
             {item.readByRecipient && isCustomer && <span className="mt-2 block text-right text-[11px] opacity-70">{t('support.escalation.read', { defaultValue: 'Read' })}</span>}
           </div>;
         })}
@@ -438,11 +438,11 @@ function PublicGuestSupport({ t, handoff }) {
       {error && <p className="mb-3 text-red-300">{error}</p>}
       {agentTyping && <p className="mb-2 text-xs text-slate-400" role="status">{t('support.escalation.agentTyping', { defaultValue: 'A support agent is typing…' })}</p>}
       {replyFile && <p className="mb-2 text-sm text-orange-200">{replyFile.name}</p>}
-      <form onSubmit={send} className="flex gap-2"><label className="cursor-pointer rounded-xl border border-slate-700 px-3 py-3 hover:border-orange-500" title={t('support.escalation.attachImage', { defaultValue: 'Attach image' })} aria-label={t('support.escalation.attachImage', { defaultValue: 'Attach image' })}><Paperclip size={18} aria-hidden="true" /><input type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={(e) => setReplyFile(e.target.files?.[0] || null)} /></label><input value={reply} onChange={handleReplyChange} maxLength={5000} disabled={['resolved', 'closed'].includes(conversationStatus)} className="min-w-0 flex-1 rounded-xl bg-slate-800 px-4 py-3 disabled:opacity-50" placeholder={t('support.escalation.messagePlaceholder', { defaultValue: 'Write a message...' })} /><button type="submit" aria-label={t('common.send', { defaultValue: 'Send message' })} disabled={busy || ['resolved', 'closed'].includes(conversationStatus) || (!reply.trim() && !replyFile)} className="rounded-xl bg-orange-600 px-4 py-3 disabled:opacity-50"><Send size={18} aria-hidden="true" /></button></form>
+      <form onSubmit={send} className="flex gap-2" data-track-private><label className="cursor-pointer rounded-xl border border-slate-700 px-3 py-3 hover:border-orange-500" title={t('support.escalation.attachImage', { defaultValue: 'Attach image' })} aria-label={t('support.escalation.attachImage', { defaultValue: 'Attach image' })}><Paperclip size={18} aria-hidden="true" /><input type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={(e) => setReplyFile(e.target.files?.[0] || null)} /></label><input value={reply} onChange={handleReplyChange} maxLength={5000} disabled={['resolved', 'closed'].includes(conversationStatus)} className="min-w-0 flex-1 rounded-xl bg-slate-800 px-4 py-3 disabled:opacity-50" placeholder={t('support.escalation.messagePlaceholder', { defaultValue: 'Write a message...' })} /><button type="submit" aria-label={t('common.send', { defaultValue: 'Send message' })} disabled={busy || ['resolved', 'closed'].includes(conversationStatus) || (!reply.trim() && !replyFile)} className="rounded-xl bg-orange-600 px-4 py-3 disabled:opacity-50" data-track-private><Send size={18} aria-hidden="true" /></button></form>
     </section>
   );
-  if (step === 'verify') return shell(<section className="rounded-[28px] border border-slate-700 bg-slate-900 p-6 text-white"><h1 className="text-3xl font-bold">{t('support.escalation.verifyTitle', { defaultValue: 'Check your email' })}</h1><p className="mt-2 text-slate-300">{t('support.escalation.verifyBody', { defaultValue: 'Enter the six-digit code we sent to your email address.' })}</p><form onSubmit={verify} className="mt-6 space-y-4"><input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" maxLength={6} required className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder="000000" />{error && <p className="text-red-300">{error}</p>}<button disabled={busy || code.length !== 6} className="w-full rounded-xl bg-orange-600 py-3 font-semibold disabled:opacity-50">{t('support.escalation.verifyButton', { defaultValue: 'Verify and continue' })}</button><button type="button" onClick={resend} disabled={busy} className="w-full rounded-xl border border-slate-700 py-3 text-slate-200 disabled:opacity-50">{t('support.escalation.resendCode', { defaultValue: 'Resend code' })}</button></form></section>);
-  return shell(<section className="rounded-[28px] border border-slate-700 bg-slate-900 p-6 text-white"><h1 className="text-3xl font-bold">{t('support.escalation.guestTitle', { defaultValue: 'Talk to OxSteed Support' })}</h1><p className="mt-2 text-slate-300">{t('support.escalation.guestBody', { defaultValue: 'Start a secure support conversation without signing in.' })}</p><form onSubmit={start} className="mt-6 space-y-4"><input required value={name} onChange={(e) => { setName(e.target.value); pendingRequestIdRef.current = null; }} maxLength={255} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.namePlaceholder', { defaultValue: 'Your name' })} /><input required type="email" value={email} onChange={(e) => { setEmail(e.target.value); pendingRequestIdRef.current = null; }} maxLength={320} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.emailPlaceholder', { defaultValue: 'Email address' })} /><textarea required value={message} onChange={(e) => { setMessage(e.target.value); pendingRequestIdRef.current = null; }} maxLength={5000} rows={6} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.messagePlaceholder', { defaultValue: 'How can we help?' })} />{error && <p className="text-red-300">{error}</p>}<button disabled={busy} className="w-full rounded-xl bg-orange-600 py-3 font-semibold disabled:opacity-50">{t('support.escalation.startButton', { defaultValue: 'Start support conversation' })}</button></form></section>);
+  if (step === 'verify') return shell(<section className="rounded-[28px] border border-slate-700 bg-slate-900 p-6 text-white"><h1 className="text-3xl font-bold">{t('support.escalation.verifyTitle', { defaultValue: 'Check your email' })}</h1><p className="mt-2 text-slate-300">{t('support.escalation.verifyBody', { defaultValue: 'Enter the six-digit code we sent to your email address.' })}</p><form onSubmit={verify} className="mt-6 space-y-4" data-track-private><input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" maxLength={6} required className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder="000000" />{error && <p className="text-red-300">{error}</p>}<button disabled={busy || code.length !== 6} className="w-full rounded-xl bg-orange-600 py-3 font-semibold disabled:opacity-50" data-track-private>{t('support.escalation.verifyButton', { defaultValue: 'Verify and continue' })}</button><button type="button" onClick={resend} disabled={busy} className="w-full rounded-xl border border-slate-700 py-3 text-slate-200 disabled:opacity-50" data-track-private>{t('support.escalation.resendCode', { defaultValue: 'Resend code' })}</button></form></section>);
+  return shell(<section className="rounded-[28px] border border-slate-700 bg-slate-900 p-6 text-white"><h1 className="text-3xl font-bold">{t('support.escalation.guestTitle', { defaultValue: 'Talk to OxSteed Support' })}</h1><p className="mt-2 text-slate-300">{t('support.escalation.guestBody', { defaultValue: 'Start a secure support conversation without signing in.' })}</p><form onSubmit={start} className="mt-6 space-y-4" data-track-private><input required value={name} onChange={(e) => { setName(e.target.value); pendingRequestIdRef.current = null; }} maxLength={255} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.namePlaceholder', { defaultValue: 'Your name' })} /><input required type="email" value={email} onChange={(e) => { setEmail(e.target.value); pendingRequestIdRef.current = null; }} maxLength={320} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.emailPlaceholder', { defaultValue: 'Email address' })} /><textarea required value={message} onChange={(e) => { setMessage(e.target.value); pendingRequestIdRef.current = null; }} maxLength={5000} rows={6} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.messagePlaceholder', { defaultValue: 'How can we help?' })} />{error && <p className="text-red-300">{error}</p>}<button disabled={busy} className="w-full rounded-xl bg-orange-600 py-3 font-semibold disabled:opacity-50" data-track-private>{t('support.escalation.startButton', { defaultValue: 'Start support conversation' })}</button></form></section>);
 }
 
 function normalizeSupportMessages(messages = []) {
@@ -1088,15 +1088,15 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {conversationStatus === 'resolved' && <button type="button" onClick={reopenConversation} disabled={reopenBusy} className="inline-flex items-center gap-2 rounded-xl border border-orange-500/40 px-3 py-2 text-sm text-orange-200 hover:border-orange-400 disabled:opacity-50">{reopenBusy ? t('support.escalation.reopening', { defaultValue: 'Reopening…' }) : t('support.escalation.reopen', { defaultValue: 'Reopen conversation' })}</button>}
-                    <button type="button" onClick={downloadConversation} disabled={downloadBusy || !ticketId} className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:border-orange-500 disabled:opacity-50">
+                    {conversationStatus === 'resolved' && <button type="button" onClick={reopenConversation} disabled={reopenBusy} className="inline-flex items-center gap-2 rounded-xl border border-orange-500/40 px-3 py-2 text-sm text-orange-200 hover:border-orange-400 disabled:opacity-50" data-track-private>{reopenBusy ? t('support.escalation.reopening', { defaultValue: 'Reopening…' }) : t('support.escalation.reopen', { defaultValue: 'Reopen conversation' })}</button>}
+                    <button type="button" onClick={downloadConversation} disabled={downloadBusy || !ticketId} className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:border-orange-500 disabled:opacity-50" data-track-private>
                       <Download size={16} />{downloadBusy ? t('support.escalation.downloading', { defaultValue: 'Preparing…' }) : t('support.escalation.download', { defaultValue: 'Download' })}
                     </button>
                   </div>
                   <button
                     onClick={handleClose}
                     className="p-2 text-slate-500 hover:text-white rounded-xl hover:bg-slate-800 transition"
-                    aria-label={t('common.close')}
+                    aria-label={t('common.close')} data-track-private
                   >
                     <X size={20} aria-hidden="true" />
                   </button>
@@ -1115,7 +1115,7 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
                   }}
                   className="h-[520px] overflow-y-auto px-6 py-5 space-y-4 bg-slate-950/30"
                 >
-                  {showNewMessages && <button type="button" onClick={() => { stickToBottomRef.current = true; setShowNewMessages(false); scheduleChatScroll(messageListRef.current); }} className="sticky top-2 z-10 mx-auto block rounded-full border border-orange-500/40 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-orange-200 shadow-lg">{t('support.escalation.newMessages', { defaultValue: 'New messages' })} ↓</button>}
+                  {showNewMessages && <button type="button" onClick={() => { stickToBottomRef.current = true; setShowNewMessages(false); scheduleChatScroll(messageListRef.current); }} className="sticky top-2 z-10 mx-auto block rounded-full border border-orange-500/40 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-orange-200 shadow-lg" data-track-private>{t('support.escalation.newMessages', { defaultValue: 'New messages' })} ↓</button>}
                   {liveMessages.length === 0 ? (
                     <div className="h-full flex items-center justify-center text-center">
                       <div>
@@ -1141,8 +1141,8 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
                               : 'bg-slate-800 text-slate-100'
                           }`}
                         >
-                          {msg.attachmentUrl && <a href={msg.attachmentUrl} download={msg.attachmentName || undefined} target="_blank" rel="noreferrer" className="group relative mb-2 block w-fit" aria-label={`${t('support.escalation.downloadAttachment', { defaultValue: 'Download' })} ${msg.attachmentName || t('support.escalation.attachImage', { defaultValue: 'support attachment' })}`}><img src={msg.attachmentUrl} alt={msg.attachmentName || t('support.escalation.attachImage', { defaultValue: 'Support attachment' })} onLoad={() => { if (stickToBottomRef.current) scheduleChatScroll(messageListRef.current, 'auto'); }} className="max-h-64 max-w-full rounded-xl object-contain transition group-hover:opacity-90" /><span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-lg bg-slate-950/85 px-2 py-1 text-[11px] font-semibold text-white opacity-0 shadow transition group-hover:opacity-100 group-focus-visible:opacity-100"><Download size={12} /> {t('support.escalation.downloadAttachment', { defaultValue: 'Download' })}</span></a>}
-                          {editingMessageId === msg.id ? <div className="space-y-2"><textarea value={editingContent} onChange={(event) => setEditingContent(event.target.value)} maxLength={5000} rows={3} className="w-full rounded-xl bg-slate-900 px-3 py-2 text-white" /><div className="flex gap-2"><button type="button" onClick={() => editCustomerMessage(msg.id)} disabled={liveSending || !editingContent.trim()} className="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold">{t('common.save', { defaultValue: 'Save' })}</button><button type="button" onClick={() => setEditingMessageId(null)} className="rounded-lg px-3 py-1.5 text-xs text-white/70">{t('common.cancel', { defaultValue: 'Cancel' })}</button></div></div> : <>{msg.content && <p className="break-words leading-6 whitespace-pre-wrap">{msg.content}</p>}{msg.editedAt && <span className="mt-2 block text-xs opacity-70">{t('support.escalation.edited', { defaultValue: 'Edited' })}</span>}{canEdit && <button type="button" onClick={() => { setEditingMessageId(msg.id); setEditingContent(msg.content); }} className="mt-2 inline-flex items-center gap-1 text-xs opacity-75 hover:opacity-100"><Pencil size={12} />{t('support.escalation.edit', { defaultValue: 'Edit' })}</button>}</>}
+                          {msg.attachmentUrl && <a href={msg.attachmentUrl} download={msg.attachmentName || undefined} target="_blank" rel="noreferrer" className="group relative mb-2 block w-fit" aria-label={`${t('support.escalation.downloadAttachment', { defaultValue: 'Download' })} ${msg.attachmentName || t('support.escalation.attachImage', { defaultValue: 'support attachment' })}`} data-track-private><img src={msg.attachmentUrl} alt={msg.attachmentName || t('support.escalation.attachImage', { defaultValue: 'Support attachment' })} onLoad={() => { if (stickToBottomRef.current) scheduleChatScroll(messageListRef.current, 'auto'); }} className="max-h-64 max-w-full rounded-xl object-contain transition group-hover:opacity-90" /><span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-lg bg-slate-950/85 px-2 py-1 text-[11px] font-semibold text-white opacity-0 shadow transition group-hover:opacity-100 group-focus-visible:opacity-100"><Download size={12} /> {t('support.escalation.downloadAttachment', { defaultValue: 'Download' })}</span></a>}
+                          {editingMessageId === msg.id ? <div className="space-y-2"><textarea value={editingContent} onChange={(event) => setEditingContent(event.target.value)} maxLength={5000} rows={3} className="w-full rounded-xl bg-slate-900 px-3 py-2 text-white" /><div className="flex gap-2"><button type="button" onClick={() => editCustomerMessage(msg.id)} disabled={liveSending || !editingContent.trim()} className="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold" data-track-private>{t('common.save', { defaultValue: 'Save' })}</button><button type="button" onClick={() => setEditingMessageId(null)} className="rounded-lg px-3 py-1.5 text-xs text-white/70" data-track-private>{t('common.cancel', { defaultValue: 'Cancel' })}</button></div></div> : <>{msg.content && <p className="break-words leading-6 whitespace-pre-wrap">{msg.content}</p>}{msg.editedAt && <span className="mt-2 block text-xs opacity-70">{t('support.escalation.edited', { defaultValue: 'Edited' })}</span>}{canEdit && <button type="button" onClick={() => { setEditingMessageId(msg.id); setEditingContent(msg.content); }} className="mt-2 inline-flex items-center gap-1 text-xs opacity-75 hover:opacity-100" data-track-private><Pencil size={12} />{t('support.escalation.edit', { defaultValue: 'Edit' })}</button>}</>}
                           {msg.readByRecipient && msg.sender.type === 'customer' && <span className="mt-2 block text-right text-[11px] opacity-70">{t('support.escalation.read', { defaultValue: 'Read' })}</span>}
                           {msg.timestamp && (
                             <span className="text-xs opacity-70 mt-2 block">
@@ -1167,7 +1167,7 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
                     event.preventDefault();
                     handleSendLiveMessage();
                   }}
-                  className="px-6 py-4 border-t border-slate-700/70 flex gap-3 bg-slate-900/70"
+                  className="px-6 py-4 border-t border-slate-700/70 flex gap-3 bg-slate-900/70" data-track-private
                 >
                   <label className="cursor-pointer rounded-2xl border border-slate-700 px-3 py-3 text-slate-300 hover:border-orange-500" title={t('support.escalation.attachImage', { defaultValue: 'Attach image' })}>
                     <Paperclip size={20} />
@@ -1185,7 +1185,7 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
                     type="submit"
                     disabled={liveSending || !ticketId || ['resolved', 'closed'].includes(conversationStatus) || (!liveInput.trim() && !liveFile)}
                     className="bg-orange-600 hover:bg-orange-700 text-white p-3 rounded-2xl transition disabled:opacity-50 flex-shrink-0"
-                    aria-label={t('common.send')}
+                    aria-label={t('common.send')} data-track-private
                   >
                     <Send size={20} />
                   </button>
@@ -1257,7 +1257,7 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
                       <button
                         type="button"
                         onClick={() => navigate(handoff.returnTo)}
-                        className="mt-3 text-sm font-semibold text-violet-200 underline hover:text-white"
+                        className="mt-3 text-sm font-semibold text-violet-200 underline hover:text-white" data-track-private
                       >
                         {t('support.escalation.returnToProfile', { defaultValue: 'Return to profile' })}
                       </button>
@@ -1273,7 +1273,7 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
                   </div>
                 </div>
 
-                <form onSubmit={handleSubmitTicket} className="space-y-5">
+                <form onSubmit={handleSubmitTicket} className="space-y-5" data-track-private>
                   <div>
                     <label className="block text-slate-300 text-sm font-medium mb-2">
                       {t('support.escalation.nameLabel')} <span className="text-red-400">*</span>
@@ -1323,7 +1323,7 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
                   <button
                     type="submit"
                     disabled={ticketSubmitting}
-                    className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3.5 rounded-2xl transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3.5 rounded-2xl transition disabled:opacity-50 disabled:cursor-not-allowed" data-track-private
                   >
                     {ticketSubmitting ? (
                       <>
@@ -1338,7 +1338,7 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
 
                 <button
                   onClick={handleClose}
-                  className="w-full mt-4 px-4 py-3 text-slate-400 hover:text-slate-200 rounded-2xl border border-slate-700 hover:border-slate-600 transition"
+                  className="w-full mt-4 px-4 py-3 text-slate-400 hover:text-slate-200 rounded-2xl border border-slate-700 hover:border-slate-600 transition" data-track-private
                 >
                   {t('common.close')}
                 </button>
@@ -1352,20 +1352,20 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
                   <div className="grid grid-cols-2 gap-2 mt-4">
                     <a
                       href="tel:+19374085169"
-                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-700"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-700" data-track-private
                     >
                       <Phone size={15} />
                       {t('support.escalation.callSupport', { defaultValue: 'Call' })}
                     </a>
                     <a
                       href="sms:+19374085169"
-                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 px-3 py-2.5 text-sm font-semibold text-white transition hover:border-orange-500"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 px-3 py-2.5 text-sm font-semibold text-white transition hover:border-orange-500" data-track-private
                     >
                       <MessageSquare size={15} />
                       {t('support.escalation.textSupport', { defaultValue: 'Text' })}
                     </a>
                   </div>
-                  <a href="tel:+19374085169" className="block mt-3 text-center text-orange-300 text-sm font-semibold hover:text-orange-200">
+                  <a href="tel:+19374085169" className="block mt-3 text-center text-orange-300 text-sm font-semibold hover:text-orange-200" data-track-private>
                     {OXSTEED_SUPPORT_PHONE}
                   </a>
                 </SideCard>
@@ -1416,7 +1416,7 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
 
                 <button
                   onClick={handleClose}
-                  className="inline-flex items-center justify-center gap-2 w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 rounded-2xl transition"
+                  className="inline-flex items-center justify-center gap-2 w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 rounded-2xl transition" data-track-private
                 >
                   {t('common.close')}
                   <ArrowRight size={16} />

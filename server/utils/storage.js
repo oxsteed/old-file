@@ -92,6 +92,7 @@ const PUBLIC_KEY_PREFIXES = [
   'helper-gallery/',
   'jobs/',
   'public-uploads/',
+  'partner-products/',
   'tool-rentals/',
 ];
 

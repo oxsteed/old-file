@@ -1,0 +1,220 @@
+{
+  "sections": {
+    "1": {
+      "search": "1. Introduction OxSteed LLC provides local service listings, jobs and bids, business workspaces, food ordering, delivery, media, and related account and payment tools. This policy describes information processed when you use these features, including guest contact and support. Availability depends on the feature, account, region, and service provider.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "1. Introduction"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed LLC provides local service listings, jobs and bids, business workspaces, food ordering, delivery, media, and related account and payment tools. This policy describes information processed when you use these features, including guest contact and support. Availability depends on the feature, account, region, and service provider."
+        }
+      ]
+    },
+    "2": {
+      "search": "2. Information We Collect We process information you provide: contact and account details, profile and business information, job and order details, messages, support requests, reviews, uploaded media, payment records, and verification information where required. We also process device and request information, such as IP addresses, browser details, security logs, and activity on OxSteed, such as pages and screens viewed, buttons and links selected, searches, and the jobs, bookings, orders and services you create or respond to. Where the law requires your consent for this, we collect it only after you agree.. Location may come from an address you enter, your profile, or device permission. Payment providers may collect payment credentials directly.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "2. Information We Collect"
+        },
+        {
+          "type": "p",
+          "text": "We process information you provide: contact and account details, profile and business information, job and order details, messages, support requests, reviews, uploaded media, payment records, and verification information where required. We also process device and request information, such as IP addresses, browser details, security logs, and activity on OxSteed, such as pages and screens viewed, buttons and links selected, searches, and the jobs, bookings, orders and services you create or respond to. Where the law requires your consent for this, we collect it only after you agree.. Location may come from an address you enter, your profile, or device permission. Payment providers may collect payment credentials directly."
+        }
+      ]
+    },
+    "3": {
+      "search": "3. How We Use Your Information We use information to operate accounts and workspaces; match jobs and services; fulfill orders; deliver messages and notifications; process and reconcile payments; handle support, disputes, and privacy requests; prevent abuse; and meet legal obligations. We use activity and account records to understand demand for services and food in different areas, improve OxSteed, and choose offers we think are relevant to you, including products from partner retailers and OxSteed's own offers. Our staff review and approve every offer before it is sent. Offers never affect your access to OxSteed, your prices, or how you appear in search. AI features used for this analysis run on servers OxSteed controls. Your activity is not sent to outside AI providers for it. If you use AI-assisted features, your prompt and relevant feature context may be sent to the configured AI provider to produce a response. Avoid submitting unnecessary sensitive information; AI output can be inaccurate.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "3. How We Use Your Information"
+        },
+        {
+          "type": "p",
+          "text": "We use information to operate accounts and workspaces; match jobs and services; fulfill orders; deliver messages and notifications; process and reconcile payments; handle support, disputes, and privacy requests; prevent abuse; and meet legal obligations. We use activity and account records to understand demand for services and food in different areas, improve OxSteed, and choose offers we think are relevant to you, including products from partner retailers and OxSteed's own offers. Our staff review and approve every offer before it is sent. Offers never affect your access to OxSteed, your prices, or how you appear in search. AI features used for this analysis run on servers OxSteed controls. Your activity is not sent to outside AI providers for it. If you use AI-assisted features, your prompt and relevant feature context may be sent to the configured AI provider to produce a response. Avoid submitting unnecessary sensitive information; AI output can be inaccurate."
+        }
+      ]
+    },
+    "4": {
+      "search": "4. How We Share Your Information Information is disclosed to the participants and businesses needed to provide your requested service, authorized staff, and service providers for payments, hosting and storage, content delivery and security, email or other notifications, maps, and AI features. Integrations include Stripe and Cloudflare; other providers depend on the feature and configuration. Public profiles, listings, reviews, and published media are visible to their intended audience. Legal disclosures and business transfers may also require sharing. Optional analytics or advertising integrations are described in the Cookie Policy. When you open a partner offer, the partner receives a random link code so it can tell us whether a purchase happened. We do not give partners your name, email, account details or activity. Purchases you make on a partner's site are governed by that partner's privacy policy.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "4. How We Share Your Information"
+        },
+        {
+          "type": "p",
+          "text": "Information is disclosed to the participants and businesses needed to provide your requested service, authorized staff, and service providers for payments, hosting and storage, content delivery and security, email or other notifications, maps, and AI features. Integrations include Stripe and Cloudflare; other providers depend on the feature and configuration. Public profiles, listings, reviews, and published media are visible to their intended audience. Legal disclosures and business transfers may also require sharing. Optional analytics or advertising integrations are described in the Cookie Policy. When you open a partner offer, the partner receives a random link code so it can tell us whether a purchase happened. We do not give partners your name, email, account details or activity. Purchases you make on a partner's site are governed by that partner's privacy policy."
+        }
+      ]
+    },
+    "5": {
+      "search": "5. Address Privacy and Data Masking Job location visibility depends on your role, assignment, schedule, and the applicable access checks. Order and delivery details are shared with the business and participants who need them for fulfillment. Information you place in public descriptions, photos, reviews, or media may reveal an address even when structured address fields are restricted. Do not publish private addresses or access instructions in public content.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "5. Address Privacy and Data Masking"
+        },
+        {
+          "type": "p",
+          "text": "Job location visibility depends on your role, assignment, schedule, and the applicable access checks. Order and delivery details are shared with the business and participants who need them for fulfillment. Information you place in public descriptions, photos, reviews, or media may reveal an address even when structured address fields are restricted. Do not publish private addresses or access instructions in public content."
+        }
+      ]
+    },
+    "6": {
+      "search": "6. Data Retention Retention varies by record and purpose. Account, order, message, security, and media records have different lifecycles. Financial ledgers, payment and settlement records, consent evidence, and audit history may remain after account closure for accounting, disputes, fraud prevention, and legal obligations. Deletion may be delayed by active work, held funds, disputes, required audit evidence, or backup lifecycles. We do not promise that closing an account immediately erases every record or third-party copy. Detailed activity records are kept for up to 90 days. Summaries tied to your account are kept for up to 13 months. Area-level statistics that cannot identify you may be kept longer.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "6. Data Retention"
+        },
+        {
+          "type": "p",
+          "text": "Retention varies by record and purpose. Account, order, message, security, and media records have different lifecycles. Financial ledgers, payment and settlement records, consent evidence, and audit history may remain after account closure for accounting, disputes, fraud prevention, and legal obligations. Deletion may be delayed by active work, held funds, disputes, required audit evidence, or backup lifecycles. We do not promise that closing an account immediately erases every record or third-party copy. Detailed activity records are kept for up to 90 days. Summaries tied to your account are kept for up to 13 months. Area-level statistics that cannot identify you may be kept longer."
+        }
+      ]
+    },
+    "7": {
+      "search": "7. Your Rights Depending on applicable law, you may request access, correction, deletion, portability, limits on sensitive information use, or an opt-out of sale, sharing, or targeted advertising. You may contact privacy@oxsteed.com or use /do-not-sell without signing in. We may verify identity for access or deletion and explain any applicable exceptions. We will handle requests within applicable legal deadlines and will not discriminate for exercising privacy rights. In the European Economic Area and the United Kingdom, we use your activity for offers only with your consent, and you can withdraw it at any time. If you live in California or another US state that gives you the right, you can opt out of the sale or sharing of your personal information at /do-not-sell or in Settings › Privacy, and we honour the Global Privacy Control signal from your browser. You can turn off offer notifications at any time.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "7. Your Rights"
+        },
+        {
+          "type": "p",
+          "text": "Depending on applicable law, you may request access, correction, deletion, portability, limits on sensitive information use, or an opt-out of sale, sharing, or targeted advertising. You may contact privacy@oxsteed.com or use /do-not-sell without signing in. We may verify identity for access or deletion and explain any applicable exceptions. We will handle requests within applicable legal deadlines and will not discriminate for exercising privacy rights. In the European Economic Area and the United Kingdom, we use your activity for offers only with your consent, and you can withdraw it at any time. If you live in California or another US state that gives you the right, you can opt out of the sale or sharing of your personal information at /do-not-sell or in Settings › Privacy, and we honour the Global Privacy Control signal from your browser. You can turn off offer notifications at any time."
+        }
+      ]
+    },
+    "8": {
+      "search": "8. Cookies and Tracking Technologies Essential cookies and browser storage support sign-in, security, consent choices, and requested features. Manage Cookies controls optional analytics, marketing, and additional functional integrations in this browser. Analytics may include first-party pageview events and Google Analytics; marketing may include Meta Pixel when configured. Basic settings and drafts may use browser storage independently of optional integrations. See the Cookie Policy for controls and limitations. OxSteed stores a random device code in your browser or app to connect activity on that device. The Analytics setting in Manage Cookies controls this device code and Google Analytics. In the European Economic Area and the United Kingdom, we track activity only with your consent. Elsewhere, we record activity on OxSteed while you use it, as described in section 14.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "8. Cookies and Tracking Technologies"
+        },
+        {
+          "type": "p",
+          "text": "Essential cookies and browser storage support sign-in, security, consent choices, and requested features. Manage Cookies controls optional analytics, marketing, and additional functional integrations in this browser. Analytics may include first-party pageview events and Google Analytics; marketing may include Meta Pixel when configured. Basic settings and drafts may use browser storage independently of optional integrations. See the Cookie Policy for controls and limitations. OxSteed stores a random device code in your browser or app to connect activity on that device. The Analytics setting in Manage Cookies controls this device code and Google Analytics. In the European Economic Area and the United Kingdom, we track activity only with your consent. Elsewhere, we record activity on OxSteed while you use it, as described in section 14."
+        }
+      ]
+    },
+    "9": {
+      "search": "9. Data Security and Breach Notification We use access controls, password hashing, session protections, validation, rate limits, and security logging. No system is completely secure. Coverage depends on the service and configuration; this policy does not certify every data store or third-party service. If an incident requires notice, we will notify affected people and authorities as required by applicable law. See /security for reporting guidance.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "9. Data Security and Breach Notification"
+        },
+        {
+          "type": "p",
+          "text": "We use access controls, password hashing, session protections, validation, rate limits, and security logging. No system is completely secure. Coverage depends on the service and configuration; this policy does not certify every data store or third-party service. If an incident requires notice, we will notify affected people and authorities as required by applicable law. See /security for reporting guidance."
+        }
+      ]
+    },
+    "10": {
+      "search": "10. Account Deletion Request account deletion through available account settings or privacy@oxsteed.com. Deletion can remove or anonymize personal fields while retaining necessary transaction and audit records. Active obligations may need resolution first. Copies already received by other users or providers are subject to their own obligations. Contact us for the scope and status of your request.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "10. Account Deletion"
+        },
+        {
+          "type": "p",
+          "text": "Request account deletion through available account settings or privacy@oxsteed.com. Deletion can remove or anonymize personal fields while retaining necessary transaction and audit records. Active obligations may need resolution first. Copies already received by other users or providers are subject to their own obligations. Contact us for the scope and status of your request."
+        }
+      ]
+    },
+    "11": {
+      "search": "11 children privacy under 18 minors",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "11. Children's Privacy"
+        },
+        {
+          "type": "p",
+          "segments": [
+            "OxSteed is not intended for use by anyone under the age of 18. We do not knowingly collect personal information from children under 18. If we discover that we have collected personal information from a child under 18, we will delete it immediately. If you believe a child under 18 has provided us personal information, contact us at ",
+            {
+              "mailto": "legal@oxsteed.com"
+            },
+            "."
+          ]
+        }
+      ]
+    },
+    "12": {
+      "search": "12 changes privacy policy email 14 days updated",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "12. Changes to This Privacy Policy"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed may update this Privacy Policy at any time. We will notify users of material changes by email at least 14 days before the changes take effect. The \"Last updated\" date at the top of this page reflects the most recent revision."
+        }
+      ]
+    },
+    "13": {
+      "search": "13 contact us springfield legal@oxsteed.com",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "13. Contact Us"
+        },
+        {
+          "type": "p",
+          "text": "For questions about this Privacy Policy or to exercise your privacy rights, contact us at:"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed LLC"
+        },
+        {
+          "type": "p",
+          "text": "Springfield, Ohio"
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "mailto": "legal@oxsteed.com"
+            }
+          ]
+        }
+      ]
+    },
+    "14": {
+      "search": "Activity, offers and partner links After the policy notice period, we record pages viewed, buttons selected, searches and marketplace actions. We use postal-code centres, never personal coordinates, to understand local demand and choose relevant offers. Staff approve every campaign. AI for this analysis runs only on OxSteed-controlled servers. In the EEA and UK, activity tracking and activity-based offers each require your consent. You can withdraw it in Settings. Applicable US states have a Do not sell or share control, including Global Privacy Control. Elsewhere the Analytics toggle controls Google Analytics and persistent device storage; activity is covered by this notice. Detailed activity is retained for up to 90 days. Account summaries are retained for up to 13 months. Partner links send a random click code, not your name, email or activity. A partner’s own privacy policy applies to purchases there. Offer push notifications require a separate opt-in and can be turned off in Settings → Privacy. Offers never change your prices, access or search ranking. Promote links may associate signed-in visitors with an account code for seven days. For access, correction or deletion, contact privacy@oxsteed.com.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "14. Activity, offers and partner links"
+        },
+        {
+          "type": "p",
+          "text": "After the policy notice period, we record pages viewed, buttons selected, searches and marketplace actions. We use postal-code centres, never personal coordinates, to understand local demand and choose relevant offers. Staff approve every campaign. AI for this analysis runs only on OxSteed-controlled servers."
+        },
+        {
+          "type": "p",
+          "text": "In the EEA and UK, activity tracking and activity-based offers each require your consent. You can withdraw it in Settings. Applicable US states have a Do not sell or share control, including Global Privacy Control. Elsewhere the Analytics toggle controls Google Analytics and persistent device storage; activity is covered by this notice."
+        },
+        {
+          "type": "p",
+          "text": "Detailed activity is retained for up to 90 days. Account summaries are retained for up to 13 months. Partner links send a random click code, not your name, email or activity. A partner’s own privacy policy applies to purchases there."
+        },
+        {
+          "type": "p",
+          "text": "Offer push notifications require a separate opt-in and can be turned off in Settings → Privacy. Offers never change your prices, access or search ranking. Promote links may associate signed-in visitors with an account code for seven days. For access, correction or deletion, contact privacy@oxsteed.com."
+        }
+      ]
+    }
+  }
+}

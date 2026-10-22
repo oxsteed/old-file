@@ -65,7 +65,7 @@ export default function SourcingPage() {
                 type="button"
                 className="lx-tab"
                 aria-selected={tab === tab_.key}
-                onClick={() => setTab(tab_.key)}
+                onClick={() => setTab(tab_.key)} data-track="ui.7e3ec538d9.1"
               >
                 {tab_.label}
               </button>
@@ -87,7 +87,7 @@ export default function SourcingPage() {
                     <h2>{tx('logistics.workspace.dataError.title', 'Data unavailable')}</h2>
                     <p>{tx('logistics.sourcing.error', "We couldn't load your sourcing requests right now. Please try again.")}</p>
                   </div>
-                  <button type="button" className="lx-btn-secondary" onClick={() => window.location.reload()}>
+                  <button type="button" className="lx-btn-secondary" onClick={() => window.location.reload()} data-track="ui.7e3ec538d9.2">
                     {tx('logistics.workspace.dataError.retry', 'Try again')}
                   </button>
                 </div>
@@ -147,7 +147,7 @@ export default function SourcingPage() {
                             <button
                               type="button"
                               className="lx-action-ghost"
-                              onClick={(e) => { e.stopPropagation(); setPreviewId(r.id); }}
+                              onClick={(e) => { e.stopPropagation(); setPreviewId(r.id); }} data-track="ui.7e3ec538d9.3"
                             >
                               {t('logistics.tables.preview')}
                             </button>

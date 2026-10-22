@@ -155,25 +155,25 @@ export default function AgreementCard({
       </div>
       <div className="artifact-card-actions">
         {agreement?.has_attachment ? (
-          <button type="button" className="artifact-btn" onClick={download}>
+          <button type="button" className="artifact-btn" onClick={download} data-track-private>
             <Download size={14} aria-hidden /> {t('helperProfile.messenger.agreementDownload')}
           </button>
         ) : null}
         {!readOnly && !isProvider && respondGate.ok ? (
           <>
             {status === 'shared' ? (
-              <button type="button" className="artifact-btn" disabled={busy} onClick={() => respond('acknowledge')}>
+              <button type="button" className="artifact-btn" disabled={busy} onClick={() => respond('acknowledge')} data-track-private>
                 <Hand size={14} aria-hidden /> {t('helperProfile.messenger.agreementAcknowledge')}
               </button>
             ) : null}
-            <button type="button" className="artifact-btn primary" disabled={busy} onClick={() => respond('accept')}>
+            <button type="button" className="artifact-btn primary" disabled={busy} onClick={() => respond('accept')} data-track-private>
               <Check size={14} aria-hidden /> {t('helperProfile.messenger.agreementAccept')}
             </button>
             {/* A declined agreement can be re-accepted, but declining again is
                 not offered: the decline is already recorded. */}
             {!respondGate.changeResponse ? (
               <>
-                <button type="button" className="artifact-btn danger" disabled={busy} onClick={() => respond('decline')}>
+                <button type="button" className="artifact-btn danger" disabled={busy} onClick={() => respond('decline')} data-track-private>
                   <X size={14} aria-hidden /> {t('helperProfile.messenger.agreementDecline')}
                 </button>
                 <input
@@ -187,7 +187,7 @@ export default function AgreementCard({
           </>
         ) : null}
         {!readOnly && !isProvider && respondGate.reason === 'verify_required' ? (
-          <button type="button" className="artifact-btn" onClick={() => onRequestVerify?.()}>
+          <button type="button" className="artifact-btn" onClick={() => onRequestVerify?.()} data-track-private>
             {t('helperProfile.messenger.agreementVerifyToRespond')}
           </button>
         ) : null}

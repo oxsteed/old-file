@@ -5,6 +5,9 @@ const logger = require('../utils/logger');
 
 // ── Permission scopes catalogue ───────────────────────────────────────────────
 const PERMISSION_SCOPES = {
+  view_growth_insights: 'View demand maps, clusters, segments and growth suggestions',
+  approve_growth_campaigns: 'Approve and send growth campaigns',
+  manage_affiliate_partners: 'Manage affiliate partners, feeds and partner revenue records',
   view_financials:       'View revenue, payouts, and financial data',
   manage_financials:     'Create and close treasury records and post journal entries',
   export_data:           'Export platform data (users, jobs, revenue)',

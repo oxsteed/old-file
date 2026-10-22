@@ -33,13 +33,13 @@ export default function JobRevisionHistory({ jobId, revision, version, load, onR
   return (
     <section className="jdp-card jdp-revisions" aria-labelledby={headingId}>
       <h2 id={headingId} className="jdp-section-title">{t('jobEdit.historyTitle')}</h2>
-      <button type="button" className="jdp-btn-ghost" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+      <button type="button" className="jdp-btn-ghost" aria-expanded={open} onClick={() => setOpen((v) => !v)} data-track="ui.bbef44c343.1">
         {open ? t('jobEdit.historyHide') : t('jobEdit.historyShow')}
       </button>
       {open && <div aria-live="polite" aria-busy={state.status === 'loading'}>
         {state.status === 'loading' && !state.items.length && <p role="status">{t('jobEdit.historyLoading')}</p>}
         {state.status === 'error' && <div role="alert"><p>{t('jobEdit.historyFailed')}</p>
-          <button type="button" className="jdp-btn-ghost" onClick={() => fetchPage()}>{t('jobDetail.retry')}</button></div>}
+          <button type="button" className="jdp-btn-ghost" onClick={() => fetchPage()} data-track="ui.bbef44c343.2">{t('jobDetail.retry')}</button></div>}
         {state.status === 'success' && !state.items.length && <p>{t('jobEdit.historyEmpty')}</p>}
         {state.items.length > 0 && <ol className="jdp-revision-list">
           {state.items.map((item) => (
@@ -59,11 +59,11 @@ export default function JobRevisionHistory({ jobId, revision, version, load, onR
                 ))}
               </ul>
               {item.reason && <p className="jdp-count">{t('jobEdit.reasonShown', { reason: item.reason })}</p>}
-              {onRollback && <button type="button" className="jdp-btn-ghost" onClick={() => onRollback(item)}>{t('jobEdit.rollback')}</button>}
+              {onRollback && <button type="button" className="jdp-btn-ghost" onClick={() => onRollback(item)} data-track="ui.bbef44c343.3">{t('jobEdit.rollback')}</button>}
             </li>
           ))}
         </ol>}
-        {state.next && <button type="button" className="jdp-btn-ghost" disabled={state.status === 'loading'} onClick={() => fetchPage(state.next)}>{t('jobEdit.historyMore')}</button>}
+        {state.next && <button type="button" className="jdp-btn-ghost" disabled={state.status === 'loading'} onClick={() => fetchPage(state.next)} data-track="ui.bbef44c343.4">{t('jobEdit.historyMore')}</button>}
       </div>}
     </section>
   );

@@ -336,7 +336,7 @@ function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onP
             className="btn-confirm"
             onClick={onConfirm}
             disabled={!!acting}
-            title={t('calendar.confirmBooking', { defaultValue: 'Confirm and add to calendar' })}
+            title={t('calendar.confirmBooking', { defaultValue: 'Confirm and add to calendar' })} data-track="ui.79e8a0a062.1"
           >
             ✓{' '}
             {acting === 'confirm'
@@ -348,7 +348,7 @@ function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onP
             className="btn-decline"
             onClick={onDecline}
             disabled={!!acting}
-            title={t('calendar.declineBooking', { defaultValue: 'Decline booking request' })}
+            title={t('calendar.declineBooking', { defaultValue: 'Decline booking request' })} data-track="ui.79e8a0a062.2"
           >
             ✕{' '}
             {acting === 'decline'
@@ -362,7 +362,7 @@ function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onP
               onClick={onPropose}
               title={t('calendar.proposeDifferentTime', {
                 defaultValue: 'Propose a different time',
-              })}
+              })} data-track="ui.79e8a0a062.3"
             >
               ↻ {t('calendar.proposeTime', { defaultValue: 'Propose different time' })}
             </button>

@@ -194,7 +194,7 @@ export default function FeatureGuidePage() {
                 aria-selected={selectedRole === role}
                 aria-controls="how-works-story"
                 className={`how-works-role-tab${selectedRole === role ? ' is-selected' : ''}`}
-                onClick={() => changeRole(role)}
+                onClick={() => changeRole(role)} data-track="ui.6b94de402f.1"
               >
                 <span className="how-works-role-tab__icon"><Icon name={role === 'customer' ? 'UserRoundCheck' : role === 'helper' ? 'Briefcase' : 'Building2'} /></span>
                 <span><strong>{t(`howOxsteedWorks.experience.roles.${role}.label`)}</strong><small>{t(`howOxsteedWorks.experience.roles.${role}.short`)}</small></span>

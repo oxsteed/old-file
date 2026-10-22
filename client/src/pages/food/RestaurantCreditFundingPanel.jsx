@@ -142,7 +142,7 @@ export default function RestaurantCreditFundingPanel({ restaurant, approval, onF
           )}
 
           {instructions && (
-            <form onSubmit={handleSubmitProof} className="fd-credit-funding-form">
+            <form onSubmit={handleSubmitProof} className="fd-credit-funding-form" data-track-private>
               <label>
                 <span>{t('creditFunding.amount', 'Amount you sent')}</span>
                 <input
@@ -171,7 +171,7 @@ export default function RestaurantCreditFundingPanel({ restaurant, approval, onF
                 <span>{t('creditFunding.note', 'Note (optional)')}</span>
                 <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} rows={2} />
               </label>
-              <button type="submit" disabled={submitting || uploading} className="fd-btn-primary">
+              <button type="submit" disabled={submitting || uploading} className="fd-btn-primary" data-track-private>
                 {submitting
                   ? t('creditFunding.submitting', 'Submitting…')
                   : t('creditFunding.submit', 'Submit for verification')}

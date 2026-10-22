@@ -162,7 +162,7 @@ export function CustomerLoyaltyManager({ businessId }) {
             setSelectedTier(null);
             setShowForm(true);
           }}
-          className="clm-btn-new"
+          className="clm-btn-new" data-track="ui.fd507e368f.1"
         >
           <Plus size={18} /> {t('businessHub.loyalty.newTier')}
         </button>
@@ -232,10 +232,10 @@ export function CustomerLoyaltyManager({ businessId }) {
           </div>
 
           <div className="clm-form-buttons">
-            <button onClick={() => setShowForm(false)} className="clm-btn-cancel">
+            <button onClick={() => setShowForm(false)} className="clm-btn-cancel" data-track="ui.fd507e368f.2">
               {t('common.cancel')}
             </button>
-            <button onClick={handleSaveTier} className="clm-btn-save">
+            <button onClick={handleSaveTier} className="clm-btn-save" data-track="ui.fd507e368f.3">
               {t('businessHub.loyalty.saveTier')}
             </button>
           </div>
@@ -244,7 +244,7 @@ export function CustomerLoyaltyManager({ businessId }) {
         <div className="clm-customer-list-container">
           <button
             onClick={() => setShowCustomerList(false)}
-            className="clm-btn-back"
+            className="clm-btn-back" data-track="ui.fd507e368f.4"
           >
             ← {t('businessHub.loyalty.backToTiers')}
           </button>
@@ -279,7 +279,7 @@ export function CustomerLoyaltyManager({ businessId }) {
               <p>{t('businessHub.loyalty.noTiers')}</p>
               <button
                 onClick={() => setShowForm(true)}
-                className="clm-btn-new-large"
+                className="clm-btn-new-large" data-track="ui.fd507e368f.5"
               >
                 {t('businessHub.loyalty.setupFirstTier')}
               </button>
@@ -302,14 +302,14 @@ export function CustomerLoyaltyManager({ businessId }) {
                       <button
                         onClick={() => handleEditTier(tier)}
                         className="clm-btn-action"
-                        aria-label={t('businessHub.loyalty.editTier')}
+                        aria-label={t('businessHub.loyalty.editTier')} data-track="ui.fd507e368f.6"
                       >
                         <Edit2 size={16} />
                       </button>
                       <button
                         onClick={() => handleDeleteTier(tier.id)}
                         className="clm-btn-action delete"
-                        aria-label={t('businessHub.loyalty.deleteTier')}
+                        aria-label={t('businessHub.loyalty.deleteTier')} data-track="ui.fd507e368f.7"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -340,7 +340,7 @@ export function CustomerLoyaltyManager({ businessId }) {
 
                   <button
                     onClick={() => loadCustomersByTier(tier.id)}
-                    className="clm-btn-view-customers"
+                    className="clm-btn-view-customers" data-track="ui.fd507e368f.8"
                   >
                     {t('businessHub.loyalty.viewCustomers', { count: tier.customer_count || 0 })}
                   </button>

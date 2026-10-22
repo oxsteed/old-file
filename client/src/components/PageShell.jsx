@@ -19,7 +19,7 @@ export default function PageShell({ children, hideNav = false, hideFooter = fals
 
   return (
     <div className="ox-page">
-      <a href={`#${mainId}`} className="skip-nav">
+      <a href={`#${mainId}`} className="skip-nav" data-track="ui.192dd89b6c.1">
         {t('navigation.skipToMainContent')}
       </a>
       {!hideNav && <Navbar />}

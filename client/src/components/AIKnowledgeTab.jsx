@@ -127,7 +127,7 @@ export default function AIKnowledgeTab({ profileType, profileId }) {
             type="button"
             onClick={save}
             disabled={saving || !dirty}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed" data-track="ui.d93b1488cf.1"
           >
             {savedFlash
               ? <><IcoCheck size={14} className="text-green-800" /> {t('aiKnowledge.saved')}</>

@@ -81,7 +81,7 @@ function TabErrorFallback({ label, error, onRetry }) {
           {error.message || String(error)}
         </pre>
       )}
-      <button type="button" className="bh-btn primary" onClick={onRetry}>
+      <button type="button" className="bh-btn primary" onClick={onRetry} data-track="ui.3e9966f47b.1">
         {t('errorBoundary.tryAgain', { defaultValue: 'Try again' })}
       </button>
     </div>

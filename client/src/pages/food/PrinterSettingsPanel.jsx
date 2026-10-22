@@ -17,7 +17,7 @@ function Switch({ checked, onChange, disabled, label }) {
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`fd-switch${checked ? ' fd-switch--on' : ''}`}
+      className={`fd-switch${checked ? ' fd-switch--on' : ''}`} data-track="ui.e34bf5675e.1"
     >
       <span className="fd-switch-knob" aria-hidden="true" />
     </button>
@@ -37,22 +37,34 @@ function apiErr(err, fallback, t) {
 
 export default function PrinterSettingsPanel({ t, restaurant }) {
   const restaurantId = restaurant?.id;
+  const locations = Array.isArray(restaurant?.locations) ? restaurant.locations : [];
+  const primaryLocation = locations.find((location) => location.is_primary) || locations[0];
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [printingLabels, setPrintingLabels] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [host, setHost] = useState('');
   const [port, setPort] = useState('9100');
   const [drawerKick, setDrawerKick] = useState(true);
+  const [locationId, setLocationId] = useState(primaryLocation?.id ? String(primaryLocation.id) : '');
   const [testResult, setTestResult] = useState(null); // { ok, message }
+  const [labelOrderId, setLabelOrderId] = useState('');
+
+  useEffect(() => {
+    setLocationId(primaryLocation?.id ? String(primaryLocation.id) : '');
+  }, [restaurantId, primaryLocation?.id]);
 
   const load = useCallback(async () => {
     if (!restaurantId) return;
     setLoading(true);
     setTestResult(null);
     try {
-      const res = await api.get(`/restaurants/${restaurantId}/printer-settings`);
+      const res = await api.get(`/restaurants/${restaurantId}/printer-settings`, {
+        params: locationId ? { locationId } : undefined,
+      });
       const s = res.data?.settings || {};
+      if (s.locationId != null) setLocationId(String(s.locationId));
       setEnabled(Boolean(s.enabled));
       setHost(s.host || '');
       setPort(String(s.port ?? 9100));
@@ -62,7 +74,7 @@ export default function PrinterSettingsPanel({ t, restaurant }) {
     } finally {
       setLoading(false);
     }
-  }, [restaurantId, t]);
+  }, [restaurantId, locationId, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -71,6 +83,7 @@ export default function PrinterSettingsPanel({ t, restaurant }) {
     setTestResult(null);
     try {
       const res = await api.put(`/restaurants/${restaurantId}/printer-settings`, {
+        locationId: locationId || undefined,
         enabled,
         host: host.trim(),
         port: Number.parseInt(port, 10) || 9100,
@@ -93,8 +106,14 @@ export default function PrinterSettingsPanel({ t, restaurant }) {
     setTesting(true);
     setTestResult(null);
     try {
-      const res = await api.post(`/restaurants/${restaurantId}/printer-test`);
-      if (res.data?.ok) {
+      const res = await api.post(`/restaurants/${restaurantId}/printer-test`, {
+        locationId: locationId || undefined,
+      });
+      if (res.data?.queued) {
+        // F-05: the print waits in the printer-jobs queue for a paired
+        // in-store device; nothing was dialed from the server.
+        setTestResult({ ok: true, message: t('printer.testQueued') });
+      } else if (res.data?.ok) {
         setTestResult({ ok: true, message: t('printer.testSuccess') });
       } else {
         setTestResult({ ok: false, message: res.data?.error || t('printer.testFailed') });
@@ -103,6 +122,32 @@ export default function PrinterSettingsPanel({ t, restaurant }) {
       setTestResult({ ok: false, message: apiErr(err, t('printer.testFailed'), t) });
     } finally {
       setTesting(false);
+    }
+  };
+
+  const printAllergenLabels = async () => {
+    const orderId = labelOrderId.trim();
+    if (!/^\d+$/.test(orderId) || Number(orderId) < 1) {
+      setTestResult({ ok: false, message: t('printer.labelOrderRequired') });
+      return;
+    }
+    setPrintingLabels(true);
+    setTestResult(null);
+    try {
+      const res = await api.post(`/restaurants/${restaurantId}/print-allergen-labels`, {
+        orderId: Number(orderId),
+        locationId: locationId || undefined,
+      });
+      const queued = Boolean(res.data?.queued);
+      const ok = queued || Boolean(res.data?.ok);
+      setTestResult({
+        ok,
+        message: queued ? t('printer.labelsQueued') : ok ? t('printer.labelsSent') : t('printer.labelsFailed'),
+      });
+    } catch (err) {
+      setTestResult({ ok: false, message: apiErr(err, t('printer.labelsFailed'), t) });
+    } finally {
+      setPrintingLabels(false);
     }
   };
 
@@ -124,6 +169,21 @@ export default function PrinterSettingsPanel({ t, restaurant }) {
         </div>
       </header>
       <div className="fd-settings-card-body">
+      {locations.length > 0 && (
+        <div className="fd-field">
+          <label htmlFor={`printer-location-${restaurantId}`}>{t('printer.locationLabel')}</label>
+          <select
+            id={`printer-location-${restaurantId}`}
+            value={locationId}
+            onChange={(e) => setLocationId(e.target.value)}
+            disabled={saving || testing}
+          >
+            {locations.map((location) => (
+              <option key={location.id} value={location.id}>{location.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
         <div className="fd-settings-switch-row">
           <span className="fd-settings-switch-label">{t('printer.enable')}</span>
           <Switch checked={enabled} onChange={setEnabled} disabled={saving} label={t('printer.enable')} />
@@ -161,6 +221,20 @@ export default function PrinterSettingsPanel({ t, restaurant }) {
         </div>
         <p className="fd-settings-hint">{t('printer.drawerKickHint')}</p>
 
+        <div className="fd-field">
+          <label htmlFor={`printer-label-order-${restaurantId}`}>{t('printer.labelOrderId')}</label>
+          <input
+            id={`printer-label-order-${restaurantId}`}
+            value={labelOrderId}
+            onChange={(e) => setLabelOrderId(e.target.value.replace(/[^0-9]/g, '').slice(0, 12))}
+            placeholder={t('printer.labelOrderPlaceholder')}
+            disabled={saving || testing || printingLabels}
+            inputMode="numeric"
+            autoComplete="off"
+          />
+          <p className="fd-settings-hint">{t('printer.labelOrderHint')}</p>
+        </div>
+
         {testResult && (
           <div
             role="status"
@@ -180,7 +254,7 @@ export default function PrinterSettingsPanel({ t, restaurant }) {
         )}
 
         <div className="fd-settings-actions">
-          <button type="button" className="fd-btn" disabled={saving} onClick={save}>
+          <button type="button" className="fd-btn" disabled={saving} onClick={save} data-track="ui.e34bf5675e.2">
             {saving ? t('food.common.saving') : t('printer.save')}
           </button>
           <button
@@ -188,9 +262,19 @@ export default function PrinterSettingsPanel({ t, restaurant }) {
             className="fd-btn-secondary"
             disabled={testing || !enabled}
             onClick={printTest}
-            title={!enabled ? t('printer.enableFirst') : undefined}
+            title={!enabled ? t('printer.enableFirst') : undefined} data-track="ui.e34bf5675e.3"
           >
             {testing ? t('printer.testing') : t('printer.printTest')}
+          </button>
+          <button
+            type="button"
+            className="fd-btn-secondary"
+            disabled={saving || testing || printingLabels || !enabled || !/^\d+$/.test(labelOrderId.trim())}
+            onClick={printAllergenLabels}
+            title={!enabled ? t('printer.enableFirst') : undefined}
+            data-track="ui.e34bf5675e.4"
+          >
+            {printingLabels ? t('printer.labelsPrinting') : t('printer.printLabels')}
           </button>
         </div>
       </div>

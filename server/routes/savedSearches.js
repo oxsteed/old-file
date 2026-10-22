@@ -22,6 +22,8 @@ const router   = express.Router();
 const pool     = require('../db');
 const { authenticate } = require('../middleware/auth');
 const { sendNotification } = require('../services/notificationService');
+const { withTransaction } = require('../utils/transaction');
+const { emitDomainEvent } = require('../growth/emit');
 
 const VALID_SEARCH_TYPES = ['job', 'helper', 'tool', 'food'];
 
@@ -72,21 +74,30 @@ router.post('/', authenticate, async (req, res, next) => {
     : (keyword ? String(keyword).trim().slice(0, 500) : null);
 
   try {
-    const row = await pool.query(`
-      INSERT INTO saved_searches
-        (user_id, name, search_type, query, filters,
-         keyword, category, city, state, radius_miles,
-         min_budget, max_budget, notify)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-      RETURNING *
-    `, [userId, name.trim(), normalizedType || 'job', effectiveQuery,
-        normalizeFilters(filters),
-        keyword || null, category || null,
-        city || null, state || null,
-        radius_miles ? parseInt(radius_miles) : null,
-        min_budget   ? parseInt(min_budget)   : null,
-        max_budget   ? parseInt(max_budget)   : null,
-        notify]);
+    const row = await withTransaction(pool, async (client) => {
+      const result = await client.query(`
+        INSERT INTO saved_searches
+          (user_id, name, search_type, query, filters,
+           keyword, category, city, state, radius_miles,
+           min_budget, max_budget, notify)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+        RETURNING *
+      `, [userId, name.trim(), normalizedType || 'job', effectiveQuery,
+          normalizeFilters(filters),
+          keyword || null, category || null,
+          city || null, state || null,
+          radius_miles ? parseInt(radius_miles) : null,
+          min_budget   ? parseInt(min_budget)   : null,
+          max_budget   ? parseInt(max_budget)   : null,
+          notify]);
+
+      const safeCategory = typeof category === 'string' && /^[a-z0-9_.-]{1,80}$/i.test(category)
+        ? category.toLowerCase()
+        : undefined;
+      const eventProps = safeCategory ? { category: safeCategory } : {};
+      await emitDomainEvent(client, 'saved_search.created', eventProps, { userId, req });
+      return result;
+    }, 'saved_search_created_growth');
 
     if (row.rows[0]) return res.status(201).json(row.rows[0]);
     res.status(503).json({ error: 'saved_searches table not yet migrated.' });

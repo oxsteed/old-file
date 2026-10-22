@@ -59,7 +59,7 @@ export default function AccessibilityPage({ embedded = false }: { embedded?: boo
           {t('accessibilityPage.emailLabel')}
           <a
             href="mailto:support@oxsteed.com"
-            className="text-orange-400 underline"
+            className="text-orange-400 underline" data-track="ui.ce4ad80600.1"
           >
             support@oxsteed.com
           </a>

@@ -143,7 +143,7 @@ function ActivityCard({ event, onOpen }) {
               <button
                 type="button"
                 onClick={() => onOpen(event.actionUrl)}
-                className="ml-auto inline-flex items-center gap-1 rounded-full bg-orange-500 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-orange-600"
+                className="ml-auto inline-flex items-center gap-1 rounded-full bg-orange-500 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-orange-600" data-track="ui.4fe3ffa8c8.1"
               >
                 {actionLabel}
                 <ChevronRight size={15} />
@@ -309,7 +309,7 @@ function PaymentRequestCard({ request, onConfirm, currentUserId }) {
                 href={proofLink}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 rounded-full bg-white/5 px-3 py-1.5 text-sm font-medium text-slate-200 transition hover:bg-white/10"
+                className="inline-flex items-center gap-1 rounded-full bg-white/5 px-3 py-1.5 text-sm font-medium text-slate-200 transition hover:bg-white/10" data-track="ui.4fe3ffa8c8.2"
                 >
                   {t('activity.openProof')} <ExternalLink size={14} />
                 </a>
@@ -318,7 +318,7 @@ function PaymentRequestCard({ request, onConfirm, currentUserId }) {
               <button
                 type="button"
                 onClick={() => onConfirm(request)}
-                className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-600"
+                className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-600" data-track="ui.4fe3ffa8c8.3"
               >
                 <CheckCircle2 size={14} />
                 {t('activity.confirmReceipt')}
@@ -328,7 +328,7 @@ function PaymentRequestCard({ request, onConfirm, currentUserId }) {
               type="button"
               onClick={toggleHistory}
               aria-expanded={expanded}
-              className="inline-flex items-center gap-1 rounded-full bg-white/5 px-3 py-1.5 text-sm font-medium text-slate-200 transition hover:bg-white/10"
+              className="inline-flex items-center gap-1 rounded-full bg-white/5 px-3 py-1.5 text-sm font-medium text-slate-200 transition hover:bg-white/10" data-track="ui.4fe3ffa8c8.4"
             >
               <ChevronRight size={14} className={`transition-transform ${expanded ? 'rotate-90' : ''}`} />
               {expanded ? t('activity.hideHistory', 'Hide history') : t('activity.viewHistory', 'View history')}
@@ -452,7 +452,7 @@ export default function ActivityPage() {
             <button
               type="button"
               onClick={() => loadActivity({ silent: true })}
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10"
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10" data-track="ui.4fe3ffa8c8.5"
             >
               <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
               {t('activity.refresh')}
@@ -490,7 +490,7 @@ export default function ActivityPage() {
                     active
                       ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'
                       : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
-                  }`}
+                  }`} data-track="ui.4fe3ffa8c8.6"
                 >
                   {t(`activity.${filter.labelKey}`)}
                 </button>

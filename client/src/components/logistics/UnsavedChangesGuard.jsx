@@ -132,14 +132,14 @@ export default function UnsavedChangesGuard({ when }) {
           type="button"
           className="lx-btn-secondary"
           onClick={reset}
-          autoFocus
+          autoFocus data-track="ui.86e482e080.1"
         >
           {t('logistics.forms.unsavedChanges.stay')}
         </button>
         <button
           type="button"
           className="lx-btn-primary"
-          onClick={confirm}
+          onClick={confirm} data-track="ui.86e482e080.2"
         >
           {t('logistics.forms.unsavedChanges.discard')}
         </button>

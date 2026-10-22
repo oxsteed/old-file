@@ -116,7 +116,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
           <button
             type="button"
             onClick={onBookNow}
-            className={`${btnPrimary} hidden lg:inline-flex`}
+            className={`${btnPrimary} hidden lg:inline-flex`} data-track="ui.089ae954f7.1"
           >
             {t('helperProfile.header.bookNow')}
           </button>
@@ -125,7 +125,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
           <button
             type="button"
             onClick={onPostJobPublic}
-            className={btnSecondary}
+            className={btnSecondary} data-track="ui.089ae954f7.2"
           >
             {t('helperProfile.header.postJobPublic')}
           </button>
@@ -134,7 +134,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
           <a
             href={payUrl}
             className={btnSecondary}
-            style={{ textDecoration: 'none' }}
+            style={{ textDecoration: 'none' }} data-track="ui.089ae954f7.3"
           >
             {t('helperProfile.header.pay')}
           </a>
@@ -150,7 +150,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
               ? 'border-brand-500/40 bg-brand-500/10 text-brand-700 dark:text-brand-300'
               : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
           }`}
-          aria-pressed={isSaved}
+          aria-pressed={isSaved} data-track="ui.089ae954f7.4"
         >
           <Heart className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
           {isSaved

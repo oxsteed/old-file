@@ -90,14 +90,14 @@ const ReviewReportModal: React.FC<ReviewReportModalProps> = ({
           <button
             onClick={onClose}
             className="p-1 hover:bg-gray-800 rounded-lg transition-colors"
-            aria-label={t('common.close')}
+            aria-label={t('common.close')} data-track="ui.0a07536313.1"
           >
             <X className="w-5 h-5 text-gray-400" />
           </button>
         </div>
 
         {/* Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6" data-track="ui.0a07536313.2">
           {/* Info box */}
           <div className="bg-blue-900/20 border border-blue-800/50 rounded-lg p-4">
             <p className="text-sm text-blue-200">
@@ -123,7 +123,7 @@ const ReviewReportModal: React.FC<ReviewReportModalProps> = ({
                     value={reason}
                     checked={selectedReason === reason}
                     onChange={(e) => setSelectedReason(e.target.value)}
-                    className="w-4 h-4 text-red-500"
+                    className="w-4 h-4 text-red-500" data-track="ui.0a07536313.3"
                   />
                   <span className="text-sm text-gray-300">
                     {t(`reviewReport.reason.${reason}`)}
@@ -173,14 +173,14 @@ const ReviewReportModal: React.FC<ReviewReportModalProps> = ({
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 rounded-lg border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors disabled:opacity-50"
+              className="px-4 py-2 rounded-lg border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors disabled:opacity-50" data-track="ui.0a07536313.4"
             >
               {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !selectedReason || description.trim().length < 10}
-              className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors disabled:opacity-50 flex items-center gap-2"
+              className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors disabled:opacity-50 flex items-center gap-2" data-track="ui.0a07536313.5"
             >
               {isSubmitting ? (
                 <>

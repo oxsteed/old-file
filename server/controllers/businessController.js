@@ -59,13 +59,22 @@ async function ensureDraftFoodRestaurantForBusiness(client, business, ownerUserI
   const country = countriesUtil.normalizeCountry(business.address_country, 'US');
   const currencyCode = countriesUtil.getDefaultCurrency(country);
   const cuisineTags = business.business_type ? [business.business_type] : [];
+  // F-01: the draft restaurant inherits the business timezone. It used to
+  // fall through to the column default 'UTC', so every Business Hub
+  // restaurant ran its hours and queue numbers on UTC.
+  let timezone = 'UTC';
+  try {
+    timezone = normalizeTimezone(business.timezone);
+  } catch (_) {
+    timezone = 'UTC';
+  }
   const { rows: [restaurant] } = await client.query(
     `INSERT INTO food_restaurants
        (business_id, owner_user_id, display_name, cuisine_tags, description, phone, website,
         address_street, address_city, address_state, address_zip, address_country,
-        currency_code, fulfillment_modes, accepts_online_orders, accepts_in_store_orders,
+        currency_code, timezone, fulfillment_modes, accepts_online_orders, accepts_in_store_orders,
         kitchen_display_enabled, status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,ARRAY['pickup','dine_in','kiosk']::text[],TRUE,TRUE,TRUE,'draft')
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,ARRAY['pickup','dine_in','kiosk']::text[],TRUE,TRUE,TRUE,'draft')
      RETURNING id`,
     [
       business.id,
@@ -81,6 +90,7 @@ async function ensureDraftFoodRestaurantForBusiness(client, business, ownerUserI
       business.address_zip || null,
       country,
       currencyCode,
+      timezone,
     ]
   );
   // Mint the restaurant entity ID + ownership links (migration 670).
@@ -301,6 +311,10 @@ async function addBusiness(req, res, next) {
           JSON.stringify({ source: 'business_setup_v2', idempotencyKey }),
         ]
       );
+      await require('../growth/emit').emitDomainEvent(client, 'account.role_added', {
+        role: category.businessKind === 'restaurant' ? 'restaurant' : 'business',
+        ...(/^[A-Z]{2}$/.test(country) ? { country } : {}),
+      }, { userId: req.user.id, req });
       return { biz: createdBusiness, reused: false };
     }, 'business_create');
 

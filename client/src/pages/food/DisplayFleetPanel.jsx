@@ -110,7 +110,7 @@ export default function DisplayFleetPanel({ t, restaurant }) {
       <h2>{t('displayFleet.title')}</h2>
       <p className="fd-card-meta">{t('displayFleet.intro')}</p>
 
-      <form onSubmit={pair} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap', marginTop: '1rem' }}>
+      <form onSubmit={pair} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap', marginTop: '1rem' }} data-track="ui.58589c1e2d.1">
         <div className="fd-field" style={{ marginBottom: 0, minWidth: '11rem' }}>
           <label htmlFor="display-pair-code">{t('displayFleet.codeLabel')}</label>
           <input
@@ -149,7 +149,7 @@ export default function DisplayFleetPanel({ t, restaurant }) {
             <option value="queue_board">{t('displayFleet.roleQueueBoard')}</option>
           </select>
         </div>
-        <button type="submit" className="fd-btn fd-btn-primary" disabled={pairing || !code.trim()}>
+        <button type="submit" className="fd-btn fd-btn-primary" disabled={pairing || !code.trim()} data-track="ui.58589c1e2d.2">
           {pairing ? t('displayFleet.pairing') : t('displayFleet.pairButton')}
         </button>
       </form>
@@ -190,7 +190,7 @@ export default function DisplayFleetPanel({ t, restaurant }) {
                   type="button"
                   className="fd-btn fd-btn-secondary fd-btn-sm"
                   disabled={busyId === d.id}
-                  onClick={() => refresh(d.id)}
+                  onClick={() => refresh(d.id)} data-track="ui.58589c1e2d.3"
                 >
                   {t('displayFleet.refreshButton')}
                 </button>
@@ -198,7 +198,7 @@ export default function DisplayFleetPanel({ t, restaurant }) {
                   type="button"
                   className="fd-btn fd-btn-danger fd-btn-sm"
                   disabled={busyId === d.id}
-                  onClick={() => unpair(d.id)}
+                  onClick={() => unpair(d.id)} data-track="ui.58589c1e2d.4"
                 >
                   {t('displayFleet.unpairButton')}
                 </button>

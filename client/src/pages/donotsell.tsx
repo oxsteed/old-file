@@ -27,6 +27,12 @@ function DoNotSellForm() {
     // Apply the browser opt-out immediately even if the request service fails.
     savePreferences({ ...preferences, marketing: false });
     try {
+      if(user){
+        const {data:config}=await api.get('/activity/config');
+        if(config.sale_share_control)await api.post('/consent/tracking',{purpose:'sale_share_optout',granted:true,
+          source:'do_not_sell_page',consent_text_version:config.policy_version});
+        window.dispatchEvent(new Event('growth-consent-changed'));
+      }
       await api.post('/legal/ccpa-requests', {
         requestType: 'opt_out',
         email: trimmedEmail,
@@ -52,7 +58,7 @@ function DoNotSellForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+    <form onSubmit={handleSubmit} className="rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4" data-track="ui.2b5995935a.1">
       <div>
         <label htmlFor="dns-email" className="block text-sm font-semibold mb-1">
           {t('doNotSellPage.emailLabel')}
@@ -89,7 +95,7 @@ function DoNotSellForm() {
       <button
         type="submit"
         disabled={submitting}
-        className="rounded-md bg-orange-500 px-4 py-2 font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
+        className="rounded-md bg-orange-500 px-4 py-2 font-semibold text-white hover:bg-orange-600 disabled:opacity-60" data-track="ui.2b5995935a.2"
       >
         {submitting ? t('doNotSellPage.submittingButton') : t('doNotSellPage.submitButton')}
       </button>
@@ -118,7 +124,7 @@ export default function DoNotSell({ embedded = false }: { embedded?: boolean }) 
         <p className="mb-3">
           {t('doNotSellPage.doesNotSellText2')}
         </p>
-        <button type="button" className="ox-btn ox-btn-outline" onClick={openSettings}>{t('footer.manageCookies')}</button>
+        <button type="button" className="ox-btn ox-btn-outline" onClick={openSettings} data-track="ui.2b5995935a.3">{t('footer.manageCookies')}</button>
       </section>
 
       <section className="mb-8">

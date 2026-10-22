@@ -101,7 +101,10 @@ async function logBusinessAction(req, entry) {
  * @param {number} [opts.limit=50]
  * @param {number} [opts.offset=0]
  * @param {string} [opts.action]      filter by exact action
+ * @param {string} [opts.actionPrefix] filter by action prefix (e.g. 'business.member')
  * @param {string} [opts.actorUserId]
+ * @param {string} [opts.from]        ISO timestamp/date, inclusive lower bound on created_at
+ * @param {string} [opts.to]          ISO timestamp/date, inclusive upper bound on created_at
  * @returns {Promise<{rows: object[], total: number}>}
  */
 async function listBusinessAudit(businessId, opts = {}) {
@@ -114,9 +117,21 @@ async function listBusinessAudit(businessId, opts = {}) {
     params.push(opts.action);
     where.push(`action = $${params.length}`);
   }
+  if (opts.actionPrefix) {
+    params.push(`${String(opts.actionPrefix).replace(/[%_\\]/g, '')}%`);
+    where.push(`action LIKE $${params.length}`);
+  }
   if (opts.actorUserId) {
     params.push(opts.actorUserId);
     where.push(`actor_user_id = $${params.length}`);
+  }
+  if (opts.from) {
+    params.push(opts.from);
+    where.push(`created_at >= $${params.length}`);
+  }
+  if (opts.to) {
+    params.push(opts.to);
+    where.push(`created_at <= $${params.length}`);
   }
 
   const whereSql = where.join(' AND ');
@@ -137,4 +152,24 @@ async function listBusinessAudit(businessId, opts = {}) {
   return { rows, total: countRows[0] ? countRows[0].n : 0 };
 }
 
-module.exports = { logBusinessAction, listBusinessAudit };
+/**
+ * Distinct actors who appear in a business's audit log, with display
+ * names — feeds the Team activity view's person filter (S-16).
+ */
+async function listBusinessAuditActors(businessId) {
+  const { rows } = await pool.query(
+    `SELECT bal.actor_user_id AS user_id,
+            COALESCE(NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''),
+                     u.email) AS name,
+            COUNT(*)::int AS events
+       FROM business_audit_log bal
+       LEFT JOIN users u ON u.id = bal.actor_user_id
+      WHERE bal.business_id = $1 AND bal.actor_user_id IS NOT NULL
+      GROUP BY bal.actor_user_id, name
+      ORDER BY events DESC`,
+    [businessId]
+  );
+  return rows;
+}
+
+module.exports = { logBusinessAction, listBusinessAudit, listBusinessAuditActors };

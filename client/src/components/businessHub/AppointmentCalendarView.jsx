@@ -279,13 +279,13 @@ export function AppointmentCalendarView({ businessId }) {
               <button
                 key={status}
                 className={`acv-filter-btn ${filter === status ? 'active' : ''}`}
-                onClick={() => setFilter(status)}
+                onClick={() => setFilter(status)} data-track="ui.5b1136a2d6.1"
               >
                 {statusLabel(status)}
               </button>
             ))}
           </div>
-          <button className="acv-btn acv-btn-primary" onClick={() => setShowCreateModal(true)}>
+          <button className="acv-btn acv-btn-primary" onClick={() => setShowCreateModal(true)} data-track="ui.5b1136a2d6.2">
             <Plus size={16} />
             {t('businessAppointments.newAppointment')}
           </button>
@@ -294,11 +294,11 @@ export function AppointmentCalendarView({ businessId }) {
 
       <div className="acv-calendar">
         <div className="acv-calendar-header">
-          <button onClick={handlePrevMonth} className="acv-nav-btn">
+          <button onClick={handlePrevMonth} className="acv-nav-btn" data-track="ui.5b1136a2d6.3">
             <ChevronLeft size={18} />
           </button>
           <h4>{monthYear}</h4>
-          <button onClick={handleNextMonth} className="acv-nav-btn">
+          <button onClick={handleNextMonth} className="acv-nav-btn" data-track="ui.5b1136a2d6.4">
             <ChevronRight size={18} />
           </button>
         </div>
@@ -327,7 +327,7 @@ export function AppointmentCalendarView({ businessId }) {
         <div className="acv-detail-panel">
           <div className="acv-detail-header">
             <h4>{t('businessAppointments.detailsTitle')}</h4>
-            <button onClick={() => setSelectedAppointment(null)} className="acv-detail-close">×</button>
+            <button onClick={() => setSelectedAppointment(null)} className="acv-detail-close" data-track="ui.5b1136a2d6.5">×</button>
           </div>
 
           <div className="acv-detail-content">
@@ -420,7 +420,7 @@ export function AppointmentCalendarView({ businessId }) {
                   </select>
                   <button
                     className="acv-btn acv-btn-secondary"
-                    onClick={() => handleReassignStaff(selectedAppointment)}
+                    onClick={() => handleReassignStaff(selectedAppointment)} data-track="ui.5b1136a2d6.6"
                   >
                     {t('businessAppointments.reassign')}
                   </button>
@@ -441,7 +441,7 @@ export function AppointmentCalendarView({ businessId }) {
                   </select>
                   <button
                     className="acv-btn acv-btn-secondary"
-                    onClick={() => handleRecordPayment(selectedAppointment)}
+                    onClick={() => handleRecordPayment(selectedAppointment)} data-track="ui.5b1136a2d6.7"
                   >
                     {t('businessAppointments.recordPayment')}
                   </button>
@@ -458,7 +458,7 @@ export function AppointmentCalendarView({ businessId }) {
                     setRescheduleDate(d.toISOString().split('T')[0]);
                     setRescheduleTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
                     setShowReschedule(true);
-                  }}
+                  }} data-track="ui.5b1136a2d6.8"
                 >
                   {t('businessAppointments.reschedule')}
                 </button>
@@ -483,13 +483,13 @@ export function AppointmentCalendarView({ businessId }) {
                 <div className="acv-detail-actions">
                   <button
                     className="acv-btn acv-btn-confirm"
-                    onClick={() => handleReschedule(selectedAppointment)}
+                    onClick={() => handleReschedule(selectedAppointment)} data-track="ui.5b1136a2d6.9"
                   >
                     {t('businessAppointments.confirmReschedule')}
                   </button>
                   <button
                     className="acv-btn acv-btn-secondary"
-                    onClick={() => setShowReschedule(false)}
+                    onClick={() => setShowReschedule(false)} data-track="ui.5b1136a2d6.10"
                   >
                     {t('businessAppointments.cancel')}
                   </button>
@@ -502,13 +502,13 @@ export function AppointmentCalendarView({ businessId }) {
                 <>
                   <button 
                     className="acv-btn acv-btn-confirm"
-                    onClick={() => handleUpdateStatus(selectedAppointment.id, 'confirmed')}
+                    onClick={() => handleUpdateStatus(selectedAppointment.id, 'confirmed')} data-track="ui.5b1136a2d6.11"
                   >
                     {t('businessAppointments.confirm')}
                   </button>
                   <button 
                     className="acv-btn acv-btn-cancel"
-                    onClick={() => handleCancel(selectedAppointment.id)}
+                    onClick={() => handleCancel(selectedAppointment.id)} data-track="ui.5b1136a2d6.12"
                   >
                     {t('businessAppointments.decline')}
                   </button>
@@ -518,13 +518,13 @@ export function AppointmentCalendarView({ businessId }) {
                 <>
                   <button 
                     className="acv-btn acv-btn-confirm"
-                    onClick={() => handleUpdateStatus(selectedAppointment.id, 'completed')}
+                    onClick={() => handleUpdateStatus(selectedAppointment.id, 'completed')} data-track="ui.5b1136a2d6.13"
                   >
                     {t('businessAppointments.complete')}
                   </button>
                   <button 
                     className="acv-btn acv-btn-cancel"
-                    onClick={() => handleCancel(selectedAppointment.id)}
+                    onClick={() => handleCancel(selectedAppointment.id)} data-track="ui.5b1136a2d6.14"
                   >
                     {t('businessAppointments.cancel')}
                   </button>

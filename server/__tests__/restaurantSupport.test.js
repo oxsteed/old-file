@@ -5,6 +5,7 @@ const request = require('supertest');
 const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
 const ctrl = require('../controllers/restaurantSupportController');
+const permissionsService = require('../services/permissionsService');
 
 function buildCustomerApp() {
   const app = express();
@@ -39,7 +40,12 @@ function buildRestaurantApp() {
   return app;
 }
 
-beforeEach(() => resetMocks());
+beforeEach(() => {
+  resetMocks();
+  jest.spyOn(permissionsService, 'hasRestaurantPermission').mockResolvedValue(true);
+});
+
+afterEach(() => jest.restoreAllMocks());
 
 describe('restaurant support case backend', () => {
   test('creates and routes a missing-item case to the restaurant with audit and notification records', async () => {
@@ -149,6 +155,33 @@ describe('restaurant support case backend', () => {
     expect(res.body.case.status).toBe('awaiting_customer');
     expect(mockQuery.mock.calls[2][0]).toMatch(/INSERT INTO restaurant_support_case_messages/);
     expect(mockQuery.mock.calls[4][0]).toMatch(/first_response_at = COALESCE/);
+  });
+
+  test('honors a permission-catalog denial when a member tries to respond', async () => {
+    permissionsService.hasRestaurantPermission.mockResolvedValue(false);
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{
+        id: 9001,
+        restaurant_id: 5,
+        business_id: 42,
+        customer_user_id: '00000000-0000-4000-8000-000000000123',
+        owner_type: 'restaurant',
+        status: 'awaiting_restaurant',
+      }] })
+      .mockResolvedValueOnce({ rows: [{ id: 5, business_id: 42, effective_role: 'manager' }] });
+
+    const res = await request(buildRestaurantApp())
+      .post('/api/restaurants/5/support/cases/9001/respond')
+      .send({ message: 'This must be denied.' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('forbidden');
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+    expect(permissionsService.hasRestaurantPermission).toHaveBeenCalledWith(
+      expect.objectContaining({ effective_role: 'manager' }),
+      '00000000-0000-4000-8000-000000000999',
+      ['support.view']
+    );
   });
 
   test('replays a committed customer case message without reopening the case twice', async () => {

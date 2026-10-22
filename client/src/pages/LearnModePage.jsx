@@ -4499,7 +4499,7 @@ export default function LearnModePage() {
               href="https://apps.apple.com/us/app/oxsteed-marketplace/id6784977367"
               target="_blank"
               rel="noopener noreferrer"
-              className="lrn-app-banner-btn"
+              className="lrn-app-banner-btn" data-track="ui.97d473d449.1"
             >
               {t('learn.page.appStore')}
             </a>
@@ -4507,7 +4507,7 @@ export default function LearnModePage() {
               type="button"
               className="lrn-app-banner-close"
               onClick={dismissAppBanner}
-              aria-label={t('learn.page.dismissBanner')}
+              aria-label={t('learn.page.dismissBanner')} data-track="ui.97d473d449.2"
             >
               <X size={16} />
             </button>
@@ -4528,7 +4528,7 @@ export default function LearnModePage() {
                   <button
                     type="button"
                     className="lrn-hero-cta"
-                    onClick={() => { setSubmitForm(EMPTY_SUBMISSION); setSubmitSuccess(false); setShowSubmitModal(true); }}
+                    onClick={() => { setSubmitForm(EMPTY_SUBMISSION); setSubmitSuccess(false); setShowSubmitModal(true); }} data-track="ui.97d473d449.3"
                   >
                     {t(hero.ctaKey)} →
                   </button>
@@ -4539,7 +4539,7 @@ export default function LearnModePage() {
                 <button
                   type="button"
                   className="lrn-hero-submit-btn"
-                  onClick={() => { setSubmitForm(EMPTY_SUBMISSION); setSubmitSuccess(false); setShowSubmitModal(true); }}
+                  onClick={() => { setSubmitForm(EMPTY_SUBMISSION); setSubmitSuccess(false); setShowSubmitModal(true); }} data-track="ui.97d473d449.4"
                 >
                   + {t('learn.page.modal.title')}
                 </button>
@@ -4607,7 +4607,7 @@ export default function LearnModePage() {
               type="button"
               className="lrn-helper-prompt-close"
               onClick={() => setHelperPrompt(null)}
-              aria-label="Dismiss"
+              aria-label="Dismiss" data-track="ui.97d473d449.5"
             >
               <X size={14} />
             </button>
@@ -4615,7 +4615,7 @@ export default function LearnModePage() {
         )}
 
         {/* ── Search ────────────────────────────────────────────────────────── */}
-        <form className="lrn-search" onSubmit={handleSearch}>
+        <form className="lrn-search" onSubmit={handleSearch} data-track="ui.97d473d449.6">
           <Search size={18} className="lrn-search-icon" aria-hidden="true" />
           <input
             type="search"
@@ -4640,7 +4640,7 @@ export default function LearnModePage() {
           {query && (
             <button type="button" className="lrn-search-clear" onClick={() => {
               setQuery(''); setSearchParams({}, { replace: true }); setSuggestOpen(false);
-            }} aria-label="Clear search">
+            }} aria-label="Clear search" data-track="ui.97d473d449.7">
               <X size={16} />
             </button>
           )}
@@ -4659,7 +4659,7 @@ export default function LearnModePage() {
                       type="button"
                       className="lrn-suggest-item"
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => selectSuggestion(guide)}
+                      onClick={() => selectSuggestion(guide)} data-track="ui.97d473d449.8"
                     >
                       <span className="lrn-suggest-thumb" style={{ background: guide.gradient }} aria-hidden="true">
                         {cat && <cat.Icon size={16} style={{ color: cat.color }} />}
@@ -4700,7 +4700,7 @@ export default function LearnModePage() {
                       setActiveCategory(guide.category);
                       setExpandedId(guide.id);
                       setTimeout(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
-                    }}
+                    }} data-track="ui.97d473d449.9"
                   >
                     {done && <CheckCircle size={18} className="lrn-featured-check" aria-label="Completed" />}
                     <span className="lrn-featured-cat" style={{ color: cat?.color }}>
@@ -4742,7 +4742,7 @@ export default function LearnModePage() {
                   className={`lrn-cat-btn${isActive ? ' is-active' : ''}`}
                   style={isActive ? { background: color, borderColor: color, color: '#fff' } : { '--cat-color': color }}
                   onClick={() => handleCategoryClick(id)}
-                  aria-pressed={isActive}
+                  aria-pressed={isActive} data-track="ui.97d473d449.10"
                 >
                   <Icon size={20} aria-hidden="true" />
                   <span>{t(tKey)}</span>
@@ -4767,7 +4767,7 @@ export default function LearnModePage() {
                 className={viewMode === 'list' ? 'is-active' : ''}
                 onClick={() => setViewMode('list')}
                 aria-pressed={viewMode === 'list'}
-                title={t('learn.page.listView')}
+                title={t('learn.page.listView')} data-track="ui.97d473d449.11"
               >
                 <LayoutList size={16} aria-hidden="true" />
               </button>
@@ -4776,7 +4776,7 @@ export default function LearnModePage() {
                 className={viewMode === 'grid' ? 'is-active' : ''}
                 onClick={() => setViewMode('grid')}
                 aria-pressed={viewMode === 'grid'}
-                title={t('learn.page.gridView')}
+                title={t('learn.page.gridView')} data-track="ui.97d473d449.12"
               >
                 <LayoutGrid size={16} aria-hidden="true" />
               </button>
@@ -4791,7 +4791,7 @@ export default function LearnModePage() {
                 <button
                   type="button"
                   className="lrn-empty-clear"
-                  onClick={() => { setQuery(''); setActiveCategory('all'); setSearchParams({}, { replace: true }); }}
+                  onClick={() => { setQuery(''); setActiveCategory('all'); setSearchParams({}, { replace: true }); }} data-track="ui.97d473d449.13"
                 >
                   {t('learn.page.clearFilters')}
                 </button>
@@ -4807,7 +4807,7 @@ export default function LearnModePage() {
                     key={guide.id}
                     type="button"
                     className={`lrn-grid-card${done ? ' is-done' : ''}`}
-                    onClick={() => { setViewMode('list'); setExpandedId(guide.id); }}
+                    onClick={() => { setViewMode('list'); setExpandedId(guide.id); }} data-track="ui.97d473d449.14"
                   >
                     <div className="lrn-grid-thumb" style={{ background: guide.gradient }}>
                       {done && <span className="lrn-grid-done-badge" aria-label="Completed"><CheckCircle size={16} /></span>}
@@ -4856,7 +4856,7 @@ export default function LearnModePage() {
                       type="button"
                       className={`lrn-guide-row${isExpanded ? ' is-open' : ''}`}
                       onClick={() => toggleGuide(guide.id)}
-                      aria-expanded={isExpanded}
+                      aria-expanded={isExpanded} data-track="ui.97d473d449.15"
                     >
                       <span
                         className="lrn-guide-icon"
@@ -4913,7 +4913,7 @@ export default function LearnModePage() {
                                 ) : user && videoFormGuideId === guide.id ? (
                                   <form
                                     className="lrn-video-form"
-                                    onSubmit={(e) => { e.preventDefault(); handleVideoSubmit(guide.id); }}
+                                    onSubmit={(e) => { e.preventDefault(); handleVideoSubmit(guide.id); }} data-track="ui.97d473d449.16"
                                   >
                                     <label className="lrn-video-form-label" htmlFor={`lrn-video-url-${guide.id}`}>
                                       {t('learn.page.videoUrlLabel')}
@@ -4931,13 +4931,13 @@ export default function LearnModePage() {
                                       <span className="lrn-video-form-error" role="alert">{videoError}</span>
                                     )}
                                     <div className="lrn-video-form-actions">
-                                      <button type="submit" className="lrn-video-form-submit" disabled={videoSubmitting}>
+                                      <button type="submit" className="lrn-video-form-submit" disabled={videoSubmitting} data-track="ui.97d473d449.17">
                                         {videoSubmitting ? t('learn.page.videoSubmitting') : t('learn.page.videoSubmit')}
                                       </button>
                                       <button
                                         type="button"
                                         className="lrn-video-form-cancel"
-                                        onClick={() => { setVideoFormGuideId(null); setVideoError(''); }}
+                                        onClick={() => { setVideoFormGuideId(null); setVideoError(''); }} data-track="ui.97d473d449.18"
                                       >
                                         {t('common.cancel', { defaultValue: 'Cancel' })}
                                       </button>
@@ -4947,7 +4947,7 @@ export default function LearnModePage() {
                                   <button
                                     type="button"
                                     className="lrn-add-video-btn"
-                                    onClick={() => { setVideoFormGuideId(guide.id); setVideoUrlInput(''); setVideoError(''); }}
+                                    onClick={() => { setVideoFormGuideId(guide.id); setVideoUrlInput(''); setVideoError(''); }} data-track="ui.97d473d449.19"
                                   >
                                     {t('learn.page.addVideo')}
                                   </button>
@@ -4973,7 +4973,7 @@ export default function LearnModePage() {
                                     className="lrn-video-nav-btn"
                                     disabled={idx === 0}
                                     aria-label={t('learn.page.videoPrev', { defaultValue: 'Previous video' })}
-                                    onClick={() => setVideoIdxByGuide((p) => ({ ...p, [guide.id]: idx - 1 }))}
+                                    onClick={() => setVideoIdxByGuide((p) => ({ ...p, [guide.id]: idx - 1 }))} data-track="ui.97d473d449.20"
                                   >
                                     <ChevronLeft size={16} aria-hidden="true" />
                                   </button>
@@ -4989,7 +4989,7 @@ export default function LearnModePage() {
                                     className="lrn-video-nav-btn"
                                     disabled={idx === playlist.length - 1}
                                     aria-label={t('learn.page.videoNext', { defaultValue: 'Next video' })}
-                                    onClick={() => setVideoIdxByGuide((p) => ({ ...p, [guide.id]: idx + 1 }))}
+                                    onClick={() => setVideoIdxByGuide((p) => ({ ...p, [guide.id]: idx + 1 }))} data-track="ui.97d473d449.21"
                                   >
                                     <ChevronRight size={16} aria-hidden="true" />
                                   </button>
@@ -5002,7 +5002,7 @@ export default function LearnModePage() {
                                     className={`lrn-video-vote${current.viewerVoted ? ' is-active' : ''}`}
                                     aria-pressed={!!current.viewerVoted}
                                     disabled={votingVideoId === current.id}
-                                    onClick={() => handleVideoVote(guide.id, current)}
+                                    onClick={() => handleVideoVote(guide.id, current)} data-track="ui.97d473d449.22"
                                   >
                                     <ThumbsUp size={14} aria-hidden="true" />
                                     <span>
@@ -5020,7 +5020,7 @@ export default function LearnModePage() {
                                       setFlagReason('unrelated');
                                       setFlagNote('');
                                       setFlagError('');
-                                    }}
+                                    }} data-track="ui.97d473d449.23"
                                   >
                                     <Flag size={14} aria-hidden="true" />
                                     <span>{t('learn.page.videoFlag', { defaultValue: 'Flag' })}</span>
@@ -5035,7 +5035,7 @@ export default function LearnModePage() {
                               {flagVideoKey === flagKey && (
                                 <form
                                   className="lrn-flag-form"
-                                  onSubmit={(e) => { e.preventDefault(); handleFlagSubmit(guide.id, current); }}
+                                  onSubmit={(e) => { e.preventDefault(); handleFlagSubmit(guide.id, current); }} data-track="ui.97d473d449.24"
                                 >
                                   <span className="lrn-flag-form-title">
                                     {t('learn.page.videoFlagTitle', { defaultValue: 'Flag this video' })}
@@ -5070,7 +5070,7 @@ export default function LearnModePage() {
                                     <span className="lrn-video-form-error" role="alert">{flagError}</span>
                                   )}
                                   <div className="lrn-video-form-actions">
-                                    <button type="submit" className="lrn-video-form-submit" disabled={flagSubmitting}>
+                                    <button type="submit" className="lrn-video-form-submit" disabled={flagSubmitting} data-track="ui.97d473d449.25">
                                       {flagSubmitting
                                         ? t('learn.page.videoSubmitting')
                                         : t('learn.page.videoFlagSubmit', { defaultValue: 'Send flag' })}
@@ -5078,7 +5078,7 @@ export default function LearnModePage() {
                                     <button
                                       type="button"
                                       className="lrn-video-form-cancel"
-                                      onClick={() => { setFlagVideoKey(null); setFlagError(''); }}
+                                      onClick={() => { setFlagVideoKey(null); setFlagError(''); }} data-track="ui.97d473d449.26"
                                     >
                                       {t('common.cancel', { defaultValue: 'Cancel' })}
                                     </button>
@@ -5093,7 +5093,7 @@ export default function LearnModePage() {
                               {user && videoFormGuideId === guide.id ? (
                                 <form
                                   className="lrn-video-form"
-                                  onSubmit={(e) => { e.preventDefault(); handleVideoSubmit(guide.id); }}
+                                  onSubmit={(e) => { e.preventDefault(); handleVideoSubmit(guide.id); }} data-track="ui.97d473d449.27"
                                 >
                                   <label className="lrn-video-form-label" htmlFor={`lrn-video-url-${guide.id}`}>
                                     {t('learn.page.videoUrlLabel')}
@@ -5111,13 +5111,13 @@ export default function LearnModePage() {
                                     <span className="lrn-video-form-error" role="alert">{videoError}</span>
                                   )}
                                   <div className="lrn-video-form-actions">
-                                    <button type="submit" className="lrn-video-form-submit" disabled={videoSubmitting}>
+                                    <button type="submit" className="lrn-video-form-submit" disabled={videoSubmitting} data-track="ui.97d473d449.28">
                                       {videoSubmitting ? t('learn.page.videoSubmitting') : t('learn.page.videoSubmit')}
                                     </button>
                                     <button
                                       type="button"
                                       className="lrn-video-form-cancel"
-                                      onClick={() => { setVideoFormGuideId(null); setVideoError(''); }}
+                                      onClick={() => { setVideoFormGuideId(null); setVideoError(''); }} data-track="ui.97d473d449.29"
                                     >
                                       {t('common.cancel', { defaultValue: 'Cancel' })}
                                     </button>
@@ -5127,7 +5127,7 @@ export default function LearnModePage() {
                                 <button
                                   type="button"
                                   className="lrn-add-video-btn lrn-add-video-btn--inline"
-                                  onClick={() => { setVideoFormGuideId(guide.id); setVideoUrlInput(''); setVideoError(''); }}
+                                  onClick={() => { setVideoFormGuideId(guide.id); setVideoUrlInput(''); setVideoError(''); }} data-track="ui.97d473d449.30"
                                 >
                                   {t('learn.page.addAnotherVideo', { defaultValue: 'Add another video' })}
                                 </button>
@@ -5192,7 +5192,7 @@ export default function LearnModePage() {
                                           rel="noopener sponsored"
                                           className="lrn-kit-buy"
                                           aria-label={`${t('learn.page.buy', { defaultValue: 'Buy' })} ${tool.name}`}
-                                          onClick={() => { try { window.gtag && window.gtag('event', 'learn_buy_clicked', { tool_name: tool.name, link_type: tool.link_type || 'affiliate' }); } catch(_) {} trackLearnClick(guide.id, 'buy', tool.buy); }}
+                                          onClick={() => { try { window.gtag && window.gtag('event', 'learn_buy_clicked', { tool_name: tool.name, link_type: tool.link_type || 'affiliate' }); } catch(_) {} trackLearnClick(guide.id, 'buy', tool.buy); }} data-track="ui.97d473d449.31"
                                         >
                                           {t('learn.page.buy', { defaultValue: 'Buy' })} <ExternalLink size={11} aria-hidden="true" />
                                         </a>
@@ -5241,7 +5241,7 @@ export default function LearnModePage() {
                                 type="button"
                                 className="lrn-complete-btn"
                                 onClick={() => handleComplete(guide.id)}
-                                disabled={completing === guide.id}
+                                disabled={completing === guide.id} data-track="ui.97d473d449.32"
                               >
                                 {completing === guide.id ? t('learn.page.saving') : t('learn.page.markComplete')}
                               </button>
@@ -5353,7 +5353,7 @@ export default function LearnModePage() {
           <div className="lrn-modal">
             <div className="lrn-modal-header">
               <h2 className="lrn-modal-title">{t('learn.page.modal.title')}</h2>
-              <button type="button" className="lrn-modal-close" onClick={() => setShowSubmitModal(false)} aria-label="Close">
+              <button type="button" className="lrn-modal-close" onClick={() => setShowSubmitModal(false)} aria-label="Close" data-track="ui.97d473d449.33">
                 <X size={20} />
               </button>
             </div>
@@ -5363,10 +5363,10 @@ export default function LearnModePage() {
                 <CheckCircle size={40} aria-hidden="true" />
                 <h3>{t('learn.page.modal.successTitle')}</h3>
                 <p>{t('learn.page.modal.successMessage')}</p>
-                <button type="button" className="lrn-cta-primary" onClick={() => setShowSubmitModal(false)}>{t('learn.page.modal.done')}</button>
+                <button type="button" className="lrn-cta-primary" onClick={() => setShowSubmitModal(false)} data-track="ui.97d473d449.34">{t('learn.page.modal.done')}</button>
               </div>
             ) : (
-              <form className="lrn-modal-form" onSubmit={handleSubmitGuide}>
+              <form className="lrn-modal-form" onSubmit={handleSubmitGuide} data-track="ui.97d473d449.35">
                 <div className="lrn-modal-row">
                   <label className="lrn-modal-label">{t('learn.page.modal.titleLabel')} *
                     <input className="lrn-modal-input" type="text" maxLength={200} required
@@ -5424,7 +5424,7 @@ export default function LearnModePage() {
                         <button type="button" className="lrn-modal-remove" onClick={() => {
                           const steps = submitForm.steps.filter((_, j) => j !== i);
                           setSubmitForm((prev) => ({ ...prev, steps }));
-                        }}>
+                        }} data-track="ui.97d473d449.36">
                           <X size={14} />
                         </button>
                       )}
@@ -5432,7 +5432,7 @@ export default function LearnModePage() {
                   ))}
                   {submitForm.steps.length < 20 && (
                     <button type="button" className="lrn-modal-add-btn"
-                      onClick={() => setSubmitForm((prev) => ({ ...prev, steps: [...prev.steps, ''] }))}>
+                      onClick={() => setSubmitForm((prev) => ({ ...prev, steps: [...prev.steps, ''] }))} data-track="ui.97d473d449.37">
                       {t('learn.page.modal.addStep')}
                     </button>
                   )}
@@ -5452,7 +5452,7 @@ export default function LearnModePage() {
                           <button type="button" className="lrn-modal-remove" onClick={() => {
                             const skills = submitForm.skills.filter((_, j) => j !== i);
                             setSubmitForm((prev) => ({ ...prev, skills }));
-                          }}>
+                          }} data-track="ui.97d473d449.38">
                             <X size={14} />
                           </button>
                         )}
@@ -5460,7 +5460,7 @@ export default function LearnModePage() {
                     ))}
                     {submitForm.skills.length < 10 && (
                       <button type="button" className="lrn-modal-add-btn"
-                        onClick={() => setSubmitForm((prev) => ({ ...prev, skills: [...prev.skills, ''] }))}>
+                        onClick={() => setSubmitForm((prev) => ({ ...prev, skills: [...prev.skills, ''] }))} data-track="ui.97d473d449.39">
                         {t('learn.page.modal.addSkill')}
                       </button>
                     )}
@@ -5494,8 +5494,8 @@ export default function LearnModePage() {
                 )}
 
                 <div className="lrn-modal-footer">
-                  <button type="button" className="lrn-cta-secondary" onClick={() => setShowSubmitModal(false)}>{t('learn.page.modal.cancel')}</button>
-                  <button type="submit" className="lrn-modal-submit-btn" disabled={submitting}>
+                  <button type="button" className="lrn-cta-secondary" onClick={() => setShowSubmitModal(false)} data-track="ui.97d473d449.40">{t('learn.page.modal.cancel')}</button>
+                  <button type="submit" className="lrn-modal-submit-btn" disabled={submitting} data-track="ui.97d473d449.41">
                     <Send size={15} aria-hidden="true" />
                     {submitting ? t('learn.page.modal.submitting') : t('learn.page.modal.submit')}
                   </button>

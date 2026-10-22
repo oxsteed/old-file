@@ -78,13 +78,13 @@ class OrderErrorBoundary extends Component {
             <div className="flex gap-3">
               <button
                 onClick={this.handleReset}
-                className="flex-1 bg-primary text-white py-2 rounded-lg hover:bg-primary-dark font-medium"
+                className="flex-1 bg-primary text-white py-2 rounded-lg hover:bg-primary-dark font-medium" data-track="ui.da32bf48eb.1"
               >
                 {t('orderErrorBoundary.tryAgain')}
               </button>
               <a
                 href="/orders"
-                className="flex-1 bg-[var(--color-surface-2)] text-[var(--color-text)] py-2 rounded-lg hover:bg-[var(--color-surface-3)] font-medium text-center"
+                className="flex-1 bg-[var(--color-surface-2)] text-[var(--color-text)] py-2 rounded-lg hover:bg-[var(--color-surface-3)] font-medium text-center" data-track="ui.da32bf48eb.2"
               >
                 {t('orderErrorBoundary.backToOrders')}
               </a>

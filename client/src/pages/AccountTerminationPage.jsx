@@ -208,7 +208,7 @@ export default function AccountTerminationPage() {
                     searchMatches.includes(section.id) ? 'highlighted' : ''
                   }`}
                   onClick={() => setExpandedSection(section.id)}
-                  aria-current={expandedSection === section.id ? 'true' : 'false'}
+                  aria-current={expandedSection === section.id ? 'true' : 'false'} data-track="ui.bd0e8ce7a4.1"
                 >
                   <span className="toc-icon">{section.icon}</span>
                   <span className="toc-text">{section.title}</span>
@@ -220,7 +220,7 @@ export default function AccountTerminationPage() {
             <button
               className="version-history-btn"
               onClick={() => setShowVersionHistory(!showVersionHistory)}
-              aria-expanded={showVersionHistory}
+              aria-expanded={showVersionHistory} data-track="ui.bd0e8ce7a4.2"
             >
               {t('accountTermination.viewVersionHistory')}
             </button>
@@ -260,7 +260,7 @@ export default function AccountTerminationPage() {
                 <button
                   className="section-header"
                   onClick={() => setExpandedSection(expandedSection === 'overview' ? null : 'overview')}
-                  aria-expanded={expandedSection === 'overview'}
+                  aria-expanded={expandedSection === 'overview'} data-track="ui.bd0e8ce7a4.3"
                 >
                   <span className="section-icon">📋</span>
                   <h2>{t('accountTermination.overviewTitle')}</h2>
@@ -287,7 +287,7 @@ export default function AccountTerminationPage() {
                 <button
                   className="section-header"
                   onClick={() => setExpandedSection(expandedSection === 'grounds' ? null : 'grounds')}
-                  aria-expanded={expandedSection === 'grounds'}
+                  aria-expanded={expandedSection === 'grounds'} data-track="ui.bd0e8ce7a4.4"
                 >
                   <span className="section-icon">⚖️</span>
                   <h2>{t('accountTermination.groundsTitle')}</h2>
@@ -347,7 +347,7 @@ export default function AccountTerminationPage() {
                 <button
                   className="section-header"
                   onClick={() => setExpandedSection(expandedSection === 'immediate-effect' ? null : 'immediate-effect')}
-                  aria-expanded={expandedSection === 'immediate-effect'}
+                  aria-expanded={expandedSection === 'immediate-effect'} data-track="ui.bd0e8ce7a4.5"
                 >
                   <span className="section-icon">⚡</span>
                   <h2>{t('accountTermination.immediateEffectTitle')}</h2>
@@ -386,7 +386,7 @@ export default function AccountTerminationPage() {
                 <button
                   className="section-header"
                   onClick={() => setExpandedSection(expandedSection === 'appeal' ? null : 'appeal')}
-                  aria-expanded={expandedSection === 'appeal'}
+                  aria-expanded={expandedSection === 'appeal'} data-track="ui.bd0e8ce7a4.6"
                 >
                   <span className="section-icon">📞</span>
                   <h2>{t('accountTermination.appealTitle')}</h2>
@@ -429,7 +429,7 @@ export default function AccountTerminationPage() {
                 <button
                   className="section-header"
                   onClick={() => setExpandedSection(expandedSection === 'timeline' ? null : 'timeline')}
-                  aria-expanded={expandedSection === 'timeline'}
+                  aria-expanded={expandedSection === 'timeline'} data-track="ui.bd0e8ce7a4.7"
                 >
                   <span className="section-icon">⏱️</span>
                   <h2>{t('accountTermination.timelineTitle')}</h2>
@@ -483,7 +483,7 @@ export default function AccountTerminationPage() {
                 <button
                   className="section-header"
                   onClick={() => setExpandedSection(expandedSection === 'data-deletion' ? null : 'data-deletion')}
-                  aria-expanded={expandedSection === 'data-deletion'}
+                  aria-expanded={expandedSection === 'data-deletion'} data-track="ui.bd0e8ce7a4.8"
                 >
                   <span className="section-icon">🗑️</span>
                   <h2>{t('accountTermination.dataDeletionTitle')}</h2>
@@ -532,7 +532,7 @@ export default function AccountTerminationPage() {
             </div>
 
             {/* E-Signature Form */}
-            <form className="signature-form" onSubmit={handleAcceptance}>
+            <form className="signature-form" onSubmit={handleAcceptance} data-track="ui.bd0e8ce7a4.9">
               <h3>{t('accountTermination.acceptanceTitle')}</h3>
 
               <div className="form-group">
@@ -572,7 +572,7 @@ export default function AccountTerminationPage() {
                   checked={formData.agreed}
                   onChange={(e) => setFormData({ ...formData, agreed: e.target.checked })}
                   disabled={scrollProgress < 95}
-                  aria-required="true"
+                  aria-required="true" data-track="ui.bd0e8ce7a4.10"
                 />
                 <label htmlFor="agreed">
                   {scrollProgress < 95
@@ -594,7 +594,7 @@ export default function AccountTerminationPage() {
                 type="submit"
                 className={`submit-btn ${canAccept ? 'enabled' : 'disabled'}`}
                 disabled={!canAccept || isLoading}
-                aria-busy={isLoading}
+                aria-busy={isLoading} data-track="ui.bd0e8ce7a4.11"
               >
                 {isLoading
                   ? t('accountTermination.signingPlease')

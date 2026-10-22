@@ -225,7 +225,7 @@ export default function TradesOperationsTab({ businessId, workspace, currency = 
         <Section
           title={copy('pipelineTitle')}
           subtitle={copy('pipelineSubtitle')}
-          actions={<button type="button" className="bh-btn" onClick={() => onJumpTab?.('quotes')}>{copy('openQuotes')}</button>}
+          actions={<button type="button" className="bh-btn" onClick={() => onJumpTab?.('quotes')} data-track="ui.05f1760a94.1">{copy('openQuotes')}</button>}
         >
           <div className="space-y-4">
             {diagnostics.slice(0, 12).map((item) => (
@@ -241,8 +241,8 @@ export default function TradesOperationsTab({ businessId, workspace, currency = 
                     <p className="mt-1 text-sm text-gray-400">{item.issue_type}{item.asset_label ? ` · ${item.asset_label}` : ''}{item.vin ? ` · VIN ${item.vin}` : ''}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateRequest(item.id, { status: 'quoted', workflow_stage: 'estimate' })}>{copy('markQuoted')}</button>
-                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateRequest(item.id, { status: 'approved', workflow_stage: 'repair' })}>{copy('approveRepair')}</button>
+                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateRequest(item.id, { status: 'quoted', workflow_stage: 'estimate' })} data-track="ui.05f1760a94.2">{copy('markQuoted')}</button>
+                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateRequest(item.id, { status: 'approved', workflow_stage: 'repair' })} data-track="ui.05f1760a94.3">{copy('approveRepair')}</button>
                   </div>
                 </div>
               </div>
@@ -253,7 +253,7 @@ export default function TradesOperationsTab({ businessId, workspace, currency = 
         <Section
           title={copy('queueSnapshot')}
           subtitle={copy('queueSnapshotSubtitle')}
-          actions={<button type="button" className="bh-btn" onClick={() => onRefresh?.()}>{copy('refresh')}</button>}
+          actions={<button type="button" className="bh-btn" onClick={() => onRefresh?.()} data-track="ui.05f1760a94.4">{copy('refresh')}</button>}
         >
           <div className="space-y-4">
             <div className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4">
@@ -275,7 +275,7 @@ export default function TradesOperationsTab({ businessId, workspace, currency = 
       <Section
         title={copy('settingsTitle')}
         subtitle={copy('settingsSubtitle')}
-        actions={<button type="button" className="bh-btn primary" onClick={saveSettings} disabled={savingSettings}>{savingSettings ? t('common.saving') : copy('saveSettings')}</button>}
+        actions={<button type="button" className="bh-btn primary" onClick={saveSettings} disabled={savingSettings} data-track="ui.05f1760a94.5">{savingSettings ? t('common.saving') : copy('saveSettings')}</button>}
       >
         <div className="grid gap-4 md:grid-cols-2">
           <Input label={copy('responsePromise')}><TextInput type="number" min="1" value={settingsForm.response_promise_hours} onChange={(e) => setSettingsForm((current) => ({ ...current, response_promise_hours: e.target.value }))} /></Input>
@@ -293,7 +293,7 @@ export default function TradesOperationsTab({ businessId, workspace, currency = 
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         <Section title={copy('recommendationsTitle')} subtitle={copy('recommendationsSubtitle')}>
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={saveRecommendation}>
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={saveRecommendation} data-track="ui.05f1760a94.6">
             <Input label={copy('diagnosticRequest')}><Select value={recommendationForm.diagnostic_request_id} onChange={(e) => setRecommendationForm((current) => ({ ...current, diagnostic_request_id: e.target.value }))}><option value="">{copy('unlinked')}</option>{diagnostics.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</Select></Input>
             <Input label={copy('quoteId')}><TextInput value={recommendationForm.quote_id} onChange={(e) => setRecommendationForm((current) => ({ ...current, quote_id: e.target.value }))} /></Input>
             <Input label={copy('titleField')}><TextInput value={recommendationForm.title} onChange={(e) => setRecommendationForm((current) => ({ ...current, title: e.target.value }))} /></Input>
@@ -303,8 +303,8 @@ export default function TradesOperationsTab({ businessId, workspace, currency = 
             <Input label={copy('estimatedCents')}><TextInput type="number" min="0" value={recommendationForm.estimated_cents} onChange={(e) => setRecommendationForm((current) => ({ ...current, estimated_cents: e.target.value }))} /></Input>
             <Input label={copy('descriptionField')} wide><TextArea rows={2} value={recommendationForm.description} onChange={(e) => setRecommendationForm((current) => ({ ...current, description: e.target.value }))} /></Input>
             <div className="md:col-span-2 flex gap-3">
-              <button className="bh-btn primary" type="submit">{editingRecommendationId ? copy('updateRecommendation') : copy('addRecommendation')}</button>
-              {editingRecommendationId ? <button className="bh-btn" type="button" onClick={() => { setEditingRecommendationId(null); setRecommendationForm(EMPTY_RECOMMENDATION); }}>{copy('cancel')}</button> : null}
+              <button className="bh-btn primary" type="submit" data-track="ui.05f1760a94.7">{editingRecommendationId ? copy('updateRecommendation') : copy('addRecommendation')}</button>
+              {editingRecommendationId ? <button className="bh-btn" type="button" onClick={() => { setEditingRecommendationId(null); setRecommendationForm(EMPTY_RECOMMENDATION); }} data-track="ui.05f1760a94.8">{copy('cancel')}</button> : null}
             </div>
           </form>
           <div className="mt-5 space-y-3">
@@ -321,8 +321,8 @@ export default function TradesOperationsTab({ businessId, workspace, currency = 
                     {item.estimated_cents != null ? <p className="mt-2 text-sm font-semibold text-white">{formatMoney((item.estimated_cents || 0) / 100, { currency })}</p> : null}
                   </div>
                   <div className="flex gap-2">
-                    <button className="bh-btn sm" type="button" onClick={() => { setEditingRecommendationId(item.id); setRecommendationForm({ ...EMPTY_RECOMMENDATION, ...item, estimated_cents: item.estimated_cents ?? '' }); }}>{copy('edit')}</button>
-                    <button className="bh-btn sm danger" type="button" onClick={async () => { if (!window.confirm(copy('deleteRecommendationConfirm'))) return; await deleteTradesRecommendation(businessId, item.id); toast.success(copy('recommendationDeleted')); await onRefresh?.(); }}>{copy('delete')}</button>
+                    <button className="bh-btn sm" type="button" onClick={() => { setEditingRecommendationId(item.id); setRecommendationForm({ ...EMPTY_RECOMMENDATION, ...item, estimated_cents: item.estimated_cents ?? '' }); }} data-track="ui.05f1760a94.9">{copy('edit')}</button>
+                    <button className="bh-btn sm danger" type="button" onClick={async () => { if (!window.confirm(copy('deleteRecommendationConfirm'))) return; await deleteTradesRecommendation(businessId, item.id); toast.success(copy('recommendationDeleted')); await onRefresh?.(); }} data-track="ui.05f1760a94.10">{copy('delete')}</button>
                   </div>
                 </div>
               </div>
@@ -331,7 +331,7 @@ export default function TradesOperationsTab({ businessId, workspace, currency = 
         </Section>
 
         <Section title={copy('trustTitle')} subtitle={copy('trustSubtitle')}>
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={saveTrustRecord}>
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={saveTrustRecord} data-track="ui.05f1760a94.11">
             <Input label={copy('recordType')}><TextInput value={trustForm.record_type} onChange={(e) => setTrustForm((current) => ({ ...current, record_type: e.target.value }))} /></Input>
             <Input label={copy('titleField')}><TextInput value={trustForm.title} onChange={(e) => setTrustForm((current) => ({ ...current, title: e.target.value }))} /></Input>
             <Input label={copy('issuer')}><TextInput value={trustForm.issuer} onChange={(e) => setTrustForm((current) => ({ ...current, issuer: e.target.value }))} /></Input>
@@ -340,8 +340,8 @@ export default function TradesOperationsTab({ businessId, workspace, currency = 
             <Input label={copy('documentUrl')}><TextInput value={trustForm.document_url} onChange={(e) => setTrustForm((current) => ({ ...current, document_url: e.target.value }))} /></Input>
             <Input label={copy('notesField')} wide><TextArea rows={2} value={trustForm.notes} onChange={(e) => setTrustForm((current) => ({ ...current, notes: e.target.value }))} /></Input>
             <div className="md:col-span-2 flex gap-3">
-              <button className="bh-btn primary" type="submit">{editingTrustId ? copy('updateRecord') : copy('addRecord')}</button>
-              {editingTrustId ? <button className="bh-btn" type="button" onClick={() => { setEditingTrustId(null); setTrustForm(EMPTY_TRUST); }}>{copy('cancel')}</button> : null}
+              <button className="bh-btn primary" type="submit" data-track="ui.05f1760a94.12">{editingTrustId ? copy('updateRecord') : copy('addRecord')}</button>
+              {editingTrustId ? <button className="bh-btn" type="button" onClick={() => { setEditingTrustId(null); setTrustForm(EMPTY_TRUST); }} data-track="ui.05f1760a94.13">{copy('cancel')}</button> : null}
             </div>
           </form>
           <div className="mt-5 space-y-3">
@@ -357,8 +357,8 @@ export default function TradesOperationsTab({ businessId, workspace, currency = 
                     <p className="mt-1 text-sm text-gray-400">{item.issuer || copy('noIssuer')}{item.expires_on ? ` · ${copy('expiresOnText', { date: new Date(item.expires_on).toLocaleDateString() })}` : ''}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button className="bh-btn sm" type="button" onClick={() => { setEditingTrustId(item.id); setTrustForm({ ...EMPTY_TRUST, ...item, expires_on: item.expires_on ? String(item.expires_on).slice(0, 10) : '' }); }}>{copy('edit')}</button>
-                    <button className="bh-btn sm danger" type="button" onClick={async () => { if (!window.confirm(copy('deleteRecordConfirm'))) return; await deleteTradesTrustRecord(businessId, item.id); toast.success(copy('trustRecordDeleted')); await onRefresh?.(); }}>{copy('delete')}</button>
+                    <button className="bh-btn sm" type="button" onClick={() => { setEditingTrustId(item.id); setTrustForm({ ...EMPTY_TRUST, ...item, expires_on: item.expires_on ? String(item.expires_on).slice(0, 10) : '' }); }} data-track="ui.05f1760a94.14">{copy('edit')}</button>
+                    <button className="bh-btn sm danger" type="button" onClick={async () => { if (!window.confirm(copy('deleteRecordConfirm'))) return; await deleteTradesTrustRecord(businessId, item.id); toast.success(copy('trustRecordDeleted')); await onRefresh?.(); }} data-track="ui.05f1760a94.15">{copy('delete')}</button>
                   </div>
                 </div>
               </div>

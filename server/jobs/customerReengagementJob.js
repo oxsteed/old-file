@@ -146,6 +146,21 @@ async function runCustomerReengagement() {
           [c.id, c.last_job_id]
         );
 
+        // Global marketing caps (growth spec 17.2): legacy platform sends
+        // count toward the same per-person caps as offer campaigns.
+        const { recordMarketingContact } = require('../growth/marketingLog');
+        await recordMarketingContact(db, {
+          userId: c.id,
+          source: 'customer_reengagement',
+          channel: 'in_app',
+        });
+        if (c.email)
+          await recordMarketingContact(db, {
+            userId: c.id,
+            source: 'customer_reengagement',
+            channel: 'email',
+          });
+
         sent++;
       } catch (userErr) {
         failed++;

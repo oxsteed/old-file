@@ -151,7 +151,7 @@ function RecCard({ rec, onDismiss, dismissAria }) {
         <button
           onClick={() => onDismiss(rec.id)}
           aria-label={`${dismissAria}: ${rec.title}`}
-          className="p-1 text-gray-600 hover:text-gray-400 transition rounded-lg hover:bg-gray-800"
+          className="p-1 text-gray-600 hover:text-gray-400 transition rounded-lg hover:bg-gray-800" data-track="ui.2c5d41c23f.1"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
             strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
@@ -235,7 +235,7 @@ export default function RecommendationFeed({ title, onAction }) {
             <button
               onClick={scrollLeft}
               aria-label={scrollLeftAria}
-              className="p-1.5 text-gray-500 hover:text-white rounded-lg hover:bg-gray-800 transition"
+              className="p-1.5 text-gray-500 hover:text-white rounded-lg hover:bg-gray-800 transition" data-track="ui.2c5d41c23f.2"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
                 strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
@@ -245,7 +245,7 @@ export default function RecommendationFeed({ title, onAction }) {
             <button
               onClick={scrollRight}
               aria-label={scrollRightAria}
-              className="p-1.5 text-gray-500 hover:text-white rounded-lg hover:bg-gray-800 transition"
+              className="p-1.5 text-gray-500 hover:text-white rounded-lg hover:bg-gray-800 transition" data-track="ui.2c5d41c23f.3"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
                 strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">

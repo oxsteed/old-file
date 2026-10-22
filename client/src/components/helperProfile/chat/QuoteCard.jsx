@@ -262,7 +262,7 @@ export default function QuoteCard({
             <button
               type="button"
               className="messenger-quote-card__btn messenger-quote-card__btn--secondary"
-              onClick={() => onRequestVerify?.()}
+              onClick={() => onRequestVerify?.()} data-track-private
             >
               {t('helperProfile.messenger.quoteVerifyToAccept')}
             </button>
@@ -272,7 +272,7 @@ export default function QuoteCard({
                 type="button"
                 className="messenger-quote-card__btn messenger-quote-card__btn--primary"
                 disabled={busy || expired}
-                onClick={() => respond('accept')}
+                onClick={() => respond('accept')} data-track-private
               >
                 {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 {t('helperProfile.messenger.quoteAccept')}
@@ -281,7 +281,7 @@ export default function QuoteCard({
                 type="button"
                 className="messenger-quote-card__btn messenger-quote-card__btn--ghost"
                 disabled={busy || expired}
-                onClick={() => respond('decline')}
+                onClick={() => respond('decline')} data-track-private
               >
                 <X className="w-3.5 h-3.5" />
                 {t('helperProfile.messenger.quoteDecline')}
@@ -290,7 +290,7 @@ export default function QuoteCard({
                 type="button"
                 className="messenger-quote-card__btn messenger-quote-card__btn--ghost"
                 disabled={busy || expired}
-                onClick={() => setShowReason((v) => !v)}
+                onClick={() => setShowReason((v) => !v)} data-track-private
               >
                 <MessageSquare className="w-3.5 h-3.5" />
                 {t('helperProfile.messenger.quoteRequestChanges')}
@@ -314,7 +314,7 @@ export default function QuoteCard({
             type="button"
             className="messenger-quote-card__btn messenger-quote-card__btn--secondary"
             disabled={busy}
-            onClick={() => respond('request_changes')}
+            onClick={() => respond('request_changes')} data-track-private
           >
             {t('helperProfile.messenger.quoteSendChanges')}
           </button>
@@ -328,7 +328,7 @@ export default function QuoteCard({
             <button
               type="button"
               className="messenger-quote-card__btn messenger-quote-card__btn--secondary"
-              onClick={() => setShowCreditPay(true)}
+              onClick={() => setShowCreditPay(true)} data-track-private
             >
               <Wallet className="w-3.5 h-3.5" />
               {t('helperProfile.messenger.creditPayButton')}
@@ -337,7 +337,7 @@ export default function QuoteCard({
             <button
               type="button"
               className="messenger-quote-card__btn messenger-quote-card__btn--secondary"
-              onClick={() => (onRequestSignIn || onRequestVerify)?.()}
+              onClick={() => (onRequestSignIn || onRequestVerify)?.()} data-track-private
             >
               {t('helperProfile.messenger.creditPaySignInCta')}
             </button>
@@ -364,7 +364,7 @@ export default function QuoteCard({
         <button
           type="button"
           className="messenger-quote-card__btn messenger-quote-card__btn--primary messenger-quote-card__schedule"
-          onClick={() => onAccepted?.({ quote, openAvailability: true, alreadyAccepted: true })}
+          onClick={() => onAccepted?.({ quote, openAvailability: true, alreadyAccepted: true })} data-track-private
         >
           <Calendar className="w-3.5 h-3.5" />
           {t('helperProfile.messenger.quoteSchedule')}

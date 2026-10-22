@@ -79,7 +79,7 @@ export default function AllocationsAdmin() {
             <p className="lx-page-sub">{t('adminAllocations.subtitle')}</p>
           </div>
           {tab === 'deliveries' && (
-            <button className="lx-btn-primary" onClick={() => setShowDoForm(s=>!s)}>{t('adminAllocations.newDeliveryOrder')}</button>
+            <button className="lx-btn-primary" onClick={() => setShowDoForm(s=>!s)} data-track-private>{t('adminAllocations.newDeliveryOrder')}</button>
           )}
         </div>
       </div>
@@ -92,7 +92,7 @@ export default function AllocationsAdmin() {
             fontWeight: tab===t2 ? 700 : 500, color: tab===t2 ? 'var(--color-primary)' : 'var(--color-text-muted)',
             borderBottom: tab===t2 ? '2px solid var(--color-primary)' : '2px solid transparent',
             marginBottom:'-2px', cursor:'pointer',
-          }}>{label}</button>
+          }} data-track-private>{label}</button>
         ))}
       </div>
 
@@ -140,10 +140,10 @@ export default function AllocationsAdmin() {
               onChange={e => setDoForm(f=>({...f,notes:e.target.value}))} />
           </div>
           <div style={{ display:'flex', gap:'.75rem' }}>
-            <button className="lx-btn-primary" onClick={createDO} disabled={saving}>
+            <button className="lx-btn-primary" onClick={createDO} disabled={saving} data-track-private>
               {saving ? t('adminAllocations.creating') : t('adminAllocations.createDeliveryOrder')}
             </button>
-            <button className="lx-btn-secondary" onClick={() => setShowDoForm(false)}>{t('common.cancel')}</button>
+            <button className="lx-btn-secondary" onClick={() => setShowDoForm(false)} data-track-private>{t('common.cancel')}</button>
           </div>
         </div>
       )}
@@ -175,12 +175,12 @@ export default function AllocationsAdmin() {
                   </td>
                   <td>
                     <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .5rem', marginInlineEnd:'.4rem' }}
-                      onClick={() => setPreviewId(a.id)}>
+                      onClick={() => setPreviewId(a.id)} data-track-private>
                       {t('logistics.tables.preview')}
                     </button>
                     {a.status === 'reserved' && (
                       <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .5rem' }}
-                        onClick={() => setReleaseTarget(a.id)}>
+                        onClick={() => setReleaseTarget(a.id)} data-track-private>
                         {t('adminAllocations.release')}
                       </button>
                     )}

@@ -33,7 +33,7 @@ export default function MediaReplyComposer({ parentId, onReply }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="media-reply-composer">
+    <form onSubmit={handleSubmit} className="media-reply-composer" data-track="ui.e195f9af98.1">
       <textarea
         value={body}
         onChange={e => setBody(e.target.value)}
@@ -42,7 +42,7 @@ export default function MediaReplyComposer({ parentId, onReply }) {
         rows={2}
       />
       {error && <p className="media-error">{error}</p>}
-      <button type="submit" disabled={submitting || !body.trim()}>
+      <button type="submit" disabled={submitting || !body.trim()} data-track="ui.e195f9af98.2">
         {submitting ? t('media.reply.posting') : t('media.reply.submit')}
       </button>
     </form>

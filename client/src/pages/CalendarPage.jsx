@@ -77,9 +77,9 @@ function MiniCalendar({ selectedDate, onDateChange }) {
   return (
     <div className="mini-calendar">
       <div className="mini-calendar-header">
-        <button onClick={prevMonth} aria-label={t('calendar.previousMonth')}>{"<"}</button>
+        <button onClick={prevMonth} aria-label={t('calendar.previousMonth')} data-track="ui.3747b3163a.1">{"<"}</button>
         <span>{monthLabel}</span>
-        <button onClick={nextMonth} aria-label={t('calendar.nextMonth')}>{">"}</button>
+        <button onClick={nextMonth} aria-label={t('calendar.nextMonth')} data-track="ui.3747b3163a.2">{">"}</button>
       </div>
       <div className="mini-calendar-grid">
         {['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map((day, i) => (
@@ -95,7 +95,7 @@ function MiniCalendar({ selectedDate, onDateChange }) {
               className={`mini-calendar-day${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}`}
               onClick={() => onDateChange(day)}
               aria-label={day.toLocaleDateString(locale)}
-              aria-pressed={isSelected}
+              aria-pressed={isSelected} data-track="ui.3747b3163a.3"
             >
               {day.getDate()}
             </button>
@@ -220,21 +220,21 @@ export default function CalendarPage() {
             <button
               className={viewMode === 'day' ? 'active' : ''}
               onClick={() => setViewMode('day')}
-              title={t('calendar.dayView')}
+              title={t('calendar.dayView')} data-track="ui.3747b3163a.4"
             >
               {t('calendar.day')}
             </button>
             <button
               className={viewMode === 'week' ? 'active' : ''}
               onClick={() => setViewMode('week')}
-              title={t('calendar.weekView')}
+              title={t('calendar.weekView')} data-track="ui.3747b3163a.5"
             >
               {t('calendar.week')}
             </button>
             <button
               className={viewMode === 'month' ? 'active' : ''}
               onClick={() => setViewMode('month')}
-              title={t('calendar.monthView')}
+              title={t('calendar.monthView')} data-track="ui.3747b3163a.6"
             >
               {t('calendar.month')}
             </button>
@@ -242,7 +242,7 @@ export default function CalendarPage() {
               <button
                 className={viewMode === 'booking-requests' ? 'active booking-requests-btn' : 'booking-requests-btn'}
                 onClick={() => setViewMode('booking-requests')}
-                title={t('calendar.bookingRequestsView', { defaultValue: 'View direct booking requests' })}
+                title={t('calendar.bookingRequestsView', { defaultValue: 'View direct booking requests' })} data-track="ui.3747b3163a.7"
               >
                 {t('calendar.bookingRequests', { defaultValue: 'Booking Requests' })}
               </button>
@@ -250,7 +250,7 @@ export default function CalendarPage() {
             <button
               className={viewMode === 'agenda' ? 'active' : ''}
               onClick={() => setViewMode('agenda')}
-              title={t('calendar.agendaView')}
+              title={t('calendar.agendaView')} data-track="ui.3747b3163a.8"
             >
               {t('calendar.agenda')}
             </button>
@@ -275,7 +275,7 @@ export default function CalendarPage() {
               <button
                 className="block-time-btn"
                 onClick={() => setBlockModalRequest(true)}
-                aria-label={t('calendar.blockTime', { defaultValue: 'Block Time' })}
+                aria-label={t('calendar.blockTime', { defaultValue: 'Block Time' })} data-track="ui.3747b3163a.9"
               >
                 <span aria-hidden="true">+</span>
                 {t('calendar.blockTime', { defaultValue: 'Block Time' })}

@@ -4,6 +4,7 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const permissionsService = require('../services/permissionsService');
 
 function parsePositiveInt(value) {
   const n = Number.parseInt(value, 10);
@@ -25,7 +26,6 @@ function asBool(value, fallback = false) {
   return fallback;
 }
 
-const MANAGE_ROLES = new Set(['owner', 'manager']);
 const LANGUAGES = new Set(['English', 'Español', 'Français', 'Kreyol']);
 
 // Canonical restaurant access gate (analytics scope model, Phase 1 Item 6).
@@ -36,8 +36,9 @@ async function requireRestaurantAccess(userId, restaurantId) {
   return resolveRestaurantAccess(userId, restaurantId);
 }
 
-function assertManage(restaurant) {
-  if (!MANAGE_ROLES.has(restaurant.effective_role)) {
+async function assertManage(restaurant, userId) {
+  const allowed = await permissionsService.hasRestaurantPermission(restaurant, userId, ['settings.manage']);
+  if (!allowed) {
     throw new AppError('You do not have permission to manage this restaurant', 403, 'forbidden');
   }
 }
@@ -123,7 +124,7 @@ exports.upsertKioskConfig = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
 
     const preferredLanguage = LANGUAGES.has(req.body.preferredLanguage || req.body.preferred_language)
       ? (req.body.preferredLanguage || req.body.preferred_language)

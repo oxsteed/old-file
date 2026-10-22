@@ -20,6 +20,14 @@ const METRIC_PERMISSIONS = Object.freeze({
   mrr_cents: 'view_financials',
   escrow_held_cents: 'view_financials',
   promo_discount_cents: 'view_financials',
+  growth_campaign_recipients: 'view_growth_insights',
+  growth_offer_ctr_pct: 'view_growth_insights',
+  growth_offer_optout_rate_pct: 'view_growth_insights',
+  growth_push_open_rate_pct: 'view_growth_insights',
+  growth_affiliate_commission_cents: 'view_financials',
+  growth_promo_redeemed_cents: 'view_financials',
+  demand_unfilled_rate_pct: 'view_growth_insights',
+  demand_gap_index: 'view_growth_insights',
   consulting_cancel_rate_pct: 'manage_operations',
   consulting_avg_nps: 'manage_operations',
   sla_first_response_compliance_pct: 'manage_support',
@@ -56,7 +64,17 @@ async function regionalTerritory(userId, permission, conn = db) {
     regions.push(boundary);
     regionIds.push(row.region_id);
   }
-  return { grants, regions, regionIds };
+  let geo_source = 'direct_geocode_cache';
+  try {
+    const { rows: settings } = await conn.query(
+      "SELECT value FROM platform_settings WHERE key='analytics.region_geo_source'",
+    );
+    const candidate = settings[0]?.value;
+    if (candidate === 'geo_postal_centroids') geo_source = candidate;
+  } catch {
+    // A missing setting keeps the compatibility source and fails safe.
+  }
+  return { grants, regions, regionIds, geo_source };
 }
 
 /**
@@ -75,7 +93,7 @@ async function metricScope(user, metric, cache = new Map()) {
       const territory = await regionalTerritory(user.id, permission);
       if (!territory.grants) return null;
       if (!territory.regions.length) return { unknown: true };
-      return Object.freeze({ global: false, regions: territory.regions, regionIds: territory.regionIds, permission });
+      return Object.freeze({ global: false, regions: territory.regions, regionIds: territory.regionIds, permission, geo_source: territory.geo_source });
     })());
   }
   return cache.get(permission);

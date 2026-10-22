@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { BrowserPushPanel } from '../../components/NotificationPreferences';
+import OfferPreferencesPanel from '../../growth/OfferPreferencesPanel';
 
 // Master toggles gate whole channels: push_notifications covers every push
 // channel (Expo, Web Push, native), sms_notifications covers all SMS.
@@ -61,7 +62,7 @@ function Toggle({ checked, onChange, disabled, ariaLabel }) {
       aria-label={ariaLabel}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`notification-settings__toggle ${checked ? 'is-on' : 'is-off'}`}
+      className={`notification-settings__toggle ${checked ? 'is-on' : 'is-off'}`} data-track="ui.1a983f2bdd.1"
     >
       <span className="notification-settings__toggle-thumb" />
     </button>
@@ -257,6 +258,8 @@ export default function NotificationSettings() {
           </div>
 
           <BrowserPushPanel />
+
+          <OfferPreferencesPanel />
 
           <QuietHoursPanel />
 

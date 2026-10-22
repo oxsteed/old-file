@@ -14,8 +14,11 @@ const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const { requireRestaurantAccess, scopeExempt } = require('../middleware/scopeGates');
 const ops = require('../controllers/restaurantOpsController');
 const training = require('../controllers/restaurantTrainingController');
+const staffDocuments = require('../controllers/restaurantStaffDocumentsController');
+const teamComms = require('../controllers/restaurantTeamCommsController');
 const audits = require('../controllers/restaurantAuditsController');
 const franchiseReports = require('../controllers/restaurantReportsController');
+const payrollReports = require('../controllers/restaurantPayrollController');
 const inventory = require('../controllers/restaurantInventoryController');
 const inventoryOperations = require('../controllers/restaurantInventoryOperationsController');
 const runner = require('../controllers/restaurantRunnerController');
@@ -25,6 +28,8 @@ const pos = require('../controllers/restaurantPosController');
 const kiosk = require('../controllers/restaurantKioskController');
 const appFlow = require('../controllers/restaurantAppFlowController');
 const printer = require('../controllers/restaurantPrinterController');
+const giftCards = require('../controllers/restaurantGiftCardController');
+const loyalty = require('../controllers/restaurantLoyaltyController');
 const screens = require('../controllers/restaurantScreensController');
 const food = require('../controllers/foodController');
 const upload = require('../middleware/upload');
@@ -33,6 +38,11 @@ const enforceUploadQuota = require('../middleware/uploadQuota');
 const { authenticatedLimiter, strictLimiter, generalLimiter } = require('../middleware/rateLimiter');
 const media = require('../controllers/restaurantMediaController');
 const { requireKitchenDeviceOrStaff } = require('../controllers/restaurantDisplayController');
+const hosting = require('../controllers/restaurantHostingController');
+const locationAccess = require('../controllers/restaurantLocationAccessController');
+const deliveryMarketplaces = require('../controllers/restaurantDeliveryMarketplaceController');
+const hq = require('../controllers/restaurantHQController');
+const accounting = require('../controllers/restaurantAccountingController');
 
 // Managed appliances authenticate with their scoped device credential.
 router.post('/:restaurantId/devices/:deviceId/screen-orders', strictLimiter, scopeExempt('device-credential'), screens.createOrder);
@@ -48,11 +58,15 @@ router.get('/:restaurantId/devices/:deviceId/runtime-config', scopeExempt('devic
 router.post('/:restaurantId/devices/:deviceId/heartbeat', scopeExempt('device-credential'), appFlow.deviceHeartbeat);
 router.get('/:restaurantId/devices/:deviceId/kitchen-feed', scopeExempt('device-credential'), appFlow.getKitchenFeed);
 router.post('/:restaurantId/devices/:deviceId/kitchen-feed/ack', scopeExempt('device-credential'), appFlow.ackKitchenFeed);
+router.get('/:restaurantId/devices/:deviceId/printer-jobs', appFlow.authenticateKitchenPrinterDevice, scopeExempt('device-credential'), appFlow.listPrinterJobs);
+router.post('/:restaurantId/devices/:deviceId/printer-jobs/:jobId/claim', appFlow.authenticateKitchenPrinterDevice, scopeExempt('device-credential'), appFlow.claimPrinterJob);
+router.patch('/:restaurantId/devices/:deviceId/printer-jobs/:jobId', appFlow.authenticateKitchenPrinterDevice, scopeExempt('device-credential'), appFlow.updatePrinterJob);
 router.get('/:restaurantId/devices/:deviceId/queue-board', scopeExempt('device-credential'), appFlow.getDeviceQueueBoard);
 router.get('/:restaurantId/devices/:deviceId/display-stats', scopeExempt('device-credential'), appFlow.getDisplayStats);
 router.get('/:restaurantId/devices/:deviceId/display-settings', scopeExempt('device-credential'), appFlow.getDeviceDisplaySettings);
 router.patch('/:restaurantId/devices/:deviceId/display-settings', scopeExempt('device-credential'), appFlow.updateDeviceDisplaySettings);
 router.post('/:restaurantId/devices/:deviceId/report-issue', scopeExempt('device-credential'), appFlow.reportDeviceIssue);
+router.post('/:restaurantId/devices/:deviceId/staff-session', strictLimiter, scopeExempt('device-credential'), appFlow.authenticatePosDevice, appFlow.createDeviceStaffSession);
 router.post('/:restaurantId/devices/:deviceId/orders', appFlow.authenticateDisplayDevice, scopeExempt('device-credential'), food.createOrder);
 router.get('/:restaurantId/display/queue-board', scopeExempt('public-storefront'), appFlow.getPublicDisplayQueueBoard);
 router.get('/:restaurantId/display/menu', scopeExempt('public-storefront'), food.getRestaurant);
@@ -134,9 +148,56 @@ router.get('/:restaurantId/kitchen/prep-device-config', requireRestaurantAccess(
 router.patch('/:restaurantId/kitchen/prep-device-config', requireRestaurantAccess(), appFlow.updatePrepDeviceConfig);
 router.post('/:restaurantId/locations', requireRestaurantAccess(), appFlow.createRestaurantLocation);
 router.patch('/:restaurantId/locations/:locationId', requireRestaurantAccess(), appFlow.updateRestaurantLocation);
+const storeMenu = require('../controllers/restaurantStoreMenuController');
+router.get('/:restaurantId/locations/:locationId/menu', requireRestaurantAccess(), storeMenu.list);
+router.patch('/:restaurantId/locations/:locationId/menu-items/:itemId', requireRestaurantAccess(), storeMenu.update);
+router.get('/:restaurantId/gift-card-products', requireRestaurantAccess(), giftCards.listProducts);
+router.post('/:restaurantId/gift-card-products', requireRestaurantAccess(), giftCards.createProduct);
+router.patch('/:restaurantId/gift-card-products/:productId', requireRestaurantAccess(), giftCards.updateProduct);
+router.post('/:restaurantId/gift-cards', requireRestaurantAccess(), giftCards.issueValue);
+router.post('/:restaurantId/gift-cards/lookup', requireRestaurantAccess(), giftCards.lookupValue);
+router.post('/:restaurantId/gift-cards/redeem', requireRestaurantAccess(), giftCards.redeemValue);
+router.post('/:restaurantId/gift-cards/refund', requireRestaurantAccess(), giftCards.refundValue);
+router.get('/:restaurantId/delivery/marketplaces', requireRestaurantAccess(), deliveryMarketplaces.listIntegrations);
+router.put('/:restaurantId/delivery/marketplaces/:provider', requireRestaurantAccess(), deliveryMarketplaces.upsertIntegration);
+router.get('/:restaurantId/delivery/marketplaces/:provider/menu', requireRestaurantAccess(), deliveryMarketplaces.menu);
+router.post('/:restaurantId/delivery/marketplaces/:provider/orders', requireRestaurantAccess(), deliveryMarketplaces.ingestOrder);
+router.patch('/:restaurantId/delivery/marketplace-orders/:orderId', requireRestaurantAccess(), deliveryMarketplaces.transitionOrder);
+router.get('/:restaurantId/hq/rollup', requireRestaurantAccess(), hq.rollup);
+router.post('/:restaurantId/hq/menu/publish', requireRestaurantAccess(), hq.publishMenuOverrides);
+router.get('/:restaurantId/hq/regions', requireRestaurantAccess(), hq.listRegions);
+router.post('/:restaurantId/hq/regions', requireRestaurantAccess(), hq.createRegion);
+router.patch('/:restaurantId/hq/regions/:regionId', requireRestaurantAccess(), hq.updateRegion);
+router.get('/:restaurantId/accounting/integrations', requireRestaurantAccess(), accounting.list);
+router.get('/:restaurantId/accounting/exports', requireRestaurantAccess(), accounting.listExports);
+router.put('/:restaurantId/accounting/integrations/:provider', requireRestaurantAccess(), accounting.upsert);
+router.post('/:restaurantId/accounting/integrations/:provider/exports', requireRestaurantAccess(), accounting.queueJournal);
+router.patch('/:restaurantId/accounting/exports/:exportId', requireRestaurantAccess(), accounting.updateExport);
+// F-02: explicit store-scoped staff assignments. Members without assignments
+// retain legacy all-store access until an operator opts them into a boundary.
+router.get('/:restaurantId/location-access', requireRestaurantAccess(), locationAccess.list);
+router.put('/:restaurantId/location-access/:membershipId', requireRestaurantAccess(), locationAccess.replace);
+router.delete('/:restaurantId/location-access/:membershipId', requireRestaurantAccess(), locationAccess.clear);
+
+// Host stand: location-scoped floor plan, reservations, and walk-in queue.
+// Every handler still resolves the effective restaurant permission in the
+// controller; the route gate provides the canonical tenant boundary.
+router.get('/:restaurantId/tables', requireRestaurantAccess(), hosting.listTables);
+router.post('/:restaurantId/tables', requireRestaurantAccess(), hosting.createTable);
+router.patch('/:restaurantId/tables/:tableId', requireRestaurantAccess(), hosting.updateTable);
+router.get('/:restaurantId/reservations', requireRestaurantAccess(), hosting.listReservations);
+router.post('/:restaurantId/reservations', requireRestaurantAccess(), hosting.createReservation);
+router.post('/:restaurantId/reservations/request', strictLimiter, scopeExempt('public-storefront'), hosting.createPublicReservationRequest);
+router.post('/:restaurantId/reservations/:reservationId/notify', requireRestaurantAccess(), hosting.notifyReservation);
+router.patch('/:restaurantId/reservations/:reservationId', requireRestaurantAccess(), hosting.updateReservation);
+router.get('/:restaurantId/waitlist', requireRestaurantAccess(), hosting.listWaitlist);
+router.post('/:restaurantId/waitlist', requireRestaurantAccess(), hosting.createWaitlistEntry);
+router.patch('/:restaurantId/waitlist/:entryId', requireRestaurantAccess(), hosting.updateWaitlistEntry);
+router.post('/:restaurantId/waitlist/:entryId/notify', requireRestaurantAccess(), hosting.notifyWaitlistEntry);
 
 // Display / kiosk / device pairing
 router.post('/:restaurantId/devices/pairing-codes', authenticatedLimiter, requireRestaurantAccess(), appFlow.createDevicePairingCode);
+router.get('/:restaurantId/devices', requireRestaurantAccess(), appFlow.listRestaurantDevices);
 router.post('/:restaurantId/devices/:deviceId/rotate-token', strictLimiter, requireRestaurantAccess(), appFlow.rotateDeviceToken);
 router.get('/:restaurantId/devices/:deviceId/config', requireRestaurantAccess(), appFlow.getDeviceConfig);
 router.patch('/:restaurantId/devices/:deviceId', requireRestaurantAccess(), appFlow.updateDeviceConfig);
@@ -168,6 +229,7 @@ router.delete('/:restaurantId/sops/:sopId', requireRestaurantAccess(), ops.delet
 // Inventory (Phase 3, App 7): items + stock-adjustment ledger
 router.get('/:restaurantId/inventory/dashboard', requireRestaurantAccess(), inventoryOperations.getDashboard);
 router.get('/:restaurantId/inventory/reports', requireRestaurantAccess(), inventoryOperations.getReports);
+router.get('/:restaurantId/inventory/reports/food-cost', requireRestaurantAccess(), inventoryOperations.foodCostSummary);
 router.get('/:restaurantId/inventory/audit-events', requireRestaurantAccess(), inventoryOperations.listAuditEvents);
 router.get('/:restaurantId/inventory/hooks/status', requireRestaurantAccess(), appFlow.getInventoryHookStatus);
 router.post('/:restaurantId/inventory/hooks/sync', requireRestaurantAccess(), appFlow.syncMenuAvailability);
@@ -199,6 +261,27 @@ router.get('/:restaurantId/training/assignments', requireRestaurantAccess(), tra
 router.post('/:restaurantId/training/assignments/:assignmentId/start', requireRestaurantAccess(), training.startAssignment);
 router.post('/:restaurantId/training/assignments/:assignmentId/submit', requireRestaurantAccess(), training.submitQuiz);
 router.get('/:restaurantId/training/completions', requireRestaurantAccess(), training.listCompletions);
+// Auto-assignment rules (S-12)
+router.get('/:restaurantId/training/auto-assign-rules', requireRestaurantAccess(), training.listAutoAssignRules);
+router.post('/:restaurantId/training/modules/:moduleId/auto-assign-rules', requireRestaurantAccess(), training.createAutoAssignRule);
+router.patch('/:restaurantId/training/auto-assign-rules/:ruleId', requireRestaurantAccess(), training.updateAutoAssignRule);
+router.delete('/:restaurantId/training/auto-assign-rules/:ruleId', requireRestaurantAccess(), training.deleteAutoAssignRule);
+router.post('/:restaurantId/training/auto-assign-rules/run', requireRestaurantAccess(), training.runAutoAssign);
+// Staff compliance document vault (S-14). Signed-URL storage only; no
+// public file paths and no tax-form/SSN data by design.
+router.get('/:restaurantId/staff-documents', requireRestaurantAccess(), staffDocuments.listDocuments);
+router.post(
+  '/:restaurantId/staff-documents',
+  authenticate,
+  upload.single('file'),
+  validateFileUpload,
+  requireRestaurantAccess(), staffDocuments.uploadDocument
+);
+router.patch('/:restaurantId/staff-documents/:documentId', requireRestaurantAccess(), staffDocuments.verifyDocument);
+router.delete('/:restaurantId/staff-documents/:documentId', requireRestaurantAccess(), staffDocuments.deleteDocument);
+// SOP read-and-sign acknowledgements (S-14)
+router.post('/:restaurantId/sops/:sopId/acknowledge', requireRestaurantAccess(), staffDocuments.acknowledgeSop);
+router.get('/:restaurantId/sop-acknowledgements', requireRestaurantAccess(), staffDocuments.listSopAcknowledgements);
 
 // Quality audits (franchise system)
 router.get('/:restaurantId/audits/templates', requireRestaurantAccess(), audits.listTemplates);
@@ -217,10 +300,42 @@ router.patch('/:restaurantId/audits/corrective-actions/:actionId', requireRestau
 
 // Franchise reports (manager-only)
 router.get('/:restaurantId/reports/sales', requireRestaurantAccess(), franchiseReports.salesSummary);
+router.get('/:restaurantId/reports/sales/export.csv', requireRestaurantAccess(), franchiseReports.salesExportCsv);
+router.get('/:restaurantId/reports/sales/journal.csv', requireRestaurantAccess(), franchiseReports.salesJournalExportCsv);
+router.get('/:restaurantId/reports/sales/accounting/:provider.csv', requireRestaurantAccess(), franchiseReports.salesAccountingExportCsv);
+router.get('/:restaurantId/reports/sales/bi.ndjson', requireRestaurantAccess(), franchiseReports.salesBiExportNdjson);
+router.get('/:restaurantId/reports/sales/locations', requireRestaurantAccess(), franchiseReports.salesLocationComparison);
+router.get('/:restaurantId/reports/sales/locations.csv', requireRestaurantAccess(), franchiseReports.salesLocationComparisonCsv);
+router.get('/:restaurantId/reports/sales/locations.xlsx', requireRestaurantAccess(), franchiseReports.salesLocationComparisonXlsx);
+router.get('/:restaurantId/reports/sales/close', requireRestaurantAccess(), franchiseReports.salesClose);
+router.get('/:restaurantId/reports/sales/close.csv', requireRestaurantAccess(), franchiseReports.salesCloseCsv);
 router.get('/:restaurantId/reports/inventory', requireRestaurantAccess(), franchiseReports.inventorySummary);
 router.get('/:restaurantId/reports/operations', requireRestaurantAccess(), franchiseReports.operationsSummary);
 // Loyalty: repeat-order rate + top items (analytics platform, Phase 2 Item 10)
 router.get('/:restaurantId/reports/loyalty', requireRestaurantAccess(), franchiseReports.loyaltySummary);
+// CRM audience segments are aggregate-only and manager scoped. Campaign sends
+// remain disabled until consent, provider, and reconciliation contracts exist.
+router.get('/:restaurantId/crm/segments', requireRestaurantAccess(), loyalty.listSegments);
+router.post('/:restaurantId/crm/segments', requireRestaurantAccess(), loyalty.createSegment);
+router.patch('/:restaurantId/crm/segments/:segmentId', requireRestaurantAccess(), loyalty.updateSegment);
+router.delete('/:restaurantId/crm/segments/:segmentId', requireRestaurantAccess(), loyalty.deleteSegment);
+router.get('/:restaurantId/crm/segments/:segmentId/audience', requireRestaurantAccess(), loyalty.previewSegment);
+router.get('/:restaurantId/crm/campaigns', requireRestaurantAccess(), loyalty.listCampaigns);
+router.post('/:restaurantId/crm/campaigns', requireRestaurantAccess(), loyalty.createCampaign);
+router.post('/:restaurantId/crm/campaigns/:campaignId/approve', requireRestaurantAccess(), loyalty.approveCampaign);
+router.post('/:restaurantId/crm/campaigns/:campaignId/queue', requireRestaurantAccess(), loyalty.queueCampaign);
+// Payroll, tips, labor + team activity (S-04/S-15/S-16). Wage-bearing
+// endpoints additionally require payroll.view inside the controller
+// (fail closed); team activity requires audit.view.
+router.get('/:restaurantId/reports/labor', requireRestaurantAccess(), payrollReports.laborSummary);
+router.get('/:restaurantId/labor-policy', requireRestaurantAccess(), payrollReports.getLaborPolicy);
+router.put('/:restaurantId/labor-policy', requireRestaurantAccess(), payrollReports.updateLaborPolicy);
+router.get('/:restaurantId/reports/payroll/export.csv', requireRestaurantAccess(), payrollReports.payrollExportCsv);
+router.get('/:restaurantId/reports/exceptions', requireRestaurantAccess(), payrollReports.exceptionsReport);
+router.get('/:restaurantId/team/activity', requireRestaurantAccess(), payrollReports.teamActivity);
+router.get('/:restaurantId/tip-pool', requireRestaurantAccess(), payrollReports.getTipPoolSettings);
+router.put('/:restaurantId/tip-pool', requireRestaurantAccess(), payrollReports.updateTipPoolSettings);
+router.post('/:restaurantId/tips/cash-declarations', requireRestaurantAccess(), payrollReports.declareCashTip);
 router.delete('/:restaurantId/inventory/mappings/:mappingId', requireRestaurantAccess(), inventory.deleteMapping);
 router.post('/:restaurantId/inventory/mappings/bootstrap-defaults', requireRestaurantAccess(), inventory.bootstrapMappings);
 router.get('/:restaurantId/inventory/purchase-requests', requireRestaurantAccess(), inventory.listPurchaseRequests);
@@ -233,11 +348,15 @@ router.get('/:restaurantId/inventory/areas', requireRestaurantAccess(), inventor
 router.post('/:restaurantId/inventory/areas', requireRestaurantAccess(), inventoryOperations.createArea);
 router.get('/:restaurantId/inventory/suppliers', requireRestaurantAccess(), inventoryOperations.listSuppliers);
 router.post('/:restaurantId/inventory/suppliers', requireRestaurantAccess(), inventoryOperations.createSupplier);
+router.get('/:restaurantId/inventory/supplier-catalog', requireRestaurantAccess(), inventoryOperations.listSupplierCatalog);
+router.put('/:restaurantId/inventory/supplier-catalog', requireRestaurantAccess(), inventoryOperations.upsertSupplierCatalog);
 router.get('/:restaurantId/inventory/transfers', requireRestaurantAccess(), inventoryOperations.listTransfers);
 router.post('/:restaurantId/inventory/transfers', requireRestaurantAccess(), inventoryOperations.createTransfer);
 router.patch('/:restaurantId/inventory/transfers/:transferId', requireRestaurantAccess(), inventoryOperations.updateTransfer);
 router.get('/:restaurantId/inventory/receipts', requireRestaurantAccess(), inventoryOperations.listReceipts);
+router.get('/:restaurantId/inventory/receipts/export.csv', requireRestaurantAccess(), inventoryOperations.exportReceiptsCsv);
 router.post('/:restaurantId/inventory/receipts', requireRestaurantAccess(), inventoryOperations.createReceipt);
+router.patch('/:restaurantId/inventory/receipts/:receiptId/invoice-match', requireRestaurantAccess(), inventoryOperations.updateReceiptInvoiceMatch);
 
 // Crew training / certifications (App 6)
 router.get('/:restaurantId/crew/dashboard', requireRestaurantAccess(), crew.getDashboard);
@@ -268,6 +387,13 @@ router.get('/:restaurantId/crew/tasks/:taskId/comments', requireRestaurantAccess
 router.post('/:restaurantId/crew/tasks/:taskId/comments', requireRestaurantAccess(), appFlow.addCrewTaskComment);
 router.get('/:restaurantId/crew/tasks/:taskId/events', requireRestaurantAccess(), appFlow.listCrewTaskEvents);
 
+// Team communication (S-17): announcements with acknowledgement + log book.
+router.get('/:restaurantId/announcements', requireRestaurantAccess(), teamComms.listAnnouncements);
+router.post('/:restaurantId/announcements', requireRestaurantAccess(), teamComms.createAnnouncement);
+router.post('/:restaurantId/announcements/:announcementId/acknowledge', requireRestaurantAccess(), teamComms.acknowledgeAnnouncement);
+router.get('/:restaurantId/logbook', requireRestaurantAccess(), teamComms.listLogbook);
+router.post('/:restaurantId/logbook', requireRestaurantAccess(), teamComms.createLogbookEntry);
+
 // Marketplace Help requests (App 2)
 router.get('/:restaurantId/help-requests', requireRestaurantAccess(), help.listHelpRequests);
 router.post('/:restaurantId/help-requests', requireRestaurantAccess(), help.createHelpRequest);
@@ -281,6 +407,10 @@ router.get('/:restaurantId/orders', requireRestaurantAccess(), food.listRestaura
 
 // POS operations (App 3)
 router.get('/:restaurantId/pos/discounts', requireRestaurantAccess(), pos.listDiscounts);
+router.get('/:restaurantId/pos/discount-definitions', requireRestaurantAccess(), pos.listDiscountDefinitions);
+router.post('/:restaurantId/pos/discount-definitions', requireRestaurantAccess(), pos.createDiscountDefinition);
+router.patch('/:restaurantId/pos/discount-definitions/:definitionId', requireRestaurantAccess(), pos.updateDiscountDefinition);
+router.delete('/:restaurantId/pos/discount-definitions/:definitionId', requireRestaurantAccess(), pos.deactivateDiscountDefinition);
 router.post('/:restaurantId/pos/sync/ack', requireRestaurantAccess(), appFlow.ackPendingOperations);
 router.post('/:restaurantId/pos/pending-operations/ack', requireRestaurantAccess(), appFlow.ackPendingOperations);
 router.get('/:restaurantId/pos/sync/status', requireRestaurantAccess(), appFlow.getPosSyncStatus);
@@ -308,13 +438,16 @@ router.get('/:restaurantId/pos/payments/:paymentId', requireRestaurantAccess(), 
 router.post('/:restaurantId/pos/payments/:paymentId/capture', requireRestaurantAccess(), appFlow.capturePosCardPayment);
 router.post('/:restaurantId/pos/payments/:paymentId/refund', requireRestaurantAccess(), appFlow.refundPosCardPayment);
 router.post('/:restaurantId/pos/orders/:orderId/reprint-receipt', requireRestaurantAccess(), appFlow.reprintReceipt);
-// Network receipt printer (ESC/POS) + cash drawer. Fire-and-forget: printing
-// never writes to order/payment tables, so it cannot alter order or payment
-// state.
+// Network receipt printer (ESC/POS) + cash drawer. F-05: prints are queued
+// as restaurant_printer_jobs for paired in-store devices; the API server
+// does not dial the printer (direct dial only behind
+// RESTAURANT_SERVER_PRINTING_ENABLED=true). Printing never writes to
+// order/payment tables, so it cannot alter order or payment state.
 router.get('/:restaurantId/printer-settings', requireRestaurantAccess(), printer.getPrinterSettings);
 router.put('/:restaurantId/printer-settings', requireRestaurantAccess(), printer.updatePrinterSettings);
 router.post('/:restaurantId/printer-test', requireRestaurantAccess(), printer.printTestPage);
 router.post('/:restaurantId/print-receipt', requireRestaurantAccess(), printer.printReceipt);
+router.post('/:restaurantId/print-allergen-labels', requireRestaurantAccess(), printer.printAllergenLabels);
 router.get('/:restaurantId/pos/shifts', requireRestaurantAccess(), appFlow.listShifts);
 router.post('/:restaurantId/pos/shifts', requireRestaurantAccess(), appFlow.openShift);
 router.post('/:restaurantId/pos/shifts/:shiftId/close', requireRestaurantAccess(), appFlow.closeShift);
@@ -322,6 +455,9 @@ router.get('/:restaurantId/pos/shifts/:shiftId/drawer-events', requireRestaurant
 router.post('/:restaurantId/pos/shifts/:shiftId/drawer-events', requireRestaurantAccess(), appFlow.recordDrawerEvent);
 router.post('/:restaurantId/pos/staff-pins', requireRestaurantAccess(), appFlow.setStaffPin);
 router.post('/:restaurantId/pos/staff-pins/validate', requireRestaurantAccess(), appFlow.validateStaffPin);
+router.post('/:restaurantId/pos/staff-session', requireRestaurantAccess(), appFlow.createStaffSession);
+router.get('/:restaurantId/pos/staff-session', requireRestaurantAccess(), appFlow.getStaffSession);
+router.delete('/:restaurantId/pos/staff-session', requireRestaurantAccess(), appFlow.endStaffSession);
 router.get('/:restaurantId/pos/receipt-events', requireRestaurantAccess(), pos.listReceiptEvents);
 router.post('/:restaurantId/pos/receipt-events', requireRestaurantAccess(), pos.createReceiptEvent);
 

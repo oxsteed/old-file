@@ -49,7 +49,7 @@ export default function ReferralPanel() {
           </code>
           <button
             onClick={() => copy(share_url)}
-            className="shrink-0 px-4 py-2 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition-colors"
+            className="shrink-0 px-4 py-2 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition-colors" data-track="ui.02bb382e8a.1"
           >
             {copied ? t('common.copied') : t('common.copy')}
           </button>

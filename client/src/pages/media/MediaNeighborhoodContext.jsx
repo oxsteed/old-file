@@ -247,21 +247,21 @@ export function MediaNeighborhoodProvider({ children, user }) {
     {children}
     {open && <div className="media-location-overlay media-reference-shell" onMouseDown={event => { if (event.target === event.currentTarget) setOpen(false); }}>
       <section ref={dialog} className="media-location-dialog" role="dialog" aria-modal="true" aria-labelledby="media-location-title">
-        <button className="media-location-close" type="button" onClick={() => setOpen(false)} aria-label={t('common.close', { defaultValue: 'Close' })}><X size={22} /></button>
+        <button className="media-location-close" type="button" onClick={() => setOpen(false)} aria-label={t('common.close', { defaultValue: 'Close' })} data-track="ui.0cadc888df.1"><X size={22} /></button>
         <MapPin size={28} aria-hidden="true" />
         <h2 id="media-location-title">{t('media.feed.chooseLocation')}</h2>
         <p>{t('media.landing.locationDescription')}</p>
-        <form onSubmit={findLocation}>
+        <form onSubmit={findLocation} data-track="ui.0cadc888df.2">
           <label htmlFor="media-location-query">{t('media.landing.cityOrZip')}</label>
           <input ref={input} id="media-location-query" value={query} onChange={event => setQuery(event.target.value)} placeholder={t('media.landing.cityOrZip')} required minLength={2} maxLength={160} />
-          <button className="media-primary-button" disabled={busy} type="submit">{t(busy ? 'media.feed.locating' : 'media.feed.chooseLocation')}</button>
+          <button className="media-primary-button" disabled={busy} type="submit" data-track="ui.0cadc888df.3">{t(busy ? 'media.feed.locating' : 'media.feed.chooseLocation')}</button>
         </form>
-        {matches.length > 0 && <ul className="media-location-matches">{matches.map((place, index) => <li key={index}><button type="button" onClick={() => chooseLocation({ location_mode: 'custom', city: place.city, state: place.state })}>{place.display || `${place.city}, ${place.state}`}</button></li>)}</ul>}
+        {matches.length > 0 && <ul className="media-location-matches">{matches.map((place, index) => <li key={index}><button type="button" onClick={() => chooseLocation({ location_mode: 'custom', city: place.city, state: place.state })} data-track="ui.0cadc888df.4">{place.display || `${place.city}, ${place.state}`}</button></li>)}</ul>}
         {error && <p role="alert" className="media-location-error">{error}</p>}
         <div className="media-location-options">
-          <button type="button" disabled={busy} onClick={deviceLocation}>{t('media.feed.useDeviceLocation')}</button>
-          {user && <button type="button" onClick={() => chooseLocation({ location_mode: 'profile' })}>{t('media.feed.profileLocation')}</button>}
-          <button type="button" onClick={() => chooseLocation({ location_mode: 'all' })}>{t('media.feed.allLocations')}</button>
+          <button type="button" disabled={busy} onClick={deviceLocation} data-track="ui.0cadc888df.5">{t('media.feed.useDeviceLocation')}</button>
+          {user && <button type="button" onClick={() => chooseLocation({ location_mode: 'profile' })} data-track="ui.0cadc888df.6">{t('media.feed.profileLocation')}</button>}
+          <button type="button" onClick={() => chooseLocation({ location_mode: 'all' })} data-track="ui.0cadc888df.7">{t('media.feed.allLocations')}</button>
         </div>
       </section>
     </div>}

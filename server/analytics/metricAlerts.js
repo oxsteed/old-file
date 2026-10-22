@@ -125,6 +125,45 @@ const ALERTABLE_METRICS = Object.freeze({
     params: ['currencyCode'],
     compute: (db, params) => financialMetricValue(db, 'escrow_held_cents', params.currencyCode || 'USD'),
   }),
+  // Growth engine metrics (spec 21.1): single-value builders read the
+  // canonical 'value' column; the two money metrics go through the
+  // financial builder per currency.
+  growth_campaign_recipients: Object.freeze({
+    unit: 'count', params: ['period'],
+    compute: (db, params) => builderValue(db, 'growth_campaign_recipients', params, 'value'),
+  }),
+  growth_offer_ctr_pct: Object.freeze({
+    unit: 'pct', params: ['period'],
+    compute: (db, params) => builderValue(db, 'growth_offer_ctr_pct', params, 'value'),
+  }),
+  growth_offer_optout_rate_pct: Object.freeze({
+    unit: 'pct', params: ['period'],
+    compute: (db, params) => builderValue(db, 'growth_offer_optout_rate_pct', params, 'value'),
+  }),
+  growth_push_open_rate_pct: Object.freeze({
+    unit: 'pct', params: ['period'],
+    compute: (db, params) => builderValue(db, 'growth_push_open_rate_pct', params, 'value'),
+  }),
+  demand_unfilled_rate_pct: Object.freeze({
+    unit: 'pct', params: ['period'],
+    compute: (db, params) => builderValue(db, 'demand_unfilled_rate_pct', params, 'value'),
+  }),
+  demand_gap_index: Object.freeze({
+    unit: 'index', params: ['period'],
+    compute: (db, params) => builderValue(db, 'demand_gap_index', params, 'value'),
+  }),
+  growth_affiliate_commission_cents: Object.freeze({
+    unit: 'cents',
+    params: ['period', 'currencyCode'],
+    compute: (db, params) => financialMetricValue(db, 'growth_affiliate_commission_cents', params.currencyCode || 'USD',
+      { interval: registry.PERIOD_INTERVAL[paramsForPeriod(params)].interval }),
+  }),
+  growth_promo_redeemed_cents: Object.freeze({
+    unit: 'cents',
+    params: ['period', 'currencyCode'],
+    compute: (db, params) => financialMetricValue(db, 'growth_promo_redeemed_cents', params.currencyCode || 'USD',
+      { interval: registry.PERIOD_INTERVAL[paramsForPeriod(params)].interval }),
+  }),
 });
 
 function isAlertableMetric(name) {

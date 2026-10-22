@@ -188,7 +188,7 @@ async function complete(db, delivery, fields) {
 function retryFields(delivery, error) {
   const message = String(error?.message || error || 'delivery failed').slice(0, 500);
   if (delivery.attempts >= MAX_ATTEMPTS) return { status: 'failed', last_error: message };
-  const backoffSeconds = Math.min(3600, 60 * (2 ** (delivery.attempts - 1)));
+  const backoffSeconds = require('./delivery/core').retrySeconds(delivery.attempts,60);
   return { status: 'pending', last_error: message, next_attempt_at: new Date(Date.now() + backoffSeconds * 1000) };
 }
 
@@ -241,16 +241,9 @@ function renderEmail(ctx) {
 }
 
 async function sendInApp(db, ctx, delivery) {
-  const key = `business-broadcast:${delivery.id}`;
-  const { rows } = await db.query(
-    `INSERT INTO notifications (user_id, type, title, body, data, action_url, delivery_key, is_promotional)
-     VALUES ($1, 'business_broadcast', $2, $3, $4::jsonb, NULL, $5, TRUE)
-     ON CONFLICT (delivery_key) WHERE delivery_key IS NOT NULL DO NOTHING RETURNING id`,
-    [ctx.user_id, String(ctx.subject).slice(0, 255), ctx.message,
-      JSON.stringify({ broadcast_id: String(ctx.broadcast_id), business_id: ctx.business_id, business_name: ctx.business_name }), key]);
-  if (rows[0]) return rows[0].id;
-  const { rows: [existing] } = await db.query('SELECT id FROM notifications WHERE delivery_key = $1', [key]);
-  return existing?.id || null;
+  return require('./delivery/core').sendInApp(db,{userId:ctx.user_id,type:'business_broadcast',
+    title:String(ctx.subject).slice(0,255),body:ctx.message,url:null,deliveryKey:`business-broadcast:${delivery.id}`,
+    data:{broadcast_id:String(ctx.broadcast_id),business_id:ctx.business_id,business_name:ctx.business_name}});
 }
 
 /** Deliver one claimed delivery. Never throws; records the outcome. */
@@ -274,11 +267,7 @@ async function deliverOne(db, delivery, deps = {}) {
       }
       const payload = { title: ctx.subject, body: String(ctx.message).slice(0, 240), type: 'business_broadcast',
         data: { broadcast_id: String(ctx.broadcast_id), track_url: trackingUrl(`p/${encodeURIComponent(ctx.tracking_token)}`) } };
-      const web = await webPush.sendToUser(ctx.user_id, payload).catch(err => ({ sent: 0, failed: 1, error: err }));
-      const mobile = await mobilePush.sendToUser(ctx.user_id, { title: payload.title, body: payload.body, data: payload.data })
-        .catch(err => ({ sent: 0, failed: 1, error: err }));
-      const sent = Number(web?.sent || 0) + Number(mobile?.sent || 0);
-      const failed = Number(web?.failed || 0) + Number(mobile?.failed || 0);
+      const {sent,failed}=await require('./delivery/core').sendPush(ctx.user_id,payload,{webPush,mobilePush});
       if (sent > 0) return complete(db, delivery, { status: 'sent', devices_sent: sent, sent_at: true, last_error: null });
       if (failed === 0) return complete(db, delivery, { status: 'skipped', skip_reason: 'no_push_device' });
       return complete(db, delivery, retryFields(delivery, 'push providers rejected every device'));

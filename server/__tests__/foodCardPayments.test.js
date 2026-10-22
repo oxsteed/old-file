@@ -223,7 +223,7 @@ describe('card order creation', () => {
   beforeEach(() => {
     mockQuery.mockImplementation(async (sql) => {
       if (/SELECT \* FROM food_orders/.test(sql)) return { rows: [], rowCount: 0 };
-      if (/FROM food_restaurants/.test(sql) && /FOR UPDATE/.test(sql)) {
+      if (/FROM food_restaurants/.test(sql)) {
         return { rows: [{ ...RESTAURANT_ROW }], rowCount: 1 };
       }
       if (/FROM food_menu_items fmi/.test(sql)) {
@@ -303,7 +303,7 @@ describe('checkout fields', () => {
   beforeEach(() => {
     mockQuery.mockImplementation(async (sql) => {
       if (/SELECT \* FROM food_orders/.test(sql)) return { rows: [], rowCount: 0 };
-      if (/FROM food_restaurants/.test(sql) && /FOR UPDATE/.test(sql)) {
+      if (/FROM food_restaurants/.test(sql)) {
         return { rows: [{ ...RESTAURANT_ROW }], rowCount: 1 };
       }
       if (/FROM food_menu_items fmi/.test(sql)) {
@@ -357,13 +357,13 @@ describe('checkout fields', () => {
     let capturedInsertParams = null;
     mockQuery.mockImplementation(async (sql, params) => {
       if (/SELECT \* FROM food_orders/.test(sql)) return { rows: [], rowCount: 0 };
-      if (/FROM food_restaurants/.test(sql) && /FOR UPDATE/.test(sql)) {
+      if (/FROM food_restaurants/.test(sql)) {
         return { rows: [{ ...RESTAURANT_ROW }], rowCount: 1 };
       }
       if (/FROM food_menu_items fmi/.test(sql)) {
         return { rows: [{ ...MENU_ITEM_ROW }], rowCount: 1 };
       }
-      if (/COALESCE\(MAX\(queue_number\)/.test(sql)) return { rows: [{ next_queue: 3 }], rowCount: 1 };
+      if (/INSERT INTO restaurant_daily_counters/.test(sql)) return { rows: [{ last_queue_number: 3 }], rowCount: 1 };
       if (/INSERT INTO food_orders/.test(sql)) {
         capturedInsertParams = params;
         return {

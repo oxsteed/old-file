@@ -33543,5 +33543,13 @@
   "adminCreditApprovalGraceEnds": "Il periodo di grazia termina",
   "adminCreditApprovalRevokedAt": "Revocato il",
   "adminCreditApprovalMigratedAt": "Saldi migrati",
-  "adminCreditApprovalGrandfathered": "Approvato (nessun record di approvazione)"
+  "adminCreditApprovalGrandfathered": "Approvato (nessun record di approvazione)",
+  "growthInsights": {
+    "analyticsStorage": "Google Analytics e memoria del dispositivo",
+    "analyticsStorageDescription": "Nel SEE, Regno Unito, Svizzera e Québec, tracciamento e offerte basate sull’attività richiedono consensi separati e revocabili. Negli Stati USA interessati è disponibile il rifiuto di vendita o condivisione, con Global Privacy Control. Altrove l’impostazione analitica controlla Google Analytics e la memoria persistente; questa informativa copre l’attività.",
+    "policy": "Informativa sulla privacy",
+    "changedOn": "La nostra Informativa sulla privacy è cambiata il {{date}}.",
+    "changesOn": "La nostra Informativa sulla privacy cambierà il {{date}}.",
+    "dismiss": "Chiudi"
+  }
 }

@@ -282,12 +282,19 @@ exports.recordConsent = async ({
   version,
   ip       = null,
   userAgent = null,
+  contentVersion = null,
 }) => {
+  if (consentType === 'privacy_policy' && !contentVersion) {
+    const { rows } = await db.query(`SELECT policy_version FROM activity_tracking_rollout
+      WHERE id=1 AND legal_review_ref IS NOT NULL AND translations_reviewed
+      AND state='effective' AND effective_at<=NOW()`);
+    contentVersion = rows[0]?.policy_version || require('../constants/termsConfig').TERMS_CONFIG.privacy_policy.contentVersion;
+  }
   await db.query(
     `INSERT INTO user_consents
-       (user_id, consent_type, version, ip_hash, user_agent)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [userId, consentType, version, hashIP(ip), userAgent]
+       (user_id, consent_type, version, ip_hash, user_agent, content_version)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [userId, consentType, version, hashIP(ip), userAgent, contentVersion]
   );
 };
 

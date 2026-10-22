@@ -79,16 +79,16 @@ export default function MediaFooter() {
         </div>
         <nav className="media-footer-links" aria-label={t('footer.legal')}>
           {LEGAL_LINKS.map(([key, path]) => (
-            <a key={path} href={path} onClick={(event) => openLegalPage(event, path)}>{t(`footer.${key}`)}</a>
+            <a key={path} href={path} onClick={(event) => openLegalPage(event, path)} data-track="ui.6369910c3e.1">{t(`footer.${key}`)}</a>
           ))}
-          <button type="button" onClick={openSettings}>{t('footer.manageCookies')}</button>
+          <button type="button" onClick={openSettings} data-track="ui.6369910c3e.2">{t('footer.manageCookies')}</button>
         </nav>
         <div className="media-footer-bottom">
           <span>© {new Date().getFullYear()} OxSteed LLC</span>
           <span className="media-footer-contact">
-            <a href="mailto:support@oxsteed.com">support@oxsteed.com</a>
+            <a href="mailto:support@oxsteed.com" data-track="ui.6369910c3e.3">support@oxsteed.com</a>
             <span aria-hidden="true">·</span>
-            <a href="tel:+19374085169">+1 (937) 408-5169</a>
+            <a href="tel:+19374085169" data-track="ui.6369910c3e.4">+1 (937) 408-5169</a>
           </span>
         </div>
       </footer>
@@ -118,7 +118,7 @@ export default function MediaFooter() {
                   type="button"
                   className="media-legal-close"
                   onClick={closeLegal}
-                  aria-label={t('media.shell.close')}
+                  aria-label={t('media.shell.close')} data-track="ui.6369910c3e.5"
                 >
                   ×
                 </button>

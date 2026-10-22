@@ -63,7 +63,7 @@ function ResourceForm({ kind, drivers, busy, run, t }) {
       setForm(emptyResource());
     });
   };
-  return <form onSubmit={submit}><fieldset className="delivery-form-fields" disabled={busy}>
+  return <form onSubmit={submit} data-track="ui.49bdb74b31.1"><fieldset className="delivery-form-fields" disabled={busy}>
     <h3>{t(driver ? 'delivery.ui.saveDriver' : 'delivery.ui.addVehicle')}</h3>
     {driver && <label className="delivery-field">{t('delivery.ui.editDriver')}<select className="delivery-input" onChange={(event) => edit(event.target.value)} value={drivers.some((item) => String(item.user_id) === String(form.userId)) ? form.userId : ''}>
       <option value="">{t('delivery.ui.newDriver')}</option>{drivers.map((item) => <option key={item.user_id} value={item.user_id}>{[item.first_name, item.last_name].filter(Boolean).join(' ') || item.email || item.user_id}</option>)}
@@ -73,9 +73,9 @@ function ResourceForm({ kind, drivers, busy, run, t }) {
     <div className="delivery-options-grid">{['maxPayloadLbs', 'cargoLengthIn', 'cargoWidthIn', 'cargoHeightIn', 'maxPieces'].map((key) => <label className="delivery-field" key={key}>{t(`delivery.ui.${key}`)}<input className="delivery-input" type="number" required min={key === 'maxPieces' ? '1' : '0.1'} step={key === 'maxPieces' ? '1' : '0.1'} value={form[key]} onChange={(event) => set(key, event.target.value)} /></label>)}</div>
     <label className="delivery-field">{t('delivery.ui.serviceStates')}<input className="delivery-input" value={form.states} onChange={(event) => set('states', event.target.value)} placeholder="NY, NJ" /></label>
     <div className="delivery-stop-grid">{['insuranceExpiresAt', 'availableFrom', 'availableUntil'].map((key) => <label className="delivery-field" key={key}>{t(`delivery.ui.${key}`)}<input className="delivery-input" type="datetime-local" value={form[key]} min={key === 'availableUntil' ? form.availableFrom || undefined : undefined} onChange={(event) => set(key, event.target.value)} /></label>)}</div>
-    <div className="delivery-checkbox-row">{['fragileSupported', 'perishableSupported', 'insuranceAcknowledged'].map((key) => <label key={key}><input type="checkbox" checked={form[key]} onChange={(event) => set(key, event.target.checked)} /> {t(`delivery.ui.${key}`)}</label>)}</div>
-    <fieldset className="delivery-fieldset"><legend>{t('delivery.operations.handling')}</legend><div className="delivery-checkbox-row">{HANDLING.map((key) => <label key={key}><input type="checkbox" checked={form.equipment[key] === true} onChange={(event) => set('equipment', { ...form.equipment, [key]: event.target.checked })} /> {t(`delivery.operations.${key}`)}</label>)}</div></fieldset>
-    <button className="delivery-button delivery-button--primary">{t(driver ? 'delivery.ui.saveDriver' : 'delivery.ui.addVehicle')}</button>
+    <div className="delivery-checkbox-row">{['fragileSupported', 'perishableSupported', 'insuranceAcknowledged'].map((key) => <label key={key}><input type="checkbox" checked={form[key]} onChange={(event) => set(key, event.target.checked)} data-track="ui.49bdb74b31.2" /> {t(`delivery.ui.${key}`)}</label>)}</div>
+    <fieldset className="delivery-fieldset"><legend>{t('delivery.operations.handling')}</legend><div className="delivery-checkbox-row">{HANDLING.map((key) => <label key={key}><input type="checkbox" checked={form.equipment[key] === true} onChange={(event) => set('equipment', { ...form.equipment, [key]: event.target.checked })} data-track="ui.49bdb74b31.3" /> {t(`delivery.operations.${key}`)}</label>)}</div></fieldset>
+    <button className="delivery-button delivery-button--primary" data-track="ui.49bdb74b31.4">{t(driver ? 'delivery.ui.saveDriver' : 'delivery.ui.addVehicle')}</button>
   </fieldset></form>;
 }
 
@@ -87,7 +87,7 @@ function JobReview({ detail, busy, run, t, language }) {
   const requests = detail.rescheduleRequests;
   const returns = detail.returns;
   const issues = detail.issues;
-  const decisions = (item, allowed, callback) => <div className="delivery-dispatch-actions">{allowed.map((decision) => <button key={decision} className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => run(() => callback(item.id, decision))}>{t(`delivery.ui.decisions.${decision}`)}</button>)}</div>;
+  const decisions = (item, allowed, callback) => <div className="delivery-dispatch-actions">{allowed.map((decision) => <button key={decision} className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => run(() => callback(item.id, decision))} data-track="ui.49bdb74b31.5">{t(`delivery.ui.decisions.${decision}`)}</button>)}</div>;
   return <section className="delivery-panel delivery-review"><h2>{detail.job.reference} · {t('delivery.ui.review')}</h2>
     <p>{detail.job.origin_address} → {detail.job.destination_address}</p>
     <h3>{t('delivery.ui.requests')}</h3>
@@ -102,9 +102,9 @@ function JobReview({ detail, busy, run, t, language }) {
       {['approved', 'in_transit'].includes(item.status) && <ReturnProof item={item} job={detail.job} busy={busy} run={run} t={t} />}
     </article>)}
     {issues?.map((item) => <article key={item.id} className="delivery-review-item"><h4>{label('ui.issueCodes', item.code)} · {label('ui.requestStates', item.status)}</h4><p>{item.description}</p><p>{item.resolution}</p>
-      {item.status === 'open' && <form onSubmit={(event) => { event.preventDefault(); run(() => resolveDeliveryIssue(item.id, resolution[item.id])); }}>
+      {item.status === 'open' && <form onSubmit={(event) => { event.preventDefault(); run(() => resolveDeliveryIssue(item.id, resolution[item.id])); }} data-track="ui.49bdb74b31.6">
         <label className="delivery-field">{t('delivery.ui.resolution')}<textarea className="delivery-input" maxLength={2000} required disabled={busy} value={resolution[item.id] || ''} onChange={(event) => setResolution({ ...resolution, [item.id]: event.target.value })} /></label>
-        <button className="delivery-button delivery-button--primary" disabled={busy || !resolution[item.id]?.trim()}>{t('delivery.ui.resolve')}</button>
+        <button className="delivery-button delivery-button--primary" disabled={busy || !resolution[item.id]?.trim()} data-track="ui.49bdb74b31.7">{t('delivery.ui.resolve')}</button>
       </form>}
     </article>)}
     {requests?.length === 0 && returns?.length === 0 && issues?.length === 0 && <p>{t('delivery.ui.noReviews')}</p>}
@@ -117,11 +117,11 @@ function JobReview({ detail, busy, run, t, language }) {
     {(detail.payments || []).map((payment) => <article key={payment.id} className="delivery-review-item">
       <p>{deliveryMoney(payment.amount_cents, language, payment.currency)} · {label('ui.paymentStates', payment.status)}</p>
       <p>{t('delivery.ui.refundedAmount', { amount: deliveryMoney(payment.refunded_amount_cents || 0, language, payment.currency) })}</p>
-      {['paid', 'partially_refunded'].includes(payment.status) && <form onSubmit={(event) => { event.preventDefault(); run(() => refundDeliveryPayment(payment.id, { targetRefundedAmountCents: Math.round(Number(refund[payment.id]?.amount) * 100), reason: refund[payment.id]?.reason })); }}>
+      {['paid', 'partially_refunded'].includes(payment.status) && <form onSubmit={(event) => { event.preventDefault(); run(() => refundDeliveryPayment(payment.id, { targetRefundedAmountCents: Math.round(Number(refund[payment.id]?.amount) * 100), reason: refund[payment.id]?.reason })); }} data-track="ui.49bdb74b31.8">
         <p>{t('delivery.ui.refundHint')}</p>
         <label className="delivery-field">{t('delivery.ui.refundTarget')}<input className="delivery-input" disabled={busy} required type="number" min={(Number(payment.refunded_amount_cents || 0) + 1) / 100} max={Number(payment.amount_cents) / 100} step="0.01" value={refund[payment.id]?.amount || ''} onChange={(event) => setRefund({ ...refund, [payment.id]: { ...refund[payment.id], amount: event.target.value } })} /></label>
         <label className="delivery-field">{t('delivery.ui.reason')}<input className="delivery-input" disabled={busy} required maxLength={500} value={refund[payment.id]?.reason || ''} onChange={(event) => setRefund({ ...refund, [payment.id]: { ...refund[payment.id], reason: event.target.value } })} /></label>
-        <button className="delivery-button delivery-button--danger" disabled={busy}>{t('delivery.ui.refund')}</button>
+        <button className="delivery-button delivery-button--danger" disabled={busy} data-track="ui.49bdb74b31.9">{t('delivery.ui.refund')}</button>
       </form>}
     </article>)}
   </section>;
@@ -144,15 +144,15 @@ function ReturnProof({ item, job, busy, run, t }) {
       }
       await reviewDeliveryReturn(item.id, 'completed', details);
     });
-  }}><fieldset className="delivery-form-fields" disabled={busy}>
+  }} data-track="ui.49bdb74b31.10"><fieldset className="delivery-form-fields" disabled={busy}>
     <p>{t('delivery.ui.returnProofHint')}</p>
     {type === 'pin' && <label className="delivery-field">{t('delivery.detail.pin')}<input className="delivery-input" required pattern="[0-9]{6}" maxLength={6} inputMode="numeric" value={proof.proofValue} onChange={(event) => setProof({ ...proof, proofValue: event.target.value })} /></label>}
     {type === 'recipient_confirmation' && <>
       {['recipientName', 'recipientContact'].map((key) => <label className="delivery-field" key={key}>{t(key === 'recipientName' ? 'delivery.detail.recipientName' : 'delivery.ui.recipientContact')}<input className="delivery-input" required value={proof[key]} onChange={(event) => setProof({ ...proof, [key]: event.target.value })} /></label>)}
-      <label><input type="checkbox" required checked={proof.confirmed} onChange={(event) => setProof({ ...proof, confirmed: event.target.checked })} /> {t('delivery.ui.recipientConfirmed')}</label>
+      <label><input type="checkbox" required checked={proof.confirmed} onChange={(event) => setProof({ ...proof, confirmed: event.target.checked })} data-track="ui.49bdb74b31.11" /> {t('delivery.ui.recipientConfirmed')}</label>
     </>}
     {['photo', 'signature'].includes(type) && <label className="delivery-field">{t('delivery.detail.proofFile')}<input type="file" required accept={type === 'signature' ? 'image/jpeg,image/png,image/webp,application/pdf' : 'image/jpeg,image/png,image/webp'} onChange={(event) => { setFile(event.target.files?.[0]); uploaded.current = null; }} /></label>}
-    <button className="delivery-button delivery-button--primary" disabled={!['pin', 'recipient_confirmation', 'photo', 'signature'].includes(type)}>{t('delivery.ui.decisions.completed')}</button>
+    <button className="delivery-button delivery-button--primary" disabled={!['pin', 'recipient_confirmation', 'photo', 'signature'].includes(type)} data-track="ui.49bdb74b31.12">{t('delivery.ui.decisions.completed')}</button>
   </fieldset></form>;
 }
 
@@ -213,12 +213,12 @@ export default function DeliveryDispatchPage() {
 
   return <PageShell><PageMeta title={t('delivery.dispatch.metaTitle')} description={t('delivery.dispatch.subtitle')} />
     <div className="delivery-page delivery-dispatch-page" dir={i18n.dir()}>
-      <header className="delivery-hero"><div><Link className="delivery-back-link" to="/delivery">{t('delivery.detail.back')}</Link><h1>{t('delivery.dispatch.title')}</h1><p>{t('delivery.dispatch.subtitle')}</p></div><button className="delivery-button delivery-button--secondary" disabled={loading || busy} onClick={load}>{t('delivery.helper.refresh')}</button></header>
+      <header className="delivery-hero"><div><Link className="delivery-back-link" to="/delivery">{t('delivery.detail.back')}</Link><h1>{t('delivery.dispatch.title')}</h1><p>{t('delivery.dispatch.subtitle')}</p></div><button className="delivery-button delivery-button--secondary" disabled={loading || busy} onClick={load} data-track="ui.49bdb74b31.13">{t('delivery.helper.refresh')}</button></header>
       {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
       {notice && <p className="delivery-alert delivery-alert--success" role="status">{notice}</p>}
       <section className="delivery-panel"><div className="delivery-stop-grid">
         <label className="delivery-field">{t('delivery.ui.queueFilter')}<select className="delivery-input" value={filter} onChange={(event) => setFilter(event.target.value)}>{['all', 'exception', 'dispatch'].map((value) => <option key={value} value={value}>{t(`delivery.ui.filters.${value}`)}</option>)}</select></label>
-        <form className="delivery-form" onSubmit={(event) => { event.preventDefault(); openReview(lookup); }}><label className="delivery-field">{t('delivery.ui.lookup')}<input className="delivery-input" value={lookup} onChange={(event) => setLookup(event.target.value)} required pattern="[1-9][0-9]*" /></label><button className="delivery-button delivery-button--secondary" disabled={busy}>{t('delivery.ui.review')}</button></form>
+        <form className="delivery-form" onSubmit={(event) => { event.preventDefault(); openReview(lookup); }} data-track="ui.49bdb74b31.14"><label className="delivery-field">{t('delivery.ui.lookup')}<input className="delivery-input" value={lookup} onChange={(event) => setLookup(event.target.value)} required pattern="[1-9][0-9]*" /></label><button className="delivery-button delivery-button--secondary" disabled={busy} data-track="ui.49bdb74b31.15">{t('delivery.ui.review')}</button></form>
       </div></section>
       {loading && <p role="status">{t('delivery.helper.loading')}</p>}
       {!loading && !error && !shown.length && <p>{t('delivery.dispatch.empty')}</p>}
@@ -233,11 +233,11 @@ export default function DeliveryDispatchPage() {
             <div className="delivery-stop-grid"><label className="delivery-field">{t('delivery.dispatch.driver')}<select className="delivery-input" value={choice.driverUserId || ''} onChange={(event) => choiceFor(job.id, 'driverUserId', event.target.value)}><option value="">{t('delivery.dispatch.chooseDriver')}</option>{drivers.filter((item) => item.active !== false && item.approved !== false).map((item) => <option key={item.user_id} value={item.user_id}>{[item.first_name, item.last_name].filter(Boolean).join(' ') || item.email || item.user_id}</option>)}</select></label>
               <label className="delivery-field">{t('delivery.dispatch.vehicle')}<select className="delivery-input" value={choice.vehicleId || ''} onChange={(event) => choiceFor(job.id, 'vehicleId', event.target.value)}><option value="">{t('delivery.dispatch.chooseVehicle')}</option>{vehicles.filter((item) => item.active !== false).map((item) => <option key={item.id} value={item.id}>{item.label} · {deliveryUnit(item.max_payload_lbs, 'pound', i18n.language)}</option>)}</select></label></div>
             <p>{t('delivery.ui.capacityHint')}</p>
-            <button className="delivery-button delivery-button--primary" disabled={!choice.driverUserId || !choice.vehicleId} onClick={() => run(() => assignInternalDelivery(job.id, { driverUserId: choice.driverUserId, vehicleId: choice.vehicleId }))}>{t('delivery.dispatch.assign')}</button>
-            {!job.helper_user_id && <form onSubmit={(event) => { event.preventDefault(); run(() => releaseDeliveryToMarketplace(job.id, choice.reason)); }}><label className="delivery-field">{t('delivery.ui.releaseReason')}<input className="delivery-input" required maxLength={500} value={choice.reason || ''} onChange={(event) => choiceFor(job.id, 'reason', event.target.value)} /></label><button className="delivery-button delivery-button--secondary">{t('delivery.dispatch.release')}</button></form>}
+            <button className="delivery-button delivery-button--primary" disabled={!choice.driverUserId || !choice.vehicleId} onClick={() => run(() => assignInternalDelivery(job.id, { driverUserId: choice.driverUserId, vehicleId: choice.vehicleId }))} data-track="ui.49bdb74b31.16">{t('delivery.dispatch.assign')}</button>
+            {!job.helper_user_id && <form onSubmit={(event) => { event.preventDefault(); run(() => releaseDeliveryToMarketplace(job.id, choice.reason)); }} data-track="ui.49bdb74b31.17"><label className="delivery-field">{t('delivery.ui.releaseReason')}<input className="delivery-input" required maxLength={500} value={choice.reason || ''} onChange={(event) => choiceFor(job.id, 'reason', event.target.value)} /></label><button className="delivery-button delivery-button--secondary" data-track="ui.49bdb74b31.18">{t('delivery.dispatch.release')}</button></form>}
           </fieldset>}
           <div className="delivery-dispatch-actions">
-            <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => openReview(job.id)}>{t('delivery.ui.review')}</button>
+            <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => openReview(job.id)} data-track="ui.49bdb74b31.19">{t('delivery.ui.review')}</button>
             <Link className="delivery-button delivery-button--secondary" to={`/delivery/operations/tracking/${job.id}`}>{t('delivery.tracking.ops.openTracking')}</Link>
           </div>
         </article>;

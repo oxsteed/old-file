@@ -3,6 +3,7 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const permissionsService = require('../services/permissionsService');
 
 function parsePositiveInt(value) {
   const n = Number.parseInt(value, 10);
@@ -16,7 +17,6 @@ function normalizeString(value, max = 255) {
   return s.slice(0, max);
 }
 
-const MANAGE_ROLES = new Set(['owner', 'manager']);
 const URGENCIES = new Set(['Low', 'Medium', 'High']);
 const STATUSES = new Set(['open', 'in_progress', 'resolved']);
 
@@ -28,8 +28,9 @@ async function requireRestaurantAccess(userId, restaurantId) {
   return resolveRestaurantAccess(userId, restaurantId);
 }
 
-function assertManage(restaurant) {
-  if (!MANAGE_ROLES.has(restaurant.effective_role)) {
+async function assertManage(restaurant, userId) {
+  const allowed = await permissionsService.hasRestaurantPermission(restaurant, userId, ['restaurant.manage']);
+  if (!allowed) {
     throw new AppError('You do not have permission to manage this restaurant', 403, 'forbidden');
   }
 }
@@ -57,7 +58,7 @@ exports.createHelpRequest = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
 
     const title = normalizeString(req.body.title, 200);
     const detail = normalizeString(req.body.detail, 4000);
@@ -86,7 +87,7 @@ exports.updateHelpRequest = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const helpRequestId = parsePositiveInt(req.params.helpRequestId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
 
     const sets = [];
     const values = [];

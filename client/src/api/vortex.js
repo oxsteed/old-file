@@ -44,8 +44,8 @@ export const listMemberships = (businessId) =>
 export const getMyMembership = (businessId) =>
   api.get(`/businesses/${businessId}/me`).then((r) => r.data?.data);
 
-export const changeMembershipRole = (businessId, membershipId, role) =>
-  api.patch(`/businesses/${businessId}/memberships/${membershipId}/role`, { role }).then((r) => r.data?.data);
+export const changeMembershipRole = (businessId, membershipId, role, { reason, confirm } = {}) =>
+  api.patch(`/businesses/${businessId}/memberships/${membershipId}/role`, { role, reason, confirm: confirm === true }).then((r) => r.data?.data);
 
 export const setMembershipOverrides = (businessId, membershipId, overrides) =>
   api.put(`/businesses/${businessId}/memberships/${membershipId}/overrides`, { overrides }).then((r) => r.data?.data);

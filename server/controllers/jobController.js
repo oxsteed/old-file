@@ -265,6 +265,7 @@ exports.createJob = async (req, res, next) => {
     );
     if (inserted[0]?.id && ['published', 'matched'].includes(inserted[0].status)) {
       await enqueueJobEvent(client, { jobId: inserted[0].id, eventType: EVENT_TYPES.PUBLISHED, coalesce: false });
+      await require('../growth/emit').emitDomainEvent(client,'job.posted',{job_id:String(inserted[0].id)}, {userId:req.user.id,req});
     }
     return inserted;
     }, 'create_job');
@@ -1149,6 +1150,8 @@ exports.assignHelper = async (req, res, next) => {
       }
 
       const { rows: finalJobRows } = await client.query('SELECT * FROM jobs WHERE id = $1', [jobResult.rows[0].id]);
+      const { emitDomainEvent, jobEventProps } = require('../growth/emit');
+      await emitDomainEvent(client, 'job.assigned', jobEventProps(finalJobRows[0] || jobResult.rows[0]), { userId: req.user.id, req });
       return { job: finalJobRows[0] || jobResult.rows[0], bid: acceptedBid };
     }, 'assign_helper');
 
@@ -1419,6 +1422,8 @@ async function completeJobCore({ job, jobId, asClient, actorUserId = null }) {
       `, [rows[0].assigned_helper_id]);
     }
 
+    const { emitDomainEvent, jobEventProps } = require('../growth/emit');
+    await emitDomainEvent(client, 'job.completed', jobEventProps(rows[0]), { userId: actorUserId || rows[0].client_id });
     return rows[0];
   }, 'complete_job');
 }

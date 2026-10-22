@@ -121,6 +121,7 @@ function mockKioskCreateOrderQueries(orderOverrides = {}) {
     .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (pre-lock)
     .mockResolvedValueOnce({ rows: [restaurantRow()] })
     .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (post-lock recheck)
+    .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations -> restaurant fallback)
     .mockResolvedValueOnce({
       rows: [{
         id: MENU_ITEM_ID,
@@ -130,7 +131,9 @@ function mockKioskCreateOrderQueries(orderOverrides = {}) {
         is_available: true,
       }],
     })
-    .mockResolvedValueOnce({ rows: [{ next_queue: order.queue_number }] })
+    .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ last_queue_number: order.queue_number }] })
     .mockResolvedValueOnce({ rows: [order] })
     .mockResolvedValueOnce({ rows: [{ id: 501 }] });
   return order;
@@ -179,6 +182,7 @@ describe('food order loop E2E (F7)', () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [restaurantRow()] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations)
       .mockResolvedValueOnce({
         rows: [{
           id: MENU_ITEM_ID,
@@ -190,7 +194,9 @@ describe('food order loop E2E (F7)', () => {
           modifier_groups: [],
         }],
       })
-      .mockResolvedValueOnce({ rows: [{ next_queue: 7 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ last_queue_number: 7 }] })
       .mockResolvedValueOnce({ rows: [createdOrder] })
       .mockResolvedValueOnce({ rows: [{ id: 501 }] })
       .mockResolvedValueOnce({ rows: [] })

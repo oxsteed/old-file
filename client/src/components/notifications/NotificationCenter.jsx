@@ -2,13 +2,26 @@ import { useState, useEffect, useRef } from 'react';
 import { Bell }                        from 'lucide-react';
 import { Link }                        from 'react-router-dom';
 import { formatDistanceToNow }         from 'date-fns';
+import { enUS, es, fr, ht, ar }        from 'date-fns/locale';
 import { useTranslation }              from 'react-i18next';
 import { useSocket }                   from '../../hooks/useSocket';
 import api                             from '../../api/axios';
 import { setAppBadge, clearAppBadge }  from '../../utils/appBadge';
+import { staffNotificationText }       from './staffNotificationText';
+
+const DATE_FNS_LOCALES = { en: enUS, es, fr, ht, ar };
 
 export default function NotificationCenter() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const dateLocale = DATE_FNS_LOCALES[i18n.language] || enUS;
+  const formatDateTime = (value) => {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime())
+      ? String(value)
+      : new Intl.DateTimeFormat(i18n.language, {
+        weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+      }).format(d);
+  };
   const [open,         setOpen]    = useState(false);
   const [notifs,       setNotifs]  = useState([]);
   const [unreadCount,  setUnread]  = useState(0);
@@ -171,7 +184,9 @@ export default function NotificationCenter() {
                   {t('notificationCenter.caughtUp')}
                 </p>
               </div>
-            ) : notifs.map(notif => (
+            ) : notifs.map(notif => {
+              const text = staffNotificationText(notif, t, formatDateTime);
+              return (
               <div
                 key={notif.id}
                 onClick={() => !notif.is_read && markOneRead(notif.id)}
@@ -190,14 +205,14 @@ export default function NotificationCenter() {
                       ? 'font-semibold text-gray-900'
                       : 'font-medium text-gray-700'
                   }`}>
-                    {notif.title}
+                    {text.title}
                   </p>
                   <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
-                    {notif.body}
+                    {text.body}
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
                     {formatDistanceToNow(
-                      new Date(notif.created_at), { addSuffix: true }
+                      new Date(notif.created_at), { addSuffix: true, locale: dateLocale }
                     )}
                   </p>
                 </div>
@@ -206,7 +221,8 @@ export default function NotificationCenter() {
                                   shrink-0 mt-1.5" />
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Footer */}

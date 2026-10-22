@@ -50,7 +50,7 @@ const FilterSection: React.FC<{
       <button
         onClick={() => setOpen((p) => !p)}
         className="w-full flex items-center justify-between py-3.5 px-1 text-start group"
-        aria-expanded={open}
+        aria-expanded={open} data-track="ui.1851426bba.1"
       >
         <span className="flex items-center gap-2 text-sm font-semibold text-gray-200 group-hover:text-white transition-colors">
           <Icon className="w-4 h-4 text-gray-500" aria-hidden="true" />
@@ -85,7 +85,7 @@ const CheckboxRow: React.FC<{
       checked={checked}
       onChange={(e) => onChange(e.target.checked)}
       className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-brand-500 focus:ring-brand-500 focus:ring-offset-gray-900 cursor-pointer"
-      aria-label={label}
+      aria-label={label} data-track="ui.1851426bba.2"
     />
     <span
       className={`text-sm flex-1 leading-snug group-hover:text-white transition-colors ${
@@ -114,7 +114,7 @@ const SkillGroup: React.FC<{
       <button
         onClick={() => setOpen((p) => !p)}
         className="flex items-center justify-between w-full py-1.5 text-xs text-gray-400 hover:text-gray-200 transition-colors"
-        aria-expanded={open}
+        aria-expanded={open} data-track="ui.1851426bba.3"
       >
         <span className="flex items-center gap-1.5">
           {translateJobCategory(t, category)}
@@ -179,7 +179,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
           <button
             onClick={onReset}
             className="flex items-center gap-1 text-xs text-brand-400 hover:text-brand-300 transition-colors"
-            aria-label={t('helpersDir.resetAll')}
+            aria-label={t('helpersDir.resetAll')} data-track="ui.1851426bba.4"
           >
             <RotateCcw className="w-3 h-3" aria-hidden="true" />
             {t('helpersDir.resetAll')}
@@ -203,7 +203,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
               onClick={() => onChange({ availableToday: !filters.availableToday })}
               className={`relative w-9 h-5 rounded-full transition-colors ${
                 filters.availableToday ? 'bg-brand-500' : 'bg-gray-700'
-              }`}
+              }`} data-track="ui.1851426bba.5"
             >
               <span
                 className={`absolute top-0.5 start-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
@@ -223,7 +223,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
               onClick={() => onChange({ backgroundChecked: !filters.backgroundChecked })}
               className={`relative w-9 h-5 rounded-full transition-colors ${
                 filters.backgroundChecked ? 'bg-brand-500' : 'bg-gray-700'
-              }`}
+              }`} data-track="ui.1851426bba.6"
             >
               <span
                 className={`absolute top-0.5 start-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
@@ -243,7 +243,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
               onClick={() => onChange({ verified: !filters.verified })}
               className={`relative w-9 h-5 rounded-full transition-colors ${
                 filters.verified ? 'bg-brand-500' : 'bg-gray-700'
-              }`}
+              }`} data-track="ui.1851426bba.7"
             >
               <span
                 className={`absolute top-0.5 start-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
@@ -285,7 +285,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
                       filters.maxDistance === d
                         ? 'bg-brand-500 text-white'
                         : 'bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700'
-                    }`}
+                    }`} data-track="ui.1851426bba.8"
                   >
                     {t('helpersDir.milesAway', { miles: d })}
                   </button>
@@ -383,7 +383,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
                     ? 'bg-brand-500 text-white'
                     : 'bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700'
                 }`}
-                aria-pressed={filters.minRating === opt.value}
+                aria-pressed={filters.minRating === opt.value} data-track="ui.1851426bba.9"
               >
                 {opt.value > 0 && (
                   <Star className="w-3 h-3 fill-current" aria-hidden="true" />
@@ -443,7 +443,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
                 <button
                   key={key}
                   onClick={() => onChange({ priceRange: range })}
-                  className="px-2.5 py-1 rounded-lg text-xs bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700 transition-colors"
+                  className="px-2.5 py-1 rounded-lg text-xs bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700 transition-colors" data-track="ui.1851426bba.10"
                 >
                   {t(`helpersDir.${key}`)}
                 </button>

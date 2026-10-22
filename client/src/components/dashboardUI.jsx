@@ -28,7 +28,7 @@ export const Btn = ({ children, onClick, variant = 'primary', className = '', ..
     danger: 'bg-red-500/20 hover:bg-red-500/30 text-red-400',
   };
   return (
-    <button onClick={onClick} className={`text-xs font-semibold px-4 py-2 rounded-lg transition disabled:opacity-50 ${v[variant]} ${className}`} {...r}>
+    <button onClick={onClick} className={`text-xs font-semibold px-4 py-2 rounded-lg transition disabled:opacity-50 ${v[variant]} ${className}`} {...r} data-track="ui.fc437cd48c.1">
       {children}
     </button>
   );

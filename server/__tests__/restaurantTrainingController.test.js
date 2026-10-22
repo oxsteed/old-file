@@ -6,6 +6,7 @@ const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
 
 const training = require('../controllers/restaurantTrainingController');
+const permissionsService = require('../services/permissionsService');
 
 const USER_ID = '00000000-0000-4000-8000-000000000123';
 const STAFF_ID = '00000000-0000-4000-8000-000000000456';
@@ -31,12 +32,15 @@ function app() {
   return server;
 }
 
-beforeEach(() => resetMocks());
+// S-08: training gates resolve through permissionsService; clear its
+// cache per test so each scripted chain includes the resolver's rows.
+beforeEach(() => { resetMocks(); permissionsService.invalidateCache(); });
 
 describe('restaurant training backend', () => {
   test('non-managers do not see quiz answers', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [access('employee')] })
+      .mockResolvedValueOnce({ rows: [] }) // role defaults: no crew.manage
       .mockResolvedValueOnce({ rows: [{ id: 1, title: 'Food safety', restaurant_id: RESTAURANT_ID }] })
       .mockResolvedValueOnce({ rows: [{ id: 7, module_id: 1, question: 'Q?', options: ['a', 'b'], correct_index: 1, sort_order: 0 }] });
     const res = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/training/modules`);
@@ -48,6 +52,7 @@ describe('restaurant training backend', () => {
   test('managers see quiz answers', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [access('manager')] })
+      .mockResolvedValueOnce({ rows: [{ code: 'crew.manage', allow: true }] })
       .mockResolvedValueOnce({ rows: [{ id: 1, title: 'Food safety', restaurant_id: RESTAURANT_ID }] })
       .mockResolvedValueOnce({ rows: [{ id: 7, module_id: 1, question: 'Q?', options: ['a', 'b'], correct_index: 1, sort_order: 0 }] });
     const res = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/training/modules`);
@@ -56,7 +61,9 @@ describe('restaurant training backend', () => {
   });
 
   test('createModule requires a title and valid category', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [access('owner')] });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access('owner')] })
+      .mockResolvedValueOnce({ rows: [{ code: 'crew.manage' }] });
     const noTitle = await request(app()).post(`/api/restaurants/${RESTAURANT_ID}/training/modules`).send({});
     expect(noTitle.status).toBe(400);
 
@@ -78,6 +85,7 @@ describe('restaurant training backend', () => {
   test('assignModule upserts and rejects unknown staff', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [access('owner')] })
+      .mockResolvedValueOnce({ rows: [{ code: 'crew.manage' }] })
       .mockResolvedValueOnce({ rows: [{ id: 3 }] })
       .mockResolvedValueOnce({ rows: [] });
     const notFound = await request(app())
@@ -97,15 +105,20 @@ describe('restaurant training backend', () => {
     expect(ok.body.assignment.status).toBe('assigned');
   });
 
-  test('submitQuiz scores transactionally and blocks double submit', async () => {
-    const assignment = { id: 11, module_id: 3, user_id: USER_ID, status: 'assigned', pass_score_pct: 80 };
-    // First submit: 1/2 correct = 50% < 80% -> failed but completed.
+  test('submitQuiz scores an attempt; a fail re-opens the assignment (S-12 retakes)', async () => {
+    const assignment = {
+      id: 11, module_id: 3, user_id: USER_ID, status: 'assigned',
+      pass_score_pct: 80, max_attempts: 3, valid_for_days: null,
+      current_version: 1, attempts_used: 0,
+    };
+    // Submit: 1/2 correct = 50% < 80% -> failed attempt, NOT a completion.
+    // Scoring reads the current version snapshot (S-12 versioning).
     mockQuery
       .mockResolvedValueOnce({ rows: [access('employee')] })
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({ rows: [assignment] })
-      .mockResolvedValueOnce({ rows: [{ correct_index: 0 }, { correct_index: 1 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 99, score_pct: 50, passed: false }] })
+      .mockResolvedValueOnce({ rows: [{ questions: [{ correct_index: 0 }, { correct_index: 1 }] }] })
+      .mockResolvedValueOnce({ rows: [{ id: 99, score_pct: 50, passed: false, attempt_number: 1, module_version: 1 }] })
       .mockResolvedValueOnce({ rows: [] });
     const res = await request(app())
       .post(`/api/restaurants/${RESTAURANT_ID}/training/assignments/11/submit`)
@@ -113,12 +126,19 @@ describe('restaurant training backend', () => {
     expect(res.status).toBe(200);
     expect(res.body.scorePct).toBe(50);
     expect(res.body.passed).toBe(false);
+    expect(res.body.attemptsUsed).toBe(1);
+    expect(res.body.attemptsRemaining).toBe(2);
+    // The assignment flips back to 'assigned' so the quiz can be retaken.
+    const statusUpdate = mockQuery.mock.calls.find(([sql]) => /UPDATE restaurant_training_assignments/.test(String(sql)));
+    expect(statusUpdate[1]).toEqual([11, 'assigned', 1]);
 
-    // Second submit on a completed assignment -> 409.
+    // A submit against a completed assignment whose pass is still valid
+    // (no expiry) is rejected.
     mockQuery
       .mockResolvedValueOnce({ rows: [access('employee')] })
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
-      .mockResolvedValueOnce({ rows: [{ ...assignment, status: 'completed' }] });
+      .mockResolvedValueOnce({ rows: [{ ...assignment, status: 'completed', attempts_used: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ expires_at: null }] }); // latest pass: still valid
     const dup = await request(app())
       .post(`/api/restaurants/${RESTAURANT_ID}/training/assignments/11/submit`)
       .send({ answers: [0, 1] });

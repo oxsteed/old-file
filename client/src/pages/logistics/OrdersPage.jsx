@@ -90,7 +90,7 @@ export default function OrdersPage() {
                 <h2>{tx('logistics.workspace.dataError.title', 'Data unavailable')}</h2>
                 <p>{tx('logistics.orders.error', "We couldn't load your orders right now. Please try again.")}</p>
               </div>
-              <button type="button" className="lx-btn-secondary" onClick={load}>
+              <button type="button" className="lx-btn-secondary" onClick={load} data-track="ui.e7ec9645e0.1">
                 {tx('logistics.workspace.dataError.retry', 'Try again')}
               </button>
             </div>
@@ -151,7 +151,7 @@ export default function OrdersPage() {
                         <button
                           type="button"
                           className="lx-action-ghost"
-                          onClick={(e) => { e.stopPropagation(); setPreviewId(o.id); }}
+                          onClick={(e) => { e.stopPropagation(); setPreviewId(o.id); }} data-track="ui.e7ec9645e0.2"
                         >
                           {t('logistics.tables.preview')}
                         </button>
@@ -166,13 +166,13 @@ export default function OrdersPage() {
 
           {!loading && !error && totalPages > 1 && (
             <nav className="lx-pagination" aria-label={tx('logistics.orders.pagination', 'Orders pages')}>
-              <button type="button" className="lx-btn-secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              <button type="button" className="lx-btn-secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} data-track="ui.e7ec9645e0.3">
                 ← {tx('logistics.hub.prevPage', 'Previous')}
               </button>
               <span className="lx-pagination-indicator" role="status">
                 {tx('logistics.hub.pageOf', 'Page {{page}} of {{pages}}', { page, pages: totalPages })}
               </span>
-              <button type="button" className="lx-btn-secondary" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+              <button type="button" className="lx-btn-secondary" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} data-track="ui.e7ec9645e0.4">
                 {tx('logistics.hub.nextPage', 'Next')} →
               </button>
             </nav>

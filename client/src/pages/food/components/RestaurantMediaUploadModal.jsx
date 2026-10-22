@@ -42,7 +42,7 @@ function DishPicker({ liveDishes, selected, onToggle, t }) {
             const on = selected.includes(d.id);
             return (
               <label key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', fontSize: 14, cursor: 'pointer', borderBottom: '1px solid var(--color-border, #f1f5f9)', color: 'var(--color-text, #0f172a)' }}>
-                <input type="checkbox" checked={on} onChange={() => onToggle(d.id)} style={{ width: 17, height: 17, accentColor: '#f97316' }} />
+                <input type="checkbox" checked={on} onChange={() => onToggle(d.id)} style={{ width: 17, height: 17, accentColor: '#f97316' }} data-track="ui.4d36af1f8a.1" />
                 <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</span>
                 <span style={{ fontWeight: 700, color: '#f97316', whiteSpace: 'nowrap' }}>{d.priceStr}</span>
               </label>
@@ -176,7 +176,7 @@ export default function RestaurantMediaUploadModal({ liveDishes, onClose, onPost
             {t('food.restaurant.media.postModal.title')}
           </h3>
           <button onClick={onClose} aria-label={t('food.restaurant.media.cancel')}
-            style={{ width: 32, height: 32, borderRadius: '50%', border: 'none', background: 'var(--color-surface-2, #f1f5f9)', fontSize: 18, cursor: 'pointer', color: 'var(--color-text-muted, #64748b)' }}>×</button>
+            style={{ width: 32, height: 32, borderRadius: '50%', border: 'none', background: 'var(--color-surface-2, #f1f5f9)', fontSize: 18, cursor: 'pointer', color: 'var(--color-text-muted, #64748b)' }} data-track="ui.4d36af1f8a.2">×</button>
         </div>
 
         <div role="tablist" aria-label={t('food.restaurant.media.postModal.title')} style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
@@ -186,7 +186,7 @@ export default function RestaurantMediaUploadModal({ liveDishes, onClose, onPost
               role="tab"
               aria-selected={tab === key}
               onClick={() => switchTab(key)}
-              style={tabStyle(tab === key)}
+              style={tabStyle(tab === key)} data-track="ui.4d36af1f8a.3"
             >
               {t(`food.restaurant.media.upload.tabs.${key}`)}
             </button>
@@ -240,7 +240,7 @@ export default function RestaurantMediaUploadModal({ liveDishes, onClose, onPost
                   width: '100%', padding: '26px 12px', borderRadius: 12, cursor: 'pointer',
                   border: '1.5px dashed var(--color-border, #e2e8f0)', background: 'var(--color-surface-2, #f8fafc)',
                   color: 'var(--color-text, #0f172a)', fontSize: 14, fontWeight: 600,
-                }}
+                }} data-track="ui.4d36af1f8a.4"
               >
                 <span style={{ fontSize: 26, display: 'block', marginBottom: 6 }} aria-hidden="true">
                   {tab === 'video' ? '🎬' : '📷'}
@@ -261,7 +261,7 @@ export default function RestaurantMediaUploadModal({ liveDishes, onClose, onPost
                   <button
                     onClick={() => { setFile(null); setFileError(''); setProgress(0); }}
                     disabled={posting}
-                    style={{ border: 'none', background: 'none', color: '#f97316', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                    style={{ border: 'none', background: 'none', color: '#f97316', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }} data-track="ui.4d36af1f8a.5"
                   >
                     {t('food.restaurant.media.upload.changeFile')}
                   </button>
@@ -318,7 +318,7 @@ export default function RestaurantMediaUploadModal({ liveDishes, onClose, onPost
 
         <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
           <button onClick={onClose}
-            style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: '1.5px solid var(--color-border, #e2e8f0)', background: 'none', fontSize: 15, fontWeight: 600, cursor: 'pointer', color: 'var(--color-text, #0f172a)' }}>
+            style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: '1.5px solid var(--color-border, #e2e8f0)', background: 'none', fontSize: 15, fontWeight: 600, cursor: 'pointer', color: 'var(--color-text, #0f172a)' }} data-track="ui.4d36af1f8a.6">
             {t('food.restaurant.media.cancel')}
           </button>
           <button onClick={handleSubmit} disabled={submitDisabled}
@@ -326,7 +326,7 @@ export default function RestaurantMediaUploadModal({ liveDishes, onClose, onPost
               flex: 2, padding: '12px 0', borderRadius: 12, border: 'none', fontSize: 15, fontWeight: 700,
               cursor: !submitDisabled ? 'pointer' : 'not-allowed', background: '#f97316', color: '#fff',
               opacity: !submitDisabled ? 1 : 0.55,
-            }}>
+            }} data-track="ui.4d36af1f8a.7">
             {posting ? t('food.restaurant.media.upload.uploading') : submitLabel}
           </button>
         </div>

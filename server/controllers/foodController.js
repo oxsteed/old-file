@@ -20,6 +20,9 @@ const { createLinkedSupportTicket } = require('../services/supportTicketLinkServ
 const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
 const { getClientRequestId } = require('../utils/idempotency');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
+const { nextQueueNumber } = require('../services/restaurantQueueCounter');
+const { resolveLocationRow } = require('../services/restaurantLocationService');
+const storeMenu = require('../services/restaurantStoreMenuService');
 const {
   reserveInventoryForOrder,
   releaseInventoryForOrder,
@@ -122,13 +125,21 @@ const {
 } = require('../services/restaurantPosPaymentLedgerService');
 const {
   evaluateOperatingHours,
+  isValidIanaTimezone,
   normalizeBrandAccentHex,
   normalizeHoursInput,
 } = require('../utils/foodOperatingHours');
+const { isItemAvailableAt } = require('../utils/menuDayparts');
+const { logBusinessAction } = require('../services/businessAuditLog');
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? require('stripe')(process.env.STRIPE_SECRET_KEY)
   : null;
+
+// F-11: a scheduled order becomes kitchen work at scheduled_for minus the
+// restaurant's prep lead (prep_time_min; 30 minutes when unset). Shared by
+// the merchant kitchen feed branches in listRestaurantOrders.
+const SCHEDULED_ORDER_HOLD_SQL = `(fo.scheduled_for IS NULL OR fo.scheduled_for <= NOW() + (COALESCE((SELECT fr.prep_time_min FROM food_restaurants fr WHERE fr.id = fo.restaurant_id), 30) * INTERVAL '1 minute'))`;
 
 const VALID_FULFILLMENT = new Set(['pickup', 'dine_in', 'delivery', 'kiosk']);
 const VALID_ORDER_SOURCES = new Set(['mobile', 'web', 'kiosk', 'counter', 'tablet']);
@@ -359,6 +370,71 @@ function normalizeString(value, max = 255) {
   return trimmed ? trimmed.slice(0, max) : null;
 }
 
+// F-01/F-10: timezones are validated on every write. An invalid IANA name
+// used to be stored verbatim (web creation stored 'UTC' only because the
+// form never sent one) and a bad value later crashed Intl.DateTimeFormat
+// inside the hours evaluator. Empty means "not provided" and returns null
+// so each caller applies its own fallback.
+function normalizeIanaTimezone(value) {
+  const timezone = normalizeString(value, 80);
+  if (!timezone) return null;
+  if (!isValidIanaTimezone(timezone)) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      timezone: 'Must be a valid IANA timezone',
+    });
+  }
+  return timezone;
+}
+
+// F-28: Number(null) and Number('') are both 0, which silently turned a
+// missing coordinate into a point in the Atlantic. Absent stays absent.
+function parseOptionalCoordinate(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+const LOCATION_STATUSES = new Set(['active', 'paused', 'closed']);
+
+function normalizeLocationRate(value, field) {
+  if (value === undefined || value === null || value === '') return null;
+  const rate = Number(value);
+  if (!Number.isSafeInteger(rate) || rate < 0 || rate > 10000) {
+    throw new AppError('Validation failed', 400, 'validation_failed', { [field]: 'Enter a rate from 0 to 100 percent' });
+  }
+  return rate;
+}
+
+function normalizeLocationTaxJurisdiction(value) {
+  if (value === undefined || value === null || value === '') return null;
+  return normalizeString(value, 160);
+}
+
+function normalizeLocationInteger(value, field, { nullable = true, max = 1000 } = {}) {
+  if (value === undefined || value === null || value === '') return nullable ? null : 0;
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0 || parsed > max) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      [field]: `Enter a whole number from 0 to ${max}`,
+    });
+  }
+  return parsed;
+}
+
+function normalizeMenuTaxRate(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0 || parsed > 10000) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      taxRateBps: 'Enter a tax rate from 0 to 100 percent',
+    });
+  }
+  return parsed;
+}
+
+// F-12: the fulfillment set the database itself defaults to (migration 305).
+const DEFAULT_FULFILLMENT_MODES = ['pickup', 'dine_in', 'kiosk'];
+
 function canonicalIdempotencyAmount(value) {
   const amount = Number(value);
   return Number.isFinite(amount) ? Math.round(amount) : String(value ?? '');
@@ -400,6 +476,7 @@ function buildFoodOrderIdempotencyFingerprint({ restaurantId, paymentMode, reque
   );
   const fingerprintInput = {
     version: 2,
+    ...(storeMenu.locationId(request.locationId ?? request.location_id) ? { locationId: storeMenu.locationId(request.locationId ?? request.location_id) } : {}),
     restaurantId: Number(restaurantId),
     paymentMode,
     fulfillmentType,
@@ -521,12 +598,59 @@ function parseOptionalFutureDate(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+// Apply discount allocation and item tax policy without trusting client
+// totals. A null item rate inherits the selected store/restaurant rate;
+// tax_exempt items contribute no tax while remaining in the order total.
+function calculateFoodTax(lineItems, discountCents, defaultRateBps, taxInclusive) {
+  const subtotal = lineItems.reduce((sum, item) => sum + Number(item.lineTotalCents ?? item.lineTotal ?? 0), 0);
+  let remainingDiscount = Math.max(0, Math.min(subtotal, Number(discountCents || 0)));
+  let tax = 0;
+  const breakdown = lineItems.map((item, index) => {
+    const lineTotal = Math.max(0, Number(item.lineTotalCents ?? item.lineTotal ?? 0));
+    const lineDiscount = index === lineItems.length - 1
+      ? Math.min(lineTotal, remainingDiscount)
+      : Math.min(lineTotal, subtotal > 0 ? Math.round(discountCents * lineTotal / subtotal) : 0, remainingDiscount);
+    remainingDiscount -= lineDiscount;
+    const taxableCents = Math.max(0, lineTotal - lineDiscount);
+    const rateBps = item.taxExempt || item.menuItem?.tax_exempt
+      ? 0
+      : Math.max(0, Math.min(10000, Number(item.taxRateBps ?? item.menuItem?.tax_rate_bps ?? defaultRateBps) || 0));
+    const lineTax = taxInclusive
+      ? Math.round(taxableCents * rateBps / (10000 + rateBps || 10000))
+      : Math.round(taxableCents * rateBps / 10000);
+    tax += lineTax;
+    return { menuItemId: item.menuItemId ?? item.menuItem?.id ?? null, taxableCents, taxRateBps: rateBps, taxCents: lineTax };
+  });
+  return { tax, breakdown };
+}
+
 function normalizeTextArray(value, maxItems = 12) {
   if (!Array.isArray(value)) return [];
   return value
     .map((item) => normalizeString(item, 60))
     .filter(Boolean)
     .slice(0, maxItems);
+}
+
+// Customer allergen preferences are advisory filters, but the server must
+// enforce them at both quote and order time so a stale or modified client
+// cannot submit an excluded menu item. Keep comparison case-insensitive while
+// preserving the merchant's canonical allergen labels in the menu response.
+function normalizeAllergenExclusions(value) {
+  const source = Array.isArray(value)
+    ? value
+    : (typeof value === 'string' ? value.split(',') : []);
+  return [...new Set(source
+    .map((item) => normalizeString(item, 60).toLowerCase())
+    .filter(Boolean))].slice(0, 20);
+}
+
+function menuItemHasExcludedAllergen(menuItem, exclusions) {
+  if (!exclusions.length) return false;
+  const allergens = Array.isArray(menuItem?.allergens)
+    ? menuItem.allergens.map((item) => String(item || '').trim().toLowerCase()).filter(Boolean)
+    : [];
+  return exclusions.some((allergen) => allergens.includes(allergen));
 }
 
 // Restaurant-level dietary capabilities used by the customer dietary filter.
@@ -711,6 +835,11 @@ function attachRestaurantHours(row) {
     hours_message: isTemporarilyClosed
       ? `Temporarily closed until ${closureUntil.toISOString()}`
       : hours.message,
+    // F-24: structured form of hours_message so clients can localize it.
+    hours_message_code: isTemporarilyClosed ? 'temporarily_closed' : hours.messageCode,
+    hours_message_params: isTemporarilyClosed
+      ? { until: closureUntil.toISOString() }
+      : hours.messageParams,
     opens_at: hours.opensAt,
     closes_at: hours.closesAt,
   };
@@ -1659,8 +1788,8 @@ async function refundFoodOrderStripePayment(client, { order, restaurantId, creat
     `INSERT INTO restaurant_pos_payments
        (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
         provider, provider_payment_intent_id, provider_charge_id, idempotency_key,
-        reference, note, metadata)
-     VALUES ($1, $2, NULL, 'refund', $3, 'refunded', 'stripe_checkout', $4, $5, $6, $5, $7, $8::jsonb)
+        reference, note, metadata, location_id)
+     VALUES ($1, $2, NULL, 'refund', $3, 'refunded', 'stripe_checkout', $4, $5, $6, $5, $7, $8::jsonb, $9)
      ON CONFLICT (restaurant_id, idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
      RETURNING *`,
     [
@@ -1672,6 +1801,7 @@ async function refundFoodOrderStripePayment(client, { order, restaurantId, creat
       `food-order-refund:${order.id}`,
       'Card refund for cancelled order',
       JSON.stringify({ stripeRefundId: refund.id, orderStatus: status, createdByUserId }),
+      order.location_id ?? null,
     ]
   );
   return { refund, chargeId, posPayment: posRows[0] || null };
@@ -1718,6 +1848,60 @@ async function hasRestaurantPermission(restaurant, requested) {
 async function assertRestaurantManage(restaurant) {
   if (restaurant.effective_role === 'owner') return;
   await assertRestaurantPermission(restaurant, ['restaurant.manage', 'settings.manage']);
+}
+
+// F-20: append-only audit trail for money-relevant restaurant writes (menu
+// pricing, tax/fees, promotions, settings). logBusinessAction never throws;
+// pass a transaction client where the write itself is transactional so the
+// audit row lands atomically with the change.
+async function auditFoodChange(req, restaurant, entry) {
+  if (!restaurant || !restaurant.business_id) return;
+  await logBusinessAction(req, {
+    business_id: restaurant.business_id,
+    actor_role: entry.actor_role || restaurant.effective_role || null,
+    ...entry,
+  });
+}
+
+function menuItemAuditSnapshot(item) {
+  if (!item) return null;
+  return {
+    name: item.name,
+    price_cents: item.price_cents,
+    currency_code: item.currency_code,
+    category_id: item.category_id,
+    is_available: item.is_available,
+    manual_available: item.manual_available,
+    publication_status: item.publication_status,
+    availability_schedule: item.availability_schedule || {},
+    tax_rate_bps: item.tax_rate_bps,
+    tax_exempt: item.tax_exempt === true,
+  };
+}
+
+function menuCategoryAuditSnapshot(category) {
+  if (!category) return null;
+  return {
+    name: category.name,
+    description: category.description,
+    sort_order: category.sort_order,
+    is_active: category.is_active,
+  };
+}
+
+function promotionAuditSnapshot(promotion) {
+  if (!promotion) return null;
+  return {
+    code: promotion.code,
+    title: promotion.title,
+    discount_percent: promotion.discount_percent,
+    discount_cents: promotion.discount_cents,
+    min_subtotal_cents: promotion.min_subtotal_cents,
+    valid_from: promotion.valid_from,
+    valid_until: promotion.valid_until,
+    max_uses: promotion.max_uses,
+    is_active: promotion.is_active,
+  };
 }
 
 function emitRestaurantOrder(businessId, event, payload) {
@@ -2167,7 +2351,7 @@ exports.listRestaurants = async (req, res, next) => {
   }
 };
 
-async function loadRestaurantMenu(restaurantId, { managed = false } = {}) {
+async function loadRestaurantMenu(restaurantId, { managed = false, locationId = null } = {}) {
   const { rows: categories } = await pool.query(
     `SELECT id, name, description, sort_order, is_active
        FROM food_menu_categories
@@ -2176,14 +2360,17 @@ async function loadRestaurantMenu(restaurantId, { managed = false } = {}) {
     [restaurantId]
   );
   const { rows: items } = await pool.query(
-    `SELECT id, category_id, name, description, image_url, price_cents,
-            currency_code, is_available, sort_order, tags, allergens,
-            publication_status, archived_at, availability_schedule
-       FROM food_menu_items
+    `SELECT fmi.id, category_id, name, description, image_url, price_cents,
+            currency_code, is_available, manual_available, inventory_available,
+            inventory_availability_state, sort_order, tags, allergens,
+            tax_rate_bps, tax_exempt,
+            publication_status, archived_at, availability_schedule,
+            ${storeMenu.overrideSql('fmi', '$2')}
+       FROM food_menu_items fmi
       WHERE restaurant_id = $1
         ${managed ? '' : "AND publication_status = 'published' AND archived_at IS NULL"}
       ORDER BY sort_order, name`,
-    [restaurantId]
+    [restaurantId, locationId]
   );
   const { rows: modifiers } = await pool.query(
     `SELECT mg.id AS group_id, mg.menu_item_id, mg.name AS group_name,
@@ -2226,7 +2413,8 @@ async function loadRestaurantMenu(restaurantId, { managed = false } = {}) {
   }
 
   const itemsByCategory = new Map();
-  for (const item of items) {
+  for (const rawItem of items) {
+    const item = storeMenu.applyOverride(rawItem);
     const key = item.category_id || 0;
     if (!itemsByCategory.has(key)) itemsByCategory.set(key, []);
     itemsByCategory.get(key).push({
@@ -2276,8 +2464,12 @@ async function respondRestaurantProfile(req, res, next, adminPreview) {
     const restaurantId = parsePositiveInt(req.params.restaurantId || req.params.id);
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
 
+    const selectedLocationId = storeMenu.locationId(req.query?.locationId ?? req.query?.location_id);
     const { rows: restaurants } = await pool.query(
-      `SELECT fr.*,
+      `SELECT fr.*, ${storeMenu.locationSql('$2')},
+              (SELECT COALESCE(jsonb_agg(jsonb_build_object('id', ls.id, 'name', ls.name,
+                'address_city', ls.address_city, 'status', ls.status) ORDER BY ls.is_primary DESC, ls.id), '[]'::jsonb)
+                FROM restaurant_locations ls WHERE ls.restaurant_id=fr.id) AS public_locations,
               -- Single Connect source of truth: restaurant_connect_accounts
               -- (P0 fix). The public profile's card-payments signal must match
               -- what checkout actually uses.
@@ -2294,10 +2486,14 @@ async function respondRestaurantProfile(req, res, next, adminPreview) {
           AND b.is_listed = TRUE
           AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
           AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'`}`,
-      [restaurantId]
+      [restaurantId, selectedLocationId]
     );
     const restaurant = restaurants[0];
     if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const selectedStore = restaurant.store_location;
+    storeMenu.useStoreDetails(restaurant, selectedStore);
+    if (selectedLocationId && !selectedStore) throw new AppError('Store not found', 404, 'location_not_found');
+
 
     try {
       const { rows: ratingRows } = await pool.query(
@@ -2314,13 +2510,15 @@ async function respondRestaurantProfile(req, res, next, adminPreview) {
       restaurant.review_count = 0;
     }
 
-    const menuData = await loadRestaurantMenu(restaurantId);
+    const menuData = await loadRestaurantMenu(restaurantId, { locationId: selectedStore?.id ?? null });
 
     const payload = publicRestaurantPayload(attachRestaurantHours(restaurant));
     if (!adminPreview) payload.oxsteed_pay_url = await getOwnerOxsteedPayUrl(restaurant.business_id);
 
     res.json({
       restaurant: payload,
+      locations: restaurant.public_locations || [],
+      location: selectedStore ? { id: selectedStore.id, name: selectedStore.name, status: selectedStore.status, timezone: selectedStore.timezone } : null,
       ...menuData,
     });
   } catch (err) {
@@ -2349,17 +2547,23 @@ exports.createRestaurant = async (req, res, next) => {
       });
     }
 
+    // F-01: validate the timezone once, before any write. An invalid value
+    // is a 400, never a silently stored string.
+    const requestedTimezone = normalizeIanaTimezone(req.body.timezone);
+
     const result = await withTransaction(pool, async (client) => {
       const { getOrMintEntityId, grantLink } = require('../lib/entityIds');
       let businessId = parsePositiveInt(req.body.businessId || req.body.business_id);
       let businessCreatedHere = false;
+      let businessTimezone = null;
       if (businessId) {
         const { rows } = await client.query(
-          `SELECT id, business_kind, business_mode
+          `SELECT id, business_kind, business_mode, timezone
              FROM businesses
             WHERE id = $1 AND user_id = $2`,
           [businessId, req.user.id]
         );
+        businessTimezone = rows[0]?.timezone || null;
         if (!rows[0]) throw new AppError('Business not found', 404, 'business_not_found');
         if (
           (rows[0].business_kind && rows[0].business_kind !== 'restaurant')
@@ -2374,7 +2578,7 @@ exports.createRestaurant = async (req, res, next) => {
         if (existingRestaurant) return existingRestaurant;
       } else {
         const country = normalizeCountry(req.body.addressCountry || req.body.address_country);
-        const timezone = normalizeString(req.body.timezone, 80) || 'UTC';
+        const timezone = requestedTimezone || 'UTC';
         const currencyCode = normalizeCurrency(req.body.currencyCode || req.body.currency_code);
         const { rows } = await client.query(
           `INSERT INTO businesses
@@ -2407,6 +2611,13 @@ exports.createRestaurant = async (req, res, next) => {
         businessCreatedHere = true;
       }
 
+      // F-12: no modes sent means the database default set, never an empty
+      // array (an empty array made the POS reject every order while online
+      // ordering silently fell back to pickup only).
+      const requestedModes = normalizeTextArray(req.body.fulfillmentModes || req.body.fulfillment_modes, 4)
+        .filter((mode) => VALID_FULFILLMENT.has(mode));
+      const fulfillmentModes = requestedModes.length ? requestedModes : [...DEFAULT_FULFILLMENT_MODES];
+
       const { rows: [restaurant] } = await client.query(
         `INSERT INTO food_restaurants
            (business_id, owner_user_id, display_name, cuisine_tags, description, phone, website,
@@ -2435,9 +2646,9 @@ exports.createRestaurant = async (req, res, next) => {
           normalizeCountry(req.body.addressCountry || req.body.address_country),
           Number.isFinite(Number(req.body.latitude)) ? Number(req.body.latitude) : null,
           Number.isFinite(Number(req.body.longitude)) ? Number(req.body.longitude) : null,
-          normalizeString(req.body.timezone, 80) || 'UTC',
+          requestedTimezone || businessTimezone || 'UTC',
           normalizeCurrency(req.body.currencyCode || req.body.currency_code),
-          normalizeTextArray(req.body.fulfillmentModes || req.body.fulfillment_modes, 4).filter((mode) => VALID_FULFILLMENT.has(mode)),
+          fulfillmentModes,
           req.body.acceptsOnlineOrders !== false,
           req.body.acceptsInStoreOrders !== false,
           req.body.kitchenDisplayEnabled !== false,
@@ -2491,6 +2702,12 @@ exports.createMenuCategory = async (req, res, next) => {
         req.body.isActive !== false && req.body.is_active !== false,
       ]
     );
+    await auditFoodChange(req, restaurant, {
+      action: 'menu.category.created',
+      target_type: 'menu_category',
+      target_id: category.id,
+      after_state: menuCategoryAuditSnapshot(category),
+    });
     res.status(201).json({ category });
   } catch (err) {
     next(err);
@@ -2506,34 +2723,50 @@ exports.createMenuItem = async (req, res, next) => {
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
 
     const priceCents = parseMoneyCents(req.body.priceCents ?? req.body.price_cents, 'priceCents');
-    const { rows: [item] } = await pool.query(
-      `INSERT INTO food_menu_items
-         (restaurant_id, category_id, name, description, image_url, price_cents,
-          currency_code, is_available, manual_available, inventory_available,
-          inventory_availability_state, sort_order, tags, allergens,
-          publication_status, availability_schedule)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,TRUE,'available',$9,$10,$11,$12,$13)
-       RETURNING *`,
-      [
-        restaurantId,
-        parsePositiveInt(req.body.categoryId || req.body.category_id),
-        name,
-        normalizeString(req.body.description, 2000),
-        normalizeString(req.body.imageUrl || req.body.image_url, 1000),
-        priceCents,
-        normalizeCurrency(req.body.currencyCode || req.body.currency_code || restaurant.currency_code),
-        req.body.isAvailable !== false && req.body.is_available !== false,
-        Number.parseInt(req.body.sortOrder || req.body.sort_order || 0, 10) || 0,
-        normalizeTextArray(req.body.tags, 20),
-        normalizeTextArray(req.body.allergens, 20),
-        ['draft', 'published'].includes(req.body.publicationStatus || req.body.publication_status)
-          ? (req.body.publicationStatus || req.body.publication_status)
-          : 'published',
-        req.body.availabilitySchedule && typeof req.body.availabilitySchedule === 'object'
-          ? JSON.stringify(req.body.availabilitySchedule)
-          : '{}',
-      ]
-    );
+    const { rows: [item] } = await withTransaction(pool, async (client) => {
+      const result = await client.query(
+        `INSERT INTO food_menu_items
+           (restaurant_id, category_id, name, description, image_url, price_cents,
+            currency_code, is_available, manual_available, inventory_available,
+            inventory_availability_state, sort_order, tags, allergens,
+            tax_rate_bps, tax_exempt,
+            publication_status, availability_schedule)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,TRUE,'available',$9,$10,$11,$12,$13,$14,$15)
+         RETURNING *`,
+        [
+          restaurantId,
+          parsePositiveInt(req.body.categoryId || req.body.category_id),
+          name,
+          normalizeString(req.body.description, 2000),
+          normalizeString(req.body.imageUrl || req.body.image_url, 1000),
+          priceCents,
+          normalizeCurrency(req.body.currencyCode || req.body.currency_code || restaurant.currency_code),
+          req.body.isAvailable !== false && req.body.is_available !== false,
+          Number.parseInt(req.body.sortOrder || req.body.sort_order || 0, 10) || 0,
+          normalizeTextArray(req.body.tags, 20),
+          normalizeTextArray(req.body.allergens, 20),
+          normalizeMenuTaxRate(req.body.taxRateBps ?? req.body.tax_rate_bps),
+          req.body.taxExempt === true || req.body.tax_exempt === true,
+          ['draft', 'published'].includes(req.body.publicationStatus || req.body.publication_status)
+            ? (req.body.publicationStatus || req.body.publication_status)
+            : 'published',
+          req.body.availabilitySchedule && typeof req.body.availabilitySchedule === 'object'
+            ? JSON.stringify(req.body.availabilitySchedule)
+            : '{}',
+        ]
+      );
+      const { emitDomainEvent } = require('../growth/emit');
+      await emitDomainEvent(client, 'food.menu_item_added', {
+        restaurant_id: String(restaurantId),
+      }, { userId: req.user.id, req });
+      return result;
+    }, 'food_menu_item_created_growth');
+    await auditFoodChange(req, restaurant, {
+      action: 'menu.item.created',
+      target_type: 'menu_item',
+      target_id: item.id,
+      after_state: menuItemAuditSnapshot(item),
+    });
     res.status(201).json({ item });
   } catch (err) {
     next(err);
@@ -2555,8 +2788,9 @@ exports.quoteOrder = async (req, res, next) => {
     // createOrder exactly (Review P2-3-F07): a quote must never succeed where
     // order creation would be rejected.
     const orderSourceEarly = normalizeString(req.body.orderSource || req.body.order_source, 24) || 'kiosk';
+    const selectedLocationId = storeMenu.locationId(req.body.locationId ?? req.body.location_id);
     const { rows: restaurants } = await pool.query(
-      `SELECT fr.*,
+      `SELECT fr.*, ${storeMenu.locationSql('$2')},
               -- Single Connect source of truth: restaurant_connect_accounts
               -- (P0 fix). No fallback to the legacy businesses.stripe_account_id.
               rca.stripe_account_id AS business_stripe_account_id,
@@ -2574,10 +2808,15 @@ exports.quoteOrder = async (req, res, next) => {
           AND COALESCE(b.setup_status, 'active') = 'active'
           AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
           AND b.deleted_at IS NULL`,
-      [restaurantId]
+      [restaurantId, selectedLocationId]
     );
     const restaurant = restaurants[0];
     if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const selectedStore = restaurant.store_location;
+    if (selectedLocationId && !selectedStore) throw new AppError('Store not found', 404, 'location_not_found');
+    storeMenu.assertLocation(selectedStore, selectedLocationId);
+    storeMenu.useStoreDetails(restaurant, selectedStore);
+
     const stripeStatus = getRestaurantStripeStatus(restaurant);
     if (paymentContract.canonical === 'pay_now' && !stripeStatus.readyForCheckout) {
       throw new AppError(
@@ -2612,8 +2851,14 @@ exports.quoteOrder = async (req, res, next) => {
       throw new AppError('This fulfillment mode is not available', 409, 'fulfillment_mode_unavailable');
     }
     const itemIds = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
+    const allergenExclusions = normalizeAllergenExclusions(
+      req.body.allergenExclusions ?? req.body.allergen_exclusions
+    );
     const { rows: menuRows } = await pool.query(
       `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
+              fmi.manual_available, fmi.inventory_available, fmi.inventory_availability_state,
+              fmi.allergens, fmi.tax_rate_bps, fmi.tax_exempt,
+              fmi.availability_schedule, ${storeMenu.overrideSql('fmi', '$3')},
               fmc.name AS category_name,
               COALESCE((
                 SELECT jsonb_agg(
@@ -2647,9 +2892,17 @@ exports.quoteOrder = async (req, res, next) => {
           AND fmi.id = ANY($2::bigint[])
           AND fmi.publication_status = 'published'
           AND fmi.archived_at IS NULL`,
-      [restaurantId, itemIds]
+      [restaurantId, itemIds, selectedStore?.id ?? null]
     );
-    const menuById = new Map(menuRows.map((row) => [Number(row.id), row]));
+    const menuById = new Map(menuRows.map((row) => [Number(row.id), storeMenu.applyOverride(row)]));
+
+    // F-11: dayparts are evaluated at the fulfillment instant: the scheduled
+    // time when the quote carries one, otherwise now.
+    const quoteScheduledRaw = req.body.scheduledFor ?? req.body.scheduled_for;
+    const quoteScheduledDate = quoteScheduledRaw ? new Date(quoteScheduledRaw) : null;
+    const daypartInstant = quoteScheduledDate && !Number.isNaN(quoteScheduledDate.getTime())
+      ? quoteScheduledDate
+      : new Date();
 
     const lineItems = items.map((item, index) => {
       const menuItemId = parsePositiveInt(item.menuItemId || item.menu_item_id);
@@ -2657,6 +2910,16 @@ exports.quoteOrder = async (req, res, next) => {
       if (!menuItem || !menuItem.is_available) {
         throw new AppError('Validation failed', 400, 'validation_failed', {
           [`items.${index}.menuItemId`]: 'Menu item is unavailable',
+        });
+      }
+      if (!isItemAvailableAt(menuItem, daypartInstant, restaurant.timezone)) {
+        throw new AppError('Validation failed', 400, 'validation_failed', {
+          [`items.${index}.menuItemId`]: 'Menu item is not available at this time of day',
+        });
+      }
+      if (menuItemHasExcludedAllergen(menuItem, allergenExclusions)) {
+        throw new AppError('Validation failed', 400, 'validation_failed', {
+          [`items.${index}.menuItemId`]: 'Menu item contains an excluded allergen',
         });
       }
       const quantity = Math.min(parsePositiveInt(item.quantity, 1), 99);
@@ -2675,6 +2938,10 @@ exports.quoteOrder = async (req, res, next) => {
         modifier_total_cents: modifierTotalCents,
         lineTotalCents,
         line_total_cents: lineTotalCents,
+        taxRateBps: menuItem.tax_exempt ? 0 : (menuItem.tax_rate_bps ?? restaurant.tax_rate_bps ?? 0),
+        tax_rate_bps: menuItem.tax_exempt ? 0 : (menuItem.tax_rate_bps ?? restaurant.tax_rate_bps ?? 0),
+        taxExempt: menuItem.tax_exempt === true,
+        tax_exempt: menuItem.tax_exempt === true,
         category: menuItem.category_name || null,
         category_name: menuItem.category_name || null,
         modifiers: modifiers.map((modifier) => ({
@@ -2758,11 +3025,30 @@ exports.quoteOrder = async (req, res, next) => {
     }
 
     const taxableSubtotalCents = Math.max(0, subtotalCents - discountCents);
+    const prepTimeMin = Math.max(0, parseNonNegativeInt(restaurant.prep_time_min, 15));
+    const prepTimeExtensionMin = Math.max(0, parseNonNegativeInt(restaurant.prep_time_extension_min, 0));
+    const quotePacingSettings = restaurant.settings && typeof restaurant.settings === 'object'
+      ? restaurant.settings
+      : {};
+    const quoteIsInStore = IN_STORE_SOURCES.has(orderSource);
+    const quoteStorePacingLimit = quoteIsInStore
+      ? selectedStore?.in_store_order_pacing_max_per_15_min
+      : selectedStore?.online_order_pacing_max_per_15_min;
+    const quoteInheritedPacingLimit = quoteIsInStore
+      ? (quotePacingSettings.inStoreOrderPacingMaxPer15Min ?? quotePacingSettings.in_store_order_pacing_max_per_15_min)
+      : (quotePacingSettings.onlineOrderPacingMaxPer15Min ?? quotePacingSettings.online_order_pacing_max_per_15_min);
+    const pacingLimit = Math.max(0, Math.floor(Number(
+      quoteStorePacingLimit === null || quoteStorePacingLimit === undefined
+        ? quoteInheritedPacingLimit
+        : quoteStorePacingLimit
+    ) || 0));
     const taxRateBps = Math.max(0, Math.min(10000, Number(restaurant.tax_rate_bps || 0)));
     const serviceFeeBps = Math.max(0, Math.min(10000, Number(restaurant.service_fee_bps || 0)));
-    const taxCents = Math.round(taxableSubtotalCents * taxRateBps / 10000);
+    const taxInclusive = restaurant.tax_inclusive === true;
+    const quoteTax = calculateFoodTax(lineItems, discountCents, taxRateBps, taxInclusive);
+    const taxCents = quoteTax.tax;
     const serviceFeeCents = Math.round(taxableSubtotalCents * serviceFeeBps / 10000);
-    const totalCents = Math.max(0, taxableSubtotalCents + taxCents + serviceFeeCents + tipCents + deliveryFeeCents);
+    const totalCents = Math.max(0, taxableSubtotalCents + (taxInclusive ? 0 : taxCents) + serviceFeeCents + tipCents + deliveryFeeCents);
     const legacyPaymentMode = FOOD_PAYMENT_LEGACY_MODE[paymentContract.canonical];
     const supportedPaymentModes = ['pay_at_counter', 'pay_at_restaurant', 'restaurant_credit', 'wallet_credit', 'direct_payment'];
     let oxsteedCreditEligibility = null;
@@ -2810,6 +3096,8 @@ exports.quoteOrder = async (req, res, next) => {
     const quote = {
       restaurantId,
       restaurant_id: restaurantId,
+      locationId: selectedStore?.id ?? null,
+      location_id: selectedStore?.id ?? null,
       currencyCode: normalizeCurrency(restaurant.currency_code),
       currency_code: normalizeCurrency(restaurant.currency_code),
       orderSource,
@@ -2843,14 +3131,30 @@ exports.quoteOrder = async (req, res, next) => {
       taxable_subtotal_cents: taxableSubtotalCents,
       taxRateBps,
       tax_rate_bps: taxRateBps,
+      taxInclusive,
+      tax_inclusive: taxInclusive,
       taxCents,
       tax_cents: taxCents,
+      taxBreakdown: quoteTax.breakdown,
+      tax_breakdown: quoteTax.breakdown,
+      taxJurisdiction: restaurant.tax_jurisdiction || null,
+      tax_jurisdiction: restaurant.tax_jurisdiction || null,
       serviceFeeBps,
       service_fee_bps: serviceFeeBps,
       serviceFeeCents,
       service_fee_cents: serviceFeeCents,
       deliveryFeeCents,
       delivery_fee_cents: deliveryFeeCents,
+      prepTimeMin,
+      prep_time_min: prepTimeMin,
+      prepTimeExtensionMin,
+      prep_time_extension_min: prepTimeExtensionMin,
+      estimatedReadyMinutes: prepTimeMin + prepTimeExtensionMin,
+      estimated_ready_minutes: prepTimeMin + prepTimeExtensionMin,
+      pacingLimit,
+      pacing_limit: pacingLimit,
+      pacingWindowMinutes: 15,
+      pacing_window_minutes: 15,
       tipCents,
       tip_cents: tipCents,
       totalCents,
@@ -2885,6 +3189,7 @@ exports.createOrder = async (req, res, next) => {
     const orderCustomerId=req.screenTicket ? null : req.user?.id;
     // Legacy/native paired-device orders retain their trusted location too.
     if(req.restaurantDevice&&req.screenLocationId===undefined)req.screenLocationId=req.restaurantDevice.location_id||null;
+    const requestedOrderLocationId = storeMenu.pinnedLocation(req.body.locationId ?? req.body.location_id, req.screenLocationId);
     const isGuest = !orderCustomerId;
     // Locked decision #1: guest Credit allowed with risk limits (enforced in
     // the spend adapter). Guests may also pay at the restaurant/counter, or
@@ -2936,6 +3241,7 @@ exports.createOrder = async (req, res, next) => {
         const { rows: existingOrders } = await client.query(lookup.text, lookup.values);
         if (existingOrders[0]) {
           assertFoodOrderIdempotencyMatch(existingOrders[0], idempotencyFingerprint, clientOrderId);
+          storeMenu.pinnedLocation(existingOrders[0].location_id, req.screenLocationId);
           const { rows: restaurants } = await client.query(
             `SELECT * FROM food_restaurants WHERE id = $1`,
             [restaurantId]
@@ -2954,8 +3260,14 @@ exports.createOrder = async (req, res, next) => {
         }
       }
 
-      // FOR UPDATE serializes concurrent orders for the same restaurant so the
-      // per-day queue number below cannot be duplicated under load.
+      // Read WITHOUT the row lock (F-18). This read used to take
+      // FOR UPDATE OF fr up front, which held the restaurant row for the
+      // whole checkout, including the Stripe verification below, and
+      // serialized every order for the restaurant behind network latency.
+      // Queue numbers now come from the atomic per-day counter, and the
+      // only serialization still needed (the authoritative idempotency
+      // recheck before the insert) takes a short lock further down, after
+      // every network call is done.
     const { rows: restaurants } = await client.query(
         `SELECT fr.*,
                 -- Single Connect source of truth: restaurant_connect_accounts
@@ -2974,15 +3286,17 @@ exports.createOrder = async (req, res, next) => {
             AND b.is_listed = TRUE
             AND COALESCE(b.setup_status, 'active') = 'active'
             AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
-            AND b.deleted_at IS NULL
-          FOR UPDATE OF fr`,
+            AND b.deleted_at IS NULL`,
         [restaurantId]
       );
       const restaurant = restaurants[0];
       if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
 
-      // The fast-path check above can race with another request. Recheck after
-      // locking the restaurant row so concurrent offline retries replay cleanly.
+      // The fast-path check above can race with another request, so recheck
+      // here before doing the expensive work. This recheck is unlocked; the
+      // authoritative one runs under the short restaurant lock taken just
+      // before the insert (see below), which is what makes concurrent
+      // offline retries replay cleanly.
       if (clientOrderId) {
         const lookup = buildFoodOrderIdempotencyLookup({
           restaurantId,
@@ -2992,6 +3306,7 @@ exports.createOrder = async (req, res, next) => {
         const { rows: existingOrders } = await client.query(lookup.text, lookup.values);
         if (existingOrders[0]) {
           assertFoodOrderIdempotencyMatch(existingOrders[0], idempotencyFingerprint, clientOrderId);
+          storeMenu.pinnedLocation(existingOrders[0].location_id, req.screenLocationId);
           const existing = existingOrders[0];
           if(req.screenTicket){
             if(String(existing.location_id||'')!==String(req.screenTicket.location_id||''))throw new AppError('Existing order belongs to another location',409,'screen_location_mismatch');
@@ -3005,6 +3320,28 @@ exports.createOrder = async (req, res, next) => {
           };
         }
       }
+      // F-02 phase 1: resolve the store this order belongs to (explicit
+      // request, else the paired device / screen ticket's store, else the
+      // primary location) and evaluate hours and dayparts against THAT
+      // store's hours and timezone. The evaluator already takes raw
+      // (hours, timezone) values, so a location's own values drop in
+      // directly; a location without its own hours or timezone inherits
+      // the restaurant's. The queue counter below is per store since
+      // migration 952: it keys on this resolved location and the
+      // store's timezone, falling back to the restaurant-wide counter
+      // when the restaurant has no locations.
+      const orderLocation = await resolveLocationRow(client, {
+        restaurantId,
+        requestedLocationId: req.screenTicket
+          ? null
+          : requestedOrderLocationId,
+        deviceLocationId: req.screenTicket?.location_id ?? req.screenLocationId ?? null,
+      });
+      storeMenu.assertLocation(orderLocation, null);
+      storeMenu.useStoreDetails(restaurant, orderLocation);
+      const orderLocationId = orderLocation ? Number(orderLocation.id) : null;
+      const orderTimezone = orderLocation?.timezone || restaurant.timezone;
+      const orderOperatingHours = restaurant.operating_hours;
       const stripeStatus = getRestaurantStripeStatus(restaurant);
       if (['pay_now', 'card'].includes(paymentContract.canonical) && !stripeStatus.readyForCheckout) {
         throw new AppError(
@@ -3041,13 +3378,61 @@ exports.createOrder = async (req, res, next) => {
             'restaurant_not_accepting_orders'
           );
         }
-        const hoursStatus = evaluateOperatingHours(restaurant.operating_hours, restaurant.timezone);
+        const hoursStatus = evaluateOperatingHours(orderOperatingHours, orderTimezone);
         if (!hoursStatus.isOpen) {
           throw new AppError(
             hoursStatus.message || 'Restaurant is closed',
             409,
             'restaurant_closed',
-            { hoursMessage: hoursStatus.message, opensAt: hoursStatus.opensAt }
+            {
+              hoursMessage: hoursStatus.message,
+              hoursCode: hoursStatus.messageCode,
+              hoursMessageParams: hoursStatus.messageParams,
+              opensAt: hoursStatus.opensAt,
+            }
+          );
+        }
+      }
+
+      // F-33: enforce a store/channel cap on accepted orders in a rolling
+      // 15-minute window. A non-null store value overrides the restaurant
+      // setting; zero explicitly disables the inherited cap. This runs while
+      // the restaurant row lock is held so concurrent checkouts cannot both
+      // slip under the limit.
+      const pacingSettings = restaurant.settings && typeof restaurant.settings === 'object'
+        ? restaurant.settings
+        : {};
+      const storePacingLimit = isInStore
+        ? orderLocation?.in_store_order_pacing_max_per_15_min
+        : orderLocation?.online_order_pacing_max_per_15_min;
+      const inheritedPacingLimit = isInStore
+        ? (pacingSettings.inStoreOrderPacingMaxPer15Min ?? pacingSettings.in_store_order_pacing_max_per_15_min)
+        : (pacingSettings.onlineOrderPacingMaxPer15Min ?? pacingSettings.online_order_pacing_max_per_15_min);
+      const pacingLimit = Math.max(0, Math.floor(Number(
+        storePacingLimit === null || storePacingLimit === undefined ? inheritedPacingLimit : storePacingLimit
+      ) || 0));
+      if (pacingLimit > 0) {
+        const channelSources = isInStore ? Array.from(IN_STORE_SOURCES) : ['mobile', 'web'];
+        const { rows: [pacing] } = await client.query(
+          `SELECT COUNT(*)::int AS accepted_count, MIN(created_at) AS oldest_at
+             FROM food_orders
+            WHERE restaurant_id = $1
+              AND ($2::bigint IS NULL OR location_id = $2)
+              AND created_at > NOW() - INTERVAL '15 minutes'
+              AND status NOT IN ('cancelled')
+              AND order_source = ANY($3::text[])`,
+          [restaurantId, orderLocationId, channelSources]
+        );
+        if (Number(pacing?.accepted_count || 0) >= pacingLimit) {
+          const oldestAt = pacing?.oldest_at ? new Date(pacing.oldest_at).getTime() : NaN;
+          const retryAfterSeconds = Number.isFinite(oldestAt)
+            ? Math.max(1, Math.ceil((oldestAt + 15 * 60 * 1000 - Date.now()) / 1000))
+            : 900;
+          throw new AppError(
+            'This restaurant is at its order capacity for the moment. Please try again shortly.',
+            429,
+            'order_pacing_limit_reached',
+            { limit: pacingLimit, windowMinutes: 15, retryAfterSeconds, locationId: orderLocationId, channel: isInStore ? 'in_store' : 'online' }
           );
         }
       }
@@ -3055,6 +3440,9 @@ exports.createOrder = async (req, res, next) => {
       const ids = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
       const { rows: menuRows } = await client.query(
         `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
+                fmi.manual_available, fmi.inventory_available, fmi.inventory_availability_state,
+                fmi.allergens, fmi.tax_rate_bps, fmi.tax_exempt,
+                fmi.availability_schedule, ${storeMenu.overrideSql('fmi', '$3')},
                 fmc.name AS category_name,
                 COALESCE((
                   SELECT jsonb_agg(
@@ -3088,16 +3476,24 @@ exports.createOrder = async (req, res, next) => {
             AND fmi.id = ANY($2::bigint[])
             AND fmi.publication_status = 'published'
             AND fmi.archived_at IS NULL`,
-        [restaurantId, ids]
+        [restaurantId, ids, orderLocationId]
       );
-      const menuById = new Map(menuRows.map((row) => [Number(row.id), row]));
+      const menuById = new Map(menuRows.map((row) => [Number(row.id), storeMenu.applyOverride(row)]));
 
+      const allergenExclusions = normalizeAllergenExclusions(
+        req.body.allergenExclusions ?? req.body.allergen_exclusions
+      );
       const normalizedItems = items.map((item, index) => {
         const menuItemId = parsePositiveInt(item.menuItemId || item.menu_item_id);
         const menuItem = menuById.get(menuItemId);
         if (!menuItem || !menuItem.is_available) {
           throw new AppError('Validation failed', 400, 'validation_failed', {
             [`items.${index}.menuItemId`]: 'Menu item is unavailable',
+          });
+        }
+        if (menuItemHasExcludedAllergen(menuItem, allergenExclusions)) {
+          throw new AppError('Validation failed', 400, 'validation_failed', {
+            [`items.${index}.menuItemId`]: 'Menu item contains an excluded allergen',
           });
         }
         const quantity = Math.min(parsePositiveInt(item.quantity, 1), 99);
@@ -3150,6 +3546,31 @@ exports.createOrder = async (req, res, next) => {
         }
         scheduledFor = parsed.toISOString();
       }
+      if (scheduledFor) {
+        // F-11: a scheduled order must land inside operating hours; until
+        // now any future time within 48h was accepted, including 3 AM for a
+        // lunch-only kitchen.
+        const scheduledHours = evaluateOperatingHours(
+          orderOperatingHours,
+          orderTimezone,
+          new Date(scheduledFor)
+        );
+        if (!scheduledHours.isOpen) {
+          throw new AppError('Validation failed', 400, 'validation_failed', {
+            scheduledFor: 'The restaurant is closed at the scheduled time',
+          });
+        }
+      }
+      // F-11: daypart enforcement at the fulfillment instant (the scheduled
+      // time for later orders, otherwise now), mirroring quoteOrder.
+      const daypartInstant = scheduledFor ? new Date(scheduledFor) : new Date();
+      normalizedItems.forEach((entry, index) => {
+        if (!isItemAvailableAt(entry.menuItem, daypartInstant, orderTimezone)) {
+          throw new AppError('Validation failed', 400, 'validation_failed', {
+            [`items.${index}.menuItemId`]: 'Menu item is not available at this time of day',
+          });
+        }
+      });
       const pickupContactName = normalizeString(
         req.body.pickupContactName || req.body.pickup_contact_name,
         120
@@ -3312,9 +3733,11 @@ exports.createOrder = async (req, res, next) => {
       const taxableSubtotal = Math.max(0, subtotal - discount);
       const taxRateBps = Math.max(0, Math.min(10000, Number(restaurant.tax_rate_bps || 0)));
       const serviceFeeBps = Math.max(0, Math.min(10000, Number(restaurant.service_fee_bps || 0)));
-      const tax = Math.round(taxableSubtotal * taxRateBps / 10000);
+      const taxInclusive = restaurant.tax_inclusive === true;
+      const orderTax = calculateFoodTax(normalizedItems, discount, taxRateBps, taxInclusive);
+      const tax = orderTax.tax;
       const serviceFeeCents = Math.round(taxableSubtotal * serviceFeeBps / 10000);
-      const total = Math.max(0, taxableSubtotal + tax + serviceFeeCents + tip + deliveryFeeCents);
+      const total = Math.max(0, taxableSubtotal + (taxInclusive ? 0 : tax) + serviceFeeCents + tip + deliveryFeeCents);
       const screenFingerprint=normalizedItems.map(i=>({id:String(i.menuItem.id),name:i.menuItem.name,price:Number(i.menuItem.price_cents),modifiers:i.modifiers.map(m=>({id:String(m.id),name:m.name,price:Number(m.price_delta_cents)})).sort((a,b)=>a.id.localeCompare(b.id))}));
       if(req.screenExpectedFingerprint&&JSON.stringify(req.screenExpectedFingerprint)!==JSON.stringify(screenFingerprint))throw new AppError('Menu changed; review your items again',409,'screen_price_conflict');
       if(req.screenExpectedTotal!==undefined&&req.screenExpectedTotal!==total)throw new AppError('Price changed; review the current total',409,'screen_price_conflict',{currentTotalCents:total});
@@ -3381,16 +3804,6 @@ exports.createOrder = async (req, res, next) => {
         }
       }
 
-      const { rows: queueRows } = await client.query(
-        `SELECT COALESCE(MAX(queue_number), 0) + 1 AS next_queue
-           FROM food_orders
-          WHERE restaurant_id = $1
-            AND (created_at AT TIME ZONE COALESCE($2, 'UTC'))::date =
-                (CURRENT_TIMESTAMP AT TIME ZONE COALESCE($2, 'UTC'))::date`,
-        [restaurantId, restaurant.timezone || 'UTC']
-      );
-      const queueNumber = Number(queueRows[0]?.next_queue || 1);
-
       const trackingToken = createTrackingToken();
       const trackingTokenHash = hashTrackingToken(trackingToken);
       const discountMetadata = discount > 0
@@ -3410,6 +3823,7 @@ exports.createOrder = async (req, res, next) => {
           tracking_token: trackingTokenHash,
           paymentMode,
           payment_mode: paymentMode,
+          ...(allergenExclusions.length ? { allergenExclusions } : {}),
           restaurantPaymentMode: paymentContract.canonical,
           paymentContract: {
             mode: paymentContract.canonical,
@@ -3432,7 +3846,7 @@ exports.createOrder = async (req, res, next) => {
           ...(scheduledFor ? { scheduledFor } : {}),
           ...(pickupContact ? { pickupContact } : {}),
           ...(cardPaymentIntentId ? { cardPaymentIntentId } : {}),
-          pricing: { taxRateBps, serviceFeeBps, taxCents: tax, serviceFeeCents },
+          pricing: { taxRateBps, taxInclusive, taxJurisdiction: restaurant.tax_jurisdiction || null, serviceFeeBps, taxCents: tax, taxBreakdown: orderTax.breakdown, serviceFeeCents },
           ...(paymentContract.canonical === 'direct_payment' || externalPaymentSubmission ? {
             externalPayment: {
               enabled: externalPaymentEnabled,
@@ -3465,6 +3879,7 @@ exports.createOrder = async (req, res, next) => {
           trackingToken,
           paymentMode,
           payment_mode: paymentMode,
+          ...(allergenExclusions.length ? { allergenExclusions } : {}),
           restaurantPaymentMode: paymentContract.canonical,
           paymentContract: {
             mode: paymentContract.canonical,
@@ -3487,7 +3902,7 @@ exports.createOrder = async (req, res, next) => {
           ...(scheduledFor ? { scheduledFor } : {}),
           ...(pickupContact ? { pickupContact } : {}),
           ...(cardPaymentIntentId ? { cardPaymentIntentId } : {}),
-          pricing: { taxRateBps, serviceFeeBps, taxCents: tax, serviceFeeCents },
+          pricing: { taxRateBps, taxInclusive, taxJurisdiction: restaurant.tax_jurisdiction || null, taxBreakdown: orderTax.breakdown, serviceFeeBps, taxCents: tax, serviceFeeCents },
           ...(paymentContract.canonical === 'direct_payment' || externalPaymentSubmission ? {
             externalPayment: {
               enabled: externalPaymentEnabled,
@@ -3517,6 +3932,42 @@ exports.createOrder = async (req, res, next) => {
           } : {}),
         };
 
+      // Short locked critical section (F-18): every network call above
+      // (Stripe verification) is complete, so the restaurant row lock is
+      // taken only now and held only for database work. It serializes this
+      // recheck + insert pair against other creators for the restaurant,
+      // so a concurrent duplicate of this idempotency key replays cleanly
+      // instead of failing on the unique index. Queue numbers come from
+      // the atomic per-day counter and no longer need this lock.
+      await client.query(
+        `SELECT id FROM food_restaurants WHERE id = $1 FOR UPDATE`,
+        [restaurantId]
+      );
+      if (clientOrderId) {
+        const lookup = buildFoodOrderIdempotencyLookup({
+          restaurantId,
+          customerId: orderCustomerId,
+          clientOrderId,
+        });
+        const { rows: existingOrders } = await client.query(lookup.text, lookup.values);
+        if (existingOrders[0]) {
+          assertFoodOrderIdempotencyMatch(existingOrders[0], idempotencyFingerprint, clientOrderId);
+          storeMenu.pinnedLocation(existingOrders[0].location_id, req.screenLocationId);
+          const existing = existingOrders[0];
+          if (req.screenTicket) {
+            if (String(existing.location_id || '') !== String(req.screenTicket.location_id || '')) throw new AppError('Existing order belongs to another location', 409, 'screen_location_mismatch');
+            await client.query("UPDATE restaurant_screen_tickets SET status='accepted',order_id=$2,conflict_code=NULL,updated_at=NOW() WHERE id=$1", [req.screenTicket.id, existing.id]);
+          }
+          return {
+            order: existing,
+            restaurant,
+            trackingToken: existing.metadata?.trackingToken || existing.metadata?.tracking_token || null,
+            replayed: true,
+          };
+        }
+      }
+      const queueNumber = await nextQueueNumber(client, restaurantId, orderTimezone, new Date(), orderLocationId);
+
       const { rows: [created] } = await client.query(
         `INSERT INTO food_orders
            (restaurant_id, business_id, customer_id, guest_name, guest_phone, guest_email,
@@ -3525,8 +3976,8 @@ exports.createOrder = async (req, res, next) => {
             tip_cents, discount_cents, total_cents, currency_code, table_label,
             queue_number, promised_at, notes, metadata,
             kitchen_notes, pickup_contact_name, pickup_contact_phone, scheduled_for,
-            stripe_payment_intent_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW() + ($22 || ' minutes')::interval,$23,$24,$25,$26,$27,$28,$29)
+            stripe_payment_intent_id, location_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW() + ($22 || ' minutes')::interval,$23,$24,$25,$26,$27,$28,$29,$30)
          RETURNING *`,
         [
           restaurantId,
@@ -3550,7 +4001,9 @@ exports.createOrder = async (req, res, next) => {
           normalizeCurrency(restaurant.currency_code),
           normalizeString(req.body.tableLabel || req.body.table_label, 80),
           queueNumber,
-          (restaurant.prep_time_min || 15) + deliverySlotOffsetMinutes,
+          Math.max(0, parseNonNegativeInt(restaurant.prep_time_min, 15))
+            + Math.max(0, parseNonNegativeInt(restaurant.prep_time_extension_min, 0))
+            + deliverySlotOffsetMinutes,
           normalizeString(req.body.notes, 1000),
           metadata,
           kitchenNotes,
@@ -3558,28 +4011,23 @@ exports.createOrder = async (req, res, next) => {
           pickupContactPhone,
           scheduledFor,
           cardPaymentIntentId,
+          orderLocationId,
         ]
       );
 
-      if(req.screenLocationId!==undefined&&!req.screenTicket){const {rows:[scoped]}=await client.query('UPDATE food_orders SET location_id=$2 WHERE id=$1 RETURNING *',[created.id,req.screenLocationId]);Object.assign(created,scoped);}
+
       if(req.screenTicket){
         const {rows:[scoped]}=await client.query('UPDATE food_orders SET location_id=$2 WHERE id=$1 RETURNING *',[created.id,req.screenTicket.location_id]);
         Object.assign(created,scoped);
         await client.query("UPDATE restaurant_screen_tickets SET status='accepted',order_id=$2,conflict_code=NULL,updated_at=NOW() WHERE id=$1",[req.screenTicket.id,created.id]);
       }
 
-      if (paymentContract.canonical === 'card' && cardPaymentIntentId) {
-        // Link the order to the intent so payment_intent.* webhooks reconcile
-        // even if this response is lost. Fail closed: a linking failure rolls
-        // back the order and the client retries with the same idempotency key.
-        try {
-          await stripe.paymentIntents.update(cardPaymentIntentId, {
-            metadata: { food_order_id: String(created.id) },
-          });
-        } catch (err) {
-          throw new AppError('The card payment could not be linked to the order', 502, 'card_payment_link_failed');
-        }
-      }
+      // The order id is stamped onto the card PaymentIntent AFTER commit
+      // (see below), not here: stamping inside the transaction held the
+      // restaurant lock across a Stripe network call (F-18), and a stamp
+      // failure rolled back an order whose card payment had already
+      // succeeded. The intent id is stored on the order row itself, which
+      // is the fallback webhook reconciliation already uses.
 
       const createdOrderItems = [];
       for (const normalized of normalizedItems) {
@@ -3618,6 +4066,7 @@ exports.createOrder = async (req, res, next) => {
         restaurantId,
         orderId: created.id,
         orderItems: createdOrderItems,
+        locationId: created.location_id,
         reservationExpiresAt: paymentContract.canonical === 'pay_now'
           ? new Date(Date.now() + 30 * 60 * 1000)
           : null,
@@ -3769,12 +4218,21 @@ exports.createOrder = async (req, res, next) => {
       });
 
       if (promotionId) {
-        await client.query(
+        // Guarded increment (F-18): promotion resolution now runs without
+        // the restaurant row lock, so the max_uses cap it checked is
+        // re-checked atomically in the increment itself. If a concurrent
+        // order consumed the last use, fail like a changed promo instead
+        // of overshooting the cap.
+        const { rowCount: promoUsesUpdated } = await client.query(
           `UPDATE food_restaurant_promotions
               SET use_count = use_count + 1, updated_at = NOW()
-            WHERE id = $1 AND restaurant_id = $2`,
+            WHERE id = $1 AND restaurant_id = $2
+              AND (max_uses IS NULL OR use_count < max_uses)`,
           [promotionId, restaurantId]
         );
+        if (promoUsesUpdated === 0) {
+          throw new AppError('The promo discount changed; review your order again', 409, 'promo_changed');
+        }
       } else if (discountMetadata?.discountCodeId) {
         // Atomic redemption in the order transaction (re-validated under a
         // row lock, so a code that hit its limit meanwhile rolls the order back).
@@ -3787,7 +4245,12 @@ exports.createOrder = async (req, res, next) => {
           throw new AppError('The promo discount changed; review your order again', 409, 'promo_changed');
         }
         if (created.payment_status === 'paid') {
-          await promoRedemption.markRedeemed(client, { surface: 'food', referenceId: created.id });
+          const promoOut = {};
+          await promoRedemption.markRedeemed(client, { surface: 'food', referenceId: created.id }, promoOut);
+          const { emitDomainEvent, commerceEventProps } = require('../growth/emit');
+          for (const row of promoOut.transitioned || []) {
+            await emitDomainEvent(client, 'promo.redeemed', commerceEventProps(row), { userId: row.user_id, req });
+          }
         }
       }
 
@@ -3797,6 +4260,17 @@ exports.createOrder = async (req, res, next) => {
           orderId: created.id,
           pointsRedeemed: loyaltyPointsRedeemed,
         });
+      }
+
+      if (created.customer_id) {
+        const { emitDomainEvent, foodEventProps } = require('../growth/emit');
+        const growthProps = foodEventProps(created, {
+          itemCount: normalizedItems.reduce((n, i) => n + (Number(i.quantity) || 0), 0),
+        });
+        await emitDomainEvent(client, 'food.order_placed', growthProps, { userId: created.customer_id, req });
+        if (created.payment_status === 'paid') {
+          await emitDomainEvent(client, 'food.order_paid', growthProps, { userId: created.customer_id, req });
+        }
       }
 
       const runnerTask = await maybeCreateDeliveryRunnerTask(client, {
@@ -3815,8 +4289,28 @@ exports.createOrder = async (req, res, next) => {
         printerJobs,
         walletPayment,
         oxsteedCreditPayment,
+        cardPaymentIntentId,
       };
     }, 'food_create_order');
+
+    // Post-commit (F-18): link the order to its card PaymentIntent so
+    // payment_intent.* webhooks reconcile even if this response is lost.
+    // Best effort by design: the webhook handler falls back to the intent
+    // id recorded on the order row when the stamp is missing, so a failed
+    // stamp is logged and never fails a paid, committed order.
+    if (!createdOrder.replayed && createdOrder.cardPaymentIntentId && stripe) {
+      try {
+        await stripe.paymentIntents.update(createdOrder.cardPaymentIntentId, {
+          metadata: { food_order_id: String(createdOrder.order.id) },
+        });
+      } catch (stampErr) {
+        logger.warn('Card PaymentIntent order stamp failed; webhook fallback by intent id remains available', {
+          orderId: createdOrder.order.id,
+          paymentIntentId: createdOrder.cardPaymentIntentId,
+          error: stampErr?.message || 'unknown_error',
+        });
+      }
+    }
 
     let order = createdOrder.order;
     let payment = null;
@@ -4173,6 +4667,9 @@ exports.listRestaurantOrders = async (req, res, next) => {
       filters.push(`fo.status IN ('received','accepted','preparing','ready')`);
       // Review P1-236: unpaid pay_now checkouts are not kitchen work yet.
       filters.push(`NOT (COALESCE(fo.metadata->>'paymentMode', '') = 'pay_now' AND fo.payment_status = 'requires_payment')`);
+      // F-11: scheduled orders stay out of the kitchen feed until their
+      // fire time (scheduled_for minus the restaurant prep lead).
+      filters.push(SCHEDULED_ORDER_HOLD_SQL);
     } else if (scope === 'history') {
       filters.push(`fo.status IN ('completed','cancelled','refunded')`);
     } else if (req.query.active === '1' || req.query.active === 'true') {
@@ -4180,6 +4677,8 @@ exports.listRestaurantOrders = async (req, res, next) => {
       filters.push(`fo.status IN ('received','accepted','preparing','ready')`);
       // Review P1-236: unpaid pay_now checkouts are not kitchen work yet.
       filters.push(`NOT (COALESCE(fo.metadata->>'paymentMode', '') = 'pay_now' AND fo.payment_status = 'requires_payment')`);
+      // F-11: hold scheduled orders until fire time, as in scope=active.
+      filters.push(SCHEDULED_ORDER_HOLD_SQL);
       filters.push(`(fo.created_at AT TIME ZONE COALESCE(
         (SELECT fr.timezone FROM food_restaurants fr WHERE fr.id = fo.restaurant_id), 'UTC'
       ))::date = (CURRENT_TIMESTAMP AT TIME ZONE COALESCE(
@@ -4378,6 +4877,21 @@ exports.updateOrderStatus = async (req, res, next) => {
       refunded: 'cancelled_at',
     }[status];
 
+    // F-16: an order may be completed only once it is paid (or comped).
+    // A manager may override with an explicit complete_unpaid_reason;
+    // the override and its reason are written to the kitchen event log
+    // when the transition succeeds. Device credentials (managed screens,
+    // paired displays) have no user and can never override.
+    const completeUnpaidReason = normalizeString(
+      req.body.completeUnpaidReason || req.body.complete_unpaid_reason,
+      1000
+    );
+    let unpaidCompletionOverride = false;
+    if (status === 'completed' && completeUnpaidReason && req.user
+      && !req.screenDevice && !req.displayDevice) {
+      unpaidCompletionOverride = await hasRestaurantPermission(restaurant, ['orders.manage']);
+    }
+
     const transitionResult = await withTransaction(pool, async (client) => {
       if (idempotencyKey) {
         await client.query(
@@ -4465,6 +4979,7 @@ exports.updateOrderStatus = async (req, res, next) => {
             AND NOT ($1 IN ('accepted','preparing','ready','completed')
                      AND COALESCE(current.metadata->>'paymentMode', '') = 'pay_now'
                      AND current.payment_status = 'requires_payment')
+            AND ($1 <> 'completed' OR current.payment_status IN ('paid','comped') OR $8 = TRUE)
             AND ($1 <> 'completed' OR current.fulfillment_type <> 'delivery'
                  OR EXISTS (SELECT 1 FROM restaurant_runner_tasks WHERE food_order_id = current.id AND status = 'Completed' AND handoff_at IS NOT NULL))
             AND (
@@ -4492,6 +5007,7 @@ exports.updateOrderStatus = async (req, res, next) => {
           req.user?.id || null,
           qualityCheckRequired,
           enforceKitchenReadiness,
+          unpaidCompletionOverride,
         ]
       );
       if (!order) {
@@ -4505,6 +5021,11 @@ exports.updateOrderStatus = async (req, res, next) => {
           && existing[0].payment_status === 'requires_payment'
           && existing[0].metadata?.paymentMode === 'pay_now') {
           throw new AppError('This order has not been paid yet', 409, 'order_payment_pending');
+        }
+        if (status === 'completed'
+          && !['paid', 'comped'].includes(existing[0].payment_status)
+          && !unpaidCompletionOverride) {
+          throw new AppError('Record payment before completing this order', 409, 'order_unpaid');
         }
         if (status === 'completed' && existing[0].fulfillment_type === 'delivery') {
           throw new AppError(
@@ -4560,6 +5081,11 @@ exports.updateOrderStatus = async (req, res, next) => {
         );
       }
 
+      // F-16 audit: a manager override that completes an unpaid order is
+      // recorded on the kitchen event with its reason, so the leakage
+      // exception is always attributable.
+      const usedUnpaidOverride = status === 'completed' && unpaidCompletionOverride
+        && !['paid', 'comped'].includes(order.payment_status);
       await client.query(
         `INSERT INTO restaurant_kitchen_events
            (restaurant_id, food_order_id, event_type, from_status, to_status,
@@ -4572,12 +5098,15 @@ exports.updateOrderStatus = async (req, res, next) => {
           order.previous_status,
           status,
           stationLabel,
-          reason,
+          usedUnpaidOverride ? completeUnpaidReason : reason,
           JSON.stringify({
             fromKitchenStage: order.previous_kitchen_stage || null,
             toKitchenStage: order.kitchen_stage || null,
             source: 'food_order_status',
             actorRole: restaurant.effective_role || null,
+            ...(usedUnpaidOverride
+              ? { completeUnpaidOverride: true, completeUnpaidReason }
+              : {}),
           }),
           idempotencyKey,
           req.user?.id || null,
@@ -4748,6 +5277,7 @@ exports.updateOrderStatus = async (req, res, next) => {
         await consumeInventoryForOrder(client, {
           restaurantId,
           orderId: order.id,
+          locationId: order.location_id,
           actorUserId: req.user?.id || null,
         });
         // P3-9-F05: loyalty earn commits in the SAME transaction as the
@@ -4769,10 +5299,21 @@ exports.updateOrderStatus = async (req, res, next) => {
         await releaseInventoryForOrder(client, {
           restaurantId,
           orderId: order.id,
+          locationId: order.location_id,
         });
         // M13: claw back loyalty points earned on completion so refunded
         // orders cannot farm points.
         await clawBackFoodLoyaltyOnRefund(client, order);
+      }
+
+      if (order.customer_id) {
+        const { emitDomainEvent, foodEventProps } = require('../growth/emit');
+        if (status === 'cancelled') {
+          await emitDomainEvent(client, 'food.order_cancelled', foodEventProps(order), { userId: order.customer_id });
+        }
+        if (previousPaymentStatus === 'paid' && order.payment_status === 'refunded') {
+          await emitDomainEvent(client, 'food.order_refunded', foodEventProps(order), { userId: order.customer_id });
+        }
       }
 
       return { order, walletRefund, payment };
@@ -5081,6 +5622,10 @@ exports.listMyRestaurants = async (req, res, next) => {
               rca.stripe_account_id AS business_stripe_account_id,
               rca.charges_enabled AS business_stripe_charges_enabled,
               rca.payouts_enabled AS business_stripe_payouts_enabled,
+              (SELECT COALESCE(jsonb_agg(jsonb_build_object(
+                'id', l.id, 'name', l.name, 'status', l.status, 'is_primary', l.is_primary
+                ) ORDER BY l.is_primary DESC, l.id), '[]'::jsonb)
+                 FROM restaurant_locations l WHERE l.restaurant_id = fr.id) AS locations,
               CASE
                 WHEN fr.owner_user_id = $1 OR b.user_id = $1 THEN 'owner'
                 ELSE bm.role
@@ -5132,7 +5677,7 @@ const RESTAURANT_PATCH_FIELDS = {
   addressCountry: { column: 'address_country', value: (v) => normalizeCountry(v) },
   latitude: { column: 'latitude', value: (v) => (Number.isFinite(Number(v)) ? Number(v) : null) },
   longitude: { column: 'longitude', value: (v) => (Number.isFinite(Number(v)) ? Number(v) : null) },
-  timezone: { column: 'timezone', value: (v) => normalizeString(v, 80) || 'UTC' },
+  timezone: { column: 'timezone', value: (v) => normalizeIanaTimezone(v) || 'UTC' },
   currencyCode: { column: 'currency_code', value: (v) => normalizeCurrency(v) },
   cuisineTags: { column: 'cuisine_tags', value: (v) => normalizeTextArray(v) },
   dietaryTags: { column: 'dietary_tags', value: (v) => normalizeDietaryTags(v) },
@@ -5167,6 +5712,18 @@ function normalizeRestaurantCheckoutSettingsPatch(settings = {}) {
     );
   }
   return patch;
+}
+
+// F-33: online order pacing setting. Stored in food_restaurants.settings as
+// onlineOrderPacingMaxPer15Min (accepted orders per rolling 15-minute
+// window for the online channel; 0 disables pacing).
+function normalizeFoodPacingSettingsPatch(settings = {}) {
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return {};
+  const raw = settings.onlineOrderPacingMaxPer15Min ?? settings.online_order_pacing_max_per_15_min;
+  if (raw === undefined) return {};
+  const value = Math.floor(Number(raw));
+  if (!Number.isFinite(value)) return {};
+  return { onlineOrderPacingMaxPer15Min: Math.max(0, Math.min(1000, value)) };
 }
 
 function normalizeFoodExternalPaymentSettingsPatch(settings = {}) {
@@ -5353,6 +5910,7 @@ exports.updateRestaurant = async (req, res, next) => {
     const settingsPatch = {
       ...normalizeRestaurantCheckoutSettingsPatch(settingsInput),
       ...normalizeFoodExternalPaymentSettingsPatch(settingsInput),
+      ...normalizeFoodPacingSettingsPatch(settingsInput),
     };
     if (Object.keys(settingsPatch).length > 0) {
       params.push(JSON.stringify(settingsPatch));
@@ -5447,6 +6005,43 @@ exports.updateRestaurant = async (req, res, next) => {
           ]
         );
       }
+
+      // F-20: tax-rate and settings changes are money-relevant and were
+      // previously invisible in the audit trail. Log before/after for the
+      // fields that actually changed, in the same transaction.
+      if (updated.business_id) {
+        const beforeSettings = restaurantAccess.settings && typeof restaurantAccess.settings === 'object'
+          ? restaurantAccess.settings
+          : {};
+        const priorChanged = {};
+        const nextChanged = {};
+        if (Number(updated.tax_rate_bps) !== Number(restaurantAccess.tax_rate_bps)) {
+          priorChanged.tax_rate_bps = restaurantAccess.tax_rate_bps;
+          nextChanged.tax_rate_bps = updated.tax_rate_bps;
+        }
+        for (const key of Object.keys(settingsPatch)) {
+          const beforeValue = beforeSettings[key] ?? null;
+          const afterValue = updated.settings && typeof updated.settings === 'object'
+            ? (updated.settings[key] ?? null)
+            : null;
+          if (JSON.stringify(beforeValue) !== JSON.stringify(afterValue)) {
+            priorChanged[`settings.${key}`] = beforeValue;
+            nextChanged[`settings.${key}`] = afterValue;
+          }
+        }
+        if (Object.keys(nextChanged).length > 0) {
+          await logBusinessAction(req, {
+            client,
+            business_id: updated.business_id,
+            actor_role: restaurantAccess.effective_role,
+            action: 'restaurant.settings.updated',
+            target_type: 'restaurant',
+            target_id: updated.id,
+            before_state: priorChanged,
+            after_state: nextChanged,
+          });
+        }
+      }
       return updated;
     }, 'restaurant_update');
     res.json({ restaurant });
@@ -5461,6 +6056,10 @@ exports.updateMenuCategory = async (req, res, next) => {
     const categoryId = parsePositiveInt(req.params.categoryId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
+    const { rows: [existingCategory] } = await pool.query(
+      'SELECT * FROM food_menu_categories WHERE id = $1 AND restaurant_id = $2',
+      [categoryId, restaurantId]
+    );
     const { rows: [category] } = await pool.query(
       `UPDATE food_menu_categories
           SET name = COALESCE($1, name),
@@ -5480,6 +6079,13 @@ exports.updateMenuCategory = async (req, res, next) => {
       ]
     );
     if (!category) throw new AppError('Category not found', 404, 'category_not_found');
+    await auditFoodChange(req, restaurant, {
+      action: 'menu.category.updated',
+      target_type: 'menu_category',
+      target_id: category.id,
+      before_state: menuCategoryAuditSnapshot(existingCategory),
+      after_state: menuCategoryAuditSnapshot(category),
+    });
     res.json({ category });
   } catch (err) {
     next(err);
@@ -5492,11 +6098,21 @@ exports.deleteMenuCategory = async (req, res, next) => {
     const categoryId = parsePositiveInt(req.params.categoryId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
+    const { rows: [existingCategory] } = await pool.query(
+      'SELECT * FROM food_menu_categories WHERE id = $1 AND restaurant_id = $2',
+      [categoryId, restaurantId]
+    );
     const { rowCount } = await pool.query(
       `DELETE FROM food_menu_categories WHERE id = $1 AND restaurant_id = $2`,
       [categoryId, restaurantId]
     );
     if (!rowCount) throw new AppError('Category not found', 404, 'category_not_found');
+    await auditFoodChange(req, restaurant, {
+      action: 'menu.category.deleted',
+      target_type: 'menu_category',
+      target_id: categoryId,
+      before_state: menuCategoryAuditSnapshot(existingCategory),
+    });
     res.status(204).end();
   } catch (err) {
     next(err);
@@ -5549,6 +6165,16 @@ exports.updateMenuItem = async (req, res, next) => {
     }
     if (has('tags')) add('tags', normalizeTextArray(req.body.tags, 20));
     if (has('allergens')) add('allergens', normalizeTextArray(req.body.allergens, 20));
+    if (has('taxRateBps', 'tax_rate_bps')) {
+      add('tax_rate_bps', normalizeMenuTaxRate(req.body.taxRateBps ?? req.body.tax_rate_bps));
+    }
+    if (has('taxExempt', 'tax_exempt')) {
+      const taxExempt = req.body.taxExempt ?? req.body.tax_exempt;
+      if (typeof taxExempt !== 'boolean') {
+        throw new AppError('Validation failed', 400, 'validation_failed', { taxExempt: 'Tax exemption must be true or false' });
+      }
+      add('tax_exempt', taxExempt);
+    }
     if (has('publicationStatus', 'publication_status')) {
       const status = req.body.publicationStatus ?? req.body.publication_status;
       if (!['draft', 'published'].includes(status)) {
@@ -5572,6 +6198,11 @@ exports.updateMenuItem = async (req, res, next) => {
     }
     sets.push('updated_at = NOW()');
     params.push(itemId, restaurantId);
+    // F-20: capture the before image for the audit trail.
+    const { rows: [existingItem] } = await pool.query(
+      'SELECT * FROM food_menu_items WHERE id = $1 AND restaurant_id = $2',
+      [itemId, restaurantId]
+    );
     const { rows: [item] } = await pool.query(
       `UPDATE food_menu_items SET ${sets.join(', ')}
         WHERE id = $${params.length - 1} AND restaurant_id = $${params.length}
@@ -5579,6 +6210,13 @@ exports.updateMenuItem = async (req, res, next) => {
       params
     );
     if (!item) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
+    await auditFoodChange(req, restaurant, {
+      action: 'menu.item.updated',
+      target_type: 'menu_item',
+      target_id: item.id,
+      before_state: menuItemAuditSnapshot(existingItem),
+      after_state: menuItemAuditSnapshot(item),
+    });
     // Audit fix (P2-3-F13): availability/menu edits can break publish
     // readiness (restaurants need at least one available menu item).
     // Re-check and auto-unpublish if the business is now incomplete.
@@ -5605,11 +6243,21 @@ exports.deleteMenuItem = async (req, res, next) => {
     const itemId = parsePositiveInt(req.params.itemId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
+    const { rows: [existingItem] } = await pool.query(
+      'SELECT * FROM food_menu_items WHERE id = $1 AND restaurant_id = $2',
+      [itemId, restaurantId]
+    );
     const { rowCount } = await pool.query(
       `DELETE FROM food_menu_items WHERE id = $1 AND restaurant_id = $2`,
       [itemId, restaurantId]
     );
     if (!rowCount) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
+    await auditFoodChange(req, restaurant, {
+      action: 'menu.item.deleted',
+      target_type: 'menu_item',
+      target_id: itemId,
+      before_state: menuItemAuditSnapshot(existingItem),
+    });
     // Audit fix (P2-3-F13): deleting menu items can break publish readiness.
     // The 204 contract has no body, so the guard's audit log + server log are
     // the feedback channel here.
@@ -5672,6 +6320,20 @@ exports.createModifierGroup = async (req, res, next) => {
         );
         createdOptions.push(option);
       }
+      await auditFoodChange(req, restaurant, {
+        client,
+        action: 'menu.modifier_group.created',
+        target_type: 'modifier_group',
+        target_id: created.id,
+        after_state: {
+          name: created.name,
+          menu_item_id: itemId,
+          min_select: created.min_select,
+          max_select: created.max_select,
+          is_required: created.is_required,
+          options: createdOptions.map((o) => ({ name: o.name, price_delta_cents: o.price_delta_cents })),
+        },
+      });
       return { ...created, options: createdOptions };
     }, 'food_create_modifier_group');
 
@@ -5694,6 +6356,17 @@ exports.updateModifierGroup = async (req, res, next) => {
     const group = await withTransaction(pool, async (client) => {
       const minSelect = Math.max(0, parsePositiveInt(req.body.minSelect ?? req.body.min_select, 0) || 0);
       const maxSelect = Math.max(minSelect, parsePositiveInt(req.body.maxSelect ?? req.body.max_select, 1) || 1);
+      // F-20: before image for the audit trail (options carry price deltas).
+      const { rows: [priorGroup] } = await client.query(
+        'SELECT * FROM food_modifier_groups WHERE id = $1 AND restaurant_id = $2',
+        [groupId, restaurantId]
+      );
+      const { rows: priorOptions } = priorGroup
+        ? await client.query(
+          'SELECT name, price_delta_cents FROM food_modifiers WHERE modifier_group_id = $1 ORDER BY sort_order, id',
+          [groupId]
+        )
+        : { rows: [] };
       const { rows: [updated] } = await client.query(
         `UPDATE food_modifier_groups
             SET name = $1, min_select = $2, max_select = $3,
@@ -5733,6 +6406,28 @@ exports.updateModifierGroup = async (req, res, next) => {
         );
         updatedOptions.push(option);
       }
+      await auditFoodChange(req, restaurant, {
+        client,
+        action: 'menu.modifier_group.updated',
+        target_type: 'modifier_group',
+        target_id: updated.id,
+        before_state: priorGroup
+          ? {
+            name: priorGroup.name,
+            min_select: priorGroup.min_select,
+            max_select: priorGroup.max_select,
+            is_required: priorGroup.is_required,
+            options: priorOptions,
+          }
+          : null,
+        after_state: {
+          name: updated.name,
+          min_select: updated.min_select,
+          max_select: updated.max_select,
+          is_required: updated.is_required,
+          options: updatedOptions.map((o) => ({ name: o.name, price_delta_cents: o.price_delta_cents })),
+        },
+      });
       return { ...updated, options: updatedOptions };
     }, 'food_update_modifier_group');
 
@@ -5804,6 +6499,13 @@ exports.duplicateMenuItem = async (req, res, next) => {
       return created;
     }, 'food_duplicate_menu_item');
 
+    await auditFoodChange(req, restaurant, {
+      action: 'menu.item.created',
+      target_type: 'menu_item',
+      target_id: item.id,
+      after_state: menuItemAuditSnapshot(item),
+      metadata: { duplicated_from_item_id: itemId },
+    });
     res.status(201).json({ item });
   } catch (err) {
     next(err);
@@ -5816,11 +6518,35 @@ exports.deleteModifierGroup = async (req, res, next) => {
     const groupId = parsePositiveInt(req.params.groupId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
+    const { rows: [priorGroup] } = await pool.query(
+      'SELECT * FROM food_modifier_groups WHERE id = $1 AND restaurant_id = $2',
+      [groupId, restaurantId]
+    );
+    const { rows: priorOptions } = priorGroup
+      ? await pool.query(
+        'SELECT name, price_delta_cents FROM food_modifiers WHERE modifier_group_id = $1 ORDER BY sort_order, id',
+        [groupId]
+      )
+      : { rows: [] };
     const { rowCount } = await pool.query(
       `DELETE FROM food_modifier_groups WHERE id = $1 AND restaurant_id = $2`,
       [groupId, restaurantId]
     );
     if (!rowCount) throw new AppError('Modifier group not found', 404, 'modifier_group_not_found');
+    await auditFoodChange(req, restaurant, {
+      action: 'menu.modifier_group.deleted',
+      target_type: 'modifier_group',
+      target_id: groupId,
+      before_state: priorGroup
+        ? {
+          name: priorGroup.name,
+          min_select: priorGroup.min_select,
+          max_select: priorGroup.max_select,
+          is_required: priorGroup.is_required,
+          options: priorOptions,
+        }
+        : null,
+    });
     res.status(204).end();
   } catch (err) {
     next(err);
@@ -6752,6 +7478,12 @@ exports.createRestaurantPromotion = async (req, res, next) => {
         req.body.isActive !== false,
       ]
     );
+    await auditFoodChange(req, restaurant, {
+      action: 'restaurant.promotion.created',
+      target_type: 'promotion',
+      target_id: promotion.id,
+      after_state: promotionAuditSnapshot(promotion),
+    });
     res.status(201).json({ promotion });
   } catch (err) {
     if (isMissingRelationError(err)) {
@@ -6829,6 +7561,10 @@ exports.updateRestaurantPromotion = async (req, res, next) => {
     params.push(promotionId, restaurantId);
 
     try {
+      const { rows: [existingPromotion] } = await pool.query(
+        'SELECT * FROM food_restaurant_promotions WHERE id = $1 AND restaurant_id = $2',
+        [promotionId, restaurantId]
+      );
       const { rows: [promotion] } = await pool.query(
         `UPDATE food_restaurant_promotions
             SET ${sets.join(', ')}
@@ -6837,6 +7573,13 @@ exports.updateRestaurantPromotion = async (req, res, next) => {
         params
       );
       if (!promotion) throw new AppError('Promotion not found', 404, 'promotion_not_found');
+      await auditFoodChange(req, restaurant, {
+        action: 'restaurant.promotion.updated',
+        target_type: 'promotion',
+        target_id: promotion.id,
+        before_state: promotionAuditSnapshot(existingPromotion),
+        after_state: promotionAuditSnapshot(promotion),
+      });
       return res.json({ promotion });
     } catch (err) {
       if (isMissingRelationError(err)) {
@@ -7146,7 +7889,14 @@ exports.listRestaurantLocations = async (req, res, next) => {
       const { rows } = await pool.query(
         `SELECT id, restaurant_id, name, address_street, address_city, address_state, address_zip,
                 address_country, latitude, longitude, timezone, phone, is_primary, status,
-                operating_hours, created_at, updated_at
+                operating_hours, tax_rate_bps, service_fee_bps, tax_inclusive,
+                tax_jurisdiction, online_order_pacing_max_per_15_min,
+                in_store_order_pacing_max_per_15_min, prep_time_extension_min,
+                region_id,
+                (SELECT rr.name FROM restaurant_regions rr
+                  WHERE rr.restaurant_id = restaurant_locations.restaurant_id
+                    AND rr.id = restaurant_locations.region_id) AS region_name,
+                created_at, updated_at
            FROM restaurant_locations
           WHERE restaurant_id = $1 ${isMerchant ? '' : "AND status = 'active'"}
           ORDER BY is_primary DESC, name ASC`,
@@ -7171,36 +7921,94 @@ exports.createRestaurantLocation = async (req, res, next) => {
     if (!name) {
       throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Location name is required' });
     }
-    const isPrimary = req.body.isPrimary === true || req.body.is_primary === true;
-    if (isPrimary) {
-      await pool.query(
-        `UPDATE restaurant_locations SET is_primary = FALSE, updated_at = NOW() WHERE restaurant_id = $1`,
-        [restaurantId]
-      );
+    // F-28: validate before any write. An unknown status used to reach the
+    // CHECK constraint as a 500 after the primary flag had been cleared.
+    const status = normalizeString(req.body.status, 24) || 'active';
+    if (!LOCATION_STATUSES.has(status)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        status: 'Status must be active, paused, or closed',
+      });
     }
-    const { rows: [location] } = await pool.query(
-      `INSERT INTO restaurant_locations
-         (restaurant_id, name, address_street, address_city, address_state, address_zip,
-          address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-       RETURNING *`,
-      [
-        restaurantId,
-        name,
-        normalizeString(req.body.addressStreet || req.body.address_street, 255),
-        normalizeString(req.body.addressCity || req.body.address_city, 120),
-        normalizeString(req.body.addressState || req.body.address_state, 120),
-        normalizeString(req.body.addressZip || req.body.address_zip, 40),
-        normalizeCountry(req.body.addressCountry || req.body.address_country),
-        Number.isFinite(Number(req.body.latitude)) ? Number(req.body.latitude) : null,
-        Number.isFinite(Number(req.body.longitude)) ? Number(req.body.longitude) : null,
-        normalizeString(req.body.timezone, 80) || 'UTC',
-        normalizeString(req.body.phone, 40),
-        isPrimary,
-        normalizeString(req.body.status, 24) || 'active',
-        normalizeHoursInput(req.body.operatingHours || req.body.operating_hours),
-      ]
-    );
+    const timezone = normalizeIanaTimezone(req.body.timezone) || 'UTC';
+    const requestedRegionId = req.body.regionId ?? req.body.region_id;
+    const regionId = requestedRegionId === undefined || requestedRegionId === null || requestedRegionId === ''
+      ? null
+      : parsePositiveInt(requestedRegionId);
+    if (requestedRegionId !== undefined && requestedRegionId !== null && requestedRegionId !== '' && !regionId) {
+      throw new AppError('A valid region is required', 400, 'invalid_region_id');
+    }
+    const isPrimary = req.body.isPrimary === true || req.body.is_primary === true;
+    // F-28: the primary flip and the insert are one transaction, so a failed
+    // insert can no longer leave the restaurant with no primary location.
+    const location = await withTransaction(pool, async (client) => {
+      if (isPrimary) {
+        await client.query(
+          `UPDATE restaurant_locations SET is_primary = FALSE, updated_at = NOW() WHERE restaurant_id = $1`,
+          [restaurantId]
+        );
+      }
+      if (regionId) {
+        const { rows: [region] } = await client.query(
+          `SELECT id FROM restaurant_regions WHERE restaurant_id = $1 AND id = $2`,
+          [restaurantId, regionId]
+        );
+        if (!region) throw new AppError('Region not found', 404, 'region_not_found');
+      }
+      const { rows: [created] } = await client.query(
+        `INSERT INTO restaurant_locations
+           (restaurant_id, name, address_street, address_city, address_state, address_zip,
+            address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours,
+            tax_rate_bps, service_fee_bps, tax_inclusive, tax_jurisdiction,
+            online_order_pacing_max_per_15_min, in_store_order_pacing_max_per_15_min,
+            prep_time_extension_min, region_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+         RETURNING *`,
+        [
+          restaurantId,
+          name,
+          normalizeString(req.body.addressStreet || req.body.address_street, 255),
+          normalizeString(req.body.addressCity || req.body.address_city, 120),
+          normalizeString(req.body.addressState || req.body.address_state, 120),
+          normalizeString(req.body.addressZip || req.body.address_zip, 40),
+          normalizeCountry(req.body.addressCountry || req.body.address_country),
+          parseOptionalCoordinate(req.body.latitude),
+          parseOptionalCoordinate(req.body.longitude),
+          timezone,
+          normalizeString(req.body.phone, 40),
+          isPrimary,
+          status,
+          normalizeHoursInput(req.body.operatingHours || req.body.operating_hours),
+          normalizeLocationRate(req.body.taxRateBps ?? req.body.tax_rate_bps, 'taxRateBps'),
+          normalizeLocationRate(req.body.serviceFeeBps ?? req.body.service_fee_bps, 'serviceFeeBps'),
+          req.body.taxInclusive === true || req.body.tax_inclusive === true,
+          normalizeLocationTaxJurisdiction(req.body.taxJurisdiction ?? req.body.tax_jurisdiction),
+          normalizeLocationInteger(req.body.onlineOrderPacingMaxPer15Min ?? req.body.online_order_pacing_max_per_15_min, 'onlineOrderPacingMaxPer15Min'),
+          normalizeLocationInteger(req.body.inStoreOrderPacingMaxPer15Min ?? req.body.in_store_order_pacing_max_per_15_min, 'inStoreOrderPacingMaxPer15Min'),
+          normalizeLocationInteger(req.body.prepTimeExtensionMin ?? req.body.prep_time_extension_min, 'prepTimeExtensionMin', { nullable: false, max: 240 }),
+          regionId,
+        ]
+      );
+      return created;
+    }, 'food_create_location');
+    await auditFoodChange(req, restaurant, {
+      action: 'restaurant.location.created',
+      target_type: 'restaurant_location',
+      target_id: location.id,
+      after_state: {
+        name: location.name,
+        status: location.status,
+        timezone: location.timezone,
+        operating_hours: location.operating_hours || {},
+        tax_rate_bps: location.tax_rate_bps,
+        service_fee_bps: location.service_fee_bps,
+        tax_inclusive: location.tax_inclusive,
+        tax_jurisdiction: location.tax_jurisdiction,
+        online_order_pacing_max_per_15_min: location.online_order_pacing_max_per_15_min,
+        in_store_order_pacing_max_per_15_min: location.in_store_order_pacing_max_per_15_min,
+        prep_time_extension_min: location.prep_time_extension_min,
+        region_id: location.region_id,
+      },
+    });
     res.status(201).json({ location: attachRestaurantHours(location) });
   } catch (err) {
     if (isMissingRelationError(err)) {
@@ -7216,56 +8024,149 @@ exports.updateRestaurantLocation = async (req, res, next) => {
     const locationId = parsePositiveInt(req.params.locationId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantManage(restaurant);
-    const { rows: existing } = await pool.query(
-      `SELECT * FROM restaurant_locations WHERE id = $1 AND restaurant_id = $2`,
-      [locationId, restaurantId]
-    );
-    if (!existing[0]) throw new AppError('Location not found', 404, 'location_not_found');
-
-    if (req.body.isPrimary === true || req.body.is_primary === true) {
-      await pool.query(
-        `UPDATE restaurant_locations SET is_primary = FALSE, updated_at = NOW() WHERE restaurant_id = $1`,
-        [restaurantId]
-      );
+    // F-28: validate before any write, then read + primary flip + update in
+    // one transaction. The old flow cleared every primary flag on the pool
+    // before the update ran, so a rejected update lost the primary location.
+    const status = normalizeString(req.body.status, 24);
+    if (status && !LOCATION_STATUSES.has(status)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        status: 'Status must be active, paused, or closed',
+      });
+    }
+    const timezone = normalizeIanaTimezone(req.body.timezone);
+    const makePrimary = req.body.isPrimary === true || req.body.is_primary === true;
+    const hasTaxRate = Object.hasOwn(req.body, 'taxRateBps') || Object.hasOwn(req.body, 'tax_rate_bps');
+    const hasServiceFee = Object.hasOwn(req.body, 'serviceFeeBps') || Object.hasOwn(req.body, 'service_fee_bps');
+    const hasTaxInclusive = Object.hasOwn(req.body, 'taxInclusive') || Object.hasOwn(req.body, 'tax_inclusive');
+    const hasTaxJurisdiction = Object.hasOwn(req.body, 'taxJurisdiction') || Object.hasOwn(req.body, 'tax_jurisdiction');
+    const hasOnlinePacing = Object.hasOwn(req.body, 'onlineOrderPacingMaxPer15Min') || Object.hasOwn(req.body, 'online_order_pacing_max_per_15_min');
+    const hasInStorePacing = Object.hasOwn(req.body, 'inStoreOrderPacingMaxPer15Min') || Object.hasOwn(req.body, 'in_store_order_pacing_max_per_15_min');
+    const hasPrepExtension = Object.hasOwn(req.body, 'prepTimeExtensionMin') || Object.hasOwn(req.body, 'prep_time_extension_min');
+    const hasRegion = Object.hasOwn(req.body, 'regionId') || Object.hasOwn(req.body, 'region_id');
+    const regionValue = req.body.regionId ?? req.body.region_id;
+    const regionId = hasRegion && regionValue !== null && regionValue !== '' ? parsePositiveInt(regionValue) : null;
+    if (hasRegion && regionValue !== null && regionValue !== '' && !regionId) {
+      throw new AppError('A valid region is required', 400, 'invalid_region_id');
     }
 
-    const { rows: [location] } = await pool.query(
-      `UPDATE restaurant_locations
-          SET name = COALESCE($1, name),
-              address_street = COALESCE($2, address_street),
-              address_city = COALESCE($3, address_city),
-              address_state = COALESCE($4, address_state),
-              address_zip = COALESCE($5, address_zip),
-              address_country = COALESCE($6, address_country),
-              latitude = COALESCE($7, latitude),
-              longitude = COALESCE($8, longitude),
-              timezone = COALESCE($9, timezone),
-              phone = COALESCE($10, phone),
-              is_primary = COALESCE($11, is_primary),
-              status = COALESCE($12, status),
-              operating_hours = COALESCE($13, operating_hours),
-              updated_at = NOW()
-        WHERE id = $14 AND restaurant_id = $15
-        RETURNING *`,
-      [
-        normalizeString(req.body.name, 160),
-        normalizeString(req.body.addressStreet || req.body.address_street, 255),
-        normalizeString(req.body.addressCity || req.body.address_city, 120),
-        normalizeString(req.body.addressState || req.body.address_state, 120),
-        normalizeString(req.body.addressZip || req.body.address_zip, 40),
-        req.body.addressCountry || req.body.address_country ? normalizeCountry(req.body.addressCountry || req.body.address_country) : null,
-        Number.isFinite(Number(req.body.latitude)) ? Number(req.body.latitude) : null,
-        Number.isFinite(Number(req.body.longitude)) ? Number(req.body.longitude) : null,
-        normalizeString(req.body.timezone, 80),
-        normalizeString(req.body.phone, 40),
-        typeof (req.body.isPrimary ?? req.body.is_primary) === 'boolean' ? (req.body.isPrimary ?? req.body.is_primary) : null,
-        normalizeString(req.body.status, 24),
-        req.body.operatingHours || req.body.operating_hours ? normalizeHoursInput(req.body.operatingHours || req.body.operating_hours) : null,
-        locationId,
-        restaurantId,
-      ]
-    );
-    res.json({ location: attachRestaurantHours(location) });
+    const result = await withTransaction(pool, async (client) => {
+      const { rows: existing } = await client.query(
+        `SELECT * FROM restaurant_locations WHERE id = $1 AND restaurant_id = $2`,
+        [locationId, restaurantId]
+      );
+      if (!existing[0]) throw new AppError('Location not found', 404, 'location_not_found');
+
+      if (hasRegion && regionId !== null) {
+        const { rows: [region] } = await client.query(
+          `SELECT id FROM restaurant_regions WHERE restaurant_id = $1 AND id = $2`,
+          [restaurantId, regionId]
+        );
+        if (!region) throw new AppError('Region not found', 404, 'region_not_found');
+      }
+
+      if (makePrimary) {
+        await client.query(
+          `UPDATE restaurant_locations SET is_primary = FALSE, updated_at = NOW() WHERE restaurant_id = $1`,
+          [restaurantId]
+        );
+      }
+
+      const { rows: [updated] } = await client.query(
+        `UPDATE restaurant_locations
+            SET name = COALESCE($1, name),
+                address_street = COALESCE($2, address_street),
+                address_city = COALESCE($3, address_city),
+                address_state = COALESCE($4, address_state),
+                address_zip = COALESCE($5, address_zip),
+                address_country = COALESCE($6, address_country),
+                latitude = COALESCE($7, latitude),
+                longitude = COALESCE($8, longitude),
+                timezone = COALESCE($9, timezone),
+                phone = COALESCE($10, phone),
+                is_primary = COALESCE($11, is_primary),
+                status = COALESCE($12, status),
+                operating_hours = COALESCE($13, operating_hours),
+                tax_rate_bps = CASE WHEN $14 THEN $15 ELSE tax_rate_bps END,
+                service_fee_bps = CASE WHEN $16 THEN $17 ELSE service_fee_bps END,
+                tax_inclusive = CASE WHEN $18 THEN $19 ELSE tax_inclusive END,
+                tax_jurisdiction = CASE WHEN $20 THEN $21 ELSE tax_jurisdiction END,
+                online_order_pacing_max_per_15_min = CASE WHEN $22 THEN $23 ELSE online_order_pacing_max_per_15_min END,
+                in_store_order_pacing_max_per_15_min = CASE WHEN $24 THEN $25 ELSE in_store_order_pacing_max_per_15_min END,
+                prep_time_extension_min = CASE WHEN $26 THEN $27 ELSE prep_time_extension_min END,
+                region_id = CASE WHEN $28 THEN $29 ELSE region_id END,
+                updated_at = NOW()
+          WHERE id = $30 AND restaurant_id = $31
+          RETURNING *`,
+        [
+          normalizeString(req.body.name, 160),
+          normalizeString(req.body.addressStreet || req.body.address_street, 255),
+          normalizeString(req.body.addressCity || req.body.address_city, 120),
+          normalizeString(req.body.addressState || req.body.address_state, 120),
+          normalizeString(req.body.addressZip || req.body.address_zip, 40),
+          req.body.addressCountry || req.body.address_country ? normalizeCountry(req.body.addressCountry || req.body.address_country) : null,
+          parseOptionalCoordinate(req.body.latitude),
+          parseOptionalCoordinate(req.body.longitude),
+          timezone,
+          normalizeString(req.body.phone, 40),
+          typeof (req.body.isPrimary ?? req.body.is_primary) === 'boolean' ? (req.body.isPrimary ?? req.body.is_primary) : null,
+          status,
+          req.body.operatingHours || req.body.operating_hours ? normalizeHoursInput(req.body.operatingHours || req.body.operating_hours) : null,
+          hasTaxRate,
+          normalizeLocationRate(req.body.taxRateBps ?? req.body.tax_rate_bps, 'taxRateBps'),
+          hasServiceFee,
+          normalizeLocationRate(req.body.serviceFeeBps ?? req.body.service_fee_bps, 'serviceFeeBps'),
+          hasTaxInclusive,
+          req.body.taxInclusive === true || req.body.tax_inclusive === true,
+          hasTaxJurisdiction,
+          normalizeLocationTaxJurisdiction(req.body.taxJurisdiction ?? req.body.tax_jurisdiction),
+          hasOnlinePacing,
+          normalizeLocationInteger(req.body.onlineOrderPacingMaxPer15Min ?? req.body.online_order_pacing_max_per_15_min, 'onlineOrderPacingMaxPer15Min'),
+          hasInStorePacing,
+          normalizeLocationInteger(req.body.inStoreOrderPacingMaxPer15Min ?? req.body.in_store_order_pacing_max_per_15_min, 'inStoreOrderPacingMaxPer15Min'),
+          hasPrepExtension,
+          normalizeLocationInteger(req.body.prepTimeExtensionMin ?? req.body.prep_time_extension_min, 'prepTimeExtensionMin', { nullable: false, max: 240 }),
+          hasRegion,
+          regionId,
+          locationId,
+          restaurantId,
+        ]
+      );
+      return { updated, before: existing[0] };
+    }, 'food_update_location');
+    await auditFoodChange(req, restaurant, {
+      action: 'restaurant.location.updated',
+      target_type: 'restaurant_location',
+      target_id: result.updated.id,
+      before_state: {
+        name: result.before.name,
+        status: result.before.status,
+        timezone: result.before.timezone,
+        operating_hours: result.before.operating_hours || {},
+        tax_rate_bps: result.before.tax_rate_bps,
+        service_fee_bps: result.before.service_fee_bps,
+        tax_inclusive: result.before.tax_inclusive,
+        tax_jurisdiction: result.before.tax_jurisdiction,
+        online_order_pacing_max_per_15_min: result.before.online_order_pacing_max_per_15_min,
+        in_store_order_pacing_max_per_15_min: result.before.in_store_order_pacing_max_per_15_min,
+        prep_time_extension_min: result.before.prep_time_extension_min,
+        region_id: result.before.region_id,
+      },
+      after_state: {
+        name: result.updated.name,
+        status: result.updated.status,
+        timezone: result.updated.timezone,
+        operating_hours: result.updated.operating_hours || {},
+        tax_rate_bps: result.updated.tax_rate_bps,
+        service_fee_bps: result.updated.service_fee_bps,
+        tax_inclusive: result.updated.tax_inclusive,
+        tax_jurisdiction: result.updated.tax_jurisdiction,
+        online_order_pacing_max_per_15_min: result.updated.online_order_pacing_max_per_15_min,
+        in_store_order_pacing_max_per_15_min: result.updated.in_store_order_pacing_max_per_15_min,
+        prep_time_extension_min: result.updated.prep_time_extension_min,
+        region_id: result.updated.region_id,
+      },
+    });
+    res.json({ location: attachRestaurantHours(result.updated) });
   } catch (err) {
     if (isMissingRelationError(err)) {
       return next(new AppError('Locations are not available yet', 503, 'locations_unavailable'));
@@ -7713,123 +8614,6 @@ exports.createRestaurantReport = async (req, res, next) => {
 };
 
 // ── POS operations: split, merge ───────────────────────────────────────
-exports.splitOrder = async (req, res, next) => {
-  try {
-    const restaurantId = parsePositiveInt(req.params.restaurantId);
-    const orderId = parsePositiveInt(req.params.orderId);
-    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    await assertRestaurantPermission(restaurant, ['orders.manage', 'pos.use']);
-
-    const itemIds = req.body.itemIds;
-    if (!Array.isArray(itemIds) || itemIds.length === 0) {
-      throw new AppError('Validation failed', 400, 'validation_failed', { itemIds: 'Select at least one item to split' });
-    }
-
-    const client = await db.connect();
-    try {
-      await client.query('BEGIN');
-
-      // Lock the original order
-      const orderRes = await client.query(
-        'SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2 FOR UPDATE',
-        [orderId, restaurantId]
-      );
-      if (orderRes.rows.length === 0) {
-        throw new AppError('Order not found', 404, 'not_found');
-      }
-      const original = orderRes.rows[0];
-
-      if (['completed', 'cancelled', 'refunded'].includes(original.status)) {
-        throw new AppError('Cannot split a closed order', 400, 'invalid_status');
-      }
-
-      // Verify items belong to this order
-      const itemsRes = await client.query(
-        'SELECT * FROM food_order_items WHERE id = ANY($1) AND order_id = $2',
-        [itemIds, orderId]
-      );
-      if (itemsRes.rows.length !== itemIds.length) {
-        throw new AppError('Some items do not belong to this order', 400, 'validation_failed');
-      }
-      if (itemsRes.rows.length === 0) {
-        throw new AppError('No items selected', 400, 'validation_failed');
-      }
-
-      // Cannot split all items (that would be a move, not a split)
-      const totalItemsRes = await client.query(
-        'SELECT COUNT(*) FROM food_order_items WHERE order_id = $1',
-        [orderId]
-      );
-      if (parseInt(totalItemsRes.rows[0].count, 10) === itemsRes.rows.length) {
-        throw new AppError('Cannot split all items. Use merge or cancel instead.', 400, 'validation_failed');
-      }
-
-      // Create the new split order (copy from original)
-      const newOrderRes = await client.query(
-        `INSERT INTO food_orders (
-          restaurant_id, customer_user_id, guest_name, guest_phone, guest_email,
-          fulfillment_type, status, payment_status, payment_mode,
-          subtotal_cents, tax_cents, tip_cents, delivery_fee_cents, service_fee_cents,
-          discount_cents, total_cents, currency,
-          delivery_address, special_instructions, metadata,
-          created_at
-        )
-        SELECT
-          restaurant_id, customer_user_id, guest_name, guest_phone, guest_email,
-          fulfillment_type, 'received', 'unpaid', payment_mode,
-          0, 0, 0, 0, 0, 0, 0, currency,
-          delivery_address, special_instructions,
-          jsonb_build_object('split_from', $2::bigint, 'split_by', $3::bigint),
-          NOW()
-        FROM food_orders WHERE id = $2
-        RETURNING *`,
-        [restaurantId, orderId, req.user.id]
-      );
-      const newOrder = newOrderRes.rows[0];
-
-      // Move items to the new order
-      await client.query(
-        'UPDATE food_order_items SET order_id = $1 WHERE id = ANY($2)',
-        [newOrder.id, itemIds]
-      );
-
-      // Recalculate totals for both orders
-      const recalc = async (oid) => {
-        const sumRes = await client.query(
-          'SELECT COALESCE(SUM(line_total_cents), 0) as subtotal FROM food_order_items WHERE order_id = $1',
-          [oid]
-        );
-        const subtotal = parseInt(sumRes.rows[0].subtotal, 10);
-        // Simple: total = subtotal (tax/fees recalculated by business logic if needed)
-        await client.query(
-          'UPDATE food_orders SET subtotal_cents = $1, total_cents = $1, updated_at = NOW() WHERE id = $2',
-          [subtotal, oid]
-        );
-        return subtotal;
-      };
-
-      await recalc(orderId);
-      await recalc(newOrder.id);
-
-      await client.query('COMMIT');
-
-      res.json({
-        ok: true,
-        originalOrderId: orderId,
-        newOrderId: newOrder.id,
-        movedItemCount: itemsRes.rows.length,
-      });
-    } catch (e) {
-      await client.query('ROLLBACK');
-      throw e;
-    } finally {
-      client.release();
-    }
-  } catch (err) {
-    next(err);
-  }
-};
-
 // ── Test seams (exported for unit tests) ────────────────────────────────
 exports._refundFoodOrderStripePayment = refundFoodOrderStripePayment;
 exports._clawBackFoodLoyaltyOnRefund = clawBackFoodLoyaltyOnRefund;

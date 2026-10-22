@@ -25,7 +25,7 @@ export default function AdminErrorState({ title, message, onRetry }) {
         <button
           type="button"
           onClick={onRetry}
-          className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-500"
+          className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-500" data-track-private
         >
           <RefreshCw size={15} />
           {t('common.retry')}

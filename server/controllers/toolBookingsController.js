@@ -137,6 +137,8 @@ const createBooking = async (req, res, next) => {
       [userId, toolId, JSON.stringify({ startDate, endDate, totalPrice })]
     );
 
+    await require('../growth/emit').emitDomainEvent(client, 'tool_rental.booked', require('../growth/emit').commerceEventProps({ id: booking.rows[0].id }), { userId, req });
+
     await client.query('COMMIT');
 
     // Fetch customer and owner data for email

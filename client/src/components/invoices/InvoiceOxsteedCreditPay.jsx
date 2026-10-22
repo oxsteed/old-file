@@ -129,7 +129,7 @@ export default function InvoiceOxsteedCreditPay({
             type="radio"
             name={`credit-pay-mode-${invoiceId}`}
             checked={payMode === 'full'}
-            onChange={() => setPayMode('full')}
+            onChange={() => setPayMode('full')} data-track-private
           />
           <span>
             {t('invoices.creditPayFull', {
@@ -143,7 +143,7 @@ export default function InvoiceOxsteedCreditPay({
             type="radio"
             name={`credit-pay-mode-${invoiceId}`}
             checked={payMode === 'partial'}
-            onChange={() => setPayMode('partial')}
+            onChange={() => setPayMode('partial')} data-track-private
           />
           <span>{t('invoices.creditPayPartial', { defaultValue: 'Pay a partial amount' })}</span>
         </label>
@@ -176,7 +176,7 @@ export default function InvoiceOxsteedCreditPay({
         type="button"
         className="piv-button piv-button-primary invoice-credit-pay-btn"
         onClick={handlePay}
-        disabled={paying || partialInvalid}
+        disabled={paying || partialInvalid} data-track-private
       >
         {paying ? <Loader2 size={16} className="spin" aria-hidden="true" /> : <Wallet size={16} aria-hidden="true" />}
         {paying

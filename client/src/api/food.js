@@ -86,8 +86,9 @@ export const listFoodRestaurants = (params = {}) =>
 export const getFeaturedRestaurants = (params = {}) =>
   listFoodRestaurants({ featured_only: true, limit: 8, ...params });
 
-export const getFoodRestaurant = (restaurantId) =>
+export const getFoodRestaurant = (restaurantId, params = {}) =>
   api.get(`/food/restaurants/${restaurantId}`, {
+    params,
     headers: displayDeviceAuthHeaders(restaurantId),
   }).then((r) => r.data);
 
@@ -198,6 +199,49 @@ export const listFoodLocations = (restaurantId) =>
 
 export const createFoodLocation = (restaurantId, payload) =>
   api.post(`/food/restaurants/${restaurantId}/locations`, payload).then((r) => r.data?.location);
+
+export const updateFoodLocation = (restaurantId, locationId, payload) =>
+  api.patch(`/food/restaurants/${restaurantId}/locations/${locationId}`, payload).then((r) => r.data?.location);
+
+export const getRestaurantHQRollup = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/hq/rollup`, { params }).then((r) => r.data || { stores: [], scope: null });
+
+export const publishRestaurantHQMenu = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/hq/menu/publish`, payload).then((r) => r.data);
+export const listRestaurantHQRegions = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/hq/regions`).then((r) => r.data?.regions || []);
+export const createRestaurantHQRegion = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/hq/regions`, payload).then((r) => r.data?.region);
+export const updateRestaurantHQRegion = (restaurantId, regionId, payload) =>
+  api.patch(`/restaurants/${restaurantId}/hq/regions/${regionId}`, payload).then((r) => r.data?.region);
+
+// Restaurant host stand (floor-plan tables, reservations, and walk-in queue).
+export const listRestaurantTables = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/tables`, { params }).then((r) => r.data || { tables: [], location: null });
+export const createRestaurantTable = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/tables`, payload).then((r) => r.data?.table);
+export const updateRestaurantTable = (restaurantId, tableId, payload) =>
+  api.patch(`/restaurants/${restaurantId}/tables/${tableId}`, payload).then((r) => r.data?.table);
+export const listRestaurantReservations = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reservations`, { params }).then((r) => r.data || { reservations: [], location: null });
+export const createRestaurantReservation = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/reservations`, payload).then((r) => r.data);
+export const requestRestaurantReservation = (restaurantId, payload, idempotencyKey) =>
+  api.post(`/restaurants/${restaurantId}/reservations/request`, payload, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  }).then((r) => r.data);
+export const updateRestaurantReservation = (restaurantId, reservationId, payload) =>
+  api.patch(`/restaurants/${restaurantId}/reservations/${reservationId}`, payload).then((r) => r.data?.reservation);
+export const notifyRestaurantReservation = (restaurantId, reservationId) =>
+  api.post(`/restaurants/${restaurantId}/reservations/${reservationId}/notify`).then((r) => r.data);
+export const listRestaurantWaitlist = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/waitlist`, { params }).then((r) => r.data || { entries: [], location: null });
+export const createRestaurantWaitlistEntry = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/waitlist`, payload).then((r) => r.data?.entry);
+export const notifyRestaurantWaitlistEntry = (restaurantId, entryId) =>
+  api.post(`/restaurants/${restaurantId}/waitlist/${entryId}/notify`).then((r) => r.data?.entry);
+export const updateRestaurantWaitlistEntry = (restaurantId, entryId, payload) =>
+  api.patch(`/restaurants/${restaurantId}/waitlist/${entryId}`, payload).then((r) => r.data?.entry);
 
 export const getTrackedFoodOrder = (trackingToken) =>
   api.get(`/food/orders/track/${trackingToken}`).then((r) => r.data?.order);

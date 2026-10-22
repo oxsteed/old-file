@@ -3590,5 +3590,13 @@
       "empty": "Hakuna vipengee wazi",
       "reviewHint": "Kurekodi ukaguzi hakuhamishi fedha wala kuachilia bidhaa."
     }
+  },
+  "growthInsights": {
+    "analyticsStorage": "Google Analytics na hifadhi ya kifaa",
+    "analyticsStorageDescription": "Katika EEA, Uingereza, Uswisi na Québec, ufuatiliaji na ofa zinazotegemea shughuli zinahitaji ridhaa tofauti, zinazoweza kuondolewa kwenye Mipangilio. Majimbo husika ya Marekani yana chaguo la kukataa uuzaji au ushirikishaji na kuheshimu Global Privacy Control. Kwingineko, mpangilio wa uchanganuzi hudhibiti Google Analytics na hifadhi ya kudumu; taarifa hii inahusu shughuli.",
+    "policy": "Sera ya Faragha",
+    "changedOn": "Sera yetu ya Faragha ilibadilika tarehe {{date}}.",
+    "changesOn": "Sera yetu ya Faragha itabadilika tarehe {{date}}.",
+    "dismiss": "Ondoa"
   }
 }

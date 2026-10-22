@@ -228,6 +228,9 @@ router.get('/restaurants/:restaurantId/orders', authenticate, requireRestaurantA
 // device-credential path like the other kitchen device routes; the staff
 // path keeps its tenancy gate inside the middleware.
 router.patch('/restaurants/:restaurantId/orders/:orderId/status', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), ctrl.updateOrderStatus);
-router.post('/restaurants/:restaurantId/orders/:orderId/split', authenticate, requireRestaurantAccess(), ctrl.splitOrder);
+// F-09: the legacy POST /restaurants/:restaurantId/orders/:orderId/split route
+// was removed. Its controller inserted columns that do not exist on
+// food_orders, so every call failed; ticket splitting lives on the POS path
+// (POST /api/restaurants/:restaurantId/pos/orders/:orderId/split).
 
 module.exports = router;

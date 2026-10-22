@@ -55,7 +55,7 @@ export default function MediaCommunityPage() {
 
   if (loading) return <div className="media-empty-state"><p>{t('media.spaces.loading')}</p></div>;
   if (error || !data?.community) {
-    return <div className="media-error"><p>{error || t('media.spaces.notFound')}</p><button type="button" onClick={load}>{t('media.feed.refresh')}</button></div>;
+    return <div className="media-error"><p>{error || t('media.spaces.notFound')}</p><button type="button" onClick={load} data-track="ui.5a48e55b16.1">{t('media.feed.refresh')}</button></div>;
   }
 
   const { community, posts } = data;
@@ -72,11 +72,11 @@ export default function MediaCommunityPage() {
           </div>
         </div>
         {user ? (
-          <button type="button" className="media-text-button" onClick={toggleMembership} disabled={saving}>
+          <button type="button" className="media-text-button" onClick={toggleMembership} disabled={saving} data-track="ui.5a48e55b16.2">
             {community.joined ? t('media.spaces.leave') : t('media.spaces.join')}
           </button>
         ) : (
-          <button type="button" className="media-text-button" onClick={() => requireLogin(`/media/communities/${slug}`)}>
+          <button type="button" className="media-text-button" onClick={() => requireLogin(`/media/communities/${slug}`)} data-track="ui.5a48e55b16.3">
             {t('media.spaces.signInToJoin')}
           </button>
         )}

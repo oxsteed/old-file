@@ -66,6 +66,8 @@ type LegalPolicyPageProps = {
   /** Namespace prefix for strings in locale JSON, e.g. termsPage */
   i18nPrefix: string;
   embedded?: boolean;
+  contentOverride?: LegalContentFile | null;
+  updatedLabel?: string | null;
 };
 
 export default function LegalPolicyPage({
@@ -76,6 +78,8 @@ export default function LegalPolicyPage({
   sectionAnchorPrefix,
   i18nPrefix,
   embedded = false,
+  contentOverride = null,
+  updatedLabel = null,
 }: LegalPolicyPageProps) {
   const { t, i18n } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
@@ -93,11 +97,12 @@ export default function LegalPolicyPage({
   const pk = (suffix: string) => `${i18nPrefix}.${suffix}`;
 
   const legalData = useMemo((): LegalContentFile => {
+    if (contentOverride) return contentOverride;
     if (!legalContentReady) return fallbackContent;
     const raw = t(contentKey, { returnObjects: true });
     if (isLegalContentFile(raw)) return raw;
     return fallbackContent;
-  }, [t, i18n.language, contentKey, fallbackContent, legalContentReady]);
+  }, [t, i18n.language, contentKey, fallbackContent, legalContentReady, contentOverride]);
 
   const sectionMeta = useMemo(
     () =>
@@ -194,7 +199,7 @@ export default function LegalPolicyPage({
             </div>
             <div>
               <h1 className="text-3xl font-bold text-white">{t(pk('title'))}</h1>
-              <p className="text-gray-400 text-sm mt-1">{t(pk('lastUpdated'))}</p>
+              <p className="text-gray-400 text-sm mt-1">{updatedLabel || t(pk('lastUpdated'))}</p>
               {i18n.language !== 'en' && (
                 <p className="text-gray-500 text-xs mt-2 max-w-xl">
                   {t(pk('translationDisclaimer'))}
@@ -218,7 +223,7 @@ export default function LegalPolicyPage({
                   <a
                     key={id}
                     href={`#${sectionAnchorPrefix}-${id}`}
-                    className="text-gray-400 hover:text-orange-400"
+                    className="text-gray-400 hover:text-orange-400" data-track="ui.c56180cb05.1"
                   >
                     {label}
                   </a>

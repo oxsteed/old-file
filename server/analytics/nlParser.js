@@ -86,6 +86,14 @@ const METRIC_SYNONYMS = Object.freeze({
   promo_discount_cents: ['promo discounts', 'promo code discounts', 'promo redemptions'],
   restaurant_repeat_order_rate: ['repeat order rate', 'repeat order'],
   restaurant_top_items_revenue: ['top menu items revenue', 'top items revenue', 'top menu items', 'top items'],
+  growth_campaign_recipients: ['offer campaign recipients', 'campaign recipients'],
+  growth_offer_ctr_pct: ['offer click-through rate', 'offer click through rate', 'offer ctr'],
+  growth_offer_optout_rate_pct: ['offer opt-out rate', 'offer opt out rate', 'offer optout rate'],
+  growth_push_open_rate_pct: ['offer push open rate', 'push open rate'],
+  growth_affiliate_commission_cents: ['affiliate commissions', 'affiliate commission'],
+  growth_promo_redeemed_cents: ['campaign promo redeemed', 'growth promo redeemed'],
+  demand_unfilled_rate_pct: ['demand unfilled rate', 'unfilled job rate', 'unfilled rate'],
+  demand_gap_index: ['demand gap index', 'demand gap', 'gap index'],
 });
 
 const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -119,6 +127,14 @@ const DIMENSION_ALLOWLIST = Object.freeze({
   promo_discount_cents: Object.freeze([]),
   restaurant_repeat_order_rate: Object.freeze(['restaurant']),
   restaurant_top_items_revenue: Object.freeze(['restaurant']),
+  growth_campaign_recipients: Object.freeze([]),
+  growth_offer_ctr_pct: Object.freeze([]),
+  growth_offer_optout_rate_pct: Object.freeze([]),
+  growth_push_open_rate_pct: Object.freeze([]),
+  growth_affiliate_commission_cents: Object.freeze([]),
+  growth_promo_redeemed_cents: Object.freeze([]),
+  demand_unfilled_rate_pct: Object.freeze([]),
+  demand_gap_index: Object.freeze([]),
 });
 
 // phrase -> dimension, checked in this order; first match per dimension wins.

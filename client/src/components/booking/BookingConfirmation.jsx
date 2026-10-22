@@ -192,7 +192,7 @@ export default function BookingConfirmation({
             <input
               type="checkbox"
               checked={agreed}
-              onChange={e => setAgreed(e.target.checked)}
+              onChange={e => setAgreed(e.target.checked)} data-track="ui.98ea5ee9e6.1"
             />
             <span>{t('booking.agreeToTerms')}</span>
           </label>
@@ -203,14 +203,14 @@ export default function BookingConfirmation({
           <button
             onClick={onBack}
             className="booking-btn-secondary"
-            disabled={loading}
+            disabled={loading} data-track="ui.98ea5ee9e6.2"
           >
             {t('common.back')}
           </button>
           <button
             onClick={handleConfirm}
             className="booking-btn-primary"
-            disabled={loading || !agreed}
+            disabled={loading || !agreed} data-track="ui.98ea5ee9e6.3"
           >
             {loading ? t('common.loading') : t('booking.confirmBooking')}
           </button>

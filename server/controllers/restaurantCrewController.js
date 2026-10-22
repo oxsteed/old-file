@@ -3,6 +3,7 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
+const permissionsService = require('../services/permissionsService');
 const { withTransaction } = require('../utils/transaction');
 
 function parsePositiveInt(value) {
@@ -42,7 +43,6 @@ function parseNonNegativeInt(value, field = 'attempts', fallback = 0) {
   return n;
 }
 
-const MANAGE_ROLES = new Set(['owner', 'manager']);
 
 // Canonical restaurant access gate (analytics scope model, Phase 1 Item 6).
 // The fast-fail `!restaurantId` guard is preserved here (not inside the
@@ -52,30 +52,42 @@ async function requireRestaurantAccess(userId, restaurantId) {
   return resolveRestaurantAccess(userId, restaurantId);
 }
 
-function assertManage(restaurant) {
-  if (!MANAGE_ROLES.has(restaurant.effective_role)) {
+// S-08: manage gates resolve through the permission catalog (role defaults
+// + per-membership overrides) via permissionsService, the single resolver.
+// MANAGE_PERMISSION_CODES reproduces the previous owner/manager-only gate
+// for members without overrides; deny overrides now take effect here too.
+const MANAGE_PERMISSION_CODES = ['crew.manage'];
+
+async function assertManage(restaurant, userId) {
+  const allowed = await permissionsService.hasRestaurantPermission(restaurant, userId, MANAGE_PERMISSION_CODES);
+  if (!allowed) {
     throw new AppError('You do not have permission to manage this restaurant', 403, 'forbidden');
   }
 }
 
 function defaultTrainingSeed(userId) {
+  // S-13: seed templates only — never a completed/passed/awarded state.
+  // The old seed marked modules complete, quizzes passed and badges
+  // "awarded" for the whole restaurant, which reads as real compliance
+  // evidence to a franchisor or inspector. Migration 667's per-person
+  // training is where completions actually live.
   return {
     modules: [
-      { title: 'Opening line check', role: 'Cashier', durationMinutes: 10, isComplete: true },
+      { title: 'Opening line check', role: 'Cashier', durationMinutes: 10, isComplete: false },
       { title: 'Allergen handoff protocol', role: 'Kitchen', durationMinutes: 14, isComplete: false },
       { title: 'Refund and void policy', role: 'Manager', durationMinutes: 8, isComplete: false },
       { title: 'Drive-thru greeting script', role: 'Cashier', durationMinutes: 6, isComplete: false },
-      { title: 'Expo packaging accuracy', role: 'Kitchen', durationMinutes: 12, isComplete: true },
-      { title: 'Guest recovery and escalation', role: 'Manager', durationMinutes: 9, isComplete: true },
+      { title: 'Expo packaging accuracy', role: 'Kitchen', durationMinutes: 12, isComplete: false },
+      { title: 'Guest recovery and escalation', role: 'Manager', durationMinutes: 9, isComplete: false },
     ],
     quizzes: [
-      { title: 'Allergen protocol quiz', scorePercent: 92, attempts: 1, passed: true },
-      { title: 'Refund and void quiz', scorePercent: 78, attempts: 2, passed: false },
-      { title: 'Cleaning closeout quiz', scorePercent: 88, attempts: 1, passed: true },
+      { title: 'Allergen protocol quiz', scorePercent: 0, attempts: 0, passed: false },
+      { title: 'Refund and void quiz', scorePercent: 0, attempts: 0, passed: false },
+      { title: 'Cleaning closeout quiz', scorePercent: 0, attempts: 0, passed: false },
     ],
     badges: [
-      { title: 'Opening Certified', detail: 'Can independently run pre-shift setup.', awarded: true },
-      { title: 'Food Safety Ready', detail: 'Passed sanitation and temp-control checks.', awarded: true },
+      { title: 'Opening Certified', detail: 'Can independently run pre-shift setup.', awarded: false },
+      { title: 'Food Safety Ready', detail: 'Passed sanitation and temp-control checks.', awarded: false },
       { title: 'Trainer Candidate', detail: 'Eligible to coach new crew members.', awarded: false },
     ],
     userId,
@@ -124,9 +136,11 @@ exports.bootstrapDefaults = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
 
-    await withTransaction(async (client) => {
+    // NOTE: this call previously omitted the pool argument, so
+    // withTransaction threw before seeding anything (S-13 track fix).
+    await withTransaction(pool, async (client) => {
       const [moduleCount, quizCount, badgeCount] = await Promise.all([
         client.query(`SELECT COUNT(*)::int AS count FROM restaurant_crew_training_modules WHERE restaurant_id = $1`, [restaurantId]),
         client.query(`SELECT COUNT(*)::int AS count FROM restaurant_crew_quiz_results WHERE restaurant_id = $1`, [restaurantId]),
@@ -172,7 +186,7 @@ exports.createModule = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
 
     const title = normalizeString(req.body.title, 200);
     const role = normalizeString(req.body.role, 80);
@@ -199,7 +213,11 @@ exports.updateModule = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const moduleId = parsePositiveInt(req.params.moduleId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    // S-13: renaming a module or marking it complete is a manager action —
+    // every other crew write in this controller asserts manage; this one
+    // previously let any member (even a support agent) do it.
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertManage(restaurant, req.user.id);
 
     const sets = [];
     const vals = [];
@@ -237,7 +255,7 @@ exports.createQuizResult = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
 
     const title = normalizeString(req.body.title, 200);
     if (!title) throw new AppError('Validation failed', 400, 'validation_failed', { title: 'Title is required' });
@@ -266,7 +284,7 @@ exports.upsertBadge = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await assertManage(restaurant, req.user.id);
 
     const title = normalizeString(req.body.title, 160);
     const detail = normalizeString(req.body.detail, 1000);

@@ -1,0 +1,20 @@
+{"id":"smoke-001","_synthetic":true,"vertical":"services","language":"en","text":"Clogged drain in my bathroom, water backed up everywhere","fields":{},"expected_code":"services.plumbing.drain_clog"}
+{"id":"smoke-002","_synthetic":true,"vertical":"services","language":"en","text":"Blocked drain in the kitchen sink, water drains very slowly","fields":{},"expected_code":"services.plumbing.drain_clog"}
+{"id":"smoke-003","_synthetic":true,"vertical":"services","language":"es","text":"Mi desagüe está atascado y el agua no baja","fields":{},"expected_code":"services.plumbing.drain_clog"}
+{"id":"smoke-004","_synthetic":true,"vertical":"services","language":"es","text":"Hay que destapar el desagüe de la cocina","fields":{},"expected_code":"services.plumbing.drain_clog"}
+{"id":"smoke-005","_synthetic":true,"vertical":"services","language":"fr","text":"Canalisation bouché dans la salle de bain","fields":{},"expected_code":"services.plumbing.drain_clog"}
+{"id":"smoke-006","_synthetic":true,"vertical":"services","language":"fr","text":"Évacuation lente, canalisation presque bouchée","fields":{},"expected_code":"services.plumbing.drain_clog"}
+{"id":"smoke-007","_synthetic":true,"vertical":"services","language":"ht","text":"Tiyo bouche nan twalèt la, dlo a pa desann","fields":{},"expected_code":"services.plumbing.drain_clog"}
+{"id":"smoke-008","_synthetic":true,"vertical":"services","language":"ht","text":"Drenaj la bouche epi dlo a rete","fields":{},"expected_code":"services.plumbing.drain_clog"}
+{"id":"smoke-009","_synthetic":true,"vertical":"services","language":"ar","text":"انسداد في مصرف الحمام والماء لا يتصرف","fields":{},"expected_code":"services.plumbing.drain_clog"}
+{"id":"smoke-010","_synthetic":true,"vertical":"services","language":"ar","text":"أحتاج تسليك للمصرف في المطبخ","fields":{},"expected_code":"services.plumbing.drain_clog"}
+{"id":"smoke-011","_synthetic":true,"vertical":"food","language":"en","text":"Our restaurant delivery orders are growing fast and we want to grow delivery even more","fields":{},"expected_code":"food.restaurant_ops.delivery_growth"}
+{"id":"smoke-012","_synthetic":true,"vertical":"food","language":"es","text":"Las entregas de mi restaurante crecen cada semana y quiero más pedidos","fields":{},"expected_code":"food.restaurant_ops.delivery_growth"}
+{"id":"smoke-013","_synthetic":true,"vertical":"business","language":"en","text":"I need online booking so clients can reserve appointments on my website","fields":{},"expected_code":"business.setup.online_booking"}
+{"id":"smoke-014","_synthetic":true,"vertical":"business","language":"fr","text":"Je veux la réservation en ligne pour les rendez-vous de mon salon","fields":{},"expected_code":"business.setup.online_booking"}
+{"id":"smoke-015","_synthetic":true,"vertical":"services","language":"en","text":"I need someone to paint my bedroom walls next week","fields":{},"expected_code":"none"}
+{"id":"smoke-016","_synthetic":true,"vertical":"services","language":"es","text":"Busco una persona para pintar las paredes de mi casa","fields":{},"expected_code":"none"}
+{"id":"smoke-017","_synthetic":true,"vertical":"customer","language":"fr","text":"Je cherche un jardinier pour entretenir mon jardin","fields":{},"expected_code":"review"}
+{"id":"smoke-018","_synthetic":true,"vertical":"business","language":"ht","text":"Mwen bezwen yon moun pou netwaye biwo mwen chak semèn","fields":{},"expected_code":"none"}
+{"id":"smoke-019","_synthetic":true,"vertical":"services","language":"en","text":"My toilet keeps running and the faucet in the sink leaks all night","fields":{},"expected_code":"services.plumbing"}
+{"id":"smoke-020","_synthetic":true,"vertical":"services","language":"ar","text":"انسداد شديد في الحمام، الماء يفيض","fields":{},"expected_code":"services.plumbing.drain_clog"}

@@ -69,7 +69,7 @@ function LocationShareToggle({ task, restaurantId }) {
   return (
     <button
       className={`fd-btn-secondary fd-btn-sm${sharing ? ' fd-active' : ''}`}
-      onClick={() => (sharing ? stop() : start())}
+      onClick={() => (sharing ? stop() : start())} data-track="ui.42d5812ef7.1"
     >
       {sharing ? t('food.runner.stopSharing') : t('food.runner.shareLocation')}
     </button>
@@ -110,8 +110,8 @@ function ProofModal({ task, restaurantId, onSaved, onClose }) {
           <textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('food.runner.proofPlaceholder')} />
         </div>
         <div className="fd-pos-modal-actions">
-          <button className="fd-btn-secondary" onClick={onClose}>{t('food.common.cancel')}</button>
-          <button className="fd-btn" onClick={handle} disabled={saving}>
+          <button className="fd-btn-secondary" onClick={onClose} data-track="ui.42d5812ef7.2">{t('food.common.cancel')}</button>
+          <button className="fd-btn" onClick={handle} disabled={saving} data-track="ui.42d5812ef7.3">
             {saving ? t('food.common.saving') : t('food.runner.saveProof')}
           </button>
         </div>
@@ -158,8 +158,8 @@ function IssueModal({ task, restaurantId, onSaved, onClose }) {
           <textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} required />
         </div>
         <div className="fd-pos-modal-actions">
-          <button className="fd-btn-secondary" onClick={onClose}>{t('food.common.cancel')}</button>
-          <button className="fd-btn" onClick={handle} disabled={saving || !note.trim()}>
+          <button className="fd-btn-secondary" onClick={onClose} data-track="ui.42d5812ef7.4">{t('food.common.cancel')}</button>
+          <button className="fd-btn" onClick={handle} disabled={saving || !note.trim()} data-track="ui.42d5812ef7.5">
             {saving ? t('food.common.saving') : t('food.runner.submit')}
           </button>
         </div>
@@ -220,12 +220,12 @@ function TaskCard({ task, restaurantId, onRefresh }) {
 
       <div className="fd-runner-actions">
         {task.status === 'Assigned' && (
-          <button className="fd-btn fd-btn-sm" disabled={busy} onClick={() => advance('En route')}>
+          <button className="fd-btn fd-btn-sm" disabled={busy} onClick={() => advance('En route')} data-track="ui.42d5812ef7.6">
             {t('food.runner.startDelivery')}
           </button>
         )}
         {task.status === 'En route' && (
-          <button className="fd-btn fd-btn-sm" disabled={busy} onClick={() => advance('Completed')}>
+          <button className="fd-btn fd-btn-sm" disabled={busy} onClick={() => advance('Completed')} data-track="ui.42d5812ef7.7">
             {t('food.runner.markDelivered')}
           </button>
         )}
@@ -254,16 +254,16 @@ function TaskCard({ task, restaurantId, onRefresh }) {
               } finally {
                 setBusy(false);
               }
-            }}
+            }} data-track="ui.42d5812ef7.8"
           >
             {t('food.runner.createSettlement')}
           </button>
         )}
         <LocationShareToggle task={task} restaurantId={restaurantId} />
-        <button className="fd-btn-secondary fd-btn-sm" onClick={() => setShowProof(true)}>
+        <button className="fd-btn-secondary fd-btn-sm" onClick={() => setShowProof(true)} data-track="ui.42d5812ef7.9">
           {t('food.runner.logProof')}
         </button>
-        <button className="fd-btn-danger fd-btn-sm" onClick={() => setShowIssue(true)}>
+        <button className="fd-btn-danger fd-btn-sm" onClick={() => setShowIssue(true)} data-track="ui.42d5812ef7.10">
           {t('food.runner.reportIssue')}
         </button>
       </div>
@@ -327,7 +327,7 @@ function SettlementsSection({ restaurantId, refreshSignal }) {
           </div>
           <div className="fd-runner-actions">
             {s.status === 'pending' && (
-              <button className="fd-btn fd-btn-sm" disabled={busy} onClick={() => mutate(s.task_id, { status: 'approved' }, 'food.runner.settlementApproved')}>
+              <button className="fd-btn fd-btn-sm" disabled={busy} onClick={() => mutate(s.task_id, { status: 'approved' }, 'food.runner.settlementApproved')} data-track="ui.42d5812ef7.11">
                 {t('food.runner.approve')}
               </button>
             )}
@@ -339,7 +339,7 @@ function SettlementsSection({ restaurantId, refreshSignal }) {
                   const ref = window.prompt(t('food.runner.paymentReferencePrompt'));
                   if (!ref) return;
                   mutate(s.task_id, { status: 'paid', paymentReference: ref }, 'food.runner.settlementPaid');
-                }}
+                }} data-track="ui.42d5812ef7.12"
               >
                 {t('food.runner.markPaid')}
               </button>
@@ -353,7 +353,7 @@ function SettlementsSection({ restaurantId, refreshSignal }) {
                   const cents = Math.round(Number(raw) * 100);
                   if (!Number.isFinite(cents) || cents < 0) return;
                   mutate(s.task_id, { status: s.status, cashRemittedCents: cents }, 'food.runner.remittanceRecorded');
-                }}
+                }} data-track="ui.42d5812ef7.13"
               >
                 {t('food.runner.recordRemittance')}
               </button>
@@ -477,8 +477,8 @@ export default function RestaurantRunnerPage() {
                   {offer.delivery_address && <span className="fd-card-meta"> · {offer.delivery_address}</span>}
                 </div>
                 <div className="fd-runner-offer-actions">
-                  <button className="fd-btn fd-btn-sm" onClick={() => claimOffer(offer.id)}>{t('food.runner.claim')}</button>
-                  <button className="fd-btn-secondary fd-btn-sm" onClick={() => declineOffer(offer.id)}>{t('food.runner.decline')}</button>
+                  <button className="fd-btn fd-btn-sm" onClick={() => claimOffer(offer.id)} data-track="ui.42d5812ef7.14">{t('food.runner.claim')}</button>
+                  <button className="fd-btn-secondary fd-btn-sm" onClick={() => declineOffer(offer.id)} data-track="ui.42d5812ef7.15">{t('food.runner.decline')}</button>
                 </div>
               </div>
             ))}
@@ -487,11 +487,11 @@ export default function RestaurantRunnerPage() {
 
         {/* Status filter */}
         <div className="fd-inv-tabs" style={{ marginBottom: '1rem' }}>
-          <button className={`fd-inv-tab${statusFilter === 'all' ? ' fd-active' : ''}`} onClick={() => setStatusFilter('all')}>
+          <button className={`fd-inv-tab${statusFilter === 'all' ? ' fd-active' : ''}`} onClick={() => setStatusFilter('all')} data-track="ui.42d5812ef7.16">
             {t('food.runner.filterAll')}
           </button>
           {TASK_STATUSES.map((s) => (
-            <button key={s} className={`fd-inv-tab${statusFilter === s ? ' fd-active' : ''}`} onClick={() => setStatusFilter(s)}>
+            <button key={s} className={`fd-inv-tab${statusFilter === s ? ' fd-active' : ''}`} onClick={() => setStatusFilter(s)} data-track="ui.42d5812ef7.17">
               {t(`food.runner.status_${s}`)}
             </button>
           ))}

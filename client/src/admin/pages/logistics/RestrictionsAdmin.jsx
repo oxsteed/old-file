@@ -87,7 +87,7 @@ export default function RestrictionsAdmin() {
             <h1 className="lx-page-title">⛔ {t(`${NS}.title`)}</h1>
             <p className="lx-page-sub">{t(`${NS}.subtitle`)}</p>
           </div>
-          <button className="lx-btn-primary" onClick={openNew}>{t(`${NS}.addRule`)}</button>
+          <button className="lx-btn-primary" onClick={openNew} data-track-private>{t(`${NS}.addRule`)}</button>
         </div>
       </div>
 
@@ -145,7 +145,7 @@ export default function RestrictionsAdmin() {
               ['requires_business_only','requiresBusinessOnly'],
             ].map(([k,labelKey]) => (
               <label key={k} style={{ display:'flex', gap:'.4rem', alignItems:'center', fontWeight:600, fontSize:'.85rem', cursor:'pointer' }}>
-                <input type="checkbox" checked={form[k]} onChange={e => set(k, e.target.checked)} />
+                <input type="checkbox" checked={form[k]} onChange={e => set(k, e.target.checked)} data-track-private />
                 {t(`${NS}.${labelKey}`)}
               </label>
             ))}
@@ -156,10 +156,10 @@ export default function RestrictionsAdmin() {
               placeholder={t(`${NS}.notesPlaceholder`)} />
           </div>
           <div style={{ display:'flex', gap:'.75rem' }}>
-            <button className="lx-btn-primary" onClick={save} disabled={saving}>
+            <button className="lx-btn-primary" onClick={save} disabled={saving} data-track-private>
               {saving ? t(`${NS}.saving`) : t(`${NS}.saveRule`)}
             </button>
-            <button className="lx-btn-secondary" onClick={() => setShowForm(false)}>{t(`${NS}.cancel`)}</button>
+            <button className="lx-btn-secondary" onClick={() => setShowForm(false)} data-track-private>{t(`${NS}.cancel`)}</button>
           </div>
         </div>
       )}
@@ -205,7 +205,7 @@ export default function RestrictionsAdmin() {
                 </td>
                 <td>
                   <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }}
-                    onClick={() => openEdit(r)}>
+                    onClick={() => openEdit(r)} data-track-private>
                     {t(`${NS}.edit`)}
                   </button>
                 </td>

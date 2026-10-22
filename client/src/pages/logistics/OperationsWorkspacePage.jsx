@@ -96,7 +96,7 @@ export default function OperationsWorkspacePage() {
                     <h2>{tx('logistics.workspace.dataError.title', 'Data unavailable')}</h2>
                     <p>{tx('logistics.operations.error', "We couldn't load operations metrics right now. Please try again.")}</p>
                   </div>
-                  <button type="button" className="lx-btn-secondary" onClick={load}>
+                  <button type="button" className="lx-btn-secondary" onClick={load} data-track="ui.4b5626a282.1">
                     {tx('logistics.workspace.dataError.retry', 'Try again')}
                   </button>
                 </div>

@@ -56,7 +56,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
         {hasFilters && (
           <button
             onClick={onReset}
-            className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-sm font-medium rounded-xl transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-sm font-medium rounded-xl transition-colors" data-track="ui.0fcfc56733.1"
           >
             <RotateCcw className="w-4 h-4" aria-hidden="true" />
             {t('toolRentalsDir.clearAllFilters')}

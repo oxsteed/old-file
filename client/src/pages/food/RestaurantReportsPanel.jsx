@@ -9,14 +9,24 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { moneyMinor } from '../../lib/moneyExact';
 import toast from 'react-hot-toast';
-import { Receipt, Activity } from 'lucide-react';
+import { Receipt, Activity, RefreshCw } from 'lucide-react';
 import EmptyState from '../../components/EmptyState';
 import {
   getSalesReport,
+  downloadSalesReportCsv,
+  downloadSalesJournalCsv,
+  downloadSalesAccountingCsv,
+  downloadSalesBiNdjson,
+  downloadSalesLocationComparisonCsv,
+  downloadSalesLocationComparisonXlsx,
+  downloadSalesCloseCsv,
   getInventoryReport,
   getOperationsReport,
   getLoyaltyReport,
+  listAccountingIntegrations,
+  listAccountingExports,
 } from '../../api/restaurants';
+import { PayrollPanel } from './RestaurantPayrollPanel';
 import { formatFoodMoney } from '../../api/food';
 
 function apiErr(err, fallback) {
@@ -66,6 +76,30 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
   const [loyalty, setLoyalty] = useState(null);
   const [loyaltyLoading, setLoyaltyLoading] = useState(true);
   const [loyaltyError, setLoyaltyError] = useState(false);
+  const [accountingIntegrations, setAccountingIntegrations] = useState([]);
+  const [accountingExports, setAccountingExports] = useState([]);
+  const [accountingLoading, setAccountingLoading] = useState(true);
+  const [accountingError, setAccountingError] = useState(false);
+
+  const loadAccounting = useCallback(() => {
+    let cancelled = false;
+    setAccountingLoading(true);
+    setAccountingError(false);
+    Promise.all([listAccountingIntegrations(restaurantId), listAccountingExports(restaurantId)])
+      .then(([integrations, exports]) => {
+        if (cancelled) return;
+        setAccountingIntegrations(integrations);
+        setAccountingExports(exports);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        if (err?.response?.status !== 403) setAccountingError(true);
+      })
+      .finally(() => { if (!cancelled) setAccountingLoading(false); });
+    return () => { cancelled = true; };
+  }, [restaurantId]);
+
+  useEffect(() => loadAccounting(), [loadAccounting]);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,6 +155,141 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
   const onFromChange = (value) => { setPreset(null); setFrom(value); };
   const onToChange = (value) => { setPreset(null); setTo(value); };
 
+  const [exporting, setExporting] = useState(false);
+  const [exportingJournal, setExportingJournal] = useState(false);
+  const [accountingProvider, setAccountingProvider] = useState('quickbooks');
+  const [exportingAccounting, setExportingAccounting] = useState(false);
+  const [exportingBi, setExportingBi] = useState(false);
+  const [exportingLocationComparison, setExportingLocationComparison] = useState(false);
+  const [exportingLocationComparisonXlsx, setExportingLocationComparisonXlsx] = useState(false);
+  const [exportingClose, setExportingClose] = useState(false);
+  const onExportCsv = async () => {
+    setExporting(true);
+    try {
+      const blob = await downloadSalesReportCsv(restaurantId, { from, to });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `sales-report-${from}-to-${to}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.exportError')));
+    } finally {
+      setExporting(false);
+    }
+  };
+  const onExportJournal = async () => {
+    setExportingJournal(true);
+    try {
+      const blob = await downloadSalesJournalCsv(restaurantId, { from, to });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `sales-journal-${from}-to-${to}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.exportError')));
+    } finally {
+      setExportingJournal(false);
+    }
+  };
+  const onExportAccounting = async () => {
+    setExportingAccounting(true);
+    try {
+      const blob = await downloadSalesAccountingCsv(restaurantId, accountingProvider, { from, to });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `sales-${accountingProvider}-${from}-to-${to}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.exportError')));
+    } finally {
+      setExportingAccounting(false);
+    }
+  };
+  const onExportBi = async () => {
+    setExportingBi(true);
+    try {
+      const blob = await downloadSalesBiNdjson(restaurantId, { from, to });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `sales-bi-${from}-to-${to}.ndjson`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.exportError')));
+    } finally {
+      setExportingBi(false);
+    }
+  };
+  const onExportClose = async () => {
+    setExportingClose(true);
+    try {
+      const blob = await downloadSalesCloseCsv(restaurantId, { date: to });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `sales-close-${to}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.exportError')));
+    } finally {
+      setExportingClose(false);
+    }
+  };
+  const onExportLocationComparison = async () => {
+    setExportingLocationComparison(true);
+    try {
+      const blob = await downloadSalesLocationComparisonCsv(restaurantId, { from, to });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `sales-location-comparison-${from}-to-${to}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.exportError')));
+    } finally {
+      setExportingLocationComparison(false);
+    }
+  };
+  const onExportLocationComparisonXlsx = async () => {
+    setExportingLocationComparisonXlsx(true);
+    try {
+      const blob = await downloadSalesLocationComparisonXlsx(restaurantId, { from, to });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `sales-location-comparison-${from}-to-${to}.xlsx`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.exportError')));
+    } finally {
+      setExportingLocationComparisonXlsx(false);
+    }
+  };
+
   const toolbar = (withControls) => (
     <div className={`fd-ops-toolbar${bare ? ' fd-ops-toolbar--end' : ''}`}>
       {!bare && <h3 className="fd-ops-panel-title">{t('restaurants.ops.reports.title', 'Reports')}</h3>}
@@ -132,7 +301,7 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
               type="button"
               className={`fd-btn fd-btn-sm${preset === days ? '' : ' fd-btn-secondary'}`}
               aria-pressed={preset === days}
-              onClick={() => applyPreset(days)}
+              onClick={() => applyPreset(days)} data-track="ui.e7f53817fe.1"
             >
               {t(`restaurants.ops.reports.range${days}`, `${days} days`)}
             </button>
@@ -145,6 +314,75 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
             <label htmlFor="rpt-to">{t('restaurants.ops.reports.toLabel', 'To')}</label>
             <input id="rpt-to" type="date" value={to} min={from} onChange={(e) => onToChange(e.target.value)} />
           </div>
+          <button
+            type="button"
+            className="fd-btn fd-btn-sm fd-btn-secondary"
+            onClick={onExportCsv}
+            disabled={exporting} data-track="ui.e7f53817fe.3"
+          >
+            {t('restaurants.ops.reports.downloadCsv')}
+          </button>
+          <button
+            type="button"
+            className="fd-btn fd-btn-sm fd-btn-secondary"
+            onClick={onExportJournal}
+            disabled={exportingJournal}
+            data-track="ui.e7f53817fe.4"
+          >
+            {t('restaurants.ops.reports.downloadJournalCsv')}
+          </button>
+          <label className="fd-field fd-field-inline" htmlFor="rpt-accounting-provider">
+            <span>{t('restaurants.ops.reports.accountingProvider', 'Accounting format')}</span>
+            <select id="rpt-accounting-provider" value={accountingProvider} onChange={(e) => setAccountingProvider(e.target.value)}>
+              <option value="quickbooks">QuickBooks</option>
+              <option value="xero">Xero</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            className="fd-btn fd-btn-sm fd-btn-secondary"
+            onClick={onExportAccounting}
+            disabled={exportingAccounting}
+            data-track="ui.e7f53817fe.11"
+          >
+            {t('restaurants.ops.reports.downloadAccountingCsv', 'Download accounting CSV')}
+          </button>
+          <button
+            type="button"
+            className="fd-btn fd-btn-sm fd-btn-secondary"
+            onClick={onExportBi}
+            disabled={exportingBi}
+            data-track="ui.e7f53817fe.12"
+          >
+            {t('restaurants.ops.reports.downloadBiExport', 'Download BI export')}
+          </button>
+          <button
+            type="button"
+            className="fd-btn fd-btn-sm fd-btn-secondary"
+            onClick={onExportClose}
+            disabled={exportingClose}
+            data-track="ui.e7f53817fe.5"
+          >
+            {t('restaurants.ops.reports.downloadCloseCsv', 'Download daily close')}
+          </button>
+          <button
+            type="button"
+            className="fd-btn fd-btn-sm fd-btn-secondary"
+            onClick={onExportLocationComparison}
+            disabled={exportingLocationComparison}
+            data-track="ui.e7f53817fe.6"
+          >
+            {t('restaurants.ops.reports.downloadLocationComparisonCsv', 'Compare stores CSV')}
+          </button>
+          <button
+            type="button"
+            className="fd-btn fd-btn-sm fd-btn-secondary"
+            onClick={onExportLocationComparisonXlsx}
+            disabled={exportingLocationComparisonXlsx}
+            data-track="ui.e7f53817fe.7"
+          >
+            {t('restaurants.ops.reports.downloadLocationComparisonXlsx', 'Compare stores XLSX')}
+          </button>
         </div>
       )}
     </div>
@@ -168,12 +406,21 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
     );
   }
 
-  const totals = sales?.totals || {};
   const currency = sales?.currency || 'USD';
-  const daily = Array.isArray(sales?.daily) ? sales.daily : [];
-  const maxRevenue = daily.reduce((m, d) => Math.max(m, Number(d.revenue_cents) || 0), 0);
-  const fulfillment = Array.isArray(sales?.by_fulfillment) ? sales.by_fulfillment : [];
-  const sources = Array.isArray(sales?.by_source) ? sales.by_source : [];
+  // F-07: the sales report is per currency; figures are never summed
+  // across currencies. Fall back to the legacy top-level shape if an
+  // older API response has no currencies array.
+  const currencySections = Array.isArray(sales?.currencies) && sales.currencies.length > 0
+    ? sales.currencies
+    : (sales ? [{
+        currency,
+        totals: sales.totals || {},
+        daily: Array.isArray(sales.daily) ? sales.daily : [],
+        by_fulfillment: Array.isArray(sales.by_fulfillment) ? sales.by_fulfillment : [],
+        by_source: Array.isArray(sales.by_source) ? sales.by_source : [],
+        payment_methods: Array.isArray(sales.payment_methods) ? sales.payment_methods : [],
+      }] : []);
+  const hasSalesOrders = currencySections.some((s) => (s.totals?.orders || 0) > 0);
   const adjustments = Array.isArray(inventory?.by_type) ? inventory.by_type : [];
   const waste = Array.isArray(inventory?.top_waste) ? inventory.top_waste : [];
   const ops = operations || {};
@@ -181,103 +428,218 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
   const audits = ops.audits || {};
   const training = ops.training || {};
 
-  const dayLabel = (iso) => {
+  const dayLabel = (iso, dayCount) => {
     const d = new Date(`${iso}T00:00:00`);
     if (Number.isNaN(d.getTime())) return iso;
-    return daily.length > 14
+    return dayCount > 14
       ? d.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })
       : d.toLocaleDateString(undefined, { weekday: 'short' });
+  };
+
+  const KNOWN_PAYMENT_TYPES = ['cash', 'card', 'mobile', 'wallet_credit', 'oxsteed_credit'];
+
+  const renderSalesSection = (section) => {
+    const ccy = section.currency || 'USD';
+    const totals = section.totals || {};
+    const daily = Array.isArray(section.daily) ? section.daily : [];
+    const maxRevenue = daily.reduce((m, d) => Math.max(m, Number(d.revenue_cents) || 0), 0);
+    const fulfillment = Array.isArray(section.by_fulfillment) ? section.by_fulfillment : [];
+    const sources = Array.isArray(section.by_source) ? section.by_source : [];
+    const methods = Array.isArray(section.payment_methods) ? section.payment_methods : [];
+    const breakdownRows = [
+      ['gross', totals.gross_cents],
+      ['discounts', totals.discount_cents],
+      ['netSales', totals.net_sales_cents],
+      ['tax', totals.tax_cents],
+      ['tips', totals.tips_cents],
+      ['serviceFees', totals.service_fee_cents],
+      ['deliveryFees', totals.delivery_fee_cents],
+      ['refunds', totals.refunds_cents],
+      ['netCollected', totals.revenue_cents],
+    ];
+    return (
+      <div key={ccy}>
+        {currencySections.length > 1 && (
+          <h3 className="fd-ops-subhead">{ccy}</h3>
+        )}
+        <div className="fd-ops-checklists-grid">
+          <div className="fd-ops-checklist-card">
+            <strong>{formatFoodMoney(totals.revenue_cents || 0, ccy)}</strong>
+            <p className="fd-card-meta">{t('restaurants.ops.reports.revenue', 'Revenue')}</p>
+          </div>
+          <div className="fd-ops-checklist-card">
+            <strong>{totals.orders || 0}</strong>
+            <p className="fd-card-meta">{t('restaurants.ops.reports.orders', 'Orders')}</p>
+          </div>
+          <div className="fd-ops-checklist-card">
+            <strong>{formatFoodMoney(totals.avg_ticket_cents || 0, ccy)}</strong>
+            <p className="fd-card-meta">{t('restaurants.ops.reports.avgTicket', 'Avg ticket')}</p>
+          </div>
+          <div className="fd-ops-checklist-card">
+            <strong>{totals.cancelled || 0}</strong>
+            <p className="fd-card-meta">{t('restaurants.ops.reports.cancelled', 'Cancelled')}</p>
+          </div>
+        </div>
+
+        <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.breakdown')}</h3>
+        <div className="fd-ops-inventory-list">
+          {breakdownRows.map(([key, cents]) => (
+            <div key={key} className="fd-ops-inventory-row">
+              <span>{t(`restaurants.ops.reports.${key}`)}</span>
+              <span className="fd-card-meta">{formatFoodMoney(cents || 0, ccy)}</span>
+            </div>
+          ))}
+        </div>
+
+        {methods.length > 0 && (
+          <>
+            <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.paymentMethods')}</h3>
+            <div className="fd-ops-inventory-list">
+              {methods.map((m) => (
+                <div key={m.payment_type} className="fd-ops-inventory-row">
+                  <span>
+                    {t(`restaurants.ops.reports.paymentType.${KNOWN_PAYMENT_TYPES.includes(m.payment_type) ? m.payment_type : 'other'}`)}
+                  </span>
+                  <span className="fd-card-meta">
+                    {t('restaurants.ops.reports.paymentsCount', { count: m.payments || 0 })} · {formatFoodMoney(m.amount_cents || 0, ccy)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {daily.length > 0 && maxRevenue > 0 && (
+          <>
+            <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.dailyRevenue', 'Daily revenue')}</h3>
+            <div
+              role="img"
+              aria-label={t('restaurants.ops.reports.dailyRevenue', 'Daily revenue')}
+              style={{ display: 'flex', alignItems: 'flex-end', gap: '0.25rem', height: '8rem', overflowX: 'auto', padding: '0.5rem 0' }}
+            >
+              {daily.map((d) => {
+                const rev = Number(d.revenue_cents) || 0;
+                const heightPct = maxRevenue > 0 ? Math.max(2, Math.round((rev / maxRevenue) * 100)) : 0;
+                return (
+                  <div
+                    key={d.day}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%', flex: '1 0 auto', minWidth: '1.5rem' }}
+                  >
+                    <div
+                      title={`${d.day}: ${formatFoodMoney(rev, ccy)}`}
+                      style={{ height: `${heightPct}%`, width: '100%', maxWidth: '2.25rem', borderRadius: '4px 4px 0 0', background: 'var(--color-primary, #f97316)' }}
+                    />
+                    <span className="fd-card-meta">{dayLabel(d.day, daily.length)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {fulfillment.length > 0 && (
+          <>
+            <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.byFulfillment', 'By fulfillment')}</h3>
+            <div className="fd-ops-inventory-list">
+              {fulfillment.map((f) => (
+                <div key={f.fulfillment_type} className="fd-ops-inventory-row">
+                  <span>{t(`restaurants.ops.reports.fulfillment.${f.fulfillment_type}`, f.fulfillment_type)}</span>
+                  <span className="fd-card-meta">
+                    {t('restaurants.ops.reports.ordersCount', '{{count}} orders', { count: f.orders || 0 })} · {formatFoodMoney(f.revenue_cents || 0, ccy)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {sources.length > 0 && (
+          <>
+            <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.bySource', 'By order source')}</h3>
+            <div className="fd-ops-inventory-list">
+              {sources.map((s) => (
+                <div key={s.order_source} className="fd-ops-inventory-row">
+                  <span>{t(`restaurants.ops.reports.source.${s.order_source}`, s.order_source)}</span>
+                  <span className="fd-card-meta">
+                    {t('restaurants.ops.reports.ordersCount', '{{count}} orders', { count: s.orders || 0 })} · {formatFoodMoney(s.revenue_cents || 0, ccy)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    );
   };
 
   return (
     <div>
       {toolbar(true)}
 
+      <section className="fd-card" aria-labelledby="accounting-outbox-title">
+        <div className="fd-ops-toolbar">
+          <h3 id="accounting-outbox-title" className="fd-ops-subhead">
+            {t('restaurants.ops.reports.accountingOutbox.title', 'Accounting integrations')}
+          </h3>
+          <button
+            type="button"
+            className="fd-btn fd-btn-sm fd-btn-secondary"
+            onClick={loadAccounting}
+            disabled={accountingLoading}
+            aria-label={t('restaurants.ops.reports.accountingOutbox.refresh', 'Refresh accounting status')}
+            data-track="ui.e7f53817fe.13"
+          >
+            <RefreshCw size={14} aria-hidden="true" />
+            {t('restaurants.ops.reports.accountingOutbox.refresh', 'Refresh')}
+          </button>
+        </div>
+        {accountingLoading ? (
+          <div className="fd-empty">{t('food.common.loading', 'Loading…')}</div>
+        ) : accountingError ? (
+          <div className="fd-empty" role="alert">
+            {t('restaurants.ops.reports.accountingOutbox.loadError', 'Could not load accounting status.')}
+          </div>
+        ) : (
+          <>
+            <div className="fd-ops-inventory-list">
+              {accountingIntegrations.length === 0 ? (
+                <div className="fd-card-meta">
+                  {t('restaurants.ops.reports.accountingOutbox.noIntegrations', 'No accounting provider is configured.')}
+                </div>
+              ) : accountingIntegrations.map((integration) => (
+                <div key={integration.id} className="fd-ops-inventory-row">
+                  <span>{integration.provider === 'quickbooks' ? 'QuickBooks' : 'Xero'}</span>
+                  <span className="fd-card-meta">
+                    {t(`restaurants.ops.reports.accountingOutbox.status.${integration.status}`, integration.status)}
+                    {integration.credentialsConfigured ? ` · ${t('restaurants.ops.reports.accountingOutbox.credentialsReady', 'credentials ready')}` : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <h4 className="fd-ops-subhead">{t('restaurants.ops.reports.accountingOutbox.exports', 'Recent journal exports')}</h4>
+            {accountingExports.length === 0 ? (
+              <div className="fd-card-meta">{t('restaurants.ops.reports.accountingOutbox.noExports', 'No journal exports have been queued.')}</div>
+            ) : (
+              <div className="fd-ops-inventory-list">
+                {accountingExports.slice(0, 10).map((item) => (
+                  <div key={item.id} className="fd-ops-inventory-row">
+                    <span>{item.periodFrom} – {item.periodTo} · {item.currencyCode} · {item.lineCount} {t('restaurants.ops.reports.accountingOutbox.lines', 'lines')}</span>
+                    <span className="fd-card-meta">{t(`restaurants.ops.reports.accountingOutbox.status.${item.status}`, item.status)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="fd-card-meta">{t('restaurants.ops.reports.accountingOutbox.providerNote', 'Exports are queued for a separately authenticated provider worker; no provider credentials are stored in the browser.')}</p>
+          </>
+        )}
+      </section>
+
       {/* ── Sales ── */}
       <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.salesTitle', 'Sales')}</h3>
-      {(totals.orders || 0) === 0 ? (
+      {!hasSalesOrders ? (
         <EmptyState icon={Receipt} title={t('restaurants.ops.reports.noOrders', 'No orders in this period.')} />
       ) : (
-        <>
-          <div className="fd-ops-checklists-grid">
-            <div className="fd-ops-checklist-card">
-              <strong>{formatFoodMoney(totals.revenue_cents || 0, currency)}</strong>
-              <p className="fd-card-meta">{t('restaurants.ops.reports.revenue', 'Revenue')}</p>
-            </div>
-            <div className="fd-ops-checklist-card">
-              <strong>{totals.orders || 0}</strong>
-              <p className="fd-card-meta">{t('restaurants.ops.reports.orders', 'Orders')}</p>
-            </div>
-            <div className="fd-ops-checklist-card">
-              <strong>{formatFoodMoney(totals.avg_ticket_cents || 0, currency)}</strong>
-              <p className="fd-card-meta">{t('restaurants.ops.reports.avgTicket', 'Avg ticket')}</p>
-            </div>
-            <div className="fd-ops-checklist-card">
-              <strong>{totals.cancelled || 0}</strong>
-              <p className="fd-card-meta">{t('restaurants.ops.reports.cancelled', 'Cancelled')}</p>
-            </div>
-          </div>
-
-          {daily.length > 0 && maxRevenue > 0 && (
-            <>
-              <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.dailyRevenue', 'Daily revenue')}</h3>
-              <div
-                role="img"
-                aria-label={t('restaurants.ops.reports.dailyRevenue', 'Daily revenue')}
-                style={{ display: 'flex', alignItems: 'flex-end', gap: '0.25rem', height: '8rem', overflowX: 'auto', padding: '0.5rem 0' }}
-              >
-                {daily.map((d) => {
-                  const rev = Number(d.revenue_cents) || 0;
-                  const heightPct = maxRevenue > 0 ? Math.max(2, Math.round((rev / maxRevenue) * 100)) : 0;
-                  return (
-                    <div
-                      key={d.day}
-                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%', flex: '1 0 auto', minWidth: '1.5rem' }}
-                    >
-                      <div
-                        title={`${d.day}: ${formatFoodMoney(rev, currency)}`}
-                        style={{ height: `${heightPct}%`, width: '100%', maxWidth: '2.25rem', borderRadius: '4px 4px 0 0', background: 'var(--color-primary, #f97316)' }}
-                      />
-                      <span className="fd-card-meta">{dayLabel(d.day)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-
-          {fulfillment.length > 0 && (
-            <>
-              <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.byFulfillment', 'By fulfillment')}</h3>
-              <div className="fd-ops-inventory-list">
-                {fulfillment.map((f) => (
-                  <div key={f.fulfillment_type} className="fd-ops-inventory-row">
-                    <span>{t(`restaurants.ops.reports.fulfillment.${f.fulfillment_type}`, f.fulfillment_type)}</span>
-                    <span className="fd-card-meta">
-                      {t('restaurants.ops.reports.ordersCount', '{{count}} orders', { count: f.orders || 0 })} · {formatFoodMoney(f.revenue_cents || 0, currency)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          {sources.length > 0 && (
-            <>
-              <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.bySource', 'By order source')}</h3>
-              <div className="fd-ops-inventory-list">
-                {sources.map((s) => (
-                  <div key={s.order_source} className="fd-ops-inventory-row">
-                    <span>{t(`restaurants.ops.reports.source.${s.order_source}`, s.order_source)}</span>
-                    <span className="fd-card-meta">
-                      {t('restaurants.ops.reports.ordersCount', '{{count}} orders', { count: s.orders || 0 })} · {formatFoodMoney(s.revenue_cents || 0, currency)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </>
+        currencySections.map((section) => renderSalesSection(section))
       )}
 
       {/* ── Customer loyalty (Phase 2, Item 10) ── */}
@@ -301,7 +663,7 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
                   setLoyaltyError(true);
                 })
                 .finally(() => setLoyaltyLoading(false));
-            }}
+            }} data-track="ui.e7f53817fe.2"
           >
             {t('food.common.retry')}
           </button>
@@ -448,6 +810,9 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
           </p>
         </div>
       </div>
+
+      {/* ── Payroll, tips, labor + team activity (S-04/S-15/S-16) ── */}
+      <PayrollPanel t={t} restaurant={restaurant} from={from} to={to} />
     </div>
   );
 }

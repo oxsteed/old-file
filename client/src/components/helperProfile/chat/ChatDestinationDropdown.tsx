@@ -77,7 +77,7 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={t('helperProfile.chat.selectChatDest')}
-        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700/80 border border-gray-700 transition-colors w-full text-start"
+        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700/80 border border-gray-700 transition-colors w-full text-start" data-track-private
       >
         <div className="flex-1 min-w-0">
           <p className="text-xs text-gray-500 leading-none mb-0.5">{t('helperProfile.chat.chattingWith')}</p>
@@ -120,7 +120,7 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
                   selected
                     ? 'bg-brand-500/10 border-s-2 border-brand-500'
                     : 'hover:bg-gray-700/60 border-s-2 border-transparent'
-                }`}
+                }`} data-track-private
               >
                 <div
                   className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${

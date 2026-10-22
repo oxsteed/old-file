@@ -51,6 +51,7 @@ function sanitizeMeta(obj) {
     'authorization', 'auth', 'credential', 'credentials',
     'jwt', 'session', 'cookie', 'cookies',
     'otp', 'otp_code', 'totp_secret', 'backup_codes',
+    'totp', 'query_norm', 'props',
     'stepupcode', 'mfacode', 'currentpin', 'activationcode', 'code_hash', 'binding_hash', 'pin_hash', 'pin_salt',
     'didit_token', 'checkr_token', 'twilio_token',
     'aws_secret', 'redis_url', 'database_url'

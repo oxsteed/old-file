@@ -83,11 +83,16 @@ async function insertOrReplayWalletPosPayment(client, {
   createdByUserId = null,
   replayArgs,
 }) {
+  // F-02 phase 1: the payment inherits the store of the order it settles.
+  const { rows: [orderRow] } = await client.query(
+    `SELECT location_id FROM food_orders WHERE id = $1`,
+    [orderId]
+  );
   const { rows: insertedRows } = await client.query(
     `INSERT INTO restaurant_pos_payments
        (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
-        provider, idempotency_key, reference, note, metadata, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,'food_wallet',$7,$8,$9,$10::jsonb,$11)
+        provider, idempotency_key, reference, note, metadata, created_by, location_id)
+     VALUES ($1,$2,$3,$4,$5,$6,'food_wallet',$7,$8,$9,$10::jsonb,$11,$12)
      ON CONFLICT (restaurant_id, idempotency_key) WHERE idempotency_key IS NOT NULL
      DO NOTHING
      RETURNING *`,
@@ -103,6 +108,7 @@ async function insertOrReplayWalletPosPayment(client, {
       note,
       JSON.stringify(metadata),
       createdByUserId,
+      orderRow?.location_id ?? null,
     ]
   );
   if (insertedRows[0]) return { payment: insertedRows[0], replayed: false };
@@ -154,8 +160,11 @@ async function reconcilePosOrderPayment(client, orderId) {
           ? 'requires_payment'
           : 'unpaid';
   const { rows: [updatedOrder] } = await client.query(
+    // The $1::text cast is load-bearing: $1 is also a jsonb_build_object
+    // value below, and Postgres otherwise deduces it as both varchar
+    // (this assignment) and text, failing with 42P08 on a real database.
     `UPDATE food_orders
-        SET payment_status = $1,
+        SET payment_status = $1::text,
             pos_ticket_state = CASE
               WHEN $1 = 'refunded' THEN 'refunded'
               WHEN $1 = 'paid' AND pos_ticket_state IN ('open','held') THEN 'closed'
@@ -201,6 +210,14 @@ async function reconcilePosOrderPayment(client, orderId) {
           AND cash_collection_required = TRUE`,
       [orderId]
     );
+  }
+  if (updatedOrder?.customer_id && order.payment_status !== nextPaymentStatus) {
+    const { emitDomainEvent, foodEventProps } = require('../growth/emit');
+    if (nextPaymentStatus === 'paid') {
+      await emitDomainEvent(client, 'food.order_paid', foodEventProps(updatedOrder), { userId: updatedOrder.customer_id });
+    } else if (nextPaymentStatus === 'refunded') {
+      await emitDomainEvent(client, 'food.order_refunded', foodEventProps(updatedOrder), { userId: updatedOrder.customer_id });
+    }
   }
   return { order: updatedOrder, totals: { ...totals, net_paid_cents: netPaidCents } };
 }
@@ -418,9 +435,9 @@ async function applyStripeChargeRefund(client, charge) {
       `INSERT INTO restaurant_pos_payments
          (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
           provider, provider_payment_intent_id, provider_charge_id, idempotency_key,
-          reference, note, metadata)
+          reference, note, metadata, location_id)
        VALUES ($1,$2,$3,'refund',$4,'refunded','stripe_terminal',$5,$6,$7,$6,
-               'Refund reconciled from Stripe webhook',$8)
+               'Refund reconciled from Stripe webhook',$8,$9)
        ON CONFLICT (restaurant_id, idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING`,
       [
         original.restaurant_id,
@@ -431,6 +448,7 @@ async function applyStripeChargeRefund(client, charge) {
         charge.id,
         `stripe-charge-refund:${charge.id}:${charge.amount_refunded}`,
         JSON.stringify({ originalPaymentId: original.id, reconciledFromWebhook: true }),
+        original.location_id ?? null,
       ]
     );
   }

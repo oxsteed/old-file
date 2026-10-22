@@ -183,7 +183,7 @@ export default function HelperAvailabilityEditor({ onTemplateLoaded, saveRef } =
             {t('availability.subtitle', { defaultValue: 'Set your typical working hours. Customers see these slots when they accept your bids, giving you the perfect job at the right time.' })}
           </p>
         </div>
-        <button className="hae-save-btn" onClick={handleSave} disabled={saving}>
+        <button className="hae-save-btn" onClick={handleSave} disabled={saving} data-track="ui.008c76b67b.1">
           {saving
             ? t('availability.saving', { defaultValue: 'Saving…' })
             : t('availability.save', { defaultValue: 'Save Schedule' })}
@@ -202,7 +202,7 @@ export default function HelperAvailabilityEditor({ onTemplateLoaded, saveRef } =
                   type="checkbox"
                   checked={slot.active}
                   onChange={() => toggleDay(i)}
-                  aria-label={DAY_NAMES[i]}
+                  aria-label={DAY_NAMES[i]} data-track="ui.008c76b67b.2"
                 />
                 <span className="hae-day-label">{DAY_NAMES[i]}</span>
               </label>
@@ -251,7 +251,7 @@ export default function HelperAvailabilityEditor({ onTemplateLoaded, saveRef } =
       <div className="hae-overrides-section">
         <div className="hae-overrides-header">
           <h3>{t('availability.blockDates', { defaultValue: 'Block Specific Dates' })}</h3>
-          <button className="hae-add-override-btn" onClick={() => setShowOverrideForm(v => !v)}>
+          <button className="hae-add-override-btn" onClick={() => setShowOverrideForm(v => !v)} data-track="ui.008c76b67b.3">
             {showOverrideForm
               ? t('availability.cancel', { defaultValue: 'Cancel' })
               : t('availability.blockADate', { defaultValue: '+ Block a date' })}
@@ -262,7 +262,7 @@ export default function HelperAvailabilityEditor({ onTemplateLoaded, saveRef } =
         </p>
 
         {showOverrideForm && (
-          <form className="hae-override-form" onSubmit={handleAddOverride}>
+          <form className="hae-override-form" onSubmit={handleAddOverride} data-track="ui.008c76b67b.4">
             <div className="hae-override-fields">
               <div className="hae-field">
                 <label>{t('availability.date', { defaultValue: 'Date' })}</label>
@@ -285,7 +285,7 @@ export default function HelperAvailabilityEditor({ onTemplateLoaded, saveRef } =
                 />
               </div>
             </div>
-            <button type="submit" className="hae-save-btn" disabled={savingOverride}>
+            <button type="submit" className="hae-save-btn" disabled={savingOverride} data-track="ui.008c76b67b.5">
               {savingOverride
                 ? t('availability.blocking', { defaultValue: 'Blocking…' })
                 : t('availability.blockDay', { defaultValue: 'Block this day' })}
@@ -306,7 +306,7 @@ export default function HelperAvailabilityEditor({ onTemplateLoaded, saveRef } =
                 <button
                   className="hae-remove-override"
                   onClick={() => handleDeleteOverride(o.id)}
-                  aria-label={`Remove block for ${o.override_date}`}
+                  aria-label={`Remove block for ${o.override_date}`} data-track="ui.008c76b67b.6"
                 >
                   ✕
                 </button>

@@ -33,6 +33,8 @@ const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
 const { encrypt, decrypt } = require('../utils/encryption');
 const { resolveScope, resolveRestaurantAccess } = require('../services/scopeModel');
+const permissionsService = require('../services/permissionsService');
+const { assertLocationAccess, getLocationScope } = require('../services/restaurantLocationAccessService');
 // Imported as module objects (not destructured) so tests can stub the staff
 // path at the module boundary.
 const authMiddleware = require('../middleware/auth');
@@ -41,6 +43,12 @@ const scopeGates = require('../middleware/scopeGates');
 // ── Pure helpers (exported for unit tests) ────────────────────────────────
 
 const PAIRING_CODE_TTL_MS = 10 * 60 * 1000;
+// F-27: pairing tokens get the same bounded lifetime as app device tokens
+// (migration 786): 90 days, rotated on heartbeat once inside the final
+// week. The rotated-out token stays valid until its original expiry so a
+// display that misses the rotation response never goes dark early.
+const PAIRING_TOKEN_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+const PAIRING_TOKEN_ROTATION_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 // Unambiguous alphabet: no 0/O, no 1/I, no L.
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 6;
@@ -139,26 +147,59 @@ function isDisplayTokenShape(token) {
 }
 
 // Verifies a pairing token against display_pairings (paired rows only).
-// Returns { pairingId, restaurantId, label } or null. Constant-time compare,
-// exactly like heartbeat()'s original inline check.
+// F-27: tokens expire. The current token is valid until
+// pairing_token_expires_at (NULL = legacy row not yet adopted by a
+// heartbeat, still valid); the rotated-out previous token stays valid
+// until pairing_token_prev_expires_at. Returns
+// { pairingId, restaurantId, locationId, label, deviceRole, tokenExpiresAt,
+//   usedPreviousToken } or null. Constant-time compares, exactly like
+// heartbeat()'s original inline check.
 async function verifyDisplayPairingToken(token) {
   if (!isDisplayTokenShape(token)) return null;
+  const tokenHash = hashSecret(token);
   const { rows } = await pool.query(
-    `SELECT id, restaurant_id, label, pairing_token_hash, device_role
+    `SELECT id, restaurant_id, location_id, label, pairing_token_hash, pairing_token_hash_prev,
+            pairing_token_expires_at, pairing_token_prev_expires_at, device_role
        FROM display_pairings
-      WHERE pairing_token_hash = $1 AND paired_at IS NOT NULL`,
-    [hashSecret(token)]
+      WHERE (pairing_token_hash = $1 OR pairing_token_hash_prev = $1)
+        AND paired_at IS NOT NULL`,
+    [tokenHash]
   );
   const row = rows[0];
+  if (!row) return null;
+  const now = Date.now();
   // The row matched the token's hash in SQL; compare again in constant time
   // so the bearer credential check does not leak via timing.
-  if (!row || !timingSafeEqualHex(row.pairing_token_hash, hashSecret(token))) return null;
-  return {
-    pairingId: Number(row.id),
-    restaurantId: Number(row.restaurant_id),
-    label: row.label,
-    deviceRole: row.device_role || DEFAULT_DEVICE_ROLE,
-  };
+  if (timingSafeEqualHex(row.pairing_token_hash, tokenHash)) {
+    if (row.pairing_token_expires_at && new Date(row.pairing_token_expires_at).getTime() <= now) {
+      return null;
+    }
+    return {
+      pairingId: Number(row.id),
+      restaurantId: Number(row.restaurant_id),
+      ...(row.location_id != null ? { locationId: Number(row.location_id) } : {}),
+      label: row.label,
+      deviceRole: row.device_role || DEFAULT_DEVICE_ROLE,
+      tokenExpiresAt: row.pairing_token_expires_at || null,
+      usedPreviousToken: false,
+    };
+  }
+  if (row.pairing_token_hash_prev && timingSafeEqualHex(row.pairing_token_hash_prev, tokenHash)) {
+    if (!row.pairing_token_prev_expires_at
+      || new Date(row.pairing_token_prev_expires_at).getTime() <= now) {
+      return null;
+    }
+    return {
+      pairingId: Number(row.id),
+      restaurantId: Number(row.restaurant_id),
+      ...(row.location_id != null ? { locationId: Number(row.location_id) } : {}),
+      label: row.label,
+      deviceRole: row.device_role || DEFAULT_DEVICE_ROLE,
+      tokenExpiresAt: row.pairing_token_prev_expires_at,
+      usedPreviousToken: true,
+    };
+  }
+  return null;
 }
 
 // Canonical owner gate: the restaurant must belong to the caller's business
@@ -173,6 +214,36 @@ async function requireRestaurantOwner(userId, restaurantId) {
   return restaurant;
 }
 
+// F-27: fleet management gate. Owners always pass; other members need the
+// display.manage capability (granted to the manager role by the permission
+// catalog, migration 370), so a store manager can replace a broken kitchen
+// TV without the owner.
+async function requireDisplayManager(userId, restaurantId, locationId = null) {
+  if (!userId) throw new AppError('Sign in required', 401, 'unauthorized');
+  if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+  const restaurant = await resolveRestaurantAccess(userId, restaurantId);
+  if (locationId != null) {
+    const { rows: locations } = await pool.query(
+      `SELECT id FROM restaurant_locations
+        WHERE id = $1 AND restaurant_id = $2 AND status = 'active'`,
+      [locationId, restaurantId]
+    );
+    if (!locations[0]) throw new AppError('Display store not found', 404, 'display_location_not_found');
+  }
+  if (restaurant.effective_role === 'owner') return restaurant;
+  const { permissions } = await permissionsService.getEffectivePermissions({
+    businessId: restaurant.business_id,
+    userId,
+    role: restaurant.effective_role,
+    membershipId: restaurant.effective_membership_id,
+  });
+  if (!permissionsService.hasAny(permissions, ['display.manage'])) {
+    throw new AppError('Display manager access required', 403, 'forbidden');
+  }
+  if (locationId != null) await assertLocationAccess(restaurant, userId, locationId);
+  return restaurant;
+}
+
 async function requireOwnedPairing(userId, pairingId) {
   const id = parsePositiveInt(pairingId);
   if (!id) throw new AppError('Display not found', 404, 'display_not_found');
@@ -181,7 +252,7 @@ async function requireOwnedPairing(userId, pairingId) {
   if (!pairing) throw new AppError('Display not found', 404, 'display_not_found');
   // resolveRestaurantAccess maps "no standing" to 404 restaurant_not_found, so
   // the pairing's existence never leaks to an outsider.
-  await requireRestaurantOwner(userId, pairing.restaurant_id);
+  await requireDisplayManager(userId, pairing.restaurant_id, pairing.location_id);
   return pairing;
 }
 
@@ -189,11 +260,13 @@ function publicPairingShape(row) {
   return {
     id: Number(row.id),
     restaurant_id: Number(row.restaurant_id),
+    ...(row.location_id != null ? { location_id: Number(row.location_id) } : {}),
     restaurant_name: row.restaurant_name || null,
     label: row.label,
     device_role: row.device_role || DEFAULT_DEVICE_ROLE,
     paired_at: row.paired_at,
     last_seen_at: row.last_seen_at,
+    token_expires_at: row.pairing_token_expires_at || null,
     refresh_requested_at: row.refresh_requested_at,
     online:
       row.last_seen_at != null &&
@@ -212,6 +285,21 @@ async function issuePairingCode(req, res, next) {
     if (!restaurantId) throw new AppError('A valid restaurant id is required', 400, 'invalid_restaurant_id');
     const { rows } = await pool.query('SELECT id FROM food_restaurants WHERE id = $1', [restaurantId]);
     if (!rows[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const requestedLocationId = parsePositiveInt(req.body?.location_id ?? req.body?.locationId);
+    const { rows: locationRows } = await pool.query(
+      `SELECT id
+         FROM restaurant_locations
+        WHERE restaurant_id = $1
+          AND status = 'active'
+          AND ($2::bigint IS NULL OR id = $2)
+        ORDER BY is_primary DESC, id ASC
+        LIMIT 1`,
+      [restaurantId, requestedLocationId]
+    );
+    const locationId = Number(locationRows[0]?.id || 0);
+    if (!locationId) {
+      throw new AppError('A valid active store is required for display pairing', 409, 'display_location_required');
+    }
     // The TV declares its physical role up front so the pairing record is
     // fail-closed from issuance: an invalid or absent display_type becomes
     // 'kiosk', which can never reach the kitchen ticket surface.
@@ -224,10 +312,10 @@ async function issuePairingCode(req, res, next) {
       const codeHash = hashSecret(code);
       try {
         const { rows: inserted } = await pool.query(
-          `INSERT INTO display_pairings (restaurant_id, code_hash, expires_at, device_role)
-           VALUES ($1, $2, NOW() + make_interval(secs => $3), $4)
+          `INSERT INTO display_pairings (restaurant_id, location_id, code_hash, expires_at, device_role)
+           VALUES ($1, $2, $3, NOW() + make_interval(secs => $4), $5)
            RETURNING id, expires_at`,
-          [restaurantId, codeHash, PAIRING_CODE_TTL_MS / 1000, deviceRole]
+          [restaurantId, locationId, codeHash, PAIRING_CODE_TTL_MS / 1000, deviceRole]
         );
         return res.status(201).json({
           code,
@@ -256,7 +344,7 @@ async function claimDisplay(req, res, next) {
     const codeHash = hashSecret(code);
 
     const { rows: candidates } = await pool.query(
-      `SELECT id, restaurant_id, code_hash, device_role, paired_at, expires_at
+      `SELECT id, restaurant_id, location_id, code_hash, device_role, paired_at, expires_at
          FROM display_pairings
         WHERE code_hash = $1 AND paired_at IS NULL AND expires_at > NOW()`,
       [codeHash]
@@ -265,9 +353,10 @@ async function claimDisplay(req, res, next) {
     if (!candidate || !timingSafeEqualHex(candidate.code_hash, codeHash)) {
       throw new AppError('Pairing code not found or expired', 404, 'code_not_found');
     }
-    // Ownership first: claiming a code for a restaurant the caller does not
-    // own must fail even when the code is valid (fail closed).
-    const restaurant = await requireRestaurantOwner(req.user?.id, candidate.restaurant_id);
+    // Access first: claiming a code for a restaurant the caller cannot
+    // manage displays for must fail even when the code is valid (fail
+    // closed). Owners and display.manage holders may claim (F-27).
+    const restaurant = await requireDisplayManager(req.user?.id, candidate.restaurant_id, candidate.location_id);
     // The owner approves the final device role at claim time; an invalid
     // value is a 400, an absent one keeps the role the TV declared.
     const deviceRole = resolveClaimDeviceRole(req.body?.device_role, candidate.device_role);
@@ -279,10 +368,13 @@ async function claimDisplay(req, res, next) {
               label = $2,
               pairing_token_hash = $3,
               pairing_token_encrypted = $4,
-              device_role = $5
+              device_role = $5,
+              pairing_token_expires_at = NOW() + make_interval(secs => $6),
+              pairing_token_hash_prev = NULL,
+              pairing_token_prev_expires_at = NULL
         WHERE id = $1 AND paired_at IS NULL AND expires_at > NOW()
-        RETURNING id, restaurant_id, label, device_role, paired_at, created_at`,
-      [candidate.id, label, hashSecret(token), encrypt(token), deviceRole]
+        RETURNING id, restaurant_id, location_id, label, device_role, paired_at, created_at, pairing_token_expires_at`,
+      [candidate.id, label, hashSecret(token), encrypt(token), deviceRole, PAIRING_TOKEN_TTL_MS / 1000]
     );
     if (!updated[0]) {
       throw new AppError('Pairing code not found or expired', 404, 'code_not_found');
@@ -359,15 +451,63 @@ async function pairingStatus(req, res, next) {
 
 // POST /api/restaurant/displays/heartbeat  (pairing-token bearer auth)
 // Updates last_seen_at; consumes refresh_requested_at and reports it.
+// F-27: adopts a 90-day expiry for legacy tokens, and rotates the token
+// (returning the replacement exactly once, in this response) when the
+// current one enters its final week. The rotated-out token remains valid
+// until its original expiry, so a display that drops this response keeps
+// working and simply re-pairs when the old token finally lapses.
 async function heartbeat(req, res, next) {
   try {
     const pairing = await verifyDisplayPairingToken(bearerToken(req));
     if (!pairing) throw new AppError('Unauthorized', 401, 'display_token_invalid');
     const { rows } = await pool.query(
-      `SELECT refresh_requested_at FROM display_pairings WHERE id = $1 AND paired_at IS NOT NULL`,
+      `SELECT refresh_requested_at, pairing_token_hash, pairing_token_expires_at
+         FROM display_pairings WHERE id = $1 AND paired_at IS NOT NULL`,
       [pairing.pairingId]
     );
-    const refreshRequested = rows[0] ? rows[0].refresh_requested_at != null : false;
+    const row = rows[0];
+    if (!row) throw new AppError('Unauthorized', 401, 'display_token_invalid');
+    const refreshRequested = row.refresh_requested_at != null;
+
+    let rotatedToken = null;
+    let tokenExpiresAt = row.pairing_token_expires_at || null;
+    const now = Date.now();
+    if (!pairing.usedPreviousToken && !tokenExpiresAt) {
+      // Legacy token (paired before migration 944): adopt the bounded
+      // lifetime starting now; the token itself does not change.
+      const { rows: adopted } = await pool.query(
+        `UPDATE display_pairings
+            SET pairing_token_expires_at = NOW() + make_interval(secs => $2)
+          WHERE id = $1 AND paired_at IS NOT NULL AND pairing_token_expires_at IS NULL
+          RETURNING pairing_token_expires_at`,
+        [pairing.pairingId, PAIRING_TOKEN_TTL_MS / 1000]
+      );
+      tokenExpiresAt = adopted[0]?.pairing_token_expires_at || tokenExpiresAt;
+    } else if (
+      !pairing.usedPreviousToken
+      && tokenExpiresAt
+      && new Date(tokenExpiresAt).getTime() - now <= PAIRING_TOKEN_ROTATION_WINDOW_MS
+    ) {
+      rotatedToken = crypto.randomBytes(32).toString('hex');
+      const { rows: rotated } = await pool.query(
+        `UPDATE display_pairings
+            SET pairing_token_hash_prev = pairing_token_hash,
+                pairing_token_prev_expires_at = pairing_token_expires_at,
+                pairing_token_hash = $2,
+                pairing_token_expires_at = NOW() + make_interval(secs => $3)
+          WHERE id = $1 AND paired_at IS NOT NULL AND pairing_token_hash = $4
+          RETURNING pairing_token_expires_at`,
+        [pairing.pairingId, hashSecret(rotatedToken), PAIRING_TOKEN_TTL_MS / 1000, row.pairing_token_hash]
+      );
+      if (rotated[0]) {
+        tokenExpiresAt = rotated[0].pairing_token_expires_at;
+      } else {
+        // A concurrent heartbeat already rotated; keep this response
+        // token-less rather than issuing a second replacement.
+        rotatedToken = null;
+      }
+    }
+
     await pool.query(
       `UPDATE display_pairings
           SET last_seen_at = NOW(),
@@ -378,7 +518,10 @@ async function heartbeat(req, res, next) {
     return res.json({
       refresh_requested: refreshRequested,
       restaurant_id: pairing.restaurantId,
+      ...(pairing.locationId != null ? { location_id: pairing.locationId } : {}),
       label: pairing.label,
+      token_expires_at: tokenExpiresAt,
+      ...(rotatedToken ? { rotated_token: rotatedToken } : {}),
     });
   } catch (err) {
     return next(err);
@@ -428,6 +571,7 @@ async function requireKitchenDeviceOrStaff(req, res, next) {
       req.displayDevice = {
         pairingId: pairing.pairingId,
         restaurantId: pairing.restaurantId,
+        locationId: pairing.locationId || null,
         label: pairing.label,
         deviceRole: pairing.deviceRole,
       };
@@ -439,25 +583,50 @@ async function requireKitchenDeviceOrStaff(req, res, next) {
   }
 }
 
-// GET /api/restaurant/displays  (authenticated owner)
-// Lists pairings for the caller's owned restaurants, with online derived from
-// last_seen_at (< 90s).
+// GET /api/restaurant/displays  (authenticated owner or display manager)
+// Lists pairings for the restaurants the caller can manage displays for,
+// with online derived from last_seen_at (< 90s) and last_seen_at surfaced
+// per display (F-27).
 async function listPairings(req, res, next) {
   try {
     const userId = req.user?.id;
     if (!userId) throw new AppError('Sign in required', 401, 'unauthorized');
     const scope = await resolveScope({ id: userId, role: req.user?.role });
-    const ownedIds = scope.restaurants.filter((r) => r.role === 'owner').map((r) => r.id);
-    if (ownedIds.length === 0) return res.json({ displays: [] });
+    const manageableIds = [];
+    const locationScopes = new Map();
+    for (const entry of scope.restaurants) {
+      if (entry.role === 'owner') {
+        manageableIds.push(entry.id);
+        locationScopes.set(Number(entry.id), null);
+        continue;
+      }
+      try {
+        const restaurant = await requireDisplayManager(userId, entry.id);
+        const locationScope = await getLocationScope(restaurant, userId);
+        manageableIds.push(entry.id);
+        locationScopes.set(
+          Number(entry.id),
+          locationScope.mode === 'assigned' ? new Set(locationScope.location_ids.map(Number)) : null,
+        );
+      } catch (_) {
+        // No display standing for this restaurant: not part of the fleet view.
+      }
+    }
+    if (manageableIds.length === 0) return res.json({ displays: [] });
     const { rows } = await pool.query(
       `SELECT dp.*, fr.display_name AS restaurant_name
          FROM display_pairings dp
          JOIN food_restaurants fr ON fr.id = dp.restaurant_id
         WHERE dp.restaurant_id = ANY($1)
         ORDER BY dp.created_at DESC`,
-      [ownedIds]
+      [manageableIds]
     );
-    return res.json({ displays: rows.map(publicPairingShape) });
+    const scopedRows = rows.filter((row) => {
+      const allowedLocations = locationScopes.get(Number(row.restaurant_id));
+      return allowedLocations === null
+        || (allowedLocations && allowedLocations.has(Number(row.location_id)));
+    });
+    return res.json({ displays: scopedRows.map(publicPairingShape) });
   } catch (err) {
     return next(err);
   }
@@ -520,6 +689,8 @@ module.exports = {
     DISPLAY_DEVICE_ROLES,
     DEFAULT_DEVICE_ROLE,
     PAIRING_CODE_TTL_MS,
+    PAIRING_TOKEN_TTL_MS,
+    PAIRING_TOKEN_ROTATION_WINDOW_MS,
     ONLINE_THRESHOLD_MS,
     CODE_ALPHABET,
     CODE_LENGTH,

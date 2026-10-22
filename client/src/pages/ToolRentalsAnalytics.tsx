@@ -100,7 +100,7 @@ const ToolRentalsAnalytics: React.FC = () => {
               </p>
               <div className="analytics-empty-actions">
                 <Link to="/dashboard?tab=skills" className="analytics-btn-primary">List a tool</Link>
-                <button onClick={() => navigate('/tool-rentals')} className="analytics-btn-secondary">
+                <button onClick={() => navigate('/tool-rentals')} className="analytics-btn-secondary" data-track="ui.dbb37b1939.1">
                   Browse tool marketplace
                 </button>
                 <Link to="/features#tool-rentals" className="analytics-btn-secondary">Learn how rentals connect</Link>
@@ -141,7 +141,7 @@ const ToolRentalsAnalytics: React.FC = () => {
           </div>
           <div className="analytics-header-actions">
             <Link to="/dashboard?tab=skills" className="analytics-btn-secondary">Manage listings</Link>
-            <button onClick={loadDashboard} className="analytics-refresh-btn">
+            <button onClick={loadDashboard} className="analytics-refresh-btn" data-track="ui.dbb37b1939.2">
               <RefreshCw size={16} />
               {t('common.refresh') || 'Refresh'}
             </button>

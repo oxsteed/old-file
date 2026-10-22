@@ -57,6 +57,6 @@ Sentry.init({
     if (typeof msg === 'string' && msg.includes('Connection is closed') && global.__isShuttingDown) {
       return null;
     }
-    return event;
+    return require('./utils/telemetryPrivacy').scrubGrowthTelemetry(event);
   },
 });

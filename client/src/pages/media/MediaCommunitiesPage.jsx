@@ -53,20 +53,20 @@ export default function MediaCommunitiesPage() {
       <h1>{t('media.shell.spaces')}</h1>
       <p className="media-subtitle">{t('media.spaces.description')}</p>
       <div className="media-space-actions">
-        <button type="button" className="media-primary-button" onClick={openSuggestion}><Plus size={17} aria-hidden="true" /> {t('media.spaces.suggest', { defaultValue: 'Suggest a Space' })}</button>
+        <button type="button" className="media-primary-button" onClick={openSuggestion} data-track="ui.b92937b1c4.1"><Plus size={17} aria-hidden="true" /> {t('media.spaces.suggest', { defaultValue: 'Suggest a Space' })}</button>
         {suggestionMessage && <p role="status" className="media-inline-success">{suggestionMessage}</p>}
       </div>
       {suggestOpen && (
         <div className="media-card media-space-suggestion-card">
-          <div className="media-space-suggestion-heading"><h2>{t('media.spaces.suggestTitle', { defaultValue: 'Suggest a Space' })}</h2><button type="button" className="media-icon-button" onClick={() => setSuggestOpen(false)} aria-label={t('media.shell.close', { defaultValue: 'Close' })}><X size={18} /></button></div>
+          <div className="media-space-suggestion-heading"><h2>{t('media.spaces.suggestTitle', { defaultValue: 'Suggest a Space' })}</h2><button type="button" className="media-icon-button" onClick={() => setSuggestOpen(false)} aria-label={t('media.shell.close', { defaultValue: 'Close' })} data-track="ui.b92937b1c4.2"><X size={18} /></button></div>
           <p>{t('media.spaces.suggestHint', { defaultValue: 'Tell us what local conversation is missing. An administrator reviews suggestions before they become public.' })}</p>
-          <form onSubmit={submitSuggestion} className="media-space-suggestion-form">
+          <form onSubmit={submitSuggestion} className="media-space-suggestion-form" data-track="ui.b92937b1c4.3">
             <label>Space name<input required minLength={3} maxLength={120} value={suggestion.title} onChange={updateSuggestion('title')} placeholder="Springfield Small Businesses" /></label>
             <label>City, region, or county<input required maxLength={160} value={suggestion.geo_scope} onChange={updateSuggestion('geo_scope')} placeholder="Springfield, OH" /></label>
             <label>Category<select value={suggestion.category} onChange={updateSuggestion('category')}><option value="general">General</option><option value="food">Food & dining</option><option value="helpers">Local help</option><option value="jobs">Jobs & opportunities</option><option value="businesses">Businesses</option><option value="events">Events</option><option value="mutual_aid">Mutual aid</option></select></label>
             <label>Description <span>(optional)</span><textarea maxLength={1000} rows={3} value={suggestion.description} onChange={updateSuggestion('description')} placeholder="What should neighbors share here?" /></label>
             {suggestionError && <p role="alert" className="media-inline-error">{suggestionError}</p>}
-            <div className="media-space-suggestion-actions"><button type="button" className="media-text-button" onClick={() => setSuggestOpen(false)}>Cancel</button><button type="submit" className="media-primary-button" disabled={submitting}>{submitting ? 'Submitting…' : 'Submit for review'}</button></div>
+            <div className="media-space-suggestion-actions"><button type="button" className="media-text-button" onClick={() => setSuggestOpen(false)} data-track="ui.b92937b1c4.4">Cancel</button><button type="submit" className="media-primary-button" disabled={submitting} data-track="ui.b92937b1c4.5">{submitting ? 'Submitting…' : 'Submit for review'}</button></div>
           </form>
         </div>
       )}

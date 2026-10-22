@@ -118,7 +118,7 @@ const ReviewCard: React.FC<{ review: Review }> = ({ review }) => {
             onClick={() => setReplyOpen((p) => !p)}
             className="inline-flex items-center gap-1 text-xs text-brand-400 hover:text-brand-300 transition-colors"
             aria-expanded={replyOpen}
-            aria-controls={`reply-${review.id}`}
+            aria-controls={`reply-${review.id}`} data-track="ui.2509da2f14.1"
           >
             <MessageSquare className="w-3.5 h-3.5" aria-hidden="true" />
             {t('helperProfile.reviews.helperReplied')}
@@ -200,7 +200,7 @@ const ReviewsSection: React.FC<ReviewsSectionProps> = ({
         <button
           onClick={() => setShowAll((p) => !p)}
           className="mt-4 w-full py-2.5 rounded-xl border border-gray-700 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors flex items-center justify-center gap-2"
-          aria-expanded={showAll}
+          aria-expanded={showAll} data-track="ui.2509da2f14.2"
         >
           {showAll ? (
             <>{t('helperProfile.reviews.showFewer')} <ChevronUp className="w-4 h-4" aria-hidden="true" /></>

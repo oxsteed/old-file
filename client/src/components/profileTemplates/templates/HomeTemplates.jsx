@@ -245,7 +245,7 @@ export function HandymanTemplate({ profileData }) {
           {phone && (
             <a href={`tel:${phone}`}
               className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-black text-lg"
-              style={{ background: 'rgba(255,255,255,0.15)', border: '2px solid rgba(255,255,255,0.3)' }}>
+              style={{ background: 'rgba(255,255,255,0.15)', border: '2px solid rgba(255,255,255,0.3)' }} data-track="ui.f46f048710.1">
               <Phone size={20} /> Call Now: {phone}
             </a>
           )}
@@ -324,7 +324,7 @@ export function HandymanTemplate({ profileData }) {
         {website && (
           <div className="text-center pb-4">
             <a href={website} target="_blank" rel="noopener noreferrer"
-              className="text-sm text-amber-600 hover:text-amber-800 underline">{website.replace(/^https?:\/\//, '')}</a>
+              className="text-sm text-amber-600 hover:text-amber-800 underline" data-track="ui.f46f048710.2">{website.replace(/^https?:\/\//, '')}</a>
           </div>
         )}
       </div>
@@ -664,7 +664,7 @@ export function PestControlTemplate({ profileData }) {
             <p className="text-red-100 text-xs mb-3">Call for same-day service</p>
             {phone && (
               <a href={`tel:${phone}`} className="block w-full py-2 rounded-xl font-bold text-sm"
-                style={{ background: 'rgba(0,0,0,0.2)', color: '#fff' }}>
+                style={{ background: 'rgba(0,0,0,0.2)', color: '#fff' }} data-track="ui.f46f048710.3">
                 {phone}
               </a>
             )}

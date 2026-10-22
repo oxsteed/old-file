@@ -149,7 +149,7 @@ export function PricingRulesManager({ businessId }) {
                   <input
                     type="checkbox"
                     checked={formData.time.is_peak}
-                    onChange={e => setDimension('time', { is_peak: e.target.checked })}
+                    onChange={e => setDimension('time', { is_peak: e.target.checked })} data-track="ui.3892082632.1"
                   />
                   {t('businessHub.pricingRules.isPeak')}
                 </label>
@@ -349,7 +349,7 @@ export function PricingRulesManager({ businessId }) {
         {!showForm && (
           <button
             onClick={() => { setFormData(DEFAULT_FORM); setShowForm(true); }}
-            className="prm-btn-new"
+            className="prm-btn-new" data-track="ui.3892082632.2"
           >
             <Plus size={18} /> {t('businessHub.pricingRules.newRule')}
           </button>
@@ -399,10 +399,10 @@ export function PricingRulesManager({ businessId }) {
           {renderTypeSpecificConfig()}
 
           <div className="prm-form-buttons">
-            <button onClick={() => setShowForm(false)} className="prm-btn-cancel">
+            <button onClick={() => setShowForm(false)} className="prm-btn-cancel" data-track="ui.3892082632.3">
               {t('common.cancel')}
             </button>
-            <button onClick={handleSaveRule} className="prm-btn-save">
+            <button onClick={handleSaveRule} className="prm-btn-save" data-track="ui.3892082632.4">
               {t('businessHub.pricingRules.saveRule')}
             </button>
           </div>
@@ -412,7 +412,7 @@ export function PricingRulesManager({ businessId }) {
           {error && (
             <div className="prm-error" style={{ padding: '1rem', backgroundColor: '#fee2e2', borderRadius: '0.5rem', color: '#991b1b', marginBottom: '1rem' }}>
               <p><strong>{t('businessHub.pricingRules.errorLabel')}:</strong> {error}</p>
-              <button onClick={loadRules} className="prm-btn-new" style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>
+              <button onClick={loadRules} className="prm-btn-new" style={{ marginTop: '0.5rem', fontSize: '0.875rem' }} data-track="ui.3892082632.5">
                 {t('common.tryAgain')}
               </button>
             </div>
@@ -422,7 +422,7 @@ export function PricingRulesManager({ businessId }) {
           ) : rules.length === 0 ? (
             <div className="prm-empty">
               <p>{t('businessHub.pricingRules.noRules')}</p>
-              <button onClick={() => setShowForm(true)} className="prm-btn-new-large">
+              <button onClick={() => setShowForm(true)} className="prm-btn-new-large" data-track="ui.3892082632.6">
                 {t('businessHub.pricingRules.createFirstRule')}
               </button>
             </div>
@@ -448,7 +448,7 @@ export function PricingRulesManager({ businessId }) {
                           onClick={() => handleToggleRule(rule.id, rule.is_active)}
                           className="prm-btn-action"
                           aria-label={rule.is_active ? t('businessHub.pricingRules.disableRule') : t('businessHub.pricingRules.enableRule')}
-                          title={rule.is_active ? t('businessHub.pricingRules.disable') : t('businessHub.pricingRules.enable')}
+                          title={rule.is_active ? t('businessHub.pricingRules.disable') : t('businessHub.pricingRules.enable')} data-track="ui.3892082632.7"
                         >
                           {rule.is_active
                             ? <ToggleRight size={18} style={{ color: '#f97316' }} />
@@ -457,7 +457,7 @@ export function PricingRulesManager({ businessId }) {
                         <button
                           onClick={() => handleDeleteRule(rule.id)}
                           className="prm-btn-action delete"
-                          aria-label={t('businessHub.pricingRules.deleteRule')}
+                          aria-label={t('businessHub.pricingRules.deleteRule')} data-track="ui.3892082632.8"
                         >
                           <Trash2 size={16} />
                         </button>

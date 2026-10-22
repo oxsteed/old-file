@@ -108,7 +108,7 @@ export default function BidAcceptanceModal({
                   checked={selectedPaymentMethod === 'off_platform'}
                   onChange={() => setSelectedPaymentMethod('off_platform')}
                   className="mt-1"
-                  aria-label={t('bidAcceptanceModal.customOption') || 'Custom off-platform payment'}
+                  aria-label={t('bidAcceptanceModal.customOption') || 'Custom off-platform payment'} data-track="ui.23ac95a2f4.1"
                 />
                 <div className="flex-1">
                   <h3 className="font-semibold text-lg mb-1">
@@ -167,7 +167,7 @@ export default function BidAcceptanceModal({
                                       href={detail.link_url}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="text-blue-600 dark:text-blue-400 underline break-all"
+                                      className="text-blue-600 dark:text-blue-400 underline break-all" data-track="ui.23ac95a2f4.2"
                                     >
                                       {detail.link_url}
                                     </a>
@@ -214,7 +214,7 @@ export default function BidAcceptanceModal({
                   checked={selectedPaymentMethod === 'oxsteed'}
                   onChange={() => setSelectedPaymentMethod('oxsteed')}
                   className="mt-1"
-                  aria-label={t('bidAcceptanceModal.oxsteadOption') || 'OxSteed platform payment'}
+                  aria-label={t('bidAcceptanceModal.oxsteadOption') || 'OxSteed platform payment'} data-track="ui.23ac95a2f4.3"
                 />
                 <div className="flex-1">
                   <h3 className="font-semibold text-lg mb-1">
@@ -274,14 +274,14 @@ export default function BidAcceptanceModal({
           <button
             onClick={onCancel}
             disabled={loading}
-            className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium" data-track="ui.23ac95a2f4.4"
           >
             {t('bidAcceptanceModal.cancel') || 'Cancel'}
           </button>
           <button
             onClick={handleConfirm}
             disabled={loading || (railOptions ? !railSelection?.ready : !selectedPaymentMethod)}
-            className="flex-1 px-4 py-3 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+            className="flex-1 px-4 py-3 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed font-semibold" data-track="ui.23ac95a2f4.5"
           >
             {loading
               ? t('bidAcceptanceModal.accepting') || 'Accepting...'

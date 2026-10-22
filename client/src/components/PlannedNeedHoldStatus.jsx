@@ -76,7 +76,7 @@ export default function PlannedNeedHoldStatus({ need, onUpdate }) {
               marginLeft: 'auto', background: '#dc2626', color: 'white',
               border: 'none', borderRadius: '4px', padding: '4px 10px',
               cursor: 'pointer', fontSize: '12px', fontWeight: 600,
-            }}
+            }} data-track="ui.98e0c33e91.1"
           >{busy ? '...' : t('preferredHelper.broadcastNow')}</button>
         </div>
       )}
@@ -96,10 +96,10 @@ export default function PlannedNeedHoldStatus({ need, onUpdate }) {
                 marginLeft: '8px', background: 'none', border: '1px solid #d1d5db',
                 borderRadius: '4px', padding: '2px 8px', cursor: 'pointer',
                 fontSize: '12px', color: '#2563eb',
-              }}
+              }} data-track="ui.98e0c33e91.2"
             >{t('preferredHelper.addFund')}</button>
           ) : (
-            <form onSubmit={handleAddFund} style={{ display: 'inline-flex', gap: '4px', marginLeft: '8px' }}>
+            <form onSubmit={handleAddFund} style={{ display: 'inline-flex', gap: '4px', marginLeft: '8px' }} data-track="ui.98e0c33e91.3">
               <input
                 type="number" step="0.01" min="0.01" value={fundAmount}
                 onChange={e => setFundAmount(e.target.value)}
@@ -109,11 +109,11 @@ export default function PlannedNeedHoldStatus({ need, onUpdate }) {
               <button type="submit" disabled={busy} style={{
                 background: '#16a34a', color: 'white', border: 'none',
                 borderRadius: '4px', padding: '2px 8px', fontSize: '12px', cursor: 'pointer',
-              }}>{busy ? '...' : t('preferredHelper.save')}</button>
+              }} data-track="ui.98e0c33e91.4">{busy ? '...' : t('preferredHelper.save')}</button>
               <button type="button" onClick={() => setShowFund(false)} style={{
                 background: 'none', border: 'none', color: '#9ca3af',
                 cursor: 'pointer', fontSize: '12px',
-              }}>{t('preferredHelper.cancel')}</button>
+              }} data-track="ui.98e0c33e91.5">{t('preferredHelper.cancel')}</button>
             </form>
           )}
         </div>

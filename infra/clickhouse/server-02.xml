@@ -1,0 +1,16 @@
+<clickhouse>
+  <macros><shard>01</shard><replica>clickhouse02</replica></macros>
+  <zookeeper>
+    <node><host>keeper01</host><port>9181</port></node>
+    <node><host>keeper02</host><port>9181</port></node>
+    <node><host>keeper03</host><port>9181</port></node>
+  </zookeeper>
+  <remote_servers>
+    <growth>
+      <shard>
+        <replica><host>clickhouse01</host><port>9000</port><user>default</user><password from_env="GROWTH_CH_PASSWORD"/></replica>
+        <replica><host>clickhouse02</host><port>9000</port><user>default</user><password from_env="GROWTH_CH_PASSWORD"/></replica>
+      </shard>
+    </growth>
+  </remote_servers>
+</clickhouse>

@@ -91,7 +91,7 @@ export default function ClientIntakeSharePanel({ open = false, onClose, guestSes
             <p className="client-intake-panel__subtitle">{isFollowUp ? t('messages.clientIntake.followUpSubtitle') : t('messages.clientIntake.shareSubtitle', { defaultValue: 'Collect the details you need before the work begins.' })}</p>
           </div>
         </div>
-        <button type="button" className="quote-share-panel__close client-intake-panel__close" onClick={onClose} aria-label={t('common.close')}><X aria-hidden="true" /></button>
+        <button type="button" className="quote-share-panel__close client-intake-panel__close" onClick={onClose} aria-label={t('common.close')} data-track-private><X aria-hidden="true" /></button>
       </header>
 
       <div className="client-intake-panel__progress" aria-live="polite">
@@ -99,7 +99,7 @@ export default function ClientIntakeSharePanel({ open = false, onClose, guestSes
         <span>{filledFieldCount} {t('messages.clientIntake.questionCount', { defaultValue: filledFieldCount === 1 ? 'question' : 'questions' })}</span>
       </div>
 
-      <form className="quote-share-panel__body client-intake-panel__body" onSubmit={share}>
+      <form className="quote-share-panel__body client-intake-panel__body" onSubmit={share} data-track-private>
         {!isFollowUp ? (
         <section className="client-intake-panel__section" aria-labelledby="client-intake-details-heading">
           <div className="client-intake-panel__section-heading">
@@ -133,7 +133,7 @@ export default function ClientIntakeSharePanel({ open = false, onClose, guestSes
                       <span>{t('messages.clientIntake.questionLabel', { defaultValue: 'Question' })} <b aria-hidden="true">*</b></span>
                       <input className="client-intake-panel__input" value={field.label} onChange={(event) => updateField(index, { label: event.target.value })} required={index === 0} maxLength={180} placeholder={t('messages.clientIntake.questionPlaceholder')} />
                     </label>
-                    <button type="button" className="client-intake-field__remove" onClick={() => removeField(index)} disabled={fields.length === 1} aria-label={t('messages.clientIntake.removeQuestion', { defaultValue: 'Remove question' })}><Trash2 aria-hidden="true" /></button>
+                    <button type="button" className="client-intake-field__remove" onClick={() => removeField(index)} disabled={fields.length === 1} aria-label={t('messages.clientIntake.removeQuestion', { defaultValue: 'Remove question' })} data-track-private><Trash2 aria-hidden="true" /></button>
                   </div>
                   <div className="client-intake-field__controls">
                     <label className="client-intake-panel__label client-intake-field__type">
@@ -142,14 +142,14 @@ export default function ClientIntakeSharePanel({ open = false, onClose, guestSes
                         <option value="text">{t('messages.clientIntake.text')}</option><option value="textarea">{t('messages.clientIntake.longText')}</option><option value="number">{t('messages.clientIntake.number')}</option><option value="date">{t('messages.clientIntake.date')}</option>
                       </select>
                     </label>
-                    <label className="client-intake-field__required"><input type="checkbox" checked={field.required} onChange={(event) => updateField(index, { required: event.target.checked })} /><span>{t('messages.clientIntake.required', { defaultValue: 'Required' })}</span></label>
+                    <label className="client-intake-field__required"><input type="checkbox" checked={field.required} onChange={(event) => updateField(index, { required: event.target.checked })} data-track-private /><span>{t('messages.clientIntake.required', { defaultValue: 'Required' })}</span></label>
                   </div>
                 </div>
               </div>
             ))}
           </div>
 
-          <button type="button" className="client-intake-panel__add" onClick={() => setFields((previous) => [...previous, blank()])}>
+          <button type="button" className="client-intake-panel__add" onClick={() => setFields((previous) => [...previous, blank()])} data-track-private>
             <span><Plus aria-hidden="true" /></span><span><strong>{t('messages.clientIntake.addQuestion')}</strong><small>{t('messages.clientIntake.addQuestionHint', { defaultValue: 'Add another detail for the client to answer' })}</small></span>
           </button>
         </section>
@@ -158,8 +158,8 @@ export default function ClientIntakeSharePanel({ open = false, onClose, guestSes
         <footer className="client-intake-panel__footer">
           <p>{t('messages.clientIntake.sendHint', { defaultValue: 'The client will receive this form in the conversation.' })}</p>
           <div className="client-intake-panel__actions">
-            <button type="button" className="client-intake-panel__cancel" onClick={onClose} disabled={busy}>{t('common.cancel', { defaultValue: 'Cancel' })}</button>
-            <button type="submit" className="client-intake-panel__submit" disabled={!canShare}><Send aria-hidden="true" />{busy ? t('common.saving') : (isFollowUp ? t('messages.clientIntake.sendFollowUp') : t('messages.clientIntake.send'))}</button>
+            <button type="button" className="client-intake-panel__cancel" onClick={onClose} disabled={busy} data-track-private>{t('common.cancel', { defaultValue: 'Cancel' })}</button>
+            <button type="submit" className="client-intake-panel__submit" disabled={!canShare} data-track-private><Send aria-hidden="true" />{busy ? t('common.saving') : (isFollowUp ? t('messages.clientIntake.sendFollowUp') : t('messages.clientIntake.send'))}</button>
           </div>
         </footer>
       </form>

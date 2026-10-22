@@ -80,10 +80,19 @@ describeDb('restaurant display pairing (migration 911)', () => {
          (id BIGSERIAL PRIMARY KEY, business_id BIGINT REFERENCES ${schema}.businesses(id),
           owner_user_id BIGINT, display_name TEXT)`
     );
+    await db.query(
+      `CREATE TABLE ${schema}.restaurant_locations
+         (id BIGSERIAL PRIMARY KEY, restaurant_id BIGINT NOT NULL, name TEXT,
+          status TEXT NOT NULL DEFAULT 'active', is_primary BOOLEAN NOT NULL DEFAULT FALSE)`
+    );
     await db.query(fs.readFileSync(path.join(__dirname, '../migrations/911_display_pairings.sql'), 'utf8'));
     // Migration 913 (device roles) is part of the same branch: the pairing
     // endpoints always read/write device_role, so the test schema must have it.
     await db.query(fs.readFileSync(path.join(__dirname, '../migrations/913_display_pairing_device_role.sql'), 'utf8'));
+    // Migration 944 (F-27 pairing-token expiry/rotation): the endpoints
+    // read/write the token expiry columns, so the schema must have them too.
+    await db.query(fs.readFileSync(path.join(__dirname, '../migrations/944_display_pairing_token_expiry.sql'), 'utf8'));
+    await db.query(fs.readFileSync(path.join(__dirname, '../migrations/975_display_pairing_locations.sql'), 'utf8'));
     businessId = (await db.query(`INSERT INTO ${schema}.businesses (user_id) VALUES ($1) RETURNING id`, [OWNER_ID])).rows[0].id;
     restaurantId = (
       await db.query(
@@ -92,6 +101,10 @@ describeDb('restaurant display pairing (migration 911)', () => {
         [businessId, OWNER_ID]
       )
     ).rows[0].id;
+    await db.query(
+      `INSERT INTO ${schema}.restaurant_locations (restaurant_id, name, is_primary) VALUES ($1, 'Main store', TRUE)`,
+      [restaurantId]
+    );
   });
 
   afterAll(async () => {

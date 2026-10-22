@@ -134,7 +134,7 @@ export default function DeliveryTrackingCard({ jobId }) {
           type="button"
           disabled={loading}
           onClick={load}
-          title={t('delivery.tracking.customer.refresh')}
+          title={t('delivery.tracking.customer.refresh')} data-track="ui.56ad41e90e.1"
         >
           <RefreshCw size={16} className={loading ? 'delivery-spin' : undefined} />
           {t('delivery.tracking.customer.refresh')}
@@ -146,7 +146,7 @@ export default function DeliveryTrackingCard({ jobId }) {
       {error && (
         <div className="delivery-alert delivery-alert--error" role="alert">
           {error}
-          <button className="delivery-button delivery-button--secondary" type="button" onClick={load}>
+          <button className="delivery-button delivery-button--secondary" type="button" onClick={load} data-track="ui.56ad41e90e.2">
             {t('delivery.tracking.customer.retry')}
           </button>
         </div>
@@ -211,7 +211,7 @@ export default function DeliveryTrackingCard({ jobId }) {
                 className="delivery-button delivery-button--secondary"
                 type="button"
                 disabled={linkBusy}
-                onClick={share}
+                onClick={share} data-track="ui.56ad41e90e.3"
               >
                 <Link2 size={16} />
                 {t('delivery.tracking.customer.createLink')}
@@ -232,7 +232,7 @@ export default function DeliveryTrackingCard({ jobId }) {
                   <button
                     className="delivery-button delivery-button--secondary"
                     type="button"
-                    onClick={copy}
+                    onClick={copy} data-track="ui.56ad41e90e.4"
                   >
                     {copied ? t('delivery.tracking.customer.copied') : t('delivery.tracking.customer.copyLink')}
                   </button>

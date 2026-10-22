@@ -182,7 +182,7 @@ const PreviewModal = ({ template, slug, pricing, hasAccess, trialExpiry, isActiv
             <button
               onClick={onClose}
               aria-label={t('templatePicker.closePreview')}
-              className="p-1.5 rounded-full bg-gray-800 hover:bg-gray-700 transition flex-shrink-0 ml-2"
+              className="p-1.5 rounded-full bg-gray-800 hover:bg-gray-700 transition flex-shrink-0 ml-2" data-track="ui.e21e6e6828.1"
             >
               <IcoX size={14} cls="text-white" />
             </button>
@@ -246,7 +246,7 @@ const PreviewModal = ({ template, slug, pricing, hasAccess, trialExpiry, isActiv
             {isActive ? (
               <button
                 disabled
-                className="w-full py-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 font-semibold text-sm flex items-center justify-center gap-2 cursor-default"
+                className="w-full py-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 font-semibold text-sm flex items-center justify-center gap-2 cursor-default" data-track="ui.e21e6e6828.2"
               >
                 <IcoCheck size={15} cls="text-emerald-400" />
                 {t('templatePicker.currentlyActive')}
@@ -255,7 +255,7 @@ const PreviewModal = ({ template, slug, pricing, hasAccess, trialExpiry, isActiv
               <button
                 onClick={() => onActivate(slug)}
                 disabled={activating}
-                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition disabled:opacity-60 flex items-center justify-center gap-2"
+                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition disabled:opacity-60 flex items-center justify-center gap-2" data-track="ui.e21e6e6828.3"
               >
                 {activating ? <IcoRefresh size={15} cls="text-white animate-spin" /> : <IcoZap size={15} cls="text-white" />}
                 {activating ? t('templatePicker.activating') : t('templatePicker.activateNow')}
@@ -264,7 +264,7 @@ const PreviewModal = ({ template, slug, pricing, hasAccess, trialExpiry, isActiv
               <button
                 onClick={() => onActivate(slug)}
                 disabled={activating}
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold text-sm transition disabled:opacity-60 flex items-center justify-center gap-2"
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold text-sm transition disabled:opacity-60 flex items-center justify-center gap-2" data-track="ui.e21e6e6828.4"
               >
                 {activating ? <IcoRefresh size={15} cls="text-white animate-spin" /> : <IcoStar size={15} cls="text-white" />}
                 {activating ? t('templatePicker.activating') : t('templatePicker.startFreeTrial', { defaultValue: 'Start Free Trial' })}
@@ -272,7 +272,7 @@ const PreviewModal = ({ template, slug, pricing, hasAccess, trialExpiry, isActiv
             )}
             <button
               onClick={onClose}
-              className="w-full px-4 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm transition"
+              className="w-full px-4 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm transition" data-track="ui.e21e6e6828.5"
             >
               {t('common.close')}
             </button>
@@ -371,7 +371,7 @@ const TemplateCard = ({ slug, template, isActive, hasAccess, trialExpiry, onPrev
           <button
             onClick={() => onPreview(slug)}
             aria-label={t('templatePicker.previewAriaLabel', { name: template.name })}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-medium transition"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-medium transition" data-track="ui.e21e6e6828.6"
           >
             <IcoEye size={13} cls="text-gray-400" />
             {t('templatePicker.preview')}
@@ -379,7 +379,7 @@ const TemplateCard = ({ slug, template, isActive, hasAccess, trialExpiry, onPrev
           {isActive ? (
             <button
               disabled
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 text-xs font-semibold cursor-default"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 text-xs font-semibold cursor-default" data-track="ui.e21e6e6828.7"
             >
               <IcoCheck size={13} cls="text-emerald-400" />
               {t('templatePicker.active')}
@@ -389,7 +389,7 @@ const TemplateCard = ({ slug, template, isActive, hasAccess, trialExpiry, onPrev
               onClick={() => onActivate(slug)}
               disabled={activating === slug}
               aria-label={t('templatePicker.activateAriaLabel', { name: template.name })}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition disabled:opacity-60"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition disabled:opacity-60" data-track="ui.e21e6e6828.8"
             >
               {activating === slug
                 ? <IcoRefresh size={13} cls="text-white animate-spin" />
@@ -402,7 +402,7 @@ const TemplateCard = ({ slug, template, isActive, hasAccess, trialExpiry, onPrev
               onClick={() => onActivate(slug)}
               disabled={activating === slug}
               aria-label={t('templatePicker.startTrialAriaLabel', { name: template.name })}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs font-semibold transition disabled:opacity-60"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs font-semibold transition disabled:opacity-60" data-track="ui.e21e6e6828.9"
             >
               {activating === slug
                 ? <IcoRefresh size={13} cls="text-blue-400 animate-spin" />
@@ -553,7 +553,7 @@ export default function TemplatePicker() {
                 <button
                   onClick={() => handleActivate('default')}
                   disabled={activating === 'default'}
-                  className="ml-auto text-xs text-gray-400 hover:text-white flex items-center gap-1 transition"
+                  className="ml-auto text-xs text-gray-400 hover:text-white flex items-center gap-1 transition" data-track="ui.e21e6e6828.10"
                 >
                   <IcoRefresh size={13} cls="text-gray-400" />
                   {t('templatePicker.revertDefault')}
@@ -600,7 +600,7 @@ export default function TemplatePicker() {
                 <button
                   key={val}
                   onClick={() => setFilterAccess(val)}
-                  className={`px-3 py-2 text-xs font-medium transition ${filterAccess === val ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
+                  className={`px-3 py-2 text-xs font-medium transition ${filterAccess === val ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`} data-track="ui.e21e6e6828.11"
                 >
                   {label}
                 </button>
@@ -624,7 +624,7 @@ export default function TemplatePicker() {
               <IcoPalette size={40} cls="text-gray-600 mx-auto mb-3" />
               <p className="text-gray-400 text-sm">{t('templatePicker.noResults')}</p>
               <button onClick={() => { setSearch(''); setFilterCat('all'); setFilterAccess('all'); }}
-                className="mt-3 text-blue-400 text-sm hover:underline">
+                className="mt-3 text-blue-400 text-sm hover:underline" data-track="ui.e21e6e6828.12">
                 {t('templatePicker.clearFilters')}
               </button>
             </div>
@@ -655,7 +655,7 @@ export default function TemplatePicker() {
                   <button
                     key={key}
                     onClick={() => setFilterCat(filterCat === key ? 'all' : key)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${meta.color} ${filterCat === key ? 'ring-1 ring-white/30' : 'opacity-80 hover:opacity-100'}`}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${meta.color} ${filterCat === key ? 'ring-1 ring-white/30' : 'opacity-80 hover:opacity-100'}`} data-track="ui.e21e6e6828.13"
                   >
                     {meta.label}
                   </button>

@@ -102,7 +102,7 @@ function Appliance({ id, role, device, preview, onForget }) {
     return (
       <main className="rs-screen">
         <h1>{f("deviceUnauthorized")}</h1>
-        <button className="fd-btn" onClick={onForget}>
+        <button className="fd-btn" onClick={onForget} data-track="ui.1f9ac1c42a.1">
           {f("pairAgain")}
         </button>
       </main>
@@ -133,10 +133,10 @@ function Appliance({ id, role, device, preview, onForget }) {
           <span className={`rs-status rs-${state.status}`} role="status">
             {f(`states.${state.status}`)}
           </span>
-          <button className="fd-btn fd-btn-secondary" onClick={state.refresh}>
+          <button className="fd-btn fd-btn-secondary" onClick={state.refresh} data-track="ui.1f9ac1c42a.2">
             {f("refresh")}
           </button>
-          <button className="fd-btn fd-btn-secondary" onClick={full}>
+          <button className="fd-btn fd-btn-secondary" onClick={full} data-track="ui.1f9ac1c42a.3">
             {f("fullscreen")}
           </button>
         </div>
@@ -328,7 +328,7 @@ function Appliance({ id, role, device, preview, onForget }) {
                                 }
                                 onClick={() =>
                                   act("kitchen_item", item, "start")
-                                }
+                                } data-track="ui.1f9ac1c42a.4"
                               >
                                 {f("start")}
                               </button>
@@ -343,7 +343,7 @@ function Appliance({ id, role, device, preview, onForget }) {
                                 }
                                 onClick={() =>
                                   act("kitchen_item", item, "ready")
-                                }
+                                } data-track="ui.1f9ac1c42a.5"
                               >
                                 {f("itemReady")}
                               </button>
@@ -365,7 +365,7 @@ function Appliance({ id, role, device, preview, onForget }) {
                           }
                           onClick={() =>
                             act("kitchen_order", order, "finish_check")
-                          }
+                          } data-track="ui.1f9ac1c42a.6"
                         >
                           {f("completeCheck")}
                         </button>
@@ -381,7 +381,7 @@ function Appliance({ id, role, device, preview, onForget }) {
                           }
                           onClick={() =>
                             act("kitchen_order", order, "hand_off")
-                          }
+                          } data-track="ui.1f9ac1c42a.7"
                         >
                           {f("handOff")}
                         </button>
@@ -401,7 +401,7 @@ function Appliance({ id, role, device, preview, onForget }) {
                           }
                           onClick={() =>
                             act("kitchen_order", order, "ready_for_check")
-                          }
+                          } data-track="ui.1f9ac1c42a.8"
                         >
                           {f("reviewAssembly")}
                         </button>
@@ -444,14 +444,14 @@ function Appliance({ id, role, device, preview, onForget }) {
                           await saveOperation({ ...o, state: "dismissed" });
                           state.replay();
                         }
-                      }}
+                      }} data-track="ui.1f9ac1c42a.9"
                     >
                       {f("dismissLocal")}
                     </button>
                   )}
                 </div>
               ))}
-            <button className="fd-btn fd-btn-secondary" onClick={state.replay}>
+            <button className="fd-btn fd-btn-secondary" onClick={state.replay} data-track="ui.1f9ac1c42a.10">
               {f("retry")}
             </button>
           </section>
@@ -463,7 +463,7 @@ function Appliance({ id, role, device, preview, onForget }) {
           {f("backToRestaurant")}
         </Link>
         {device && (
-          <button className="fd-btn fd-btn-secondary" onClick={onForget}>
+          <button className="fd-btn fd-btn-secondary" onClick={onForget} data-track="ui.1f9ac1c42a.11">
             {f("changeDevice")}
           </button>
         )}
@@ -527,7 +527,7 @@ export default function ManagedScreen() {
             } finally {
               setBusy(false);
             }
-          }}
+          }} data-track="ui.1f9ac1c42a.12"
         >
           <label>
             {f("pairingCode")}
@@ -540,7 +540,7 @@ export default function ManagedScreen() {
               maxLength={24}
             />
           </label>
-          <button className="fd-btn" disabled={busy || !code.trim()}>
+          <button className="fd-btn" disabled={busy || !code.trim()} data-track="ui.1f9ac1c42a.13">
             {f("pairScreen")}
           </button>
         </form>

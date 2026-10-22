@@ -73,7 +73,7 @@ export default function QuoteHistoryPanel({
           <h2>{t(guestMode ? 'messages.quoteHistory.guestTitle' : 'messages.quoteHistory.title')}</h2>
         </div>
         {guestMode && (
-          <button type="button" onClick={onClose} aria-label={t('common.close')} className="quote-history-close">
+          <button type="button" onClick={onClose} aria-label={t('common.close')} className="quote-history-close" data-track="ui.3e466b1651.1">
             <X size={18} aria-hidden />
           </button>
         )}
@@ -111,7 +111,7 @@ export default function QuoteHistoryPanel({
               onAccepted={onAccepted}
             />
             {!guestMode && (quote.conversation_id || quote.guest_session_id || quote.job_id) && (
-              <button type="button" className="quote-history-open" onClick={() => onOpenQuote?.(quote)}>
+              <button type="button" className="quote-history-open" onClick={() => onOpenQuote?.(quote)} data-track="ui.3e466b1651.2">
                 <ArrowUpRight size={15} aria-hidden />
                 {quote.conversation_id || quote.guest_session_id
                   ? t('messages.quoteHistory.openConversation')

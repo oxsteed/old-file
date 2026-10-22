@@ -194,7 +194,7 @@ export default function ProductReviewsSection({
         {isHelper && (
           <button
             onClick={() => setShowReviewForm(!showReviewForm)}
-            className="prs-write-review-btn"
+            className="prs-write-review-btn" data-track="ui.0f775110bb.1"
           >
             {t('marketplace.leaveReview')}
           </button>
@@ -210,7 +210,7 @@ export default function ProductReviewsSection({
               <button
                 onClick={() => setShowReviewForm(false)}
                 className="prs-form-close"
-                aria-label={t('common.close')}
+                aria-label={t('common.close')} data-track="ui.0f775110bb.2"
               >
                 <X size={20} />
               </button>
@@ -226,7 +226,7 @@ export default function ProductReviewsSection({
                       key={star}
                       onClick={() => handleRatingChange(star)}
                       className={`prs-rating-btn ${formData.rating >= star ? 'active' : ''}`}
-                      aria-label={t('productReviews.ratingStarsAria', { count: star })}
+                      aria-label={t('productReviews.ratingStarsAria', { count: star })} data-track="ui.0f775110bb.3"
                     >
                       <Star
                         size={28}
@@ -259,14 +259,14 @@ export default function ProductReviewsSection({
               <div className="prs-form-actions">
                 <button
                   onClick={() => setShowReviewForm(false)}
-                  className="prs-form-cancel-btn"
+                  className="prs-form-cancel-btn" data-track="ui.0f775110bb.4"
                 >
                   {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleSubmitReview}
                   disabled={submitting}
-                  className="prs-form-submit-btn"
+                  className="prs-form-submit-btn" data-track="ui.0f775110bb.5"
                 >
                   {submitting ? (
                     <>
@@ -331,7 +331,7 @@ export default function ProductReviewsSection({
                   <button
                     type="button"
                     onClick={() => setReportReviewId(review.id)}
-                    className="prs-report-btn"
+                    className="prs-report-btn" data-track="ui.0f775110bb.6"
                   >
                     <Flag size={12} />
                     {t('reviewReport.report')}
@@ -342,7 +342,7 @@ export default function ProductReviewsSection({
 
             {/* Load More Button */}
             {hasMore && (
-              <button onClick={handleLoadMore} className="prs-load-more-btn" disabled={loading}>
+              <button onClick={handleLoadMore} className="prs-load-more-btn" disabled={loading} data-track="ui.0f775110bb.7">
                 {loading ? (
                   <>
                     <Loader size={16} className="prs-spinner" />

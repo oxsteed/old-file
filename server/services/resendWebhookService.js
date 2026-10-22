@@ -66,7 +66,10 @@ async function applyEvent(client, event) {
       FOR UPDATE OF d`,
     [String(messageId)]
   );
-  if (!delivery) return { outcome: 'unmatched', at };
+  if (!delivery) {
+    const notice=await require('../growth/policyNotice').applyProviderEvent(client,event);
+    return notice||{ outcome: 'unmatched', at };
+  }
 
   const column = {
     'email.delivered': 'delivered_at',

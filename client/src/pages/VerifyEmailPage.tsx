@@ -106,7 +106,7 @@ export default function VerifyEmailPage() {
                   <button
                     onClick={handleRequestOTP}
                     disabled={loading}
-                    className="w-full px-4 py-3 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 disabled:opacity-50 transition-colors"
+                    className="w-full px-4 py-3 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 disabled:opacity-50 transition-colors" data-track="ui.36142490d2.1"
                   >
                     {loading ? (
                       <span className="flex items-center justify-center gap-2">
@@ -123,7 +123,7 @@ export default function VerifyEmailPage() {
                     <button
                       onClick={handleRequestOTP}
                       disabled={loading}
-                      className="text-orange-400 hover:text-orange-300 disabled:opacity-50"
+                      className="text-orange-400 hover:text-orange-300 disabled:opacity-50" data-track="ui.36142490d2.2"
                     >
                       {t('common.tryAgain')}
                     </button>
@@ -149,7 +149,7 @@ export default function VerifyEmailPage() {
                   <button
                     onClick={handleVerifyOTP}
                     disabled={loading || !otp.trim()}
-                    className="w-full px-4 py-3 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                    className="w-full px-4 py-3 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2" data-track="ui.36142490d2.3"
                   >
                     {loading ? (
                       <>
@@ -170,7 +170,7 @@ export default function VerifyEmailPage() {
                       setOtp('');
                     }}
                     disabled={loading}
-                    className="w-full text-sm text-gray-400 hover:text-gray-300 disabled:opacity-50"
+                    className="w-full text-sm text-gray-400 hover:text-gray-300 disabled:opacity-50" data-track="ui.36142490d2.4"
                   >
                     {t('common.back')}
                   </button>

@@ -322,6 +322,14 @@ async function applyFoodOrderPaymentState(client, {
   stripePaymentIntentId = null,
 }) {
   if (!orderId) return null;
+  // Capture the pre-update status on the transaction client so growth
+  // domain events fire only on a real transition (a single payment fires
+  // both checkout.session.completed and payment_intent.succeeded).
+  const { rows: priorRows } = await client.query(
+    `SELECT payment_status FROM food_orders WHERE id = $1::bigint FOR UPDATE`,
+    [orderId]
+  );
+  const priorPaymentStatus = priorRows[0]?.payment_status || null;
   const { rows } = await client.query(
     `UPDATE food_orders
         SET payment_status = $1,
@@ -335,9 +343,21 @@ async function applyFoodOrderPaymentState(client, {
   );
   const order = rows[0] || null;
   if (order && order.payment_status === 'paid') {
-    await promoRedemption.markRedeemed(client, { surface: 'food', referenceId: order.id });
+    const promoOut = {};
+    await promoRedemption.markRedeemed(client, { surface: 'food', referenceId: order.id }, promoOut);
+    const { emitDomainEvent, foodEventProps, commerceEventProps } = require('../growth/emit');
+    for (const row of promoOut.transitioned || []) {
+      await emitDomainEvent(client, 'promo.redeemed', commerceEventProps(row), { userId: row.user_id });
+    }
+    if (priorPaymentStatus !== 'paid' && order.customer_id) {
+      await emitDomainEvent(client, 'food.order_paid', foodEventProps(order), { userId: order.customer_id });
+    }
   } else if (order && order.payment_status === 'refunded') {
     await promoRedemption.reversePromo(client, { surface: 'food', referenceId: order.id, reason: 'order_refunded' });
+    if (priorPaymentStatus !== 'refunded' && order.customer_id) {
+      const { emitDomainEvent, foodEventProps } = require('../growth/emit');
+      await emitDomainEvent(client, 'food.order_refunded', foodEventProps(order), { userId: order.customer_id });
+    }
   }
   if (order) emitFoodOrderUpdate(order);
   return order;
@@ -726,7 +746,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
               `INSERT INTO subscriptions (user_id, plan_id, stripe_subscription_id, stripe_customer_id, status, current_period_start, current_period_end)
                VALUES ($1, $2, $3, $4, $5, to_timestamp($6), to_timestamp($7))
                ON CONFLICT (stripe_subscription_id) DO UPDATE SET status = $5
-               RETURNING id`,
+               RETURNING id, (xmax = 0) AS is_new_row`,
               [userId, planId, subscriptionId, stripeObjectId(session.customer), newStatus,
                period.start, period.end]
             );
@@ -744,6 +764,14 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
                WHERE id = $2`,
               [userTier, userId]
             );
+            {
+              // Growth tier mapping: pro -> pro, basic (the free plan) ->
+              // starter; 'broker' is a role in the schema, not a tier, so
+              // broker checkouts emit the event with no tier prop.
+              const growthTier = userTier === 'pro' ? 'pro' : userTier === 'basic' ? 'starter' : null;
+              const { emitDomainEvent } = require('../growth/emit');
+              await emitDomainEvent(client, 'account.tier_changed', growthTier ? { tier: growthTier } : {}, { userId });
+            }
             if (inserted[0]) {
               const { logAdminAction } = require('../services/auditService');
               await logAdminAction({
@@ -756,6 +784,10 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
                 after: { status: newStatus, plan_id: planId },
                 throwOnError: true,
               });
+              if (inserted[0].is_new_row) {
+                const { emitDomainEvent, commerceEventProps } = require('../growth/emit');
+                await emitDomainEvent(client, 'subscription.started', commerceEventProps({ id: inserted[0].id }), { userId });
+              }
             }
           }, 'webhook_subscription_created');
           await recalculateBadges(userId);
@@ -862,6 +894,8 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
               after: { status: toLocalSubscriptionStatus(sub.status), plan_id: planId },
               throwOnError: true,
             });
+            const { emitDomainEvent, commerceEventProps } = require('../growth/emit');
+            await emitDomainEvent(client, 'subscription.started', commerceEventProps({ id: inserted[0].id }), { userId: userRows[0].id });
           }
         }, 'webhook_subscription_created_dashboard');
 
@@ -974,6 +1008,8 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
               after: { status: 'cancelled' },
               throwOnError: true,
             });
+            const { emitDomainEvent, commerceEventProps } = require('../growth/emit');
+            await emitDomainEvent(client, 'subscription.cancelled', commerceEventProps({ id: current.id }), { userId: current.user_id });
           }
         }, 'webhook_subscription_deleted');
         const { rows } = await db.query(
@@ -1168,7 +1204,14 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
               [pi.id]
             );
             const pay = payRows[0];
-            if (pay) await promoRedemption.markRedeemed(client, { surface: 'job', providerReference: pi.id });
+            if (pay) {
+              const promoOut = {};
+              await promoRedemption.markRedeemed(client, { surface: 'job', providerReference: pi.id }, promoOut);
+              const { emitDomainEvent, commerceEventProps } = require('../growth/emit');
+              for (const row of promoOut.transitioned || []) {
+                await emitDomainEvent(client, 'promo.redeemed', commerceEventProps(row), { userId: row.user_id });
+              }
+            }
             const appliedCents = Number(pay?.metadata?.applied_credit_cents ?? pay?.metadata?.appliedCreditCents ?? 0);
             if (pay && appliedCents > 0) {
               // No-op when the reservation was made at intent creation.
@@ -1306,7 +1349,14 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             const meta = typeof payment.metadata === 'string'
               ? JSON.parse(payment.metadata || '{}')
               : (payment.metadata || {});
-            await promoRedemption.markRedeemed(client, { surface: 'job', providerReference: pi.id });
+            const promoOut = {};
+            await promoRedemption.markRedeemed(client, { surface: 'job', providerReference: pi.id }, promoOut);
+            {
+              const { emitDomainEvent, commerceEventProps } = require('../growth/emit');
+              for (const row of promoOut.transitioned || []) {
+                await emitDomainEvent(client, 'promo.redeemed', commerceEventProps(row), { userId: row.user_id });
+              }
+            }
             const appliedCents = Number(meta?.applied_credit_cents ?? meta?.appliedCreditCents ?? 0);
             if (appliedCents > 0) {
               await creditLedger.applyCreditToPayment(client, {
@@ -1425,6 +1475,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
                 await releaseInventoryForOrder(client, {
                   restaurantId: updated.restaurant_id,
                   orderId: updated.id,
+                  locationId: updated.location_id,
                 });
               } catch (releaseErr) {
                 logger.warn('[Stripe] failed to release inventory after failed food payment', {

@@ -87,7 +87,7 @@ export default function OrganizerApprovalsAdmin() {
                   <td>{campaign.reference}</td>
                   <td>
                     <button type="button" className="lx-link" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-                      onClick={() => toggleHistory(campaign)}>
+                      onClick={() => toggleHistory(campaign)} data-track-private>
                       {campaign.title}
                     </button>
                   </td>
@@ -97,15 +97,15 @@ export default function OrganizerApprovalsAdmin() {
                   <td>{campaign.submitted_at ? new Date(campaign.submitted_at).toLocaleDateString() : '—'}</td>
                   <td style={{ display: 'flex', gap: '.5rem' }}>
                     <button className="lx-btn-primary" style={{ fontSize: '.72rem', padding: '.25rem .65rem' }}
-                      onClick={() => setReviewTarget({ campaign, decision: 'approve' })}>
+                      onClick={() => setReviewTarget({ campaign, decision: 'approve' })} data-track-private>
                       {t('common.approve')}
                     </button>
                     <button className="lx-btn-secondary" style={{ fontSize: '.72rem', padding: '.25rem .65rem' }}
-                      onClick={() => setReviewTarget({ campaign, decision: 'request_changes' })}>
+                      onClick={() => setReviewTarget({ campaign, decision: 'request_changes' })} data-track-private>
                       {t('logistics.campaigns.approval.requestRevisions', 'Request revisions')}
                     </button>
                     <button className="lx-btn-secondary" style={{ fontSize: '.72rem', padding: '.25rem .65rem', color: 'var(--color-error)', borderColor: 'var(--color-error)' }}
-                      onClick={() => setReviewTarget({ campaign, decision: 'reject' })}>
+                      onClick={() => setReviewTarget({ campaign, decision: 'reject' })} data-track-private>
                       {t('logistics.campaigns.approval.reject', 'Reject')}
                     </button>
                   </td>

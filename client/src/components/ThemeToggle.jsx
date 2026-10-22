@@ -11,7 +11,7 @@ export default function ThemeToggle() {
       onClick={toggleTheme}
       aria-label={label}
       title={label}
-      className="ox-theme-toggle"
+      className="ox-theme-toggle" data-track="ui.c07b6d0fa9.1"
     >
       {isDark ? (
         /* Sun icon - shown in dark mode (click to go light) */

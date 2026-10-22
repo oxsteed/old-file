@@ -188,7 +188,7 @@ export default function AddressAutocomplete({
                 type="button"
                 className={`address-autocomplete__option${index === activeIndex ? ' is-active' : ''}`}
                 onMouseDown={(event) => event.preventDefault()}
-                onClick={() => selectSuggestion(place)}
+                onClick={() => selectSuggestion(place)} data-track="ui.b199a5e342.1"
               >
                 <span className="address-autocomplete__option-title">{place.display}</span>
                 {(place.city || place.state || place.zip) && (

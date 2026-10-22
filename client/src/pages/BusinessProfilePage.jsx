@@ -299,7 +299,7 @@ function ContactLinksSection({ phone, website }) {
         {phone && (
           <a
             href={`tel:${phone}`}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-sm text-gray-200 hover:bg-gray-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-sm text-gray-200 hover:bg-gray-700 transition-colors" data-track="ui.333d88ed82.1"
           >
             📞 {phone}
           </a>
@@ -309,7 +309,7 @@ function ContactLinksSection({ phone, website }) {
             href={website}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-sm text-gray-200 hover:bg-gray-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-sm text-gray-200 hover:bg-gray-700 transition-colors" data-track="ui.333d88ed82.2"
           >
             🌐 {website.replace(/^https?:\/\//, '')}
           </a>
@@ -1008,7 +1008,7 @@ export default function BusinessProfilePage() {
             <button
               onClick={handleTemplatePrimaryAction}
               className="flex-1 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition-colors shadow-lg shadow-green-600/20 active:bg-green-800"
-              aria-label={t('businessProfile.bookBusinessAria')}
+              aria-label={t('businessProfile.bookBusinessAria')} data-track="ui.333d88ed82.3"
             >
               {activeTemplate !== 'default' && templateBehavior.primaryCta
                 ? templateBehavior.primaryCta
@@ -1017,7 +1017,7 @@ export default function BusinessProfilePage() {
             <button
               onClick={handleOpenChat}
               className="flex-1 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 active:bg-brand-700"
-              aria-label={t('businessProfile.messageBusinessAria')}
+              aria-label={t('businessProfile.messageBusinessAria')} data-track="ui.333d88ed82.4"
             >
               {t('helperProfile.cta.contactForPricing')}
             </button>
@@ -1026,7 +1026,7 @@ export default function BusinessProfilePage() {
           <button
             onClick={handleOpenChat}
             className="flex-1 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 active:bg-brand-700"
-            aria-label={t('businessProfile.messageBusinessAria')}
+            aria-label={t('businessProfile.messageBusinessAria')} data-track="ui.333d88ed82.5"
           >
             {t('helperProfile.cta.contactForPricing')}
           </button>
@@ -1080,7 +1080,7 @@ export default function BusinessProfilePage() {
             <button
               type="button"
               onClick={() => setGuestSignInModalOpen(false)}
-              className="mt-4 w-full text-sm text-gray-500 hover:text-gray-300"
+              className="mt-4 w-full text-sm text-gray-500 hover:text-gray-300" data-track="ui.333d88ed82.6"
             >
               {t('common.cancel')}
             </button>
@@ -1331,7 +1331,7 @@ export default function BusinessProfilePage() {
                 <button
                   onClick={() => setReportModalOpen(true)}
                   className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl border border-red-600/30 text-red-400 font-medium text-sm hover:bg-red-950/20 transition-colors"
-                  aria-label={t('reportModal.reportUser', { name: helper.businessName })}
+                  aria-label={t('reportModal.reportUser', { name: helper.businessName })} data-track="ui.333d88ed82.7"
                 >
                   <Flag size={16} />
                   {t('reportModal.report')}

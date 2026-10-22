@@ -33543,5 +33543,13 @@
   "adminCreditApprovalGraceEnds": "宽限期结束",
   "adminCreditApprovalRevokedAt": "撤销时间",
   "adminCreditApprovalMigratedAt": "余额已迁移",
-  "adminCreditApprovalGrandfathered": "已批准（无审批记录）"
+  "adminCreditApprovalGrandfathered": "已批准（无审批记录）",
+  "growthInsights": {
+    "analyticsStorage": "Google Analytics 和设备存储",
+    "analyticsStorageDescription": "在欧洲经济区、英国、瑞士和魁北克，活动追踪及基于活动的优惠各需单独同意，可在设置中撤回。适用的美国州提供“不出售或共享”选项并尊重 Global Privacy Control。其他地区的分析开关仅控制 Google Analytics 和设备持久存储，平台活动按本通知处理。",
+    "policy": "隐私政策",
+    "changedOn": "我们的隐私政策已于 {{date}} 变更。",
+    "changesOn": "我们的隐私政策将于 {{date}} 变更。",
+    "dismiss": "关闭"
+  }
 }

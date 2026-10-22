@@ -130,7 +130,7 @@ export default function MessengerDock({
               e.preventDefault();
               onClose?.();
             }
-          }}
+          }} data-track-private
         >
           <span className="messenger-dock__handle-bar" />
         </div>
@@ -147,7 +147,7 @@ export default function MessengerDock({
             type="button"
             className="messenger-dock__close"
             onClick={onClose}
-            aria-label={t('helperProfile.messenger.close')}
+            aria-label={t('helperProfile.messenger.close')} data-track-private
           >
             <X className="w-4 h-4" aria-hidden="true" />
           </button>
@@ -175,7 +175,7 @@ export function MessengerInviteCard({ displayName, onOpen }) {
       <button
         type="button"
         className="messenger-invite-card__button"
-        onClick={onOpen}
+        onClick={onOpen} data-track-private
       >
         {t('helperProfile.messenger.messageName', { name: displayName })}
       </button>

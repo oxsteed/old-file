@@ -119,14 +119,14 @@ export default function PaymentRequestCard({
         {!readOnly && !isProvider && status === 'open' ? (
           <div className="artifact-card-actions">
             {gate.ok ? (
-              <button type="button" className="artifact-btn primary" onClick={() => setShowPay(true)}>
+              <button type="button" className="artifact-btn primary" onClick={() => setShowPay(true)} data-track-private>
                 <Wallet size={14} aria-hidden /> {t('helperProfile.messenger.creditPayButton')}
               </button>
             ) : (
               <button
                 type="button"
                 className="artifact-btn primary"
-                onClick={() => onRequestSignIn?.()}
+                onClick={() => onRequestSignIn?.()} data-track-private
               >
                 {t('helperProfile.messenger.creditPaySignInCta')}
               </button>

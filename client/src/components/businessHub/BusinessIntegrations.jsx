@@ -273,7 +273,7 @@ export function BusinessIntegrations({ businessId }) {
               type="button"
               className="bi-btn-danger"
               onClick={handleDisconnectStripe}
-              disabled={savingIntegration === 'stripe'}
+              disabled={savingIntegration === 'stripe'} data-track="ui.f5d8f073bf.1"
             >
               {savingIntegration === 'stripe' ? t('businessHub.integrations.saving') : t('businessHub.integrations.disconnectStripe')}
             </button>
@@ -282,7 +282,7 @@ export function BusinessIntegrations({ businessId }) {
               type="button"
               className="bi-btn-primary"
               onClick={handleFinishStripeSetup}
-              disabled={savingIntegration === 'stripe'}
+              disabled={savingIntegration === 'stripe'} data-track="ui.f5d8f073bf.2"
             >
               {savingIntegration === 'stripe' ? t('businessHub.integrations.saving') : t('businessHub.integrations.stripeFinishInStripe', { defaultValue: 'Open Stripe to finish requirements' })}
             </button>
@@ -291,7 +291,7 @@ export function BusinessIntegrations({ businessId }) {
               type="button"
               className="bi-btn-primary"
               onClick={handleConnectStripe}
-              disabled={savingIntegration === 'stripe'}
+              disabled={savingIntegration === 'stripe'} data-track="ui.f5d8f073bf.3"
             >
               {savingIntegration === 'stripe' ? t('businessHub.integrations.saving') : t('businessHub.integrations.connectStripe')}
             </button>
@@ -321,7 +321,7 @@ export function BusinessIntegrations({ businessId }) {
                   </p>
                   <button
                     onClick={() => setShowWebhookForm(!showWebhookForm)}
-                    className="bi-btn-secondary"
+                    className="bi-btn-secondary" data-track="ui.f5d8f073bf.4"
                   >
                     <Plus size={16} /> {t('businessHub.integrations.addWebhook')}
                   </button>
@@ -336,7 +336,7 @@ export function BusinessIntegrations({ businessId }) {
                   <button
                     className={isEnabled ? 'bi-btn-danger' : 'bi-btn-primary'}
                     onClick={handleToggleSms}
-                    disabled={savingIntegration === 'sms'}
+                    disabled={savingIntegration === 'sms'} data-track="ui.f5d8f073bf.5"
                   >
                     {savingIntegration === 'sms' ? t('businessHub.integrations.saving') : (isEnabled ? t('businessHub.integrations.disableSms') : t('businessHub.integrations.enableSms'))}
                   </button>
@@ -353,7 +353,7 @@ export function BusinessIntegrations({ businessId }) {
                   <button
                     className="bi-btn-primary"
                     onClick={handleRequestCalendarSetup}
-                    disabled={savingIntegration === 'calendar'}
+                    disabled={savingIntegration === 'calendar'} data-track="ui.f5d8f073bf.6"
                   >
                     <Settings size={16} /> {savingIntegration === 'calendar' ? t('businessHub.integrations.saving') : t('businessHub.integrations.requestSetup')}
                   </button>
@@ -388,7 +388,7 @@ export function BusinessIntegrations({ businessId }) {
                   <input
                     type="checkbox"
                     checked={webhookForm.events.includes(event.id)}
-                    onChange={() => toggleWebhookEvent(event.id)}
+                    onChange={() => toggleWebhookEvent(event.id)} data-track="ui.f5d8f073bf.7"
                   />
                   <span className="bi-checkbox-text">
                     <strong>{t(`businessHub.integrations.events.${event.nameKey}`)}</strong>
@@ -400,10 +400,10 @@ export function BusinessIntegrations({ businessId }) {
           </div>
 
           <div className="bi-form-buttons">
-            <button onClick={() => setShowWebhookForm(false)} className="bi-btn-cancel">
+            <button onClick={() => setShowWebhookForm(false)} className="bi-btn-cancel" data-track="ui.f5d8f073bf.8">
               {t('common.cancel')}
             </button>
-            <button onClick={handleAddWebhook} className="bi-btn-save">
+            <button onClick={handleAddWebhook} className="bi-btn-save" data-track="ui.f5d8f073bf.9">
               {t('businessHub.integrations.createWebhook')}
             </button>
           </div>
@@ -421,7 +421,7 @@ export function BusinessIntegrations({ businessId }) {
                   <button
                     onClick={() => copyToClipboard(webhook.url)}
                     className="bi-btn-copy"
-                    aria-label={t('businessHub.integrations.copyUrl')}
+                    aria-label={t('businessHub.integrations.copyUrl')} data-track="ui.f5d8f073bf.10"
                   >
                     <Copy size={14} />
                   </button>
@@ -436,7 +436,7 @@ export function BusinessIntegrations({ businessId }) {
               <button
                 onClick={() => handleDeleteWebhook(webhook.id)}
                 className="bi-btn-delete"
-                aria-label={t('businessHub.integrations.deleteWebhook')}
+                aria-label={t('businessHub.integrations.deleteWebhook')} data-track="ui.f5d8f073bf.11"
               >
                 <Trash2 size={16} />
               </button>
@@ -459,7 +459,7 @@ export function BusinessIntegrations({ businessId }) {
               onClick={() => copyToClipboard(newApiKey || '')}
               className="bi-btn-copy"
               disabled={!newApiKey}
-              title={newApiKey ? undefined : t('businessHub.integrations.maskedKeyNoCopy')}
+              title={newApiKey ? undefined : t('businessHub.integrations.maskedKeyNoCopy')} data-track="ui.f5d8f073bf.12"
             >
               <Copy size={14} />
             </button>
@@ -474,7 +474,7 @@ export function BusinessIntegrations({ businessId }) {
           <button
             onClick={handleRegenerateApiKey}
             className="bi-btn-secondary"
-            disabled={savingIntegration === 'api-key'}
+            disabled={savingIntegration === 'api-key'} data-track="ui.f5d8f073bf.13"
           >
             <RefreshCw size={16} /> {savingIntegration === 'api-key' ? t('businessHub.integrations.regenerating') : t('businessHub.integrations.regenerate')}
           </button>

@@ -124,7 +124,7 @@ function PayForm({ info }) {
   }
 
   return (
-    <form onSubmit={handlePay} className="pbq-form" noValidate>
+    <form onSubmit={handlePay} className="pbq-form" noValidate data-track="ui.f9b00354a4.1" data-track-private>
       <div className="pbq-recipient">
         <span className="pbq-avatar" aria-hidden="true">
           <BadgeDollarSign size={26} />
@@ -188,7 +188,7 @@ function PayForm({ info }) {
         </p>
       )}
 
-      <button type="submit" className="pbq-btn pbq-btn-primary" disabled={starting}>
+      <button type="submit" className="pbq-btn pbq-btn-primary" disabled={starting} data-track="ui.f9b00354a4.2">
         <Lock size={16} aria-hidden="true" />
         {starting
           ? t('qrPay.paying', { defaultValue: 'Starting secure checkout...' })
@@ -201,7 +201,7 @@ function PayForm({ info }) {
       </button>
 
       {info.credit_enabled && (
-        <button type="button" className="pbq-btn pbq-btn-secondary" disabled={starting} onClick={() => submitPayment('credit')}>
+        <button type="button" className="pbq-btn pbq-btn-secondary" disabled={starting} onClick={() => submitPayment('credit')} data-track="ui.f9b00354a4.3" data-track-private>
           {t('qrPay.payWithCredit')}
         </button>
       )}
@@ -335,7 +335,7 @@ function SuccessView({ code }) {
       {details}
       <div className="pbq-success-actions">
         {sessionId && (
-          <button type="button" className="pbq-btn pbq-btn-primary" onClick={() => setRound((n) => n + 1)}>
+          <button type="button" className="pbq-btn pbq-btn-primary" onClick={() => setRound((n) => n + 1)} data-track="ui.f9b00354a4.4">
             {t('qrPay.checkAgain')}
           </button>
         )}

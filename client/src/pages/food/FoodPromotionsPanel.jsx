@@ -116,7 +116,7 @@ export default function PromotionsPanel({ t, restaurant, bare }) {
                 type="button"
                 className="fd-btn fd-btn-sm fd-btn-secondary"
                 disabled={saving}
-                onClick={() => toggleActive(promo)}
+                onClick={() => toggleActive(promo)} data-track="ui.dc1785bb45.1"
               >
                 {promo.is_active
                   ? t('food.merchant.deactivatePromo', 'Deactivate')
@@ -127,7 +127,7 @@ export default function PromotionsPanel({ t, restaurant, bare }) {
         </ul>
       )}
 
-      <form onSubmit={submit} className="fd-row" style={{ flexWrap: 'wrap', gap: '0.75rem', marginTop: '0.75rem' }}>
+      <form onSubmit={submit} className="fd-row" style={{ flexWrap: 'wrap', gap: '0.75rem', marginTop: '0.75rem' }} data-track="ui.dc1785bb45.2">
         <div className="fd-field" style={{ flex: '1 1 100px' }}>
           <label htmlFor="fd-promo-code">{t('food.merchant.promoCode', 'Code')} *</label>
           <input
@@ -202,7 +202,7 @@ export default function PromotionsPanel({ t, restaurant, bare }) {
             onChange={(e) => setForm((f) => ({ ...f, validUntil: e.target.value }))}
           />
         </div>
-        <button type="submit" className="fd-btn fd-btn-sm" disabled={saving} style={{ alignSelf: 'flex-end' }}>
+        <button type="submit" className="fd-btn fd-btn-sm" disabled={saving} style={{ alignSelf: 'flex-end' }} data-track="ui.dc1785bb45.3">
           {saving ? t('food.common.saving') : t('food.merchant.addPromo', 'Add promotion')}
         </button>
       </form>

@@ -19,11 +19,10 @@ const { withTransaction } = require('../utils/transaction');
 const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
 const { getEffectivePermissions, hasAny } = require('../services/permissionsService');
 const { logInventoryAudit } = require('../services/restaurantInventoryAuditService');
+const restaurantLocationService = require('../services/restaurantLocationService');
+const { getLocationScope, assertLocationAccess } = require('../services/restaurantLocationAccessService');
 
-function parsePositiveInt(value) {
-  const n = Number.parseInt(value, 10);
-  return Number.isInteger(n) && n > 0 ? n : null;
-}
+const { inventoryId: parsePositiveInt } = require('../services/restaurantInventoryValidation');
 
 function normalizeString(value, max = 255) {
   if (value === undefined || value === null) return null;
@@ -64,7 +63,24 @@ function parseOperationId(value) {
 // shared gate) so invalid ids keep this module's exact 404 behavior.
 async function requireRestaurantAccess(userId, restaurantId) {
   if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-  return resolveRestaurantAccess(userId, restaurantId);
+  const restaurant = await resolveRestaurantAccess(userId, restaurantId);
+  return { ...restaurant, locationScope: await getLocationScope(restaurant, userId) };
+}
+
+function locationScopeClause(scope, alias, parameterIndex) {
+  const locationColumn = alias ? `${alias}.location_id` : 'location_id';
+  return scope?.mode === 'assigned'
+    ? { sql: ` AND ${locationColumn} = ANY($${parameterIndex}::bigint[])`, values: [scope.location_ids] }
+    : { sql: '', values: [] };
+}
+
+async function assertExistingItemLocationAccess(restaurant, userId, locationId, db) {
+  // A small number of pre-location inventory rows may still be null while
+  // migration 952 is being rolled through existing installations. Preserve
+  // their staged all-store behavior until the backfill completes.
+  if (locationId === null || locationId === undefined
+    || (restaurant?.effective_role !== 'owner' && !restaurant?.effective_membership_id)) return;
+  return assertLocationAccess(restaurant, userId, locationId, db);
 }
 
 async function requireInventoryPermission(userId, restaurant, permissions) {
@@ -104,6 +120,7 @@ exports.listItems = async (req, res, next) => {
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
     const lowOnly = req.query.lowStock === '1' || req.query.lowStock === 'true';
+    const scope = locationScopeClause(restaurant.locationScope, 'i', 2);
 
     const { rows } = await pool.query(
       `SELECT i.*,
@@ -139,11 +156,11 @@ exports.listItems = async (req, res, next) => {
          LEFT JOIN food_menu_items fmi
            ON fmi.id = m.menu_item_id
           AND fmi.restaurant_id = i.restaurant_id
-        WHERE i.restaurant_id = $1 AND i.is_active = TRUE
+        WHERE i.restaurant_id = $1 AND i.is_active = TRUE${scope.sql}
           ${lowOnly ? 'AND GREATEST(0, i.quantity - COALESCE(reserved.quantity, 0)) <= i.reorder_point AND i.reorder_point > 0' : ''}
         GROUP BY i.id, a.name, s.name, reserved.quantity
         ORDER BY i.name ASC`,
-      [restaurantId]
+      [restaurantId, ...scope.values]
     );
     res.json({ items: rows });
   } catch (err) {
@@ -192,12 +209,19 @@ exports.createItem = async (req, res, next) => {
     }
 
     const item = await withTransaction(pool, async (client) => {
+      // F-02 phase 1: stock belongs to a store (explicit request, else
+      // the restaurant's primary location).
+      const itemLocationId = await restaurantLocationService.resolveLocationId(client, {
+        restaurantId,
+        requestedLocationId: parsePositiveInt(req.body.locationId || req.body.location_id),
+      });
+      await assertExistingItemLocationAccess(restaurant, req.user.id, itemLocationId, client);
       const { rows: [created] } = await client.query(
         `INSERT INTO restaurant_inventory_items
            (restaurant_id, name, category, unit, quantity, low_stock_threshold,
             reorder_point, critical_level, par_level, sku, supplier_name,
-            supplier_id, storage_area_id, unit_cost, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+            supplier_id, storage_area_id, unit_cost, created_by, location_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
          RETURNING *`,
         [
           restaurantId, name, category,
@@ -212,6 +236,7 @@ exports.createItem = async (req, res, next) => {
           storageAreaId,
           unitCost,
           req.user.id,
+          itemLocationId,
         ]
       );
       await logInventoryAudit(client, auditEntry(restaurant, 'item_created', 'item', created.id, req, {
@@ -307,6 +332,12 @@ exports.updateItem = async (req, res, next) => {
     sets.push('updated_at = NOW()');
 
     const result = await withTransaction(pool, async (client) => {
+      const { rows: [existing] } = await client.query(
+        `SELECT id, location_id FROM restaurant_inventory_items WHERE id = $1 AND restaurant_id = $2 FOR UPDATE`,
+        [itemId, restaurantId]
+      );
+      if (!existing) throw new AppError('Item not found', 404, 'inventory_item_not_found');
+      await assertExistingItemLocationAccess(restaurant, req.user.id, existing.location_id, client);
       const { rows: [item] } = await client.query(
         `UPDATE restaurant_inventory_items SET ${sets.join(', ')}
           WHERE id = $${i++} AND restaurant_id = $${i}
@@ -320,7 +351,7 @@ exports.updateItem = async (req, res, next) => {
         || req.body.isActive !== undefined;
       const availability = affectsAvailability
         ? await syncMappedMenuAvailability(client, restaurantId, {
-          inventoryItemId: itemId, apply: true, createdBy: req.user.id,
+          inventoryItemId: itemId, locationId: item.location_id, apply: true, createdBy: req.user.id,
         })
         : { changes: [], applied: false };
       await logInventoryAudit(client, auditEntry(restaurant, 'item_updated', 'item', item.id, req, {
@@ -341,13 +372,22 @@ exports.deleteItem = async (req, res, next) => {
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
     const availability = await withTransaction(pool, async (client) => {
+      const { rows: [existing] } = await client.query(
+        `SELECT id, location_id FROM restaurant_inventory_items WHERE id = $1 AND restaurant_id = $2 FOR UPDATE`,
+        [itemId, restaurantId]
+      );
+      if (!existing) throw new AppError('Item not found', 404, 'inventory_item_not_found');
+      await assertExistingItemLocationAccess(restaurant, req.user.id, existing.location_id, client);
       const { rows: [item] } = await client.query(
         `DELETE FROM restaurant_inventory_items WHERE id = $1 AND restaurant_id = $2 RETURNING id, name, category`,
         [itemId, restaurantId]
       );
       if (!item) throw new AppError('Item not found', 404, 'inventory_item_not_found');
-      const syncResult = await syncMappedMenuAvailability(client, restaurantId, { apply: true, createdBy: req.user.id });
+      const syncResult = await syncMappedMenuAvailability(client, restaurantId, {
+        locationId: existing.location_id, apply: true, createdBy: req.user.id,
+      });
       await logInventoryAudit(client, auditEntry(restaurant, 'item_deleted', 'item', item.id, req, {
+        locationId: existing.location_id,
         name: item.name,
         category: item.category,
       }));
@@ -385,7 +425,13 @@ exports.adjustItem = async (req, res, next) => {
             WHERE a.restaurant_id = $1 AND a.client_operation_id = $2`,
           [restaurantId, clientOperationId]
         );
-        if (existing) return { item: existing, availability: { changes: [], applied: false }, replayed: true };
+        if (existing) {
+          await assertExistingItemLocationAccess(restaurant, req.user.id, existing.location_id, client);
+          if (Number(existing.item_id) !== itemId) {
+            throw new AppError('Adjustment retry targets a different item', 409, 'idempotency_conflict');
+          }
+          return { item: existing, availability: { changes: [], applied: false }, replayed: true };
+        }
       }
       const { rows: [item] } = await client.query(
         `SELECT * FROM restaurant_inventory_items
@@ -393,6 +439,7 @@ exports.adjustItem = async (req, res, next) => {
         [itemId, restaurantId]
       );
       if (!item) throw new AppError('Item not found', 404, 'inventory_item_not_found');
+      await assertExistingItemLocationAccess(restaurant, req.user.id, item.location_id, client);
 
       const current = Number(item.quantity);
       let delta;
@@ -435,6 +482,7 @@ exports.adjustItem = async (req, res, next) => {
       );
       const availability = await syncMappedMenuAvailability(client, restaurantId, {
         inventoryItemId: itemId,
+        locationId: updated.location_id,
         apply: true,
         createdBy: req.user.id,
       });
@@ -472,8 +520,11 @@ exports.listAdjustments = async (req, res, next) => {
     const itemId = parsePositiveInt(req.query.itemId);
 
     const params = [restaurantId];
-    let where = 'restaurant_id = $1';
-    if (itemId) { params.push(itemId); where += ` AND item_id = $${params.length}`; }
+    let where = 'a.restaurant_id = $1';
+    if (itemId) { params.push(itemId); where += ` AND a.item_id = $${params.length}`; }
+    const scope = locationScopeClause(restaurant.locationScope, 'a', params.length + 1);
+    where += scope.sql;
+    params.push(...scope.values);
     params.push(limit, offset);
 
     const { rows } = await pool.query(
@@ -483,7 +534,7 @@ exports.listAdjustments = async (req, res, next) => {
          FROM restaurant_inventory_adjustments a
          LEFT JOIN restaurant_inventory_items i ON i.id = a.item_id AND i.restaurant_id = a.restaurant_id
          LEFT JOIN users u ON u.id = a.adjusted_by
-        WHERE ${where.replaceAll('restaurant_id', 'a.restaurant_id').replaceAll('item_id', 'a.item_id')}
+        WHERE ${where}
         ORDER BY a.created_at DESC
         LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params
@@ -502,15 +553,16 @@ exports.listPurchaseRequests = async (req, res, next) => {
     await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
     const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 50, 1), 100);
     const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
+    const scope = locationScopeClause(restaurant.locationScope, 'r', 2);
 
     const { rows } = await pool.query(
       `SELECT r.*, NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), '') AS requested_by_name
          FROM restaurant_inventory_purchase_requests r
          LEFT JOIN users u ON u.id = r.requested_by
-        WHERE r.restaurant_id = $1
+        WHERE r.restaurant_id = $1${scope.sql}
         ORDER BY r.created_at DESC
-        LIMIT $2 OFFSET $3`,
-      [restaurantId, limit, offset]
+        LIMIT $${2 + scope.values.length} OFFSET $${3 + scope.values.length}`,
+      [restaurantId, ...scope.values, limit, offset]
     );
     res.json({ requests: rows, limit, offset });
   } catch (err) {
@@ -544,13 +596,18 @@ exports.createPurchaseRequest = async (req, res, next) => {
         );
         if (existing) return { request: existing, replayed: true };
       }
+      const requestLocationId = await restaurantLocationService.resolveLocationId(client, {
+        restaurantId,
+        requestedLocationId: parsePositiveInt(req.body.locationId || req.body.location_id),
+      });
+      await assertExistingItemLocationAccess(restaurant, req.user.id, requestLocationId, client);
       const { rows: [request] } = await client.query(
         `INSERT INTO restaurant_inventory_purchase_requests
-           (restaurant_id, item_name, requested_quantity, unit, supplier_name, status,
+           (restaurant_id, location_id, item_name, requested_quantity, unit, supplier_name, status,
             eta_window, note, requested_by, estimated_cost, urgency, client_operation_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
          RETURNING *`,
-        [restaurantId, itemName, requestedQuantity, normalizeString(req.body.unit, 24) || 'units',
+        [restaurantId, requestLocationId, itemName, requestedQuantity, normalizeString(req.body.unit, 24) || 'units',
           normalizeString(req.body.supplierName, 160), status, normalizeString(req.body.etaWindow, 80),
           normalizeString(req.body.note, 1000), req.user.id, estimatedCost, urgency, clientOperationId]
       );
@@ -600,13 +657,14 @@ exports.updatePurchaseRequest = async (req, res, next) => {
     if (req.body.urgency !== undefined && URGENCY_LEVELS.includes(req.body.urgency)) { sets.push(`urgency = $${i++}`); vals.push(req.body.urgency); }
     if (!sets.length) throw new AppError('No updatable fields provided', 400, 'validation_failed', { body: 'No updatable fields provided' });
     sets.push('updated_at = NOW()');
+    const scope = locationScopeClause(restaurant.locationScope, '', i + 2);
 
     const request = await withTransaction(pool, async (client) => {
       const { rows: [updated] } = await client.query(
         `UPDATE restaurant_inventory_purchase_requests SET ${sets.join(', ')}
-          WHERE id = $${i++} AND restaurant_id = $${i}
+          WHERE id = $${i++} AND restaurant_id = $${i}${scope.sql}
           RETURNING *`,
-        [...vals, requestId, restaurantId]
+        [...vals, requestId, restaurantId, ...scope.values]
       );
       if (!updated) throw new AppError('Purchase request not found', 404, 'purchase_request_not_found');
       await logInventoryAudit(client, auditEntry(restaurant, 'purchase_request_updated', 'purchase_request', updated.id, req, {
@@ -630,15 +688,16 @@ exports.listSupplierIssues = async (req, res, next) => {
     await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
     const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 50, 1), 100);
     const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
+    const scope = locationScopeClause(restaurant.locationScope, 'i', 2);
 
     const { rows } = await pool.query(
       `SELECT i.*, NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), '') AS reported_by_name
          FROM restaurant_inventory_supplier_issues i
          LEFT JOIN users u ON u.id = i.reported_by
-        WHERE i.restaurant_id = $1
+        WHERE i.restaurant_id = $1${scope.sql}
         ORDER BY i.created_at DESC
-        LIMIT $2 OFFSET $3`,
-      [restaurantId, limit, offset]
+        LIMIT $${2 + scope.values.length} OFFSET $${3 + scope.values.length}`,
+      [restaurantId, ...scope.values, limit, offset]
     );
     res.json({ issues: rows, limit, offset });
   } catch (err) {
@@ -660,11 +719,12 @@ exports.createSupplierIssue = async (req, res, next) => {
     const relatedPurchaseRequestId = parsePositiveInt(req.body.relatedPurchaseRequestId);
     if (relatedPurchaseRequestId) {
       const { rows } = await pool.query(
-        `SELECT id FROM restaurant_inventory_purchase_requests
+        `SELECT id, location_id FROM restaurant_inventory_purchase_requests
           WHERE id = $1 AND restaurant_id = $2`,
         [relatedPurchaseRequestId, restaurantId]
       );
       if (!rows[0]) throw new AppError('Related purchase request not found', 404, 'purchase_request_not_found');
+      await assertExistingItemLocationAccess(restaurant, req.user.id, rows[0].location_id, pool);
     }
 
     const status = ISSUE_STATUSES.includes(req.body.status) ? req.body.status : 'open';
@@ -682,13 +742,18 @@ exports.createSupplierIssue = async (req, res, next) => {
         );
         if (existing) return { issue: existing, replayed: true };
       }
+      const issueLocationId = await restaurantLocationService.resolveLocationId(client, {
+        restaurantId,
+        requestedLocationId: parsePositiveInt(req.body.locationId || req.body.location_id),
+      });
+      await assertExistingItemLocationAccess(restaurant, req.user.id, issueLocationId, client);
       const { rows: [issueRow] } = await client.query(
         `INSERT INTO restaurant_inventory_supplier_issues
-           (restaurant_id, supplier_name, issue, status, related_purchase_request_id,
+           (restaurant_id, location_id, supplier_name, issue, status, related_purchase_request_id,
             reported_by, issue_type, delivery_reference, affected_item_names, client_operation_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11)
          RETURNING *`,
-        [restaurantId, supplierName, issue, status, relatedPurchaseRequestId, req.user.id,
+        [restaurantId, issueLocationId, supplierName, issue, status, relatedPurchaseRequestId, req.user.id,
           issueType, normalizeString(req.body.deliveryReference, 120), JSON.stringify(affectedItemNames), clientOperationId]
       );
       await logInventoryAudit(client, auditEntry(restaurant, 'supplier_issue_created', 'supplier_issue', issueRow.id, req, {
@@ -738,23 +803,25 @@ exports.updateSupplierIssue = async (req, res, next) => {
       const relatedPurchaseRequestId = parsePositiveInt(req.body.relatedPurchaseRequestId);
       if (relatedPurchaseRequestId) {
         const { rows } = await pool.query(
-          `SELECT id FROM restaurant_inventory_purchase_requests
+          `SELECT id, location_id FROM restaurant_inventory_purchase_requests
             WHERE id = $1 AND restaurant_id = $2`,
           [relatedPurchaseRequestId, restaurantId]
         );
         if (!rows[0]) throw new AppError('Related purchase request not found', 404, 'purchase_request_not_found');
+        await assertExistingItemLocationAccess(restaurant, req.user.id, rows[0].location_id, pool);
       }
       sets.push(`related_purchase_request_id = $${i++}`); vals.push(relatedPurchaseRequestId);
     }
     if (!sets.length) throw new AppError('No updatable fields provided', 400, 'validation_failed', { body: 'No updatable fields provided' });
     sets.push('updated_at = NOW()');
+    const scope = locationScopeClause(restaurant.locationScope, '', i + 2);
 
     const issueRow = await withTransaction(pool, async (client) => {
       const { rows: [updated] } = await client.query(
         `UPDATE restaurant_inventory_supplier_issues SET ${sets.join(', ')}
-          WHERE id = $${i++} AND restaurant_id = $${i}
+          WHERE id = $${i++} AND restaurant_id = $${i}${scope.sql}
           RETURNING *`,
-        [...vals, issueId, restaurantId]
+        [...vals, issueId, restaurantId, ...scope.values]
       );
       if (!updated) throw new AppError('Supplier issue not found', 404, 'supplier_issue_not_found');
       await logInventoryAudit(client, auditEntry(restaurant, 'supplier_issue_updated', 'supplier_issue', updated.id, req, {
@@ -777,6 +844,7 @@ exports.listMappings = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const scope = locationScopeClause(restaurant.locationScope, 'rii', 2);
     const { rows } = await pool.query(
       `SELECT rim.id,
               rim.inventory_item_id,
@@ -785,6 +853,9 @@ exports.listMappings = async (req, res, next) => {
               fmi.name AS menu_item_name,
               rim.usage_label,
               rim.required_quantity,
+              COALESCE(rim.required_unit, rii.unit) AS required_unit,
+              rim.conversion_factor,
+              rim.yield_percent,
               rim.auto_manage
          FROM restaurant_inventory_item_mappings rim
          JOIN restaurant_inventory_items rii
@@ -793,9 +864,9 @@ exports.listMappings = async (req, res, next) => {
          JOIN food_menu_items fmi
            ON fmi.id = rim.menu_item_id
           AND fmi.restaurant_id = rim.restaurant_id
-        WHERE rim.restaurant_id = $1
+        WHERE rim.restaurant_id = $1${scope.sql}
         ORDER BY rii.name ASC, fmi.name ASC`,
-      [restaurantId]
+      [restaurantId, ...scope.values]
     );
     res.json({ mappings: rows });
   } catch (err) {
@@ -812,6 +883,9 @@ exports.upsertMapping = async (req, res, next) => {
     const menuItemId = parsePositiveInt(req.body.menuItemId || req.body.menu_item_id);
     const usageLabel = normalizeString(req.body.usageLabel || req.body.usage_label, 120);
     const requiredQuantity = parseQty(req.body.requiredQuantity ?? req.body.required_quantity ?? 0.001, 'requiredQuantity');
+    const requiredUnit = normalizeString(req.body.requiredUnit || req.body.required_unit, 24);
+    const conversionFactor = parseQty(req.body.conversionFactor ?? req.body.conversion_factor ?? 1, 'conversionFactor');
+    const yieldPercent = parseQty(req.body.yieldPercent ?? req.body.yield_percent ?? 100, 'yieldPercent');
     if (!inventoryItemId || !menuItemId || !usageLabel) {
       throw new AppError('Validation failed', 400, 'validation_failed', {
         inventoryItemId: 'Inventory item is required',
@@ -824,6 +898,16 @@ exports.upsertMapping = async (req, res, next) => {
         requiredQuantity: 'Required quantity must be greater than zero',
       });
     }
+    if (conversionFactor === null || conversionFactor <= 0) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        conversionFactor: 'Conversion factor must be greater than zero',
+      });
+    }
+    if (yieldPercent === null || yieldPercent <= 0 || yieldPercent > 100) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        yieldPercent: 'Yield percent must be greater than zero and at most 100',
+      });
+    }
     const result = await withTransaction(pool, async (client) => {
       const { rows: [ownership] } = await client.query(
         `SELECT EXISTS(
@@ -832,33 +916,44 @@ exports.upsertMapping = async (req, res, next) => {
                 ) AS inventory_exists,
                 EXISTS(
                   SELECT 1 FROM food_menu_items WHERE id = $3 AND restaurant_id = $1
-                ) AS menu_exists`,
+                ) AS menu_exists,
+                (SELECT location_id FROM restaurant_inventory_items
+                  WHERE id = $2 AND restaurant_id = $1) AS location_id`,
         [restaurantId, inventoryItemId, menuItemId]
       );
       if (!ownership.inventory_exists) throw new AppError('Inventory item not found', 404, 'inventory_item_not_found');
       if (!ownership.menu_exists) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
+      await assertExistingItemLocationAccess(restaurant, req.user.id, ownership.location_id, client);
       const { rows: [mapping] } = await client.query(
         `INSERT INTO restaurant_inventory_item_mappings
            (restaurant_id, inventory_item_id, menu_item_id, usage_label,
-            required_quantity, auto_manage, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)
+            required_quantity, required_unit, conversion_factor, yield_percent,
+            auto_manage, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
          ON CONFLICT (restaurant_id, inventory_item_id, menu_item_id)
          DO UPDATE SET usage_label = EXCLUDED.usage_label,
                        required_quantity = EXCLUDED.required_quantity,
+                       required_unit = EXCLUDED.required_unit,
+                       conversion_factor = EXCLUDED.conversion_factor,
+                       yield_percent = EXCLUDED.yield_percent,
                        auto_manage = EXCLUDED.auto_manage,
                        updated_at = NOW()
          RETURNING *`,
         [restaurantId, inventoryItemId, menuItemId, usageLabel, requiredQuantity,
+          requiredUnit, conversionFactor, yieldPercent,
           req.body.autoManage !== false && req.body.auto_manage !== false, req.user.id]
       );
       const availability = await syncMappedMenuAvailability(client, restaurantId, {
-        menuItemId, apply: true, createdBy: req.user.id,
+        menuItemId, locationId: ownership.location_id, apply: true, createdBy: req.user.id,
       });
       await logInventoryAudit(client, auditEntry(restaurant, 'mapping_upserted', 'mapping', mapping.id, req, {
         inventoryItemId: mapping.inventory_item_id,
         menuItemId: mapping.menu_item_id,
         usageLabel: mapping.usage_label,
         requiredQuantity: mapping.required_quantity,
+        requiredUnit: mapping.required_unit,
+        conversionFactor: mapping.conversion_factor,
+        yieldPercent: mapping.yield_percent,
         autoManage: mapping.auto_manage,
       }));
       return { mapping, availability };
@@ -876,6 +971,16 @@ exports.deleteMapping = async (req, res, next) => {
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
     const result = await withTransaction(pool, async (client) => {
+      const { rows: [existing] } = await client.query(
+        `SELECT rim.id, rii.location_id
+           FROM restaurant_inventory_item_mappings rim
+           JOIN restaurant_inventory_items rii
+             ON rii.id = rim.inventory_item_id AND rii.restaurant_id = rim.restaurant_id
+          WHERE rim.id = $1 AND rim.restaurant_id = $2 FOR UPDATE OF rim`,
+        [mappingId, restaurantId]
+      );
+      if (!existing) throw new AppError('Inventory mapping not found', 404, 'inventory_mapping_not_found');
+      await assertExistingItemLocationAccess(restaurant, req.user.id, existing.location_id, client);
       const { rows: [mapping] } = await client.query(
         `DELETE FROM restaurant_inventory_item_mappings
           WHERE id = $1 AND restaurant_id = $2 RETURNING *`,
@@ -883,9 +988,10 @@ exports.deleteMapping = async (req, res, next) => {
       );
       if (!mapping) throw new AppError('Inventory mapping not found', 404, 'inventory_mapping_not_found');
       const availability = await syncMappedMenuAvailability(client, restaurantId, {
-        menuItemId: mapping.menu_item_id, apply: true, createdBy: req.user.id,
+        menuItemId: mapping.menu_item_id, locationId: existing.location_id, apply: true, createdBy: req.user.id,
       });
       await logInventoryAudit(client, auditEntry(restaurant, 'mapping_deleted', 'mapping', mapping.id, req, {
+        locationId: existing.location_id,
         inventoryItemId: mapping.inventory_item_id,
         menuItemId: mapping.menu_item_id,
       }));
@@ -904,19 +1010,13 @@ exports.bootstrapMappings = async (req, res, next) => {
     await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
 
     await withTransaction(pool, async (client) => {
-      const { rows: [{ count }] } = await client.query(
-        `SELECT COUNT(*)::int AS count
-           FROM restaurant_inventory_item_mappings
-          WHERE restaurant_id = $1`,
-        [restaurantId]
-      );
-      if (count > 0) return;
-
+      const itemScope = locationScopeClause(restaurant.locationScope, '', 2);
       const { rows: inventoryRows } = await client.query(
-        `SELECT id, name, unit
+        `SELECT id, name, unit, location_id
            FROM restaurant_inventory_items
-          WHERE restaurant_id = $1 AND is_active = TRUE`,
-        [restaurantId]
+          WHERE restaurant_id = $1 AND is_active = TRUE${itemScope.sql}
+          ORDER BY location_id, id`,
+        [restaurantId, ...itemScope.values]
       );
       const { rows: menuRows } = await client.query(
         `SELECT id, name
@@ -927,33 +1027,45 @@ exports.bootstrapMappings = async (req, res, next) => {
       );
       if (!inventoryRows.length || !menuRows.length) return;
 
-      const inventoryByName = new Map(inventoryRows.map((row) => [String(row.name).toLowerCase(), row]));
-      const menuByName = new Map(menuRows.map((row) => [String(row.name).toLowerCase(), row]));
       const seeds = [
         ['burger buns', 'classic ox burger', '1 bun', 1],
         ['ground beef', 'classic ox burger', '0.33 lb', 0.33],
         ['cold brew', 'cold brew', '12 oz', 12],
       ];
 
-      for (const [inventoryName, menuName, usageLabel, requiredQuantity] of seeds) {
-        const inventoryItem = inventoryByName.get(inventoryName);
-        const menuItem = menuByName.get(menuName);
-        if (!inventoryItem || !menuItem) continue;
-        await client.query(
-          `INSERT INTO restaurant_inventory_item_mappings
-             (restaurant_id, inventory_item_id, menu_item_id, usage_label, required_quantity, created_by)
-           VALUES ($1,$2,$3,$4,$5,$6)
-           ON CONFLICT (restaurant_id, inventory_item_id, menu_item_id) DO NOTHING`,
-          [restaurantId, inventoryItem.id, menuItem.id, usageLabel, requiredQuantity, req.user.id]
-        );
+      let inserted = 0;
+      for (const inventoryItem of inventoryRows) {
+        const seed = seeds.find(([inventoryName]) => inventoryName === String(inventoryItem.name).toLowerCase());
+        if (!seed) continue;
+        const [, menuName, usageLabel, requiredQuantity] = seed;
+        for (const menuItem of menuRows.filter((row) => String(row.name).toLowerCase() === menuName)) {
+          const result = await client.query(
+            `INSERT INTO restaurant_inventory_item_mappings
+               (restaurant_id, inventory_item_id, menu_item_id, usage_label, required_quantity, created_by)
+             VALUES ($1,$2,$3,$4,$5,$6)
+             ON CONFLICT (restaurant_id, inventory_item_id, menu_item_id) DO NOTHING RETURNING id`,
+            [restaurantId, inventoryItem.id, menuItem.id, usageLabel, requiredQuantity, req.user.id]
+          );
+          inserted += result.rows.length;
+        }
       }
-      await logInventoryAudit(client, auditEntry(restaurant, 'mappings_bootstrapped', 'mapping', null, req, {
-        seedCount: seeds.length,
+      if (inserted) await logInventoryAudit(client, auditEntry(restaurant, 'mappings_bootstrapped', 'mapping', null, req, {
+        seedCount: inserted,
       }));
     });
 
     await withTransaction(pool, async (client) => {
-      await syncMappedMenuAvailability(client, restaurantId, { apply: true, createdBy: req.user.id });
+      const scope = locationScopeClause(restaurant.locationScope, 'i', 2);
+      const { rows: stores } = await client.query(
+        `SELECT DISTINCT i.location_id FROM restaurant_inventory_items i
+          WHERE i.restaurant_id = $1 AND i.location_id IS NOT NULL${scope.sql}`,
+        [restaurantId, ...scope.values]
+      );
+      for (const store of stores) {
+        await syncMappedMenuAvailability(client, restaurantId, {
+          locationId: store.location_id, apply: true, createdBy: req.user.id,
+        });
+      }
     });
 
     return exports.listMappings(req, res, next);

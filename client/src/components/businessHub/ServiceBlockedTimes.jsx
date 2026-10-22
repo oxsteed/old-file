@@ -92,7 +92,7 @@ export function ServiceBlockedTimes({ businessId, serviceId }) {
 
   return (
     <div className="bst-timeoff">
-      <button type="button" className="bst-timeoff-toggle" onClick={toggle} aria-expanded={open}>
+      <button type="button" className="bst-timeoff-toggle" onClick={toggle} aria-expanded={open} data-track="ui.7a8762894b.1">
         <CalendarOff size={14} />
         <span>{t('businessServices.timeOffToggle')}</span>
         {loaded && blocks.length > 0 && <span className="bst-timeoff-count">{blocks.length}</span>}
@@ -116,7 +116,7 @@ export function ServiceBlockedTimes({ businessId, serviceId }) {
                     type="button"
                     className="bst-btn-action delete"
                     aria-label={t('businessServices.timeOffRemove')}
-                    onClick={() => handleDelete(b.id)}
+                    onClick={() => handleDelete(b.id)} data-track="ui.7a8762894b.2"
                   >
                     <Trash2 size={14} />
                   </button>
@@ -150,16 +150,16 @@ export function ServiceBlockedTimes({ businessId, serviceId }) {
                 />
               </label>
               <div className="bst-timeoff-form-actions">
-                <button type="button" className="bst-btn-cancel" onClick={() => setShowForm(false)}>
+                <button type="button" className="bst-btn-cancel" onClick={() => setShowForm(false)} data-track="ui.7a8762894b.3">
                   <X size={14} /> {t('businessServices.timeOffCancel')}
                 </button>
-                <button type="button" className="bst-btn-save" onClick={handleSave} disabled={saving}>
+                <button type="button" className="bst-btn-save" onClick={handleSave} disabled={saving} data-track="ui.7a8762894b.4">
                   {t('businessServices.timeOffBlock')}
                 </button>
               </div>
             </div>
           ) : (
-            <button type="button" className="bst-timeoff-add" onClick={() => setShowForm(true)}>
+            <button type="button" className="bst-timeoff-add" onClick={() => setShowForm(true)} data-track="ui.7a8762894b.5">
               <Plus size={14} /> {t('businessServices.timeOffBlock')}
             </button>
           )}

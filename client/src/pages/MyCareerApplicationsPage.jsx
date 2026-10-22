@@ -46,20 +46,20 @@ export default function MyCareerApplicationsPage() {
                       await decideCareerOffer(offerId, 'accepted');
                       toast.success(t('careers.apply.offerAccepted'));
                       load();
-                    }}>{t('careers.apply.acceptOffer')}</button>
+                    }} data-track="ui.250c3edd29.1">{t('careers.apply.acceptOffer')}</button>
                     <button type="button" className="ox-careers-btn" onClick={async () => {
                       const offerId = row.offers?.[0]?.id;
                       if (!offerId) return;
                       await decideCareerOffer(offerId, 'declined');
                       load();
-                    }}>{t('careers.apply.declineOffer')}</button>
+                    }} data-track="ui.250c3edd29.2">{t('careers.apply.declineOffer')}</button>
                   </>
                 )}
                 {!['hired', 'withdrawn', 'rejected'].includes(row.stage) && (
                   <button type="button" className="ox-careers-btn" onClick={async () => {
                     await withdrawCareerApplication(row.id);
                     load();
-                  }}>{t('careers.apply.withdraw')}</button>
+                  }} data-track="ui.250c3edd29.3">{t('careers.apply.withdraw')}</button>
                 )}
               </div>
             </div>
