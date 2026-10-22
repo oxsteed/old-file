@@ -864,6 +864,12 @@ exports.getLaborJurisdiction = async (req, res, next) => {
     if (!Number.isSafeInteger(restaurantId) || restaurantId <= 0 || !Number.isSafeInteger(locationId) || locationId <= 0) {
       return res.status(400).json({ error: 'restaurant_id and location_id are required' });
     }
+    // Scope to the business: the restaurant must belong to it.
+    const { rows: [scoped] } = await pool.query(
+      `SELECT 1 FROM food_restaurants WHERE id = $1 AND business_id = $2`,
+      [restaurantId, businessId]
+    );
+    if (!scoped) return res.status(404).json({ error: 'Restaurant not found' });
     const rules = await laborJurisdiction.getJurisdiction(pool, restaurantId, locationId);
     const { rows: [stored] } = await pool.query(
       `SELECT * FROM restaurant_labor_jurisdictions
@@ -889,6 +895,15 @@ exports.setLaborJurisdiction = async (req, res, next) => {
     if (!JURISDICTION_CODES.has(code)) {
       return res.status(400).json({ error: `jurisdiction_code must be one of: ${[...JURISDICTION_CODES].join(', ')}` });
     }
+    // Scope to the business: the restaurant must belong to it, and the
+    // location must belong to the restaurant.
+    const { rows: [scoped] } = await pool.query(
+      `SELECT 1 FROM restaurant_locations l
+         JOIN food_restaurants r ON r.id = l.restaurant_id
+        WHERE l.restaurant_id = $1 AND l.id = $2 AND r.business_id = $3`,
+      [restaurantId, locationId, businessId]
+    );
+    if (!scoped) return res.status(404).json({ error: 'Restaurant or location not found' });
     const cols = laborJurisdiction.RULE_COLUMNS;
     const values = cols.map((c) => {
       const v = req.body?.[c];

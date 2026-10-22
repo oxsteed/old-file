@@ -108,8 +108,16 @@ exports.sendNotification = async ({
     const token     = pushToken;
     const language  = prefs.preferred_language || 'en';
     // S-19: staff types carry render params in data.params; the recipient's
-    // language resolves the localized template with interpolation.
-    const renderParams = (data && typeof data === 'object' && data.params) || null;
+    // language resolves the localized template with interpolation. A raw
+    // role code in params becomes the localized display name.
+    let renderParams = (data && typeof data === 'object' && data.params) || null;
+    if (renderParams && renderParams.role) {
+      renderParams = { ...renderParams };
+      try {
+        const { staffRoleName } = require('../utils/staffNotificationTemplates');
+        renderParams.role = staffRoleName(renderParams.role, language);
+      } catch { /* keep the raw code */ }
+    }
     const notificationText = tNotif(type, language, renderParams);
     const emailTranslations = tNotifEmail(type, language);
     const finalTitle = notificationText.title || title;
