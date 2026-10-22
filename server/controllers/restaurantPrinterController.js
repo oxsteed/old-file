@@ -128,11 +128,11 @@ function receiptLocale(restaurant) {
 function receiptLabels(locale) {
   const language = String(locale || 'en').toLowerCase().split('-')[0];
   const labels = {
-    en: { order: 'Order', date: 'Date', guest: 'Guest', table: 'Table', type: 'Type', subtotal: 'Subtotal', discount: 'Discount', tax: 'Tax', serviceFee: 'Service fee', deliveryFee: 'Delivery fee', tip: 'Tip', total: 'TOTAL', paid: 'Paid', thankYou: 'Thank you for your business!', allergens: 'ALLERGENS', seat: 'Seat', allergenLabels: 'ALLERGEN LABELS', verifyLabels: 'Verify labels before service.' },
-    es: { order: 'Pedido', date: 'Fecha', guest: 'Cliente', table: 'Mesa', type: 'Tipo', subtotal: 'Subtotal', discount: 'Descuento', tax: 'Impuesto', serviceFee: 'Cargo de servicio', deliveryFee: 'Cargo de entrega', tip: 'Propina', total: 'TOTAL', paid: 'Pagado', thankYou: '¡Gracias por su compra!', allergens: 'ALÉRGENOS', seat: 'Asiento', allergenLabels: 'ETIQUETAS DE ALÉRGENOS', verifyLabels: 'Verifique las etiquetas antes del servicio.' },
-    fr: { order: 'Commande', date: 'Date', guest: 'Client', table: 'Table', type: 'Type', subtotal: 'Sous-total', discount: 'Remise', tax: 'Taxe', serviceFee: 'Frais de service', deliveryFee: 'Frais de livraison', tip: 'Pourboire', total: 'TOTAL', paid: 'Payé', thankYou: 'Merci pour votre visite !', allergens: 'ALLERGÈNES', seat: 'Siège', allergenLabels: 'ÉTIQUETTES D’ALLERGÈNES', verifyLabels: 'Vérifiez les étiquettes avant le service.' },
-    ht: { order: 'Kòmann', date: 'Dat', guest: 'Kliyan', table: 'Tab', type: 'Kalite', subtotal: 'Sou-total', discount: 'Rabè', tax: 'Taks', serviceFee: 'Frè sèvis', deliveryFee: 'Frè livrezon', tip: 'Poubò', total: 'TOTAL', paid: 'Peye', thankYou: 'Mèsi pou acha ou!', allergens: 'ALÈJÈN', seat: 'Syèj', allergenLabels: 'ETIKÈT ALÈJÈN', verifyLabels: 'Verifye etikèt yo anvan sèvis.' },
-    ar: { order: 'الطلب', date: 'التاريخ', guest: 'العميل', table: 'الطاولة', type: 'النوع', subtotal: 'المجموع الفرعي', discount: 'الخصم', tax: 'الضريبة', serviceFee: 'رسوم الخدمة', deliveryFee: 'رسوم التوصيل', tip: 'الإكرامية', total: 'الإجمالي', paid: 'المدفوع', thankYou: 'شكرًا لطلبكم!', allergens: 'مسببات الحساسية', seat: 'المقعد', allergenLabels: 'ملصقات مسببات الحساسية', verifyLabels: 'تحقق من الملصقات قبل التقديم.' },
+    en: { order: 'Order', date: 'Date', guest: 'Guest', table: 'Table', type: 'Type', subtotal: 'Subtotal', discount: 'Discount', tax: 'Tax', serviceFee: 'Service fee', deliveryFee: 'Delivery fee', tip: 'Tip', total: 'TOTAL', paid: 'Paid', thankYou: 'Thank you for your business!', allergens: 'ALLERGENS', seat: 'Seat', course: 'Course', allergenLabels: 'ALLERGEN LABELS', verifyLabels: 'Verify labels before service.' },
+    es: { order: 'Pedido', date: 'Fecha', guest: 'Cliente', table: 'Mesa', type: 'Tipo', subtotal: 'Subtotal', discount: 'Descuento', tax: 'Impuesto', serviceFee: 'Cargo de servicio', deliveryFee: 'Cargo de entrega', tip: 'Propina', total: 'TOTAL', paid: 'Pagado', thankYou: '¡Gracias por su compra!', allergens: 'ALÉRGENOS', seat: 'Asiento', course: 'Curso', allergenLabels: 'ETIQUETAS DE ALÉRGENOS', verifyLabels: 'Verifique las etiquetas antes del servicio.' },
+    fr: { order: 'Commande', date: 'Date', guest: 'Client', table: 'Table', type: 'Type', subtotal: 'Sous-total', discount: 'Remise', tax: 'Taxe', serviceFee: 'Frais de service', deliveryFee: 'Frais de livraison', tip: 'Pourboire', total: 'TOTAL', paid: 'Payé', thankYou: 'Merci pour votre visite !', allergens: 'ALLERGÈNES', seat: 'Siège', course: 'Service', allergenLabels: 'ÉTIQUETTES D’ALLERGÈNES', verifyLabels: 'Vérifiez les étiquettes avant le service.' },
+    ht: { order: 'Kòmann', date: 'Dat', guest: 'Kliyan', table: 'Tab', type: 'Kalite', subtotal: 'Sou-total', discount: 'Rabè', tax: 'Taks', serviceFee: 'Frè sèvis', deliveryFee: 'Frè livrezon', tip: 'Poubò', total: 'TOTAL', paid: 'Peye', thankYou: 'Mèsi pou acha ou!', allergens: 'ALÈJÈN', seat: 'Syèj', course: 'Sèvis', allergenLabels: 'ETIKÈT ALÈJÈN', verifyLabels: 'Verifye etikèt yo anvan sèvis.' },
+    ar: { order: 'الطلب', date: 'التاريخ', guest: 'العميل', table: 'الطاولة', type: 'النوع', subtotal: 'المجموع الفرعي', discount: 'الخصم', tax: 'الضريبة', serviceFee: 'رسوم الخدمة', deliveryFee: 'رسوم التوصيل', tip: 'الإكرامية', total: 'الإجمالي', paid: 'المدفوع', thankYou: 'شكرًا لطلبكم!', allergens: 'مسببات الحساسية', seat: 'المقعد', course: 'المرحلة', allergenLabels: 'ملصقات مسببات الحساسية', verifyLabels: 'تحقق من الملصقات قبل التقديم.' },
   };
   return labels[language] || labels.en;
 }
@@ -231,6 +231,10 @@ function buildOrderReceipt({ restaurant, settings, snapshot }) {
       subLines: [
         ...mods.map((m) => `+ ${m.modifier_name}${Number(m.price_delta_cents) ? ` (${money(m.price_delta_cents)})` : ''}`),
         ...(item.special_instructions ? [`* ${item.special_instructions}`] : []),
+        // Course/seat annotations so a split-by-seat or coursed ticket reads
+        // correctly on the printed check.
+        ...(item.course_number && Number(item.course_number) > 1 ? [`${labels.course} ${item.course_number}`] : []),
+        ...(item.seat_number ? [`${labels.seat} ${item.seat_number}`] : []),
       ],
     };
   });

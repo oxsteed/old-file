@@ -116,20 +116,22 @@ function criteriaStores(criteria = {}) {
   return null;
 }
 
-function audienceWhere(criteria) {
+function audienceWhere(criteria, paramOffset = 1) {
   const clauses = [];
   const params = [];
+  // audienceFor prepends restaurantId as $1, so criteria params start after it.
+  const ref = () => `$${paramOffset + params.length}`;
   if (criteria.min_lifetime_points != null) {
     params.push(criteria.min_lifetime_points);
-    clauses.push(`lifetime_points >= $${params.length}`);
+    clauses.push(`lifetime_points >= ${ref()}`);
   }
   if (criteria.min_orders != null) {
     params.push(criteria.min_orders);
-    clauses.push(`paid_orders >= $${params.length}`);
+    clauses.push(`paid_orders >= ${ref()}`);
   }
   if (criteria.days_since_last_order != null) {
     params.push(criteria.days_since_last_order);
-    clauses.push(`(last_paid_order_at IS NULL OR last_paid_order_at <= NOW() - ($${params.length}::int * INTERVAL '1 day'))`);
+    clauses.push(`(last_paid_order_at IS NULL OR last_paid_order_at <= NOW() - (${ref()}::int * INTERVAL '1 day'))`);
   }
   const stores = criteriaStores(criteria);
   if (stores) {
