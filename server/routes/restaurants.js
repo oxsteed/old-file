@@ -35,7 +35,7 @@ const food = require('../controllers/foodController');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const enforceUploadQuota = require('../middleware/uploadQuota');
-const { authenticatedLimiter, strictLimiter, generalLimiter } = require('../middleware/rateLimiter');
+const { authenticatedLimiter, strictLimiter, generalLimiter, staffPinAttemptLimiter } = require('../middleware/rateLimiter');
 const media = require('../controllers/restaurantMediaController');
 const { requireKitchenDeviceOrStaff } = require('../controllers/restaurantDisplayController');
 const hosting = require('../controllers/restaurantHostingController');
@@ -454,8 +454,13 @@ router.post('/:restaurantId/pos/shifts/:shiftId/close', requireRestaurantAccess(
 router.get('/:restaurantId/pos/shifts/:shiftId/drawer-events', requireRestaurantAccess(), appFlow.listDrawerEvents);
 router.post('/:restaurantId/pos/shifts/:shiftId/drawer-events', requireRestaurantAccess(), appFlow.recordDrawerEvent);
 router.post('/:restaurantId/pos/staff-pins', requireRestaurantAccess(), appFlow.setStaffPin);
-router.post('/:restaurantId/pos/staff-pins/validate', requireRestaurantAccess(), appFlow.validateStaffPin);
-router.post('/:restaurantId/pos/staff-session', requireRestaurantAccess(), appFlow.createStaffSession);
+// Auth-audit item 10: staff PIN endpoints were the one staff-auth surface
+// with no rate limiter, and assertPinNotLocked cannot scope attempts without
+// a deviceId, so blind PIN guesses ran at request speed with no lockout.
+// strictLimiter (10/hour per IP) plus staffPinAttemptLimiter (30/15min per
+// restaurant+IP) bound the account-auth guessing path.
+router.post('/:restaurantId/pos/staff-pins/validate', strictLimiter, staffPinAttemptLimiter, requireRestaurantAccess(), appFlow.validateStaffPin);
+router.post('/:restaurantId/pos/staff-session', strictLimiter, staffPinAttemptLimiter, requireRestaurantAccess(), appFlow.createStaffSession);
 router.get('/:restaurantId/pos/staff-session', requireRestaurantAccess(), appFlow.getStaffSession);
 router.delete('/:restaurantId/pos/staff-session', requireRestaurantAccess(), appFlow.endStaffSession);
 router.get('/:restaurantId/pos/receipt-events', requireRestaurantAccess(), pos.listReceiptEvents);
