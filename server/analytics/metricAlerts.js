@@ -164,6 +164,64 @@ const ALERTABLE_METRICS = Object.freeze({
     compute: (db, params) => financialMetricValue(db, 'growth_promo_redeemed_cents', params.currencyCode || 'USD',
       { interval: registry.PERIOD_INTERVAL[paramsForPeriod(params)].interval }),
   }),
+  // Track F: business overview metrics (analytics tab rebuild). Alertable
+  // per business.
+  business_invoice_revenue: Object.freeze({
+    unit: 'cents', params: ['businessId'],
+    compute: async (db, params) => {
+      const { rows } = await db.query(
+        `SELECT COALESCE(SUM(total), 0)::bigint AS v FROM business_invoices
+          WHERE business_id = $1 AND status = 'paid'`,
+        [params.businessId]
+      );
+      return Number(rows[0]?.v || 0);
+    },
+  }),
+  business_job_payout_revenue: Object.freeze({
+    unit: 'cents', params: ['businessId'],
+    compute: async (db, params) => {
+      const { rows } = await db.query(
+        `SELECT COALESCE(SUM(helper_payout), 0)::bigint AS v FROM payments
+          WHERE payee_id = $1 AND status = 'captured'`,
+        [params.businessId]
+      );
+      return Number(rows[0]?.v || 0);
+    },
+  }),
+  business_expense_total: Object.freeze({
+    unit: 'cents', params: ['businessId'],
+    compute: async (db, params) => {
+      const { rows } = await db.query(
+        `SELECT COALESCE(SUM(amount), 0)::bigint AS v FROM expenses
+          WHERE business_id = $1 AND type = 'expense'`,
+        [params.businessId]
+      );
+      return Number(rows[0]?.v || 0);
+    },
+  }),
+  business_job_stats_6m: Object.freeze({
+    unit: 'count', params: ['businessId'],
+    compute: async (db, params) => {
+      const { rows } = await db.query(
+        `SELECT COUNT(*)::int AS v FROM payments
+          WHERE payee_id = $1 AND status = 'captured'
+            AND COALESCE(captured_at, released_at) >= NOW() - INTERVAL '6 months'`,
+        [params.businessId]
+      );
+      return Number(rows[0]?.v || 0);
+    },
+  }),
+  business_invoice_outstanding: Object.freeze({
+    unit: 'cents', params: ['businessId'],
+    compute: async (db, params) => {
+      const { rows } = await db.query(
+        `SELECT COALESCE(SUM(total - amount_paid), 0)::bigint AS v FROM business_invoices
+          WHERE business_id = $1 AND status IN ('sent', 'overdue')`,
+        [params.businessId]
+      );
+      return Number(rows[0]?.v || 0);
+    },
+  }),
 });
 
 function isAlertableMetric(name) {
