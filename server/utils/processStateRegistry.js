@@ -233,6 +233,16 @@ const ENTRIES = [
     classification: 'cache', shared: 'none',
     rationale: 'Display pairing-token verification cache: 5min positive / 60s negative TTL, 5000-entry cap, keyed by token SHA-256 (raw token never a key). Backing store is PostgreSQL display_pairings; revocation/unpairing propagates within the TTL. Cache misses fail closed to the anonymous bucket.',
   },
+  {
+    file: 'services/openRouterSpendGuard.js', name: 'localSpend',
+    classification: 'cache', shared: 'redis',
+    rationale: 'Single-process fallback for the OpenRouter daily spend map; Redis is authoritative when configured. Bounded to one entry per UTC date; spend overage only risks a slightly higher bill, never a money movement.',
+  },
+  {
+    file: 'services/openRouterSpendGuard.js', name: 'localAlerts',
+    classification: 'cache', shared: 'redis',
+    rationale: 'Single-process fallback for the daily spend-cap breach alert deduplication set; Redis is authoritative when configured. Missing an alert only delays ops notification, never blocks chat.',
+  },
 ];
 
 for (const entry of ENTRIES) registerProcessState(entry);
