@@ -921,7 +921,7 @@ function ComplianceSection({ t, restaurantId, isManager }) {
                 type="button"
                 className="fd-btn fd-btn-secondary fd-btn-sm"
                 onClick={() => { setSigningSop(null); setSignatureDataUrl(null); }}
-                disabled={signing}
+                disabled={signing} data-track="ui.2265f208ce.38"
               >
                 {t('common.cancel')}
               </button>
@@ -929,7 +929,7 @@ function ComplianceSection({ t, restaurantId, isManager }) {
                 type="button"
                 className="fd-btn fd-btn-sm"
                 onClick={submitSignature}
-                disabled={signing || !signatureDataUrl}
+                disabled={signing || !signatureDataUrl} data-track="ui.2265f208ce.39"
               >
                 {signing ? t('restaurants.ops.documents.signing') : t('restaurants.ops.documents.signAndSubmit')}
               </button>

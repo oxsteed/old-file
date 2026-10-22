@@ -193,7 +193,7 @@ export function StaffScheduler({ businessId, isManager = false }) {
         <div role="alert" style={{ marginBottom: '1rem', padding: '0.75rem 1rem', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: '0.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
             <strong style={{ fontSize: '0.875rem' }}>{t('businessHub.staffScheduler.ruleWarningsTitle', { count: ruleWarnings.length })}</strong>
-            <button type="button" onClick={() => setRuleWarnings([])} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem' }} aria-label={t('common.dismiss')}>
+            <button type="button" onClick={() => setRuleWarnings([])} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem' }} aria-label={t('common.dismiss')} data-track="ui.34ed3b0a4c.13">
               ✕
             </button>
           </div>

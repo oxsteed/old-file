@@ -392,10 +392,10 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
             <span><input type="checkbox" checked={form.taxInclusive} onChange={(e) => setForm((f) => ({ ...f, taxInclusive: e.target.checked }))} data-track="ui.dbbd615872.10" />{' '}{t('food.merchant.taxInclusive', 'Tax inclusive')}</span>
           </label>
           <label className="fd-field" style={{ flex: '0 1 200px', justifyContent: 'flex-end' }}>
-            <span><input type="checkbox" checked={form.serviceFeeTaxable} onChange={(e) => setForm((f) => ({ ...f, serviceFeeTaxable: e.target.checked }))} />{' '}{t('food.merchant.serviceFeeTaxable')}</span>
+            <span><input type="checkbox" checked={form.serviceFeeTaxable} onChange={(e) => setForm((f) => ({ ...f, serviceFeeTaxable: e.target.checked }))} data-track="ui.dbbd615872.14" />{' '}{t('food.merchant.serviceFeeTaxable')}</span>
           </label>
           <label className="fd-field" style={{ flex: '0 1 200px', justifyContent: 'flex-end' }}>
-            <span><input type="checkbox" checked={form.deliveryFeeTaxable} onChange={(e) => setForm((f) => ({ ...f, deliveryFeeTaxable: e.target.checked }))} />{' '}{t('food.merchant.deliveryFeeTaxable')}</span>
+            <span><input type="checkbox" checked={form.deliveryFeeTaxable} onChange={(e) => setForm((f) => ({ ...f, deliveryFeeTaxable: e.target.checked }))} data-track="ui.dbbd615872.15" />{' '}{t('food.merchant.deliveryFeeTaxable')}</span>
           </label>
           <div className="fd-field" style={{ flex: '0 1 150px' }}>
             <label htmlFor="fd-loc-online-pacing">{t('food.merchant.onlinePacingMax')}</label>

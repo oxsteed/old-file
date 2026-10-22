@@ -94,10 +94,10 @@ export default function TaxRulesPanel({ restaurant, locationId, t }) {
                 {' · '}{rule.is_active ? t('food.merchant.taxRuleActive') : t('food.merchant.taxRuleInactive')}
               </span>
               <span style={{ display: 'flex', gap: '0.5rem' }}>
-                <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => toggle(rule)}>
+                <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => toggle(rule)} data-track="ui.256f7a03cf.1">
                   {rule.is_active ? t('food.merchant.taxRuleInactive') : t('food.merchant.taxRuleActive')}
                 </button>
-                <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => remove(rule)}>
+                <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => remove(rule)} data-track="ui.256f7a03cf.2">
                   {t('food.merchant.taxRuleDelete')}
                 </button>
               </span>
@@ -105,7 +105,7 @@ export default function TaxRulesPanel({ restaurant, locationId, t }) {
           ))}
         </ul>
       )}
-      <form onSubmit={submit} style={{ marginTop: '0.5rem' }}>
+      <form onSubmit={submit} style={{ marginTop: '0.5rem' }} data-track="ui.256f7a03cf.3">
         <div className="fd-row" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
           <div className="fd-field" style={{ flex: '1 1 160px' }}>
             <label htmlFor="fd-taxrule-name">{t('food.merchant.taxRuleName')}</label>
@@ -135,7 +135,7 @@ export default function TaxRulesPanel({ restaurant, locationId, t }) {
             </select>
           </div>
           <div className="fd-field" style={{ flex: '0 1 120px', justifyContent: 'flex-end' }}>
-            <button type="submit" className="fd-btn fd-btn-primary fd-btn-sm" disabled={saving}>
+            <button type="submit" className="fd-btn fd-btn-primary fd-btn-sm" disabled={saving} data-track="ui.256f7a03cf.4">
               {t('food.merchant.taxRuleAdd')}
             </button>
           </div>
