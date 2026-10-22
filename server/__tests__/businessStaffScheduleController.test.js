@@ -134,7 +134,10 @@ describe('businessStaffScheduleController shifts (P1-5-F02)', () => {
       user_name: 'Sam Staff',
     };
     mockQuery.mockResolvedValueOnce({ rows: [row] });
-    const req = { params: { businessId: '2' }, query: { from: '2026-10-14', to: '2026-10-15' } };
+    // S-04: listShifts checks isBusinessManager; provide businessRole to
+    // bypass the DB lookup (mockQuery is stubbed for the shift query only).
+    const req = { params: { businessId: '2' }, query: { from: '2026-10-14', to: '2026-10-15' },
+      user: { id: 'test-user' }, businessRole: 'manager' };
     const res = mockRes();
     await ctrl.listShifts(req, res, next);
 
