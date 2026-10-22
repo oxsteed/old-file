@@ -1508,6 +1508,25 @@ describe('restaurant app-flow backend', () => {
     expect(mockQuery.mock.calls.some(([, params]) => JSON.stringify(params).includes('mergedIntoOrderId'))).toBe(true);
   });
 
+  test('does not split a POS ticket outside the manager store assignment', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 52 })] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [{ code: 'pos.use', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000130'))
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/split`)
+      .send({ orderItemIds: [201] });
+
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('order_not_found');
+    const sourceQuery = mockQuery.mock.calls.find(([sql]) => /FROM food_orders/.test(sql));
+    expect(sourceQuery[0]).toContain('location_id = ANY($3::bigint[])');
+    expect(sourceQuery[1]).toEqual([ORDER_ID, RESTAURANT_ID, [77]]);
+  });
+
   test('splits a partial line quantity while cloning modifiers and reservations', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })

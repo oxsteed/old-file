@@ -1125,7 +1125,11 @@ async function recalcOrderTotals(client, orderId) {
   return order;
 }
 
-async function assertMutablePosOrders(client, restaurantId, orders) {
+async function assertMutablePosOrders(client, restaurantId, orders, locationScope = null) {
+  if (locationScope?.mode === 'assigned'
+    && orders.some((order) => !locationScope.location_ids.includes(Number(order.location_id)))) {
+    throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+  }
   const invalid = orders.find((order) => !['open', 'held'].includes(order.pos_ticket_state || 'open')
     || !['unpaid', 'requires_payment'].includes(order.payment_status)
     || ['cancelled', 'refunded', 'completed'].includes(order.status));
@@ -4445,6 +4449,7 @@ exports.updatePosTicket = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const canManageRestaurant = await hasRestaurantPermission(restaurant, req.user.id, 'restaurant.manage');
     const ticketState = normalizeString(req.body.ticketState || req.body.ticket_state, 24);
     if (!POS_TICKET_STATES.has(ticketState)) {
@@ -4501,8 +4506,11 @@ exports.updatePosTicket = async (req, res, next) => {
                         WHERE payment_type = 'refund' AND status IN ('recorded','captured','refunded')
                       ), 0)::int AS net_paid_cents
            FROM restaurant_pos_payments
-          WHERE restaurant_id = $1 AND food_order_id = $2`,
-        [restaurantId, orderId]
+          WHERE restaurant_id = $1 AND food_order_id = $2
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}`,
+        locationScope.mode === 'assigned'
+          ? [restaurantId, orderId, locationScope.location_ids]
+          : [restaurantId, orderId]
       );
       if (Number(paymentTotals.net_paid_cents || 0) > 0) {
         throw new AppError(
@@ -4524,8 +4532,12 @@ exports.updatePosTicket = async (req, res, next) => {
       let voidApproval = null;
       if (voidApprovalRequested) {
         const { rows: [voidOrder] } = await client.query(
-          `SELECT total_cents FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
-          [orderId, restaurantId]
+          `SELECT total_cents FROM food_orders
+            WHERE id = $1 AND restaurant_id = $2
+              ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}`,
+          locationScope.mode === 'assigned'
+            ? [orderId, restaurantId, locationScope.location_ids]
+            : [orderId, restaurantId]
         );
         if (!voidOrder) throw new AppError('Order not found', 404, 'order_not_found');
         voidApproval = await consumeManagerApproval({
@@ -4550,6 +4562,7 @@ exports.updatePosTicket = async (req, res, next) => {
                 updated_at = NOW()
           WHERE id = $5 AND restaurant_id = $6
             AND pos_ticket_state = ANY($7::varchar[])
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($8::bigint[])' : ''}
             AND ($1 <> 'voided' OR NOT EXISTS (
               SELECT 1 FROM restaurant_pos_payments p
                WHERE p.food_order_id = food_orders.id
@@ -4565,6 +4578,7 @@ exports.updatePosTicket = async (req, res, next) => {
           orderId,
           restaurantId,
           allowedCurrentStates,
+          ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : []),
         ]
       );
       if (!order) throw new AppError('Ticket transition is no longer allowed', 409, 'illegal_ticket_transition');
@@ -4629,6 +4643,7 @@ exports.splitPosOrder = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const sourceOrderId = parsePositiveInt(req.params.orderId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage', 'orders.manage']);
     const rawSplitItems = Array.isArray(req.body.items || req.body.splitItems || req.body.split_items)
       ? (req.body.items || req.body.splitItems || req.body.split_items)
@@ -4667,11 +4682,16 @@ exports.splitPosOrder = async (req, res, next) => {
 
     const result = await withTransaction(pool, async (client) => {
       const { rows: [source] } = await client.query(
-        `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2 FOR UPDATE`,
-        [sourceOrderId, restaurantId]
+        `SELECT * FROM food_orders
+          WHERE id = $1 AND restaurant_id = $2
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}
+          FOR UPDATE`,
+        locationScope.mode === 'assigned'
+          ? [sourceOrderId, restaurantId, locationScope.location_ids]
+          : [sourceOrderId, restaurantId]
       );
       if (!source) throw new AppError('Order not found', 404, 'order_not_found');
-      await assertMutablePosOrders(client, restaurantId, [source]);
+      await assertMutablePosOrders(client, restaurantId, [source], locationScope);
       if (source.fulfillment_type === 'delivery') {
         throw new AppError('Delivery tickets cannot be split', 409, 'delivery_ticket_split_not_supported');
       }
@@ -4898,6 +4918,7 @@ exports.mergePosOrders = async (req, res, next) => {
     const targetOrderId = parsePositiveInt(req.params.orderId);
     const sourceOrderId = parsePositiveInt(req.body.sourceOrderId || req.body.source_order_id);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage', 'orders.manage']);
     if (!sourceOrderId || sourceOrderId === targetOrderId) {
       throw new AppError('Validation failed', 400, 'validation_failed', { sourceOrderId: 'A different source order is required' });
@@ -4906,14 +4927,21 @@ exports.mergePosOrders = async (req, res, next) => {
       const { rows: orders } = await client.query(
         `SELECT * FROM food_orders
           WHERE restaurant_id = $1 AND id = ANY($2::bigint[])
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}
           FOR UPDATE`,
-        [restaurantId, [targetOrderId, sourceOrderId]]
+        locationScope.mode === 'assigned'
+          ? [restaurantId, [targetOrderId, sourceOrderId], locationScope.location_ids]
+          : [restaurantId, [targetOrderId, sourceOrderId]]
       );
       if (orders.length !== 2) throw new AppError('Order not found', 404, 'order_not_found');
-      await assertMutablePosOrders(client, restaurantId, orders);
+      await assertMutablePosOrders(client, restaurantId, orders, locationScope);
       const target = orders.find((order) => Number(order.id) === targetOrderId);
       const source = orders.find((order) => Number(order.id) === sourceOrderId);
       if (!target || !source) throw new AppError('Order not found', 404, 'order_not_found');
+      if (target.location_id != null && source.location_id != null
+        && Number(target.location_id) !== Number(source.location_id)) {
+        throw new AppError('Tickets must belong to the same store to merge', 409, 'pos_ticket_location_mismatch');
+      }
       if (target.currency_code !== source.currency_code
         || target.fulfillment_type !== source.fulfillment_type
         || Number(target.tax_rate_bps || 0) !== Number(source.tax_rate_bps || 0)
@@ -6144,13 +6172,17 @@ exports.capturePosCardPayment = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const paymentId = parsePositiveInt(req.params.paymentId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     // F-31: capturing a card payment moves money; membership alone is not
     // enough, the caller needs pos.use (or orders.manage).
     await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'orders.manage']);
     const { rows: [payment] } = await pool.query(
       `SELECT * FROM restaurant_pos_payments
-        WHERE id = $1 AND restaurant_id = $2 AND payment_type = 'card'`,
-      [paymentId, restaurantId]
+        WHERE id = $1 AND restaurant_id = $2 AND payment_type = 'card'
+          ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}`,
+      locationScope.mode === 'assigned'
+        ? [paymentId, restaurantId, locationScope.location_ids]
+        : [paymentId, restaurantId]
     );
     if (!payment) throw new AppError('POS payment not found', 404, 'pos_payment_not_found');
     if (!payment.provider_payment_intent_id) {
@@ -6210,6 +6242,7 @@ exports.refundPosCardPayment = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const paymentId = parsePositiveInt(req.params.paymentId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     await assertManage(restaurant, req.user.id);
     const amountCents = parseCents(req.body.amountCents ?? req.body.amount_cents, 'amountCents');
     if (amountCents < 1) {
@@ -6224,8 +6257,11 @@ exports.refundPosCardPayment = async (req, res, next) => {
       const { rows: [original] } = await client.query(
         `SELECT * FROM restaurant_pos_payments
           WHERE id = $1 AND restaurant_id = $2 AND payment_type = 'card'
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}
           FOR UPDATE`,
-        [paymentId, restaurantId]
+        locationScope.mode === 'assigned'
+          ? [paymentId, restaurantId, locationScope.location_ids]
+          : [paymentId, restaurantId]
       );
       if (!original) throw new AppError('POS payment not found', 404, 'pos_payment_not_found');
       if (original.status !== 'captured' || !original.provider_payment_intent_id) {
