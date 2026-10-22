@@ -522,11 +522,14 @@ function AuditRunView({ t, restaurantId, auditId, templateItems, staff, isManage
   const completed = audit.status === 'completed';
   const pct = completed ? scorePct(audit.total_score, audit.max_score) : null;
 
-  // Score rows: every template item, merged with any saved score by item_id.
-  // A fresh audit has no scores yet, so the template drives the list.
+  // Persisted run items remain authoritative after template edits or archival.
+  // Legacy runs without a snapshot continue to use the supplied template.
   const scoreByItem = {};
   (audit.scores || []).forEach((sc) => { scoreByItem[sc.item_id] = sc; });
-  const scoreRows = (templateItems || []).map((ti) => ({
+  const runItems = Array.isArray(audit.snapshot_items) ? audit.snapshot_items : (templateItems || []);
+  const scoreRows = completed && !Array.isArray(audit.snapshot_items)
+    ? (audit.scores || []).map((score) => ({ ...score, item_id: score.item_id ?? `score-${score.id}` }))
+    : runItems.map((ti) => ({
     label: ti.label,
     instructions: ti.instructions,
     max_score: ti.max_score,

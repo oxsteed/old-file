@@ -233,7 +233,7 @@ async function rollup(client, { businessId, restaurantIds, from, to }) {
 // Restaurant locations are the operational stores in the current rollout.
 // Keep the legacy business/restaurant query above for callers that still use
 // the pre-location contract, but make the HQ surface location-native.
-async function rollupLocations(client, { restaurantId, locationIds, from, to }) {
+async function rollupLocations(client, { restaurantId, locationIds, from, to, timezone = 'UTC' }) {
   if (!Array.isArray(locationIds) || !locationIds.length) throw new AppError('No accessible stores found', 403, 'hq_scope_empty');
   const { rows: salesRows } = await client.query(
     `SELECT o.location_id, o.currency_code,
@@ -241,21 +241,22 @@ async function rollupLocations(client, { restaurantId, locationIds, from, to }) 
             COALESCE(SUM(o.total_cents) FILTER (WHERE o.payment_status = 'paid' AND o.status NOT IN ('cancelled','refunded')), 0)::bigint AS net_collected_cents
        FROM food_orders o
       WHERE o.restaurant_id = $1 AND o.location_id = ANY($2::bigint[])
-        AND o.created_at >= $3::timestamptz AND o.created_at < $4::timestamptz
+        AND o.created_at >= ($3::timestamp AT TIME ZONE $5) AND o.created_at < ($4::timestamp AT TIME ZONE $5)
       GROUP BY o.location_id, o.currency_code
       ORDER BY o.location_id, o.currency_code`,
-    [restaurantId, locationIds, from, to]
+    [restaurantId, locationIds, from, to, timezone]
   );
   const { rows: healthRows } = await client.query(
     `SELECT l.id AS location_id, r.id AS restaurant_id,
             (SELECT ROUND(100.0 * a.total_score / NULLIF(a.max_score, 0), 1)
                FROM restaurant_audits a
-              WHERE a.restaurant_id = r.id AND a.status = 'completed'
+              WHERE a.restaurant_id = r.id AND a.location_id=l.id AND a.status = 'completed'
               ORDER BY a.completed_at DESC NULLS LAST, a.id DESC LIMIT 1) AS latest_audit_score_percent,
             (SELECT COUNT(*)::int
                FROM restaurant_audit_findings f
                JOIN restaurant_audits a ON a.id = f.audit_id
-              WHERE a.restaurant_id = r.id AND f.severity IN ('high','critical')) AS open_findings
+              WHERE a.restaurant_id = r.id AND a.location_id=l.id AND f.severity IN ('high','critical')
+                AND NOT EXISTS (SELECT 1 FROM restaurant_corrective_actions ca WHERE ca.finding_id=f.id GROUP BY ca.finding_id HAVING BOOL_AND(ca.status='verified'))) AS open_findings
        FROM restaurant_locations l
        JOIN food_restaurants r ON r.id = l.restaurant_id
       WHERE l.restaurant_id = $1 AND l.id = ANY($2::bigint[])`,
@@ -263,15 +264,15 @@ async function rollupLocations(client, { restaurantId, locationIds, from, to }) 
   );
   const { rows: complianceRows } = await client.query(
     `WITH checklist AS (
-       SELECT restaurant_id,
+       SELECT restaurant_id,location_id,
               COUNT(*)::int AS runs,
               COUNT(*) FILTER (WHERE status = 'completed')::int AS completed_runs
          FROM restaurant_checklist_runs
         WHERE restaurant_id = $1
-          AND started_at >= $3::timestamptz AND started_at < $4::timestamptz
-        GROUP BY restaurant_id
+          AND location_id=ANY($2::bigint[]) AND started_at >= ($3::timestamp AT TIME ZONE $5) AND started_at < ($4::timestamp AT TIME ZONE $5)
+        GROUP BY restaurant_id,location_id
      ), training AS (
-       SELECT a.restaurant_id,
+       SELECT a.restaurant_id,lm.location_id,
               COUNT(*)::int AS assignments,
               COUNT(*) FILTER (
                 WHERE a.status = 'completed'
@@ -284,8 +285,12 @@ async function rollupLocations(client, { restaurantId, locationIds, from, to }) 
               )::int AS completed_assignments,
               COUNT(*) FILTER (WHERE a.status = 'overdue')::int AS overdue_assignments
          FROM restaurant_training_assignments a
-        WHERE a.restaurant_id = $1
-        GROUP BY a.restaurant_id
+         JOIN restaurant_training_modules tm ON tm.id=a.module_id AND tm.is_active=TRUE AND tm.archived_at IS NULL
+         JOIN food_restaurants fr ON fr.id=a.restaurant_id
+         JOIN business_members bm ON bm.business_id=fr.business_id AND bm.member_id=a.user_id AND bm.status='active'
+         JOIN restaurant_location_memberships lm ON lm.membership_id=bm.id AND lm.restaurant_id=a.restaurant_id AND lm.status='active'
+        WHERE a.restaurant_id = $1 AND lm.location_id=ANY($2::bigint[])
+        GROUP BY a.restaurant_id,lm.location_id
      )
      SELECT l.id AS location_id, r.id AS restaurant_id,
             COALESCE(checklist.runs, 0)::int AS checklist_runs,
@@ -297,10 +302,10 @@ async function rollupLocations(client, { restaurantId, locationIds, from, to }) 
             COALESCE(training.overdue_assignments, 0)::int AS overdue_training
        FROM restaurant_locations l
        JOIN food_restaurants r ON r.id = l.restaurant_id
-       LEFT JOIN checklist ON checklist.restaurant_id = r.id
-       LEFT JOIN training ON training.restaurant_id = r.id
+       LEFT JOIN checklist ON checklist.restaurant_id = r.id AND checklist.location_id=l.id
+       LEFT JOIN training ON training.restaurant_id = r.id AND training.location_id=l.id
       WHERE l.restaurant_id = $1 AND l.id = ANY($2::bigint[])`,
-    [restaurantId, locationIds, from, to]
+    [restaurantId, locationIds, from, to, timezone]
   );
   return { salesRows, healthRows, complianceRows };
 }

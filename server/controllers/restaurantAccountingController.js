@@ -1,6 +1,8 @@
 'use strict';
 
 const pool = require('../db');
+const { strictInteger } = require('../utils/strictInteger');
+const { attachScope, requireBrand } = require('../services/restaurantReviewScope');
 const AppError = require('../utils/appError');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
 const permissions = require('../services/permissionsService');
@@ -11,13 +13,15 @@ const { logBusinessAction } = require('../services/businessAuditLog');
 const { getLocationScope } = require('../services/restaurantLocationAccessService');
 
 async function access(req) {
-  const restaurantId = Number.parseInt(req.params.restaurantId, 10);
+  const restaurantId = strictInteger(req.params.restaurantId);
   if (!Number.isSafeInteger(restaurantId) || restaurantId <= 0) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
   const restaurant = await resolveRestaurantAccess(req.user.id, restaurantId);
   if (!(await permissions.hasRestaurantPermission(restaurant, req.user.id, ['settings.manage']))) {
     throw new AppError('You do not have permission to manage accounting integrations', 403, 'forbidden');
   }
-  return restaurant;
+  const scoped = await attachScope(restaurant, req.user.id);
+  requireBrand(scoped);
+  return scoped;
 }
 
 exports.list = async (req, res, next) => {
@@ -39,8 +43,8 @@ exports.upsert = async (req, res, next) => {
     const restaurant = await access(req);
     const result = await withTransaction(pool, async (client) => {
       const integration = await accounting.upsertIntegration(client, {
-        restaurantId: restaurant.id,
         ...req.body,
+        restaurantId: restaurant.id,
         actorUserId: req.user.id,
       });
       await logBusinessAction(req, {
@@ -70,7 +74,8 @@ exports.queueJournal = async (req, res, next) => {
     );
     const currencyRows = rows.filter((row) => String(row.currency || 'USD').toUpperCase() === currency);
     const lines = reports._accountingTest.accountingLines(currencyRows);
-    const result = await withTransaction(pool, async (client) => accounting.queueExport(client, {
+    const result = await withTransaction(pool, async (client) => {
+      const result = await accounting.queueExport(client, {
       restaurantId: restaurant.id,
       provider,
       periodFrom: input.from || fromDate,
@@ -79,7 +84,15 @@ exports.queueJournal = async (req, res, next) => {
       idempotencyKey: req.get('Idempotency-Key') || req.body?.idempotencyKey,
       lines,
       actorUserId: req.user.id,
-    }), 'restaurant_accounting_export_queue');
+      });
+      await logBusinessAction(req, {
+        business_id: restaurant.business_id, actor_role: restaurant.effective_role,
+        action: 'restaurant.accounting.export_queued', target_type: 'accounting_export',
+        target_id: result.export.id, after_state: result.export,
+        metadata: { replayed: result.replayed }, client, throwOnError: true,
+      });
+      return result;
+    }, 'restaurant_accounting_export_queue');
     res.status(result.replayed ? 200 : 202).json(result);
   } catch (error) { next(error); }
 };
@@ -90,7 +103,7 @@ exports.updateExport = async (req, res, next) => {
     const result = await withTransaction(pool, async (client) => {
       const updated = await accounting.updateExportStatus(client, {
         restaurantId: restaurant.id,
-        exportId: req.params.exportId,
+        exportId: require('../utils/restaurantReviewValidation').integer(req.params.exportId, 'exportId'),
         status: req.body?.status,
         externalBatchId: req.body?.externalBatchId,
         lastError: req.body?.lastError,

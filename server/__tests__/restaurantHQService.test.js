@@ -72,7 +72,7 @@ describe('restaurant HQ rollup service', () => {
     };
     const result = await service.rollupLocations(client, { restaurantId: 3, locationIds: [7], from: '2026-10-01T00:00:00.000Z', to: '2026-10-31T00:00:00.000Z' });
     expect(result.salesRows[0].location_id).toBe(7);
-    expect(client.query.mock.calls[0][1]).toEqual([3, [7], '2026-10-01T00:00:00.000Z', '2026-10-31T00:00:00.000Z']);
+    expect(client.query.mock.calls[0][1]).toEqual([3, [7], '2026-10-01T00:00:00.000Z', '2026-10-31T00:00:00.000Z', 'UTC']);
     expect(client.query.mock.calls[1][0]).toContain('restaurant_locations');
   });
 });
