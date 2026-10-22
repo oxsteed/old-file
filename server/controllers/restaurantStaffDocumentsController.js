@@ -212,6 +212,14 @@ exports.deleteDocument = async (req, res, next) => {
 // Read-and-sign: the acknowledgement pins the SOP version that was read,
 // so republishing a SOP (version bump in restaurantOpsController) makes
 // earlier acknowledgements visibly stale instead of silently current.
+//
+// S-14: sign-off captures a drawn e-signature. The client posts the
+// signature as a multipart `signature` image field; the server stores it
+// via utils/storage and keeps the storage key on the acknowledgement.
+// The signature is optional at the API level (legacy click-to-sign rows
+// and older clients keep working); the client UI requires a drawn
+// signature before it will submit.
+const SOP_SIGNATURE_MAX_BYTES = 2 * 1024 * 1024;
 exports.acknowledgeSop = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
@@ -222,12 +230,31 @@ exports.acknowledgeSop = async (req, res, next) => {
       [sopId, restaurantId]
     );
     if (!sop) throw new AppError('SOP not found', 404, 'sop_not_found');
+
+    let signatureStorageKey = null;
+    if (req.file && req.file.buffer && req.file.buffer.length > 0) {
+      const mime = String(req.file.detectedMime || req.file.mimetype || '');
+      if (!mime.startsWith('image/')) {
+        throw new AppError('Signature must be an image', 400, 'invalid_signature');
+      }
+      if (req.file.buffer.length > SOP_SIGNATURE_MAX_BYTES) {
+        throw new AppError('Signature image is too large', 413, 'signature_too_large');
+      }
+      signatureStorageKey = await uploadFile(
+        req.file.buffer,
+        `restaurants/${restaurantId}/sop-signatures/${req.user.id}`,
+        `signature-sop${sopId}-v${sop.version}.png`,
+        'image/png'
+      );
+      if (!signatureStorageKey) throw new AppError('Signature upload failed', 502, 'upload_failed');
+    }
+
     const { rows: [acknowledgement] } = await pool.query(
-      `INSERT INTO restaurant_sop_acknowledgements (restaurant_id, sop_id, user_id, sop_version)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO restaurant_sop_acknowledgements (restaurant_id, sop_id, user_id, sop_version, signature_storage_key)
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (sop_id, user_id, sop_version) DO NOTHING
        RETURNING *`,
-      [restaurantId, sopId, req.user.id, sop.version]
+      [restaurantId, sopId, req.user.id, sop.version, signatureStorageKey]
     );
     if (!acknowledgement) {
       const { rows: [existing] } = await pool.query(
@@ -235,6 +262,17 @@ exports.acknowledgeSop = async (req, res, next) => {
           WHERE sop_id = $1 AND user_id = $2 AND sop_version = $3`,
         [sopId, req.user.id, sop.version]
       );
+      // A fresh drawn signature on an already-acknowledged version upgrades
+      // the record instead of being silently dropped.
+      if (signatureStorageKey && existing && !existing.signature_storage_key) {
+        const { rows: [updated] } = await pool.query(
+          `UPDATE restaurant_sop_acknowledgements
+              SET signature_storage_key = $1
+            WHERE id = $2 RETURNING *`,
+          [signatureStorageKey, existing.id]
+        );
+        return res.json({ acknowledgement: updated, alreadyAcknowledged: true });
+      }
       return res.json({ acknowledgement: existing, alreadyAcknowledged: true });
     }
     res.status(201).json({ acknowledgement });
@@ -267,7 +305,15 @@ exports.listSopAcknowledgements = async (req, res, next) => {
         ...(sopId ? [sopId] : []),
       ]
     );
-    res.json({ acknowledgements: rows });
+    res.json({
+      acknowledgements: await Promise.all(rows.map(async (row) => ({
+        ...row,
+        // S-14: managers verifying a sign-off can pull the drawn signature.
+        signature_url: row.signature_storage_key
+          ? await getSignedDownloadUrl(row.signature_storage_key).catch(() => null)
+          : null,
+      }))),
+    });
   } catch (err) {
     next(err);
   }

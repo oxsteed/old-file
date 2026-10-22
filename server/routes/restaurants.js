@@ -279,8 +279,13 @@ router.post(
 );
 router.patch('/:restaurantId/staff-documents/:documentId', requireRestaurantAccess(), staffDocuments.verifyDocument);
 router.delete('/:restaurantId/staff-documents/:documentId', requireRestaurantAccess(), staffDocuments.deleteDocument);
-// SOP read-and-sign acknowledgements (S-14)
-router.post('/:restaurantId/sops/:sopId/acknowledge', requireRestaurantAccess(), staffDocuments.acknowledgeSop);
+// SOP read-and-sign acknowledgements (S-14). The optional multipart
+// `signature` field carries the drawn e-signature image.
+router.post('/:restaurantId/sops/:sopId/acknowledge',
+  requireRestaurantAccess(),
+  upload.single('signature'),
+  validateFileUpload,
+  staffDocuments.acknowledgeSop);
 router.get('/:restaurantId/sop-acknowledgements', requireRestaurantAccess(), staffDocuments.listSopAcknowledgements);
 
 // Quality audits (franchise system)
