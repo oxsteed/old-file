@@ -35,6 +35,12 @@ source-aware database triggers for omitted store ids, and makes the operational
 location columns non-null. Brand-level accounting integrations remain
 intentionally location-aggregated until their provider mapping is configured.
 
+Manager dashboard and report rollups now apply the assigned-member store scope
+to order, kitchen, runner, inventory, paired-device, and POS-sync queries. The
+manager surfaces preserve all-store behavior for owners and legacy members
+without active assignments. Remaining F-02 work is the full data-boundary audit
+across every adapter plus populated multi-store acceptance.
+
 Migration 963 adds tenant-constrained store menu overrides. Prices and temporary
 availability are separate fields; null inherits the brand menu. Store overrides
 cannot restore an item blocked by brand/inventory availability. Expiry is checked
@@ -377,6 +383,7 @@ hardware decisions do not excuse independent software work on these flows.
 - `server`: `npx jest --runInBand __tests__/restaurantAccountingService.test.js __tests__/restaurantHQController.test.js __tests__/restaurantHQService.test.js __tests__/routeScopeGuard.test.js` — **24 passed** across accounting dynamic-reference validation, bounded provider/export status listing, idempotent journal outbox states, location-native HQ rollups, bounded menu publishing, and route registration.
 - `server`: `npx jest --runInBand __tests__/restaurantAccountingService.test.js __tests__/restaurantAppFlow.test.js` — **67 passed** after fixing accounting integration upsert shaping, adding the unified fleet assigned-store predicate, and covering the legacy display-role fallback.
 - `server`: `npx jest --runInBand __tests__/restaurantAppFlow.test.js` — **63 passed** after requiring kitchen permissions for human printer-job creation, queue visibility, audit reads, event writes, and feed acknowledgements, including denied-member coverage.
+- `server`: `npx jest --runInBand __tests__/restaurantAppFlow.test.js` — **65 passed** after applying assigned-store predicates to manager dashboard and report rollups, with regression coverage for order, kitchen, runner, inventory, device, and POS-sync queries.
 - `server`: `npx jest --runInBand __tests__/restaurantPrintBridge.test.js` — **3 passed** across bridge configuration bounds, receipt target validation, claim/print/ack sequencing, and retryable failures.
 - `migration rehearsal`: `DOCKER_CONTEXT=colima node scripts/migration-rehearsal.cjs --timeout-ms 600000` — **960/960 migrations passed**, including migration 985's accounting integration and export outbox schema.
 - `client`: `npm run verify:i18n` — **passed** with the host-stand keys present in `en`, `es`, `fr`, `ht`, and `ar`.

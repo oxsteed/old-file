@@ -318,6 +318,24 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.topItems[0].item_name).toBe('Burger');
   });
 
+  test('scopes manager dashboard rollups to assigned stores', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 44 })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 77, location_id: 77, location_name: 'Front Counter' }] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000124'))
+      .get(`/api/restaurants/${RESTAURANT_ID}/manager/dashboard?days=14`);
+
+    expect(res.status).toBe(200);
+    const sqls = mockQuery.mock.calls.map(([sql]) => String(sql));
+    expect(sqls.some((sql) => /FROM food_orders fo/.test(sql) && /location_id = ANY\(\$4::bigint\[\]\)/.test(sql))).toBe(true);
+    expect(sqls.some((sql) => /restaurant_inventory_items/.test(sql) && /location_id = ANY\(\$2::bigint\[\]\)/.test(sql))).toBe(true);
+    expect(sqls.some((sql) => /FROM restaurant_runner_tasks/.test(sql) && /location_id = ANY\(\$2::bigint\[\]\)/.test(sql))).toBe(true);
+    expect(sqls.some((sql) => /FROM restaurant_app_devices/.test(sql) && /location_id = ANY\(\$2::bigint\[\]\)/.test(sql))).toBe(true);
+  });
+
   test('returns manager report rollups for dashboards', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
@@ -337,6 +355,24 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.kitchenByStation[0].station_label).toBe('Grill');
     expect(res.body.inventoryHooks.auto_managed_items).toBe(6);
     expect(res.body.posSync.pending_operations).toBe(1);
+  });
+
+  test('scopes manager reports to assigned stores', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 45 })] })
+      .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 78, location_id: 78, location_name: 'Patio Store' }] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000125'))
+      .get(`/api/restaurants/${RESTAURANT_ID}/manager/reports?days=30`);
+
+    expect(res.status).toBe(200);
+    const sqls = mockQuery.mock.calls.map(([sql]) => String(sql));
+    expect(sqls.some((sql) => /FROM food_orders fo/.test(sql) && /location_id = ANY\(\$4::bigint\[\]\)/.test(sql))).toBe(true);
+    expect(sqls.some((sql) => /FROM restaurant_runner_tasks/.test(sql) && /location_id = ANY\(\$4::bigint\[\]\)/.test(sql))).toBe(true);
+    expect(sqls.some((sql) => /restaurant_inventory_items/.test(sql) && /location_id = ANY\(\$2::bigint\[\]\)/.test(sql))).toBe(true);
+    expect(sqls.some((sql) => /FROM restaurant_pos_pending_operations/.test(sql) && /location_id = ANY\(\$2::bigint\[\]\)/.test(sql))).toBe(true);
   });
 
   test('updates full manager publishing controls and primary location', async () => {

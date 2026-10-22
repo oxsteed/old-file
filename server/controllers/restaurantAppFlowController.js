@@ -155,6 +155,19 @@ const LEGACY_PAYMENT_MODE = {
   oxsteed_credit: 'oxsteed_credit',
   direct_payment: 'direct_payment',
 };
+
+function locationScopeQueryHelpers(locationScope) {
+  const assignedStores = locationScope.mode === 'assigned';
+  return {
+    locationFilter: (alias, parameterIndex) => assignedStores
+      ? ` AND ${alias ? `${alias}.` : ''}location_id = ANY($${parameterIndex}::bigint[])`
+      : '',
+    scopedParams: (base) => assignedStores
+      ? [...base, locationScope.location_ids]
+      : base,
+  };
+}
+
 function parsePositiveInt(value, fallback = null) {
   const n = Number.parseInt(String(value), 10);
   return Number.isInteger(n) && n > 0 ? n : fallback;
@@ -1451,9 +1464,11 @@ exports.getManagerDashboard = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertManage(restaurant, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const { locationFilter, scopedParams } = locationScopeQueryHelpers(locationScope);
     const days = Math.min(parsePositiveInt(req.query.days, 7), 90);
     const timezone = normalizeString(restaurant.timezone, 80) || 'UTC';
-    const rangeParams = [restaurantId, days, timezone];
+    const rangeParams = scopedParams([restaurantId, days, timezone]);
 
     const [
       { rows: [today] },
@@ -1497,6 +1512,7 @@ exports.getManagerDashboard = async (req, res, next) => {
                 WHERE p.food_order_id = fo.id
              ) pos ON TRUE
             WHERE fo.restaurant_id = $1
+              ${locationFilter('fo', 3)}
               AND (fo.created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date
          )
          SELECT COUNT(*) FILTER (WHERE status NOT IN ('cancelled','refunded'))::int AS order_count,
@@ -1507,7 +1523,7 @@ exports.getManagerDashboard = async (req, res, next) => {
                 COALESCE(SUM(tip_cents) FILTER (WHERE net_collected_cents > 0),0)::int AS tips_cents,
                 COALESCE(AVG(net_collected_cents) FILTER (WHERE net_collected_cents > 0),0)::int AS average_ticket_cents
            FROM order_financials`,
-        [restaurantId, timezone]
+        scopedParams([restaurantId, timezone])
       ),
       pool.query(
         `SELECT id, queue_number, guest_name, fulfillment_type, status, payment_status,
@@ -1515,6 +1531,7 @@ exports.getManagerDashboard = async (req, res, next) => {
                 (promised_at IS NOT NULL AND promised_at < NOW() AND status NOT IN ('ready','completed','cancelled','refunded')) AS is_delayed
            FROM food_orders
           WHERE restaurant_id = $1
+            ${locationFilter('', 2)}
             AND status IN ('received','accepted','preparing','ready')
           ORDER BY created_at ASC
           LIMIT 25`,
@@ -1544,6 +1561,7 @@ exports.getManagerDashboard = async (req, res, next) => {
                 WHERE p.food_order_id = fo.id
              ) pos ON TRUE
             WHERE fo.restaurant_id = $1
+              ${locationFilter('fo', 4)}
               AND fo.created_at >= (
                 ((NOW() AT TIME ZONE $3)::date - ($2::int - 1))::timestamp AT TIME ZONE $3
               )
@@ -1565,8 +1583,9 @@ exports.getManagerDashboard = async (req, res, next) => {
         `SELECT COUNT(*)::int AS total_items,
                 COUNT(*) FILTER (WHERE quantity <= low_stock_threshold OR quantity <= 0)::int AS low_stock_items
            FROM restaurant_inventory_items
-          WHERE restaurant_id = $1 AND is_active = TRUE`,
-        [restaurantId]
+          WHERE restaurant_id = $1 AND is_active = TRUE
+            ${locationFilter('', 2)}`,
+        scopedParams([restaurantId])
       ),
       pool.query(
         `SELECT COUNT(*)::int AS open_cases,
@@ -1611,6 +1630,7 @@ exports.getManagerDashboard = async (req, res, next) => {
                 WHERE p.food_order_id = fo.id
              ) pos ON TRUE
             WHERE fo.restaurant_id = $1
+              ${locationFilter('fo', 4)}
               AND fo.created_at >= (
                 ((NOW() AT TIME ZONE $3)::date - ($2::int - 1))::timestamp AT TIME ZONE $3
               )
@@ -1662,6 +1682,7 @@ exports.getManagerDashboard = async (req, res, next) => {
                 WHERE p.food_order_id = fo.id
              ) pos ON TRUE
             WHERE fo.restaurant_id = $1
+              ${locationFilter('fo', 4)}
               AND fo.created_at >= (
                 ((NOW() AT TIME ZONE $3)::date - ($2::int - 1))::timestamp AT TIME ZONE $3
               )
@@ -1692,6 +1713,7 @@ exports.getManagerDashboard = async (req, res, next) => {
            FROM food_order_items foi
            JOIN food_orders fo ON fo.id = foi.order_id
           WHERE fo.restaurant_id = $1
+            ${locationFilter('fo', 4)}
             AND fo.created_at >= (
               ((NOW() AT TIME ZONE $3)::date - ($2::int - 1))::timestamp AT TIME ZONE $3
             )`,
@@ -1706,8 +1728,9 @@ exports.getManagerDashboard = async (req, res, next) => {
                 COUNT(*) FILTER (WHERE status = 'Issue')::int AS issue_tasks,
                 COALESCE(AVG(EXTRACT(EPOCH FROM (completed_at - picked_up_at))),0)::int AS average_delivery_seconds
            FROM restaurant_runner_tasks
-          WHERE restaurant_id = $1`,
-        [restaurantId, timezone]
+          WHERE restaurant_id = $1
+            ${locationFilter('', 2)}`,
+        scopedParams([restaurantId, timezone])
       ),
       pool.query(
         `SELECT COUNT(*) FILTER (WHERE status = 'paired')::int AS paired_devices,
@@ -1718,8 +1741,9 @@ exports.getManagerDashboard = async (req, res, next) => {
                 )::int AS stale_devices,
                 MAX(last_seen_at) AS last_seen_at
            FROM restaurant_app_devices
-          WHERE restaurant_id = $1`,
-        [restaurantId]
+          WHERE restaurant_id = $1
+            ${locationFilter('', 2)}`,
+        scopedParams([restaurantId])
       ),
     ]);
 
@@ -1792,9 +1816,11 @@ exports.getManagerReports = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertManage(restaurant, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const { locationFilter, scopedParams } = locationScopeQueryHelpers(locationScope);
     const days = Math.min(parsePositiveInt(req.query.days, 30), 180);
     const timezone = normalizeString(restaurant.timezone, 80) || 'UTC';
-    const params = [restaurantId, days, timezone];
+    const params = scopedParams([restaurantId, days, timezone]);
 
     const [
       { rows: salesByDay },
@@ -1828,6 +1854,7 @@ exports.getManagerReports = async (req, res, next) => {
                 WHERE p.food_order_id = fo.id
              ) pos ON TRUE
             WHERE fo.restaurant_id = $1
+              ${locationFilter('fo', 4)}
               AND fo.created_at >= (
                 ((NOW() AT TIME ZONE $3)::date - ($2::int - 1))::timestamp AT TIME ZONE $3
               )
@@ -1852,6 +1879,7 @@ exports.getManagerReports = async (req, res, next) => {
                 COALESCE(SUM(total_cents),0)::int AS gross_cents
            FROM food_orders
           WHERE restaurant_id = $1
+            ${locationFilter('', 4)}
             AND created_at >= (
               ((NOW() AT TIME ZONE $3)::date - ($2::int - 1))::timestamp AT TIME ZONE $3
             )
@@ -1874,6 +1902,7 @@ exports.getManagerReports = async (req, res, next) => {
            FROM food_order_items foi
            JOIN food_orders fo ON fo.id = foi.order_id
           WHERE fo.restaurant_id = $1
+            ${locationFilter('fo', 4)}
             AND fo.created_at >= (
               ((NOW() AT TIME ZONE $3)::date - ($2::int - 1))::timestamp AT TIME ZONE $3
             )
@@ -1890,6 +1919,7 @@ exports.getManagerReports = async (req, res, next) => {
                 ),0)::int AS average_delivery_seconds
            FROM restaurant_runner_tasks
           WHERE restaurant_id = $1
+            ${locationFilter('', 4)}
             AND created_at >= (
               ((NOW() AT TIME ZONE $3)::date - ($2::int - 1))::timestamp AT TIME ZONE $3
             )
@@ -1905,8 +1935,9 @@ exports.getManagerReports = async (req, res, next) => {
                 )::int AS blocked_or_low_items
            FROM restaurant_inventory_item_mappings m
            JOIN restaurant_inventory_items i ON i.id = m.inventory_item_id AND i.restaurant_id = m.restaurant_id
-          WHERE m.restaurant_id = $1`,
-        [restaurantId]
+          WHERE m.restaurant_id = $1
+            ${locationFilter('i', 2)}`,
+        scopedParams([restaurantId])
       ),
       pool.query(
         `SELECT COUNT(*) FILTER (WHERE status = 'failed')::int AS failed_operations,
@@ -1914,8 +1945,9 @@ exports.getManagerReports = async (req, res, next) => {
                 COUNT(*) FILTER (WHERE status = 'applied')::int AS applied_operations,
                 MAX(acknowledged_at) AS last_acknowledged_at
            FROM restaurant_pos_pending_operations
-          WHERE restaurant_id = $1`,
-        [restaurantId]
+          WHERE restaurant_id = $1
+            ${locationFilter('', 2)}`,
+        scopedParams([restaurantId])
       ),
     ]);
 
