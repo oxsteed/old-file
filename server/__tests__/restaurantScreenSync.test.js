@@ -65,6 +65,22 @@ test("location filtering advances past invisible changes without disclosing othe
   expect(result.events.map((e) => e.entityId)).toEqual(["mine", "global"]);
   expect(JSON.stringify(result)).not.toContain("secret-other-location");
 });
+test("assigned screen scopes can include several stores without leaking other events", async () => {
+  pool.query
+    .mockResolvedValueOnce({ rows: [{ revision: "4" }] })
+    .mockResolvedValueOnce({
+      rows: [
+        { revision: "1", location_id: "7", entity_id: "store-7", kind: "food_orders" },
+        { revision: "2", location_id: "8", entity_id: "store-8", kind: "food_orders" },
+        { revision: "3", location_id: "9", entity_id: "store-9", kind: "food_orders" },
+        { revision: "4", location_id: "10", entity_id: "secret-store-10", kind: "food_orders" },
+      ],
+    });
+  const result = await changes({ restaurantId: 2, locationIds: [7, 9] }, 0);
+  expect(result.cursor).toBe(4);
+  expect(result.events.map((e) => e.entityId)).toEqual(["store-7", "store-9"]);
+  expect(JSON.stringify(result)).not.toContain("secret-store-10");
+});
 test("retained history gap and cursor ahead of head both demand a fresh snapshot", async () => {
   pool.query
     .mockResolvedValueOnce({ rows: [{ revision: "40" }] })

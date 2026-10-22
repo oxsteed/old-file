@@ -5,11 +5,13 @@ const AppError = require("../utils/appError");
 const sync = require("../services/restaurantScreenSync");
 const app = require("./restaurantAppFlowController");
 const food = require("./foodController");
+const { getLocationScope } = require("../services/restaurantLocationAccessService");
 
 async function access(req, manage = false) {
   const restaurantId = sync.positive(req.params.restaurantId);
   let restaurant,
-    device = null;
+    device = null,
+    locationScope = { mode: "all", location_ids: null, assignments: [] };
   if (req.params.deviceId) {
     device = await app.requireDeviceCredential(
       req,
@@ -31,10 +33,17 @@ async function access(req, manage = false) {
       restaurantId,
       manage,
     );
+    locationScope = await getLocationScope(restaurant, req.user.id);
   }
   const locationId = device
     ? device.location_id
     : sync.positive(req.query.locationId, true);
+  if (
+    locationScope.mode === "assigned" &&
+    locationId &&
+    !locationScope.location_ids.includes(locationId)
+  )
+    throw new AppError("You do not have access to this store", 403, "location_scope_forbidden");
   if (locationId) {
     const { rows } = await pool.query(
       "SELECT id FROM restaurant_locations WHERE id=$1 AND restaurant_id=$2",
@@ -44,12 +53,18 @@ async function access(req, manage = false) {
       throw new AppError("Location not found", 404, "location_not_found");
   }
   const role = device?.config?.screenRole || device?.mode;
+  const locationIds = device
+    ? [locationId]
+    : locationScope.mode === "assigned"
+      ? (locationId ? [locationId] : locationScope.location_ids)
+      : null;
   return {
     restaurant,
     device,
     restaurantId,
     locationId,
-    allLocations: !device && !locationId,
+    locationIds,
+    allLocations: !device && locationScope.mode !== "assigned" && !locationId,
     readOrders:
       !device || device.app_key === "kitchen" || device.app_key === "pos",
     role,
@@ -72,6 +87,11 @@ exports.changes = handler(async (req, res) => {
 });
 exports.control = handler(async (req, res) => {
   const scope = await access(req, true);
+  const scopedLocations = scope.allLocations ? null : (scope.locationIds || [scope.locationId]);
+  const locationFilter = scope.allLocations ? "" : " AND location_id = ANY($2::bigint[])";
+  const locationParams = scope.allLocations
+    ? [scope.restaurantId]
+    : [scope.restaurantId, scopedLocations];
   const [
     {
       rows: [restaurant],
@@ -86,20 +106,20 @@ exports.control = handler(async (req, res) => {
       [scope.restaurantId],
     ),
     pool.query(
-      "SELECT * FROM restaurant_app_devices WHERE restaurant_id=$1 AND app_key IN ('kitchen','display','pos') ORDER BY id",
-      [scope.restaurantId],
+      `SELECT * FROM restaurant_app_devices WHERE restaurant_id=$1${locationFilter} AND app_key IN ('kitchen','display','pos') ORDER BY id`,
+      locationParams,
     ),
     pool.query(
-      "SELECT id,name FROM restaurant_locations WHERE restaurant_id=$1 ORDER BY id",
-      [scope.restaurantId],
+      `SELECT id,name FROM restaurant_locations WHERE restaurant_id=$1${scope.allLocations ? "" : " AND id = ANY($2::bigint[])"} ORDER BY id`,
+      locationParams,
     ),
     pool.query(
-      "SELECT * FROM restaurant_kitchen_stations WHERE restaurant_id=$1 ORDER BY id",
-      [scope.restaurantId],
+      `SELECT * FROM restaurant_kitchen_stations WHERE restaurant_id=$1${locationFilter} ORDER BY id`,
+      locationParams,
     ),
     pool.query(
-      "SELECT id,location_id,device_id,status,conflict_code,expected_total_cents,created_at,payload,order_id FROM restaurant_screen_tickets WHERE restaurant_id=$1 AND status IN ('pending','conflict') ORDER BY created_at LIMIT 201",
-      [scope.restaurantId],
+      `SELECT id,location_id,device_id,status,conflict_code,expected_total_cents,created_at,payload,order_id FROM restaurant_screen_tickets WHERE restaurant_id=$1${locationFilter} AND status IN ('pending','conflict') ORDER BY created_at LIMIT 201`,
+      locationParams,
     ),
   ]);
   res.json({
@@ -132,8 +152,9 @@ exports.enable = handler(async (req, res) => {
 });
 exports.importTicket = handler(async (req, res) => {
   const scope = await access(req);
-  if (!scope.device && req.body.locationId !== undefined) {
-    scope.locationId = sync.positive(req.body.locationId, true);
+  const requestedLocationId = req.body.locationId ?? req.body.location_id;
+  if (!scope.device && requestedLocationId !== undefined) {
+    scope.locationId = sync.positive(requestedLocationId, true);
     if (scope.locationId) {
       const { rows } = await pool.query(
         "SELECT id FROM restaurant_locations WHERE id=$1 AND restaurant_id=$2",
@@ -142,7 +163,14 @@ exports.importTicket = handler(async (req, res) => {
       if (!rows[0])
         throw new AppError("Location not found", 404, "location_not_found");
     }
+    if (
+      scope.locationIds &&
+      !scope.locationIds.some((id) => String(id) === String(scope.locationId))
+    )
+      throw new AppError("You do not have access to this store", 403, "location_scope_forbidden");
   }
+  if (!scope.device && scope.locationIds && !scope.locationId)
+    throw new AppError("A store is required for offline tickets", 400, "screen_location_required");
   if (
     scope.device &&
     (!["pos", "display"].includes(scope.device.app_key) ||
@@ -240,11 +268,16 @@ exports.importTicket = handler(async (req, res) => {
 });
 exports.acceptTicket = handler(async (req, res) => {
   const scope = await access(req, true);
+  const ticketLocationFilter = scope.allLocations
+    ? ""
+    : " AND location_id = ANY($3::bigint[])";
   const {
     rows: [ticket],
   } = await pool.query(
-    "SELECT * FROM restaurant_screen_tickets WHERE id=$1 AND restaurant_id=$2",
-    [req.params.ticketId, scope.restaurantId],
+    `SELECT * FROM restaurant_screen_tickets WHERE id=$1 AND restaurant_id=$2${ticketLocationFilter}`,
+    scope.allLocations
+      ? [req.params.ticketId, scope.restaurantId]
+      : [req.params.ticketId, scope.restaurantId, scope.locationIds],
   );
   if (!ticket)
     throw new AppError("Ticket not found", 404, "screen_ticket_not_found");
@@ -277,9 +310,14 @@ exports.acceptTicket = handler(async (req, res) => {
 });
 exports.dismissTicket = handler(async (req, res) => {
   const scope = await access(req, true);
+  const ticketLocationFilter = scope.allLocations
+    ? ""
+    : " AND location_id = ANY($3::bigint[])";
   const { rows } = await pool.query(
-    "UPDATE restaurant_screen_tickets SET status='dismissed',updated_at=NOW() WHERE id=$1 AND restaurant_id=$2 AND status IN ('pending','conflict') RETURNING id",
-    [req.params.ticketId, scope.restaurantId],
+    `UPDATE restaurant_screen_tickets SET status='dismissed',updated_at=NOW() WHERE id=$1 AND restaurant_id=$2${ticketLocationFilter} AND status IN ('pending','conflict') RETURNING id`,
+    scope.allLocations
+      ? [req.params.ticketId, scope.restaurantId]
+      : [req.params.ticketId, scope.restaurantId, scope.locationIds],
   );
   if (!rows[0])
     throw new AppError(
