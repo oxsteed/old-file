@@ -6825,7 +6825,7 @@ async function screenKitchenContext(req, restaurantId, elevated = false) {
  if (!req.screenDevice) {
   const restaurant=await requireRestaurantAccess(req.user.id,restaurantId);
   await assertRestaurantPermission(restaurant,req.user.id,elevated?['kitchen.manage','orders.manage']:['kitchen.update','kitchen.manage','orders.manage']);
-  return restaurant;
+  return { ...restaurant, locationScope: await getLocationScope(restaurant, req.user.id) };
  }
  const device=req.screenDevice;
  if(elevated || device.app_key!=='kitchen' || String(device.restaurant_id)!==String(restaurantId)) throw new AppError('Operation requires authorized staff',403,'forbidden');
@@ -6887,6 +6887,10 @@ exports.performKitchenOrderAction = async (req, res, next) => {
         [orderId, restaurantId]
       );
       if (!existing) throw new AppError('Order not found', 404, 'order_not_found');
+      if (restaurant.locationScope?.mode === 'assigned'
+        && !restaurant.locationScope.location_ids.includes(Number(existing.location_id))) {
+        throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+      }
       screenRevision(req,existing);
       if(req.screenDevice?.config?.screenRole!=='expeditor' && req.screenDevice && ['ready_for_check','finish_check','hand_off'].includes(action))throw new AppError('Expeditor screen required',403,'forbidden');
       if (['completed', 'cancelled', 'refunded'].includes(existing.status)) {
@@ -7005,6 +7009,7 @@ exports.recordKitchenEvent = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.update', 'kitchen.manage', 'orders.manage']);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const orderId = parsePositiveInt(req.body.orderId || req.body.order_id);
     const orderItemId = parsePositiveInt(req.body.orderItemId || req.body.order_item_id);
     const eventType = normalizeString(req.body.eventType || req.body.event_type, 48) || 'status';
@@ -7022,8 +7027,8 @@ exports.recordKitchenEvent = async (req, res, next) => {
     let order = null;
     if (orderId) {
       const { rows: [loadedOrder] } = await pool.query(
-        `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
-        [orderId, restaurantId]
+        `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2${locationScope.mode === 'assigned' ? ' AND location_id = ANY($3::bigint[])' : ''}`,
+        locationScope.mode === 'assigned' ? [orderId, restaurantId, locationScope.location_ids] : [orderId, restaurantId]
       );
       if (!loadedOrder) throw new AppError('Order not found', 404, 'order_not_found');
       order = loadedOrder;
@@ -7071,6 +7076,7 @@ exports.getKitchenFeed = async (req, res, next) => {
     let sinceEventId = parsePositiveInt(requestedCursor, 0) || 0;
     let device = null;
     let restaurant = null;
+    let locationScope = null;
     if (req.displayDevice) {
       // Track B paired display: the pairing token is the authorization,
       // scoped to this restaurant's ticket feed only. Mirrors the minimal
@@ -7084,6 +7090,7 @@ exports.getKitchenFeed = async (req, res, next) => {
     } else if (req.user?.id) {
       restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
       await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.view', 'kitchen.update', 'kitchen.manage', 'orders.manage']);
+      locationScope = await getLocationScope(restaurant, req.user.id);
     } else if (!deviceId) {
       throw new AppError('Device credential is required', 401, 'device_credential_required');
     }
@@ -7117,6 +7124,16 @@ exports.getKitchenFeed = async (req, res, next) => {
       itemFilter = `AND (foi.station_label = $${params.length} OR foi.station_label IS NULL)`;
       itemHaving = 'HAVING COUNT(foi.id) > 0';
     }
+    const feedLocationIds = device?.location_id
+      ? [Number(device.location_id)]
+      : locationScope?.mode === 'assigned'
+        ? locationScope.location_ids
+        : null;
+    let locationFilter = '';
+    if (feedLocationIds) {
+      params.push(feedLocationIds);
+      locationFilter = `AND fo.location_id = ANY($${params.length}::bigint[])`;
+    }
     const { rows: orders } = await pool.query(
       `SELECT fo.id, fo.restaurant_id, fo.business_id, fo.order_source,
               fo.fulfillment_type, fo.status, fo.payment_status,
@@ -7146,6 +7163,7 @@ exports.getKitchenFeed = async (req, res, next) => {
            ON foi.order_id = fo.id
           ${itemFilter}
         WHERE fo.restaurant_id = $1
+          ${locationFilter}
           AND fo.status IN ('received','accepted','preparing','ready')
           AND fo.created_at >= NOW() - INTERVAL '1 day'
           AND (fo.scheduled_for IS NULL OR fo.scheduled_for <= NOW() + (COALESCE((SELECT fr.prep_time_min FROM food_restaurants fr WHERE fr.id = fo.restaurant_id), 30) * INTERVAL '1 minute'))
@@ -7164,14 +7182,19 @@ exports.getKitchenFeed = async (req, res, next) => {
         LIMIT 100`,
       params
     );
+    const eventParams = [restaurantId, sinceEventId];
+    const eventLocationFilter = feedLocationIds
+      ? ` AND location_id = ANY($${eventParams.push(feedLocationIds)}::bigint[])`
+      : '';
     const { rows: events } = await pool.query(
       `SELECT *
          FROM restaurant_kitchen_events
         WHERE restaurant_id = $1
           AND id > $2
+          ${eventLocationFilter}
         ORDER BY id ASC
         LIMIT 100`,
-      [restaurantId, sinceEventId]
+      eventParams
     );
     const cursor = events.length ? Number(events[events.length - 1].id) : sinceEventId;
     res.json({
@@ -7216,7 +7239,8 @@ exports.ackKitchenFeed = async (req, res, next) => {
           SET last_kitchen_event_id = GREATEST(
                 d.last_kitchen_event_id,
                 LEAST($1, COALESCE((
-                  SELECT MAX(e.id) FROM restaurant_kitchen_events e WHERE e.restaurant_id = $2
+                  SELECT MAX(e.id) FROM restaurant_kitchen_events e
+                   WHERE e.restaurant_id = $2 AND e.location_id = d.location_id
                 ), 0))
               ),
               last_sync_at = NOW(),
@@ -7307,6 +7331,10 @@ exports.performKitchenItemAction = async (req, res, next) => {
         [orderItemId, restaurantId]
       );
       if (!existing) throw new AppError('Order item not found', 404, 'order_item_not_found');
+      if (restaurant.locationScope?.mode === 'assigned'
+        && !restaurant.locationScope.location_ids.includes(Number(existing.location_id))) {
+        throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+      }
       screenRevision(req,existing);
       if(req.screenDevice?.config?.stationLabel && req.screenDevice.config.screenRole!=='expeditor' && req.screenDevice.config.stationLabel!==existing.station_label)throw new AppError('Wrong kitchen station',403,'screen_station_mismatch');
       if (['completed', 'cancelled', 'refunded'].includes(existing.order_status)) {
@@ -7380,12 +7408,17 @@ exports.listKitchenEvents = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.view', 'kitchen.update', 'kitchen.manage', 'orders.manage']);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const orderId = parsePositiveInt(req.query.orderId || req.query.order_id);
     const params = [restaurantId];
     let filter = '';
     if (orderId) {
       params.push(orderId);
       filter = `AND food_order_id = $${params.length}`;
+    }
+    if (locationScope.mode === 'assigned') {
+      params.push(locationScope.location_ids);
+      filter += ` AND location_id = ANY($${params.length}::bigint[])`;
     }
     params.push(Math.min(parsePositiveInt(req.query.limit, 50), 100));
     const { rows: events } = await pool.query(
@@ -7407,6 +7440,7 @@ exports.listKitchenAuditEvents = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.view', 'kitchen.update', 'kitchen.manage', 'orders.manage']);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const orderId = parsePositiveInt(req.query.orderId || req.query.order_id);
     const itemId = parsePositiveInt(req.query.orderItemId || req.query.order_item_id || req.query.itemId || req.query.item_id);
     const sinceEventId = parsePositiveInt(req.query.sinceEventId || req.query.since_event_id || req.query.cursor, 0) || 0;
@@ -7425,6 +7459,10 @@ exports.listKitchenAuditEvents = async (req, res, next) => {
     if (eventType) {
       params.push(eventType);
       filters.push(`e.event_type = $${params.length}`);
+    }
+    if (locationScope.mode === 'assigned') {
+      params.push(locationScope.location_ids);
+      filters.push(`e.location_id = ANY($${params.length}::bigint[])`);
     }
     params.push(limit);
     const { rows: events } = await pool.query(
