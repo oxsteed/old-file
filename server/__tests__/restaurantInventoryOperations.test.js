@@ -75,6 +75,22 @@ beforeEach(() => {
 });
 
 describe('restaurant Inventory operations backend', () => {
+  test.each(['dashboard', 'reports'])('%s filters every query by store and uses the restaurant timezone', async (route) => {
+    locationAccess.getLocationScope.mockResolvedValueOnce({ mode: 'assigned', location_ids: [11] });
+    mockQuery.mockResolvedValueOnce({ rows: [access({ effective_role: 'manager', effective_membership_id: 88 })] });
+    const res = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/inventory/${route}`);
+    expect(res.status).toBe(200);
+    const calls = mockQuery.mock.calls.slice(1);
+    expect(calls).toHaveLength(route === 'dashboard' ? 5 : 7);
+    for (const [sql, params] of calls) {
+      expect(sql).toContain('ANY($3::bigint[])');
+      expect(sql).toContain('NOW() AT TIME ZONE $2');
+      expect(sql).not.toContain('CURRENT_DATE');
+      expect(params).toEqual([RESTAURANT_ID, 'America/New_York', [11]]);
+    }
+    if (route === 'reports') expect(calls[0][0]).toContain('(created_at AT TIME ZONE $2)::date');
+  });
+
   test('returns the live dashboard contract scoped to the authenticated restaurant', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [access()] })

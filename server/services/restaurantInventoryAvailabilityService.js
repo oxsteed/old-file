@@ -1,9 +1,14 @@
 'use strict';
 
+const { AppError } = require('../middleware/errorHandler');
+
 function normalizeLocationId(value) {
   if (value === undefined || value === null || value === '') return null;
   const id = Number(value);
-  return Number.isSafeInteger(id) && id > 0 ? id : null;
+  if (!/^[1-9]\d*$/.test(String(value)) || !Number.isSafeInteger(id)) {
+    throw new AppError('Invalid store', 400, 'invalid_location_id');
+  }
+  return id;
 }
 
 async function syncMappedMenuAvailability(db, restaurantId, {
@@ -14,6 +19,7 @@ async function syncMappedMenuAvailability(db, restaurantId, {
   createdBy = null,
 } = {}) {
   const scopedLocationId = normalizeLocationId(locationId);
+  const requiredStock = '(rim.required_quantity * rim.conversion_factor * 100.0 / NULLIF(rim.yield_percent, 0))';
   const params = [restaurantId, inventoryItemId, menuItemId];
   if (scopedLocationId) params.push(scopedLocationId);
   const locationParam = scopedLocationId ? `$${params.length}` : null;
@@ -76,24 +82,24 @@ async function syncMappedMenuAvailability(db, restaurantId, {
             ${storeManualAvailable} AS store_manual_available,
             COALESCE(BOOL_OR(
               rim.auto_manage = TRUE
-              AND (rii.id IS NULL OR GREATEST(0, rii.quantity - COALESCE(ar.reserved_quantity, 0)) < rim.required_quantity)
+              AND (rii.id IS NULL OR GREATEST(0, rii.quantity - COALESCE(ar.reserved_quantity, 0)) < ${requiredStock})
             ), FALSE) AS blocked_by_stock,
             COALESCE(BOOL_OR(
               rim.auto_manage = TRUE
-              AND rii.quantity >= rim.required_quantity
+              AND rii.quantity >= ${requiredStock}
               AND GREATEST(0, rii.quantity - COALESCE(ar.reserved_quantity, 0))
-                <= GREATEST(rii.low_stock_threshold, rim.required_quantity)
+                <= GREATEST(rii.low_stock_threshold, ${requiredStock})
             ), FALSE) AS limited_by_stock,
             ARRAY_AGG(rii.name ORDER BY rii.name)
               FILTER (WHERE rim.auto_manage = TRUE
-                        AND (rii.id IS NULL OR GREATEST(0, rii.quantity - COALESCE(ar.reserved_quantity, 0)) < rim.required_quantity)) AS blocking_items,
+                        AND (rii.id IS NULL OR GREATEST(0, rii.quantity - COALESCE(ar.reserved_quantity, 0)) < ${requiredStock})) AS blocking_items,
             ARRAY_AGG(rii.name ORDER BY rii.name)
               FILTER (WHERE rim.auto_manage = TRUE
-                        AND rii.quantity >= rim.required_quantity
+                        AND rii.quantity >= ${requiredStock}
                         AND GREATEST(0, rii.quantity - COALESCE(ar.reserved_quantity, 0))
-                          <= GREATEST(rii.low_stock_threshold, rim.required_quantity)) AS limited_items,
+                          <= GREATEST(rii.low_stock_threshold, ${requiredStock})) AS limited_items,
             MIN(rii.id) FILTER (WHERE rim.auto_manage = TRUE
-                                  AND GREATEST(0, rii.quantity - COALESCE(ar.reserved_quantity, 0)) < rim.required_quantity) AS blocking_inventory_item_id
+                                  AND GREATEST(0, rii.quantity - COALESCE(ar.reserved_quantity, 0)) < ${requiredStock}) AS blocking_inventory_item_id
        FROM food_menu_items fmi
        ${overrideJoin}
        LEFT JOIN restaurant_inventory_item_mappings rim

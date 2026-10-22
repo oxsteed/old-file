@@ -1,6 +1,7 @@
 'use strict';
 
 const pool = require('../db');
+const { safeTimezone, zonedParts } = require('../utils/foodOperatingHours');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
 const { withTransaction } = require('../utils/transaction');
@@ -147,42 +148,56 @@ async function requireReceiptLocation(client, restaurant, userId, { requestedLoc
   return primary;
 }
 
+// Every query uses the same typed timezone/store parameters. The clock is
+// evaluated by PostgreSQL so local midnight and DST boundaries stay consistent.
+async function inventoryReadContext(restaurant, userId) {
+  const scope = await getTransferScope(restaurant, userId);
+  const params = [restaurant.id, safeTimezone(restaurant.timezone)];
+  if (scope?.mode === 'assigned') params.push(scope.location_ids);
+  return {
+    filter: (alias = '') => scope?.mode === 'assigned'
+      ? ` AND ${alias ? `${alias}.` : ''}location_id = ANY($3::bigint[])` : '',
+    stores: scope?.mode === 'assigned' ? ' AND id = ANY($3::bigint[])' : '',
+    query: (sql) => pool.query(`WITH inventory_clock AS (
+      SELECT (NOW() AT TIME ZONE $2::text)::date AS today
+    ) ${sql}`, params),
+  };
+}
+
 exports.getDashboard = async (req, res, next) => {
   try {
     const restaurantId = positiveInt(req.params.restaurantId);
     const restaurant = await restaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const context = await inventoryReadContext(restaurant, req.user.id);
     const [locationResult, riskResult, activityResult, prioritiesResult, impactsResult] = await Promise.all([
-      pool.query(
+      context.query(
         `SELECT name, address_city, address_state
            FROM restaurant_locations
-          WHERE restaurant_id = $1 AND status <> 'inactive'
-          ORDER BY is_primary DESC, id ASC LIMIT 1`,
-        [restaurantId]
+          WHERE restaurant_id = $1 AND status <> 'inactive'${context.stores}
+          ORDER BY is_primary DESC, id ASC LIMIT 1`
       ),
-      pool.query(
+      context.query(
         `SELECT COUNT(*) FILTER (WHERE quantity > 0 AND reorder_point > 0 AND quantity <= reorder_point)::int AS low_stock,
                 COUNT(*) FILTER (WHERE quantity <= 0)::int AS out_of_stock,
                 COUNT(*) FILTER (WHERE last_counted_at IS NULL OR last_counted_at < NOW() - INTERVAL '7 days')::int AS needs_count,
                 (SELECT COUNT(*)::int FROM restaurant_inventory_supplier_issues
-                  WHERE restaurant_id = $1 AND status IN ('open','monitoring','in_progress')) AS supplier_issues,
+                  WHERE restaurant_id = $1${context.filter()} AND status IN ('open','monitoring','in_progress')) AS supplier_issues,
                 (SELECT COUNT(*)::int FROM restaurant_inventory_purchase_requests
-                  WHERE restaurant_id = $1 AND status IN ('pending','approved')) AS pending_requests
+                  WHERE restaurant_id = $1${context.filter()} AND status IN ('pending','approved')) AS pending_requests
            FROM restaurant_inventory_items
-          WHERE restaurant_id = $1 AND is_active = TRUE`,
-        [restaurantId]
+          WHERE restaurant_id = $1${context.filter()} AND is_active = TRUE`
       ),
-      pool.query(
+      context.query(
         `SELECT COUNT(*) FILTER (WHERE adjustment_type = 'count')::int AS counts_done,
                 COUNT(DISTINCT source_id) FILTER (WHERE adjustment_type = 'receive' AND source_type = 'receipt')::int AS deliveries,
                 COUNT(*) FILTER (WHERE adjustment_type = 'waste')::int AS waste_reports,
                 (SELECT COUNT(*)::int FROM restaurant_inventory_purchase_requests
-                  WHERE restaurant_id = $1 AND created_at >= CURRENT_DATE) AS requests
+                  WHERE restaurant_id = $1${context.filter()} AND created_at >= ((SELECT today FROM inventory_clock)::timestamp AT TIME ZONE $2)) AS requests
            FROM restaurant_inventory_adjustments
-          WHERE restaurant_id = $1 AND created_at >= CURRENT_DATE`,
-        [restaurantId]
+          WHERE restaurant_id = $1${context.filter()} AND created_at >= ((SELECT today FROM inventory_clock)::timestamp AT TIME ZONE $2)`
       ),
-      pool.query(
+      context.query(
         `SELECT i.id, i.name, i.quantity, i.unit, i.par_level, i.reorder_point,
                 i.critical_level, a.name AS area_name,
                 COUNT(m.id)::int AS affected_menu_count
@@ -193,28 +208,26 @@ exports.getDashboard = async (req, res, next) => {
            LEFT JOIN restaurant_inventory_item_mappings m
              ON m.inventory_item_id = i.id
             AND m.restaurant_id = i.restaurant_id
-          WHERE i.restaurant_id = $1 AND i.is_active = TRUE
+          WHERE i.restaurant_id = $1${context.filter('i')} AND i.is_active = TRUE
             AND (i.quantity <= 0 OR (i.reorder_point > 0 AND i.quantity <= i.reorder_point)
                  OR i.last_counted_at IS NULL OR i.last_counted_at < NOW() - INTERVAL '7 days')
           GROUP BY i.id, a.name
           ORDER BY CASE WHEN i.quantity <= 0 THEN 0
                         WHEN i.critical_level > 0 AND i.quantity <= i.critical_level THEN 1
                         ELSE 2 END, i.quantity ASC
-          LIMIT 10`,
-        [restaurantId]
+          LIMIT 10`
       ),
-      pool.query(
+      context.query(
         `SELECT fmi.id AS menu_item_id, fmi.name AS menu_item_name,
                 i.id AS inventory_item_id, i.name AS inventory_item_name,
                 i.quantity, i.reorder_point, i.critical_level
            FROM restaurant_inventory_item_mappings m
            JOIN restaurant_inventory_items i ON i.id = m.inventory_item_id AND i.restaurant_id = m.restaurant_id
            JOIN food_menu_items fmi ON fmi.id = m.menu_item_id AND fmi.restaurant_id = m.restaurant_id
-          WHERE m.restaurant_id = $1 AND m.auto_manage = TRUE
+          WHERE m.restaurant_id = $1${context.filter('i')} AND m.auto_manage = TRUE
             AND (i.quantity <= 0 OR (i.reorder_point > 0 AND i.quantity <= i.reorder_point))
           ORDER BY i.quantity ASC, fmi.name ASC
-          LIMIT 20`,
-        [restaurantId]
+          LIMIT 20`
       ),
     ]);
 
@@ -253,56 +266,52 @@ exports.getReports = async (req, res, next) => {
     const restaurantId = positiveInt(req.params.restaurantId);
     const restaurant = await restaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const context = await inventoryReadContext(restaurant, req.user.id);
     const [wasteDaily, wasteSummary, countSummary, varianceDaily, topWasted, deliverySummary, deliverySuppliers] = await Promise.all([
-      pool.query(
-        `SELECT created_at::date AS day,
+      context.query(
+        `SELECT (created_at AT TIME ZONE $2)::date AS day,
                 COUNT(*)::int AS reports,
                 COALESCE(SUM(ABS(quantity_delta)), 0) AS quantity
            FROM restaurant_inventory_adjustments
-          WHERE restaurant_id = $1 AND adjustment_type = 'waste'
-            AND created_at >= CURRENT_DATE - INTERVAL '6 days'
-          GROUP BY created_at::date ORDER BY day`,
-        [restaurantId]
+          WHERE restaurant_id = $1${context.filter()} AND adjustment_type = 'waste'
+            AND created_at >= (((SELECT today FROM inventory_clock) - 6)::timestamp AT TIME ZONE $2)
+          GROUP BY (created_at AT TIME ZONE $2)::date ORDER BY day`
       ),
-      pool.query(
+      context.query(
         `SELECT COUNT(*)::int AS reports,
                 COALESCE(SUM(ABS(a.quantity_delta)), 0) AS quantity,
                 COALESCE(SUM(ABS(a.quantity_delta) * i.unit_cost), 0) AS estimated_cost
            FROM restaurant_inventory_adjustments a
            LEFT JOIN restaurant_inventory_items i ON i.id = a.item_id AND i.restaurant_id = a.restaurant_id
-          WHERE a.restaurant_id = $1 AND a.adjustment_type = 'waste'
-            AND a.created_at >= date_trunc('week', CURRENT_DATE)`,
-        [restaurantId]
+          WHERE a.restaurant_id = $1${context.filter('a')} AND a.adjustment_type = 'waste'
+            AND a.created_at >= (date_trunc('week', (SELECT today FROM inventory_clock)::timestamp) AT TIME ZONE $2)`
       ),
-      pool.query(
+      context.query(
         `SELECT COUNT(*) FILTER (WHERE ABS(quantity_delta) = 0)::int AS exact,
                 COUNT(*) FILTER (WHERE ABS(quantity_delta) > 0 AND ABS(quantity_delta) <= 1)::int AS minor,
                 COUNT(*) FILTER (WHERE ABS(quantity_delta) > 1)::int AS major
            FROM restaurant_inventory_adjustments
-          WHERE restaurant_id = $1 AND adjustment_type = 'count'
-            AND created_at >= CURRENT_DATE`,
-        [restaurantId]
+          WHERE restaurant_id = $1${context.filter()} AND adjustment_type = 'count'
+            AND created_at >= ((SELECT today FROM inventory_clock)::timestamp AT TIME ZONE $2)`
       ),
-      pool.query(
-        `SELECT created_at::date AS day, COALESCE(SUM(ABS(quantity_delta)), 0) AS variance
+      context.query(
+        `SELECT (created_at AT TIME ZONE $2)::date AS day, COALESCE(SUM(ABS(quantity_delta)), 0) AS variance
            FROM restaurant_inventory_adjustments
-          WHERE restaurant_id = $1 AND adjustment_type = 'count'
-            AND created_at >= CURRENT_DATE - INTERVAL '6 days'
-          GROUP BY created_at::date ORDER BY day`,
-        [restaurantId]
+          WHERE restaurant_id = $1${context.filter()} AND adjustment_type = 'count'
+            AND created_at >= (((SELECT today FROM inventory_clock) - 6)::timestamp AT TIME ZONE $2)
+          GROUP BY (created_at AT TIME ZONE $2)::date ORDER BY day`
       ),
-      pool.query(
+      context.query(
         `SELECT a.item_name, COALESCE(i.unit, 'unit') AS unit,
                 COALESCE(SUM(ABS(a.quantity_delta)), 0) AS quantity,
                 COALESCE(SUM(ABS(a.quantity_delta) * i.unit_cost), 0) AS estimated_cost
            FROM restaurant_inventory_adjustments a
            LEFT JOIN restaurant_inventory_items i ON i.id = a.item_id AND i.restaurant_id = a.restaurant_id
-          WHERE a.restaurant_id = $1 AND a.adjustment_type = 'waste'
-            AND a.created_at >= date_trunc('week', CURRENT_DATE)
-          GROUP BY a.item_name, i.unit ORDER BY quantity DESC LIMIT 5`,
-        [restaurantId]
+          WHERE a.restaurant_id = $1${context.filter('a')} AND a.adjustment_type = 'waste'
+            AND a.created_at >= (date_trunc('week', (SELECT today FROM inventory_clock)::timestamp) AT TIME ZONE $2)
+          GROUP BY a.item_name, i.unit ORDER BY quantity DESC LIMIT 5`
       ),
-      pool.query(
+      context.query(
         `SELECT COUNT(DISTINCT r.id)::int AS total,
                 COUNT(DISTINCT r.id) FILTER (WHERE l.received_quantity > l.accepted_quantity)::int AS with_issues,
                 CASE WHEN COALESCE(SUM(l.expected_quantity), 0) > 0
@@ -312,21 +321,19 @@ exports.getReports = async (req, res, next) => {
            LEFT JOIN restaurant_inventory_receipt_lines l
              ON l.receipt_id = r.id
             AND l.restaurant_id = r.restaurant_id
-          WHERE r.restaurant_id = $1
-            AND r.received_at >= date_trunc('week', CURRENT_DATE)`,
-        [restaurantId]
+          WHERE r.restaurant_id = $1${context.filter('r')}
+            AND r.received_at >= (date_trunc('week', (SELECT today FROM inventory_clock)::timestamp) AT TIME ZONE $2)`
       ),
-      pool.query(
+      context.query(
         `SELECT r.supplier_name, COUNT(l.id)::int AS lines,
                 COUNT(l.id) FILTER (WHERE l.received_quantity > l.accepted_quantity)::int AS issue_lines
            FROM restaurant_inventory_receipts r
            LEFT JOIN restaurant_inventory_receipt_lines l
              ON l.receipt_id = r.id
             AND l.restaurant_id = r.restaurant_id
-          WHERE r.restaurant_id = $1
-            AND r.received_at >= date_trunc('week', CURRENT_DATE)
-          GROUP BY r.supplier_name ORDER BY lines DESC, r.supplier_name LIMIT 8`,
-        [restaurantId]
+          WHERE r.restaurant_id = $1${context.filter('r')}
+            AND r.received_at >= (date_trunc('week', (SELECT today FROM inventory_clock)::timestamp) AT TIME ZONE $2)
+          GROUP BY r.supplier_name ORDER BY lines DESC, r.supplier_name LIMIT 8`
       ),
     ]);
     res.json({
@@ -352,28 +359,29 @@ exports.foodCostSummary = async (req, res, next) => {
     const restaurantId = positiveInt(req.params.restaurantId);
     const restaurant = await restaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
-    const today = new Date().toISOString().slice(0, 10);
-    const fromDate = req.query.from || new Date(Date.now() - (29 * 86400000)).toISOString().slice(0, 10);
+    const timezone = safeTimezone(restaurant.timezone);
+    const today = zonedParts(new Date(), timezone).dateKey;
+    const fromDate = req.query.from || new Date(Date.parse(`${today}T12:00:00Z`) - 29 * 86400000).toISOString().slice(0, 10);
     const toDate = req.query.to || today;
     if (!DATE_ONLY_RE.test(fromDate) || !DATE_ONLY_RE.test(toDate) || fromDate > toDate) {
       throw new AppError('A valid from/to date range is required', 400, 'invalid_range');
     }
     const scope = await getTransferScope(restaurant, req.user.id);
-    const params = [restaurantId, fromDate, toDate];
+    const params = [restaurantId, fromDate, toDate, timezone];
     let locationFilter = '';
     let salesLocationFilter = '';
     if (scope?.mode === 'assigned') {
       params.push(scope.location_ids);
-      locationFilter = ' AND i.location_id = ANY($4::bigint[])';
-      salesLocationFilter = ' AND fo.location_id = ANY($4::bigint[])';
+      locationFilter = ' AND i.location_id = ANY($5::bigint[])';
+      salesLocationFilter = ' AND fo.location_id = ANY($5::bigint[])';
     }
     const { rows } = await pool.query(
       `WITH sales AS (
          SELECT COALESCE(SUM(fo.total_cents), 0) / 100.0 AS net_sales
            FROM food_orders fo
           WHERE fo.restaurant_id = $1
-            AND fo.created_at >= ($2::date)::timestamp
-            AND fo.created_at < (($3::date + 1))::timestamp
+            AND fo.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
+            AND fo.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
             AND fo.payment_status = 'paid'
             AND fo.status NOT IN ('cancelled', 'refunded')${salesLocationFilter}
        ), theoretical AS (
@@ -384,18 +392,21 @@ exports.foodCostSummary = async (req, res, next) => {
            JOIN food_order_items foi ON foi.order_id = fo.id
            JOIN restaurant_inventory_item_mappings rim
              ON rim.menu_item_id = foi.menu_item_id AND rim.restaurant_id = fo.restaurant_id
+           JOIN restaurant_inventory_items mapped_stock
+             ON mapped_stock.id = rim.inventory_item_id AND mapped_stock.restaurant_id = fo.restaurant_id
+            AND mapped_stock.location_id = fo.location_id
           WHERE fo.restaurant_id = $1
-            AND fo.created_at >= ($2::date)::timestamp
-            AND fo.created_at < (($3::date + 1))::timestamp
+            AND fo.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
+            AND fo.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
             AND fo.payment_status = 'paid'
-            AND fo.status NOT IN ('cancelled', 'refunded')
+            AND fo.status NOT IN ('cancelled', 'refunded')${salesLocationFilter}
           GROUP BY rim.inventory_item_id
        ), actual AS (
          SELECT item_id, COALESCE(SUM(ABS(quantity_delta)), 0) AS quantity
            FROM restaurant_inventory_adjustments
-          WHERE restaurant_id = $1 AND adjustment_type = 'usage'
-            AND created_at >= ($2::date)::timestamp
-            AND created_at < (($3::date + 1))::timestamp
+          WHERE restaurant_id = $1 AND adjustment_type = 'usage'${scope?.mode === 'assigned' ? ' AND location_id = ANY($5::bigint[])' : ''}
+            AND created_at >= (($2::date)::timestamp AT TIME ZONE $4)
+            AND created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
           GROUP BY item_id
        )
        SELECT i.id AS inventory_item_id, i.name, i.unit, i.unit_cost,

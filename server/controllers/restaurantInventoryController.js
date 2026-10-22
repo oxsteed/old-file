@@ -427,7 +427,13 @@ exports.adjustItem = async (req, res, next) => {
             WHERE a.restaurant_id = $1 AND a.client_operation_id = $2`,
           [restaurantId, clientOperationId]
         );
-        if (existing) return { item: existing, availability: { changes: [], applied: false }, replayed: true };
+        if (existing) {
+          await assertExistingItemLocationAccess(restaurant, req.user.id, existing.location_id, client);
+          if (Number(existing.item_id) !== itemId) {
+            throw new AppError('Adjustment retry targets a different item', 409, 'idempotency_conflict');
+          }
+          return { item: existing, availability: { changes: [], applied: false }, replayed: true };
+        }
       }
       const { rows: [item] } = await client.query(
         `SELECT * FROM restaurant_inventory_items
@@ -1005,19 +1011,12 @@ exports.bootstrapMappings = async (req, res, next) => {
     await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
 
     await withTransaction(pool, async (client) => {
-      const { rows: [{ count }] } = await client.query(
-        `SELECT COUNT(*)::int AS count
-           FROM restaurant_inventory_item_mappings
-          WHERE restaurant_id = $1`,
-        [restaurantId]
-      );
-      if (count > 0) return;
-
       const itemScope = locationScopeClause(restaurant.locationScope, '', 2);
       const { rows: inventoryRows } = await client.query(
-        `SELECT id, name, unit
+        `SELECT id, name, unit, location_id
            FROM restaurant_inventory_items
-          WHERE restaurant_id = $1 AND is_active = TRUE${itemScope.sql}`,
+          WHERE restaurant_id = $1 AND is_active = TRUE${itemScope.sql}
+          ORDER BY location_id, id`,
         [restaurantId, ...itemScope.values]
       );
       const { rows: menuRows } = await client.query(
@@ -1029,28 +1028,30 @@ exports.bootstrapMappings = async (req, res, next) => {
       );
       if (!inventoryRows.length || !menuRows.length) return;
 
-      const inventoryByName = new Map(inventoryRows.map((row) => [String(row.name).toLowerCase(), row]));
-      const menuByName = new Map(menuRows.map((row) => [String(row.name).toLowerCase(), row]));
       const seeds = [
         ['burger buns', 'classic ox burger', '1 bun', 1],
         ['ground beef', 'classic ox burger', '0.33 lb', 0.33],
         ['cold brew', 'cold brew', '12 oz', 12],
       ];
 
-      for (const [inventoryName, menuName, usageLabel, requiredQuantity] of seeds) {
-        const inventoryItem = inventoryByName.get(inventoryName);
-        const menuItem = menuByName.get(menuName);
-        if (!inventoryItem || !menuItem) continue;
-        await client.query(
-          `INSERT INTO restaurant_inventory_item_mappings
-             (restaurant_id, inventory_item_id, menu_item_id, usage_label, required_quantity, created_by)
-           VALUES ($1,$2,$3,$4,$5,$6)
-           ON CONFLICT (restaurant_id, inventory_item_id, menu_item_id) DO NOTHING`,
-          [restaurantId, inventoryItem.id, menuItem.id, usageLabel, requiredQuantity, req.user.id]
-        );
+      let inserted = 0;
+      for (const inventoryItem of inventoryRows) {
+        const seed = seeds.find(([inventoryName]) => inventoryName === String(inventoryItem.name).toLowerCase());
+        if (!seed) continue;
+        const [, menuName, usageLabel, requiredQuantity] = seed;
+        for (const menuItem of menuRows.filter((row) => String(row.name).toLowerCase() === menuName)) {
+          const result = await client.query(
+            `INSERT INTO restaurant_inventory_item_mappings
+               (restaurant_id, inventory_item_id, menu_item_id, usage_label, required_quantity, created_by)
+             VALUES ($1,$2,$3,$4,$5,$6)
+             ON CONFLICT (restaurant_id, inventory_item_id, menu_item_id) DO NOTHING RETURNING id`,
+            [restaurantId, inventoryItem.id, menuItem.id, usageLabel, requiredQuantity, req.user.id]
+          );
+          inserted += result.rows.length;
+        }
       }
-      await logInventoryAudit(client, auditEntry(restaurant, 'mappings_bootstrapped', 'mapping', null, req, {
-        seedCount: seeds.length,
+      if (inserted) await logInventoryAudit(client, auditEntry(restaurant, 'mappings_bootstrapped', 'mapping', null, req, {
+        seedCount: inserted,
       }));
     });
 

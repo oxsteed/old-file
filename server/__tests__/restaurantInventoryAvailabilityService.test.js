@@ -8,6 +8,11 @@ const db = { query: (...args) => mockQuery(...args) };
 describe('restaurant inventory availability service', () => {
   beforeEach(() => resetMocks());
 
+  test.each([0, -1, '12x', '1.5', true, [], '9007199254740992'])('invalid store %j cannot fall back to global sync', async (locationId) => {
+    await expect(syncMappedMenuAvailability(db, 5, { locationId })).rejects.toMatchObject({ code: 'invalid_location_id' });
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
   test('writes inventory state to the selected store menu override', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{

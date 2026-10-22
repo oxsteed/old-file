@@ -123,6 +123,26 @@ jobs:
           NODE_ENV: test
         run: npm run migrate
 
+      - name: Inventory two-store PostgreSQL regression
+        working-directory: server
+        env:
+          NODE_ENV: test
+          INVENTORY_SCOPE_TEST_DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/inventory_scope_test?sslmode=disable
+        run: |
+          node - <<'NODE'
+          const { Client } = require('pg');
+          const url = new URL(process.env.INVENTORY_SCOPE_TEST_DATABASE_URL);
+          url.pathname = '/postgres';
+          const db = new Client({ connectionString: url.toString() });
+          (async () => {
+            try {
+              await db.connect();
+              await db.query('CREATE DATABASE inventory_scope_test');
+            } finally { await db.end(); }
+          })().catch(error => { console.error(error.message); process.exitCode = 1; });
+          NODE
+          npx jest --runInBand __tests__/restaurantInventoryAvailability.db.test.js
+
       - name: Logistics isolated database integration
         working-directory: server
         env:

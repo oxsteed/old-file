@@ -263,6 +263,21 @@ Repeated scoped syncs compare effective inventory/manual state (including timed
 restock) so unchanged state does not append another availability event. Full
 adapter adoption and populated production acceptance remain open.
 
+### Ten focused inventory follow-ups
+
+1. Adjustment idempotency replays check item/store access before returning saved data and reject a different-item retry.
+2. Inventory hook summaries, impacts, and availability history honor assigned stores and effective store menu availability.
+3. Inventory dashboards filter locations, stock risks, procurement, daily activity, priorities, and menu impacts by store.
+4. Waste, count, variance, and delivery reports filter every constituent query by assigned stores.
+5. Dashboard/report day and week boundaries use the restaurant timezone; food-cost periods use local midnight, and theoretical usage joins the order's store inventory.
+6. Invalid internal availability-sync store IDs reject before querying instead of falling back to a global sync.
+7. Mapping bootstrap fills missing mappings even when another store already has mappings; existing mapping quantities remain untouched.
+8. Bootstrap processes matching ingredient records in each accessible store rather than losing sibling stores to a name-keyed map.
+9. Order holds and menu availability apply recipe conversion and yield factors consistently with food costing.
+10. CI creates a dedicated disposable `inventory_scope_test` database and explicitly runs the PostgreSQL suite; ordinary local runs remain opt-in.
+
+These close the named follow-ups; full review implementation and populated-store/provider/hardware acceptance remain open.
+
 ## Requirements matrix
 
 `Existing source` means an earlier branch change exists; it is not a fresh
@@ -373,6 +388,7 @@ hardware decisions do not excuse independent software work on these flows.
 
 ## Verification
 
+- Ten follow-ups: `server`: the focused inventory availability DB, store-scope, operations, controller, order-service, availability-service, app-flow, and store-menu suites — **155 passed across 8 suites**, with the explicit `INVENTORY_SCOPE_TEST_DATABASE_URL` pointing to a fresh disposable Colima PostgreSQL container. Four DB tests exercise two-store isolation, conversion/yield stock holds, local-day reporting/DST boundaries, and store-correct food-cost periods. The exact new CI database-create/Jest shell step also passed locally (**4 DB tests**); CI YAML parsing and shell syntax checks passed. No production database, deployment, client, or migration changes were needed.
 - Inventory follow-up: `server`: `INVENTORY_SCOPE_TEST_DATABASE_URL=<disposable-loopback-url> npx jest --runInBand __tests__/restaurantInventoryAvailability.db.test.js __tests__/restaurantInventoryStoreScope.test.js __tests__/restaurantStoreMenu.test.js __tests__/restaurantAppFlow.test.js __tests__/restaurantInventoryController.test.js __tests__/restaurantInventoryOperations.test.js __tests__/restaurantInventoryAvailabilityService.test.js __tests__/restaurantInventoryOrderService.test.js` — **140 passed across 8 suites**. The PostgreSQL test ran in a fresh disposable Colima container with connection-local temporary fixtures, proving two-store sell-out/restock/hold isolation and repeat-sync audit stability. It does not replace full-schema populated-store acceptance. Controller tests cover sibling-store mapping/sync denial and store inventory recovery in POS/editor responses. No migration or client changes in this follow-up.
 - `server`: `npx jest --runInBand --testPathPatterns='restaurantStoreMenu|restaurantAppFlow|foodController|foodOrderValidation|routeScopeGuard'` — **137 passed** (including bounded course, seat, and split-by-amount validation).
 - `server`: `npx jest --runInBand --testPathPatterns='restaurantAppFlow' __tests__/restaurantAppFlow.test.js` — **58 passed**. The suite covers quantity-level and exact amount split reconciliation, bounded coursing and seating, and the device printer queue check verifies token-authenticated kitchen access and location-scoped query parameters.

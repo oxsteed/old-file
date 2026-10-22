@@ -9459,6 +9459,15 @@ exports.getInventoryHookStatus = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertManage(restaurant, req.user.id);
+    const scope = await getLocationScope(restaurant, req.user.id);
+    const params = [restaurantId, ...(scope.mode === 'assigned' ? [scope.location_ids] : [])];
+    const itemScope = scope.mode === 'assigned' ? ' AND i.location_id = ANY($2::bigint[])' : '';
+    const eventScope = scope.mode === 'assigned' ? ' AND location_id = ANY($2::bigint[])' : '';
+    const available = `(fmi.manual_available AND COALESCE(sm.inventory_available, fmi.inventory_available)
+      AND (sm.is_available IS DISTINCT FROM FALSE OR COALESCE(sm.available_again_at <= NOW(), FALSE)))`;
+    const storeJoin = `LEFT JOIN restaurant_store_menu_overrides sm
+      ON sm.restaurant_id = fmi.restaurant_id AND sm.menu_item_id = fmi.id
+      AND sm.location_id = i.location_id`;
     const [
       { rows: [summary] },
       { rows: affectedMenuItems },
@@ -9467,7 +9476,7 @@ exports.getInventoryHookStatus = async (req, res, next) => {
       pool.query(
         `SELECT COUNT(*)::int AS mapped_items,
                 COUNT(*) FILTER (WHERE m.auto_manage = TRUE)::int AS auto_managed_items,
-                COUNT(*) FILTER (WHERE fmi.is_available = FALSE)::int AS unavailable_menu_items,
+                COUNT(DISTINCT fmi.id) FILTER (WHERE NOT ${available})::int AS unavailable_menu_items,
                 COUNT(*) FILTER (
                   WHERE i.quantity <= 0 OR (i.reorder_point > 0 AND i.quantity <= i.reorder_point)
                 )::int AS blocked_or_low_inventory_items,
@@ -9477,13 +9486,15 @@ exports.getInventoryHookStatus = async (req, res, next) => {
              ON i.id = m.inventory_item_id AND i.restaurant_id = m.restaurant_id
            JOIN food_menu_items fmi
              ON fmi.id = m.menu_item_id AND fmi.restaurant_id = m.restaurant_id
-          WHERE m.restaurant_id = $1`,
-        [restaurantId]
+           ${storeJoin}
+          WHERE m.restaurant_id = $1${itemScope}`,
+        params
       ),
       pool.query(
         `SELECT fmi.id AS menu_item_id,
                 fmi.name AS menu_item_name,
-                fmi.is_available,
+                ${available} AS is_available,
+                i.location_id,
                 i.id AS inventory_item_id,
                 i.name AS inventory_item_name,
                 i.quantity,
@@ -9496,20 +9507,21 @@ exports.getInventoryHookStatus = async (req, res, next) => {
              ON i.id = m.inventory_item_id AND i.restaurant_id = m.restaurant_id
            JOIN food_menu_items fmi
              ON fmi.id = m.menu_item_id AND fmi.restaurant_id = m.restaurant_id
-          WHERE m.restaurant_id = $1
+           ${storeJoin}
+          WHERE m.restaurant_id = $1${itemScope}
             AND m.auto_manage = TRUE
-            AND (i.quantity <= 0 OR (i.reorder_point > 0 AND i.quantity <= i.reorder_point) OR fmi.is_available = FALSE)
+            AND (i.quantity <= 0 OR (i.reorder_point > 0 AND i.quantity <= i.reorder_point) OR NOT ${available})
           ORDER BY i.quantity ASC, fmi.name ASC
           LIMIT 50`,
-        [restaurantId]
+        params
       ),
       pool.query(
         `SELECT *
            FROM restaurant_inventory_availability_events
-          WHERE restaurant_id = $1
+          WHERE restaurant_id = $1${eventScope}
           ORDER BY created_at DESC
           LIMIT 50`,
-        [restaurantId]
+        params
       ),
     ]);
     res.json({

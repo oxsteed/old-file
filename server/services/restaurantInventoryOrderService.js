@@ -62,7 +62,8 @@ async function loadMappings(client, restaurantId, menuItemIds, locationId = null
   const { rows } = await client.query(
     `SELECT rim.inventory_item_id,
             rim.menu_item_id,
-            rim.required_quantity,
+            (rim.required_quantity * rim.conversion_factor * 100.0
+              / NULLIF(rim.yield_percent, 0)) AS required_quantity,
             rii.id AS active_inventory_item_id,
             rii.name AS inventory_item_name,
             rii.quantity AS on_hand_quantity,
