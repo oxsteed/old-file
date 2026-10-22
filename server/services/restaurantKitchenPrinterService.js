@@ -4,7 +4,8 @@ async function enqueueKitchenPrinterJobs(client, {
   restaurantId,
   orderId,
   createdBy = null,
-}) {  const { rows } = await client.query(
+}) {
+  const { rows } = await client.query(
     `WITH default_station AS (
        SELECT id
          FROM restaurant_kitchen_stations

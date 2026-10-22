@@ -6,10 +6,9 @@
 ALTER TABLE restaurant_loyalty_campaigns
   ADD COLUMN IF NOT EXISTS location_ids BIGINT[];
 
--- Guard the array contents: positive, non-null store ids only, bounded length.
--- Cross-table ownership (each id belongs to the campaign's restaurant) is
--- enforced in the service layer, where the restaurant's store list is already
--- loaded.
+-- Guard the array contents: positive, non-null store ids only, bounded length,
+-- and every id must belong to the campaign's restaurant. The service layer
+-- pre-validates with a friendly 400; this trigger is the database backstop.
 CREATE OR REPLACE FUNCTION restaurant_loyalty_campaign_location_ids_guard()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
