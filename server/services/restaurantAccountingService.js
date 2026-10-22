@@ -96,7 +96,7 @@ async function upsertIntegration(client, { restaurantId, provider, status, exter
   if (normalizedStatus === 'active' && (!accessRef || !refreshRef)) {
     throw new AppError('Active accounting integrations require runtime token references', 400, 'accounting_credentials_required');
   }
-  const { rows: inserted } = await client.query(
+  const { rows: [row] } = await client.query(
     `INSERT INTO restaurant_accounting_integrations
        (restaurant_id, provider, status, external_company_id, access_token_ref,
         refresh_token_ref, token_expires_at, account_mapping, created_by, updated_by)
@@ -110,6 +110,7 @@ async function upsertIntegration(client, { restaurantId, provider, status, exter
     [restaurantId, normalizedProvider, normalizedStatus, externalCompanyId ? String(externalCompanyId).trim().slice(0, 180) : null,
       accessRef, refreshRef, tokenExpiresAt || null, mapping, actorUserId || null]
   );
+  if (!row) throw new AppError('Accounting integration could not be saved', 500, 'accounting_integration_save_failed');
   return shapeIntegration(row);
 }
 

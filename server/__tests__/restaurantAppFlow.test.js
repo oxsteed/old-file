@@ -585,6 +585,23 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.devices[1]).toMatchObject({ source: 'display_pairings', appKey: 'display', deviceRole: 'queue_board' });
   });
 
+  test('scopes the unified device fleet to assigned locations', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 99 })] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, location_id: 77, role_override: 'manager', membership_id: 99 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp()).get(`/api/restaurants/${RESTAURANT_ID}/devices`);
+
+    expect(res.status).toBe(200);
+    const fleetQueries = mockQuery.mock.calls.slice(-2);
+    expect(fleetQueries[0][0]).toContain('location_id = ANY($2::bigint[])');
+    expect(fleetQueries[1][0]).toContain('location_id = ANY($2::bigint[])');
+    expect(fleetQueries[0][1]).toEqual([RESTAURANT_ID, [77]]);
+    expect(fleetQueries[1][1]).toEqual([RESTAURANT_ID, [77]]);
+  });
+
   test('rotates a paired device token for a restaurant manager', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })

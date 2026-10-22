@@ -46,6 +46,7 @@ const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/stora
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
 const { nextQueueNumber } = require('../services/restaurantQueueCounter');
 const restaurantLocationService = require('../services/restaurantLocationService');
+const { getLocationScope } = require('../services/restaurantLocationAccessService');
 const storeMenu = require('../services/restaurantStoreMenuService');
 const permissionsService = require('../services/permissionsService');
 const { getEffectivePermissions } = permissionsService;
@@ -76,6 +77,7 @@ const giftCardValue = require('../services/restaurantGiftCardService');
 const POS_TIP_ABSOLUTE_MAX_CENTS = 50000;
 
 const APP_KEYS = new Set(['manager', 'pos', 'kitchen', 'display', 'inventory', 'crew', 'runner', 'restaurant', 'credit_kiosk']);
+const DEFAULT_DISPLAY_DEVICE_ROLE = 'kiosk';
 const DEVICE_STATUSES = new Set(['pending', 'paired', 'disabled']);
 const DEVICE_SYNC_STATUSES = new Set(['healthy', 'degraded', 'error']);
 const ORDER_SOURCES = new Set(['counter', 'kiosk', 'tablet']);
@@ -3287,24 +3289,28 @@ exports.getDeviceConfig = async (req, res, next) => {
 exports.listRestaurantDevices = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const scoped = locationScope.mode === 'assigned';
+    const locationFilter = scoped ? ' AND location_id = ANY($2::bigint[])' : '';
+    const queryParams = scoped ? [restaurantId, locationScope.location_ids] : [restaurantId];
     const [{ rows: appDevices }, { rows: displayPairings }] = await Promise.all([
       pool.query(
         `SELECT id, restaurant_id, app_key, device_name, mode, location_id,
                 status, config, last_seen_at, created_at, updated_at,
                 paired_at, device_token_expires_at, config_version
            FROM restaurant_app_devices
-          WHERE restaurant_id = $1
+          WHERE restaurant_id = $1${locationFilter}
           ORDER BY updated_at DESC, id DESC`,
-        [restaurantId]
+        queryParams
       ),
       pool.query(
         `SELECT id, restaurant_id, location_id, label, device_role, paired_at,
                 last_seen_at, pairing_token_expires_at, created_at
            FROM display_pairings
-          WHERE restaurant_id = $1
+          WHERE restaurant_id = $1${locationFilter}
           ORDER BY created_at DESC, id DESC`,
-        [restaurantId]
+        queryParams
       ),
     ]);
     const devices = [
@@ -3322,13 +3328,13 @@ exports.listRestaurantDevices = async (req, res, next) => {
         locationId: pairing.location_id == null ? null : Number(pairing.location_id),
         deviceName: pairing.label || `Display ${pairing.id}`,
         appKey: 'display',
-        deviceRole: pairing.device_role || DEFAULT_DEVICE_ROLE,
+        deviceRole: pairing.device_role || DEFAULT_DISPLAY_DEVICE_ROLE,
         status: pairing.paired_at ? 'paired' : 'pending',
         pairedAt: pairing.paired_at,
         lastSeenAt: pairing.last_seen_at,
         tokenExpiresAt: pairing.pairing_token_expires_at || null,
         createdAt: pairing.created_at,
-        capabilities: [pairing.device_role || DEFAULT_DEVICE_ROLE],
+        capabilities: [pairing.device_role || DEFAULT_DISPLAY_DEVICE_ROLE],
       })),
     ];
     res.json({

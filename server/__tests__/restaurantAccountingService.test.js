@@ -32,6 +32,22 @@ test('integration shaping exposes configuration state without token references',
   expect(JSON.stringify(shaped)).not.toContain('SecretString');
 });
 
+test('upserting an integration shapes the database row returned by postgres', async () => {
+  const client = { query: jest.fn().mockResolvedValueOnce({ rows: [integrationRow] }) };
+  const result = await service.upsertIntegration(client, {
+    restaurantId: 3,
+    provider: 'quickbooks',
+    status: 'active',
+    externalCompanyId: 'company-1',
+    accessTokenRef: integrationRow.access_token_ref,
+    refreshTokenRef: integrationRow.refresh_token_ref,
+    actorUserId: 'user-1',
+  });
+
+  expect(result).toMatchObject({ id: 11, restaurantId: 3, provider: 'quickbooks', status: 'active', credentialsConfigured: true });
+  expect(result).not.toHaveProperty('accessTokenRef');
+});
+
 test('queueing a journal is currency-scoped and idempotent', async () => {
   const client = { query: jest.fn()
     .mockResolvedValueOnce({ rows: [integrationRow] })
