@@ -867,13 +867,15 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.supportedPaymentModes).toContain('restaurant_credit');
   });
 
-  test('creates POS orders in the same food_orders flow', async () => {
+  test.each([true, false])('creates POS orders with the store inventory state (legacy brand availability: %s)', async (brandAvailable) => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
       .mockResolvedValueOnce({ rows: [{ id: 55, restaurant_id: RESTAURANT_ID, status: 'open', staff_user_id: USER_ID }] })
       .mockResolvedValueOnce({ rows: [accessRow()] })
       .mockResolvedValueOnce({ rows: [] }) // F-02 location resolution (no locations -> restaurant fallback)
-      .mockResolvedValueOnce({ rows: [{ id: 11, name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }] })
+      .mockResolvedValueOnce({ rows: [{ id: 11, name: 'Classic Burger', price_cents: 899,
+        currency_code: 'USD', is_available: brandAvailable, manual_available: true,
+        inventory_available: brandAvailable, store_override: { inventory_available: true } }] })
       .mockResolvedValueOnce({ rows: [{ last_queue_number: 12 }] })
       .mockResolvedValueOnce({
         rows: [{
@@ -900,6 +902,9 @@ describe('restaurant app-flow backend', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.order.queue_number).toBe(12);
+    const menuSql = mockQuery.mock.calls.find(([sql]) => /FROM food_menu_items fmi/.test(sql))[0];
+    expect(menuSql).toContain('fmi.manual_available');
+    expect(menuSql).toContain('fmi.inventory_available');
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_orders/.test(sql))).toBe(true);
     const itemInsert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO food_order_items/.test(sql));
     expect(itemInsert).toBeTruthy();

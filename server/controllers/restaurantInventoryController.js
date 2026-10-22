@@ -840,6 +840,7 @@ exports.listMappings = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const scope = locationScopeClause(restaurant.locationScope, 'rii', 2);
     const { rows } = await pool.query(
       `SELECT rim.id,
               rim.inventory_item_id,
@@ -859,9 +860,9 @@ exports.listMappings = async (req, res, next) => {
          JOIN food_menu_items fmi
            ON fmi.id = rim.menu_item_id
           AND fmi.restaurant_id = rim.restaurant_id
-        WHERE rim.restaurant_id = $1
+        WHERE rim.restaurant_id = $1${scope.sql}
         ORDER BY rii.name ASC, fmi.name ASC`,
-      [restaurantId]
+      [restaurantId, ...scope.values]
     );
     res.json({ mappings: rows });
   } catch (err) {
@@ -911,11 +912,14 @@ exports.upsertMapping = async (req, res, next) => {
                 ) AS inventory_exists,
                 EXISTS(
                   SELECT 1 FROM food_menu_items WHERE id = $3 AND restaurant_id = $1
-                ) AS menu_exists`,
+                ) AS menu_exists,
+                (SELECT location_id FROM restaurant_inventory_items
+                  WHERE id = $2 AND restaurant_id = $1) AS location_id`,
         [restaurantId, inventoryItemId, menuItemId]
       );
       if (!ownership.inventory_exists) throw new AppError('Inventory item not found', 404, 'inventory_item_not_found');
       if (!ownership.menu_exists) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
+      await assertExistingItemLocationAccess(restaurant, req.user.id, ownership.location_id, client);
       const { rows: [mapping] } = await client.query(
         `INSERT INTO restaurant_inventory_item_mappings
            (restaurant_id, inventory_item_id, menu_item_id, usage_label,
@@ -936,7 +940,7 @@ exports.upsertMapping = async (req, res, next) => {
           req.body.autoManage !== false && req.body.auto_manage !== false, req.user.id]
       );
       const availability = await syncMappedMenuAvailability(client, restaurantId, {
-        menuItemId, apply: true, createdBy: req.user.id,
+        menuItemId, locationId: ownership.location_id, apply: true, createdBy: req.user.id,
       });
       await logInventoryAudit(client, auditEntry(restaurant, 'mapping_upserted', 'mapping', mapping.id, req, {
         inventoryItemId: mapping.inventory_item_id,
@@ -963,6 +967,16 @@ exports.deleteMapping = async (req, res, next) => {
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
     const result = await withTransaction(pool, async (client) => {
+      const { rows: [existing] } = await client.query(
+        `SELECT rim.id, rii.location_id
+           FROM restaurant_inventory_item_mappings rim
+           JOIN restaurant_inventory_items rii
+             ON rii.id = rim.inventory_item_id AND rii.restaurant_id = rim.restaurant_id
+          WHERE rim.id = $1 AND rim.restaurant_id = $2 FOR UPDATE OF rim`,
+        [mappingId, restaurantId]
+      );
+      if (!existing) throw new AppError('Inventory mapping not found', 404, 'inventory_mapping_not_found');
+      await assertExistingItemLocationAccess(restaurant, req.user.id, existing.location_id, client);
       const { rows: [mapping] } = await client.query(
         `DELETE FROM restaurant_inventory_item_mappings
           WHERE id = $1 AND restaurant_id = $2 RETURNING *`,
@@ -970,7 +984,7 @@ exports.deleteMapping = async (req, res, next) => {
       );
       if (!mapping) throw new AppError('Inventory mapping not found', 404, 'inventory_mapping_not_found');
       const availability = await syncMappedMenuAvailability(client, restaurantId, {
-        menuItemId: mapping.menu_item_id, apply: true, createdBy: req.user.id,
+        menuItemId: mapping.menu_item_id, locationId: existing.location_id, apply: true, createdBy: req.user.id,
       });
       await logInventoryAudit(client, auditEntry(restaurant, 'mapping_deleted', 'mapping', mapping.id, req, {
         inventoryItemId: mapping.inventory_item_id,
@@ -999,11 +1013,12 @@ exports.bootstrapMappings = async (req, res, next) => {
       );
       if (count > 0) return;
 
+      const itemScope = locationScopeClause(restaurant.locationScope, '', 2);
       const { rows: inventoryRows } = await client.query(
         `SELECT id, name, unit
            FROM restaurant_inventory_items
-          WHERE restaurant_id = $1 AND is_active = TRUE`,
-        [restaurantId]
+          WHERE restaurant_id = $1 AND is_active = TRUE${itemScope.sql}`,
+        [restaurantId, ...itemScope.values]
       );
       const { rows: menuRows } = await client.query(
         `SELECT id, name
@@ -1040,7 +1055,17 @@ exports.bootstrapMappings = async (req, res, next) => {
     });
 
     await withTransaction(pool, async (client) => {
-      await syncMappedMenuAvailability(client, restaurantId, { apply: true, createdBy: req.user.id });
+      const scope = locationScopeClause(restaurant.locationScope, 'i', 2);
+      const { rows: stores } = await client.query(
+        `SELECT DISTINCT i.location_id FROM restaurant_inventory_items i
+          WHERE i.restaurant_id = $1 AND i.location_id IS NOT NULL${scope.sql}`,
+        [restaurantId, ...scope.values]
+      );
+      for (const store of stores) {
+        await syncMappedMenuAvailability(client, restaurantId, {
+          locationId: store.location_id, apply: true, createdBy: req.user.id,
+        });
+      }
     });
 
     return exports.listMappings(req, res, next);

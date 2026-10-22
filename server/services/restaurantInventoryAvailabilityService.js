@@ -41,16 +41,21 @@ async function syncMappedMenuAvailability(db, restaurantId, {
         AND sm.menu_item_id = fmi.id
         AND sm.location_id = ${locationParam}`
     : '';
-  const currentAvailable = scopedLocationId ? 'COALESCE(sm.is_available, fmi.is_available)' : 'fmi.is_available';
+  const storeManualAvailable = scopedLocationId
+    ? '(sm.is_available IS DISTINCT FROM FALSE OR COALESCE(sm.available_again_at <= NOW(), FALSE))'
+    : 'TRUE';
+  const currentAvailable = scopedLocationId
+    ? `(fmi.manual_available AND COALESCE(${storeManualAvailable}, FALSE)
+        AND COALESCE(sm.inventory_available, fmi.inventory_available))`
+    : 'fmi.is_available';
   const currentInventoryAvailable = scopedLocationId
     ? 'COALESCE(sm.inventory_available, fmi.inventory_available)'
     : 'fmi.inventory_available';
   const currentInventoryState = scopedLocationId
     ? 'COALESCE(sm.inventory_availability_state, fmi.inventory_availability_state)'
     : 'fmi.inventory_availability_state';
-  const storeManualAvailable = scopedLocationId ? 'sm.is_available' : 'NULL::boolean';
   const scopedGroup = scopedLocationId
-    ? ', sm.is_available, sm.inventory_available, sm.inventory_availability_state'
+    ? ', sm.is_available, sm.available_again_at, sm.inventory_available, sm.inventory_availability_state'
     : '';
 
   const { rows } = await db.query(
@@ -124,7 +129,7 @@ async function syncMappedMenuAvailability(db, restaurantId, {
         ? 'limited'
         : 'available';
     const nextInventoryAvailable = nextInventoryState !== 'unavailable';
-    const manualAvailable = row.store_manual_available ?? row.manual_available !== false;
+    const manualAvailable = row.manual_available !== false && row.store_manual_available !== false;
     return {
       ...row,
       next_inventory_state: nextInventoryState,

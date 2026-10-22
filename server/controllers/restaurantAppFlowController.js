@@ -4099,6 +4099,7 @@ exports.createPosOrder = async (req, res, next) => {
       const ids = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
       const { rows: menuRows } = await client.query(
         `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
+                fmi.manual_available, fmi.inventory_available, fmi.inventory_availability_state,
                 fmi.availability_schedule, ${storeMenu.overrideSql('fmi', '$3')},
                 COALESCE((
                   SELECT jsonb_agg(
@@ -9534,12 +9535,29 @@ exports.syncMenuAvailability = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertManage(restaurant, req.user.id);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
+    const locationId = storeMenu.locationId(req.body.locationId ?? req.body.location_id ?? req.query.locationId);
+    if (locationId && locationScope.mode === 'assigned' && !locationScope.location_ids.includes(locationId)) {
+      throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+    }
     const apply = req.body.apply === true || req.query.apply === 'true';
     const result = await withTransaction(pool, async (client) => {
-      return syncMappedMenuAvailability(client, restaurantId, {
-        apply,
-        createdBy: req.user.id,
-      });
+      const { rows: stores } = await client.query(
+        `SELECT id FROM restaurant_locations WHERE restaurant_id = $1
+           AND ($2::bigint IS NULL OR id = $2)
+           ${locationScope.mode === 'assigned' ? 'AND id = ANY($3::bigint[])' : ''}
+         ORDER BY id`,
+        [restaurantId, locationId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
+      );
+      if (locationId && !stores.length) throw new AppError('Store not found', 404, 'location_not_found');
+      const changes = [];
+      for (const store of stores) {
+        const synced = await syncMappedMenuAvailability(client, restaurantId, {
+          locationId: store.id, apply, createdBy: req.user.id,
+        });
+        changes.push(...synced.changes.map((change) => ({ ...change, location_id: store.id })));
+      }
+      return { changes, applied: apply };
     });
     res.json(result);
   } catch (err) {

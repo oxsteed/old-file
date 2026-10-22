@@ -30,6 +30,30 @@ test('store pricing inherits independently from temporary availability and canno
   expect(menu.applyOverride({ ...base, store_override: { price_cents: 0 } }).price_cents).toBe(0);
 });
 
+test('store inventory can recover from legacy global stock state while a brand manual block still wins', () => {
+  const item = { is_available: false, manual_available: true, inventory_available: false,
+    store_override: { inventory_available: true } };
+  expect(menu.applyOverride(item).is_available).toBe(true);
+  expect(menu.applyOverride({ ...item, manual_available: false }).is_available).toBe(false);
+});
+
+test('store menu reads select the availability fields used by public menu pricing', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    if (sql.startsWith('SELECT id FROM restaurant_locations')) return { rows: [{ id: 7 }] };
+    if (sql.startsWith('SELECT * FROM restaurant_locations')) return { rows: [{ id: 7, restaurant_id: 3 }] };
+    if (sql.includes('FROM food_menu_items fmi')) {
+      expect(sql).toContain('fmi.manual_available');
+      expect(sql).toContain('fmi.inventory_available');
+      return { rows: [{ id: 11, price_cents: 1000, is_available: false, manual_available: true,
+        inventory_available: false, store_override: { inventory_available: true } }] };
+    }
+    return { rows: [] };
+  });
+  const response = await request(app()).get('/3/locations/7/menu');
+  expect(response.status).toBe(200);
+  expect(response.body.items[0].is_available).toBe(true);
+});
+
 test.each([0, -1, '2x', '1.5', [], '9007199254740992'])('invalid store id %j fails rather than selecting the primary store', (value) => {
   expect(() => menu.locationId(value)).toThrow('Invalid store');
 });

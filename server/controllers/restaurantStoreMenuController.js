@@ -34,7 +34,8 @@ exports.list = async (req, res, next) => {
     const store = await resolveLocationRow(pool, { restaurantId: restaurant.id, requestedLocationId: menu.locationId(req.params.locationId) });
     if (!store) throw new AppError('Store not found', 404, 'location_not_found');
     const { rows } = await pool.query(`SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code,
-      fmi.is_available, fmi.publication_status, ${menu.overrideSql('fmi', '$2')}
+      fmi.is_available, fmi.manual_available, fmi.inventory_available,
+      fmi.inventory_availability_state, fmi.publication_status, ${menu.overrideSql('fmi', '$2')}
       FROM food_menu_items fmi WHERE fmi.restaurant_id=$1 AND fmi.archived_at IS NULL
       ORDER BY fmi.sort_order, fmi.id LIMIT 1001`, [restaurant.id, store.id]);
     if (rows.length > 1000) throw new AppError('Menu requires pagination', 409, 'store_menu_too_large');
@@ -60,7 +61,7 @@ exports.update = async (req, res, next) => {
         && !(await permissions.hasRestaurantPermission(restaurant, req.user.id, requiredCodes, { roleOverride: storeRole }))) {
         throw new AppError('Permission denied', 403, 'forbidden');
       }
-      const { rows: [item] } = await client.query('SELECT id, name, price_cents, currency_code, is_available FROM food_menu_items WHERE restaurant_id=$1 AND id=$2 FOR UPDATE', [restaurant.id, menu.locationId(req.params.itemId)]);
+      const { rows: [item] } = await client.query('SELECT id, name, price_cents, currency_code, is_available, manual_available, inventory_available, inventory_availability_state FROM food_menu_items WHERE restaurant_id=$1 AND id=$2 FOR UPDATE', [restaurant.id, menu.locationId(req.params.itemId)]);
       if (!item) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
       const { rows: [before] } = await client.query('SELECT * FROM restaurant_store_menu_overrides WHERE restaurant_id=$1 AND location_id=$2 AND menu_item_id=$3', [restaurant.id, store.id, item.id]);
       const patch = menu.validatePatch(req.body, before);

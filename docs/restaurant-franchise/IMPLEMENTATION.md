@@ -255,6 +255,14 @@ that do not yet have a store. The merchant settings card lists the stores and
 sends the selected store with save and test requests; receipt jobs select the
 order's store printer and reject an explicitly mismatched store.
 
+The inventory follow-up aligns POS and store-menu editor reads with public menu
+manual/inventory availability fields. Mapping reads and mutations enforce store
+assignments; mapping writes refresh only the inventory item's store. Manual
+sync and bootstrap iterate accessible stores without updating brand availability.
+Repeated scoped syncs compare effective inventory/manual state (including timed
+restock) so unchanged state does not append another availability event. Full
+adapter adoption and populated production acceptance remain open.
+
 ## Requirements matrix
 
 `Existing source` means an earlier branch change exists; it is not a fresh
@@ -365,6 +373,7 @@ hardware decisions do not excuse independent software work on these flows.
 
 ## Verification
 
+- Inventory follow-up: `server`: `INVENTORY_SCOPE_TEST_DATABASE_URL=<disposable-loopback-url> npx jest --runInBand __tests__/restaurantInventoryAvailability.db.test.js __tests__/restaurantInventoryStoreScope.test.js __tests__/restaurantStoreMenu.test.js __tests__/restaurantAppFlow.test.js __tests__/restaurantInventoryController.test.js __tests__/restaurantInventoryOperations.test.js __tests__/restaurantInventoryAvailabilityService.test.js __tests__/restaurantInventoryOrderService.test.js` — **140 passed across 8 suites**. The PostgreSQL test ran in a fresh disposable Colima container with connection-local temporary fixtures, proving two-store sell-out/restock/hold isolation and repeat-sync audit stability. It does not replace full-schema populated-store acceptance. Controller tests cover sibling-store mapping/sync denial and store inventory recovery in POS/editor responses. No migration or client changes in this follow-up.
 - `server`: `npx jest --runInBand --testPathPatterns='restaurantStoreMenu|restaurantAppFlow|foodController|foodOrderValidation|routeScopeGuard'` — **137 passed** (including bounded course, seat, and split-by-amount validation).
 - `server`: `npx jest --runInBand --testPathPatterns='restaurantAppFlow' __tests__/restaurantAppFlow.test.js` — **58 passed**. The suite covers quantity-level and exact amount split reconciliation, bounded coursing and seating, and the device printer queue check verifies token-authenticated kitchen access and location-scoped query parameters.
 - `client`: `npm run build:ci` — **passed** (typecheck, production build, i18n and emitted-asset verification).
