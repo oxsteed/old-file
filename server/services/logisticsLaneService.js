@@ -1,5 +1,6 @@
 'use strict';
 const pool = require('../db');
+const { pgStringArray } = require('../utils/pgArray');
 
 let _laneCache = null;
 let _laneCacheAt = 0;
@@ -49,13 +50,17 @@ async function checkLaneAccess(laneId, { userRole, buyerCountry, isBusinessVerif
   if (!lane) return { allowed: false, reason: 'lane_not_found' };
   if (!lane.is_active) return { allowed: false, reason: 'lane_inactive' };
 
-  if (lane.allowed_buyer_countries && lane.allowed_buyer_countries.length > 0) {
-    if (!lane.allowed_buyer_countries.includes(buyerCountry)) {
+  // pgStringArray: allowed_buyer_roles is a custom-enum array that node-pg
+  // returns as a '{}' literal; empty means "all", not "none".
+  const allowedCountries = pgStringArray(lane.allowed_buyer_countries);
+  if (allowedCountries.length > 0) {
+    if (!allowedCountries.includes(buyerCountry)) {
       return { allowed: false, reason: 'buyer_country_not_allowed' };
     }
   }
-  if (lane.allowed_buyer_roles && lane.allowed_buyer_roles.length > 0) {
-    if (!lane.allowed_buyer_roles.includes(userRole)) {
+  const allowedRoles = pgStringArray(lane.allowed_buyer_roles);
+  if (allowedRoles.length > 0) {
+    if (!allowedRoles.includes(userRole)) {
       return { allowed: false, reason: 'buyer_role_not_allowed' };
     }
   }

@@ -9,12 +9,17 @@ function normalizeText(value, max) {
 async function logInventoryAudit(client, entry) {
   if (!entry || !entry.restaurantId || !entry.eventType || !entry.entityType) return null;
 
+  // $4 is cast to text in both of its uses (the varchar column accepts
+  // text implicitly): without the casts PostgreSQL cannot reconcile the
+  // varchar column type with the audit-location function's text argument
+  // ("inconsistent types deduced for parameter $4"), which broke every
+  // inventory audit write.
   const { rows: [event] } = await client.query(
     `INSERT INTO restaurant_inventory_audit_events
        (restaurant_id, business_id, event_type, entity_type, entity_id,
         actor_user_id, client_operation_id, metadata, location_id)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,
-       COALESCE($9::bigint, restaurant_inventory_audit_location($1,$4,$5)))
+     VALUES ($1,$2,$3,$4::text,$5,$6,$7,$8::jsonb,
+       COALESCE($9::bigint, restaurant_inventory_audit_location($1, $4::text, $5)))
      RETURNING *`,
     [
       entry.restaurantId,

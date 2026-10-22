@@ -1,7 +1,5 @@
 'use strict';
-// OpenRouter-only per Emile's 2026-10-14 standing rule: the Meta Model API
-// (server/services/aiChatProvider.js) is not used on any user-facing path.
-const openRouter=require('../services/openRouterChat');
+const provider=require('../services/metaChatProvider');
 const { validateBuilderQuery }=require('./queryBuilder');
 
 function modelTranslationAvailable(){

@@ -3756,7 +3756,7 @@ exports.impersonateUser = async (req, res) => {
     }
 
     const { rows } = await db.query(
-      `SELECT id, first_name, last_name, email, role, is_active FROM users WHERE id = $1 AND deleted_at IS NULL`,
+      `SELECT id, first_name, last_name, email, role, is_active, is_suspended FROM users WHERE id = $1 AND deleted_at IS NULL`,
       [userId]
     );
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
@@ -3769,6 +3769,12 @@ exports.impersonateUser = async (req, res) => {
     // H8b/M23: refuse impersonating deactivated accounts.
     if (target.is_active === false) {
       return res.status(403).json({ error: 'Cannot impersonate a deactivated account.' });
+    }
+    // Audit fix (finding 38): refuse impersonating suspended accounts.
+    // A suspended account cannot sign in on its own; letting a super-admin
+    // mint an impersonation session for it would bypass the suspension.
+    if (target.is_suspended === true) {
+      return res.status(403).json({ error: 'Cannot impersonate a suspended account.' });
     }
 
     const jti = crypto.randomUUID();

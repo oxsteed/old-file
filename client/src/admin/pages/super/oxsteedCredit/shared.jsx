@@ -417,10 +417,10 @@ export function useCreditDialog() {  const [dialog, setDialog] = useState(null);
   return { dialog, requestDialog, resolveDialog };
 }
 
-// ADM-020/ADM-082: issue a step-up challenge and prompt for the emailed
-// code. Returns { stepupChallengeId, stepupCode } or null when the admin
-// cancels or issuance fails. Callers spread the result into their mutation
-// payload; the server verifies before executing.
+// ADM-020/ADM-082: issue a step-up challenge and prompt for the admin's
+// authenticator (TOTP) code. Returns { stepupChallengeId, stepupCode } or
+// null when the admin cancels or issuance fails. Callers spread the result
+// into their mutation payload; the server verifies before executing.
 export async function requestStepupChallengeCode({ requestDialog, setNotice, setError, t, actionType, description, amountCents, currencyCode }) {
   let challengeId = null;
   try {

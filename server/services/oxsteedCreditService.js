@@ -3280,14 +3280,17 @@ async function captureCreditHoldInTransaction(client, { holdId, amountCents, cur
         metadata: requestedMetadata,
       });
     } catch (purchaseError) {
-      // The reservation was already released above. Restore it so the hold
-      // stays active with its reservation intact; otherwise the hold is
+      // The reservation was already released above. Restore the amount that
+      // was actually released (releaseAmount, not requestedAmount): on the
+      // debit-then-adjust path the full held amount was released, and
+      // restoring only requestedAmount would strand the hold with
+      // reserved_cents diverged from its face amount. Otherwise the hold is
       // stranded with re-capture and release both failing.
       await client.query(
         `UPDATE oxsteed_credit_accounts
             SET reserved_cents = reserved_cents + $1, updated_at = NOW()
           WHERE id = $2`,
-        [requestedAmount, hold.account_id]
+        [releaseAmount, hold.account_id]
       );
       throw purchaseError;
     }

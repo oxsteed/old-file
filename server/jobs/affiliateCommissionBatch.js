@@ -141,41 +141,30 @@ async function runAffiliateCommissionBatch() {
  * Runs daily at 1 AM UTC
  */
 function startAffiliateCommissionBatchJob() {
+  const cron = require('node-cron');
   let stopped = false;
-  let dailyTimer = null;
 
-  // Run once at startup after a delay
+  // Run once at startup after a delay (catch-up for downtime).
   const startupTimer = setTimeout(async () => {
     if (!stopped) await processAffiliateCommissionBatch();
   }, 60000); // Wait 1 minute
 
-  // Schedule daily at 1 AM UTC
-  const now = new Date();
-  const target = new Date(now.getTime());
-  target.setUTCHours(1, 0, 0, 0);
-
-  if (target < now) {
-    target.setUTCDate(target.getUTCDate() + 1);
-  }
-
-  const delay = target.getTime() - now.getTime();
-  logger.info('Affiliate commission batch scheduled', { delayMs: delay, nextRun: target.toISOString() });
-
-  const dailySchedule = () => {
-    if (stopped) return;
-    processAffiliateCommissionBatch().finally(() => {
-      // Schedule next run in 24 hours
-      if (!stopped) dailyTimer = setTimeout(dailySchedule, 24 * 60 * 60 * 1000);
-    });
-  };
-
-  dailyTimer = setTimeout(dailySchedule, delay);
+  // Background-jobs audit (finding J4): the old hand-rolled setTimeout
+  // chain re-armed as completion + 24h, so every run's duration permanently
+  // shifted the next run later ("1 AM UTC" was only true on first boot).
+  // node-cron pins the run to 01:00 UTC daily. Overlap is impossible: the
+  // batch itself runs under the fenced job lock, so a slow run makes the
+  // next tick skip instead of double-running.
+  const task = cron.schedule('0 1 * * *', async () => {
+    if (!stopped) await processAffiliateCommissionBatch();
+  }, { timezone: 'UTC' });
+  logger.info('Affiliate commission batch scheduled', { cron: '0 1 * * *', timezone: 'UTC' });
 
   return {
     stop() {
       stopped = true;
       clearTimeout(startupTimer);
-      clearTimeout(dailyTimer);
+      task.stop();
     },
   };
 }

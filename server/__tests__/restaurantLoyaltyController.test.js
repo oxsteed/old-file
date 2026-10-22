@@ -16,6 +16,10 @@ describe('restaurant CRM loyalty segment contracts', () => {
       days_since_last_order: 45,
       location_id: 9,
     });
+    expect(normalize.normalizeCriteria({ locationIds: [9, 4, 9] })).toEqual({
+      location_ids: [4, 9],
+    });
+    expect(() => normalize.normalizeCriteria({ locationId: 9, locationIds: [4] })).toThrow(/Invalid CRM segment criteria/);
   });
 
   test('rejects unbounded or customer-identifying criteria', () => {
@@ -32,10 +36,15 @@ describe('restaurant CRM loyalty segment contracts', () => {
       days_since_last_order: 30,
       location_id: 4,
     });
-    expect(result.params).toEqual([100, 2, 30, 4]);
+    expect(result.params).toEqual([100, 2, 30, [4]]);
     expect(result.clauses.join(' AND ')).toMatch(/lifetime_points >= \$2/);
     expect(result.clauses.join(' AND ')).toMatch(/paid_orders >= \$3/);
     expect(result.clauses.join(' AND ')).toMatch(/last_paid_order_at/);
     expect(result.clauses.join(' AND ')).toContain('has_location_order = TRUE');
+    const multi = normalize.audienceWhere({ location_ids: [4, 9] });
+    expect(multi.params).toEqual([[4, 9]]);
+    expect(normalize.criteriaStores({ location_ids: [4, 9] })).toEqual([4, 9]);
+    expect(normalize.criteriaStores({ location_id: 4 })).toEqual([4]);
+    expect(normalize.criteriaStores({})).toBeNull();
   });
 });

@@ -269,11 +269,14 @@ async function getStatus(req, res) {
 // ── Skip verification ────────────────────────────────────────────────────────
 // Sets didit_status = 'skipped' when allowed (see DIDIT_ALLOW_USER_SKIP).
 // Per-user didit_enforcement_required=true blocks skip (admin can clear or user must verify).
+// Email-unverified accounts may not skip: verify the email first, then skip
+// like any verified account. Without this, an unverified account could set
+// 'skipped' and the API gate would treat it as identity-satisfied.
 async function skipVerification(req, res) {
   try {
     const userId = req.user.id;
     const { rows } = await pool.query(
-      `SELECT didit_enforcement_required, didit_status FROM users WHERE id = $1`,
+      `SELECT didit_enforcement_required, didit_status, email_verified FROM users WHERE id = $1`,
       [userId]
     );
     const row = rows[0];
@@ -282,6 +285,12 @@ async function skipVerification(req, res) {
       return res.status(403).json({
         error: 'Identity verification is required for your account and cannot be skipped.',
         code: 'DIDIT_ENFORCEMENT_ACTIVE',
+      });
+    }
+    if (!row.email_verified) {
+      return res.status(403).json({
+        error: 'Verify your email address before choosing to skip identity verification.',
+        code: 'DIDIT_EMAIL_UNVERIFIED',
       });
     }
     if (!diditAllowUserSkip()) {

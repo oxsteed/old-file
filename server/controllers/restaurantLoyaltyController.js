@@ -33,14 +33,24 @@ function requireBrandAccess(restaurant) {
   if (restaurant.locationScope.mode === 'assigned') throw new AppError('Brand CRM management requires all-store access', 403, 'location_scope_forbidden');
 }
 function visibleCriteria(criteria, scope) {
-  return scope.mode !== 'assigned' || (scope.location_ids.includes(Number(criteria.location_id)) && criteria.min_lifetime_points == null);
+  if (scope.mode !== 'assigned') return true;
+  // Multi-store targeting (location_ids) or the legacy single location_id:
+  // every targeted store must sit inside the operator's assigned stores.
+  const stores = criteriaStores(criteria);
+  if (!stores || !stores.length) return false;
+  return stores.every((id) => scope.location_ids.includes(id)) && criteria.min_lifetime_points == null;
 }
 async function assertCriteriaAccess(restaurant, userId, criteria, db = pool) {
   if (!visibleCriteria(criteria, restaurant.locationScope)) throw new AppError('CRM criteria exceed the assigned store scope', 403, 'location_scope_forbidden');
-  if (criteria.location_id != null) {
-    const { rows } = await db.query('SELECT id FROM restaurant_locations WHERE restaurant_id=$1 AND id=$2', [restaurant.id, criteria.location_id]);
-    if (!rows.length) throw new AppError('Location not found', 404, 'location_not_found');
-    await assertLocationAccess(restaurant, userId, criteria.location_id, db);
+  // Every targeted store (multi-store location_ids or legacy location_id)
+  // must exist under this restaurant and be inside the operator's access.
+  const stores = criteriaStores(criteria);
+  if (stores) {
+    for (const storeId of stores) {
+      const { rows } = await db.query('SELECT id FROM restaurant_locations WHERE restaurant_id=$1 AND id=$2', [restaurant.id, storeId]);
+      if (!rows.length) throw new AppError('Location not found', 404, 'location_not_found');
+      await assertLocationAccess(restaurant, userId, storeId, db);
+    }
   }
 }
 
@@ -78,13 +88,32 @@ function normalizeCriteria(value) {
   const minOrders = positiveInt(value.minOrders ?? value.min_orders, 'minOrders');
   const daysSinceLastOrder = positiveInt(value.daysSinceLastOrder ?? value.days_since_last_order, 'daysSinceLastOrder', { max: 3650 });
   const locationId = positiveInt(value.locationId ?? value.location_id, 'locationId', { allowZero: false });
+  const locationIdsRaw = value.locationIds ?? value.location_ids;
+  let locationIds = null;
+  if (locationIdsRaw !== undefined && locationIdsRaw !== null) {
+    if (!Array.isArray(locationIdsRaw)) {
+      throw new AppError('Invalid CRM segment criteria', 400, 'validation_failed', { locationIds: 'Array required' });
+    }
+    locationIds = [...new Set(locationIdsRaw.map((entry) => positiveInt(entry, 'locationIds', { allowZero: false })))].sort((a, b) => a - b);
+    if (!locationIds.length || locationIds.some((id) => id === null)) {
+      throw new AppError('Invalid CRM segment criteria', 400, 'validation_failed', { locationIds: 'Each store id must be a positive integer' });
+    }
+    if (locationIds.length > 200) {
+      throw new AppError('Invalid CRM segment criteria', 400, 'validation_failed', { locationIds: 'Max 200 stores' });
+    }
+  }
+  if (locationId !== null && locationIds !== null) {
+    throw new AppError('Invalid CRM segment criteria', 400, 'validation_failed', { locationId: 'Use locationId or locationIds, not both' });
+  }
   if (minLifetimePoints !== null) criteria.min_lifetime_points = minLifetimePoints;
   if (minOrders !== null) criteria.min_orders = minOrders;
   if (daysSinceLastOrder !== null) criteria.days_since_last_order = daysSinceLastOrder;
   if (locationId !== null) criteria.location_id = locationId;
+  if (locationIds !== null) criteria.location_ids = locationIds;
   const unknown = Object.keys(value).filter((key) => ![
     'minLifetimePoints', 'min_lifetime_points', 'minOrders', 'min_orders',
     'daysSinceLastOrder', 'days_since_last_order', 'locationId', 'location_id',
+    'locationIds', 'location_ids',
   ].includes(key));
   if (unknown.length) {
     throw new AppError('Unsupported CRM segment criteria', 400, 'validation_failed', { criteria: `Unknown field: ${unknown[0]}` });
@@ -105,23 +134,36 @@ function shape(row, audience = null) {
   };
 }
 
-function audienceWhere(criteria, offset = 1) {
+// Effective targeted stores for a segment's criteria: the multi-store
+// location_ids array, or the legacy single location_id.
+function criteriaStores(criteria = {}) {
+  if (Array.isArray(criteria.location_ids) && criteria.location_ids.length) {
+    return criteria.location_ids.map(Number).filter((id) => Number.isSafeInteger(id) && id > 0);
+  }
+  if (criteria.location_id != null) return [Number(criteria.location_id)];
+  return null;
+}
+
+function audienceWhere(criteria, paramOffset = 1) {
   const clauses = [];
   const params = [];
+  // audienceFor prepends restaurantId as $1, so criteria params start after it.
+  const ref = () => `$${paramOffset + params.length}`;
   if (criteria.min_lifetime_points != null) {
     params.push(criteria.min_lifetime_points);
-    clauses.push(`lifetime_points >= $${params.length + offset}`);
+    clauses.push(`lifetime_points >= ${ref()}`);
   }
   if (criteria.min_orders != null) {
     params.push(criteria.min_orders);
-    clauses.push(`paid_orders >= $${params.length + offset}`);
+    clauses.push(`paid_orders >= ${ref()}`);
   }
   if (criteria.days_since_last_order != null) {
     params.push(criteria.days_since_last_order);
-    clauses.push(`(last_paid_order_at IS NULL OR last_paid_order_at <= NOW() - ($${params.length + offset}::int * INTERVAL '1 day'))`);
+    clauses.push(`(last_paid_order_at IS NULL OR last_paid_order_at <= NOW() - (${ref()}::int * INTERVAL '1 day'))`);
   }
-  if (criteria.location_id != null) {
-    params.push(criteria.location_id);
+  const stores = criteriaStores(criteria);
+  if (stores) {
+    params.push(stores);
     clauses.push(`has_location_order = TRUE`);
   }
   return { clauses, params };
@@ -130,9 +172,12 @@ function audienceWhere(criteria, offset = 1) {
 async function audienceFor(restaurantId, criteria, scope = { mode: 'all' }) {
   if (!visibleCriteria(criteria, scope)) throw new AppError('CRM criteria exceed the assigned store scope', 403, 'location_scope_forbidden');
   const { clauses, params } = audienceWhere(criteria);
+  const stores = criteriaStores(criteria);
   const queryParams = [restaurantId, ...params];
-  const locationPredicate = criteria.location_id != null ? `
-          BOOL_OR(fo.location_id = $${queryParams.length}) AS has_location_order,` : '          FALSE AS has_location_order,';
+  // Store attribution matches queue-time evaluation: paid, non-cancelled
+  // orders at one of the targeted stores.
+  const locationPredicate = stores ? `
+          BOOL_OR(fo.location_id = ANY($${queryParams.length}::bigint[]) AND fo.payment_status = 'paid' AND fo.status NOT IN ('cancelled','refunded')) AS has_location_order,` : '          FALSE AS has_location_order,';
   const scoped = scope.mode === 'assigned';
   if (scoped) queryParams.push(scope.location_ids);
   const { rows: [row] } = await pool.query(
@@ -164,13 +209,46 @@ async function audienceFor(restaurantId, criteria, scope = { mode: 'all' }) {
   };
 }
 
+// Store-scoped audience for one store, honoring both segment-level and
+// campaign-level targeting. Stores excluded by either targeting return zero
+// without touching the database.
+async function storeAudience(restaurantId, criteria, campaignTargets, storeId) {
+  const segmentStores = criteriaStores(criteria);
+  const empty = { totalCustomers: 0, matchingCustomers: 0, customerIds: 'excluded' };
+  if (segmentStores && !segmentStores.includes(storeId)) return empty;
+  if (campaignTargets && !campaignTargets.includes(storeId)) return empty;
+  const scoped = { ...criteria };
+  delete scoped.location_id;
+  delete scoped.location_ids;
+  scoped.location_ids = [storeId];
+  return audienceFor(restaurantId, scoped);
+}
+
+async function restaurantStores(restaurantId) {
+  const { rows } = await pool.query(
+    `SELECT id, name FROM restaurant_locations WHERE restaurant_id = $1 ORDER BY is_primary DESC, name ASC, id ASC`,
+    [restaurantId]
+  );
+  return rows.map((row) => ({ id: Number(row.id), name: row.name }));
+}
+
 exports.listSegments = async (req, res, next) => {
   try {
     const restaurant = await access(req);
     const { rows } = await pool.query(
       `SELECT id, restaurant_id, name, criteria, is_active, created_at, updated_at
          FROM restaurant_loyalty_segments
-        WHERE restaurant_id = $1${restaurant.locationScope.mode === 'assigned' ? " AND criteria->>'location_id' = ANY($3::text[]) AND criteria->>'min_lifetime_points' IS NULL" : ''}
+        WHERE restaurant_id = $1${restaurant.locationScope.mode === 'assigned' ? ` AND (
+          criteria->>'location_id' = ANY($3::text[])
+          OR (
+            jsonb_typeof(criteria->'location_ids') = 'array'
+            AND jsonb_array_length(criteria->'location_ids') > 0
+            AND NOT EXISTS (
+              SELECT 1 FROM jsonb_array_elements_text(criteria->'location_ids') AS target(store_id)
+              WHERE target.store_id <> ALL($3::text[])
+            )
+          )
+        ) AND criteria->>'min_lifetime_points' IS NULL` : ''}
         ORDER BY is_active DESC, name ASC, id ASC
         LIMIT $2`,
       [restaurant.id, MAX_SEGMENTS, ...(restaurant.locationScope.mode === 'assigned' ? [restaurant.locationScope.location_ids.map(String)] : [])]
@@ -296,7 +374,43 @@ exports.previewSegment = async (req, res, next) => {
     if (!id) throw new AppError('Segment not found', 404, 'loyalty_segment_not_found');
     const { rows: [segment] } = await pool.query('SELECT * FROM restaurant_loyalty_segments WHERE id = $1 AND restaurant_id = $2 AND is_active = TRUE', [id, restaurant.id]);
     if (!segment) throw new AppError('Segment not found', 404, 'loyalty_segment_not_found');
-    res.json({ segment: shape(segment, await audienceFor(restaurant.id, segment.criteria || {}, restaurant.locationScope)), campaignDeliveryEnabled: campaignService.deliveryEnabled() });
+    // Optional per-store preview: ?locationId= scopes the audience to one
+    // store, overriding any stored targeting for this preview only.
+    const locationId = positiveInt(req.query.locationId ?? req.query.location_id, 'locationId', { allowZero: false });
+    if (locationId) {
+      const { rows: [storeRow] } = await pool.query(
+        'SELECT id FROM restaurant_locations WHERE restaurant_id = $1 AND id = $2',
+        [restaurant.id, locationId]
+      );
+      if (!storeRow) throw new AppError('Location not found', 404, 'location_not_found');
+      await assertLocationAccess(restaurant, req.user.id, locationId);
+    }
+    const criteria = { ...(segment.criteria || {}) };
+    if (locationId) {
+      delete criteria.location_id;
+      delete criteria.location_ids;
+      criteria.location_ids = [locationId];
+    }
+    const audience = await audienceFor(restaurant.id, criteria, restaurant.locationScope);
+    let byLocation = null;
+    if (!locationId && !criteriaStores(criteria)) {
+      const stores = await restaurantStores(restaurant.id);
+      byLocation = [];
+      for (const store of stores) {
+        const storeCriteria = { ...criteria, location_ids: [store.id] };
+        const storeAudienceResult = await audienceFor(restaurant.id, storeCriteria, restaurant.locationScope);
+        byLocation.push({
+          locationId: store.id,
+          locationName: store.name,
+          totalCustomers: storeAudienceResult.totalCustomers,
+          matchingCustomers: storeAudienceResult.matchingCustomers,
+        });
+      }
+    }
+    res.json({
+      segment: shape(segment, { ...audience, ...(byLocation ? { byLocation } : {}) }),
+      campaignDeliveryEnabled: campaignService.deliveryEnabled(),
+    });
   } catch (err) { next(err); }
 };
 
@@ -317,14 +431,71 @@ exports.listCampaigns = async (req, res, next) => {
         LIMIT 200`,
       [restaurant.id]
     );
-    res.json({
-      campaigns: rows.map((row) => campaignService.shape(row, {
+    const stores = await restaurantStores(restaurant.id);
+    const segmentCriteriaById = new Map();
+    const campaigns = [];
+    for (const row of rows) {
+      const campaign = campaignService.shape(row, {
         deliveryCount: Number(row.delivery_count || 0),
         sentCount: Number(row.sent_count || 0),
         failedCount: Number(row.failed_count || 0),
-      })),
-      campaignDeliveryEnabled: campaignService.deliveryEnabled(),
-    });
+      });
+      if (!segmentCriteriaById.has(row.segment_id)) {
+        const { rows: [segmentRow] } = await pool.query(
+          'SELECT criteria FROM restaurant_loyalty_segments WHERE id = $1',
+          [row.segment_id]
+        );
+        segmentCriteriaById.set(row.segment_id, segmentRow?.criteria || {});
+      }
+      const criteria = segmentCriteriaById.get(row.segment_id);
+      const campaignTargets = Array.isArray(row.location_ids) && row.location_ids.length
+        ? row.location_ids.map(Number)
+        : null;
+      const { rows: deliveryRows } = await pool.query(
+        `SELECT location_id,
+                COUNT(*)::int AS deliveries,
+                COUNT(*) FILTER (WHERE status = 'sent')::int AS sent,
+                COUNT(*) FILTER (WHERE status = 'failed')::int AS failed
+           FROM restaurant_loyalty_campaign_deliveries
+          WHERE campaign_id = $1
+          GROUP BY location_id`,
+        [row.id]
+      );
+      const deliveriesByStore = new Map(
+        deliveryRows.map((delivery) => [
+          delivery.location_id === null ? null : Number(delivery.location_id),
+          delivery,
+        ])
+      );
+      const storeBreakdown = [];
+      for (const store of stores) {
+        const audience = await storeAudience(restaurant.id, criteria, campaignTargets, store.id);
+        const delivery = deliveriesByStore.get(store.id) || { deliveries: 0, sent: 0, failed: 0 };
+        storeBreakdown.push({
+          locationId: store.id,
+          locationName: store.name,
+          targeted: !campaignTargets || campaignTargets.includes(store.id),
+          audience,
+          deliveries: Number(delivery.deliveries || 0),
+          sent: Number(delivery.sent || 0),
+          failed: Number(delivery.failed || 0),
+        });
+      }
+      const unassigned = deliveriesByStore.get(null);
+      if (unassigned && Number(unassigned.deliveries) > 0) {
+        storeBreakdown.push({
+          locationId: null,
+          locationName: null,
+          targeted: false,
+          audience: null,
+          deliveries: Number(unassigned.deliveries),
+          sent: Number(unassigned.sent || 0),
+          failed: Number(unassigned.failed || 0),
+        });
+      }
+      campaigns.push({ ...campaign, storeBreakdown });
+    }
+    res.json({ campaigns, campaignDeliveryEnabled: campaignService.deliveryEnabled() });
   } catch (err) { next(err); }
 };
 
@@ -395,4 +566,4 @@ exports.queueCampaign = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-exports._normalize = { normalizeName, normalizeCriteria, normalizeActive, positiveInt, audienceWhere, audienceFor };
+exports._normalize = { normalizeName, normalizeCriteria, normalizeActive, positiveInt, audienceWhere, audienceFor, criteriaStores };

@@ -549,6 +549,16 @@ describe('restaurant app-flow backend', () => {
       .mockResolvedValueOnce({ rows: [{ id: 77 }] })
       .mockResolvedValueOnce({
         rows: [{
+          device_name: 'Front Kiosk',
+          mode: 'kiosk',
+          location_id: 77,
+          status: 'pending',
+          config: { idleTimeoutSeconds: 90 },
+          config_version: 1,
+        }],
+      }) // F-20 prior config snapshot
+      .mockResolvedValueOnce({
+        rows: [{
           id: 801,
           app_key: 'display',
           mode: 'queue_board',
@@ -645,6 +655,9 @@ describe('restaurant app-flow backend', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
       .mockResolvedValueOnce({ rows: [{ code: 'restaurant.manage' }] })
+      .mockResolvedValueOnce({ rows: [{
+        device_token_expires_at: new Date(Date.now() + 80 * 86400000).toISOString(),
+      }] }) // F-20 prior expiry snapshot
       .mockResolvedValueOnce({ rows: [{
         id: 801,
         restaurant_id: RESTAURANT_ID,
@@ -876,6 +889,7 @@ describe('restaurant app-flow backend', () => {
       .mockResolvedValueOnce({ rows: [{ id: 11, name: 'Classic Burger', price_cents: 899,
         currency_code: 'USD', is_available: brandAvailable, manual_available: true,
         inventory_available: brandAvailable, store_override: { inventory_available: true } }] })
+      .mockResolvedValueOnce({ rows: [] }) // F-19 tax rules (no category rules)
       .mockResolvedValueOnce({ rows: [{ last_queue_number: 12 }] })
       .mockResolvedValueOnce({
         rows: [{
@@ -1007,6 +1021,7 @@ describe('restaurant app-flow backend', () => {
           options: [{ id: 91, name: 'Extra Cheese', price_delta_cents: 200, is_available: true }],
         }],
       }] })
+      .mockResolvedValueOnce({ rows: [] }) // F-19 tax rules (no category rules)
       .mockResolvedValueOnce({ rows: [{ last_queue_number: 14 }] })
       .mockResolvedValueOnce({
         rows: [{

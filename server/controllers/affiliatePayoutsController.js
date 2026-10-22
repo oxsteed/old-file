@@ -7,6 +7,7 @@ const { AppError } = require('../middleware/errorHandler');
 const { logAdminAction } = require('../services/auditService');
 const { isDiditVerificationFresh } = require('../utils/diditGate');
 const { assertSanctionsClear } = require('../services/sanctionsScreeningService');
+const { assertCreditRailEnabled } = require('../services/oxsteedCreditService');
 
 async function getAffiliateProgram(req, res) {
   try {
@@ -374,6 +375,11 @@ async function runAffiliatePayout({ payoutId, adminId, req, skipDualApproval = f
 
     // Claim: pending, or processing that has been stuck long enough to be a
     // crashed attempt (the idempotency key makes the re-run safe).
+    // Money-flows audit: the affiliate payout entry honors the credit-rail
+    // kill switch like every other fiat path (2026-10-05 policy). Fail
+    // closed while the rail is off or frozen, before claiming or moving
+    // money.
+    await assertCreditRailEnabled(pool);
     const claim = await pool.query(
       `UPDATE affiliate_payouts
           SET status = 'processing', updated_at = CURRENT_TIMESTAMP
@@ -397,7 +403,15 @@ async function runAffiliatePayout({ payoutId, adminId, req, skipDualApproval = f
         transfer_group: `affiliate_payout_${payoutId}`,
         metadata: { affiliate_payout_id: String(payoutId), affiliate_program_id: String(payout.affiliate_program_id) },
       }, {
-        idempotencyKey: `affiliate-payout-${payoutId}`,
+        // Canonical per-payout Stripe idempotency key, shared with the
+        // legacy admin payout route (PayoutController). Both processors
+        // operate on affiliate_payouts: if one crashes after Stripe accepts
+        // the transfer but before commit, the other's stale-processing
+        // re-claim must dedupe at Stripe instead of creating a second
+        // transfer. The dash variant (affiliate-payout-<id>) is retired;
+        // operators should clear stuck 'processing' rows before deploy so
+        // no pre-deploy dash-key transfer is re-created under this key.
+        idempotencyKey: `affiliate-payout:${payoutId}`,
       });
     } catch (stripeError) {
       logger.error('Affiliate transfer failed', { payoutId, error: stripeError.message });
@@ -445,6 +459,16 @@ async function runAffiliatePayout({ payoutId, adminId, req, skipDualApproval = f
                 total_paid_cents = total_paid_cents + $1
           WHERE id = $2`,
         [amountCents, payout.affiliate_program_id]
+      );
+      // Money-flows audit: record the provider movement in
+      // payout_transactions like the legacy admin route does, keyed on the
+      // canonical per-payout Stripe idempotency key, so the settlement
+      // reconciliation sweep sees transfers from both processors.
+      await client.query(
+        `INSERT INTO payout_transactions (payout_id, transaction_status, idempotency_key, external_transaction_id)
+         VALUES ($1, 'completed', $2, $3)
+         ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING`,
+        [payoutId, `affiliate-payout:${payoutId}`, transfer.id]
       );
       await logAdminAction({
         client,

@@ -356,6 +356,15 @@ describe('restaurant Inventory operations backend', () => {
         invoice_total_cents: 4250,
         invoice_currency_code: 'USD',
       }] })
+      // F-23: computeReceiptPriceVariances runs two extra reads (PO detail +
+      // receipt lines) before receiptWithLines.
+      .mockResolvedValueOnce({ rows: [{
+        item_name: 'Flour',
+        unit: 'kg',
+        estimated_unit_cost_cents: 4000,
+        estimated_currency_code: 'USD',
+      }] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{
         id: 77,
         location_id: 11,
@@ -373,7 +382,8 @@ describe('restaurant Inventory operations backend', () => {
     expect(response.status).toBe(200);
     expect(response.body.receipt.invoice_match_status).toBe('matched');
     expect(response.body.receipt.purchase_request_id).toBe(21);
-    expect(mockQuery.mock.calls[3][0]).toMatch(/invoice_match_status = \$2/);
+    expect(response.body.priceMatch).toBeDefined();
+    expect(mockQuery.mock.calls[3][0]).toMatch(/invoice_match_status = \$2::text/);
     expect(mockQuery.mock.calls[3][1]).toEqual([21, 'matched', true, 4250, true, 'USD', USER_ID, 77, RESTAURANT_ID]);
   });
 

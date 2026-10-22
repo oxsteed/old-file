@@ -7,6 +7,7 @@ import { apiErrorMessage } from './foodShared';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 import TimezoneSelect, { DETECTED_TIMEZONE } from './TimezoneSelect.jsx';
 import StoreMenuPanel from './StoreMenuPanel.jsx';
+import TaxRulesPanel from './TaxRulesPanel.jsx';
 import RestaurantLocationAccessPanel from './RestaurantLocationAccessPanel.jsx';
 
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
@@ -86,7 +87,9 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
     name: '', addressCity: '', addressState: '', addressCountry: 'US', latitude: '', longitude: '',
     phone: '', timezone: restaurant.timezone || DETECTED_TIMEZONE, status: 'active', isPrimary: false,
     taxRatePercent: '', serviceFeePercent: '', taxInclusive: false, taxJurisdiction: '', regionId: '',
-    onlinePacingMax: '', inStorePacingMax: '', prepTimeExtensionMin: '0',
+    onlinePacingMax: '', inStorePacingMax: '', prepTimeExtensionMin: '0', kitchenFireMode: '',
+    dayStartHour: '0', serviceFeeTaxable: false, deliveryFeeTaxable: false,
+    prepTimeAutoExtendMaxMin: '0', prepTimeAutoExtendThresholdOrders: '0', prepTimeAutoExtendPerOrderMin: '0',
   }), [restaurant.timezone]);
   const [form, setForm] = useState(blankForm);
   const [editingId, setEditingId] = useState(null);
@@ -136,6 +139,13 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
       onlinePacingMax: loc.online_order_pacing_max_per_15_min == null ? '' : String(loc.online_order_pacing_max_per_15_min),
       inStorePacingMax: loc.in_store_order_pacing_max_per_15_min == null ? '' : String(loc.in_store_order_pacing_max_per_15_min),
       prepTimeExtensionMin: loc.prep_time_extension_min == null ? '0' : String(loc.prep_time_extension_min),
+      prepTimeAutoExtendMaxMin: loc.prep_time_auto_extend_max_min == null ? '0' : String(loc.prep_time_auto_extend_max_min),
+      prepTimeAutoExtendThresholdOrders: loc.prep_time_auto_extend_threshold_orders == null ? '0' : String(loc.prep_time_auto_extend_threshold_orders),
+      prepTimeAutoExtendPerOrderMin: loc.prep_time_auto_extend_per_order_min == null ? '0' : String(loc.prep_time_auto_extend_per_order_min),
+      kitchenFireMode: loc.kitchen_fire_mode || '',
+      dayStartHour: loc.day_start_hour == null ? '0' : String(loc.day_start_hour),
+      serviceFeeTaxable: !!loc.service_fee_taxable,
+      deliveryFeeTaxable: !!loc.delivery_fee_taxable,
     });
     setDayHours(dayHoursFromLocation(loc));
     setSpecialDates(specialDatesFromLocation(loc));
@@ -259,6 +269,13 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
         onlineOrderPacingMaxPer15Min: form.onlinePacingMax === '' ? null : Number(form.onlinePacingMax),
         inStoreOrderPacingMaxPer15Min: form.inStorePacingMax === '' ? null : Number(form.inStorePacingMax),
         prepTimeExtensionMin: form.prepTimeExtensionMin === '' ? 0 : Number(form.prepTimeExtensionMin),
+        prepTimeAutoExtendMaxMin: form.prepTimeAutoExtendMaxMin === '' ? 0 : Number(form.prepTimeAutoExtendMaxMin),
+        prepTimeAutoExtendThresholdOrders: form.prepTimeAutoExtendThresholdOrders === '' ? 0 : Number(form.prepTimeAutoExtendThresholdOrders),
+        prepTimeAutoExtendPerOrderMin: form.prepTimeAutoExtendPerOrderMin === '' ? 0 : Number(form.prepTimeAutoExtendPerOrderMin),
+        kitchenFireMode: form.kitchenFireMode || null,
+        dayStartHour: form.dayStartHour === '' ? 0 : Number(form.dayStartHour),
+        serviceFeeTaxable: form.serviceFeeTaxable,
+        deliveryFeeTaxable: form.deliveryFeeTaxable,
         ...(hoursDirty ? { operatingHours: buildOperatingHours() } : {}),
       };
       if (editingId) {
@@ -374,6 +391,12 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
           <label className="fd-field" style={{ flex: '0 1 180px', justifyContent: 'flex-end' }}>
             <span><input type="checkbox" checked={form.taxInclusive} onChange={(e) => setForm((f) => ({ ...f, taxInclusive: e.target.checked }))} data-track="ui.dbbd615872.10" />{' '}{t('food.merchant.taxInclusive', 'Tax inclusive')}</span>
           </label>
+          <label className="fd-field" style={{ flex: '0 1 200px', justifyContent: 'flex-end' }}>
+            <span><input type="checkbox" checked={form.serviceFeeTaxable} onChange={(e) => setForm((f) => ({ ...f, serviceFeeTaxable: e.target.checked }))} data-track="ui.dbbd615872.14" />{' '}{t('food.merchant.serviceFeeTaxable')}</span>
+          </label>
+          <label className="fd-field" style={{ flex: '0 1 200px', justifyContent: 'flex-end' }}>
+            <span><input type="checkbox" checked={form.deliveryFeeTaxable} onChange={(e) => setForm((f) => ({ ...f, deliveryFeeTaxable: e.target.checked }))} data-track="ui.dbbd615872.15" />{' '}{t('food.merchant.deliveryFeeTaxable')}</span>
+          </label>
           <div className="fd-field" style={{ flex: '0 1 150px' }}>
             <label htmlFor="fd-loc-online-pacing">{t('food.merchant.onlinePacingMax')}</label>
             <input id="fd-loc-online-pacing" type="number" min="0" max="1000" step="1" value={form.onlinePacingMax} onChange={(e) => setForm((f) => ({ ...f, onlinePacingMax: e.target.value }))} placeholder={t('food.merchant.pacingInherit')} />
@@ -385,6 +408,30 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
           <div className="fd-field" style={{ flex: '0 1 150px' }}>
             <label htmlFor="fd-loc-prep-extension">{t('food.merchant.prepExtension')}</label>
             <input id="fd-loc-prep-extension" type="number" min="0" max="240" step="1" value={form.prepTimeExtensionMin} onChange={(e) => setForm((f) => ({ ...f, prepTimeExtensionMin: e.target.value }))} />
+          </div>
+          <div className="fd-field" style={{ flex: '0 1 150px' }}>
+            <label htmlFor="fd-loc-auto-extend-max" title={t('food.merchant.prepAutoExtendHint')}>{t('food.merchant.prepAutoExtendMax')}</label>
+            <input id="fd-loc-auto-extend-max" type="number" min="0" max="240" step="1" value={form.prepTimeAutoExtendMaxMin} onChange={(e) => setForm((f) => ({ ...f, prepTimeAutoExtendMaxMin: e.target.value }))} />
+          </div>
+          <div className="fd-field" style={{ flex: '0 1 150px' }}>
+            <label htmlFor="fd-loc-auto-extend-threshold" title={t('food.merchant.prepAutoExtendHint')}>{t('food.merchant.prepAutoExtendThreshold')}</label>
+            <input id="fd-loc-auto-extend-threshold" type="number" min="0" max="1000" step="1" value={form.prepTimeAutoExtendThresholdOrders} onChange={(e) => setForm((f) => ({ ...f, prepTimeAutoExtendThresholdOrders: e.target.value }))} />
+          </div>
+          <div className="fd-field" style={{ flex: '0 1 150px' }}>
+            <label htmlFor="fd-loc-auto-extend-per-order" title={t('food.merchant.prepAutoExtendHint')}>{t('food.merchant.prepAutoExtendPerOrder')}</label>
+            <input id="fd-loc-auto-extend-per-order" type="number" min="0" max="60" step="1" value={form.prepTimeAutoExtendPerOrderMin} onChange={(e) => setForm((f) => ({ ...f, prepTimeAutoExtendPerOrderMin: e.target.value }))} />
+          </div>
+          <div className="fd-field" style={{ flex: '0 1 170px' }}>
+            <label htmlFor="fd-loc-kitchen-fire">{t('food.merchant.kitchenFireMode')}</label>
+            <select id="fd-loc-kitchen-fire" value={form.kitchenFireMode} onChange={(e) => setForm((f) => ({ ...f, kitchenFireMode: e.target.value }))}>
+              <option value="">{t('food.merchant.kitchenFireInherit')}</option>
+              <option value="on_send">{t('food.merchant.kitchenFireOnSend')}</option>
+              <option value="on_pay">{t('food.merchant.kitchenFireOnPay')}</option>
+            </select>
+          </div>
+          <div className="fd-field" style={{ flex: '0 1 130px' }}>
+            <label htmlFor="fd-loc-day-start">{t('food.merchant.dayStartHour')}</label>
+            <input id="fd-loc-day-start" type="number" min="0" max="23" step="1" value={form.dayStartHour} onChange={(e) => setForm((f) => ({ ...f, dayStartHour: e.target.value }))} />
           </div>
           <div className="fd-field" style={{ flex: '0 1 100px' }}>
             <label htmlFor="fd-loc-lat">{t('food.merchant.latitude')}</label>
@@ -487,6 +534,7 @@ export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
         </div>
       </form>
       {editingId && <StoreMenuPanel restaurant={restaurant} locationId={editingId} t={t} />}
+      {editingId && <TaxRulesPanel restaurant={restaurant} locationId={editingId} t={t} />}
       <RestaurantLocationAccessPanel restaurant={restaurant} t={t} />
     </div>
   );

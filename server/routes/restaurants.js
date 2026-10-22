@@ -114,6 +114,7 @@ router.get('/:restaurantId/kitchen/feed', requireKitchenDeviceOrStaff, scopeExem
 router.post('/:restaurantId/kitchen/orders/:orderId/ack', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.ackKitchenTicket);
 router.post('/:restaurantId/kitchen/orders/:orderId/action', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.performKitchenOrderAction);
 router.post('/:restaurantId/kitchen/items/:orderItemId/action', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.performKitchenItemAction);
+router.post('/:restaurantId/kitchen/orders/:orderId/courses/:courseNumber/action', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.performKitchenCourseAction);
 
 // All routes require a signed-in user; the controller verifies the user belongs
 // to the restaurant (and that nested rows belong to it) on every call.
@@ -164,6 +165,8 @@ router.get('/:restaurantId/delivery/marketplaces/:provider/menu', requireRestaur
 router.post('/:restaurantId/delivery/marketplaces/:provider/orders', requireRestaurantAccess(), deliveryMarketplaces.ingestOrder);
 router.patch('/:restaurantId/delivery/marketplace-orders/:orderId', requireRestaurantAccess(), deliveryMarketplaces.transitionOrder);
 router.get('/:restaurantId/hq/rollup', requireRestaurantAccess(), hq.rollup);
+// S-18: HQ cross-store labor rollup (per-store hours, cost, labor %).
+router.get('/:restaurantId/hq/labor-rollup', requireRestaurantAccess(), hq.laborRollup);
 router.post('/:restaurantId/hq/menu/publish', requireRestaurantAccess(), hq.publishMenuOverrides);
 router.get('/:restaurantId/hq/regions', requireRestaurantAccess(), hq.listRegions);
 router.post('/:restaurantId/hq/regions', requireRestaurantAccess(), hq.createRegion);
@@ -279,8 +282,13 @@ router.post(
 );
 router.patch('/:restaurantId/staff-documents/:documentId', requireRestaurantAccess(), staffDocuments.verifyDocument);
 router.delete('/:restaurantId/staff-documents/:documentId', requireRestaurantAccess(), staffDocuments.deleteDocument);
-// SOP read-and-sign acknowledgements (S-14)
-router.post('/:restaurantId/sops/:sopId/acknowledge', requireRestaurantAccess(), staffDocuments.acknowledgeSop);
+// SOP read-and-sign acknowledgements (S-14). The optional multipart
+// `signature` field carries the drawn e-signature image.
+router.post('/:restaurantId/sops/:sopId/acknowledge',
+  requireRestaurantAccess(),
+  upload.single('signature'),
+  validateFileUpload,
+  staffDocuments.acknowledgeSop);
 router.get('/:restaurantId/sop-acknowledgements', requireRestaurantAccess(), staffDocuments.listSopAcknowledgements);
 
 // Quality audits (franchise system)
@@ -336,6 +344,15 @@ router.get('/:restaurantId/team/activity', requireRestaurantAccess(), payrollRep
 router.get('/:restaurantId/tip-pool', requireRestaurantAccess(), payrollReports.getTipPoolSettings);
 router.put('/:restaurantId/tip-pool', requireRestaurantAccess(), payrollReports.updateTipPoolSettings);
 router.post('/:restaurantId/tips/cash-declarations', requireRestaurantAccess(), payrollReports.declareCashTip);
+// F-22: pay-run records (immutable payroll snapshots + native CSV export).
+// The export route is registered before :payRunId so the .csv suffix wins.
+router.post('/:restaurantId/pay-runs', requireRestaurantAccess(), payrollReports.createPayRun);
+router.get('/:restaurantId/pay-runs', requireRestaurantAccess(), payrollReports.listPayRuns);
+router.get('/:restaurantId/pay-runs/:payRunId/export.csv', requireRestaurantAccess(), payrollReports.exportPayRunCsv);
+router.get('/:restaurantId/pay-runs/:payRunId', requireRestaurantAccess(), payrollReports.getPayRun);
+router.post('/:restaurantId/pay-runs/:payRunId/rebuild', requireRestaurantAccess(), payrollReports.rebuildPayRun);
+router.post('/:restaurantId/pay-runs/:payRunId/finalize', requireRestaurantAccess(), payrollReports.finalizePayRun);
+router.post('/:restaurantId/pay-runs/:payRunId/void', requireRestaurantAccess(), payrollReports.voidPayRun);
 router.delete('/:restaurantId/inventory/mappings/:mappingId', requireRestaurantAccess(), inventory.deleteMapping);
 router.post('/:restaurantId/inventory/mappings/bootstrap-defaults', requireRestaurantAccess(), inventory.bootstrapMappings);
 router.get('/:restaurantId/inventory/purchase-requests', requireRestaurantAccess(), inventory.listPurchaseRequests);
@@ -357,6 +374,9 @@ router.get('/:restaurantId/inventory/receipts', requireRestaurantAccess(), inven
 router.get('/:restaurantId/inventory/receipts/export.csv', requireRestaurantAccess(), inventoryOperations.exportReceiptsCsv);
 router.post('/:restaurantId/inventory/receipts', requireRestaurantAccess(), inventoryOperations.createReceipt);
 router.patch('/:restaurantId/inventory/receipts/:receiptId/invoice-match', requireRestaurantAccess(), inventoryOperations.updateReceiptInvoiceMatch);
+// F-23: vendor price history (receipt postings are automatic; manual entries here).
+router.get('/:restaurantId/inventory/price-history', requireRestaurantAccess(), inventoryOperations.listVendorPriceHistory);
+router.post('/:restaurantId/inventory/price-history', requireRestaurantAccess(), inventoryOperations.recordVendorPrice);
 
 // Crew training / certifications (App 6)
 router.get('/:restaurantId/crew/dashboard', requireRestaurantAccess(), crew.getDashboard);

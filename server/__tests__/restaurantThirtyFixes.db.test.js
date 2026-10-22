@@ -43,8 +43,8 @@ async function invoke(handler, body = {}, params = {}, query = {}) {
       CREATE TABLE food_restaurants(id BIGINT PRIMARY KEY, business_id BIGINT);
       CREATE TABLE restaurant_locations(id BIGINT PRIMARY KEY, restaurant_id BIGINT, name TEXT, status TEXT DEFAULT 'active', timezone TEXT DEFAULT 'UTC', is_primary BOOLEAN DEFAULT FALSE, UNIQUE(restaurant_id,id));
       CREATE TABLE business_members(id BIGINT PRIMARY KEY, business_id BIGINT, member_id UUID, status TEXT, role TEXT, job_role TEXT, hourly_wage_cents INTEGER, pay_rate_period TEXT, pay_rate_cents INTEGER);
-      CREATE TABLE restaurant_location_memberships(id BIGINT, restaurant_id BIGINT, location_id BIGINT, membership_id BIGINT, status TEXT, role_override TEXT);
-      CREATE TABLE business_staff_shifts(id BIGSERIAL PRIMARY KEY, business_id BIGINT, restaurant_id BIGINT, user_id UUID, shift_date DATE, start_time TIME, end_time TIME);
+      CREATE TABLE restaurant_location_memberships(id BIGINT, restaurant_id BIGINT, location_id BIGINT, membership_id BIGINT, status TEXT, role_override TEXT, pay_rate_cents INTEGER, pay_rate_period VARCHAR(10));
+      CREATE TABLE business_staff_shifts(id BIGSERIAL PRIMARY KEY, business_id BIGINT, restaurant_id BIGINT, user_id UUID, shift_date DATE, start_time TIME, end_time TIME, published_at TIMESTAMPTZ, published_by UUID);
       CREATE TABLE business_time_entries(id BIGSERIAL PRIMARY KEY, business_id BIGINT, user_id UUID, entry_date DATE, hours_worked NUMERIC, breaks JSONB, clock_in_at TIMESTAMPTZ, clock_out_at TIMESTAMPTZ, voided_at TIMESTAMPTZ);
       CREATE TABLE restaurant_declared_cash_tips(id BIGSERIAL PRIMARY KEY, restaurant_id BIGINT, staff_user_id UUID, business_date DATE, amount_cents INTEGER, declared_by UUID, note TEXT, created_at TIMESTAMPTZ DEFAULT NOW());
       CREATE TABLE team_permissions(code TEXT UNIQUE, group_key TEXT, description TEXT);
@@ -56,7 +56,7 @@ async function invoke(handler, body = {}, params = {}, query = {}) {
       CREATE TABLE restaurant_pos_shifts(id BIGINT PRIMARY KEY, staff_user_id UUID);
       CREATE TABLE restaurant_pos_drawer_events(restaurant_id BIGINT, location_id BIGINT, created_by UUID, event_type TEXT, amount_cents INTEGER, created_at TIMESTAMPTZ);
       CREATE TABLE food_loyalty_accounts(restaurant_id BIGINT, customer_id UUID, lifetime_points INTEGER);
-      CREATE TABLE business_audit_log(id BIGSERIAL PRIMARY KEY, business_id BIGINT, actor_user_id UUID, actor_role TEXT, action TEXT, target_type TEXT, target_id TEXT, before_state JSONB, after_state JSONB, metadata JSONB, ip_address TEXT, user_agent TEXT, created_at TIMESTAMPTZ DEFAULT NOW());
+      CREATE TABLE business_audit_log(id BIGSERIAL PRIMARY KEY, business_id BIGINT, actor_user_id UUID, actor_role TEXT, action TEXT, target_type TEXT, target_id TEXT, before_state JSONB, after_state JSONB, metadata JSONB, ip_address TEXT, user_agent TEXT, impersonated_by UUID, created_at TIMESTAMPTZ DEFAULT NOW());
       CREATE TABLE restaurant_tables(id BIGINT PRIMARY KEY, restaurant_id BIGINT, location_id BIGINT, name TEXT, capacity INTEGER, status TEXT, position JSONB, updated_at TIMESTAMPTZ);
       CREATE TABLE restaurant_reservations(id BIGSERIAL PRIMARY KEY, restaurant_id BIGINT, location_id BIGINT, table_id BIGINT, guest_name TEXT, guest_phone TEXT, guest_email TEXT, party_size INTEGER, starts_at TIMESTAMPTZ, ends_at TIMESTAMPTZ, status TEXT DEFAULT 'pending', source TEXT, notes TEXT, idempotency_key TEXT, created_by UUID, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ, UNIQUE(restaurant_id,idempotency_key));
       CREATE TABLE restaurant_inventory_storage_areas(id BIGINT PRIMARY KEY, restaurant_id BIGINT, name TEXT, responsible_user_id UUID, is_active BOOLEAN);
@@ -91,7 +91,7 @@ async function invoke(handler, body = {}, params = {}, query = {}) {
   });
   test('payroll scope covers roster, hours, overtime, schedules, tips, revenue and export inputs', async () => {
     await pool.query(`INSERT INTO business_time_entries(business_id,user_id,entry_date,hours_worked,location_id) VALUES(42,'${userA}','2026-10-21',2,7),(42,'${userA}','2026-10-21',8,9),(42,'${userB}','2026-10-21',8,9),(42,'${userA}','2026-10-21',10,NULL);
-      INSERT INTO business_staff_shifts(business_id,user_id,shift_date,start_time,end_time,location_id) VALUES(42,'${userA}','2026-10-21','09:00','12:00',7),(42,'${userB}','2026-10-21','09:00','17:00',9);
+      INSERT INTO business_staff_shifts(business_id,user_id,shift_date,start_time,end_time,location_id,published_at) VALUES(42,'${userA}','2026-10-21','09:00','12:00',7,NOW()),(42,'${userB}','2026-10-21','09:00','17:00',9,NOW());
       INSERT INTO food_orders(restaurant_id,location_id,total_cents,tip_cents,currency_code,acting_staff_user_id,payment_status,status,created_at) VALUES(3,7,10000,200,'USD','${userA}','paid','completed','2026-10-21T16:00Z'),(3,9,90000,900,'USD','${userB}','paid','completed','2026-10-21T16:00Z');
       INSERT INTO restaurant_declared_cash_tips(restaurant_id,staff_user_id,business_date,amount_cents,location_id) VALUES(3,'${userA}','2026-10-21',100,7),(3,'${userA}','2026-10-21',900,9);`);
     const result = await payroll.computeLabor({ restaurant, fromDate:'2026-10-21', toDate:'2026-10-21', locationIds:[7] });

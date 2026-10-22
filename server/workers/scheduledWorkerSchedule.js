@@ -5,6 +5,7 @@
 // wrapped in a fenced job lock, so several replicas never run the same pass.
 const logger = require('../utils/logger');
 const { withFencedJobLock } = require('../jobs/jobLockingService');
+const incidentStore = require('../services/incidentStore');
 
 function buildSchedule() {
   const {
@@ -104,6 +105,18 @@ function runScheduledWorkerOnce([name, workerFn, intervalMs, options], { log = l
     })
     .catch((err) => {
       log.error('Scheduled worker failed', { worker: name, error: err.message });
+      // Background-jobs audit (finding J1): a failing fleet worker was
+      // invisible (one log line, no heartbeat). Record an incident so a
+      // persistently failing worker surfaces; the dedupe key collapses
+      // repeats into occurrence_count instead of spamming rows.
+      // recordIncident never throws, so the scheduler stays drain-safe.
+      incidentStore.recordIncident({
+        type: 'scheduled_worker_failed',
+        severity: 'critical',
+        message: `Scheduled worker failed: ${name}`,
+        dedupeKey: `scheduled-worker:${name}:failed`,
+        details: { worker: name, error: String(err?.message || err).slice(0, 2000) },
+      });
       return { failed: true, error: err.message };
     });
 }

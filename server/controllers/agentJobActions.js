@@ -27,6 +27,8 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const AppError = require('../utils/appError');
 const { cancelJobTransaction, finalizeJobCancellation } = require('../services/jobCancellationService');
+const { PRE_ACCEPTANCE_STATUSES } = require('../services/jobCancellationService');
+const { verifyStepupChallenge, issueStepupChallenge } = require('../services/stepupChallengeService');
 
 function alreadyCancelledResponse(jobId) {
   return {
@@ -36,6 +38,35 @@ function alreadyCancelledResponse(jobId) {
     message: 'Job was already cancelled.',
   };
 }
+
+/**
+ * Audit fix (finding 24): issue the email-OTP step-up challenge an agent
+ * completes before POST /jobs/:jobId/cancel when the job is past
+ * acceptance (fees may apply). Mirrors the refund challenge issuance.
+ */
+exports.issueAgentJobCancelStepupChallenge = async (req, res, next) => {
+  try {
+    const adminId = req.user?.id;
+    if (!adminId) throw new AppError('Unauthorized.', 401, 'unauthorized');
+    const { challenge, delivery } = await issueStepupChallenge({
+      actorUserId: adminId,
+      actorEmail: req.user?.email,
+      actionType: 'agent_job_cancel',
+      amountCents: 1,
+      currencyCode: 'USD',
+    });
+    res.status(201).json({
+      challenge: {
+        id: challenge.id,
+        actionType: challenge.actionType,
+        amountCents: challenge.amountCents,
+        currencyCode: challenge.currencyCode,
+        expiresAt: challenge.expiresAt,
+      },
+      delivery,
+    });
+  } catch (err) { next(err); }
+};
 
 exports.cancelJobAsAgent = async (req, res, next) => {
   try {
@@ -58,6 +89,18 @@ exports.cancelJobAsAgent = async (req, res, next) => {
     }
     if (existing[0].status === 'cancelled') {
       return res.json(alreadyCancelledResponse(jobId));
+    }
+    // Audit fix (finding 24): post-acceptance cancels can collect a
+    // cancellation fee from the customer, so they need a fresh step-up
+    // challenge. Pre-acceptance cancels never charge a fee and keep the
+    // session-only gate.
+    if (!PRE_ACCEPTANCE_STATUSES.includes(existing[0].status)) {
+      await verifyStepupChallenge({
+        challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+        actorUserId: adminId,
+        actionType: 'agent_job_cancel',
+        code: req.body?.stepupCode || req.body?.stepup_code,
+      });
     }
 
     let result;

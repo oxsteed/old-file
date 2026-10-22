@@ -34,6 +34,7 @@ const logger = require('../utils/logger');
 const { encrypt, decrypt } = require('../utils/encryption');
 const { resolveScope, resolveRestaurantAccess } = require('../services/scopeModel');
 const permissionsService = require('../services/permissionsService');
+const { logBusinessAction } = require('../services/businessAuditLog');
 const { assertLocationAccess, getLocationScope } = require('../services/restaurantLocationAccessService');
 // Imported as module objects (not destructured) so tests can stub the staff
 // path at the module boundary.
@@ -252,8 +253,8 @@ async function requireOwnedPairing(userId, pairingId) {
   if (!pairing) throw new AppError('Display not found', 404, 'display_not_found');
   // resolveRestaurantAccess maps "no standing" to 404 restaurant_not_found, so
   // the pairing's existence never leaks to an outsider.
-  await requireDisplayManager(userId, pairing.restaurant_id, pairing.location_id);
-  return pairing;
+  const restaurant = await requireDisplayManager(userId, pairing.restaurant_id, pairing.location_id);
+  return { pairing, restaurant };
 }
 
 function publicPairingShape(row) {
@@ -379,6 +380,20 @@ async function claimDisplay(req, res, next) {
     if (!updated[0]) {
       throw new AppError('Pairing code not found or expired', 404, 'code_not_found');
     }
+    // F-20: display pairing is audited (the token itself is never logged).
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role || null,
+      action: 'restaurant.display.paired',
+      target_type: 'display_pairing',
+      target_id: updated[0].id,
+      after_state: {
+        locationId: updated[0].location_id,
+        label: updated[0].label,
+        deviceRole: updated[0].device_role,
+        pairedAt: updated[0].paired_at,
+      },
+    });
     return res.status(201).json({
       token,
       display: publicPairingShape({ ...updated[0], restaurant_name: restaurant.display_name || null }),
@@ -636,7 +651,7 @@ async function listPairings(req, res, next) {
 // Sets refresh_requested_at; the display's next heartbeat consumes it.
 async function requestRefresh(req, res, next) {
   try {
-    const pairing = await requireOwnedPairing(req.user?.id, req.params?.id);
+    const { pairing } = await requireOwnedPairing(req.user?.id, req.params?.id);
     const { rows } = await pool.query(
       `UPDATE display_pairings
           SET refresh_requested_at = NOW()
@@ -655,8 +670,22 @@ async function requestRefresh(req, res, next) {
 // Unpairs the display (row deleted; its token stops working immediately).
 async function unpairDisplay(req, res, next) {
   try {
-    const pairing = await requireOwnedPairing(req.user?.id, req.params?.id);
+    const { pairing, restaurant } = await requireOwnedPairing(req.user?.id, req.params?.id);
     await pool.query('DELETE FROM display_pairings WHERE id = $1', [pairing.id]);
+    // F-20: display unpairing is audited with the pairing's prior state.
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role || null,
+      action: 'restaurant.display.unpaired',
+      target_type: 'display_pairing',
+      target_id: pairing.id,
+      before_state: {
+        locationId: pairing.location_id,
+        label: pairing.label,
+        deviceRole: pairing.device_role,
+        pairedAt: pairing.paired_at,
+      },
+    });
     return res.json({ ok: true, id: Number(pairing.id) });
   } catch (err) {
     return next(err);

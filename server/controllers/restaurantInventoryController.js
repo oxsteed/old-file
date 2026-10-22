@@ -41,6 +41,26 @@ function parseQty(value, field = 'quantity') {
   return Math.round(Math.max(-1e9, Math.min(1e9, n)) * 1000) / 1000;
 }
 
+// F-23: non-negative integer cents for the PO estimated unit cost
+// (migration 99918 columns estimated_unit_cost_cents / estimated_currency_code).
+function parseEstimatedUnitCostCents(value, field = 'estimatedUnitCostCents') {
+  if (value === undefined || value === null || value === '') return null;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 0) {
+    throw new AppError('Validation failed', 400, 'validation_failed', { [field]: 'Must be non-negative cents' });
+  }
+  return n;
+}
+
+function parseCurrencyCode(value, field = 'estimatedCurrencyCode') {
+  if (value === undefined || value === null || value === '') return null;
+  const code = String(value).trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(code)) {
+    throw new AppError('Validation failed', 400, 'validation_failed', { [field]: 'Currency must be a 3-letter code' });
+  }
+  return code;
+}
+
 const CATEGORIES = ['general', 'produce', 'meat', 'dairy', 'dry_goods', 'frozen', 'beverage', 'packaging', 'cleaning'];
 const ADJ_TYPES = ['count', 'receive', 'waste', 'usage', 'correction'];
 const PURCHASE_STATUSES = ['pending', 'approved', 'ordered', 'received', 'delivered', 'rejected', 'cancelled'];
@@ -586,6 +606,8 @@ exports.createPurchaseRequest = async (req, res, next) => {
     const status = PURCHASE_STATUSES.includes(req.body.status) ? req.body.status : 'pending';
     const urgency = URGENCY_LEVELS.includes(req.body.urgency) ? req.body.urgency : 'medium';
     const estimatedCost = req.body.estimatedCost == null ? null : parseQty(req.body.estimatedCost, 'estimatedCost');
+    const estimatedUnitCostCents = parseEstimatedUnitCostCents(req.body.estimatedUnitCostCents ?? req.body.estimated_unit_cost_cents);
+    const estimatedCurrencyCode = parseCurrencyCode(req.body.estimatedCurrencyCode ?? req.body.estimated_currency_code);
     const clientOperationId = parseOperationId(req.body.clientOperationId);
     const result = await withTransaction(pool, async (client) => {
       if (clientOperationId) {
@@ -604,12 +626,14 @@ exports.createPurchaseRequest = async (req, res, next) => {
       const { rows: [request] } = await client.query(
         `INSERT INTO restaurant_inventory_purchase_requests
            (restaurant_id, location_id, item_name, requested_quantity, unit, supplier_name, status,
-            eta_window, note, requested_by, estimated_cost, urgency, client_operation_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+            eta_window, note, requested_by, estimated_cost, estimated_unit_cost_cents,
+            estimated_currency_code, urgency, client_operation_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
          RETURNING *`,
         [restaurantId, requestLocationId, itemName, requestedQuantity, normalizeString(req.body.unit, 24) || 'units',
           normalizeString(req.body.supplierName, 160), status, normalizeString(req.body.etaWindow, 80),
-          normalizeString(req.body.note, 1000), req.user.id, estimatedCost, urgency, clientOperationId]
+          normalizeString(req.body.note, 1000), req.user.id, estimatedCost, estimatedUnitCostCents,
+          estimatedCurrencyCode, urgency, clientOperationId]
       );
       await logInventoryAudit(client, auditEntry(restaurant, 'purchase_request_created', 'purchase_request', request.id, req, {
         itemName: request.item_name,
@@ -617,6 +641,8 @@ exports.createPurchaseRequest = async (req, res, next) => {
         unit: request.unit,
         status: request.status,
         urgency: request.urgency,
+        estimatedUnitCostCents: request.estimated_unit_cost_cents,
+        estimatedCurrencyCode: request.estimated_currency_code,
       }, clientOperationId));
       return { request, replayed: false };
     });
@@ -654,6 +680,14 @@ exports.updatePurchaseRequest = async (req, res, next) => {
     if (req.body.etaWindow !== undefined) { sets.push(`eta_window = $${i++}`); vals.push(normalizeString(req.body.etaWindow, 80)); }
     if (req.body.note !== undefined) { sets.push(`note = $${i++}`); vals.push(normalizeString(req.body.note, 1000)); }
     if (req.body.estimatedCost !== undefined) { sets.push(`estimated_cost = $${i++}`); vals.push(req.body.estimatedCost == null ? null : parseQty(req.body.estimatedCost, 'estimatedCost')); }
+    if (req.body.estimatedUnitCostCents !== undefined || req.body.estimated_unit_cost_cents !== undefined) {
+      sets.push(`estimated_unit_cost_cents = $${i++}`);
+      vals.push(parseEstimatedUnitCostCents(req.body.estimatedUnitCostCents ?? req.body.estimated_unit_cost_cents));
+    }
+    if (req.body.estimatedCurrencyCode !== undefined || req.body.estimated_currency_code !== undefined) {
+      sets.push(`estimated_currency_code = $${i++}`);
+      vals.push(parseCurrencyCode(req.body.estimatedCurrencyCode ?? req.body.estimated_currency_code));
+    }
     if (req.body.urgency !== undefined && URGENCY_LEVELS.includes(req.body.urgency)) { sets.push(`urgency = $${i++}`); vals.push(req.body.urgency); }
     if (!sets.length) throw new AppError('No updatable fields provided', 400, 'validation_failed', { body: 'No updatable fields provided' });
     sets.push('updated_at = NOW()');

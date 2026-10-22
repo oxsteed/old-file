@@ -5,7 +5,8 @@ const { sendError } = require('../utils/apiError');
 
 /**
  * Middleware to validate API keys for API product endpoints
- * Checks: key existence, expiry, rate limits, revocation
+ * Checks: key existence, expiry, rate limits, revocation.
+ * Keys are accepted from request headers only (never query params).
  */
 async function validateApiKey(req, res, next) {
   try {
@@ -28,7 +29,8 @@ async function validateApiKey(req, res, next) {
     );
 
     if (!keyRecord.rows.length) {
-      logger.warn('Invalid API key attempt', { keyPrefix: apiKey.substring(0, 8) });
+      // Audit fix (finding 37): never log key material, not even a prefix.
+      logger.warn('Invalid API key attempt');
       return sendError(res, 401, 'Invalid API key');
     }
 
@@ -46,9 +48,17 @@ async function validateApiKey(req, res, next) {
       return sendError(res, 401, 'API key has expired');
     }
 
-    // Check rate limit (requests this month)
-    if (key.usage_limit && key.requests_this_month >= key.usage_limit) {
-      logger.warn('API key rate limit exceeded', { keyId: key.id, usage: key.requests_this_month, limit: key.usage_limit });
+    // Check rate limit (requests this month). Audit fix (finding 29): the
+    // product's monthly quota (ap.max_requests_per_month) was selected and
+    // attached but never enforced. Enforce the LEAST of the product quota
+    // and the key's own usage_limit; a null on both sides means unlimited.
+    const effectiveLimit = [key.usage_limit, key.max_requests_per_month]
+      .filter((v) => v != null)
+      .map(Number)
+      .filter((v) => Number.isFinite(v) && v >= 0);
+    const limit = effectiveLimit.length ? Math.min(...effectiveLimit) : null;
+    if (limit != null && key.requests_this_month >= limit) {
+      logger.warn('API key rate limit exceeded', { keyId: key.id, usage: key.requests_this_month, limit });
       return sendError(res, 429, 'API key rate limit exceeded');
     }
 
@@ -76,7 +86,12 @@ async function validateApiKey(req, res, next) {
 }
 
 /**
- * Extract API key from request (header, query, or body)
+ * Extract API key from request headers only.
+ *
+ * Audit fix (finding 37): the ?api_key= query parameter is no longer
+ * accepted. Keys in URLs leak into access/proxy logs, browser history,
+ * and Referer headers. Use `Authorization: Bearer <key>`,
+ * `Authorization: ApiKey <key>`, or `X-API-Key: <key>`.
  */
 function extractApiKey(req) {
   // Check Authorization header: Bearer <key> or ApiKey <key>
@@ -88,11 +103,6 @@ function extractApiKey(req) {
   // Check X-API-Key header
   if (req.headers['x-api-key']) {
     return req.headers['x-api-key'];
-  }
-
-  // Check query parameter (less secure, discouraged)
-  if (req.query.api_key) {
-    return req.query.api_key;
   }
 
   return null;

@@ -650,6 +650,91 @@ ddescribe('S-16 exceptions, activity and time-entry audit (fxC)', () => {
   });
 });
 
+ddescribe('cash-tip declaration idempotency (background-jobs audit P1)', () => {
+  let fx;
+
+  beforeAll(async () => {
+    const owner = await makeUser('Idem', 'Owner');
+    const businessId = await makeBusiness(owner, 'Idempotency Diner');
+    const restaurantId = await makeRestaurant(businessId, owner, 'Idempotency Diner');
+    const server = await makeUser('Ivy', 'Server');
+    await addMember(businessId, owner, server, 'employee', { jobRole: 'Server', wage: 1500 });
+    registerAccess(owner, restaurantId, businessId, 'owner');
+    fx = { owner, businessId, restaurantId, server };
+  });
+
+  test('a retry with the same idempotency key replays instead of double-declaring', async () => {
+    const key = `idem-${crypto.randomUUID()}`;
+    const first = await payrollService.declareCashTip(fx.restaurantId, {
+      staffUserId: fx.server, businessDate: '2026-10-06', amountCents: 500,
+      declaredBy: fx.owner, idempotencyKey: key,
+    });
+    expect(first.replayed).toBeUndefined();
+    const second = await payrollService.declareCashTip(fx.restaurantId, {
+      staffUserId: fx.server, businessDate: '2026-10-06', amountCents: 500,
+      declaredBy: fx.owner, idempotencyKey: key,
+    });
+    expect(second.replayed).toBe(true);
+    expect(second.id).toBe(first.id);
+    const { rows } = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM restaurant_declared_cash_tips
+        WHERE restaurant_id = $1 AND idempotency_key = $2`,
+      [fx.restaurantId, key]
+    );
+    expect(rows[0].n).toBe(1);
+  });
+
+  test('different keys insert separate rows; a missing key keeps legacy behavior', async () => {
+    const a = await payrollService.declareCashTip(fx.restaurantId, {
+      staffUserId: fx.server, businessDate: '2026-10-06', amountCents: 100,
+      declaredBy: fx.owner, idempotencyKey: `idem-${crypto.randomUUID()}`,
+    });
+    const b = await payrollService.declareCashTip(fx.restaurantId, {
+      staffUserId: fx.server, businessDate: '2026-10-06', amountCents: 100,
+      declaredBy: fx.owner, idempotencyKey: `idem-${crypto.randomUUID()}`,
+    });
+    expect(a.id).not.toBe(b.id);
+    const legacy = await payrollService.declareCashTip(fx.restaurantId, {
+      staffUserId: fx.server, businessDate: '2026-10-06', amountCents: 100,
+      declaredBy: fx.owner,
+    });
+    expect(legacy.replayed).toBeUndefined();
+  });
+
+  test('the controller rejects a malformed idempotency key', async () => {
+    const { err } = await call(controller.declareCashTip,
+      mockReq({
+        params: { restaurantId: String(fx.restaurantId) },
+        body: { staffUserId: fx.server, date: '2026-10-06', amountCents: 100, idempotencyKey: 'bad key!' },
+        user: { id: fx.owner },
+      }));
+    expect(err).toBeTruthy();
+    expect(err.statusCode).toBe(400);
+  });
+
+  test('the controller replays a duplicate keyed declaration with 200', async () => {
+    const key = `idem-${crypto.randomUUID()}`;
+    const first = await call(controller.declareCashTip,
+      mockReq({
+        params: { restaurantId: String(fx.restaurantId) },
+        body: { staffUserId: fx.server, date: '2026-10-06', amountCents: 250, idempotencyKey: key },
+        user: { id: fx.owner },
+      }));
+    expect(first.err).toBeNull();
+    expect(first.res.statusCode).toBe(201);
+    const second = await call(controller.declareCashTip,
+      mockReq({
+        params: { restaurantId: String(fx.restaurantId) },
+        body: { staffUserId: fx.server, date: '2026-10-06', amountCents: 250, idempotencyKey: key },
+        user: { id: fx.owner },
+      }));
+    expect(second.err).toBeNull();
+    expect(second.res.statusCode).toBe(200);
+    expect(second.res.payload.replayed).toBe(true);
+    expect(second.res.payload.declaration.id).toBe(first.res.payload.declaration.id);
+  });
+});
+
 if (CAN_RUN_DB) {
   afterAll(async () => { await pool.end().catch(() => {}); });
 }

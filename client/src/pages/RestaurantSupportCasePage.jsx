@@ -74,10 +74,11 @@ export default function RestaurantSupportCasePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [attachmentUrl, setAttachmentUrl] = useState('');
+  const [attachmentFile, setAttachmentFile] = useState(null);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
   const pendingMessageIdRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const loadCase = async () => {
     try {
@@ -106,7 +107,7 @@ export default function RestaurantSupportCasePage() {
   const relatedOrderId = supportCase?.order_id || orderSnapshot?.id || null;
 
   const handleSubmit = async () => {
-    if (!message.trim() && !attachmentUrl.trim()) {
+    if (!message.trim() && !attachmentFile) {
       toast.error(t('support.caseActionRequired', { defaultValue: 'Add a message or attachment first.' }));
       return;
     }
@@ -124,15 +125,15 @@ export default function RestaurantSupportCasePage() {
         pendingMessageIdRef.current = null;
         setMessage('');
       }
-      if (attachmentUrl.trim()) {
-        await api.post(`/restaurants/support/cases/${caseId}/attachments`, {
-          fileUrl: attachmentUrl.trim(),
-          attachmentType: 'proof',
-          fileName: 'support-proof',
-        });
+      if (attachmentFile) {
+        const form = new FormData();
+        form.append('file', attachmentFile);
+        form.append('attachmentType', 'proof');
+        await api.post(`/restaurants/support/cases/${caseId}/attachments`, form);
       }
       toast.success(t('support.replySent', { defaultValue: 'Saved.' }));
-      setAttachmentUrl('');
+      setAttachmentFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       await loadCase();
     } catch (err) {
       setSendError(err.response?.data?.error || t('support.replyError', { defaultValue: 'Failed to save update.' }));
@@ -300,7 +301,7 @@ export default function RestaurantSupportCasePage() {
               </Section>
             )}
 
-            <Section title={t('support.attachmentAndReply', { defaultValue: 'Message or proof link' })} icon={Paperclip}>
+            <Section title={t('support.attachmentAndReply', { defaultValue: 'Message or proof' })} icon={Paperclip}>
               <div className="space-y-3">
                 <textarea
                   value={message}
@@ -309,13 +310,29 @@ export default function RestaurantSupportCasePage() {
                   className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-slate-100 outline-none placeholder:text-slate-500 focus:border-orange-400/60"
                   placeholder={t('support.replyPlaceholder', { defaultValue: 'Add a message for the restaurant or OxSteed team…' })}
                 />
-                {sendError && <div role="alert" className="rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-200"><div>{sendError}</div><button type="button" onClick={handleSubmit} disabled={sending || (!message.trim() && !attachmentUrl.trim())} className="mt-2 inline-flex items-center gap-2 font-semibold text-white underline disabled:opacity-60"><RefreshCw size={14} /> {t('common.retry', { defaultValue: 'Retry' })}</button></div>}
-                <input
-                  value={attachmentUrl}
-                  onChange={(e) => setAttachmentUrl(e.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-slate-100 outline-none placeholder:text-slate-500 focus:border-orange-400/60"
-                  placeholder={t('support.proofLinkPlaceholder', { defaultValue: 'Paste a receipt / proof link (optional)' })}
-                />
+                {sendError && <div role="alert" className="rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-200"><div>{sendError}</div><button type="button" onClick={handleSubmit} disabled={sending || (!message.trim() && !attachmentFile)} className="mt-2 inline-flex items-center gap-2 font-semibold text-white underline disabled:opacity-60"><RefreshCw size={14} /> {t('common.retry', { defaultValue: 'Retry' })}</button></div>}
+                <label className="block">
+                  <span className="mb-1 block text-sm text-slate-300">{t('support.uploadProofFile')}</span>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)}
+                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-100 outline-none file:mr-3 file:rounded-full file:border-0 file:bg-orange-500 file:px-4 file:py-1.5 file:text-sm file:font-semibold file:text-white focus:border-orange-400/60"
+                  />
+                </label>
+                {attachmentFile && (
+                  <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200">
+                    <span className="truncate">{attachmentFile.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => { setAttachmentFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                      className="shrink-0 font-semibold text-orange-300 hover:text-orange-200"
+                    >
+                      {t('support.removeAttachment')}
+                    </button>
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={handleSubmit}

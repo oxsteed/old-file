@@ -96,4 +96,71 @@ async function enqueueKitchenPrinterJobs(client, {
   return jobs;
 }
 
-module.exports = { enqueueKitchenPrinterJobs };
+// Course hold/fire chits: when a whole course is held or fired from the KDS,
+// each station holding items of that course gets a chit so the line knows to
+// stop or start the course. Payload shape matches renderKitchenTicket in
+// restaurantPrintBridge.js ({ stationName, order, items }).
+async function enqueueCourseChitJobs(client, {
+  restaurantId,
+  orderId,
+  courseNumber,
+  action,
+  eventId = null,
+  items = [],
+  order = null,
+  createdBy = null,
+}) {
+  if (!items.length) return [];
+  const banner = action === 'fire' ? 'FIRE' : 'HOLD';
+  const byStation = new Map();
+  for (const item of items) {
+    const stationKey = item.station_label || 'KITCHEN';
+    if (!byStation.has(stationKey)) {
+      byStation.set(stationKey, {
+        stationName: `${stationKey} · COURSE ${courseNumber} · ${banner}`,
+        order: {
+          id: orderId,
+          queueNumber: order?.queue_number ?? null,
+          guestName: order?.guest_name ?? null,
+          fulfillmentType: order?.fulfillment_type ?? null,
+          tableLabel: order?.table_label ?? null,
+          notes: order?.notes ?? null,
+          promisedAt: order?.promised_at ?? null,
+          locationId: order?.location_id ?? null,
+        },
+        items: [],
+      });
+    }
+    const seatLine = item.seat_number ? `Seat ${item.seat_number}` : null;
+    const instructions = [seatLine, item.special_instructions].filter(Boolean).join(' — ');
+    byStation.get(stationKey).items.push({
+      id: item.id,
+      quantity: item.quantity,
+      name: item.item_name,
+      specialInstructions: instructions || null,
+    });
+  }
+  const jobs = [];
+  for (const group of byStation.values()) {
+    // One chit per course action (eventId), so hold -> fire -> hold prints
+    // three chits; client idempotency dedupes retries of the same action.
+    const idempotencyKey = `course:${orderId}:${courseNumber}:${action}:${eventId || 'na'}:${cryptoSafe(group.stationName)}`;
+    const { rows: [job] } = await client.query(
+      `INSERT INTO restaurant_printer_jobs
+         (restaurant_id, station_id, food_order_id, job_type, payload, created_by, idempotency_key, location_id)
+       VALUES ($1,NULL,$2,'kitchen_ticket',$3,$4,$5,$6)
+       ON CONFLICT (restaurant_id, idempotency_key) WHERE idempotency_key IS NOT NULL
+       DO UPDATE SET payload = EXCLUDED.payload, location_id = EXCLUDED.location_id, updated_at = NOW()
+       RETURNING *`,
+      [restaurantId, orderId, JSON.stringify(group), createdBy, idempotencyKey, group.order.locationId]
+    );
+    jobs.push(job);
+  }
+  return jobs;
+}
+
+function cryptoSafe(value) {
+  return String(value || '').replace(/[^a-zA-Z0-9]+/g, '-').slice(0, 60);
+}
+
+module.exports = { enqueueKitchenPrinterJobs, enqueueCourseChitJobs };

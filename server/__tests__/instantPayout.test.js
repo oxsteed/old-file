@@ -7,6 +7,13 @@ process.env.DIDIT_API_KEY = 'synthetic-didit-provider';
 // reconcile that row as Stripe settles.
 const { mockQuery, resetMocks } = require('./setup');
 
+// Track A item 12: instant payouts require TOTP step-up. Mock it so these
+// tests cover payout behavior, not the step-up gate.
+jest.mock('../services/stepupChallengeService', () => ({
+  verifyStepupChallenge: jest.fn(async () => ({ ok: true })),
+  issueStepupChallenge: jest.fn(async () => ({ challengeId: 'test-challenge' })),
+}));
+
 jest.mock('../services/localDeliveryPaymentService', () => ({
   handleStripeEvent: jest.fn().mockResolvedValue({ handled: false }),
 }));
@@ -144,6 +151,22 @@ describe('POST /api/payments/payout/instant', () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ status: 'paid', payout_id: 'po_123' });
     expect(stripe.payouts.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('GET /api/payments/payout/balance', () => {
+  test('reports the tax-identity gate state for the proactive W-9 unlock path', async () => {
+    routeInstantPayoutQueries();
+    const res = await auth(request(buildPaymentsApp()).get('/api/payments/payout/balance'));
+    expect(res.status).toBe(200);
+    expect(res.body.tax_identity).toEqual({ w9_completed: true, ready: true });
+  });
+
+  test('reports tax_identity.ready false when the W-9 is missing', async () => {
+    routeInstantPayoutQueries({ user: { ...HELPER, w9_completed: false } });
+    const res = await auth(request(buildPaymentsApp()).get('/api/payments/payout/balance'));
+    expect(res.status).toBe(200);
+    expect(res.body.tax_identity).toEqual({ w9_completed: false, ready: false });
   });
 });
 

@@ -75,3 +75,31 @@ describe('localized receipt labels (F-24)', () => {
     expect(text).not.toContain('Thank you for your business');
   });
 });
+
+describe('receipt course and seat annotations', () => {
+  test('prints course and seat sublines on coursed, seated tickets', () => {
+    const { buffer } = controller.buildOrderReceipt({
+      restaurant: { display_name: 'Diner', settings: {}, timezone: 'UTC' },
+      settings: { drawerKickOnCash: false },
+      snapshot: {
+        order: {
+          id: 12, queue_number: 4, guest_name: null, table_label: null,
+          fulfillment_type: 'dine_in', subtotal_cents: 3000, discount_cents: 0,
+          tax_cents: 0, service_fee_cents: 0, delivery_fee_cents: 0, tip_cents: 0,
+          total_cents: 3000, currency_code: 'USD', created_at: '2026-10-21T16:00:00.000Z',
+        },
+        items: [
+          { id: 1, item_name: 'Salad', quantity: 1, line_total_cents: 1000, special_instructions: null, course_number: 1, seat_number: 2 },
+          { id: 2, item_name: 'Steak', quantity: 1, line_total_cents: 2000, special_instructions: null, course_number: 2, seat_number: 2 },
+        ],
+        modifiersByItem: new Map(),
+        payments: [],
+      },
+    });
+    const text = buffer.toString('latin1');
+    expect(text).toContain('Course 2');
+    expect(text).toContain('Seat 2');
+    // Course 1 is the default course and is not annotated.
+    expect(text).not.toContain('Course 1');
+  });
+});

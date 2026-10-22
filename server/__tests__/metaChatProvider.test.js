@@ -1,6 +1,6 @@
 /**
- * Regression tests for the Meta Model API chat provider
- * (server/services/aiChatProvider.js).
+ * Regression tests for the legacy Meta-only chat provider
+ * (server/services/metaChatProvider.js).
  *
  * Covers: configured detection, model default/override, request shape
  * (Bearer auth, /chat/completions, model passthrough), and failure modes
@@ -13,7 +13,7 @@ const {
   fetchMetaChat,
   DEFAULT_MODEL,
   DEFAULT_BASE_URL,
-} = require('../services/aiChatProvider');
+} = require('../services/metaChatProvider');
 
 const REAL_FETCH = global.fetch;
 

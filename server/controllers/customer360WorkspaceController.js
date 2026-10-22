@@ -417,9 +417,7 @@ exports.assistant = async (req, res, next) => {
       total: s.total,
       groups: s.groups?.map((g) => ({ status: g.status, count: g.count })),
     }));
-    // OpenRouter-only per Emile's 2026-10-14 standing rule: the Meta Model API
-    // (server/services/aiChatProvider.js) is not used on any user-facing path.
-    const openRouter = require("../services/openRouterChat");
+    const provider = require("../services/metaChatProvider");
     let draft = null;
     if (openRouter.isOpenRouterConfigured()) {
       const result = await openRouter.fetchOpenRouterChat(
@@ -456,11 +454,13 @@ exports.assistant = async (req, res, next) => {
       throwOnError: true,
     });
     res.set("Cache-Control", "private, no-store");
+    // No provider-availability flag is exposed: whether the Meta provider is
+    // configured is server internals, and no client reads it. The draft is
+    // simply null when no provider answered.
     res.json({
       draft,
       evidence,
       generatedAt: data.generatedAt,
-      providerAvailable: openRouter.isOpenRouterConfigured(),
       requiresReview: true,
     });
   } catch (e) {

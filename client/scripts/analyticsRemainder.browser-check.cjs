@@ -52,6 +52,8 @@ test('evidence URLs, audited export revocation, query history, alert comparisons
     await page.getByText('Permission expired',{exact:false}).waitFor();
     assert.equal(await page.evaluate(()=>window.calls.some(c=>c.body.export&&c.body.evidence)),true);
     await page.evaluate(()=>{window.view='business';window.render();});
+    // The tab now defaults to the metrics-layer overview; switch to the invoice-revenue drill-through.
+    await page.getByRole('button',{name:catalogs.en.businessAnalytics.invoiceRevenue,exact:true}).click();
     await page.getByText('$90,071,992,547,409.93',{exact:true}).waitFor();
     await page.getByLabel(catalogs.en.helperEarningsV2.currency,{exact:true}).selectOption('JPY');
     await page.getByText(/12,345/).first().waitFor();await page.getByRole('button',{name:'PAID-001'}).click();assert.equal(await page.evaluate(()=>window.openedInvoices),true);

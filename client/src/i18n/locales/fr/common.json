@@ -4740,6 +4740,64 @@
           "noData": "Aucune commande client identifiée au cours des 90 derniers jours.",
           "loadError": "Impossible de charger les analyses de fidélité."
         }
+      },
+      "storeHub": {
+        "title": "Hub en magasin",
+        "subtitle": "Le hub de chaque magasin relaie le trafic POS, cuisine et imprimante sur le réseau local hors connexion, et les ventes en espèces en file sont enregistrées automatiquement à la reconnexion.",
+        "loading": "Chargement des données du hub…",
+        "loadError": "Impossible de charger les données du hub",
+        "refresh": "Actualiser",
+        "noHubs": "Aucun hub enregistré pour ce restaurant. Enregistrez l'appareil hub en magasin ci-dessous.",
+        "hub": "Hub",
+        "store": "Magasin",
+        "lastHeartbeat": "Dernier signal",
+        "queued": "En file",
+        "held": "En attente",
+        "actions": "Actions",
+        "never": "jamais",
+        "justNow": "à l'instant",
+        "minutesAgo": "il y a {{count}} min",
+        "hoursAgo": "il y a {{count}} h",
+        "daysAgo": "il y a {{count}} j",
+        "viewSales": "Ventes",
+        "replay": "Enregistrer",
+        "replayHint": "Enregistrer toutes les ventes en espèces hors connexion dans le registre",
+        "hubName": "Nom du hub",
+        "hubNamePlaceholder": "p. ex. hub du comptoir",
+        "register": "Enregistrer le hub",
+        "registerSuccess": "Hub enregistré",
+        "registerError": "Impossible d'enregistrer le hub",
+        "offlineSalesTitle": "Ventes en espèces hors connexion",
+        "statusFilter": "Filtrer par statut",
+        "allStatuses": "Tous les statuts",
+        "noSales": "Aucune vente hors connexion dans cette vue.",
+        "salesLoadError": "Impossible de charger les ventes hors connexion",
+        "total": "Total",
+        "tendered": "Encaissé",
+        "statusLabel": "Statut",
+        "note": "Note",
+        "requeue": "Remettre en file",
+        "requeueHint": "Remettre cette vente en file ; le prochain enregistrement revérifie le tiroir-caisse",
+        "requeueSuccess": "Vente remise en file",
+        "resolveError": "Impossible de résoudre la vente",
+        "void": "Annuler",
+        "voidHint": "Abandonner cette vente ; les espèces ont été comptabilisées ailleurs",
+        "voidNotePlaceholder": "Motif (p. ex. compté à la fermeture du tiroir)",
+        "confirmVoid": "Confirmer l'annulation",
+        "voidSuccess": "Vente annulée",
+        "cancel": "Annuler",
+        "replaySuccess": "{{count}} vente(s) enregistrée(s)",
+        "replayHeld": "{{count}} vente(s) en attente de révision",
+        "replayFailed": "{{count}} vente(s) échouée(s)",
+        "replayShortfall": "{{count}} vente(s) avec rupture de stock",
+        "replayError": "Impossible d'enregistrer les ventes",
+        "status": {
+          "queued": "En file",
+          "held": "En attente",
+          "failed": "Échouée",
+          "replayed": "Enregistrée",
+          "voided": "Annulée"
+        }
       }
     }
   },
@@ -4866,6 +4924,10 @@
         "title": "Nouvelle formation assignée",
         "body": "{{moduleTitle}} chez {{restaurantName}}"
       },
+      "training_recertification_due": {
+        "title": "Recertification à renouveler",
+        "body": "Votre certification {{moduleTitle}} chez {{restaurantName}} a expiré. Veuillez suivre à nouveau la formation."
+      },
       "crew_shift_published": {
         "title": "Nouveau poste publié",
         "body": "{{shiftLabel}} · {{startsAt}} chez {{restaurantName}}"
@@ -4877,6 +4939,59 @@
       "restaurant_announcement": {
         "title": "Annonce de {{restaurantName}}",
         "body": "{{announcementTitle}}"
+      },
+      "crew_task_completed": {
+        "title": "Tâche terminée",
+        "body": "{{taskTitle}} à {{restaurantName}}"
+      },
+      "training_completed": {
+        "title": "Formation terminée",
+        "body": "{{moduleTitle}} a été terminée"
+      },
+      "training_recertification_due": {
+        "title": "Recertification de formation due",
+        "body": "Votre certification pour {{moduleTitle}} a expiré. Veuillez refaire la formation."
+      },
+      "member_invite": {
+        "title": "Vous avez été invité à rejoindre {{businessName}}",
+        "body": "Vous avez été invité à rejoindre « {{businessName}} » en tant que {{role}}."
+      },
+      "member_invite_resent": {
+        "title": "Invitation renvoyée par {{businessName}}",
+        "body": "Votre invitation à rejoindre « {{businessName}} » en tant que {{role}} a été renvoyée."
+      },
+      "member_invite_withdrawn": {
+        "title": "Invitation retirée par {{businessName}}",
+        "body": "Votre invitation à rejoindre « {{businessName}} » en tant que {{role}} a été retirée avant que vous l'acceptiez."
+      },
+      "member_removed": {
+        "title": "Retiré de {{businessName}}",
+        "body": "Vous avez été retiré en tant que {{role}} de « {{businessName}} »."
+      },
+      "member_rehired": {
+        "title": "Bon retour à {{businessName}}",
+        "body": "Vous avez été réembauché à « {{businessName}} » en tant que {{role}}."
+      },
+      "career_hired": {
+        "title": "Vous avez été embauché à {{businessName}}",
+        "body": "Votre candidature pour {{openingTitle}} est désormais embauchée en tant que {{role}}."
+      },
+      "crew_task_reviewed": {
+        "approved": {
+          "title": "Tâche approuvée",
+          "body": "{{taskTitle}} à {{restaurantName}} a été approuvée"
+        },
+        "rejected": {
+          "title": "Tâche renvoyée",
+          "body": "{{taskTitle}} à {{restaurantName}} nécessite plus de travail"
+        }
+      },
+      "roles": {
+        "owner": "propriétaire",
+        "manager": "responsable",
+        "representative": "représentant",
+        "employee": "employé",
+        "support_agent": "agent de support"
       }
     }
   },
@@ -4953,7 +5068,7 @@
       "addLogbookEntry": "Ajouter une entrée",
       "logbookAdded": "Entrée ajoutée"
     },
-    "merchant": { "timezone": "Fuseau horaire", "timezoneHint": "Utilisé pour les heures d'ouverture, les numéros de file quotidiens et les rapports.", "locationEdit": "Modifier", "locationSaveChanges": "Enregistrer les modifications", "locationStatus": "Statut", "locationActive": "Actif", "locationPaused": "En pause", "locationClosed": "Fermé", "locationUpdated": "Établissement mis à jour", "locationMakePrimary": "Définir comme établissement principal", "locationName": "Nom de l'établissement", "addLocation": "Ajouter un établissement", "locationCreated": "Établissement ajouté", "locationError": "Impossible d'enregistrer l'établissement", "findCoordinates": "Trouver les coordonnées", "locationGeocodeEmpty": "Coordonnées introuvables pour cet établissement", "locationGeocoded": "Coordonnées trouvées", "locationGeocodeError": "Impossible de trouver les coordonnées", "addHoursRange": "Ajouter une plage", "removeHoursRange": "Supprimer la plage", "hoursRangeLabel": "Plage {{number}}", "specialDatesTitle": "Dates spéciales", "specialDatesHint": "Remplacez les horaires hebdomadaires pour une date donnée, y compris les jours fériés et fermetures ponctuelles.", "specialDate": "Date", "specialDateClosed": "Fermé toute la journée", "specialDateRemove": "Supprimer la date", "specialDateAdd": "Ajouter une date spéciale", "specialDateDuplicate": "Chaque date spéciale ne peut être indiquée qu’une seule fois.", "tab": { "myshift": "Mon poste" } },
+    "merchant": { "timezone": "Fuseau horaire", "timezoneHint": "Utilisé pour les heures d'ouverture, les numéros de file quotidiens et les rapports.", "taxRuleCategory": "Catégorie de taxe (facultatif)", "prepAutoExtendMax": "Plafond extension auto (min)", "prepAutoExtendThreshold": "Extension auto dès (commandes)", "prepAutoExtendPerOrder": "Extension auto par commande (min)", "prepAutoExtendHint": "Allonge automatiquement le temps de préparation estimé quand les commandes en cours dépassent le seuil.", "locationEdit": "Modifier", "locationSaveChanges": "Enregistrer les modifications", "locationStatus": "Statut", "locationActive": "Actif", "locationPaused": "En pause", "locationClosed": "Fermé", "locationUpdated": "Établissement mis à jour", "locationMakePrimary": "Définir comme établissement principal", "locationName": "Nom de l'établissement", "addLocation": "Ajouter un établissement", "locationCreated": "Établissement ajouté", "locationError": "Impossible d'enregistrer l'établissement", "findCoordinates": "Trouver les coordonnées", "locationGeocodeEmpty": "Coordonnées introuvables pour cet établissement", "locationGeocoded": "Coordonnées trouvées", "locationGeocodeError": "Impossible de trouver les coordonnées", "addHoursRange": "Ajouter une plage", "removeHoursRange": "Supprimer la plage", "hoursRangeLabel": "Plage {{number}}", "specialDatesTitle": "Dates spéciales", "specialDatesHint": "Remplacez les horaires hebdomadaires pour une date donnée, y compris les jours fériés et fermetures ponctuelles.", "specialDate": "Date", "specialDateClosed": "Fermé toute la journée", "specialDateRemove": "Supprimer la date", "specialDateAdd": "Ajouter une date spéciale", "specialDateDuplicate": "Chaque date spéciale ne peut être indiquée qu’une seule fois.", "tab": { "myshift": "Mon poste" } },
     "creditCenter": {
       "recentFallback": "Récemment",
       "oxsteedCustomer": "Client OxSteed",

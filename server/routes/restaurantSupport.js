@@ -4,6 +4,8 @@ const express = require('express');
 const router = express.Router();
 const { requireRestaurantAccess } = require('../middleware/scopeGates');
 const { authenticate } = require('../middleware/auth');
+const upload = require('../middleware/upload');
+const validateFileUpload = require('../middleware/validateFileUpload');
 const ctrl = require('../controllers/restaurantSupportController');
 
 // This router is mounted at `/api/restaurants`, alongside public restaurant,
@@ -18,7 +20,7 @@ router.post('/support/cases', ctrl.createCase);
 router.get('/support/cases/my', ctrl.listMyCases);
 router.get('/support/cases/:caseId', ctrl.getMyCase);
 router.post('/support/cases/:caseId/messages', ctrl.addCustomerMessage);
-router.post('/support/cases/:caseId/attachments', ctrl.addAttachment);
+router.post('/support/cases/:caseId/attachments', upload.single('file'), validateFileUpload, ctrl.addAttachment);
 router.post('/support/cases/:caseId/reopen', ctrl.reopenCase);
 router.post('/support/cases/:caseId/accept-resolution', ctrl.acceptResolution);
 

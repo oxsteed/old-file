@@ -39,8 +39,8 @@ exports.logAdminAction = async ({
       INSERT INTO admin_audit_log (
         admin_id, action, target_type, target_id,
         target_key, description, ip_address, user_agent,
-        before_state, after_state
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        before_state, after_state, impersonated_by
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
     `, [
       adminId,
       action,
@@ -51,7 +51,9 @@ exports.logAdminAction = async ({
       req?.ip || null,
       req?.headers?.['user-agent'] || null,
       before ? JSON.stringify(before) : null,
-      after  ? JSON.stringify(after)  : null
+      after  ? JSON.stringify(after)  : null,
+      // Audit fix (finding 35): see businessAuditLog.js.
+      req?.impersonatedBy || null
     ]);
   } catch (err) {
     logger.error('Failed to log admin action', { adminId, action, error: err.message });

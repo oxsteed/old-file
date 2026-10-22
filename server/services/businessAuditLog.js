@@ -67,8 +67,8 @@ async function logBusinessAction(req, entry) {
       `INSERT INTO business_audit_log
          (business_id, actor_user_id, actor_role, action,
           target_type, target_id, before_state, after_state, metadata,
-          ip_address, user_agent)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          ip_address, user_agent, impersonated_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
       [
         businessId,
         actorUserId,
@@ -81,6 +81,10 @@ async function logBusinessAction(req, entry) {
         entry.metadata     ? JSON.stringify(entry.metadata)     : null,
         pickIp(req),
         ua,
+        // Audit fix (finding 35): attribute impersonated actions to the
+        // admin driving them. req.impersonatedBy is stamped by the auth
+        // middleware for impersonated sessions (server/middleware/auth.js).
+        req.impersonatedBy || null,
       ]
     );
   } catch (err) {

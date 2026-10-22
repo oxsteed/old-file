@@ -1,10 +1,6 @@
 'use strict';
-// The NL model fallback must go through OpenRouter, never the Meta Model API
-// (Emile's 2026-10-14 standing rule: OpenRouter-only on user-facing paths).
-jest.mock('../services/openRouterChat',()=>({isOpenRouterConfigured:jest.fn(()=>true),openRouterChatModel:()=>'synthetic-model',fetchOpenRouterChat:jest.fn()}));
-jest.mock('../services/aiChatProvider',()=>({isMetaConfigured:jest.fn(()=>false),getMetaModel:()=>'synthetic-meta-model',fetchMetaChat:jest.fn()}));
-const openRouter=require('../services/openRouterChat');
-const metaProvider=require('../services/aiChatProvider');
+jest.mock('../services/metaChatProvider',()=>({isMetaConfigured:jest.fn(()=>true),getMetaModel:()=> 'synthetic-model',fetchMetaChat:jest.fn()}));
+const provider=require('../services/metaChatProvider');
 const {translateWithModel}=require('../analytics/nlModelTranslator');
 const catalog=[{name:'platform_revenue_cents',dimensions:['period'],filters:[],periods:['7d','30d']}];
 const old=process.env.ANALYTICS_NL_MODEL_ENABLED;

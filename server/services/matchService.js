@@ -237,6 +237,9 @@ async function scoreAndMatch(job) {
       title: '🔔 New Job Match',
       body: `"${jobTitle}" — a ${category} job near you is looking for a helper.`,
       data: { job_id: job.id },
+      // Notifications audit: dedupe per (job, helper) so a re-run of
+      // matching for the same job does not spam helpers already notified.
+      idempotencyKey: `job-match:${job.id}`,
     }).catch(err => logger.warn('Failed to send job match push notifications', { error: err.message }));
   }
 

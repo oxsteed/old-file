@@ -141,9 +141,19 @@ export const verifyStaffDocument = (restaurantId, documentId, payload) =>
 export const deleteStaffDocument = (restaurantId, documentId) =>
   api.delete(`/restaurants/${restaurantId}/staff-documents/${documentId}`);
 
-// SOP read-and-sign acknowledgements (S-14)
-export const acknowledgeSop = (restaurantId, sopId) =>
-  api.post(`/restaurants/${restaurantId}/sops/${sopId}/acknowledge`).then((r) => r.data);
+// SOP read-and-sign acknowledgements (S-14). signatureBlob is the drawn
+// e-signature PNG; the client requires it, the API keeps it optional so
+// legacy click-to-sign rows and older clients keep working.
+export const acknowledgeSop = (restaurantId, sopId, signatureBlob = null) => {
+  if (!signatureBlob) {
+    return api.post(`/restaurants/${restaurantId}/sops/${sopId}/acknowledge`).then((r) => r.data);
+  }
+  const form = new FormData();
+  form.append('signature', signatureBlob, 'signature.png');
+  return api.post(`/restaurants/${restaurantId}/sops/${sopId}/acknowledge`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then((r) => r.data);
+};
 
 export const listSopAcknowledgements = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/sop-acknowledgements`, { params }).then((r) => r.data?.acknowledgements || []);
