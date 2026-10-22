@@ -23,6 +23,12 @@ const upload = require('../middleware/logisticsUpload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const { requireInternalLogisticsWorkspace } = require('../middleware/requireInternalLogisticsWorkspace');
 const { requireRole } = require('../middleware/auth');
+// Audit fix (finding 31): the refund step-up verify endpoint must not
+// run under an impersonated session, matching the credit step-up
+// verify route (server/routes/admin.js). Not directly exploitable
+// (verifyStepUp needs the account's actual TOTP code), but the guard
+// keeps the two step-up surfaces consistent.
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 // ADM-006: the whole logistics admin API mounts behind plain `authenticate`
 // (server/index.js), so admin-role sessions bypassed the TOTP hard-block that
 // requireAdmin enforces everywhere else. Enforce it router-wide for
@@ -142,7 +148,7 @@ router.get('/refunds',                       requireOperationsWorkspace, refunds
 router.get('/refunds/:id',                   requireOperationsWorkspace, refundsCtrl.getRefund);
 router.get('/refunds/:id/decisions',         requireOperationsWorkspace, refundsCtrl.listDecisions);
 router.post('/refunds/propose',              requireOperationsWorkspace, refundsCtrl.proposeRefund);
-router.post('/refunds/stepup/verify',        requireOperationsWorkspace, refundsCtrl.verifyStepUp);
+router.post('/refunds/stepup/verify',        requireOperationsWorkspace, rejectImpersonated, refundsCtrl.verifyStepUp);
 router.post('/refunds/:id/approve',          requireOperationsWorkspace, requireFreshAuthStepUp, refundsCtrl.approveRefund);
 router.post('/refunds/:id/reject',            requireOperationsWorkspace, refundsCtrl.rejectRefund);
 router.post('/refunds/:id/execute',           requireOperationsWorkspace, refundsCtrl.executeRefund);

@@ -611,9 +611,9 @@ router.post('/super/oxsteed-credit/settlements/:settlementId/payout', requireSup
   }
 });
 // Phase 7 (gap 9): maker-checker queue endpoints.
-router.post('/super/oxsteed-credit/pending-actions', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.requestAdminPendingAction);
-router.get('/super/oxsteed-credit/pending-actions', requireSuperAdmin, oxsteedCreditCtrl.listAdminPendingActions);
-router.post('/super/oxsteed-credit/pending-actions/:id/decision', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.decideAdminPendingAction);
+router.post('/super/oxsteed-credit/pending-actions', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.requestAdminPendingAction);
+router.get('/super/oxsteed-credit/pending-actions', requireSuperAdmin, rejectImpersonated, oxsteedCreditCtrl.listAdminPendingActions);
+router.post('/super/oxsteed-credit/pending-actions/:id/decision', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.decideAdminPendingAction);
 // Review P1-249: parked dual-posting backfill queue (list + requeue).
 router.get('/super/oxsteed-credit/backfill/parked', requireSuperAdmin, async (req, res, next) => {
   try {
@@ -649,7 +649,7 @@ router.get('/super/oxsteed-credit/withdrawals', requireSuperAdmin, async (req, r
     res.json({ withdrawals });
   } catch (err) { next(err); }
 });
-router.post('/super/oxsteed-credit/withdrawals/:id/approve', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
+router.post('/super/oxsteed-credit/withdrawals/:id/approve', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
     await verifyStepupChallenge({
       challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,

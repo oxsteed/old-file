@@ -192,6 +192,10 @@ async function lookupGrants(userId, permission) {
   const { rows } = await db.query(GRANT_LOOKUP_SQL, [userId, permission]);
   return rows;
 }
+// Exported for connectorAuth.requireConnectorGrant, which must mirror these
+// exact semantics (audit fix, finding 30): direct grants PLUS delegation
+// grants with grantor-authority verification.
+exports.lookupGrants = lookupGrants;
 
 /**
  * Shared predicate behind requirePermission: true when the admin holds an
