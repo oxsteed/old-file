@@ -5,7 +5,7 @@ import {
   updateTaxRule,
   deleteTaxRule,
 } from '../../api/food';
-import toast from '../../utils/toast';
+import toast from 'react-hot-toast';
 
 // F-19: per-store tax rules manager. Rendered inside the locations panel
 // while a store is being edited. Shows the rules that apply to the store
