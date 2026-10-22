@@ -1,4 +1,4 @@
--- Migration 1404: F-22 pay-run records.
+-- Migration 99991: F-22 pay-run records.
 --
 -- A pay run is an immutable snapshot of one payroll period: wages and
 -- tips per employee as computed at finalization time, so the exported

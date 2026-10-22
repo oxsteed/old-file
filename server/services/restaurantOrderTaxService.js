@@ -9,6 +9,9 @@
 //     When item rules exist they stack and replace the flat rate; when
 //     none exist the per-item tax_rate_bps (migration 967) falls back to
 //     the store/restaurant rate, exactly like the legacy behavior.
+//     A rule may carry a tax_category (migration 99919): it then applies
+//     only to lines whose menu item carries the same category
+//     (e.g. 'alcohol'); NULL-category rules apply to every line.
 //   - VAT/GST tax-inclusive pricing mode per store: tax is extracted
 //     from the price instead of added on top.
 //   - fee taxability flags per store (service_fee_taxable,
@@ -37,7 +40,7 @@ function firstDefined(...values) {
 
 async function loadStoreTaxRules(db, { restaurantId, locationId = null }) {
   const { rows } = await db.query(
-    `SELECT id, name, rate_bps, applies_to
+    `SELECT id, name, rate_bps, applies_to, tax_category
        FROM restaurant_tax_rules
       WHERE restaurant_id = $1
         AND is_active = TRUE
@@ -52,6 +55,7 @@ async function loadStoreTaxRules(db, { restaurantId, locationId = null }) {
       name: row.name,
       rateBps: clampRateBps(row.rate_bps),
       appliesTo: row.applies_to,
+      taxCategory: row.tax_category || null,
     }));
 }
 
@@ -89,6 +93,17 @@ async function resolveStoreTaxPolicyForOrder(db, { restaurantId, locationRow = n
 
 function stackedRateBps(rules) {
   return clampRateBps(rules.reduce((sum, rule) => sum + Number(rule.rateBps || 0), 0));
+}
+
+// F-19 categories: an item rule with a NULL tax_category applies to every
+// line (legacy behavior); a rule with a category applies only to lines
+// carrying that category. Lines outside a category keep the legacy
+// fallback (per-item rate, then the default rate).
+function itemRulesForLine(itemRules, line) {
+  const lineCategory = line.taxCategory ?? line.tax_category ?? null;
+  return itemRules.filter(
+    (rule) => rule.taxCategory == null || rule.taxCategory === lineCategory
+  );
 }
 
 // Pro-rata discount allocation: proportional per line with the rounding
@@ -137,7 +152,13 @@ function computeOrderTax({
       ...policy.itemRules,
       ...policy.serviceFeeRules,
       ...policy.deliveryFeeRules,
-    ].map((rule) => ({ id: rule.id, name: rule.name, rateBps: rule.rateBps, appliesTo: rule.appliesTo })),
+    ].map((rule) => ({
+      id: rule.id,
+      name: rule.name,
+      rateBps: rule.rateBps,
+      appliesTo: rule.appliesTo,
+      taxCategory: rule.taxCategory || null,
+    })),
     lines: [],
     serviceFee: { feeCents, taxable: policy.serviceFeeTaxable, rateBps: 0, taxCents: 0 },
     deliveryFee: { feeCents: deliveryCents, taxable: policy.deliveryFeeTaxable, rateBps: 0, taxCents: 0 },
@@ -146,6 +167,7 @@ function computeOrderTax({
   if (exempt) {
     snapshot.lines = allocated.map(({ line, taxableCents }) => ({
       menuItemId: line.menuItemId ?? line.menu_item_id ?? null,
+      taxCategory: line.taxCategory ?? line.tax_category ?? null,
       taxableCents,
       rateBps: 0,
       taxCents: 0,
@@ -153,10 +175,16 @@ function computeOrderTax({
     }));
     return { taxCents: 0, feeTaxCents: 0, totalTaxCents: 0, breakdown: snapshot.lines, snapshot };
   }
-  const stackedItemRate = policy.itemRules.length ? stackedRateBps(policy.itemRules) : null;
+  // Brand-wide (NULL-category) item rules stack as the fee fallback; the
+  // per-line stack may add category-scoped rules on top.
+  const baseItemRateBps = policy.itemRules.some((rule) => rule.taxCategory == null)
+    ? stackedRateBps(policy.itemRules.filter((rule) => rule.taxCategory == null))
+    : null;
   let itemTax = 0;
   for (const { line, taxableCents } of allocated) {
     const lineExempt = line.taxExempt === true || line.tax_exempt === true;
+    const applicableItemRules = itemRulesForLine(policy.itemRules, line);
+    const stackedItemRate = applicableItemRules.length ? stackedRateBps(applicableItemRules) : null;
     const rateBps = lineExempt
       ? 0
       : stackedItemRate !== null
@@ -170,17 +198,18 @@ function computeOrderTax({
     itemTax += taxCents;
     snapshot.lines.push({
       menuItemId: line.menuItemId ?? line.menu_item_id ?? null,
+      taxCategory: line.taxCategory ?? line.tax_category ?? null,
       taxableCents,
       rateBps,
       taxCents,
       taxExempt: lineExempt,
     });
   }
-  // Fee taxes: explicit fee rules win; otherwise the stacked item rate (or
-  // the default rate) applies when the fee is flagged taxable.
+  // Fee taxes: explicit fee rules win; otherwise the stacked brand-wide
+  // item rate (or the default rate) applies when the fee is flagged taxable.
   const feeRateFor = (feeRules) => (feeRules.length
     ? stackedRateBps(feeRules)
-    : stackedItemRate !== null ? stackedItemRate : policy.defaultRateBps);
+    : baseItemRateBps !== null ? baseItemRateBps : policy.defaultRateBps);
   let serviceFeeTax = 0;
   let deliveryFeeTax = 0;
   if (policy.serviceFeeTaxable && feeCents > 0) {
@@ -223,6 +252,7 @@ function orderTotalWithTax({ taxableSubtotalCents, tipCents = 0, serviceFeeCents
 module.exports = {
   TAX_APPLIES_TO,
   clampRateBps,
+  itemRulesForLine,
   loadStoreTaxRules,
   resolveStoreTaxPolicy,
   resolveStoreTaxPolicyForOrder,

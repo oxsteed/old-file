@@ -336,6 +336,15 @@ router.get('/:restaurantId/team/activity', requireRestaurantAccess(), payrollRep
 router.get('/:restaurantId/tip-pool', requireRestaurantAccess(), payrollReports.getTipPoolSettings);
 router.put('/:restaurantId/tip-pool', requireRestaurantAccess(), payrollReports.updateTipPoolSettings);
 router.post('/:restaurantId/tips/cash-declarations', requireRestaurantAccess(), payrollReports.declareCashTip);
+// F-22: pay-run records (immutable payroll snapshots + native CSV export).
+// The export route is registered before :payRunId so the .csv suffix wins.
+router.post('/:restaurantId/pay-runs', requireRestaurantAccess(), payrollReports.createPayRun);
+router.get('/:restaurantId/pay-runs', requireRestaurantAccess(), payrollReports.listPayRuns);
+router.get('/:restaurantId/pay-runs/:payRunId/export.csv', requireRestaurantAccess(), payrollReports.exportPayRunCsv);
+router.get('/:restaurantId/pay-runs/:payRunId', requireRestaurantAccess(), payrollReports.getPayRun);
+router.post('/:restaurantId/pay-runs/:payRunId/rebuild', requireRestaurantAccess(), payrollReports.rebuildPayRun);
+router.post('/:restaurantId/pay-runs/:payRunId/finalize', requireRestaurantAccess(), payrollReports.finalizePayRun);
+router.post('/:restaurantId/pay-runs/:payRunId/void', requireRestaurantAccess(), payrollReports.voidPayRun);
 router.delete('/:restaurantId/inventory/mappings/:mappingId', requireRestaurantAccess(), inventory.deleteMapping);
 router.post('/:restaurantId/inventory/mappings/bootstrap-defaults', requireRestaurantAccess(), inventory.bootstrapMappings);
 router.get('/:restaurantId/inventory/purchase-requests', requireRestaurantAccess(), inventory.listPurchaseRequests);
@@ -357,6 +366,9 @@ router.get('/:restaurantId/inventory/receipts', requireRestaurantAccess(), inven
 router.get('/:restaurantId/inventory/receipts/export.csv', requireRestaurantAccess(), inventoryOperations.exportReceiptsCsv);
 router.post('/:restaurantId/inventory/receipts', requireRestaurantAccess(), inventoryOperations.createReceipt);
 router.patch('/:restaurantId/inventory/receipts/:receiptId/invoice-match', requireRestaurantAccess(), inventoryOperations.updateReceiptInvoiceMatch);
+// F-23: vendor price history (receipt postings are automatic; manual entries here).
+router.get('/:restaurantId/inventory/price-history', requireRestaurantAccess(), inventoryOperations.listVendorPriceHistory);
+router.post('/:restaurantId/inventory/price-history', requireRestaurantAccess(), inventoryOperations.recordVendorPrice);
 
 // Crew training / certifications (App 6)
 router.get('/:restaurantId/crew/dashboard', requireRestaurantAccess(), crew.getDashboard);

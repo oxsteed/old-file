@@ -12,6 +12,10 @@
  *   - restaurant.display.paired              (claimDisplay)
  *   - restaurant.display.unpaired            (unpairDisplay)
  *
+ * Modifier-group lifecycle mutations are covered too (same audit table,
+ * F-20 modifier scope):
+ *   - menu.modifier_group.created / .updated / .deleted
+ *
  * DB: disposable credit_statement_test only; the suite skips otherwise.
  *
  * Run with:
@@ -65,6 +69,7 @@ const { errorHandler } = require('../middleware/errorHandler');
 const pool = require('../db');
 const appFlow = require('../controllers/restaurantAppFlowController');
 const displays = require('../controllers/restaurantDisplayController');
+const food = require('../controllers/foodController');
 
 jest.setTimeout(60000);
 
@@ -132,10 +137,6 @@ ddescribe('F-20 device-pairing audit actions', () => {
       effective_role: 'owner',
       effective_membership_id: null,
     }));
-  });
-
-  afterAll(async () => {
-    await pool.end().catch(() => {});
   });
 
   test('pairing-code creation and pairing are audited; secrets never land in the log', async () => {
@@ -208,20 +209,20 @@ ddescribe('F-20 device-pairing audit actions', () => {
     const { rows: [pairing] } = await pool.query(
       `INSERT INTO display_pairings
          (restaurant_id, code_hash, device_role, expires_at)
-       VALUES ($1, $2, 'menu_board', NOW() + INTERVAL '15 minutes')
+       VALUES ($1, $2, 'kitchen', NOW() + INTERVAL '15 minutes')
        RETURNING id`,
       [F.restaurantId, hashSecret(code)]
     );
 
     const claimed = await request(deviceApp(F.owner))
       .post('/api/restaurant/displays/claim')
-      .send({ code, device_role: 'menu_board' });
+      .send({ code, device_role: 'kitchen' });
     expect(claimed.status).toBe(201);
 
     let rows = await auditRows(F.businessId, 'restaurant.display.paired');
     expect(rows).toHaveLength(1);
     expect(String(rows[0].target_id)).toBe(String(pairing.id));
-    expect(rows[0].after_state.deviceRole).toBe('menu_board');
+    expect(rows[0].after_state.deviceRole).toBe('kitchen');
     expect(JSON.stringify(rows[0])).not.toContain(claimed.body.token);
 
     const unpaired = await request(deviceApp(F.owner))
@@ -232,6 +233,118 @@ ddescribe('F-20 device-pairing audit actions', () => {
     rows = await auditRows(F.businessId, 'restaurant.display.unpaired');
     expect(rows).toHaveLength(1);
     expect(String(rows[0].target_id)).toBe(String(pairing.id));
-    expect(rows[0].before_state.deviceRole).toBe('menu_board');
+    expect(rows[0].before_state.deviceRole).toBe('kitchen');
+  });
+});
+
+ddescribe('F-20 modifier-group audit actions', () => {
+  let F = {};
+
+  function menuApp(userId) {
+    const app = express();
+    app.use(express.json());
+    app.use((req, _res, next) => {
+      req.user = { id: userId };
+      next();
+    });
+    app.post('/api/food/restaurants/:restaurantId/menu-items/:itemId/modifier-groups', food.createModifierGroup);
+    app.patch('/api/food/restaurants/:restaurantId/modifier-groups/:groupId', food.updateModifierGroup);
+    app.delete('/api/food/restaurants/:restaurantId/modifier-groups/:groupId', food.deleteModifierGroup);
+    app.use(errorHandler);
+    return app;
+  }
+
+  beforeAll(async () => {
+    const owner = await newUser('modifier-owner');
+    const { rows: [biz] } = await pool.query(
+      'INSERT INTO businesses (user_id, business_name) VALUES ($1, $2) RETURNING id',
+      [owner, `Modifier Audit ${crypto.randomUUID().slice(0, 8)}`]
+    );
+    const { rows: [rest] } = await pool.query(
+      `INSERT INTO food_restaurants
+         (business_id, owner_user_id, display_name, status, accepts_in_store_orders, fulfillment_modes)
+       VALUES ($1, $2, $3, 'active', TRUE, $4::text[])
+       RETURNING id`,
+      [biz.id, owner, 'Modifier Audit Diner', ['pickup']]
+    );
+    const { rows: [item] } = await pool.query(
+      `INSERT INTO food_menu_items (restaurant_id, name, price_cents)
+       VALUES ($1, 'Burger', 999) RETURNING id`,
+      [rest.id]
+    );
+    F = { owner, businessId: biz.id, restaurantId: rest.id, itemId: item.id };
+    resolveRestaurantAccess.mockImplementation(async () => ({
+      id: rest.id,
+      business_id: biz.id,
+      display_name: 'Modifier Audit Diner',
+      timezone: 'UTC',
+      currency_code: 'USD',
+      effective_role: 'owner',
+      effective_membership_id: null,
+    }));
+  });
+
+  test('modifier-group create/update/delete are audited with before/after option detail', async () => {
+    const created = await request(menuApp(F.owner))
+      .post(`/api/food/restaurants/${F.restaurantId}/menu-items/${F.itemId}/modifier-groups`)
+      .send({
+        name: 'Extras',
+        minSelect: 0,
+        maxSelect: 2,
+        options: [
+          { name: 'Cheese', priceDeltaCents: 100 },
+          { name: 'Bacon', priceDeltaCents: 200 },
+        ],
+      });
+    expect(created.status).toBe(201);
+    const groupId = created.body.modifierGroup?.id;
+    expect(groupId).toBeTruthy();
+
+    let rows = await auditRows(F.businessId, 'menu.modifier_group.created');
+    expect(rows).toHaveLength(1);
+    expect(String(rows[0].target_id)).toBe(String(groupId));
+    expect(rows[0].after_state.name).toBe('Extras');
+    expect(rows[0].after_state.options).toHaveLength(2);
+    expect(rows[0].after_state.options[0]).toMatchObject({ name: 'Cheese', price_delta_cents: 100 });
+
+    const updated = await request(menuApp(F.owner))
+      .patch(`/api/food/restaurants/${F.restaurantId}/modifier-groups/${groupId}`)
+      .send({
+        name: 'Extras',
+        minSelect: 1,
+        maxSelect: 2,
+        isRequired: true,
+        options: [
+          { name: 'Cheese', priceDeltaCents: 150 },
+          { name: 'Bacon', priceDeltaCents: 200 },
+          { name: 'Avocado', priceDeltaCents: 250 },
+        ],
+      });
+    expect(updated.status).toBe(200);
+
+    rows = await auditRows(F.businessId, 'menu.modifier_group.updated');
+    expect(rows).toHaveLength(1);
+    expect(String(rows[0].target_id)).toBe(String(groupId));
+    // Before image carries the original price deltas; after image the new ones.
+    expect(rows[0].before_state.options.find((o) => o.name === 'Cheese').price_delta_cents).toBe(100);
+    expect(rows[0].after_state.options.find((o) => o.name === 'Cheese').price_delta_cents).toBe(150);
+    expect(rows[0].after_state.options).toHaveLength(3);
+    expect(rows[0].before_state.is_required).toBe(false);
+    expect(rows[0].after_state.is_required).toBe(true);
+
+    const deleted = await request(menuApp(F.owner))
+      .delete(`/api/food/restaurants/${F.restaurantId}/modifier-groups/${groupId}`)
+      .send({});
+    expect(deleted.status).toBe(204);
+
+    rows = await auditRows(F.businessId, 'menu.modifier_group.deleted');
+    expect(rows).toHaveLength(1);
+    expect(String(rows[0].target_id)).toBe(String(groupId));
+    expect(rows[0].before_state.name).toBe('Extras');
+    expect(rows[0].before_state.options).toHaveLength(3);
+  });
+
+  afterAll(async () => {
+    await pool.end().catch(() => {});
   });
 });

@@ -17,6 +17,7 @@ export default function TaxRulesPanel({ restaurant, locationId, t }) {
   const [name, setName] = useState('');
   const [ratePercent, setRatePercent] = useState('');
   const [appliesTo, setAppliesTo] = useState('items');
+  const [category, setCategory] = useState('');
   const [scope, setScope] = useState('store');
   const [saving, setSaving] = useState(false);
 
@@ -46,10 +47,12 @@ export default function TaxRulesPanel({ restaurant, locationId, t }) {
         name: name.trim(),
         rateBps: Math.round(rate * 100),
         appliesTo,
+        taxCategory: category.trim() || null,
         locationId: scope === 'store' ? locationId : null,
       });
       setName('');
       setRatePercent('');
+      setCategory('');
       load();
     } catch {
       toast.error(t('food.merchant.locationError'));
@@ -86,6 +89,7 @@ export default function TaxRulesPanel({ restaurant, locationId, t }) {
             <li key={rule.id} className="fd-setup-step fd-complete">
               <span>
                 {rule.name} · {(Number(rule.rate_bps) / 100).toFixed(2)}% · {appliesLabel(rule.applies_to)}
+                {rule.tax_category ? ` · ${rule.tax_category}` : ''}
                 {' · '}{rule.location_id ? t('food.merchant.taxRuleScopeStore') : t('food.merchant.taxRuleScopeBrand')}
                 {' · '}{rule.is_active ? t('food.merchant.taxRuleActive') : t('food.merchant.taxRuleInactive')}
               </span>
@@ -118,6 +122,10 @@ export default function TaxRulesPanel({ restaurant, locationId, t }) {
               <option value="delivery_fee">{t('food.merchant.taxRuleAppliesDeliveryFee')}</option>
               <option value="service_fee">{t('food.merchant.taxRuleAppliesServiceFee')}</option>
             </select>
+          </div>
+          <div className="fd-field" style={{ flex: '0 1 140px' }}>
+            <label htmlFor="fd-taxrule-category">{t('food.merchant.taxRuleCategory')}</label>
+            <input id="fd-taxrule-category" value={category} onChange={(e) => setCategory(e.target.value)} maxLength={40} placeholder="alcohol" />
           </div>
           <div className="fd-field" style={{ flex: '0 1 140px' }}>
             <label htmlFor="fd-taxrule-scope">{t('food.merchant.taxRuleScope')}</label>

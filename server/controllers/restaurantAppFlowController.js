@@ -4244,7 +4244,7 @@ exports.createPosOrder = async (req, res, next) => {
       const { rows: menuRows } = await client.query(
         `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
                 fmi.manual_available, fmi.inventory_available, fmi.inventory_availability_state,
-                fmi.availability_schedule, fmi.tax_rate_bps, fmi.tax_exempt,
+                fmi.availability_schedule, fmi.tax_rate_bps, fmi.tax_exempt, fmi.tax_category,
                 ${storeMenu.overrideSql('fmi', '$3')},
                 COALESCE((
                   SELECT jsonb_agg(
@@ -4468,6 +4468,7 @@ exports.createPosOrder = async (req, res, next) => {
           menuItemId: line.item.id,
           lineTotalCents: line.lineTotal,
           taxRateBps: line.item.tax_rate_bps,
+          taxCategory: line.item.tax_category || null,
           taxExempt: line.item.tax_exempt === true,
         })),
         discountCents: discount,
@@ -6762,6 +6763,21 @@ exports.reprintReceipt = async (req, res, next) => {
   }
 };
 
+// F-21: resolves the store scope for a staff PIN. NULL keeps the legacy
+// restaurant-wide PIN (valid at every store). A store id must belong to
+// this restaurant, else the request fails closed.
+async function resolveStaffPinLocation(db, restaurantId, locationId) {
+  if (locationId === null || locationId === undefined || locationId === '') return null;
+  const id = parsePositiveInt(locationId);
+  if (!id) throw new AppError('Validation failed', 400, 'validation_failed', { locationId: 'Invalid store' });
+  const { rows: [location] } = await db.query(
+    'SELECT id FROM restaurant_locations WHERE id = $1 AND restaurant_id = $2',
+    [id, restaurantId]
+  );
+  if (!location) throw new AppError('Location not found', 404, 'location_not_found');
+  return id;
+}
+
 exports.setStaffPin = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
@@ -6785,73 +6801,108 @@ exports.setStaffPin = async (req, res, next) => {
         });
       }
     }
+    // F-21: PINs are scoped to a store. A locationId pins the value to one
+    // store (reusable across stores, never twice in the same store); omitting
+    // it keeps the legacy restaurant-wide PIN that works everywhere.
+    const locationId = await resolveStaffPinLocation(pool, restaurantId, req.body.locationId ?? req.body.location_id);
     // S-06: one PIN value per store. The digest identifies the target row
     // being (re)set so re-setting your own PIN is not a conflict, while a
-    // value already held by anyone else at this restaurant is refused
+    // value already held by anyone else at this store is refused
     // (previously the first bcrypt match won and label PINs duplicated).
     const pinDigest = staffPinDigest(restaurantId, pin);
     const { rows: digestRows } = await pool.query(
       `SELECT id, staff_user_id, staff_label FROM restaurant_staff_pins
-        WHERE restaurant_id = $1 AND pin_digest = $2 AND is_active = TRUE`,
-      [restaurantId, pinDigest]
+        WHERE restaurant_id = $1 AND pin_digest = $2 AND is_active = TRUE
+          AND location_id IS NOT DISTINCT FROM $3::bigint`,
+      [restaurantId, pinDigest, locationId]
     );
     const targetClash = digestRows.find((row) => {
       if (staffUserId) return String(row.staff_user_id || '') !== String(staffUserId);
       return !(row.staff_user_id === null && staffLabel && row.staff_label === staffLabel);
     });
     if (targetClash) {
-      throw new AppError('This PIN is already in use at this restaurant', 409, 'pin_already_in_use');
+      throw new AppError(
+        locationId ? 'This PIN is already in use at this store' : 'This PIN is already in use at this restaurant',
+        409,
+        'pin_already_in_use'
+      );
     }
     const pinHash = await bcrypt.hash(pin, 10);
     const roleLabel = normalizeString(req.body.roleLabel || req.body.role_label, 120);
     let staffPin;
     try {
-      if (staffUserId) {
-        ({ rows: [staffPin] } = await pool.query(
-          `INSERT INTO restaurant_staff_pins
-             (restaurant_id, staff_user_id, staff_label, pin_hash, pin_digest, role_label, is_active, created_by)
-           VALUES ($1,$2,$3,$4,$5,$6,TRUE,$7)
-           ON CONFLICT (restaurant_id, staff_user_id)
-           DO UPDATE SET pin_hash = EXCLUDED.pin_hash,
-                         pin_digest = EXCLUDED.pin_digest,
-                         staff_label = COALESCE(EXCLUDED.staff_label, restaurant_staff_pins.staff_label),
-                         role_label = COALESCE(EXCLUDED.role_label, restaurant_staff_pins.role_label),
-                         is_active = TRUE,
-                         updated_at = NOW()
-           RETURNING id, restaurant_id, staff_user_id, staff_label, role_label, is_active, updated_at`,
-          [restaurantId, staffUserId, staffLabel, pinHash, pinDigest, roleLabel, req.user.id]
-        ));
-      } else {
+      staffPin = await withTransaction(pool, async (client) => {
+        if (staffUserId) {
+          // F-21: the owner upsert key is (restaurant, staff, store). An
+          // explicit locked read replaces ON CONFLICT because the arbiter
+          // cannot infer the NULLS NOT DISTINCT partial index.
+          const { rows: [existing] } = await client.query(
+            `SELECT id FROM restaurant_staff_pins
+              WHERE restaurant_id = $1 AND staff_user_id = $2
+                AND location_id IS NOT DISTINCT FROM $3::bigint
+              FOR UPDATE`,
+            [restaurantId, staffUserId, locationId]
+          );
+          if (existing) {
+            const { rows: [updated] } = await client.query(
+              `UPDATE restaurant_staff_pins
+                  SET pin_hash = $1, pin_digest = $2,
+                      staff_label = COALESCE($3, staff_label),
+                      role_label = COALESCE($4, role_label),
+                      is_active = TRUE, updated_at = NOW()
+                WHERE id = $5
+              RETURNING id, restaurant_id, staff_user_id, staff_label, role_label, is_active, location_id, updated_at`,
+              [pinHash, pinDigest, staffLabel, roleLabel, existing.id]
+            );
+            return updated;
+          }
+          const { rows: [created] } = await client.query(
+            `INSERT INTO restaurant_staff_pins
+               (restaurant_id, staff_user_id, staff_label, pin_hash, pin_digest, role_label, is_active, created_by, location_id)
+             VALUES ($1,$2,$3,$4,$5,$6,TRUE,$7,$8)
+             RETURNING id, restaurant_id, staff_user_id, staff_label, role_label, is_active, location_id, updated_at`,
+            [restaurantId, staffUserId, staffLabel, pinHash, pinDigest, roleLabel, req.user.id, locationId]
+          );
+          return created;
+        }
         // Label-only PINs have no (restaurant_id, staff_user_id) conflict
-        // target: rotate the active row carrying this label, else insert.
-        const { rows: [existingLabelPin] } = await pool.query(
+        // target: rotate the active row carrying this label at this store,
+        // else insert. The same label may exist at another store.
+        const { rows: [existingLabelPin] } = await client.query(
           `SELECT id FROM restaurant_staff_pins
             WHERE restaurant_id = $1 AND staff_user_id IS NULL AND staff_label = $2 AND is_active = TRUE
-            ORDER BY updated_at DESC LIMIT 1`,
-          [restaurantId, staffLabel]
+              AND location_id IS NOT DISTINCT FROM $3::bigint
+            ORDER BY updated_at DESC LIMIT 1
+            FOR UPDATE`,
+          [restaurantId, staffLabel, locationId]
         );
         if (existingLabelPin) {
-          ({ rows: [staffPin] } = await pool.query(
+          const { rows: [updated] } = await client.query(
             `UPDATE restaurant_staff_pins
                 SET pin_hash = $1, pin_digest = $2,
                     role_label = COALESCE($3, role_label), updated_at = NOW()
               WHERE id = $4
-              RETURNING id, restaurant_id, staff_user_id, staff_label, role_label, is_active, updated_at`,
+              RETURNING id, restaurant_id, staff_user_id, staff_label, role_label, is_active, location_id, updated_at`,
             [pinHash, pinDigest, roleLabel, existingLabelPin.id]
-          ));
-        } else {
-          ({ rows: [staffPin] } = await pool.query(
-            `INSERT INTO restaurant_staff_pins
-               (restaurant_id, staff_user_id, staff_label, pin_hash, pin_digest, role_label, is_active, created_by)
-             VALUES ($1,NULL,$2,$3,$4,$5,TRUE,$6)
-             RETURNING id, restaurant_id, staff_user_id, staff_label, role_label, is_active, updated_at`,
-            [restaurantId, staffLabel, pinHash, pinDigest, roleLabel, req.user.id]
-          ));
+          );
+          return updated;
         }
-      }
+        const { rows: [created] } = await client.query(
+          `INSERT INTO restaurant_staff_pins
+             (restaurant_id, staff_user_id, staff_label, pin_hash, pin_digest, role_label, is_active, created_by, location_id)
+           VALUES ($1,NULL,$2,$3,$4,$5,TRUE,$6,$7)
+           RETURNING id, restaurant_id, staff_user_id, staff_label, role_label, is_active, location_id, updated_at`,
+          [restaurantId, staffLabel, pinHash, pinDigest, roleLabel, req.user.id, locationId]
+        );
+        return created;
+      }, 'restaurant_set_staff_pin');
     } catch (err) {
       if (err.code === '23505') {
-        throw new AppError('This PIN is already in use at this restaurant', 409, 'pin_already_in_use');
+        throw new AppError(
+          locationId ? 'This PIN is already in use at this store' : 'This PIN is already in use at this restaurant',
+          409,
+          'pin_already_in_use'
+        );
       }
       throw err;
     }
@@ -6865,6 +6916,7 @@ exports.setStaffPin = async (req, res, next) => {
         staff_user_id: staffPin.staff_user_id,
         staff_label: staffPin.staff_label,
         role_label: staffPin.role_label,
+        location_id: staffPin.location_id == null ? null : Number(staffPin.location_id),
         is_active: true,
       },
       business_id: restaurant.business_id,
@@ -6884,16 +6936,25 @@ async function issueStaffSession(req, restaurant, restaurantId) {
   if (!pin) throw new AppError('Validation failed', 400, 'validation_failed', { pin: 'PIN is required' });
   let deviceId = req.restaurantDevice?.id
     || parsePositiveInt(req.body.deviceId || req.body.device_id);
+  // F-21: the store scope comes from the paired device (always store-bound);
+  // a body-supplied store is only honored alongside a verified device of
+  // this restaurant, mirroring the deviceId rule below.
+  let locationId = req.restaurantDevice?.location_id ?? null;
   if (deviceId && !req.restaurantDevice) {
     // A body-supplied device id is only honored when it names a real
     // device of this restaurant (attempts/sessions FK to it).
     const { rows: [device] } = await pool.query(
-      'SELECT id FROM restaurant_app_devices WHERE id = $1 AND restaurant_id = $2',
+      'SELECT id, location_id FROM restaurant_app_devices WHERE id = $1 AND restaurant_id = $2',
       [deviceId, restaurantId]
     );
     if (!device) deviceId = null;
+    else locationId = device.location_id;
   }
-  const { pinRow, staff } = await validateStaffPinForRestaurant({ restaurantId, pin, deviceId });
+  if (locationId == null) {
+    const bodyLocation = parsePositiveInt(req.body.locationId || req.body.location_id);
+    if (bodyLocation && deviceId) locationId = bodyLocation;
+  }
+  const { pinRow, staff } = await validateStaffPinForRestaurant({ restaurantId, pin, deviceId, locationId });
   const { token, session, idleMinutes } = await createStaffSession({
     restaurantId,
     deviceId,

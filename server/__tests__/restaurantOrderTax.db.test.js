@@ -158,6 +158,46 @@ describe('computeOrderTax (unit)', () => {
     expect(tax.snapshot.rules).toHaveLength(2);
   });
 
+  test('category-scoped rules apply only to matching lines', () => {
+    const policy = resolveStoreTaxPolicy({
+      locationRow: null,
+      restaurantRow: { tax_rate_bps: 800 },
+      rules: [
+        { id: 1, name: 'Base', rateBps: 500, appliesTo: 'items', taxCategory: null },
+        { id: 2, name: 'Alcohol excise', rateBps: 1000, appliesTo: 'items', taxCategory: 'alcohol' },
+      ],
+    });
+    const tax = computeOrderTax({
+      lines: [
+        { menuItemId: 1, lineTotalCents: 1000, taxCategory: 'alcohol' },
+        { menuItemId: 2, lineTotalCents: 1000, taxCategory: 'grocery' },
+        { menuItemId: 3, lineTotalCents: 1000 },
+      ],
+      policy,
+    });
+    // Alcohol: 5% base + 10% excise = 150. Others: 5% base = 50 each.
+    expect(tax.snapshot.lines[0]).toMatchObject({ rateBps: 1500, taxCents: 150, taxCategory: 'alcohol' });
+    expect(tax.snapshot.lines[1]).toMatchObject({ rateBps: 500, taxCents: 50, taxCategory: 'grocery' });
+    expect(tax.snapshot.lines[2]).toMatchObject({ rateBps: 500, taxCents: 50, taxCategory: null });
+    expect(tax.taxCents).toBe(250);
+    expect(tax.snapshot.rules[1]).toMatchObject({ taxCategory: 'alcohol' });
+  });
+
+  test('lines outside every category keep the legacy fallback', () => {
+    const tax = computeOrderTax({
+      lines: [{ menuItemId: 1, lineTotalCents: 1000, taxCategory: 'grocery' }],
+      policy: resolveStoreTaxPolicy({
+        locationRow: null,
+        restaurantRow: { tax_rate_bps: 800 },
+        rules: [
+          { id: 1, name: 'Alcohol excise', rateBps: 1000, appliesTo: 'items', taxCategory: 'alcohol' },
+        ],
+      }),
+    });
+    // No rule applies to this line: per-item rate absent, so the default 8%.
+    expect(tax.snapshot.lines[0]).toMatchObject({ rateBps: 800, taxCents: 80 });
+  });
+
   test('taxable service fee carries tax at the fee rules rate', () => {
     const tax = computeOrderTax({
       lines: [{ menuItemId: 1, lineTotalCents: 1000 }],

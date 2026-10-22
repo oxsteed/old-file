@@ -49,6 +49,18 @@ function invoiceTotalCents(value, field = 'invoiceTotalCents') {
   return number;
 }
 
+// F-23: per-line receiving cost, recorded into the vendor price history.
+function unitCostCents(value, field = 'unitCostCents') {
+  if (value === undefined || value === null || value === '') return null;
+  const number = Number(value);
+  if (!Number.isInteger(number) || number < 0) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      [field]: 'Unit cost must be non-negative cents',
+    });
+  }
+  return number;
+}
+
 function operationId(value) {
   if (value === undefined || value === null || value === '') return null;
   const normalized = String(value).trim();
@@ -121,6 +133,65 @@ async function receiptWithLines(client, restaurantId, receiptId) {
     [restaurantId, receiptId]
   );
   return receipt || null;
+}
+
+// F-23: line-level three-way PO / receipt / invoice match. Each receipt
+// line's receiving unit cost is compared against the linked purchase
+// request's estimated unit cost; variances beyond the restaurant's
+// tolerance (settings.inventory.priceVarianceToleranceBps, default 500 =
+// 5%) are flagged. Lines are matched to the single-item PO by item name;
+// unmatched lines report po_matched: false and no variance.
+async function computeReceiptPriceVariances(db, { restaurant, receipt, purchaseRequestId }) {
+  const empty = { variances: [], flagged: 0, tolerance_bps: 0 };
+  const requestId = purchaseRequestId || receipt.purchase_request_id;
+  if (!requestId) return empty;
+  const { rows: [request] } = await db.query(
+    `SELECT item_name, unit, estimated_unit_cost_cents, estimated_currency_code
+       FROM restaurant_inventory_purchase_requests
+      WHERE id = $1 AND restaurant_id = $2`,
+    [requestId, restaurant.id]
+  );
+  if (!request || request.estimated_unit_cost_cents == null) return empty;
+  const { rows: lines } = await db.query(
+    `SELECT id, item_name, unit, unit_cost_cents
+       FROM restaurant_inventory_receipt_lines
+      WHERE receipt_id = $1 AND restaurant_id = $2
+      ORDER BY id`,
+    [receipt.id, restaurant.id]
+  );
+  const settings = restaurant.settings && typeof restaurant.settings === 'object' ? restaurant.settings : {};
+  const inventorySettings = settings.inventory && typeof settings.inventory === 'object' ? settings.inventory : {};
+  const toleranceBps = Math.max(0, Math.floor(Number(inventorySettings.priceVarianceToleranceBps ?? 500) || 0));
+  const receiptCurrency = String(receipt.invoice_currency_code || 'USD').toUpperCase();
+  const estimateCurrency = String(request.estimated_currency_code || receiptCurrency).toUpperCase();
+  const comparable = estimateCurrency === receiptCurrency;
+  const estimateCents = Number(request.estimated_unit_cost_cents);
+  const requestName = String(request.item_name || '').trim().toLowerCase();
+  const variances = lines.map((line) => {
+    const poMatched = String(line.item_name || '').trim().toLowerCase() === requestName;
+    const actualCents = line.unit_cost_cents == null ? null : Number(line.unit_cost_cents);
+    const entry = {
+      receipt_line_id: Number(line.id),
+      item_name: line.item_name,
+      po_matched: poMatched,
+      estimated_unit_cost_cents: poMatched ? estimateCents : null,
+      actual_unit_cost_cents: actualCents,
+      currency_code: receiptCurrency,
+      variance_bps: null,
+      flagged: false,
+    };
+    if (poMatched && comparable && actualCents != null && estimateCents > 0) {
+      const varianceBps = Math.round(((actualCents - estimateCents) / estimateCents) * 10000);
+      entry.variance_bps = varianceBps;
+      entry.flagged = Math.abs(varianceBps) > toleranceBps;
+    }
+    return entry;
+  });
+  return {
+    variances,
+    flagged: variances.filter((v) => v.flagged).length,
+    tolerance_bps: toleranceBps,
+  };
 }
 
 async function requireReceiptLocation(client, restaurant, userId, { requestedLocationId, requestLocationId }) {
@@ -965,11 +1036,11 @@ exports.updateReceiptInvoiceMatch = async (req, res, next) => {
       const { rows: [updated] } = await client.query(
         `UPDATE restaurant_inventory_receipts
             SET purchase_request_id = COALESCE($1, purchase_request_id),
-                invoice_match_status = $2,
+                invoice_match_status = $2::text,
                 invoice_total_cents = CASE WHEN $3::boolean THEN $4 ELSE invoice_total_cents END,
                 invoice_currency_code = CASE WHEN $5::boolean THEN $6 ELSE invoice_currency_code END,
-                matched_at = CASE WHEN $2 = 'unmatched' THEN NULL ELSE NOW() END,
-                matched_by = CASE WHEN $2 = 'unmatched' THEN NULL ELSE $7 END
+                matched_at = CASE WHEN $2::text = 'unmatched' THEN NULL ELSE NOW() END,
+                matched_by = CASE WHEN $2::text = 'unmatched' THEN NULL ELSE $7::uuid END
           WHERE id = $8 AND restaurant_id = $9
           RETURNING *`,
         [request?.id || null, status, hasTotal, parsedInvoiceTotal, hasCurrency, invoiceCurrency,
@@ -983,9 +1054,15 @@ exports.updateReceiptInvoiceMatch = async (req, res, next) => {
         invoiceTotalCents: updated.invoice_total_cents,
         invoiceCurrencyCode: updated.invoice_currency_code,
       }));
-      return receiptWithLines(client, restaurantId, updated.id);
+      // F-23: line-level three-way match flags price variances.
+      const priceMatch = await computeReceiptPriceVariances(client, {
+        restaurant,
+        receipt: updated,
+        purchaseRequestId: updated.purchase_request_id,
+      });
+      return { receipt: await receiptWithLines(client, restaurantId, updated.id), priceMatch };
     });
-    res.json({ receipt });
+    res.json({ receipt: receipt.receipt, priceMatch: receipt.priceMatch });
   } catch (error) { next(error); }
 };
 
@@ -1046,7 +1123,7 @@ exports.createReceipt = async (req, res, next) => {
         purchaseRequest = request;
       }
       const receiptLocationId = await requireReceiptLocation(client, restaurant, req.user.id, {
-        requestedLocationId: parsePositiveInt(req.body.locationId || req.body.location_id),
+        requestedLocationId: positiveInt(req.body.locationId || req.body.location_id),
         requestLocationId: purchaseRequest?.location_id || null,
       });
       const { rows: [receipt] } = await client.query(
@@ -1078,6 +1155,7 @@ exports.createReceipt = async (req, res, next) => {
           throw new AppError('Receipt items must belong to the receipt store', 400, 'location_mismatch');
         }
         if (item.location_id != null) await assertLocationAccess(restaurant, req.user.id, item.location_id, client);
+        const lineUnitCost = unitCostCents(line.unitCostCents ?? line.unit_cost_cents, `lines.${index}.unitCostCents`);
         auditLines.push({
           itemId: item.id,
           itemName: item.name,
@@ -1085,16 +1163,29 @@ exports.createReceipt = async (req, res, next) => {
           receivedQuantity: received,
           acceptedQuantity: accepted,
           unit: item.unit,
+          unitCostCents: lineUnitCost,
           issueType: text(line.issueType, 32),
         });
-        await client.query(
+        const { rows: [receiptLine] } = await client.query(
           `INSERT INTO restaurant_inventory_receipt_lines
              (receipt_id, restaurant_id, item_id, item_name, expected_quantity,
-              received_quantity, accepted_quantity, unit, issue_type, issue_note)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+              received_quantity, accepted_quantity, unit, unit_cost_cents, issue_type, issue_note)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+           RETURNING id`,
           [receipt.id, restaurantId, item.id, item.name, expected, received, accepted, item.unit,
-            text(line.issueType, 32), text(line.issueNote, 1000)]
+            lineUnitCost, text(line.issueType, 32), text(line.issueNote, 1000)]
         );
+        if (lineUnitCost != null) {
+          // F-23: the receiving price feeds the vendor price history ledger.
+          await client.query(
+            `INSERT INTO restaurant_inventory_vendor_price_history
+               (restaurant_id, supplier_id, inventory_item_id, unit, unit_cost_cents,
+                currency_code, source_type, source_id, recorded_by)
+             VALUES ($1,$2,$3,$4,$5,$6,'receipt',$7,$8)`,
+            [restaurantId, supplierId, item.id, item.unit, lineUnitCost, invoiceCurrency,
+              receiptLine.id, req.user.id]
+          );
+        }
         if (accepted > 0) {
           const after = Math.round((Number(item.quantity) + accepted) * 1000) / 1000;
           await client.query(
@@ -1141,6 +1232,109 @@ exports.createReceipt = async (req, res, next) => {
       }, clientOperationId));
       return { receipt: await receiptWithLines(client, restaurantId, receipt.id), replayed: false };
     });
+    // F-23: when the receipt arrived against a PO, the response carries the
+    // line-level three-way price match.
+    if (!result.replayed && result.receipt.purchase_request_id) {
+      result.priceMatch = await computeReceiptPriceVariances(pool, {
+        restaurant,
+        receipt: result.receipt,
+        purchaseRequestId: result.receipt.purchase_request_id,
+      });
+    }
     res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) { next(error); }
+};
+
+// ── F-23: vendor price history ───────────────────────────────────────
+// Append-only ledger of the unit price paid per vendor per inventory
+// item. Receipt lines with a unit cost write here automatically; this
+// endpoint covers manual entries (phone quotes, price lists).
+
+exports.listVendorPriceHistory = async (req, res, next) => {
+  try {
+    const restaurantId = positiveInt(req.params.restaurantId);
+    const restaurant = await restaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const itemId = positiveInt(req.query.itemId || req.query.item_id);
+    const supplierId = positiveInt(req.query.supplierId || req.query.supplier_id);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 50));
+    const conditions = ['h.restaurant_id = $1'];
+    const params = [restaurantId];
+    if (itemId) {
+      params.push(itemId);
+      conditions.push(`h.inventory_item_id = $${params.length}`);
+    }
+    if (supplierId) {
+      params.push(supplierId);
+      conditions.push(`h.supplier_id = $${params.length}`);
+    }
+    params.push(limit);
+    const { rows } = await pool.query(
+      `SELECT h.*, s.name AS supplier_name, i.name AS item_name
+         FROM restaurant_inventory_vendor_price_history h
+         LEFT JOIN restaurant_inventory_suppliers s ON s.id = h.supplier_id
+         LEFT JOIN restaurant_inventory_items i ON i.id = h.inventory_item_id
+        WHERE ${conditions.join(' AND ')}
+        ORDER BY h.recorded_at DESC, h.id DESC
+        LIMIT $${params.length}`,
+      params
+    );
+    res.json({ priceHistory: rows });
+  } catch (error) { next(error); }
+};
+
+exports.recordVendorPrice = async (req, res, next) => {
+  try {
+    const restaurantId = positiveInt(req.params.restaurantId);
+    const restaurant = await restaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, UPDATE_INVENTORY);
+    const itemId = positiveInt(req.body.itemId || req.body.item_id);
+    if (!itemId) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { itemId: 'Item is required' });
+    }
+    const costCents = unitCostCents(req.body.unitCostCents ?? req.body.unit_cost_cents, 'unitCostCents');
+    if (costCents == null) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { unitCostCents: 'Unit cost is required' });
+    }
+    const supplierId = positiveInt(req.body.supplierId || req.body.supplier_id);
+    const unit = text(req.body.unit, 24) || 'ea';
+    const currency = String(req.body.currencyCode || req.body.currency_code || 'USD').trim().toUpperCase();
+    if (!/^[A-Z]{3}$/.test(currency)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { currencyCode: 'Currency must be a 3-letter code' });
+    }
+    const entry = await withTransaction(pool, async (client) => {
+      const { rows: [item] } = await client.query(
+        `SELECT id, location_id FROM restaurant_inventory_items WHERE id = $1 AND restaurant_id = $2 AND is_active = TRUE`,
+        [itemId, restaurantId]
+      );
+      if (!item) throw new AppError('Item not found', 404, 'inventory_item_not_found');
+      if (item.location_id != null) await assertLocationAccess(restaurant, req.user.id, item.location_id, client);
+      let supplier = null;
+      if (supplierId) {
+        const { rows: [found] } = await client.query(
+          `SELECT id FROM restaurant_inventory_suppliers WHERE id = $1 AND restaurant_id = $2 AND is_active = TRUE`,
+          [supplierId, restaurantId]
+        );
+        if (!found) throw new AppError('Supplier not found', 404, 'supplier_not_found');
+        supplier = found;
+      }
+      const { rows: [created] } = await client.query(
+        `INSERT INTO restaurant_inventory_vendor_price_history
+           (restaurant_id, supplier_id, inventory_item_id, unit, unit_cost_cents,
+            currency_code, source_type, recorded_by)
+         VALUES ($1,$2,$3,$4,$5,$6,'manual',$7)
+         RETURNING *`,
+        [restaurantId, supplier ? supplier.id : null, itemId, unit, costCents, currency, req.user.id]
+      );
+      await logInventoryAudit(client, auditEntry(restaurant, 'vendor_price_recorded', 'vendor_price', created.id, req, {
+        itemId,
+        supplierId: supplier ? supplier.id : null,
+        unit,
+        unitCostCents: costCents,
+        currencyCode: currency,
+      }));
+      return created;
+    }, 'inventory_record_vendor_price');
+    res.status(201).json({ priceEntry: entry });
   } catch (error) { next(error); }
 };

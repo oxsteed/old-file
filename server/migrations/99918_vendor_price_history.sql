@@ -1,4 +1,4 @@
--- Migration 1405: F-23 vendor price history + PO cost estimates.
+-- Migration 99992: F-23 vendor price history + PO cost estimates.
 --
 -- restaurant_inventory_vendor_price_history is an append-only ledger of
 -- the unit price paid per vendor per inventory item (recorded from

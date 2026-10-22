@@ -30,6 +30,7 @@ const {
   computeOrderTax,
   orderTotalWithTax,
 } = require('../services/restaurantOrderTaxService');
+const { computeAutoPrepExtensionMinutes } = require('../services/restaurantPrepTimeService');
 const {
   reserveInventoryForOrder,
   releaseInventoryForOrder,
@@ -464,6 +465,20 @@ function normalizeMenuTaxRate(value) {
     });
   }
   return parsed;
+}
+
+// F-19: named tax categories (migration 99919). Stored lowercase, slug-safe;
+// empty input clears the category (NULL).
+function normalizeTaxCategory(value) {
+  if (value === undefined || value === null) return null;
+  const slug = String(value).trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+  if (!slug) return null;
+  if (slug.length > 40) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      taxCategory: 'Tax category must be 40 characters or fewer',
+    });
+  }
+  return slug;
 }
 
 // F-12: the fulfillment set the database itself defaults to (migration 305).
@@ -1887,6 +1902,7 @@ function menuItemAuditSnapshot(item) {
     availability_schedule: item.availability_schedule || {},
     tax_rate_bps: item.tax_rate_bps,
     tax_exempt: item.tax_exempt === true,
+    tax_category: item.tax_category || null,
   };
 }
 
@@ -2374,7 +2390,7 @@ async function loadRestaurantMenu(restaurantId, { managed = false, locationId = 
     `SELECT fmi.id, category_id, name, description, image_url, price_cents,
             currency_code, is_available, manual_available, inventory_available,
             inventory_availability_state, sort_order, tags, allergens,
-            tax_rate_bps, tax_exempt,
+            tax_rate_bps, tax_exempt, tax_category,
             publication_status, archived_at, availability_schedule,
             ${storeMenu.overrideSql('fmi', '$2')}
        FROM food_menu_items fmi
@@ -2740,9 +2756,9 @@ exports.createMenuItem = async (req, res, next) => {
            (restaurant_id, category_id, name, description, image_url, price_cents,
             currency_code, is_available, manual_available, inventory_available,
             inventory_availability_state, sort_order, tags, allergens,
-            tax_rate_bps, tax_exempt,
+            tax_rate_bps, tax_exempt, tax_category,
             publication_status, availability_schedule)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,TRUE,'available',$9,$10,$11,$12,$13,$14,$15)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,TRUE,'available',$9,$10,$11,$12,$13,$14,$15,$16)
          RETURNING *`,
         [
           restaurantId,
@@ -2758,6 +2774,7 @@ exports.createMenuItem = async (req, res, next) => {
           normalizeTextArray(req.body.allergens, 20),
           normalizeMenuTaxRate(req.body.taxRateBps ?? req.body.tax_rate_bps),
           req.body.taxExempt === true || req.body.tax_exempt === true,
+          normalizeTaxCategory(req.body.taxCategory ?? req.body.tax_category),
           ['draft', 'published'].includes(req.body.publicationStatus || req.body.publication_status)
             ? (req.body.publicationStatus || req.body.publication_status)
             : 'published',
@@ -2868,7 +2885,7 @@ exports.quoteOrder = async (req, res, next) => {
     const { rows: menuRows } = await pool.query(
       `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
               fmi.manual_available, fmi.inventory_available, fmi.inventory_availability_state,
-              fmi.allergens, fmi.tax_rate_bps, fmi.tax_exempt,
+              fmi.allergens, fmi.tax_rate_bps, fmi.tax_exempt, fmi.tax_category,
               fmi.availability_schedule, ${storeMenu.overrideSql('fmi', '$3')},
               fmc.name AS category_name,
               COALESCE((
@@ -2951,6 +2968,8 @@ exports.quoteOrder = async (req, res, next) => {
         line_total_cents: lineTotalCents,
         taxRateBps: menuItem.tax_exempt ? 0 : (menuItem.tax_rate_bps ?? restaurant.tax_rate_bps ?? 0),
         tax_rate_bps: menuItem.tax_exempt ? 0 : (menuItem.tax_rate_bps ?? restaurant.tax_rate_bps ?? 0),
+        taxCategory: menuItem.tax_category || null,
+        tax_category: menuItem.tax_category || null,
         taxExempt: menuItem.tax_exempt === true,
         tax_exempt: menuItem.tax_exempt === true,
         category: menuItem.category_name || null,
@@ -3038,6 +3057,13 @@ exports.quoteOrder = async (req, res, next) => {
     const taxableSubtotalCents = Math.max(0, subtotalCents - discountCents);
     const prepTimeMin = Math.max(0, parseNonNegativeInt(restaurant.prep_time_min, 15));
     const prepTimeExtensionMin = Math.max(0, parseNonNegativeInt(restaurant.prep_time_extension_min, 0));
+    // F-33: automatic prep-time extension under load (opt-in per store).
+    // Read-only quote path: a plain pool query, no row lock.
+    const autoPrepExtension = await computeAutoPrepExtensionMinutes(pool, {
+      restaurantId,
+      locationId: selectedStore?.id ?? null,
+    });
+    const autoPrepTimeExtensionMin = autoPrepExtension.extensionMin;
     const quotePacingSettings = restaurant.settings && typeof restaurant.settings === 'object'
       ? restaurant.settings
       : {};
@@ -3178,8 +3204,10 @@ exports.quoteOrder = async (req, res, next) => {
       prep_time_min: prepTimeMin,
       prepTimeExtensionMin,
       prep_time_extension_min: prepTimeExtensionMin,
-      estimatedReadyMinutes: prepTimeMin + prepTimeExtensionMin,
-      estimated_ready_minutes: prepTimeMin + prepTimeExtensionMin,
+      autoPrepTimeExtensionMin,
+      auto_prep_time_extension_min: autoPrepTimeExtensionMin,
+      estimatedReadyMinutes: prepTimeMin + prepTimeExtensionMin + autoPrepTimeExtensionMin,
+      estimated_ready_minutes: prepTimeMin + prepTimeExtensionMin + autoPrepTimeExtensionMin,
       pacingLimit,
       pacing_limit: pacingLimit,
       pacingWindowMinutes: 15,
@@ -3470,7 +3498,7 @@ exports.createOrder = async (req, res, next) => {
       const { rows: menuRows } = await client.query(
         `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
                 fmi.manual_available, fmi.inventory_available, fmi.inventory_availability_state,
-                fmi.allergens, fmi.tax_rate_bps, fmi.tax_exempt,
+                fmi.allergens, fmi.tax_rate_bps, fmi.tax_exempt, fmi.tax_category,
                 fmi.availability_schedule, ${storeMenu.overrideSql('fmi', '$3')},
                 fmc.name AS category_name,
                 COALESCE((
@@ -3776,6 +3804,7 @@ exports.createOrder = async (req, res, next) => {
           menuItemId: item.menuItem.id,
           lineTotalCents: item.lineTotal,
           taxRateBps: item.menuItem.tax_rate_bps,
+          taxCategory: item.menuItem.tax_category || null,
           taxExempt: item.menuItem.tax_exempt === true,
         })),
         discountCents: discount,
@@ -4021,6 +4050,13 @@ exports.createOrder = async (req, res, next) => {
       }
       const queueNumber = await nextQueueNumber(client, restaurantId, orderTimezone, new Date(), orderLocationId);
 
+      // F-33: the promised time includes the automatic load extension.
+      // A plain COUNT inside the transaction: no network, no extra lock.
+      const autoPrepExtension = await computeAutoPrepExtensionMinutes(client, {
+        restaurantId,
+        locationId: orderLocationId,
+      });
+
       const { rows: [created] } = await client.query(
         `INSERT INTO food_orders
            (restaurant_id, business_id, customer_id, guest_name, guest_phone, guest_email,
@@ -4056,6 +4092,7 @@ exports.createOrder = async (req, res, next) => {
           queueNumber,
           Math.max(0, parseNonNegativeInt(restaurant.prep_time_min, 15))
             + Math.max(0, parseNonNegativeInt(restaurant.prep_time_extension_min, 0))
+            + autoPrepExtension.extensionMin
             + deliverySlotOffsetMinutes,
           normalizeString(req.body.notes, 1000),
           metadata,
@@ -6236,6 +6273,9 @@ exports.updateMenuItem = async (req, res, next) => {
     if (has('taxRateBps', 'tax_rate_bps')) {
       add('tax_rate_bps', normalizeMenuTaxRate(req.body.taxRateBps ?? req.body.tax_rate_bps));
     }
+    if (has('taxCategory', 'tax_category')) {
+      add('tax_category', normalizeTaxCategory(req.body.taxCategory ?? req.body.tax_category));
+    }
     if (has('taxExempt', 'tax_exempt')) {
       const taxExempt = req.body.taxExempt ?? req.body.tax_exempt;
       if (typeof taxExempt !== 'boolean') {
@@ -7960,7 +8000,8 @@ exports.listRestaurantLocations = async (req, res, next) => {
                 operating_hours, tax_rate_bps, service_fee_bps, tax_inclusive,
                 tax_jurisdiction, online_order_pacing_max_per_15_min,
                 in_store_order_pacing_max_per_15_min, prep_time_extension_min,
-                region_id,
+                prep_time_auto_extend_max_min, prep_time_auto_extend_threshold_orders,
+                prep_time_auto_extend_per_order_min, region_id,
                 (SELECT rr.name FROM restaurant_regions rr
                   WHERE rr.restaurant_id = restaurant_locations.restaurant_id
                     AND rr.id = restaurant_locations.region_id) AS region_name,
@@ -8029,8 +8070,10 @@ exports.createRestaurantLocation = async (req, res, next) => {
             tax_rate_bps, service_fee_bps, tax_inclusive, tax_jurisdiction,
             online_order_pacing_max_per_15_min, in_store_order_pacing_max_per_15_min,
             prep_time_extension_min, region_id, kitchen_fire_mode, day_start_hour,
-            service_fee_taxable, delivery_fee_taxable)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
+            service_fee_taxable, delivery_fee_taxable,
+            prep_time_auto_extend_max_min, prep_time_auto_extend_threshold_orders,
+            prep_time_auto_extend_per_order_min)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)
          RETURNING *`,
         [
           restaurantId,
@@ -8059,6 +8102,9 @@ exports.createRestaurantLocation = async (req, res, next) => {
           normalizeLocationDayStartHour(req.body.dayStartHour ?? req.body.day_start_hour),
           (req.body.serviceFeeTaxable ?? req.body.service_fee_taxable) === true,
           (req.body.deliveryFeeTaxable ?? req.body.delivery_fee_taxable) === true,
+          normalizeLocationInteger(req.body.prepTimeAutoExtendMaxMin ?? req.body.prep_time_auto_extend_max_min, 'prepTimeAutoExtendMaxMin', { nullable: false, max: 240 }),
+          normalizeLocationInteger(req.body.prepTimeAutoExtendThresholdOrders ?? req.body.prep_time_auto_extend_threshold_orders, 'prepTimeAutoExtendThresholdOrders', { nullable: false, max: 1000 }),
+          normalizeLocationInteger(req.body.prepTimeAutoExtendPerOrderMin ?? req.body.prep_time_auto_extend_per_order_min, 'prepTimeAutoExtendPerOrderMin', { nullable: false, max: 60 }),
         ]
       );
       return created;
@@ -8123,6 +8169,11 @@ exports.updateRestaurantLocation = async (req, res, next) => {
     const hasDayStartHour = Object.hasOwn(req.body, 'dayStartHour') || Object.hasOwn(req.body, 'day_start_hour');
     const hasServiceFeeTaxable = Object.hasOwn(req.body, 'serviceFeeTaxable') || Object.hasOwn(req.body, 'service_fee_taxable');
     const hasDeliveryFeeTaxable = Object.hasOwn(req.body, 'deliveryFeeTaxable') || Object.hasOwn(req.body, 'delivery_fee_taxable');
+    // F-33: automatic prep-time extension under load. Each field patches independently;
+    // values are validated against the DB check bounds (max 0-240, threshold 0-1000, per-order 0-60).
+    const hasAutoExtendMaxMin = Object.hasOwn(req.body, 'prepTimeAutoExtendMaxMin') || Object.hasOwn(req.body, 'prep_time_auto_extend_max_min');
+    const hasAutoExtendThresholdOrders = Object.hasOwn(req.body, 'prepTimeAutoExtendThresholdOrders') || Object.hasOwn(req.body, 'prep_time_auto_extend_threshold_orders');
+    const hasAutoExtendPerOrderMin = Object.hasOwn(req.body, 'prepTimeAutoExtendPerOrderMin') || Object.hasOwn(req.body, 'prep_time_auto_extend_per_order_min');
     const hasRegion = Object.hasOwn(req.body, 'regionId') || Object.hasOwn(req.body, 'region_id');
     const regionValue = req.body.regionId ?? req.body.region_id;
     const regionId = hasRegion && regionValue !== null && regionValue !== '' ? parsePositiveInt(regionValue) : null;
@@ -8179,8 +8230,11 @@ exports.updateRestaurantLocation = async (req, res, next) => {
                 service_fee_taxable = CASE WHEN $32 THEN $33 ELSE service_fee_taxable END,
                 delivery_fee_taxable = CASE WHEN $34 THEN $35 ELSE delivery_fee_taxable END,
                 region_id = CASE WHEN $36 THEN $37 ELSE region_id END,
+                prep_time_auto_extend_max_min = CASE WHEN $38 THEN $39 ELSE prep_time_auto_extend_max_min END,
+                prep_time_auto_extend_threshold_orders = CASE WHEN $40 THEN $41 ELSE prep_time_auto_extend_threshold_orders END,
+                prep_time_auto_extend_per_order_min = CASE WHEN $42 THEN $43 ELSE prep_time_auto_extend_per_order_min END,
                 updated_at = NOW()
-          WHERE id = $38 AND restaurant_id = $39
+          WHERE id = $44 AND restaurant_id = $45
           RETURNING *`,
         [
           normalizeString(req.body.name, 160),
@@ -8220,6 +8274,12 @@ exports.updateRestaurantLocation = async (req, res, next) => {
           (req.body.deliveryFeeTaxable ?? req.body.delivery_fee_taxable) === true,
           hasRegion,
           regionId,
+          hasAutoExtendMaxMin,
+          hasAutoExtendMaxMin ? normalizeLocationInteger(req.body.prepTimeAutoExtendMaxMin ?? req.body.prep_time_auto_extend_max_min, 'prepTimeAutoExtendMaxMin', { nullable: false, max: 240 }) : null,
+          hasAutoExtendThresholdOrders,
+          hasAutoExtendThresholdOrders ? normalizeLocationInteger(req.body.prepTimeAutoExtendThresholdOrders ?? req.body.prep_time_auto_extend_threshold_orders, 'prepTimeAutoExtendThresholdOrders', { nullable: false, max: 1000 }) : null,
+          hasAutoExtendPerOrderMin,
+          hasAutoExtendPerOrderMin ? normalizeLocationInteger(req.body.prepTimeAutoExtendPerOrderMin ?? req.body.prep_time_auto_extend_per_order_min, 'prepTimeAutoExtendPerOrderMin', { nullable: false, max: 60 }) : null,
           locationId,
           restaurantId,
         ]
@@ -8247,6 +8307,9 @@ exports.updateRestaurantLocation = async (req, res, next) => {
         service_fee_taxable: result.before.service_fee_taxable,
         delivery_fee_taxable: result.before.delivery_fee_taxable,
         region_id: result.before.region_id,
+        prep_time_auto_extend_max_min: result.before.prep_time_auto_extend_max_min,
+        prep_time_auto_extend_threshold_orders: result.before.prep_time_auto_extend_threshold_orders,
+        prep_time_auto_extend_per_order_min: result.before.prep_time_auto_extend_per_order_min,
       },
       after_state: {
         name: result.updated.name,
@@ -8265,6 +8328,9 @@ exports.updateRestaurantLocation = async (req, res, next) => {
         service_fee_taxable: result.updated.service_fee_taxable,
         delivery_fee_taxable: result.updated.delivery_fee_taxable,
         region_id: result.updated.region_id,
+        prep_time_auto_extend_max_min: result.updated.prep_time_auto_extend_max_min,
+        prep_time_auto_extend_threshold_orders: result.updated.prep_time_auto_extend_threshold_orders,
+        prep_time_auto_extend_per_order_min: result.updated.prep_time_auto_extend_per_order_min,
       },
     });
     res.json({ location: attachRestaurantHours(result.updated) });
@@ -8330,6 +8396,7 @@ function taxRuleShape(row) {
     name: row.name,
     rate_bps: Number(row.rate_bps),
     applies_to: row.applies_to,
+    tax_category: row.tax_category || null,
     is_active: row.is_active,
     sort_order: Number(row.sort_order || 0),
     created_at: row.created_at,
@@ -8369,6 +8436,7 @@ exports.createTaxRule = async (req, res, next) => {
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
     const rateBps = normalizeTaxRuleRate(req.body.rateBps ?? req.body.rate_bps);
     const appliesTo = normalizeTaxRuleAppliesTo(req.body.appliesTo ?? req.body.applies_to);
+    const taxCategory = normalizeTaxCategory(req.body.taxCategory ?? req.body.tax_category);
     const sortOrder = Number.isSafeInteger(Number(req.body.sortOrder ?? req.body.sort_order))
       ? Number(req.body.sortOrder ?? req.body.sort_order)
       : 0;
@@ -8378,10 +8446,10 @@ exports.createTaxRule = async (req, res, next) => {
       );
       const { rows: [created] } = await client.query(
         `INSERT INTO restaurant_tax_rules
-           (restaurant_id, location_id, name, rate_bps, applies_to, is_active, sort_order, created_by)
-         VALUES ($1,$2,$3,$4,$5,TRUE,$6,$7)
+           (restaurant_id, location_id, name, rate_bps, applies_to, tax_category, is_active, sort_order, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,TRUE,$7,$8)
          RETURNING *`,
-        [restaurantId, locationId, name, rateBps, appliesTo, sortOrder, req.user.id]
+        [restaurantId, locationId, name, rateBps, appliesTo, taxCategory, sortOrder, req.user.id]
       );
       await auditFoodChange(req, restaurant, {
         client,
@@ -8425,6 +8493,10 @@ exports.updateTaxRule = async (req, res, next) => {
       if (req.body.appliesTo !== undefined || req.body.applies_to !== undefined) {
         params.push(normalizeTaxRuleAppliesTo(req.body.appliesTo ?? req.body.applies_to));
         sets.push(`applies_to = $${params.length}`);
+      }
+      if (req.body.taxCategory !== undefined || req.body.tax_category !== undefined) {
+        params.push(normalizeTaxCategory(req.body.taxCategory ?? req.body.tax_category));
+        sets.push(`tax_category = $${params.length}`);
       }
       if (req.body.isActive !== undefined || req.body.is_active !== undefined) {
         params.push((req.body.isActive ?? req.body.is_active) !== false);

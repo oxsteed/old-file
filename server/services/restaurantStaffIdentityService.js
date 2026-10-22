@@ -165,16 +165,25 @@ async function assertPinNotLocked({ restaurantId, deviceId = null, staffPinId = 
 }
 
 // Validates a PIN for a restaurant with lockout + membership enforcement.
-// Returns the pin row and the owner's access snapshot. Throws AppError
-// (401 invalid_pin, 403 staff_not_member, 429 pin_locked).
-async function validateStaffPinForRestaurant({ restaurantId, pin, deviceId = null }) {
+// locationId scopes the lookup to one store: an exact store match wins,
+// then a legacy restaurant-wide (NULL location) PIN. With no locationId
+// only restaurant-wide PINs validate, so a store-scoped PIN can never be
+// used where the store is unknown. Returns the pin row and the owner's
+// access snapshot. Throws AppError (401 invalid_pin, 403 staff_not_member,
+// 429 pin_locked).
+async function validateStaffPinForRestaurant({ restaurantId, pin, deviceId = null, locationId = null }) {
   await assertPinNotLocked({ restaurantId, deviceId });
   const digest = staffPinDigest(restaurantId, pin);
+  const storeId = locationId === null || locationId === undefined || locationId === '' ? null : Number(locationId);
   let pinRow = null;
   const { rows: [digestRow] } = await pool.query(
     `SELECT * FROM restaurant_staff_pins
-      WHERE restaurant_id = $1 AND pin_digest = $2 AND is_active = TRUE`,
-    [restaurantId, digest]
+      WHERE restaurant_id = $1 AND pin_digest = $2 AND is_active = TRUE
+        AND (location_id IS NOT DISTINCT FROM $3::bigint
+             OR ($3::bigint IS NOT NULL AND location_id IS NULL))
+      ORDER BY (location_id IS NOT DISTINCT FROM $3::bigint) DESC, updated_at DESC
+      LIMIT 1`,
+    [restaurantId, digest, storeId]
   );
   if (digestRow) {
     await assertPinNotLocked({ restaurantId, deviceId, staffPinId: digestRow.id });
@@ -184,13 +193,15 @@ async function validateStaffPinForRestaurant({ restaurantId, pin, deviceId = nul
   }
   if (!pinRow) {
     // Legacy rows predate the digest column; fall back to a bcrypt scan
-    // over just those rows and backfill the digest on a match so the
-    // store converges on digest lookups (and uniqueness).
+    // over just those rows (same store scope) and backfill the digest on
+    // a match so the store converges on digest lookups (and uniqueness).
     const { rows: legacyRows } = await pool.query(
       `SELECT * FROM restaurant_staff_pins
         WHERE restaurant_id = $1 AND is_active = TRUE AND pin_digest IS NULL
-        ORDER BY updated_at DESC`,
-      [restaurantId]
+          AND (location_id IS NOT DISTINCT FROM $2::bigint
+               OR ($2::bigint IS NOT NULL AND location_id IS NULL))
+        ORDER BY (location_id IS NOT DISTINCT FROM $2::bigint) DESC, updated_at DESC`,
+      [restaurantId, storeId]
     );
     for (const row of legacyRows) {
       if (await bcrypt.compare(pin, row.pin_hash)) {
@@ -387,15 +398,25 @@ async function endStaffSession(token, reason = 'manual_lock') {
 
 // The acting staff identity for stamping POS writes. Null when the
 // request carries no (valid) staff session: the account user remains the
-// actor of record in created_by, exactly as before S-06.
+// actor of record in created_by, exactly as before S-06. locationId is the
+// session device's store (null for device-less sessions).
 async function resolveActingStaff(req, restaurantId) {
   const session = await resolveStaffSession(req, restaurantId);
   if (!session) return null;
+  let locationId = null;
+  if (session.device_id) {
+    const { rows: [device] } = await pool.query(
+      'SELECT location_id FROM restaurant_app_devices WHERE id = $1',
+      [session.device_id]
+    ).catch(() => ({ rows: [] }));
+    locationId = device?.location_id == null ? null : Number(device.location_id);
+  }
   return {
     sessionId: session.id,
     staffPinId: session.staff_pin_id,
     staffUserId: session.staff_user_id || null,
     deviceId: session.device_id || null,
+    locationId,
   };
 }
 
@@ -436,9 +457,10 @@ function approvalRequirement(restaurant, action, amountCents) {
 
 // Verifies a manager PIN for an approval. The approver must be an
 // identified staff member (label-only PINs cannot approve money movement)
-// whose current role is owner/manager or who holds pos.manage.
-async function verifyManagerPinApproval({ restaurantId, pin, deviceId = null }) {
-  const { pinRow, staff } = await validateStaffPinForRestaurant({ restaurantId, pin, deviceId });
+// whose current role is owner/manager or who holds pos.manage. locationId
+// scopes the PIN to the device's store when known.
+async function verifyManagerPinApproval({ restaurantId, pin, deviceId = null, locationId = null }) {
+  const { pinRow, staff } = await validateStaffPinForRestaurant({ restaurantId, pin, deviceId, locationId });
   if (!pinRow.staff_user_id) {
     throw new AppError('A manager approval must use a PIN assigned to a team member', 403, 'manager_approval_invalid');
   }
@@ -506,6 +528,7 @@ async function consumeManagerApproval({
     restaurantId: restaurant.id,
     pin: approvalPin,
     deviceId: actingStaff?.deviceId || null,
+    locationId: actingStaff?.locationId || null,
   });
   const { rows: [approval] } = await client.query(
     `INSERT INTO restaurant_pos_approvals
