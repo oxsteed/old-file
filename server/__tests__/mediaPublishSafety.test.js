@@ -113,6 +113,7 @@ describeDatabase('media publish: safety predicates', () => {
     const { backfillAllTables } = require('./mediaTestSchema');
     await backfillAllTables(db, [
       'users', 'user_blocks', 'helper_profiles', 'businesses', 'food_restaurants',
+      'admin_audit_log',
     ], schema);
     for (const number of [709, 731, 732, 733, 735, 736, 742, 743, 744, 754, 757, 758]) {
       const dir = path.resolve(__dirname, '../migrations');
