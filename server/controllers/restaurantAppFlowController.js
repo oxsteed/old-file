@@ -3112,6 +3112,22 @@ exports.createDevicePairingCode = async (req, res, next) => {
       pairingCodeExpiresAt: device.pairing_code_expires_at,
       pairing_code_expires_at: device.pairing_code_expires_at,
     });
+    // F-20: pairing-code issuance is audited (who/when/device), never the
+    // code itself.
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role || null,
+      action: 'restaurant.device.pairing_code.created',
+      target_type: 'restaurant_app_device',
+      target_id: device.id,
+      after_state: {
+        appKey,
+        deviceName: device.device_name,
+        locationId: device.location_id,
+        mode: device.mode,
+        pairingCodeExpiresAt: device.pairing_code_expires_at,
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -3150,6 +3166,27 @@ exports.pairDevice = async (req, res, next) => {
       ]
     );
     if (!device) throw new AppError('Pairing code not found', 404, 'pairing_code_not_found');
+    // F-20: this route is unauthenticated (the device holds the code), so
+    // the business id comes from the restaurant row, not req.user.
+    const { rows: [pairedRestaurant] } = await pool.query(
+      'SELECT business_id FROM food_restaurants WHERE id = $1',
+      [restaurantId]
+    );
+    await logBusinessAction(req, {
+      business_id: pairedRestaurant?.business_id || null,
+      actor_role: 'device',
+      action: 'restaurant.device.paired',
+      target_type: 'restaurant_app_device',
+      target_id: device.id,
+      after_state: {
+        appKey: device.app_key,
+        deviceName: device.device_name,
+        locationId: device.location_id,
+        pairedAt: device.paired_at,
+        platform: device.platform,
+        appVersion: device.app_version,
+      },
+    });
     res.json({
       device: publicDevice(device),
       contract: deviceRouteContract(device, { restaurantId }),
@@ -3168,6 +3205,11 @@ exports.rotateDeviceToken = async (req, res, next) => {
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertManage(restaurant, req.user.id);
     if (!deviceId) throw new AppError('Device is required', 400, 'invalid_device_scope');
+    const { rows: [priorDevice] } = await pool.query(
+      `SELECT device_token_expires_at FROM restaurant_app_devices
+        WHERE id = $1 AND restaurant_id = $2`,
+      [deviceId, restaurantId]
+    );
     const deviceToken = crypto.randomBytes(32).toString('base64url');
     const deviceTokenHash = crypto.createHash('sha256').update(deviceToken).digest('hex');
     const { rows: [device] } = await pool.query(
@@ -3180,6 +3222,17 @@ exports.rotateDeviceToken = async (req, res, next) => {
       [deviceId, restaurantId, deviceTokenHash]
     );
     if (!device) throw new AppError('Paired device not found', 404, 'device_not_found');
+    // F-20: token rotation is audited with before/after expiry; the token
+    // itself is never written to the audit log.
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role || null,
+      action: 'restaurant.device.token_rotated',
+      target_type: 'restaurant_app_device',
+      target_id: device.id,
+      before_state: { deviceTokenExpiresAt: priorDevice?.device_token_expires_at || null },
+      after_state: { deviceTokenExpiresAt: device.device_token_expires_at },
+    });
     res.json({
       device: publicDevice(device),
       contract: deviceRouteContract(device, { restaurantId }),
@@ -3323,6 +3376,13 @@ exports.updateDeviceConfig = async (req, res, next) => {
     }
     const hasConfig = req.body.config && typeof req.body.config === 'object' && !Array.isArray(req.body.config);
     const replaceConfig = asBool(req.body.replaceConfig || req.body.replace_config, false);
+    // F-20: snapshot before the update so the audit row carries before/after.
+    const { rows: [priorDeviceConfig] } = await pool.query(
+      `SELECT device_name, mode, location_id, status, config, config_version
+         FROM restaurant_app_devices
+        WHERE restaurant_id = $1 AND id = $2`,
+      [restaurantId, deviceId]
+    );
     const { rows: [device] } = await pool.query(
       `UPDATE restaurant_app_devices
           SET device_name = COALESCE($1, device_name),
@@ -3351,6 +3411,27 @@ exports.updateDeviceConfig = async (req, res, next) => {
       ]
     );
     if (!device) throw new AppError('Device not found', 404, 'device_not_found');
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role || null,
+      action: 'restaurant.device.config_updated',
+      target_type: 'restaurant_app_device',
+      target_id: device.id,
+      before_state: priorDeviceConfig ? {
+        deviceName: priorDeviceConfig.device_name,
+        mode: priorDeviceConfig.mode,
+        locationId: priorDeviceConfig.location_id,
+        status: priorDeviceConfig.status,
+        configVersion: priorDeviceConfig.config_version,
+      } : null,
+      after_state: {
+        deviceName: device.device_name,
+        mode: device.mode,
+        locationId: device.location_id,
+        status: device.status,
+        configVersion: device.config_version,
+      },
+    });
     res.json({ device: publicDevice(device), contract: deviceRouteContract(device, { restaurantId }) });
   } catch (err) {
     next(err);
