@@ -9,7 +9,9 @@ async function enqueueKitchenPrinterJobs(client, {
     `WITH default_station AS (
        SELECT id
          FROM restaurant_kitchen_stations
-        WHERE restaurant_id = $1 AND is_active = TRUE
+        WHERE restaurant_id = $1
+          AND is_active = TRUE
+          AND location_id = (SELECT location_id FROM food_orders WHERE id = $2 AND restaurant_id = $1)
         ORDER BY id ASC
         LIMIT 1
      )
@@ -29,11 +31,13 @@ async function enqueueKitchenPrinterJobs(client, {
        LEFT JOIN restaurant_kitchen_stations routed_station
          ON routed_station.id = route.station_id
         AND routed_station.restaurant_id = fo.restaurant_id
+        AND routed_station.location_id = fo.location_id
         AND routed_station.is_active = TRUE
        LEFT JOIN default_station ON TRUE
        LEFT JOIN restaurant_kitchen_stations station
          ON station.id = COALESCE(routed_station.id, default_station.id)
         AND station.restaurant_id = fo.restaurant_id
+        AND station.location_id = fo.location_id
         AND station.is_active = TRUE
       WHERE fo.restaurant_id = $1 AND fo.id = $2
       ORDER BY station.id, foi.id`,
