@@ -36,9 +36,12 @@ async function latestFreshAuthEvent(userId, purpose) {
 /**
  * requireFreshAuth(purpose) — rejects with 401 fresh_auth_required when the
  * user has no step-up event inside the TTL window.
+ *
+ * The returned middleware is named (requireFreshAuthMiddleware) so route
+ * wiring tests can assert its presence on guarded routes.
  */
 function requireFreshAuth(purpose = 'logistics_refund_approve') {
-  return async (req, res, next) => {
+  async function requireFreshAuthMiddleware(req, res, next) {
     try {
       if (!req.user || !req.user.id) {
         return res.status(401).json({ error: 'Authentication required', code: 'auth_required' });
@@ -55,7 +58,8 @@ function requireFreshAuth(purpose = 'logistics_refund_approve') {
     } catch (err) {
       return res.status(500).json({ error: 'Fresh-auth check failed' });
     }
-  };
+  }
+  return requireFreshAuthMiddleware;
 }
 
 module.exports = { requireFreshAuth, latestFreshAuthEvent, FRESH_AUTH_TTL_MINUTES };
