@@ -89,6 +89,7 @@ function buildApp(userId = USER_ID) {
   app.post('/api/restaurants/:restaurantId/pos/terminal/connection-token', appFlow.createPosTerminalConnectionToken);
   app.post('/api/restaurants/:restaurantId/pos/orders/:orderId/card-intents', appFlow.createPosCardIntent);
   app.post('/api/restaurants/:restaurantId/pos/orders/:orderId/refund', appFlow.refundPosOrder);
+  app.get('/api/restaurants/:restaurantId/pos/payments/:paymentId', appFlow.getPosPaymentStatus);
   app.post('/api/restaurants/:restaurantId/menu-items/:itemId/availability', appFlow.setMenuItemAvailability);
   app.get('/api/restaurants/:restaurantId/pos/shifts/:shiftId/drawer-events', appFlow.listDrawerEvents);
   app.post('/api/restaurants/:restaurantId/pos/shifts/:shiftId/drawer-events', appFlow.recordDrawerEvent);
@@ -1525,6 +1526,22 @@ describe('restaurant app-flow backend', () => {
     const sourceQuery = mockQuery.mock.calls.find(([sql]) => /FROM food_orders/.test(sql));
     expect(sourceQuery[0]).toContain('location_id = ANY($3::bigint[])');
     expect(sourceQuery[1]).toEqual([ORDER_ID, RESTAURANT_ID, [77]]);
+  });
+
+  test('does not read a POS payment outside the manager store assignment', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager', effective_membership_id: 53 })] })
+      .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp('00000000-0000-4000-8000-000000000131'))
+      .get(`/api/restaurants/${RESTAURANT_ID}/pos/payments/501`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('pos_payment_not_found');
+    const paymentQuery = mockQuery.mock.calls.find(([sql]) => /FROM restaurant_pos_payments/.test(sql));
+    expect(paymentQuery[0]).toContain('location_id = ANY($3::bigint[])');
+    expect(paymentQuery[1]).toEqual([501, RESTAURANT_ID, [77]]);
   });
 
   test('splits a partial line quantity while cloning modifiers and reservations', async () => {

@@ -6411,11 +6411,16 @@ exports.getPosPaymentStatus = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const paymentId = parsePositiveInt(req.params.paymentId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant, req.user.id);
     const result = await withTransaction(pool, async (client) => {
       const { rows: [payment] } = await client.query(
-        `SELECT * FROM restaurant_pos_payments WHERE id = $1 AND restaurant_id = $2`,
-        [paymentId, restaurantId]
+        `SELECT * FROM restaurant_pos_payments
+          WHERE id = $1 AND restaurant_id = $2
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}`,
+        locationScope.mode === 'assigned'
+          ? [paymentId, restaurantId, locationScope.location_ids]
+          : [paymentId, restaurantId]
       );
       if (!payment) throw new AppError('POS payment not found', 404, 'pos_payment_not_found');
       const reconciliation = await reconcilePosOrderPayment(client, payment.food_order_id);
