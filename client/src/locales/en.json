@@ -1886,7 +1886,7 @@
         "description": "This will refund the payment to the client.",
         "confirm": "Issue Refund",
         "reasonPlaceholder": "Reason for refund…",
-        "stepupPrompt": "A verification code was sent to your email. Enter it to authorize this refund:",
+        "stepupPrompt": "Enter the current 6-digit code from your authenticator app to authorize this refund:",
         "stepupFailed": "Could not issue a verification challenge. The refund was not processed.",
         "stepupRequired": "A verification code is required to issue the refund.",
         "pendingApproval": "Refund queued for second-admin approval (dual approval). No funds have moved yet."

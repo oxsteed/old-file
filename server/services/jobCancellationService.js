@@ -438,4 +438,4 @@ async function finalizeJobCancellation(result) {
   });
 }
 
-module.exports = { cancelJobTransaction, finalizeJobCancellation };
+module.exports = { cancelJobTransaction, finalizeJobCancellation, PRE_ACCEPTANCE_STATUSES };

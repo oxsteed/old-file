@@ -56,6 +56,67 @@ function computeOnboardingStep(user) {
   return 'registered';
 }
 
+/**
+ * Shared impersonation-session verification (audit fix, finding 36).
+ *
+ * Mirrors in one place the checks authenticate used to inline:
+ *   1. revocation-store session termination (endImpersonation),
+ *   2. user-wide revocation for the target (password change / logout),
+ *   3. the impersonating admin's own revocation (P3-14-F07),
+ *   4. the user_impersonation_log.ended_at DB check (cache is not truth).
+ *
+ * Returns { valid: true } or { valid: false, error } with the same
+ * denial messages authenticate historically sent. Callers that must not
+ * fail the whole request (optionalAuth) treat !valid as "stay
+ * unauthenticated" instead of sending the 401.
+ */
+async function verifyImpersonationSession(token, decoded) {
+  const sessionRevoked = await tokenRevocationService.isImpersonationSessionRevoked(decoded.jti);
+  if (sessionRevoked) {
+    return { valid: false, error: 'Impersonation session has ended' };
+  }
+  // Impersonation still runs as the target user. A user-wide revocation
+  // (password change, account security action, or logout) must therefore
+  // invalidate the impersonation token too, before the database audit
+  // lookup can authorize another request.
+  const tokenId = crypto.createHash('sha256').update(token).digest('hex');
+  const userRevoked = await tokenRevocationService.isRevoked(tokenId, decoded.id, decoded.iat);
+  if (userRevoked) {
+    return { valid: false, error: 'Token has been revoked' };
+  }
+  // Review P3-14-F07: the impersonating admin's own revocation must also
+  // end the session. Without this, an admin password change,
+  // logout-everywhere, or admin deactivation after the session started
+  // would leave the impersonation token usable for its remaining life.
+  // The user-level marker (revoked:user:<adminId>) is what matters here;
+  // the per-token lookup above just misses for the impersonation token.
+  if (decoded.impersonated_by) {
+    const adminRevoked = await tokenRevocationService.isRevoked(tokenId, decoded.impersonated_by, decoded.iat);
+    if (adminRevoked) {
+      return { valid: false, error: 'Impersonating admin session has been revoked' };
+    }
+  }
+  // Audit fix: also check ended_at in the database. The revocation
+  // service is a cache; the database is the source of truth. If the
+  // session was ended but the revocation didn't propagate, deny.
+  // Fail-closed: if the query fails, deny (do not fail open).
+  let session = null;
+  try {
+    const { rows } = await pool.query(
+      `SELECT ended_at FROM user_impersonation_log WHERE token_jti = $1 LIMIT 1`,
+      [decoded.jti]
+    );
+    session = rows[0];
+  } catch (dbErr) {
+    logger.error('impersonation ended_at check failed', { error: dbErr.message, jti: decoded.jti });
+    return { valid: false, error: 'Impersonation session verification failed' };
+  }
+  if (session?.ended_at) {
+    return { valid: false, error: 'Impersonation session has ended' };
+  }
+  return { valid: true };
+}
+
 async function authenticate(req, res, next) {
   // Audit fix: accept the access token from the httpOnly cookie first,
   // falling back to the Authorization header for backward compat.
@@ -115,48 +176,13 @@ async function authenticate(req, res, next) {
     // the jti in the revocation store. Flag the request so downstream
     // handlers can audit impersonated actions.
     if (decoded.impersonation) {
-      const sessionRevoked = await tokenRevocationService.isImpersonationSessionRevoked(decoded.jti);
-      if (sessionRevoked) {
-        return res.status(401).json({ error: 'Impersonation session has ended' });
-      }
-      // Impersonation still runs as the target user. A user-wide revocation
-      // (password change, account security action, or logout) must therefore
-      // invalidate the impersonation token too, before the database audit
-      // lookup can authorize another request.
-      const tokenId = crypto.createHash('sha256').update(token).digest('hex');
-      const userRevoked = await tokenRevocationService.isRevoked(tokenId, decoded.id, decoded.iat);
-      if (userRevoked) {
-        return res.status(401).json({ error: 'Token has been revoked' });
-      }
-      // Review P3-14-F07: the impersonating admin's own revocation must also
-      // end the session. Without this, an admin password change,
-      // logout-everywhere, or admin deactivation after the session started
-      // would leave the impersonation token usable for its remaining life.
-      // The user-level marker (revoked:user:<adminId>) is what matters here;
-      // the per-token lookup above just misses for the impersonation token.
-      if (decoded.impersonated_by) {
-        const adminRevoked = await tokenRevocationService.isRevoked(tokenId, decoded.impersonated_by, decoded.iat);
-        if (adminRevoked) {
-          return res.status(401).json({ error: 'Impersonating admin session has been revoked' });
-        }
-      }
-      // Audit fix: also check ended_at in the database. The revocation
-      // service is a cache; the database is the source of truth. If the
-      // session was ended but the revocation didn't propagate, deny.
-      // Fail-closed: if the query fails, deny (do not fail open).
-      let session = null;
-      try {
-        const { rows } = await pool.query(
-          `SELECT ended_at FROM user_impersonation_log WHERE token_jti = $1 LIMIT 1`,
-          [decoded.jti]
-        );
-        session = rows[0];
-      } catch (dbErr) {
-        logger.error('impersonation ended_at check failed', { error: dbErr.message, jti: decoded.jti });
-        return res.status(401).json({ error: 'Impersonation session verification failed' });
-      }
-      if (session?.ended_at) {
-        return res.status(401).json({ error: 'Impersonation session has ended' });
+      // Audit fix (finding 36): the full impersonation verification lives
+      // in verifyImpersonationSession so optionalAuth mirrors authenticate's
+      // DB + admin-revocation checks instead of consulting only the
+      // revocation cache.
+      const check = await verifyImpersonationSession(token, decoded);
+      if (!check.valid) {
+        return res.status(401).json({ error: check.error });
       }
       req.isImpersonated   = true;
       req.impersonatedBy   = decoded.impersonated_by;
@@ -429,9 +455,13 @@ const optionalAuth = async (req, res, next) => {
 
     if (decoded.impersonation) {
       // Ended impersonation sessions must not authenticate, even optionally.
+      // Audit fix (finding 36): mirror authenticate's DB + admin-revocation
+      // checks here. In optional-auth semantics a failed check means "stay
+      // unauthenticated" rather than a 401.
       req.isImpersonated = true;
       req.impersonatedBy = decoded.impersonated_by || null;
-      if (await tokenRevocationService.isImpersonationSessionRevoked(decoded.jti)) return next();
+      const check = await verifyImpersonationSession(token, decoded).catch(() => ({ valid: false }));
+      if (!check.valid) return next();
     } else {
       const tokenId = crypto.createHash('sha256').update(token).digest('hex');
       const isRevoked = await tokenRevocationService.isRevoked(tokenId, decoded.id, decoded.iat);

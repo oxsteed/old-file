@@ -79,6 +79,7 @@ async function applyStaffOffboarding(client, {
     correctiveActionsReassigned: 0,
     reassignedToUserId: null,
     offboardingRecord: null,
+    refreshTokensRevoked: 0,
   };
   if (!client || !businessId || !userId) return empty;
 
@@ -156,6 +157,15 @@ async function applyStaffOffboarding(client, {
     [userId, businessId, reassignTo]
   );
 
+  // Audit fix (finding 32): a refresh token is a long-lived credential, not
+  // a membership row. Revoke every refresh token for the offboarded user
+  // inside the same transaction, so a revoked member cannot silently mint
+  // new access tokens. Any failure rolls the offboarding back (fail closed).
+  const refreshTokens = await client.query(
+    `DELETE FROM refresh_tokens WHERE user_id = $1 RETURNING id`,
+    [userId]
+  );
+
   const counts = {
     pinsDeactivated: pins.rowCount || 0,
     sessionsEnded: sessions.rowCount || 0,
@@ -163,6 +173,7 @@ async function applyStaffOffboarding(client, {
     crewTasksReassigned: crewTasks.rowCount || 0,
     correctiveActionsReassigned: correctiveActions.rowCount || 0,
     reassignedToUserId: reassignTo,
+    refreshTokensRevoked: refreshTokens.rowCount || 0,
   };
 
   // S-11: the offboarding record + retention deadline, written in the

@@ -1886,7 +1886,7 @@
         "description": "Cela remboursera le paiement au client.",
         "confirm": "Rembourser",
         "reasonPlaceholder": "Raison du remboursement…",
-        "stepupPrompt": "Un code de verification a ete envoye a votre e-mail. Saisissez-le pour autoriser ce remboursement :",
+        "stepupPrompt": "Saisissez le code actuel à 6 chiffres de votre application d'authentification pour autoriser ce remboursement :",
         "stepupFailed": "Impossible d'emettre un defi de verification. Le remboursement n'a pas ete traite.",
         "stepupRequired": "Un code de verification est requis pour emettre le remboursement.",
         "pendingApproval": "Remboursement en attente d'approbation par un second administrateur. Aucun fonds n'a encore bougé."

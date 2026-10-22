@@ -12,6 +12,7 @@ const {
   getJobPayment,
   getMyPayments,
   requestInstantPayout,
+  issueInstantPayoutStepupChallenge,
   disconnectConnectAccount,
   getPayoutBalance,
   getInvestorSummary,
@@ -35,6 +36,9 @@ router.post('/connect/disconnect', authenticate, requirePaymentsEnabled, connect
 router.get('/payout/balance', authenticate, requirePaymentsEnabled, getPayoutBalance);
 // Review P2-2-F01 / P2-2-F11: instant payouts move money, so they require
 // finished onboarding AND tax identity (W-9 on file, fresh Didit).
+// Audit fix (finding 27): email-OTP step-up challenge issuance for
+// instant payouts. Consumed by the POST /payout/instant handler below.
+router.post('/payout/instant/stepup-challenges', authenticate, requirePaymentsEnabled, requireOnboardingStep('active'), requireTaxIdentity, paymentsLimiter, rejectImpersonated, issueInstantPayoutStepupChallenge);
 router.post('/payout/instant', authenticate, requirePaymentsEnabled, requireOnboardingStep('active'), requireTaxIdentity, paymentsLimiter, requestInstantPayout);
 router.get('/investor-summary', authenticate, requireAdmin, getInvestorSummary);
 

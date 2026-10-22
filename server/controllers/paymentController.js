@@ -24,6 +24,7 @@ const {
 const {
   AppError
 } = require('../middleware/errorHandler');
+const { verifyStepupChallenge, issueStepupChallenge } = require('../services/stepupChallengeService');
 const {
   logAdminAction
 } = require('../services/auditService');
@@ -676,7 +677,39 @@ exports.getPayoutBalance = async (req, res, next) => {
   }
 };
 
+/**
+ * Audit fix (finding 27): issue the email-OTP step-up challenge a helper
+ * completes before POST /payout/instant. The client passes the intended
+ * amount so the challenge carries context; verification keys on the
+ * challenge id + code + actor, not the amount.
+ */
+exports.issueInstantPayoutStepupChallenge = async (req, res, next) => {
+  try {
+    const INSTANT_PAYOUT_STEPUP_CAP_CENTS = 50000;
+    const raw = req.body?.amountCents ?? req.body?.amount_cents ?? INSTANT_PAYOUT_STEPUP_CAP_CENTS;
+    const amountCents = Math.min(Math.max(Number(raw) || 0, 1), INSTANT_PAYOUT_STEPUP_CAP_CENTS);
+    const { challenge, delivery } = await issueStepupChallenge({
+      actorUserId: req.user.id,
+      actorEmail: req.user?.email,
+      actionType: 'instant_payout',
+      amountCents,
+      currencyCode: 'USD',
+    });
+    res.status(201).json({
+      challenge: {
+        id: challenge.id,
+        actionType: challenge.actionType,
+        amountCents: challenge.amountCents,
+        currencyCode: challenge.currencyCode,
+        expiresAt: challenge.expiresAt,
+      },
+      delivery,
+    });
+  } catch (err) { next(err); }
+};
+
 exports.requestInstantPayout = async (req, res, next) => {
+
   try {
     const accountResult = await pool.query('SELECT * FROM connect_accounts WHERE user_id = $1', [req.user.id]);
     const account = accountResult.rows[0];
@@ -693,6 +726,16 @@ exports.requestInstantPayout = async (req, res, next) => {
         message: 'Payout account is ready. Stripe is not configured in this environment, so no payout was created.'
       });
     }
+    // Audit fix (finding 27): instant payouts moved up to $500/day on session
+    // auth alone. Every instant payout now requires a fresh step-up challenge
+    // (the per-user-day idempotency key already bounds this to at most one
+    // challenge per day).
+    await verifyStepupChallenge({
+      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+      actorUserId: req.user.id,
+      actionType: 'instant_payout',
+      code: req.body?.stepupCode || req.body?.stepup_code,
+    });
     const balance = await stripe.balance.retrieve({
       stripeAccount: refreshedAccount.stripe_account_id
     });

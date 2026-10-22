@@ -96,16 +96,14 @@ function requireConnectorGrant(permission) {
     if (connectorUser.role === 'super_admin') return next();
 
     try {
-      const { rows } = await db.query(
-        `SELECT id, region_id FROM admin_permission_grants
-          WHERE grantee_id = $1
-            AND permissions ? $2
-            AND expires_at  > NOW()
-            AND revoked_at IS NULL
-          ORDER BY (region_id IS NULL) DESC
-          LIMIT 1`,
-        [connectorUser.id, permission]
-      );
+      // Audit fix (finding 30): reuse the shared grant lookup from
+      // adminAuth so delegation grants (with grantor-authority
+      // verification) authorize connector mutations exactly like the
+      // interactive admin routes. The old inline query checked only
+      // admin_permission_grants, so delegated admins got a fail-closed
+      // 403 here that the UI never produced.
+      const { lookupGrants } = require('./adminAuth');
+      const rows = await lookupGrants(connectorUser.id, permission);
       const grant = rows.find((row) => row.region_id == null);
       if (grant) return next();
 

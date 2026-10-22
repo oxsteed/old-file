@@ -46,10 +46,10 @@ function SectionShell({ icon: Icon, eyebrow, title, detail, action, children }) 
 
 function StepupPrompt({ t, pending, code, setCode, onConfirm, onCancel, busy }) {
   return <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
-    <p className="text-xs text-amber-200">{t('moneyOut.stepupPrompt', { defaultValue: 'A verification code was emailed to you. Enter it to confirm this money movement.' })}</p>
+    <p className="text-xs text-amber-200">{t('moneyOut.stepupPrompt')}</p>
     <p className="mt-1 font-mono text-[10px] text-gray-500">{t('moneyOut.challengeExpires', { defaultValue: 'Challenge expires' })}: {dateTime(pending.expiresAt, t)}</p>
     <div className="mt-2 flex flex-wrap items-center gap-2">
-      <input value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 12))} inputMode="numeric" placeholder={t('moneyOut.stepupCodePlaceholder', { defaultValue: 'Verification code' })} className="w-44 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2 font-mono text-sm text-gray-900 dark:text-white outline-none placeholder:text-gray-600 focus:border-amber-400" />
+      <input value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 12))} inputMode="numeric" placeholder={t('moneyOut.stepupCodePlaceholder')} className="w-44 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2 font-mono text-sm text-gray-900 dark:text-white outline-none placeholder:text-gray-600 focus:border-amber-400" />
       <button type="button" onClick={onConfirm} disabled={busy || code.length < 4} className="rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-50">{t('moneyOut.confirmApprove', { defaultValue: 'Confirm approval' })}</button>
       <button type="button" onClick={onCancel} disabled={busy} className="rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">{t('moneyOut.cancel', { defaultValue: 'Cancel' })}</button>
     </div>
@@ -135,7 +135,7 @@ export default function OxsteedCreditMoneyOut({ busy = false }) {
       });
       setPendingApproval({ withdrawalId: withdrawal.id, challengeId: response.data?.challenge?.id, expiresAt: response.data?.challenge?.expiresAt });
       setStepupCode('');
-      setNotice(t('moneyOut.stepupIssued', { defaultValue: 'Verification code sent. Enter it below to approve the withdrawal.' }));
+      setNotice(t('moneyOut.stepupIssued'));
     } catch (err) {
       setError(safeCreditErrorMessage(err, t('moneyOut.errors.issueChallenge', { defaultValue: 'Could not issue a verification challenge.' })));
     } finally {
