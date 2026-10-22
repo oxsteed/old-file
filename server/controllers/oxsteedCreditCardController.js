@@ -6,6 +6,9 @@ const cardSecurity = require('../services/oxsteedCreditCardSecurity');
 const recovery = require('../services/oxsteedCreditCardRecovery');
 const crypto = require('crypto');
 const { requireDeviceCredential, assertDeviceApp } = require('./restaurantAppFlowController');
+// Auth audit item 16: admin card issuance creates spendable instruments, so
+// the issuance handlers require a fresh admin step-up challenge.
+const { requireAdminStepup } = require('./oxsteedCreditController');
 
 function normalizeString(value, max = 255) {
   if (typeof value !== 'string') return null;
@@ -82,7 +85,14 @@ const myCardHistory = recoveryHandler(recovery.listHistory);
 const markMyCardFound = recoveryHandler(recovery.markFound);
 const requestMyReplacement = recoveryHandler(recovery.requestReplacement);
 const adminCardHistory = recoveryHandler(recovery.listHistory, true);
-const retryAdminReplacement = recoveryHandler(recovery.retryReplacement, true);
+// Auth audit item 16: a replacement card is a newly issued spendable
+// instrument, so the admin retry requires a fresh step-up challenge.
+async function retryAdminReplacement(req, res, next) {
+  try {
+    await requireAdminStepup(req, 'credit_card_issue');
+    return recoveryHandler(recovery.retryReplacement, true)(req, res, next);
+  } catch (error) { next(error); }
+}
 
 async function listMyCards(req, res, next) {
   try {
@@ -193,6 +203,9 @@ async function setMyCardPin(req, res, next) {
 
 async function adminIssueVirtualCard(req, res, next) {
   try {
+    // Auth audit item 16: an issued card is a spendable instrument; require
+    // a fresh step-up challenge before creating one for a customer.
+    await requireAdminStepup(req, 'credit_card_issue');
     const customerId = parseUuid(req.body?.customerId || req.body?.customer_id, 'customerId');
     const result = await cardService.adminIssueVirtualCard({
       customerId,
@@ -211,6 +224,9 @@ async function adminIssueVirtualCard(req, res, next) {
 
 async function adminIssuePhysicalCard(req, res, next) {
   try {
+    // Auth audit item 16: an issued card is a spendable instrument; require
+    // a fresh step-up challenge before creating one for a customer.
+    await requireAdminStepup(req, 'credit_card_issue');
     const customerId = parseUuid(req.body?.customerId || req.body?.customer_id, 'customerId');
     const result = await cardService.adminIssuePhysicalCard({
       customerId,

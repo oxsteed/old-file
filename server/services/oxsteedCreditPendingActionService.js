@@ -648,16 +648,18 @@ async function decidePendingAction({ actionId, decidedBy, decision, reason, step
     const executor = ACTION_EXECUTORS[action.action_type];
     if (!executor) throw new AppError('Unsupported pending action type', 400, 'credit_pending_action_type_invalid');
     const storedPayload = { ...(action.payload || {}), idempotencyKey: action.idempotency_key };
-    // ADM-019/ADM-114: the compliance choke point ran at maker time, up to
-    // 24h before this approval. Re-evaluate now, at the moment money moves,
-    // so a sanctions hit or identity-tier change in between fails closed
-    // instead of executing on a stale pass.
-    if (action.action_type === 'credit_load') {
+    // ADM-019/ADM-114 + P3-10-F01 (auth audit item 2): the compliance choke
+    // point ran at maker time, up to 24h before this approval. Re-evaluate
+    // now, at the moment money moves, so a sanctions hit or identity-tier
+    // change in between fails closed instead of executing on a stale pass.
+    // credit_adjustment is re-evaluated exactly like credit_load: admin
+    // adjustments move real customer balances in both directions.
+    if (action.action_type === 'credit_load' || action.action_type === 'credit_adjustment') {
       await evaluateFundingCompliance({
         customerId: storedPayload.customerId,
         amountCents: storedPayload.amountCents,
         currencyCode: storedPayload.currencyCode,
-        fundingMethod: 'admin_load',
+        fundingMethod: action.action_type === 'credit_load' ? 'admin_load' : 'admin_adjustment',
         actorUserId: decidedBy,
         requestIp: requestIp || null,
         correlationId: correlationId || null,
