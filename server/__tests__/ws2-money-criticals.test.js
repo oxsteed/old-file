@@ -17,6 +17,12 @@ const request = require('supertest');
 const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
 
+// Track A item 12: instant payouts require TOTP step-up. Mock it for H1.
+jest.mock('../services/stepupChallengeService', () => ({
+  verifyStepupChallenge: jest.fn(async () => ({ ok: true })),
+  issueStepupChallenge: jest.fn(async () => ({ challengeId: 'test-challenge' })),
+}));
+
 jest.mock('../services/reconciliationExceptions', () => ({
   recordException: jest.fn().mockResolvedValue(1),
 }));
