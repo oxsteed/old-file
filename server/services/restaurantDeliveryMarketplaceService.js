@@ -1,6 +1,7 @@
 'use strict';
 
 const AppError = require('../utils/appError');
+const { strictInteger } = require('../utils/strictInteger');
 
 const PROVIDERS = new Set(['doordash', 'uber_eats', 'grubhub']);
 const STATUSES = new Set(['enabled', 'disabled', 'error']);
@@ -46,7 +47,7 @@ function normalizeCurrency(value) {
 }
 
 function normalizeAmount(value) {
-  const amount = Number(value);
+  const amount = strictInteger(value, { min: 0 });
   if (!Number.isSafeInteger(amount) || amount < 0) throw new AppError('Order total is invalid', 400, 'delivery_amount_invalid');
   return amount;
 }

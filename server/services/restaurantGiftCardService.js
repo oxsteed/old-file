@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const AppError = require('../utils/appError');
+const { strictInteger } = require('../utils/strictInteger');
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 16;
@@ -120,7 +121,7 @@ async function redeemGiftCard(client, {
   );
   if (replayed) return { card: cardShape(replayed), ledger: replayed, replayed: true };
 
-  const amount = Number(amountCents);
+  const amount = strictInteger(amountCents);
   if (!Number.isSafeInteger(amount) || amount <= 0) throw new AppError('Gift-card amount is invalid', 400, 'gift_card_amount_invalid');
   const { rows: [card] } = await client.query(
     `SELECT * FROM restaurant_gift_cards
