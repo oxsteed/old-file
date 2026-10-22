@@ -4740,6 +4740,64 @@
           "noData": "لا توجد طلبات عملاء محددة خلال آخر 90 يومًا.",
           "loadError": "تعذر تحميل تحليلات الولاء."
         }
+      },
+      "storeHub": {
+        "title": "المركز داخل المتجر",
+        "subtitle": "يُمرّر مركز كل متجر حركة نقاط البيع والمطبخ والطابعة عبر الشبكة المحلية أثناء انقطاع الاتصال، وتُسجَّل مبيعات النقد المعلّقة تلقائيًا عند عودة الاتصال.",
+        "loading": "جارٍ تحميل بيانات المركز…",
+        "loadError": "تعذّر تحميل بيانات المركز",
+        "refresh": "تحديث",
+        "noHubs": "لا يوجد مركز مسجّل لهذا المطعم بعد. سجّل جهاز المركز داخل المتجر أدناه.",
+        "hub": "Hub",
+        "store": "المتجر",
+        "lastHeartbeat": "آخر نبضة",
+        "queued": "في الانتظار",
+        "held": "محتجزة",
+        "actions": "إجراءات",
+        "never": "أبدًا",
+        "justNow": "الآن",
+        "minutesAgo": "قبل {{count}} د",
+        "hoursAgo": "قبل {{count}} س",
+        "daysAgo": "قبل {{count}} يوم",
+        "viewSales": "المبيعات",
+        "replay": "تسجيل",
+        "replayHint": "تسجيل جميع مبيعات النقد دون اتصال في الدفتر",
+        "hubName": "اسم المركز",
+        "hubNamePlaceholder": "مثال: مركز المنضدة الأمامية",
+        "register": "تسجيل المركز",
+        "registerSuccess": "تم تسجيل المركز",
+        "registerError": "تعذّر تسجيل المركز",
+        "offlineSalesTitle": "مبيعات النقد دون اتصال",
+        "statusFilter": "تصفية حسب الحالة",
+        "allStatuses": "كل الحالات",
+        "noSales": "لا توجد مبيعات دون اتصال في هذا العرض.",
+        "salesLoadError": "تعذّر تحميل مبيعات دون اتصال",
+        "total": "Total",
+        "tendered": "المستلم",
+        "statusLabel": "الحالة",
+        "note": "ملاحظة",
+        "requeue": "إعادة إلى الانتظار",
+        "requeueHint": "إعادة هذه المبيعة إلى قائمة الانتظار؛ سيتحقق التسجيل التالي من درج النقدية مجددًا",
+        "requeueSuccess": "أُعيدت المبيعة إلى الانتظار",
+        "resolveError": "تعذّرت تسوية المبيعة",
+        "void": "إلغاء",
+        "voidHint": "التخلي عن هذه المبيعة؛ تم احتساب النقد في مكان آخر",
+        "voidNotePlaceholder": "السبب (مثال: احتُسب عند إغلاق الدرج)",
+        "confirmVoid": "تأكيد الإلغاء",
+        "voidSuccess": "أُلغيت المبيعة",
+        "cancel": "إلغاء",
+        "replaySuccess": "سُجّلت {{count}} مبيعة",
+        "replayHeld": "{{count}} مبيعة محتجزة للمراجعة",
+        "replayFailed": "{{count}} مبيعة فشلت",
+        "replayShortfall": "{{count}} مبيعة بنقص في المخزون",
+        "replayError": "تعذّر تسجيل المبيعات",
+        "status": {
+          "queued": "في الانتظار",
+          "held": "محتجزة",
+          "failed": "فشلت",
+          "replayed": "مسجّلة",
+          "voided": "ملغاة"
+        }
       }
     }
   },
@@ -4866,6 +4924,10 @@
         "title": "تدريب جديد مسند",
         "body": "{{moduleTitle}} في {{restaurantName}}"
       },
+      "training_recertification_due": {
+        "title": "إعادة الاعتماد مستحقة",
+        "body": "انتهت صلاحية شهادتك في {{moduleTitle}} لدى {{restaurantName}}. يُرجى إكمال التدريب مرة أخرى."
+      },
       "crew_shift_published": {
         "title": "تم نشر وردية جديدة",
         "body": "{{shiftLabel}} · {{startsAt}} في {{restaurantName}}"
@@ -4877,6 +4939,59 @@
       "restaurant_announcement": {
         "title": "إعلان من {{restaurantName}}",
         "body": "{{announcementTitle}}"
+      },
+      "crew_task_completed": {
+        "title": "اكتملت المهمة",
+        "body": "{{taskTitle}} في {{restaurantName}}"
+      },
+      "training_completed": {
+        "title": "اكتمل التدريب",
+        "body": "اكتمل {{moduleTitle}}"
+      },
+      "training_recertification_due": {
+        "title": "إعادة اعتماد التدريب مستحقة",
+        "body": "انتهت صلاحية شهادتك لـ {{moduleTitle}}. يرجى إكمال التدريب مرة أخرى."
+      },
+      "member_invite": {
+        "title": "تمت دعوتك للانضمام إلى {{businessName}}",
+        "body": "تمت دعوتك للانضمام إلى \"{{businessName}}\" بصفة {{role}}."
+      },
+      "member_invite_resent": {
+        "title": "تمت إعادة إرسال الدعوة من {{businessName}}",
+        "body": "تمت إعادة إرسال دعوتك للانضمام إلى \"{{businessName}}\" بصفة {{role}}."
+      },
+      "member_invite_withdrawn": {
+        "title": "تم سحب الدعوة من {{businessName}}",
+        "body": "تم سحب دعوتك للانضمام إلى \"{{businessName}}\" بصفة {{role}} قبل قبولها."
+      },
+      "member_removed": {
+        "title": "تمت إزالتك من {{businessName}}",
+        "body": "تمت إزالتك بصفة {{role}} من \"{{businessName}}\"."
+      },
+      "member_rehired": {
+        "title": "مرحبًا بعودتك إلى {{businessName}}",
+        "body": "تمت إعادة توظيفك في \"{{businessName}}\" بصفة {{role}}."
+      },
+      "career_hired": {
+        "title": "تم توظيفك في {{businessName}}",
+        "body": "تم قبول طلبك لـ {{openingTitle}} بصفة {{role}}."
+      },
+      "crew_task_reviewed": {
+        "approved": {
+          "title": "تمت الموافقة على المهمة",
+          "body": "تمت الموافقة على {{taskTitle}} في {{restaurantName}}"
+        },
+        "rejected": {
+          "title": "أُعيدت المهمة",
+          "body": "{{taskTitle}} في {{restaurantName}} تحتاج إلى مزيد من العمل"
+        }
+      },
+      "roles": {
+        "owner": "مالك",
+        "manager": "مدير",
+        "representative": "ممثل",
+        "employee": "موظف",
+        "support_agent": "وكيل دعم"
       }
     }
   },
@@ -4953,7 +5068,7 @@
       "addLogbookEntry": "إضافة إدخال",
       "logbookAdded": "تمت إضافة الإدخال"
     },
-    "merchant": { "timezone": "المنطقة الزمنية", "timezoneHint": "تُستخدم لساعات العمل وأرقام الانتظار اليومية والتقارير.", "locationEdit": "تعديل", "locationSaveChanges": "حفظ التغييرات", "locationStatus": "الحالة", "locationActive": "نشط", "locationPaused": "متوقف مؤقتًا", "locationClosed": "مغلق", "locationUpdated": "تم تحديث الموقع", "locationMakePrimary": "تعيين كموقع رئيسي", "locationName": "اسم الموقع", "addLocation": "إضافة موقع", "locationCreated": "تمت إضافة الموقع", "locationError": "تعذر حفظ الموقع", "findCoordinates": "البحث عن الإحداثيات", "locationGeocodeEmpty": "تعذر العثور على إحداثيات لهذا الموقع", "locationGeocoded": "تم العثور على الإحداثيات", "locationGeocodeError": "تعذر العثور على الإحداثيات", "addHoursRange": "إضافة فترة", "removeHoursRange": "إزالة الفترة", "hoursRangeLabel": "الفترة {{number}}", "specialDatesTitle": "التواريخ الخاصة", "specialDatesHint": "استبدل ساعات الأسبوع لتاريخ محدد، بما في ذلك العطلات والإغلاقات الاستثنائية.", "specialDate": "التاريخ", "specialDateClosed": "مغلق طوال اليوم", "specialDateRemove": "إزالة التاريخ", "specialDateAdd": "إضافة تاريخ خاص", "specialDateDuplicate": "يمكن إدراج كل تاريخ خاص مرة واحدة فقط.", "tab": { "myshift": "ورديتي" } },
+    "merchant": { "timezone": "المنطقة الزمنية", "timezoneHint": "تُستخدم لساعات العمل وأرقام الانتظار اليومية والتقارير.", "taxRuleCategory": "فئة الضريبة (اختياري)", "prepAutoExtendMax": "الحد الأقصى للتمديد التلقائي (دقيقة)", "prepAutoExtendThreshold": "التمديد التلقائي من (طلبات)", "prepAutoExtendPerOrder": "التمديد التلقائي لكل طلب (دقيقة)", "prepAutoExtendHint": "يُطيل وقت التحضير المُقدَّر تلقائيًا عندما تتجاوز الطلبات المفتوحة الحد.", "locationEdit": "تعديل", "locationSaveChanges": "حفظ التغييرات", "locationStatus": "الحالة", "locationActive": "نشط", "locationPaused": "متوقف مؤقتًا", "locationClosed": "مغلق", "locationUpdated": "تم تحديث الموقع", "locationMakePrimary": "تعيين كموقع رئيسي", "locationName": "اسم الموقع", "addLocation": "إضافة موقع", "locationCreated": "تمت إضافة الموقع", "locationError": "تعذر حفظ الموقع", "findCoordinates": "البحث عن الإحداثيات", "locationGeocodeEmpty": "تعذر العثور على إحداثيات لهذا الموقع", "locationGeocoded": "تم العثور على الإحداثيات", "locationGeocodeError": "تعذر العثور على الإحداثيات", "addHoursRange": "إضافة فترة", "removeHoursRange": "إزالة الفترة", "hoursRangeLabel": "الفترة {{number}}", "specialDatesTitle": "التواريخ الخاصة", "specialDatesHint": "استبدل ساعات الأسبوع لتاريخ محدد، بما في ذلك العطلات والإغلاقات الاستثنائية.", "specialDate": "التاريخ", "specialDateClosed": "مغلق طوال اليوم", "specialDateRemove": "إزالة التاريخ", "specialDateAdd": "إضافة تاريخ خاص", "specialDateDuplicate": "يمكن إدراج كل تاريخ خاص مرة واحدة فقط.", "tab": { "myshift": "ورديتي" } },
     "creditCenter": {
       "recentFallback": "مؤخرًا",
       "oxsteedCustomer": "عميل OxSteed",

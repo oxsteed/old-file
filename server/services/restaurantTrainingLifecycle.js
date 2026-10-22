@@ -41,7 +41,7 @@ async function snapshotModuleVersion(client, module, createdBy) {
 
 // Best-effort assignment notification (S-12: assignments used to be
 // silent). Failures are logged, never thrown into the write path.
-async function notifyTrainingAssigned(userId, { assignmentId, moduleId, moduleTitle, restaurantId, restaurantName = null, dueAt, recertification = false }) {
+async function notifyTrainingAssigned(userId, { assignmentId, moduleId, moduleTitle, restaurantId, restaurantName = null, dueAt, recertification = false, completionId = null }) {
   try {
     await sendNotification({
       userId,
@@ -64,7 +64,14 @@ async function notifyTrainingAssigned(userId, { assignmentId, moduleId, moduleTi
         },
       },
       action_url: '/restaurants/merchant?tab=myshift',
-      idempotencyKey: `${recertification ? 'training-recert' : 'training-assigned'}:${assignmentId}:${userId}`,
+      // Background-jobs audit (finding T1): the recertification key must
+      // carry a cycle discriminator. Assignments are unique per
+      // (module_id, user_id) forever and recertification re-opens the same
+      // row, so keying on assignmentId alone deduped every later cycle
+      // forever. The expired completion id identifies the cycle.
+      idempotencyKey: recertification
+        ? `training-recert:${completionId || assignmentId}:${userId}`
+        : `training-assigned:${assignmentId}:${userId}`,
     });
   } catch (err) {
     logger.warn('Training assignment notification failed', { userId, assignmentId, error: err.message });
@@ -160,6 +167,7 @@ async function expireCompletionsForRecertification(db) {
              AND (newer.completed_at, newer.id) > (c.completed_at, c.id)
         )
       RETURNING a.id, a.user_id, a.module_id, a.restaurant_id, a.due_at,
+                c.id AS completion_id,
                 (SELECT title FROM restaurant_training_modules WHERE id = a.module_id) AS module_title`
   );
   return rows;

@@ -224,12 +224,13 @@ describe('decision 6: platform admins on individual restaurants', () => {
   test('admin without membership gets owner access and the request is audit-logged', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [restaurantRow({ effective_role: null, operator_role: null, membership_id: null })] })
+      .mockResolvedValueOnce({ rows: [] }) // item 23: no region grants -> global bypass
       .mockResolvedValueOnce({ rows: [] });
     const handler = async (req, res) => res.json({ role: req.restaurantRole, via: req.scope.restaurantViaPlatformAdmin });
     const res = await request(app(requireRestaurantAccess(), handler, admin)).post('/r/7').send({});
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ role: 'owner', via: true });
-    const [sql, params] = mockQuery.mock.calls[1];
+    const [sql, params] = mockQuery.mock.calls[2];
     expect(sql).toMatch(/INSERT INTO admin_audit_log/);
     expect(params[0]).toBe(USER);
     expect(params[1]).toBe('restaurant_admin_access:POST');
@@ -240,8 +241,10 @@ describe('decision 6: platform admins on individual restaurants', () => {
   test('controller lookups later in the same request still grant the admin', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [restaurantRow({ effective_role: null })] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [restaurantRow({ effective_role: null })] });
+      .mockResolvedValueOnce({ rows: [] }) // item 23: no region grants (gate)
+      .mockResolvedValueOnce({ rows: [] }) // audit insert
+      .mockResolvedValueOnce({ rows: [restaurantRow({ effective_role: null })] })
+      .mockResolvedValueOnce({ rows: [] }); // item 23: no region grants (fresh lookup)
     const handler = async (req, res, next) => {
       try {
         await scopeModel.resolveRestaurantAccess(req.user.id, 7);
@@ -256,6 +259,7 @@ describe('decision 6: platform admins on individual restaurants', () => {
   test('a failed audit write refuses the request (fail closed)', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [restaurantRow({ effective_role: null })] })
+      .mockResolvedValueOnce({ rows: [] }) // item 23: no region grants
       .mockRejectedValueOnce(new Error('audit down'));
     const handler = jest.fn();
     const res = await request(app(requireRestaurantAccess(), handler, admin)).get('/r/7');

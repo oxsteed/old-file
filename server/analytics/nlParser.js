@@ -94,6 +94,11 @@ const METRIC_SYNONYMS = Object.freeze({
   growth_promo_redeemed_cents: ['campaign promo redeemed', 'growth promo redeemed'],
   demand_unfilled_rate_pct: ['demand unfilled rate', 'unfilled job rate', 'unfilled rate'],
   demand_gap_index: ['demand gap index', 'demand gap', 'gap index'],
+  business_invoice_revenue: ['invoice revenue', 'business invoice revenue'],
+  business_job_payout_revenue: ['job payout revenue', 'payout revenue'],
+  business_expense_total: ['business expenses', 'total expenses', 'expenses'],
+  business_job_stats_6m: ['job stats', 'business job stats'],
+  business_invoice_outstanding: ['outstanding invoices', 'unpaid invoices', 'invoice outstanding'],
 });
 
 const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -135,6 +140,11 @@ const DIMENSION_ALLOWLIST = Object.freeze({
   growth_promo_redeemed_cents: Object.freeze([]),
   demand_unfilled_rate_pct: Object.freeze([]),
   demand_gap_index: Object.freeze([]),
+  business_invoice_revenue: Object.freeze(['business']),
+  business_job_payout_revenue: Object.freeze(['business']),
+  business_expense_total: Object.freeze(['business']),
+  business_job_stats_6m: Object.freeze(['business']),
+  business_invoice_outstanding: Object.freeze(['business']),
 });
 
 // phrase -> dimension, checked in this order; first match per dimension wins.

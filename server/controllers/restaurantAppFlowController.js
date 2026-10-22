@@ -8,6 +8,8 @@ const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
 const { logBusinessAction } = require('../services/businessAuditLog');
 const { withTransaction } = require('../utils/transaction');
+const logger = require('../utils/logger');
+const { hashIP } = require('../utils/encryption');
 const socketService = require('../services/socketService');
 const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
 const { maybeUnpublishBusinessIfIncomplete } = require('./businessController');
@@ -43,7 +45,16 @@ const {
 } = require('../services/oxsteedCreditService');
 const { finalizeCreditSpendInTransaction } = require('../services/creditSpendAdapter');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
-const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
+const { enqueueKitchenPrinterJobs, enqueueCourseChitJobs } = require('../services/restaurantKitchenPrinterService');
+const {
+  resolveKitchenFireMode,
+  fireKitchenTicketForOrder,
+} = require('../services/restaurantKitchenFireService');
+const {
+  resolveStoreTaxPolicyForOrder,
+  computeOrderTax,
+  orderTotalWithTax,
+} = require('../services/restaurantOrderTaxService');
 const { nextQueueNumber } = require('../services/restaurantQueueCounter');
 const restaurantLocationService = require('../services/restaurantLocationService');
 const { getLocationScope } = require('../services/restaurantLocationAccessService');
@@ -86,9 +97,18 @@ const PAYMENT_STATUS = new Set(['unpaid', 'requires_payment', 'paid', 'failed', 
 const KITCHEN_ITEM_STATUS = new Set(['queued', 'preparing', 'ready', 'held', 'bumped', 'delayed', 'problem', 'cancelled']);
 const KITCHEN_ACTIONS = new Set(['start', 'prepare', 'ready', 'bump', 'recall', 'hold', 'delay', 'problem', 'cancel']);
 const KITCHEN_ORDER_ACTIONS = new Set(['acknowledge', 'start', 'ready_for_check', 'reopen', 'delay']);
+// Course-level coursing controls: hold parks every actionable item of a course
+// (the line stops on it), fire releases the hold so the course can be started.
+const KITCHEN_COURSE_ACTIONS = new Set(['hold', 'fire']);
+const KITCHEN_COURSE_ACTION_STATUS = {
+  hold: { from: new Set(['queued', 'preparing', 'delayed', 'problem']), to: 'held' },
+  fire: { from: new Set(['held']), to: 'queued' },
+};
 const KITCHEN_ACTION_FROM = {
-  start: new Set(['queued', 'held', 'delayed', 'problem']),
-  prepare: new Set(['queued', 'held', 'delayed', 'problem']),
+  // A course-held item cannot be fired (start/prepare) until the course is
+  // released with the course fire action; the hold must actually hold.
+  start: new Set(['queued', 'delayed', 'problem']),
+  prepare: new Set(['queued', 'delayed', 'problem']),
   ready: new Set(['preparing', 'delayed', 'problem']),
   bump: new Set(['ready']),
   recall: new Set(['ready', 'bumped']),
@@ -1000,6 +1020,18 @@ async function hasRestaurantPermission(restaurant, userId, permission) {
   return permissionsService.hasRestaurantPermission(restaurant, userId, [permission]);
 }
 
+// F-33: optional bounded integer for the prep-time auto-extend settings.
+// Absent/blank -> null (the caller decides the default); out-of-range or
+// non-integer -> 400. Bounds mirror the DB CHECK in migration 99919.
+function normalizeBoundedIntOrNull(value, field, max) {
+  if (value === undefined || value === null || value === '') return null;
+  const n = Number.parseInt(String(value), 10);
+  if (!Number.isInteger(n) || n < 0 || n > max) {
+    throw new AppError('Validation failed', 400, 'validation_failed', { [field]: `Must be an integer between 0 and ${max}` });
+  }
+  return n;
+}
+
 function normalizeLocationPatch(value) {
   const source = safeJson(value, null);
   if (!source) return null;
@@ -1023,9 +1055,20 @@ function normalizeLocationPatch(value) {
     regionId,
     phone: normalizeString(source.phone, 40),
     status: normalizeString(source.status, 24),
+    storeCode: normalizeStoreCodeValue(source.storeCode ?? source.store_code),
     operatingHours: safeJson(source.operatingHours ?? source.operating_hours, null),
     isPrimary: source.isPrimary ?? source.is_primary ?? true,
+    prepTimeAutoExtendMaxMin: normalizeBoundedIntOrNull(source.prepTimeAutoExtendMaxMin ?? source.prep_time_auto_extend_max_min, 'prepTimeAutoExtendMaxMin', 240),
+    prepTimeAutoExtendThresholdOrders: normalizeBoundedIntOrNull(source.prepTimeAutoExtendThresholdOrders ?? source.prep_time_auto_extend_threshold_orders, 'prepTimeAutoExtendThresholdOrders', 1000),
+    prepTimeAutoExtendPerOrderMin: normalizeBoundedIntOrNull(source.prepTimeAutoExtendPerOrderMin ?? source.prep_time_auto_extend_per_order_min, 'prepTimeAutoExtendPerOrderMin', 60),
   };
+}
+
+// F-02 phase 2 (migration 1527): the franchise store number. Normalized to
+// upper case; format is validated in validateManagedLocation.
+function normalizeStoreCodeValue(value) {
+  if (value === undefined || value === null || value === '') return null;
+  return String(value).trim().toUpperCase();
 }
 
 function appModuleFlags(restaurant, role, permissions = []) {
@@ -2499,6 +2542,9 @@ function validateManagedLocation(location) {
       throw new AppError('Validation failed', 400, 'validation_failed', { timezone: 'Must be a valid IANA timezone' });
     }
   }
+  if (location.storeCode && !/^[A-Z0-9-]{2,24}$/.test(location.storeCode)) {
+    throw new AppError('Validation failed', 400, 'validation_failed', { storeCode: 'Use 2-24 letters, numbers or dashes' });
+  }
 }
 
 exports.createRestaurantLocation = async (req, res, next) => {
@@ -2538,11 +2584,20 @@ exports.createRestaurantLocation = async (req, res, next) => {
           [restaurantId]
         );
       }
+      if (location.storeCode) {
+        const { rows: [taken] } = await client.query(
+          `SELECT id FROM restaurant_locations WHERE restaurant_id = $1 AND store_code = $2`,
+          [restaurantId, location.storeCode]
+        );
+        if (taken) throw new AppError('This store code is already used at another store', 409, 'store_code_taken');
+      }
       const { rows: [created] } = await client.query(
         `INSERT INTO restaurant_locations
            (restaurant_id, name, address_street, address_city, address_state, address_zip,
-            address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours, region_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+            address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours, region_id,
+            store_code, prep_time_auto_extend_max_min, prep_time_auto_extend_threshold_orders,
+            prep_time_auto_extend_per_order_min)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
          RETURNING *`,
         [
           restaurantId,
@@ -2560,6 +2615,10 @@ exports.createRestaurantLocation = async (req, res, next) => {
           location.status || 'active',
           JSON.stringify(location.operatingHours || {}),
           region.id,
+          location.storeCode || null,
+          location.prepTimeAutoExtendMaxMin ?? 0,
+          location.prepTimeAutoExtendThresholdOrders ?? 0,
+          location.prepTimeAutoExtendPerOrderMin ?? 0,
         ]
       );
       const { rows: locations } = await client.query(
@@ -2645,6 +2704,22 @@ exports.updateRestaurantLocation = async (req, res, next) => {
       }
       add('region_id', normalized.regionId);
     }
+    if (Object.prototype.hasOwnProperty.call(req.body, 'storeCode')
+      || Object.prototype.hasOwnProperty.call(req.body, 'store_code')) {
+      add('store_code', normalized.storeCode);
+    }
+    // F-33: prep-time auto-extend settings, per store.
+    for (const [key, column, max] of [
+      ['prepTimeAutoExtendMaxMin', 'prep_time_auto_extend_max_min', 240],
+      ['prepTimeAutoExtendThresholdOrders', 'prep_time_auto_extend_threshold_orders', 1000],
+      ['prepTimeAutoExtendPerOrderMin', 'prep_time_auto_extend_per_order_min', 60],
+    ]) {
+      const snake = key.replace(/([A-Z])/g, (m) => `_${m.toLowerCase()}`);
+      if (Object.prototype.hasOwnProperty.call(req.body, key)
+        || Object.prototype.hasOwnProperty.call(req.body, snake)) {
+        add(column, normalizeBoundedIntOrNull(req.body[key] ?? req.body[snake], key, max) ?? 0);
+      }
+    }
     const hasPrimary = Object.prototype.hasOwnProperty.call(req.body, 'isPrimary')
       || Object.prototype.hasOwnProperty.call(req.body, 'is_primary');
     const isPrimary = hasPrimary
@@ -2670,6 +2745,13 @@ exports.updateRestaurantLocation = async (req, res, next) => {
       }
       if (existing.is_primary && hasPrimary && isPrimary === false) {
         throw new AppError('Promote another location before demoting the primary location', 409, 'primary_location_required');
+      }
+      if (normalized.storeCode) {
+        const { rows: [taken] } = await client.query(
+          `SELECT id FROM restaurant_locations WHERE restaurant_id = $1 AND store_code = $2 AND id <> $3`,
+          [restaurantId, normalized.storeCode, locationId]
+        );
+        if (taken) throw new AppError('This store code is already used at another store', 409, 'store_code_taken');
       }
       if (isPrimary === true) {
         await client.query(
@@ -2704,7 +2786,7 @@ function createPairingCode() {
 
 function publicDevice(device) {
   if (!device) return device;
-  const { device_token_hash: _tokenHash, pairing_code: _pairingCode, ...safe } = device;
+  const { device_token_hash: _tokenHash, pairing_code: _pairingCode, pairing_code_hash: _pairingCodeHash, ...safe } = device;
   return {
     ...safe,
     deviceId: safe.id,
@@ -2917,6 +2999,9 @@ async function buildQueueBoardPayload(restaurantId, device = null, { publicOnly 
       WHERE restaurant_id = $1
         AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date
         AND status IN ('received','accepted','preparing','ready')
+        -- F-04: fire-on-pay tickets stay invisible to the kitchen until
+        -- the first payment fires them (kitchen_ticket_fired_at set).
+        AND kitchen_ticket_fired_at IS NOT NULL
         ${deviceLocationFilter}
       ORDER BY queue_number ASC`,
     orderParams
@@ -3076,11 +3161,15 @@ exports.createDevicePairingCode = async (req, res, next) => {
       if (!location) throw new AppError('Location not found', 404, 'location_not_found');
     }
     const code = createPairingCode();
+    // Audit fix (finding 40): never persist the raw pairing code. Like the
+    // display flow, store only the SHA-256 hash (upper-cased, matching the
+    // normalization pairDevice applies before comparing).
+    const pairingCodeHash = crypto.createHash('sha256').update(code.toUpperCase()).digest('hex');
     const { rows: [device] } = await pool.query(
       `INSERT INTO restaurant_app_devices
          (restaurant_id, app_key, device_name, mode, location_id, pairing_code,
-          pairing_code_expires_at, config)
-       VALUES ($1,$2,$3,$4,$5,$6,NOW() + INTERVAL '15 minutes',$7)
+          pairing_code_hash, pairing_code_expires_at, config)
+       VALUES ($1,$2,$3,$4,$5,NULL,$6,NOW() + INTERVAL '15 minutes',$7)
        RETURNING *`,
       [
         restaurantId,
@@ -3088,7 +3177,7 @@ exports.createDevicePairingCode = async (req, res, next) => {
         deviceName,
         normalizeString(req.body.mode, 64),
         locationId,
-        code,
+        pairingCodeHash,
         JSON.stringify(safeJson(req.body.config)),
       ]
     );
@@ -3099,6 +3188,22 @@ exports.createDevicePairingCode = async (req, res, next) => {
       pairing_code: code,
       pairingCodeExpiresAt: device.pairing_code_expires_at,
       pairing_code_expires_at: device.pairing_code_expires_at,
+    });
+    // F-20: pairing-code issuance is audited (who/when/device), never the
+    // code itself.
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role || null,
+      action: 'restaurant.device.pairing_code.created',
+      target_type: 'restaurant_app_device',
+      target_id: device.id,
+      after_state: {
+        appKey,
+        deviceName: device.device_name,
+        locationId: device.location_id,
+        mode: device.mode,
+        pairingCodeExpiresAt: device.pairing_code_expires_at,
+      },
     });
   } catch (err) {
     next(err);
@@ -3112,12 +3217,15 @@ exports.pairDevice = async (req, res, next) => {
     if (!code) throw new AppError('Validation failed', 400, 'validation_failed', { pairingCode: 'Pairing code is required' });
     const deviceToken = crypto.randomBytes(32).toString('base64url');
     const deviceTokenHash = crypto.createHash('sha256').update(deviceToken).digest('hex');
+    // Audit fix (finding 40): match on the stored hash, never on plaintext.
+    const pairingCodeHash = crypto.createHash('sha256').update(code.toUpperCase()).digest('hex');
     const { rows: [device] } = await pool.query(
       `UPDATE restaurant_app_devices
           SET status = 'paired',
               paired_at = NOW(),
               last_seen_at = NOW(),
               pairing_code = NULL,
+              pairing_code_hash = NULL,
               pairing_code_expires_at = NULL,
               device_token_hash = $3,
               device_token_expires_at = NOW() + INTERVAL '90 days',
@@ -3125,19 +3233,40 @@ exports.pairDevice = async (req, res, next) => {
               platform = COALESCE($5, platform),
               updated_at = NOW()
         WHERE restaurant_id = $1
-          AND pairing_code = $2
+          AND pairing_code_hash = $2
           AND status = 'pending'
           AND (pairing_code_expires_at IS NULL OR pairing_code_expires_at > NOW())
         RETURNING *`,
       [
         restaurantId,
-        code.toUpperCase(),
+        pairingCodeHash,
         deviceTokenHash,
         normalizeString(req.body.appVersion || req.body.app_version, 80),
         normalizeString(req.body.platform, 80),
       ]
     );
     if (!device) throw new AppError('Pairing code not found', 404, 'pairing_code_not_found');
+    // F-20: this route is unauthenticated (the device holds the code), so
+    // the business id comes from the restaurant row, not req.user.
+    const { rows: [pairedRestaurant] } = await pool.query(
+      'SELECT business_id FROM food_restaurants WHERE id = $1',
+      [restaurantId]
+    );
+    await logBusinessAction(req, {
+      business_id: pairedRestaurant?.business_id || null,
+      actor_role: 'device',
+      action: 'restaurant.device.paired',
+      target_type: 'restaurant_app_device',
+      target_id: device.id,
+      after_state: {
+        appKey: device.app_key,
+        deviceName: device.device_name,
+        locationId: device.location_id,
+        pairedAt: device.paired_at,
+        platform: device.platform,
+        appVersion: device.app_version,
+      },
+    });
     res.json({
       device: publicDevice(device),
       contract: deviceRouteContract(device, { restaurantId }),
@@ -3156,6 +3285,11 @@ exports.rotateDeviceToken = async (req, res, next) => {
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertManage(restaurant, req.user.id);
     if (!deviceId) throw new AppError('Device is required', 400, 'invalid_device_scope');
+    const { rows: [priorDevice] } = await pool.query(
+      `SELECT device_token_expires_at FROM restaurant_app_devices
+        WHERE id = $1 AND restaurant_id = $2`,
+      [deviceId, restaurantId]
+    );
     const deviceToken = crypto.randomBytes(32).toString('base64url');
     const deviceTokenHash = crypto.createHash('sha256').update(deviceToken).digest('hex');
     const { rows: [device] } = await pool.query(
@@ -3168,6 +3302,17 @@ exports.rotateDeviceToken = async (req, res, next) => {
       [deviceId, restaurantId, deviceTokenHash]
     );
     if (!device) throw new AppError('Paired device not found', 404, 'device_not_found');
+    // F-20: token rotation is audited with before/after expiry; the token
+    // itself is never written to the audit log.
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role || null,
+      action: 'restaurant.device.token_rotated',
+      target_type: 'restaurant_app_device',
+      target_id: device.id,
+      before_state: { deviceTokenExpiresAt: priorDevice?.device_token_expires_at || null },
+      after_state: { deviceTokenExpiresAt: device.device_token_expires_at },
+    });
     res.json({
       device: publicDevice(device),
       contract: deviceRouteContract(device, { restaurantId }),
@@ -3185,7 +3330,26 @@ exports.deviceHeartbeat = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const deviceId = parsePositiveInt(req.params.deviceId || req.body.deviceId || req.body.device_id);
-    await requireDeviceCredential(req, restaurantId, deviceId);
+    const authedDevice = await requireDeviceCredential(req, restaurantId, deviceId);
+    // Audit fix (finding 34): device bearer tokens are not bound to any
+    // client property. Record the observed network identity on every
+    // heartbeat and log when it changes mid-token-life — the tell of a
+    // token exfiltrated from a TV's localStorage or printer-bridge config.
+    // Detection only; a change never blocks the heartbeat (fail open on
+    // detection, since IPs legitimately rotate on DHCP/mobile networks).
+    const observedIpHash = hashIP(req.ip || req.headers['x-forwarded-for'] || 'unknown');
+    const observedPlatform = normalizeString(req.body.platform, 80);
+    if (authedDevice.last_seen_ip_hash && authedDevice.last_seen_ip_hash !== observedIpHash) {
+      logger.warn('device_token_ip_anomaly', {
+        deviceId, restaurantId, appKey: authedDevice.app_key,
+      });
+    }
+    if (authedDevice.last_seen_platform && observedPlatform
+        && authedDevice.last_seen_platform !== observedPlatform) {
+      logger.warn('device_token_platform_anomaly', {
+        deviceId, restaurantId, appKey: authedDevice.app_key,
+      });
+    }
     const clientConfigVersion = parsePositiveInt(req.body.configVersion || req.body.config_version, 0) || 0;
     const kitchenCursor = parsePositiveInt(
       req.body.kitchenCursor || req.body.kitchen_cursor || req.body.lastKitchenEventId || req.body.last_kitchen_event_id,
@@ -3219,6 +3383,8 @@ exports.deviceHeartbeat = async (req, res, next) => {
               END,
               app_version = COALESCE($5, app_version),
               platform = COALESCE($6, platform),
+              last_seen_ip_hash = $9,
+              last_seen_platform = COALESCE($6, last_seen_platform),
               updated_at = NOW()
         WHERE id = $7 AND restaurant_id = $8 AND status = 'paired'
         RETURNING *`,
@@ -3231,6 +3397,7 @@ exports.deviceHeartbeat = async (req, res, next) => {
         normalizeString(req.body.platform, 80),
         deviceId,
         restaurantId,
+        observedIpHash,
       ]
     );
     if (!device) throw new AppError('Device credential is missing or invalid', 401, 'invalid_device_credential');
@@ -3311,6 +3478,13 @@ exports.updateDeviceConfig = async (req, res, next) => {
     }
     const hasConfig = req.body.config && typeof req.body.config === 'object' && !Array.isArray(req.body.config);
     const replaceConfig = asBool(req.body.replaceConfig || req.body.replace_config, false);
+    // F-20: snapshot before the update so the audit row carries before/after.
+    const { rows: [priorDeviceConfig] } = await pool.query(
+      `SELECT device_name, mode, location_id, status, config, config_version
+         FROM restaurant_app_devices
+        WHERE restaurant_id = $1 AND id = $2`,
+      [restaurantId, deviceId]
+    );
     const { rows: [device] } = await pool.query(
       `UPDATE restaurant_app_devices
           SET device_name = COALESCE($1, device_name),
@@ -3339,6 +3513,27 @@ exports.updateDeviceConfig = async (req, res, next) => {
       ]
     );
     if (!device) throw new AppError('Device not found', 404, 'device_not_found');
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role || null,
+      action: 'restaurant.device.config_updated',
+      target_type: 'restaurant_app_device',
+      target_id: device.id,
+      before_state: priorDeviceConfig ? {
+        deviceName: priorDeviceConfig.device_name,
+        mode: priorDeviceConfig.mode,
+        locationId: priorDeviceConfig.location_id,
+        status: priorDeviceConfig.status,
+        configVersion: priorDeviceConfig.config_version,
+      } : null,
+      after_state: {
+        deviceName: device.device_name,
+        mode: device.mode,
+        locationId: device.location_id,
+        status: device.status,
+        configVersion: device.config_version,
+      },
+    });
     res.json({ device: publicDevice(device), contract: deviceRouteContract(device, { restaurantId }) });
   } catch (err) {
     next(err);
@@ -4137,11 +4332,22 @@ exports.createPosOrder = async (req, res, next) => {
       storeMenu.useStoreDetails(restaurantRow, posLocation);
       const posLocationId = posLocation ? Number(posLocation.id) : null;
       const posTimezone = posLocation?.timezone || restaurantRow.timezone;
+      // F-04: per-store fire-on-pay setting (store column, else the
+      // restaurant-level kitchenFireMode settings key, else on_send).
+      // In on_pay mode the order is created with kitchen_ticket_fired_at
+      // NULL: no printer jobs are enqueued and the KDS board hides the
+      // ticket until the first payment reconciles.
+      const kitchenFireMode = resolveKitchenFireMode({
+        locationRow: posLocation,
+        restaurantSettings: restaurantRow.settings,
+      });
+      const fireKitchenOnCreate = kitchenFireMode !== 'on_pay';
       const ids = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
       const { rows: menuRows } = await client.query(
         `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
                 fmi.manual_available, fmi.inventory_available, fmi.inventory_availability_state,
-                fmi.availability_schedule, ${storeMenu.overrideSql('fmi', '$3')},
+                fmi.availability_schedule, fmi.tax_rate_bps, fmi.tax_exempt, fmi.tax_category,
+                ${storeMenu.overrideSql('fmi', '$3')},
                 COALESCE((
                   SELECT jsonb_agg(
                     jsonb_build_object(
@@ -4263,8 +4469,35 @@ exports.createPosOrder = async (req, res, next) => {
       const taxableSubtotal = Math.max(0, subtotal - discount);
       const taxRateBps = Math.max(0, Math.min(10000, Number(restaurantRow.tax_rate_bps || 0)));
       const serviceFeeBps = Math.max(0, Math.min(10000, Number(restaurantRow.service_fee_bps || 0)));
-      const tax = Math.round(taxableSubtotal * taxRateBps / 10000);
       const serviceFeeCents = Math.round(taxableSubtotal * serviceFeeBps / 10000);
+      // F-19: tax-exempt orders are a money-relevant override: managers
+      // only, with a recorded reason. Everyone else gets the historical
+      // refusal, unchanged.
+      const taxExempt = req.body.taxExempt === true || req.body.tax_exempt === true;
+      const taxExemptReason = normalizeString(
+        req.body.taxExemptReason || req.body.tax_exempt_reason, 160
+      );
+      if (taxExempt) {
+        // Tax-exempt is a money-relevant override: restaurant managers only.
+        // Cashiers (pos.manage without restaurant.manage) are refused.
+        const canMarkTaxExempt = await hasRestaurantPermission(restaurant, req.user.id, 'restaurant.manage');
+        if (!canMarkTaxExempt) {
+          throw new AppError('Only a manager can mark an order tax-exempt', 403, 'tax_exempt_forbidden');
+        }
+        if (!taxExemptReason) {
+          throw new AppError('Validation failed', 400, 'validation_failed', {
+            taxExemptReason: 'A reason is required for tax-exempt orders',
+          });
+        }
+      }
+      // F-19: chain-grade tax: per-store rules, VAT/GST inclusive mode,
+      // fee taxability flags, per-item rates. The applied rules are
+      // snapshotted on the order so later edits never rewrite history.
+      const taxPolicy = await resolveStoreTaxPolicyForOrder(client, {
+        restaurantId,
+        locationRow: posLocation,
+        restaurantRow,
+      });
       let deliveryAddress = null;
       let deliveryFeeCents = 0;
       if (fulfillment === 'delivery') {
@@ -4330,7 +4563,34 @@ exports.createPosOrder = async (req, res, next) => {
           'deliveryFeeCents'
         );
       }
-      const total = taxableSubtotal + tax + serviceFeeCents + deliveryFeeCents + tip;
+      // F-19: the tax is computed after every fee is known so taxable fees
+      // (service/delivery, per the store's flags) price into the total.
+      const orderTax = computeOrderTax({
+        lines: normalized.map((line) => ({
+          menuItemId: line.item.id,
+          lineTotalCents: line.lineTotal,
+          taxRateBps: line.item.tax_rate_bps,
+          taxCategory: line.item.tax_category || null,
+          taxExempt: line.item.tax_exempt === true,
+        })),
+        discountCents: discount,
+        policy: taxPolicy,
+        serviceFeeCents,
+        deliveryFeeCents,
+        taxExempt,
+        taxExemptReason,
+      });
+      const tax = orderTax.totalTaxCents;
+      // F-19: in tax-inclusive (VAT/GST) mode the tax is extracted from
+      // prices, never added; in exclusive mode item + taxable-fee taxes
+      // are added on top.
+      const total = orderTotalWithTax({
+        taxableSubtotalCents: taxableSubtotal,
+        tipCents: tip,
+        serviceFeeCents,
+        deliveryFeeCents,
+        tax: orderTax,
+      });
       const queueNumber = await nextQueueNumber(client, restaurantId, posTimezone, new Date(), posLocationId);
       const requestedPaymentStatus = normalizeString(req.body.paymentStatus || req.body.payment_status, 24);
       if (requestedPaymentStatus && requestedPaymentStatus !== 'unpaid') {
@@ -4353,9 +4613,10 @@ exports.createPosOrder = async (req, res, next) => {
           source: 'pos_order_create',
           initialPaymentStatus: paymentStatus,
         }),
+        kitchenFireMode,
         ...(discountLines.length ? { posDiscounts: discountLines } : {}),
         ...(deliveryAddress ? { deliveryAddress, deliveryFeeCents } : {}),
-        pricing: { taxRateBps, serviceFeeBps, taxCents: tax, serviceFeeCents, deliveryFeeCents },
+        pricing: { taxRateBps, serviceFeeBps, taxCents: tax, serviceFeeCents, deliveryFeeCents, taxMode: orderTax.snapshot.mode },
       };
       const { rows: [order] } = await client.query(
         `INSERT INTO food_orders
@@ -4363,8 +4624,10 @@ exports.createPosOrder = async (req, res, next) => {
             order_source, fulfillment_type, payment_status, subtotal_cents, tax_cents,
             service_fee_cents, delivery_fee_cents, tax_rate_bps, service_fee_bps,
             tip_cents, discount_cents, total_cents, currency_code, table_label,
-            queue_number, promised_at, notes, metadata, client_order_id, acting_staff_user_id, location_id)
-         VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW() + ($21 || ' minutes')::interval,$22,$23,$24,$25,$26)
+            queue_number, promised_at, notes, metadata, client_order_id, acting_staff_user_id, location_id,
+            kitchen_ticket_fired_at, tax_exempt, tax_exempt_reason, tax_rule_snapshot)
+         VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW() + ($21 || ' minutes')::interval,$22,$23,$24,$25,$26,
+            ${fireKitchenOnCreate ? 'NOW()' : 'NULL'},$27,$28,$29)
          RETURNING *`,
         [
           restaurantId,
@@ -4397,16 +4660,17 @@ exports.createPosOrder = async (req, res, next) => {
           clientOrderId,
           actingStaff?.staffUserId || null,
           posLocationId,
+          taxExempt,
+          taxExempt ? taxExemptReason : null,
+          JSON.stringify(orderTax.snapshot),
         ]
       );
       if (discountApproval) {
-        // S-07: link the consumed manager approval to the order it
-        // authorized (the approvals row was written before the order
-        // existed, inside this same transaction).
-        await client.query(
-          'UPDATE restaurant_pos_approvals SET food_order_id = $2 WHERE id = $1',
-          [discountApproval.id, order.id]
-        );
+        // S-07: link the manager approval to the order it authorized (the
+        // approvals row was written before the order existed, inside this
+        // same transaction). Audit fix (finding 39): linkApproval also
+        // transitions the row to 'consumed'.
+        await linkApproval(client, discountApproval.id, { foodOrderId: order.id });
       }
       const createdOrderItems = [];
       for (const line of normalized) {
@@ -4449,11 +4713,16 @@ exports.createPosOrder = async (req, res, next) => {
         orderItems: createdOrderItems,
         locationId: order.location_id,
       });
-      const printerJobs = await enqueueKitchenPrinterJobs(client, {
-        restaurantId,
-        orderId: order.id,
-        createdBy: req.user.id,
-      });
+      // F-04: in fire-on-pay mode the kitchen ticket stays unfired until
+      // the first payment reconciles (see reconcilePosOrderPayment); the
+      // printer-job idempotency key makes a later fire exactly-once.
+      const printerJobs = fireKitchenOnCreate
+        ? await enqueueKitchenPrinterJobs(client, {
+          restaurantId,
+          orderId: order.id,
+          createdBy: req.user.id,
+        })
+        : [];
       const runnerTask = await createPosDeliveryRunnerTask(client, order, deliveryAddress, req.user.id);
       if (shiftId) {
         await insertPosReceiptAudit(client, {
@@ -4474,11 +4743,13 @@ exports.createPosOrder = async (req, res, next) => {
             : null,
         });
       }
-      return { order, printerJobs, runnerTask };
+      return { order, printerJobs, runnerTask, kitchenFireMode };
     });
     // F-04: a replayed checkout returns the original order with 200 and
-    // does not re-fire the creation broadcast.
-    if (!result.replayed) {
+    // does not re-fire the creation broadcast. In fire-on-pay mode the
+    // creation broadcast is deferred until the kitchen ticket actually
+    // fires (on first payment), so the KDS never sees an unpaid ticket.
+    if (!result.replayed && result.kitchenFireMode !== 'on_pay') {
       broadcastRestaurant(restaurant, 'food:order:created', result);
     }
     res.status(result.replayed ? 200 : 201).json(result);
@@ -4651,6 +4922,12 @@ exports.updatePosTicket = async (req, res, next) => {
           200
         ),
       });
+      // Audit fix (finding 39): the void approval was written before the
+      // order transition; mark it consumed now that the void completed.
+      // The order link is already on the row (food_order_id at insert).
+      if (voidApproval) {
+        await linkApproval(client, voidApproval.id);
+      }
       return { order, event };
     }, 'restaurant_pos_ticket_update');
     broadcastRestaurant(restaurant, 'food:pos:ticket:updated', result);
@@ -4715,7 +4992,24 @@ exports.splitPosOrder = async (req, res, next) => {
       throw new AppError('Validation failed', 400, 'validation_failed', { evenSplitCount: 'Must be between 2 and 10' });
     }
     const automaticSplit = Boolean(splitAmountCents || evenSplitCount);
-    if ((!splitRequests.length && !automaticSplit) || splitRequests.some((entry) => !entry.id || (rawSplitItems && entry.quantity === null))) {
+    // Seat-level split: move every line assigned to the requested seat(s) to
+    // the new ticket as whole lines. Mutually exclusive with item selection
+    // and automatic (amount/even) splits.
+    const seatNumbersInput = req.body.seatNumbers ?? req.body.seat_numbers
+      ?? req.body.seatNumber ?? req.body.seat_number;
+    let seatNumbers = null;
+    if (seatNumbersInput !== undefined && seatNumbersInput !== null && seatNumbersInput !== '') {
+      const raw = Array.isArray(seatNumbersInput) ? seatNumbersInput : [seatNumbersInput];
+      seatNumbers = [...new Set(raw.map((seat) => parsePositiveInt(seat)))];
+      if (!seatNumbers.length || seatNumbers.some((seat) => !seat)) {
+        throw new AppError('Validation failed', 400, 'validation_failed', { seatNumbers: 'Each seat must be a positive integer' });
+      }
+    }
+    if (seatNumbers && (rawSplitItems || itemIdsInput || automaticSplit)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { seatNumbers: 'Choose a seat split, an item selection, or an automatic split — not more than one' });
+    }
+    const seatSplit = Boolean(seatNumbers);
+    if ((!splitRequests.length && !automaticSplit && !seatSplit) || splitRequests.some((entry) => !entry.id || (rawSplitItems && entry.quantity === null))) {
       throw new AppError('Validation failed', 400, 'validation_failed', { orderItemIds: 'Each split item must include a valid order item and positive quantity' });
     }
     let itemIds = splitRequests.map((entry) => entry.id);
@@ -4759,6 +5053,27 @@ exports.splitPosOrder = async (req, res, next) => {
       }
       if (!items.length) {
         throw new AppError('Validation failed', 400, 'validation_failed', { items: 'This ticket has no order lines to split' });
+      }
+      if (seatSplit) {
+        const seatsOnTicket = [...new Set(
+          items.map((item) => Number(item.seat_number)).filter((seat) => Number.isInteger(seat) && seat > 0)
+        )].sort((a, b) => a - b);
+        if (!seatsOnTicket.length) {
+          throw new AppError('This ticket has no seat assignments; assign seats before splitting by seat', 409, 'seat_split_unavailable');
+        }
+        const unknownSeats = seatNumbers.filter((seat) => !seatsOnTicket.includes(seat));
+        if (unknownSeats.length) {
+          throw new AppError('Validation failed', 400, 'validation_failed', {
+            seatNumbers: `Seat${unknownSeats.length > 1 ? 's' : ''} ${unknownSeats.join(', ')} ${unknownSeats.length > 1 ? 'have' : 'has'} no items on this ticket`,
+            seatsOnTicket,
+          });
+        }
+        // Seat splits move whole lines: one guest's check is atomic.
+        splitRequests = items
+          .filter((item) => seatNumbers.includes(Number(item.seat_number)))
+          .map((item) => ({ id: Number(item.id), quantity: null }));
+        itemIds = splitRequests.map((entry) => entry.id);
+        items = items.filter((item) => itemIds.includes(Number(item.id)));
       }
       if (!splitRequests.length && automaticSplit) {
         const targetCents = splitAmountCents || Math.floor(Number(source.subtotal_cents || 0) / evenSplitCount);
@@ -4837,7 +5152,7 @@ exports.splitPosOrder = async (req, res, next) => {
           queueNumber,
           source.promised_at,
           normalizeString(req.body.notes, 1000) || source.notes,
-          JSON.stringify({ ...(source.metadata || {}), splitFromOrderId: source.id }),
+          JSON.stringify({ ...(source.metadata || {}), splitFromOrderId: source.id, ...(seatSplit ? { splitSeats: seatNumbers } : {}) }),
           source.id,
           // F-02 phase 1: a split child stays in the source ticket's store.
           source.location_id || null,
@@ -6041,6 +6356,16 @@ exports.recordPosPayment = async (req, res, next) => {
       }).catch(() => { /* helper already logged */ });
     }
     broadcastRestaurant(restaurant, 'food:pos:payment:recorded', result);
+    // F-04: the deferred fire-on-pay creation broadcast: the KDS sees the
+    // ticket only now that the kitchen ticket has actually fired.
+    if (result.kitchenTicketFired && result.order && !result.replayed) {
+      broadcastRestaurant(restaurant, 'food:order:created', {
+        order: result.order,
+        printerJobs: result.kitchenTicketJobs || [],
+        runnerTask: null,
+        fired: true,
+      });
+    }
     res.status(result.replayed ? 200 : 201).json(result);
   } catch (err) {
     next(err);
@@ -6267,6 +6592,15 @@ exports.capturePosCardPayment = async (req, res, next) => {
       return { payment: capturedPayment, ...reconciliation };
     });
     broadcastRestaurant(restaurant, 'food:pos:card:captured', result);
+    // F-04: deferred fire-on-pay creation broadcast for card captures.
+    if (result.kitchenTicketFired && result.order && !result.replayed) {
+      broadcastRestaurant(restaurant, 'food:order:created', {
+        order: result.order,
+        printerJobs: result.kitchenTicketJobs || [],
+        runnerTask: null,
+        fired: true,
+      });
+    }
     res.json(result);
   } catch (err) {
     if (err.code === 'stripe_not_configured') {
@@ -6573,6 +6907,21 @@ exports.reprintReceipt = async (req, res, next) => {
   }
 };
 
+// F-21: resolves the store scope for a staff PIN. NULL keeps the legacy
+// restaurant-wide PIN (valid at every store). A store id must belong to
+// this restaurant, else the request fails closed.
+async function resolveStaffPinLocation(db, restaurantId, locationId) {
+  if (locationId === null || locationId === undefined || locationId === '') return null;
+  const id = parsePositiveInt(locationId);
+  if (!id) throw new AppError('Validation failed', 400, 'validation_failed', { locationId: 'Invalid store' });
+  const { rows: [location] } = await db.query(
+    'SELECT id FROM restaurant_locations WHERE id = $1 AND restaurant_id = $2',
+    [id, restaurantId]
+  );
+  if (!location) throw new AppError('Location not found', 404, 'location_not_found');
+  return id;
+}
+
 exports.setStaffPin = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
@@ -6596,73 +6945,108 @@ exports.setStaffPin = async (req, res, next) => {
         });
       }
     }
+    // F-21: PINs are scoped to a store. A locationId pins the value to one
+    // store (reusable across stores, never twice in the same store); omitting
+    // it keeps the legacy restaurant-wide PIN that works everywhere.
+    const locationId = await resolveStaffPinLocation(pool, restaurantId, req.body.locationId ?? req.body.location_id);
     // S-06: one PIN value per store. The digest identifies the target row
     // being (re)set so re-setting your own PIN is not a conflict, while a
-    // value already held by anyone else at this restaurant is refused
+    // value already held by anyone else at this store is refused
     // (previously the first bcrypt match won and label PINs duplicated).
     const pinDigest = staffPinDigest(restaurantId, pin);
     const { rows: digestRows } = await pool.query(
       `SELECT id, staff_user_id, staff_label FROM restaurant_staff_pins
-        WHERE restaurant_id = $1 AND pin_digest = $2 AND is_active = TRUE`,
-      [restaurantId, pinDigest]
+        WHERE restaurant_id = $1 AND pin_digest = $2 AND is_active = TRUE
+          AND location_id IS NOT DISTINCT FROM $3::bigint`,
+      [restaurantId, pinDigest, locationId]
     );
     const targetClash = digestRows.find((row) => {
       if (staffUserId) return String(row.staff_user_id || '') !== String(staffUserId);
       return !(row.staff_user_id === null && staffLabel && row.staff_label === staffLabel);
     });
     if (targetClash) {
-      throw new AppError('This PIN is already in use at this restaurant', 409, 'pin_already_in_use');
+      throw new AppError(
+        locationId ? 'This PIN is already in use at this store' : 'This PIN is already in use at this restaurant',
+        409,
+        'pin_already_in_use'
+      );
     }
     const pinHash = await bcrypt.hash(pin, 10);
     const roleLabel = normalizeString(req.body.roleLabel || req.body.role_label, 120);
     let staffPin;
     try {
-      if (staffUserId) {
-        ({ rows: [staffPin] } = await pool.query(
-          `INSERT INTO restaurant_staff_pins
-             (restaurant_id, staff_user_id, staff_label, pin_hash, pin_digest, role_label, is_active, created_by)
-           VALUES ($1,$2,$3,$4,$5,$6,TRUE,$7)
-           ON CONFLICT (restaurant_id, staff_user_id)
-           DO UPDATE SET pin_hash = EXCLUDED.pin_hash,
-                         pin_digest = EXCLUDED.pin_digest,
-                         staff_label = COALESCE(EXCLUDED.staff_label, restaurant_staff_pins.staff_label),
-                         role_label = COALESCE(EXCLUDED.role_label, restaurant_staff_pins.role_label),
-                         is_active = TRUE,
-                         updated_at = NOW()
-           RETURNING id, restaurant_id, staff_user_id, staff_label, role_label, is_active, updated_at`,
-          [restaurantId, staffUserId, staffLabel, pinHash, pinDigest, roleLabel, req.user.id]
-        ));
-      } else {
+      staffPin = await withTransaction(pool, async (client) => {
+        if (staffUserId) {
+          // F-21: the owner upsert key is (restaurant, staff, store). An
+          // explicit locked read replaces ON CONFLICT because the arbiter
+          // cannot infer the NULLS NOT DISTINCT partial index.
+          const { rows: [existing] } = await client.query(
+            `SELECT id FROM restaurant_staff_pins
+              WHERE restaurant_id = $1 AND staff_user_id = $2
+                AND location_id IS NOT DISTINCT FROM $3::bigint
+              FOR UPDATE`,
+            [restaurantId, staffUserId, locationId]
+          );
+          if (existing) {
+            const { rows: [updated] } = await client.query(
+              `UPDATE restaurant_staff_pins
+                  SET pin_hash = $1, pin_digest = $2,
+                      staff_label = COALESCE($3, staff_label),
+                      role_label = COALESCE($4, role_label),
+                      is_active = TRUE, updated_at = NOW()
+                WHERE id = $5
+              RETURNING id, restaurant_id, staff_user_id, staff_label, role_label, is_active, location_id, updated_at`,
+              [pinHash, pinDigest, staffLabel, roleLabel, existing.id]
+            );
+            return updated;
+          }
+          const { rows: [created] } = await client.query(
+            `INSERT INTO restaurant_staff_pins
+               (restaurant_id, staff_user_id, staff_label, pin_hash, pin_digest, role_label, is_active, created_by, location_id)
+             VALUES ($1,$2,$3,$4,$5,$6,TRUE,$7,$8)
+             RETURNING id, restaurant_id, staff_user_id, staff_label, role_label, is_active, location_id, updated_at`,
+            [restaurantId, staffUserId, staffLabel, pinHash, pinDigest, roleLabel, req.user.id, locationId]
+          );
+          return created;
+        }
         // Label-only PINs have no (restaurant_id, staff_user_id) conflict
-        // target: rotate the active row carrying this label, else insert.
-        const { rows: [existingLabelPin] } = await pool.query(
+        // target: rotate the active row carrying this label at this store,
+        // else insert. The same label may exist at another store.
+        const { rows: [existingLabelPin] } = await client.query(
           `SELECT id FROM restaurant_staff_pins
             WHERE restaurant_id = $1 AND staff_user_id IS NULL AND staff_label = $2 AND is_active = TRUE
-            ORDER BY updated_at DESC LIMIT 1`,
-          [restaurantId, staffLabel]
+              AND location_id IS NOT DISTINCT FROM $3::bigint
+            ORDER BY updated_at DESC LIMIT 1
+            FOR UPDATE`,
+          [restaurantId, staffLabel, locationId]
         );
         if (existingLabelPin) {
-          ({ rows: [staffPin] } = await pool.query(
+          const { rows: [updated] } = await client.query(
             `UPDATE restaurant_staff_pins
                 SET pin_hash = $1, pin_digest = $2,
                     role_label = COALESCE($3, role_label), updated_at = NOW()
               WHERE id = $4
-              RETURNING id, restaurant_id, staff_user_id, staff_label, role_label, is_active, updated_at`,
+              RETURNING id, restaurant_id, staff_user_id, staff_label, role_label, is_active, location_id, updated_at`,
             [pinHash, pinDigest, roleLabel, existingLabelPin.id]
-          ));
-        } else {
-          ({ rows: [staffPin] } = await pool.query(
-            `INSERT INTO restaurant_staff_pins
-               (restaurant_id, staff_user_id, staff_label, pin_hash, pin_digest, role_label, is_active, created_by)
-             VALUES ($1,NULL,$2,$3,$4,$5,TRUE,$6)
-             RETURNING id, restaurant_id, staff_user_id, staff_label, role_label, is_active, updated_at`,
-            [restaurantId, staffLabel, pinHash, pinDigest, roleLabel, req.user.id]
-          ));
+          );
+          return updated;
         }
-      }
+        const { rows: [created] } = await client.query(
+          `INSERT INTO restaurant_staff_pins
+             (restaurant_id, staff_user_id, staff_label, pin_hash, pin_digest, role_label, is_active, created_by, location_id)
+           VALUES ($1,NULL,$2,$3,$4,$5,TRUE,$6,$7)
+           RETURNING id, restaurant_id, staff_user_id, staff_label, role_label, is_active, location_id, updated_at`,
+          [restaurantId, staffLabel, pinHash, pinDigest, roleLabel, req.user.id, locationId]
+        );
+        return created;
+      }, 'restaurant_set_staff_pin');
     } catch (err) {
       if (err.code === '23505') {
-        throw new AppError('This PIN is already in use at this restaurant', 409, 'pin_already_in_use');
+        throw new AppError(
+          locationId ? 'This PIN is already in use at this store' : 'This PIN is already in use at this restaurant',
+          409,
+          'pin_already_in_use'
+        );
       }
       throw err;
     }
@@ -6676,6 +7060,7 @@ exports.setStaffPin = async (req, res, next) => {
         staff_user_id: staffPin.staff_user_id,
         staff_label: staffPin.staff_label,
         role_label: staffPin.role_label,
+        location_id: staffPin.location_id == null ? null : Number(staffPin.location_id),
         is_active: true,
       },
       business_id: restaurant.business_id,
@@ -6695,16 +7080,25 @@ async function issueStaffSession(req, restaurant, restaurantId) {
   if (!pin) throw new AppError('Validation failed', 400, 'validation_failed', { pin: 'PIN is required' });
   let deviceId = req.restaurantDevice?.id
     || parsePositiveInt(req.body.deviceId || req.body.device_id);
+  // F-21: the store scope comes from the paired device (always store-bound);
+  // a body-supplied store is only honored alongside a verified device of
+  // this restaurant, mirroring the deviceId rule below.
+  let locationId = req.restaurantDevice?.location_id ?? null;
   if (deviceId && !req.restaurantDevice) {
     // A body-supplied device id is only honored when it names a real
     // device of this restaurant (attempts/sessions FK to it).
     const { rows: [device] } = await pool.query(
-      'SELECT id FROM restaurant_app_devices WHERE id = $1 AND restaurant_id = $2',
+      'SELECT id, location_id FROM restaurant_app_devices WHERE id = $1 AND restaurant_id = $2',
       [deviceId, restaurantId]
     );
     if (!device) deviceId = null;
+    else locationId = device.location_id;
   }
-  const { pinRow, staff } = await validateStaffPinForRestaurant({ restaurantId, pin, deviceId });
+  if (locationId == null) {
+    const bodyLocation = parsePositiveInt(req.body.locationId || req.body.location_id);
+    if (bodyLocation && deviceId) locationId = bodyLocation;
+  }
+  const { pinRow, staff } = await validateStaffPinForRestaurant({ restaurantId, pin, deviceId, locationId });
   const { token, session, idleMinutes } = await createStaffSession({
     restaurantId,
     deviceId,
@@ -7556,6 +7950,187 @@ exports.performKitchenItemAction = async (req, res, next) => {
       return { item, order, event, replayed: false };
     });
     broadcastRestaurant(restaurant, 'food:kitchen:item:action', {
+      ...result,
+      restaurantId,
+      cursor: Number(result.event.id),
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Course-level hold/fire. One transaction moves every actionable item of the
+// course and records a single course_hold/course_fire kitchen event (location
+// resolved by the operational-location trigger from the order). Firing a
+// course enqueues a FIRE chit per station so the line knows to start it; a
+// hold enqueues a matching HOLD chit. Fail closed: nothing prints unless the
+// status moves committed inside the same transaction.
+exports.performKitchenCourseAction = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const orderId = parsePositiveInt(req.params.orderId || req.body.orderId || req.body.order_id);
+    const courseNumber = parsePositiveInt(req.params.courseNumber || req.body.courseNumber || req.body.course_number);
+    const restaurant = await screenKitchenContext(req, restaurantId);
+    const action = normalizeString(req.body.action, 32);
+    if (!KITCHEN_COURSE_ACTIONS.has(action)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { action: 'Unsupported course action: use hold or fire' });
+    }
+    if (!courseNumber) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { courseNumber: 'Course number is required' });
+    }
+    const { from: allowedFrom, to: toStatus } = KITCHEN_COURSE_ACTION_STATUS[action];
+    const reason = normalizeString(req.body.reason, 1000);
+    const idempotencyKey = normalizeString(
+      req.get('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key,
+      160
+    );
+
+    const result = await withTransaction(pool, async (client) => {
+      if (idempotencyKey) {
+        await client.query(
+          `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
+          [`kitchen-course:${restaurantId}:${orderId}:${courseNumber}:${action}:${idempotencyKey}`]
+        );
+        const { rows: [existingEvent] } = await client.query(
+          `SELECT * FROM restaurant_kitchen_events
+            WHERE restaurant_id = $1 AND idempotency_key = $2`,
+          [restaurantId, idempotencyKey]
+        );
+        if (existingEvent) {
+          // Fail closed: a reused operation id that points at a different
+          // order, course, or action is a conflict, not a replay.
+          if (Number(existingEvent.food_order_id) !== Number(orderId)
+            || Number(existingEvent.metadata?.courseNumber) !== Number(courseNumber)
+            || existingEvent.event_type !== `course_${action}`) {
+            throw new AppError('Operation ID already used', 409, 'screen_idempotency_conflict');
+          }
+          const { rows: [replayedOrder] } = await client.query(
+            `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
+            [existingEvent.food_order_id, restaurantId]
+          );
+          if (restaurant.locationScope?.mode === 'assigned'
+            && !restaurant.locationScope.location_ids.includes(Number(replayedOrder?.location_id))) {
+            throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+          }
+          const { rows: items } = await client.query(
+            `SELECT * FROM food_order_items
+              WHERE order_id = $1 AND COALESCE(course_number, 1) = $2
+              ORDER BY id`,
+            [existingEvent.food_order_id, Number(existingEvent.metadata?.courseNumber || courseNumber)]
+          );
+          return { items, order: replayedOrder, event: existingEvent, replayed: true, courseNumber, action };
+        }
+      }
+      const { rows: [order] } = await client.query(
+        `SELECT * FROM food_orders
+          WHERE id = $1 AND restaurant_id = $2
+          FOR UPDATE`,
+        [orderId, restaurantId]
+      );
+      if (!order) throw new AppError('Order not found', 404, 'order_not_found');
+      if (restaurant.locationScope?.mode === 'assigned'
+        && !restaurant.locationScope.location_ids.includes(Number(order.location_id))) {
+        throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
+      }
+      screenRevision(req, {
+        screen_revision: order.screen_revision,
+        location_id: order.location_id,
+        metadata: order.metadata,
+        payment_status: order.payment_status,
+      });
+      if (['completed', 'cancelled', 'refunded'].includes(order.status)) {
+        throw new AppError('Kitchen order is terminal', 409, 'kitchen_order_terminal');
+      }
+      const { rows: items } = await client.query(
+        `SELECT * FROM food_order_items
+          WHERE order_id = $1 AND COALESCE(course_number, 1) = $2
+          ORDER BY id
+          FOR UPDATE`,
+        [orderId, courseNumber]
+      );
+      if (!items.length) {
+        throw new AppError('Course not found on this ticket', 404, 'kitchen_course_not_found', { courseNumber });
+      }
+      // Station-scoped KDS devices may only move their own station's items;
+      // expeditor devices (and staff) move the whole course.
+      const deviceStation = req.screenDevice?.config?.stationLabel || null;
+      const stationScoped = Boolean(deviceStation) && req.screenDevice?.config?.screenRole !== 'expeditor';
+      const eligible = [];
+      const skipped = [];
+      for (const item of items) {
+        if (stationScoped && item.station_label !== deviceStation) {
+          skipped.push({ itemId: Number(item.id), reason: 'station_mismatch' });
+          continue;
+        }
+        if (!allowedFrom.has(item.kitchen_status)) {
+          skipped.push({ itemId: Number(item.id), reason: `status_${item.kitchen_status || 'unknown'}` });
+          continue;
+        }
+        eligible.push(item);
+      }
+      if (!eligible.length) {
+        throw new AppError(
+          `No ${action === 'hold' ? 'holdable' : 'fireable'} items in course ${courseNumber}`,
+          409,
+          'course_action_not_allowed',
+          {
+            courseNumber,
+            action,
+            itemStates: items.map((item) => ({ itemId: Number(item.id), kitchenStatus: item.kitchen_status })),
+          }
+        );
+      }
+      const transitions = eligible.map((item) => ({
+        itemId: Number(item.id),
+        from: item.kitchen_status,
+        to: toStatus,
+      }));
+      await client.query(
+        `UPDATE food_order_items
+            SET kitchen_status = $1::varchar, updated_at = NOW()
+          WHERE id = ANY($2::bigint[])`,
+        [toStatus, eligible.map((item) => item.id)]
+      );
+      const updatedOrder = await syncKitchenOrderStatus(client, restaurantId, orderId, 'preparing');
+      const { rows: [event] } = await client.query(
+        `INSERT INTO restaurant_kitchen_events
+           (restaurant_id, food_order_id, food_order_item_id, event_type, from_status, to_status,
+            station_label, reason, metadata, idempotency_key, created_by)
+         VALUES ($1,$2,NULL,$3,NULL,$4,$5,$6,$7,$8,$9)
+         RETURNING *`,
+        [
+          restaurantId,
+          orderId,
+          `course_${action}`,
+          toStatus,
+          stationScoped ? deviceStation : null,
+          reason,
+          JSON.stringify({
+            action,
+            courseNumber,
+            itemIds: eligible.map((item) => Number(item.id)),
+            transitions,
+            skipped,
+          }),
+          idempotencyKey || null,
+          req.user?.id || null,
+        ]
+      );
+      const movedItems = eligible.map((item) => ({ ...item, kitchen_status: toStatus }));
+      const printerJobs = await enqueueCourseChitJobs(client, {
+        restaurantId,
+        orderId,
+        courseNumber,
+        action,
+        eventId: Number(event.id),
+        items: movedItems,
+        order: updatedOrder,
+        createdBy: req.user?.id || null,
+      });
+      return { items: movedItems, order: updatedOrder, event, replayed: false, courseNumber, action, printerJobs, skipped };
+    });
+    broadcastRestaurant(restaurant, 'food:kitchen:course:action', {
       ...result,
       restaurantId,
       cursor: Number(result.event.id),
@@ -8463,6 +9038,27 @@ exports.updateCrewTask = async (req, res, next) => {
       );
       return updated;
     }, 'restaurant_crew_task_update');
+    // S-17: the task creator hears when their task is finished (or sent
+    // for approval). Skipped when the actor is the creator themselves.
+    if (['completed', 'needs_approval'].includes(task.status)
+        && task.created_by && String(task.created_by) !== String(req.user.id)) {
+      await sendNotification({
+        userId: task.created_by,
+        type: 'crew_task_completed',
+        title: `Task completed at ${restaurant.display_name}`,
+        body: task.title,
+        action_url: '/restaurants/merchant?tab=tasks',
+        emailChannel: false,
+        data: {
+          restaurantId,
+          taskId: task.id,
+          params: {
+            restaurantName: restaurant.display_name,
+            taskTitle: task.title,
+          },
+        },
+      }).catch(() => {});
+    }
     res.json({ task });
   } catch (err) {
     next(err);
@@ -8512,7 +9108,7 @@ exports.reviewCrewTask = async (req, res, next) => {
       const { rows: [updated] } = await client.query(
         `UPDATE restaurant_crew_tasks
           SET status = $1,
-              approved_by = CASE WHEN $2 = TRUE THEN $3 ELSE NULL END,
+              approved_by = CASE WHEN $2 = TRUE THEN $3::uuid ELSE NULL END,
               approved_at = CASE WHEN $2 = TRUE THEN NOW() ELSE NULL END,
               completion_note = COALESCE($4, completion_note),
               updated_at = NOW()
@@ -8539,6 +9135,28 @@ exports.reviewCrewTask = async (req, res, next) => {
       );
       return updated;
     }, 'restaurant_crew_task_review');
+    // S-17: the assignee hears the verdict on their task.
+    if (task.assigned_to && String(task.assigned_to) !== String(req.user.id)) {
+      await sendNotification({
+        userId: task.assigned_to,
+        type: 'crew_task_reviewed',
+        title: approved
+          ? `Task approved at ${restaurant.display_name}`
+          : `Task sent back at ${restaurant.display_name}`,
+        body: task.title,
+        action_url: '/restaurants/merchant?tab=myshift',
+        emailChannel: false,
+        data: {
+          restaurantId,
+          taskId: task.id,
+          params: {
+            restaurantName: restaurant.display_name,
+            taskTitle: task.title,
+            approved,
+          },
+        },
+      }).catch(() => {});
+    }
     res.json({ task });
   } catch (err) {
     next(err);

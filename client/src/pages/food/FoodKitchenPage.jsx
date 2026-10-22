@@ -10,6 +10,7 @@ import {
   dropDisplayPairing,
   getRestaurantKitchenFeed,
   performRestaurantKitchenItemAction,
+  performRestaurantKitchenCourseAction,
   performRestaurantKitchenOrderAction,
   readDisplayToken,
   updateFoodOrderStatus,
@@ -33,6 +34,7 @@ import '../../styles/FoodPages.css';
 
 const POLL_MS = 5000;
 const FINISHED_ITEM_STATES = new Set(['ready', 'bumped', 'cancelled']);
+const COURSE_HOLDABLE = new Set(['queued', 'preparing', 'delayed', 'problem']);
 
 function operationId(prefix) {
   const id = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -217,6 +219,36 @@ export default function FoodKitchenPage() {
     });
   };
 
+  // Course-level coursing controls: hold parks every actionable item of the
+  // course, fire releases the hold and prints a FIRE chit for the line.
+  const performCourseAction = (order, courseNumber, action) => {
+    const idempotencyKey = operationId(`course-${order.id}-${courseNumber}-${action}`);
+    const payload = { action, idempotencyKey };
+    return runMutation({
+      key: `course-${order.id}-${courseNumber}`,
+      queuedAction: { id: idempotencyKey, type: 'course_action', restaurantId, orderId: order.id, courseNumber, payload },
+      request: () => performRestaurantKitchenCourseAction(restaurantId, order.id, courseNumber, payload),
+      successKey: action === 'fire' ? 'food.kds.courseFired' : 'food.kds.courseHeld',
+    });
+  };
+
+  const groupItemsByCourse = (items) => {
+    const groups = new Map();
+    for (const item of items) {
+      const course = item.courseNumber || 1;
+      if (!groups.has(course)) groups.set(course, []);
+      groups.get(course).push(item);
+    }
+    return [...groups.entries()]
+      .map(([course, courseItems]) => ({
+        course,
+        items: courseItems,
+        holdable: courseItems.some((item) => COURSE_HOLDABLE.has(item.kitchenStatus || 'queued')),
+        fireable: courseItems.some((item) => (item.kitchenStatus || 'queued') === 'held'),
+      }))
+      .sort((a, b) => a.course - b.course);
+  };
+
   const askForReason = (translationKey) => {
     const value = window.prompt(t(translationKey));
     return value?.trim() || null;
@@ -275,18 +307,45 @@ export default function FoodKitchenPage() {
                       {urgency.elapsedMin != null && <span className="fd-kds-timer">{urgency.elapsedMin}m</span>}
                     </div>
                     <div className="fd-kds-items">
-                      {items.map((item) => {
+                      {groupItemsByCourse(items).map((group) => {
+                        const courseBusy = busy.has(`course-${order.id}-${group.course}`);
+                        return (
+                          <div key={group.course} className="fd-kds-course">
+                            <div className="fd-kds-course-head">
+                              <span>{t('food.kds.course', { n: group.course })}</span>
+                              <span className="fd-kds-course-actions">
+                                {group.holdable && (
+                                  <button
+                                    type="button"
+                                    className="fd-kds-secondary-action"
+                                    disabled={courseBusy}
+                                    onClick={() => performCourseAction(order, group.course, 'hold')}
+                                    data-track="ui.c0077c088e.12"
+                                  >{t('food.kds.holdCourse')}</button>
+                                )}
+                                {group.fireable && (
+                                  <button
+                                    type="button"
+                                    disabled={courseBusy}
+                                    onClick={() => performCourseAction(order, group.course, 'fire')}
+                                    data-track="ui.c0077c088e.13"
+                                  >{t('food.kds.fireCourse')}</button>
+                                )}
+                              </span>
+                            </div>
+                            {group.items.map((item) => {
                         const itemBusy = busy.has(`item-${item.id}`);
                         return (
                           <div key={item.id} className={`fd-kds-item fd-kds-item-${item.kitchenStatus || 'queued'}`}>
                             <div>
                               <strong>{item.quantity}× {item.itemName}</strong>
                               <span className="fd-kds-item-status">{t(`food.kds.itemStatus.${item.kitchenStatus || 'queued'}`)}</span>
+                              {item.seatNumber ? <span className="fd-kds-item-seat">{t('food.kds.seat', { n: item.seatNumber })}</span> : null}
                               {item.specialInstructions && <em>{item.specialInstructions}</em>}
                               {item.delayReason && <small>{item.delayReason}</small>}
                             </div>
                             <div className="fd-kds-item-actions">
-                              {['queued', 'held', 'delayed', 'problem'].includes(item.kitchenStatus || 'queued') && (
+                              {['queued', 'delayed', 'problem'].includes(item.kitchenStatus || 'queued') && (
                                 <button disabled={itemBusy} onClick={() => performItemAction(order, item, 'start')} data-track="ui.c0077c088e.2">{t('food.kds.startItem')}</button>
                               )}
                               {['preparing', 'delayed', 'problem'].includes(item.kitchenStatus) && (
@@ -306,6 +365,9 @@ export default function FoodKitchenPage() {
                                 >{t('food.kds.delay')}</button>
                               )}
                             </div>
+                          </div>
+                        );
+                      })}
                           </div>
                         );
                       })}

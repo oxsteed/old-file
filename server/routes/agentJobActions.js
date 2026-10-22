@@ -15,8 +15,20 @@
 
 const router = require('express').Router();
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const agentJobActions = require('../controllers/agentJobActions');
 const { strictLimiter } = require('../middleware/rateLimiter');
+
+// Audit fix (finding 24): step-up challenge issuance for post-acceptance
+// agent cancels (fees may apply). The cancel route below verifies it.
+router.post(
+  '/stepup-challenges/agent-job-cancel',
+  strictLimiter,
+  requireAdmin,
+  rejectImpersonated,
+  requirePermission('issue_refunds'),
+  agentJobActions.issueAgentJobCancelStepupChallenge
+);
 
 router.post(
   '/jobs/:jobId/cancel',

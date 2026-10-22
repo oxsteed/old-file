@@ -494,6 +494,33 @@ exports.submitQuiz = async (req, res, next) => {
         [assignmentId, passed ? 'completed' : 'assigned', attemptNumber]
       );
       await client.query('COMMIT');
+      // S-17: the manager who assigned the training hears when it is
+      // passed. Skipped for self-assigned training.
+      if (passed && assignment.assigned_by && String(assignment.assigned_by) !== String(req.user.id)) {
+        try {
+          const { rows: [modRow] } = await pool.query(
+            'SELECT title FROM restaurant_training_modules WHERE id = $1',
+            [assignment.module_id]
+          );
+          const { sendNotification } = require('../services/notificationService');
+          await sendNotification({
+            userId: assignment.assigned_by,
+            type: 'training_completed',
+            title: 'Training completed',
+            body: `Training "${modRow?.title || 'module'}" was completed.`,
+            action_url: '/restaurants/merchant?tab=training',
+            emailChannel: false,
+            data: {
+              assignment_id: assignmentId,
+              module_id: assignment.module_id,
+              restaurant_id: restaurantId,
+              params: { moduleTitle: modRow?.title || null },
+            },
+          });
+        } catch (notifyErr) {
+          // Best-effort: the completion stands even if the notice fails.
+        }
+      }
       res.json({
         completion,
         passed,

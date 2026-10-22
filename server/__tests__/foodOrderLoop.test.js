@@ -133,6 +133,7 @@ function mockKioskCreateOrderQueries(orderOverrides = {}) {
     })
     .mockResolvedValueOnce({ rows: [{ id: 1 }] })
     .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] }) // F-19 tax rules
     .mockResolvedValueOnce({ rows: [{ last_queue_number: order.queue_number }] })
     .mockResolvedValueOnce({ rows: [order] })
     .mockResolvedValueOnce({ rows: [{ id: 501 }] });
@@ -196,6 +197,7 @@ describe('food order loop E2E (F7)', () => {
       })
       .mockResolvedValueOnce({ rows: [{ id: 1 }] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // F-19 tax rules
       .mockResolvedValueOnce({ rows: [{ last_queue_number: 7 }] })
       .mockResolvedValueOnce({ rows: [createdOrder] })
       .mockResolvedValueOnce({ rows: [{ id: 501 }] })

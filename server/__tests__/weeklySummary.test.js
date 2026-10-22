@@ -32,4 +32,19 @@ describe('weekly summary job', () => {
     expect(summaryQuery).not.toContain('hp.earnings_mtd');
     expect(summaryQuery).not.toContain('hp.completed_jobs,');
   });
+
+  test('does not exclude helpers who never opened notification settings', async () => {
+    // Notifications audit: preference rows are created lazily while
+    // email_weekly_summary defaults to TRUE. An INNER JOIN silently
+    // dropped every helper without a row.
+    db.query.mockResolvedValueOnce({ rows: [] });
+    startWeeklySummaryJob();
+
+    const scheduledCallback = cron.schedule.mock.calls[0][1];
+    await scheduledCallback();
+
+    const summaryQuery = db.query.mock.calls[0][0];
+    expect(summaryQuery).toContain('LEFT JOIN notification_preferences np ON np.user_id = u.id');
+    expect(summaryQuery).toContain('COALESCE(np.email_weekly_summary, true)');
+  });
 });

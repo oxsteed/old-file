@@ -1,6 +1,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { sendEmail } = require('../utils/email');
+const { maskEmail } = require('../utils/directQuote');
 
 const FALLBACK_LANGUAGE = 'en';
 const SUPPORTED_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
@@ -180,7 +181,7 @@ async function processSingleUserDigest(userId, digestType) {
 
     logger.info('Email digest compiled and ready to send', {
       userId,
-      email,
+      email: maskEmail(email),
       notificationCount: notifications.length,
       digestType,
       language

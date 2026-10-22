@@ -73,6 +73,9 @@ describeDb('scheduling write path feeds the slot engine (P1-5-F02, P1-6-F03, P1-
     // attribution for payroll inputs). The fixture schema must mirror it so the
     // real write path can insert; no FK because the fixture does not model stores.
     await db.query(`ALTER TABLE ${schema}.business_staff_shifts ADD COLUMN IF NOT EXISTS location_id BIGINT`);
+    // Migration 99906 (S-04) added published_at to business_staff_shifts; the
+    // slot engine filters on it. Mirror it in the fixture schema.
+    await db.query(`ALTER TABLE ${schema}.business_staff_shifts ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ`);
     const ownedTables = await db.query(`SELECT table_name FROM information_schema.tables
       WHERE table_schema=$1 AND table_name IN ('business_staff_shifts','business_time_entries')`, [schema]);
     expect(ownedTables.rows).toHaveLength(2);
@@ -149,6 +152,10 @@ describeDb('scheduling write path feeds the slot engine (P1-5-F02, P1-6-F03, P1-
       res, (e) => { throw e; }
     );
     expect(res.statusCode).toBe(201);
+    // S-04: new shifts are drafts; publish it so the slot engine counts it.
+    await db.query(`UPDATE business_staff_shifts SET published_at = NOW()
+      WHERE business_id = $1 AND user_id = $2 AND shift_date = $3::date`,
+      [BUSINESS_ID, STAFF, MONDAY]);
 
     const { slots } = await computeSlots({
       businessId: BUSINESS_ID,

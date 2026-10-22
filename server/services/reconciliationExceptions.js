@@ -13,7 +13,7 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { logAdminAction } = require('./auditService');
 
-const DOMAINS = new Set(['credit', 'payment_refund', 'marketplace_refund', 'external_refund', 'payout_settlement', 'credit_external', 'chargeback_evidence', 'webhook_receipt', 'payment_capture']);
+const DOMAINS = new Set(['credit', 'payment_refund', 'marketplace_refund', 'external_refund', 'payout_settlement', 'credit_external', 'chargeback_evidence', 'webhook_receipt', 'payment_capture', 'dispute_financials']);
 const SEVERITIES = new Set(['info', 'warning', 'critical']);
 const STATUSES = new Set(['open', 'acknowledged', 'resolved']);
 

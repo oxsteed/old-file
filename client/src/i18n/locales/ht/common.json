@@ -4740,6 +4740,64 @@
           "noData": "Pa gen kòmann kliyan idantifye nan dènye 90 jou yo.",
           "loadError": "Pa t kapab chaje analiz fidelite yo."
         }
+      },
+      "storeHub": {
+        "title": "Hub nan magazen an",
+        "subtitle": "Hub chak magazen an pase trafik POS, kwizin ak enprimant sou rezo lokal la lè pa gen entènèt, epi lavant lajan kach ki nan liy yo anrejistre otomatikman lè koneksyon an tounen.",
+        "loading": "Ap chaje done hub la…",
+        "loadError": "Pa t kapab chaje done hub la",
+        "refresh": "Rafrechi",
+        "noHubs": "Pa gen hub ki anrejistre pou restoran sa a. Anrejistre aparèy hub nan magazen an pi ba a.",
+        "hub": "Hub",
+        "store": "Magazen",
+        "lastHeartbeat": "Dènye batman",
+        "queued": "Nan liy",
+        "held": "Kenbe",
+        "actions": "Aksyon",
+        "never": "jamè",
+        "justNow": "kounye a",
+        "minutesAgo": "sa gen {{count}} min",
+        "hoursAgo": "sa gen {{count}} è",
+        "daysAgo": "sa gen {{count}} jou",
+        "viewSales": "Lavant",
+        "replay": "Anrejistre",
+        "replayHint": "Mete tout lavant lajan kach san koneksyon yo nan liv la",
+        "hubName": "Non hub la",
+        "hubNamePlaceholder": "pa egzanp hub kontwa a",
+        "register": "Anrejistre hub",
+        "registerSuccess": "Hub anrejistre",
+        "registerError": "Pa t kapab anrejistre hub la",
+        "offlineSalesTitle": "Lavant lajan kach san koneksyon",
+        "statusFilter": "Filtre pa estati",
+        "allStatuses": "Tout estati yo",
+        "noSales": "Pa gen lavant san koneksyon nan vi sa a.",
+        "salesLoadError": "Pa t kapab chaje lavant san koneksyon yo",
+        "total": "Total",
+        "tendered": "Resevwa",
+        "statusLabel": "Estati",
+        "note": "Nòt",
+        "requeue": "Remete nan liy",
+        "requeueHint": "Remete lavant sa a nan liy la; pwochen anrejistreman an tcheke tiwa kès la ankò",
+        "requeueSuccess": "Lavant remete nan liy",
+        "resolveError": "Pa t kapab rezoud lavant lan",
+        "void": "Anile",
+        "voidHint": "Abandone lavant sa a; lajan kach la te konte yon lòt kote",
+        "voidNotePlaceholder": "Rezon (pa egzanp konte nan fèmen kès la)",
+        "confirmVoid": "Konfime anilasyon an",
+        "voidSuccess": "Lavant anile",
+        "cancel": "Anile",
+        "replaySuccess": "{{count}} lavant anrejistre",
+        "replayHeld": "{{count}} lavant kenbe pou revizyon",
+        "replayFailed": "{{count}} lavant echwe",
+        "replayShortfall": "{{count}} lavant ak mank envantè",
+        "replayError": "Pa t kapab anrejistre lavant yo",
+        "status": {
+          "queued": "Nan liy",
+          "held": "Kenbe",
+          "failed": "Echwe",
+          "replayed": "Anrejistre",
+          "voided": "Anile"
+        }
       }
     }
   },
@@ -4866,6 +4924,10 @@
         "title": "Yo ba ou yon nouvo fòmasyon",
         "body": "{{moduleTitle}} nan {{restaurantName}}"
       },
+      "training_recertification_due": {
+        "title": "Resètifikasyon ou dwe fèt",
+        "body": "Sètifikasyon ou pou {{moduleTitle}} nan {{restaurantName}} ekspire. Tanpri fè fòmasyon an ankò."
+      },
       "crew_shift_published": {
         "title": "Yo pibliye yon nouvo orè",
         "body": "{{shiftLabel}} · {{startsAt}} nan {{restaurantName}}"
@@ -4877,6 +4939,59 @@
       "restaurant_announcement": {
         "title": "Anons soti nan {{restaurantName}}",
         "body": "{{announcementTitle}}"
+      },
+      "crew_task_completed": {
+        "title": "Travay la fini",
+        "body": "{{taskTitle}} nan {{restaurantName}}"
+      },
+      "training_completed": {
+        "title": "Fòmasyon an fini",
+        "body": "{{moduleTitle}} fini"
+      },
+      "training_recertification_due": {
+        "title": "Resètifikasyon fòmasyon dwe fèt",
+        "body": "Sètifikasyon ou pou {{moduleTitle}} ekspire. Tanpri fè fòmasyon an ankò."
+      },
+      "member_invite": {
+        "title": "Yo envite ou pou rantre nan {{businessName}}",
+        "body": "Yo envite ou pou rantre nan \"{{businessName}}\" kòm {{role}}."
+      },
+      "member_invite_resent": {
+        "title": "Envitasyon voye ankò soti nan {{businessName}}",
+        "body": "Envitasyon ou pou rantre nan \"{{businessName}}\" kòm {{role}} voye ankò."
+      },
+      "member_invite_withdrawn": {
+        "title": "Envitasyon anile pa {{businessName}}",
+        "body": "Envitasyon ou pou rantre nan \"{{businessName}}\" kòm {{role}} anile anvan ou te aksepte li."
+      },
+      "member_removed": {
+        "title": "Yo retire ou nan {{businessName}}",
+        "body": "Yo retire ou kòm {{role}} nan \"{{businessName}}\"."
+      },
+      "member_rehired": {
+        "title": "Byenveni tounen nan {{businessName}}",
+        "body": "Yo anboche ou ankò nan \"{{businessName}}\" kòm {{role}}."
+      },
+      "career_hired": {
+        "title": "Yo anboche ou nan {{businessName}}",
+        "body": "Aplikasyon ou pou {{openingTitle}} anboche kounye a kòm {{role}}."
+      },
+      "crew_task_reviewed": {
+        "approved": {
+          "title": "Travay la apwouve",
+          "body": "{{taskTitle}} nan {{restaurantName}} apwouve"
+        },
+        "rejected": {
+          "title": "Travay la voye tounen",
+          "body": "{{taskTitle}} nan {{restaurantName}} bezwen plis travay"
+        }
+      },
+      "roles": {
+        "owner": "pwopriyetè",
+        "manager": "manadjè",
+        "representative": "reprezantan",
+        "employee": "anplwaye",
+        "support_agent": "ajan sipò"
       }
     }
   },
@@ -4953,7 +5068,7 @@
       "addLogbookEntry": "Ajoute nan liv la",
       "logbookAdded": "Yo ajoute l nan liv la"
     },
-    "merchant": { "timezone": "Zòn lè", "timezoneHint": "Yo itilize l pou lè ouvèti, nimewo fil chak jou, ak rapò yo.", "locationEdit": "Modifye", "locationSaveChanges": "Anrejistre chanjman yo", "locationStatus": "Estati", "locationActive": "Aktif", "locationPaused": "An poz", "locationClosed": "Fèmen", "locationUpdated": "Lokasyon an mete ajou", "locationMakePrimary": "Mete li kòm lokasyon prensipal", "locationName": "Non lokasyon an", "addLocation": "Ajoute lokasyon", "locationCreated": "Lokasyon an ajoute", "locationError": "Pa t kapab anrejistre lokasyon an", "findCoordinates": "Chèche kowòdone", "locationGeocodeEmpty": "Nou pa t jwenn kowòdone pou lokasyon sa a", "locationGeocoded": "Nou jwenn kowòdone yo", "locationGeocodeError": "Nou pa t kapab jwenn kowòdone yo", "addHoursRange": "Ajoute yon entèval", "removeHoursRange": "Retire entèval la", "hoursRangeLabel": "Entèval {{number}}", "specialDatesTitle": "Dat espesyal", "specialDatesHint": "Ranplase lè chak semèn pou yon dat patikilye, tankou jou ferye ak fèmti okazyonèl.", "specialDate": "Dat", "specialDateClosed": "Fèmen tout jounen an", "specialDateRemove": "Retire dat la", "specialDateAdd": "Ajoute yon dat espesyal", "specialDateDuplicate": "Chak dat espesyal ka parèt yon sèl fwa.", "tab": { "myshift": "Orè mwen" } },
+    "merchant": { "timezone": "Zòn lè", "timezoneHint": "Yo itilize l pou lè ouvèti, nimewo fil chak jou, ak rapò yo.", "taxRuleCategory": "Kategori taks (si ou vle)", "prepAutoExtendMax": "Limit ekstansyon otomatik (min)", "prepAutoExtendThreshold": "Ekstansyon otomatik depi (kòmand)", "prepAutoExtendPerOrder": "Ekstansyon otomatik pa kòmand (min)", "prepAutoExtendHint": "Lonje tan preparasyon yo otomatikman lè kòmand ki louvri yo depase limit la.", "locationEdit": "Modifye", "locationSaveChanges": "Anrejistre chanjman yo", "locationStatus": "Estati", "locationActive": "Aktif", "locationPaused": "An poz", "locationClosed": "Fèmen", "locationUpdated": "Lokasyon an mete ajou", "locationMakePrimary": "Mete li kòm lokasyon prensipal", "locationName": "Non lokasyon an", "addLocation": "Ajoute lokasyon", "locationCreated": "Lokasyon an ajoute", "locationError": "Pa t kapab anrejistre lokasyon an", "findCoordinates": "Chèche kowòdone", "locationGeocodeEmpty": "Nou pa t jwenn kowòdone pou lokasyon sa a", "locationGeocoded": "Nou jwenn kowòdone yo", "locationGeocodeError": "Nou pa t kapab jwenn kowòdone yo", "addHoursRange": "Ajoute yon entèval", "removeHoursRange": "Retire entèval la", "hoursRangeLabel": "Entèval {{number}}", "specialDatesTitle": "Dat espesyal", "specialDatesHint": "Ranplase lè chak semèn pou yon dat patikilye, tankou jou ferye ak fèmti okazyonèl.", "specialDate": "Dat", "specialDateClosed": "Fèmen tout jounen an", "specialDateRemove": "Retire dat la", "specialDateAdd": "Ajoute yon dat espesyal", "specialDateDuplicate": "Chak dat espesyal ka parèt yon sèl fwa.", "tab": { "myshift": "Orè mwen" } },
     "creditCenter": {
       "recentFallback": "Dènyèman",
       "oxsteedCustomer": "Kliyan OxSteed",

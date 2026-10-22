@@ -4740,6 +4740,64 @@
           "noData": "No identified customer orders in the last 90 days.",
           "loadError": "Could not load loyalty analytics."
         }
+      },
+      "storeHub": {
+        "title": "In-store hub",
+        "subtitle": "The per-store hub relays POS, kitchen and printer traffic over the local network while offline, and queued cash sales replay automatically on reconnect.",
+        "loading": "Loading hub data…",
+        "loadError": "Could not load hub data",
+        "refresh": "Refresh",
+        "noHubs": "No hub registered for this restaurant yet. Register the in-store hub device below.",
+        "hub": "Hub",
+        "store": "Store",
+        "lastHeartbeat": "Last heartbeat",
+        "queued": "Queued",
+        "held": "Held",
+        "actions": "Actions",
+        "never": "never",
+        "justNow": "just now",
+        "minutesAgo": "{{count}} min ago",
+        "hoursAgo": "{{count}} hr ago",
+        "daysAgo": "{{count}} days ago",
+        "viewSales": "Sales",
+        "replay": "Replay",
+        "replayHint": "Post all queued offline cash sales to the ledger",
+        "hubName": "Hub name",
+        "hubNamePlaceholder": "e.g. Front counter hub",
+        "register": "Register hub",
+        "registerSuccess": "Hub registered",
+        "registerError": "Could not register hub",
+        "offlineSalesTitle": "Offline cash sales",
+        "statusFilter": "Filter by status",
+        "allStatuses": "All statuses",
+        "noSales": "No offline sales in this view.",
+        "salesLoadError": "Could not load offline sales",
+        "total": "Total",
+        "tendered": "Tendered",
+        "statusLabel": "Status",
+        "note": "Note",
+        "requeue": "Requeue",
+        "requeueHint": "Put this sale back in the queue; the next replay re-checks the drawer shift",
+        "requeueSuccess": "Sale requeued",
+        "resolveError": "Could not resolve sale",
+        "void": "Void",
+        "voidHint": "Abandon this sale; the cash was accounted for elsewhere",
+        "voidNotePlaceholder": "Reason (e.g. counted in drawer close)",
+        "confirmVoid": "Confirm void",
+        "voidSuccess": "Sale voided",
+        "cancel": "Cancel",
+        "replaySuccess": "Replayed {{count}} sale(s)",
+        "replayHeld": "{{count}} sale(s) held for review",
+        "replayFailed": "{{count}} sale(s) failed",
+        "replayShortfall": "{{count}} sale(s) with inventory shortfall",
+        "replayError": "Could not replay sales",
+        "status": {
+          "queued": "Queued",
+          "held": "Held",
+          "failed": "Failed",
+          "replayed": "Replayed",
+          "voided": "Voided"
+        }
       }
     }
   },
@@ -4866,6 +4924,10 @@
         "title": "New training assigned",
         "body": "{{moduleTitle}} at {{restaurantName}}"
       },
+      "training_recertification_due": {
+        "title": "Training recertification due",
+        "body": "Your certification for {{moduleTitle}} at {{restaurantName}} has expired. Please complete the training again."
+      },
       "crew_shift_published": {
         "title": "New shift posted",
         "body": "{{shiftLabel}} · {{startsAt}} at {{restaurantName}}"
@@ -4877,6 +4939,59 @@
       "restaurant_announcement": {
         "title": "Announcement from {{restaurantName}}",
         "body": "{{announcementTitle}}"
+      },
+      "crew_task_completed": {
+        "title": "Task completed",
+        "body": "{{taskTitle}} at {{restaurantName}}"
+      },
+      "training_completed": {
+        "title": "Training completed",
+        "body": "{{moduleTitle}} was completed"
+      },
+      "training_recertification_due": {
+        "title": "Training recertification due",
+        "body": "Your certification for {{moduleTitle}} has expired. Please complete the training again."
+      },
+      "member_invite": {
+        "title": "You have been invited to join {{businessName}}",
+        "body": "You have been invited to join \"{{businessName}}\" as a {{role}}."
+      },
+      "member_invite_resent": {
+        "title": "Invitation resent from {{businessName}}",
+        "body": "Your invitation to join \"{{businessName}}\" as a {{role}} has been resent."
+      },
+      "member_invite_withdrawn": {
+        "title": "Invitation withdrawn by {{businessName}}",
+        "body": "Your invitation to join \"{{businessName}}\" as a {{role}} was withdrawn before you accepted it."
+      },
+      "member_removed": {
+        "title": "Removed from {{businessName}}",
+        "body": "You have been removed as a {{role}} from \"{{businessName}}\"."
+      },
+      "member_rehired": {
+        "title": "Welcome back to {{businessName}}",
+        "body": "You have been rehired at \"{{businessName}}\" as a {{role}}."
+      },
+      "career_hired": {
+        "title": "You were hired at {{businessName}}",
+        "body": "Your application for {{openingTitle}} is now hired as {{role}}."
+      },
+      "crew_task_reviewed": {
+        "approved": {
+          "title": "Task approved",
+          "body": "{{taskTitle}} at {{restaurantName}} was approved"
+        },
+        "rejected": {
+          "title": "Task sent back",
+          "body": "{{taskTitle}} at {{restaurantName}} needs more work"
+        }
+      },
+      "roles": {
+        "owner": "owner",
+        "manager": "manager",
+        "representative": "representative",
+        "employee": "employee",
+        "support_agent": "support agent"
       }
     }
   },
@@ -4953,7 +5068,7 @@
       "addLogbookEntry": "Add entry",
       "logbookAdded": "Log entry added"
     },
-    "merchant": { "timezone": "Time zone", "timezoneHint": "Used for opening hours, daily queue numbers, and reports.", "locationEdit": "Edit", "locationSaveChanges": "Save changes", "locationStatus": "Status", "locationActive": "Active", "locationPaused": "Paused", "locationClosed": "Closed", "locationUpdated": "Location updated", "locationMakePrimary": "Make this the primary location", "locationName": "Location name", "addLocation": "Add location", "locationCreated": "Location added", "locationError": "Could not save location", "findCoordinates": "Find coordinates", "locationGeocodeEmpty": "Could not find coordinates for this location", "locationGeocoded": "Coordinates found", "locationGeocodeError": "Could not find coordinates", "addHoursRange": "Add range", "removeHoursRange": "Remove range", "hoursRangeLabel": "Range {{number}}", "specialDatesTitle": "Special dates", "specialDatesHint": "Override the weekly hours for a specific date, including holidays and one-off closures.", "specialDate": "Date", "specialDateClosed": "Closed all day", "specialDateRemove": "Remove date", "specialDateAdd": "Add special date", "specialDateDuplicate": "Each special date can only be listed once.", "tab": { "myshift": "My shift" } },
+    "merchant": { "timezone": "Time zone", "timezoneHint": "Used for opening hours, daily queue numbers, and reports.", "taxRuleCategory": "Tax category (optional)", "prepAutoExtendMax": "Auto-extend cap (min)", "prepAutoExtendThreshold": "Auto-extend from (orders)", "prepAutoExtendPerOrder": "Auto-extend per order (min)", "prepAutoExtendHint": "Quote longer prep times automatically when open tickets pass the threshold.", "locationEdit": "Edit", "locationSaveChanges": "Save changes", "locationStatus": "Status", "locationActive": "Active", "locationPaused": "Paused", "locationClosed": "Closed", "locationUpdated": "Location updated", "locationMakePrimary": "Make this the primary location", "locationName": "Location name", "addLocation": "Add location", "locationCreated": "Location added", "locationError": "Could not save location", "findCoordinates": "Find coordinates", "locationGeocodeEmpty": "Could not find coordinates for this location", "locationGeocoded": "Coordinates found", "locationGeocodeError": "Could not find coordinates", "addHoursRange": "Add range", "removeHoursRange": "Remove range", "hoursRangeLabel": "Range {{number}}", "specialDatesTitle": "Special dates", "specialDatesHint": "Override the weekly hours for a specific date, including holidays and one-off closures.", "specialDate": "Date", "specialDateClosed": "Closed all day", "specialDateRemove": "Remove date", "specialDateAdd": "Add special date", "specialDateDuplicate": "Each special date can only be listed once.", "tab": { "myshift": "My shift" } },
     "creditCenter": {
       "recentFallback": "Recently",
       "oxsteedCustomer": "OxSteed customer",

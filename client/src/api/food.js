@@ -203,6 +203,19 @@ export const createFoodLocation = (restaurantId, payload) =>
 export const updateFoodLocation = (restaurantId, locationId, payload) =>
   api.patch(`/food/restaurants/${restaurantId}/locations/${locationId}`, payload).then((r) => r.data?.location);
 
+// F-19: per-store tax rules.
+export const listTaxRules = (restaurantId, params = {}) =>
+  api.get(`/food/restaurants/${restaurantId}/tax-rules`, { params }).then((r) => r.data?.rules || []);
+
+export const createTaxRule = (restaurantId, payload) =>
+  api.post(`/food/restaurants/${restaurantId}/tax-rules`, payload).then((r) => r.data?.rule);
+
+export const updateTaxRule = (restaurantId, ruleId, payload) =>
+  api.patch(`/food/restaurants/${restaurantId}/tax-rules/${ruleId}`, payload).then((r) => r.data?.rule);
+
+export const deleteTaxRule = (restaurantId, ruleId) =>
+  api.delete(`/food/restaurants/${restaurantId}/tax-rules/${ruleId}`).then((r) => r.data);
+
 export const getRestaurantHQRollup = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/hq/rollup`, { params }).then((r) => r.data || { stores: [], scope: null });
 
@@ -214,6 +227,37 @@ export const createRestaurantHQRegion = (restaurantId, payload) =>
   api.post(`/restaurants/${restaurantId}/hq/regions`, payload).then((r) => r.data?.region);
 export const updateRestaurantHQRegion = (restaurantId, regionId, payload) =>
   api.patch(`/restaurants/${restaurantId}/hq/regions/${regionId}`, payload).then((r) => r.data?.region);
+
+// Brand HQ console (F-02 phase 2): the brand groups restaurants across
+// businesses; every call is scoped server-side to accessible restaurants.
+export const listRestaurantBrands = () =>
+  api.get('/restaurant-brands').then((r) => r.data?.brands || []);
+export const getBrandOverview = (brandId) =>
+  api.get(`/restaurant-brands/${brandId}/overview`).then((r) => r.data);
+export const getBrandStoreComparison = (brandId, params = {}) =>
+  api.get(`/restaurant-brands/${brandId}/store-comparison`, { params }).then((r) => r.data);
+export const getBrandCompliance = (brandId, params = {}) =>
+  api.get(`/restaurant-brands/${brandId}/compliance`, { params }).then((r) => r.data);
+export const publishBrandMenu = (brandId, payload) =>
+  api.post(`/restaurant-brands/${brandId}/menu/publish`, payload).then((r) => r.data);
+export const attachBrandRestaurant = (brandId, payload) =>
+  api.post(`/restaurant-brands/${brandId}/restaurants`, payload).then((r) => r.data);
+export const detachBrandRestaurant = (brandId, restaurantId) =>
+  api.delete(`/restaurant-brands/${brandId}/restaurants/${restaurantId}`).then((r) => r.data);
+
+// In-store hub + offline cash replay (F-08 phase 2). The hub is the
+// designated per-store device that relays LAN traffic while offline and
+// uploads queued cash sales for idempotent replay on reconnect.
+export const listStoreHubs = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/hubs`).then((r) => r.data?.hubs || []);
+export const registerStoreHub = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/hubs`, payload).then((r) => r.data?.hub);
+export const replayHubSales = (restaurantId, hubId) =>
+  api.post(`/restaurants/${restaurantId}/hubs/${hubId}/replay`).then((r) => r.data);
+export const listHubOfflineSales = (restaurantId, hubId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/hubs/${hubId}/offline-sales`, { params }).then((r) => r.data?.sales || []);
+export const resolveHubOfflineSale = (restaurantId, hubId, saleId, payload) =>
+  api.post(`/restaurants/${restaurantId}/hubs/${hubId}/offline-sales/${saleId}/resolve`, payload).then((r) => r.data?.sale);
 
 // Restaurant host stand (floor-plan tables, reservations, and walk-in queue).
 export const listRestaurantTables = (restaurantId, params = {}) =>
@@ -455,6 +499,17 @@ export const performRestaurantKitchenItemAction = (restaurantId, orderItemId, pa
   if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
   return api.post(
     `/restaurants/${restaurantId}/kitchen/items/${orderItemId}/action`,
+    payload,
+    { headers }
+  ).then((r) => r.data);
+};
+
+export const performRestaurantKitchenCourseAction = (restaurantId, orderId, courseNumber, payload = {}) => {
+  const idempotencyKey = payload.idempotencyKey || payload.idempotency_key;
+  const headers = { ...displayDeviceAuthHeaders(restaurantId) };
+  if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
+  return api.post(
+    `/restaurants/${restaurantId}/kitchen/orders/${orderId}/courses/${courseNumber}/action`,
     payload,
     { headers }
   ).then((r) => r.data);

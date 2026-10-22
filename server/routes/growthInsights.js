@@ -1003,6 +1003,27 @@ router.post(
     res.json(result);
   }),
 );
+router.post(
+  "/partners/feeds/:id/quarantine/apply",
+  requirePermission("manage_affiliate_partners"),
+  wrap(async (req, res) => {
+    // Background-jobs audit (finding G2): an admin reviews the quarantined
+    // price moves on the feed's last run and confirms them here; the
+    // quarantined prices are then written to the live catalog.
+    const feedId = id(req.params.id);
+    const result = await require("../jobs/partnerFeedImport").applyQuarantine(
+      Number(feedId),
+    );
+    await logAdminAction({
+      adminId: req.user.id,
+      action: "growth_partner_feed_quarantine_applied",
+      targetType: "partner_feed",
+      targetKey: feedId,
+      after: result,
+    });
+    res.json(result);
+  }),
+);
 router.get(
   "/partners/category-map",
   requirePermission("manage_affiliate_partners"),

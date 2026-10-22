@@ -92,7 +92,7 @@ test('below-threshold refund keeps the existing 200 contract', async () => {
     replay: false,
   });
   const res = mockRes();
-  await ctrl.refundPayment(refundReq({ amount: '25.00' }), res, (err) => {
+  await ctrl.refundPayment(refundReq({ amount: '25.00', headers: { 'Idempotency-Key': 'pay-refund-key-002' } }), res, (err) => {
     throw err;
   });
   expect(res.status).toHaveBeenCalledWith(200);
@@ -112,6 +112,6 @@ test('omitted amount without fullRefund passes the fail-closed contract through'
   });
   const res = mockRes();
   const next = jest.fn();
-  await ctrl.refundPayment(refundReq({ amount: null }), res, next);
+  await ctrl.refundPayment(refundReq({ amount: null, headers: { 'Idempotency-Key': 'pay-refund-key-003' } }), res, next);
   expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'invalid_refund_amount' }));
 });

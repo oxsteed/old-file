@@ -4,7 +4,7 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useSt
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, Tv, CalendarDays, CreditCard, Building2 } from 'lucide-react';
+import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, Tv, CalendarDays, CreditCard, Building2, Network, WifiOff } from 'lucide-react';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 import api from '../../api/axios';
 import {
@@ -45,6 +45,8 @@ import GiftCardProductsPanel from './GiftCardProductsPanel';
 import DisplayFleetPanel from './DisplayFleetPanel';
 import RestaurantHostingPanel from './RestaurantHostingPanel';
 import RestaurantHQPanel from './RestaurantHQPanel';
+import BrandHQPanel from './BrandHQPanel';
+import StoreHubPanel from './StoreHubPanel';
 import { syncPendingMutations, countPendingMutations, isDeviceOnline } from '../../api/restaurantsOffline';
 import PageShell from '../../components/PageShell';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
@@ -314,6 +316,22 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
     }
   };
 
+  // Seat-level split: move every line assigned to one seat to a new ticket.
+  const seatsOnTicket = [...new Set(
+    items.map((item) => Number(item.seatNumber)).filter((seat) => Number.isInteger(seat) && seat > 0)
+  )].sort((a, b) => a - b);
+
+  const handleSeatSplit = async (seatNumber) => {
+    setSplitting(true);
+    try {
+      await onSplit(order, [], { seatNumbers: [seatNumber] });
+      setShowSplitModal(false);
+      setSelectedItems(new Set());
+    } finally {
+      setSplitting(false);
+    }
+  };
+
   const handleMergeConfirm = async () => {
     const sourceId = parseInt(mergeSourceId, 10);
     if (!sourceId) return;
@@ -480,12 +498,31 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
                     checked={selectedItems.has(item.id)}
                     onChange={() => toggleItem(item.id)} data-track="ui.17b0c32a57.14"
                   />
-                  <span>{item.quantity}x {item.item_name}</span>
+                  <span>{item.quantity}x {item.item_name}{item.seatNumber ? ` · ${t('food.pos.seatOption', { n: item.seatNumber })}` : ''}</span>
                   <span>${(item.line_total_cents / 100).toFixed(2)}</span>
                 </label>
               ))}
             </div>
             {items.length === 0 && <p>{t('food.merchant.noItems')}</p>}
+            {seatsOnTicket.length > 0 && (
+              <div className="fd-split-seats">
+                <h4>{t('food.merchant.splitBySeat')}</h4>
+                <div className="fd-split-seat-buttons">
+                  {seatsOnTicket.map((seat) => (
+                    <button
+                      key={seat}
+                      type="button"
+                      className="fd-btn fd-btn-secondary"
+                      disabled={splitting}
+                      onClick={() => handleSeatSplit(seat)}
+                      data-track="ui.17b0c32a57.17"
+                    >
+                      {t('food.merchant.splitSeat', { n: seat })}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="fd-modal-actions">
               <button
                 type="button"
@@ -712,14 +749,15 @@ function OrdersTab({ t, restaurant }) {
     }
   };
 
-  const split = async (order, itemIds) => {
+  const split = async (order, itemIds, options = {}) => {
     try {
       // P2-4-F02: the server reads orderItemIds (or order_item_ids); the
-      // old { itemIds } payload always 400d.
-      const { data } = await api.post(`/restaurants/${restaurant.id}/pos/orders/${order.id}/split`, {
-        orderItemIds: itemIds,
-      });
-      toast.success(t('food.merchant.splitSuccess', { newOrderId: data.newOrderId }));
+      // old { itemIds } payload always 400d. Seat splits pass seatNumbers.
+      const payload = options.seatNumbers
+        ? { seatNumbers: options.seatNumbers }
+        : { orderItemIds: itemIds };
+      const { data } = await api.post(`/restaurants/${restaurant.id}/pos/orders/${order.id}/split`, payload);
+      toast.success(t('food.merchant.splitSuccess', { newOrderId: data.splitOrder?.id || data.newOrderId }));
       reloadAfterAction();
     } catch (err) {
       toast.error(apiErrorMessage(err, t('food.merchant.splitError')));
@@ -2055,6 +2093,32 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
             wide
           >
             <RestaurantHQPanel t={t} restaurant={restaurant} bare />
+          </SettingsCard>
+        )}
+
+        {canManageRestaurant && (
+          <SettingsCard
+            icon={Network}
+            title={t('restaurants.ops.brandHq.title')}
+            desc={t('restaurants.ops.brandHq.subtitle')}
+            cardKey="brand-hq"
+            registerRef={registerCard}
+            wide
+          >
+            <BrandHQPanel t={t} restaurant={restaurant} />
+          </SettingsCard>
+        )}
+
+        {canManageRestaurant && (
+          <SettingsCard
+            icon={WifiOff}
+            title={t('restaurants.ops.storeHub.title')}
+            desc={t('restaurants.ops.storeHub.subtitle')}
+            cardKey="store-hub"
+            registerRef={registerCard}
+            wide
+          >
+            <StoreHubPanel t={t} restaurant={restaurant} />
           </SettingsCard>
         )}
 

@@ -100,6 +100,7 @@ const { AsyncLocalStorage } = require('async_hooks');
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { isReadOnlyRequest } = require('../utils/requestContext');
+const { isUserInRegion } = require('../middleware/regionAuth');
 
 // Request-scoped hand-off from the route-level restaurant gate
 // (middleware/scopeGates.js) to the controller's own access call: the row the
@@ -169,6 +170,59 @@ const EFFECTIVE_MEMBERSHIP_ID_SUBQUERY = `(
             )`;
 
 /**
+ * Auth-audit item 23: region-scoped platform admins must never inherit
+ * owner-level access on restaurant routes.
+ *
+ * Returns the admin's active region rows (with boundary definitions) when
+ * the user is an `admin` holding unexpired, unrevoked region-scoped grants;
+ * returns null for super-admins, global (unscoped) admins, and non-admins,
+ * who keep the historical platform behavior. Region scoping is opt-in: it
+ * only applies once a region is assigned.
+ */
+async function getRegionRestrictedRegions(userId) {
+  if (!userId) return null;
+  // Single query: the users join both excludes super-admins (who keep the
+  // platform bypass) and scopes the grant lookup to active region grants.
+  const { rows } = await pool.query(
+    `SELECT r.id, r.boundary_definition
+       FROM admin_permission_grants g
+       JOIN admin_regions r ON r.id = g.region_id
+       JOIN users u ON u.id = g.grantee_id AND u.role = 'admin'
+      WHERE g.grantee_id = $1
+        AND g.region_id IS NOT NULL
+        AND g.revoked_at IS NULL
+        AND g.expires_at > NOW()`,
+    [userId]
+  );
+  return rows.length ? rows : null;
+}
+
+/**
+ * Whether a restaurant's location falls inside any of the admin's assigned
+ * regions. Reuses the region boundary matchers (city_state, country_region,
+ * country_only, zip_range, geo_radius) with the restaurant's address mapped
+ * onto the location shape. Fail closed: a restaurant with no usable
+ * location never matches.
+ */
+function restaurantInRegions(restaurant, regions) {
+  const location = {
+    zip_code: restaurant.address_zip || '',
+    city: restaurant.address_city || '',
+    state: restaurant.address_state || '',
+    country: restaurant.address_country || '',
+    latitude: restaurant.latitude,
+    longitude: restaurant.longitude,
+  };
+  return (regions || []).some((region) => {
+    try {
+      return isUserInRegion(location, region);
+    } catch {
+      return false;
+    }
+  });
+}
+
+/**
  * Canonical restaurant access gate (see module docstring).
  */
 async function resolveRestaurantAccess(userId, restaurantId) {
@@ -200,6 +254,28 @@ async function resolveRestaurantAccess(userId, restaurantId) {
   if (isPlatformAdminRequest(userId)) {
     if (deleted && !isReadOnlyRequest()) {
       throw new AppError('This restaurant belongs to a deleted business and is read-only.', 409, 'restaurant_deleted_read_only');
+    }
+    // Auth-audit item 23: a region-scoped admin never inherits owner-level
+    // rights on restaurant routes. Out-of-region restaurants are invisible
+    // (404, same as no standing); in-region restaurants resolve with a
+    // non-owner effective role so every owner-level path fails closed
+    // (403) while the access stays audited as platform-admin access.
+    const regionRows = await getRegionRestrictedRegions(userId);
+    if (regionRows) {
+      if (!restaurantInRegions(restaurant, regionRows)) {
+        throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+      }
+      restaurant.platform_admin_access = true;
+      restaurant.region_restricted_access = true;
+      restaurant.member_role = restaurant.effective_role || null;
+      // 'regional_admin' is unknown to team_roles, so the permission
+      // catalog resolves to an empty set (fail closed) and every
+      // effective_role === 'owner' check denies.
+      restaurant.effective_role = 'regional_admin';
+      restaurant.operator_role = 'regional_admin';
+      restaurant.deleted_read_only = deleted;
+      restaurant.access_user_id = userId;
+      return restaurant;
     }
     // Decision 6: platform admins act with owner-level rights. The gate has
     // already audit-logged this request.
@@ -297,10 +373,14 @@ async function resolveBusinessAccess(userId, businessId, { includeDeleted = fals
  *                            // read unconstrained (or fail closed when a
  *                            // grant is required — see regionRestricted).
  *     regionRestricted,     // admin has unexpired region-scoped grants.
- *                            // INFORMATIONAL ONLY: no row-level region
- *                            // scoping exists anywhere in the codebase, so
- *                            // consumers must keep today's fail-closed
- *                            // behavior and never treat this as enforced.
+ *                            // Row-level region scoping lives in
+ *                            // utils/scopeFilter.js (regionIdsScopeClause /
+ *                            // userLocationScopeClause), which regional-admin
+ *                            // routes apply directly. Since auth-audit item
+ *                            // 23, restaurant routes also enforce it: a
+ *                            // region-restricted admin gets 404 outside
+ *                            // their regions and a non-owner effective role
+ *                            // ('regional_admin') inside them.
  *     regionIds,              // region ids from those grants (admins only).
  *     businesses:   [{ id, role }],  // owned + active memberships;
  *                                     // soft-deleted businesses excluded
@@ -450,4 +530,6 @@ module.exports = {
   runWithResolvedRestaurant,
   runAsPlatformAdmin,
   isPlatformAdminRequest,
+  getRegionRestrictedRegions,
+  restaurantInRegions,
 };

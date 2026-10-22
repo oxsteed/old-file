@@ -1034,15 +1034,6 @@ async function deleteBusiness(req, res, next) {
 
 // ── Analytics: P&L, trends, job stats ────────────────────────────────────────
 // GET /api/businesses/:id/analytics?period=6m
-async function queryAnalyticsOrEmpty(sql, params, fallbackRows = []) {
-  try {
-    return await pool.query(sql, params);
-  } catch (err) {
-    logger.warn('getBusinessAnalytics query failed', { err: err.message });
-    return { rows: fallbackRows };
-  }
-}
-
 async function getBusinessAnalytics(req, res, next) {
   try {
     const access = await canManageBusinessFinance(req.user.id, req.params.id);
@@ -1055,128 +1046,17 @@ async function getBusinessAnalytics(req, res, next) {
       }));
     }
 
-    const bizId   = access.id;
-    const ownerId = access.owner_id;
-
-    // A just-created unpublished business has no invoices/expenses yet. Each
-    // source fails independently so the overview still returns zeroed KPIs.
-    const [invoiceRevRes, oxsteedRevRes, expenseRes, jobStatsRes, invoiceSummaryRes] = await Promise.all([
-
-      // Paid invoice revenue by month (last 6 months)
-      queryAnalyticsOrEmpty(`
-        SELECT
-          TO_CHAR(DATE_TRUNC('month', paid_at), 'YYYY-MM') AS month,
-          COALESCE(SUM(total), 0)                           AS revenue
-        FROM business_invoices
-        WHERE business_id = $1
-          AND status = 'paid'
-          AND paid_at >= NOW() - INTERVAL '6 months'
-        GROUP BY 1
-        ORDER BY 1
-      `, [bizId]),
-
-      // OxSteed payment income by month (for primary business only)
-      access.is_primary
-        ? queryAnalyticsOrEmpty(`
-            SELECT
-              TO_CHAR(DATE_TRUNC('month', COALESCE(captured_at, released_at)), 'YYYY-MM') AS month,
-              COALESCE(SUM(helper_payout), 0) AS revenue
-            FROM payments
-            WHERE payee_id = $1
-              AND status = 'captured'
-              AND COALESCE(captured_at, released_at) >= NOW() - INTERVAL '6 months'
-            GROUP BY 1
-            ORDER BY 1
-          `, [ownerId])
-        : Promise.resolve({ rows: [] }),
-
-      // Business-tagged expenses by month
-      queryAnalyticsOrEmpty(`
-        SELECT
-          TO_CHAR(DATE_TRUNC('month', occurred_at::date), 'YYYY-MM') AS month,
-          COALESCE(SUM(amount), 0)                                     AS expenses
-        FROM expenses
-        WHERE business_id = $1
-          AND type = 'expense'
-          AND occurred_at >= CURRENT_DATE - INTERVAL '6 months'
-        GROUP BY 1
-        ORDER BY 1
-      `, [bizId]),
-
-      // OxSteed job stats (primary business only)
-      access.is_primary
-        ? queryAnalyticsOrEmpty(`
-            SELECT
-              COUNT(*)::int AS jobs_completed,
-              COALESCE(AVG(helper_payout), 0) AS avg_job_value,
-              COALESCE(MAX(helper_payout), 0) AS max_job_value
-            FROM payments
-            WHERE payee_id = $1
-              AND status = 'captured'
-              AND COALESCE(captured_at, released_at) >= NOW() - INTERVAL '6 months'
-          `, [ownerId], [{ jobs_completed: 0, avg_job_value: 0, max_job_value: 0 }])
-        : Promise.resolve({ rows: [{ jobs_completed: 0, avg_job_value: 0, max_job_value: 0 }] }),
-
-      // Outstanding invoices summary - include per-status counts for the Overview KPIs
-      queryAnalyticsOrEmpty(`
-        SELECT
-          COALESCE(SUM(total - amount_paid) FILTER (WHERE status IN ('sent','overdue')), 0) AS outstanding,
-          COALESCE(SUM(total - amount_paid) FILTER (WHERE status = 'overdue'), 0)            AS overdue,
-          COUNT(*) FILTER (WHERE status = 'sent')                                            AS sent_count,
-          COUNT(*) FILTER (WHERE status = 'overdue')                                         AS overdue_count
-        FROM business_invoices
-        WHERE business_id = $1
-      `, [bizId], [{ outstanding: 0, overdue: 0, sent_count: 0, overdue_count: 0 }]),
-    ]);
-
-    // Merge monthly revenue (invoice + OxSteed) and expenses into a unified series
-    const months = generateLast6Months();
-    const invoiceByMonth  = Object.fromEntries(invoiceRevRes.rows.map(r  => [r.month, parseFloat(r.revenue)]));
-    const oxsteedByMonth  = Object.fromEntries(oxsteedRevRes.rows.map(r  => [r.month, parseFloat(r.revenue)]));
-    const expenseByMonth  = Object.fromEntries(expenseRes.rows.map(r     => [r.month, parseFloat(r.expenses)]));
-
-    const monthly = months.map(m => {
-      const revenue  = round2((invoiceByMonth[m] || 0) + (oxsteedByMonth[m] || 0));
-      const expenses = round2(expenseByMonth[m] || 0);
-      return { month: m, revenue, expenses, profit: round2(revenue - expenses) };
-    });
-
-    // MTD totals (current month only)
-    const thisMo    = monthly[monthly.length - 1];
-    const lastMo    = monthly[monthly.length - 2];
-
-    // YTD totals
-    const currentYear = new Date().getFullYear().toString();
-    const ytd = monthly
-      .filter(m => m.month.startsWith(currentYear))
-      .reduce((acc, m) => ({
-        revenue:  round2(acc.revenue + m.revenue),
-        expenses: round2(acc.expenses + m.expenses),
-        profit:   round2(acc.profit + m.profit),
-      }), { revenue: 0, expenses: 0, profit: 0 });
-
-    const jobStats    = jobStatsRes.rows[0] || { jobs_completed: 0, avg_job_value: 0, max_job_value: 0 };
-    const invSummary  = invoiceSummaryRes.rows[0] || {};
-
-    return res.json({
-      business_id: bizId,
-      monthly,
-      mtd: thisMo || { revenue: 0, expenses: 0, profit: 0 },
-      last_month: lastMo || { revenue: 0, expenses: 0, profit: 0 },
-      ytd,
-      // Nested shape expected by the frontend OverviewTab
-      invoices: {
-        outstanding_total: round2(parseFloat(invSummary.outstanding || 0)),
-        overdue_total:     round2(parseFloat(invSummary.overdue || 0)),
-        sent:              parseInt(invSummary.sent_count || 0),
-        overdue_count:     parseInt(invSummary.overdue_count || 0),
-      },
-      jobs: {
-        completed_6m: parseInt(jobStats.jobs_completed || 0),
-        avg_value:    round2(parseFloat(jobStats.avg_job_value || 0)),
-        max_value:    round2(parseFloat(jobStats.max_job_value || 0)),
-      },
-    });
+    // Default overview: delegated to the metrics-layer module so the tab's
+    // numbers always come from the registered canonical definitions
+    // (server/analytics/businessOverviewAnalytics.js, contract
+    // 'business-overview-v1'). Each source fails independently inside the
+    // module, so a fresh business with no data yet still gets zeroed KPIs.
+    const { businessOverviewAnalytics } = require('../analytics/businessOverviewAnalytics');
+    return res.json(await businessOverviewAnalytics(pool, {
+      businessId: access.id,
+      ownerId: access.owner_id,
+      isPrimary: access.is_primary,
+    }));
   } catch (err) {
     next(err);
   }
@@ -1397,19 +1277,6 @@ async function deleteGoal(req, res) {
     logger.error('deleteGoal error', { userId: req.user?.id, businessId: access?.id, goalId: req.params?.goalId, err: err.message });
     return res.status(500).json({ error: 'Failed to delete goal' });
   }
-}
-
-// ── helper: generate last 6 calendar month keys (YYYY-MM) ────────────────────
-function generateLast6Months() {
-  const months = [];
-  const d = new Date();
-  for (let i = 5; i >= 0; i--) {
-    const t = new Date(d.getFullYear(), d.getMonth() - i, 1);
-    months.push(
-      `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`
-    );
-  }
-  return months;
 }
 
 // ── Public business profile ───────────────────────────────────────────────────

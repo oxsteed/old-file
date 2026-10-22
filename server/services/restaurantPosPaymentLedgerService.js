@@ -211,6 +211,39 @@ async function reconcilePosOrderPayment(client, orderId) {
       [orderId]
     );
   }
+  // F-04: fire-on-pay. The POS order was created with an unfired kitchen
+  // ticket (kitchen_ticket_fired_at NULL, metadata.kitchenFireMode =
+  // 'on_pay'); the first recorded/captured non-refund payment fires it
+  // exactly once. Refund-only flows (paidCents = 0) never fire.
+  let kitchenTicket = null;
+  try {
+    const fireMeta = order.metadata && typeof order.metadata === 'object' ? order.metadata : {};
+    if (updatedOrder
+      && !updatedOrder.kitchen_ticket_fired_at
+      && fireMeta.kitchenFireMode === 'on_pay'
+      && paidCents > 0) {
+      const { fireKitchenTicketForOrder } = require('./restaurantKitchenFireService');
+      const fired = await fireKitchenTicketForOrder(client, {
+        orderId,
+        restaurantId: updatedOrder.restaurant_id,
+        createdBy: null,
+      });
+      const { rows: [refreshed] } = await client.query(
+        'SELECT * FROM food_orders WHERE id = $1',
+        [orderId]
+      );
+      kitchenTicket = { fired: fired.fired, jobs: fired.jobs, order: refreshed || updatedOrder };
+    }
+  } catch (fireErr) {
+    // A kitchen-fire failure must never fail the payment itself; the
+    // ticket stays unfired (kitchen_ticket_fired_at NULL) and the next
+    // payment attempt retries the fire.
+    const logger = require('../utils/logger');
+    logger.warn('fire-on-pay kitchen ticket failed; will retry on next payment', {
+      orderId,
+      err: fireErr && fireErr.message,
+    });
+  }
   if (updatedOrder?.customer_id && order.payment_status !== nextPaymentStatus) {
     const { emitDomainEvent, foodEventProps } = require('../growth/emit');
     if (nextPaymentStatus === 'paid') {
@@ -219,7 +252,11 @@ async function reconcilePosOrderPayment(client, orderId) {
       await emitDomainEvent(client, 'food.order_refunded', foodEventProps(updatedOrder), { userId: updatedOrder.customer_id });
     }
   }
-  return { order: updatedOrder, totals: { ...totals, net_paid_cents: netPaidCents } };
+  return {
+    order: kitchenTicket?.order || updatedOrder,
+    totals: { ...totals, net_paid_cents: netPaidCents },
+    ...(kitchenTicket ? { kitchenTicketFired: kitchenTicket.fired, kitchenTicketJobs: kitchenTicket.jobs } : {}),
+  };
 }
 
 async function recordWalletCreditPaymentForOrder(client, {

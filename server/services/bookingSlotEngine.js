@@ -245,7 +245,10 @@ async function computeSlots(args) {
         `SELECT user_id::text AS user_id, shift_date::text AS shift_date, start_time, end_time
            FROM business_staff_shifts
           WHERE business_id = $1 AND user_id = ANY($2::uuid[])
-            AND shift_date BETWEEN $3::date AND $4::date`,
+            AND shift_date BETWEEN $3::date AND $4::date
+            -- S-04: unpublished drafts are plans, not commitments; they do
+            -- not block customer bookings until a manager publishes them.
+            AND published_at IS NOT NULL`,
         [businessId, staffIds, toIso(rangeStart).slice(0, 10), toIso(rangeEnd).slice(0, 10)]
       ),
     ]);

@@ -21,6 +21,7 @@ import {
 } from '../../api/restaurants';
 import { submitTrainingQuizOffline } from '../../api/restaurantsOffline';
 import { ConfirmDialog } from './foodShared';
+import SignaturePad from '../../components/SignaturePad';
 
 function apiErr(err, fallback) {
   const m = err?.response?.data?.error?.message || err?.response?.data?.message;
@@ -676,6 +677,11 @@ function ComplianceSection({ t, restaurantId, isManager }) {
   const [docExpires, setDocExpires] = useState('');
   const [docFile, setDocFile] = useState(null);
   const [busy, setBusy] = useState(false);
+  // S-14: SOP sign-off requires a drawn e-signature. signingSop is the SOP
+  // awaiting a signature; signatureDataUrl is the pad's PNG output.
+  const [signingSop, setSigningSop] = useState(null);
+  const [signatureDataUrl, setSignatureDataUrl] = useState(null);
+  const [signing, setSigning] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -739,13 +745,27 @@ function ComplianceSection({ t, restaurantId, isManager }) {
     }
   };
 
-  const sign = async (sop) => {
+  // S-14: drawn e-signature required. Opens the signature modal; the
+  // submit posts the drawn PNG as a multipart signature field.
+  const sign = (sop) => {
+    setSigningSop(sop);
+    setSignatureDataUrl(null);
+  };
+
+  const submitSignature = async () => {
+    if (!signingSop || !signatureDataUrl || signing) return;
+    setSigning(true);
     try {
-      await acknowledgeSop(restaurantId, sop.id);
+      const blob = await (await fetch(signatureDataUrl)).blob();
+      await acknowledgeSop(restaurantId, signingSop.id, blob);
       toast.success(t('restaurants.ops.documents.signed'));
+      setSigningSop(null);
+      setSignatureDataUrl(null);
       load();
     } catch (err) {
       toast.error(apiErr(err, t('restaurants.ops.documents.signError')));
+    } finally {
+      setSigning(false);
     }
   };
 
@@ -884,6 +904,37 @@ function ComplianceSection({ t, restaurantId, isManager }) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* S-14: drawn e-signature modal for SOP sign-off. */}
+      {signingSop && (
+        <div className="fd-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="sop-sign-title">
+          <div className="fd-modal">
+            <h4 id="sop-sign-title" className="fd-ops-panel-title">
+              {t('restaurants.ops.documents.signModalTitle', { title: signingSop.title })}
+            </h4>
+            <p className="fd-card-meta">{t('restaurants.ops.documents.signModalHint')}</p>
+            <SignaturePad onChange={setSignatureDataUrl} disabled={signing} />
+            <div className="fd-settings-actions">
+              <button
+                type="button"
+                className="fd-btn fd-btn-secondary fd-btn-sm"
+                onClick={() => { setSigningSop(null); setSignatureDataUrl(null); }}
+                disabled={signing} data-track="ui.2265f208ce.38"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                className="fd-btn fd-btn-sm"
+                onClick={submitSignature}
+                disabled={signing || !signatureDataUrl} data-track="ui.2265f208ce.39"
+              >
+                {signing ? t('restaurants.ops.documents.signing') : t('restaurants.ops.documents.signAndSubmit')}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

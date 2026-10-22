@@ -56,6 +56,8 @@ const T = {
   ...require('./logisticsPaymentNotifications').paymentNotifications,
   ...require('./jobLifecycleNotificationTemplates').jobLifecycleNotifications,
   ...require('./campaignReviewNotifications').campaignReviewNotifications,
+  // S-19: staff membership notices (invite/removal/resend/withdraw/rehire/hired).
+  ...require('./staffNotificationTemplates').staffNotifications,
   work_agreement_signature_requested: {
     title: {
       en: 'Work agreement ready to sign',
@@ -1354,12 +1356,20 @@ function translate(entry, lang, fallback) {
 exports.t = (key, lang = DEFAULT_LANG, fallback = '') => resolve(T[key], lang, fallback);
 
 // New helper for notification payloads with title/body pairs.
-exports.tNotif = (key, lang = DEFAULT_LANG) => {
+// S-19: optional params interpolate {placeholders} in the resolved copy.
+function interpolatePlaceholders(text, params) {
+  if (!text || !params) return text || '';
+  return String(text).replace(/\{(\w+)\}/g, (m, key) =>
+    params[key] === undefined || params[key] === null ? m : String(params[key])
+  );
+}
+
+exports.tNotif = (key, lang = DEFAULT_LANG, params = null) => {
   const entry = T[key];
   if (!entry) return { title: '', body: '' };
   return {
-    title: resolve(entry.title, lang, ''),
-    body: resolve(entry.body, lang, ''),
+    title: interpolatePlaceholders(resolve(entry.title, lang, ''), params),
+    body: interpolatePlaceholders(resolve(entry.body, lang, ''), params),
   };
 };
 

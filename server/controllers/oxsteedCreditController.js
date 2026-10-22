@@ -47,7 +47,7 @@ const {
 } = require('../services/identityVerificationService');
 const { decideSanctionsScreening } = require('../services/sanctionsScreeningService');
 const { getComplianceQueue, transitionComplianceCase } = require('../services/complianceCaseService');
-const { issueStepupChallenge, verifyStepupChallenge, amountRequiresStepup } = require('../services/stepupChallengeService');
+const { issueStepupChallenge, verifyStepupChallenge, amountRequiresStepup, TOTP_STEPUP_ACTION_TYPES } = require('../services/stepupChallengeService');
 // Phase 7 (gap 9): maker-checker wraps every admin money movement.
 const {
   requestPendingAction,
@@ -1434,13 +1434,18 @@ async function transitionAdminComplianceCase(req, res, next) {
 /**
  * POST /admin/super/oxsteed-credit/stepup-challenges
  * Issue a step-up challenge for the calling super-admin (used before
- * settlement payout initiation and withdrawal approval). Code is emailed;
- * never in the response.
+ * settlement payout initiation, withdrawal approval, and the other admin
+ * credit money actions). Auth-audit item 12: these challenges verify
+ * against the admin's TOTP authenticator, not an emailed code; nothing is
+ * emailed and the response carries no secret.
  *
  * Phase 7 (gap 9): 'pending_action_approve' is the challenge a checker
  * proves before approving a pending money movement.
  */
-const ADMIN_STEPUP_ACTION_TYPES = new Set(['settlement_payout', 'withdrawal', 'pending_action_approve', 'pending_action_request', 'agent_credit_adjustment_approve', 'compliance_verification_decision', 'compliance_sanction_decision', 'compliance_case_transition', 'credit_account_status_update', 'credit_agreement_create', 'credit_agreement_transition', 'credit_entitlement_upsert', 'manual_refund', 'credit_rail_unfreeze', 'credit_card_issue']);
+// Single source of truth lives in stepupChallengeService
+// (TOTP_STEPUP_ACTION_TYPES); this set gates which action types this
+// endpoint may issue.
+const ADMIN_STEPUP_ACTION_TYPES = new Set(TOTP_STEPUP_ACTION_TYPES);
 
 // ADM-020/ADM-082: verify a fresh step-up challenge for high-stakes
 // single-admin actions (compliance decisions, money-adjacent controls).

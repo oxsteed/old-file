@@ -23,6 +23,12 @@ const upload = require('../middleware/logisticsUpload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const { requireInternalLogisticsWorkspace } = require('../middleware/requireInternalLogisticsWorkspace');
 const { requireRole } = require('../middleware/auth');
+// Audit fix (finding 31): the refund step-up verify endpoint must not
+// run under an impersonated session, matching the credit step-up
+// verify route (server/routes/admin.js). Not directly exploitable
+// (verifyStepUp needs the account's actual TOTP code), but the guard
+// keeps the two step-up surfaces consistent.
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 // ADM-006: the whole logistics admin API mounts behind plain `authenticate`
 // (server/index.js), so admin-role sessions bypassed the TOTP hard-block that
 // requireAdmin enforces everywhere else. Enforce it router-wide for
@@ -33,6 +39,35 @@ const { requireAdminTotp } = require('../middleware/adminAuth');
 const requireOperationsWorkspace = requireInternalLogisticsWorkspace('operations');
 const requireComplianceWorkspace = requireInternalLogisticsWorkspace('compliance');
 const requireAdminRole = requireRole('admin', 'super_admin');
+const { hasGlobalGrant } = require('../middleware/adminAuth');
+
+// Audit fix (finding 21): procurement surfaces move real money (lane
+// pricing, trade rules, supplier onboarding/approval, purchase orders).
+// A hard-coded role check let every admin approve spend; regular admins now
+// need an explicit 'logistics.procurement' grant (issuable by super-admins),
+// super-admins bypass, and everything else fails closed.
+function requireLogisticsProcurement(req, res, next) {
+  (async () => {
+    if (req.user?.role === 'super_admin') return next();
+    if (req.user?.id && await hasGlobalGrant(req.user.id, 'logistics.procurement')) return next();
+    const err = new Error('Procurement access requires the logistics.procurement grant');
+    err.status = 403;
+    err.code = 'logistics_procurement_forbidden';
+    return next(err);
+  })().catch(next);
+}
+
+// Audit fix (finding 21): money-releasing PO transitions ('approved',
+// 'placed_with_supplier') need a fresh TOTP step-up, mirroring refund
+// approvals. Non-releasing transitions (draft, cancelled, ...) keep the
+// session gate only.
+const requirePoMoneyStepUp = (req, res, next) => {
+  const target = String(req.body?.status || '').toLowerCase();
+  if (target === 'approved' || target === 'placed_with_supplier') {
+    return requireFreshAuth('logistics_po_approve')(req, res, next);
+  }
+  return next();
+};
 // Markup/fee rules mutate platform pricing: super-admin only (the permission
 // grant catalogue has no pricing/fee scope, so we fail closed to super-admin).
 const requireSuperAdminRole = requireRole('super_admin');
@@ -58,9 +93,9 @@ router.get('/stats', requireOperationsWorkspace, adminCtrl.getStats);
 
 // ─── Lanes ───────────────────────────────────────────────────
 
-router.post('/lanes',            requireAdminRole, lanesCtrl.createLane);
-router.put('/lanes/:id',         requireAdminRole, lanesCtrl.updateLane);
-router.post('/trade-rules',      requireAdminRole, lanesCtrl.createTradeRule);
+router.post('/lanes',            requireAdminRole, requireLogisticsProcurement, lanesCtrl.createLane);
+router.put('/lanes/:id',         requireAdminRole, requireLogisticsProcurement, lanesCtrl.updateLane);
+router.post('/trade-rules',      requireAdminRole, requireLogisticsProcurement, lanesCtrl.createTradeRule);
 
 // ─── Country Access Rules ─────────────────────────────────────
 
@@ -71,11 +106,11 @@ router.put('/restrictions',          requireComplianceWorkspace, adminCtrl.upser
 
 router.get('/suppliers',             requireAdminRole, adminCtrl.listSuppliers);
 router.get('/suppliers/:id',         requireAdminRole, adminCtrl.getSupplier);
-router.post('/suppliers',            requireAdminRole, adminCtrl.createSupplier);
-router.put('/suppliers/:id',         requireAdminRole, adminCtrl.updateSupplier);
-router.post('/suppliers/:id/approve',requireAdminRole, adminCtrl.approveSupplier);
-router.post('/suppliers/products',   requireAdminRole, adminCtrl.createSupplierProduct);
-router.post('/suppliers/:id/products/:productId/approve', requireAdminRole, adminCtrl.approveProduct);
+router.post('/suppliers',            requireAdminRole, requireLogisticsProcurement, adminCtrl.createSupplier);
+router.put('/suppliers/:id',         requireAdminRole, requireLogisticsProcurement, adminCtrl.updateSupplier);
+router.post('/suppliers/:id/approve',requireAdminRole, requireLogisticsProcurement, adminCtrl.approveSupplier);
+router.post('/suppliers/products',   requireAdminRole, requireLogisticsProcurement, adminCtrl.createSupplierProduct);
+router.post('/suppliers/:id/products/:productId/approve', requireAdminRole, requireLogisticsProcurement, adminCtrl.approveProduct);
 
 // ─── Quotes ───────────────────────────────────────────────────
 
@@ -89,8 +124,8 @@ router.patch('/requests/:id/status',                requireOperationsWorkspace, 
 
 router.get('/purchase-orders',               requireAdminRole, poCtrl.listPurchaseOrders);
 router.get('/purchase-orders/:id',           requireAdminRole, poCtrl.getPurchaseOrder);
-router.post('/purchase-orders',              requireAdminRole, poCtrl.createPurchaseOrder);
-router.patch('/purchase-orders/:id/status',  requireAdminRole, poCtrl.transitionStatus);
+router.post('/purchase-orders',              requireAdminRole, requireLogisticsProcurement, poCtrl.createPurchaseOrder);
+router.patch('/purchase-orders/:id/status',  requireAdminRole, requireLogisticsProcurement, requirePoMoneyStepUp, poCtrl.transitionStatus);
 router.post('/pricing/preview',              requireAdminRole, poCtrl.previewLandedCost);
 
 // ─── Campaigns / Pooled Orders ────────────────────────────────
@@ -136,13 +171,17 @@ router.patch('/claims/:id',                  requireOperationsWorkspace, adminCt
 // The old PATCH /refund-cases/:id (direct status / stripe_refund_id editing)
 // is REMOVED: it let anyone with operations access establish a "processed"
 // refund without approval. The only path now is propose -> approve
+// Audit fix (finding 21): the money-releasing PO transitions above need a
+// fresh TOTP step-up; this issues it (purpose 'logistics_po_approve').
+router.post('/purchase-orders/stepup/verify', requireAdminRole, rejectImpersonated, refundsCtrl.verifyStepUp);
+
 // (different admin, fresh TOTP auth) -> execute.
 router.get('/refund-cases',                  requireOperationsWorkspace, refundsCtrl.listRefundCases);
 router.get('/refunds',                       requireOperationsWorkspace, refundsCtrl.listRefunds);
 router.get('/refunds/:id',                   requireOperationsWorkspace, refundsCtrl.getRefund);
 router.get('/refunds/:id/decisions',         requireOperationsWorkspace, refundsCtrl.listDecisions);
 router.post('/refunds/propose',              requireOperationsWorkspace, refundsCtrl.proposeRefund);
-router.post('/refunds/stepup/verify',        requireOperationsWorkspace, refundsCtrl.verifyStepUp);
+router.post('/refunds/stepup/verify',        requireOperationsWorkspace, rejectImpersonated, refundsCtrl.verifyStepUp);
 router.post('/refunds/:id/approve',          requireOperationsWorkspace, requireFreshAuthStepUp, refundsCtrl.approveRefund);
 router.post('/refunds/:id/reject',            requireOperationsWorkspace, refundsCtrl.rejectRefund);
 router.post('/refunds/:id/execute',           requireOperationsWorkspace, refundsCtrl.executeRefund);
@@ -167,5 +206,8 @@ router.get('/finance/po/:id/breakdown',      requireAdminRole, financeCtrl.getPo
 // ─── Audit ────────────────────────────────────────────────────
 
 router.get('/audit',                         requireOperationsWorkspace, adminCtrl.getAudit);
+
+// Test seam for the procurement gates (auth-audit finding 21).
+router._procurementGates = { requireLogisticsProcurement, requirePoMoneyStepUp };
 
 module.exports = router;

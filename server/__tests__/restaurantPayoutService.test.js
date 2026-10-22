@@ -14,6 +14,7 @@ jest.mock('../services/oxsteedCreditService', () => ({
   ensureAccount: jest.fn(),
   postJournalTransaction: jest.fn(),
   assertSupportedCreditCurrency: jest.fn((c) => String(c).toUpperCase()),
+  assertCreditRailEnabled: jest.fn(),
 }));
 jest.mock('../services/oxsteedCreditSubBankService', () => ({
   ensureRestaurantSubBankAccount: jest.fn(),
@@ -301,6 +302,14 @@ test('worker creates Stripe transfer only for a journaled outbox item', async ()
     expect(transactionPool).toBe(pool);
     return operation(label === 'restaurant_payout_outbox_claim' ? claimClient : persistClient);
   });
+  // The double-pay guard reads through pool directly (outside the claim
+  // transaction). The real pg driver always returns a result object.
+  pool.query.mockImplementation(async (sql) => {
+    if (sql.includes('SELECT funds_settled FROM restaurant_payouts')) {
+      return { rows: [{ funds_settled: false }] };
+    }
+    return { rows: [] };
+  });
 
   const result = await service.processNextTransfer();
 
@@ -318,6 +327,74 @@ test('worker creates Stripe transfer only for a journaled outbox item', async ()
     expect.stringContaining("SET status = 'processing'"),
     expect.arrayContaining(['payout-1', 'tr_test123']),
   );
+});
+
+test('worker withholds the transfer when the double-pay guard query fails (fail closed)', async () => {
+  const payout = {
+    id: 'payout-1',
+    payout_id: 'payout-1',
+    restaurant_id: 42,
+    currency_code: 'USD',
+    amount_cents: 2000,
+    stripe_account_id: 'acct_test123',
+    payout_status: 'approved',
+    ledger_transaction_id: TXN_UUID,
+    attempts: 1,
+    lease_token: 'lease-1',
+  };
+  const claimClient = { query: jest.fn(), release: jest.fn() };
+  claimClient.query
+    .mockResolvedValueOnce({ rows: [payout] })
+    .mockResolvedValueOnce({ rows: [{ ...payout, status: 'processing', lease_token: 'lease-1' }] });
+  const persistClient = { query: jest.fn().mockResolvedValue({ rows: [] }), release: jest.fn() };
+  withTransaction.mockImplementation(async (transactionPool, operation, label) => {
+    expect(transactionPool).toBe(pool);
+    return operation(label === 'restaurant_payout_outbox_claim' ? claimClient : persistClient);
+  });
+  // Transient DB blip on the guard check: the transfer must NOT proceed.
+  // The expired-Stripe-key window is exactly what the guard exists for.
+  pool.query.mockImplementation(async (sql) => {
+    if (sql.includes('SELECT funds_settled FROM restaurant_payouts')) {
+      throw new Error('connection reset');
+    }
+    return { rows: [] };
+  });
+  stripeFactory.__instance.transfers.create.mockClear();
+
+  const result = await service.processNextTransfer();
+
+  expect(stripeFactory.__instance.transfers.create).not.toHaveBeenCalled();
+  expect(result).toMatchObject({ processed: true, payoutId: 'payout-1' });
+  expect(String(result.error)).toMatch(/settlement guard/i);
+  // The outbox row is rescheduled for retry, not completed.
+  const retryUpdate = persistClient.query.mock.calls.find(([sql]) =>
+    sql.includes('restaurant_payout_outbox') && sql.includes('SET status = $3'));
+  expect(retryUpdate).toBeDefined();
+  expect(retryUpdate[1][2]).toBe('pending');
+  pool.query.mockReset();
+});
+
+test('approve fails closed when the credit rail is off', async () => {
+  const payout = {
+    id: 'payout-1',
+    restaurant_id: 42,
+    currency_code: 'USD',
+    amount_cents: 2000,
+    status: 'requested',
+    stripe_account_id: 'acct_test123',
+  };
+  mockClient({ payout, balanceCents: 5000 });
+  const railError = Object.assign(new Error('OxSteed Credit is temporarily suspended'), {
+    statusCode: 503,
+    code: 'credit_rail_suspended',
+  });
+  creditService.assertCreditRailEnabled.mockRejectedValueOnce(railError);
+  await expect(service.approvePayout({
+    payoutId: 'payout-1',
+    adminUserId: 'admin-1',
+  })).rejects.toMatchObject({ code: 'credit_rail_suspended' });
+  expect(creditService.assertCreditRailEnabled).toHaveBeenCalled();
+  expect(creditService.postJournalTransaction).not.toHaveBeenCalled();
 });
 
 test('transfer.created webhook completes the payout and is idempotent', async () => {

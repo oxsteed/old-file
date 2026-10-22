@@ -676,7 +676,8 @@ exports.removeMembership = async (req, res, next) => {
       return sendError(res, 403, 'You can only remove members with a role below your own.', 'target_rank_too_high');
     }
     // S-11: the revoke and the offboarding cleanup (PIN deactivation,
-    // open-drawer flagging) commit together.
+    // open-drawer flagging, work reassignment to a manager, offboarding
+    // record) commit together.
     const offboarding = await withTransaction(pool, async (client) => {
       await client.query(
         `UPDATE business_members SET status = 'revoked' WHERE id = $1`,
@@ -686,6 +687,9 @@ exports.removeMembership = async (req, res, next) => {
         businessId: req.business.id,
         userId: rows[0].member_id,
         reason: 'Member removed from the team',
+        membershipId: mid,
+        removedBy: req.user.id,
+        reassignToUserId: req.user.id,
       });
     });
     permissionsService.invalidateCache(req.business.id, rows[0].member_id);
@@ -698,13 +702,16 @@ exports.removeMembership = async (req, res, next) => {
     });
     res.json({ data: { ok: true, offboarding } });
 
-    // Fire-and-forget: notify the removed member.
+    // Fire-and-forget: notify the removed member (S-19: type + params).
     sendNotification({
       userId: rows[0].member_id,
-      type: 'vortex_membership_removed',
+      type: 'member_removed',
       title: 'Removed from team',
       body: `You were removed from the team of "${req.business.business_name}".`,
-      data: { business_id: req.business.id, membership_id: mid },
+      data: {
+        business_id: req.business.id, membership_id: mid,
+        params: { businessName: req.business.business_name, role: rows[0].role },
+      },
     }).catch(() => {});
   } catch (err) {
     next(err);

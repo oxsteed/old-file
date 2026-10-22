@@ -6,10 +6,22 @@
 
 export const STAFF_NOTIFICATION_TYPES = new Set([
   'crew_task_assigned',
+  'crew_task_completed',
+  'crew_task_reviewed',
   'training_assigned',
+  'training_completed',
+  'training_recertification_due',
   'crew_shift_published',
   'crew_shift_cancelled',
   'restaurant_announcement',
+  // S-19: membership lifecycle notices (server templates render from
+  // type + params too; the role param is localized via roles.* keys).
+  'member_invite',
+  'member_invite_resent',
+  'member_invite_withdrawn',
+  'member_removed',
+  'member_rehired',
+  'career_hired',
 ]);
 
 function parseData(data) {
@@ -27,6 +39,19 @@ export function staffNotificationText(notif, t, formatDateTime) {
   if (!params || Object.keys(params).length === 0) return fallback;
   if (params.startsAt && typeof formatDateTime === 'function') {
     params.startsAt = formatDateTime(params.startsAt);
+  }
+  // S-19: raw role codes become localized display names.
+  if (params.role) {
+    const roleKey = `notifications.staff.roles.${params.role}`;
+    const localized = t(roleKey);
+    params.role = localized === roleKey ? params.role : localized;
+  }
+  if (typeof params.approved === 'boolean') {
+    // crew_task_reviewed renders the approved/rejected variant.
+    const variant = params.approved ? 'approved' : 'rejected';
+    const title = t(`notifications.staff.crew_task_reviewed.${variant}.title`, params);
+    const body = t(`notifications.staff.crew_task_reviewed.${variant}.body`, params);
+    if (title && body) return { title, body };
   }
   return {
     title: t(`notifications.staff.${notif.type}.title`, params),

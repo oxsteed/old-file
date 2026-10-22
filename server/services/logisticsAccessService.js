@@ -10,6 +10,7 @@
  */
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { pgStringArray } = require('../utils/pgArray');
 
 // 60-second cache for active country/trade rules
 let _rulesCache = null;
@@ -71,19 +72,26 @@ async function evaluateAccess({
         result.blockers.push({ kind: 'lane_inactive' });
       }
       result.riskTier = lane.risk_tier || 'low';
-      if (lane.allowed_buyer_countries && lane.allowed_buyer_countries.length > 0 && buyerCountry) {
-        if (!lane.allowed_buyer_countries.includes(buyerCountry) && !lane.allowed_buyer_countries.includes('*')) {
+      // pgStringArray: allowed_buyer_roles is a custom-enum array, which
+      // node-pg returns as a '{}' literal; an empty literal must mean "all
+      // roles", not "no roles". The char(2)[] / text[] columns below parse
+      // to real arrays, but the helper is idempotent for them too.
+      const allowedCountries = pgStringArray(lane.allowed_buyer_countries);
+      if (allowedCountries.length > 0 && buyerCountry) {
+        if (!allowedCountries.includes(buyerCountry) && !allowedCountries.includes('*')) {
           result.allowed = false;
           result.blockers.push({ kind: 'lane_country_not_allowed', country: buyerCountry });
         }
       }
-      if (lane.allowed_buyer_roles && lane.allowed_buyer_roles.length > 0 && userRole) {
-        if (!lane.allowed_buyer_roles.includes(userRole)) {
+      const allowedRoles = pgStringArray(lane.allowed_buyer_roles);
+      if (allowedRoles.length > 0 && userRole) {
+        if (!allowedRoles.includes(userRole)) {
           result.allowed = false;
           result.blockers.push({ kind: 'lane_role_not_allowed', role: userRole });
         }
       }
-      if (lane.restricted_categories && category && lane.restricted_categories.includes(category)) {
+      const restrictedCategories = pgStringArray(lane.restricted_categories);
+      if (restrictedCategories.length > 0 && category && restrictedCategories.includes(category)) {
         result.allowed = false;
         result.blockers.push({ kind: 'lane_restricted_category', category });
       }

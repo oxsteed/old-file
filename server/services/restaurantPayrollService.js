@@ -189,7 +189,30 @@ async function saveTipPoolSettings(restaurantId, { poolingEnabled, tipOutRules, 
   return row;
 }
 
-async function declareCashTip(restaurantId, { staffUserId, businessDate, amountCents, declaredBy, note, locationId = null }) {
+async function declareCashTip(restaurantId, { staffUserId, businessDate, amountCents, declaredBy, note, locationId = null, idempotencyKey = null }) {
+  const key = typeof idempotencyKey === 'string' && idempotencyKey.trim() ? idempotencyKey.trim().slice(0, 128) : null;
+  // Background-jobs audit (finding P1): dedupe on a client-generated key
+  // so a retry cannot double-declare and inflate the payroll basis. A
+  // replay returns the original row instead of inserting a duplicate.
+  if (key) {
+    const { rows: [row] } = await pool.query(
+      `INSERT INTO restaurant_declared_cash_tips
+         (restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, location_id, idempotency_key)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (restaurant_id, idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
+       RETURNING id, restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, location_id, idempotency_key, created_at`,
+      [restaurantId, staffUserId, businessDate, amountCents, declaredBy || null, note || null, locationId, key]
+    );
+    if (row) return row;
+    const { rows: [existing] } = await pool.query(
+      `SELECT id, restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, location_id, idempotency_key, created_at
+         FROM restaurant_declared_cash_tips
+        WHERE restaurant_id = $1 AND idempotency_key = $2
+        LIMIT 1`,
+      [restaurantId, key]
+    );
+    return { ...existing, replayed: true };
+  }
   const { rows: [row] } = await pool.query(
     `INSERT INTO restaurant_declared_cash_tips
        (restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, location_id)
@@ -205,6 +228,10 @@ async function declareCashTip(restaurantId, { staffUserId, businessDate, amountC
 // Active team of the restaurant's business: members plus the owner,
 // with job role + wage of record (migration 951 columns).
 async function getRoster(businessId, locationIds = null, restaurantId = null) {
+  // S-18: when a single store is scoped, its per-store pay rate wins over
+  // the business-level wage. The LEFT JOIN matches the member's active
+  // location assignment for that store; NULL keeps the business rate.
+  const singleLocationId = Array.isArray(locationIds) && locationIds.length === 1 ? Number(locationIds[0]) : null;
   const { rows } = await pool.query(
     `SELECT bm.member_id AS user_id,
             COALESCE(NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''),
@@ -216,11 +243,16 @@ async function getRoster(businessId, locationIds = null, restaurantId = null) {
             -- Non-hourly invite rates (week/month/year) are not hourly
             -- wages and stay unset here, so salaried staff surface in
             -- missing_wage_user_ids instead of being silently misconverted.
-            COALESCE(bm.hourly_wage_cents,
-                     CASE WHEN bm.pay_rate_period = 'hour' THEN bm.pay_rate_cents END) AS hourly_wage_cents
+            -- S-18: a per-store hourly rate overrides the business rate.
+            COALESCE(
+              ${singleLocationId === null ? 'NULL' : 'CASE WHEN lm.pay_rate_period = \'hour\' THEN lm.pay_rate_cents END'},
+              bm.hourly_wage_cents,
+              CASE WHEN bm.pay_rate_period = 'hour' THEN bm.pay_rate_cents END
+            ) AS hourly_wage_cents
        FROM business_members bm
        JOIN users u ON u.id = bm.member_id
-      WHERE bm.business_id = $1 AND bm.status = 'active' AND bm.member_id IS NOT NULL${locationIds === null ? '' : ` AND EXISTS (SELECT 1 FROM restaurant_location_memberships lm WHERE lm.membership_id=bm.id AND lm.restaurant_id=$3 AND lm.status='active' AND lm.location_id=ANY($2::bigint[]))`}
+       ${singleLocationId === null ? '' : 'LEFT JOIN restaurant_location_memberships lm ON lm.membership_id = bm.id AND lm.restaurant_id = $3 AND lm.location_id = $4 AND lm.status = \'active\''}
+      WHERE bm.business_id = $1 AND bm.status = 'active' AND bm.member_id IS NOT NULL${locationIds === null ? '' : ` AND EXISTS (SELECT 1 FROM restaurant_location_memberships lm2 WHERE lm2.membership_id=bm.id AND lm2.restaurant_id=$3 AND lm2.status='active' AND lm2.location_id=ANY($2::bigint[]))`}
      UNION ALL
      SELECT b.user_id AS user_id,
             COALESCE(NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''),
@@ -231,7 +263,11 @@ async function getRoster(businessId, locationIds = null, restaurantId = null) {
        FROM businesses b
        JOIN users u ON u.id = b.user_id
       WHERE b.id = $1${locationIds === null ? '' : ' AND FALSE'}`,
-    locationIds === null ? [businessId] : [businessId, locationIds, restaurantId]
+    locationIds === null
+      ? [businessId]
+      : singleLocationId === null
+        ? [businessId, locationIds, restaurantId]
+        : [businessId, locationIds, restaurantId, singleLocationId]
   );
   return rows;
 }
@@ -429,6 +465,9 @@ async function getScheduledHoursByUser(businessId, restaurantId, fromDate, toDat
       WHERE business_id = $1
         AND shift_date >= $2 AND shift_date <= $3
         AND (restaurant_id IS NULL OR restaurant_id = $4)${storeFilter(locationIds, 'location_id', 5)}
+        -- S-04: planned labor counts published shifts; drafts are not
+        -- commitments yet.
+        AND published_at IS NOT NULL
       GROUP BY user_id`,
     storeParams([businessId, fromDate, toDate, restaurantId], locationIds)
   );
@@ -908,6 +947,8 @@ async function computeExceptions({ restaurant, fromDate, toDate, locationIds = n
         WHERE sh.business_id = $1
           AND sh.shift_date >= $2 AND sh.shift_date <= $3
           AND (sh.restaurant_id IS NULL OR sh.restaurant_id = $4)${storeFilter(locationIds, 'sh.location_id', 5)}
+          -- S-04: only published shifts can be "missed punches".
+          AND sh.published_at IS NOT NULL
           AND NOT EXISTS (
             SELECT 1 FROM business_time_entries te
              WHERE te.business_id = sh.business_id

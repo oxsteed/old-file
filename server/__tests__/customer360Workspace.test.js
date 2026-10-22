@@ -249,7 +249,7 @@ test("watch evaluation rechecks permissions and keeps stable per-record notifica
   expect(candidate[1][1]).toEqual(["published"]);
 });
 test("assistant sends only permitted aggregate counts and statuses, never customer PII or money", async () => {
-  const provider = require("../services/aiChatProvider");
+  const provider = require("../services/metaChatProvider");
   const configured = jest
     .spyOn(provider, "isMetaConfigured")
     .mockReturnValue(true);
@@ -287,13 +287,18 @@ test("assistant sends only permitted aggregate counts and statuses, never custom
     const r = req();
     r.body = { language: "ar" };
     const next = jest.fn();
-    await ctrl.assistant(r, response(), next);
+    const res = response();
+    await ctrl.assistant(r, res, next);
     expect(next).not.toHaveBeenCalled();
     const payload = JSON.stringify(chat.mock.calls[0]);
     expect(payload).toContain("pending");
     expect(payload).not.toMatch(
       /Sensitive person|private@example|balance_cents|9007199254740993/,
     );
+    // Provider configuration must not leak to the client.
+    const body = res.json.mock.calls[0][0];
+    expect(body).not.toHaveProperty("providerAvailable");
+    expect(JSON.stringify(body)).not.toMatch(/isMetaConfigured|META_AI/);
   } finally {
     snapshot.mockRestore();
     configured.mockRestore();

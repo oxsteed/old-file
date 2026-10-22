@@ -14,6 +14,7 @@ const bookingLifecycle = require('../services/bookingRequestLifecycle');
 const { emitDomainEvent, serviceEventProps } = require('../growth/emit');
 const { buildProfileAiFailurePayload } = require('../services/profileChatRouting');
 const { withTransaction } = require('../utils/transaction');
+const spendGuard = require('../services/openRouterSpendGuard');
 const { canEditProfile } = require('../utils/businessOwnership');
 const { getUserFinancialContext, formatFinancialContextForAI } = require('../services/userFinancialContextService');
 const { getSupportAccountSnapshot, formatSnapshotForAI, invalidateSupportSnapshot } = require('../services/supportAccountSnapshot');
@@ -177,6 +178,19 @@ async function callWithFallback(messages, ollamaOptions, logTag, options = {}) {
       name: `OpenRouter (${openRouterModel})`,
       provider: 'openrouter',
       model: openRouterModel,
+      // Spend guardrail: a paid OpenRouter model behind the public chat is
+      // an open spend vector. When the daily cap is reached the step is
+      // skipped and the chat degrades to the local path — fail-closed on
+      // spend, never a crash.
+      skip: async () => {
+        const allowed = await spendGuard.isOpenRouterAllowed(openRouterModel);
+        if (!allowed) {
+          logger.warn(`${logTag} OpenRouter skipped: daily spend cap reached`, {
+            model: openRouterModel,
+          });
+        }
+        return !allowed;
+      },
       run: () => fetchOpenRouterChat(openRouterModel, messages, options.maxTokens || 400),
     },
     {
@@ -189,11 +203,16 @@ async function callWithFallback(messages, ollamaOptions, logTag, options = {}) {
   ];
 
   for (const step of attempts) {
-    if (step.skip?.()) continue;
+    if (await step.skip?.()) continue;
     try {
       const result = await step.run();
       if (result.ok) {
         logger.info(`${logTag} AI provider succeeded`, { provider: step.name });
+        if (step.provider === 'openrouter') {
+          // Best-effort accrual; the guard never throws, so the chat cannot
+          // fail here.
+          await spendGuard.recordOpenRouterCall(openRouterModel);
+        }
         return { ok: true, reply: result.reply, provider: step.provider, model: step.model };
       }
       logger.warn(`${logTag} AI provider failed`, { provider: step.name, error: result.error });
