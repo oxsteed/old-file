@@ -118,6 +118,7 @@ function mockOrderSuccess() {
   mockQuery
     .mockResolvedValueOnce({ rows: [{ id: RESTAURANT_ID }] })
     .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] }) // F-19 tax rules
     .mockResolvedValueOnce({ rows: [{ last_queue_number: 7 }] })
     .mockResolvedValueOnce({ rows: [createdOrderRow()] })
     .mockResolvedValueOnce({ rows: [{ id: 501 }] });
