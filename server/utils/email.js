@@ -1350,7 +1350,25 @@ async function sendEmailBatch(messages,{idempotencyKey}={}) {
   if(!Array.isArray(result.data)||result.data.length!==messages.length||result.data.some(m=>!m.id))throw new Error('email_batch_response_invalid');
   return result.data;
 }
+// Delivery reconciliation returns only provider identity and event, never message
+// bodies (gift-card emails contain bearer value codes).
+async function getEmailDeliveryStatus(id) {
+  if (!emailConfigured || !/^[a-f0-9-]{36}$/i.test(String(id || ''))) return { success: false };
+  try {
+    const response = await fetch(`https://api.resend.com/emails/${encodeURIComponent(id)}`, {
+      headers: { Authorization: `Bearer ${RESEND_API_KEY}` }, signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok) return { success: false };
+    const data = await response.json();
+    const events = new Set(['sent','delivered','delivery_delayed','bounced','complained','opened','clicked','failed','suppressed','canceled','scheduled']);
+    if (data.id !== id) return { success: false };
+    return { success: true, event: events.has(data.last_event) ? data.last_event : null };
+  } catch { return { success: false }; }
+}
+
 module.exports = {
+  getEmailDeliveryStatus,
+  emailDeliveryAvailable: () => emailConfigured,
   sendEmailBatch,
   sendEmail,
   sendEmailOrThrow,

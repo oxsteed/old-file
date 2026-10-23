@@ -512,3 +512,7 @@ Resolved the numbered [100-item audit](NEXT-100-AUDIT-2026-10-22.md): **99 imple
 Migration 99981 adds operational evidence retention and retry/version identities. Checklist/SOP history, document and support store boundaries, version-bound training/signatures, host-stand table/POS seating, currency-correct payroll and canonical HQ sales are covered. Required/default-off/provider/Credit safeguards are unchanged.
 
 Verification at this checkpoint: 1,001 migrations applied/replayed in a disposable Colima database, 46 focused PostgreSQL cases, eight restaurant browser checks and two date tests, 975 broader restaurant tests (143 skipped) and client build:ci with 1,021 assets. Remote CI and deployment are separate states. Next action: review the PR's final checks and complete commit-specific production/provider acceptance before launch.
+
+## Gift-card fulfillment follow-up - 2026-10-23
+
+Item 8 now has durable transactional email delivery, printable/preprinted physical cards with audited handoff, and append-only external-statement reconciliation. See [GIFT-CARD-FULFILLMENT-2026-10-23.md](GIFT-CARD-FULFILLMENT-2026-10-23.md) for workflow contracts, safeguards and verification. Provider delivery is default-off until controlled acceptance; physical stock and live external evidence are separate acceptance checks. Earlier statements that gift-card delivery is entirely unavailable are superseded by this checkpoint. This does not close the broader franchise review.

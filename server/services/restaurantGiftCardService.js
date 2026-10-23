@@ -53,9 +53,10 @@ function cardShape(row, { includeCode = null } = {}) {
 
 async function issueGiftCard(client, {
   restaurantId, productId, actorUserId, idempotencyKey, customerId = null,
-  metadata = {}, expiresAt = null, code = null,
+  metadata = {}, expiresAt = null, code = null, requestHash = null,
 }) {
   const key = normalizeIdempotencyKey(idempotencyKey);
+  await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`gift-card:${restaurantId}:${key}`]);
   const { rows: [replayed] } = await client.query(
     `SELECT c.*, l.id AS ledger_id
        FROM restaurant_gift_card_ledger l
@@ -64,7 +65,12 @@ async function issueGiftCard(client, {
       LIMIT 1`,
     [restaurantId, key]
   );
-  if (replayed) return { card: cardShape(replayed), replayed: true, code: null };
+  if (replayed) {
+    if (Number(replayed.product_id) !== Number(productId) || (requestHash && replayed.metadata?._issueRequestHash !== requestHash)) {
+      throw new AppError('Idempotency key belongs to a different issue request', 409, 'gift_card_issue_conflict');
+    }
+    return { card: cardShape(replayed), replayed: true, code: null };
+  }
 
   const { rows: [product] } = await client.query(
     `SELECT id, restaurant_id, amount_cents, currency_code, delivery_type, is_active
@@ -74,6 +80,11 @@ async function issueGiftCard(client, {
     [productId, restaurantId]
   );
   if (!product || !product.is_active) throw new AppError('Gift-card product is unavailable', 409, 'gift_card_product_unavailable');
+  if (expiresAt != null && (typeof expiresAt !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(expiresAt) || !Number.isFinite(Date.parse(expiresAt)) || new Date(expiresAt.slice(0,10)+'T00:00:00.000Z').toISOString().slice(0,10)!==expiresAt.slice(0,10) || Date.parse(expiresAt) <= Date.now())) {
+    throw new AppError('Expiry must be a future timestamp', 400, 'gift_card_expiry_invalid');
+  }
+  if (code && product.delivery_type !== 'physical') throw new AppError('Preprinted codes require a physical product', 400, 'gift_card_code_invalid');
+  metadata = { ...metadata, ...(requestHash ? { _issueRequestHash: requestHash } : {}) };
   const rawCode = code ? normalizeCode(code) : generateCode();
   const codeHash = hashCode(rawCode);
   const amount = Number(product.amount_cents);
