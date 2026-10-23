@@ -1,4 +1,11 @@
 {
+  "pwaShell": {
+    "updateReady": "Hay una actualización lista. Termina tu pedido o pago antes de actualizar.",
+    "refresh": "Actualizar ahora",
+    "updating": "Actualizando…",
+    "sharedReady": "Las fotos compartidas están adjuntas. Revisa los detalles antes de publicar.",
+    "shareError": "No se pudieron abrir las fotos. Elige hasta cinco imágenes compatibles e inténtalo de nuevo."
+  },
   "governedKpis": {
     "regionalUserCountry": "Solo tus regiones · país confirmado: {{confirmed}} · sin confirmar: {{unconfirmed}}",
     "userCountryHelp": "Los usuarios con país sin confirmar se cuentan en el país registrado, que por defecto es EE. UU.",

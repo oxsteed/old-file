@@ -1,3 +1,4 @@
+import { takeSharedJobDraft } from '../utils/sharedJobDraft';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
 import useJobs from '../hooks/useJobs';
@@ -786,6 +787,25 @@ export default function PostJobPage() {
   const bookingPrefillApplied = useRef(false);
   const [form, setForm]     = useState(INIT);
   const [errors, setErrors] = useState({});
+  const shareId = searchParams.get('share');
+  const [shareStatus, setShareStatus] = useState(searchParams.has('share_error') ? 'error' : null);
+  const sharedApplied = useRef(false);
+  useEffect(() => {
+    if (!shareId || sharedApplied.current) return;
+    let active = true;
+    takeSharedJobDraft(shareId).then(draft => {
+      if (!active || sharedApplied.current) return;
+      sharedApplied.current = true;
+      const files = draft.files.slice(0, 5);
+      const previews = files.map(file => URL.createObjectURL(file));
+      setForm(f => ({ ...f, title: draft.title || f.title, description: draft.text || f.description,
+        mediaTab: 'photos', mediaFiles: files, mediaPreviews: previews, step: 1 }));
+      setShareStatus('ready');
+      const next = new URLSearchParams(searchParams); next.delete('share');
+      navigate({ pathname: '/post-job', search: next.toString() }, { replace: true });
+    }).catch(() => { if (active) setShareStatus('error'); });
+    return () => { active = false; };
+  }, [shareId]);
     const [helperHints, setHelperHints] = useState([]);
 
   const photoInputRef       = useRef(null);
@@ -884,7 +904,7 @@ export default function PostJobPage() {
   // is never lost. The mirror is re-synced on every autosave.
   const DRAFT_MIRROR_KEY = 'oxsteed:job-draft-mirror';
   useEffect(() => {
-    if (fromBookingId || flowMode || location.state?.bookingPrefill) return;
+    if (shareId || sharedApplied.current || fromBookingId || flowMode || location.state?.bookingPrefill) return;
     api.get('/jobs/draft').then(({ data }) => {
       if (!data) return;
       const p = data.payload || {};
@@ -1184,6 +1204,7 @@ export default function PostJobPage() {
           noIndex={true}
         />
         <main className="pjw-main-wrap">
+          {shareStatus && <p role={shareStatus === 'error' ? 'alert' : 'status'} className="rounded-xl border border-orange-500/30 p-4">{t(shareStatus === 'error' ? 'pwaShell.shareError' : 'pwaShell.sharedReady')}</p>}
 
           {/* ── Page header ────────────────────────────────────────────────── */}
           <header className="pjw-hero">

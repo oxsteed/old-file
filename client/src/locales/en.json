@@ -1,4 +1,11 @@
 {
+  "pwaShell": {
+    "updateReady": "An update is ready. Finish your current order or checkout before refreshing.",
+    "refresh": "Refresh to update",
+    "updating": "Refreshing…",
+    "sharedReady": "Shared photos are attached. Review the details before posting.",
+    "shareError": "The shared photos could not be opened. Choose up to five supported images and try again."
+  },
   "governedKpis": {
     "regionalUserCountry": "Your regions only · country confirmed: {{confirmed}} · unconfirmed: {{unconfirmed}}",
     "userCountryHelp": "Users with an unconfirmed country are counted under the country on file, which defaults to US.",

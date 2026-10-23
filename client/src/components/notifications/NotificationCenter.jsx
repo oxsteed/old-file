@@ -42,14 +42,20 @@ export default function NotificationCenter() {
     setAppBadge(unreadCount);
   }, [unreadCount]);
 
+  useEffect(() => {
+    window.addEventListener('focus', clearAppBadge);
+    return () => { window.removeEventListener('focus', clearAppBadge); clearAppBadge(); };
+  }, []);
+
   // Real-time new notifications
   useEffect(() => {
     if (!socket) return;
-    socket.on('notification:new', (notif) => {
+    const onNotification = (notif) => {
       setNotifs(prev => [notif, ...prev]);
       setUnread(c => c + 1);
-    });
-    return () => socket.off('notification:new');
+    };
+    socket.on('notification:new', onNotification);
+    return () => socket.off('notification:new', onNotification);
   }, [socket]);
 
   // Fetch unread count on mount

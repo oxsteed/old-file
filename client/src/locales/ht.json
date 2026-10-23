@@ -1,4 +1,11 @@
 {
+  "pwaShell": {
+    "updateReady": "Gen yon mizajou ki pare. Fini kòmann oswa peman ou anvan ou rafrechi.",
+    "refresh": "Rafrechi pou mete ajou",
+    "updating": "Ap rafrechi…",
+    "sharedReady": "Foto ou pataje yo atache. Verifye detay yo anvan ou pibliye.",
+    "shareError": "Nou pa ka ouvri foto yo. Chwazi jiska senk imaj ki sipòte epi eseye ankò."
+  },
   "governedKpis": {
     "regionalUserCountry": "Rejyon ou yo sèlman · peyi konfime: {{confirmed}} · pa konfime: {{unconfirmed}}",
     "userCountryHelp": "Itilizatè ki gen yon peyi ki pa konfime konte nan peyi ki anrejistre a, ki se Etazini pa defo.",

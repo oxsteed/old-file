@@ -1,1 +1,161 @@
-{"background_color":"#16213e","categories":["business","food","finance"],"description":"Find verified local helpers, order food from nearby restaurants, and pay from your OxSteed wallet. Post jobs, hire help, and track orders in one app.","display":"standalone","icons":[{"purpose":"any","sizes":"any","src":"/icons/icon.svg","type":"image/svg+xml"},{"purpose":"any","sizes":"192x192","src":"/icons/icon-192.png","type":"image/png"},{"purpose":"any","sizes":"512x512","src":"/icons/icon-512.png","type":"image/png"},{"purpose":"maskable","sizes":"192x192","src":"/icons/icon-192.png","type":"image/png"},{"purpose":"maskable","sizes":"512x512","src":"/icons/icon-512.png","type":"image/png"},{"purpose":"monochrome","sizes":"512x512","src":"/icons/icon-mono-512.png","type":"image/png"}],"id":"/","launch_handler":{"client_mode":"focus-existing"},"name":"OxSteed","orientation":"portrait-primary","screenshots":[],"short_name":"OxSteed","shortcuts":[{"description":"Order from nearby restaurants","icons":[{"sizes":"192x192","src":"/icons/shortcut-food.png"}],"name":"Order Food","short_name":"Order Food","url":"/food?source=app_shortcut"},{"description":"Add funds to OxSteed Credit","icons":[{"sizes":"192x192","src":"/icons/shortcut-topup.png"}],"name":"Top Up Wallet","short_name":"Top Up","url":"/oxsteed-credit?source=app_shortcut"},{"description":"Follow your orders live","icons":[{"sizes":"192x192","src":"/icons/shortcut-track.png"}],"name":"Track Order","short_name":"Track Order","url":"/orders?source=app_shortcut"},{"description":"Post a new job for local helpers","icons":[{"sizes":"192x192","src":"/icons/shortcut-postjob.png"}],"name":"Post a Job","short_name":"Post Job","url":"/post-job?source=app_shortcut"}],"start_url":"/?utm_source=pwa_install&utm_medium=homescreen","theme_color":"#F97316"}
+{
+  "background_color": "#16213e",
+  "categories": [
+    "business",
+    "food",
+    "finance"
+  ],
+  "description": "Find verified local helpers, order food from nearby restaurants, and pay from your OxSteed wallet. Post jobs, hire help, and track orders in one app.",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any",
+      "sizes": "any",
+      "src": "/icons/icon.svg",
+      "type": "image/svg+xml"
+    },
+    {
+      "purpose": "any",
+      "sizes": "192x192",
+      "src": "/icons/icon-192.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any",
+      "sizes": "512x512",
+      "src": "/icons/icon-512.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "192x192",
+      "src": "/icons/icon-maskable-192.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "512x512",
+      "src": "/icons/icon-maskable-512.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "monochrome",
+      "sizes": "512x512",
+      "src": "/icons/icon-mono-512.png",
+      "type": "image/png"
+    }
+  ],
+  "id": "/",
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "name": "OxSteed",
+  "orientation": "any",
+  "screenshots": [
+    {
+      "src": "/screenshots/home.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Find local help with OxSteed"
+    },
+    {
+      "src": "/screenshots/post-job.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Post a job for local helpers"
+    },
+    {
+      "src": "/screenshots/food-order.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Order from local restaurants"
+    },
+    {
+      "src": "/screenshots/wallet.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Your OxSteed wallet"
+    }
+  ],
+  "short_name": "OxSteed",
+  "shortcuts": [
+    {
+      "description": "Order from nearby restaurants",
+      "icons": [
+        {
+          "sizes": "192x192",
+          "src": "/icons/shortcut-food.png"
+        }
+      ],
+      "name": "Order Food",
+      "short_name": "Order Food",
+      "url": "/food?source=app_shortcut"
+    },
+    {
+      "description": "Add funds to OxSteed Credit",
+      "icons": [
+        {
+          "sizes": "192x192",
+          "src": "/icons/shortcut-topup.png"
+        }
+      ],
+      "name": "Top Up Wallet",
+      "short_name": "Top Up",
+      "url": "/oxsteed-credit?source=app_shortcut"
+    },
+    {
+      "description": "Follow your orders live",
+      "icons": [
+        {
+          "sizes": "192x192",
+          "src": "/icons/shortcut-track.png"
+        }
+      ],
+      "name": "Track Order",
+      "short_name": "Track Order",
+      "url": "/orders?source=app_shortcut"
+    },
+    {
+      "description": "Post a new job for local helpers",
+      "icons": [
+        {
+          "sizes": "192x192",
+          "src": "/icons/shortcut-postjob.png"
+        }
+      ],
+      "name": "Post a Job",
+      "short_name": "Post Job",
+      "url": "/post-job?source=app_shortcut"
+    }
+  ],
+  "start_url": "/?utm_source=pwa_install&utm_medium=homescreen",
+  "theme_color": "#F97316",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "share_target": {
+    "action": "/post-job/share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "files": [
+        {
+          "name": "images",
+          "accept": [
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "image/gif"
+          ]
+        }
+      ]
+    }
+  }
+}

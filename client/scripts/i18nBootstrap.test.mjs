@@ -22,10 +22,11 @@ test('bootstrap failures never render an uninitialized admin shell', () => {
   assert.match(source, /window\.location\.reload\(\)/);
 });
 
-test('service worker uses a network-first static asset strategy', () => {
+test('service worker uses cache-first for fingerprinted assets', () => {
   const source = read('public/sw.js');
   assert.match(source, /network-first/);
-  assert.match(source, /event\.respondWith\(networkFirst\(request, STATIC_CACHE\)\)/);
+  assert.match(source, /\? cacheFirst\(request\)/);
+  assert.doesNotMatch(source, /new Request\([^;]+no-cors/);
 });
 
 test('admin English fallback reassembles split shards instead of a monolithic catalog', () => {

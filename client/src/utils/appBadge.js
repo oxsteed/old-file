@@ -15,23 +15,20 @@ export function supportsAppBadge() {
   );
 }
 
+function ignoreFailure(operation) {
+  try { Promise.resolve(operation()).catch(() => {}); } catch { /* optional API */ }
+}
+
 export function setAppBadge(count) {
   if (!supportsAppBadge()) return;
-  try {
-    const n = Math.max(0, Math.floor(Number(count) || 0));
-    if (n > 0) navigator.setAppBadge(n);
-    else if (typeof navigator.clearAppBadge === 'function') navigator.clearAppBadge();
-  } catch {
-    /* badges are a progressive enhancement */
-  }
+  const value = Number(count);
+  const n = Number.isFinite(value) ? Math.min(4294967295, Math.max(0, Math.floor(value))) : 0;
+  ignoreFailure(() => n > 0 ? navigator.setAppBadge(n) :
+    (typeof navigator.clearAppBadge === 'function' ? navigator.clearAppBadge() : navigator.setAppBadge(0)));
 }
 
 export function clearAppBadge() {
   if (!supportsAppBadge()) return;
-  try {
-    if (typeof navigator.clearAppBadge === 'function') navigator.clearAppBadge();
-    else navigator.setAppBadge(0);
-  } catch {
-    /* ignore */
-  }
+  ignoreFailure(() => typeof navigator.clearAppBadge === 'function'
+    ? navigator.clearAppBadge() : navigator.setAppBadge(0));
 }

@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 import {
   detectDisplayStandalone,
+  isIpadSafari,
   displayManifestHref,
   parseDisplayRoutePath,
   readInstallPromptDismissed,
@@ -46,7 +47,8 @@ export default function DisplayInstallPrompt() {
       matchMedia: window.matchMedia?.bind(window),
       standalone: window.navigator?.standalone,
     });
-    if (shouldShowInstallPrompt({ dismissed: readInstallPromptDismissed(), standalone })) {
+    setVisible(false);
+    if (parsedPath && isIpadSafari(window.navigator) && shouldShowInstallPrompt({ dismissed: readInstallPromptDismissed(), standalone })) {
       persistDestination();
       setVisible(true);
     }

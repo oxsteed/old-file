@@ -1,4 +1,5 @@
 import '../instrument.jsx';
+import ServiceWorkerUpdateNotice from '../components/ServiceWorkerUpdateNotice';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import * as Sentry from '@sentry/react';
@@ -39,6 +40,7 @@ function renderAdmin() {
       <Sentry.ErrorBoundary fallback={sentryAdminFallback}>
         <AdminProviders>
           <AdminApp />
+          <ServiceWorkerUpdateNotice />
         </AdminProviders>
       </Sentry.ErrorBoundary>
     </React.StrictMode>
