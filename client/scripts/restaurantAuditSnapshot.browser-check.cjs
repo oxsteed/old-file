@@ -12,7 +12,8 @@ const {
 test('audit runner renders and scores persisted items after the template changes', async () => {
   const apiNames = ['listAuditTemplates', 'createAuditTemplate', 'updateAuditTemplate', 'deleteAuditTemplate', 'startAuditRun', 'listAuditRuns', 'completeAuditRun', 'listRestaurantStaff', 'createCorrectiveAction', 'listCorrectiveActions', 'updateCorrectiveAction'];
   const mocks = {
-    '../../api/restaurants': `export const getAuditRun = async () => ({ audit: window.fixture }); const noop = async () => ({}); export const ${apiNames.map(n => `${n}=noop`).join(',')};`,
+    '../../api/axios': 'export default {};',
+    '../../api/restaurants': `export const getAuditRun = async () => window.fixture; const noop = async () => ({}); export const ${apiNames.map(n => `${n}=noop`).join(',')};`,
     '../../api/restaurantsOffline': `export const scoreAuditItemOffline = async (r,a,p) => { window.saved.push(p); return {score:p.score}; }; export const addAuditFindingOffline=async()=>({});`,
     'react-hot-toast': 'export default {success(){},error(){}};',
     'lucide-react': 'export const ClipboardList=()=>null, CheckCircle2=()=>null;',

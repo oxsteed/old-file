@@ -37,12 +37,23 @@ function normalizeCashTipIdempotencyKey(value) {
   return key;
 }
 
-async function restaurantAccess(req) {
+async function restaurantAccess(req, { report = false } = {}) {
   const restaurantId = parsePositiveInt(req.params.restaurantId);
   if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
   const restaurant = await resolveRestaurantAccess(req.user.id, restaurantId);
 
+  if(report && req.query?.locationId!==undefined){
+    const locationId=strictInteger(req.query.locationId);if(!locationId)throw new AppError('Invalid store',400,'invalid_location_id');
+    await assertLocationAccess(restaurant,req.user.id,locationId);
+    const {rows:[store]}=await pool.query(`SELECT timezone FROM restaurant_locations WHERE restaurant_id=$1 AND id=$2 AND status <> 'archived'`,[restaurant.id,locationId]);
+    if(!store)throw new AppError('Store not found',404,'location_not_found');
+    restaurant.timezone=store.timezone||restaurant.timezone;
+  }
   return restaurant;
+}
+async function reportScope(req,restaurant){
+  const scope=await getLocationScope(restaurant,req.user.id);
+  return req.query?.locationId===undefined?scope:{mode:'assigned',location_ids:[strictInteger(req.query.locationId)]};
 }
 
 // Fail closed: any resolver error or a missing permission denies.
@@ -91,10 +102,10 @@ function parseRangeOr400(query, restaurant) {
 
 exports.laborSummary = async (req, res, next) => {
   try {
-    const restaurant = await restaurantAccess(req);
+    const restaurant = await restaurantAccess(req,{report:true});
     await requirePayrollView(restaurant, req.user.id);
     const { fromDate, toDate } = parseRangeOr400(req.query, restaurant);
-    const scope = await getLocationScope(restaurant, req.user.id);
+    const scope = await reportScope(req,restaurant);
     const labor = await payroll.computeLabor({ restaurant, fromDate, toDate, locationIds: scope.location_ids });
     res.json(labor);
   } catch (err) { next(err); }
@@ -142,10 +153,10 @@ exports.updateLaborPolicy = async (req, res, next) => {
 
 exports.payrollExportCsv = async (req, res, next) => {
   try {
-    const restaurant = await restaurantAccess(req);
+    const restaurant = await restaurantAccess(req,{report:true});
     await requirePayrollView(restaurant, req.user.id);
     const { fromDate, toDate } = parseRangeOr400(req.query, restaurant);
-    const scope = await getLocationScope(restaurant, req.user.id);
+    const scope = await reportScope(req,restaurant);
     const labor = await payroll.computeLabor({ restaurant, fromDate, toDate, locationIds: scope.location_ids });
     const csv = payroll.buildPayrollCsv(labor);
     await logBusinessAction(req, {
@@ -167,10 +178,10 @@ exports.payrollExportCsv = async (req, res, next) => {
 
 exports.exceptionsReport = async (req, res, next) => {
   try {
-    const restaurant = await restaurantAccess(req);
+    const restaurant = await restaurantAccess(req,{report:true});
     await requireCatalogPermission(restaurant, req.user.id, 'audit.view', 'payroll_permission_required', 'Required permission: audit.view');
     const { fromDate, toDate } = parseRangeOr400(req.query, restaurant);
-    const scope = await getLocationScope(restaurant, req.user.id);
+    const scope = await reportScope(req,restaurant);
     const report = await payroll.computeExceptions({ restaurant, fromDate, toDate, locationIds: scope.location_ids });
     res.json(report);
   } catch (err) { next(err); }
@@ -182,14 +193,14 @@ const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 exports.teamActivity = async (req, res, next) => {
   try {
-    const restaurant = await restaurantAccess(req);
+    const restaurant = await restaurantAccess(req,{report:true});
     await requireAuditView(restaurant, req.user.id);
     const fromRaw = req.query.from ? String(req.query.from) : null;
     const toRaw = req.query.to ? String(req.query.to) : null;
     for (const value of [fromRaw, toRaw]) {
       if (value && (DATE_ONLY_RE.test(value) ? !payroll.isRealDateString(value) : !Number.isFinite(Date.parse(value)))) throw new AppError('Invalid activity date', 400, 'invalid_range');
     }
-    const scope = await getLocationScope(restaurant, req.user.id);
+    const scope = await reportScope(req,restaurant);
     const auditScope = { restaurantId: restaurant.id, locationIds: scope.location_ids, timezone: payroll.resolveReportTimezone(restaurant) };
     const from = fromRaw;
     const to = toRaw;

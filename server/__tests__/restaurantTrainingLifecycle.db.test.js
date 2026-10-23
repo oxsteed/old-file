@@ -133,6 +133,7 @@ describeDb('S-12/S-14 staff training lifecycle + document vault (real database)'
     });
     expect(assign.statusCode).toBe(201);
     const assignmentId = assign.body.assignment.id;
+    await invoke(training.startAssignment,{userId:employeeId,params:{restaurantId,assignmentId}});
     // S-12: the assignee is notified.
     expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
       userId: employeeId, type: 'training_assigned',
@@ -143,7 +144,7 @@ describeDb('S-12/S-14 staff training lifecycle + document vault (real database)'
       const submit = await invoke(training.submitQuiz, {
         userId: employeeId,
         params: { restaurantId, assignmentId },
-        body: { answers: wrong },
+        body: { answers: wrong,moduleVersion:1 },
       });
       expect(submit.statusCode).toBe(200);
       expect(submit.body.passed).toBe(false);
@@ -161,7 +162,7 @@ describeDb('S-12/S-14 staff training lifecycle + document vault (real database)'
     const blocked = await invoke(training.submitQuiz, {
       userId: employeeId,
       params: { restaurantId, assignmentId },
-      body: { answers: [1, 0] },
+      body: { answers: [1, 0],moduleVersion:1 },
     });
     expect(blocked.statusCode).toBe(409);
     expect(blocked.body.code).toBe('attempts_exhausted');
@@ -172,10 +173,11 @@ describeDb('S-12/S-14 staff training lifecycle + document vault (real database)'
       params: { restaurantId, moduleId: module.id },
       body: { userId: employeeId },
     });
+    await invoke(training.startAssignment,{userId:employeeId,params:{restaurantId,assignmentId}});
     const pass = await invoke(training.submitQuiz, {
       userId: employeeId,
       params: { restaurantId, assignmentId },
-      body: { answers: [1, 0] },
+      body: { answers: [1, 0],moduleVersion:1 },
     });
     expect(pass.statusCode).toBe(200);
     expect(pass.body.passed).toBe(true);
@@ -192,7 +194,7 @@ describeDb('S-12/S-14 staff training lifecycle + document vault (real database)'
     const again = await invoke(training.submitQuiz, {
       userId: employeeId,
       params: { restaurantId, assignmentId },
-      body: { answers: [1, 0] },
+      body: { answers: [1, 0],moduleVersion:1 },
     });
     expect(again.statusCode).toBe(409);
     expect(again.body.code).toBe('already_completed');
@@ -235,15 +237,17 @@ describeDb('S-12/S-14 staff training lifecycle + document vault (real database)'
       body: { userId: employeeId, dueAt: new Date(Date.now() - 86400000).toISOString() },
     });
     const assignmentId = assign.body.assignment.id;
+    await invoke(training.startAssignment,{userId:employeeId,params:{restaurantId,assignmentId}});
 
     const overdue = await lifecycle.markOverdueAssignments(db);
     expect(overdue.some((r) => Number(r.id) === Number(assignmentId))).toBe(true);
 
     // Complete it, then backdate the pass expiry: the job re-opens it.
+    await invoke(training.startAssignment,{userId:employeeId,params:{restaurantId,assignmentId}});
     const pass = await invoke(training.submitQuiz, {
       userId: employeeId,
       params: { restaurantId, assignmentId },
-      body: { answers: [1, 0] },
+      body: { answers: [1, 0],moduleVersion:1 },
     });
     expect(pass.body.passed).toBe(true);
     await db.query(
@@ -364,7 +368,7 @@ describeDb('S-12/S-14 staff training lifecycle + document vault (real database)'
     );
     const ack = await invoke(documents.acknowledgeSop, {
       userId: employeeId,
-      params: { restaurantId, sopId: sop.id },
+      params: { restaurantId, sopId: sop.id },body:{sopVersion:1},
     });
     expect(ack.statusCode).toBe(201);
     expect(ack.body.acknowledgement.sop_version).toBe(1);
@@ -373,7 +377,7 @@ describeDb('S-12/S-14 staff training lifecycle + document vault (real database)'
     await db.query(`UPDATE restaurant_sops SET version = 2 WHERE id = $1`, [sop.id]);
     const ack2 = await invoke(documents.acknowledgeSop, {
       userId: employeeId,
-      params: { restaurantId, sopId: sop.id },
+      params: { restaurantId, sopId: sop.id },body:{sopVersion:2},
     });
     expect(ack2.statusCode).toBe(201);
     expect(ack2.body.acknowledgement.sop_version).toBe(2);

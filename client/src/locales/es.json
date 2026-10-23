@@ -24410,6 +24410,150 @@
       "opTrainingDesc": "Lecciones y cuestionarios asignados a tu equipo, con seguimiento de avance.",
       "opAuditsDesc": "Califica inspecciones, registra hallazgos y da seguimiento a las acciones correctivas hasta su cierre.",
       "opReportsDesc": "Ventas, inventario y rendimiento operativo de un vistazo.",
+      "shared": {
+        "store": "Local",
+        "loadError": "No se pudieron cargar los datos",
+        "saveError": "No se pudieron guardar los cambios",
+        "previous": "Anterior",
+        "next": "Siguiente",
+        "myTraining": "Mi formación",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "edit": "Editar",
+        "notes": "Notas",
+        "selectTable": "Elige una mesa",
+        "occupied": "Ocupada",
+        "ticket": "Cuenta del TPV",
+        "release": "Liberar mesa",
+        "statusLabel": "Estado",
+        "from": "Desde",
+        "to": "Hasta",
+        "all": "Todos",
+        "retry": "Reintentar",
+        "moveHint": "Mueve las mesas con las flechas, arrastrándolas o editando sus coordenadas.",
+        "netSales": "Ventas netas cobradas",
+        "orders": "Pedidos pagados",
+        "preview": "Revisar cambios",
+        "publishWarning": "Revisa cada local antes de publicar. Los ajustes heredados sustituyen las excepciones anteriores.",
+        "noChanges": "Sin cambios",
+        "inherit": "Heredar ajuste de la marca",
+        "available": "Disponible",
+        "unavailable": "No disponible",
+        "status": {
+          "active": "Activo",
+          "disabled": "Deshabilitado",
+          "archived": "Archivado",
+          "pending": "Pendiente",
+          "confirmed": "Confirmado",
+          "seated": "En mesa",
+          "completed": "Completado",
+          "cancelled": "Cancelado",
+          "no_show": "No se presentó",
+          "waiting": "En espera",
+          "notified": "Avisado",
+          "expired": "Vencido"
+        },
+        "signedVersion": "Versión firmada",
+        "archive": "Archivar",
+        "archiveConfirm": "¿Archivar esta plantilla? El historial guardado seguirá disponible."
+      },
+      "starters": {
+        "audit": {
+          "kitchen": {
+            "name": "Seguridad alimentaria básica",
+            "description": "Inspecciona este punto, registra las observaciones y sigue el procedimiento de seguridad alimentaria del local.",
+            "category": "kitchen",
+            "items": [
+              {
+                "label": "Suelos limpios y secos",
+                "instructions": "Inspecciona este punto, registra las observaciones y sigue el procedimiento de seguridad alimentaria del local.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Almacenamiento y etiquetado",
+                "instructions": "Inspecciona este punto, registra las observaciones y sigue el procedimiento de seguridad alimentaria del local.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Limpieza de equipos",
+                "instructions": "Inspecciona este punto, registra las observaciones y sigue el procedimiento de seguridad alimentaria del local.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Lavamanos abastecidos",
+                "instructions": "Inspecciona este punto, registra las observaciones y sigue el procedimiento de seguridad alimentaria del local.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Zona de residuos ordenada",
+                "instructions": "Inspecciona este punto, registra las observaciones y sigue el procedimiento de seguridad alimentaria del local.",
+                "maxScore": 5,
+                "weight": 1
+              }
+            ]
+          },
+          "foodSafety": {
+            "name": "Seguridad alimentaria básica",
+            "description": "Inspecciona este punto, registra las observaciones y sigue el procedimiento de seguridad alimentaria del local.",
+            "category": "food_safety",
+            "items": [
+              {
+                "label": "Temperaturas del frigorífico",
+                "instructions": "Inspecciona este punto, registra las observaciones y sigue el procedimiento de seguridad alimentaria del local.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Concentración de desinfectante",
+                "instructions": "Inspecciona este punto, registra las observaciones y sigue el procedimiento de seguridad alimentaria del local.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Fechas de caducidad",
+                "instructions": "Inspecciona este punto, registra las observaciones y sigue el procedimiento de seguridad alimentaria del local.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Procedimientos de alérgenos",
+                "instructions": "Inspecciona este punto, registra las observaciones y sigue el procedimiento de seguridad alimentaria del local.",
+                "maxScore": 5,
+                "weight": 1
+              }
+            ]
+          }
+        },
+        "training": {
+          "title": "Seguridad alimentaria básica",
+          "description": "Principios de seguridad alimentaria para todo el equipo.",
+          "content": "Lávate las manos con agua tibia y jabón durante al menos 20 segundos antes de manipular alimentos y después de tocar carne cruda o ir al baño. Mantén los alimentos fríos a 41°F o menos y los calientes a 135°F o más. Guarda la carne cruda debajo de los alimentos listos para comer y desinfecta las superficies entre tareas.",
+          "category": "food_safety",
+          "passScorePct": 80,
+          "questions": [
+            {
+              "question": "¿Cuánto tiempo debes lavarte las manos?",
+              "options": [
+                "5 segundos",
+                "Al menos 20 segundos"
+              ],
+              "correct_index": 1
+            },
+            {
+              "question": "¿Dónde se guarda la carne cruda?",
+              "options": [
+                "Encima de los alimentos listos para comer",
+                "Debajo de los alimentos listos para comer"
+              ],
+              "correct_index": 1
+            }
+          ]
+        }
+      },
       "training": {
         "loadError": "No se pudo cargar la capacitación",
         "saveError": "No se pudo guardar el módulo",

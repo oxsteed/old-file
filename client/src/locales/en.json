@@ -24859,7 +24859,151 @@
       "opChipReports": "Reports",
       "opTrainingDesc": "Lessons and quizzes assigned to your team, with completion tracking.",
       "opAuditsDesc": "Score inspections, log findings, and track corrective actions to closure.",
-      "opReportsDesc": "Sales, inventory, and operations performance at a glance."
+      "opReportsDesc": "Sales, inventory, and operations performance at a glance.",
+      "shared": {
+        "store": "Store",
+        "loadError": "Could not load data",
+        "saveError": "Could not save changes",
+        "previous": "Previous",
+        "next": "Next",
+        "myTraining": "My training",
+        "save": "Save",
+        "cancel": "Cancel",
+        "edit": "Edit",
+        "notes": "Notes",
+        "selectTable": "Choose a table",
+        "occupied": "Occupied",
+        "ticket": "POS ticket",
+        "release": "Release table",
+        "statusLabel": "Status",
+        "from": "From",
+        "to": "To",
+        "all": "All",
+        "retry": "Retry",
+        "moveHint": "Move tables with arrow keys, drag, or edit their coordinates.",
+        "netSales": "Net collected sales",
+        "orders": "Paid orders",
+        "preview": "Review changes",
+        "publishWarning": "Review each target before publishing. Inherited settings replace previous overrides.",
+        "noChanges": "No changes",
+        "inherit": "Inherit brand setting",
+        "available": "Available",
+        "unavailable": "Unavailable",
+        "status": {
+          "active": "Active",
+          "disabled": "Disabled",
+          "archived": "Archived",
+          "pending": "Pending",
+          "confirmed": "Confirmed",
+          "seated": "Seated",
+          "completed": "Completed",
+          "cancelled": "Cancelled",
+          "no_show": "No-show",
+          "waiting": "Waiting",
+          "notified": "Notified",
+          "expired": "Expired"
+        },
+        "signedVersion": "Signed version",
+        "archive": "Archive",
+        "archiveConfirm": "Archive this template? Saved history remains available."
+      },
+      "starters": {
+        "audit": {
+          "kitchen": {
+            "name": "Food safety basics",
+            "description": "Inspect this check, record observations, and follow the store’s food safety procedure.",
+            "category": "kitchen",
+            "items": [
+              {
+                "label": "Floors clean and dry",
+                "instructions": "Inspect this check, record observations, and follow the store’s food safety procedure.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Food storage and labeling",
+                "instructions": "Inspect this check, record observations, and follow the store’s food safety procedure.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Equipment cleanliness",
+                "instructions": "Inspect this check, record observations, and follow the store’s food safety procedure.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Handwashing stations stocked",
+                "instructions": "Inspect this check, record observations, and follow the store’s food safety procedure.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Waste area tidy",
+                "instructions": "Inspect this check, record observations, and follow the store’s food safety procedure.",
+                "maxScore": 5,
+                "weight": 1
+              }
+            ]
+          },
+          "foodSafety": {
+            "name": "Food safety basics",
+            "description": "Inspect this check, record observations, and follow the store’s food safety procedure.",
+            "category": "food_safety",
+            "items": [
+              {
+                "label": "Fridge temperatures",
+                "instructions": "Inspect this check, record observations, and follow the store’s food safety procedure.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Sanitizer concentration",
+                "instructions": "Inspect this check, record observations, and follow the store’s food safety procedure.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Use-by dates",
+                "instructions": "Inspect this check, record observations, and follow the store’s food safety procedure.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Allergen procedures",
+                "instructions": "Inspect this check, record observations, and follow the store’s food safety procedure.",
+                "maxScore": 5,
+                "weight": 1
+              }
+            ]
+          }
+        },
+        "training": {
+          "title": "Food safety basics",
+          "description": "Food safety essentials for every team member.",
+          "content": "Wash hands with warm water and soap for at least 20 seconds before handling food and after raw meat or restroom use. Keep cold food at or below 41°F and hot food at or above 135°F. Store raw meat below ready-to-eat food and sanitize surfaces between tasks.",
+          "category": "food_safety",
+          "passScorePct": 80,
+          "questions": [
+            {
+              "question": "How long should you wash your hands?",
+              "options": [
+                "5 seconds",
+                "At least 20 seconds"
+              ],
+              "correct_index": 1
+            },
+            {
+              "question": "Where should raw meat be stored?",
+              "options": [
+                "Above ready-to-eat food",
+                "Below ready-to-eat food"
+              ],
+              "correct_index": 1
+            }
+          ]
+        }
+      }
     }
   },
   "promotePage": {

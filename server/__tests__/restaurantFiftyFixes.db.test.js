@@ -490,12 +490,13 @@ if (url) {
   test('training archives retain assignments, attempts and version history', async () => {
     const m = await module(),
       a = await assign(m);
+    await call(training.startAssignment,{params:{assignmentId:a.id},user:staff});
     const passed = await call(training.submitQuiz, {
       params: {
         assignmentId: a.id
       },
       body: {
-        answers: [1]
+        answers: [1],moduleVersion:1
       },
       user: staff
     });

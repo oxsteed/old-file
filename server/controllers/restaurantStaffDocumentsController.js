@@ -1,322 +1,501 @@
-// OxSteed Restaurants — Staff compliance document vault + SOP
-// acknowledgements (S-14).
-//
-// The vault stores per-employee files (certificates, ID documents,
-// handbook copies) with type, expiry and verification status. File bytes
-// live in the existing storage (utils/storage); reads mint a short-lived
-// signed download URL at request time — there are no public paths.
-//
-// HARD CONSTRAINT: OxSteed never stores SSNs or tax-form data. I-9/W-4
-// stay with the business's payroll provider; this vault is for
-// certificates, IDs and policy documents only.
-//
-// Access: managers (owner/manager) see and verify every document of the
-// restaurant; a staff member sees and uploads only their own.
+"use strict";
 
-const pool = require('../db');
-const { AppError } = require('../middleware/errorHandler');
-const { resolveRestaurantAccess } = require('../services/scopeModel');
-const permissionsService = require('../services/permissionsService');
-const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
-
+const crypto = require("crypto");
+const pool = require("../db");
+const { AppError } = require("../middleware/errorHandler");
+const { resolveRestaurantAccess } = require("../services/scopeModel");
+const permissions = require("../services/permissionsService");
+const {
+  attachScope,
+  staffPredicate,
+  assertStaff,
+} = require("../services/restaurantReviewScope");
+const v = require("../utils/restaurantReviewValidation");
+const { strictInteger } = require("../utils/strictInteger");
+const { withTransaction } = require("../utils/transaction");
+const {
+  uploadFile,
+  getSignedDownloadUrl,
+  deleteFile,
+} = require("../utils/storage");
+const { enqueueStorageDeletion } = require("../services/storageCleanupService");
+const { logBusinessAction } = require("../services/businessAuditLog");
+const logger = require("../utils/logger");
 const DOC_TYPES = [
-  'certificate_food_handler', 'certificate_allergen', 'certificate_manager',
-  'certificate_other', 'id_document', 'policy_handbook', 'sop_document', 'other',
+  "certificate_food_handler",
+  "certificate_allergen",
+  "certificate_manager",
+  "certificate_other",
+  "id_document",
+  "policy_handbook",
+  "sop_document",
+  "other",
 ];
-const VERIFICATION_STATUSES = ['pending', 'verified', 'rejected'];
+const STATUSES = ["pending", "verified", "rejected"];
 
-function parsePositiveInt(value) {
-  const n = Number(value);
-  return Number.isInteger(n) && n > 0 ? n : null;
+async function access(req, manage = false) {
+  const id = v.integer(req.params.restaurantId, "restaurantId");
+  const r = await attachScope(
+    await resolveRestaurantAccess(req.user.id, id),
+    req.user.id,
+  );
+  r.documentManager = await permissions.hasRestaurantPermission(
+    r,
+    req.user.id,
+    ["restaurant.manage"],
+  );
+  if (manage && !r.documentManager)
+    throw new AppError(
+      "Document management permission required",
+      403,
+      "forbidden",
+    );
+  return r;
 }
-
-async function requireRestaurantAccess(userId, restaurantId) {
-  if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-  return resolveRestaurantAccess(userId, restaurantId);
+function date(value, field) {
+  if (value == null || value === "") return null;
+  if (
+    typeof value !== "string" ||
+    !require("../services/restaurantPayrollService").isRealDateString(value)
+  )
+    v.invalid(field);
+  return value;
 }
-
-async function assertManage(restaurant, userId) {
-  const allowed = await permissionsService.hasRestaurantPermission(restaurant, userId, ['restaurant.manage']);
-  if (!allowed) {
-    throw new AppError('You do not have permission to manage this restaurant', 403, 'forbidden');
-  }
+function dates(issued, expires) {
+  const issuedOn = date(issued, "issuedOn"),
+    expiresOn = date(expires, "expiresOn");
+  if (issuedOn && expiresOn && issuedOn > expiresOn) v.invalid("expiresOn");
+  return { issuedOn, expiresOn };
 }
-
-function parseDateField(value, code, label) {
-  if (value === undefined || value === null || value === '') return null;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) throw new AppError(`${label} is not a valid date`, 400, code);
-  return d.toISOString().slice(0, 10);
+function page(query = {}) {
+  return {
+    limit:
+      query.limit === undefined ? 50 : v.integer(query.limit, "limit", 1, 100),
+    offset:
+      query.offset === undefined
+        ? 0
+        : v.integer(query.offset, "offset", 0, 1000000),
+  };
 }
-
-async function presentDocument(row) {
+async function audit(client, req, r, action, before, after) {
+  await logBusinessAction(req, {
+    client,
+    throwOnError: true,
+    business_id: r.business_id,
+    action: `restaurant.staff_document.${action}`,
+    target_type: "staff_document",
+    target_id: after?.id || before?.id,
+    before_state: before
+      ? {
+          id: before.id,
+          user_id: before.user_id,
+          verification_status: before.verification_status,
+          issued_on: before.issued_on,
+          expires_on: before.expires_on,
+        }
+      : null,
+    after_state: after
+      ? {
+          id: after.id,
+          user_id: after.user_id,
+          verification_status: after.verification_status,
+          issued_on: after.issued_on,
+          expires_on: after.expires_on,
+        }
+      : null,
+  });
+}
+async function present(row) {
   const { storage_key, ...rest } = row;
-  let downloadUrl = null;
   try {
-    downloadUrl = await getSignedDownloadUrl(storage_key, 600);
-  } catch (_) {
-    downloadUrl = null;
+    return {
+      ...rest,
+      download_url: await getSignedDownloadUrl(storage_key, 600),
+      download_unavailable: false,
+    };
+  } catch (error) {
+    logger.warn("Staff document signing failed", {
+      documentId: row.id,
+      errorCode: error.code || "storage_unavailable",
+    });
+    return { ...rest, download_url: null, download_unavailable: true };
   }
-  return { ...rest, download_url: downloadUrl };
 }
-
-// ── Documents ────────────────────────────────────────────────────────────────
+async function discard(key) {
+  if (!key) return;
+  if (
+    !(await enqueueStorageDeletion(key, "restaurant-unused-upload", {
+      graceHours: 0,
+    }))
+  ) {
+    try {
+      await deleteFile(key);
+    } catch (error) {
+      logger.error("Restaurant upload cleanup failed", {
+        errorCode: error.code || "storage_unavailable",
+      });
+    }
+  }
+}
+async function authorizeTarget(r, actor, user, db = pool) {
+  if (!r.documentManager && user !== actor)
+    throw new AppError("Own documents only", 403, "forbidden");
+  await assertStaff(r, user, db);
+}
 exports.listDocuments = async (req, res, next) => {
   try {
-    const restaurantId = parsePositiveInt(req.params.restaurantId);
-    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const isManager = await permissionsService.hasRestaurantPermission(restaurant, req.user.id, ['restaurant.manage']);
-    // Staff only ever see their own documents.
-    const targetUserId = isManager ? (req.query.userId || null) : req.user.id;
-    const expiringDays = parsePositiveInt(req.query.expiringDays);
+    const r = await access(req),
+      p = page(req.query),
+      params = [r.id];
+    let where = "d.restaurant_id=$1 AND d.deleted_at IS NULL";
+    const user = r.documentManager
+      ? req.query.userId == null
+        ? null
+        : v.uuid(req.query.userId, "userId")
+      : req.user.id;
+    if (user) {
+      params.push(user);
+      where += ` AND d.user_id=$${params.length}`;
+    }
+    where += staffPredicate(r, "d.user_id", params);
+    if (req.query.expiringDays !== undefined) {
+      params.push(v.integer(req.query.expiringDays, "expiringDays", 1, 3650));
+      where += ` AND d.expires_on <= CURRENT_DATE + $${params.length}::int`;
+    }
+    params.push(p.limit + 1, p.offset);
     const { rows } = await pool.query(
-      `SELECT d.*, u.first_name, u.last_name
-         FROM restaurant_staff_documents d
-         JOIN users u ON u.id = d.user_id
-        WHERE d.restaurant_id = $1
-          ${targetUserId ? 'AND d.user_id = $2' : ''}
-          ${expiringDays ? `AND d.expires_on IS NOT NULL AND d.expires_on <= CURRENT_DATE + ($${targetUserId ? 3 : 2}::int * INTERVAL '1 day')` : ''}
-        ORDER BY d.expires_on NULLS LAST, d.created_at DESC`,
-      [
-        restaurantId,
-        ...(targetUserId ? [targetUserId] : []),
-        ...(expiringDays ? [expiringDays] : []),
-      ]
+      `SELECT d.*,u.first_name,u.last_name FROM restaurant_staff_documents d JOIN users u ON u.id=d.user_id WHERE ${where} ORDER BY d.expires_on NULLS LAST,d.created_at DESC,d.id DESC LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params,
     );
-    res.json({ documents: await Promise.all(rows.map(presentDocument)) });
-  } catch (err) {
-    next(err);
+    // Bounded sequential signing prevents an unbounded storage fan-out.
+    const documents = [];
+    for (const row of rows.slice(0, p.limit))
+      documents.push(await present(row));
+    res.json({ documents, ...p, hasMore: rows.length > p.limit });
+  } catch (error) {
+    next(error);
   }
 };
-
 exports.uploadDocument = async (req, res, next) => {
+  let key = null;
   try {
-    const restaurantId = parsePositiveInt(req.params.restaurantId);
-    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const isManager = await permissionsService.hasRestaurantPermission(restaurant, req.user.id, ['restaurant.manage']);
-    if (!req.file || !req.file.buffer) throw new AppError('A document file is required', 400, 'file_required');
-    const { docType, title, userId, issuedOn, expiresOn } = req.body || {};
-    if (!DOC_TYPES.includes(docType)) throw new AppError('Invalid document type', 400, 'invalid_doc_type');
-    if (!title || !String(title).trim()) throw new AppError('Title is required', 400, 'title_required');
-    // Staff upload for themselves; only managers upload for someone else.
-    const targetUserId = userId && String(userId) !== String(req.user.id) ? String(userId) : req.user.id;
-    if (targetUserId !== req.user.id && !isManager) {
-      throw new AppError('You can only upload your own documents', 403, 'forbidden');
-    }
-    const { rows: [member] } = await pool.query(
-      `SELECT 1 FROM business_members
-        WHERE business_id = $1 AND member_id = $2 AND status = 'active'`,
-      [restaurant.business_id, targetUserId]
-    );
-    const isOwner = String(restaurant.owner_user_id || '') === String(targetUserId);
-    if (!member && !isOwner) throw new AppError('Staff member not found', 404, 'staff_not_found');
-
-    const storageKey = await uploadFile(
-      req.file.buffer,
-      `restaurants/${restaurantId}/staff-documents/${targetUserId}`,
-      req.file.originalname || 'document',
-      req.file.mimetype
-    );
-    if (!storageKey) throw new AppError('Upload failed', 502, 'upload_failed');
-    try {
-      const { rows: [document] } = await pool.query(
-        `INSERT INTO restaurant_staff_documents
-           (restaurant_id, user_id, doc_type, title, storage_key, original_filename,
-            content_type, size_bytes, issued_on, expires_on, uploaded_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-         RETURNING *`,
-        [
-          restaurantId, targetUserId, docType, String(title).trim(), storageKey,
-          req.file.originalname || null, req.file.mimetype || null,
-          req.file.size || null,
-          parseDateField(issuedOn, 'invalid_issued_on', 'Issued date'),
-          parseDateField(expiresOn, 'invalid_expires_on', 'Expiry date'),
-          req.user.id,
-        ]
+    const r = await access(req),
+      b = req.body || {},
+      title = v.text(b.title, "title", 200);
+    if (!DOC_TYPES.includes(b.docType)) v.invalid("docType");
+    if (!req.file?.buffer)
+      throw new AppError("A document file is required", 400, "file_required");
+    const target = b.userId == null ? req.user.id : v.uuid(b.userId, "userId");
+    await authorizeTarget(r, req.user.id, target);
+    const d = dates(b.issuedOn, b.expiresOn);
+    const hash = crypto
+      .createHash("sha256")
+      .update(JSON.stringify([target, b.docType, title, d, req.file.mimetype]))
+      .update(req.file.buffer)
+      .digest("hex");
+    const identity =
+      req.get?.("Idempotency-Key") || b.idempotencyKey || `upload:${hash}`;
+    v.text(identity, "idempotencyKey", 180);
+    const find = () =>
+      pool.query(
+        "SELECT * FROM restaurant_staff_documents WHERE restaurant_id=$1 AND uploaded_by=$2 AND idempotency_key=$3",
+        [r.id, req.user.id, identity],
       );
-      res.status(201).json({ document: await presentDocument(document) });
-    } catch (err) {
-      // Do not orphan the uploaded bytes when the row write fails.
-      await deleteFile(storageKey).catch(() => {});
-      throw err;
+    const replay = (await find()).rows[0];
+    if (replay) {
+      if (replay.request_hash !== hash || replay.deleted_at)
+        throw new AppError(
+          "Document retry conflicts",
+          409,
+          "idempotency_conflict",
+        );
+      return res.json({ document: await present(replay), replayed: true });
     }
-  } catch (err) {
-    next(err);
+    key = await uploadFile(
+      req.file.buffer,
+      `restaurants/${r.id}/staff-documents/${target}`,
+      req.file.originalname || "document",
+      req.file.detectedMime || req.file.mimetype,
+    );
+    if (!key) throw new AppError("Upload failed", 502, "upload_failed");
+    const staged = key;
+    const document = await withTransaction(
+      pool,
+      async (client) => {
+        await client.query(
+          "SELECT pg_advisory_xact_lock(hashtextextended($1,0))",
+          [`document:${r.id}:${req.user.id}:${identity}`],
+        );
+        await authorizeTarget(r, req.user.id, target, client);
+        const {
+          rows: [existing],
+        } = await client.query(
+          "SELECT * FROM restaurant_staff_documents WHERE restaurant_id=$1 AND uploaded_by=$2 AND idempotency_key=$3",
+          [r.id, req.user.id, identity],
+        );
+        if (existing) {
+          if (existing.request_hash !== hash || existing.deleted_at)
+            throw new AppError(
+              "Document retry conflicts",
+              409,
+              "idempotency_conflict",
+            );
+          return existing;
+        }
+        const {
+          rows: [created],
+        } = await client.query(
+          `INSERT INTO restaurant_staff_documents(restaurant_id,user_id,doc_type,title,storage_key,original_filename,content_type,size_bytes,issued_on,expires_on,uploaded_by,idempotency_key,request_hash) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+          [
+            r.id,
+            target,
+            b.docType,
+            title,
+            staged,
+            req.file.originalname || null,
+            req.file.detectedMime || req.file.mimetype,
+            req.file.buffer.length,
+            d.issuedOn,
+            d.expiresOn,
+            req.user.id,
+            identity,
+            hash,
+          ],
+        );
+        await audit(client, req, r, "uploaded", null, created);
+        return created;
+      },
+      "restaurant_document_upload",
+    );
+    if (document.storage_key === key) key = null;
+    else {
+      await discard(key);
+      key = null;
+    }
+    res.status(201).json({ document: await present(document) });
+  } catch (error) {
+    await discard(key);
+    next(error);
   }
 };
-
 exports.verifyDocument = async (req, res, next) => {
   try {
-    const restaurantId = parsePositiveInt(req.params.restaurantId);
-    const documentId = parsePositiveInt(req.params.documentId);
-    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    await assertManage(restaurant, req.user.id);
-    const { verificationStatus, expiresOn, issuedOn } = req.body || {};
-    if (verificationStatus !== undefined && !VERIFICATION_STATUSES.includes(verificationStatus)) {
-      throw new AppError('Invalid verification status', 400, 'invalid_verification_status');
-    }
-    const { rows: [existing] } = await pool.query(
-      `SELECT * FROM restaurant_staff_documents WHERE id = $1 AND restaurant_id = $2`,
-      [documentId, restaurantId]
+    const r = await access(req, true),
+      id = v.integer(req.params.documentId, "documentId"),
+      b = req.body || {};
+    if (
+      b.verificationStatus !== undefined &&
+      !STATUSES.includes(b.verificationStatus)
+    )
+      v.invalid("verificationStatus");
+    const document = await withTransaction(
+      pool,
+      async (client) => {
+        const {
+          rows: [before],
+        } = await client.query(
+          "SELECT * FROM restaurant_staff_documents WHERE id=$1 AND restaurant_id=$2 AND deleted_at IS NULL FOR UPDATE",
+          [id, r.id],
+        );
+        if (!before)
+          throw new AppError("Document not found", 404, "document_not_found");
+        await assertStaff(r, before.user_id, client);
+        const stored = (value) =>
+          value && typeof value.toISOString === "function"
+            ? value.toISOString().slice(0, 10)
+            : value;
+        const d = dates(
+          b.issuedOn === undefined ? stored(before.issued_on) : b.issuedOn,
+          b.expiresOn === undefined ? stored(before.expires_on) : b.expiresOn,
+        );
+        const status = b.verificationStatus || before.verification_status;
+        const {
+          rows: [after],
+        } = await client.query(
+          `UPDATE restaurant_staff_documents SET verification_status=$3::text,verified_by=CASE WHEN $3::text='verified' THEN $4::uuid ELSE NULL END,verified_at=CASE WHEN $3::text='verified' THEN NOW() ELSE NULL END,issued_on=$5,expires_on=$6,expiry_alert_sent_at=CASE WHEN expires_on IS DISTINCT FROM $6::date THEN NULL ELSE expiry_alert_sent_at END,updated_at=NOW() WHERE id=$1 AND restaurant_id=$2 RETURNING *`,
+          [id, r.id, status, req.user.id, d.issuedOn, d.expiresOn],
+        );
+        await audit(client, req, r, "reviewed", before, after);
+        return after;
+      },
+      "restaurant_document_review",
     );
-    if (!existing) throw new AppError('Document not found', 404, 'document_not_found');
-    const nextExpires = expiresOn === undefined
-      ? existing.expires_on
-      : parseDateField(expiresOn, 'invalid_expires_on', 'Expiry date');
-    const expiryChanged = String(nextExpires || '') !== String(existing.expires_on || '').slice(0, 10);
-    const { rows: [document] } = await pool.query(
-      `UPDATE restaurant_staff_documents
-          SET verification_status = COALESCE($3, verification_status),
-              verified_by = CASE WHEN $3 IS NULL THEN verified_by ELSE $4 END,
-              verified_at = CASE WHEN $3 IS NULL THEN verified_at ELSE NOW() END,
-              expires_on = $5,
-              issued_on = $6,
-              expiry_alert_sent_at = CASE WHEN $7 THEN NULL ELSE expiry_alert_sent_at END,
-              updated_at = NOW()
-        WHERE id = $1 AND restaurant_id = $2
-        RETURNING *`,
-      [
-        documentId, restaurantId,
-        verificationStatus === undefined ? null : verificationStatus,
-        req.user.id,
-        nextExpires,
-        issuedOn === undefined ? existing.issued_on : parseDateField(issuedOn, 'invalid_issued_on', 'Issued date'),
-        expiryChanged,
-      ]
-    );
-    res.json({ document: await presentDocument(document) });
-  } catch (err) {
-    next(err);
+    res.json({ document: await present(document) });
+  } catch (error) {
+    next(error);
   }
 };
-
 exports.deleteDocument = async (req, res, next) => {
   try {
-    const restaurantId = parsePositiveInt(req.params.restaurantId);
-    const documentId = parsePositiveInt(req.params.documentId);
-    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    await assertManage(restaurant, req.user.id);
-    const { rows: [document] } = await pool.query(
-      `DELETE FROM restaurant_staff_documents WHERE id = $1 AND restaurant_id = $2 RETURNING storage_key`,
-      [documentId, restaurantId]
-    );
-    if (!document) throw new AppError('Document not found', 404, 'document_not_found');
-    await deleteFile(document.storage_key).catch(() => {});
-    res.json({ deleted: true });
-  } catch (err) {
-    next(err);
-  }
-};
-
-// ── SOP acknowledgements ─────────────────────────────────────────────────────
-// Read-and-sign: the acknowledgement pins the SOP version that was read,
-// so republishing a SOP (version bump in restaurantOpsController) makes
-// earlier acknowledgements visibly stale instead of silently current.
-//
-// S-14: sign-off captures a drawn e-signature. The client posts the
-// signature as a multipart `signature` image field; the server stores it
-// via utils/storage and keeps the storage key on the acknowledgement.
-// The signature is optional at the API level (legacy click-to-sign rows
-// and older clients keep working); the client UI requires a drawn
-// signature before it will submit.
-const SOP_SIGNATURE_MAX_BYTES = 2 * 1024 * 1024;
-exports.acknowledgeSop = async (req, res, next) => {
-  try {
-    const restaurantId = parsePositiveInt(req.params.restaurantId);
-    const sopId = parsePositiveInt(req.params.sopId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
-    const { rows: [sop] } = await pool.query(
-      `SELECT id, version FROM restaurant_sops WHERE id = $1 AND restaurant_id = $2 AND is_published = TRUE`,
-      [sopId, restaurantId]
-    );
-    if (!sop) throw new AppError('SOP not found', 404, 'sop_not_found');
-
-    let signatureStorageKey = null;
-    if (req.file && req.file.buffer && req.file.buffer.length > 0) {
-      const mime = String(req.file.detectedMime || req.file.mimetype || '');
-      if (!mime.startsWith('image/')) {
-        throw new AppError('Signature must be an image', 400, 'invalid_signature');
-      }
-      if (req.file.buffer.length > SOP_SIGNATURE_MAX_BYTES) {
-        throw new AppError('Signature image is too large', 413, 'signature_too_large');
-      }
-      signatureStorageKey = await uploadFile(
-        req.file.buffer,
-        `restaurants/${restaurantId}/sop-signatures/${req.user.id}`,
-        `signature-sop${sopId}-v${sop.version}.png`,
-        'image/png'
-      );
-      if (!signatureStorageKey) throw new AppError('Signature upload failed', 502, 'upload_failed');
-    }
-
-    const { rows: [acknowledgement] } = await pool.query(
-      `INSERT INTO restaurant_sop_acknowledgements (restaurant_id, sop_id, user_id, sop_version, signature_storage_key)
-       VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (sop_id, user_id, sop_version) DO NOTHING
-       RETURNING *`,
-      [restaurantId, sopId, req.user.id, sop.version, signatureStorageKey]
-    );
-    if (!acknowledgement) {
-      const { rows: [existing] } = await pool.query(
-        `SELECT * FROM restaurant_sop_acknowledgements
-          WHERE sop_id = $1 AND user_id = $2 AND sop_version = $3`,
-        [sopId, req.user.id, sop.version]
-      );
-      // A fresh drawn signature on an already-acknowledged version upgrades
-      // the record instead of being silently dropped.
-      if (signatureStorageKey && existing && !existing.signature_storage_key) {
-        const { rows: [updated] } = await pool.query(
-          `UPDATE restaurant_sop_acknowledgements
-              SET signature_storage_key = $1
-            WHERE id = $2 RETURNING *`,
-          [signatureStorageKey, existing.id]
+    const r = await access(req, true),
+      id = v.integer(req.params.documentId, "documentId");
+    await withTransaction(
+      pool,
+      async (client) => {
+        const {
+          rows: [before],
+        } = await client.query(
+          "SELECT * FROM restaurant_staff_documents WHERE id=$1 AND restaurant_id=$2 FOR UPDATE",
+          [id, r.id],
         );
-        return res.json({ acknowledgement: updated, alreadyAcknowledged: true });
-      }
-      return res.json({ acknowledgement: existing, alreadyAcknowledged: true });
-    }
-    res.status(201).json({ acknowledgement });
-  } catch (err) {
-    next(err);
+        if (!before)
+          throw new AppError("Document not found", 404, "document_not_found");
+        await assertStaff(r, before.user_id, client);
+        if (before.deleted_at) return;
+        if (
+          !(await enqueueStorageDeletion(
+            before.storage_key,
+            "restaurant-document-deleted",
+            { client, graceHours: 0 },
+          ))
+        )
+          throw new AppError(
+            "Could not queue file cleanup",
+            503,
+            "storage_unavailable",
+          );
+        const {
+          rows: [after],
+        } = await client.query(
+          "UPDATE restaurant_staff_documents SET deleted_at=NOW(),updated_at=NOW() WHERE id=$1 RETURNING *",
+          [id],
+        );
+        await audit(client, req, r, "deleted", before, after);
+      },
+      "restaurant_document_delete",
+    );
+    res.json({ deleted: true });
+  } catch (error) {
+    next(error);
   }
 };
-
+exports.acknowledgeSop = async (req, res, next) => {
+  let key = null,
+    newAck = false;
+  try {
+    const r = await access(req),
+      id = v.integer(req.params.sopId, "sopId"),
+      version = v.integer(req.body?.sopVersion, "sopVersion");
+    if (req.file?.buffer?.length) {
+      const bytes = req.file.buffer;
+      if (bytes.length > 2 * 1024 * 1024)
+        throw new AppError("Signature too large", 413, "signature_too_large");
+      if (
+        bytes.length < 8 ||
+        !bytes
+          .subarray(0, 8)
+          .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+      )
+        throw new AppError("PNG signature required", 400, "invalid_signature");
+      key = await uploadFile(
+        bytes,
+        `restaurants/${r.id}/sop-signatures/${req.user.id}`,
+        `signature-sop${id}-v${version}.png`,
+        "image/png",
+      );
+      if (!key)
+        throw new AppError("Signature upload failed", 502, "upload_failed");
+    }
+    const staged = key;
+    const acknowledgement = await withTransaction(
+      pool,
+      async (client) => {
+        const {
+          rows: [sop],
+        } = await client.query(
+          "SELECT * FROM restaurant_sops WHERE id=$1 AND restaurant_id=$2 AND is_published=TRUE AND archived_at IS NULL FOR SHARE",
+          [id, r.id],
+        );
+        if (!sop) throw new AppError("SOP not found", 404, "sop_not_found");
+        if (sop.version !== version)
+          throw new AppError(
+            "SOP changed; review the current version",
+            409,
+            "sop_version_conflict",
+          );
+        await client.query(
+          "INSERT INTO restaurant_sop_versions(sop_id,version,title,body) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING",
+          [id, version, sop.title, sop.body],
+        );
+        await client.query(
+          "SELECT pg_advisory_xact_lock(hashtextextended($1,0))",
+          [`sop-sign:${id}:${req.user.id}:${version}`],
+        );
+        const {
+          rows: [existing],
+        } = await client.query(
+          "SELECT * FROM restaurant_sop_acknowledgements WHERE sop_id=$1 AND user_id=$2 AND sop_version=$3 FOR UPDATE",
+          [id, req.user.id, version],
+        );
+        if (existing) {
+          if (staged && !existing.signature_storage_key) {
+            const {
+              rows: [upgraded],
+            } = await client.query(
+              "UPDATE restaurant_sop_acknowledgements SET signature_storage_key=$1 WHERE id=$2 AND signature_storage_key IS NULL RETURNING *",
+              [staged, existing.id],
+            );
+            return upgraded || existing;
+          }
+          return existing;
+        }
+        newAck = true;
+        return (
+          await client.query(
+            "INSERT INTO restaurant_sop_acknowledgements(restaurant_id,sop_id,user_id,sop_version,signature_storage_key) VALUES($1,$2,$3,$4,$5) RETURNING *",
+            [r.id, id, req.user.id, version, staged],
+          )
+        ).rows[0];
+      },
+      "restaurant_sop_sign",
+    );
+    if (acknowledgement.signature_storage_key === key) key = null;
+    else {
+      await discard(key);
+      key = null;
+    }
+    res.status(newAck ? 201 : 200).json({ acknowledgement });
+  } catch (error) {
+    await discard(key);
+    next(error);
+  }
+};
 exports.listSopAcknowledgements = async (req, res, next) => {
   try {
-    const restaurantId = parsePositiveInt(req.params.restaurantId);
-    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const isManager = await permissionsService.hasRestaurantPermission(restaurant, req.user.id, ['restaurant.manage']);
-    const sopId = parsePositiveInt(req.query.sopId);
-    // Managers see the restaurant's sign-off state; staff see their own.
+    const r = await access(req),
+      p = page(req.query),
+      params = [r.id];
+    let where = "ack.restaurant_id=$1";
+    if (!r.documentManager) {
+      params.push(req.user.id);
+      where += ` AND ack.user_id=$${params.length}`;
+    }
+    where += staffPredicate(r, "ack.user_id", params);
+    if (req.query.sopId !== undefined) {
+      params.push(v.integer(req.query.sopId, "sopId"));
+      where += ` AND ack.sop_id=$${params.length}`;
+    }
+    params.push(p.limit + 1, p.offset);
     const { rows } = await pool.query(
-      `SELECT ack.*, s.title AS sop_title, s.version AS sop_current_version,
-              u.first_name, u.last_name,
-              (ack.sop_version = s.version) AS is_current
-         FROM restaurant_sop_acknowledgements ack
-         JOIN restaurant_sops s ON s.id = ack.sop_id
-         JOIN users u ON u.id = ack.user_id
-        WHERE ack.restaurant_id = $1
-          ${isManager ? '' : 'AND ack.user_id = $2'}
-          ${sopId ? `AND ack.sop_id = $${isManager ? 2 : 3}` : ''}
-        ORDER BY ack.acknowledged_at DESC`,
-      [
-        restaurantId,
-        ...(!isManager ? [req.user.id] : []),
-        ...(sopId ? [sopId] : []),
-      ]
+      `SELECT ack.*,s.title AS sop_title,s.version AS sop_current_version,u.first_name,u.last_name,(ack.sop_version=s.version) AS is_current,sv.body AS signed_body,sv.title AS signed_title FROM restaurant_sop_acknowledgements ack JOIN restaurant_sops s ON s.id=ack.sop_id JOIN users u ON u.id=ack.user_id LEFT JOIN restaurant_sop_versions sv ON sv.sop_id=ack.sop_id AND sv.version=ack.sop_version WHERE ${where} ORDER BY ack.acknowledged_at DESC,ack.id DESC LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params,
     );
-    res.json({
-      acknowledgements: await Promise.all(rows.map(async (row) => ({
-        ...row,
-        // S-14: managers verifying a sign-off can pull the drawn signature.
-        signature_url: row.signature_storage_key
-          ? await getSignedDownloadUrl(row.signature_storage_key).catch(() => null)
+    const acknowledgements = [];
+    for (const row of rows.slice(0, p.limit)) {
+      const { signature_storage_key, ...rest } = row;
+      acknowledgements.push({
+        ...rest,
+        is_mine: row.user_id === req.user.id,
+        signature_url: signature_storage_key
+          ? await getSignedDownloadUrl(signature_storage_key, 600).catch(
+              () => null,
+            )
           : null,
-      }))),
-    });
-  } catch (err) {
-    next(err);
+      });
+    }
+    res.json({ acknowledgements, ...p, hasMore: rows.length > p.limit });
+  } catch (error) {
+    next(error);
   }
 };
-
 exports.docTypes = DOC_TYPES;

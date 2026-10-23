@@ -5,6 +5,7 @@
 // only; the backend enforces this and returns 403, which we surface as a toast.
 // Taking lessons and quizzes is open to any assigned staff member.
 
+import { permits, storeInstant } from './restaurantOperationsContext';
 import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { GraduationCap } from 'lucide-react';
@@ -16,8 +17,8 @@ import {
   listTrainingCompletions,
   listTrainingAutoAssignRules, createTrainingAutoAssignRule, deleteTrainingAutoAssignRule,
   listSops,
-  listStaffDocuments, uploadStaffDocument, verifyStaffDocument, deleteStaffDocument,
-  acknowledgeSop, listSopAcknowledgements,
+  listStaffDocumentPage, listSopAcknowledgementPage, uploadStaffDocument, verifyStaffDocument, deleteStaffDocument,
+  acknowledgeSop,
 } from '../../api/restaurants';
 import { submitTrainingQuizOffline } from '../../api/restaurantsOffline';
 import { ConfirmDialog } from './foodShared';
@@ -72,7 +73,9 @@ function staffName(row) {
 }
 
 // ── Training panel ────────────────────────────────────────────────────────────
-export function TrainingPanel({ t, restaurant, bare, onStats, isManager }) {
+export function TrainingPanel({ t, restaurant, bare, onStats }) {
+  const isManager=permits(restaurant,'crew.manage');
+  const [myTraining,setMyTraining]=useState(false);
   const restaurantId = restaurant.id;
   const [modules, setModules] = useState([]);
   const [assignments, setAssignments] = useState([]);
@@ -95,7 +98,7 @@ export function TrainingPanel({ t, restaurant, bare, onStats, isManager }) {
         setAssignments(asg);
         setCompletions(comp || []);
         const completed = isManager
-          ? (comp || []).length
+          ? new Set((comp || []).filter(c=>c.passed && (!c.expires_at || new Date(c.expires_at)>new Date())).map(c=>c.assignment_id)).size
           : asg.filter((a) => a.status === 'completed').length;
         onStats?.({ trainingModules: mods.length, trainingAssigned: asg.length, trainingCompleted: completed });
       })
@@ -127,13 +130,13 @@ export function TrainingPanel({ t, restaurant, bare, onStats, isManager }) {
 
   const beginTraining = async (assignment) => {
     const module = modules.find((m) => m.id === assignment.module_id);
-    if (!module || (module.questions || []).length === 0) {
+    if (!module) {
       toast.error(t('restaurants.ops.training.noContent', 'This module has no lesson content yet.'));
       return;
     }
     try {
       const updated = await startTrainingAssignment(restaurantId, assignment.id);
-      setTaking({ assignment: updated || assignment, module, step: 'lesson', result: null });
+      setTaking({ assignment: updated || assignment, module:updated?.module||module, step: 'lesson', result: null });
     } catch (err) {
       toast.error(apiErr(err, t('restaurants.ops.training.startError', 'Could not start training')));
     }
@@ -141,7 +144,7 @@ export function TrainingPanel({ t, restaurant, bare, onStats, isManager }) {
 
   if (loading) return <div className="fd-empty">{t('food.common.loading', 'Loading…')}</div>;
 
-  if (!isManager && taking) {
+  if (taking) {
     return (
       <TrainingFlow
         t={t}
@@ -178,10 +181,12 @@ export function TrainingPanel({ t, restaurant, bare, onStats, isManager }) {
         />
       )}
 
-      {isManager ? (
+      {isManager && <button type="button" className="fd-btn" onClick={()=>setMyTraining(value=>!value)} data-track="ui.2265f208ce.40">{t('restaurants.ops.shared.myTraining')}</button>}
+      {isManager && !myTraining ? (
         <ManagerTraining
           t={t}
           restaurantId={restaurantId}
+          restaurantTimezone={restaurant.timezone || 'UTC'}
           modules={modules}
           assignments={assignments}
           completions={completions}
@@ -190,7 +195,7 @@ export function TrainingPanel({ t, restaurant, bare, onStats, isManager }) {
           onAssigned={load}
         />
       ) : (
-        <StaffTraining t={t} assignments={assignments} onStart={beginTraining} />
+        <StaffTraining t={t} assignments={assignments.filter(a=>!isManager || a.is_mine)} onStart={beginTraining} />
       )}
 
       <ComplianceSection t={t} restaurantId={restaurantId} isManager={isManager} />
@@ -199,7 +204,7 @@ export function TrainingPanel({ t, restaurant, bare, onStats, isManager }) {
 }
 
 // ── Manager view ──────────────────────────────────────────────────────────────
-function ManagerTraining({ t, restaurantId, modules, assignments, completions, onEdit, onDelete, onAssigned }) {
+function ManagerTraining({ t, restaurantId, restaurantTimezone, modules, assignments, completions, onEdit, onDelete, onAssigned }) {
   return (
     <div>
       {modules.length === 0 ? (
@@ -219,6 +224,7 @@ function ManagerTraining({ t, restaurantId, modules, assignments, completions, o
               key={m.id}
               t={t}
               restaurantId={restaurantId}
+              restaurantTimezone={restaurantTimezone}
               module={m}
               assignments={assignments}
               onEdit={onEdit}
@@ -276,7 +282,7 @@ function ManagerTraining({ t, restaurantId, modules, assignments, completions, o
   );
 }
 
-function ModuleCard({ t, restaurantId, module: m, assignments, onEdit, onDelete, onAssigned }) {
+function ModuleCard({ t, restaurantId, restaurantTimezone, module: m, assignments, onEdit, onDelete, onAssigned }) {
   const [assignOpen, setAssignOpen] = useState(false);
   const [staff, setStaff] = useState([]);
   const [staffLoading, setStaffLoading] = useState(false);
@@ -305,7 +311,7 @@ function ModuleCard({ t, restaurantId, module: m, assignments, onEdit, onDelete,
     if (!userId) return;
     setBusy(true);
     try {
-      await assignTrainingModule(restaurantId, m.id, { userId, dueAt: dueAt || undefined });
+      await assignTrainingModule(restaurantId, m.id, { userId, dueAt: storeInstant(dueAt, restaurantTimezone, true) || undefined });
       toast.success(t('restaurants.ops.training.assigned', 'Module assigned'));
       setAssignOpen(false);
       setUserId('');
@@ -340,7 +346,7 @@ function ModuleCard({ t, restaurantId, module: m, assignments, onEdit, onDelete,
       {m.description && <p className="fd-card-meta">{m.description}</p>}
       <div className="fd-ops-checklist-actions">
         <button type="button" className="fd-btn fd-btn-sm" onClick={() => onEdit(m)} data-track="ui.2265f208ce.3">{t('common.edit', 'Edit')}</button>
-        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={toggleAssign} data-track="ui.2265f208ce.4">
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={toggleAssign} disabled={!m.is_active} data-track="ui.2265f208ce.4">
           {assignOpen ? t('food.common.back', 'Back') : t('restaurants.ops.training.assign', 'Assign')}
         </button>
         <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => onDelete(m.id)} data-track="ui.2265f208ce.5">{t('common.delete', 'Delete')}</button>
@@ -487,12 +493,14 @@ function ModuleForm({ t, module, onSave, onCancel }) {
   const [saving, setSaving] = useState(false);
 
   const useStarter = () => {
-    setTitle(SEED_TRAINING.title);
-    setDescription(SEED_TRAINING.description);
-    setContent(SEED_TRAINING.content);
-    setCategory(SEED_TRAINING.category);
-    setPassScorePct(SEED_TRAINING.passScorePct);
-    setQuestions(SEED_TRAINING.questions.map((q) => ({ ...q, options: [...q.options] })));
+    const localized=t('restaurants.ops.starters.training',{returnObjects:true});
+    const seed=localized && typeof localized==='object'?localized:SEED_TRAINING;
+    setTitle(seed.title);
+    setDescription(seed.description);
+    setContent(seed.content);
+    setCategory(seed.category);
+    setPassScorePct(seed.passScorePct);
+    setQuestions(seed.questions.map((q) => ({ ...q, options: [...q.options] })));
   };
 
   const setQ = (i, patch) => setQuestions((qs) => qs.map((q, qi) => (qi === i ? { ...q, ...patch } : q)));
@@ -507,15 +515,15 @@ function ModuleForm({ t, module, onSave, onCancel }) {
   const removeOption = (i, oi) => setQuestions((qs) => qs.map((q, qi) => {
     if (qi !== i) return q;
     const options = q.options.filter((_, oidx) => oidx !== oi);
-    return { ...q, options, correct_index: Math.min(q.correct_index, Math.max(0, options.length - 1)) };
+    return { ...q, options, correct_index: q.correct_index===oi ? -1 : q.correct_index>oi ? q.correct_index-1 : q.correct_index };
   }));
 
   const valid = title.trim().length > 0
-    && questions.length > 0
-    && questions.every((q) => (
+        && questions.every((q) => (
       q.question.trim().length > 0
       && q.options.length >= 2
       && q.options.every((o) => o.trim().length > 0)
+      && new Set(q.options.map(o=>o.trim())).size===q.options.length
       && q.correct_index >= 0
       && q.correct_index < q.options.length
     ));
@@ -671,6 +679,7 @@ function ComplianceSection({ t, restaurantId, isManager }) {
   const [acks, setAcks] = useState([]);
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [documentOffset,setDocumentOffset]=useState(0),[ackOffset,setAckOffset]=useState(0),[documentMore,setDocumentMore]=useState(false),[ackMore,setAckMore]=useState(false),[loadError,setLoadError]=useState(false);
   const [docType, setDocType] = useState('certificate_food_handler');
   const [docTitle, setDocTitle] = useState('');
   const [docUserId, setDocUserId] = useState('');
@@ -686,21 +695,21 @@ function ComplianceSection({ t, restaurantId, isManager }) {
   const load = useCallback(() => {
     setLoading(true);
     const fetches = [
-      listStaffDocuments(restaurantId),
+      listStaffDocumentPage(restaurantId,{limit:25,offset:documentOffset}),
       listSops(restaurantId),
-      listSopAcknowledgements(restaurantId),
+      listSopAcknowledgementPage(restaurantId,{limit:25,offset:ackOffset}),
     ];
     if (isManager) fetches.push(listRestaurantStaff(restaurantId));
     Promise.all(fetches)
       .then(([docs, sopList, ackList, staffList]) => {
-        setDocuments(docs);
+        setDocuments(docs.documents||[]);setDocumentMore(!!docs.hasMore);setLoadError(false);
         setSops((sopList || []).filter((s) => s.is_published !== false));
-        setAcks(ackList || []);
+        setAcks(ackList.acknowledgements||[]);setAckMore(!!ackList.hasMore);
         setStaff(staffList || []);
       })
-      .catch(() => {})
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
-  }, [restaurantId, isManager]);
+  }, [restaurantId, isManager, documentOffset, ackOffset]);
   useEffect(() => { load(); }, [load]);
 
   const upload = async (e) => {
@@ -757,7 +766,7 @@ function ComplianceSection({ t, restaurantId, isManager }) {
     setSigning(true);
     try {
       const blob = await (await fetch(signatureDataUrl)).blob();
-      await acknowledgeSop(restaurantId, signingSop.id, blob);
+      await acknowledgeSop(restaurantId, signingSop.id, blob, signingSop.version);
       toast.success(t('restaurants.ops.documents.signed'));
       setSigningSop(null);
       setSignatureDataUrl(null);
@@ -779,12 +788,16 @@ function ComplianceSection({ t, restaurantId, isManager }) {
     if (days <= 30) return { label: t('restaurants.ops.documents.expiresSoon', { date: fmtDate(doc.expires_on) }), warn: true };
     return { label: t('restaurants.ops.documents.expiresOn', { date: fmtDate(doc.expires_on) }), warn: false };
   };
-  const myAckFor = (sop) => acks.find((a) => Number(a.sop_id) === Number(sop.id) && a.is_current);
+  const myAckFor = (sop) => acks.find((a) => a.is_mine && Number(a.sop_id) === Number(sop.id) && a.is_current);
 
   return (
     <div>
       <h3 className="fd-ops-subhead">{t('restaurants.ops.documents.title')}</h3>
+      {loadError&&<p role="alert">{t('restaurants.ops.shared.loadError')} <button type="button" className="fd-btn" onClick={load} data-track="ui.2265f208ce.41">{t('restaurants.ops.shared.retry')}</button></p>}
+      <div className="fd-row"><button type="button" className="fd-btn" disabled={!documentOffset} onClick={()=>setDocumentOffset(n=>Math.max(0,n-25))} data-track="ui.2265f208ce.42">{t('restaurants.ops.shared.previous')}</button><button type="button" className="fd-btn" disabled={!documentMore} onClick={()=>setDocumentOffset(n=>n+25)} data-track="ui.2265f208ce.43">{t('restaurants.ops.shared.next')}</button></div>
       <p className="fd-card-meta">{t('restaurants.ops.documents.noTaxData')}</p>
+      {acks.map(ack=><details key={ack.id}><summary>{ack.signed_title||ack.sop_title} · {ack.first_name} {ack.last_name} · v{ack.sop_version}</summary><p style={{whiteSpace:'pre-wrap'}}>{ack.signed_body}</p>{ack.signature_url&&<a href={ack.signature_url} target="_blank" rel="noreferrer" data-track="ui.2265f208ce.44">{t('restaurants.ops.shared.signedVersion')}</a>}</details>)}
+      <div className="fd-row"><button type="button" className="fd-btn" disabled={!ackOffset} onClick={()=>setAckOffset(n=>Math.max(0,n-25))} data-track="ui.2265f208ce.45">{t('restaurants.ops.shared.previous')}</button><button type="button" className="fd-btn" disabled={!ackMore} onClick={()=>setAckOffset(n=>n+25)} data-track="ui.2265f208ce.46">{t('restaurants.ops.shared.next')}</button></div>
 
       {documents.length === 0 ? (
         <p className="fd-card-meta">{t('restaurants.ops.documents.empty')}</p>
@@ -984,7 +997,9 @@ function StaffTraining({ t, assignments, onStart }) {
 
 function TrainingFlow({ t, restaurantId, taking, setTaking, onDone }) {
   const { assignment, module } = taking;
-  const [answers, setAnswers] = useState({});
+  const draftKey=`restaurant-training:${restaurantId}:${assignment.id}:${module.current_version}`;
+  const [answers, setAnswers] = useState(()=>{try{return JSON.parse(sessionStorage.getItem(draftKey)||'{}');}catch{return {};}});
+  useEffect(()=>{try{sessionStorage.setItem(draftKey,JSON.stringify(answers));}catch{}},[draftKey,answers]);
   const [busy, setBusy] = useState(false);
 
   const close = () => { setTaking(null); onDone(); };
@@ -995,7 +1010,7 @@ function TrainingFlow({ t, restaurantId, taking, setTaking, onDone }) {
     const answerArr = questions.map((_, i) => (Number.isInteger(answers[i]) ? answers[i] : -1));
     setBusy(true);
     try {
-      const data = await submitTrainingQuizOffline(restaurantId, assignment.id, { answers: answerArr });
+      const data = await submitTrainingQuizOffline(restaurantId, assignment.id, { answers: answerArr, moduleVersion:module.current_version });
       if (data && data.queued) {
         setTaking((prev) => ({ ...prev, step: 'result', result: { queued: true } }));
       } else {
@@ -1010,6 +1025,7 @@ function TrainingFlow({ t, restaurantId, taking, setTaking, onDone }) {
           },
         }));
       }
+      if(!data?.queued)sessionStorage.removeItem(draftKey);
       onDone();
     } catch (err) {
       toast.error(apiErr(err, t('restaurants.ops.training.submitError', 'Could not submit quiz')));

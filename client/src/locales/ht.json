@@ -24410,6 +24410,150 @@
       "opTrainingDesc": "Leson ak tès yo bay ekip ou a, ak swivi sa ki fini.",
       "opAuditsDesc": "Bay odit yo nòt, anrejistre konsta yo, epi swiv aksyon korektif yo jous yo fèmen.",
       "opReportsDesc": "Vant, envantè ak pèfòmans operasyon yo nan yon kout je.",
+      "shared": {
+        "store": "Lokal",
+        "loadError": "Nou pa ka chaje done yo",
+        "saveError": "Nou pa ka sove chanjman yo",
+        "previous": "Anvan",
+        "next": "Apre",
+        "myTraining": "Fòmasyon mwen",
+        "save": "Sove",
+        "cancel": "Anile",
+        "edit": "Modifye",
+        "notes": "Nòt",
+        "selectTable": "Chwazi yon tab",
+        "occupied": "Okipe",
+        "ticket": "Tikè kès",
+        "release": "Libere tab la",
+        "statusLabel": "Estati",
+        "from": "Soti",
+        "to": "Rive",
+        "all": "Tout",
+        "retry": "Eseye ankò",
+        "moveHint": "Deplase tab yo ak flèch yo, trennen yo oswa modifye kowòdone yo.",
+        "netSales": "Lavant nèt ki antre",
+        "orders": "Kòmann ki peye",
+        "preview": "Revize chanjman yo",
+        "publishWarning": "Revize chak lokal anvan ou pibliye. Paramèt ki eritye yo ranplase ansyen eksepsyon yo.",
+        "noChanges": "Pa gen chanjman",
+        "inherit": "Eritye paramèt mak la",
+        "available": "Disponib",
+        "unavailable": "Pa disponib",
+        "status": {
+          "active": "Aktif",
+          "disabled": "Dezaktive",
+          "archived": "Achive",
+          "pending": "An atant",
+          "confirmed": "Konfime",
+          "seated": "Chita",
+          "completed": "Fini",
+          "cancelled": "Anile",
+          "no_show": "Pa prezante",
+          "waiting": "Ap tann",
+          "notified": "Avèti",
+          "expired": "Ekspire"
+        },
+        "signedVersion": "Vèsyon ki siyen",
+        "archive": "Achive",
+        "archiveConfirm": "Achive modèl sa a? Istwa ki sove a ap rete disponib."
+      },
+      "starters": {
+        "audit": {
+          "kitchen": {
+            "name": "Baz sekirite manje",
+            "description": "Enspekte pwen sa a, ekri sa ou remake epi suiv pwosedi sekirite manje lokal la.",
+            "category": "kitchen",
+            "items": [
+              {
+                "label": "Planche pwòp epi sèk",
+                "instructions": "Enspekte pwen sa a, ekri sa ou remake epi suiv pwosedi sekirite manje lokal la.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Depo ak etikèt manje",
+                "instructions": "Enspekte pwen sa a, ekri sa ou remake epi suiv pwosedi sekirite manje lokal la.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Pwòpte ekipman",
+                "instructions": "Enspekte pwen sa a, ekri sa ou remake epi suiv pwosedi sekirite manje lokal la.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Lavabo gen sa yo bezwen",
+                "instructions": "Enspekte pwen sa a, ekri sa ou remake epi suiv pwosedi sekirite manje lokal la.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Zòn fatra annòd",
+                "instructions": "Enspekte pwen sa a, ekri sa ou remake epi suiv pwosedi sekirite manje lokal la.",
+                "maxScore": 5,
+                "weight": 1
+              }
+            ]
+          },
+          "foodSafety": {
+            "name": "Baz sekirite manje",
+            "description": "Enspekte pwen sa a, ekri sa ou remake epi suiv pwosedi sekirite manje lokal la.",
+            "category": "food_safety",
+            "items": [
+              {
+                "label": "Tanperati frijidè",
+                "instructions": "Enspekte pwen sa a, ekri sa ou remake epi suiv pwosedi sekirite manje lokal la.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Konsantrasyon dezenfektan",
+                "instructions": "Enspekte pwen sa a, ekri sa ou remake epi suiv pwosedi sekirite manje lokal la.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Dat ekspirasyon",
+                "instructions": "Enspekte pwen sa a, ekri sa ou remake epi suiv pwosedi sekirite manje lokal la.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Pwosedi alèjèn",
+                "instructions": "Enspekte pwen sa a, ekri sa ou remake epi suiv pwosedi sekirite manje lokal la.",
+                "maxScore": 5,
+                "weight": 1
+              }
+            ]
+          }
+        },
+        "training": {
+          "title": "Baz sekirite manje",
+          "description": "Prensip sekirite manje pou tout ekip la.",
+          "content": "Lave men ou ak dlo tyèd ak savon pandan omwen 20 segonn anvan ou manyen manje epi apre vyann kri oswa twalèt. Kenbe manje frèt nan 41°F oswa pi ba, epi manje cho nan 135°F oswa pi wo. Mete vyann kri anba manje ki pare pou manje epi dezenfekte sifas yo ant travay yo.",
+          "category": "food_safety",
+          "passScorePct": 80,
+          "questions": [
+            {
+              "question": "Konbyen tan pou lave men ou?",
+              "options": [
+                "5 segonn",
+                "Omwen 20 segonn"
+              ],
+              "correct_index": 1
+            },
+            {
+              "question": "Ki kote pou mete vyann kri?",
+              "options": [
+                "Anwo manje ki pare pou manje",
+                "Anba manje ki pare pou manje"
+              ],
+              "correct_index": 1
+            }
+          ]
+        }
+      },
       "training": {
         "loadError": "Pa t kapab chaje fòmasyon an",
         "saveError": "Pa t kapab anrejistre modil la",

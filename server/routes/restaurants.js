@@ -167,6 +167,7 @@ router.patch('/:restaurantId/delivery/marketplace-orders/:orderId', requireResta
 router.get('/:restaurantId/hq/rollup', requireRestaurantAccess(), hq.rollup);
 // S-18: HQ cross-store labor rollup (per-store hours, cost, labor %).
 router.get('/:restaurantId/hq/labor-rollup', requireRestaurantAccess(), hq.laborRollup);
+router.post('/:restaurantId/hq/menu/preview', requireRestaurantAccess(), hq.previewMenuOverrides);
 router.post('/:restaurantId/hq/menu/publish', requireRestaurantAccess(), hq.publishMenuOverrides);
 router.get('/:restaurantId/hq/regions', requireRestaurantAccess(), hq.listRegions);
 router.post('/:restaurantId/hq/regions', requireRestaurantAccess(), hq.createRegion);
@@ -187,6 +188,7 @@ router.delete('/:restaurantId/location-access/:membershipId', requireRestaurantA
 // controller; the route gate provides the canonical tenant boundary.
 router.get('/:restaurantId/tables', requireRestaurantAccess(), hosting.listTables);
 router.post('/:restaurantId/tables', requireRestaurantAccess(), hosting.createTable);
+router.post('/:restaurantId/tables/:tableId/seating', requireRestaurantAccess(), hosting.setSeating);
 router.patch('/:restaurantId/tables/:tableId', requireRestaurantAccess(), hosting.updateTable);
 router.get('/:restaurantId/reservations', requireRestaurantAccess(), hosting.listReservations);
 router.post('/:restaurantId/reservations', requireRestaurantAccess(), hosting.createReservation);
@@ -206,6 +208,7 @@ router.get('/:restaurantId/devices/:deviceId/config', requireRestaurantAccess(),
 router.patch('/:restaurantId/devices/:deviceId', requireRestaurantAccess(), appFlow.updateDeviceConfig);
 
 // Checklists (templates)
+router.get('/:restaurantId/operations/stores', requireRestaurantAccess(), ops.listOperatingStores);
 router.get('/:restaurantId/checklists', requireRestaurantAccess(), ops.listChecklists);
 router.post('/:restaurantId/checklists', requireRestaurantAccess(), ops.createChecklist);
 router.patch('/:restaurantId/checklists/:checklistId', requireRestaurantAccess(), ops.updateChecklist);
