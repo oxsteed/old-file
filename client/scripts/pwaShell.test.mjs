@@ -10,13 +10,17 @@ function worker(fetch = async () => new Response('asset')) {
     writes = [];
   let skips = 0;
   const bucket = {
-    match: async (req) => stored.get(req.url),
+    match: async (req) => stored.get(req.url)?.clone(),
     put: async (req, res) => {
       writes.push(req);
-      stored.set(req.url, res);
+      stored.set(req.url, res.clone());
     },
+    keys: async () => [...stored.keys()].map(url=>new Request(url)),
+    delete: async req => stored.delete(req.url),
     addAll: async (urls) => assert.deepEqual([...urls], ['/offline.html']),
   };
+  const metadata = new Map();
+  const metaBucket = { match: async req=>metadata.get(req.url)?.clone(), put: async(req,res)=>metadata.set(req.url,res.clone()), keys: async()=>[...metadata.keys()].map(url=>new Request(url)), delete:async req=>metadata.delete(req.url) };
   const context = vm.createContext({
     URL,
     Request,
@@ -25,7 +29,7 @@ function worker(fetch = async () => new Response('asset')) {
     Promise,
     Date,
     fetch,
-    caches: { open: async () => bucket, match: async () => undefined },
+    caches: { open: async name => name === 'oxsteed-assets-v2' || name.startsWith('oxsteed-static-') ? bucket : metaBucket, match: async () => undefined },
     self: {
       location: {
         origin: 'https://oxsteed.test',

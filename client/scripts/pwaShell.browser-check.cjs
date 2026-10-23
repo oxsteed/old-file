@@ -101,7 +101,7 @@ test(
       await page.waitForFunction(
         async () =>
           !!(await (
-            await caches.open('oxsteed-assets-v1')
+            await caches.open('oxsteed-assets-v2')
           ).match('/assets/idle-QWER1234.js')),
       );
       assert.equal(requests['/api/private.jpg'], undefined);

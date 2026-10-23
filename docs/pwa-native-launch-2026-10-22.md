@@ -28,3 +28,5 @@ Remote PR CI and physical Chrome/Android/iPadOS installation acceptance are sepa
 ## API reference basis
 
 [Service worker lifecycle](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers), [manifest screenshots](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Manifest/Reference/screenshots), [file share targets](https://developer.chrome.com/docs/capabilities/web-apis/web-share-target), and [WebKit home-screen badges](https://webkit.org/blog/14112/badging-for-home-screen-web-apps/).
+
+The eight follow-up continuity improvements and current verification are recorded in [pwa-continuity-2026-10-23.md](pwa-continuity-2026-10-23.md).

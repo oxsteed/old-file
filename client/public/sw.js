@@ -4,7 +4,12 @@
 // isolated caches without a manually maintained version constant.
 const CACHE_VERSION = new URL(self.location.href).searchParams.get('v') || 'dev';
 const STATIC_CACHE  = `oxsteed-static-${CACHE_VERSION}`;
-const ASSET_CACHE = 'oxsteed-assets-v1';
+const ASSET_CACHE = 'oxsteed-assets-v2';
+const ASSET_META_CACHE = 'oxsteed-asset-meta-v2';
+const MAX_ASSET_ENTRIES = 160;
+const MAX_ASSET_BYTES = 80 * 1024 * 1024;
+const MAX_ASSET_AGE = 30 * 24 * 60 * 60 * 1000;
+let assetWrites = Promise.resolve();
 
 // Shell assets to pre-cache on install
 const PRECACHE_URLS = [
@@ -25,10 +30,10 @@ self.addEventListener('activate', event => {
     caches.keys().then(keys =>
       Promise.all(
         keys
-          .filter(k => k.startsWith('oxsteed-') && k !== STATIC_CACHE && k !== ASSET_CACHE)
+          .filter(k => k.startsWith('oxsteed-') && k !== STATIC_CACHE && k !== ASSET_CACHE && k !== ASSET_META_CACHE)
           .map(k => caches.delete(k))
       )
-    ).then(() => self.clients.claim())
+    ).then(() => pruneAssetCache()).then(() => self.clients.claim())
     // Navigation preload reclaims the service-worker startup tax on
     // navigations: the browser fetches the document in parallel while
     // the worker boots, instead of waiting for it.
@@ -64,7 +69,7 @@ self.addEventListener('message', event => {
           const hit = await cache.match(req);
           if (!hit) {
             const res = await fetch(req);
-            if (canCache(req, res)) await cache.put(req, res.clone());
+            if (canCache(req, res)) await storeAsset(req, res);
           }
         } catch { /* one bad URL must not break the batch */ }
       }
@@ -137,15 +142,59 @@ function canCache(request, response) {
 async function fetchAsset(request) {
   const response = await fetch(request);
   if (canCache(request, response)) {
-    try { await (await caches.open(ASSET_CACHE)).put(request, response.clone()); }
+    try { await storeAsset(request, response); }
     catch { /* Quota failures must not discard a valid response. */ }
   }
   return response;
 }
 
 async function cachedAsset(request) {
-  try { return await (await caches.open(ASSET_CACHE)).match(request); }
+  let cached;
+  try { cached = await (await caches.open(ASSET_CACHE)).match(request); }
   catch { return undefined; }
+  if (cached) {
+    try {
+      const meta=await caches.open(ASSET_META_CACHE),previous=await meta.match(request);
+      const record=previous?await previous.json():{bytes:(await cached.clone().arrayBuffer()).byteLength};
+      await meta.put(request,new Response(JSON.stringify({...record,lastUsed:Date.now()})));
+    } catch { /* Metadata failure must never hide a usable offline body. */ }
+  }
+  return cached;
+}
+
+// Serialize writes/pruning across concurrent module loads. Only public asset
+// metadata is retained; API responses never enter either cache.
+function storeAsset(request, response) {
+  const work = assetWrites.catch(()=>{}).then(async()=>{
+    const bytes = (await response.clone().arrayBuffer()).byteLength;
+    if (bytes > 8 * 1024 * 1024) return;
+    const cache=await caches.open(ASSET_CACHE), meta=await caches.open(ASSET_META_CACHE);
+    try { await cache.put(request,response.clone()); }
+    catch { await pruneAssetCache(120,60*1024*1024); await cache.put(request,response.clone()); }
+    await meta.put(request,new Response(JSON.stringify({bytes,lastUsed:Date.now()})));
+    await pruneAssetCache();
+  });
+  assetWrites = work;
+  return work;
+}
+async function pruneAssetCache(maxEntries=MAX_ASSET_ENTRIES,maxBytes=MAX_ASSET_BYTES) {
+  try {
+    const cache=await caches.open(ASSET_CACHE), meta=await caches.open(ASSET_META_CACHE);
+    const records=await Promise.all((await cache.keys()).map(async request=>{
+      const saved=await meta.match(request);
+      const record=saved?await saved.json():{lastUsed:0,bytes:0};
+      return {request,...record};
+    }));
+    records.sort((a,b)=>b.lastUsed-a.lastUsed);
+    let count=0,bytes=0;
+    for(const record of records){
+      if(record.lastUsed<Date.now()-MAX_ASSET_AGE || count>=maxEntries || bytes+record.bytes>maxBytes){await cache.delete(record.request);await meta.delete(record.request);}
+      else {count++;bytes+=record.bytes;}
+    }
+    // Remove metadata whose body was evicted by the browser.
+    const live=new Set((await cache.keys()).map(request=>request.url));
+    for(const request of await meta.keys())if(!live.has(request.url))await meta.delete(request);
+  } catch { /* Eviction is best-effort when storage is unavailable. */ }
 }
 
 async function cacheFirst(request) {
@@ -194,6 +243,9 @@ async function receiveSharedJob(request) {
       files.reduce((sum, file) => sum + file.size, 0) > 20 * 1024 * 1024) {
       return Response.redirect(new URL('/post-job?share_error=invalid', self.location.origin), 303);
     }
+    const normalizedFiles = await Promise.all(files.map(async file => ({
+      name:file.name,type:file.type,lastModified:file.lastModified,bytes:await file.arrayBuffer(),
+    })));
     const id = crypto.randomUUID();
     const db = await new Promise((resolve, reject) => {
       const open = indexedDB.open('oxsteed-share-target', 1);
@@ -212,7 +264,7 @@ async function receiveSharedJob(request) {
         // Cap retained drafts to five, even when a share is never opened.
         const all = store.getAll();
         all.onsuccess = () => all.result.sort((a,b) => b.createdAt-a.createdAt).slice(4).forEach(row => store.delete(row.id));
-        store.put({ id, createdAt: Date.now(), files,
+        store.put({ id, createdAt: Date.now(), files:normalizedFiles,
           title: String(form.get('title') || '').slice(0, 180),
           text: String(form.get('text') || '').slice(0, 4000) });
         tx.oncomplete = resolve;

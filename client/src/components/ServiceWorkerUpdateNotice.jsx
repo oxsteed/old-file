@@ -19,7 +19,7 @@ export default function ServiceWorkerUpdateNotice() {
   return (
     <aside
       role="status"
-      className="fixed bottom-4 inset-x-4 z-[10000] mx-auto flex max-w-xl flex-wrap items-center gap-3 rounded-xl border border-orange-500/40 bg-white p-4 text-gray-900 shadow-xl dark:bg-gray-900 dark:text-white"
+      className="pwa-update-notice fixed bottom-4 inset-x-4 z-[10000] mx-auto flex max-w-xl flex-wrap items-center gap-3 rounded-xl border border-orange-500/40 bg-white p-4 text-gray-900 shadow-xl dark:bg-gray-900 dark:text-white"
     >
       <p className="flex-1 text-sm">{t('pwaShell.updateReady')}</p>
       <button

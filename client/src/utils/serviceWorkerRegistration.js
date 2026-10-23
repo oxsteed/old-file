@@ -121,7 +121,7 @@ export async function recoverFromBootstrapFailure() {
   try {
     const cacheNames = typeof caches === 'undefined' ? [] : await caches.keys();
     await Promise.all(cacheNames
-      .filter((name) => name.startsWith('oxsteed-static-') || name === 'oxsteed-assets-v1')
+      .filter((name) => name.startsWith('oxsteed-static-') || name.startsWith('oxsteed-assets-') || name.startsWith('oxsteed-asset-meta-'))
       .map((name) => caches.delete(name)));
   } catch {
     // Cache storage may be unavailable or restricted.

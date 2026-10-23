@@ -24,7 +24,18 @@ export function takeSharedJobDraft(id) {
         db.close();
         if (!value || value.createdAt < Date.now() - 30 * 60000)
           reject(new Error('Share expired'));
-        else resolve(value);
+        else
+          resolve({
+            ...value,
+            files: (value.files || []).map((file) =>
+              typeof file.arrayBuffer === 'function'
+                ? file
+                : new File([file.bytes], file.name, {
+                    type: file.type,
+                    lastModified: file.lastModified,
+                  }),
+            ),
+          });
       };
       tx.onabort = tx.onerror = () => {
         db.close();

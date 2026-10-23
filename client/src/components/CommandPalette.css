@@ -142,3 +142,5 @@
     display: none;
   }
 }
+
+.cmdk-close { min-width:44px; min-height:44px; display:grid; place-items:center; border:0; background:transparent; color:inherit; cursor:pointer; }

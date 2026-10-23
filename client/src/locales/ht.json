@@ -1,4 +1,16 @@
 {
+  "pwaExperience": {
+    "serverUpdated": "Nou senkronize tèks bouyon ki pi resan an. Verifye foto ki sou aparèy sa a.",
+    "searchUnavailable": "Rechèch la pa t ka chaje. Rekonekte epi eseye ankò.",
+    "online": "Konekte",
+    "offline": "Pa konekte",
+    "reconnecting": "Ap rekonekte…",
+    "lastSynced": "Dènye senkronizasyon {{time}}",
+    "retry": "Eseye ankò",
+    "restored": "Bouyon ak foto ou te sove yo retabli.",
+    "photosUnavailable": "Tèks la sove. Nou pa t ka sove foto yo sou aparèy sa a.",
+    "storageFailed": "Aparèy la pa t ka sove bouyon an. Kenbe paj sa a louvri."
+  },
   "pwaShell": {
     "updateReady": "Gen yon mizajou ki pare. Fini kòmann oswa peman ou anvan ou rafrechi.",
     "refresh": "Rafrechi pou mete ajou",

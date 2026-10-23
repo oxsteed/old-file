@@ -1,3 +1,4 @@
+import useAppResume from '../hooks/useAppResume';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../api/axios';
 import { useSocket } from './useSocket';
@@ -25,6 +26,8 @@ export default function useNotifications(scope = null) {
       setLoading(false);
     }
   }, [scope]);
+
+  useAppResume(fetchNotifications);
 
   const markAsRead = useCallback(async (notificationId) => {
     try {

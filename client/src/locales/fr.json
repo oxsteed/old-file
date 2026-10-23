@@ -1,4 +1,16 @@
 {
+  "pwaExperience": {
+    "serverUpdated": "Un texte de brouillon plus récent a été synchronisé. Vérifiez les photos conservées sur cet appareil.",
+    "searchUnavailable": "La recherche n’a pas pu se charger. Reconnectez-vous et réessayez.",
+    "online": "En ligne",
+    "offline": "Hors ligne",
+    "reconnecting": "Reconnexion…",
+    "lastSynced": "Dernière synchronisation {{time}}",
+    "retry": "Réessayer",
+    "restored": "Votre brouillon et vos photos ont été restaurés.",
+    "photosUnavailable": "Le texte est enregistré. Les photos n’ont pas pu être enregistrées sur cet appareil.",
+    "storageFailed": "Impossible d’enregistrer le brouillon. Gardez cette page ouverte."
+  },
   "pwaShell": {
     "updateReady": "Une mise à jour est prête. Terminez votre commande ou paiement avant de rafraîchir.",
     "refresh": "Actualiser maintenant",

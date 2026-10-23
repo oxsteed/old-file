@@ -1,3 +1,4 @@
+import useAppResume from '../../hooks/useAppResume';
 import { useState, useEffect, useRef } from 'react';
 import { Bell }                        from 'lucide-react';
 import { Link }                        from 'react-router-dom';
@@ -97,6 +98,11 @@ export default function NotificationCenter() {
       setLoading(false);
     }
   };
+
+  useAppResume(async () => {
+    if (open) return fetchNotifications();
+    try { const {data}=await api.get('/notifications?limit=1'); setUnread(data.unread_count); } catch {}
+  });
 
   const markAllRead = async () => {
     try {
