@@ -1,3 +1,4 @@
+import useAppResume from '../../hooks/useAppResume';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -92,6 +93,8 @@ export default function WalletPage() {
     load();
     return () => { loadRequestRef.current += 1; };
   }, [load]);
+
+  useAppResume(() => load({quiet:true}));
 
   const changeCurrency = (event) => {
     const currencyCode = event.target.value;

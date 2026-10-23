@@ -1,4 +1,23 @@
 {
+  "pwaExperience": {
+    "serverUpdated": "Newer draft text was synced. Review the photos kept on this device.",
+    "searchUnavailable": "Search could not load. Reconnect and try again.",
+    "online": "Online",
+    "offline": "Offline",
+    "reconnecting": "Reconnecting…",
+    "lastSynced": "Last synced {{time}}",
+    "retry": "Retry",
+    "restored": "Your saved draft and photos have been restored.",
+    "photosUnavailable": "Your text is saved. Photos could not be saved on this device.",
+    "storageFailed": "This device could not save your draft. Keep this page open."
+  },
+  "pwaShell": {
+    "updateReady": "An update is ready. Finish your current order or checkout before refreshing.",
+    "refresh": "Refresh to update",
+    "updating": "Refreshing…",
+    "sharedReady": "Shared photos are attached. Review the details before posting.",
+    "shareError": "The shared photos could not be opened. Choose up to five supported images and try again."
+  },
   "governedKpis": {
     "regionalUserCountry": "Your regions only · country confirmed: {{confirmed}} · unconfirmed: {{unconfirmed}}",
     "userCountryHelp": "Users with an unconfirmed country are counted under the country on file, which defaults to US.",

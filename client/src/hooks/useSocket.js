@@ -1,3 +1,4 @@
+import useAppResume from './useAppResume';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io }                                       from 'socket.io-client';
 import { useAuth }                                  from './useAuth';
@@ -29,6 +30,8 @@ export const useSocket = () => {
     connectedState: connected,
     userId: user?.id,
   });
+
+  useAppResume(() => { if (socketInstance && !socketInstance.connected) socketInstance.connect(); }, Boolean(user));
 
   // Keep each instance's connected state in sync with the singleton.
   useEffect(() => {

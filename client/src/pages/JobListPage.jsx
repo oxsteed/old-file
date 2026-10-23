@@ -1,3 +1,4 @@
+import { readNavigationState, saveNavigationState } from '../utils/navigationMemory';
 /**
  * JobListPage
  *
@@ -16,7 +17,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   SlidersHorizontal,
@@ -332,6 +333,7 @@ export default function JobListPage() {
   const { user } = useAuth();
   const { jobs, loading, error, pagination, fetchJobs } = useJobs();
   const [, setSearchParams] = useSearchParams();
+  const { search: rememberedSearch } = useLocation();
 
   const defaultState = user?.role === 'helper' && user?.state
     ? user.state
@@ -340,18 +342,24 @@ export default function JobListPage() {
     || (typeof window !== 'undefined' ? localStorage.getItem('jlp_country_filter') : null)
     || detectCountryFromLocale('US');
 
-  const [{ filters: _initFilters, tileId: _initTileId }] = useState(() =>
-    getInitialState(defaultCountry, defaultState),
-  );
+  const [savedList] = useState(() => {const saved=readNavigationState('jobs');return saved && (!window.location.search || window.location.search===saved.search) ? saved : null;});
+  const [{ filters: _initFilters, tileId: _initTileId }] = useState(() => {
+    const defaults=getInitialState(defaultCountry,defaultState);
+    // A supplied URL wins over remembered filters.
+    return savedList && (!window.location.search || window.location.search===savedList.search)
+      ? {filters:{...defaults.filters,...savedList.filters},tileId:savedList.tileId} : defaults;
+  });
 
   const [filters, setFilters] = useState(_initFilters);
-  const [sort, setSort] = useState('newest');
+  const [sort, setSort] = useState(savedList?.sort || 'newest');
   const [page, setPage] = useState(1);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedTileId, setSelectedTileId] = useState(_initTileId);
 
   const debounceRef = useRef(null);
   const isFirstLoad = useRef(true);
+
+  useEffect(() => { saveNavigationState('jobs',{filters,sort,page,tileId:selectedTileId,search:rememberedSearch}); }, [filters,sort,page,selectedTileId,rememberedSearch]);
 
   // Build server-side params from current filters + sort + page.
   const buildServerParams = useCallback((f, s, p) => {
@@ -402,7 +410,7 @@ export default function JobListPage() {
     };
     if (isFirstLoad.current) {
       isFirstLoad.current = false;
-      runFetch(1);
+      runFetch(Math.min(20,Math.max(1,savedList?.page||1)));
       return undefined;
     }
     if (debounceRef.current) clearTimeout(debounceRef.current);

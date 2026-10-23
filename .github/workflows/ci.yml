@@ -93,9 +93,21 @@ jobs:
         with:
           chrome-version: stable
 
+      - name: Install WebKit for the PWA recovery matrix
+        working-directory: client
+        run: npx playwright-core install --with-deps webkit
+
+      - name: PWA startup JavaScript budget
+        working-directory: client
+        run: node scripts/measurePwaStartup.mjs
+
       - name: Client browser regression tests
         working-directory: client
         run: node --test scripts/*.browser-check.cjs
+
+      - name: PWA installed-mode recovery matrix
+        working-directory: client
+        run: node --test scripts/pwaInstalledMatrix.installed-check.cjs
 
       - name: Authenticated admin browser matrix
         working-directory: client

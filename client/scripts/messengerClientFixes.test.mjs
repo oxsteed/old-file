@@ -49,6 +49,7 @@ test('customer, helper, and business workspaces render without state initializat
         useLocation: () => ({ pathname: scenario.pathname, search: '' }),
         useParams: () => ({ conversationId: scenario.conversationId, inquiryId: scenario.inquiryId }),
         useNavigate: () => () => {},
+        useAppResume: () => {}, // SSR does not run lifecycle subscriptions.
         useSocket: () => ({ socket: null, connected }),
         ...inboxRole,
         applyIncomingConversationUpdate,

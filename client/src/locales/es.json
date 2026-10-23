@@ -1,4 +1,23 @@
 {
+  "pwaExperience": {
+    "serverUpdated": "Se sincronizó un texto más reciente. Revisa las fotos guardadas en este dispositivo.",
+    "searchUnavailable": "No se pudo cargar la búsqueda. Reconecta e inténtalo de nuevo.",
+    "online": "En línea",
+    "offline": "Sin conexión",
+    "reconnecting": "Reconectando…",
+    "lastSynced": "Última sincronización {{time}}",
+    "retry": "Reintentar",
+    "restored": "Se restauraron el borrador y las fotos guardadas.",
+    "photosUnavailable": "El texto está guardado. No se pudieron guardar las fotos en este dispositivo.",
+    "storageFailed": "No se pudo guardar el borrador. Mantén esta página abierta."
+  },
+  "pwaShell": {
+    "updateReady": "Hay una actualización lista. Termina tu pedido o pago antes de actualizar.",
+    "refresh": "Actualizar ahora",
+    "updating": "Actualizando…",
+    "sharedReady": "Las fotos compartidas están adjuntas. Revisa los detalles antes de publicar.",
+    "shareError": "No se pudieron abrir las fotos. Elige hasta cinco imágenes compatibles e inténtalo de nuevo."
+  },
   "governedKpis": {
     "regionalUserCountry": "Solo tus regiones · país confirmado: {{confirmed}} · sin confirmar: {{unconfirmed}}",
     "userCountryHelp": "Los usuarios con país sin confirmar se cuentan en el país registrado, que por defecto es EE. UU.",

@@ -1,3 +1,4 @@
+import PwaRuntime from '../components/PwaRuntime';
 import { Suspense } from 'react';
 import { lazyWithRetry } from '../utils/lazyWithRetry';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
@@ -212,6 +213,7 @@ export default function AdminApp() {
   return (
     <QueryClientProvider client={adminQueryClient}>
     <BrowserRouter>
+      <PwaRuntime />
       <CommandPalette />
       <Suspense fallback={(
         <div role="status" className="min-h-screen flex items-center justify-center text-gray-700">

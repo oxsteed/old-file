@@ -247,7 +247,7 @@ function exportTranscript(messages, locale, labels) {
 }
 
 // ── Main widget ───────────────────────────────────────────────────────────────
-function AISupportWidget({ storageScope, signedIn }) {
+function AISupportWidget({ storageScope, signedIn, initialRequest }) {
   const storageKey = chatHistoryKey(storageScope);
   const location = useLocation();
   const isMediaPage = /^\/media(?:\/|$)/.test(location.pathname);
@@ -261,7 +261,7 @@ function AISupportWidget({ storageScope, signedIn }) {
     ? { role: 'assistant', content: t('supportWidget.welcomeBack'), ts: new Date().toISOString() }
     : { role: 'assistant', content: t('supportWidget.aiGreeting'), ts: new Date().toISOString() };
 
-  const [open,         setOpen]         = useState(false);
+  const [open,         setOpen]         = useState(Boolean(initialRequest));
   const [minimized,    setMinimized]    = useState(false);
   const [messages,     setMessages]     = useState(() => existingHistory || [initialMsg]);
   const [input,        setInput]        = useState('');
@@ -479,6 +479,7 @@ function markProactiveDismissed() {
       }
       setOpen(true); setMinimized(false); setUnread(0);
     };
+    if (initialRequest) handler({detail:initialRequest});
     window.addEventListener('oxsteed:open-support', handler);
     return () => window.removeEventListener('oxsteed:open-support', handler);
   }, []);
@@ -1382,13 +1383,15 @@ function markProactiveDismissed() {
   );
 }
 
-export default function SupportWidget() {
+export default function SupportWidget({initialRequest}) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const isMediaPage = /^\/media(?:\/|$)/.test(pathname);
   const { t } = useTranslation();
   const { isAvailable, loading } = useCapabilities();
   const { user, loading: authLoading } = useAuth();
+
+  useEffect(() => { if (initialRequest && !loading && !isAvailable('aiSupport')) navigate('/support'); }, [initialRequest, loading, isAvailable, navigate]);
 
   if (loading) return null;
   if (!isAvailable('aiSupport')) {
@@ -1408,5 +1411,5 @@ export default function SupportWidget() {
   // user's key. Keying by scope remounts the widget on login/logout.
   if (authLoading) return null;
   const scope = chatStorageScope(user);
-  return <AISupportWidget key={scope} storageScope={scope} signedIn={Boolean(user)} />;
+  return <AISupportWidget key={scope} storageScope={scope} initialRequest={initialRequest} signedIn={Boolean(user)} />;
 }

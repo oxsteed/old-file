@@ -147,3 +147,9 @@ export function writeInstallPromptDismissed(storage = safeStorage()) {
 export function shouldShowInstallPrompt({ dismissed, standalone }) {
   return !dismissed && !standalone;
 }
+
+/** iPadOS desktop user agents need touch detection; exclude iOS webviews. */
+export function isIpadSafari({ userAgent = '', platform = '', maxTouchPoints = 0 } = {}) {
+  const ipad = /iPad/.test(userAgent) || (platform === 'MacIntel' && maxTouchPoints > 1);
+  return ipad && /Safari/.test(userAgent) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(userAgent);
+}

@@ -1,3 +1,4 @@
+import useAppResume from '../../hooks/useAppResume';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -240,6 +241,8 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
       setArchivedLoading(false);
     }
   }, [archivedLoading, archivedOffset, businessId, t]);
+
+  useAppResume(fetchConversations);
 
   useEffect(() => {
     setLoading(true);

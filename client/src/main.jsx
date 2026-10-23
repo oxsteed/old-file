@@ -1,4 +1,5 @@
 import './instrument.jsx';
+import ServiceWorkerUpdateNotice from './components/ServiceWorkerUpdateNotice';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import * as Sentry from '@sentry/react';
@@ -29,7 +30,7 @@ function warmServiceWorkerAssets() {
       const urls = new Set();
       document.querySelectorAll('script[src]').forEach((s) => urls.add(s.src));
       document.querySelectorAll('link[rel="stylesheet"][href]').forEach((l) => urls.add(l.href));
-      document.querySelectorAll('link[rel="preload"][href],link[rel="prefetch"][href]').forEach((l) => urls.add(l.href));
+      document.querySelectorAll('link[rel="preload"][href],link[rel="prefetch"][href],link[rel="modulepreload"][href]').forEach((l) => urls.add(l.href));
       if (!urls.size) return;
       navigator.serviceWorker.ready.then((reg) => {
         const sw = reg.active;
@@ -114,6 +115,7 @@ Promise.all([i18nReady, launchVisibilityReady]).then(() => {
     <React.StrictMode>
       <Sentry.ErrorBoundary fallback={sentryRootFallback}>
         <App />
+        <ServiceWorkerUpdateNotice />
       </Sentry.ErrorBoundary>
     </React.StrictMode>
   );

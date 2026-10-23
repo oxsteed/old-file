@@ -1,3 +1,4 @@
+import PwaRuntime from './components/PwaRuntime';
 import PageShell from './components/PageShell';
 import LogisticsRouteBoundary from './components/logistics/LogisticsRouteBoundary';
 import { Suspense, useEffect } from 'react';
@@ -243,8 +244,7 @@ const AffiliateDashboardPage = lazyWithRetry(() => import('./pages/AffiliateDash
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
 import { ThemeProvider } from './context/ThemeContext';
-import SupportWidget from './components/SupportWidget';
-import CommandPalette from './components/CommandPalette';
+import { DeferredSupportWidget as SupportWidget, DeferredCommandPalette as CommandPalette } from './components/DeferredShellWidgets';
 import PwaInstallPrompt from './components/PwaInstallPrompt';
 import PushSoftAsk from './components/PushSoftAsk';
 import { LanguageProvider } from './context/LanguageContext';
@@ -403,6 +403,7 @@ export default function App() {
             <CookieConsentProvider>
               <RouterAwareErrorBoundary>
                 <AuthProvider>
+                <PwaRuntime />
                 <ActivityTracker>
                 <PolicyNotice />
                 <DisplayInstallRestore />

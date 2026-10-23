@@ -1,4 +1,6 @@
-import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { setNavigationAccount } from '../utils/navigationMemory';
+import { setDraftAccount } from '../utils/jobDraftStore';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { authAPI, clearStoredSession } from '../api/auth';
 import api from '../api/axios';
 import { setDisplayDeviceStaffSession } from '../api/food';
@@ -32,17 +34,28 @@ function getMembershipTier(user) {
 }
 
 export function AuthProvider({ children }) {
+  const sessionEpoch = useRef(0);
+  const identity = useRef(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const { syncLanguageFromServer } = useLanguage();
 
   const persistUser = useCallback((nextUser) => {
+    const nextId = nextUser?.id == null ? null : String(nextUser.id);
+    if (nextId !== identity.current) sessionEpoch.current++;
+    identity.current = nextId;
+    setDraftAccount(nextId);
+    setNavigationAccount(nextId);
     setUser(nextUser || null);
     return nextUser || null;
   }, []);
 
   const clearAuthState = useCallback(() => {
+    sessionEpoch.current++;
+    identity.current = null;
+    setDraftAccount(null);
+    setNavigationAccount(null);
     setUser(null);
   }, []);
 
@@ -61,7 +74,9 @@ export function AuthProvider({ children }) {
   }, [clearAuthState]);
 
   const fetchMe = useCallback(async () => {
-    const res = await api.get('/auth/me', { withCredentials: true });
+    const epoch = sessionEpoch.current;
+    const res = await api.get('/auth/me', { withCredentials: true, timeout: 10000 });
+    if (epoch !== sessionEpoch.current) return null;
     const fullUser = normalizeUserPayload(res.data);
     syncLanguageFromServer?.(fullUser?.preferred_language);
     persistUser(fullUser);

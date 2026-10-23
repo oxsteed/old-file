@@ -1,3 +1,5 @@
+import { readJobDraft, saveJobDraft, clearJobDraft } from '../utils/jobDraftStore';
+import { takeSharedJobDraft } from '../utils/sharedJobDraft';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
 import useJobs from '../hooks/useJobs';
@@ -786,6 +788,31 @@ export default function PostJobPage() {
   const bookingPrefillApplied = useRef(false);
   const [form, setForm]     = useState(INIT);
   const [errors, setErrors] = useState({});
+  const [draftReady, setDraftReady] = useState(false);
+  const [serverDraftReady, setServerDraftReady] = useState(false);
+  const [draftRecovery, setDraftRecovery] = useState(null);
+  const draftEdits = useRef(0);
+  const localDraftTimer = useRef();
+  const lastDraftPhotos = useRef(null);
+  const shareId = searchParams.get('share');
+  const [shareStatus, setShareStatus] = useState(searchParams.has('share_error') ? 'error' : null);
+  const sharedApplied = useRef(false);
+  useEffect(() => {
+    if (!shareId || sharedApplied.current) return;
+    let active = true;
+    takeSharedJobDraft(shareId).then(draft => {
+      if (!active || sharedApplied.current) return;
+      sharedApplied.current = true;
+      const files = draft.files.slice(0, 5);
+      const previews = files.map(file => URL.createObjectURL(file));
+      setForm(f => ({ ...f, title: draft.title || f.title, description: draft.text || f.description,
+        mediaTab: 'photos', mediaFiles: files, mediaPreviews: previews, step: 1 }));
+      setShareStatus('ready');
+      const next = new URLSearchParams(searchParams); next.delete('share');
+      navigate({ pathname: '/post-job', search: next.toString() }, { replace: true });
+    }).catch(() => { if (active) setShareStatus('error'); });
+    return () => { active = false; };
+  }, [shareId]);
     const [helperHints, setHelperHints] = useState([]);
 
   const photoInputRef       = useRef(null);
@@ -796,7 +823,7 @@ export default function PostJobPage() {
 
   const [liveCapture, setLiveCapture] = useState(null); // 'photo' | 'video' | 'audio' | null
 
-  const set = useCallback((patch) => setForm(f => ({ ...f, ...patch })), []);
+  const set = useCallback((patch) => { if (!Object.keys(patch).every(k => k === "draftSaving")) { setDraftRecovery(previous=>['restored','serverUpdated'].includes(previous)?null:previous); } setForm(f => ({ ...f, ...patch })); }, []);
   const setReq = useCallback((key, patch) =>
     setForm(f => ({ ...f, requirements: { ...f.requirements, [key]: { ...f.requirements[key], ...patch } } })),
   []);
@@ -879,50 +906,63 @@ export default function PostJobPage() {
   ]);
 
   // ── Load draft on mount ───────────────────────────────────────────────────
-  // Offline resilience: the server draft is the source of truth, but when
-  // the fetch fails (offline) we restore the localStorage mirror so work
-  // is never lost. The mirror is re-synced on every autosave.
-  const DRAFT_MIRROR_KEY = 'oxsteed:job-draft-mirror';
+  // Restore this account's local snapshot immediately. Check newer server text
+  // before enabling server autosave, without replacing anything the user typed.
   useEffect(() => {
-    if (fromBookingId || flowMode || location.state?.bookingPrefill) return;
-    api.get('/jobs/draft').then(({ data }) => {
-      if (!data) return;
-      const p = data.payload || {};
-      setForm(f => ({ ...f, ...p, step: 1, draftId: data.id }));
-    }).catch(() => {
+    let active = true;
+    const revision = draftEdits.current;
+    if (!user?.id || shareId || sharedApplied.current || fromBookingId || flowMode || location.state?.bookingPrefill) { setDraftReady(true);setServerDraftReady(true); return; }
+    (async () => {
+      const local = await readJobDraft(user.id);
+      if (!active) return;
+      if (local && revision === draftEdits.current) {
+        const files=local.files||[], previews=files.map(file=>URL.createObjectURL(file));
+        setForm(f=>({...f,...local.payload,step:Math.min(4,Math.max(1,local.wizard_step||1)),mediaTab:local.mediaTab||'photos',mediaFiles:files,mediaPreviews:previews}));
+        setDraftRecovery((local.photoCount||0)>files.length?'photosUnavailable':'restored');setDraftReady(true);
+      }
+      setDraftReady(true);
       try {
-        const raw = localStorage.getItem(DRAFT_MIRROR_KEY);
-        if (!raw) return;
-        const mirror = JSON.parse(raw);
-        if (mirror && mirror.payload) {
-          setForm(f => ({ ...f, ...mirror.payload, step: 1 }));
+        const {data}=await api.get('/jobs/draft',{timeout:8000});
+        if(active && data && revision===draftEdits.current && (!local || Date.parse(data.updated_at)>local.savedAt)) {
+          setForm(f=>({...f,...data.payload,mediaFiles:f.mediaFiles,mediaPreviews:f.mediaPreviews,mediaTab:f.mediaFiles.length?'photos':(data.payload?.mediaTab||f.mediaTab),step:Math.min(4,Math.max(1,data.wizard_step||1)),draftId:data.id}));
+          if(local)setDraftRecovery('serverUpdated');
         }
-      } catch { /* corrupted mirror; start fresh */ }
-    });
-  }, [flowMode, fromBookingId, location.state]);
+      } catch { /* No verified account draft exists on this device. */ }
+      if(active)setServerDraftReady(true);
+    })();
+    return()=>{active=false;};
+  }, [user?.id,flowMode,fromBookingId,location.state]);
+
+  // Store files locally only. Neither backgrounding nor reconnecting submits a job.
+  useEffect(()=>{
+    if(!draftReady || !user?.id || form.submitted || flowMode || fromBookingId || (!draftEdits.current && !form.title && !form.description && !form.mediaFiles.length)) return;
+    let active=true;
+    const save=()=>{
+      const {submitting,submitted,submittedJob,geocoding,draftSaving,mediaPreviews,mediaFiles,...payload}=form;
+      return saveJobDraft(user.id,{payload,wizard_step:form.step,mediaTab:form.mediaTab,files:mediaFiles}).then(result=>{
+        if(active)setDraftRecovery(previous=>!result.saved?'storageFailed':!result.photosSaved?'photosUnavailable':['restored','serverUpdated'].includes(previous)?previous:null);
+      });
+    };
+    if (lastDraftPhotos.current !== form.mediaFiles) { lastDraftPhotos.current=form.mediaFiles; save(); }
+    else localDraftTimer.current=setTimeout(save,250);
+    const hidden=()=>{if(document.visibilityState==='hidden')save();};
+    window.addEventListener('pagehide',save);document.addEventListener('visibilitychange',hidden);
+    return()=>{active=false;clearTimeout(localDraftTimer.current);window.removeEventListener('pagehide',save);document.removeEventListener('visibilitychange',hidden);};
+  }, [draftReady,user?.id,form.title,form.categoryId,form.description,form.locationCity,form.locationState,form.locationZip,form.locationCountry,form.requirements,form.budgetType,form.budgetAmount,form.budgetAmountHourly,form.urgency,form.notes,form.step,form.mediaTab,form.mediaFiles,form.submitted,flowMode,fromBookingId]);
 
   // ── Auto-save draft (debounced 2 s) ──────────────────────────────────────
   useEffect(() => {
-    if (form.submitted) return;
+    if (!serverDraftReady || form.submitted) return;
     clearTimeout(draftTimer.current);
     draftTimer.current = setTimeout(() => {
       const { submitting, submitted, submittedJob, geocoding, draftSaving, mediaPreviews, mediaFiles, ...payload } = form;
-      // Mirror locally first so the draft survives offline; the server
-      // remains the cross-device source of truth.
-      try {
-        localStorage.setItem(DRAFT_MIRROR_KEY, JSON.stringify({
-          wizard_step: form.step,
-          payload,
-          saved_at: Date.now(),
-        }));
-      } catch { /* storage full or unavailable; server save still attempted */ }
       set({ draftSaving: true });
       api.put('/jobs/draft', { wizard_step: form.step, payload })
         .catch(() => {})
         .finally(() => set({ draftSaving: false }));
     }, 2000);
     return () => clearTimeout(draftTimer.current);
-  }, [form.title, form.categoryId, form.description,
+  }, [serverDraftReady, form.title, form.categoryId, form.description,
       form.locationCity, form.locationState, form.locationZip, form.locationCountry,
       form.requirements, form.budgetType, form.budgetAmount, form.budgetAmountHourly,
       form.urgency, form.notes, form.step]);
@@ -1008,6 +1048,7 @@ export default function PostJobPage() {
 
   // ── Media handling ────────────────────────────────────────────────────────
   function handleMediaFiles(files) {
+    draftEdits.current++;
     const allowed = form.mediaTab === 'photos'
       ? ['image/jpeg','image/png','image/webp','image/gif']
       : form.mediaTab === 'video'
@@ -1121,7 +1162,7 @@ export default function PostJobPage() {
 
       // Clear draft
       api.delete('/jobs/draft').catch(() => {});
-      try { localStorage.removeItem('oxsteed:job-draft-mirror'); } catch { /* ignore */ }
+      clearJobDraft(user.id);
       set({ submitted: true, submittedJob: job });
     } catch (err) {
       // Extract field-level validation errors first
@@ -1183,7 +1224,9 @@ export default function PostJobPage() {
           url="https://oxsteed.com/post-job"
           noIndex={true}
         />
-        <main className="pjw-main-wrap">
+        <main className="pjw-main-wrap" onInputCapture={() => {draftEdits.current++;}}>
+          {draftRecovery && <p role="status" className="pjw-draft-recovery">{t(`pwaExperience.${draftRecovery}`)}</p>}
+          {shareStatus && <p role={shareStatus === 'error' ? 'alert' : 'status'} className="rounded-xl border border-orange-500/30 p-4">{t(shareStatus === 'error' ? 'pwaShell.shareError' : 'pwaShell.sharedReady')}</p>}
 
           {/* ── Page header ────────────────────────────────────────────────── */}
           <header className="pjw-hero">
