@@ -20,7 +20,7 @@ Scope: the 21-item Saturday audit supplied by the owner. Findings were checked a
 | 14 | Admin webhook retry enforces the existing eight-attempt budget and requires rate limiting and impersonation rejection. |
 | 15 | Logistics refund audit failures now emit structured error logs. |
 | 16 | Physical Credit card fulfillment requires a dialog naming the target status and warning that the action cannot be undone there. Errors keep the dialog open. |
-| 17 | Bulk user status changes retain failed IDs as selected and report those failures separately from the successful count. |
+| 17 | Bulk user status changes retain failed IDs as selected and report those failures. A partial-failure error takes precedence over the success toast so it cannot be overwritten. |
 | 18 | Incident email fan-out honors globally authorized operations admins' and super-admins' incident/email preferences and selected incident types. The existing admin settings page exposes type subscriptions and safety on-call participation. The configured security mailbox/Slack channel remain fallbacks; notification delivery is not human acknowledgment. |
 | 19 | Discover digest processing is lease-fenced and bounded to 100 records per batch with rotating last-checked progress. Daytime catch-up ticks start at 09:00 Eastern; each alert is checked at most daily. |
 | 20 | Bulk completion skips terminal/awaiting-user records, queues deletion requests, sends completion emails for completed non-deletion requests, and returns skipped/failed IDs and queued counts. |
@@ -32,6 +32,7 @@ Provider references: [Resend retention](https://resend.com/security), [send idem
 
 - 272 focused server tests passed across 23 suites, including new refund-control, incident delivery, SOS routing/escalation, privacy completion, and treasury audit-failure cases.
 - A subsequent 57-test focused pass passed after the final privacy queue/audit and post-commit notification changes.
+- Final merge review corrected single-toast precedence on partial bulk failures; the full client check/build was rerun successfully.
 - `npm --prefix client run build:ci` passed, including translations, type checking, production build, and verification of 1,076 emitted assets.
 - The first fresh disposable PostgreSQL rehearsal passed all 1,003 migrations and a second full runner pass. The final fresh rehearsal also passed 1,003/1,003 migrations, checksum rerun, and guard verification. Real PostgreSQL assertions passed for append-only runbook snapshots, audit rollback, delegation revocation after disable/re-enable, incident counters, step-up purposes, SOS acknowledgment, and the privacy queue language/audit schema.
 - `scripts/verify-admin-ops-audit.cjs` accepts only an explicit loopback `oxsteed_rehearsal` database and rolls back its synthetic fixtures.

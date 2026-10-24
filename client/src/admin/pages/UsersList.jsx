@@ -565,7 +565,7 @@ export default function UsersList() {
     setSelected(new Set(failed));
     fetchUsers();
     if (failed.length) showToast(t('adminOpsAudit.bulkFailed', { ids: failed.join(', ') }), 'error');
-    if (done) showToast(t('adminUsers.list.bulkStatusChanged', { count: done, status: suspend ? t('adminUsers.list.suspended').toLowerCase() : t('adminUsers.list.reactivated').toLowerCase() }));
+    else if (done) showToast(t('adminUsers.list.bulkStatusChanged', { count: done, status: suspend ? t('adminUsers.list.suspended').toLowerCase() : t('adminUsers.list.reactivated').toLowerCase() }));
   };
 
   // Message modal
