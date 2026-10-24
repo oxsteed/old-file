@@ -55,6 +55,7 @@ async function authenticateHubDevice(req, res, next) {
       throw new AppError('Hub device credential is required', 401, 'device_credential_required');
     }
     const device = await appFlow.requireDeviceCredential(req, restaurantId, Number(row.source_app_device_id));
+    if (String(device.location_id) !== String(row.location_id)) throw new AppError('Hub device store does not match',403,'location_scope_forbidden');
     if (row.status !== 'active') throw new AppError('Hub is disabled', 409, 'hub_disabled');
     req.hub = { id: Number(row.id), locationId: Number(row.location_id), restaurantId };
     req.restaurantDevice = device;
@@ -65,7 +66,8 @@ async function authenticateHubDevice(req, res, next) {
 exports.listHubs = async (req, res, next) => {
   try {
     const restaurant = await loadStaffRestaurant(req, 'settings.view');
-    res.json({ hubs: await hub.listHubs(pool, restaurant.id) });
+    const scope = await getLocationScope(restaurant, req.user.id);
+    res.json({ hubs: await hub.listHubs(pool, restaurant.id, scope.mode === 'assigned' ? scope.location_ids : null) });
   } catch (error) { next(error); }
 };
 

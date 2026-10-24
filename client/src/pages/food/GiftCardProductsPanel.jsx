@@ -1,5 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import api from '../../api/axios';
+import GiftCardFulfillmentPanel from './GiftCardFulfillmentPanel';
+import { parseCreditMajorAmount } from '../../lib/creditCurrency';
+import { moneyMinor } from '../../lib/moneyExact';
 
 function errorMessage(error, fallback) {
   return error?.response?.data?.error?.message || error?.response?.data?.message || fallback;
@@ -7,13 +10,16 @@ function errorMessage(error, fallback) {
 
 export default function GiftCardProductsPanel({ t, restaurant }) {
   const restaurantId = restaurant?.id;
+  const currency = restaurant?.currency_code || 'USD';
+  const issueAttempt = useRef(null);
+  const [revision,setRevision] = useState(0);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
   const [issuedCode, setIssuedCode] = useState(null);
   const [issuing, setIssuing] = useState(false);
-  const [issueForm, setIssueForm] = useState({ productId: '', customerId: '', expiresAt: '' });
+  const [issueForm, setIssueForm] = useState({ productId: '', customerId: '', expiresAt: '', recipientEmail: '', language: 'en', message: '', physicalCode: '' });
   const [form, setForm] = useState({ sku: '', name: '', amount: '', deliveryType: 'e_gift' });
 
   const load = useCallback(async () => {
@@ -37,7 +43,8 @@ export default function GiftCardProductsPanel({ t, restaurant }) {
 
   const create = async (event) => {
     event.preventDefault();
-    const amount = Number(form.amount);
+    let amount;
+    try { amount = parseCreditMajorAmount(form.amount,currency); } catch { amount = null; }
     if (!form.sku.trim() || !form.name.trim() || !Number.isFinite(amount) || amount <= 0) {
       setMessage({ ok: false, text: t('giftCards.validation') });
       return;
@@ -46,7 +53,7 @@ export default function GiftCardProductsPanel({ t, restaurant }) {
     setMessage(null);
     try {
       await api.post(`/restaurants/${restaurantId}/gift-card-products`, {
-        sku: form.sku.trim(), name: form.name.trim(), amountCents: Math.round(amount * 100), deliveryType: form.deliveryType,
+        sku: form.sku.trim(), name: form.name.trim(), amountCents: amount, currencyCode: currency, deliveryType: form.deliveryType,
       });
       setForm({ sku: '', name: '', amount: '', deliveryType: 'e_gift' });
       setMessage({ ok: true, text: t('giftCards.saved') });
@@ -72,14 +79,29 @@ export default function GiftCardProductsPanel({ t, restaurant }) {
     if (!issueForm.productId) return;
     setIssuing(true); setIssuedCode(null); setMessage(null);
     try {
-      const response = await api.post(`/restaurants/${restaurantId}/gift-cards`, {
+      const payload = {
         productId: Number(issueForm.productId),
         ...(issueForm.customerId.trim() ? { customerId: issueForm.customerId.trim() } : {}),
         ...(issueForm.expiresAt ? { expiresAt: new Date(`${issueForm.expiresAt}T23:59:59.000Z`).toISOString() } : {}),
-      }, { headers: { 'Idempotency-Key': globalThis.crypto?.randomUUID?.() || `gift-card-${Date.now()}` } });
+        recipientEmail: products.find(p=>String(p.id)===issueForm.productId)?.deliveryType==='e_gift'?issueForm.recipientEmail:'',
+        physicalCode: products.find(p=>String(p.id)===issueForm.productId)?.deliveryType==='physical'?issueForm.physicalCode:'',
+        language: issueForm.language, message: issueForm.message,
+      };
+      const fingerprint = JSON.stringify({restaurantId,...payload});
+      if (issueAttempt.current?.fingerprint !== fingerprint) {
+        const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(fingerprint)))).map(b=>b.toString(16).padStart(2,'0')).join('');
+        let previous;
+        try { previous = JSON.parse(sessionStorage.getItem(`gift-issue:${restaurantId}`)); } catch {}
+        issueAttempt.current = {fingerprint,key:previous?.digest===digest && Date.now()-previous.createdAt<2*60*60*1000?previous.key:crypto.randomUUID()};
+        try { sessionStorage.setItem(`gift-issue:${restaurantId}`,JSON.stringify({digest,key:issueAttempt.current.key,createdAt:Date.now()})); } catch {}
+      }
+      const response = await api.post(`/restaurants/${restaurantId}/gift-cards`, payload, { headers: { 'Idempotency-Key': issueAttempt.current.key } });
       setIssuedCode(response.data?.card?.code || null);
       setMessage({ ok: true, text: t('giftCards.issued') });
-      setIssueForm((current) => ({ ...current, customerId: '', expiresAt: '' }));
+      issueAttempt.current = null;
+      try { sessionStorage.removeItem(`gift-issue:${restaurantId}`); } catch {}
+      setRevision(n=>n+1);
+      setIssueForm((current) => ({ ...current, customerId: '', expiresAt: '',recipientEmail:'',message:'',physicalCode:'' }));
     } catch (error) {
       setMessage({ ok: false, text: errorMessage(error, t('giftCards.issueError')) });
     } finally { setIssuing(false); }
@@ -99,19 +121,23 @@ export default function GiftCardProductsPanel({ t, restaurant }) {
           <div className="fd-settings-actions"><button type="submit" className="fd-btn" disabled={saving} data-track="ui.7a385cac33.2">{saving ? t('food.common.saving') : t('giftCards.add')}</button></div>
         </form>
         <form onSubmit={issueValue} className="fd-settings-grid" data-track="ui.7a385cac33.4">
-          <div className="fd-field"><label htmlFor={`gift-card-issue-product-${restaurantId}`}>{t('giftCards.issueProduct')}</label><select id={`gift-card-issue-product-${restaurantId}`} value={issueForm.productId} onChange={(e) => setIssueForm((current) => ({ ...current, productId: e.target.value }))} disabled={issuing || !products.length}><option value="">{t('giftCards.issueProduct')}</option>{products.filter((product) => product.isActive).map((product) => <option key={product.id} value={product.id}>{product.name} - {(Number(product.amountCents) / 100).toFixed(2)} {product.currencyCode}</option>)}</select></div>
+          <div className="fd-field"><label htmlFor={`gift-card-issue-product-${restaurantId}`}>{t('giftCards.issueProduct')}</label><select id={`gift-card-issue-product-${restaurantId}`} value={issueForm.productId} onChange={(e) => setIssueForm((current) => ({ ...current, productId: e.target.value }))} disabled={issuing || !products.length}><option value="">{t('giftCards.issueProduct')}</option>{products.filter((product) => product.isActive).map((product) => <option key={product.id} value={product.id}>{product.name} - {moneyMinor(product.amountCents,product.currencyCode)} {product.currencyCode}</option>)}</select></div>
           <div className="fd-field"><label htmlFor={`gift-card-issue-customer-${restaurantId}`}>{t('giftCards.issueCustomer')}</label><input id={`gift-card-issue-customer-${restaurantId}`} value={issueForm.customerId} onChange={(e) => setIssueForm((current) => ({ ...current, customerId: e.target.value }))} disabled={issuing} placeholder="UUID" /></div>
           <div className="fd-field"><label htmlFor={`gift-card-issue-expires-${restaurantId}`}>{t('giftCards.issueExpires')}</label><input id={`gift-card-issue-expires-${restaurantId}`} type="date" value={issueForm.expiresAt} onChange={(e) => setIssueForm((current) => ({ ...current, expiresAt: e.target.value }))} disabled={issuing} /></div>
+          {products.find(p=>String(p.id)===issueForm.productId)?.deliveryType==='e_gift'?<label className="fd-field">{t('giftFulfillment.recipient')}<input type="email" required maxLength={254} disabled={issuing} value={issueForm.recipientEmail} onChange={e=>setIssueForm(s=>({...s,recipientEmail:e.target.value}))}/></label>:<label className="fd-field">{t('giftFulfillment.preprinted')}<input maxLength={40} disabled={issuing} value={issueForm.physicalCode} onChange={e=>setIssueForm(s=>({...s,physicalCode:e.target.value}))}/></label>}
+          <label className="fd-field">{t('giftFulfillment.language')}<select disabled={issuing} value={issueForm.language} onChange={e=>setIssueForm(s=>({...s,language:e.target.value}))}>{['en','es','fr','ht','ar'].map(language=><option key={language} value={language}>{({en:'English',es:'Español',fr:'Français',ht:'Kreyòl',ar:'العربية'})[language]}</option>)}</select></label>
+          <label className="fd-field">{t('giftFulfillment.message')}<input disabled={issuing} maxLength={500} value={issueForm.message} onChange={e=>setIssueForm(s=>({...s,message:e.target.value}))}/></label>
           <div className="fd-settings-actions"><button type="submit" className="fd-btn" disabled={issuing || !products.some((product) => product.isActive)} data-track="ui.7a385cac33.5">{issuing ? t('food.common.saving') : t('giftCards.issue')}</button></div>
         </form>
         {issuedCode && <p className="fd-settings-note" role="status"><strong>{t('giftCards.issuedCode')}</strong> <code>{issuedCode}</code></p>}
         {loading ? <p>{t('food.common.loading')}</p> : (
           <div className="fd-table-wrap"><table className="fd-table"><thead><tr><th>{t('giftCards.sku')}</th><th>{t('giftCards.name')}</th><th>{t('giftCards.amount')}</th><th>{t('giftCards.delivery')}</th><th>{t('giftCards.status')}</th><th /></tr></thead><tbody>
-            {products.map((product) => <tr key={product.id}><td>{product.sku}</td><td>{product.name}</td><td>{(Number(product.amountCents) / 100).toFixed(2)} {product.currencyCode}</td><td>{product.deliveryType === 'physical' ? t('giftCards.physical') : t('giftCards.eGift')}</td><td>{product.isActive ? t('giftCards.active') : t('giftCards.inactive')}</td><td><button type="button" className="fd-btn-secondary" disabled={saving} onClick={() => toggle(product)} data-track="ui.7a385cac33.3">{product.isActive ? t('giftCards.deactivate') : t('giftCards.activate')}</button></td></tr>)}
+            {products.map((product) => <tr key={product.id}><td>{product.sku}</td><td>{product.name}</td><td>{moneyMinor(product.amountCents,product.currencyCode)} {product.currencyCode}</td><td>{product.deliveryType === 'physical' ? t('giftCards.physical') : t('giftCards.eGift')}</td><td>{product.isActive ? t('giftCards.active') : t('giftCards.inactive')}</td><td><button type="button" className="fd-btn-secondary" disabled={saving} onClick={() => toggle(product)} data-track="ui.7a385cac33.3">{product.isActive ? t('giftCards.deactivate') : t('giftCards.activate')}</button></td></tr>)}
             {!products.length && <tr><td colSpan="6">{t('giftCards.empty')}</td></tr>}
           </tbody></table></div>
         )}
       </div>
+      <GiftCardFulfillmentPanel key={restaurantId} restaurantId={restaurantId} t={t} revision={revision} />
     </section>
   );
 }

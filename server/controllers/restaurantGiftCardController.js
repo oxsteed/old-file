@@ -1,7 +1,6 @@
 'use strict';
 
-// Product catalog and internal gift-card ledger. External e-gift delivery
-// remains unavailable until a provider is configured.
+// Product catalog, value ledger, durable fulfillment and reconciliation.
 const pool = require('../db');
 const { strictInteger } = require('../utils/strictInteger');
 const AppError = require('../utils/appError');
@@ -10,6 +9,8 @@ const permissions = require('../services/permissionsService');
 const { logBusinessAction } = require('../services/businessAuditLog');
 const { withTransaction } = require('../utils/transaction');
 const giftCardValue = require('../services/restaurantGiftCardService');
+const fulfillment = require('../services/restaurantGiftCardFulfillment');
+const { attachScope, requireBrand } = require('../services/restaurantReviewScope');
 
 const MAX_AMOUNT_CENTS = 1_000_000;
 
@@ -22,7 +23,9 @@ async function access(req) {
   if (!(await permissions.hasRestaurantPermission(restaurant, req.user.id, ['menu.manage', 'settings.manage']))) {
     throw new AppError('You do not have permission to manage gift-card products', 403, 'forbidden');
   }
-  return restaurant;
+  const scoped = await attachScope(restaurant, req.user.id);
+  requireBrand(scoped);
+  return scoped;
 }
 
 function normalizeSku(value) {
@@ -208,7 +211,9 @@ async function valueAccess(req) {
   if (!(await permissions.hasRestaurantPermission(restaurant, req.user.id, ['pos.manage', 'settings.manage']))) {
     throw new AppError('You do not have permission to manage gift-card value', 403, 'forbidden');
   }
-  return restaurant;
+  const scoped = await attachScope(restaurant, req.user.id);
+  requireBrand(scoped);
+  return scoped;
 }
 
 function issueProductId(value) {
@@ -239,17 +244,22 @@ exports.issueValue = async (req, res, next) => {
   try {
     const restaurant = await valueAccess(req);
     const idempotencyKey = req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key;
+    const deliveryInput = fulfillment.normalize(req.body || {});
+    const requestHash = fulfillment.fingerprint({ productId: issueProductId(req.body?.productId ?? req.body?.product_id), customerId: issueCustomerId(req.body?.customerId ?? req.body?.customer_id), expiresAt: req.body?.expiresAt ?? req.body?.expires_at ?? null, ...deliveryInput });
     const result = await withTransaction(pool, async (client) => {
       const result = await giftCardValue.issueGiftCard(client, {
         restaurantId: restaurant.id,
         productId: issueProductId(req.body?.productId ?? req.body?.product_id),
         actorUserId: req.user.id,
         idempotencyKey,
+        requestHash,
+        code: deliveryInput.physicalCode,
         customerId: issueCustomerId(req.body?.customerId ?? req.body?.customer_id),
         metadata: req.body?.metadata && typeof req.body.metadata === 'object' && !Array.isArray(req.body.metadata)
           ? req.body.metadata : {},
         expiresAt: req.body?.expiresAt ?? req.body?.expires_at ?? null,
       });
+      const delivery = result.card.deliveryType ? await fulfillment.create(client, { restaurant, result, input: deliveryInput }) : null;
       const auditCard = { ...result.card };
       delete auditCard.code;
       await logBusinessAction(req, {
@@ -264,12 +274,14 @@ exports.issueValue = async (req, res, next) => {
         metadata: { replayed: result.replayed, value_provider: 'internal_ledger' },
         throwOnError: true,
       });
-      return result;
+      return { ...result, fulfillment: delivery };
     }, 'gift_card_issue');
+    res.set?.('Cache-Control','no-store');
     res.status(result.replayed ? 200 : 201).json({
       card: result.card,
       replayed: result.replayed,
-      deliveryStatus: result.card.deliveryType === 'e_gift' ? 'provider_not_configured' : 'issued',
+      deliveryStatus: result.fulfillment?.status || 'unavailable',
+      fulfillment: result.fulfillment,
       valueProvider: 'internal_ledger',
     });
   } catch (err) {
@@ -365,3 +377,53 @@ exports.refundValue = async (req, res, next) => {
 };
 
 exports._valueNormalize = { issueProductId, issueCustomerId };
+
+
+exports.listCards = async (req,res,next) => {
+  try { const restaurant=await valueAccess(req);res.set('Cache-Control','no-store');res.json({ ...await fulfillment.list(pool,restaurant.id,req.query),deliveryEnabled:fulfillment.enabled() && Boolean(require('../utils/email').emailDeliveryAvailable?.()) }); } catch(error){next(error);}
+};
+function cardId(req) { const id=strictInteger(req.params.cardId);if(!id || id<0)throw new AppError('Gift card not found',404,'gift_card_not_found');return id; }
+async function audit(req,restaurant,client,action,id,state,metadata={}) {
+  await logBusinessAction(req,{client,business_id:restaurant.business_id,actor_role:restaurant.effective_role,action:`restaurant.gift_card.${action}`,target_type:'restaurant_gift_card',target_id:id,after_state:state,metadata,throwOnError:true});
+}
+exports.printCard = async(req,res,next)=>{
+  try {const restaurant=await valueAccess(req),id=cardId(req);
+    const html=await withTransaction(pool,async client=>{
+      const row=await fulfillment.get(client,restaurant.id,id,true);
+      if(row.kind!=='physical'||row.status!=='ready')throw new AppError('Card is not ready for printing',409,'gift_card_state_invalid');
+      const rendered=fulfillment.render(fulfillment.readPayload(row));
+      await audit(req,restaurant,client,'printed',id,{fulfillmentId:row.id});return rendered.html;
+    },'gift_card_print');
+    res.set({'Cache-Control':'no-store','Pragma':'no-cache','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",'Referrer-Policy':'no-referrer'}).type('html').send(html);
+  }catch(error){next(error);}
+};
+exports.handoffCard=async(req,res,next)=>{
+  try{const restaurant=await valueAccess(req),id=cardId(req);
+    const result=await withTransaction(pool,async client=>{const row=await fulfillment.handoff(client,restaurant.id,id,req.user.id,req.body.reference);await audit(req,restaurant,client,'handed_out',id,row,{reference:req.body.reference});return row;},'gift_card_handoff');
+    res.json({fulfillment:result});
+  }catch(error){next(error);}
+};
+exports.resolveDelivery=async(req,res,next)=>{
+  try{const restaurant=await valueAccess(req),id=cardId(req);
+    const result=await withTransaction(pool,async client=>{const row=await fulfillment.resolve(client,restaurant.id,id,req.body);await audit(req,restaurant,client,'delivery_resolved',id,row.fulfillment,{evidence:row.evidence,action:req.body.action});return row.fulfillment;},'gift_card_delivery_resolve');
+    res.json({fulfillment:result});
+  }catch(error){next(error);}
+};
+exports.reconcileCard=async(req,res,next)=>{
+  try{const restaurant=await valueAccess(req),id=cardId(req);
+    const result=await withTransaction(pool,async client=>{const row=await fulfillment.reconcile(client,restaurant.id,id,req.user.id,req.body);await audit(req,restaurant,client,'reconciled',id,row);return row;},'gift_card_reconcile');
+    res.json({reconciliation:result});
+  }catch(error){next(error);}
+};
+exports.reconciliationReport=async(req,res,next)=>{
+  try{const restaurant=await valueAccess(req),report=await fulfillment.report(pool,restaurant.id,req.query.before);
+    res.set('Cache-Control','no-store');
+    if(req.query.format==='csv'){
+      const fields=['id','code_last4','currency_code','balance_cents','ledger_balance_cents','ledger_through_id','source','external_reference','external_balance_cents','reconciled_internal_cents','variance_cents','reconciled_at','statement_current'];
+      const { csvCell } = require('../utils/csv');
+      const cell=v=>csvCell(v);
+      res.set('Content-Disposition','attachment; filename="gift-card-reconciliation-page.csv"').type('csv').send([fields.join(','),...report.rows.map(row=>fields.map(k=>cell(row[k])).join(','))].join('\r\n'));return;
+    }
+    res.json(report);
+  }catch(error){next(error);}
+};

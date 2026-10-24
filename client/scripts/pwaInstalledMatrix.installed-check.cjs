@@ -217,12 +217,14 @@ for (const profile of profiles)
           .getByRole('button', { name: 'Refresh to update', exact: true })
           .waitFor();
         assert.equal(await title.inputValue(), 'Keep draft through update');
-        await Promise.all([
-          page.waitForEvent('load'),
-          page
-            .getByRole('button', { name: 'Refresh to update', exact: true })
-            .click(),
-        ]);
+        // Prove that refresh replaced the document, then wait for the actual
+        // form below. The window load event also waits for unrelated resources
+        // and can stall on mobile Chromium after a worker takeover.
+        await page.evaluate(() => { window.__pwaBeforeUpdateDocument = true; });
+        await page
+          .getByRole('button', { name: 'Refresh to update', exact: true })
+          .click();
+        await page.waitForFunction(() => !window.__pwaBeforeUpdateDocument);
         await title.waitFor();
         await page.waitForTimeout(800);
         await page.waitForFunction(

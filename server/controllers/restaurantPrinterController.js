@@ -28,7 +28,7 @@ const permissionsService = require('../services/permissionsService');
 const { validatePrinterHost } = require('../utils/printerHostValidation');
 const escpos = require('../services/escposPrinter');
 const restaurantLocationService = require('../services/restaurantLocationService');
-const { assertLocationAccess } = require('../services/restaurantLocationAccessService');
+const { assertLocationAccess, getLocationScope } = require('../services/restaurantLocationAccessService');
 const { logBusinessAction } = require('../services/businessAuditLog');
 
 // Direct server-side dialing is an explicit operator opt-in for trusted
@@ -95,9 +95,14 @@ async function loadSettings(restaurantId, locationId = null) {
 }
 
 async function resolvePrinterLocation(req, restaurant) {
-  const requested = parsePositiveInt(
+  const scope = await getLocationScope(restaurant,req.user.id);
+  let requested = parsePositiveInt(
     req.body?.locationId ?? req.body?.location_id ?? req.query?.locationId ?? req.query?.location_id
   );
+  if (requested==null && scope.mode==='assigned') {
+    if(scope.location_ids.length!==1) throw new AppError('Select an authorized store',400,'location_required');
+    requested=scope.location_ids[0];
+  }
   const locationId = await restaurantLocationService.resolveLocationId(pool, {
     restaurantId: restaurant.id,
     requestedLocationId: requested,

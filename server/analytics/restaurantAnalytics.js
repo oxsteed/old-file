@@ -58,14 +58,14 @@ const paidOrderPredicate = (alias = 'fo') => `${alias}.payment_status = 'paid' A
  * @returns {Promise<{repeat_order_rate: number|null, repeat_orders, total_identified_orders,
  *                    repeat_customers, guest_orders_excluded, window_days}>}
  */
-async function getRepeatOrderRate(db, restaurantId, { from, to }) {
+async function getRepeatOrderRate(db, restaurantId, { from, to, locationIds = null }) {
   const { rows } = await db.query(
     `WITH cohort AS (
        SELECT fo.id, fo.customer_id
          FROM food_orders fo
         WHERE restaurant_id = $1
           AND created_at >= $2 AND created_at <= $3
-          AND ${paidOrderPredicate()}
+          AND ${paidOrderPredicate()}${locationIds ? ' AND fo.location_id = ANY($4::bigint[])' : ''}
      ),
      identified AS (
        SELECT id, customer_id FROM cohort WHERE customer_id IS NOT NULL
@@ -82,7 +82,7 @@ async function getRepeatOrderRate(db, restaurantId, { from, to }) {
        (SELECT COUNT(*)::int FROM repeat_customers)                              AS repeat_customers,
        (SELECT COUNT(*)::int FROM identified i
           WHERE i.customer_id IN (SELECT customer_id FROM repeat_customers))    AS repeat_orders`,
-    [restaurantId, from, to]
+    [restaurantId, from, to, ...(locationIds ? [locationIds] : [])]
   );
   const r = rows[0] || {};
   const total = Number(r.total_identified) || 0;
@@ -102,7 +102,7 @@ async function getRepeatOrderRate(db, restaurantId, { from, to }) {
  * @param {number} restaurantId
  * @param {object} opts — { from, to, limit = 10 }
  */
-async function getTopItemsByRevenue(db, restaurantId, { from, to, limit = 10 }) {
+async function getTopItemsByRevenue(db, restaurantId, { from, to, limit = 10, locationIds = null }) {
   const safeLimit = Number.isInteger(limit) && limit > 0 && limit <= 100 ? limit : 10;
   const { rows } = await db.query(
     `SELECT
@@ -118,11 +118,11 @@ async function getTopItemsByRevenue(db, restaurantId, { from, to, limit = 10 }) 
          ON fo.id = foi.order_id
         AND fo.restaurant_id = $1
         AND fo.created_at >= $2 AND fo.created_at <= $3
-        AND ${paidOrderPredicate()}
+        AND ${paidOrderPredicate()}${locationIds ? ' AND fo.location_id = ANY($5::bigint[])' : ''}
       GROUP BY 1, UPPER(fo.currency_code)
       ORDER BY revenue_cents DESC, units_sold DESC
       LIMIT $4`,
-    [restaurantId, from, to, safeLimit]
+    [restaurantId, from, to, safeLimit, ...(locationIds ? [locationIds] : [])]
   );
   return rows.map((r) => ({
     menu_item_id: r.menu_item_id == null ? null : Number(r.menu_item_id),
@@ -136,11 +136,11 @@ async function getTopItemsByRevenue(db, restaurantId, { from, to, limit = 10 }) 
 
 // Acquisition-month cohorts; age zero is the initial purchase month.
 // Counts are based on paid orders and stable customer ids, never guest ids.
-async function getRetentionCohorts(db, restaurantId, { from, to }) {
+async function getRetentionCohorts(db, restaurantId, { from, to, locationIds = null }) {
   const { rows } = await db.query(`WITH purchases AS (
       SELECT customer_id,date_trunc('month',created_at)::date AS month
       FROM food_orders fo WHERE restaurant_id=$1 AND customer_id IS NOT NULL
-        AND created_at <= $3 AND ${paidOrderPredicate()}
+        AND created_at <= $3 AND ${paidOrderPredicate()}${locationIds ? ' AND fo.location_id = ANY($4::bigint[])' : ''}
     ), acquired AS (
       SELECT customer_id,MIN(month) AS cohort FROM purchases GROUP BY 1
     ), activity AS (
@@ -157,7 +157,7 @@ async function getRetentionCohorts(db, restaurantId, { from, to }) {
       (EXTRACT(YEAR FROM age(date_trunc('month',$3::timestamptz)::date,c.cohort))*12+
        EXTRACT(MONTH FROM age(date_trunc('month',$3::timestamptz)::date,c.cohort)))::INT) g(month_index)
     LEFT JOIN activity a ON a.cohort=c.cohort AND a.month_index=g.month_index
-    GROUP BY c.cohort,c.customers,g.month_index ORDER BY 1,3`, [restaurantId, from, to]);
+    GROUP BY c.cohort,c.customers,g.month_index ORDER BY 1,3`, [restaurantId, from, to, ...(locationIds ? [locationIds] : [])]);
   return rows;
 }
 

@@ -156,6 +156,12 @@ router.get('/:restaurantId/gift-card-products', requireRestaurantAccess(), giftC
 router.post('/:restaurantId/gift-card-products', requireRestaurantAccess(), giftCards.createProduct);
 router.patch('/:restaurantId/gift-card-products/:productId', requireRestaurantAccess(), giftCards.updateProduct);
 router.post('/:restaurantId/gift-cards', requireRestaurantAccess(), giftCards.issueValue);
+router.get('/:restaurantId/gift-cards', requireRestaurantAccess(), giftCards.listCards);
+router.get('/:restaurantId/gift-cards/reconciliation', requireRestaurantAccess(), giftCards.reconciliationReport);
+router.get('/:restaurantId/gift-cards/:cardId/print', requireRestaurantAccess(), giftCards.printCard);
+router.post('/:restaurantId/gift-cards/:cardId/handoff', requireRestaurantAccess(), giftCards.handoffCard);
+router.post('/:restaurantId/gift-cards/:cardId/delivery-resolution', requireRestaurantAccess(), giftCards.resolveDelivery);
+router.post('/:restaurantId/gift-cards/:cardId/reconciliation', requireRestaurantAccess(), giftCards.reconcileCard);
 router.post('/:restaurantId/gift-cards/lookup', requireRestaurantAccess(), giftCards.lookupValue);
 router.post('/:restaurantId/gift-cards/redeem', requireRestaurantAccess(), giftCards.redeemValue);
 router.post('/:restaurantId/gift-cards/refund', requireRestaurantAccess(), giftCards.refundValue);

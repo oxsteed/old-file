@@ -70,7 +70,7 @@ test('receipt events stay within an assigned store', async () => {
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ location_id: 77 }] })
     .mockResolvedValueOnce({ rows: [{ id: 99, location_id: 77, queue_number: 12, total_cents: 1800, payment_status: 'paid' }] })
-    .mockResolvedValueOnce({ rows: [{ id: 100, location_id: 77 }] });
+    .mockResolvedValueOnce({ rows: [{ id: 100, location_id: 77, food_order_id: 99 }] });
 
   const res = await request(buildApp('00000000-0000-4000-8000-000000000790'))
     .post(`/api/restaurants/${RESTAURANT_ID}/pos/receipt-events`)

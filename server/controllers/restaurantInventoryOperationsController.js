@@ -8,6 +8,7 @@ const { withTransaction } = require('../utils/transaction');
 const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
 const { getEffectivePermissions, hasAny } = require('../services/permissionsService');
 const { logInventoryAudit } = require('../services/restaurantInventoryAuditService');
+const { assertScopedLocation } = require('../services/restaurantStoreBoundary');
 const { getLocationScope, assertLocationAccess } = require('../services/restaurantLocationAccessService');
 
 const AREA_TYPES = new Set(['dry_storage', 'walk_in_cooler', 'freezer', 'bar', 'packaging', 'receiving', 'prep', 'other']);
@@ -80,7 +81,7 @@ async function restaurantAccess(userId, restaurantId) {
 
 function transferScopeClause(scope, parameterIndex) {
   return scope?.mode === 'assigned'
-    ? { sql: ` AND (t.location_id IS NULL OR t.location_id = ANY($${parameterIndex}::bigint[]))`, values: [scope.location_ids] }
+    ? { sql: ` AND (t.location_id = ANY($${parameterIndex}::bigint[]))`, values: [scope.location_ids] }
     : { sql: '', values: [] };
 }
 
@@ -698,7 +699,7 @@ exports.listSupplierCatalog = async (req, res, next) => {
     }
     if (scope?.mode === 'assigned') {
       params.push(scope.location_ids);
-      where.push(`(i.location_id IS NULL OR i.location_id = ANY($${params.length}::bigint[]))`);
+      where.push(`(i.location_id = ANY($${params.length}::bigint[]))`);
     }
     const { rows } = await pool.query(
       `SELECT c.*, s.name AS supplier_name, i.name AS inventory_item_name, i.unit AS inventory_unit
@@ -753,8 +754,8 @@ exports.upsertSupplierCatalog = async (req, res, next) => {
         [supplierId, inventoryItemId, restaurantId]
       );
       if (!refs) throw new AppError('Supplier or inventory item not found', 404, 'inventory_reference_not_found');
-      if (restaurant.effective_role !== 'owner' && restaurant.effective_membership_id && refs.location_id != null) {
-        await assertLocationAccess(restaurant, req.user.id, refs.location_id, client);
+      if (restaurant.effective_role !== 'owner' && restaurant.effective_membership_id) {
+        assertScopedLocation(await getLocationScope(restaurant,req.user.id,client),refs.location_id);
       }
       const { rows: [catalog] } = await client.query(
         `INSERT INTO restaurant_inventory_supplier_catalog
@@ -820,7 +821,7 @@ exports.createTransfer = async (req, res, next) => {
           [restaurantId, clientOperationId]
         );
         if (existing) {
-          if (scope?.mode === 'assigned' && existing.location_id != null
+          if (scope?.mode === 'assigned'
             && !scope.location_ids.includes(Number(existing.location_id))) {
             throw new AppError('Transfer not found', 404, 'inventory_transfer_not_found');
           }
@@ -832,8 +833,8 @@ exports.createTransfer = async (req, res, next) => {
         [itemId, restaurantId]
       );
       if (!item) throw new AppError('Item not found', 404, 'inventory_item_not_found');
-      if (restaurant.effective_role !== 'owner' && restaurant.effective_membership_id && item.location_id != null) {
-        await assertLocationAccess(restaurant, req.user.id, item.location_id, client);
+      if (restaurant.effective_role !== 'owner' && restaurant.effective_membership_id) {
+        assertScopedLocation(await getLocationScope(restaurant,req.user.id,client),item.location_id);
       }
       const fromAreaId = positiveInt(req.body.fromAreaId);
       const toAreaId = positiveInt(req.body.toAreaId);
@@ -885,7 +886,7 @@ exports.updateTransfer = async (req, res, next) => {
       });
     }
     const scopeClause = scope?.mode === 'assigned'
-      ? ' AND (location_id IS NULL OR location_id = ANY($4::bigint[]))' : '';
+      ? ' AND (location_id = ANY($4::bigint[]))' : '';
     const transfer = await withTransaction(pool, async (client) => {
       const { rows: [updated] } = await client.query(
         `UPDATE restaurant_inventory_transfers
@@ -1154,7 +1155,7 @@ exports.createReceipt = async (req, res, next) => {
         if (item.location_id != null && receiptLocationId != null && Number(item.location_id) !== Number(receiptLocationId)) {
           throw new AppError('Receipt items must belong to the receipt store', 400, 'location_mismatch');
         }
-        if (item.location_id != null) await assertLocationAccess(restaurant, req.user.id, item.location_id, client);
+        assertScopedLocation(await getLocationScope(restaurant,req.user.id,client),item.location_id);
         const lineUnitCost = unitCostCents(line.unitCostCents ?? line.unit_cost_cents, `lines.${index}.unitCostCents`);
         auditLines.push({
           itemId: item.id,
@@ -1268,6 +1269,8 @@ exports.listVendorPriceHistory = async (req, res, next) => {
       params.push(supplierId);
       conditions.push(`h.supplier_id = $${params.length}`);
     }
+    const scope = await getTransferScope(restaurant, req.user.id);
+    if (scope?.mode === 'assigned') { params.push(scope.location_ids); conditions.push(`i.location_id = ANY($${params.length}::bigint[])`); }
     params.push(limit);
     const { rows } = await pool.query(
       `SELECT h.*, s.name AS supplier_name, i.name AS item_name
@@ -1308,7 +1311,7 @@ exports.recordVendorPrice = async (req, res, next) => {
         [itemId, restaurantId]
       );
       if (!item) throw new AppError('Item not found', 404, 'inventory_item_not_found');
-      if (item.location_id != null) await assertLocationAccess(restaurant, req.user.id, item.location_id, client);
+      assertScopedLocation(await getLocationScope(restaurant,req.user.id,client),item.location_id);
       let supplier = null;
       if (supplierId) {
         const { rows: [found] } = await client.query(

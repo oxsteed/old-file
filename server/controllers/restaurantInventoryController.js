@@ -21,6 +21,7 @@ const { getEffectivePermissions, hasAny } = require('../services/permissionsServ
 const { logInventoryAudit } = require('../services/restaurantInventoryAuditService');
 const restaurantLocationService = require('../services/restaurantLocationService');
 const { getLocationScope, assertLocationAccess } = require('../services/restaurantLocationAccessService');
+const { assertScopedLocation } = require('../services/restaurantStoreBoundary');
 
 const { inventoryId: parsePositiveInt } = require('../services/restaurantInventoryValidation');
 
@@ -95,12 +96,9 @@ function locationScopeClause(scope, alias, parameterIndex) {
 }
 
 async function assertExistingItemLocationAccess(restaurant, userId, locationId, db) {
-  // A small number of pre-location inventory rows may still be null while
-  // migration 952 is being rolled through existing installations. Preserve
-  // their staged all-store behavior until the backfill completes.
-  if (locationId === null || locationId === undefined
-    || (restaurant?.effective_role !== 'owner' && !restaurant?.effective_membership_id)) return;
-  return assertLocationAccess(restaurant, userId, locationId, db);
+  const scope = restaurant.locationScope || await getLocationScope(restaurant,userId,db);
+  assertScopedLocation(scope,locationId);
+  if (locationId != null) return assertLocationAccess(restaurant,userId,locationId,db);
 }
 
 async function requireInventoryPermission(userId, restaurant, permissions) {
@@ -616,7 +614,7 @@ exports.createPurchaseRequest = async (req, res, next) => {
           `SELECT * FROM restaurant_inventory_purchase_requests WHERE restaurant_id = $1 AND client_operation_id = $2`,
           [restaurantId, clientOperationId]
         );
-        if (existing) return { request: existing, replayed: true };
+        if (existing) { await assertExistingItemLocationAccess(restaurant, req.user.id, existing.location_id, client); return { request: existing, replayed: true }; }
       }
       const requestLocationId = await restaurantLocationService.resolveLocationId(client, {
         restaurantId,
@@ -774,7 +772,7 @@ exports.createSupplierIssue = async (req, res, next) => {
           `SELECT * FROM restaurant_inventory_supplier_issues WHERE restaurant_id = $1 AND client_operation_id = $2`,
           [restaurantId, clientOperationId]
         );
-        if (existing) return { issue: existing, replayed: true };
+        if (existing) { await assertExistingItemLocationAccess(restaurant, req.user.id, existing.location_id, client); return { issue: existing, replayed: true }; }
       }
       const issueLocationId = await restaurantLocationService.resolveLocationId(client, {
         restaurantId,

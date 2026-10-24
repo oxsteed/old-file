@@ -48,7 +48,7 @@ async function getHub(client, restaurantId, hubId) {
   return hub;
 }
 
-async function listHubs(client, restaurantId) {
+async function listHubs(client, restaurantId, locationIds = null) {
   const { rows } = await client.query(
     `SELECT h.id, h.restaurant_id, h.location_id, l.name AS location_name,
             h.device_id, h.name, h.status, h.last_heartbeat_at,
@@ -60,9 +60,9 @@ async function listHubs(client, restaurantId) {
        FROM store_hubs h
        JOIN restaurant_locations l
          ON l.restaurant_id = h.restaurant_id AND l.id = h.location_id
-      WHERE h.restaurant_id = $1
+      WHERE h.restaurant_id = $1 AND ($2::bigint[] IS NULL OR h.location_id=ANY($2::bigint[]))
       ORDER BY l.name ASC, h.id ASC`,
-    [restaurantId]
+    [restaurantId,locationIds]
   );
   return rows;
 }

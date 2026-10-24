@@ -266,6 +266,15 @@ async function validateStaffPinForRestaurant({ restaurantId, pin, deviceId = nul
       throw new AppError('This staff PIN no longer belongs to an active team member', 403, 'staff_not_member');
     }
   }
+  if (staffAccess) {
+    const { getLocationScope } = require('./restaurantLocationAccessService');
+    const { assertScopedLocation } = require('./restaurantStoreBoundary');
+    const scope = await getLocationScope(staffAccess, pinRow.staff_user_id);
+    try { assertScopedLocation(scope, storeId); } catch (err) {
+      await recordPinAttempt({ restaurantId, deviceId, staffPinId: pinRow.id, success: false });
+      throw err;
+    }
+  }
   await recordPinAttempt({ restaurantId, deviceId, staffPinId: pinRow.id, success: true });
   return {
     pinRow,

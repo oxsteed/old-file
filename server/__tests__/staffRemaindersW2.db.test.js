@@ -136,6 +136,19 @@ suite('W2 staff remainders (DB)', () => {
     }
   }, 30000);
 
+  beforeEach(() => {
+    // The manager fixture has no store assignments, so its real rollout scope
+    // is all stores. Initialize every test, including schedule publishing,
+    // rather than relying on a later crew-notification test to set these mocks.
+    resolveRestaurantAccess.mockResolvedValue({
+      id: restaurantId,
+      business_id: bizId,
+      effective_role: 'manager',
+    });
+    getLocationScope.mockResolvedValue({ mode: 'all', location_ids: null });
+    permissionsService.hasRestaurantPermission.mockResolvedValue(true);
+  });
+
   afterAll(async () => { await db.end(); });
 
   test('S-20: evaluateSchedule flags CA daily overtime and clopening', () => {

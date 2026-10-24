@@ -47,7 +47,7 @@ exports.listFleet = async (req, res, next) => {
       status: req.query?.status || null,
     });
     if (scope.mode === 'assigned') {
-      rows = rows.filter((d) => d.locationId == null || scope.location_ids.includes(d.locationId));
+      rows = rows.filter((d) => scope.location_ids.includes(d.locationId));
     }
     res.json({ devices: rows });
   } catch (error) { next(error); }
@@ -59,9 +59,11 @@ exports.setDeviceStatus = async (req, res, next) => {
     const deviceId = parsePositiveInt(req.params.deviceId);
     if (!deviceId) throw new AppError('Device not found', 404, 'device_not_found');
     const status = String(req.body?.status || '').trim();
+    const scope = await getLocationScope(restaurant, req.user.id);
     const updated = await withTransaction(pool, async (client) => {
       const row = await devices.setDeviceStatus(client, {
         restaurantId: restaurant.id, deviceId, status, actorUserId: req.user.id,
+        allowedLocationIds: scope.mode === 'assigned' ? scope.location_ids : null,
       });
       await logBusinessAction(req, {
         business_id: restaurant.business_id,
