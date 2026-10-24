@@ -65,18 +65,19 @@ async function listDevices(client, restaurantId, { locationId = null, role = nul
   }));
 }
 
-async function getDevice(client, restaurantId, deviceId) {
-  const devices = await listDevices(client, restaurantId);
-  const device = devices.find((d) => d.id === normalizeId(deviceId, 'device'));
-  if (!device) throw new AppError('Device not found', 404, 'device_not_found');
-  return device;
+async function getDevice(client, restaurantId, deviceId, { allowedLocationIds = null, lock = false } = {}) {
+  const {rows:[row]}=await client.query(`SELECT * FROM restaurant_devices
+    WHERE restaurant_id=$1 AND id=$2 AND ($3::bigint[] IS NULL OR location_id=ANY($3::bigint[]))${lock?' FOR UPDATE':''}`,
+    [restaurantId,normalizeId(deviceId,'device'),allowedLocationIds]);
+  if(!row)throw new AppError('Device not found',404,'device_not_found');
+  return deviceShape(row);
 }
 
 // Disabling is the safe lifecycle operation: it revokes the device's ability
 // to authenticate everywhere by writing through to the pairing source.
-async function setDeviceStatus(client, { restaurantId, deviceId, status, actorUserId = null }) {
+async function setDeviceStatus(client, { restaurantId, deviceId, status, actorUserId = null, allowedLocationIds = null }) {
   if (!['active', 'disabled'].includes(status)) throw new AppError('Unsupported device status', 400, 'validation_failed');
-  const device = await getDevice(client, restaurantId, deviceId);
+  const device = await getDevice(client, restaurantId, deviceId, { allowedLocationIds, lock: true });
   await client.query(
     `UPDATE restaurant_devices SET status = $2, updated_at = NOW() WHERE id = $1`,
     [device.id, status]

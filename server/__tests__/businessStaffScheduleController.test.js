@@ -5,6 +5,12 @@
 // 238), never the legacy shift_start/shift_end columns.
 
 const { mockQuery, resetMocks } = require('./setup');
+// Legacy workforce contracts are exercised without a restaurant boundary here.
+// The full-schema store suite covers the actual scope resolver.
+jest.mock('../services/restaurantWorkforceScope', () => ({
+  ...jest.requireActual('../services/restaurantWorkforceScope'),
+  context: jest.fn(async () => null),
+}));
 const ctrl = require('../controllers/businessStaffScheduleController');
 
 beforeEach(() => {

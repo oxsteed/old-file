@@ -121,6 +121,7 @@ function PaletteDialog({ open, onClose, items, loading }) {
           </span>
           <input
             ref={inputRef}
+            autoFocus
             className="cmdk-input"
             type="text"
             value={query}
@@ -134,7 +135,7 @@ function PaletteDialog({ open, onClose, items, loading }) {
             autoComplete="off"
             spellCheck="false"
           />
-          <kbd className="cmdk-kbd">esc</kbd>
+          <button type="button" className="cmdk-close" aria-label={t('common.close')} onClick={onClose} data-track="pwa.close-command-palette"><kbd className="cmdk-kbd">esc</kbd></button>
         </div>
 
         <div id="cmdk-list" ref={listRef} className="cmdk-list" role="listbox" aria-label={t('commandPalette.title')}>
@@ -180,10 +181,10 @@ function PaletteDialog({ open, onClose, items, loading }) {
   );
 }
 
-function ClientCommandPalette() {
+function ClientCommandPalette({initialOpen = false}) {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initialOpen);
   const [dynamicItems, setDynamicItems] = useState([]);
   const [dynamicLoading, setDynamicLoading] = useState(false);
   const fetchedRef = useRef(false);
@@ -212,11 +213,11 @@ function ClientCommandPalette() {
   return <PaletteDialog open={open} onClose={close} items={items} loading={dynamicLoading} />;
 }
 
-function AdminCommandPalette() {
+function AdminCommandPalette({initialOpen = false}) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { scopes } = useMyScopes();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initialOpen);
 
   const toggle = useCallback(() => setOpen((value) => !value), []);
   usePaletteHotkey(toggle);
@@ -230,8 +231,8 @@ function AdminCommandPalette() {
   return <PaletteDialog open={open} onClose={close} items={items} loading={false} />;
 }
 
-export default function CommandPalette() {
+export default function CommandPalette({initialOpen = false}) {
   const { pathname } = useLocation();
   const isAdminShell = pathname.startsWith('/admin');
-  return isAdminShell ? <AdminCommandPalette /> : <ClientCommandPalette />;
+  return isAdminShell ? <AdminCommandPalette initialOpen={initialOpen} /> : <ClientCommandPalette initialOpen={initialOpen} />;
 }

@@ -3,7 +3,6 @@
    Palette: dark navy · Instrument Serif + Work Sans
    Fully replaces the old blue-palette PostJobPage.css
    ============================================================ */
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Work+Sans:wght@300..700&display=swap');
 
 /* ── Design tokens ────────────────────────────────────── */
 .pjw-root {

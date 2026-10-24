@@ -98,7 +98,11 @@
     "test:media-profile-preview": "node --test scripts/mediaProfilePreview.test.mjs",
     "test:safe-href": "node --test scripts/safeHref.test.mjs",
     "test:job-lifecycle-ui": "node --test scripts/jobLifecycleUi.test.mjs",
-    "test:promotion-visitor": "node --test scripts/promotionVisitor.test.mjs"
+    "test:promotion-visitor": "node --test scripts/promotionVisitor.test.mjs",
+    "test:pwa:unit": "node --test scripts/pwaContinuity.test.mjs scripts/pwaShell.test.mjs scripts/pwaInstall.test.mjs",
+    "test:pwa:browser": "node --test scripts/pwaDraftStore.browser-check.cjs scripts/pwaShell.browser-check.cjs scripts/pwaOptionalWidgets.browser-check.cjs",
+    "test:pwa:installed": "node --test scripts/pwaInstalledMatrix.installed-check.cjs",
+    "verify:pwa-startup": "node scripts/measurePwaStartup.mjs"
   },
   "dependencies": {
     "@sentry/react": "^8.55.1",

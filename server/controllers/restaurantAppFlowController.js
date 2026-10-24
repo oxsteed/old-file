@@ -58,6 +58,8 @@ const {
 const { nextQueueNumber } = require('../services/restaurantQueueCounter');
 const restaurantLocationService = require('../services/restaurantLocationService');
 const { getLocationScope } = require('../services/restaurantLocationAccessService');
+const { assertScopedLocation, assertScopedResource } = require('../services/restaurantStoreBoundary');
+const { attachScope, requireBrand, assertStaff } = require('../services/restaurantReviewScope');
 const storeMenu = require('../services/restaurantStoreMenuService');
 const permissionsService = require('../services/permissionsService');
 const { getEffectivePermissions } = permissionsService;
@@ -1267,6 +1269,8 @@ async function loadRestaurantSnapshot(restaurantId) {
 
 async function buildBootstrapPayload(user, restaurantId, query = {}) {
     const restaurant = await requireRestaurantAccess(user.id, restaurantId);
+    const locationScope = await getLocationScope(restaurant,user.id);
+    const assigned = locationScope.mode==='assigned';
     const appKey = normalizeString(query.app || query.appKey, 32);
     if (appKey && !APP_KEYS.has(appKey)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { app: 'Unsupported app key' });
@@ -1287,19 +1291,19 @@ async function buildBootstrapPayload(user, restaurantId, query = {}) {
            FROM restaurant_app_devices d
            LEFT JOIN restaurant_locations l
              ON l.id = d.location_id AND l.restaurant_id = d.restaurant_id
-          WHERE d.restaurant_id = $1 AND d.status <> 'disabled'
+          WHERE d.restaurant_id = $1 AND d.status <> 'disabled'${assigned ? ' AND d.location_id=ANY($2::bigint[])' : ''}
           ORDER BY d.updated_at DESC
           LIMIT 500`,
-        [restaurantId]
+        [restaurantId,...(assigned?[locationScope.location_ids]:[])]
       ),
       pool.query(
         `SELECT id, name, address_street, address_city, address_state, address_zip,
                 address_country, latitude, longitude, timezone, phone, is_primary,
                 status, operating_hours, updated_at
            FROM restaurant_locations
-          WHERE restaurant_id = $1
+          WHERE restaurant_id = $1${assigned ? ' AND id=ANY($2::bigint[])' : ''}
           ORDER BY is_primary DESC, name ASC`,
-        [restaurantId]
+        [restaurantId,...(assigned?[locationScope.location_ids]:[])]
       ),
       pool.query(
         `SELECT to_jsonb(b) AS business
@@ -2020,6 +2024,7 @@ exports.updatePublishing = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertManage(restaurant, req.user.id);
+    requireBrand(await attachScope(restaurant,req.user.id));
 
     const allowedStatus = new Set(['draft', 'active', 'paused']);
     const status = normalizeString(req.body.status, 24);
@@ -2422,6 +2427,7 @@ exports.updatePrepDeviceConfig = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertManage(restaurant, req.user.id);
+    requireBrand(await attachScope(restaurant,req.user.id));
     const prepTimeMin = parseOptionalInteger(req.body.prepTimeMin ?? req.body.prep_time_min, 'prepTimeMin', 1, 240);
     const kitchenDisplayEnabled = parseOptionalBoolean(
       req.body.kitchenDisplayEnabled ?? req.body.kitchen_display_enabled,
@@ -2552,6 +2558,7 @@ exports.createRestaurantLocation = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertManage(restaurant, req.user.id);
+    requireBrand(await attachScope(restaurant,req.user.id));
     const location = normalizeLocationPatch(req.body);
     if (!location?.name) {
       throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Location name is required' });
@@ -2639,6 +2646,9 @@ exports.updateRestaurantLocation = async (req, res, next) => {
     const locationId = parsePositiveInt(req.params.locationId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertManage(restaurant, req.user.id);
+    const locationScope = await getLocationScope(restaurant,req.user.id);
+    assertScopedLocation(locationScope,parsePositiveInt(req.params.locationId));
+    if (asBool(req.body.isPrimary ?? req.body.is_primary, false)) requireBrand({...restaurant,locationScope});
     const normalized = normalizeLocationPatch(req.body);
     validateManagedLocation(normalized);
     const fields = [
@@ -3152,7 +3162,13 @@ exports.createDevicePairingCode = async (req, res, next) => {
     const appKey = normalizeString(req.body.appKey || req.body.app_key, 32);
     if (!APP_KEYS.has(appKey)) throw new AppError('Validation failed', 400, 'validation_failed', { appKey: 'Unsupported app key' });
     const deviceName = normalizeString(req.body.deviceName || req.body.device_name, 160) || `${appKey} device`;
-    const locationId = parsePositiveInt(req.body.locationId || req.body.location_id);
+    const locationScope = await getLocationScope(restaurant,req.user.id);
+    let locationId = parsePositiveInt(req.body.locationId ?? req.body.location_id);
+    const suppliedStore = Object.hasOwn(req.body,'locationId') || Object.hasOwn(req.body,'location_id');
+    if (locationScope.mode==='assigned') {
+      if (!suppliedStore && locationScope.location_ids.length===1) locationId=locationScope.location_ids[0];
+      assertScopedLocation(locationScope,locationId);
+    }
     if (locationId) {
       const { rows: [location] } = await pool.query(
         `SELECT id FROM restaurant_locations WHERE restaurant_id = $1 AND id = $2`,
@@ -3284,6 +3300,7 @@ exports.rotateDeviceToken = async (req, res, next) => {
     const deviceId = parsePositiveInt(req.params.deviceId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertManage(restaurant, req.user.id);
+    const deviceScope=await assertScopedResource(restaurant,req.user.id,'restaurant_app_devices',deviceId);
     if (!deviceId) throw new AppError('Device is required', 400, 'invalid_device_scope');
     const { rows: [priorDevice] } = await pool.query(
       `SELECT device_token_expires_at FROM restaurant_app_devices
@@ -3298,8 +3315,9 @@ exports.rotateDeviceToken = async (req, res, next) => {
               device_token_expires_at = NOW() + INTERVAL '90 days',
               updated_at = NOW()
         WHERE id = $1 AND restaurant_id = $2 AND status = 'paired'
+          AND ($4::bigint[] IS NULL OR location_id=ANY($4::bigint[]))
         RETURNING *`,
-      [deviceId, restaurantId, deviceTokenHash]
+      [deviceId, restaurantId, deviceTokenHash,deviceScope.mode==='assigned'?deviceScope.location_ids:null]
     );
     if (!device) throw new AppError('Paired device not found', 404, 'device_not_found');
     // F-20: token rotation is audited with before/after expiry; the token
@@ -3464,7 +3482,11 @@ exports.updateDeviceConfig = async (req, res, next) => {
     const deviceId = parsePositiveInt(req.params.deviceId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertManage(restaurant, req.user.id);
-    const locationId = parsePositiveInt(req.body.locationId || req.body.location_id);
+    await assertScopedResource(restaurant,req.user.id,'restaurant_app_devices',deviceId);
+    const locationScope = await getLocationScope(restaurant,req.user.id);
+    let locationId = parsePositiveInt(req.body.locationId ?? req.body.location_id);
+    const suppliedStore = Object.hasOwn(req.body,'locationId') || Object.hasOwn(req.body,'location_id');
+    if (suppliedStore) assertScopedLocation(locationScope,locationId);
     if (locationId) {
       const { rows: [location] } = await pool.query(
         `SELECT id FROM restaurant_locations WHERE restaurant_id = $1 AND id = $2`,
@@ -3499,6 +3521,7 @@ exports.updateDeviceConfig = async (req, res, next) => {
               config_version = config_version + 1,
               updated_at = NOW()
         WHERE restaurant_id = $7 AND id = $8
+          AND ($10::bigint[] IS NULL OR location_id=ANY($10::bigint[]))
         RETURNING *`,
       [
         normalizeString(req.body.deviceName || req.body.device_name, 160),
@@ -3509,7 +3532,8 @@ exports.updateDeviceConfig = async (req, res, next) => {
         replaceConfig,
         restaurantId,
         deviceId,
-        Object.hasOwn(req.body,'locationId') || Object.hasOwn(req.body,'location_id'),
+        suppliedStore,
+        locationScope.mode==='assigned'?locationScope.location_ids:null,
       ]
     );
     if (!device) throw new AppError('Device not found', 404, 'device_not_found');
@@ -3543,8 +3567,9 @@ exports.updateDeviceConfig = async (req, res, next) => {
 exports.getDeviceConfig = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     const deviceId = parsePositiveInt(req.params.deviceId);
+    const deviceScope=await assertScopedResource(restaurant,req.user.id,'restaurant_app_devices',deviceId);
     const { rows: [device] } = await pool.query(
       `SELECT d.*,
               row_to_json(l.*) AS location,
@@ -3564,8 +3589,9 @@ exports.getDeviceConfig = async (req, res, next) => {
          JOIN food_restaurants fr ON fr.id = d.restaurant_id
          LEFT JOIN restaurant_locations l
            ON l.id = d.location_id AND l.restaurant_id = d.restaurant_id
-        WHERE d.restaurant_id = $1 AND d.id = $2`,
-      [restaurantId, deviceId]
+        WHERE d.restaurant_id = $1 AND d.id = $2
+          AND ($3::bigint[] IS NULL OR d.location_id=ANY($3::bigint[]))`,
+      [restaurantId, deviceId,deviceScope.mode==='assigned'?deviceScope.location_ids:null]
     );
     if (!device) throw new AppError('Device not found', 404, 'device_not_found');
     res.json({ device: publicDevice(device), contract: deviceRouteContract(device, { restaurantId }) });
@@ -6875,6 +6901,8 @@ exports.reprintReceipt = async (req, res, next) => {
           WHERE restaurant_id = $1 AND idempotency_key = $2`,
         [restaurantId, receiptIdempotencyKey]
       );
+      assertScopedLocation(locationScope,existingEvent?.location_id);
+      if(String(existingEvent?.food_order_id)!==String(orderId))throw new AppError('Receipt retry targets another order',409,'idempotency_conflict');
       receiptEvent = existingEvent;
     }
     const modifiersByItem = new Map();
@@ -6948,7 +6976,12 @@ exports.setStaffPin = async (req, res, next) => {
     // F-21: PINs are scoped to a store. A locationId pins the value to one
     // store (reusable across stores, never twice in the same store); omitting
     // it keeps the legacy restaurant-wide PIN that works everywhere.
-    const locationId = await resolveStaffPinLocation(pool, restaurantId, req.body.locationId ?? req.body.location_id);
+    const scopedRestaurant = await attachScope(restaurant,req.user.id);
+    const scope = scopedRestaurant.locationScope;
+    const requested = req.body.locationId ?? req.body.location_id ?? (scope.mode==='assigned' && scope.location_ids.length===1?scope.location_ids[0]:null);
+    const locationId = await resolveStaffPinLocation(pool, restaurantId, requested);
+    assertScopedLocation(scope,locationId);
+    if(staffUserId && scope.mode==='assigned')await assertStaff({...scopedRestaurant,locationScope:{...scope,location_ids:[Number(locationId)]}},staffUserId,pool);
     // S-06: one PIN value per store. The digest identifies the target row
     // being (re)set so re-setting your own PIN is not a conflict, while a
     // value already held by anyone else at this store is refused
@@ -8417,10 +8450,12 @@ exports.listPrinterJobs = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const device = req.restaurantDevice || null;
+    let locationScope = null;
     if (device) assertDeviceApp(device, 'kitchen');
     else {
       const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
       await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.view', 'kitchen.update', 'kitchen.manage', 'orders.manage']);
+      locationScope = await getLocationScope(restaurant,req.user.id);
     }
     const deviceId = device?.id || parsePositiveInt(req.query.deviceId || req.query.device_id);
     const stationId = parsePositiveInt(req.query.stationId || req.query.station_id);
@@ -8438,11 +8473,11 @@ exports.listPrinterJobs = async (req, res, next) => {
           AND ($2::bigint IS NULL OR ks.device_id = $2 OR pj.claimed_by_device_id = $2)
           AND ($3::bigint IS NULL OR pj.station_id = $3)
           AND ($4::text IS NULL OR pj.status = $4)
-          AND ($5::bigint IS NULL OR pj.location_id = $5)
+          AND ($5::bigint IS NULL OR pj.location_id = $5) AND ($6::bigint[] IS NULL OR pj.location_id=ANY($6::bigint[]))
         ORDER BY CASE pj.status WHEN 'queued' THEN 0 WHEN 'failed' THEN 1 ELSE 2 END,
                  pj.created_at ASC
         LIMIT 200`,
-      [restaurantId, deviceId, stationId, status, device?.location_id || null]
+      [restaurantId, deviceId, stationId, status, device?.location_id || null,locationScope?.mode==='assigned'?locationScope.location_ids:null]
     );
     res.json({ jobs });
   } catch (err) {
@@ -8454,12 +8489,16 @@ exports.claimPrinterJob = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const jobId = parsePositiveInt(req.params.jobId);
-    const device = req.restaurantDevice || null;
+    let device = req.restaurantDevice || null;
     if (device) assertDeviceApp(device, 'kitchen');
-    else await requireRestaurantAccess(req.user.id, restaurantId);
+    else {
+      const restaurant=await requireRestaurantAccess(req.user.id, restaurantId);
+      await assertScopedResource(restaurant,req.user.id,'restaurant_printer_jobs',jobId);
+    }
     const deviceId = device?.id || parsePositiveInt(req.body.deviceId || req.body.device_id);
     if (!deviceId) throw new AppError('Validation failed', 400, 'validation_failed', { deviceId: 'Kitchen device is required' });
-    if (!device) await requireDeviceCredential(req, restaurantId, deviceId);
+    if (!device) device = await requireDeviceCredential(req, restaurantId, deviceId);
+    assertDeviceApp(device, 'kitchen');
     const { rows: [job] } = await pool.query(
       `UPDATE restaurant_printer_jobs pj
           SET status = 'sent',
@@ -8493,7 +8532,7 @@ exports.claimPrinterJob = async (req, res, next) => {
 exports.updatePrinterJob = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    const device = req.restaurantDevice || null;
+    let device = req.restaurantDevice || null;
     const restaurant = device
       ? { effective_role: 'screen_expeditor' }
       : await requireRestaurantAccess(req.user.id, restaurantId);
@@ -8501,6 +8540,7 @@ exports.updatePrinterJob = async (req, res, next) => {
       ? false
       : await hasRestaurantPermission(restaurant, req.user.id, 'kitchen.manage');
     const jobId = parsePositiveInt(req.params.jobId);
+    if(!device)await assertScopedResource(restaurant,req.user.id,'restaurant_printer_jobs',jobId);
     const status = normalizeString(req.body.status, 24);
     if (!PRINTER_JOB_STATUSES.has(status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported printer job status' });
@@ -8512,7 +8552,8 @@ exports.updatePrinterJob = async (req, res, next) => {
     }
     if (!managerCancel) {
       if (!deviceId) throw new AppError('Validation failed', 400, 'validation_failed', { deviceId: 'Claiming device is required' });
-      if (!device) await requireDeviceCredential(req, restaurantId, deviceId);
+      if (!device) device = await requireDeviceCredential(req, restaurantId, deviceId);
+      assertDeviceApp(device, 'kitchen');
     }
     const { rows: [job] } = await pool.query(
       `UPDATE restaurant_printer_jobs

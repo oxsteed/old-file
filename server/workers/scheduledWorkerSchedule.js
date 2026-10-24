@@ -31,6 +31,7 @@ function buildSchedule() {
 
   return [
     ...require('../growth/workerSchedule').entries(),
+    ['restaurantGiftCardDelivery', (options) => require('../services/restaurantGiftCardDelivery').processGiftCardDelivery(options), 60 * 1000, { limit: 20 }],
     // [name, workerFn, intervalMs, options]
     ['normalizeLocations', normalizeLocations, 2 * 60 * 1000, { limit: 200 }],
     ['refreshEtas', refreshEtas, 60 * 1000, { limit: 100 }],

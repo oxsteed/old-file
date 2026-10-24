@@ -1,4 +1,23 @@
 {
+  "pwaExperience": {
+    "serverUpdated": "Un texte de brouillon plus récent a été synchronisé. Vérifiez les photos conservées sur cet appareil.",
+    "searchUnavailable": "La recherche n’a pas pu se charger. Reconnectez-vous et réessayez.",
+    "online": "En ligne",
+    "offline": "Hors ligne",
+    "reconnecting": "Reconnexion…",
+    "lastSynced": "Dernière synchronisation {{time}}",
+    "retry": "Réessayer",
+    "restored": "Votre brouillon et vos photos ont été restaurés.",
+    "photosUnavailable": "Le texte est enregistré. Les photos n’ont pas pu être enregistrées sur cet appareil.",
+    "storageFailed": "Impossible d’enregistrer le brouillon. Gardez cette page ouverte."
+  },
+  "pwaShell": {
+    "updateReady": "Une mise à jour est prête. Terminez votre commande ou paiement avant de rafraîchir.",
+    "refresh": "Actualiser maintenant",
+    "updating": "Actualisation…",
+    "sharedReady": "Les photos partagées sont jointes. Vérifiez les détails avant de publier.",
+    "shareError": "Impossible d’ouvrir les photos. Choisissez jusqu’à cinq images compatibles et réessayez."
+  },
   "governedKpis": {
     "regionalUserCountry": "Vos régions uniquement · pays confirmé : {{confirmed}} · non confirmé : {{unconfirmed}}",
     "userCountryHelp": "Les utilisateurs dont le pays n’est pas confirmé sont comptés dans le pays enregistré, par défaut les États-Unis.",
@@ -24410,6 +24429,150 @@
       "opTrainingDesc": "Leçons et quiz attribués à votre équipe, avec suivi des réalisations.",
       "opAuditsDesc": "Notez les inspections, consignez les constats et suivez les actions correctives jusqu’à leur clôture.",
       "opReportsDesc": "Ventes, stock et performance des opérations en un coup d’œil.",
+      "shared": {
+        "store": "Établissement",
+        "loadError": "Impossible de charger les données",
+        "saveError": "Impossible d’enregistrer les modifications",
+        "previous": "Précédent",
+        "next": "Suivant",
+        "myTraining": "Ma formation",
+        "save": "Enregistrer",
+        "cancel": "Annuler",
+        "edit": "Modifier",
+        "notes": "Notes",
+        "selectTable": "Choisir une table",
+        "occupied": "Occupée",
+        "ticket": "Addition de caisse",
+        "release": "Libérer la table",
+        "statusLabel": "Statut",
+        "from": "Du",
+        "to": "Au",
+        "all": "Tous",
+        "retry": "Réessayer",
+        "moveHint": "Déplacez les tables avec les flèches, par glissement ou en modifiant leurs coordonnées.",
+        "netSales": "Ventes nettes encaissées",
+        "orders": "Commandes payées",
+        "preview": "Vérifier les modifications",
+        "publishWarning": "Vérifiez chaque établissement avant de publier. Les paramètres hérités remplacent les anciennes dérogations.",
+        "noChanges": "Aucune modification",
+        "inherit": "Hériter du paramètre de l’enseigne",
+        "available": "Disponible",
+        "unavailable": "Indisponible",
+        "status": {
+          "active": "Actif",
+          "disabled": "Désactivé",
+          "archived": "Archivé",
+          "pending": "En attente",
+          "confirmed": "Confirmé",
+          "seated": "Installé",
+          "completed": "Terminé",
+          "cancelled": "Annulé",
+          "no_show": "Absent",
+          "waiting": "En attente de table",
+          "notified": "Prévenu",
+          "expired": "Expiré"
+        },
+        "signedVersion": "Version signée",
+        "archive": "Archiver",
+        "archiveConfirm": "Archiver ce modèle ? L’historique enregistré reste disponible."
+      },
+      "starters": {
+        "audit": {
+          "kitchen": {
+            "name": "Bases de la sécurité alimentaire",
+            "description": "Contrôlez ce point, consignez vos observations et suivez la procédure de sécurité alimentaire de l’établissement.",
+            "category": "kitchen",
+            "items": [
+              {
+                "label": "Sols propres et secs",
+                "instructions": "Contrôlez ce point, consignez vos observations et suivez la procédure de sécurité alimentaire de l’établissement.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Stockage et étiquetage",
+                "instructions": "Contrôlez ce point, consignez vos observations et suivez la procédure de sécurité alimentaire de l’établissement.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Propreté du matériel",
+                "instructions": "Contrôlez ce point, consignez vos observations et suivez la procédure de sécurité alimentaire de l’établissement.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Lavabos approvisionnés",
+                "instructions": "Contrôlez ce point, consignez vos observations et suivez la procédure de sécurité alimentaire de l’établissement.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Zone de déchets rangée",
+                "instructions": "Contrôlez ce point, consignez vos observations et suivez la procédure de sécurité alimentaire de l’établissement.",
+                "maxScore": 5,
+                "weight": 1
+              }
+            ]
+          },
+          "foodSafety": {
+            "name": "Bases de la sécurité alimentaire",
+            "description": "Contrôlez ce point, consignez vos observations et suivez la procédure de sécurité alimentaire de l’établissement.",
+            "category": "food_safety",
+            "items": [
+              {
+                "label": "Températures des réfrigérateurs",
+                "instructions": "Contrôlez ce point, consignez vos observations et suivez la procédure de sécurité alimentaire de l’établissement.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Concentration du désinfectant",
+                "instructions": "Contrôlez ce point, consignez vos observations et suivez la procédure de sécurité alimentaire de l’établissement.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Dates limites",
+                "instructions": "Contrôlez ce point, consignez vos observations et suivez la procédure de sécurité alimentaire de l’établissement.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Procédures allergènes",
+                "instructions": "Contrôlez ce point, consignez vos observations et suivez la procédure de sécurité alimentaire de l’établissement.",
+                "maxScore": 5,
+                "weight": 1
+              }
+            ]
+          }
+        },
+        "training": {
+          "title": "Bases de la sécurité alimentaire",
+          "description": "Principes essentiels pour toute l’équipe.",
+          "content": "Lavez-vous les mains à l’eau tiède et au savon pendant au moins 20 secondes avant de manipuler des aliments et après la viande crue ou les toilettes. Conservez les aliments froids à 41°F ou moins et les aliments chauds à 135°F ou plus. Rangez la viande crue sous les aliments prêts à consommer et désinfectez les surfaces entre les tâches.",
+          "category": "food_safety",
+          "passScorePct": 80,
+          "questions": [
+            {
+              "question": "Combien de temps faut-il se laver les mains ?",
+              "options": [
+                "5 secondes",
+                "Au moins 20 secondes"
+              ],
+              "correct_index": 1
+            },
+            {
+              "question": "Où ranger la viande crue ?",
+              "options": [
+                "Au-dessus des aliments prêts à consommer",
+                "Sous les aliments prêts à consommer"
+              ],
+              "correct_index": 1
+            }
+          ]
+        }
+      },
       "training": {
         "loadError": "Impossible de charger la formation",
         "saveError": "Impossible d'enregistrer le module",
@@ -36102,6 +36265,65 @@
     },
     "sound": {
       "blocked": "Le son est bloqué. Touchez pour réactiver la sonnerie."
+    }
+  },
+  "giftFulfillment": {
+    "title": "Livraison et rapprochement",
+    "deliveryOn": "La livraison par e-mail est activée. La réception des messages acceptés est vérifiée.",
+    "deliveryPaused": "La livraison est suspendue ou indisponible. Les cartes électroniques restent en attente.",
+    "printHint": "Ouvrez la carte physique, imprimez-la puis enregistrez la référence de remise.",
+    "loadError": "Impossible de charger les livraisons.",
+    "actionError": "Impossible de terminer. Actualisez puis réessayez.",
+    "popup": "Autorisez une nouvelle fenêtre pour la carte imprimable.",
+    "saved": "Justificatif de carte enregistré.",
+    "refresh": "Actualiser",
+    "card": "Carte",
+    "actions": "Actions",
+    "print": "Ouvrir la carte imprimable",
+    "handoff": "Enregistrer la remise",
+    "resolve": "Résoudre la livraison",
+    "providerReference": "Référence du prestataire",
+    "next": "Page suivante",
+    "first": "Première page",
+    "handoffHint": "Enregistrez le reçu ou la référence après remise de la carte au destinataire.",
+    "resolveHint": "Vérifiez les justificatifs du prestataire. Un envoi confirmé non effectué lance un nouvel essai pour la même carte.",
+    "resolution": "Résolution",
+    "notSent": "Non envoyée ; renvoyer",
+    "delivered": "Livraison confirmée",
+    "newRecipient": "E-mail corrigé (facultatif)",
+    "evidence": "Référence du reçu ou justificatif du prestataire",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "reconciliation": "Rapprochement des cartes",
+    "reconciliationHint": "Comparez le solde au registre immuable et à un relevé externe. Le justificatif ne modifie aucune valeur. Les mouvements ultérieurs rendent le relevé obsolète.",
+    "export": "Exporter cette page en CSV",
+    "balance": "Solde de la carte",
+    "ledger": "Solde du registre",
+    "statement": "Dernier relevé",
+    "variance": "Écart enregistré",
+    "mismatch": "Écart du registre",
+    "current": "À jour",
+    "stale": "Obsolète",
+    "unreconciled": "Aucun relevé",
+    "record": "Enregistrer un relevé",
+    "source": "Source du relevé",
+    "externalReference": "Référence du relevé",
+    "amount": "Solde externe",
+    "note": "Note (facultative)",
+    "invalidAmount": "Saisissez un montant positif ou nul avec la précision de la devise.",
+    "recipient": "E-mail du destinataire",
+    "preprinted": "Code préimprimé (facultatif ; vide pour un nouveau code)",
+    "language": "Langue de la carte",
+    "message": "Message cadeau (facultatif)",
+    "states": {
+      "pending": "En attente",
+      "sending": "Envoi en cours",
+      "accepted": "Accepté par le prestataire",
+      "delivered": "Livré",
+      "failed": "Échec de livraison",
+      "needs_review": "Vérification requise",
+      "ready": "Prête à remettre",
+      "handed_out": "Remise"
     }
   },
   "giftCards": {

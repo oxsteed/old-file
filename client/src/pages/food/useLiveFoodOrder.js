@@ -1,3 +1,4 @@
+import useAppResume from '../../hooks/useAppResume';
 // Poll + `/restaurant-display` socket refresh for a guest-tracked food order.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getTrackedFoodOrder } from '../../api/food';
@@ -27,6 +28,8 @@ export function useLiveFoodOrder({
       })
       .catch(() => {});
   }, [trackingToken]);
+
+  useAppResume(refresh, enabled);
 
   useEffect(() => {
     if (!enabled || !trackingToken || !restaurantId) return undefined;

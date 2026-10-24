@@ -1,4 +1,23 @@
 {
+  "pwaExperience": {
+    "serverUpdated": "Nou senkronize tèks bouyon ki pi resan an. Verifye foto ki sou aparèy sa a.",
+    "searchUnavailable": "Rechèch la pa t ka chaje. Rekonekte epi eseye ankò.",
+    "online": "Konekte",
+    "offline": "Pa konekte",
+    "reconnecting": "Ap rekonekte…",
+    "lastSynced": "Dènye senkronizasyon {{time}}",
+    "retry": "Eseye ankò",
+    "restored": "Bouyon ak foto ou te sove yo retabli.",
+    "photosUnavailable": "Tèks la sove. Nou pa t ka sove foto yo sou aparèy sa a.",
+    "storageFailed": "Aparèy la pa t ka sove bouyon an. Kenbe paj sa a louvri."
+  },
+  "pwaShell": {
+    "updateReady": "Gen yon mizajou ki pare. Fini kòmann oswa peman ou anvan ou rafrechi.",
+    "refresh": "Rafrechi pou mete ajou",
+    "updating": "Ap rafrechi…",
+    "sharedReady": "Foto ou pataje yo atache. Verifye detay yo anvan ou pibliye.",
+    "shareError": "Nou pa ka ouvri foto yo. Chwazi jiska senk imaj ki sipòte epi eseye ankò."
+  },
   "governedKpis": {
     "regionalUserCountry": "Rejyon ou yo sèlman · peyi konfime: {{confirmed}} · pa konfime: {{unconfirmed}}",
     "userCountryHelp": "Itilizatè ki gen yon peyi ki pa konfime konte nan peyi ki anrejistre a, ki se Etazini pa defo.",
@@ -24410,6 +24429,150 @@
       "opTrainingDesc": "Leson ak tès yo bay ekip ou a, ak swivi sa ki fini.",
       "opAuditsDesc": "Bay odit yo nòt, anrejistre konsta yo, epi swiv aksyon korektif yo jous yo fèmen.",
       "opReportsDesc": "Vant, envantè ak pèfòmans operasyon yo nan yon kout je.",
+      "shared": {
+        "store": "Lokal",
+        "loadError": "Nou pa ka chaje done yo",
+        "saveError": "Nou pa ka sove chanjman yo",
+        "previous": "Anvan",
+        "next": "Apre",
+        "myTraining": "Fòmasyon mwen",
+        "save": "Sove",
+        "cancel": "Anile",
+        "edit": "Modifye",
+        "notes": "Nòt",
+        "selectTable": "Chwazi yon tab",
+        "occupied": "Okipe",
+        "ticket": "Tikè kès",
+        "release": "Libere tab la",
+        "statusLabel": "Estati",
+        "from": "Soti",
+        "to": "Rive",
+        "all": "Tout",
+        "retry": "Eseye ankò",
+        "moveHint": "Deplase tab yo ak flèch yo, trennen yo oswa modifye kowòdone yo.",
+        "netSales": "Lavant nèt ki antre",
+        "orders": "Kòmann ki peye",
+        "preview": "Revize chanjman yo",
+        "publishWarning": "Revize chak lokal anvan ou pibliye. Paramèt ki eritye yo ranplase ansyen eksepsyon yo.",
+        "noChanges": "Pa gen chanjman",
+        "inherit": "Eritye paramèt mak la",
+        "available": "Disponib",
+        "unavailable": "Pa disponib",
+        "status": {
+          "active": "Aktif",
+          "disabled": "Dezaktive",
+          "archived": "Achive",
+          "pending": "An atant",
+          "confirmed": "Konfime",
+          "seated": "Chita",
+          "completed": "Fini",
+          "cancelled": "Anile",
+          "no_show": "Pa prezante",
+          "waiting": "Ap tann",
+          "notified": "Avèti",
+          "expired": "Ekspire"
+        },
+        "signedVersion": "Vèsyon ki siyen",
+        "archive": "Achive",
+        "archiveConfirm": "Achive modèl sa a? Istwa ki sove a ap rete disponib."
+      },
+      "starters": {
+        "audit": {
+          "kitchen": {
+            "name": "Baz sekirite manje",
+            "description": "Enspekte pwen sa a, ekri sa ou remake epi suiv pwosedi sekirite manje lokal la.",
+            "category": "kitchen",
+            "items": [
+              {
+                "label": "Planche pwòp epi sèk",
+                "instructions": "Enspekte pwen sa a, ekri sa ou remake epi suiv pwosedi sekirite manje lokal la.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Depo ak etikèt manje",
+                "instructions": "Enspekte pwen sa a, ekri sa ou remake epi suiv pwosedi sekirite manje lokal la.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Pwòpte ekipman",
+                "instructions": "Enspekte pwen sa a, ekri sa ou remake epi suiv pwosedi sekirite manje lokal la.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Lavabo gen sa yo bezwen",
+                "instructions": "Enspekte pwen sa a, ekri sa ou remake epi suiv pwosedi sekirite manje lokal la.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Zòn fatra annòd",
+                "instructions": "Enspekte pwen sa a, ekri sa ou remake epi suiv pwosedi sekirite manje lokal la.",
+                "maxScore": 5,
+                "weight": 1
+              }
+            ]
+          },
+          "foodSafety": {
+            "name": "Baz sekirite manje",
+            "description": "Enspekte pwen sa a, ekri sa ou remake epi suiv pwosedi sekirite manje lokal la.",
+            "category": "food_safety",
+            "items": [
+              {
+                "label": "Tanperati frijidè",
+                "instructions": "Enspekte pwen sa a, ekri sa ou remake epi suiv pwosedi sekirite manje lokal la.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Konsantrasyon dezenfektan",
+                "instructions": "Enspekte pwen sa a, ekri sa ou remake epi suiv pwosedi sekirite manje lokal la.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Dat ekspirasyon",
+                "instructions": "Enspekte pwen sa a, ekri sa ou remake epi suiv pwosedi sekirite manje lokal la.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Pwosedi alèjèn",
+                "instructions": "Enspekte pwen sa a, ekri sa ou remake epi suiv pwosedi sekirite manje lokal la.",
+                "maxScore": 5,
+                "weight": 1
+              }
+            ]
+          }
+        },
+        "training": {
+          "title": "Baz sekirite manje",
+          "description": "Prensip sekirite manje pou tout ekip la.",
+          "content": "Lave men ou ak dlo tyèd ak savon pandan omwen 20 segonn anvan ou manyen manje epi apre vyann kri oswa twalèt. Kenbe manje frèt nan 41°F oswa pi ba, epi manje cho nan 135°F oswa pi wo. Mete vyann kri anba manje ki pare pou manje epi dezenfekte sifas yo ant travay yo.",
+          "category": "food_safety",
+          "passScorePct": 80,
+          "questions": [
+            {
+              "question": "Konbyen tan pou lave men ou?",
+              "options": [
+                "5 segonn",
+                "Omwen 20 segonn"
+              ],
+              "correct_index": 1
+            },
+            {
+              "question": "Ki kote pou mete vyann kri?",
+              "options": [
+                "Anwo manje ki pare pou manje",
+                "Anba manje ki pare pou manje"
+              ],
+              "correct_index": 1
+            }
+          ]
+        }
+      },
       "training": {
         "loadError": "Pa t kapab chaje fòmasyon an",
         "saveError": "Pa t kapab anrejistre modil la",
@@ -36102,6 +36265,65 @@
     },
     "sound": {
       "blocked": "Son an bloke. Peze pou limen sonèt la ankò."
+    }
+  },
+  "giftFulfillment": {
+    "title": "Livrezon ak rekonsilyasyon",
+    "deliveryOn": "Livrezon imèl aktive. Nou verifye livrezon mesaj founisè a aksepte.",
+    "deliveryPaused": "Livrezon an poz oswa li pa disponib. Kat elektwonik yo rete nan ke a.",
+    "printHint": "Louvri kat fizik la, enprime li, epi anrejistre referans remiz la.",
+    "loadError": "Pa kapab chaje livrezon kat yo.",
+    "actionError": "Pa kapab fini aksyon sa a. Rafrechi epi eseye ankò.",
+    "popup": "Pèmèt yon nouvo fenèt pou louvri kat pou enprime a.",
+    "saved": "Prèv kat la anrejistre.",
+    "refresh": "Rafrechi",
+    "card": "Kat",
+    "actions": "Aksyon",
+    "print": "Louvri kat pou enprime",
+    "handoff": "Anrejistre remiz",
+    "resolve": "Rezoud livrezon",
+    "providerReference": "Referans founisè",
+    "next": "Paj annapre",
+    "first": "Premye paj",
+    "handoffHint": "Anrejistre resi oswa referans apre ou remèt kat la bay moun nan.",
+    "resolveHint": "Verifye prèv founisè a anvan. Konfime li pa voye ap kòmanse yon lòt tantativ pou menm kat la.",
+    "resolution": "Rezolisyon",
+    "notSent": "Konfime li pa voye; voye ankò",
+    "delivered": "Konfime li livre",
+    "newRecipient": "Imèl korije (si ou vle)",
+    "evidence": "Referans resi oswa prèv founisè",
+    "save": "Anrejistre",
+    "cancel": "Anile",
+    "reconciliation": "Rekonsilyasyon kat kado",
+    "reconciliationHint": "Konpare balans kat la ak rejis ki pa ka modifye ak yon eta ekstèn. Prèv pa chanje valè. Lòt tranzaksyon fè eta a demode.",
+    "export": "Ekspòte paj sa a kòm CSV",
+    "balance": "Balans kat",
+    "ledger": "Balans rejis",
+    "statement": "Dènye eta",
+    "variance": "Diferans anrejistre",
+    "mismatch": "Diferans nan rejis",
+    "current": "Ajou",
+    "stale": "Demode",
+    "unreconciled": "Pa gen eta",
+    "record": "Anrejistre eta",
+    "source": "Sous eta",
+    "externalReference": "Referans eta",
+    "amount": "Balans ekstèn",
+    "note": "Nòt (si ou vle)",
+    "invalidAmount": "Antre yon montan ki pa negatif ak presizyon lajan an.",
+    "recipient": "Imèl moun k ap resevwa a",
+    "preprinted": "Kòd kat enprime deja (si ou vle; vid kreye yon nouvo kòd)",
+    "language": "Lang kat",
+    "message": "Mesaj kado (si ou vle)",
+    "states": {
+      "pending": "Nan ke",
+      "sending": "Ap voye",
+      "accepted": "Founisè a aksepte",
+      "delivered": "Livre",
+      "failed": "Livrezon echwe",
+      "needs_review": "Bezwen revizyon",
+      "ready": "Pare pou remèt",
+      "handed_out": "Remèt"
     }
   },
   "giftCards": {

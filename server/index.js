@@ -881,12 +881,7 @@ if (process.env.NODE_ENV === 'production' || process.env.CREDIT_TEST_SERVE_STATI
         return next(parseErr);
       }
       res.setHeader('Cache-Control', 'no-store');
-      return res.json({
-        ...manifest,
-        id: displayStartUrl,
-        scope: '/',
-        start_url: displayStartUrl,
-      });
+      return res.json(require('./utils/pwaManifest').displayManifest(manifest, displayStartUrl));
     });
   });
 

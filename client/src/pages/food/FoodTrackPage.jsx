@@ -1,3 +1,4 @@
+import useAppResume from '../../hooks/useAppResume';
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -27,6 +28,8 @@ export default function FoodTrackPage() {
       setLoading(false);
     }
   }, [token, t]);
+
+  useAppResume(load);
 
   useEffect(() => {
     load();

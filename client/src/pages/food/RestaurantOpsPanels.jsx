@@ -5,7 +5,8 @@
 // only; the backend enforces this and returns 403, which we surface as a toast.
 // Running a checklist + checking off tasks is open to any active staff member.
 
-import React, { useCallback, useEffect, useState } from 'react';
+import { useOperationStore, OperationStorePicker, requestIdentity } from './restaurantOperationsContext';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import {
   listChecklists, createChecklist, deleteChecklist,
@@ -44,6 +45,8 @@ const SEED_TASKS = {
 
 // ── Checklists ────────────────────────────────────────────────────────────────
 export function ChecklistsPanel({ t, restaurant, bare, onStats, staffMode = false }) {
+  const selection=useOperationStore(restaurant);
+  const startKeys=useRef({});
   const restaurantId = restaurant.id;
   const [checklists, setChecklists] = useState([]);
   const [runs, setRuns] = useState([]);
@@ -56,7 +59,7 @@ export function ChecklistsPanel({ t, restaurant, bare, onStats, staffMode = fals
     setLoading(true);
     Promise.all([
       listChecklists(restaurantId),
-      listChecklistRuns(restaurantId, { limit: 15 }),
+      listChecklistRuns(restaurantId, { limit: 15,locationId:selection.locationId||undefined }),
     ])
       .then(([cl, rn]) => {
         setChecklists(cl);
@@ -65,12 +68,12 @@ export function ChecklistsPanel({ t, restaurant, bare, onStats, staffMode = fals
       })
       .catch((err) => toast.error(apiErr(err, t('restaurants.ops.checklists.loadError', 'Could not load checklists'))))
       .finally(() => setLoading(false));
-  }, [restaurantId, t, onStats]);
+  }, [restaurantId, t, onStats, selection.locationId]);
   useEffect(() => { load(); }, [load]);
 
   const start = async (checklistId) => {
     try {
-      const run = await startChecklistRun(restaurantId, checklistId);
+      const run = await startChecklistRun(restaurantId, checklistId, {locationId:Number(selection.locationId),idempotencyKey:startKeys.current[`${selection.locationId}:${checklistId}`] || (startKeys.current[`${selection.locationId}:${checklistId}`]=requestIdentity())});
       setActiveRun(run);
     } catch (err) {
       toast.error(apiErr(err, t('restaurants.ops.checklists.startError', 'Could not start checklist')));
@@ -91,12 +94,13 @@ export function ChecklistsPanel({ t, restaurant, bare, onStats, staffMode = fals
 
   return (
     <div>
+      <OperationStorePicker t={t} selection={selection}/>
       {activeRun && (
         <RunModal
           t={t}
           restaurantId={restaurantId}
           run={activeRun}
-          onClose={() => { setActiveRun(null); load(); }}
+          onClose={() => { delete startKeys.current[`${selection.locationId}:${activeRun.checklist_id}`];setActiveRun(null); load(); }}
         />
       )}
 
@@ -111,8 +115,8 @@ export function ChecklistsPanel({ t, restaurant, bare, onStats, staffMode = fals
 
       {confirmDelete && (
         <ConfirmDialog
-          title={t('restaurants.ops.checklists.confirmDelete')}
-          confirmLabel={t('common.delete')}
+          title={t('restaurants.ops.shared.archiveConfirm')}
+          confirmLabel={t('restaurants.ops.shared.archive')}
           cancelLabel={t('food.common.cancel')}
           onConfirm={() => remove(confirmDelete.id)}
           onCancel={() => setConfirmDelete(null)}
@@ -150,12 +154,12 @@ export function ChecklistsPanel({ t, restaurant, bare, onStats, staffMode = fals
               {t('restaurants.ops.checklists.taskCount', '{{count}} tasks', { count: (c.tasks || []).length })}
             </p>
             <div className="fd-ops-checklist-actions">
-              <button type="button" className="fd-btn fd-btn-sm" disabled={(c.tasks || []).length === 0} onClick={() => start(c.id)} data-track="ui.52793f2559.2">
+              <button type="button" className="fd-btn fd-btn-sm" disabled={!selection.locationId || !c.is_active || (c.tasks || []).filter(task=>task.is_active!==false).length===0} onClick={() => start(c.id)} data-track="ui.52793f2559.2">
                 {t('restaurants.ops.checklists.start', 'Start')}
               </button>
               {!staffMode && (
                 <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setConfirmDelete(c)} data-track="ui.52793f2559.3">
-                  {t('common.delete', 'Delete')}
+                  {t('restaurants.ops.shared.archive', 'Delete')}
                 </button>
               )}
             </div>
@@ -341,8 +345,9 @@ function RunModal({ t, restaurantId, run: initialRun, onClose }) {
           {(run.items || []).map((item) => (
             <li key={item.id} className="fd-ops-run-item">
               <label>
-                <input type="checkbox" checked={item.is_done} disabled={busy} onChange={() => toggle(item)} data-track="ui.52793f2559.11" />
+                <input type="checkbox" checked={item.is_done} disabled={busy||run.status!=='in_progress'} onChange={() => toggle(item)} data-track="ui.52793f2559.11" />
                 <span className={item.is_done ? 'fd-ops-run-item--done' : ''}>{item.label}</span>
+                {item.instructions&&<small className="fd-card-meta">{item.instructions}</small>}
               </label>
             </li>
           ))}
@@ -413,8 +418,8 @@ export function SopsPanel({ t, restaurant, bare, onStats, staffMode = false }) {
       </div>
       {confirmDelete && (
         <ConfirmDialog
-          title={t('restaurants.ops.sops.confirmDelete')}
-          confirmLabel={t('common.delete')}
+          title={t('restaurants.ops.shared.archiveConfirm')}
+          confirmLabel={t('restaurants.ops.shared.archive')}
           cancelLabel={t('food.common.cancel')}
           onConfirm={() => remove(confirmDelete.id)}
           onCancel={() => setConfirmDelete(null)}
@@ -434,7 +439,7 @@ export function SopsPanel({ t, restaurant, bare, onStats, staffMode = false }) {
                 {!staffMode && (
                   <div className="fd-ops-sop-actions">
                     <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setEditing(s)} data-track="ui.52793f2559.15">{t('common.edit', 'Edit')}</button>
-                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setConfirmDelete(s)} data-track="ui.52793f2559.16">{t('common.delete', 'Delete')}</button>
+                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setConfirmDelete(s)} data-track="ui.52793f2559.16">{t('restaurants.ops.shared.archive', 'Delete')}</button>
                   </div>
                 )}
               </div>

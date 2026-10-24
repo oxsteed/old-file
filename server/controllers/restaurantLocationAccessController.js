@@ -4,6 +4,7 @@ const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
 const permissions = require('../services/permissionsService');
+const { attachScope, requireBrand } = require('../services/restaurantReviewScope');
 const { withTransaction } = require('../utils/transaction');
 const { logBusinessAction } = require('../services/businessAuditLog');
 const { normalizeLocationIds, normalizeId } = require('../services/restaurantLocationAccessService');
@@ -11,7 +12,9 @@ const { normalizeLocationIds, normalizeId } = require('../services/restaurantLoc
 async function loadRestaurant(userId, restaurantId) {
   const id = normalizeId(restaurantId);
   if (!id) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-  return resolveRestaurantAccess(userId, id);
+  const restaurant = await attachScope(await resolveRestaurantAccess(userId, id), userId);
+  requireBrand(restaurant);
+  return restaurant;
 }
 
 async function requirePermission(restaurant, userId, code) {
@@ -146,16 +149,29 @@ exports.clear = async (req, res, next) => {
     await requirePermission(restaurant, req.user.id, 'settings.manage');
     const membershipId = normalizeId(req.params.membershipId);
     if (!membershipId) throw new AppError('A valid membership is required', 400, 'invalid_membership_id');
-    const { rows } = await pool.query(
-      `UPDATE restaurant_location_memberships lm
+    const rows = await withTransaction(pool, async (client) => {
+      const { rows } = await client.query(
+        `UPDATE restaurant_location_memberships lm
           SET status = 'revoked', updated_at = NOW()
         FROM business_members bm
        WHERE lm.restaurant_id = $1 AND lm.membership_id = $2
          AND lm.membership_id = bm.id AND bm.business_id = $3
          AND lm.status = 'active'
        RETURNING lm.id`,
-      [restaurant.id, membershipId, restaurant.business_id]
-    );
+        [restaurant.id, membershipId, restaurant.business_id]
+      );
+      await logBusinessAction(req, {
+        client,
+        business_id: restaurant.business_id,
+        actor_role: restaurant.effective_role,
+        action: 'restaurant.location_memberships.cleared',
+        target_type: 'business_membership',
+        target_id: membershipId,
+        after_state: { scope: 'all' },
+        throwOnError: true,
+      });
+      return rows;
+    }, 'restaurant_location_memberships_clear');
     res.json({ cleared: rows.length, scope: 'all' });
   } catch (error) {
     next(error);

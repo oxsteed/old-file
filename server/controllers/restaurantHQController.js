@@ -113,7 +113,7 @@ exports.rollup = async (req, res, next) => {
     const anchorId = v.integer(req.params.restaurantId, 'restaurantId');
     if (!Number.isSafeInteger(anchorId) || anchorId <= 0) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     const anchor = await resolveRestaurantAccess(req.user.id, anchorId);
-    if (!(await permissions.hasRestaurantPermission(anchor, req.user.id, ['settings.manage']))) {
+    if (!(await permissions.hasRestaurantPermission(anchor, req.user.id, ['settings.manage','reports.view']))) {
       throw new AppError('You do not have permission to view the HQ rollup', 403, 'forbidden');
     }
     const locationScope = await getLocationScope(anchor, req.user.id);
@@ -157,7 +157,7 @@ exports.laborRollup = async (req, res, next) => {
     const anchorId = v.integer(req.params.restaurantId, 'restaurantId');
     if (!Number.isSafeInteger(anchorId) || anchorId <= 0) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     const anchor = await resolveRestaurantAccess(req.user.id, anchorId);
-    if (!(await permissions.hasRestaurantPermission(anchor, req.user.id, ['settings.manage']))) {
+    if (!(await permissions.hasRestaurantPermission(anchor, req.user.id, ['settings.manage','reports.view']))) {
       throw new AppError('You do not have permission to view the HQ rollup', 403, 'forbidden');
     }
     if (!(await permissions.hasRestaurantPermission(anchor, req.user.id, ['payroll.view']))) {
@@ -232,7 +232,8 @@ exports.publishMenuOverrides = async (req, res, next) => {  try {
       throw new AppError('You do not have access to every selected store', 403, 'location_scope_forbidden');
     }
     const result = await withTransaction(pool, async (client) => {
-      const published = await hq.publishMenuOverrides(client, { restaurantId, ...request, actorUserId: req.user.id });
+      if(req.hqPreview)return hq.previewMenuOverrides(client,{restaurantId,...request});
+      const published = await hq.publishMenuOverrides(client, { restaurantId, ...request, actorUserId: req.user.id,expectedRevision:req.body?.expectedRevision });
       for (const target of published.targets) {
         await logBusinessAction(req, {
           business_id: restaurant.business_id,
@@ -247,8 +248,10 @@ exports.publishMenuOverrides = async (req, res, next) => {  try {
       }
       return published;
     }, 'restaurant_hq_menu_publish');
-    res.status(200).json({ ...result, published: true });
+    res.status(200).json(req.hqPreview?result:{ ...result, published: true });
   } catch (error) { next(error); }
 };
 
 exports._dateRange = dateRange;
+
+exports.previewMenuOverrides=(req,res,next)=>{req.hqPreview=true;return exports.publishMenuOverrides(req,res,next);};

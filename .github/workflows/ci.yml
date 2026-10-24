@@ -93,9 +93,21 @@ jobs:
         with:
           chrome-version: stable
 
+      - name: Install WebKit for the PWA recovery matrix
+        working-directory: client
+        run: npx playwright-core install --with-deps webkit
+
+      - name: PWA startup JavaScript budget
+        working-directory: client
+        run: node scripts/measurePwaStartup.mjs
+
       - name: Client browser regression tests
         working-directory: client
         run: node --test scripts/*.browser-check.cjs
+
+      - name: PWA installed-mode recovery matrix
+        working-directory: client
+        run: node --test scripts/pwaInstalledMatrix.installed-check.cjs
 
       - name: Authenticated admin browser matrix
         working-directory: client
@@ -188,6 +200,74 @@ jobs:
           })().catch(error => { console.error(error.message); process.exitCode = 1; });
           NODE
           npx jest --runInBand __tests__/restaurantFiftyFixes.db.test.js
+
+      - name: Restaurant gift-card fulfillment PostgreSQL regressions
+        working-directory: server
+        env:
+          GIFT_CARD_TEST_DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/gift_card_test?sslmode=disable
+        run: |
+          node - <<'NODE'
+          const { Client } = require('pg');
+          const db = new Client({ connectionString: process.env.GIFT_CARD_TEST_DATABASE_URL.replace('/gift_card_test','/postgres') });
+          (async () => {
+            await db.connect();
+            try {
+              for (let attempt=0;;attempt++) {
+                try { await db.query('CREATE DATABASE gift_card_test TEMPLATE credit_statement_test'); break; }
+                catch (error) { if (error.code !== '55006' || attempt >= 4) throw error; await new Promise(resolve=>setTimeout(resolve,1000)); }
+              }
+            }
+            finally { await db.end(); }
+          })().catch(error => { console.error(error.message); process.exitCode = 1; });
+          NODE
+          npx jest --runInBand __tests__/restaurantGiftCardFulfillment.db.test.js
+
+      - name: Restaurant assigned-store isolation PostgreSQL regressions
+        working-directory: server
+        env:
+          RESTAURANT_STORE_TEST_DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/restaurant_store_test?sslmode=disable
+        run: |
+          node - <<'NODE'
+          const { Client } = require('pg');
+          const db = new Client({ connectionString: process.env.RESTAURANT_STORE_TEST_DATABASE_URL.replace('/restaurant_store_test','/postgres') });
+          (async () => {
+            await db.connect();
+            try {
+              for (let attempt=0;;attempt++) {
+                try { await db.query('CREATE DATABASE restaurant_store_test TEMPLATE credit_statement_test'); break; }
+                catch (error) { if (error.code !== '55006' || attempt >= 4) throw error; await new Promise(resolve=>setTimeout(resolve,1000)); }
+              }
+            }
+            finally { await db.end(); }
+          })().catch(error => { console.error(error.message); process.exitCode = 1; });
+          NODE
+          npx jest --runInBand __tests__/restaurantStoreIsolation.db.test.js
+
+      - name: Restaurant operational evidence PostgreSQL regressions
+        working-directory: server
+        env:
+          NODE_ENV: test
+          FRANCHISE_HUNDRED_TEST_DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/franchise_hundred_test?sslmode=disable
+        run: |
+          node - <<'NODE'
+          const { Client } = require('pg');
+          const url = new URL(process.env.FRANCHISE_HUNDRED_TEST_DATABASE_URL);
+          url.pathname = '/postgres';
+          const db = new Client({ connectionString: url.toString() });
+          (async () => {
+            try {
+              await db.connect();
+              for (let attempt = 0; ; attempt += 1) {
+                try { await db.query('CREATE DATABASE franchise_hundred_test TEMPLATE credit_statement_test'); break; }
+                catch (error) {
+                  if (error.code !== '55006' || attempt >= 4) throw error;
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+              }
+            } finally { await db.end(); }
+          })().catch(error => { console.error(error.message); process.exitCode = 1; });
+          NODE
+          npx jest --runInBand __tests__/restaurantHundredFixes.db.test.js
 
       - name: Logistics isolated database integration
         working-directory: server

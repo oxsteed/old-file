@@ -4,6 +4,7 @@ const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
 const { getLocationScope } = require('../services/restaurantLocationAccessService');
+const { assertScopedLocation } = require('../services/restaurantStoreBoundary');
 const permissionsService = require('../services/permissionsService');
 const { logBusinessAction } = require('../services/businessAuditLog');
 
@@ -167,6 +168,8 @@ exports.createReceiptEvent = async (req, res, next) => {
       ]
     );
 
+    assertScopedLocation(locationScope,receiptEvent.location_id);
+    if (String(receiptEvent.food_order_id)!==String(orderId)) throw new AppError('Receipt retry targets another order',409,'idempotency_conflict');
     res.status(idempotencyKey ? 200 : 201).json({ receiptEvent });
   } catch (err) {
     next(err);

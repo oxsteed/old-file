@@ -4,10 +4,15 @@
 // isolated caches without a manually maintained version constant.
 const CACHE_VERSION = new URL(self.location.href).searchParams.get('v') || 'dev';
 const STATIC_CACHE  = `oxsteed-static-${CACHE_VERSION}`;
+const ASSET_CACHE = 'oxsteed-assets-v2';
+const ASSET_META_CACHE = 'oxsteed-asset-meta-v2';
+const MAX_ASSET_ENTRIES = 160;
+const MAX_ASSET_BYTES = 80 * 1024 * 1024;
+const MAX_ASSET_AGE = 30 * 24 * 60 * 60 * 1000;
+let assetWrites = Promise.resolve();
 
 // Shell assets to pre-cache on install
 const PRECACHE_URLS = [
-  '/',
   '/offline.html',
 ];
 
@@ -16,7 +21,6 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(STATIC_CACHE)
       .then(cache => cache.addAll(PRECACHE_URLS))
-      .then(() => self.skipWaiting())
   );
 });
 
@@ -26,10 +30,10 @@ self.addEventListener('activate', event => {
     caches.keys().then(keys =>
       Promise.all(
         keys
-          .filter(k => k.startsWith('oxsteed-') && k !== STATIC_CACHE)
+          .filter(k => k.startsWith('oxsteed-') && k !== STATIC_CACHE && k !== ASSET_CACHE && k !== ASSET_META_CACHE)
           .map(k => caches.delete(k))
       )
-    ).then(() => self.clients.claim())
+    ).then(() => pruneAssetCache()).then(() => self.clients.claim())
     // Navigation preload reclaims the service-worker startup tax on
     // navigations: the browser fetches the document in parallel while
     // the worker boots, instead of waiting for it.
@@ -48,21 +52,24 @@ self.addEventListener('activate', event => {
 // asset URLs are accepted; money-route API responses are never cached.
 self.addEventListener('message', event => {
   const msg = event.data;
+  if (msg?.type === 'SKIP_WAITING') {
+    event.waitUntil(self.skipWaiting());
+    return;
+  }
   if (!msg || msg.type !== 'precache' || !Array.isArray(msg.urls)) return;
   event.waitUntil((async () => {
     try {
-      const cache = await caches.open(STATIC_CACHE);
+      const cache = await caches.open(ASSET_CACHE);
       for (const raw of msg.urls.slice(0, 40)) {
         try {
           const url = new URL(raw, self.location.origin);
           if (url.origin !== self.location.origin) continue;
-          if (!/\.(js|css|woff2?|ttf|otf|png|jpg|jpeg|svg|ico|webp)$/.test(url.pathname)) continue;
-          if (url.pathname.startsWith('/api/')) continue;
-          const req = new Request(url.href, { mode: 'no-cors' });
+          if (!isPublicAsset(url)) continue;
+          const req = new Request(url.href, { mode: 'same-origin', credentials: 'omit' });
           const hit = await cache.match(req);
           if (!hit) {
             const res = await fetch(req);
-            if (res.ok) await cache.put(req, res.clone());
+            if (canCache(req, res)) await storeAsset(req, res);
           }
         } catch { /* one bad URL must not break the batch */ }
       }
@@ -75,9 +82,13 @@ self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Never intercept non-GET, chrome-extension, or cross-origin requests
-  if (request.method !== 'GET') return;
   if (url.origin !== self.location.origin) return;
+  if (request.method === 'POST' && url.pathname === '/post-job/share-target') {
+    event.respondWith(receiveSharedJob(request));
+    return;
+  }
+  // Never intercept other writes or cross-origin requests.
+  if (request.method !== 'GET') return;
   if (url.pathname === '/sw.js') return;
 
   // API responses contain account-specific and financial data. Never persist
@@ -87,14 +98,12 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Static assets: network-first so a deployment cannot keep serving a
-  // broken or stale module from a long-lived cache. Cached assets remain the
-  // offline fallback when the network is unavailable.
-  if (
-    (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/')) &&
-    url.pathname.match(/\.(js|css|woff2?|ttf|otf|png|jpg|jpeg|svg|ico|webp)$/)
-  ) {
-    event.respondWith(networkFirst(request, STATIC_CACHE));
+  if (isPublicAsset(url)) {
+    // Vite fingerprints identify immutable bytes. Unversioned public icons
+    // revalidate in the background so an installed logo can still change.
+    event.respondWith(/-[A-Za-z0-9_-]{8,}\.[a-z0-9]+$/i.test(url.pathname)
+      ? cacheFirst(request)
+      : revalidateAsset(event, request));
     return;
   }
 
@@ -117,37 +126,100 @@ async function networkOnly(request) {
   }
 }
 
-async function networkFirst(request, cacheName) {
-  try {
-    const response = await fetch(request);
-    if (response.ok && !request.headers.has('Authorization') &&
-        !/no-store|private/i.test(response.headers.get('Cache-Control') || '')) {
-      try {
-        const cache = await caches.open(cacheName);
-        await cache.put(request, response.clone());
-      } catch { /* Cache failures must not discard a successful network response. */ }
-    }
-    return response;
-  } catch {
-    let cached;
-    try { cached = await caches.match(request); } catch { /* Cache unavailable. */ }
-    if (cached) return cached;
-    return new Response(JSON.stringify({ error: 'You are offline.' }), {
-      status: 503,
-      headers: { 'Content-Type': 'application/json' },
-    });
+function isPublicAsset(url) {
+  return url.origin === self.location.origin &&
+    /^(\/assets\/|\/icons\/)/.test(url.pathname) &&
+    /\.(js|css|woff2?|ttf|otf|png|jpg|jpeg|svg|ico|webp)$/i.test(url.pathname);
+}
+
+function canCache(request, response) {
+  return response.ok && !['opaque', 'opaqueredirect'].includes(response.type) &&
+    (!response.url || isPublicAsset(new URL(response.url))) &&
+    !request.headers.has('Authorization') &&
+    !/no-store|private/i.test(response.headers.get('Cache-Control') || '');
+}
+
+async function fetchAsset(request) {
+  const response = await fetch(request);
+  if (canCache(request, response)) {
+    try { await storeAsset(request, response); }
+    catch { /* Quota failures must not discard a valid response. */ }
   }
+  return response;
+}
+
+async function cachedAsset(request) {
+  let cached;
+  try { cached = await (await caches.open(ASSET_CACHE)).match(request); }
+  catch { return undefined; }
+  if (cached) {
+    try {
+      const meta=await caches.open(ASSET_META_CACHE),previous=await meta.match(request);
+      const record=previous?await previous.json():{bytes:(await cached.clone().arrayBuffer()).byteLength};
+      await meta.put(request,new Response(JSON.stringify({...record,lastUsed:Date.now()})));
+    } catch { /* Metadata failure must never hide a usable offline body. */ }
+  }
+  return cached;
+}
+
+// Serialize writes/pruning across concurrent module loads. Only public asset
+// metadata is retained; API responses never enter either cache.
+function storeAsset(request, response) {
+  const work = assetWrites.catch(()=>{}).then(async()=>{
+    const bytes = (await response.clone().arrayBuffer()).byteLength;
+    if (bytes > 8 * 1024 * 1024) return;
+    const cache=await caches.open(ASSET_CACHE), meta=await caches.open(ASSET_META_CACHE);
+    try { await cache.put(request,response.clone()); }
+    catch { await pruneAssetCache(120,60*1024*1024); await cache.put(request,response.clone()); }
+    await meta.put(request,new Response(JSON.stringify({bytes,lastUsed:Date.now()})));
+    await pruneAssetCache();
+  });
+  assetWrites = work;
+  return work;
+}
+async function pruneAssetCache(maxEntries=MAX_ASSET_ENTRIES,maxBytes=MAX_ASSET_BYTES) {
+  try {
+    const cache=await caches.open(ASSET_CACHE), meta=await caches.open(ASSET_META_CACHE);
+    const records=await Promise.all((await cache.keys()).map(async request=>{
+      const saved=await meta.match(request);
+      const record=saved?await saved.json():{lastUsed:0,bytes:0};
+      return {request,...record};
+    }));
+    records.sort((a,b)=>b.lastUsed-a.lastUsed);
+    let count=0,bytes=0;
+    for(const record of records){
+      if(record.lastUsed<Date.now()-MAX_ASSET_AGE || count>=maxEntries || bytes+record.bytes>maxBytes){await cache.delete(record.request);await meta.delete(record.request);}
+      else {count++;bytes+=record.bytes;}
+    }
+    // Remove metadata whose body was evicted by the browser.
+    const live=new Set((await cache.keys()).map(request=>request.url));
+    for(const request of await meta.keys())if(!live.has(request.url))await meta.delete(request);
+  } catch { /* Eviction is best-effort when storage is unavailable. */ }
+}
+
+async function cacheFirst(request) {
+  const cached = await cachedAsset(request);
+  return cached || fetchAsset(request);
+}
+
+async function revalidateAsset(event, request) {
+  const refresh = fetchAsset(request);
+  // Attach a rejection handler immediately, including while cache lookup runs.
+  event.waitUntil(refresh.catch(() => {}));
+  const cached = await cachedAsset(request);
+  return cached || refresh;
 }
 
 async function navigationHandler(event, request) {
   try {
     // Use the preloaded response when the browser fetched the document in
     // parallel during worker startup; fall back to a live fetch.
-    try {
-      const preloaded = await event.preloadResponse;
-      if (preloaded) return preloaded;
-    } catch { /* preload unavailable; fall through to fetch */ }
-    return await fetch(request);
+    let preloaded;
+    try { preloaded = await event.preloadResponse; }
+    catch { /* preload unavailable; fall through to fetch */ }
+    const response = preloaded || await fetch(request);
+    if (response.status >= 500) throw new Error('Navigation unavailable');
+    return response;
   } catch {
     // Keep application HTML network-first so a deployment can publish a new
     // asset manifest without an older route shell masking it.
@@ -157,6 +229,52 @@ async function navigationHandler(event, request) {
       status: 503,
       headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
     });
+  }
+}
+
+// Bounded local hand-off from the OS share sheet. Files are never uploaded
+// until the user reviews and submits the normal authenticated job form.
+async function receiveSharedJob(request) {
+  try {
+    const form = await request.formData();
+    const files = form.getAll('images').filter(file => file && typeof file.arrayBuffer === 'function');
+    if (!files.length || files.length > 5 || files.some(file =>
+      !['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type) || file.size > 10 * 1024 * 1024) ||
+      files.reduce((sum, file) => sum + file.size, 0) > 20 * 1024 * 1024) {
+      return Response.redirect(new URL('/post-job?share_error=invalid', self.location.origin), 303);
+    }
+    const normalizedFiles = await Promise.all(files.map(async file => ({
+      name:file.name,type:file.type,lastModified:file.lastModified,bytes:await file.arrayBuffer(),
+    })));
+    const id = crypto.randomUUID();
+    const db = await new Promise((resolve, reject) => {
+      const open = indexedDB.open('oxsteed-share-target', 1);
+      open.onupgradeneeded = () => open.result.createObjectStore('drafts', { keyPath: 'id' });
+      open.onsuccess = () => resolve(open.result);
+      open.onerror = () => reject(open.error);
+    });
+    try {
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction('drafts', 'readwrite'), store = tx.objectStore('drafts');
+        const scan = store.openCursor();
+        scan.onsuccess = () => {
+          const cursor = scan.result;
+          if (cursor) { if (cursor.value.createdAt < Date.now() - 30 * 60000) cursor.delete(); cursor.continue(); }
+        };
+        // Cap retained drafts to five, even when a share is never opened.
+        const all = store.getAll();
+        all.onsuccess = () => all.result.sort((a,b) => b.createdAt-a.createdAt).slice(4).forEach(row => store.delete(row.id));
+        store.put({ id, createdAt: Date.now(), files:normalizedFiles,
+          title: String(form.get('title') || '').slice(0, 180),
+          text: String(form.get('text') || '').slice(0, 4000) });
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+      });
+    } finally { db.close(); }
+    return Response.redirect(new URL(`/post-job?share=${id}`, self.location.origin), 303);
+  } catch {
+    return Response.redirect(new URL('/post-job?share_error=storage', self.location.origin), 303);
   }
 }
 
@@ -192,8 +310,18 @@ self.addEventListener('push', event => {
     },
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(Promise.all([
+    self.registration.showNotification(title, options),
+    updatePushBadge(payload),
+  ]));
 });
+
+async function updatePushBadge(payload) {
+  const count = Number(payload.unread_count ?? payload.data?.unread_count);
+  if (!Number.isSafeInteger(count) || count < 0 || !self.navigator?.setAppBadge) return;
+  try { await self.navigator.setAppBadge(Math.min(count, 4294967295)); }
+  catch { /* Badge permission must never suppress a push notification. */ }
+}
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();

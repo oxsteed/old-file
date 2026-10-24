@@ -1,0 +1,98 @@
+:root {
+  --pwa-keyboard-inset: 0px;
+  --pwa-viewport-height: 100dvh;
+}
+html {
+  scroll-padding-block-start: calc(5rem + env(safe-area-inset-top, 0px));
+  scroll-padding-block-end: calc(
+    5rem + var(--pwa-keyboard-inset) + env(safe-area-inset-bottom, 0px)
+  );
+}
+.pwa-connection {
+  position: fixed;
+  inset-inline-start: 0.75rem;
+  bottom: calc(
+    0.75rem + env(safe-area-inset-bottom, 0px) + var(--pwa-keyboard-inset)
+  );
+  z-index: 110;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  max-width: calc(100vw - 1.5rem);
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.75rem;
+  font-size: 0.7rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 2px 10px #0002;
+}
+.pwa-connection time {
+  color: var(--color-text-muted);
+}
+.pwa-connection-offline {
+  border-color: var(--color-warning);
+}
+.pwa-connection button {
+  min-height: 2rem;
+  padding-inline: 0.5rem;
+  text-decoration: underline;
+}
+.pwa-update-notice {
+  bottom: calc(
+    3.75rem + env(safe-area-inset-bottom, 0px) + var(--pwa-keyboard-inset)
+  ) !important;
+}
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']),
+  textarea,
+  select {
+    font-size: max(1em, 16px);
+  }
+  .pjw-form-actions {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  }
+  .pjw-overlay {
+    padding-block: max(1rem, env(safe-area-inset-top, 0px))
+      max(1rem, env(safe-area-inset-bottom, 0px));
+    max-height: var(--pwa-viewport-height);
+  }
+  .cmdk-dialog {
+    max-height: calc(var(--pwa-viewport-height) - 3rem);
+  }
+}
+.pwa-widget-recovery {
+  position: fixed;
+  inset: 20% 1rem auto;
+  margin-inline: auto;
+  max-width: 30rem;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  z-index: 2100;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+.pwa-widget-recovery button {
+  margin-top: 1rem;
+  margin-inline-end: 1rem;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+}
+.pjw-draft-recovery {
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.75rem;
+  color: var(--color-text);
+}
+.pwa-connection-present body {
+  padding-block-end: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+}
+.ox-navbar {
+  padding-block-start: env(safe-area-inset-top, 0px);
+  padding-inline-start: env(safe-area-inset-left, 0px);
+  padding-inline-end: env(safe-area-inset-right, 0px);
+}

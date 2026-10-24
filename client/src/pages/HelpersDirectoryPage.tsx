@@ -1,3 +1,4 @@
+import { readNavigationState, saveNavigationState } from '../utils/navigationMemory';
 /**
  * HelpersDirectoryPage
  *
@@ -10,7 +11,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, X, ChevronDown, Sparkles, MapPin } from 'lucide-react';
 
@@ -491,10 +492,12 @@ const HelpersDirectoryPage: React.FC<{ entryPoint?: 'helpers' | 'direct' }> = ({
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [, setSearchParams] = useSearchParams();
+  const { search: rememberedSearch } = useLocation();
   // Parse URL params exactly once - destructure for both derived states.
-  const [{ filters: _initFilters, tileId: _initTileId }] = useState(getInitialState);
+  const [savedList] = useState(() => {const saved=readNavigationState('helpers:'+entryPoint);return saved && (!window.location.search || window.location.search===saved.search) ? saved : null;});
+  const [{ filters: _initFilters, tileId: _initTileId }] = useState(() => {const defaults=getInitialState();return savedList && (!window.location.search || window.location.search===savedList.search) ? {filters:{...defaults.filters,...savedList.filters},tileId:savedList.tileId} : defaults;});
   const [filters, setFilters]           = useState<DirectoryFilters>(_initFilters);
-  const [sort, setSort]                 = useState<SortOption>('best_match');
+  const [sort, setSort]                 = useState<SortOption>(savedList?.sort || 'best_match');
   const [helpers, setHelpers]           = useState<HelperCardData[]>([]);
   const [businesses, setBusinesses]     = useState<HelperCardData[]>([]);
   const [total, setTotal]               = useState(0);
@@ -503,39 +506,37 @@ const HelpersDirectoryPage: React.FC<{ entryPoint?: 'helpers' | 'direct' }> = ({
   const [drawerOpen, setDrawerOpen]     = useState(false);
   const [selectedTileId, setSelectedTileId] = useState<string | null>(_initTileId);
 
+  useEffect(()=>{saveNavigationState('helpers:'+entryPoint,{filters,sort,page,tileId:selectedTileId,search:rememberedSearch});},[filters,sort,page,selectedTileId,entryPoint,rememberedSearch]);
+
   // Debounce filter/sort changes; skip debounce on first render for instant load
   const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isFirstLoad  = useRef(true);
+  const initialSignature = useRef(JSON.stringify([filters,sort]));
+  const loadSequence = useRef(0);
 
   const load = useCallback(async (f: DirectoryFilters, s: SortOption, p: number, append = false) => {
+    const sequence=++loadSequence.current;
     setLoadState('loading');
     try {
       const res = await fetchHelpers(f, s, p, PAGE_SIZE, f.requiredSkillIds);
+      if(sequence!==loadSequence.current)return;
       setHelpers((prev) => append ? [...prev, ...res.helpers] : res.helpers);
       // Businesses are only included on page 1 (first load / filter change)
       if (!append) setBusinesses(res.businesses ?? []);
       setTotal(res.total);
       setLoadState('success');
     } catch {
-      setLoadState('error');
+      if(sequence===loadSequence.current)setLoadState('error');
     }
   }, []);
 
-  // Single effect: immediate on first render, debounced on subsequent changes
+  // Rebuild only the previously opened pages; results are freshly authorized.
   useEffect(() => {
-    if (isFirstLoad.current) {
-      isFirstLoad.current = false;
-      load(filters, sort, 1);
-      setPage(1);
-      return;
-    }
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      setPage(1);
-      load(filters, sort, 1);
-    }, 300);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [filters, sort, load]);
+    let active=true;
+    const initial=JSON.stringify([filters,sort])===initialSignature.current;
+    const run=async()=>{const target=initial?Math.min(5,Math.max(1,savedList?.page||1)):1;for(let p=1;p<=target&&active;p++){await load(filters,sort,p,p>1);if(active)setPage(p);}};
+    debounceRef.current=setTimeout(run,initial?0:300);
+    return()=>{active=false;loadSequence.current++;if(debounceRef.current)clearTimeout(debounceRef.current);};
+  }, [filters,sort,load]);
 
   // Keep the URL shareable: mirror the main in-session filters (query,
   // skill tile / categories, location, availability) back into the query

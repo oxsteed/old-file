@@ -3,9 +3,13 @@
 const service = require('../services/restaurantGiftCardService');
 
 describe('restaurant gift-card value service', () => {
-  test('rejects malformed codes and missing idempotency keys', () => {
+  test('rejects malformed codes, missing identities and invalid expiry dates', async () => {
     expect(() => service.normalizeCode('short')).toThrow(/invalid/i);
     expect(() => service.normalizeIdempotencyKey('')).toThrow(/Idempotency/);
+    const client={query:jest.fn(async sql=>({rows:sql.includes('FROM restaurant_gift_card_products')?[{id:1,restaurant_id:2,amount_cents:2500,currency_code:'USD',delivery_type:'physical',is_active:true}]:[]}))};
+    for (const expiresAt of ['2030-02-30T00:00:00.000Z','2020-01-01T00:00:00.000Z']) {
+      await expect(service.issueGiftCard(client,{restaurantId:2,productId:1,actorUserId:'fixture',idempotencyKey:'expiry',expiresAt})).rejects.toMatchObject({code:'gift_card_expiry_invalid'});
+    }
   });
 
   test('redeem uses a transaction-safe row lock and append-only ledger contract', async () => {

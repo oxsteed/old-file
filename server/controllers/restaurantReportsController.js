@@ -141,49 +141,7 @@ function parseSalesRange(query, timezone) {
 // attributes late-night sales to the previous business day). Orders
 // without a store row inherit the restaurant timezone with a midnight
 // boundary, preserving the old behavior.
-function orderFinancialsCte(locationScope) {
-  const locationPredicate = locationScope?.mode === 'assigned'
-    ? '\n       AND dated.location_id = ANY($5::bigint[])'
-    : '';
-  return `
-  WITH order_financials AS (
-    SELECT dated.*,
-           CASE
-             WHEN COALESCE(pos.payment_count, 0) > 0
-               THEN GREATEST(0, pos.collected_cents - pos.refunded_cents)
-             WHEN dated.payment_status = 'paid' THEN dated.total_cents
-             ELSE 0
-           END::int AS net_collected_cents,
-           COALESCE(pos.collected_cents, 0)::int AS collected_cents,
-           COALESCE(pos.refunded_cents, 0)::int AS refunded_cents
-      FROM (
-        SELECT fo.*,
-               COALESCE(NULLIF(loc.timezone, ''), $4) AS store_timezone,
-               COALESCE(loc.day_start_hour, 0) AS store_day_start_hour,
-               (((fo.created_at AT TIME ZONE COALESCE(NULLIF(loc.timezone, ''), $4))
-                 - (COALESCE(loc.day_start_hour, 0) * INTERVAL '1 hour'))::date) AS business_date
-          FROM food_orders fo
-          LEFT JOIN restaurant_locations loc
-            ON loc.id = fo.location_id AND loc.restaurant_id = fo.restaurant_id
-         WHERE fo.restaurant_id = $1
-      ) dated
-      LEFT JOIN LATERAL (
-        SELECT COUNT(*) FILTER (
-                 WHERE payment_type <> 'refund' AND status IN ('recorded','captured')
-               )::int AS payment_count,
-               COALESCE(SUM(amount_cents) FILTER (
-                 WHERE payment_type <> 'refund' AND status IN ('recorded','captured')
-               ), 0)::int AS collected_cents,
-               COALESCE(SUM(amount_cents) FILTER (
-                 WHERE payment_type = 'refund' AND status IN ('recorded','captured','refunded')
-               ), 0)::int AS refunded_cents
-          FROM restaurant_pos_payments p
-         WHERE p.food_order_id = dated.id
-      ) pos ON TRUE
-     WHERE dated.business_date >= $2::date
-       AND dated.business_date < ($3::date + 1)${locationPredicate}
-  )`;
-}
+const { orderFinancialsCte } = require('../services/restaurantSalesFacts');
 
 function scopedParams(baseParams, locationScope) {
   return locationScope?.mode === 'assigned'
@@ -923,8 +881,8 @@ async function loadSalesJournalRows(restaurantId, restaurant, reqQuery) {
   const { rows } = await pool.query(
     // F-07: business_date follows the same per-store definition as the
     // sales fact CTE (store timezone + day-start hour).
-    `SELECT to_char((((o.created_at AT TIME ZONE COALESCE(NULLIF(l.timezone, ''), $4))
-                       - (COALESCE(l.day_start_hour, 0) * INTERVAL '1 hour'))::date), 'YYYY-MM-DD') AS business_date,
+    `SELECT to_char(((o.created_at AT TIME ZONE COALESCE(NULLIF(l.timezone, ''), $4))
+                       - (COALESCE(l.day_start_hour, 0) * INTERVAL '1 hour'))::date, 'YYYY-MM-DD') AS business_date,
             o.id AS order_id, o.location_id, l.name AS location_name,
             COALESCE(NULLIF(o.currency_code, ''), 'USD') AS currency,
             o.order_source, o.fulfillment_type, o.status AS order_status,
@@ -941,10 +899,10 @@ async function loadSalesJournalRows(restaurantId, restaurant, reqQuery) {
          ON p.restaurant_id = o.restaurant_id AND p.food_order_id = o.id
         AND p.status IN ('recorded', 'captured', 'refunded')
       WHERE o.restaurant_id = $1
-        AND ((((o.created_at AT TIME ZONE COALESCE(NULLIF(l.timezone, ''), $4))
-               - (COALESCE(l.day_start_hour, 0) * INTERVAL '1 hour'))::date) >= $2::date
-        AND ((((o.created_at AT TIME ZONE COALESCE(NULLIF(l.timezone, ''), $4))
-               - (COALESCE(l.day_start_hour, 0) * INTERVAL '1 hour'))::date) < ($3::date + 1)
+        AND ((o.created_at AT TIME ZONE COALESCE(NULLIF(l.timezone, ''), $4))
+               - (COALESCE(l.day_start_hour, 0) * INTERVAL '1 hour'))::date >= $2::date
+        AND ((o.created_at AT TIME ZONE COALESCE(NULLIF(l.timezone, ''), $4))
+               - (COALESCE(l.day_start_hour, 0) * INTERVAL '1 hour'))::date < ($3::date + 1)
         ${restaurant.locationScope?.mode === 'assigned' ? 'AND o.location_id = ANY($5::bigint[])' : ''}
       ORDER BY o.created_at ASC, o.id ASC, p.created_at ASC NULLS FIRST, p.id ASC`,
     scopedParams([restaurantId, fromDate, toDate, timezone], restaurant.locationScope)
@@ -1016,7 +974,7 @@ exports._accountingTest = { accountingLines, buildAccountingCsv, ACCOUNTING_ACCO
 exports.inventorySummary = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     const { from, to } = parseRange(req.query);
     const [byType, topWaste, lowStock] = await Promise.all([
       pool.query(
@@ -1024,30 +982,30 @@ exports.inventorySummary = async (req, res, next) => {
                 COUNT(*) AS events,
                 COALESCE(SUM(ABS(quantity_delta)), 0) AS total_qty
            FROM restaurant_inventory_adjustments
-          WHERE restaurant_id = $1 AND created_at BETWEEN $2 AND $3
+          WHERE restaurant_id = $1 AND created_at BETWEEN $2 AND $3${restaurant.locationScope.mode === 'assigned' ? ' AND location_id = ANY($4::bigint[])' : ''}
           GROUP BY adjustment_type
           ORDER BY events DESC`,
-        [restaurantId, from, to]
+        scopedParams([restaurantId, from, to],restaurant.locationScope)
       ),
       pool.query(
         `SELECT item_name, COUNT(*) AS events,
                 COALESCE(SUM(ABS(quantity_delta)), 0) AS wasted_qty
            FROM restaurant_inventory_adjustments
           WHERE restaurant_id = $1 AND adjustment_type = 'waste'
-            AND created_at BETWEEN $2 AND $3
+            AND created_at BETWEEN $2 AND $3${restaurant.locationScope.mode === 'assigned' ? ' AND location_id = ANY($4::bigint[])' : ''}
           GROUP BY item_name
           ORDER BY wasted_qty DESC
           LIMIT 10`,
-        [restaurantId, from, to]
+        scopedParams([restaurantId, from, to],restaurant.locationScope)
       ),
       pool.query(
         `SELECT COUNT(*) AS low_count,
                 COUNT(*) FILTER (WHERE quantity <= 0) AS out_count
            FROM restaurant_inventory_items
-          WHERE restaurant_id = $1
+          WHERE restaurant_id = $1${restaurant.locationScope.mode === 'assigned' ? ' AND location_id = ANY($2::bigint[])' : ''}
             AND low_stock_threshold > 0
             AND quantity <= low_stock_threshold`,
-        [restaurantId]
+        scopedParams([restaurantId],restaurant.locationScope)
       ),
     ]);
     res.json({
@@ -1074,7 +1032,7 @@ exports.inventorySummary = async (req, res, next) => {
 exports.operationsSummary = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     const { from, to } = parseRange(req.query);
     const [checklists, audits, training] = await Promise.all([
       pool.query(
@@ -1083,8 +1041,8 @@ exports.operationsSummary = async (req, res, next) => {
                 AVG(CASE WHEN status = 'completed' AND total_tasks > 0
                          THEN completed_tasks::float / total_tasks END) AS avg_completion
            FROM restaurant_checklist_runs
-          WHERE restaurant_id = $1 AND started_at BETWEEN $2 AND $3`,
-        [restaurantId, from, to]
+          WHERE restaurant_id = $1 AND started_at BETWEEN $2 AND $3${restaurant.locationScope.mode === 'assigned' ? ' AND location_id = ANY($4::bigint[])' : ''}`,
+        scopedParams([restaurantId, from, to],restaurant.locationScope)
       ),
       pool.query(
         `SELECT COUNT(*) FILTER (WHERE status = 'completed') AS completed,
@@ -1093,10 +1051,10 @@ exports.operationsSummary = async (req, res, next) => {
                 COUNT(*) FILTER (WHERE status = 'in_progress') AS in_progress,
                 (SELECT COUNT(*) FROM restaurant_corrective_actions ca
                   JOIN restaurant_audits a ON a.id = ca.audit_id
-                 WHERE a.restaurant_id = $1 AND ca.status NOT IN ('resolved', 'verified')) AS open_actions
+                 WHERE a.restaurant_id = $1${restaurant.locationScope.mode === 'assigned' ? ' AND a.location_id = ANY($4::bigint[])' : ''} AND ca.status NOT IN ('resolved', 'verified')) AS open_actions
            FROM restaurant_audits
-          WHERE restaurant_id = $1 AND started_at BETWEEN $2 AND $3`,
-        [restaurantId, from, to]
+          WHERE restaurant_id = $1 AND started_at BETWEEN $2 AND $3${restaurant.locationScope.mode === 'assigned' ? ' AND location_id = ANY($4::bigint[])' : ''}`,
+        scopedParams([restaurantId, from, to],restaurant.locationScope)
       ),
       pool.query(
         `SELECT COUNT(*) AS assigned,
@@ -1105,8 +1063,8 @@ exports.operationsSummary = async (req, res, next) => {
                 COUNT(*) FILTER (WHERE c.passed) AS passed
            FROM restaurant_training_assignments a
            LEFT JOIN restaurant_training_completions c ON c.assignment_id = a.id
-          WHERE a.restaurant_id = $1 AND a.created_at BETWEEN $2 AND $3`,
-        [restaurantId, from, to]
+          WHERE a.restaurant_id = $1 AND a.created_at BETWEEN $2 AND $3${restaurant.locationScope.mode === 'assigned' ? ` AND EXISTS (SELECT 1 FROM restaurant_location_memberships lm JOIN business_members bm ON bm.id=lm.membership_id WHERE lm.restaurant_id=a.restaurant_id AND bm.member_id=a.user_id AND bm.status='active' AND lm.status='active' AND lm.location_id=ANY($4::bigint[]))` : ''}`,
+        scopedParams([restaurantId, from, to],restaurant.locationScope)
       ),
     ]);
     const cl = checklists.rows[0];
@@ -1147,12 +1105,12 @@ exports.operationsSummary = async (req, res, next) => {
 exports.loyaltySummary = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     const { from, to } = parseRange90(req.query);
     const [repeat, topItems, retention] = await Promise.all([
-      restaurantAnalytics.getRepeatOrderRate(pool, restaurantId, { from, to }),
-      restaurantAnalytics.getTopItemsByRevenue(pool, restaurantId, { from, to, limit: 10 }),
-      restaurantAnalytics.getRetentionCohorts(pool, restaurantId, { from, to }),
+      restaurantAnalytics.getRepeatOrderRate(pool, restaurantId, { from, to, locationIds:restaurant.locationScope.mode==='assigned'?restaurant.locationScope.location_ids:null }),
+      restaurantAnalytics.getTopItemsByRevenue(pool, restaurantId, { from, to, limit: 10, locationIds:restaurant.locationScope.mode==='assigned'?restaurant.locationScope.location_ids:null }),
+      restaurantAnalytics.getRetentionCohorts(pool, restaurantId, { from, to, locationIds:restaurant.locationScope.mode==='assigned'?restaurant.locationScope.location_ids:null }),
     ]);
     res.json({
       from,

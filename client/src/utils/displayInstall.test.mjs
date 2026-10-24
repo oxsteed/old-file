@@ -229,3 +229,12 @@ test('restore decision only fires for standalone at a bare start_url', () => {
     null,
   );
 });
+
+test('install coaching is limited to iPad Safari including desktop user agents', async () => {
+  const { isIpadSafari } = await import('./displayInstall.js');
+  assert.equal(isIpadSafari({userAgent:'Mozilla iPad Version/18.0 Mobile Safari/605.1'}),true);
+  assert.equal(isIpadSafari({userAgent:'Macintosh Version/18.0 Safari/605.1',platform:'MacIntel',maxTouchPoints:5}),true);
+  for (const userAgent of ['iPhone Mobile Safari/605.1','iPad CriOS/130 Mobile Safari/605.1','Windows Chrome/130 Safari/537.36','iPad AppleWebKit Mobile']) {
+    assert.equal(isIpadSafari({userAgent}),false,userAgent);
+  }
+});

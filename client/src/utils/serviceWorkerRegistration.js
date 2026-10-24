@@ -30,19 +30,56 @@ export function getAssetReleaseId() {
   return assets.length ? `assets-${hashFingerprint(assets.join('|'))}` : 'dev';
 }
 
+let waitingWorker = null;
+const updateListeners = new Set();
+export const getWaitingWorker = () => waitingWorker;
+export function subscribeWorkerUpdate(listener) {
+  updateListeners.add(listener);
+  return () => updateListeners.delete(listener);
+}
+function announceUpdate(worker) {
+  waitingWorker = worker;
+  updateListeners.forEach(listener => listener(worker));
+}
+
+export function applyWorkerUpdate() {
+  if (!waitingWorker) return;
+  // Another tab may already have accepted this worker. Refresh this page
+  // only when its own user presses the button.
+  if (waitingWorker.state === 'activated') { window.location.reload(); return; }
+  // Only the page whose user requested the update reloads. Other tabs keep
+  // their in-progress forms and are never forcibly reloaded on controllerchange.
+  navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload(), { once: true });
+  waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+}
+
 export function registerServiceWorker() {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
   const configuredVersion = import.meta.env.VITE_APP_VERSION || import.meta.env.VITE_SENTRY_RELEASE;
   const version = configuredVersion
     ? `${configuredVersion}-${getAssetReleaseId()}`
     : getAssetReleaseId();
-  window.addEventListener('load', () => {
+  const register = () => {
+    try { localStorage.setItem('oxsteed:last-opened', String(Date.now())); } catch { /* optional */ }
     navigator.serviceWorker.register(`/sw.js?v=${encodeURIComponent(version)}`, {
       updateViaCache: 'none',
-    }).catch(() => {
-      // Service workers are an enhancement; the application remains usable.
-    });
-  }, { once: true });
+    }).then(registration => {
+      const detectWaiting = () => {
+        if (registration.waiting && navigator.serviceWorker.controller) announceUpdate(registration.waiting);
+      };
+      detectWaiting();
+      const watchInstalling = () => {
+        const worker = registration.installing;
+        worker?.addEventListener('statechange', () => {
+          if (worker.state === 'installed') detectWaiting();
+        });
+      };
+      registration.addEventListener('updatefound', watchInstalling);
+      watchInstalling();
+    }).catch(() => { /* The app works without a worker. */ });
+  };
+  if (document.readyState === 'complete') register();
+  else window.addEventListener('load', register, { once: true });
 }
 
 function readRecoveryMarker() {
@@ -84,7 +121,7 @@ export async function recoverFromBootstrapFailure() {
   try {
     const cacheNames = typeof caches === 'undefined' ? [] : await caches.keys();
     await Promise.all(cacheNames
-      .filter((name) => name.startsWith('oxsteed-static-'))
+      .filter((name) => name.startsWith('oxsteed-static-') || name.startsWith('oxsteed-assets-') || name.startsWith('oxsteed-asset-meta-'))
       .map((name) => caches.delete(name)));
   } catch {
     // Cache storage may be unavailable or restricted.

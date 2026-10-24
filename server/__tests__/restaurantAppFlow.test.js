@@ -167,7 +167,7 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.jobs).toHaveLength(1);
     const queueQuery = mockQuery.mock.calls[1];
     expect(queueQuery[0]).toMatch(/pj\.location_id = \$5/);
-    expect(queueQuery[1]).toEqual([RESTAURANT_ID, 31, null, null, 77]);
+    expect(queueQuery[1]).toEqual([RESTAURANT_ID, 31, null, null, 77, null]);
   });
 
   test('paired kitchen devices can claim and acknowledge their own printer jobs', async () => {
@@ -1361,6 +1361,7 @@ describe('restaurant app-flow backend', () => {
       .mockResolvedValueOnce({ rows: [{ code: 'menu.manage' }] })
       .mockResolvedValueOnce({ rows: [{ id: 77 }] })
       .mockResolvedValueOnce({ rows: [{ id: 77, restaurant_id: RESTAURANT_ID, status: 'active' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 77 }] }) // serialize against HQ menu publishing
       .mockResolvedValueOnce({ rows: [{ id: 11, name: 'Classic Burger', price_cents: 1000, is_available: true }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ menu_item_id: 11, location_id: 77, is_available: false }] });

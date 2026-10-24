@@ -109,7 +109,7 @@ describe('restaurant training backend', () => {
     const assignment = {
       id: 11, module_id: 3, user_id: USER_ID, status: 'assigned',
       pass_score_pct: 80, max_attempts: 3, valid_for_days: null,
-      current_version: 1, attempts_used: 0,
+      current_version: 1, started_version: 1, attempts_used: 0,
     };
     // Submit: 1/2 correct = 50% < 80% -> failed attempt, NOT a completion.
     // Scoring reads the current version snapshot (S-12 versioning).
@@ -117,12 +117,12 @@ describe('restaurant training backend', () => {
       .mockResolvedValueOnce({ rows: [access('employee')] })
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({ rows: [assignment] })
-      .mockResolvedValueOnce({ rows: [{ questions: [{ correct_index: 0 }, { correct_index: 1 }] }] })
+      .mockResolvedValueOnce({ rows: [{ pass_score_pct:80, questions: [{ correct_index: 0 }, { correct_index: 1 }] }] })
       .mockResolvedValueOnce({ rows: [{ id: 99, score_pct: 50, passed: false, attempt_number: 1, module_version: 1 }] })
       .mockResolvedValueOnce({ rows: [] });
     const res = await request(app())
       .post(`/api/restaurants/${RESTAURANT_ID}/training/assignments/11/submit`)
-      .send({ answers: [0, 0] });
+      .send({ answers: [0, 0],moduleVersion:1 });
     expect(res.status).toBe(200);
     expect(res.body.scorePct).toBe(50);
     expect(res.body.passed).toBe(false);
@@ -141,7 +141,7 @@ describe('restaurant training backend', () => {
       .mockResolvedValueOnce({ rows: [{ expires_at: null }] }); // latest pass: still valid
     const dup = await request(app())
       .post(`/api/restaurants/${RESTAURANT_ID}/training/assignments/11/submit`)
-      .send({ answers: [0, 1] });
+      .send({ answers: [0, 1],moduleVersion:1 });
     expect(dup.status).toBe(409);
   });
 

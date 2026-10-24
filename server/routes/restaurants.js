@@ -156,6 +156,12 @@ router.get('/:restaurantId/gift-card-products', requireRestaurantAccess(), giftC
 router.post('/:restaurantId/gift-card-products', requireRestaurantAccess(), giftCards.createProduct);
 router.patch('/:restaurantId/gift-card-products/:productId', requireRestaurantAccess(), giftCards.updateProduct);
 router.post('/:restaurantId/gift-cards', requireRestaurantAccess(), giftCards.issueValue);
+router.get('/:restaurantId/gift-cards', requireRestaurantAccess(), giftCards.listCards);
+router.get('/:restaurantId/gift-cards/reconciliation', requireRestaurantAccess(), giftCards.reconciliationReport);
+router.get('/:restaurantId/gift-cards/:cardId/print', requireRestaurantAccess(), giftCards.printCard);
+router.post('/:restaurantId/gift-cards/:cardId/handoff', requireRestaurantAccess(), giftCards.handoffCard);
+router.post('/:restaurantId/gift-cards/:cardId/delivery-resolution', requireRestaurantAccess(), giftCards.resolveDelivery);
+router.post('/:restaurantId/gift-cards/:cardId/reconciliation', requireRestaurantAccess(), giftCards.reconcileCard);
 router.post('/:restaurantId/gift-cards/lookup', requireRestaurantAccess(), giftCards.lookupValue);
 router.post('/:restaurantId/gift-cards/redeem', requireRestaurantAccess(), giftCards.redeemValue);
 router.post('/:restaurantId/gift-cards/refund', requireRestaurantAccess(), giftCards.refundValue);
@@ -167,6 +173,7 @@ router.patch('/:restaurantId/delivery/marketplace-orders/:orderId', requireResta
 router.get('/:restaurantId/hq/rollup', requireRestaurantAccess(), hq.rollup);
 // S-18: HQ cross-store labor rollup (per-store hours, cost, labor %).
 router.get('/:restaurantId/hq/labor-rollup', requireRestaurantAccess(), hq.laborRollup);
+router.post('/:restaurantId/hq/menu/preview', requireRestaurantAccess(), hq.previewMenuOverrides);
 router.post('/:restaurantId/hq/menu/publish', requireRestaurantAccess(), hq.publishMenuOverrides);
 router.get('/:restaurantId/hq/regions', requireRestaurantAccess(), hq.listRegions);
 router.post('/:restaurantId/hq/regions', requireRestaurantAccess(), hq.createRegion);
@@ -187,6 +194,7 @@ router.delete('/:restaurantId/location-access/:membershipId', requireRestaurantA
 // controller; the route gate provides the canonical tenant boundary.
 router.get('/:restaurantId/tables', requireRestaurantAccess(), hosting.listTables);
 router.post('/:restaurantId/tables', requireRestaurantAccess(), hosting.createTable);
+router.post('/:restaurantId/tables/:tableId/seating', requireRestaurantAccess(), hosting.setSeating);
 router.patch('/:restaurantId/tables/:tableId', requireRestaurantAccess(), hosting.updateTable);
 router.get('/:restaurantId/reservations', requireRestaurantAccess(), hosting.listReservations);
 router.post('/:restaurantId/reservations', requireRestaurantAccess(), hosting.createReservation);
@@ -206,6 +214,7 @@ router.get('/:restaurantId/devices/:deviceId/config', requireRestaurantAccess(),
 router.patch('/:restaurantId/devices/:deviceId', requireRestaurantAccess(), appFlow.updateDeviceConfig);
 
 // Checklists (templates)
+router.get('/:restaurantId/operations/stores', requireRestaurantAccess(), ops.listOperatingStores);
 router.get('/:restaurantId/checklists', requireRestaurantAccess(), ops.listChecklists);
 router.post('/:restaurantId/checklists', requireRestaurantAccess(), ops.createChecklist);
 router.patch('/:restaurantId/checklists/:checklistId', requireRestaurantAccess(), ops.updateChecklist);

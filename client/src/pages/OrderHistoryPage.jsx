@@ -1,3 +1,4 @@
+import useAppResume from '../hooks/useAppResume';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -89,6 +90,8 @@ function OrderHistoryPageContent() {
       setLoading(false);
     }
   };
+
+  useAppResume(loadOrders);
 
   const language = i18n.resolvedLanguage || i18n.language;
   const notSetText = t('orders.notSet');

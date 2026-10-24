@@ -64,7 +64,12 @@ function page(query = {}) {
     offset: query.offset === undefined ? 0 : v.integer(query.offset, 'offset', 0, 1000000)
   };
 }
-function storeWhere(restaurant, column, params) {
+function storeWhere(restaurant, column, params, requested) {
+  if(requested!==undefined){
+    const id=v.integer(requested,'locationId');
+    if(restaurant.locationScope.mode==='assigned'&&!restaurant.locationScope.location_ids.includes(id))throw new AppError('Store access denied',403,'location_scope_forbidden');
+    params.push(id);return ` AND ${column}=$${params.length}`;
+  }
   if (restaurant.locationScope.mode !== 'assigned') return '';
   params.push(restaurant.locationScope.location_ids);
   return ` AND ${column}=ANY($${params.length}::bigint[])`;
@@ -261,7 +266,7 @@ exports.getAudit = async (req, res, next) => {
     const r = await access(req),
       id = v.integer(req.params.auditId, 'auditId');
     const params = [id, r.id],
-      filter = storeWhere(r, 'a.location_id', params);
+      filter = storeWhere(r, 'a.location_id', params,req.query?.locationId);
     const {
       rows: [audit]
     } = await pool.query(`SELECT a.*,t.name AS template_name FROM restaurant_audits a JOIN restaurant_audit_templates t ON t.id=a.template_id
@@ -291,13 +296,13 @@ exports.listAudits = async (req, res, next) => {
         offset
       } = page(req.query),
       params = [r.id];
-    const filter = storeWhere(r, 'a.location_id', params);
+    const filter = storeWhere(r, 'a.location_id', params,req.query?.locationId);
     params.push(limit, offset);
     const {
       rows
     } = await pool.query(`SELECT a.*,t.name AS template_name,u.first_name AS auditor_first_name,u.last_name AS auditor_last_name,
       (SELECT COUNT(*) FROM restaurant_audit_findings f WHERE f.audit_id=a.id) AS finding_count,
-      (SELECT COUNT(*) FROM restaurant_corrective_actions ca WHERE ca.audit_id=a.id AND ca.status NOT IN ('resolved','verified')) AS open_action_count
+      (SELECT COUNT(*) FROM restaurant_corrective_actions ca WHERE ca.audit_id=a.id AND ca.status <> 'verified') AS open_action_count
       FROM restaurant_audits a JOIN restaurant_audit_templates t ON t.id=a.template_id LEFT JOIN users u ON u.id=a.auditor_id
       WHERE a.restaurant_id=$1${filter} ORDER BY a.started_at DESC,a.id DESC LIMIT $${params.length - 1} OFFSET $${params.length}`, params);
     res.json({
@@ -469,7 +474,7 @@ exports.listCorrectiveActions = async (req, res, next) => {
         limit,
         offset
       } = page(req.query);
-    let filter = storeWhere(r, 'a.location_id', params);
+    let filter = storeWhere(r, 'a.location_id', params,req.query?.locationId);
     if (req.query.mine === '1' || !manager) {
       params.push(req.user.id);
       filter += ` AND ca.assignee_id=$${params.length}`;

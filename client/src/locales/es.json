@@ -1,4 +1,23 @@
 {
+  "pwaExperience": {
+    "serverUpdated": "Se sincronizó un texto más reciente. Revisa las fotos guardadas en este dispositivo.",
+    "searchUnavailable": "No se pudo cargar la búsqueda. Reconecta e inténtalo de nuevo.",
+    "online": "En línea",
+    "offline": "Sin conexión",
+    "reconnecting": "Reconectando…",
+    "lastSynced": "Última sincronización {{time}}",
+    "retry": "Reintentar",
+    "restored": "Se restauraron el borrador y las fotos guardadas.",
+    "photosUnavailable": "El texto está guardado. No se pudieron guardar las fotos en este dispositivo.",
+    "storageFailed": "No se pudo guardar el borrador. Mantén esta página abierta."
+  },
+  "pwaShell": {
+    "updateReady": "Hay una actualización lista. Termina tu pedido o pago antes de actualizar.",
+    "refresh": "Actualizar ahora",
+    "updating": "Actualizando…",
+    "sharedReady": "Las fotos compartidas están adjuntas. Revisa los detalles antes de publicar.",
+    "shareError": "No se pudieron abrir las fotos. Elige hasta cinco imágenes compatibles e inténtalo de nuevo."
+  },
   "governedKpis": {
     "regionalUserCountry": "Solo tus regiones · país confirmado: {{confirmed}} · sin confirmar: {{unconfirmed}}",
     "userCountryHelp": "Los usuarios con país sin confirmar se cuentan en el país registrado, que por defecto es EE. UU.",
@@ -24410,6 +24429,150 @@
       "opTrainingDesc": "Lecciones y cuestionarios asignados a tu equipo, con seguimiento de avance.",
       "opAuditsDesc": "Califica inspecciones, registra hallazgos y da seguimiento a las acciones correctivas hasta su cierre.",
       "opReportsDesc": "Ventas, inventario y rendimiento operativo de un vistazo.",
+      "shared": {
+        "store": "Local",
+        "loadError": "No se pudieron cargar los datos",
+        "saveError": "No se pudieron guardar los cambios",
+        "previous": "Anterior",
+        "next": "Siguiente",
+        "myTraining": "Mi formación",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "edit": "Editar",
+        "notes": "Notas",
+        "selectTable": "Elige una mesa",
+        "occupied": "Ocupada",
+        "ticket": "Cuenta del TPV",
+        "release": "Liberar mesa",
+        "statusLabel": "Estado",
+        "from": "Desde",
+        "to": "Hasta",
+        "all": "Todos",
+        "retry": "Reintentar",
+        "moveHint": "Mueve las mesas con las flechas, arrastrándolas o editando sus coordenadas.",
+        "netSales": "Ventas netas cobradas",
+        "orders": "Pedidos pagados",
+        "preview": "Revisar cambios",
+        "publishWarning": "Revisa cada local antes de publicar. Los ajustes heredados sustituyen las excepciones anteriores.",
+        "noChanges": "Sin cambios",
+        "inherit": "Heredar ajuste de la marca",
+        "available": "Disponible",
+        "unavailable": "No disponible",
+        "status": {
+          "active": "Activo",
+          "disabled": "Deshabilitado",
+          "archived": "Archivado",
+          "pending": "Pendiente",
+          "confirmed": "Confirmado",
+          "seated": "En mesa",
+          "completed": "Completado",
+          "cancelled": "Cancelado",
+          "no_show": "No se presentó",
+          "waiting": "En espera",
+          "notified": "Avisado",
+          "expired": "Vencido"
+        },
+        "signedVersion": "Versión firmada",
+        "archive": "Archivar",
+        "archiveConfirm": "¿Archivar esta plantilla? El historial guardado seguirá disponible."
+      },
+      "starters": {
+        "audit": {
+          "kitchen": {
+            "name": "Seguridad alimentaria básica",
+            "description": "Inspecciona este punto, registra las observaciones y sigue el procedimiento de seguridad alimentaria del local.",
+            "category": "kitchen",
+            "items": [
+              {
+                "label": "Suelos limpios y secos",
+                "instructions": "Inspecciona este punto, registra las observaciones y sigue el procedimiento de seguridad alimentaria del local.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Almacenamiento y etiquetado",
+                "instructions": "Inspecciona este punto, registra las observaciones y sigue el procedimiento de seguridad alimentaria del local.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Limpieza de equipos",
+                "instructions": "Inspecciona este punto, registra las observaciones y sigue el procedimiento de seguridad alimentaria del local.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Lavamanos abastecidos",
+                "instructions": "Inspecciona este punto, registra las observaciones y sigue el procedimiento de seguridad alimentaria del local.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Zona de residuos ordenada",
+                "instructions": "Inspecciona este punto, registra las observaciones y sigue el procedimiento de seguridad alimentaria del local.",
+                "maxScore": 5,
+                "weight": 1
+              }
+            ]
+          },
+          "foodSafety": {
+            "name": "Seguridad alimentaria básica",
+            "description": "Inspecciona este punto, registra las observaciones y sigue el procedimiento de seguridad alimentaria del local.",
+            "category": "food_safety",
+            "items": [
+              {
+                "label": "Temperaturas del frigorífico",
+                "instructions": "Inspecciona este punto, registra las observaciones y sigue el procedimiento de seguridad alimentaria del local.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Concentración de desinfectante",
+                "instructions": "Inspecciona este punto, registra las observaciones y sigue el procedimiento de seguridad alimentaria del local.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Fechas de caducidad",
+                "instructions": "Inspecciona este punto, registra las observaciones y sigue el procedimiento de seguridad alimentaria del local.",
+                "maxScore": 5,
+                "weight": 1
+              },
+              {
+                "label": "Procedimientos de alérgenos",
+                "instructions": "Inspecciona este punto, registra las observaciones y sigue el procedimiento de seguridad alimentaria del local.",
+                "maxScore": 5,
+                "weight": 1
+              }
+            ]
+          }
+        },
+        "training": {
+          "title": "Seguridad alimentaria básica",
+          "description": "Principios de seguridad alimentaria para todo el equipo.",
+          "content": "Lávate las manos con agua tibia y jabón durante al menos 20 segundos antes de manipular alimentos y después de tocar carne cruda o ir al baño. Mantén los alimentos fríos a 41°F o menos y los calientes a 135°F o más. Guarda la carne cruda debajo de los alimentos listos para comer y desinfecta las superficies entre tareas.",
+          "category": "food_safety",
+          "passScorePct": 80,
+          "questions": [
+            {
+              "question": "¿Cuánto tiempo debes lavarte las manos?",
+              "options": [
+                "5 segundos",
+                "Al menos 20 segundos"
+              ],
+              "correct_index": 1
+            },
+            {
+              "question": "¿Dónde se guarda la carne cruda?",
+              "options": [
+                "Encima de los alimentos listos para comer",
+                "Debajo de los alimentos listos para comer"
+              ],
+              "correct_index": 1
+            }
+          ]
+        }
+      },
       "training": {
         "loadError": "No se pudo cargar la capacitación",
         "saveError": "No se pudo guardar el módulo",
@@ -36102,6 +36265,65 @@
     },
     "sound": {
       "blocked": "El sonido está bloqueado. Toca para volver a activar el aviso."
+    }
+  },
+  "giftFulfillment": {
+    "title": "Entrega y conciliación",
+    "deliveryOn": "La entrega por correo está activa. Se verifica la entrega de los mensajes aceptados.",
+    "deliveryPaused": "La entrega está pausada o no disponible. Las tarjetas electrónicas quedan en cola.",
+    "printHint": "Abre la tarjeta física, imprímela y registra la referencia de entrega.",
+    "loadError": "No se pudo cargar la entrega de tarjetas.",
+    "actionError": "No se pudo completar la acción. Actualiza e inténtalo de nuevo.",
+    "popup": "Permite una ventana nueva para abrir la tarjeta imprimible.",
+    "saved": "Evidencia de la tarjeta guardada.",
+    "refresh": "Actualizar",
+    "card": "Tarjeta",
+    "actions": "Acciones",
+    "print": "Abrir tarjeta imprimible",
+    "handoff": "Registrar entrega",
+    "resolve": "Resolver entrega",
+    "providerReference": "Referencia del proveedor",
+    "next": "Página siguiente",
+    "first": "Primera página",
+    "handoffHint": "Registra el recibo o referencia después de entregar la tarjeta al destinatario.",
+    "resolveHint": "Verifica primero la evidencia del proveedor. Confirmar que no se envió inicia otro intento para la misma tarjeta.",
+    "resolution": "Resolución",
+    "notSent": "No enviada; volver a enviar",
+    "delivered": "Entrega confirmada",
+    "newRecipient": "Correo corregido (opcional)",
+    "evidence": "Referencia del recibo o evidencia del proveedor",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "reconciliation": "Conciliación de tarjetas",
+    "reconciliationHint": "Compara el saldo actual con el libro inmutable y un estado externo. La evidencia no cambia el valor. Los estados quedan desactualizados tras movimientos posteriores.",
+    "export": "Exportar esta página como CSV",
+    "balance": "Saldo de tarjeta",
+    "ledger": "Saldo del libro",
+    "statement": "Último estado",
+    "variance": "Diferencia registrada",
+    "mismatch": "Diferencia del libro",
+    "current": "Vigente",
+    "stale": "Desactualizado",
+    "unreconciled": "Sin estado",
+    "record": "Registrar estado",
+    "source": "Origen del estado",
+    "externalReference": "Referencia del estado",
+    "amount": "Saldo externo",
+    "note": "Nota (opcional)",
+    "invalidAmount": "Introduce un importe no negativo con la precisión de la moneda.",
+    "recipient": "Correo del destinatario",
+    "preprinted": "Código preimpreso (opcional; vacío genera uno nuevo)",
+    "language": "Idioma de la tarjeta",
+    "message": "Mensaje de regalo (opcional)",
+    "states": {
+      "pending": "En cola",
+      "sending": "Enviando",
+      "accepted": "Aceptado por proveedor",
+      "delivered": "Entregado",
+      "failed": "Error de entrega",
+      "needs_review": "Revisión necesaria",
+      "ready": "Lista para entregar",
+      "handed_out": "Entregada"
     }
   },
   "giftCards": {

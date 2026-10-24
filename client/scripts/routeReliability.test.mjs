@@ -162,7 +162,7 @@ test('successful public asset requests survive storage failures and respect priv
       fetch: async () => new Response('asset', { headers: { 'Cache-Control': cacheControl } }),
       caches: { open: async () => { writes += 1; throw new Error('quota'); } },
     });
-    const response = await context.networkFirst({ headers: new Headers() }, 'static');
+    const response = await context.fetchAsset({ headers: new Headers() });
     assert.equal(await response.text(), 'asset');
     assert.equal(writes, cacheControl === 'public' ? 1 : 0);
   }

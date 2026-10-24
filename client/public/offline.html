@@ -55,9 +55,29 @@
   <body>
     <div class="card">
       <div class="icon">📡</div>
-      <h1>You're offline</h1>
-      <p>OxSteed can't reach the internet right now. Check your connection and try again.</p>
-      <button onclick="window.location.reload()">Try again</button>
+      <h1 id="heading">You're offline</h1>
+      <p id="message">OxSteed can't reach the internet right now. Check your connection and try again.</p>
+      <p id="last-opened"></p>
+      <button id="reconnect" type="button">Reconnect</button>
     </div>
+    <script>
+      const messages = {"en": ["You're offline", "OxSteed can't reach the internet right now. Check your connection and reconnect. Last opened does not mean orders or balances are current.", "Reconnect", "Last opened: ", "No previous launch on this device."], "es": ["Sin conexión", "OxSteed no puede conectarse. Comprueba tu conexión. La última apertura no indica que tus pedidos o saldos estén actualizados.", "Reconectar", "Última apertura: ", "No hay una apertura anterior en este dispositivo."], "fr": ["Vous êtes hors ligne", "OxSteed ne peut pas se connecter. Vérifiez votre connexion. La dernière ouverture ne signifie pas que les commandes ou soldes sont à jour.", "Reconnecter", "Dernière ouverture : ", "Aucune ouverture précédente sur cet appareil."], "ht": ["Ou pa konekte", "OxSteed pa ka konekte. Verifye koneksyon ou. Dènye lè ou te louvri a pa vle di kòmann oswa balans ou yo ajou.", "Rekonekte", "Dènye fwa ou te louvri: ", "Pa gen lansman anvan sou aparèy sa a."], "ar": ["أنت غير متصل", "يتعذر الاتصال بـ OxSteed. تحقق من اتصالك. وقت الفتح الأخير لا يعني أن الطلبات أو الأرصدة محدثة.", "إعادة الاتصال", "آخر فتح: ", "لم يُفتح التطبيق سابقًا على هذا الجهاز."]};
+      let language = navigator.language?.split('-')[0] || 'en';
+      try { language = (localStorage.getItem('i18nextLng') || language).split('-')[0]; } catch {}
+      const text = messages[language] || messages.en;
+      document.documentElement.lang = messages[language] ? language : 'en';
+      document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+      document.title = text[0] + ' - OxSteed';
+      document.getElementById('heading').textContent = text[0];
+      document.getElementById('message').textContent = text[1];
+      const reconnect = document.getElementById('reconnect');
+      reconnect.textContent = text[2];
+      reconnect.addEventListener('click', () => window.location.reload());
+      let timestamp;
+      try { timestamp = Number(localStorage.getItem('oxsteed:last-opened')); } catch {}
+      document.getElementById('last-opened').textContent = Number.isFinite(timestamp) && timestamp > 0
+        ? text[3] + new Intl.DateTimeFormat(language, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(timestamp))
+        : text[4];
+    </script>
   </body>
 </html>

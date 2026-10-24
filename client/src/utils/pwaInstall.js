@@ -95,6 +95,13 @@ export function hasNativePrompt() {
 
 export function initPwaInstall() {
   if (typeof window === 'undefined') return;
+  const shortcuts = { '/food': 'food', '/oxsteed-credit': 'top_up', '/orders': 'track', '/post-job': 'post_job' };
+  const params = new URLSearchParams(window.location.search);
+  const shortcut = shortcuts[window.location.pathname];
+  if (params.get('source') === 'app_shortcut' && shortcut) {
+    // Send only a fixed label through the existing consent-gated adapter.
+    trackEvent('pwa_shortcut_open', { shortcut });
+  }
   trackEvent('pwa_session_start', { launch_mode: getLaunchMode(), platform: platformLabel() });
 
   window.addEventListener('beforeinstallprompt', (event) => {

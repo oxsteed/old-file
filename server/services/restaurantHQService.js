@@ -1,52 +1,95 @@
-'use strict';
+"use strict";
 
-const AppError = require('../utils/appError');
+const AppError = require("../utils/appError");
 
-function normalizeLocationId(value, field = 'store') {
-  if (!/^[1-9]\d*$/.test(String(value)) || !Number.isSafeInteger(Number(value))) {
-    throw new AppError(`Invalid ${field}`, 400, 'validation_failed');
+function normalizeLocationId(value, field = "store") {
+  if (
+    !/^[1-9]\d*$/.test(String(value)) ||
+    !Number.isSafeInteger(Number(value))
+  ) {
+    throw new AppError(`Invalid ${field}`, 400, "validation_failed");
   }
   return Number(value);
 }
 
 function normalizePublishRequest({ sourceLocationId, targetLocationIds }) {
-  const source = normalizeLocationId(sourceLocationId, 'source store');
-  if (!Array.isArray(targetLocationIds) || targetLocationIds.length < 1 || targetLocationIds.length > 100) {
-    throw new AppError('At least one and at most 100 target stores are required', 400, 'validation_failed');
+  const source = normalizeLocationId(sourceLocationId, "source store");
+  if (
+    !Array.isArray(targetLocationIds) ||
+    targetLocationIds.length < 1 ||
+    targetLocationIds.length > 100
+  ) {
+    throw new AppError(
+      "At least one and at most 100 target stores are required",
+      400,
+      "validation_failed",
+    );
   }
-  const targets = [...new Set(targetLocationIds.map((value) => normalizeLocationId(value)))];
-  if (targets.length !== targetLocationIds.length) throw new AppError('Target stores must be unique', 400, 'validation_failed');
-  if (targets.includes(source)) throw new AppError('The source store cannot be a target', 400, 'validation_failed');
+  const targets = [
+    ...new Set(targetLocationIds.map((value) => normalizeLocationId(value))),
+  ];
+  if (targets.length !== targetLocationIds.length)
+    throw new AppError(
+      "Target stores must be unique",
+      400,
+      "validation_failed",
+    );
+  if (targets.includes(source))
+    throw new AppError(
+      "The source store cannot be a target",
+      400,
+      "validation_failed",
+    );
   return { sourceLocationId: source, targetLocationIds: targets };
 }
 
 function normalizeRegionCode(value) {
-  const code = String(value || '').trim().toLowerCase();
+  const code = String(value || "")
+    .trim()
+    .toLowerCase();
   if (!/^[a-z0-9][a-z0-9_-]{1,47}$/.test(code)) {
-    throw new AppError('Region code must be 2-48 lowercase letters, numbers, hyphens, or underscores', 400, 'validation_failed');
+    throw new AppError(
+      "Region code must be 2-48 lowercase letters, numbers, hyphens, or underscores",
+      400,
+      "validation_failed",
+    );
   }
   return code;
 }
 
 function normalizeRegionName(value) {
-  const name = String(value || '').trim();
+  const name = String(value || "").trim();
   if (name.length < 2 || name.length > 160) {
-    throw new AppError('Region name must be between 2 and 160 characters', 400, 'validation_failed');
+    throw new AppError(
+      "Region name must be between 2 and 160 characters",
+      400,
+      "validation_failed",
+    );
   }
   return name;
 }
 
-async function assertRegionParent(client, { restaurantId, regionId = null, parentRegionId = null }) {
+async function assertRegionParent(
+  client,
+  { restaurantId, regionId = null, parentRegionId = null },
+) {
   if (parentRegionId == null) return;
   if (regionId != null && Number(regionId) === Number(parentRegionId)) {
-    throw new AppError('A region cannot be its own parent', 400, 'region_cycle');
+    throw new AppError(
+      "A region cannot be its own parent",
+      400,
+      "region_cycle",
+    );
   }
-  const { rows: [parent] } = await client.query(
+  const {
+    rows: [parent],
+  } = await client.query(
     `SELECT id FROM restaurant_regions
       WHERE restaurant_id = $1 AND id = $2 AND status = 'active'`,
-    [restaurantId, parentRegionId]
+    [restaurantId, parentRegionId],
   );
-  if (!parent) throw new AppError('Parent region not found', 404, 'region_not_found');
+  if (!parent)
+    throw new AppError("Parent region not found", 404, "region_not_found");
   if (regionId != null) {
     const { rows: cycle } = await client.query(
       `WITH RECURSIVE descendants AS (
@@ -60,9 +103,14 @@ async function assertRegionParent(client, { restaurantId, regionId = null, paren
           WHERE child.restaurant_id = $1
        )
        SELECT 1 FROM descendants WHERE id = $3 LIMIT 1`,
-      [restaurantId, regionId, parentRegionId]
+      [restaurantId, regionId, parentRegionId],
     );
-    if (cycle.length) throw new AppError('A region cannot be moved beneath one of its descendants', 400, 'region_cycle');
+    if (cycle.length)
+      throw new AppError(
+        "A region cannot be moved beneath one of its descendants",
+        400,
+        "region_cycle",
+      );
   }
 }
 
@@ -87,49 +135,96 @@ async function listRegions(client, restaurantId) {
       GROUP BY tree.id, tree.restaurant_id, tree.parent_region_id, tree.code,
                tree.name, tree.status, tree.depth, tree.path
       ORDER BY tree.path`,
-    [restaurantId]
+    [restaurantId],
   );
   return rows;
 }
 
-async function createRegion(client, { restaurantId, code, name, parentRegionId = null, actorUserId = null }) {
+async function createRegion(
+  client,
+  { restaurantId, code, name, parentRegionId = null, actorUserId = null },
+) {
   const normalizedCode = normalizeRegionCode(code);
   const normalizedName = normalizeRegionName(name);
   await assertRegionParent(client, { restaurantId, parentRegionId });
-  const { rows: [region] } = await client.query(
+  const {
+    rows: [region],
+  } = await client.query(
     `INSERT INTO restaurant_regions
        (restaurant_id, parent_region_id, code, name, created_by, updated_by)
      VALUES ($1,$2,$3,$4,$5,$5)
      RETURNING *`,
-    [restaurantId, parentRegionId == null ? null : Number(parentRegionId), normalizedCode, normalizedName, actorUserId]
+    [
+      restaurantId,
+      parentRegionId == null ? null : Number(parentRegionId),
+      normalizedCode,
+      normalizedName,
+      actorUserId,
+    ],
   );
   return region;
 }
 
-async function updateRegion(client, { restaurantId, regionId, patch, actorUserId = null }) {
+async function updateRegion(
+  client,
+  { restaurantId, regionId, patch, actorUserId = null },
+) {
   const id = Number(regionId);
-  if (!Number.isSafeInteger(id) || id <= 0) throw new AppError('A valid region is required', 400, 'invalid_region_id');
-  const { rows: [before] } = await client.query(
+  if (!Number.isSafeInteger(id) || id <= 0)
+    throw new AppError("A valid region is required", 400, "invalid_region_id");
+  const {
+    rows: [before],
+  } = await client.query(
     `SELECT * FROM restaurant_regions WHERE restaurant_id = $1 AND id = $2 FOR UPDATE`,
-    [restaurantId, id]
+    [restaurantId, id],
   );
-  if (!before) throw new AppError('Region not found', 404, 'region_not_found');
-  const code = patch.code === undefined ? before.code : normalizeRegionCode(patch.code);
-  const name = patch.name === undefined ? before.name : normalizeRegionName(patch.name);
-  const parentRegionId = patch.parentRegionId === undefined ? before.parent_region_id : patch.parentRegionId;
-  const status = patch.status === undefined ? before.status : String(patch.status).trim().toLowerCase();
-  if (!['active', 'archived'].includes(status)) throw new AppError('Unsupported region status', 400, 'validation_failed');
-  if (String(before.code).toLowerCase() === 'all-stores' && (code !== before.code || parentRegionId != null || status === 'archived')) {
-    throw new AppError('The root region cannot be renamed, moved, or archived', 409, 'root_region_protected');
+  if (!before) throw new AppError("Region not found", 404, "region_not_found");
+  const code =
+    patch.code === undefined ? before.code : normalizeRegionCode(patch.code);
+  const name =
+    patch.name === undefined ? before.name : normalizeRegionName(patch.name);
+  const parentRegionId =
+    patch.parentRegionId === undefined
+      ? before.parent_region_id
+      : patch.parentRegionId;
+  const status =
+    patch.status === undefined
+      ? before.status
+      : String(patch.status).trim().toLowerCase();
+  if (!["active", "archived"].includes(status))
+    throw new AppError("Unsupported region status", 400, "validation_failed");
+  if (
+    String(before.code).toLowerCase() === "all-stores" &&
+    (code !== before.code || parentRegionId != null || status === "archived")
+  ) {
+    throw new AppError(
+      "The root region cannot be renamed, moved, or archived",
+      409,
+      "root_region_protected",
+    );
   }
-  await assertRegionParent(client, { restaurantId, regionId: id, parentRegionId });
-  const { rows: [after] } = await client.query(
+  await assertRegionParent(client, {
+    restaurantId,
+    regionId: id,
+    parentRegionId,
+  });
+  const {
+    rows: [after],
+  } = await client.query(
     `UPDATE restaurant_regions
         SET code = $3, name = $4, parent_region_id = $5, status = $6,
             updated_by = $7, updated_at = NOW()
       WHERE restaurant_id = $1 AND id = $2
       RETURNING *`,
-    [restaurantId, id, code, name, parentRegionId == null ? null : Number(parentRegionId), status, actorUserId]
+    [
+      restaurantId,
+      id,
+      code,
+      name,
+      parentRegionId == null ? null : Number(parentRegionId),
+      status,
+      actorUserId,
+    ],
   );
   return { before, after };
 }
@@ -144,15 +239,28 @@ function storeShape(row, sales = [], health = {}) {
     state: row.address_state || null,
     timezone: row.timezone,
     status: row.status,
-    sales: sales.map((entry) => ({ currencyCode: entry.currency_code, orderCount: Number(entry.order_count || 0), netCollectedCents: Number(entry.net_collected_cents || 0) })),
+    sales: sales.map((entry) => ({
+      currencyCode: entry.currency_code,
+      orderCount: Number(entry.order_count || 0),
+      netCollectedCents: Number(entry.net_collected_cents || 0),
+    })),
     health: {
-      latestAuditScorePercent: health.latestAuditScorePercent == null ? null : Number(health.latestAuditScorePercent),
+      latestAuditScorePercent:
+        health.latestAuditScorePercent == null
+          ? null
+          : Number(health.latestAuditScorePercent),
       openFindings: Number(health.openFindings || 0),
     },
     compliance: {
-      checklistCompletionPercent: health.checklistCompletionPercent == null ? null : Number(health.checklistCompletionPercent),
+      checklistCompletionPercent:
+        health.checklistCompletionPercent == null
+          ? null
+          : Number(health.checklistCompletionPercent),
       checklistRuns: Number(health.checklistRuns || 0),
-      trainingCompletionPercent: health.trainingCompletionPercent == null ? null : Number(health.trainingCompletionPercent),
+      trainingCompletionPercent:
+        health.trainingCompletionPercent == null
+          ? null
+          : Number(health.trainingCompletionPercent),
       trainingAssignments: Number(health.trainingAssignments || 0),
       overdueTraining: Number(health.overdueTraining || 0),
     },
@@ -160,7 +268,8 @@ function storeShape(row, sales = [], health = {}) {
 }
 
 async function rollup(client, { businessId, restaurantIds, from, to }) {
-  if (!Array.isArray(restaurantIds) || !restaurantIds.length) throw new AppError('No accessible stores found', 403, 'hq_scope_empty');
+  if (!Array.isArray(restaurantIds) || !restaurantIds.length)
+    throw new AppError("No accessible stores found", 403, "hq_scope_empty");
   const salesParams = [businessId, restaurantIds, from, to];
   const { rows: salesRows } = await client.query(
     `SELECT restaurant_id, currency_code,
@@ -171,7 +280,7 @@ async function rollup(client, { businessId, restaurantIds, from, to }) {
         AND created_at >= $3::timestamptz AND created_at < $4::timestamptz
       GROUP BY restaurant_id, currency_code
       ORDER BY restaurant_id, currency_code`,
-    salesParams
+    salesParams,
   );
   const { rows: healthRows } = await client.query(
     `SELECT r.id AS restaurant_id,
@@ -185,7 +294,7 @@ async function rollup(client, { businessId, restaurantIds, from, to }) {
               WHERE a.restaurant_id = r.id AND f.severity IN ('high','critical')) AS open_findings
        FROM food_restaurants r
       WHERE r.business_id = $1 AND r.id = ANY($2::bigint[])`,
-    [businessId, restaurantIds]
+    [businessId, restaurantIds],
   );
   const { rows: complianceRows } = await client.query(
     `WITH checklist AS (
@@ -225,7 +334,7 @@ async function rollup(client, { businessId, restaurantIds, from, to }) {
        LEFT JOIN checklist ON checklist.restaurant_id = r.id
        LEFT JOIN training ON training.restaurant_id = r.id
       WHERE r.business_id = $4 AND r.id = ANY($1::bigint[])`,
-    [restaurantIds, from, to, businessId]
+    [restaurantIds, from, to, businessId],
   );
   return { salesRows, healthRows, complianceRows };
 }
@@ -233,18 +342,25 @@ async function rollup(client, { businessId, restaurantIds, from, to }) {
 // Restaurant locations are the operational stores in the current rollout.
 // Keep the legacy business/restaurant query above for callers that still use
 // the pre-location contract, but make the HQ surface location-native.
-async function rollupLocations(client, { restaurantId, locationIds, from, to, timezone = 'UTC' }) {
-  if (!Array.isArray(locationIds) || !locationIds.length) throw new AppError('No accessible stores found', 403, 'hq_scope_empty');
+async function rollupLocations(
+  client,
+  { restaurantId, locationIds, from, to, timezone = "UTC" },
+) {
+  if (!Array.isArray(locationIds) || !locationIds.length)
+    throw new AppError("No accessible stores found", 403, "hq_scope_empty");
+  const { orderFinancialsCte } = require("./restaurantSalesFacts");
+  const inclusiveTo = new Date(
+    Date.parse(String(to).slice(0, 10) + "T00:00:00Z") - 86400000,
+  )
+    .toISOString()
+    .slice(0, 10);
   const { rows: salesRows } = await client.query(
-    `SELECT o.location_id, o.currency_code,
-            COUNT(*) FILTER (WHERE o.payment_status = 'paid' AND o.status NOT IN ('cancelled','refunded'))::int AS order_count,
-            COALESCE(SUM(o.total_cents) FILTER (WHERE o.payment_status = 'paid' AND o.status NOT IN ('cancelled','refunded')), 0)::bigint AS net_collected_cents
-       FROM food_orders o
-      WHERE o.restaurant_id = $1 AND o.location_id = ANY($2::bigint[])
-        AND o.created_at >= ($3::timestamp AT TIME ZONE $5) AND o.created_at < ($4::timestamp AT TIME ZONE $5)
-      GROUP BY o.location_id, o.currency_code
-      ORDER BY o.location_id, o.currency_code`,
-    [restaurantId, locationIds, from, to, timezone]
+    orderFinancialsCte({ mode: "assigned" }) +
+      `
+    SELECT location_id,currency_code,COUNT(*) FILTER(WHERE net_collected_cents>0)::int AS order_count,
+      COALESCE(SUM(net_collected_cents),0)::bigint AS net_collected_cents
+    FROM order_financials GROUP BY location_id,currency_code ORDER BY location_id,currency_code`,
+    [restaurantId, from, inclusiveTo, timezone, locationIds],
   );
   const { rows: healthRows } = await client.query(
     `SELECT l.id AS location_id, r.id AS restaurant_id,
@@ -260,7 +376,7 @@ async function rollupLocations(client, { restaurantId, locationIds, from, to, ti
        FROM restaurant_locations l
        JOIN food_restaurants r ON r.id = l.restaurant_id
       WHERE l.restaurant_id = $1 AND l.id = ANY($2::bigint[])`,
-    [restaurantId, locationIds]
+    [restaurantId, locationIds],
   );
   const { rows: complianceRows } = await client.query(
     `WITH checklist AS (
@@ -305,22 +421,55 @@ async function rollupLocations(client, { restaurantId, locationIds, from, to, ti
        LEFT JOIN checklist ON checklist.restaurant_id = r.id AND checklist.location_id=l.id
        LEFT JOIN training ON training.restaurant_id = r.id AND training.location_id=l.id
       WHERE l.restaurant_id = $1 AND l.id = ANY($2::bigint[])`,
-    [restaurantId, locationIds, from, to, timezone]
+    [restaurantId, locationIds, from, to, timezone],
   );
   return { salesRows, healthRows, complianceRows };
 }
 
-async function publishMenuOverrides(client, { restaurantId, sourceLocationId, targetLocationIds, actorUserId }) {
-  const request = normalizePublishRequest({ sourceLocationId, targetLocationIds });
+async function publishMenuOverrides(
+  client,
+  {
+    restaurantId,
+    sourceLocationId,
+    targetLocationIds,
+    actorUserId,
+    expectedRevision,
+  },
+) {
+  const request = normalizePublishRequest({
+    sourceLocationId,
+    targetLocationIds,
+  });
   const locationIds = [request.sourceLocationId, ...request.targetLocationIds];
   const { rows: locations } = await client.query(
     `SELECT id, name, status
        FROM restaurant_locations
       WHERE restaurant_id = $1 AND id = ANY($2::bigint[])
-      ORDER BY id`,
-    [restaurantId, locationIds]
+      ORDER BY id FOR UPDATE`,
+    [restaurantId, locationIds],
   );
-  if (locations.length !== locationIds.length) throw new AppError('One or more stores were not found', 404, 'location_not_found');
+  if (locations.length !== locationIds.length)
+    throw new AppError(
+      "One or more stores were not found",
+      404,
+      "location_not_found",
+    );
+  if (
+    expectedRevision &&
+    (await previewMenuOverrides(client, { restaurantId, ...request }))
+      .revision !== expectedRevision
+  )
+    throw new AppError(
+      "Menu changed; review a new preview",
+      409,
+      "menu_preview_stale",
+    );
+  // Clear inherited rows as well as copying explicit rows; otherwise a reset at
+  // the source leaves an old target price/86 override in place indefinitely.
+  await client.query(
+    `DELETE FROM restaurant_store_menu_overrides target WHERE target.restaurant_id=$1 AND target.location_id=ANY($3::bigint[]) AND NOT EXISTS(SELECT 1 FROM restaurant_store_menu_overrides source WHERE source.restaurant_id=$1 AND source.location_id=$2 AND source.menu_item_id=target.menu_item_id)`,
+    [restaurantId, request.sourceLocationId, request.targetLocationIds],
+  );
   const { rows: copied } = await client.query(
     `INSERT INTO restaurant_store_menu_overrides
        (restaurant_id, location_id, menu_item_id, price_cents, is_available, available_again_at, updated_by)
@@ -336,13 +485,25 @@ async function publishMenuOverrides(client, { restaurantId, sourceLocationId, ta
                    updated_by = EXCLUDED.updated_by,
                    updated_at = NOW()
      RETURNING location_id, menu_item_id`,
-    [restaurantId, request.sourceLocationId, request.targetLocationIds, actorUserId || null]
+    [
+      restaurantId,
+      request.sourceLocationId,
+      request.targetLocationIds,
+      actorUserId || null,
+    ],
   );
   const counts = new Map(request.targetLocationIds.map((id) => [id, 0]));
-  for (const row of copied) counts.set(Number(row.location_id), (counts.get(Number(row.location_id)) || 0) + 1);
+  for (const row of copied)
+    counts.set(
+      Number(row.location_id),
+      (counts.get(Number(row.location_id)) || 0) + 1,
+    );
   return {
     sourceLocationId: request.sourceLocationId,
-    targets: request.targetLocationIds.map((id) => ({ locationId: id, copiedOverrides: counts.get(id) || 0 })),
+    targets: request.targetLocationIds.map((id) => ({
+      locationId: id,
+      copiedOverrides: counts.get(id) || 0,
+    })),
   };
 }
 
@@ -358,3 +519,67 @@ module.exports = {
   normalizeRegionCode,
   normalizeRegionName,
 };
+
+async function previewMenuOverrides(
+  client,
+  { restaurantId, sourceLocationId, targetLocationIds },
+) {
+  const request = normalizePublishRequest({
+      sourceLocationId,
+      targetLocationIds,
+    }),
+    ids = [request.sourceLocationId, ...request.targetLocationIds];
+  const { rows: stores } = await client.query(
+    "SELECT id,name FROM restaurant_locations WHERE restaurant_id=$1 AND id=ANY($2::bigint[]) ORDER BY id",
+    [restaurantId, ids],
+  );
+  if (stores.length !== ids.length)
+    throw new AppError("One or more stores were not found", 404, "location_not_found");
+  const { rows } = await client.query(
+    "SELECT ov.location_id,ov.menu_item_id,ov.price_cents,ov.is_available,ov.available_again_at,mi.name AS item_name FROM restaurant_store_menu_overrides ov JOIN food_menu_items mi ON mi.id=ov.menu_item_id WHERE ov.restaurant_id=$1 AND ov.location_id=ANY($2::bigint[]) ORDER BY ov.location_id,ov.menu_item_id",
+    [restaurantId, ids],
+  );
+  const values = (row) =>
+    row
+      ? {
+          priceCents: row.price_cents,
+          available: row.is_available,
+          returnAt: row.available_again_at,
+        }
+      : null;
+  const source = new Map(
+    rows
+      .filter((row) => Number(row.location_id) === request.sourceLocationId)
+      .map((row) => [Number(row.menu_item_id), row]),
+  );
+  const changes = [];
+  for (const locationId of request.targetLocationIds) {
+    const target = new Map(
+      rows
+        .filter((row) => Number(row.location_id) === locationId)
+        .map((row) => [Number(row.menu_item_id), row]),
+    );
+    for (const itemId of new Set([...source.keys(), ...target.keys()])) {
+      const before = values(target.get(itemId)),
+        after = values(source.get(itemId));
+      if (JSON.stringify(before) !== JSON.stringify(after))
+        changes.push({
+          locationId,
+          itemId,
+          itemName:
+            source.get(itemId)?.item_name || target.get(itemId)?.item_name,
+          before,
+          after,
+        });
+    }
+  }
+  return {
+    ...request,
+    changes,
+    revision: require("crypto")
+      .createHash("sha256")
+      .update(JSON.stringify([restaurantId, request, rows]))
+      .digest("hex"),
+  };
+}
+module.exports.previewMenuOverrides = previewMenuOverrides;
