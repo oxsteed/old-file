@@ -2,6 +2,8 @@
 // Manage representatives and managers for a helper's businesses.
 
 const pool   = require('../db');
+const AppError = require('../utils/appError');
+const workforce = require('../services/restaurantWorkforceScope');
 const logger = require('../utils/logger');
 const { ownedBusiness, canAccessBusinessTeam } = require('../utils/businessOwnership');
 const { enrichBusinessesWithRestaurantFields } = require('../utils/businessListRestaurantEnrichment');
@@ -31,6 +33,10 @@ const INVITE_TTL_DAYS = 14;
  * roles below their own.
  */
 async function managedBusiness(req) {
+  const ctx = await workforce.context(req);
+  if (ctx?.scope.mode === 'assigned') {
+    throw new AppError('All-store access is required for business-wide staff administration', 403, 'location_scope_forbidden');
+  }
   const paramId = String(req.params.id || '');
   if (req.business && String(req.business.id) === paramId) {
     const ownerId = req.business.owner_id || req.user.id;
@@ -66,6 +72,9 @@ async function listMembers(req, res) {
     const access = await canAccessBusinessTeam(req.user.id, req.params.id);
     if (!access) return res.status(404).json({ error: 'Business not found' });
 
+    const ctx = await workforce.context(req);
+    const params = [access.id, access.owner_id];
+    const storeFilter = workforce.staffClause(ctx, 'bm.member_id', params);
     const { rows } = await pool.query(
       `SELECT
          bm.id,
@@ -87,9 +96,9 @@ async function listMembers(req, res) {
        LEFT JOIN users u ON u.id = bm.member_id
        WHERE bm.business_id = $1
          AND bm.owner_id    = $2
-         AND bm.status != 'revoked'
+         AND bm.status != 'revoked'${storeFilter}
        ORDER BY bm.status, bm.invited_at`,
-      [access.id, access.owner_id]
+      params
     );
 
     return res.json({ members: rows });
@@ -252,6 +261,7 @@ async function inviteMember(req, res) {
 
     return res.status(201).json({ member: record, user_found: !!invitee });
   } catch (err) {
+    if (err.code === 'location_scope_forbidden') return res.status(403).json({ error: err.message, code: err.code });
     if (err.code === '23505') {
       return res.status(409).json({ error: 'An invite for this email is already pending' });
     }
@@ -349,6 +359,7 @@ async function revokeMember(req, res) {
 
     return res.json({ ok: true, offboarding: outcome });
   } catch (err) {
+    if (err.code === 'location_scope_forbidden') return res.status(403).json({ error: err.message, code: err.code });
     logger.error('revokeMember error', { err: err.message });
     return res.status(500).json({ error: 'Failed to revoke member' });
   }
@@ -416,6 +427,7 @@ async function resendMemberInvite(req, res) {
 
     return res.json({ member: updated });
   } catch (err) {
+    if (err.code === 'location_scope_forbidden') return res.status(403).json({ error: err.message, code: err.code });
     logger.error('resendMemberInvite error', { err: err.message });
     return res.status(500).json({ error: 'Failed to resend invite' });
   }
@@ -481,6 +493,7 @@ async function expireMemberInvite(req, res) {
     if (!updated) return res.status(409).json({ error: 'Only pending invites can be expired' });
     return res.json({ member: updated });
   } catch (err) {
+    if (err.code === 'location_scope_forbidden') return res.status(403).json({ error: err.message, code: err.code });
     logger.error('expireMemberInvite error', { err: err.message });
     return res.status(500).json({ error: 'Failed to expire invite' });
   }
@@ -509,6 +522,7 @@ async function listOffboardingRecords(req, res) {
     );
     return res.json({ records: rows });
   } catch (err) {
+    if (err.code === 'location_scope_forbidden') return res.status(403).json({ error: err.message, code: err.code });
     logger.error('listOffboardingRecords error', { err: err.message });
     return res.status(500).json({ error: 'Failed to load offboarding records' });
   }
@@ -628,6 +642,7 @@ async function rehireMember(req, res) {
     if (outcome.conflict === 'target_rank_too_high') return res.status(403).json({ error: 'You can only manage members with roles below your own' });
     return res.status(201).json(outcome);
   } catch (err) {
+    if (err.code === 'location_scope_forbidden') return res.status(403).json({ error: err.message, code: err.code });
     logger.error('rehireMember error', { err: err.message });
     return res.status(500).json({ error: 'Failed to rehire member' });
   }
@@ -647,6 +662,7 @@ async function listJobRoles(req, res) {
     );
     return res.json({ job_roles: rows });
   } catch (err) {
+    if (err.code === 'location_scope_forbidden') return res.status(403).json({ error: err.message, code: err.code });
     logger.error('listJobRoles error', { err: err.message });
     return res.status(500).json({ error: 'Failed to load job roles' });
   }

@@ -25,6 +25,12 @@ const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
 
 const content = require('../controllers/businessContentController');
+// These generic-business fixtures have no restaurant store boundary.
+// The restaurantStoreIsolation DB suite covers actual assigned membership.
+jest.mock('../services/restaurantWorkforceScope', () => ({
+  ...jest.requireActual('../services/restaurantWorkforceScope'),
+  context: jest.fn(async () => null),
+}));
 const members = require('../controllers/businessMembersController');
 const booking = require('../controllers/bookingController');
 const food = require('../controllers/foodController');

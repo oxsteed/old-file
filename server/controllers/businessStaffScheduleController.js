@@ -1,3 +1,5 @@
+const { assertScopedLocation } = require('../services/restaurantStoreBoundary');
+const workforce = require('../services/restaurantWorkforceScope');
 const { payrollLocation } = require('../services/restaurantPayrollLocation');
 const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
@@ -66,6 +68,7 @@ exports.listShifts = async (req, res, next) => {
   const { businessId } = req.params;
   const { user_id, from, to } = req.query;
   try {
+    const storeContext = await workforce.context(req);
     let where = 'WHERE s.business_id = $1';
     const params = [businessId];
     let p = 2;
@@ -76,6 +79,7 @@ exports.listShifts = async (req, res, next) => {
     // row with its published flag; everyone else sees published shifts.
     const manager = await isBusinessManager(req, businessId, req.user.id);
     if (!manager) where += ' AND s.published_at IS NOT NULL';
+    where += workforce.clause(storeContext,'s',params);
     const rows = await pool.query(
       `SELECT s.*,
               u.email AS user_email,
@@ -108,13 +112,16 @@ exports.createShift = async (req, res, next) => {
     return res.status(400).json({ error: parts.error });
   }
   try {
+    const storeContext = await workforce.context(req);
+    const locationId = await payrollLocation(businessId, req.user?.id, req.body.locationId ?? req.body.location_id ?? null);
+    await workforce.assertStaff(storeContext,user_id,pool,locationId);
     if (!await assertShiftMember(businessId, user_id)) {
       return res.status(400).json({ error: 'User is not a member of this business' });
     }
     const row = await pool.query(
       `INSERT INTO business_staff_shifts (business_id, user_id, shift_date, start_time, end_time, role_label, notes, location_id)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [businessId, user_id, parts.shiftDate, parts.startTime, parts.endTime, role || null, notes || null, await payrollLocation(businessId, req.user?.id, req.body.locationId ?? req.body.location_id ?? null)]
+      [businessId, user_id, parts.shiftDate, parts.startTime, parts.endTime, role || null, notes || null, locationId]
     );
     res.status(201).json(row.rows[0]);
   } catch (err) { next(err); }
@@ -124,6 +131,8 @@ exports.updateShift = async (req, res, next) => {
   const { businessId, shiftId } = req.params;
   const { shift_start, shift_end, role, notes } = req.body;
   try {
+    const storeContext = await workforce.context(req);
+    await workforce.assertRecord(storeContext,'business_staff_shifts',shiftId);
     let shiftDate, startTime, endTime;
     if (shift_start || shift_end) {
       const current = await pool.query(
@@ -156,6 +165,8 @@ exports.updateShift = async (req, res, next) => {
 exports.deleteShift = async (req, res, next) => {
   const { businessId, shiftId } = req.params;
   try {
+    const storeContext = await workforce.context(req);
+    await workforce.assertRecord(storeContext,'business_staff_shifts',shiftId);
     await pool.query('DELETE FROM business_staff_shifts WHERE id=$1 AND business_id=$2', [shiftId, businessId]);
     res.json({ success: true });
   } catch (err) { next(err); }
@@ -209,6 +220,8 @@ exports.listAvailability = async (req, res, next) => {
   const { businessId } = req.params;
   const requestedUserId = req.query.user_id || req.user.id;
   try {
+    const storeContext = await workforce.context(req);
+    if(String(requestedUserId)!==String(req.user.id))await workforce.assertStaff(storeContext,requestedUserId);
     if (String(requestedUserId) !== String(req.user.id)
       && !await isBusinessManager(req, businessId, req.user.id)) {
       return res.status(403).json({ error: 'Only a manager can view another staff member availability' });
@@ -278,6 +291,7 @@ exports.replaceAvailability = async (req, res, next) => {
 exports.listShiftSwapRequests = async (req, res, next) => {
   const { businessId } = req.params;
   try {
+    const storeContext = await workforce.context(req);
     const manager = await isBusinessManager(req, businessId, req.user.id);
     const params = [businessId];
     let filter = '';
@@ -285,6 +299,7 @@ exports.listShiftSwapRequests = async (req, res, next) => {
       params.push(req.user.id);
       filter = ' AND (r.requester_user_id=$2 OR r.target_user_id=$2)';
     }
+    filter += workforce.clause(storeContext,'s',params);
     const { rows } = await pool.query(
       `SELECT r.*, s.shift_date, s.start_time, s.end_time, s.role_label, s.user_id AS assigned_user_id
          FROM business_shift_swap_requests r
@@ -302,6 +317,8 @@ exports.createShiftSwapRequest = async (req, res, next) => {
   const targetUserId = req.body?.target_user_id || req.body?.targetUserId || null;
   const note = req.body?.note ? String(req.body.note).slice(0, 1000) : null;
   try {
+    const storeContext = await workforce.context(req);
+    const scopedShift=await workforce.assertRecord(storeContext,'business_staff_shifts',shiftId);
     const { rows: shifts } = await pool.query(
       `SELECT id, user_id, shift_date, start_time, end_time
          FROM business_staff_shifts WHERE id=$1 AND business_id=$2`,
@@ -309,6 +326,7 @@ exports.createShiftSwapRequest = async (req, res, next) => {
     );
     const shift = shifts[0];
     if (!shift) return res.status(404).json({ error: 'Shift not found' });
+    await workforce.assertStaff(storeContext,targetUserId,pool,scopedShift?.location_id);
     const manager = await isBusinessManager(req, businessId, req.user.id);
     if (!manager && String(shift.user_id) !== String(req.user.id)) {
       return res.status(403).json({ error: 'You can only request a swap for your own shift' });
@@ -339,6 +357,7 @@ exports.createShiftSwapRequest = async (req, res, next) => {
 async function decideShiftSwap(req, res, next, status) {
   const { businessId, requestId } = req.params;
   try {
+    const storeContext = await workforce.context(req);
     if (!await isBusinessManager(req, businessId, req.user.id)) {
       return res.status(403).json({ error: 'Only a manager can decide shift swaps' });
     }
@@ -352,6 +371,8 @@ async function decideShiftSwap(req, res, next, status) {
       );
       const swap = rows[0];
       if (!swap) return { missing: true };
+      const scopedShift=await workforce.assertRecord(storeContext,'business_staff_shifts',swap.shift_id,client);
+      if(status==='approved')await workforce.assertStaff(storeContext,swap.target_user_id,client,scopedShift?.location_id);
       if (swap.status !== 'requested') return { conflict: true };
       if (status === 'approved') {
         if (!swap.target_user_id) return { noTarget: true };
@@ -430,7 +451,8 @@ async function isBusinessManager(req, businessId, userId) {
   return rows.length > 0;
 }
 
-async function loadTimeEntry(businessId, entryId) {
+async function loadTimeEntry(businessId, entryId, req) {
+  await workforce.assertRecord(await workforce.context(req),'business_time_entries',entryId);
   const { rows } = await pool.query(
     'SELECT * FROM business_time_entries WHERE id=$1 AND business_id=$2',
     [entryId, businessId]
@@ -442,12 +464,14 @@ exports.listTimeEntries = async (req, res, next) => {
   const { businessId } = req.params;
   const { user_id, from, to } = req.query;
   try {
+    const storeContext = await workforce.context(req);
     let where = 'WHERE te.business_id = $1 AND te.voided_at IS NULL';
     const params = [businessId];
     let p = 2;
     if (user_id) { where += ` AND te.user_id = $${p++}`; params.push(user_id); }
     if (from) { where += ` AND COALESCE(te.clock_in_at::date, te.entry_date) >= $${p++}::date`; params.push(from); }
     if (to)   { where += ` AND COALESCE(te.clock_in_at::date, te.entry_date) <= $${p++}::date`; params.push(to); }
+    where += workforce.clause(storeContext,'te',params);
     const rows = await pool.query(
       `SELECT te.*,
               COALESCE(u.display_name_preference, u.first_name || ' ' || u.last_name) AS user_name
@@ -493,7 +517,7 @@ exports.clockOut = async (req, res, next) => {
   const { businessId, entryId } = req.params;
   const { notes } = req.body || {};
   try {
-    const entry = await loadTimeEntry(businessId, entryId);
+    const entry = await loadTimeEntry(businessId, entryId, req);
     if (!entry || entry.voided_at || !entry.clock_in_at || entry.clock_out_at) {
       return res.status(404).json({ error: 'Active entry not found' });
     }
@@ -526,7 +550,7 @@ exports.punchBreak = async (req, res, next) => {
   const { businessId, entryId } = req.params;
   const action = req.body?.action === 'end' ? 'end' : 'start';
   try {
-    const entry = await loadTimeEntry(businessId, entryId);
+    const entry = await loadTimeEntry(businessId, entryId, req);
     if (!entry || entry.voided_at || !entry.clock_in_at || entry.clock_out_at) {
       return res.status(404).json({ error: 'Active entry not found' });
     }
@@ -564,7 +588,7 @@ exports.editTimeEntry = async (req, res, next) => {
     if (!reason || !String(reason).trim()) {
       return res.status(400).json({ error: 'A reason is required to edit a time entry' });
     }
-    const entry = await loadTimeEntry(businessId, entryId);
+    const entry = await loadTimeEntry(businessId, entryId, req);
     if (!entry || entry.voided_at) return res.status(404).json({ error: 'Entry not found' });
     const changes = [];
     const nextIn = clock_in_at ? new Date(clock_in_at) : null;
@@ -662,7 +686,7 @@ exports.voidTimeEntry = async (req, res, next) => {
     if (!reason || !String(reason).trim()) {
       return res.status(400).json({ error: 'A reason is required to void a time entry' });
     }
-    const entry = await loadTimeEntry(businessId, entryId);
+    const entry = await loadTimeEntry(businessId, entryId, req);
     if (!entry || entry.voided_at) return res.status(404).json({ error: 'Entry not found' });
     const client = await pool.connect();
     try {
@@ -722,6 +746,7 @@ exports.publishShifts = async (req, res, next) => {
   const { businessId } = req.params;
   const { from, to, shift_ids, restaurant_id } = req.body || {};
   try {
+    const storeContext = await workforce.context(req);
     if (!await isBusinessManager(req, businessId, req.user.id)) {
       return res.status(403).json({ error: 'Only a manager can publish schedules' });
     }
@@ -748,6 +773,7 @@ exports.publishShifts = async (req, res, next) => {
       where += ` AND (restaurant_id = $${params.length} OR restaurant_id IS NULL)`;
     }
 
+    where += workforce.clause(storeContext,'',params);
     params.push(req.user.id);
     const { rows: published } = await pool.query(
       `UPDATE business_staff_shifts
@@ -858,12 +884,14 @@ const JURISDICTION_CODES = new Set(['US-FED', 'US-CA', 'US-NYC', 'US-SFO', 'US-S
 
 exports.getLaborJurisdiction = async (req, res, next) => {
   try {
+    const storeContext = await workforce.context(req);
     const { businessId } = req.params;
     const restaurantId = Number(req.query.restaurant_id);
     const locationId = Number(req.query.location_id);
     if (!Number.isSafeInteger(restaurantId) || restaurantId <= 0 || !Number.isSafeInteger(locationId) || locationId <= 0) {
       return res.status(400).json({ error: 'restaurant_id and location_id are required' });
     }
+    assertScopedLocation(storeContext?.scope,locationId);
     // Scope to the business: the restaurant must belong to it.
     const { rows: [scoped] } = await pool.query(
       `SELECT 1 FROM food_restaurants WHERE id = $1 AND business_id = $2`,
@@ -882,6 +910,7 @@ exports.getLaborJurisdiction = async (req, res, next) => {
 
 exports.setLaborJurisdiction = async (req, res, next) => {
   try {
+    const storeContext = await workforce.context(req);
     const { businessId } = req.params;
     if (!await isBusinessManager(req, businessId, req.user.id)) {
       return res.status(403).json({ error: 'Only a manager can set labor jurisdiction rules' });
@@ -895,6 +924,7 @@ exports.setLaborJurisdiction = async (req, res, next) => {
     if (!JURISDICTION_CODES.has(code)) {
       return res.status(400).json({ error: `jurisdiction_code must be one of: ${[...JURISDICTION_CODES].join(', ')}` });
     }
+    assertScopedLocation(storeContext?.scope,locationId);
     // Scope to the business: the restaurant must belong to it, and the
     // location must belong to the restaurant.
     const { rows: [scoped] } = await pool.query(
@@ -1010,6 +1040,7 @@ exports.listTimeOffRequests = async (req, res, next) => {
   const { businessId } = req.params;
   const { status, user_id } = req.query;
   try {
+    const storeContext = await workforce.context(req);
     const manager = await isBusinessManager(req, businessId, req.user.id);
     const params = [businessId];
     let where = 'r.business_id = $1';
@@ -1025,6 +1056,7 @@ exports.listTimeOffRequests = async (req, res, next) => {
       params.push(String(status));
       where += ` AND r.status = $${params.length}`;
     }
+    where += workforce.staffClause(storeContext,'r.user_id',params);
     const { rows } = await pool.query(
       `SELECT r.*,
               COALESCE(u.display_name_preference, u.first_name || ' ' || u.last_name) AS user_name
@@ -1042,12 +1074,14 @@ exports.decideTimeOffRequest = async (req, res, next) => {
   const { businessId, requestId } = req.params;
   const decision = String(req.body?.decision || '').toLowerCase();
   try {
+    const storeContext = await workforce.context(req);
     if (!await isBusinessManager(req, businessId, req.user.id)) {
       return res.status(403).json({ error: 'Only a manager can decide time-off requests' });
     }
     if (!['approved', 'denied'].includes(decision)) {
       return res.status(400).json({ error: 'decision must be approved or denied' });
     }
+    if(storeContext?.scope.mode==='assigned'){const {rows:[target]}=await pool.query('SELECT user_id FROM business_time_off_requests WHERE id=$1 AND business_id=$2',[requestId,businessId]);if(!target)return res.status(404).json({error:'Not found'});await workforce.assertStaff(storeContext,target.user_id);}
     const { rows: [request] } = await pool.query(
       `UPDATE business_time_off_requests
           SET status = $1, decided_by = $2, decided_at = NOW(), updated_at = NOW()

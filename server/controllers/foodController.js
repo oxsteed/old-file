@@ -1,4 +1,6 @@
 'use strict';
+const { getLocationScope } = require('../services/restaurantLocationAccessService');
+const { assertScopedLocation } = require('../services/restaurantStoreBoundary');
 const { attributePromotionConversion } = require('../analytics/promotionAttribution');
 
 const pool = require('../db');
@@ -4750,6 +4752,8 @@ exports.listRestaurantOrders = async (req, res, next) => {
     const offset = Math.max(parsePositiveInt(req.query.offset, 0) || 0, 0);
     const params = [restaurantId];
     const filters = [];
+    const storeScope = await getLocationScope(restaurant,req.user.id);
+    if(storeScope.mode==='assigned'){params.push(storeScope.location_ids);filters.push(`fo.location_id = ANY($${params.length}::bigint[])`);}
     if (status && VALID_STATUS.has(status)) {
       params.push(status);
       filters.push(`fo.status = $${params.length}`);
@@ -4983,12 +4987,27 @@ exports.updateOrderStatus = async (req, res, next) => {
       unpaidCompletionOverride = await hasRestaurantPermission(restaurant, ['orders.manage']);
     }
 
+    const storeScope = req.screenDevice ? {mode:'assigned',location_ids:[Number(req.screenDevice.location_id)]}
+      : req.displayDevice ? {mode:'assigned',location_ids:[Number(req.displayDevice.locationId ?? req.displayDevice.location_id)]}
+      : await getLocationScope(restaurant,req.user.id);
     const transitionResult = await withTransaction(pool, async (client) => {
+      // Keep the same lock order for assigned staff and all-store actors.
       if (idempotencyKey) {
         await client.query(
           `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
           [`food-status:${restaurantId}:${idempotencyKey}`]
         );
+      }
+      if (storeScope.mode === 'assigned') {
+        const { rows: [target] } = await client.query(
+          'SELECT location_id FROM food_orders WHERE id=$1 AND restaurant_id=$2 FOR UPDATE',
+          [orderId, restaurantId]
+        );
+        if (!target) throw new AppError('Order not found', 404, 'order_not_found');
+        assertScopedLocation(storeScope,target.location_id);
+      }
+
+      if (idempotencyKey) {
         const { rows: [replayedEvent] } = await client.query(
           `SELECT food_order_id,event_type
              FROM restaurant_kitchen_events
@@ -5001,6 +5020,8 @@ exports.updateOrderStatus = async (req, res, next) => {
             `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
             [replayedEvent.food_order_id, restaurantId]
           );
+          assertScopedLocation(storeScope,replayedOrder?.location_id);
+          if(String(replayedEvent.food_order_id)!==String(orderId))throw new AppError('Operation ID already used',409,'idempotency_conflict');
           if(req.screenDevice&&String(replayedOrder?.location_id||'')!==String(req.screenDevice.location_id||''))throw new AppError('Wrong device location',403,'screen_location_mismatch');
           return { order: replayedOrder, walletRefund: null, payment: null, replayed: true };
         }
@@ -7494,6 +7515,7 @@ exports.getOrder = async (req, res, next) => {
       // Staff must have orders.view (or kitchen.view for KDS). Membership alone
       // is not enough; this endpoint returns guest PII and payment fields.
       await assertRestaurantPermission(restaurant, ['orders.view', 'orders.manage', 'kitchen.view', 'kitchen.update']);
+      assertScopedLocation(await getLocationScope(restaurant,req.user.id),order.location_id);
 
       // Mask sensitive fields for roles without orders.manage.
       const canSeeSensitive = await hasRestaurantPermission(restaurant, ['orders.manage']);

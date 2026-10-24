@@ -1,3 +1,4 @@
+const workforce = require('../services/restaurantWorkforceScope');
 const { payrollLocation } = require('../services/restaurantPayrollLocation');
 const pool = require('../db');
 const { businessScopeSatisfies } = require('../middleware/scopeGates');
@@ -16,6 +17,7 @@ async function checkAccess(businessId, userId) {
 exports.getWeekSchedule = async (req, res, next) => {
   try {
     const { businessId } = req.params;
+    const storeContext = await workforce.context(req);
     const { week_start } = req.query;
 
     if (!(businessScopeSatisfies(req, businessId, 'manager') || await checkAccess(businessId, req.user.id))) return res.status(403).json({ error: 'Access denied' });
@@ -28,13 +30,15 @@ exports.getWeekSchedule = async (req, res, next) => {
     const end = new Date(start);
     end.setDate(end.getDate() + 6);
 
+    const params=[businessId,start.toISOString().split('T')[0],end.toISOString().split('T')[0]];
+    const storeFilter=workforce.clause(storeContext,'s',params);
     const { rows } = await pool.query(
       `SELECT s.*, u.first_name, u.last_name, u.email
        FROM business_staff_shifts s
        JOIN users u ON u.id = s.user_id
-       WHERE s.business_id=$1 AND s.shift_date BETWEEN $2 AND $3
+       WHERE s.business_id=$1 AND s.shift_date BETWEEN $2 AND $3${storeFilter}
        ORDER BY s.shift_date, s.start_time`,
-      [businessId, start.toISOString().split('T')[0], end.toISOString().split('T')[0]]
+      params
     );
 
     // Group by user
@@ -66,6 +70,7 @@ exports.getWeekSchedule = async (req, res, next) => {
 exports.createShift = async (req, res, next) => {
   try {
     const { businessId } = req.params;
+    const storeContext = await workforce.context(req);
     const userId = req.user.id;
     const { user_id, shift_date, start_time, end_time, role_label, notes } = req.body;
 
@@ -74,6 +79,8 @@ exports.createShift = async (req, res, next) => {
       return res.status(400).json({ error: 'user_id, shift_date, start_time, end_time required' });
     }
 
+    const locationId = await payrollLocation(businessId, req.user?.id, req.body.locationId ?? req.body.location_id ?? null);
+    await workforce.assertStaff(storeContext,user_id,pool,locationId);
     // Verify user is a member of this business
     const memberCheck = await pool.query(
       `SELECT 1 FROM business_members WHERE business_id=$1 AND member_id=$2 AND status='active'
@@ -87,7 +94,7 @@ exports.createShift = async (req, res, next) => {
     const { rows } = await pool.query(
       `INSERT INTO business_staff_shifts (business_id, user_id, shift_date, start_time, end_time, role_label, notes, location_id)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [businessId, user_id, shift_date, start_time, end_time, role_label || null, notes || null, await payrollLocation(businessId, req.user?.id, req.body.locationId ?? req.body.location_id ?? null)]
+      [businessId, user_id, shift_date, start_time, end_time, role_label || null, notes || null, locationId]
     );
     res.status(201).json({ shift: rows[0] });
   } catch (err) {
@@ -98,6 +105,8 @@ exports.createShift = async (req, res, next) => {
 exports.deleteShift = async (req, res, next) => {
   try {
     const { businessId, id } = req.params;
+    const storeContext = await workforce.context(req);
+    await workforce.assertRecord(storeContext,'business_staff_shifts',id);
     const userId = req.user.id;
 
     if (!(businessScopeSatisfies(req, businessId, 'manager') || await checkAccess(businessId, userId))) return res.status(403).json({ error: 'Access denied' });
@@ -116,6 +125,7 @@ exports.deleteShift = async (req, res, next) => {
 exports.logHours = async (req, res, next) => {
   try {
     const { businessId } = req.params;
+    const storeContext = await workforce.context(req);
     const userId = req.user.id;
     const { user_id, entry_date, hours_worked, description } = req.body;
 
@@ -136,10 +146,12 @@ exports.logHours = async (req, res, next) => {
       return res.status(400).json({ error: 'hours_worked must be between 0 and 24' });
     }
 
+    const locationId = await payrollLocation(businessId, req.user?.id, req.body.locationId ?? req.body.location_id ?? null);
+    await workforce.assertStaff(storeContext,user_id,pool,locationId);
     const { rows } = await pool.query(
       `INSERT INTO business_time_entries (business_id, user_id, entry_date, hours_worked, description, approved_by, source, location_id)
        VALUES ($1,$2,$3,$4,$5,$6,'manual',$7) RETURNING *`,
-      [businessId, user_id, entry_date || new Date().toISOString().split('T')[0], hours, description || null, userId, await payrollLocation(businessId, req.user?.id, req.body.locationId ?? req.body.location_id ?? null)]
+      [businessId, user_id, entry_date || new Date().toISOString().split('T')[0], hours, description || null, userId, locationId]
     );
     // S-16: time entries feed payroll; creating one is an auditable
     // staff action (deletion below was previously unaudited entirely).
@@ -161,6 +173,7 @@ exports.logHours = async (req, res, next) => {
 exports.getTimeEntries = async (req, res, next) => {
   try {
     const { businessId } = req.params;
+    const storeContext = await workforce.context(req);
     const { user_id, from_date, to_date } = req.query;
 
     if (!(businessScopeSatisfies(req, businessId, 'manager') || await checkAccess(businessId, req.user.id))) return res.status(403).json({ error: 'Access denied' });
@@ -174,11 +187,12 @@ exports.getTimeEntries = async (req, res, next) => {
     if (from_date) { conditions.push(`te.entry_date >= $${p++}`); params.push(from_date); }
     if (to_date) { conditions.push(`te.entry_date <= $${p++}`); params.push(to_date); }
 
+    const storeFilter=workforce.clause(storeContext,'te',params);
     const { rows } = await pool.query(
       `SELECT te.*, u.first_name, u.last_name, u.email
        FROM business_time_entries te
        JOIN users u ON u.id = te.user_id
-       WHERE ${conditions.join(' AND ')}
+       WHERE ${conditions.join(' AND ')}${storeFilter}
        ORDER BY te.entry_date DESC, te.id DESC`,
       params
     );
@@ -206,6 +220,8 @@ exports.deleteTimeEntry = async (req, res, next) => {
   const client = await pool.connect();
   try {
     const { businessId, id } = req.params;
+    const storeContext = await workforce.context(req);
+    await workforce.assertRecord(storeContext,'business_time_entries',id);
     const userId = req.user.id;
 
     if (!(businessScopeSatisfies(req, businessId, 'manager') || await checkAccess(businessId, userId))) return res.status(403).json({ error: 'Access denied' });

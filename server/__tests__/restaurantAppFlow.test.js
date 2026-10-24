@@ -167,7 +167,7 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.jobs).toHaveLength(1);
     const queueQuery = mockQuery.mock.calls[1];
     expect(queueQuery[0]).toMatch(/pj\.location_id = \$5/);
-    expect(queueQuery[1]).toEqual([RESTAURANT_ID, 31, null, null, 77]);
+    expect(queueQuery[1]).toEqual([RESTAURANT_ID, 31, null, null, 77, null]);
   });
 
   test('paired kitchen devices can claim and acknowledge their own printer jobs', async () => {
