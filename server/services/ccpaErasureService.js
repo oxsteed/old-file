@@ -6,16 +6,48 @@ const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
 const { sendEmail } = require('../utils/email');
 
+const COMPLETION_COPY = {
+  en: ['Your privacy request has been completed', 'Your privacy request #{{id}} has been completed. Financial and audit records subject to retention requirements are retained. Contact support@oxsteed.com with questions.'],
+  es: ['Tu solicitud de privacidad se ha completado', 'Tu solicitud de privacidad n.º {{id}} se ha completado. Se conservan los registros financieros y de auditoría sujetos a requisitos de conservación. Si tienes preguntas, contacta con support@oxsteed.com.'],
+  fr: ['Votre demande de confidentialité est terminée', 'Votre demande de confidentialité n° {{id}} est terminée. Les registres financiers et d’audit soumis aux obligations de conservation sont conservés. Pour toute question, contactez support@oxsteed.com.'],
+  ht: ['Demann konfidansyalite ou a fini', 'Demann konfidansyalite ou a #{{id}} fini. Dosye finansye ak odit ki gen obligasyon konsèvasyon rete konsève. Kontakte support@oxsteed.com si ou gen kesyon.'],
+  ar: ['اكتمل طلب الخصوصية الخاص بك', 'اكتمل طلب الخصوصية رقم {{id}}. تُحتفظ بالسجلات المالية وسجلات التدقيق الخاضعة لمتطلبات الاحتفاظ. للاستفسارات، تواصل مع support@oxsteed.com.'],
+};
+async function preferredLanguage(request) {
+  let language = request.completion_language;
+  if (!language && request.user_id) {
+    const { rows } = await pool.query('SELECT preferred_language FROM users WHERE id=$1', [request.user_id]);
+    language = rows[0]?.preferred_language;
+  }
+  return language || 'en';
+}
 async function notifyCompleted(request, send = sendEmail) {
-  const result = await send({ to: request.email, subject: 'Your privacy request has been completed',
-    text: `Your ${request.request_type} request #${request.id} has been completed. Financial and audit records subject to retention requirements are retained. Contact support@oxsteed.com with questions.`,
+  const language = await preferredLanguage(request);
+  const copy = COMPLETION_COPY[language] || COMPLETION_COPY.en;
+  const result = await send({ to: request.email, subject: copy[0],
+    text: copy[1].replace('{{id}}', String(request.id)),
     idempotencyKey: `ccpa-completed:${request.id}` });
   if (!result?.success) throw new Error('CCPA completion email was not accepted');
 }
+async function notifyDenied(request, reason, send = sendEmail) {
+  const language = await preferredLanguage(request);
+  const copy = {
+    en: ['Your privacy request could not be completed', 'Request #{{id}}. Contact support@oxsteed.com for details.'],
+    es: ['Tu solicitud de privacidad no se pudo completar', 'Solicitud n.º {{id}}. Contacta con support@oxsteed.com para obtener más información.'],
+    fr: ['Votre demande de confidentialité n’a pas pu être traitée', 'Demande n° {{id}}. Contactez support@oxsteed.com pour plus d’informations.'],
+    ht: ['Nou pa t kapab fini demann konfidansyalite ou a', 'Demann #{{id}}. Kontakte support@oxsteed.com pou plis detay.'],
+    ar: ['تعذر إكمال طلب الخصوصية الخاص بك', 'الطلب رقم {{id}}. تواصل مع support@oxsteed.com لمزيد من التفاصيل.'],
+  };
+  const text = copy[language] || copy.en;
+  const result = await send({ to: request.email, subject: text[0],
+    text: text[1].replace('{{id}}', String(request.id)) + (reason ? `\n\n${reason}` : ''),
+    idempotencyKey: `ccpa-denied:${request.id}` });
+  if (!result?.success) throw new Error('CCPA decision email was not accepted');
+}
 async function queueErasure(client, request, adminId) {
   if (!request.user_id) throw new AppError('Deletion request has no verified account. Review the subject before completing.', 409, 'ccpa_subject_required');
-  await client.query(`INSERT INTO ccpa_erasure_jobs(request_id,subject_id,requested_by)
-    VALUES($1,$2,$3) ON CONFLICT(request_id) DO UPDATE SET
+  await client.query(`INSERT INTO ccpa_erasure_jobs(request_id,subject_id,requested_by,language)
+    VALUES($1,$2,$3,COALESCE((SELECT preferred_language FROM users WHERE id=$2),'en')) ON CONFLICT(request_id) DO UPDATE SET
       status=CASE WHEN ccpa_erasure_jobs.status='needs_review' THEN 'pending' ELSE ccpa_erasure_jobs.status END,
       next_attempt_at=NOW(),last_error=NULL`, [request.id, request.user_id, adminId]);
   await client.query(`UPDATE ccpa_data_requests SET status='processing',fulfilled_by_id=$2,updated_at=NOW()
@@ -88,7 +120,7 @@ async function processErasureJobs({ db = pool, limit = 10 } = {}) {
     }
   }
   // Keep delivery separate from execution: provider failure cannot re-run erasure.
-  const notifications = await db.query(`SELECT c.* FROM ccpa_erasure_jobs j JOIN ccpa_data_requests c ON c.id=j.request_id
+  const notifications = await db.query(`SELECT c.*,j.language AS completion_language FROM ccpa_erasure_jobs j JOIN ccpa_data_requests c ON c.id=j.request_id
     WHERE j.status='completed' AND j.notification_sent_at IS NULL ORDER BY j.completed_at LIMIT 25`);
   for (const request of notifications.rows) {
     try {
@@ -98,4 +130,4 @@ async function processErasureJobs({ db = pool, limit = 10 } = {}) {
   }
   return { examined: rows.length };
 }
-module.exports = { queueErasure, completeRequest, notifyCompleted, processErasureJobs };
+module.exports = { queueErasure, completeRequest, notifyCompleted, notifyDenied, processErasureJobs };

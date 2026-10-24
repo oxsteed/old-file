@@ -379,8 +379,7 @@ async function updateCCPARequest(req, res, next) {
       const userEmail = request.email;
       try {
         if (status === 'completed') await require('../services/ccpaErasureService').notifyCompleted(request);
-        else await sendEmail({ to: userEmail, subject: 'Your privacy request could not be completed',
-          text: `Request #${requestId}: ${denialReason || 'Contact support@oxsteed.com for details.'}` });
+        else await require('../services/ccpaErasureService').notifyDenied(request, denialReason);
       } catch (emailErr) {
         logger.error('Failed to send CCPA notification email', { requestId, error: emailErr.message });
       }

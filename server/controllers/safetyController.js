@@ -82,6 +82,9 @@ exports.listSOS = async (req, res, next) => {
 
 exports.acknowledgeSOS = async (req, res, next) => {
   try {
+    if (req.user.role !== 'super_admin' && !(await require('../middleware/adminAuth').hasGlobalGrant(req.user.id, 'manage_support'))) {
+      return res.status(403).json({ error: 'A global support grant is required.' });
+    }
     if (!/^[1-9][0-9]*$/.test(String(req.params.id))) return res.status(400).json({ error: 'Invalid SOS event id' });
     const { rows: [event] } = await db.query(`UPDATE safety_sos_events
       SET acknowledged_at=COALESCE(acknowledged_at,NOW()), acknowledged_by=COALESCE(acknowledged_by,$2)

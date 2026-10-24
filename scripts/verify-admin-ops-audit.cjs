@@ -48,7 +48,16 @@ async function main() {
     const { rows: [sos] } = await c.query('INSERT INTO safety_sos_events(user_id) VALUES($1) RETURNING id',[grantee]);
     await c.query('UPDATE safety_sos_events SET acknowledged_at=NOW(),acknowledged_by=$2 WHERE id=$1',[sos.id,admin]);
     assert.ok((await c.query('SELECT acknowledged_at FROM safety_sos_events WHERE id=$1',[sos.id])).rows[0].acknowledged_at);
-    console.log('PASS: runbook snapshots, append-only history, audit rollback, delegation revocation, truthful incident counters, TOTP purposes, SOS acknowledgment');
+    await c.query("UPDATE users SET preferred_language='fr' WHERE id=$1",[grantee]);
+    const { rows: [request] } = await c.query(`INSERT INTO ccpa_data_requests(user_id,request_type,email,due_at)
+      VALUES($1,'deletion','fixture@example.invalid',NOW()+INTERVAL '45 days') RETURNING id`,[grantee]);
+    await c.query(`INSERT INTO ccpa_erasure_jobs(request_id,subject_id,requested_by,language)
+      VALUES($1,$2,$3,COALESCE((SELECT preferred_language FROM users WHERE id=$2),'en'))`,[request.id,grantee,admin]);
+    assert.equal((await c.query('SELECT language FROM ccpa_erasure_jobs WHERE request_id=$1',[request.id])).rows[0].language,'fr');
+    for (const action of ['ccpa_request','ccpa_completed']) await c.query(`INSERT INTO legal_audit_log
+      (action_type,actor_id,actor_role,resource_id,resource_type,status,metadata)
+      VALUES($1,$2,'admin',$3,'ccpa_request','processing','{}'::jsonb)`,[action,admin,String(request.id)]);
+    console.log('PASS: runbook snapshots, append-only history, audit rollback, delegation revocation, truthful incident counters, TOTP purposes, SOS acknowledgment, privacy queue language/audit schema');
   } finally { await c.query('ROLLBACK'); c.release(); await pool.end(); }
 }
 main().catch(e=>{ console.error(e.message); process.exitCode=1; });

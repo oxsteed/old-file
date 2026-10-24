@@ -180,6 +180,9 @@ class IncidentAlertService {
     const { rows } = await pool.query(`SELECT u.email FROM users u
       LEFT JOIN admin_notification_prefs p ON p.admin_id=u.id
       WHERE u.role IN ('admin','super_admin') AND u.is_active=TRUE AND u.deleted_at IS NULL
+        AND (u.role='super_admin' OR EXISTS (SELECT 1 FROM admin_permission_grants g
+          WHERE g.grantee_id=u.id AND g.permissions ? 'manage_operations' AND g.region_id IS NULL
+            AND g.expires_at>NOW() AND g.revoked_at IS NULL))
         AND COALESCE(p.notify_incidents,TRUE) AND COALESCE(p.email_notifications,TRUE)
         AND (p.incident_types IS NULL OR '*'=ANY(p.incident_types) OR $1=ANY(p.incident_types))
       ORDER BY u.id`, [incident.type]);

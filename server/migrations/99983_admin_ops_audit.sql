@@ -22,7 +22,7 @@ CREATE INDEX IF NOT EXISTS safety_sos_unacknowledged ON safety_sos_events(create
 
 CREATE TABLE IF NOT EXISTS ccpa_erasure_jobs (
  request_id bigint PRIMARY KEY REFERENCES ccpa_data_requests(id) ON DELETE RESTRICT,
- subject_id uuid NOT NULL, requested_by uuid REFERENCES users(id) ON DELETE SET NULL,
+ subject_id uuid NOT NULL, language text NOT NULL DEFAULT 'en', requested_by uuid REFERENCES users(id) ON DELETE SET NULL,
  status text NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','processing','completed','needs_review')),
  attempts integer NOT NULL DEFAULT 0, next_attempt_at timestamptz NOT NULL DEFAULT NOW(),
  lease_token uuid, lease_until timestamptz, last_error text, completed_at timestamptz, notification_sent_at timestamptz,

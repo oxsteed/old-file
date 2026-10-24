@@ -33,3 +33,11 @@ test.each([true,false])('failed/blocked erasure keeps the privacy request incomp
   else expect(deletion.hardDeleteUser).toHaveBeenCalledWith(expect.anything(), { throwOnError: true });
   expect(mockQuery.mock.calls.some(([sql]) => sql.includes("status='completed'"))).toBe(false);
 });
+test.each(['en','es','fr','ht','ar'])('completion messages support the retained %s language', async language => {
+  const send = jest.fn().mockResolvedValue({ success: true });
+  await erasure.notifyCompleted({ id: 5, email: 'fixture@example.invalid', completion_language: language }, send);
+  expect(send).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: 'ccpa-completed:5' }));
+  expect(send.mock.calls[0][0].text).toContain('5');
+  if (language !== 'en') expect(send.mock.calls[0][0].subject).not.toContain('Your privacy');
+  expect(mockQuery).not.toHaveBeenCalled();
+});
