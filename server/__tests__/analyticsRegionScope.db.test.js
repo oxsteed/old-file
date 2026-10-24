@@ -36,7 +36,8 @@ const migration = (f) => fs.readFileSync(path.join(__dirname, '..', 'migrations'
 
   beforeAll(async () => {
     await db.query(`CREATE SCHEMA ${schema}`);
-    await db.query(`CREATE TABLE users(id UUID PRIMARY KEY, role TEXT, zip_code TEXT, city TEXT, state TEXT, country TEXT)`);
+    await db.query(`CREATE TABLE users(id UUID PRIMARY KEY, role TEXT, zip_code TEXT, city TEXT, state TEXT, country TEXT,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE, deleted_at TIMESTAMPTZ)`);
     await db.query(`CREATE TABLE admin_regions(id SERIAL PRIMARY KEY, name TEXT UNIQUE, boundary_definition JSONB NOT NULL)`);
     await db.query(`CREATE TABLE admin_permission_grants(id BIGSERIAL PRIMARY KEY, grantee_id UUID, permissions JSONB,
       expires_at TIMESTAMPTZ, revoked_at TIMESTAMPTZ, notes TEXT,
@@ -76,6 +77,23 @@ const migration = (f) => fs.readFileSync(path.join(__dirname, '..', 'migrations'
     await db.query(`INSERT INTO disputes(job_id, status) SELECT id, 'open' FROM jobs WHERE location_zip = '10001'`);
   });
   afterAll(async () => { await db.query(`DROP SCHEMA ${schema} CASCADE`); await db.end(); });
+
+  test('disabled or deleted grantors cannot authorize delegated analytics access', async () => {
+    const delegatedId = crypto.randomUUID();
+    const { hasGlobalGrant } = require('../middleware/adminAuth');
+    await db.query("INSERT INTO users(id,role) VALUES($1,'admin')",[delegatedId]);
+    await db.query(`INSERT INTO delegation_grants(grantor_admin_id,grantee_admin_id,scopes,status,expires_at)
+      VALUES($1,$2,ARRAY['manage_operations'],'active',NOW()+INTERVAL '1 day')`, [globalAdmin.id,delegatedId]);
+    expect(await hasGlobalGrant(delegatedId,'manage_operations')).toBe(true);
+    try {
+      await db.query('UPDATE users SET is_active=FALSE WHERE id=$1',[globalAdmin.id]);
+      expect(await hasGlobalGrant(delegatedId,'manage_operations')).toBe(false);
+      await db.query('UPDATE users SET is_active=TRUE,deleted_at=NOW() WHERE id=$1',[globalAdmin.id]);
+      expect(await hasGlobalGrant(delegatedId,'manage_operations')).toBe(false);
+    } finally {
+      await db.query('UPDATE users SET is_active=TRUE,deleted_at=NULL WHERE id=$1',[globalAdmin.id]);
+    }
+  });
 
   test('global grant and super_admin see every row; regional admin sees only its territory', async () => {
     const run = (user) => executeBuilderQuery(db, user, { metric: 'job_completion_rate_pct', period: '7d' });

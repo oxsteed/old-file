@@ -37,6 +37,10 @@ Provider references: [Resend retention](https://resend.com/security), [send idem
 - The first fresh disposable PostgreSQL rehearsal passed all 1,003 migrations and a second full runner pass. The final fresh rehearsal also passed 1,003/1,003 migrations, checksum rerun, and guard verification. Real PostgreSQL assertions passed for append-only runbook snapshots, audit rollback, delegation revocation after disable/re-enable, incident counters, step-up purposes, SOS acknowledgment, and the privacy queue language/audit schema.
 - `scripts/verify-admin-ops-audit.cjs` accepts only an explicit loopback `oxsteed_rehearsal` database and rolls back its synthetic fixtures.
 
+## Merge verification follow-up
+
+The first broad PR run passed 875 server suites and failed two stale fixtures: the TOTP action list expected 15 instead of 18 purposes, and the isolated analytics users table omitted `is_active`/`deleted_at`. Both fixtures were aligned with the live schema/control contract, with an additional disabled/soft-deleted grantor regression. All 18 tests in those two suites passed against a freshly migrated disposable PostgreSQL database. No runtime authorization check was weakened. The final partial-failure toast correction also passed a fresh complete client `build:ci`. Fresh GitHub CI on the final merge remains a separate result.
+
 ## Rollout boundary
 
 Apply migration 99983 before serving this code; new step-up purposes, incident leases, SOS storage, and privacy jobs depend on it. Configure actual on-call coverage and incident subscriptions in admin settings. Run live-provider smoke checks after deployment. No live SOS, real refund, deletion, or notification was generated during local verification. Existing historical deletion requests marked completed are not automatically erased by this repair; those records require a separate verified-subject review.
