@@ -36,3 +36,9 @@ No browser source changed in this follow-up; the gift-card browser/build evidenc
 ## Remaining acceptance
 
 Review the checks for the pushed commit. Then perform controlled acceptance using populated Store A and Store B accounts and the actual paired POS/kitchen/printer devices, confirming the same restrictions through the browser/native adapters and offline reconnect/retry flows. Physical printers, live gift-card email delivery and external reconciliation remain the separate acceptance items in `GIFT-CARD-FULFILLMENT-2026-10-23.md`. Source and disposable-database tests do not establish production deployment or exhaustive coverage of future integrations.
+
+## CI fixture correction - 2026-10-23
+
+Run `40043266823` passed the explicit gift-card and assigned-store database steps, then failed one of the general server regressions: `staffRemaindersW2.db.test.js` left its restaurant access/store-scope mocks unset until a later crew test. Schedule publishing now resolves workforce scope, so that earlier test received an undefined scope. Initialize the existing all-store manager fixture's authorization mocks before each case; production authorization behavior is unchanged.
+
+Verification: the actual W2 suite and the store-isolation suite passed **68 PostgreSQL cases** with direct Jest `--runInBand --detectOpenHandles`, using an explicitly opted-in disposable loopback database and its separate store-test clone. Another **24 unit cases** passed across the schedule/location/device-auth suites. A fresh **1,002/1,002 migration apply/replay** passed. Syntax and diff checks passed. Remote CI for the new commit must be checked separately.
