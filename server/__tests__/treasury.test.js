@@ -13,6 +13,7 @@
 
 const { mockQuery, resetMocks } = require('./setup');
 
+jest.unmock('../utils/transaction');
 const controller = require('../controllers/treasuryController');
 
 beforeEach(() => {
@@ -400,4 +401,17 @@ describe('M2 tax export scaffolding', () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(mockQuery).not.toHaveBeenCalled();
   });
+});
+
+test('entity creation rolls back when the transactional audit write fails', async () => {
+  mockQuery.mockImplementation(async sql => {
+    if (sql.includes('INSERT INTO treasury_entities')) return { rows: [ENTITY] };
+    if (sql.includes('INSERT INTO admin_audit_log')) throw new Error('audit unavailable');
+    return { rows: [] };
+  });
+  const res = makeRes();
+  await controller.createEntity(makeReq({ body: { code: 'OXS-US', name: 'Fixture', base_currency: 'USD' } }), res);
+  expect(res.status).toHaveBeenCalledWith(500);
+  expect(mockQuery.mock.calls.some(([sql]) => sql === 'ROLLBACK')).toBe(true);
+  expect(mockQuery.mock.calls.some(([sql]) => sql === 'COMMIT')).toBe(false);
 });

@@ -1,4 +1,20 @@
 {
+  "adminOpsAudit": {
+    "bulkFailed": "Identifiants en échec : {{ids}}. Ces utilisateurs restent sélectionnés pour réessayer.",
+    "fulfillmentTitle": "Confirmer la remise de la carte",
+    "fulfillmentConfirm": "Marquer cette carte comme {{status}} ? Confirmez que cette étape physique est terminée. Cette action ne peut pas être annulée ici.",
+    "showing": "Affichage de {{from}} à {{to}} sur {{total}}",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "foodRefund": "Remboursement de commande de repas",
+    "stepupPrompt": "Saisissez le code actuel de votre application d’authentification.",
+    "stepupRequired": "Un code d’authentification actuel est requis.",
+    "refundQueued": "Remboursement en attente d’un second administrateur. Aucun fonds transféré.",
+    "refundDone": "Remboursement enregistré.",
+    "recordOnlyRevocation": "Révoquer cette preuve d’acceptation ? Seul le registre juridique sera modifié. L’accès au compte reste autorisé et aucune nouvelle acceptation ne sera demandée.",
+    "onCall": "De garde pour les alertes SOS",
+    "incidentTypes": "Types d’incidents (séparés par des virgules ; * pour tous)"
+  },
   "pwaExperience": {
     "serverUpdated": "Un texte de brouillon plus récent a été synchronisé. Vérifiez les photos conservées sur cet appareil.",
     "searchUnavailable": "La recherche n’a pas pu se charger. Reconnectez-vous et réessayez.",

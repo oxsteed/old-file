@@ -336,3 +336,10 @@ describe('routes/opsActions', () => {
     );
   });
 });
+
+test('admin retry cannot bypass the webhook exhaustion budget', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{ ...DELIVERY_ROW, ...WEBHOOK_ROW, id: DELIVERY_ID, attempt_number: controller.MAX_WEBHOOK_ATTEMPTS }] });
+  await expect(controller.retryWebhookDeliveryById({ deliveryId: DELIVERY_ID, actorId: 'admin' }))
+    .rejects.toMatchObject({ statusCode: 409, code: 'webhook_attempts_exhausted' });
+  expect(global.fetch).not.toHaveBeenCalled();
+});

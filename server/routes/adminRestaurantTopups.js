@@ -15,10 +15,14 @@ const ctrl = require('../controllers/adminRestaurantTopupController');
 
 router.use(requireAdmin);
 
+const { strictLimiter } = require('../middleware/rateLimiter');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
+const { requireAdminActionStepup, issueAdminActionStepup } = require('../middleware/adminActionStepup');
 const moneyGate = requireSuperAdminOrPermission('manage_financials');
 
 router.get('/applications', moneyGate, ctrl.listApplications);
-router.post('/applications/:restaurantId/approve', moneyGate, ctrl.approveApplication);
+router.post('/stepup-challenges/approve', moneyGate, strictLimiter, rejectImpersonated, issueAdminActionStepup('restaurant_topup_approve'));
+router.post('/applications/:restaurantId/approve', moneyGate, strictLimiter, rejectImpersonated, requireAdminActionStepup('restaurant_topup_approve'), ctrl.approveApplication);
 router.post('/applications/:restaurantId/reject', moneyGate, ctrl.rejectApplication);
 router.post('/applications/:restaurantId/suspend', moneyGate, ctrl.suspendApplication);
 router.post('/topups/:topupId/clawback', moneyGate, ctrl.clawbackTopup);

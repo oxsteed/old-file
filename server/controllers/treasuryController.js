@@ -18,6 +18,17 @@
 
 const db = require('../db');
 const crypto = require('crypto');
+const { withTransaction } = require('../utils/transaction');
+const { logAdminAction } = require('../services/auditService');
+
+async function auditedWrite(req, action, targetType, sql, values) {
+  return withTransaction(db, async (client) => {
+    const result = await client.query(sql, values);
+    if (result.rows[0]) await logAdminAction({ adminId: req.user.id, action, targetType,
+      targetId: String(result.rows[0].id), after: result.rows[0], req, client });
+    return result;
+  }, action);
+}
 const logger = require('../utils/logger');
 const { withDbBudget } = require('../utils/dbBudgets');
 
@@ -93,7 +104,7 @@ async function createEntity(req, res) {
     const countryCode = req.body.country_code ? requireNonEmptyString(req.body.country_code, 'country_code') : null;
     if (countryCode && !COUNTRY_RE.test(countryCode)) throw httpError(400, 'country_code must be a 2-letter uppercase country code.');
 
-    const { rows } = await db.query(
+    const { rows } = await auditedWrite(req, 'treasury_entity_created', 'treasury_entity',
       `INSERT INTO treasury_entities (code, name, country_code, base_currency)
        VALUES ($1, $2, $3, $4) RETURNING id, code, name, country_code, base_currency, is_active, created_at`,
       [code, name, countryCode, baseCurrency]
@@ -143,7 +154,7 @@ async function createAccount(req, res) {
     if (!entityRows.length) throw httpError(404, 'Entity not found.');
     if (!entityRows[0].is_active) throw httpError(409, 'Cannot add accounts to an inactive entity.');
 
-    const { rows } = await db.query(
+    const { rows } = await auditedWrite(req, 'treasury_account_created', 'treasury_account',
       `INSERT INTO treasury_accounts (entity_id, code, name, currency, account_type)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id, entity_id, code, name, currency, account_type, created_at`,
@@ -229,6 +240,8 @@ async function postJournal(req, res) {
       [entityId, periodId, debitAccountId, creditAccountId, amountMinor, currency, description, reference, idempotencyKey, req.user?.id || null]
     );
 
+    await logAdminAction({ adminId: req.user.id, action: 'treasury_journal_posted',
+      targetType: 'treasury_journal_entry', targetId: String(rows[0].id), after: rows[0], req, client });
     await client.query('COMMIT');
     res.status(201).json({ entry: rows[0] });
   } catch (err) {
@@ -325,7 +338,7 @@ async function createPeriod(req, res) {
     if (periodEnd < periodStart) {
       throw httpError(400, 'period_end must be on or after period_start.');
     }
-    const { rows } = await db.query(
+    const { rows } = await auditedWrite(req, 'treasury_period_created', 'treasury_period',
       `INSERT INTO treasury_periods (entity_id, period_start, period_end)
        VALUES ($1, $2, $3)
        RETURNING id, entity_id, period_start, period_end, status, closed_at, closed_by, created_at`,
@@ -365,7 +378,7 @@ async function closePeriod(req, res) {
 
     // Atomic close: the status predicate in the WHERE clause makes a
     // concurrent close attempt lose instead of double-closing.
-    const { rows } = await db.query(
+    const { rows } = await auditedWrite(req, 'treasury_period_closed', 'treasury_period',
       `UPDATE treasury_periods
        SET status = 'closed', closed_at = NOW(), closed_by = $2
        WHERE id = $1 AND status = 'open'

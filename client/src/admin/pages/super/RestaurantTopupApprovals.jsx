@@ -15,6 +15,7 @@ import {
   RefreshCw,
   XCircle,
 } from 'lucide-react';
+import { collectAdminActionStepup } from '../../lib/adminActionStepup';
 import adminApi from '../../../lib/adminApi';
 import { formatCreditDateTime } from '../../../lib/creditDateTime';
 
@@ -180,13 +181,14 @@ export default function RestaurantTopupApprovals() {
     if ((kind === 'reject' || kind === 'suspend') && !reason?.trim()) return;
     setBusy(true);
     try {
+      const stepup = kind === 'approve' ? await collectAdminActionStepup(adminApi, '/admin/restaurant-topups/stepup-challenges/approve', t) : {};
       // Send the version rendered in the list: the server rejects a stale
       // decision with 409 so a newer suspension can never be reversed by an
       // older approval.
       await adminApi.post(
         `/admin/restaurant-topups/applications/${application.restaurantId}/${kind}`,
         kind === 'approve'
-          ? { expectedVersion: application.version }
+          ? { expectedVersion: application.version, ...stepup }
           : { reason: reason.trim(), expectedVersion: application.version },
       );
       setNotice(t(`restaurantTopups.admin.${kind}Done`));

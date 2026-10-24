@@ -543,6 +543,7 @@ async function revokeAcceptance(req, res, next) {
 
     res.json({
       success: true,
+      enforcement: 'record_only',
       revokedAt: new Date().toISOString(),
       acceptanceId
     });

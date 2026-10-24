@@ -3,7 +3,7 @@ const router        = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { strictLimiter } = require('../middleware/rateLimiter');
-const { sendSOS, listSOS } = require('../controllers/safetyController');
+const { sendSOS, listSOS, acknowledgeSOS } = require('../controllers/safetyController');
 
 // Rate-limit SOS to prevent abuse while still being fast enough for real emergencies
 router.post('/sos', authenticate, strictLimiter, sendSOS);
@@ -11,4 +11,5 @@ router.post('/sos', authenticate, strictLimiter, sendSOS);
 // Admin: view all SOS events
 router.get('/sos', authenticate, requireAdmin, requirePermission('manage_support'), listSOS);
 
+router.post('/sos/:id/acknowledge', authenticate, requireAdmin, requirePermission('manage_support'), strictLimiter, acknowledgeSOS);
 module.exports = router;

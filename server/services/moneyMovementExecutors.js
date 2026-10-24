@@ -20,6 +20,27 @@ function registerMoneyMovementExecutors() {
   if (registered) return;
   registered = true;
 
+  registerMoneyMovementExecutor('food_refund', async ({ payload, client }) => {
+    const { executeFoodOrderRefund } = require('../controllers/adminFoodOrdersController');
+    return executeFoodOrderRefund(client, {
+      req: { user: { id: payload.makerAdminId }, ip: null }, orderId: payload.orderId,
+      requestedAmount: payload.amountCents, reason: payload.reason, skipDualApproval: true,
+      expectedRefundedCents: payload.expectedRefundedCents,
+    });
+  });
+
+  registerMoneyMovementExecutor('agent_food_refund', async ({ payload, client }) => {
+    const { executeAgentFoodRefund, notifyAgentFoodRefund } = require('../controllers/agentFoodRefundActions');
+    const result = await executeAgentFoodRefund(client, {
+      req: { user: { id: payload.makerAdminId }, ip: null }, orderId: payload.orderId,
+      reason: payload.reason, skipDualApproval: true, expectedAmountCents: payload.expectedAmountCents,
+      requestIdempotencyKey: `agent-food-refund:${payload.orderId}`,
+    });
+    const summary = { orderId: payload.orderId, refunded: true, alreadyRefunded: result.replayed };
+    Object.defineProperty(summary, 'afterCommit', { value: () => notifyAgentFoodRefund(result, payload.orderId) });
+    return summary;
+  });
+
   // ── job_refund: manual job refunds (superAdminController.issueManualRefund)
   registerMoneyMovementExecutor('job_refund', async ({ payload, approverId }) => {
     const { processPaymentRefund } = require('./paymentRefundService');

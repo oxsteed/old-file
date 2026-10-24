@@ -145,23 +145,8 @@ function getFoodOrderRefundEligibility(order) {
   return { eligible: true, reason: null };
 }
 
-async function refundFoodOrder(req, res, next) {
-  try {
-    const orderId = parsePositiveInt(req.params.id);
-    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
-    const requestIdempotencyKey = typeof req.get('Idempotency-Key') === 'string'
-      ? req.get('Idempotency-Key').trim().slice(0, 160)
-      : (typeof req.body?.idempotencyKey === 'string' ? req.body.idempotencyKey.trim().slice(0, 160) : null);
+async function executeAgentFoodRefund(client, { req, orderId, reason, requestIdempotencyKey, skipDualApproval = false, expectedAmountCents }) {
 
-    if (!orderId) throw new AppError('Invalid food order id', 400, 'invalid_order_id');
-    if (!reason) {
-      throw new AppError('A reason is required to refund a food order', 400, 'refund_reason_required');
-    }
-    if (reason.length > 1000) {
-      throw new AppError('Refund reason is too long', 400, 'refund_reason_too_long');
-    }
-
-    const result = await withTransaction(pool, async (client) => {
       const { rows: [order] } = await client.query(
         'SELECT * FROM food_orders WHERE id = $1 FOR UPDATE',
         [orderId]
@@ -199,6 +184,17 @@ async function refundFoodOrder(req, res, next) {
       const currencyCode = typeof order.currency_code === 'string' && order.currency_code.trim()
         ? order.currency_code.trim().toUpperCase().slice(0, 3)
         : 'USD';
+      if (!skipDualApproval) {
+        const gate = await require('../services/dualApprovalService').requestMoneyMovementApproval({
+          movementType: 'agent_food_refund', referenceKey: `food_order:${orderId}`,
+          amountCents: totalCents, currencyCode, requestedBy: req.user.id,
+          idempotencyKey: requestIdempotencyKey || `agent-food-refund:${orderId}`,
+          payload: { orderId, reason, makerAdminId: req.user.id, expectedAmountCents: totalCents },
+        });
+        if (gate.queued) return { gate };
+      } else if (expectedAmountCents !== totalCents) {
+        throw new AppError('Order amount changed since approval request',409,'food_refund_state_changed');
+      }
       const beforeState = {
         status: order.status,
         payment_status: order.payment_status,
@@ -413,7 +409,54 @@ async function refundFoodOrder(req, res, next) {
       }
 
       return { replayed: false, order: updated, paymentMethod, money, beforeState, afterState };
-    }, 'agent_food_order_refund');
+
+}
+async function notifyAgentFoodRefund(result, orderId) {
+    // P3-3-F07: the customer learns their refund was issued (in-app + email).
+    // Only for kinds that actually moved money (not 'manual'); best-effort so
+    // a notification outage never blocks the settled refund response.
+    if (!result.replayed && result.money.kind !== 'manual' && result.order?.customer_id) {
+      notifyRefundIssued({
+        userId: result.order.customer_id,
+        idempotencyKey: `agent-food-refund:${orderId}:${result.money.kind}:issued`,
+        amountCents: result.money.amountCents,
+        currency: result.money.currencyCode,
+        surface: 'food_order',
+        referenceId: orderId,
+        refundId: result.money.refundId || result.money.transactionId || result.money.ledgerEntryId || null,
+        actionUrl: result.order?.tracking_token ? `/food/track/${result.order.tracking_token}` : null,
+      }).catch((err) => logger.warn('Agent food order refund notification failed', {
+        orderId,
+        error: err.message,
+      }));
+    }
+
+
+}
+
+async function refundFoodOrder(req, res, next) {
+  try {
+    const orderId = parsePositiveInt(req.params.id);
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+    const requestIdempotencyKey = typeof req.get('Idempotency-Key') === 'string'
+      ? req.get('Idempotency-Key').trim().slice(0, 160)
+      : (typeof req.body?.idempotencyKey === 'string' ? req.body.idempotencyKey.trim().slice(0, 160) : null);
+
+    if (!orderId) throw new AppError('Invalid food order id', 400, 'invalid_order_id');
+    if (!reason) {
+      throw new AppError('A reason is required to refund a food order', 400, 'refund_reason_required');
+    }
+    if (reason.length > 1000) {
+      throw new AppError('Refund reason is too long', 400, 'refund_reason_too_long');
+    }
+
+    await require('../services/stepupChallengeService').verifyStepupChallenge({
+      challengeId: req.body.stepupChallengeId, actorUserId: req.user.id, actionType: 'food_refund', code: req.body.stepupCode,
+    });
+    const result = await withTransaction(pool, client => executeAgentFoodRefund(client, {
+      req, orderId, reason, requestIdempotencyKey,
+    }), 'agent_food_order_refund');
+    if (result.gate) return require('../utils/dualApprovalHttp').sendMoneyMovementGateResult(res, result.gate);
 
     if (result.replayed) {
       return res.json({
@@ -437,24 +480,7 @@ async function refundFoodOrder(req, res, next) {
       manual: result.money.kind === 'manual',
     });
 
-    // P3-3-F07: the customer learns their refund was issued (in-app + email).
-    // Only for kinds that actually moved money (not 'manual'); best-effort so
-    // a notification outage never blocks the settled refund response.
-    if (!result.replayed && result.money.kind !== 'manual' && result.order?.customer_id) {
-      notifyRefundIssued({
-        userId: result.order.customer_id,
-        idempotencyKey: `agent-food-refund:${orderId}:${result.money.kind}:issued`,
-        amountCents: result.money.amountCents,
-        currency: result.money.currencyCode,
-        surface: 'food_order',
-        referenceId: orderId,
-        refundId: result.money.refundId || result.money.transactionId || result.money.ledgerEntryId || null,
-        actionUrl: result.order?.tracking_token ? `/food/track/${result.order.tracking_token}` : null,
-      }).catch((err) => logger.warn('Agent food order refund notification failed', {
-        orderId,
-        error: err.message,
-      }));
-    }
+    await notifyAgentFoodRefund(result, orderId);
 
     return res.json({
       success: true,
@@ -480,6 +506,7 @@ async function refundFoodOrder(req, res, next) {
 }
 
 module.exports = {
+  executeAgentFoodRefund, notifyAgentFoodRefund,
   refundFoodOrder,
   getFoodOrderRefundEligibility,
   normalizePaymentMode,

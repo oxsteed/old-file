@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { DollarSign, Clock, CheckCircle, AlertTriangle, X } from 'lucide-react';
+import AuditQueuePager from '../../lib/AuditQueuePager';
 import adminApi from '../../../lib/adminApi';
 import { useTranslation } from 'react-i18next';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
@@ -52,20 +53,22 @@ function PayoutDrawer({ payout, fmt, onClose }) {
 
 export default function Payouts() {
   const { t } = useTranslation();
+  const [offset, setOffset] = useState(0);
   const [activeTab, setActiveTab] = useState('pending');
   const [selected, setSelected] = useState(null);
 
   const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
     const { data } = await adminApi.get('/admin/payouts', {
       signal,
-      params: { status: activeTab },
+      params: { status: activeTab, page: offset / 25 + 1, limit: 25 },
     });
     return {
+      total: Number(data.total || 0),
       payouts: data.payouts || [],
       stats: data.stats || { pending: 0, processing: 0, completed: 0, totalPaid: 0 },
       notice: data.message || '',
     };
-  }, [activeTab]);
+  }, [activeTab, offset]);
 
   const payouts = data?.payouts || [];
   const stats = data?.stats || { pending: 0, processing: 0, completed: 0, totalPaid: 0 };
@@ -129,7 +132,7 @@ export default function Payouts() {
 
       <div className="flex gap-2 mb-6">
         {TABS.map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+          <button key={tab.key} onClick={() => { setActiveTab(tab.key); setOffset(0); }}
             className={`px-4 py-2 rounded-full text-sm font-medium capitalize transition-colors ${
               activeTab === tab.key
                 ? 'bg-orange-500 text-white'
@@ -199,6 +202,7 @@ export default function Payouts() {
       {selected && (
         <PayoutDrawer payout={selected} fmt={fmt} onClose={() => setSelected(null)} />
       )}
+      <AuditQueuePager offset={offset} limit={25} total={data?.total || 0} busy={loading} onChange={setOffset} />
     </div>
   );
 }

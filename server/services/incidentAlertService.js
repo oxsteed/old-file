@@ -1,6 +1,8 @@
 // Incident alerting service
 // Detects critical security incidents and triggers alerts
 
+const pool = require('../db');
+const crypto = require('crypto');
 const logger = require('../utils/logger');
 const metricsService = require('./metricsService');
 const { sendSecurityAlertEmail } = require('../utils/email');
@@ -105,7 +107,7 @@ class IncidentAlertService {
     }
 
     // Send to all channels
-    await this.dispatchRecordedIncident(incident);
+    await this.dispatchRecordedIncident({ ...incident, id: durable.incident?.id });
 
     return { ...incident, durable, notificationsSuppressed: false };
   }
@@ -119,17 +121,31 @@ class IncidentAlertService {
    * re-notify on every run.
    */
   async dispatchRecordedIncident(incident) {
-    const settled = await Promise.allSettled(
-      this.alertChannels.map((channel) =>
-        Promise.resolve()
-          .then(() => channel(incident))
-          .catch((err) => {
-            logger.error('Alert channel failed', { channel: channel.name, error: err.message });
-            throw err;
-          })
-      )
-    );
-    return { dispatched: true, channels: settled.map((r) => r.status) };
+    let leaseToken = null;
+    if (incident.id) {
+      leaseToken = crypto.randomUUID();
+      const claim = await pool.query(`UPDATE incident_log SET dispatch_lease_token=$2,
+        dispatch_lease_until=NOW()+INTERVAL '2 minutes'
+        WHERE id=$1 AND resolved_at IS NULL
+          AND (last_notified_at IS NULL OR last_notified_at < notification_claimed_at)
+          AND (dispatch_lease_until IS NULL OR dispatch_lease_until < NOW()) RETURNING id`, [incident.id, leaseToken]);
+      if (!claim.rows.length) return { dispatched: false, suppressed: true };
+    }
+    const settled = await Promise.allSettled(this.alertChannels.map(channel =>
+      Promise.resolve().then(() => channel(incident))));
+    // Log/metrics alone do not count as notifying an operator. Email/Slack
+    // return true only when an external provider acknowledged delivery.
+    const dispatched = settled.some(r => r.status === 'fulfilled' && r.value === true);
+    for (const result of settled) if (result.status === 'rejected') {
+      logger.error('Incident alert channel failed', { type: incident.type, error: result.reason?.message });
+    }
+    if (leaseToken) await pool.query(`UPDATE incident_log SET
+      last_notified_at=CASE WHEN $3 THEN NOW() ELSE last_notified_at END,
+      notification_count=notification_count+CASE WHEN $3 THEN 1 ELSE 0 END,
+      dispatch_lease_token=NULL,
+      dispatch_lease_until=CASE WHEN $3 THEN NULL ELSE NOW()+INTERVAL '5 minutes' END
+      WHERE id=$1 AND dispatch_lease_token=$2`, [incident.id, leaseToken, dispatched]);
+    return { dispatched, channels: settled.map(r => r.status) };
   }
 
   /**
@@ -161,9 +177,19 @@ class IncidentAlertService {
   async _emailAlert(incident) {
     if (incident.severity !== 'critical') return;
 
-    const adminEmail = process.env.SECURITY_ALERT_EMAIL || 'security@oxsteed.com';
-    await sendSecurityAlertEmail(adminEmail, incident.type, formatIncidentDetails(incident));
-    logger.info('Security incident email sent', { type: incident.type, recipient: adminEmail });
+    const { rows } = await pool.query(`SELECT u.email FROM users u
+      LEFT JOIN admin_notification_prefs p ON p.admin_id=u.id
+      WHERE u.role IN ('admin','super_admin') AND u.is_active=TRUE AND u.deleted_at IS NULL
+        AND COALESCE(p.notify_incidents,TRUE) AND COALESCE(p.email_notifications,TRUE)
+        AND (p.incident_types IS NULL OR '*'=ANY(p.incident_types) OR $1=ANY(p.incident_types))
+      ORDER BY u.id`, [incident.type]);
+    const recipients = [...new Set(rows.map(r => r.email).filter(Boolean))];
+    if (!recipients.length) recipients.push(process.env.SECURITY_ALERT_EMAIL || 'security@oxsteed.com');
+    const results = await Promise.allSettled(recipients.map(address =>
+      sendSecurityAlertEmail(address, incident.type, formatIncidentDetails(incident))));
+    const sent = results.some(r => r.status === 'fulfilled' && r.value?.success === true);
+    if (!sent) throw new Error('No incident email recipient accepted delivery');
+    return true;
   }
 
   /**
@@ -217,6 +243,7 @@ class IncidentAlertService {
     }
 
     logger.info('Slack security alert sent', { type: incident.type });
+    return true;
   }
 
   /**

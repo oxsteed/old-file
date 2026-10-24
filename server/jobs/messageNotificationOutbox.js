@@ -99,11 +99,15 @@ async function listFailedMessageNotifications({ limit = 50, offset = 0 } = {}) {
 async function retryFailedMessageNotifications(ids) {
   const list = Array.isArray(ids) ? ids.map(String).filter(Boolean).slice(0, 500) : null;
   const { rows } = await db.query(
-    `UPDATE message_notification_outbox
+    `WITH batch AS (
+       SELECT id FROM message_notification_outbox
+        WHERE status = 'failed' AND ($1::text[] IS NULL OR id::text = ANY($1::text[]))
+        ORDER BY updated_at, id FOR UPDATE SKIP LOCKED LIMIT 500
+     ) UPDATE message_notification_outbox
         SET status = 'pending', attempts = 0, next_attempt_at = NOW(),
             locked_at = NULL, lease_token = NULL, updated_at = NOW()
       WHERE status = 'failed'
-        AND ($1::text[] IS NULL OR id::text = ANY($1::text[]))
+        AND id IN (SELECT id FROM batch)
       RETURNING id`,
     [list]
   );

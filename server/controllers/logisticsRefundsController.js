@@ -13,6 +13,7 @@
  */
 
 const crypto = require('crypto');
+const logger = require('../utils/logger');
 const { authenticator } = require('@otplib/v12-adapter');
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
@@ -30,7 +31,9 @@ function deps() {
 async function logAction(caseId, action, actorUserId, meta) {
   try {
     await logLogisticsAction('refund_case', caseId, action, { actorUserId, ...meta });
-  } catch (_) { /* audit must not break the money path */ }
+  } catch (err) {
+    logger.error('Logistics refund audit write failed', { caseId, action, actorUserId, error: err.message });
+  }
 }
 
 function serialize(kase) {

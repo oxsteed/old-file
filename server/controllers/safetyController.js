@@ -24,50 +24,23 @@ exports.sendSOS = async (req, res, next) => {
     const lat = latInput ?? latitude ?? null;
     const lng = lngInput ?? longitude ?? null;
 
-    // ── 1. Store the SOS event ──────────────────────────────────
-    await db.query(
-      `INSERT INTO safety_sos_events
-         (user_id, lat, lng, contact_name, contact_phone, job_id, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, now())
-       ON CONFLICT DO NOTHING`,
-      [userId, lat ?? null, lng ?? null, contact_name, contact_phone, job_id ?? null]
-    ).catch(() => {
-      // Table may not exist yet (pre-migration) — log but don't block the response
-      logger.warn('[Safety] safety_sos_events table missing; event not persisted', { userId });
-    });
-
-    // ── 2. Notify platform admins ───────────────────────────────
-    const { rows: admins } = await db.query(
-      `SELECT id FROM users WHERE role = 'admin' LIMIT 5`
-    ).catch(() => ({ rows: [] }));
-
-    const locationText = (lat && lng)
-      ? `Location: ${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}`
-      : 'Location unavailable';
-
-    await Promise.allSettled(
-      admins.map(a =>
-        sendNotification({
-          userId:     a.id,
-          type:       'safety_sos',
-          title:      '🆘 SOS Alert',
-          body:       `User ${userId} triggered an SOS. ${locationText}`,
-          data:       { userId, lat, lng, job_id, type: 'safety_sos' },
-          action_url: `/admin/users/${userId}`,
-        })
-      )
-    );
+    const { rows: [event] } = await db.query(
+      `INSERT INTO safety_sos_events (user_id,lat,lng,contact_name,contact_phone,job_id)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [userId, lat, lng, contact_name, contact_phone, job_id]);
+    if (!event) throw new Error('SOS event was not persisted');
+    await require('../services/safetySOSService').notifySOS(event);
 
     // ── 3. Notify the other party on the linked job (if any) ───
     if (job_id) {
       const { rows: jobRows } = await db.query(
-        `SELECT customer_id, helper_id FROM jobs WHERE id = $1 LIMIT 1`,
+        `SELECT client_id AS customer_id, assigned_helper_id AS helper_id FROM jobs WHERE id = $1 LIMIT 1`,
         [job_id]
       ).catch(() => ({ rows: [] }));
 
-      if (jobRows.length) {
+      if (jobRows.length && [jobRows[0].customer_id, jobRows[0].helper_id].some(id => String(id) === String(userId))) {
         const job          = jobRows[0];
-        const otherPartyId = job.customer_id === userId ? job.helper_id : job.customer_id;
+        const otherPartyId = String(job.customer_id) === String(userId) ? job.helper_id : job.customer_id;
         if (otherPartyId) {
           await sendNotification({
             userId:     otherPartyId,
@@ -84,7 +57,7 @@ exports.sendSOS = async (req, res, next) => {
     }
 
     logger.info('[Safety] SOS dispatched', { userId, lat, lng, job_id });
-    return res.json({ success: true, message: 'SOS alert sent.' });
+    return res.json({ success: true, eventId: event.id, message: 'SOS alert recorded.' });
   } catch (err) {
     next(err);
   }
@@ -105,4 +78,16 @@ exports.listSOS = async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+};
+
+exports.acknowledgeSOS = async (req, res, next) => {
+  try {
+    if (!/^[1-9][0-9]*$/.test(String(req.params.id))) return res.status(400).json({ error: 'Invalid SOS event id' });
+    const { rows: [event] } = await db.query(`UPDATE safety_sos_events
+      SET acknowledged_at=COALESCE(acknowledged_at,NOW()), acknowledged_by=COALESCE(acknowledged_by,$2)
+      WHERE id=$1 RETURNING *`, [req.params.id, req.user.id]);
+    if (!event) return res.status(404).json({ error: 'SOS event not found' });
+    await require('../services/incidentStore').resolveOpenIncidentsByDedupeKeys([`safety-sos:${event.id}`], 'SOS acknowledged by an operator');
+    return res.json({ event });
+  } catch (err) { next(err); }
 };

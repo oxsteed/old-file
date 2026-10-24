@@ -57,10 +57,11 @@ beforeEach(() => {
 
 describe('list', () => {
   test('returns sanitized pending approvals', async () => {
-    dualApproval.listPendingMoneyMovementApprovals.mockResolvedValue([PENDING]);
+    dualApproval.listPendingMoneyMovementApprovals.mockResolvedValue({ approvals: [PENDING], total: 51, limit: 50, offset: 0 });
     const res = mockRes();
     await ctrl.list({ query: {} }, res, (e) => { throw e; });
     expect(res.json).toHaveBeenCalledWith({
+      total: 51, limit: 50, offset: 0,
       approvals: [expect.objectContaining({ id: 5, movementType: 'job_refund', amountCents: 60000 })],
     });
     expect(res.json.mock.calls[0][0].approvals[0]).not.toHaveProperty('payload');

@@ -26,8 +26,8 @@ const logger = require('../utils/logger');
 
 async function list(req, res, next) {
   try {
-    const approvals = await listPendingMoneyMovementApprovals({ limit: req.query.limit });
-    res.json({ approvals: approvals.map(sanitizeApproval) });
+    const page = await listPendingMoneyMovementApprovals({ limit: req.query.limit, offset: req.query.offset });
+    res.json({ ...page, approvals: page.approvals.map(sanitizeApproval) });
   } catch (err) {
     next(err);
   }

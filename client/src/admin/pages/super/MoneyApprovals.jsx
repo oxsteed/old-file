@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, CheckCircle2, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
+import AuditQueuePager from '../../lib/AuditQueuePager';
 import adminApi from '../../../lib/adminApi';
 import { useAuth } from '../../../hooks/useAuth';
 
@@ -16,6 +17,8 @@ import { useAuth } from '../../../hooks/useAuth';
  */
 
 const MOVEMENT_TYPE_LABELS = {
+  food_refund: 'adminOpsAudit.foodRefund',
+  agent_food_refund: 'adminOpsAudit.foodRefund',
   job_refund: 'adminMoneyApprovals.typeJobRefund',
   marketplace_refund: 'adminMoneyApprovals.typeMarketplaceRefund',
   dispute_refund: 'adminMoneyApprovals.typeDisputeRefund',
@@ -51,6 +54,8 @@ function formatDateTime(value) {
 export default function MoneyApprovals() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const [offset, setOffset] = useState(0);
+  const [total, setTotal] = useState(0);
   const [approvals, setApprovals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -61,14 +66,16 @@ export default function MoneyApprovals() {
     setLoading(true);
     setLoadError('');
     try {
-      const { data } = await adminApi.get('/admin/money-approvals');
+      const { data } = await adminApi.get('/admin/money-approvals', { params: { limit: 50, offset } });
       setApprovals(data?.approvals || []);
+      setTotal(Number(data?.total || 0));
+      if (offset && !data?.approvals?.length) setOffset(Math.max(0, offset - 50));
     } catch (err) {
       setLoadError(err.response?.data?.error || err.message || t('adminMoneyApprovals.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [t, offset]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -225,6 +232,7 @@ export default function MoneyApprovals() {
         </div>
       )}
       <p className="mt-4 text-xs text-gray-500">{t('adminMoneyApprovals.thresholdNote')}</p>
+      <AuditQueuePager offset={offset} limit={50} total={total} busy={loading || !!busyId} onChange={setOffset} />
     </div>
   );
 }

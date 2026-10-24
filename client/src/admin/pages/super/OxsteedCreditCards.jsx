@@ -6,6 +6,7 @@ import { createStableIdempotencyKeyStore } from './creditIdempotency';
 import { formatCreditDateTime } from '../../../lib/creditDateTime';
 import { safeCreditErrorMessage } from '../../../lib/creditErrors';
 import AddressAutocomplete from '../../../components/AddressAutocomplete';
+import ConfirmDialog from '../../lib/ConfirmDialog';
 import CardHistory from '../../../components/credit/CardHistory';
 
 const CARD_STATUSES = ['pending', 'active', 'frozen', 'lost', 'stolen', 'revoked', 'expired'];
@@ -50,6 +51,7 @@ const emptyForm = {
 
 export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = false }) {
   const { t } = useTranslation('credit');
+  const [fulfillmentTarget, setFulfillmentTarget] = useState(null);
   const [cards, setCards] = useState([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [cardTypeFilter, setCardTypeFilter] = useState('all');
@@ -164,6 +166,7 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
       await load();
     } catch (err) {
       setError(safeCreditErrorMessage(err, t('cards.errors.fulfillment')));
+      throw err;
     } finally {
       setSaving(false);
     }
@@ -344,7 +347,7 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
                 <td className="px-3 py-3 text-gray-500">{dateTime(card.issuedAt, t)}</td>
                 <td className="px-3 py-3">
                   <div className="flex flex-wrap gap-2">
-                    {nextStatus && <button type="button" onClick={() => advanceFulfillment(card)} disabled={saving} className="rounded-lg border border-sky-500/30 px-2.5 py-1.5 text-[11px] font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{t('cards.mark', { status: t(`cards.fulfillment.${nextStatus}`, { defaultValue: nextStatus }) })}</button>}
+                    {nextStatus && <button type="button" onClick={() => setFulfillmentTarget(card)} disabled={saving} className="rounded-lg border border-sky-500/30 px-2.5 py-1.5 text-[11px] font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{t('cards.mark', { status: t(`cards.fulfillment.${nextStatus}`, { defaultValue: nextStatus }) })}</button>}
                     {canRevoke && <button type="button" onClick={() => revoke(card)} disabled={saving} className="rounded-lg border border-red-500/30 px-2.5 py-1.5 text-[11px] font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('cards.revoke')}</button>}
                     {card.replacementStatus && <span>{t(`cards.security.replacement.${card.replacementStatus}`)}</span>}
                     {card.replacementStatus === 'failed' && <button type="button" disabled={saving} onClick={async () => {
@@ -362,6 +365,10 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
             })}
         </tbody>
       </table>
+      <ConfirmDialog open={!!fulfillmentTarget} title={t('adminOpsAudit.fulfillmentTitle')}
+        message={t('adminOpsAudit.fulfillmentConfirm', { status: t(`cards.fulfillment.${nextFulfillmentStatus(fulfillmentTarget?.fulfillmentStatus)}`) })}
+        onConfirm={async () => { await advanceFulfillment(fulfillmentTarget); setFulfillmentTarget(null); }}
+        onClose={() => setFulfillmentTarget(null)} />
     </div>
   </section>;
 }

@@ -1,3 +1,4 @@
+import { collectAdminActionStepup } from '../../admin/lib/adminActionStepup';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { Briefcase, CreditCard, FileImage, History, Mail, MessageSquare, ShoppingBag, UserRound, WalletCards } from 'lucide-react';
@@ -57,8 +58,8 @@ export default function Customer360Panel({ data, loading, lifecycle = [], lifecy
     }
     setResolutionBusy(key);
     try {
-      await request(reason.trim());
-      toast.success(copy('resolution.success', { defaultValue: 'Done. The action was recorded.' }));
+      const response = await request(reason.trim());
+      toast.success(response?.status === 202 ? t('adminOpsAudit.refundQueued') : copy('resolution.success', { defaultValue: 'Done. The action was recorded.' }));
       if (onResolutionAction) await onResolutionAction();
     } catch (error) {
       const message = error?.response?.data?.error || error?.response?.data?.message || error?.message || 'unknown';
@@ -113,7 +114,11 @@ export default function Customer360Panel({ data, loading, lifecycle = [], lifecy
   const refundFoodOrder = (order) => runResolutionAction({
     key: `foodorder-refund-${order.id}`,
     promptMessage: copy('resolution.refundFoodOrderPrompt', { defaultValue: 'Refund food order #{{id}} ({{amount}})? Type the reason and choose OK to confirm:', id: order.id, amount: formatMoney(order.total_cents, order.currency_code) }),
-    request: (reason) => api.post(`/agent/food-orders/${order.id}/refund`, { reason }),
+    request: async (reason) => {
+      const stepup = await collectAdminActionStepup(api, '/admin/food-orders/stepup-challenges/refund', t);
+      const response = await api.post(`/agent/food-orders/${order.id}/refund`, { reason, ...stepup });
+      return response;
+    },
   });
 
   const adjustCreditAccount = async (account) => {

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import { collectAdminActionStepup } from '../lib/adminActionStepup';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -189,11 +190,13 @@ export default function AdminFoodOrderDetail() {
 
     setRefunding(true);
     try {
-      await axios.post(`/api/admin/food-orders/${id}/refund`, {
+      const stepup = await collectAdminActionStepup(axios, '/api/admin/food-orders/stepup-challenges/refund', t);
+      const { data } = await axios.post(`/api/admin/food-orders/${id}/refund`, {
+        ...stepup,
         amount_cents: refundAmount.trim() ? amount : undefined,
         reason: refundReason.trim(),
       });
-      setNotice('Refund recorded successfully.');
+      setNotice(data?.code === 'money_movement_pending_approval' ? t('adminOpsAudit.refundQueued') : t('adminOpsAudit.refundDone'));
       setRefundAmount('');
       setRefundReason('');
       await load();

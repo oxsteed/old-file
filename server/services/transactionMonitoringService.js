@@ -424,6 +424,7 @@ async function checkVerificationSla({ now = new Date(), client: providedClient =
           try {
             const incidentAlertService = require('./incidentAlertService');
             await incidentAlertService.dispatchRecordedIncident({
+              id: incident.incident?.id,
               type: incidentType,
               severity: 'critical',
               message: `${row.review_type} ${row.id} breached its review SLA`,

@@ -82,6 +82,9 @@ const STEPUP_ACTION_TYPES = Object.freeze([
   // amount tiering; require a fresh step-up challenge per refund. (Full
   // two-person approval for refunds is a product decision for Emile.)
   'manual_refund',
+  'food_refund',
+  'restaurant_topup_approve',
+  'fee_config_update',
   // ADM-016: the second admin (checker) in dual approval must prove a fresh
   // step-up challenge before the queued money movement executes.
   'money_movement_approve',
@@ -121,6 +124,9 @@ const TOTP_STEPUP_ACTION_TYPES = Object.freeze([
   'credit_agreement_transition',
   'credit_entitlement_upsert',
   'manual_refund',
+  'food_refund',
+  'restaurant_topup_approve',
+  'fee_config_update',
   'credit_rail_unfreeze',
   'credit_card_issue',
 ]);

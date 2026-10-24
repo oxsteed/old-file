@@ -1,4 +1,8 @@
 {
+  "adminOpsAudit": {
+    "fulfillmentTitle": "Konfime livrezon kat la",
+    "fulfillmentConfirm": "Make kat sa a kòm {{status}}? Konfime etap fizik sa a fini. Ou pa ka anile aksyon sa a isit la."
+  },
   "statementCenter": {
     "title": "Sant deklarasyon",
     "description": "Revize deklarasyon kredi, règleman, revni ak biznis ou yo nan yon sèl kote.",

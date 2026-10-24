@@ -317,10 +317,10 @@ async function deleteRunbook(req, res, next) {
     // Soft delete only: the runbook stays in history for audit purposes.
     const { rows } = await db.query(
       `UPDATE ops_runbooks
-          SET is_active = FALSE, updated_at = NOW()
+          SET is_active = FALSE, version = version + 1, updated_by = $2, updated_at = NOW()
         WHERE id = $1 AND is_active = TRUE
       RETURNING id, code`,
-      [id]
+      [id, req.user.id]
     );
     if (!rows.length) {
       return res.status(404).json({ error: 'Runbook not found.', code: 'runbook_not_found' });
@@ -332,7 +332,16 @@ async function deleteRunbook(req, res, next) {
   }
 }
 
+async function listRunbookHistory(req, res, next) {
+  try {
+    const { rows } = await db.query(`SELECT version,snapshot,recorded_at FROM ops_runbook_versions
+      WHERE runbook_id=$1 ORDER BY version DESC LIMIT 100`, [req.params.id]);
+    res.json({ versions: rows });
+  } catch (err) { next(err); }
+}
+
 module.exports = {
+  listRunbookHistory,
   getCapacity,
   listRunbooks,
   createRunbook,

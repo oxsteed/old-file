@@ -1,4 +1,20 @@
 {
+  "adminOpsAudit": {
+    "bulkFailed": "ID itilizatè ki echwe: {{ids}}. Yo rete chwazi pou eseye ankò.",
+    "fulfillmentTitle": "Konfime livrezon kat la",
+    "fulfillmentConfirm": "Make kat sa a kòm {{status}}? Konfime etap fizik sa a fini. Ou pa ka anile aksyon sa a isit la.",
+    "showing": "Montre {{from}}–{{to}} sou {{total}}",
+    "previous": "Anvan",
+    "next": "Apre",
+    "foodRefund": "Ranbousman kòmand manje",
+    "stepupPrompt": "Antre kòd aktyèl aplikasyon otantifikasyon ou a.",
+    "stepupRequired": "Yon kòd otantifikasyon aktyèl obligatwa.",
+    "refundQueued": "Ranbousman an ap tann yon dezyèm administratè. Pa gen lajan ki deplase.",
+    "refundDone": "Ranbousman an anrejistre.",
+    "recordOnlyRevocation": "Revoke dosye akseptasyon sa a? Sa sèlman mete dosye legal la ajou. Sa pa bloke aksè kont lan ni mande itilizatè a aksepte ankò.",
+    "onCall": "De sèvis pou alèt SOS",
+    "incidentTypes": "Kalite ensidan (separe ak vigil; * pou tout)"
+  },
   "pwaExperience": {
     "serverUpdated": "Nou senkronize tèks bouyon ki pi resan an. Verifye foto ki sou aparèy sa a.",
     "searchUnavailable": "Rechèch la pa t ka chaje. Rekonekte epi eseye ankò.",

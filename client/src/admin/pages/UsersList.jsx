@@ -557,13 +557,15 @@ export default function UsersList() {
       return u && (suspend ? u.is_active : !u.is_active);
     });
     let done = 0;
+    const failed = [];
     for (const id of ids) {
-      try { await adminApi.post(`/admin/users/${id}/ban`); done++; } catch {}
+      try { await adminApi.post(`/admin/users/${id}/ban`); done++; } catch { failed.push(id); }
     }
     setBulkBusy(false);
-    setSelected(new Set());
+    setSelected(new Set(failed));
     fetchUsers();
-    showToast(t('adminUsers.list.bulkStatusChanged', { count: done, status: suspend ? t('adminUsers.list.suspended').toLowerCase() : t('adminUsers.list.reactivated').toLowerCase() }));
+    if (failed.length) showToast(t('adminOpsAudit.bulkFailed', { ids: failed.join(', ') }), 'error');
+    if (done) showToast(t('adminUsers.list.bulkStatusChanged', { count: done, status: suspend ? t('adminUsers.list.suspended').toLowerCase() : t('adminUsers.list.reactivated').toLowerCase() }));
   };
 
   // Message modal

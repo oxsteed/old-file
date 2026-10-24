@@ -1,4 +1,20 @@
 {
+  "adminOpsAudit": {
+    "bulkFailed": "Failed user IDs: {{ids}}. These users remain selected for retry.",
+    "fulfillmentTitle": "Confirm card fulfillment",
+    "fulfillmentConfirm": "Mark this card as {{status}}? Confirm that this physical step is complete. This action cannot be undone here.",
+    "showing": "Showing {{from}}–{{to}} of {{total}}",
+    "previous": "Previous",
+    "next": "Next",
+    "foodRefund": "Food order refund",
+    "stepupPrompt": "Enter the current code from your authenticator app.",
+    "stepupRequired": "A current authenticator code is required.",
+    "refundQueued": "Refund queued for a second administrator. No funds have moved.",
+    "refundDone": "Refund recorded successfully.",
+    "recordOnlyRevocation": "Revoke this acceptance record? This updates the legal record only. It does not restrict account access or require the user to accept again.",
+    "onCall": "On call for safety SOS alerts",
+    "incidentTypes": "Incident types (comma-separated; * for all)"
+  },
   "analyticsCompletion": {
     "alertHistory": "Evaluation history",
     "previousValue": "Previous window",

@@ -1,4 +1,20 @@
 {
+  "adminOpsAudit": {
+    "bulkFailed": "IDs de usuarios con errores: {{ids}}. Siguen seleccionados para reintentar.",
+    "fulfillmentTitle": "Confirmar entrega de tarjeta",
+    "fulfillmentConfirm": "¿Marcar esta tarjeta como {{status}}? Confirma que este paso físico está completo. Esta acción no se puede deshacer aquí.",
+    "showing": "Mostrando {{from}}–{{to}} de {{total}}",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "foodRefund": "Reembolso de pedido de comida",
+    "stepupPrompt": "Introduce el código actual de tu aplicación de autenticación.",
+    "stepupRequired": "Se requiere un código actual de autenticación.",
+    "refundQueued": "Reembolso pendiente de un segundo administrador. No se han movido fondos.",
+    "refundDone": "Reembolso registrado correctamente.",
+    "recordOnlyRevocation": "¿Revocar este registro de aceptación? Solo actualiza el registro legal. No restringe el acceso a la cuenta ni exige aceptar de nuevo.",
+    "onCall": "De guardia para alertas SOS",
+    "incidentTypes": "Tipos de incidentes (separados por comas; * para todos)"
+  },
   "pwaExperience": {
     "serverUpdated": "Se sincronizó un texto más reciente. Revisa las fotos guardadas en este dispositivo.",
     "searchUnavailable": "No se pudo cargar la búsqueda. Reconecta e inténtalo de nuevo.",

@@ -12,6 +12,7 @@ router.use(requireAdmin);
 router.get('/', requirePermission('manage_orders'), ctrl.listFoodOrders);
 router.get('/:id', requirePermission('manage_orders'), ctrl.getFoodOrder);
 // ADM-040: impersonated sessions cannot issue refunds.
+router.post('/stepup-challenges/refund', strictLimiter, rejectImpersonated, requirePermission('issue_refunds'), ctrl.issueRefundStepupChallenge);
 router.post('/:id/refund', strictLimiter, rejectImpersonated, requirePermission('issue_refunds'), ctrl.refundFoodOrder);
 
 module.exports = router;

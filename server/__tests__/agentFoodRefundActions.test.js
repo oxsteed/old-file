@@ -20,6 +20,8 @@
 
 const express = require('express');
 const request = require('supertest');
+jest.mock('../services/stepupChallengeService', () => ({ verifyStepupChallenge: jest.fn().mockResolvedValue({}) }));
+jest.mock('../services/dualApprovalService', () => ({ requestMoneyMovementApproval: jest.fn().mockResolvedValue({ queued: false }) }));
 const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
 const { requirePermission } = require('../middleware/adminAuth');
