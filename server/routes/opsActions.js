@@ -4,6 +4,8 @@ const express = require('express');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const opsActionsController = require('../controllers/opsActionsController');
 
+const { strictLimiter } = require('../middleware/rateLimiter');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const router = express.Router();
 
 router.get(
@@ -22,7 +24,7 @@ router.post(
 
 router.post(
   '/webhooks/:deliveryId/retry',
-  requireAdmin,
+  requireAdmin, strictLimiter, rejectImpersonated,
   requirePermission('manage_operations'),
   opsActionsController.retryWebhookDelivery
 );

@@ -60,9 +60,9 @@ async function recordIncident({ type, severity, message, details = {}, dedupeKey
     // during the cooldown window for a given open incident.
     const claim = await db.query(
       `UPDATE incident_log
-       SET last_notified_at = NOW(), notification_count = notification_count + 1
+       SET notification_claimed_at = NOW()
        WHERE id = $1 AND resolved_at IS NULL
-         AND (last_notified_at IS NULL OR last_notified_at <= NOW() - ($2::integer * INTERVAL '1 minute'))
+         AND (notification_claimed_at IS NULL OR notification_claimed_at <= NOW() - ($2::integer * INTERVAL '1 minute'))
        RETURNING id, last_notified_at, notification_count`,
       [incident.id, DEFAULT_NOTIFICATION_COOLDOWN_MINUTES]
     );

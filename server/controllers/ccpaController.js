@@ -300,6 +300,18 @@ async function updateCCPARequest(req, res, next) {
     }
 
     const request = requestResult.rows[0];
+    if (status === 'completed') {
+      if (!['pending','processing'].includes(request.status)) throw new AppError('Request is already terminal or awaiting user action', 409, 'ccpa_invalid_transition');
+      if (request.request_type === 'deletion') {
+        const result = await require('../services/ccpaErasureService').completeRequest(requestId, adminId, fulfillmentDate);
+        if (result.skipped) throw new AppError('Request status changed', 409, 'ccpa_invalid_transition');
+        return res.status(202).json({ success: true, requestId, status: 'processing', erasureQueued: true });
+      }
+    }
+    if (status && status !== 'processing' && status !== 'completed') {
+      const erasure = await pool.query("SELECT request_id FROM ccpa_erasure_jobs WHERE request_id=$1 AND status IN ('pending','processing')", [requestId]);
+      if (erasure.rows.length) throw new AppError('Erasure is already queued',409,'ccpa_erasure_in_progress');
+    }
 
     // Build update query
     const updateFields = [];
@@ -349,10 +361,11 @@ async function updateCCPARequest(req, res, next) {
 
     updateParams.push(requestId);
 
-    const updateQuery = `UPDATE ccpa_data_requests SET ${updateFields.join(', ')} WHERE id = $${paramCount} RETURNING *`;
+    const updateQuery = `UPDATE ccpa_data_requests SET ${updateFields.join(', ')} WHERE id = $${paramCount}${status === 'completed' ? " AND status IN ('pending','processing')" : ''} RETURNING *`;
 
     const updateResult = await pool.query(updateQuery, updateParams);
     const updatedRequest = updateResult.rows[0];
+    if (!updatedRequest) throw new AppError('Request status changed',409,'ccpa_invalid_transition');
 
     // Log to audit
     await logCCPAAction('ccpa_completed', request.user_id, adminId, 'admin', requestId, status || request.status, {
@@ -365,13 +378,8 @@ async function updateCCPARequest(req, res, next) {
     if (status === 'completed' || status === 'denied') {
       const userEmail = request.email;
       try {
-        await sendEmail(userEmail, 'Your CCPA Request Has Been Processed', {
-          template: `ccpa_request_${status}`,
-          subject: status === 'completed' ? 'Your Data Access Request is Ready' : 'Your Request Could Not Be Completed',
-          requestType: request.request_type,
-          denialReason: denialReason || null,
-          requestId
-        });
+        if (status === 'completed') await require('../services/ccpaErasureService').notifyCompleted(request);
+        else await require('../services/ccpaErasureService').notifyDenied(request, denialReason);
       } catch (emailErr) {
         logger.error('Failed to send CCPA notification email', { requestId, error: emailErr.message });
       }
@@ -478,18 +486,25 @@ async function bulkMarkCCPACompleted(req, res, next) {
       throw new AppError('Cannot bulk update more than 1000 requests at once', 400, 'too_many_requests');
     }
 
+    if (requestIds.some(id => !/^[1-9][0-9]*$/.test(String(id)))) throw new AppError('Invalid request id',400,'invalid_input');
     const fDate = fulfillmentDate ? new Date(fulfillmentDate) : new Date();
 
-    // Update all requests
-    const result = await pool.query(
-      `UPDATE ccpa_data_requests
-       SET status = 'completed', completed_at = CURRENT_TIMESTAMP, fulfillment_date = $1, fulfilled_by_id = $2, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ANY($3::BIGINT[])
-       RETURNING id`,
-      [fDate, adminId, requestIds]
-    );
-
-    const updatedCount = result.rows.length;
+    if (Number.isNaN(fDate.getTime())) throw new AppError('Invalid fulfillment date',400,'invalid_date');
+    const service = require('../services/ccpaErasureService');
+    let updatedCount = 0, queuedCount = 0;
+    const skippedIds = [], failedIds = [];
+    for (const id of [...new Set(requestIds.map(String))]) {
+      if (!/^[1-9][0-9]*$/.test(id)) throw new AppError('Invalid request id',400,'invalid_input');
+      try {
+        const result = await service.completeRequest(id, adminId, fDate);
+        if (result.skipped) skippedIds.push(id);
+        else if (result.queued) queuedCount++;
+        else { updatedCount++; await service.notifyCompleted(result.request); }
+      } catch (err) {
+        failedIds.push(id);
+        logger.error('CCPA bulk completion failed', { requestId: id, code: err.code });
+      }
+    }
 
     // Log bulk action
     await logCCPAAction('ccpa_bulk_completed', null, adminId, 'admin', requestIds.join(','), 'completed', {
@@ -502,7 +517,7 @@ async function bulkMarkCCPACompleted(req, res, next) {
     res.json({
       success: true,
       completedAt: new Date().toISOString(),
-      updatedCount
+      updatedCount, queuedCount, skippedIds, failedIds
     });
   } catch (err) {
     next(err);

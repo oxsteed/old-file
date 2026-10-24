@@ -218,6 +218,14 @@ function CapacityTab({ t }) {
 // ── Safety tab (existing admin SOS endpoint, no new API) ─────────────────────
 
 function SafetyTab({ t }) {
+  const [ackBusy, setAckBusy] = useState(null);
+  const [ackError, setAckError] = useState('');
+  async function acknowledge(event) {
+    setAckBusy(event.id); setAckError('');
+    try { await adminApi.post(`/safety/sos/${event.id}/acknowledge`); reload(); }
+    catch (err) { setAckError(err.response?.data?.error || t('adminIncidents.acknowledgeFailed')); }
+    finally { setAckBusy(null); }
+  }
   const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
     const { data: payload } = await adminApi.get('/safety/sos', { signal });
     return payload?.events || [];
@@ -247,6 +255,7 @@ function SafetyTab({ t }) {
   const events = data || [];
   return (
     <div className="space-y-4">
+      {ackError && <p role="alert" className="text-red-500">{ackError}</p>}
       <p className="text-sm text-gray-600 dark:text-gray-400">
         {t('wsServiceOps.safetySubtitle', 'Emergency SOS events raised by users, newest first. Showing the latest 100.')}
       </p>
@@ -262,6 +271,7 @@ function SafetyTab({ t }) {
                 <th className="px-3 py-2">{t('wsServiceOps.colLocation', 'Location')}</th>
                 <th className="px-3 py-2">{t('wsServiceOps.colJob', 'Job')}</th>
                 <th className="px-3 py-2">{t('wsServiceOps.colTime', 'Time')}</th>
+                <th className="px-3 py-2">{t('adminIncidents.table.acknowledged')}</th>
               </tr>
             </thead>
             <tbody>
@@ -281,6 +291,7 @@ function SafetyTab({ t }) {
                   </td>
                   <td className="px-3 py-2">{e.job_id || '-'}</td>
                   <td className="px-3 py-2 whitespace-nowrap">{ts(e.created_at)}</td>
+                  <td className="px-3 py-2">{e.acknowledged_at ? ts(e.acknowledged_at) : <button type="button" disabled={ackBusy !== null} onClick={() => acknowledge(e)}>{t('adminIncidents.acknowledge')}</button>}</td>
                 </tr>
               ))}
             </tbody>

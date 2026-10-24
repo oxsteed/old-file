@@ -863,15 +863,21 @@ exports.deleteDiscoverAlert = async (req, res) => {
 /**
  * Cron: compare content signatures and email users when discover results change.
  */
-exports.runDiscoverDigestTick = async () => {
-  const { rows: alerts } = await pool.query(
+exports.runDiscoverDigestTick = async ({ fence, limit = 100 } = {}) => {
+  const digestDb = fence?.db || pool;
+  const batchLimit = Math.min(200, Math.max(1, parseInt(limit, 10) || 100));
+  const { rows: alerts } = await digestDb.query(
     `SELECT a.*, u.email, u.first_name
      FROM discover_search_alerts a
-     JOIN users u ON u.id = a.user_id AND u.is_active = TRUE`,
+     JOIN users u ON u.id = a.user_id AND u.is_active = TRUE
+     WHERE a.last_checked_at IS NULL OR a.last_checked_at < NOW() - INTERVAL '1 day'
+     ORDER BY a.last_checked_at ASC NULLS FIRST, a.id LIMIT $1`, [batchLimit],
   );
   let sent = 0;
   for (const a of alerts) {
+    fence?.assertActive();
     try {
+      await digestDb.query('UPDATE discover_search_alerts SET last_checked_at=NOW() WHERE id=$1', [a.id]);
       const { results, contentSignature } = await runDiscoverSearch({
         query: a.query,
         lat: a.lat,
@@ -880,7 +886,7 @@ exports.runDiscoverDigestTick = async () => {
       });
       if (!contentSignature) continue;
       if (!a.last_signature) {
-        await pool.query(
+        await digestDb.query(
           `UPDATE discover_search_alerts SET last_signature = $2 WHERE id = $1`,
           [a.id, contentSignature],
         );
@@ -900,6 +906,7 @@ Open OxSteed to see more: ${process.env.APP_URL || process.env.CLIENT_URL || 'ht
 
 - OxSteed`;
 
+      fence?.assertActive();
       const mail = await sendEmail({
         to: a.email,
         subject,
@@ -917,13 +924,13 @@ Open OxSteed to see more: ${process.env.APP_URL || process.env.CLIENT_URL || 'ht
 
       if (!mail.success) continue;
 
-      await pool.query(
+      await digestDb.query(
         `UPDATE discover_search_alerts SET last_signature = $2, last_sent_at = NOW() WHERE id = $1`,
         [a.id, contentSignature],
       );
       // Global marketing caps (growth spec 17.2): the Discover digest is a
       // platform marketing send and counts toward the same per-person caps.
-      await require('../growth/marketingLog').recordMarketingContact(pool, {
+      await require('../growth/marketingLog').recordMarketingContact(digestDb, {
         userId: a.user_id,
         source: 'discover_digest',
         channel: 'email',

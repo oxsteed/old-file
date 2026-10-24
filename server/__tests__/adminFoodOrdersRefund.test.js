@@ -15,6 +15,8 @@
  * - already-refunded orders replay cleanly
  */
 
+jest.mock('../services/stepupChallengeService', () => ({ verifyStepupChallenge: jest.fn().mockResolvedValue({}) }));
+jest.mock('../services/dualApprovalService', () => ({ requestMoneyMovementApproval: jest.fn().mockResolvedValue({ queued: false }) }));
 const { mockQuery, resetMocks } = require('./setup');
 const { refundFoodOrder } = require('../controllers/adminFoodOrdersController');
 
@@ -164,6 +166,41 @@ describe('admin refundFoodOrder (audit fixes)', () => {
     await refundFoodOrder(req, res);
     expect(res.statusCode).toBe(400);
     expect(res.body.error).toMatch(/remaining order total/);
+    expect(refundWalletDebitForReference).not.toHaveBeenCalled();
+  });
+});
+
+describe('food refund authorization controls', () => {
+  beforeEach(() => {
+    require('../services/stepupChallengeService').verifyStepupChallenge.mockResolvedValue({});
+    require('../services/dualApprovalService').requestMoneyMovementApproval.mockResolvedValue({ queued: false });
+  });
+  test('a failed step-up stops before acquiring the money transaction', async () => {
+    const error = Object.assign(new Error('Fresh step-up required'), { statusCode: 403 });
+    require('../services/stepupChallengeService').verifyStepupChallenge.mockRejectedValueOnce(error);
+    const { req, res } = makeReqRes(7, { reason: 'test' });
+    await refundFoodOrder(req, res);
+    expect(res.statusCode).toBe(403);
+    expect(mockQuery).not.toHaveBeenCalled();
+    expect(refundWalletDebitForReference).not.toHaveBeenCalled();
+  });
+  test.each(['wallet_credit','oxsteed_credit'])('above-threshold %s refund queues without moving funds', async mode => {
+    mockDbForOrder(makeOrder({ total_cents: 60000, payment_mode: mode }));
+    const gate = require('../services/dualApprovalService').requestMoneyMovementApproval;
+    gate.mockResolvedValueOnce({ queued: true, approval: { id: 1, status: 'pending', amount_cents: 60000 } });
+    const { req, res } = makeReqRes(7, { reason: 'test' });
+    await refundFoodOrder(req, res);
+    expect(res.statusCode).toBe(202);
+    expect(gate).toHaveBeenCalledWith(expect.objectContaining({ movementType: 'food_refund', amountCents: 60000 }));
+    expect(refundWalletDebitForReference).not.toHaveBeenCalled();
+    expect(refundCreditForReferenceInTransaction).not.toHaveBeenCalled();
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(false);
+  });
+  test('approval executor refuses a changed refund balance', async () => {
+    mockDbForOrder(makeOrder({ metadata: { admin_refunded_cents: 100 } }));
+    const { executeFoodOrderRefund } = require('../controllers/adminFoodOrdersController');
+    await expect(executeFoodOrderRefund({ query: mockQuery }, { req: { user: { id: ADMIN_ID } }, orderId: 7,
+      requestedAmount: 200, reason: 'test', skipDualApproval: true, expectedRefundedCents: 0 })).rejects.toMatchObject({ statusCode: 409 });
     expect(refundWalletDebitForReference).not.toHaveBeenCalled();
   });
 });

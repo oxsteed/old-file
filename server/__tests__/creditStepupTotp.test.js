@@ -369,8 +369,8 @@ describe('item 12: admin credit step-up is TOTP, not email OTP', () => {
     expect(challenges.get(challenge.id).codeHash).not.toBeNull();
   });
 
-  test('all fifteen admin credit action types are TOTP-only', () => {
-    expect(TOTP_STEPUP_ACTION_TYPES).toHaveLength(15);
+  test('all admin money and configuration action types are TOTP-only', () => {
+    expect(TOTP_STEPUP_ACTION_TYPES).toHaveLength(18);
     for (const actionType of [
       'settlement_payout',
       'withdrawal',
@@ -385,6 +385,9 @@ describe('item 12: admin credit step-up is TOTP, not email OTP', () => {
       'credit_agreement_transition',
       'credit_entitlement_upsert',
       'manual_refund',
+      'food_refund',
+      'restaurant_topup_approve',
+      'fee_config_update',
       'credit_rail_unfreeze',
       'credit_card_issue',
     ]) {

@@ -104,7 +104,7 @@ async function getMyNotificationPrefs(req, res, next) {
     const { rows } = await db.query(
       `SELECT notify_payout_failures, notify_incidents, notify_new_admins,
               notify_disputes, notify_metric_alerts,
-              email_notifications, sms_notifications
+              email_notifications, sms_notifications, incident_types, safety_on_call
        FROM admin_notification_prefs WHERE admin_id = $1`,
       [req.user.id]
     );
@@ -116,6 +116,7 @@ async function getMyNotificationPrefs(req, res, next) {
       notify_metric_alerts: true,
       email_notifications: true,
       sms_notifications: false,
+      incident_types: ['*'], safety_on_call: false,
     });
   } catch (err) { next(err); }
 }
@@ -125,14 +126,17 @@ async function updateMyNotificationPrefs(req, res, next) {
     const {
       notify_payout_failures, notify_incidents, notify_new_admins,
       notify_disputes, notify_metric_alerts,
-      email_notifications, sms_notifications,
+      email_notifications, sms_notifications, incident_types, safety_on_call,
     } = req.body;
+    if (incident_types !== undefined && (!Array.isArray(incident_types) || incident_types.length > 100 || incident_types.some(v => typeof v !== 'string' || !/^[a-zA-Z0-9_*:-]{1,100}$/.test(v)))) {
+      throw new AppError('Invalid incident types', 400, 'invalid_incident_types');
+    }
     const { rows } = await db.query(
       `INSERT INTO admin_notification_prefs
          (admin_id, notify_payout_failures, notify_incidents, notify_new_admins,
           notify_disputes, notify_metric_alerts,
-          email_notifications, sms_notifications, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+          email_notifications, sms_notifications, incident_types, safety_on_call, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9, ARRAY['*']::text[]), COALESCE($10, FALSE), NOW())
        ON CONFLICT (admin_id) DO UPDATE SET
          notify_payout_failures = EXCLUDED.notify_payout_failures,
          notify_incidents = EXCLUDED.notify_incidents,
@@ -141,6 +145,8 @@ async function updateMyNotificationPrefs(req, res, next) {
          notify_metric_alerts = EXCLUDED.notify_metric_alerts,
          email_notifications = EXCLUDED.email_notifications,
          sms_notifications = EXCLUDED.sms_notifications,
+         incident_types = COALESCE($9, admin_notification_prefs.incident_types),
+         safety_on_call = COALESCE($10, admin_notification_prefs.safety_on_call),
          updated_at = NOW()
        RETURNING *`,
       [
@@ -152,6 +158,8 @@ async function updateMyNotificationPrefs(req, res, next) {
         notify_metric_alerts !== false,
         email_notifications !== false,
         sms_notifications === true,
+        incident_types ?? null,
+        typeof safety_on_call === 'boolean' ? safety_on_call : null,
       ]
     );
     res.json(rows[0]);

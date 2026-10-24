@@ -183,6 +183,9 @@ const GRANT_LOOKUP_SQL = `
          AND d.scopes @> ARRAY[$2]::text[]
          AND d.status = 'active'
          AND d.expires_at > NOW()
+         AND grantor.is_active = TRUE
+         AND grantor.deleted_at IS NULL
+         AND grantor.role IN ('admin', 'super_admin')
          AND (grantor.role = 'super_admin' OR grantor_grant.id IS NOT NULL)
       ORDER BY region_id NULLS FIRST
       LIMIT 1

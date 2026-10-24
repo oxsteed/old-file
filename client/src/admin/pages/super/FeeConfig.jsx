@@ -1,3 +1,4 @@
+import { collectAdminActionStepup } from '../../lib/adminActionStepup';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
@@ -82,7 +83,9 @@ function FeeRow({ row, onSave }) {
       // ADM-098: the server returns 202 with stripe_sync:'failed' when the DB
       // write succeeded but the Stripe provider sync did not. Surface that
       // divergence instead of reporting success.
+      const stepup = await collectAdminActionStepup(api, '/fee-config/stepup-challenges', t);
       const { data } = await api.put('/fee-config', {
+        ...stepup,
         key: row.key,
         value: sendValue,
         reason: reason || undefined,
@@ -285,7 +288,9 @@ export default function FeeConfig() {
       // ADM-099: the server returns 202 with stripe_sync:'failed' when the DB
       // reset committed but the Stripe provider sync did not. Surface the
       // divergence instead of reporting success.
+      const stepup = await collectAdminActionStepup(api, '/fee-config/stepup-challenges', t);
       const { data } = await api.post('/fee-config/reset', {
+        ...stepup,
         reason: resetReason || t('superFeeConfig.defaultResetReason'),
       });
       setShowReset(false);

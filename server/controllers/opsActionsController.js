@@ -300,6 +300,9 @@ async function retryWebhookDeliveryById({ deliveryId, actorId, req = null, audit
   if (!row) {
     throw codedError(404, 'not_found', 'Webhook delivery not found');
   }
+  if (Number(row.attempt_number) >= MAX_WEBHOOK_ATTEMPTS) {
+    throw codedError(409, 'webhook_attempts_exhausted', 'Webhook delivery attempt budget is exhausted');
+  }
   if (row.completed_at) {
     throw codedError(409, 'already_completed', 'Webhook delivery is already completed');
   }

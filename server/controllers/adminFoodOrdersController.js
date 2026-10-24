@@ -115,34 +115,13 @@ async function getFoodOrder(req, res) {
   }
 }
 
-async function refundFoodOrder(req, res) {
-  const orderId = parseInt(req.params.id, 10);
-  const { amount_cents, reason } = req.body;
+function refundError(status, payload) {
+  const err = new (require('../utils/appError'))(payload.error, status, payload.code || 'food_refund_failed');
+  err.publicPayload = payload;
+  return err;
+}
 
-  if (!Number.isSafeInteger(orderId)) {
-    return res.status(400).json({ error: 'Invalid order id' });
-  }
-  if (typeof reason !== 'string' || !reason.trim()) {
-    return res.status(400).json({ error: 'Refund reason is required' });
-  }
-  if (reason.trim().length > 1000) {
-    return res.status(400).json({ error: 'Refund reason is too long' });
-  }
-
-  // ADM-191: the server must validate the amount itself; the client is not
-  // a trust boundary. Whole cents only.
-  let requestedAmount = null;
-  if (amount_cents !== undefined && amount_cents !== null) {
-    const n = Number(amount_cents);
-    if (!Number.isSafeInteger(n) || n <= 0) {
-      return res.status(400).json({ error: 'Refund amount must be a positive whole number of cents' });
-    }
-    requestedAmount = n;
-  }
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
+async function executeFoodOrderRefund(client, { req, orderId, requestedAmount, reason, skipDualApproval = false, expectedRefundedCents }) {
     // ADM-030/ADM-031: lock the order row for the whole refund so two
     // concurrent admins serialize and the second replays instead of
     // double-refunding. Eligibility is checked inside the lock.
@@ -151,32 +130,27 @@ async function refundFoodOrder(req, res) {
       [orderId]
     );
     if (!rows[0]) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Order not found' });
+      throw refundError(404, { error: 'Order not found' });
     }
     const order = rows[0];
 
     // Idempotent replay: an already-refunded order returns a clean non-error
     // and never touches money again.
     if (order.payment_status === 'refunded') {
-      await client.query('COMMIT');
-      return res.json({ ok: true, order_id: orderId, already_refunded: true });
+      return { ok: true, order_id: orderId, already_refunded: true };
     }
     if (!['paid', 'partially_refunded'].includes(order.payment_status)) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Order is not refundable' });
+      throw refundError(400, { error: 'Order is not refundable' });
     }
 
     const totalCents = Math.max(0, Math.round(Number(order.total_cents || 0)));
     const alreadyRefundedCents = readAdminRefundedCents(order.metadata);
     const refundAmount = requestedAmount == null ? totalCents - alreadyRefundedCents : requestedAmount;
     if (refundAmount <= 0) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Order has already been fully refunded' });
+      throw refundError(400, { error: 'Order has already been fully refunded' });
     }
     if (alreadyRefundedCents + refundAmount > totalCents) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Refund amount exceeds the remaining order total' });
+      throw refundError(400, { error: 'Refund amount exceeds the remaining order total' });
     }
 
     // ADM-030: the idempotency key is per (order, amount), NOT per admin, so
@@ -184,6 +158,17 @@ async function refundFoodOrder(req, res) {
     // double-refunding. The FOR UPDATE lock above makes the second request
     // see the updated payment_status and replay.
     const idempotencyKey = `admin-food-refund:${orderId}:${refundAmount}`;
+    if (!skipDualApproval) {
+      const gate = await require('../services/dualApprovalService').requestMoneyMovementApproval({
+        movementType: 'food_refund', referenceKey: `food_order:${orderId}`,
+        amountCents: refundAmount, currencyCode: order.currency_code || 'USD', requestedBy: req.user.id,
+        idempotencyKey: `${idempotencyKey}:${alreadyRefundedCents}`,
+        payload: { orderId, amountCents: refundAmount, expectedRefundedCents: alreadyRefundedCents, reason: reason.trim(), makerAdminId: req.user.id },
+      });
+      if (gate.queued) return { gate };
+    } else if (expectedRefundedCents !== undefined && alreadyRefundedCents !== expectedRefundedCents) {
+      throw refundError(409, { error: 'Order refund state changed since approval was requested', code: 'food_refund_state_changed' });
+    }
     const trimmedReason = reason.trim();
     let refundResult = null;
 
@@ -205,9 +190,8 @@ async function refundFoodOrder(req, res) {
         );
         refundResult = { provider: 'stripe', refund_id: refund.id, amount: refund.amount };
       } catch (refundErr) {
-        await client.query('ROLLBACK');
         logger.error('Admin Stripe refund failed', { orderId, error: refundErr.message });
-        return res.status(502).json({ error: 'Stripe refund failed', code: 'stripe_refund_failed' });
+        throw refundError(502, { error: 'Stripe refund failed', code: 'stripe_refund_failed' });
       }
     } else {
       const mode = normalizeAdminRefundMode(order.payment_mode);
@@ -230,9 +214,8 @@ async function refundFoodOrder(req, res) {
         // ADM-002: fail closed. refundWalletDebitForReference reports (not
         // throws) when nothing moved; never mark the order refunded then.
         if (!walletRefund.refunded) {
-          await client.query('ROLLBACK');
           logger.error('Admin wallet refund reported failure', { orderId, reason: walletRefund.reason });
-          return res.status(409).json({
+          throw refundError(409, {
             error: 'Wallet refund could not be completed; the order was not marked refunded',
             code: 'wallet_refund_failed',
             wallet_reason: walletRefund.reason || null,
@@ -268,17 +251,15 @@ async function refundFoodOrder(req, res) {
             amount: refundAmount,
           };
         } catch (creditErr) {
-          await client.query('ROLLBACK');
           logger.error('Admin OxSteed credit refund failed', { orderId, error: creditErr.message });
           const status = Number.isSafeInteger(creditErr.statusCode) ? creditErr.statusCode : 502;
-          return res.status(status).json({
+          throw refundError(status, {
             error: creditErr.message || 'OxSteed Credit refund failed',
             code: creditErr.code || 'credit_refund_failed',
           });
         }
       } else {
-        await client.query('ROLLBACK');
-        return res.status(400).json({
+        throw refundError(400, {
           error: 'No refundable payment found (no Stripe intent, wallet debit, or OxSteed Credit purchase)',
           code: 'no_refundable_payment',
         });
@@ -302,7 +283,7 @@ async function refundFoodOrder(req, res) {
     if (newStatus === 'refunded' && order.customer_id) {
       try {
         const { _clawBackFoodLoyaltyOnRefund } = require('./foodController');
-        await _clawBackFoodLoyaltyOnRefund(pool, order);
+        await _clawBackFoodLoyaltyOnRefund(client, order);
       } catch (loyaltyErr) {
         logger.warn('Admin refund loyalty reconciliation failed', {
           orderId,
@@ -329,7 +310,6 @@ async function refundFoodOrder(req, res) {
     if (newStatus === 'refunded' && order.customer_id) {
       await require('../growth/emit').emitDomainEvent(client, 'food.order_refunded', require('../growth/emit').foodEventProps(order), { userId: order.customer_id });
     }
-    await client.query('COMMIT');
 
     logger.info('adminFoodOrders.refund completed', {
       orderId, adminId: req.user.id, amount_cents: refundAmount,
@@ -337,8 +317,10 @@ async function refundFoodOrder(req, res) {
     });
     // P3-3-F07: the customer learns the admin-issued refund went through
     // (in-app + email). Best-effort: the refund is settled.
+    const result = { ok: true, order_id: orderId, amount_cents: refundAmount, provider: refundResult.provider, new_status: newStatus };
+    Object.defineProperty(result, 'afterCommit', { value: async () => {
     if (order.customer_id) {
-      notifyRefundIssued({
+      await notifyRefundIssued({
         userId: order.customer_id,
         idempotencyKey: `admin-food-refund:${orderId}:${refundAmount}:issued`,
         amountCents: refundAmount,
@@ -352,14 +334,57 @@ async function refundFoodOrder(req, res) {
         error: err.message,
       }));
     }
-    res.json({ ok: true, order_id: orderId, amount_cents: refundAmount, provider: refundResult.provider, new_status: newStatus });
+    } });
+    return result;
+}
+
+async function issueRefundStepupChallenge(req, res, next) {
+  try {
+    const { challenge, delivery } = await require('../services/stepupChallengeService').issueStepupChallenge({
+      actorUserId: req.user.id, actorEmail: req.user.email, actionType: 'food_refund', amountCents: 1,
+    });
+    res.status(201).json({ challenge: { id: challenge.id, method: challenge.method, expiresAt: challenge.expiresAt }, delivery });
+  } catch (err) { next(err); }
+}
+
+async function refundFoodOrder(req, res) {
+  try {
+    const orderId = /^[1-9][0-9]*$/.test(String(req.params.id)) ? Number(req.params.id) : NaN;
+    const { amount_cents, reason } = req.body;
+
+    if (!Number.isSafeInteger(orderId)) {
+      throw refundError(400, { error: 'Invalid order id' });
+    }
+    if (typeof reason !== 'string' || !reason.trim()) {
+      throw refundError(400, { error: 'Refund reason is required' });
+    }
+    if (reason.trim().length > 1000) {
+      throw refundError(400, { error: 'Refund reason is too long' });
+    }
+
+    // ADM-191: the server must validate the amount itself; the client is not
+    // a trust boundary. Whole cents only.
+    let requestedAmount = null;
+    if (amount_cents !== undefined && amount_cents !== null) {
+      const n = Number(amount_cents);
+      if (!Number.isSafeInteger(n) || n <= 0) {
+        throw refundError(400, { error: 'Refund amount must be a positive whole number of cents' });
+      }
+      requestedAmount = n;
+    }
+
+    await require('../services/stepupChallengeService').verifyStepupChallenge({
+      challengeId: req.body.stepupChallengeId, actorUserId: req.user.id, actionType: 'food_refund', code: req.body.stepupCode,
+    });
+    const result = await require('../utils/transaction').withTransaction(pool, client =>
+      executeFoodOrderRefund(client, { req, orderId, requestedAmount, reason }), 'admin_food_refund');
+    if (result.gate) return require('../utils/dualApprovalHttp').sendMoneyMovementGateResult(res, result.gate);
+    await result.afterCommit?.();
+    return res.json(result);
   } catch (err) {
-    try { await client.query('ROLLBACK'); } catch (rbErr) { /* already closed */ }
-    logger.error('adminFoodOrders.refund error', { message: err.message });
-    res.status(500).json({ error: 'Failed to process refund' });
-  } finally {
-    client.release();
+    logger.error('adminFoodOrders.refund error', { error: err.message });
+    return res.status(err.statusCode || 500).json(err.publicPayload || { error: err.statusCode ? err.message : 'Failed to process refund', code: err.code });
   }
 }
 
-module.exports = { listFoodOrders, getFoodOrder, refundFoodOrder };
+module.exports = { listFoodOrders, getFoodOrder, refundFoodOrder, executeFoodOrderRefund, issueRefundStepupChallenge };

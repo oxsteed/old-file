@@ -1,4 +1,8 @@
 {
+  "adminOpsAudit": {
+    "fulfillmentTitle": "Confirm card fulfillment",
+    "fulfillmentConfirm": "Mark this card as {{status}}? Confirm that this physical step is complete. This action cannot be undone here."
+  },
   "statementCenter": {
     "title": "Statement center",
     "description": "Review your credit, settlement, earnings, and business statements in one place.",

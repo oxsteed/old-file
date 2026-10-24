@@ -183,7 +183,7 @@ async function decideMoneyMovementApproval({ approvalId, approverId, decision, r
   }
   if (!approverId) throw new AppError('approverId is required', 400, 'money_movement_actor_required');
 
-  return withTransaction(pool, async (client) => {
+  const outcome = await withTransaction(pool, async (client) => {
     const { rows } = await client.query(
       'SELECT * FROM money_movement_approvals WHERE id = $1 FOR UPDATE',
       [approvalId]
@@ -268,10 +268,14 @@ async function decideMoneyMovementApproval({ approvalId, approverId, decision, r
     });
     return { approval: executed.rows[0], executed: true, result };
   }, 'dual_approval_decide');
+  try { await outcome.result?.afterCommit?.(); }
+  catch (err) { logger.error('Money movement notification failed after commit', { approvalId, error: err.message }); }
+  return outcome;
 }
 
-async function listPendingMoneyMovementApprovals({ limit = 50 } = {}) {
-  const parsed = Math.min(200, Math.max(1, Number(limit) || 50));
+async function listPendingMoneyMovementApprovals({ limit = 50, offset = 0 } = {}) {
+  const parsed = Math.min(200, Math.max(1, parseInt(limit, 10) || 50));
+  const safeOffset = Math.max(0, parseInt(offset, 10) || 0);
   const { rows } = await pool.query(
     `SELECT a.*,
             r.email AS requested_by_email,
@@ -280,11 +284,12 @@ async function listPendingMoneyMovementApprovals({ limit = 50 } = {}) {
        FROM money_movement_approvals a
        LEFT JOIN users r ON r.id = a.requested_by
       WHERE a.status = 'pending'
-      ORDER BY a.requested_at ASC
-      LIMIT $1`,
-    [parsed]
+      ORDER BY a.requested_at ASC, a.id ASC
+      LIMIT $1 OFFSET $2`,
+    [parsed, safeOffset]
   );
-  return rows;
+  const count = await pool.query("SELECT COUNT(*)::int AS total FROM money_movement_approvals WHERE status = 'pending'");
+  return { approvals: rows, total: Number(count.rows[0]?.total || 0), limit: parsed, offset: safeOffset };
 }
 
 async function getMoneyMovementApproval(approvalId) {

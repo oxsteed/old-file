@@ -8,6 +8,9 @@ const fulfillment = require('./restaurantGiftCardFulfillment');
 // Resend retains send identities for 24h. Stop automatic retries at 23h;
 // uncertain older attempts require operator evidence, never a blind resend.
 const RETRY_WINDOW_MS = 23 * 60 * 60 * 1000;
+// Retrieval remains available beyond the 24h send-idempotency window.
+const STATUS_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+function statusPollMinutes(polls) { return Math.min(240, 15 * 2 ** Math.min(4, Math.max(0, Number(polls) || 0))); }
 async function processGiftCardDelivery({
   db = pool,
   send = email.sendEmail,
@@ -44,7 +47,7 @@ async function processGiftCardDelivery({
       if (row.status === 'accepted') {
         if (
           Date.now() - new Date(row.first_attempt_at).getTime() >
-          7 * 24 * 60 * 60 * 1000
+          STATUS_WINDOW_MS
         )
           status = 'needs_review';
         else {
@@ -102,7 +105,8 @@ async function processGiftCardDelivery({
       `UPDATE restaurant_gift_card_fulfillments SET status=$3,provider_id=$4,provider_event=$5,
       last_error=$6,lease_token=NULL,lease_expires_at=NULL,
       payload_ciphertext=CASE WHEN $3='delivered' THEN NULL ELSE payload_ciphertext END,
-      next_attempt_at=NOW()+($7::int*INTERVAL '1 minute'),updated_at=NOW()
+      next_attempt_at=NOW()+($7::int*INTERVAL '1 minute'),
+      status_poll_count=status_poll_count+CASE WHEN $8 THEN 1 ELSE 0 END,updated_at=NOW()
       WHERE id=$1 AND lease_token=$2`,
       [
         row.id,
@@ -112,12 +116,13 @@ async function processGiftCardDelivery({
         event,
         error,
         row.status === 'accepted'
-          ? 15
+          ? statusPollMinutes(row.status_poll_count)
           : Math.min(60, 2 ** Number(row.attempts)),
+        row.status === 'accepted',
       ],
     );
     acknowledged += result.rowCount;
   }
   return { claimed: rows.length, acknowledged };
 }
-module.exports = { processGiftCardDelivery, RETRY_WINDOW_MS };
+module.exports = { processGiftCardDelivery, RETRY_WINDOW_MS, STATUS_WINDOW_MS, statusPollMinutes };

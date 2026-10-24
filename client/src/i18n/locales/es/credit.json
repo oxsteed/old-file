@@ -1,4 +1,8 @@
 {
+  "adminOpsAudit": {
+    "fulfillmentTitle": "Confirmar entrega de tarjeta",
+    "fulfillmentConfirm": "¿Marcar esta tarjeta como {{status}}? Confirma que este paso físico está completo. Esta acción no se puede deshacer aquí."
+  },
   "statementCenter": {
     "title": "Centro de estados de cuenta",
     "description": "Revisa tus estados de crédito, liquidaciones, ingresos y negocio en un solo lugar.",

@@ -420,6 +420,13 @@ export default function AdminUserSettingsPage() {
                   : t(`adminSettings.notifications.${key}`, label)}
               </label>
             ))}
+            <label className="admin-settings-toggle">
+              <input type="checkbox" checked={!!notifPrefs.safety_on_call} onChange={e => setNotifPrefs({ ...notifPrefs, safety_on_call: e.target.checked })} />
+              {t('adminOpsAudit.onCall')}
+            </label>
+            <label>{t('adminOpsAudit.incidentTypes')}
+              <input value={(notifPrefs.incident_types || ['*']).join(', ')} onChange={e => setNotifPrefs({ ...notifPrefs, incident_types: e.target.value.split(',').map(v => v.trim()).filter(Boolean) })} />
+            </label>
             <button className="admin-settings-save" onClick={saveNotifPrefs} disabled={notifSaving}>
               {notifSaving ? t('common.saving', 'Saving...') : t('common.save', 'Save')}
             </button>

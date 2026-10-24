@@ -1,5 +1,6 @@
 'use strict';
 
+const { mockQuery } = require('./setup');
 jest.mock('../services/metricsService', () => ({
   checkAlerts: jest.fn().mockReturnValue([]),
   recordSecurityEvent: jest.fn(),
@@ -9,7 +10,7 @@ jest.mock('../services/incidentStore', () => ({
   listIncidents: jest.fn(),
 }));
 jest.mock('../utils/email', () => ({
-  sendSecurityAlertEmail: jest.fn().mockResolvedValue(undefined),
+  sendSecurityAlertEmail: jest.fn().mockResolvedValue({ success: true }),
 }));
 
 const incidentAlertService = require('../services/incidentAlertService');
@@ -20,6 +21,7 @@ afterAll(() => {
 });
 
 describe('incident alert dispatch', () => {
+  beforeEach(() => { mockQuery.mockResolvedValue({ rows: [{ id: 11 }] }); });
   afterEach(() => {
     delete process.env.SLACK_SECURITY_WEBHOOK;
     jest.restoreAllMocks();
@@ -42,7 +44,7 @@ describe('incident alert dispatch', () => {
   });
 
   test('dispatches once when this process claims the notification window', async () => {
-    const channel = jest.fn().mockResolvedValue(undefined);
+    const channel = jest.fn().mockResolvedValue({ success: true });
     incidentAlertService.alertChannels = [channel];
     incidentStore.recordIncident.mockResolvedValue({
       persisted: true,
@@ -58,7 +60,7 @@ describe('incident alert dispatch', () => {
   });
 
   test('keeps best-effort dispatch when durable persistence is unavailable', async () => {
-    const channel = jest.fn().mockResolvedValue(undefined);
+    const channel = jest.fn().mockResolvedValue({ success: true });
     incidentAlertService.alertChannels = [channel];
     incidentStore.recordIncident.mockResolvedValue({ persisted: false, error: 'migration pending' });
 

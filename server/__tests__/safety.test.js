@@ -5,7 +5,7 @@ const request = require('supertest');
 const { mockQuery, resetMocks } = require('./setup');
 
 jest.mock('../services/notificationService', () => ({
-  sendNotification: jest.fn().mockResolvedValue(undefined),
+  sendNotification: jest.fn().mockResolvedValue({ success: true }),
 }));
 
 const { sendNotification } = require('../services/notificationService');
@@ -31,7 +31,7 @@ beforeEach(() => {
 describe('safety SOS endpoint', () => {
   test('accepts legacy latitude and longitude fields while preserving location', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ id: 1, user_id: 'user-1', lat: 37.7749, lng: -122.4194 }], rowCount: 1 })
       .mockResolvedValueOnce({ rows: [{ id: 'admin-1' }], rowCount: 1 });
 
     const res = await request(buildApp())
@@ -69,8 +69,8 @@ describe('safety SOS endpoint', () => {
 
   test('notifies the other party when SOS is linked to a job', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [], rowCount: 1 })
-      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [{ id: 1, user_id: 'user-1', lat: 37.7749, lng: -122.4194 }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ id: 'admin-1' }], rowCount: 1 })
       .mockResolvedValueOnce({ rows: [{ customer_id: 'user-1', helper_id: 'helper-9' }], rowCount: 1 });
 
     const res = await request(buildApp())

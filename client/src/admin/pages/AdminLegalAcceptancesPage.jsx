@@ -564,7 +564,7 @@ export default function AdminLegalAcceptancesPage() {
         open={!!revokeTarget}
         danger
         title={t('adminLegalAcceptances.confirmRevokeTitle')}
-        message={t('adminLegalAcceptances.confirmRevokeMessage')}
+        message={t('adminOpsAudit.recordOnlyRevocation')}
         onConfirm={confirmRevoke}
         onClose={() => setRevokeTarget(null)}
       />

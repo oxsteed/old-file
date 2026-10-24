@@ -1,4 +1,8 @@
 {
+  "adminOpsAudit": {
+    "fulfillmentTitle": "Confirmer la remise de la carte",
+    "fulfillmentConfirm": "Marquer cette carte comme {{status}} ? Confirmez que cette étape physique est terminée. Cette action ne peut pas être annulée ici."
+  },
   "statementCenter": {
     "title": "Centre des relevés",
     "description": "Consultez vos relevés de crédit, de règlement, de revenus et d’entreprise au même endroit.",

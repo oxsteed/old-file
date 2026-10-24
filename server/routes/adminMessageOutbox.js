@@ -3,12 +3,14 @@
 // P1-268: admin visibility and retry for dead-lettered chat notifications.
 // Mounted at /api/admin/message-notification-outbox behind requireAdmin.
 const router = require('express').Router();
-const { requireAdmin } = require('../middleware/adminAuth');
+const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { errorHandler, AppError } = require('../middleware/errorHandler');
 const outbox = require('../jobs/messageNotificationOutbox');
 const { logAdminAction } = require('../services/auditService');
 
-router.use(requireAdmin);
+const { strictLimiter } = require('../middleware/rateLimiter');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
+router.use(requireAdmin, requirePermission('manage_operations'));
 
 router.get('/failed', async (req, res, next) => {
   try {
@@ -16,7 +18,7 @@ router.get('/failed', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/retry', async (req, res, next) => {
+router.post('/retry', strictLimiter, rejectImpersonated, async (req, res, next) => {
   try {
     const all = req.body?.all === true;
     const ids = Array.isArray(req.body?.ids) ? req.body.ids : null;

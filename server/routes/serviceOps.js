@@ -15,6 +15,7 @@ router.use(requireAdmin, requirePermission('manage_operations'));
 router.get('/capacity', serviceOpsController.getCapacity);
 
 // Ops runbook registry.
+router.get('/runbooks/:id/history', serviceOpsController.listRunbookHistory);
 router.get('/runbooks', serviceOpsController.listRunbooks);
 router.post('/runbooks', serviceOpsController.createRunbook);
 router.put('/runbooks/:id', serviceOpsController.updateRunbook);

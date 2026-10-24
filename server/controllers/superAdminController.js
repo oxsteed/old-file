@@ -1701,7 +1701,7 @@ exports.getPayouts = async (req, res) => {
         LEFT JOIN jobs j ON p.job_id = j.id
         LEFT JOIN connect_accounts ca ON ca.user_id = u.id
        WHERE ${baseFilter}
-       ORDER BY p.created_at DESC
+       ORDER BY p.created_at DESC, p.id DESC
        LIMIT $1 OFFSET $2
     `, payoutParams);
 
@@ -1715,7 +1715,13 @@ exports.getPayouts = async (req, res) => {
         FROM payments WHERE helper_payout > 0
     `);
 
+    const countFilter = payee_id ? baseFilter.replace('p.payee_id = $3', 'p.payee_id = $1') : baseFilter;
+    const { rows: countRows } = await db.query(
+      `SELECT COUNT(*)::int AS total FROM payments p JOIN users u ON p.payee_id=u.id WHERE ${countFilter}`,
+      payee_id ? [payee_id] : []
+    );
     res.json({
+      total: Number(countRows[0]?.total || 0),
       payouts,
       stats: statsRows[0],
       page,
@@ -3300,6 +3306,14 @@ exports.toggleAdminAccountStatus = async (req, res) => {
     const { rows: updateRows } = await db.query('UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2 AND is_active = $3 RETURNING id', [newStatus, id, rows[0].is_active]);
     if (updateRows.length === 0) {
       return res.status(409).json({ error: 'Admin status changed during update - concurrent modification detected.' });
+    }
+    if (!newStatus) {
+      await db.query(
+        `UPDATE delegation_grants SET status = 'revoked', revoked_at = NOW(),
+                revoked_by = $2, revoke_reason = 'Grantor account disabled'
+          WHERE grantor_admin_id = $1 AND status = 'active'`,
+        [id, req.user.id]
+      );
     }
     // Invalidate all sessions for this admin and kick any live WebSocket connection
     await db.query(

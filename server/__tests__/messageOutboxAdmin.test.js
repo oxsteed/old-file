@@ -6,8 +6,10 @@ jest.mock('../services/notificationService', () => ({ sendNotification: jest.fn(
 jest.mock('../jobs/jobLockingService', () => ({ withFencedJobLock: jest.fn() }));
 jest.mock('../utils/logger', () => ({ info: jest.fn(), error: jest.fn(), warn: jest.fn() }));
 jest.mock('../middleware/adminAuth', () => ({
+  requirePermission: jest.fn(() => (_req, _res, next) => next()),
   requireAdmin: (req, _res, next) => { req.user = { id: '00000000-0000-4000-8000-0000000000ad' }; next(); },
 }));
+jest.mock('../middleware/rateLimiter', () => ({ strictLimiter: (_req, _res, next) => next() }));
 jest.mock('../services/auditService', () => ({ logAdminAction: jest.fn().mockResolvedValue(undefined) }));
 
 const express = require('express');

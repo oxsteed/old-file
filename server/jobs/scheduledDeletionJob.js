@@ -223,7 +223,7 @@ async function cleanupExpiredSessionData() {
   }
 }
 
-async function hardDeleteUser(user) {
+async function hardDeleteUser(user, { throwOnError = false } = {}) {
   const userId = user.id;
   const client = await pool.connect();
 
@@ -347,6 +347,7 @@ async function hardDeleteUser(user) {
     }
   } catch (err) {
     await client.query('ROLLBACK');
+    if (throwOnError) throw err;
     // RESTRICT-guarded audit children (migration 624) fail closed here:
     // deleting the user would wipe audit evidence, so the user is retained
     // for a manual archive-then-delete instead of losing history.

@@ -1,12 +1,13 @@
 const cron = require('node-cron');
+const { withFencedJobLock } = require('./jobLockingService');
 const logger = require('../utils/logger');
 const { runDiscoverDigestTick } = require('../controllers/discoverController');
 
-/** Daily 9am Eastern - email when saved Discover searches have new public matches */
+/** Daily digests after 9am Eastern; bounded catch-up batches drain during the day. */
 function startDiscoverDigestJob() {
-  cron.schedule('0 9 * * *', async () => {
+  cron.schedule('*/10 9-23 * * *', async () => {
     try {
-      await runDiscoverDigestTick();
+      await withFencedJobLock('discover-digest', (fence) => runDiscoverDigestTick({ fence, limit: 100 }));
     } catch (err) {
       logger.error('[discoverDigest] job failed', { err: err.message });
     }

@@ -109,8 +109,9 @@ describe('CCPA request routes', () => {
   });
 
   test('POST /ccpa-requests/bulk/mark-completed completes requests as admin', async () => {
-    mockQuery.mockImplementation(async (text) => {
+    mockQuery.mockImplementation(async (text, params) => {
       const sql = String(text);
+      if (sql.includes('SELECT * FROM ccpa_data_requests WHERE id=$1 FOR UPDATE')) return { rows: [{ id: params[0], status: 'pending', request_type: 'access', email: 'fixture@example.invalid' }] };
       if (sql.includes('UPDATE ccpa_data_requests')) return { rows: [{ id: 1 }, { id: 2 }] };
       if (sql.includes('INSERT INTO legal_audit_log')) return { rows: [] };
       return { rows: [], rowCount: 0 };
@@ -126,7 +127,7 @@ describe('CCPA request routes', () => {
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({ success: true, updatedCount: 2 });
     const updateCall = mockQuery.mock.calls.find(([sql]) => String(sql).includes('UPDATE ccpa_data_requests'));
-    expect(String(updateCall[0])).toContain("SET status = 'completed'");
+    expect(String(updateCall[0])).toContain("SET status='completed'");
   });
 
   test('POST /ccpa-requests/bulk/mark-completed rejects non-admins', async () => {
