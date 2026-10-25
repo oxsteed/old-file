@@ -25039,6 +25039,41 @@
         "syncing": "Synchronisation…",
         "pendingSync": "{{count}} à synchroniser"
       }
+    },
+    "accountingRuntime": {
+      "title": "Connexions comptables",
+      "description": "Connectez la société du fournisseur, associez les comptes et préparez une écriture. Un opérateur doit activer l’envoi. Les envois incertains nécessitent un rapprochement.",
+      "provider": "Fournisseur",
+      "company": "Identifiant de société / organisation",
+      "save": "Enregistrer la configuration",
+      "connect": "Connexion sécurisée",
+      "from": "Du",
+      "to": "Au",
+      "queue": "Préparer l’écriture",
+      "refresh": "Actualiser",
+      "reconcile": "Vérifier les écritures du fournisseur",
+      "verified": "Montants et références vérifiés.",
+      "review": "Les écritures nécessitent une vérification.",
+      "accounts": {
+        "sales": "Ventes",
+        "taxPayable": "Taxes à payer",
+        "serviceFees": "Frais de service",
+        "deliveryFees": "Frais de livraison",
+        "tipsPayable": "Pourboires à payer",
+        "paymentClearing": "Compte de compensation"
+      },
+      "states": {
+        "disconnected": "Déconnecté",
+        "configured": "Configuré",
+        "active": "Connecté",
+        "paused": "En pause",
+        "error": "Erreur",
+        "pending": "En attente",
+        "sending": "Envoi en cours",
+        "posted": "Comptabilisé",
+        "failed": "Échec",
+        "requires_reconciliation": "Rapprochement requis"
+      }
     }
   },
   "promotePage": {

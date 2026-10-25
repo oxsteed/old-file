@@ -71,6 +71,37 @@ exports.listHubs = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+exports.deviceBootstrap = async (req, res, next) => {
+  try {
+    res.json(await require('../services/storeHubBootstrap').bootstrap(pool, req.hub));
+  } catch (error) { next(error); }
+};
+
+exports.authorizePeer = async (req, res, next) => {
+  try {
+    const peerId = hub.normalizeId(req.body.deviceId, 'device');
+    const peer = await require('../services/restaurantDeviceCredentials').authenticateAppDevice(pool, {
+      restaurantId: req.hub.restaurantId, deviceId: peerId, token: req.body.token,
+    });
+    if (Number(peer.location_id) !== req.hub.locationId || !['pos','kitchen','display','printer'].includes(peer.app_key))
+      throw new AppError('Peer is not allowed at this hub', 403, 'hub_peer_forbidden');
+    let shiftIds=[];
+    if(peer.app_key==='pos'){
+      // A manager pins each offline counter to one drawer in its device config.
+      // A device credential must not select another cashier's open drawer.
+      const shiftId=Number(peer.config?.offlineShiftId);
+      if(!Number.isSafeInteger(shiftId)||shiftId<1)throw new AppError('Assign an offline drawer to this POS first',409,'hub_drawer_assignment_required');
+      const {rows:[shift]}=await pool.query("SELECT id FROM restaurant_pos_shifts WHERE id=$1 AND restaurant_id=$2 AND location_id=$3 AND status='open'",[shiftId,req.hub.restaurantId,req.hub.locationId]);
+      if(!shift)throw new AppError('Assigned drawer is not open',409,'hub_drawer_assignment_required');
+      shiftIds=[Number(shift.id)];
+    }
+    res.json({ deviceId: peerId, registryId: Number(peer.registry_id), role: peer.app_key, shiftIds,
+      restaurantId: req.hub.restaurantId, locationId: req.hub.locationId,
+      expiresAt: new Date(Math.min(Date.now()+60*60*1000,
+        peer.device_token_expires_at ? new Date(peer.device_token_expires_at).getTime() : Infinity)).toISOString() });
+  } catch (error) { next(error); }
+};
+
 exports.registerHub = async (req, res, next) => {
   try {
     const restaurant = await loadStaffRestaurant(req, 'settings.manage');

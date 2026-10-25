@@ -123,6 +123,9 @@ jobs:
         working-directory: server
         run: npm ci
 
+      - name: Restaurant LAN outage and printer recovery
+        run: node --test scripts/restaurant-store-hub.test.cjs scripts/restaurant-store-hub.browser.test.cjs
+
       - name: Install FFmpeg for video regression tests
         run: |
           sudo apt-get update
@@ -241,7 +244,7 @@ jobs:
             finally { await db.end(); }
           })().catch(error => { console.error(error.message); process.exitCode = 1; });
           NODE
-          npx jest --runInBand __tests__/restaurantStoreIsolation.db.test.js __tests__/restaurantServiceCycle.db.test.js
+          npx jest --runInBand __tests__/restaurantStoreIsolation.db.test.js __tests__/restaurantServiceCycle.db.test.js __tests__/restaurantIntegrationRuntime.db.test.js
 
       - name: Restaurant operational evidence PostgreSQL regressions
         working-directory: server

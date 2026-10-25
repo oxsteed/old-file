@@ -25039,6 +25039,41 @@
           ]
         }
       }
+    },
+    "accountingRuntime": {
+      "title": "Accounting connections",
+      "description": "Connect the provider company, map account codes, and queue a journal. Provider dispatch must be enabled by an operator. Uncertain sends require reconciliation.",
+      "provider": "Provider",
+      "company": "Company / tenant ID",
+      "save": "Save configuration",
+      "connect": "Connect securely",
+      "from": "From",
+      "to": "To",
+      "queue": "Queue journal",
+      "refresh": "Refresh",
+      "reconcile": "Check provider records",
+      "verified": "Provider amounts and references verified.",
+      "review": "Provider records need review.",
+      "accounts": {
+        "sales": "Sales",
+        "taxPayable": "Tax payable",
+        "serviceFees": "Service fees",
+        "deliveryFees": "Delivery fees",
+        "tipsPayable": "Tips payable",
+        "paymentClearing": "Payment clearing"
+      },
+      "states": {
+        "disconnected": "Disconnected",
+        "configured": "Configured",
+        "active": "Connected",
+        "paused": "Paused",
+        "error": "Error",
+        "pending": "Queued",
+        "sending": "Sending",
+        "posted": "Posted",
+        "failed": "Failed",
+        "requires_reconciliation": "Needs reconciliation"
+      }
     }
   },
   "promotePage": {

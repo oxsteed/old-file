@@ -25039,6 +25039,41 @@
         "syncing": "Sincronizando…",
         "pendingSync": "{{count}} por sincronizar"
       }
+    },
+    "accountingRuntime": {
+      "title": "Conexiones contables",
+      "description": "Conecte la empresa del proveedor, asigne cuentas y ponga un asiento en cola. Un operador debe activar el envío. Los envíos inciertos requieren conciliación.",
+      "provider": "Proveedor",
+      "company": "ID de empresa / organización",
+      "save": "Guardar configuración",
+      "connect": "Conectar de forma segura",
+      "from": "Desde",
+      "to": "Hasta",
+      "queue": "Poner asiento en cola",
+      "refresh": "Actualizar",
+      "reconcile": "Consultar registros del proveedor",
+      "verified": "Importes y referencias verificados.",
+      "review": "Los registros necesitan revisión.",
+      "accounts": {
+        "sales": "Ventas",
+        "taxPayable": "Impuestos por pagar",
+        "serviceFees": "Cargos por servicio",
+        "deliveryFees": "Cargos de entrega",
+        "tipsPayable": "Propinas por pagar",
+        "paymentClearing": "Compensación de pagos"
+      },
+      "states": {
+        "disconnected": "Desconectado",
+        "configured": "Configurado",
+        "active": "Conectado",
+        "paused": "Pausado",
+        "error": "Error",
+        "pending": "En cola",
+        "sending": "Enviando",
+        "posted": "Contabilizado",
+        "failed": "Fallido",
+        "requires_reconciliation": "Requiere conciliación"
+      }
     }
   },
   "promotePage": {

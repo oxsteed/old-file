@@ -25039,6 +25039,41 @@
         "syncing": "Ap senkronize…",
         "pendingSync": "{{count}} ap tann"
       }
+    },
+    "accountingRuntime": {
+      "title": "Koneksyon kontablite",
+      "description": "Konekte konpayi founisè a, asosye kòd kont yo epi mete ekriti a nan liy. Yon operatè dwe aktive voye yo. Ekriti ki pa sèten bezwen rekonsilyasyon.",
+      "provider": "Founisè",
+      "company": "ID konpayi / òganizasyon",
+      "save": "Anrejistre konfigirasyon",
+      "connect": "Konekte an sekirite",
+      "from": "Depi",
+      "to": "Jiska",
+      "queue": "Mete ekriti nan liy",
+      "refresh": "Rafrechi",
+      "reconcile": "Verifye dosye founisè a",
+      "verified": "Montan ak referans yo verifye.",
+      "review": "Dosye yo bezwen revizyon.",
+      "accounts": {
+        "sales": "Lavant",
+        "taxPayable": "Taks pou peye",
+        "serviceFees": "Frè sèvis",
+        "deliveryFees": "Frè livrezon",
+        "tipsPayable": "Poubwa pou peye",
+        "paymentClearing": "Kont pasaj peman"
+      },
+      "states": {
+        "disconnected": "Dekonekte",
+        "configured": "Konfigire",
+        "active": "Konekte",
+        "paused": "An poz",
+        "error": "Erè",
+        "pending": "Nan liy",
+        "sending": "Ap voye",
+        "posted": "Anrejistre",
+        "failed": "Echwe",
+        "requires_reconciliation": "Bezwen rekonsilyasyon"
+      }
     }
   },
   "promotePage": {

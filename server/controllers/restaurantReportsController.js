@@ -886,7 +886,7 @@ async function loadSalesJournalRows(restaurantId, restaurant, reqQuery) {
             o.id AS order_id, o.location_id, l.name AS location_name,
             COALESCE(NULLIF(o.currency_code, ''), 'USD') AS currency,
             o.order_source, o.fulfillment_type, o.status AS order_status,
-            o.payment_status, o.subtotal_cents, o.discount_cents, o.tax_cents,
+            o.payment_status,o.tax_rule_snapshot, o.subtotal_cents, o.discount_cents, o.tax_cents,
             o.service_fee_cents, o.delivery_fee_cents, o.tip_cents,
             o.total_cents AS order_total_cents, p.id AS payment_id,
             p.payment_type, p.status AS payment_status_detail,

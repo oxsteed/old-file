@@ -43,6 +43,24 @@ const locationAccess = require('../controllers/restaurantLocationAccessControlle
 const deliveryMarketplaces = require('../controllers/restaurantDeliveryMarketplaceController');
 const hq = require('../controllers/restaurantHQController');
 const accounting = require('../controllers/restaurantAccountingController');
+const offlineTerminal=require('../controllers/restaurantTerminalOfflineController');
+
+// Remove single-use OAuth codes before downstream authentication/error logs.
+router.get('/:restaurantId/accounting/:provider/oauth/callback',strictLimiter,async(req,res,next)=>{
+  req.accountingOAuthQuery={...req.query};req.query={};
+  req.url=req.url.split('?')[0];req.originalUrl=req.originalUrl.split('?')[0];
+  try {
+    const state=req.accountingOAuthQuery.state;
+    if(typeof state!=='string'||!/^[a-f0-9]{64}$/.test(state))throw new (require('../utils/appError'))('Invalid OAuth state',400,'provider_oauth_state_invalid');
+    const {rows:[grant]}=await require('../db').query(`SELECT s.user_id FROM restaurant_accounting_oauth_states s
+      JOIN restaurant_accounting_integrations i ON i.id=s.integration_id WHERE s.state_hash=$1 AND i.restaurant_id=$2 AND i.provider=$3
+      AND s.consumed_at IS NULL AND s.expires_at>NOW()`,[require('crypto').createHash('sha256').update(state).digest('hex'),req.params.restaurantId,req.params.provider]);
+    if(!grant)throw new (require('../utils/appError'))('Expired OAuth state',400,'provider_oauth_state_invalid');
+    // This single-use capability was issued after staff authorization. The
+    // controller rechecks that staff member's current brand permission.
+    req.user={id:grant.user_id};next();
+  }catch(error){next(error);}
+},scopeExempt('signed-callback'),accounting.finishOAuth);
 
 // Managed appliances authenticate with their scoped device credential.
 router.post('/:restaurantId/devices/:deviceId/screen-orders', strictLimiter, scopeExempt('device-credential'), screens.createOrder);
@@ -180,6 +198,8 @@ router.post('/:restaurantId/hq/regions', requireRestaurantAccess(), hq.createReg
 router.patch('/:restaurantId/hq/regions/:regionId', requireRestaurantAccess(), hq.updateRegion);
 router.get('/:restaurantId/accounting/integrations', requireRestaurantAccess(), accounting.list);
 router.get('/:restaurantId/accounting/exports', requireRestaurantAccess(), accounting.listExports);
+router.post('/:restaurantId/accounting/:provider/oauth/start', requireRestaurantAccess(), accounting.startOAuth);
+router.post('/:restaurantId/accounting/exports/:exportId/reconcile', requireRestaurantAccess(), accounting.reconcileExport);
 router.put('/:restaurantId/accounting/integrations/:provider', requireRestaurantAccess(), accounting.upsert);
 router.post('/:restaurantId/accounting/integrations/:provider/exports', requireRestaurantAccess(), accounting.queueJournal);
 router.patch('/:restaurantId/accounting/exports/:exportId', requireRestaurantAccess(), accounting.updateExport);
@@ -462,6 +482,9 @@ router.post('/:restaurantId/pos/orders/:orderId/payment', requireRestaurantAcces
 router.post('/:restaurantId/pos/orders/:orderId/refund', requireRestaurantAccess(), appFlow.refundPosOrder);
 router.post('/:restaurantId/pos/orders/:orderId/refunds', requireRestaurantAccess(), appFlow.refundPosOrder);
 router.post('/:restaurantId/pos/terminal/connection-token', requireRestaurantAccess(), appFlow.createPosTerminalConnectionToken);
+router.put('/:restaurantId/locations/:locationId/terminal/offline-policy',requireRestaurantAccess(),strictLimiter,offlineTerminal.policy);
+router.post('/:restaurantId/pos/orders/:orderId/offline-permit',requireRestaurantAccess(),strictLimiter,offlineTerminal.permit);
+router.post('/:restaurantId/pos/offline-permits/:permitId/reconcile',requireRestaurantAccess(),strictLimiter,offlineTerminal.reconcile);
 router.post('/:restaurantId/pos/orders/:orderId/card-intents', requireRestaurantAccess(), appFlow.createPosCardIntent);
 router.get('/:restaurantId/pos/payments/:paymentId', requireRestaurantAccess(), appFlow.getPosPaymentStatus);
 router.post('/:restaurantId/pos/payments/:paymentId/capture', requireRestaurantAccess(), appFlow.capturePosCardPayment);

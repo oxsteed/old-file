@@ -179,18 +179,18 @@ function normalizeOfflineSale(input) {
   const lines = items.map((line, index) => {
     const menuItemId = normalizeId(line.menuItemId ?? line.menu_item_id, `items[${index}].menuItemId`);
     const quantity = Number(line.quantity);
-    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 999) {
+    if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 999) {
       throw new AppError(`items[${index}].quantity must be an integer between 1 and 999`, 400, 'validation_failed');
     }
     const unitPriceCents = Number(line.unitPriceCents ?? line.unit_price_cents);
-    if (!Number.isInteger(unitPriceCents) || unitPriceCents < 0) {
+    if (!Number.isSafeInteger(unitPriceCents) || unitPriceCents < 0) {
       throw new AppError(`items[${index}].unitPriceCents must be a non-negative integer`, 400, 'validation_failed');
     }
     return { menuItemId, quantity, unitPriceCents, name: String(line.name || '').slice(0, 160) || null };
   });
   for (const field of ['subtotalCents', 'taxCents', 'tipCents', 'discountCents', 'totalCents', 'cashTenderedCents']) {
     const value = Number(input[field] ?? input[field.replace(/([A-Z])/g, (m) => `_${m.toLowerCase()}`)] ?? 0);
-    if (!Number.isInteger(value) || value < 0) throw new AppError(`${field} must be a non-negative integer`, 400, 'validation_failed');
+    if (!Number.isSafeInteger(value) || value < 0) throw new AppError(`${field} must be a non-negative integer`, 400, 'validation_failed');
   }
   const subtotalCents = Number(input.subtotalCents ?? input.subtotal_cents ?? 0);
   const taxCents = Number(input.taxCents ?? input.tax_cents ?? 0);
@@ -198,18 +198,19 @@ function normalizeOfflineSale(input) {
   const discountCents = Number(input.discountCents ?? input.discount_cents ?? 0);
   const totalCents = Number(input.totalCents ?? input.total_cents);
   const cashTenderedCents = Number(input.cashTenderedCents ?? input.cash_tendered_cents);
-  if (!Number.isInteger(totalCents) || totalCents < 0) throw new AppError('totalCents must be a non-negative integer', 400, 'validation_failed');
-  if (!Number.isInteger(cashTenderedCents) || cashTenderedCents < totalCents) {
+  if (!Number.isSafeInteger(totalCents) || totalCents < 0) throw new AppError('totalCents must be a non-negative integer', 400, 'validation_failed');
+  if (!Number.isSafeInteger(cashTenderedCents) || cashTenderedCents < totalCents) {
     throw new AppError('cashTenderedCents must cover totalCents', 400, 'validation_failed');
   }
   const computedSubtotal = lines.reduce((sum, line) => sum + line.quantity * line.unitPriceCents, 0);
   if (computedSubtotal !== subtotalCents) throw new AppError('subtotalCents does not match the item lines', 400, 'totals_mismatch');
-  if (subtotalCents + taxCents + tipCents - discountCents !== totalCents) {
+  const taxIncluded = input.taxIncluded === true;
+  if (subtotalCents + (taxIncluded ? 0 : taxCents) + tipCents - discountCents !== totalCents) {
     throw new AppError('totalCents does not match subtotal + tax + tip - discount', 400, 'totals_mismatch');
   }
   return {
     hubSaleUuid, idempotencyKey, shiftId, lines,
-    subtotalCents, taxCents, tipCents, discountCents, totalCents, cashTenderedCents,
+    subtotalCents, taxCents, taxIncluded, tipCents, discountCents, totalCents, cashTenderedCents,
     currencyCode: String(input.currencyCode || input.currency_code || 'USD').slice(0, 3).toUpperCase(),
     note: String(input.note || '').slice(0, 500) || null,
   };
@@ -243,16 +244,30 @@ async function queueOfflineSales(client, { restaurantId, hubId, sales }) {
       [
         restaurantId, hub.location_id, hubId, sale.hubSaleUuid, sale.idempotencyKey,
         sale.shiftId,
-        JSON.stringify({ lines: sale.lines, subtotalCents: sale.subtotalCents, taxCents: sale.taxCents, tipCents: sale.tipCents, discountCents: sale.discountCents, note: sale.note }),
+        JSON.stringify({ lines: sale.lines, subtotalCents: sale.subtotalCents, taxCents: sale.taxCents, taxIncluded: sale.taxIncluded, tipCents: sale.tipCents, discountCents: sale.discountCents, note: sale.note }),
         sale.totalCents, sale.cashTenderedCents, sale.currencyCode,
       ]
     );
     if (row) queued.push({ id: Number(row.id), idempotencyKey: sale.idempotencyKey, status: row.status });
     else {
       const { rows: [existing] } = await client.query(
-        `SELECT id, status FROM store_hub_offline_sales WHERE restaurant_id = $1 AND idempotency_key = $2`,
+        `SELECT * FROM store_hub_offline_sales WHERE restaurant_id = $1 AND idempotency_key = $2`,
         [restaurantId, sale.idempotencyKey]
       );
+      if (!existing || Number(existing.hub_id)!==Number(hubId)
+        || Number(existing.location_id)!==Number(hub.location_id)
+        || String(existing.hub_sale_uuid)!==sale.hubSaleUuid
+        || Number(existing.shift_id)!==sale.shiftId || Number(existing.total_cents)!==sale.totalCents
+        || Number(existing.cash_tendered_cents)!==sale.cashTenderedCents
+        || String(existing.currency_code).trim()!==sale.currencyCode
+        || JSON.stringify((existing.payload?.lines||[]).map(l=>[l.menuItemId,l.quantity,l.unitPriceCents,l.name||null]))
+          !==JSON.stringify(sale.lines.map(l=>[l.menuItemId,l.quantity,l.unitPriceCents,l.name||null]))
+        || Number(existing.payload?.taxCents)!==sale.taxCents
+        || Boolean(existing.payload?.taxIncluded)!==sale.taxIncluded
+        || Number(existing.payload?.tipCents)!==sale.tipCents
+        || Number(existing.payload?.discountCents)!==sale.discountCents
+        || (existing.payload?.note||null)!==sale.note)
+        throw new AppError('Offline sale identity was already used for a different sale',409,'hub_sale_idempotency_conflict');
       queued.push({ id: Number(existing.id), idempotencyKey: sale.idempotencyKey, status: existing.status, duplicate: true });
     }
   }
@@ -311,7 +326,7 @@ async function replayOneSale(client, { sale, restaurant, timezone, actorUserId }
       payload.subtotalCents || 0, payload.taxCents || 0, payload.tipCents || 0,
       payload.discountCents || 0, sale.total_cents, sale.currency_code,
       queueNumber, clientOrderId,
-      JSON.stringify({ offline_replay: true, hub_sale_uuid: sale.hub_sale_uuid, hub_id: sale.hub_id, note: payload.note || null }),
+      JSON.stringify({ offline_replay: true, hub_sale_uuid: sale.hub_sale_uuid, hub_id: sale.hub_id, taxCalculation: {mode: payload.taxIncluded ? 'inclusive' : 'exclusive', totalTaxCents: payload.taxCents}, note: payload.note || null }),
     ]
   );
   if (!order) {

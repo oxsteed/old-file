@@ -20,6 +20,13 @@ function parsePositiveInt(value, fallback = null) {
   return Number.isSafeInteger(n) && n > 0 ? n : fallback;
 }
 
+exports.authenticate=async(req,res,next)=>{try{
+  const device=await require('../services/restaurantDeviceCredentials').authenticateRegistryDevice(pool,{
+    restaurantId:parsePositiveInt(req.params.restaurantId),registryId:parsePositiveInt(req.params.deviceId),token:req.get('X-Device-Token'),
+  });
+  res.set('Cache-Control','no-store').json({device,credentialContractVersion:1});
+}catch(error){next(error);}};
+
 async function loadRestaurant(req, permission) {
   const restaurantId = parsePositiveInt(req.params.restaurantId);
   if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');

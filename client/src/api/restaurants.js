@@ -301,3 +301,12 @@ export const declareCashTip = (restaurantId, payload) =>
 
 export const listStaffDocumentPage=(restaurantId,params={})=>api.get(`/restaurants/${restaurantId}/staff-documents`,{params}).then(r=>r.data);
 export const listSopAcknowledgementPage=(restaurantId,params={})=>api.get(`/restaurants/${restaurantId}/sop-acknowledgements`,{params}).then(r=>r.data);
+
+export const saveAccountingIntegration = (id, provider, payload) =>
+  api.put(`/restaurants/${id}/accounting/integrations/${provider}`, { ...payload, provider }).then(r => r.data.integration);
+export const connectAccountingProvider = (id, provider) =>
+  api.post(`/restaurants/${id}/accounting/${provider}/oauth/start`).then(r => r.data);
+export const queueAccountingJournal = (id, provider, payload, key) =>
+  api.post(`/restaurants/${id}/accounting/integrations/${provider}/exports`, payload, { headers: { 'Idempotency-Key': key } }).then(r => r.data);
+export const reconcileAccountingExport = (id, exportId) =>
+  api.post(`/restaurants/${id}/accounting/exports/${exportId}/reconcile`).then(r => r.data);

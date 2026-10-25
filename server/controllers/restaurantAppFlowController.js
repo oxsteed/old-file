@@ -89,7 +89,7 @@ const giftCardValue = require('../services/restaurantGiftCardService');
 // Absolute ceiling for a POS ticket tip, in cents ($500).
 const POS_TIP_ABSOLUTE_MAX_CENTS = 50000;
 
-const APP_KEYS = new Set(['manager', 'pos', 'kitchen', 'display', 'inventory', 'crew', 'runner', 'restaurant', 'credit_kiosk']);
+const APP_KEYS = new Set(['manager', 'pos', 'kitchen', 'display', 'inventory', 'crew', 'runner', 'restaurant', 'credit_kiosk', 'hub', 'printer']);
 const DEFAULT_DISPLAY_DEVICE_ROLE = 'kiosk';
 const DEVICE_STATUSES = new Set(['pending', 'paired', 'disabled']);
 const DEVICE_SYNC_STATUSES = new Set(['healthy', 'degraded', 'error']);
@@ -2852,10 +2852,12 @@ function deviceRouteContract(device, options = {}) {
   if (appKey === 'kitchen') {
     contract.routes.kitchenFeed = `${base}/devices/${deviceId}/kitchen-feed`;
     contract.routes.kitchenFeedAck = `${base}/devices/${deviceId}/kitchen-feed/ack`;
+  }
+  if (['kitchen','printer','hub'].includes(appKey)) {
     contract.routes.printerJobs = `${base}/devices/${deviceId}/printer-jobs`;
     contract.routes.printerJobClaim = `${base}/devices/${deviceId}/printer-jobs/:jobId/claim`;
     contract.routes.printerJobUpdate = `${base}/devices/${deviceId}/printer-jobs/:jobId`;
-    contract.polling.kitchenFeedAfterMs = 2000;
+    if(appKey==='kitchen')contract.polling.kitchenFeedAfterMs = 2000;
     contract.polling.printerJobsAfterMs = 2000;
   }
   if (appKey === 'display') {
@@ -2898,19 +2900,7 @@ function deviceTokenFromRequest(req) {
 async function requireDeviceCredential(req, restaurantId, deviceId) {
   const token = deviceTokenFromRequest(req);
   if (!token) throw new AppError('Device credential is required', 401, 'device_credential_required');
-  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-  const { rows: [device] } = await pool.query(
-    `SELECT *
-       FROM restaurant_app_devices
-      WHERE id = $1
-        AND restaurant_id = $2
-        AND status = 'paired'
-        AND device_token_hash = $3
-        AND (device_token_expires_at IS NULL OR device_token_expires_at > NOW())`,
-    [deviceId, restaurantId, tokenHash]
-  );
-  if (!device) throw new AppError('Device credential is invalid', 401, 'invalid_device_credential');
-  return device;
+  return require('../services/restaurantDeviceCredentials').authenticateAppDevice(pool, { restaurantId, deviceId, token });
 }
 
 exports.authenticateDisplayDevice = async (req, res, next) => {
@@ -2950,7 +2940,7 @@ exports.authenticateKitchenPrinterDevice = async (req, res, next) => {
       throw new AppError('Restaurant and device are required', 400, 'invalid_device_scope');
     }
     const device = await requireDeviceCredential(req, restaurantId, deviceId);
-    assertDeviceApp(device, 'kitchen');
+    assertPrinterDevice(device);
     req.restaurantDevice = device;
     next();
   } catch (err) {
@@ -2962,6 +2952,11 @@ function assertDeviceApp(device, appKey) {
   if (!device || device.app_key !== appKey) {
     throw new AppError(`${appKey} device credential is required`, 403, `${appKey}_device_required`);
   }
+}
+
+function assertPrinterDevice(device) {
+  if (!device || !['kitchen','printer','hub'].includes(device.app_key))
+    throw new AppError('A paired printer device is required',403,'printer_device_required');
 }
 
 // Exported additively so other device-authenticated surfaces (e.g. OxSteed
@@ -5920,7 +5915,8 @@ exports.recordPosPayment = async (req, res, next) => {
                       ), 0)::int AS paid_cents,
                 COALESCE(SUM(amount_cents) FILTER (
                         WHERE payment_type = 'refund' AND status IN ('recorded','captured','refunded')
-                      ), 0)::int AS refunded_cents
+                      ), 0)::int AS refunded_cents,
+                COALESCE(SUM(amount_cents) FILTER (WHERE payment_type<>'refund' AND status='pending'),0)::int AS reserved_cents
            FROM restaurant_pos_payments
           WHERE food_order_id = $1`,
         [orderId]
@@ -5928,7 +5924,7 @@ exports.recordPosPayment = async (req, res, next) => {
       const netPaidCents = Math.max(0, Number(ledger.paid_cents || 0) - Number(ledger.refunded_cents || 0));
       const availableCents = paymentType === 'refund'
         ? netPaidCents
-        : Math.max(0, Number(order.total_cents || 0) - netPaidCents);
+        : Math.max(0, Number(order.total_cents || 0) - netPaidCents - Number(ledger.reserved_cents || 0));
       if (amountCents > availableCents) {
         throw new AppError(
           paymentType === 'refund' ? 'Refund exceeds the paid balance' : 'Payment exceeds the remaining ticket balance',
@@ -6591,11 +6587,22 @@ exports.capturePosCardPayment = async (req, res, next) => {
     if (!payment.provider_payment_intent_id) {
       throw new AppError('Card payment is missing its processor reference', 409, 'payment_processor_reference_missing');
     }
+    let offlinePermit;
+    if(payment.provider_account_id){
+      await assertRestaurantPermission(restaurant,req.user.id,['pos.manage']);
+      const {rows:[permit]}=await pool.query('SELECT * FROM restaurant_terminal_offline_permits WHERE pos_payment_id=$1 AND restaurant_id=$2',[payment.id,restaurantId]);
+      if(!permit||!['forwarded','captured'].includes(permit.status))throw new AppError('Review the offline card outcome before capture',409,'terminal_offline_reconciliation_required');
+      offlinePermit=permit;
+    }
     const intent = await posTerminal.capturePaymentIntent(
       payment.provider_payment_intent_id,
-      `pos-capture:${restaurantId}:${payment.id}`
+      `pos-capture:${restaurantId}:${payment.id}`,
+      payment.provider_account_id || null
     );
+    if(offlinePermit&&(intent.status!=='succeeded'||Number(intent.amount_received)!==Number(payment.amount_cents)||intent.metadata?.offlineId!==offlinePermit.id))
+      throw new AppError('Captured result needs reconciliation',409,'terminal_offline_intent_mismatch');
     const result = await withTransaction(pool, async (client) => {
+      if(offlinePermit)await client.query('SELECT id FROM food_orders WHERE id=$1 FOR UPDATE',[payment.food_order_id]);
       const { rows: [capturedPayment] } = await client.query(
         `UPDATE restaurant_pos_payments
             SET status = 'captured',
@@ -6606,6 +6613,7 @@ exports.capturePosCardPayment = async (req, res, next) => {
           RETURNING *`,
         [typeof intent.latest_charge === 'string' ? intent.latest_charge : null, JSON.stringify({ stripeStatus: intent.status }), payment.id, restaurantId]
       );
+      if(offlinePermit)await client.query("UPDATE restaurant_terminal_offline_permits SET status='captured' WHERE id=$1",[offlinePermit.id]);
       const reconciliation = await reconcilePosOrderPayment(client, payment.food_order_id);
       if (reconciliation?.order) {
         await insertPosReceiptAudit(client, {
@@ -6737,6 +6745,7 @@ exports.refundPosCardPayment = async (req, res, next) => {
     }
     const refund = await posTerminal.createRefund({
       paymentIntentId: reservation.original.provider_payment_intent_id,
+      accountId: reservation.original.provider_account_id || null,
       amountCents,
       idempotencyKey: `pos-refund:${restaurantId}:${idempotencyKey}`,
       metadata: {
@@ -8462,7 +8471,7 @@ exports.listPrinterJobs = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const device = req.restaurantDevice || null;
     let locationScope = null;
-    if (device) assertDeviceApp(device, 'kitchen');
+    if (device) assertPrinterDevice(device);
     else {
       const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
       await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.view', 'kitchen.update', 'kitchen.manage', 'orders.manage']);
@@ -8501,7 +8510,7 @@ exports.claimPrinterJob = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const jobId = parsePositiveInt(req.params.jobId);
     let device = req.restaurantDevice || null;
-    if (device) assertDeviceApp(device, 'kitchen');
+    if (device) assertPrinterDevice(device);
     else {
       const restaurant=await requireRestaurantAccess(req.user.id, restaurantId);
       await assertScopedResource(restaurant,req.user.id,'restaurant_printer_jobs',jobId);
@@ -8509,7 +8518,7 @@ exports.claimPrinterJob = async (req, res, next) => {
     const deviceId = device?.id || parsePositiveInt(req.body.deviceId || req.body.device_id);
     if (!deviceId) throw new AppError('Validation failed', 400, 'validation_failed', { deviceId: 'Kitchen device is required' });
     if (!device) device = await requireDeviceCredential(req, restaurantId, deviceId);
-    assertDeviceApp(device, 'kitchen');
+    assertPrinterDevice(device);
     const { rows: [job] } = await pool.query(
       `UPDATE restaurant_printer_jobs pj
           SET status = 'sent',
@@ -8526,7 +8535,7 @@ exports.claimPrinterJob = async (req, res, next) => {
           AND ks.restaurant_id = $3
           AND d.id = $1
           AND d.restaurant_id = $3
-          AND d.app_key = 'kitchen'
+          AND d.app_key IN ('kitchen','printer','hub')
           AND d.status = 'paired'
           AND pj.status IN ('queued','failed')
           AND ($4::bigint IS NULL OR pj.location_id = $4)
@@ -8564,7 +8573,7 @@ exports.updatePrinterJob = async (req, res, next) => {
     if (!managerCancel) {
       if (!deviceId) throw new AppError('Validation failed', 400, 'validation_failed', { deviceId: 'Claiming device is required' });
       if (!device) device = await requireDeviceCredential(req, restaurantId, deviceId);
-      assertDeviceApp(device, 'kitchen');
+      assertPrinterDevice(device);
     }
     const { rows: [job] } = await pool.query(
       `UPDATE restaurant_printer_jobs

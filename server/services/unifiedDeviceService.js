@@ -78,6 +78,9 @@ async function getDevice(client, restaurantId, deviceId, { allowedLocationIds = 
 async function setDeviceStatus(client, { restaurantId, deviceId, status, actorUserId = null, allowedLocationIds = null }) {
   if (!['active', 'disabled'].includes(status)) throw new AppError('Unsupported device status', 400, 'validation_failed');
   const device = await getDevice(client, restaurantId, deviceId, { allowedLocationIds, lock: true });
+  if (device.sourceDisplayPairingId && status === 'active' && device.status === 'disabled') {
+    throw new AppError('Pair this display again before enabling it', 409, 'device_pairing_required');
+  }
   await client.query(
     `UPDATE restaurant_devices SET status = $2, updated_at = NOW() WHERE id = $1`,
     [device.id, status]
@@ -91,10 +94,11 @@ async function setDeviceStatus(client, { restaurantId, deviceId, status, actorUs
     );
   }
   if (device.sourceDisplayPairingId && status === 'disabled') {
-    // Display pairings have no status column; revoking nulls the token hash
-    // so the heartbeat credential stops working (F-27 token rotation).
+    // Keep the claimed-row CHECK valid while revoking BOTH token generations.
     await client.query(
-      `UPDATE display_pairings SET pairing_token_hash = NULL WHERE id = $1`,
+      `UPDATE display_pairings SET pairing_token_expires_at=NOW(),
+         pairing_token_hash_prev=NULL,pairing_token_prev_expires_at=NULL,
+         pairing_token_encrypted=NULL WHERE id = $1`,
       [device.sourceDisplayPairingId]
     );
   }

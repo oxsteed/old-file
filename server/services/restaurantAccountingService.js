@@ -70,7 +70,7 @@ function shapeIntegration(row) {
   return {
     id: Number(row.id), restaurantId: Number(row.restaurant_id), provider: row.provider, status: row.status,
     externalCompanyId: row.external_company_id || null,
-    credentialsConfigured: Boolean(row.access_token_ref && row.refresh_token_ref),
+    credentialsConfigured: Boolean(row.credentials_ciphertext || (row.access_token_ref && row.refresh_token_ref)),
     tokenExpiresAt: row.token_expires_at || null,
     accountMapping: normalizeMapping(row.account_mapping || {}),
     lastExportAt: row.last_export_at || null, lastError: row.last_error || null,
@@ -107,12 +107,20 @@ async function upsertIntegration(client, { restaurantId, provider, status, exter
        status = EXCLUDED.status, external_company_id = EXCLUDED.external_company_id,
        access_token_ref = EXCLUDED.access_token_ref, refresh_token_ref = EXCLUDED.refresh_token_ref,
        token_expires_at = EXCLUDED.token_expires_at, account_mapping = EXCLUDED.account_mapping,
+       credentials_ciphertext = CASE WHEN restaurant_accounting_integrations.external_company_id IS DISTINCT FROM EXCLUDED.external_company_id
+         OR restaurant_accounting_integrations.access_token_ref IS DISTINCT FROM EXCLUDED.access_token_ref
+         OR restaurant_accounting_integrations.refresh_token_ref IS DISTINCT FROM EXCLUDED.refresh_token_ref
+         THEN NULL ELSE restaurant_accounting_integrations.credentials_ciphertext END,
+       credential_version = restaurant_accounting_integrations.credential_version+1,
+       credential_lease = NULL, credential_lease_until = NULL,
        updated_by = EXCLUDED.updated_by, updated_at = NOW()
+     WHERE restaurant_accounting_integrations.external_company_id IS NOT DISTINCT FROM EXCLUDED.external_company_id
+       OR NOT EXISTS(SELECT 1 FROM restaurant_accounting_exports e WHERE e.integration_id=restaurant_accounting_integrations.id)
      RETURNING *`,
     [restaurantId, normalizedProvider, normalizedStatus, externalCompanyId ? String(externalCompanyId).trim().slice(0, 180) : null,
       accessRef, refreshRef, tokenExpiresAt || null, mapping, actorUserId || null]
   );
-  if (!row) throw new AppError('Accounting integration could not be saved', 500, 'accounting_integration_save_failed');
+  if (!row) throw new AppError('Accounting integration could not be saved', 409, 'accounting_company_has_exports');
   return shapeIntegration(row);
 }
 
@@ -194,6 +202,7 @@ async function queueExport(client, { restaurantId, provider, periodFrom, periodT
   if (from > to) throw new AppError('Accounting period start must be before its end', 400, 'accounting_period_invalid');
   if ((Date.parse(to) - Date.parse(from)) / 86400000 >= 366) throw new AppError('Accounting periods are capped at 366 days', 400, 'accounting_period_invalid');
   const currency = normalizeCurrency(currencyCode);
+  if(require('../validation/money').CURRENCY_EXPONENTS[currency]!==2)throw new AppError('This journal contract requires a supported two-decimal currency',400,'accounting_currency_precision_unsupported');
   const key = normalizeIdempotencyKey(idempotencyKey);
   const { rows: [integration] } = await client.query(
     `SELECT * FROM restaurant_accounting_integrations
@@ -236,6 +245,10 @@ async function updateExportStatus(client, { restaurantId, exportId, status, exte
   if (normalizedStatus === 'posted' && !String(externalBatchId || '').trim()) throw new AppError('Posted exports require an external batch ID', 400, 'accounting_external_id_required');
   const { rows: [current] } = await client.query('SELECT * FROM restaurant_accounting_exports WHERE id = $1 AND restaurant_id = $2 FOR UPDATE', [exportId, restaurantId]);
   if (!current) throw new AppError('Accounting export not found', 404, 'accounting_export_not_found');
+  if (['pending','posted'].includes(normalizedStatus) && ['sending','requires_reconciliation'].includes(current.status)) {
+    const {rows:[uncertain]}=await client.query("SELECT COUNT(*)::int AS n FROM restaurant_accounting_documents WHERE export_id=$1 AND status IN ('sending','requires_reconciliation')",[exportId]);
+    if(Number(uncertain?.n)>0)throw new AppError('Reconcile uncertain provider documents before changing this export',409,'accounting_provider_reconciliation_required');
+  }
   if (current.status === 'posted' && normalizedStatus === 'posted' && externalBatchId === String(current.external_batch_id || '').trim()) return shapeExport(current);
   if (current.status === 'posted') throw new AppError('Posted accounting exports are immutable', 409, 'accounting_export_immutable');
   const transitions = {

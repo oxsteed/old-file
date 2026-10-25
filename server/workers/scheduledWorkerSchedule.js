@@ -35,6 +35,7 @@ function buildSchedule() {
     ['safetySOSEscalation', options => require('../services/safetySOSService').escalateUnacknowledgedSOS(options), 60 * 1000, { limit: 50 }],
     ['ccpaErasure', options => require('../services/ccpaErasureService').processErasureJobs(options), 60 * 1000, { limit: 10 }],
     ['restaurantGiftCardDelivery', (options) => require('../services/restaurantGiftCardDelivery').processGiftCardDelivery(options), 60 * 1000, { limit: 20 }],
+    ['restaurantAccountingDelivery', options => require('../services/restaurantAccountingDelivery').processExports(options), 60 * 1000, { limit: 5 }],
     // [name, workerFn, intervalMs, options]
     ['normalizeLocations', normalizeLocations, 2 * 60 * 1000, { limit: 200 }],
     ['refreshEtas', refreshEtas, 60 * 1000, { limit: 100 }],

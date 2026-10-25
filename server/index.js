@@ -348,6 +348,8 @@ app.use('/api/support/webhooks', channelWebhookLimiter, express.raw({ type: 'app
 // express.json() (same pattern as the verification/Didit webhooks above);
 // the JSON-parser mount inside localDeliveryRoutes was removed to avoid
 // double-registration.
+app.post('/api/restaurant-marketplaces/:integrationId/webhook', webhookRateLimit, express.raw({type:'application/json',limit:'256kb'}), require('./controllers/restaurantMarketplaceWebhookController').receive);
+
 const telematicsWebhookCtrl = require('./controllers/deliveryTelematicsWebhookController');
 app.post('/api/delivery/webhooks/telematics/:provider', webhookRateLimit, express.raw({ type: 'application/json' }), telematicsWebhookCtrl.receiveWebhook);
 

@@ -98,30 +98,31 @@ async function createPaymentIntent({ amountCents, currency, metadata, idempotenc
   );
 }
 
-async function capturePaymentIntent(paymentIntentId, idempotencyKey) {
+async function capturePaymentIntent(paymentIntentId, idempotencyKey, accountId = null) {
   const client = requireStripe();
-  const current = await client.paymentIntents.retrieve(paymentIntentId);
+  const current = accountId ? await client.paymentIntents.retrieve(paymentIntentId,{}, {stripeAccount:accountId}) : await client.paymentIntents.retrieve(paymentIntentId);
   if (current.status === 'succeeded') return current;
   if (current.status !== 'requires_capture') {
     const error = new Error(`PaymentIntent cannot be captured from ${current.status}`);
     error.code = 'payment_not_authorized';
     throw error;
   }
-  return client.paymentIntents.capture(paymentIntentId, {}, { idempotencyKey });
+  return client.paymentIntents.capture(paymentIntentId, {}, { idempotencyKey,...(accountId?{stripeAccount:accountId}:{}) });
 }
 
-async function createRefund({ paymentIntentId, amountCents, metadata, idempotencyKey }) {
+async function createRefund({ paymentIntentId, amountCents, metadata, idempotencyKey, accountId = null }) {
   return requireStripe().refunds.create(
     {
       payment_intent: paymentIntentId,
       amount: amountCents,
       metadata,
     },
-    { idempotencyKey }
+    { idempotencyKey,...(accountId?{stripeAccount:accountId}:{}) }
   );
 }
 
 module.exports = {
+  retrieveConnectedIntent: (id,accountId)=>requireStripe().paymentIntents.retrieve(id,{expand:['latest_charge']},{stripeAccount:accountId,timeout:15000,maxNetworkRetries:0}),
   createConnectionToken,
   createPaymentIntent,
   capturePaymentIntent,

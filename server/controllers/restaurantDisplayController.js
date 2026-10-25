@@ -163,7 +163,11 @@ async function verifyDisplayPairingToken(token) {
             pairing_token_expires_at, pairing_token_prev_expires_at, device_role
        FROM display_pairings
       WHERE (pairing_token_hash = $1 OR pairing_token_hash_prev = $1)
-        AND paired_at IS NOT NULL`,
+        AND paired_at IS NOT NULL
+        AND EXISTS (SELECT 1 FROM restaurant_devices r
+          WHERE r.source_display_pairing_id=display_pairings.id
+            AND r.restaurant_id=display_pairings.restaurant_id AND r.status='active'
+            AND r.location_id IS NOT DISTINCT FROM display_pairings.location_id)`,
     [tokenHash]
   );
   const row = rows[0];

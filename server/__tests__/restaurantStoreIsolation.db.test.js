@@ -811,7 +811,7 @@ if (url) {
       );
       for (const location of [locationA, locationB])
         await pool.query(
-          'INSERT INTO restaurant_checklist_runs(checklist_id,restaurant_id,location_id,total_tasks,completed_tasks) VALUES($1,$2,$3,1,0)',
+          `INSERT INTO restaurant_checklist_runs(checklist_id,restaurant_id,location_id,total_tasks,completed_tasks,started_at) VALUES($1,$2,$3,1,0,NOW()-INTERVAL '1 minute')`,
           [checklist.id, restaurantId, location],
         );
       expect(

@@ -21,6 +21,8 @@ router.post('/:restaurantId/hubs/:hubId/offline-sales/:saleId/resolve', authenti
 
 // The hub device itself: heartbeat, revision-journal pull, offline sale queue.
 router.post('/:restaurantId/hubs/:hubId/heartbeat', strictLimiter, scopeExempt('device-credential'), hub.authenticateHubDevice, hub.deviceHeartbeat);
+router.get('/:restaurantId/hubs/:hubId/bootstrap', strictLimiter, scopeExempt('device-credential'), hub.authenticateHubDevice, hub.deviceBootstrap);
+router.post('/:restaurantId/hubs/:hubId/authorize-peer', strictLimiter, scopeExempt('device-credential'), hub.authenticateHubDevice, hub.authorizePeer);
 router.get('/:restaurantId/hubs/:hubId/changes', scopeExempt('device-credential'), hub.authenticateHubDevice, hub.devicePull);
 router.post('/:restaurantId/hubs/:hubId/offline-sales', strictLimiter, scopeExempt('device-credential'), hub.authenticateHubDevice, hub.deviceQueueSales);
 

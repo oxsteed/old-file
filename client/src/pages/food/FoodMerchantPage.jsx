@@ -47,6 +47,7 @@ import RestaurantHostingPanel from './RestaurantHostingPanel';
 import RestaurantHQPanel from './RestaurantHQPanel';
 import BrandHQPanel from './BrandHQPanel';
 import StoreHubPanel from './StoreHubPanel';
+import RestaurantAccountingPanel from './RestaurantAccountingPanel';
 import { syncPendingMutations, countPendingMutations, isDeviceOnline } from '../../api/restaurantsOffline';
 import PageShell from '../../components/PageShell';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
@@ -2106,6 +2107,12 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
             wide
           >
             <BrandHQPanel t={t} restaurant={restaurant} />
+          </SettingsCard>
+        )}
+
+        {canManageRestaurant && (
+          <SettingsCard icon={Receipt} title={t('restaurants.accountingRuntime.title')} desc={t('restaurants.accountingRuntime.description')} cardKey="accounting" registerRef={registerCard} wide>
+            <RestaurantAccountingPanel restaurant={restaurant} t={t}/>
           </SettingsCard>
         )}
 
