@@ -192,7 +192,7 @@
       ]
     },
     "14": {
-      "search": "Activity, offers and partner links After the policy notice period, we record pages viewed, buttons selected, searches and marketplace actions. We use postal-code centres, never personal coordinates, to understand local demand and choose relevant offers. Staff approve every campaign. AI for this analysis runs only on OxSteed-controlled servers. In the EEA and UK, activity tracking and activity-based offers each require your consent. You can withdraw it in Settings. Applicable US states have a Do not sell or share control, including Global Privacy Control. Elsewhere the Analytics toggle controls Google Analytics and persistent device storage; activity is covered by this notice. Detailed activity is retained for up to 90 days. Account summaries are retained for up to 13 months. Partner links send a random click code, not your name, email or activity. A partner’s own privacy policy applies to purchases there. Offer push notifications require a separate opt-in and can be turned off in Settings → Privacy. Offers never change your prices, access or search ranking. Promote links may associate signed-in visitors with an account code for seven days. For access, correction or deletion, contact privacy@oxsteed.com.",
+      "search": "Activity, offers and partner links After the policy notice period, we record pages viewed, buttons selected, searches and marketplace actions. We use postal-code centres, never personal coordinates, to understand local demand and choose relevant offers. Staff approve every campaign. AI for this analysis runs only on OxSteed-controlled servers. In the EEA and UK, activity tracking and activity-based offers each require your consent. You can withdraw it in Settings. Applicable US opt-out states have a Do not sell or share control, including Global Privacy Control; it blocks personalized offer targeting while broad offers remain allowed. Elsewhere the Analytics toggle controls Google Analytics and persistent device storage; activity is covered by this notice. Detailed activity is retained for up to 90 days. Account summaries are retained for up to 13 months. Partner links send a random click code, not your name, email or activity. A partner’s own privacy policy applies to purchases there. Offer push notifications require a separate opt-in and can be turned off in Settings → Privacy. Offers never change your prices, access or search ranking. Promote links may associate signed-in visitors with an account code for seven days. For access, correction or deletion, contact privacy@oxsteed.com.",
       "blocks": [
         {
           "type": "h2",
@@ -204,7 +204,7 @@
         },
         {
           "type": "p",
-          "text": "In the EEA and UK, activity tracking and activity-based offers each require your consent. You can withdraw it in Settings. Applicable US states have a Do not sell or share control, including Global Privacy Control. Elsewhere the Analytics toggle controls Google Analytics and persistent device storage; activity is covered by this notice."
+          "text": "In the EEA and UK, activity tracking and activity-based offers each require your consent. You can withdraw it in Settings. Applicable US opt-out states have a Do not sell or share control, including Global Privacy Control; it blocks personalized offer targeting while broad offers remain allowed. Elsewhere the Analytics toggle controls Google Analytics and persistent device storage; activity is covered by this notice."
         },
         {
           "type": "p",

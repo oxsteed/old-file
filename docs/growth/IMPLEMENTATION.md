@@ -44,6 +44,34 @@ Verification for this pass: all **11 growth suites and 331 tests** passed; clien
 
 ## Working requirements matrix
 
+Current external acceptance items 10–16 and the populated rehearsal checklist
+are tracked in [LAUNCH-ACCEPTANCE.md](LAUNCH-ACCEPTANCE.md). The classifier now
+offers explicit `--acceptance` mode, rejecting insufficient per-language/
+vertical coverage, synthetic/duplicate data, missing dataset-bound human review,
+incomparable baselines and unverified model execution. Diagnostic metric passes
+remain separate. This adds acceptance tooling, not human labels, provider/legal
+approval, native app adoption or production infrastructure evidence.
+
+Policy consistency follow-up (2026-10-25): section 14's shared disclosure is
+aligned with `policyCopy.json` across all 20 drafts (six locales needed text
+changes), and all stale file hashes were regenerated. CI now checks section
+parity, exact notice/disclosure agreement and current hashes. This changes draft
+content identity; any notice plan frozen against the prior digest must be
+reviewed again through the existing workflow. It does not supply professional
+translation approval or close cookie/current-policy review.
+
+Focused local verification for this follow-up: `npx jest --runInBand
+__tests__/growthClassificationAcceptance.test.js
+__tests__/growthTaxonomyGeo.test.js __tests__/growthClassificationReview.test.js
+__tests__/growthPrivacyFoundation.test.js __tests__/growthEngine.test.js` in
+`server/` passed **5 suites / 193 tests**. `node
+scripts/growth-policy-manifest.cjs --check` and `git diff --check` passed.
+`npm --prefix client run build:ci` passed, including localization/type checks
+and validation of **1,076 emitted assets**. No browser or human translation
+review was performed for this follow-up.
+These checks use synthetic/injected test inputs and do not establish a gold
+dataset, model quality, production readiness or professional policy approval.
+
 | Area | Current source | Required next verification / implementation |
 | --- | --- | --- |
 | Rollout and controls | Additive Postgres schema; reviewed jurisdiction rules, server consent ledger (with IP-HMAC evidence since migration 936), default-off switches; effective date is max(last accepted send + 14 days, date quoted in notices) | Legal/DPIA/LIA and jurisdiction review, adult eligibility evidence; finish launch acceptance checks before enabling |

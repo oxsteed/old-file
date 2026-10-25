@@ -100,6 +100,44 @@ node server/growth/eval/runner.js --dataset gold.jsonl --baseline previous-repor
 The CLI prints the JSON report and exits non-zero when any gate fails
 (exit 1) or when the run itself fails (exit 2).
 
+## Release acceptance
+
+Ordinary runs are marked `evaluation_mode: "diagnostic"`. Their `gates.pass`
+only evaluates measured accuracy; it is **not release acceptance**, even if
+every item is correct. For release evidence use:
+
+```sh
+node server/growth/eval/runner.js --dataset gold.jsonl --baseline previous-report.json --acceptance --review review.json --out report.json
+```
+
+The review file must contain `dataset_sha256` (the exact file SHA-256 recorded
+in the diagnostic report), `human_labelled: true`, a `review_ref`, a
+`provenance_ref`, and an ISO `reviewed_at` timestamp. References point to the
+human review and approved dataset source; do not put personal contact details
+or raw source records in that metadata. Human owners must verify these
+attestations. The runner cannot independently establish human authorship.
+
+Acceptance requires 300 unique items in **each** of the 20 vertical/language
+cells: services, food, business, customer × en, es, fr, ht, ar (6,000 minimum).
+It rejects synthetic markers, duplicate IDs/content, unknown labels, labels
+outside their vertical, and structured fields that could override text or
+language. It requires matching human-review evidence, configured model pins,
+at least one observed model call, and consistent identity/prompt metadata on
+every model call, with no missing model responses. A baseline from the exact
+same dataset must cover every qualifying intent with matching example counts;
+the existing accuracy and regression thresholds still apply.
+
+For the first approved baseline, run the diagnostic evaluation on the reviewed
+gold dataset, have its outputs reviewed, then retain that report for subsequent
+acceptance comparisons. Comparing a report with itself only establishes the
+initial reference; it does not prove regression safety against an earlier
+release. Keep baseline artifacts under release review ownership.
+
+In acceptance mode, the CLI exits 1 unless **`acceptance.pass`** is true.
+The generated cases in the acceptance unit tests validate these checks only;
+they are not a gold dataset or a quality-bar pass. No nightly GPU job, real
+dataset evaluation, or model release is claimed by those tests.
+
 ## The report and the gates
 
 The report includes the dataset path and item count, the model name

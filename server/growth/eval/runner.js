@@ -24,6 +24,8 @@
 
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
+const { assessAcceptance } = require("./acceptance");
 const { scoreRules } = require("../classify");
 const { scrubQuery } = require("../events/validate");
 
@@ -127,9 +129,11 @@ async function predictOne({ item, nodes, rules, ollama }) {
   let best = ranked[0] || null;
   let source = "rules";
   let metadata = null;
+  let modelAttempted = false;
   if (!best || best.confidence < 0.75) {
     const candidates = candidateList(best, nodes);
     if (candidates.length && typeof ollama === "function") {
+      modelAttempted = true;
       const codes = candidates.map((n) => n.code);
       metadata = await ollama({
         data: {
@@ -167,6 +171,7 @@ async function predictOne({ item, nodes, rules, ollama }) {
     source,
     confidence: best ? best.confidence : null,
     metadata: metadata || null,
+    modelAttempted,
   };
 }
 
@@ -292,8 +297,19 @@ function evaluateGates(metrics, baseline) {
 async function evaluateDataset({ items, nodes, rules, ollama, baseline = null }) {
   const results = [];
   let seenMetadata = null;
+  const modelRuns = { attempted: 0, missing: 0, identities: [] };
   for (const item of items) {
     const prediction = await predictOne({ item, nodes, rules, ollama });
+    if (prediction.modelAttempted) {
+      modelRuns.attempted += 1;
+      if (!prediction.metadata) modelRuns.missing += 1;
+      else {
+        const { model, digest, prompt_version } = prediction.metadata;
+        if (!modelRuns.identities.some((v) => v.model === model && v.digest === digest && v.prompt_version === prompt_version)) {
+          modelRuns.identities.push({ model, digest, prompt_version });
+        }
+      }
+    }
     if (prediction.metadata && !seenMetadata) seenMetadata = prediction.metadata;
     const expected = normalizeExpected(item.expected_code);
     results.push({
@@ -309,7 +325,7 @@ async function evaluateDataset({ items, nodes, rules, ollama, baseline = null })
     });
   }
   const metrics = computeMetrics(results);
-  return { metrics, gates: evaluateGates(metrics, baseline), results, seenMetadata };
+  return { metrics, gates: evaluateGates(metrics, baseline), results, seenMetadata, modelRuns };
 }
 
 // Pinned model identity, mirroring ../ollamaClient.js env conventions.
@@ -333,14 +349,20 @@ async function runEvaluation({
   conn = null,
   ollama = null,
   env = process.env,
+  acceptance = false,
+  review = null,
 } = {}) {
-  const items = providedItems || loadDataset(datasetPath);
+  // Hash the exact bytes being evaluated, before potentially long model calls.
+  const datasetContent = providedItems
+    ? JSON.stringify(providedItems)
+    : fs.readFileSync(datasetPath, "utf8");
+  const items = providedItems || parseDataset(datasetContent);
   let baselineReport = baseline;
   if (!baselineReport && baselinePath)
     baselineReport = JSON.parse(fs.readFileSync(baselinePath, "utf8"));
   const connection = conn || require("../../db");
   const { nodes, rules } = await loadTaxonomy(connection);
-  const { metrics, gates, results, seenMetadata } = await evaluateDataset({
+  const { metrics, gates, results, seenMetadata, modelRuns } = await evaluateDataset({
     items,
     nodes,
     rules,
@@ -348,16 +370,19 @@ async function runEvaluation({
     baseline: baselineReport,
   });
   const pinned = getPinnedModel(env);
-  return {
+  const report = {
+    evaluation_mode: acceptance ? "acceptance" : "diagnostic",
     dataset: {
       path: datasetPath ? path.resolve(datasetPath) : null,
       count: items.length,
+      sha256: crypto.createHash("sha256").update(datasetContent).digest("hex"),
     },
     model: {
       name: seenMetadata?.model || pinned.name,
       digest: seenMetadata?.digest || pinned.digest,
     },
-    prompt_version: seenMetadata?.prompt_version || PROMPT_VERSION,
+    prompt_version: PROMPT_VERSION,
+    model_runs: modelRuns,
     counts: metrics.counts,
     overall_precision: metrics.overall_precision,
     per_language: metrics.per_language,
@@ -367,16 +392,22 @@ async function runEvaluation({
     gates,
     results,
   };
+  if (acceptance) report.acceptance = assessAcceptance({
+    items, nodes, report, review, baseline: baselineReport, pinned,
+  });
+  return report;
 }
 
 // ------------------------------------------------------------------- CLI
 
 function parseArgs(argv) {
-  const args = { dataset: null, baseline: null, out: null };
+  const args = { dataset: null, baseline: null, out: null, acceptance: false, review: null };
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === "--dataset") args.dataset = argv[++i];
     else if (argv[i] === "--baseline") args.baseline = argv[++i];
     else if (argv[i] === "--out") args.out = argv[++i];
+    else if (argv[i] === "--acceptance") args.acceptance = true;
+    else if (argv[i] === "--review") args.review = argv[++i];
     else if (!argv[i].startsWith("--") && !args.dataset) args.dataset = argv[i];
   }
   return args;
@@ -386,7 +417,7 @@ async function main(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
   if (!args.dataset) {
     console.error(
-      "usage: node server/growth/eval/runner.js --dataset <items.jsonl> [--baseline <report.json>] [--out <report.json>]",
+      "usage: node server/growth/eval/runner.js --dataset <items.jsonl> [--baseline <report.json>] [--out <report.json>] [--acceptance --review <review.json>]",
     );
     return 2;
   }
@@ -396,11 +427,13 @@ async function main(argv = process.argv.slice(2)) {
       datasetPath: args.dataset,
       baselinePath: args.baseline,
       conn,
+      acceptance: args.acceptance,
+      review: args.review ? JSON.parse(fs.readFileSync(args.review, "utf8")) : null,
     });
     const json = JSON.stringify(report, null, 2);
     if (args.out) fs.writeFileSync(args.out, `${json}\n`);
     console.log(json);
-    return report.gates.pass ? 0 : 1;
+    return (args.acceptance ? report.acceptance.pass : report.gates.pass) ? 0 : 1;
   } finally {
     if (typeof conn.end === "function") await conn.end().catch(() => {});
   }

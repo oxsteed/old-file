@@ -192,7 +192,7 @@
       ]
     },
     "14": {
-      "search": "Atividade, ofertas e links de parceiros Após o período de aviso, registramos páginas, cliques, pesquisas e ações no mercado. Usamos centros de códigos postais, nunca coordenadas pessoais, para entender a demanda e selecionar ofertas. A equipe aprova cada campanha. A IA opera apenas em servidores controlados pela OxSteed. No EEE e Reino Unido, o rastreamento e as ofertas baseadas na atividade exigem consentimentos separados e revogáveis. Os estados americanos aplicáveis permitem recusar venda ou compartilhamento e respeitam Global Privacy Control. Nas demais regiões, a opção de análise controla Google Analytics e armazenamento persistente; este aviso cobre a atividade. Retemos os detalhes por até 90 dias e os resumos da conta por 13 meses. Parceiros recebem apenas um código de clique aleatório, sem nome, email ou atividade. As compras seguem a política do parceiro. Notificações de ofertas exigem autorização separada e podem ser desligadas em Configurações → Privacidade. Preços, acesso e classificação não mudam. Promote pode associar visitantes conectados a um código de conta por sete dias. Acesso, correção ou exclusão: privacy@oxsteed.com.",
+      "search": "Atividade, ofertas e links de parceiros Após o período de aviso, registramos páginas, cliques, pesquisas e ações no mercado. Usamos centros de códigos postais, nunca coordenadas pessoais, para entender a demanda e selecionar ofertas. A equipe aprova cada campanha. A IA opera apenas em servidores controlados pela OxSteed. No EEE e Reino Unido, o rastreamento e as ofertas baseadas na atividade exigem consentimentos separados e revogáveis. Os estados americanos aplicáveis permitem recusar venda ou compartilhamento e respeitam Global Privacy Control; isso bloqueia a segmentação personalizada de ofertas, enquanto ofertas gerais continuam permitidas. Nas demais regiões, a opção de análise controla Google Analytics e armazenamento persistente; este aviso cobre a atividade. Retemos os detalhes por até 90 dias e os resumos da conta por 13 meses. Parceiros recebem apenas um código de clique aleatório, sem nome, email ou atividade. As compras seguem a política do parceiro. Notificações de ofertas exigem autorização separada e podem ser desligadas em Configurações → Privacidade. Preços, acesso e classificação não mudam. Promote pode associar visitantes conectados a um código de conta por sete dias. Acesso, correção ou exclusão: privacy@oxsteed.com.",
       "blocks": [
         {
           "type": "h2",
@@ -204,7 +204,7 @@
         },
         {
           "type": "p",
-          "text": "No EEE e Reino Unido, o rastreamento e as ofertas baseadas na atividade exigem consentimentos separados e revogáveis. Os estados americanos aplicáveis permitem recusar venda ou compartilhamento e respeitam Global Privacy Control. Nas demais regiões, a opção de análise controla Google Analytics e armazenamento persistente; este aviso cobre a atividade."
+          "text": "No EEE e Reino Unido, o rastreamento e as ofertas baseadas na atividade exigem consentimentos separados e revogáveis. Os estados americanos aplicáveis permitem recusar venda ou compartilhamento e respeitam Global Privacy Control; isso bloqueia a segmentação personalizada de ofertas, enquanto ofertas gerais continuam permitidas. Nas demais regiões, a opção de análise controla Google Analytics e armazenamento persistente; este aviso cobre a atividade."
         },
         {
           "type": "p",
