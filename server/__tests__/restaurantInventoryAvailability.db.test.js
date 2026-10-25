@@ -65,6 +65,7 @@ if (rawUrl) {
         quantity NUMERIC(12,3), status TEXT DEFAULT 'reserved', expires_at TIMESTAMPTZ, released_at TIMESTAMPTZ, consumed_at TIMESTAMPTZ);
       CREATE TEMP TABLE restaurant_store_menu_overrides (
         restaurant_id BIGINT, location_id BIGINT, menu_item_id BIGINT,
+        price_cents INTEGER,
         is_available BOOLEAN, available_again_at TIMESTAMPTZ,
         inventory_available BOOLEAN, inventory_availability_state TEXT,
         updated_by UUID, updated_at TIMESTAMPTZ,
