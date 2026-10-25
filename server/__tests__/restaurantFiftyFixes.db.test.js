@@ -697,6 +697,7 @@ if (url) {
   });
   test('accounting body cannot redirect an integration write to another restaurant', async () => {
     const response = await call(accountingController.upsert, {
+      params: { provider: 'quickbooks' },
       body: {
         restaurantId: 999999,
         provider: 'quickbooks',

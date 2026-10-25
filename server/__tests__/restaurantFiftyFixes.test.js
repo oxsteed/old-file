@@ -119,6 +119,8 @@ test('accounting request bodies cannot override the authorized restaurant', asyn
   expect((await invoke(accountingController.upsert, req({
     restaurantId: 999,
     provider: 'xero'
+  }, {
+    provider: 'xero'
   }))).error).toBeUndefined();
   expect(spy.mock.calls[0][1].restaurantId).toBe(3);
 });
@@ -445,6 +447,9 @@ test('accounting queue acknowledgement rolls back when its required audit fails'
     replayed: false
   });
   mockQuery.mockImplementation(async sql => {
+    if (sql.includes('FROM restaurant_locations l JOIN food_restaurants')) {
+      return { rows: [{ business_date: '2026-11-01' }] };
+    }
     if (sql.includes('INSERT INTO business_audit_log')) throw new Error('audit unavailable');
     return {
       rows: []
