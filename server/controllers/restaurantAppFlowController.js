@@ -5149,14 +5149,20 @@ exports.splitPosOrder = async (req, res, next) => {
         [restaurantId]
       );
       const queueNumber = await nextQueueNumber(client, restaurantId, restaurantTz?.timezone, new Date(), source.location_id || null);
+      // A child is a new ticket, not a replay of the original checkout.
+      // Copying clientOrderId violates the guest/customer retry indexes.
+      const childMetadata = { ...(source.metadata || {}), splitFromOrderId: source.id, ...(seatSplit ? { splitSeats: seatNumbers } : {}) };
+      delete childMetadata.clientOrderId;
+      delete childMetadata.client_order_id;
       const { rows: [child] } = await client.query(
         `INSERT INTO food_orders
          (restaurant_id, business_id, customer_id, guest_name, guest_phone, guest_email,
             order_source, fulfillment_type, status, payment_status, subtotal_cents, tax_cents,
             service_fee_cents, delivery_fee_cents, tax_rate_bps, service_fee_bps,
             tip_cents, discount_cents, total_cents, currency_code, table_label, queue_number,
-            promised_at, notes, metadata, pos_ticket_state, pos_parent_order_id, location_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'unpaid',$10,0,0,0,$11,$12,$13,$14,0,$15,$16,$17,$18,$19,$20,'open',$21,$22)
+            promised_at, notes, metadata, pos_ticket_state, pos_parent_order_id, location_id,
+            kitchen_ticket_fired_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'unpaid',$10,0,0,0,$11,$12,$13,$14,0,$15,$16,$17,$18,$19,$20,'open',$21,$22,$23)
          RETURNING *`,
         [
           restaurantId,
@@ -5178,10 +5184,13 @@ exports.splitPosOrder = async (req, res, next) => {
           queueNumber,
           source.promised_at,
           normalizeString(req.body.notes, 1000) || source.notes,
-          JSON.stringify({ ...(source.metadata || {}), splitFromOrderId: source.id, ...(seatSplit ? { splitSeats: seatNumbers } : {}) }),
+          JSON.stringify(childMetadata),
           source.id,
           // F-02 phase 1: a split child stays in the source ticket's store.
           source.location_id || null,
+          // Already-sent items stay visible; unpaid on-pay children wait
+          // for their own payment. Splitting never reprints the original.
+          source.kitchen_ticket_fired_at || null,
         ]
       );
       await client.query(
@@ -7745,6 +7754,8 @@ exports.getKitchenFeed = async (req, res, next) => {
         WHERE fo.restaurant_id = $1
           ${locationFilter}
           AND fo.status IN ('received','accepted','preparing','ready')
+          AND (fo.kitchen_ticket_fired_at IS NOT NULL
+               OR COALESCE(fo.metadata->>'kitchenFireMode', 'on_send') <> 'on_pay')
           AND fo.created_at >= NOW() - INTERVAL '1 day'
           AND (fo.scheduled_for IS NULL OR fo.scheduled_for <= NOW() + (COALESCE((SELECT fr.prep_time_min FROM food_restaurants fr WHERE fr.id = fo.restaurant_id), 30) * INTERVAL '1 minute'))
         GROUP BY fo.id

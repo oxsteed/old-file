@@ -1,8 +1,9 @@
 # Restaurant franchise review implementation
 
 Source requirements: [the supplied review](REVIEW-2026-10-20.md), all 33 findings,
-feature-gap table, suggested flows, and phased roadmap. Work continues on
-`codex/restaurant-gift-card-fulfillment` for the current follow-ups. This is an **incomplete implementation**, not a
+feature-gap table, suggested flows, and phased roadmap. The gift-card/store-isolation
+follow-ups are merged; current service-cycle work continues on the default branch
+`old-files-claude`. This is an **incomplete implementation**, not a
 franchise-grade or production-readiness declaration. Existing fixes are retained;
 no production migrations, deployment, financial activation, or provider-account
 changes are authorized by this checkpoint.
@@ -301,12 +302,12 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-01 | Existing timezone capture, validation, business copy and backfill | Populated-store owner confirmation and onboarding/browser acceptance |
 | F-02 | Existing location columns/counters/hours; this pass adds store menu and customer selection; hosting records are location-scoped; migrations 968 and 976 add store-scoped staff assignments and receipt-printer settings, menu enforcement, store-filtered sales reports, assigned-store inventory reads/writes, and an audited HQ override-policy publish contract; migration 988 adds tenant-bound nested HQ regions and audited store assignment; migration 989 makes operational store identity non-null with composite tenant FKs and database resolution triggers; manager rollups, POS order/shift/payment reads and drawer events, POS split/merge reads and same-store merge guards, managed-screen queue/stats/snapshots/changes/control/ticket actions, runner inbox, runner task dashboard/create/status/dispatch/claim/offer/proof/handoff/issue/payment/location paths, display fleet listing, kitchen station reads/routing/writes, runner settlements, crew shift/task/event/create/update/review/proof/comment paths, POS sync status/acknowledgement, POS receipt-event history, receipt audit writers, manager-PIN approval writers, shift-linked logbook reads/writes, kitchen printer routing, and kitchen feeds/audits now honor assigned-store sets | The assigned-store follow-up covers the audited POS, inventory, reports/exports, workforce and device adapters with full-schema regressions; see [store isolation evidence](STORE-ISOLATION-2026-10-23.md). Commit-specific CI and populated browser/native/device acceptance remain required |
 | F-03 | Existing cashier own-drawer tender, Terminal intent gate, receipt-event gate, and permission resolver | Exercise custom grants/denials and approvals across every money surface |
-| F-04 | Existing stable order/payment retry IDs and pay-first hold; POS checkout state now survives reload for a bounded window and cash replay preserves the same identities | Lost-response/concurrent replay verification across every kitchen/display/runner fire path |
+| F-04 | Existing stable order/payment retry IDs and pay-first hold; POS checkout state survives reload for a bounded window and cash replay preserves the same identities; the connected two-store HTTP/PostgreSQL cycle verifies concurrent tender/refund/course retries, split release state, and fire-on-pay feed visibility | Browser/native lost-response and physical outage acceptance across remaining display/runner paths; see [service-cycle evidence](SERVICE-CYCLE-2026-10-24.md) |
 | F-05 | Existing production server-dial prohibition and print queue; this pass adds paired kitchen-device queue endpoints, runtime contract, store-scoped receipt-printer settings/jobs, and the executable LAN bridge | Physical device/browser acceptance |
 | F-06 | Existing Connect-bound Terminal flow, token permission gate, and card-intent reservation gate | Provider sandbox/readers and reconciliation acceptance |
 | F-07 | Existing local-day net-collected reports, currencies, summary CSV and tender-level journal CSV; this pass adds per-store/currency daily close, multi-day location comparison JSON/CSV/XLSX, theoretical/actual/variance food-cost percentages, labor percentage output against paid sales, QuickBooks/Xero import-ready journal contracts with stable account codes, and migration 985's dynamic-reference integration plus idempotent currency-scoped journal outbox | Authenticated provider API posting, account mapping confirmation, and populated external-ledger reconciliation |
 | F-08 | Existing offline drafts and failure reporting; web POS adds cash-only browser outbox replay with stable order/payment idempotency keys and sequential reconnect processing | In-store hub, Terminal store-and-forward/risk policy, and physical outage acceptance |
-| F-09 | The broken legacy food split route is removed; POS splitting uses the canonical transactional `splitPosOrder` path with whole-line, quantity-level, exact amount, and even-share selection, modifier/reservation cloning, course/seat preservation, payment, delivery, non-empty-ticket, store inheritance, and queue-counter guards | Maintain canonical split guards and populated-db acceptance |
+| F-09 | The broken legacy food split route is removed; POS splitting uses the canonical transactional `splitPosOrder` path with whole-line, quantity-level, exact amount, and even-share selection, modifier/reservation cloning, course/seat preservation, payment, delivery, non-empty-ticket, store inheritance, and queue-counter guards; split children clear the source checkout retry identity and inherit kitchen release state, verified through the connected two-store cycle | Maintain canonical split guards and populated browser/native acceptance |
 | F-10 | Existing overnight/split-shift/holiday/timezone evaluator; this pass adds a multi-range and dated special-hours location editor | Scheduling/device acceptance and populated-store special-date acceptance |
 | F-11 | Existing dayparts and scheduled fire filtering | Verify all scheduling paths and store-selected quote/submit invariants |
 | F-12 | Existing onboarding fulfillment defaults | End-to-end first-store POS acceptance |
@@ -326,7 +327,7 @@ end-to-end acceptance claim. Each row retains the review's full scope.
 | F-26 | The authenticated `GET /api/restaurants/:restaurantId/devices` fleet contract now gives app-device and legacy display-pairing records one read model with source/capability identifiers, applies assigned-store filtering, and uses a safe legacy display-role fallback; receipt-printer settings and queued jobs carry the selected store; kiosk configuration uses the `settings.manage` permission catalog | Canonical credential identity, native print bridge, deprecated write adapters, resource-controller convergence |
 | F-27 | Existing display grants, 90-day expiry/rotation, revoke-by-unpair, and migration 975 store-bound pairing tokens with sibling-store kitchen-action rejection | Populated store-role and physical device acceptance |
 | F-28 | Existing transactional primary-location update and validation | Populated database concurrency acceptance |
-| F-29 | Existing edit/pause/close/timezone/hours/location UI plus store-role assignment panel and region assignment | Full multi-range hours editor and populated store-role/region acceptance |
+| F-29 | Existing edit/pause/close/timezone/multi-range and special-date hours/location UI plus store-role assignment panel and region assignment | Populated hours/store-role/region browser and device acceptance |
 | F-30 | Existing src tests and loader in CI | Retain browser/device regression coverage as surfaces converge |
 | F-31 | Ticket, payment, printing, drawer-event, crew, runner, restaurant support, kiosk, help-request, team-comms, staff-document, shared-device POS manager, and Credit partner reporting gates now resolve the permission catalog (including membership overrides) instead of role-name checks; staff printer-job creation, queue visibility, feed acknowledgements, and drawer-event reads/writes require their POS or kitchen permissions; bootstrap `canManage` follows the same resolver | Custom membership and deny-override acceptance on every adapter |
 | F-32 | Existing per-store per-day atomic counters | Concurrent multi-store rollover and peak-load acceptance |
@@ -344,9 +345,11 @@ manager-only, store-scoped queued printer job; physical label stock and device
 acceptance remain open. Migration 980 adds manager-audited physical/e-gift card
 SKUs as the catalog foundation and migration 982 adds an internal append-only
 hashed-code value ledger with idempotent issue, redeem, refund, lookup, and POS
-redemption paths. Generated codes are returned only at issue time; raw codes are
-never stored. E-gift delivery-provider dispatch and external value
-reconciliation remain release-gated. Migration 981 adds restaurant-scoped CRM segment
+redemption paths. The [gift-card fulfillment follow-up](GIFT-CARD-FULFILLMENT-2026-10-23.md)
+adds encrypted, expiring fulfillment payloads, default-off email dispatch,
+physical printing/handoff and append-only external-statement reconciliation.
+Production delivery, physical stock and real external evidence still require
+acceptance. Migration 981 adds restaurant-scoped CRM segment
 definitions with bounded criteria (lifetime points, paid-order count, recency,
 and optional store) and an aggregate-only audience preview. Migration 983 adds
 approval-gated campaign definitions and consent-aware in-app/email delivery
@@ -520,4 +523,8 @@ Item 8 now has durable transactional email delivery, printable/preprinted physic
 
 ## Assigned-store isolation follow-up - 2026-10-23
 
-Closed the identified sibling-store bypasses in merchant order feeds, receipt/procurement retries, device and hub administration, reports/exports, staff grants/PINs and legacy workforce routes. The exact scope, two-store regression matrix, legacy all-store policy and acceptance boundary are in [STORE-ISOLATION-2026-10-23.md](STORE-ISOLATION-2026-10-23.md). This follow-up stays on the gift-card branch and preserves its default-off delivery and ledger safeguards.
+Closed the identified sibling-store bypasses in merchant order feeds, receipt/procurement retries, device and hub administration, reports/exports, staff grants/PINs and legacy workforce routes. The exact scope, two-store regression matrix, legacy all-store policy and acceptance boundary are in [STORE-ISOLATION-2026-10-23.md](STORE-ISOLATION-2026-10-23.md). This follow-up was merged with the gift-card work and preserves its default-off delivery and ledger safeguards.
+
+## Connected service-cycle follow-up - 2026-10-24
+
+The [service-cycle checkpoint](SERVICE-CYCLE-2026-10-24.md) connects real assigned-store permissions, POS shifts/order retries, seat splits, payments, course/item actions, inventory, pickup, refunds and reporting against the complete migrated disposable schema. It covers both kitchen release modes and retains a populated sibling store throughout. It fixes split checkout-identity collisions, preserves split kitchen release state, and hides unfired fire-on-pay tickets from the kitchen feed. CI explicitly runs these cases with the existing assigned-store suite. Browser/native/device, live-provider and production acceptance remain open.

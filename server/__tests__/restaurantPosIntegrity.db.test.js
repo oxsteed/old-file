@@ -17,7 +17,7 @@
  *         complete_unpaid_reason, which is written to the kitchen event
  *         log; paid completion is unaffected.
  *   F-17  kitchen.update / pos.use staff can 86 and restore menu items,
- *         with the availability event log as the audit entry.
+ *         with the canonical store-menu business audit entry.
  *   F-31  ticket hold/reopen and card capture require pos.use (or
  *         orders.manage); membership alone no longer suffices.
  *
@@ -69,6 +69,7 @@ const { errorHandler } = require('../middleware/errorHandler');
 const pool = require('../db');
 const appFlow = require('../controllers/restaurantAppFlowController');
 const food = require('../controllers/foodController');
+afterAll(async () => { if (CAN_RUN_DB) await pool.end(); });
 
 jest.setTimeout(60000);
 
@@ -94,11 +95,11 @@ function staffApp(userId) {
   return app;
 }
 
-function deviceApp(restaurantId) {
+function deviceApp(restaurantId, locationId) {
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => {
-    req.displayDevice = { pairingId: 7, restaurantId, label: 'KDS', deviceRole: 'kitchen' };
+    req.displayDevice = { pairingId: 7, restaurantId, locationId, label: 'KDS', deviceRole: 'kitchen' };
     next();
   });
   app.patch('/api/food/restaurants/:restaurantId/orders/:orderId/status', food.updateOrderStatus);
@@ -223,6 +224,9 @@ ddescribe('POS integrity (franchise F-03/F-04/F-12/F-13/F-16/F-17/F-31)', () => 
       repShiftId: await openShift(rest.id, rep),
       ownerShift2Id: await openShift(rest2.id, owner),
     };
+    F.locationId = (await pool.query(
+      'SELECT id FROM restaurant_locations WHERE restaurant_id=$1 AND is_primary=TRUE', [rest.id]
+    )).rows[0].id;
   });
 
   describe('F-04 checkout replay', () => {
@@ -424,14 +428,16 @@ ddescribe('POS integrity (franchise F-03/F-04/F-12/F-13/F-16/F-17/F-31)', () => 
       expect(soldOut.body.item.is_available).toBe(false);
 
       const { rows: [event] } = await pool.query(
-        `SELECT * FROM restaurant_inventory_availability_events
-          WHERE restaurant_id = $1 AND menu_item_id = $2
+        `SELECT * FROM business_audit_log
+          WHERE business_id = $1 AND target_id = $2
+            AND action = 'restaurant.store_menu.updated'
           ORDER BY id DESC LIMIT 1`,
-        [F.restaurantId, F.itemId]
+        [F.businessId, String(F.itemId)]
       );
       expect(event).toBeTruthy();
-      expect(String(event.created_by)).toBe(String(F.employee));
-      expect(event.next_available).toBe(false);
+      expect(String(event.actor_user_id)).toBe(String(F.employee));
+      expect(String(event.metadata.location_id)).toBe(String(F.locationId));
+      expect(event.after_state.is_available).toBe(false);
 
       const restored = await request(staffApp(F.employee))
         .patch(`/api/restaurants/${F.restaurantId}/menu-items/${F.itemId}/availability`)
@@ -455,7 +461,7 @@ ddescribe('POS integrity (franchise F-03/F-04/F-12/F-13/F-16/F-17/F-31)', () => 
 
     test('a kitchen display token cannot complete an unpaid order', async () => {
       const orderId = await seedOrder();
-      const res = await request(deviceApp(F.restaurantId))
+      const res = await request(deviceApp(F.restaurantId, F.locationId))
         .patch(`/api/food/restaurants/${F.restaurantId}/orders/${orderId}/status`)
         .send({ status: 'completed' });
       expect(res.status).toBe(409);

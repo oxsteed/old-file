@@ -222,7 +222,7 @@ jobs:
           NODE
           npx jest --runInBand __tests__/restaurantGiftCardFulfillment.db.test.js
 
-      - name: Restaurant assigned-store isolation PostgreSQL regressions
+      - name: Restaurant assigned-store isolation and service-cycle PostgreSQL regressions
         working-directory: server
         env:
           RESTAURANT_STORE_TEST_DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/restaurant_store_test?sslmode=disable
@@ -241,7 +241,7 @@ jobs:
             finally { await db.end(); }
           })().catch(error => { console.error(error.message); process.exitCode = 1; });
           NODE
-          npx jest --runInBand __tests__/restaurantStoreIsolation.db.test.js
+          npx jest --runInBand __tests__/restaurantStoreIsolation.db.test.js __tests__/restaurantServiceCycle.db.test.js
 
       - name: Restaurant operational evidence PostgreSQL regressions
         working-directory: server

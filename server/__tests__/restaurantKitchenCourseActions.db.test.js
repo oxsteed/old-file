@@ -35,6 +35,7 @@ if (CAN_RUN_DB) {
 
 const pool = require('../db');
 const appFlow = require('../controllers/restaurantAppFlowController');
+afterAll(async () => { if (CAN_RUN_DB) await pool.end(); });
 
 function uid() {
   return crypto.randomUUID();
