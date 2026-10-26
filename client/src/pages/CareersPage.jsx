@@ -66,7 +66,7 @@ export default function CareersPage() {
         <form
           className="ox-careers-filters"
           role="search"
-          onSubmit={(e) => { e.preventDefault(); setApplied(filters); }}
+          onSubmit={(e) => { e.preventDefault(); setApplied(filters); }} data-track="ui.22e920e77f.1"
         >
           <input aria-label={t('careers.searchPlaceholder')} value={filters.q} onChange={(e) => set('q')(e.target.value)} placeholder={t('careers.searchPlaceholder')} />
           <CountrySelect value={filters.country} onChange={set('country')} />
@@ -93,7 +93,7 @@ export default function CareersPage() {
           <select aria-label={t('careers.filters.radius')} value={filters.radius_km} onChange={(e) => set('radius_km')(Number(e.target.value))}>
             {[5, 10, 25, 50, 100].map((r) => <option key={r} value={r}>{t('careers.filters.withinKm', { km: r })}</option>)}
           </select>
-          <button type="submit" className="ox-careers-btn primary">{t('careers.filters.search')}</button>
+          <button type="submit" className="ox-careers-btn primary" data-track="ui.22e920e77f.2">{t('careers.filters.search')}</button>
         </form>
         {!nearFound ? <p className="ox-careers-error">{t('careers.filters.postalNotFound')}</p> : null}
         <LoadError error={error} onRetry={() => load(false)} />
@@ -111,7 +111,7 @@ export default function CareersPage() {
         )}
         {cursor ? (
           <div className="ox-careers-actions">
-            <button type="button" className="ox-careers-btn" disabled={loading} onClick={() => load(true, cursor)}>{t('careers.loadMore')}</button>
+            <button type="button" className="ox-careers-btn" disabled={loading} onClick={() => load(true, cursor)} data-track="ui.22e920e77f.3">{t('careers.loadMore')}</button>
           </div>
         ) : null}
       </div>

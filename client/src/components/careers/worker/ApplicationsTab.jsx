@@ -19,7 +19,7 @@ function EeoSection({ application }) {
     return <p className="ox-careers-subtle">{t('careers.eeo.submitted')}</p>;
   }
   if (!open) {
-    return <button type="button" className="ox-careers-btn" onClick={() => setOpen(true)}>{t('careers.eeo.add')}</button>;
+    return <button type="button" className="ox-careers-btn" onClick={() => setOpen(true)} data-track="ui.deeb3cde69.1">{t('careers.eeo.add')}</button>;
   }
   return (
     <div>
@@ -36,7 +36,7 @@ function EeoSection({ application }) {
         >
           {t('careers.eeo.save')}
         </ActionButton>
-        <button type="button" className="ox-careers-btn" onClick={() => setOpen(false)}>{t('careers.common.cancel')}</button>
+        <button type="button" className="ox-careers-btn" onClick={() => setOpen(false)} data-track="ui.deeb3cde69.2">{t('careers.common.cancel')}</button>
       </div>
     </div>
   );

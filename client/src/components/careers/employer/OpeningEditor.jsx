@@ -101,7 +101,7 @@ export default function OpeningEditor({ ctx, openingId, locations = [], onSaved,
   };
 
   return (
-    <form className="ox-careers-panel" onSubmit={save} noValidate>
+    <form className="ox-careers-panel" onSubmit={save} noValidate data-track="ui.9591bfe1ea.1">
       <h2>{openingId ? t('careers.employer.editOpening') : t('careers.employer.newOpening')}</h2>
       <div className="ox-careers-form-grid">
         <Field label={t('careers.fields.title')} htmlFor="o-title" error={localError('title')}>
@@ -261,9 +261,9 @@ export default function OpeningEditor({ ctx, openingId, locations = [], onSaved,
       <ComplianceBox result={compliance} />
       <ErrorNotice error={failure} />
       <div className="ox-careers-actions">
-        <button type="button" className="ox-careers-btn" onClick={runCheck}>{t('careers.employer.checkCompliance')}</button>
-        <button type="submit" className="ox-careers-btn primary" disabled={saving}>{saving ? t('careers.common.saving') : t('careers.employer.saveOpening')}</button>
-        {onCancel ? <button type="button" className="ox-careers-btn" onClick={onCancel}>{t('careers.common.cancel')}</button> : null}
+        <button type="button" className="ox-careers-btn" onClick={runCheck} data-track="ui.9591bfe1ea.2">{t('careers.employer.checkCompliance')}</button>
+        <button type="submit" className="ox-careers-btn primary" disabled={saving} data-track="ui.9591bfe1ea.3">{saving ? t('careers.common.saving') : t('careers.employer.saveOpening')}</button>
+        {onCancel ? <button type="button" className="ox-careers-btn" onClick={onCancel} data-track="ui.9591bfe1ea.4">{t('careers.common.cancel')}</button> : null}
       </div>
     </form>
   );

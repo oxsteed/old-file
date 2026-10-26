@@ -49,7 +49,7 @@ function RejectForm({ app, onDone }) {
         >
           {t('careers.employer.reject')}
         </ActionButton>
-        <button type="button" className="ox-careers-btn" onClick={() => onDone(false)}>{t('careers.common.cancel')}</button>
+        <button type="button" className="ox-careers-btn" onClick={() => onDone(false)} data-track="ui.96d807cc13.1">{t('careers.common.cancel')}</button>
       </div>
     </div>
   );
@@ -101,7 +101,7 @@ function InterviewForm({ app, timezone, onDone }) {
         >
           {t('careers.interview.schedule')}
         </ActionButton>
-        <button type="button" className="ox-careers-btn" onClick={() => onDone(false)}>{t('careers.common.cancel')}</button>
+        <button type="button" className="ox-careers-btn" onClick={() => onDone(false)} data-track="ui.96d807cc13.2">{t('careers.common.cancel')}</button>
       </div>
     </div>
   );
@@ -189,7 +189,7 @@ function OfferForm({ app, opening, locations, onDone }) {
         >
           {t('careers.offer.send')}
         </ActionButton>
-        <button type="button" className="ox-careers-btn" onClick={() => onDone(false)}>{t('careers.common.cancel')}</button>
+        <button type="button" className="ox-careers-btn" onClick={() => onDone(false)} data-track="ui.96d807cc13.3">{t('careers.common.cancel')}</button>
       </div>
     </div>
   );
@@ -312,9 +312,9 @@ export default function ApplicationDetail({ applicationId, opening, locations = 
           {moves.map((s) => (
             <ActionButton key={s} onClick={async () => { await changeCareerStage(app.id, { stage: s }); done(true); }}>{t('careers.employer.moveTo', { stage: t(`careers.stage.${s}`) })}</ActionButton>
           ))}
-          {['received', 'screening', 'interview', 'assessment'].includes(app.stage) ? <button type="button" className="ox-careers-btn" onClick={() => setMode('interview')}>{t('careers.interview.schedule')}</button> : null}
-          {canOffer ? <button type="button" className="ox-careers-btn primary" onClick={() => setMode('offer')}>{t('careers.offer.make')}</button> : null}
-          {canReject ? <button type="button" className="ox-careers-btn danger" onClick={() => setMode('reject')}>{t('careers.employer.reject')}</button> : null}
+          {['received', 'screening', 'interview', 'assessment'].includes(app.stage) ? <button type="button" className="ox-careers-btn" onClick={() => setMode('interview')} data-track="ui.96d807cc13.4">{t('careers.interview.schedule')}</button> : null}
+          {canOffer ? <button type="button" className="ox-careers-btn primary" onClick={() => setMode('offer')} data-track="ui.96d807cc13.5">{t('careers.offer.make')}</button> : null}
+          {canReject ? <button type="button" className="ox-careers-btn danger" onClick={() => setMode('reject')} data-track="ui.96d807cc13.6">{t('careers.employer.reject')}</button> : null}
         </div>
       ) : null}
       {app.stage === 'offer' ? <p className="ox-careers-subtle">{t('careers.employer.hireByAcceptance')}</p> : null}

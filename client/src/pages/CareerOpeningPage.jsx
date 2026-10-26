@@ -102,7 +102,7 @@ function ApplyPanel({ opening, user }) {
   };
 
   return (
-    <form className="ox-careers-panel" onSubmit={submit} noValidate>
+    <form className="ox-careers-panel" onSubmit={submit} noValidate data-track="ui.b1e094aef2.1">
       <h2>{t('careers.apply.title')}</h2>
       {!user ? (
         <>
@@ -170,7 +170,7 @@ function ApplyPanel({ opening, user }) {
       <p className="ox-careers-subtle">{t('careers.apply.privacy')}</p>
       <ErrorNotice error={failure} fallbackKey="careers.apply.error" />
       <div className="ox-careers-actions">
-        <button type="submit" className="ox-careers-btn primary" disabled={sending}>{sending ? t('careers.apply.sending') : t('careers.apply.submit')}</button>
+        <button type="submit" className="ox-careers-btn primary" disabled={sending} data-track="ui.b1e094aef2.2">{sending ? t('careers.apply.sending') : t('careers.apply.submit')}</button>
       </div>
     </form>
   );

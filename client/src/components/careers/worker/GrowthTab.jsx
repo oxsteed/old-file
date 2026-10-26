@@ -18,7 +18,7 @@ export default function GrowthTab({ onEditProfile }) {
         {jobs.data?.needs_postal_code ? (
           <Notice>
             {t('careers.jobsForYou.needsPostal')}{' '}
-            <button type="button" className="ox-careers-btn" onClick={onEditProfile}>{t('careers.jobsForYou.editProfile')}</button>
+            <button type="button" className="ox-careers-btn" onClick={onEditProfile} data-track-private>{t('careers.jobsForYou.editProfile')}</button>
           </Notice>
         ) : null}
         {jobs.data && !jobs.data.needs_postal_code && !jobs.data.openings?.length ? <Empty>{t('careers.jobsForYou.empty')}</Empty> : null}

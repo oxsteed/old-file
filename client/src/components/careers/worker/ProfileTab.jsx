@@ -66,7 +66,7 @@ function DisputeForm({ fact, onDone }) {
         >
           {t('careers.profile.disputeSubmit')}
         </ActionButton>
-        <button type="button" className="ox-careers-btn" onClick={onDone}>{t('careers.common.cancel')}</button>
+        <button type="button" className="ox-careers-btn" onClick={onDone} data-track="ui.cef9bb0cb7.1">{t('careers.common.cancel')}</button>
       </div>
     </div>
   );
@@ -113,13 +113,13 @@ export default function ProfileTab({ previewBusinesses = [] }) {
   };
 
   return (
-    <form className="ox-careers-grid" onSubmit={save} noValidate>
+    <form className="ox-careers-grid" onSubmit={save} noValidate data-track="ui.cef9bb0cb7.2">
       <section className="ox-careers-panel">
         <h2>{t('careers.profile.visibilityTitle')}</h2>
         <p className="ox-careers-subtle">{t('careers.profile.visibilityIntro')}</p>
         {VISIBILITY_LEVELS.map((v) => (
           <label key={v} className="ox-careers-check" htmlFor={`vis-${v}`}>
-            <input id={`vis-${v}`} type="radio" name="visibility" checked={form.visibility === v} onChange={() => set('visibility')(v)} />
+            <input id={`vis-${v}`} type="radio" name="visibility" checked={form.visibility === v} onChange={() => set('visibility')(v)} data-track="ui.cef9bb0cb7.3" />
             <span><strong>{t(`careers.visibility.${v}.label`)}</strong> — {t(`careers.visibility.${v}.help`)}</span>
           </label>
         ))}
@@ -154,7 +154,7 @@ export default function ProfileTab({ previewBusinesses = [] }) {
             {suggestions.map((s) => {
               const code = typeof s === 'string' ? s : s.code;
               return (
-                <button key={code} type="button" className="ox-careers-btn" onClick={() => set('skill_codes')([...new Set([...splitList(form.skill_codes), code])].join(', '))}>
+                <button key={code} type="button" className="ox-careers-btn" onClick={() => set('skill_codes')([...new Set([...splitList(form.skill_codes), code])].join(', '))} data-track="ui.cef9bb0cb7.4">
                   + {code}
                 </button>
               );
@@ -223,12 +223,12 @@ export default function ProfileTab({ previewBusinesses = [] }) {
                       type="checkbox"
                       aria-label={t('careers.profile.showFact', { fact: t(`careers.facts.${f.fact_type}`) })}
                       checked={!form.hidden_fact_types.includes(f.fact_type)}
-                      onChange={(e) => set('hidden_fact_types')(e.target.checked ? form.hidden_fact_types.filter((x) => x !== f.fact_type) : [...new Set([...form.hidden_fact_types, f.fact_type])])}
+                      onChange={(e) => set('hidden_fact_types')(e.target.checked ? form.hidden_fact_types.filter((x) => x !== f.fact_type) : [...new Set([...form.hidden_fact_types, f.fact_type])])} data-track="ui.cef9bb0cb7.5"
                     />
                   </td>
                   <td>
                     {disputedIds.has(Number(f.id)) ? <span className="ox-careers-chip warn">{t('careers.profile.underReview')}</span> : (
-                      <button type="button" className="ox-careers-btn" onClick={() => setDisputing(f)}>{t('careers.profile.dispute')}</button>
+                      <button type="button" className="ox-careers-btn" onClick={() => setDisputing(f)} data-track="ui.cef9bb0cb7.6">{t('careers.profile.dispute')}</button>
                     )}
                   </td>
                 </tr>
@@ -251,7 +251,7 @@ export default function ProfileTab({ previewBusinesses = [] }) {
         }}
         />
         <div className="ox-careers-actions">
-          <button type="button" className="ox-careers-btn" onClick={() => fileRef.current?.click()}>{data.profile.has_resume ? t('careers.profile.resumeReplace') : t('careers.profile.resumeUpload')}</button>
+          <button type="button" className="ox-careers-btn" onClick={() => fileRef.current?.click()} data-track="ui.cef9bb0cb7.7">{data.profile.has_resume ? t('careers.profile.resumeReplace') : t('careers.profile.resumeUpload')}</button>
           {data.profile.has_resume ? (
             <>
               <ActionButton onClick={async () => { const r = await getCareerResumeUrl(); if (r.url) window.open(r.url, '_blank', 'noopener'); }}>{t('careers.profile.resumeDownload')}</ActionButton>
@@ -285,7 +285,7 @@ export default function ProfileTab({ previewBusinesses = [] }) {
 
       <ErrorNotice error={saveError} />
       <div className="ox-careers-actions">
-        <button type="submit" className="ox-careers-btn primary" disabled={saving}>{saving ? t('careers.common.saving') : t('careers.profile.save')}</button>
+        <button type="submit" className="ox-careers-btn primary" disabled={saving} data-track="ui.cef9bb0cb7.8">{saving ? t('careers.common.saving') : t('careers.profile.save')}</button>
       </div>
     </form>
   );

@@ -22,9 +22,9 @@ export default function PrivacyTab() {
           <div key={c.id} className="ox-careers-app">
             <p><strong>{c.opening_title}</strong> · {c.employer_name}</p>
             <p>{t(`careers.check.status.${c.status}`)}</p>
-            {c.status === 'invited' && c.invitation_url ? <p><a href={c.invitation_url} target="_blank" rel="noopener noreferrer">{t('careers.check.startConsent')}</a></p> : null}
+            {c.status === 'invited' && c.invitation_url ? <p><a href={c.invitation_url} target="_blank" rel="noopener noreferrer" data-track="ui.cbc8174950.1">{t('careers.check.startConsent')}</a></p> : null}
             {c.status === 'pre_adverse_sent' ? <p>{t('careers.check.preAdverseHelp')}</p> : null}
-            {c.report_portal_url ? <p><a href={c.report_portal_url} target="_blank" rel="noopener noreferrer">{t('careers.check.viewReport')}</a></p> : null}
+            {c.report_portal_url ? <p><a href={c.report_portal_url} target="_blank" rel="noopener noreferrer" data-track="ui.cbc8174950.2">{t('careers.check.viewReport')}</a></p> : null}
           </div>
         ))}
       </section>

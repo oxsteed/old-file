@@ -62,7 +62,7 @@ export default function HiringPipelineBoard({ employerType = 'business', busines
         ) : (
           <div className="ox-careers-grid">
             <div className="ox-careers-actions">
-              <button type="button" className="ox-careers-btn primary" onClick={() => setEditing('new')}>{t('careers.employer.newOpening')}</button>
+              <button type="button" className="ox-careers-btn primary" onClick={() => setEditing('new')} data-track="ui.79490ac5e0.1">{t('careers.employer.newOpening')}</button>
             </div>
             {!openings.length ? <Empty>{t('careers.employer.noOpenings')}</Empty> : openings.map((o) => {
               const total = Object.values(o.stage_counts || {}).reduce((a, b) => a + b, 0);
@@ -79,8 +79,8 @@ export default function HiringPipelineBoard({ employerType = 'business', busines
                   {o.offers_expiring ? <Notice tone="warn">{t('careers.employer.offersExpiring', { count: o.offers_expiring })}</Notice> : null}
                   {o.onboarding_attention ? <Notice tone="warn">{t('careers.employer.onboardingAttention', { count: o.onboarding_attention })}</Notice> : null}
                   <div className="ox-careers-actions">
-                    <button type="button" className="ox-careers-btn" onClick={() => setEditing(o.id)}>{t('careers.employer.edit')}</button>
-                    <button type="button" className="ox-careers-btn" onClick={() => { setPipelineFor(o.id); setTab('pipeline'); }}>{t('careers.employer.viewApplicants')}</button>
+                    <button type="button" className="ox-careers-btn" onClick={() => setEditing(o.id)} data-track="ui.79490ac5e0.2">{t('careers.employer.edit')}</button>
+                    <button type="button" className="ox-careers-btn" onClick={() => { setPipelineFor(o.id); setTab('pipeline'); }} data-track="ui.79490ac5e0.3">{t('careers.employer.viewApplicants')}</button>
                   </div>
                 </article>
               );

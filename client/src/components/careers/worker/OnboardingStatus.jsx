@@ -37,12 +37,12 @@ export default function OnboardingStatus({ runId }) {
             if (!/^\d{4,6}$/.test(pin)) { setPinError(t('careers.onboarding.pinFormat')); return; }
             setSaving(true);
             try { setData(await setOnboardingPin(runId, pin)); setPin(''); } catch (err) { setPinError(errorText(err)); } finally { setSaving(false); }
-          }}
+          }} data-track="ui.671ca93b97.1"
         >
           <Field label={t('careers.onboarding.pinLabel')} htmlFor={`pin-${runId}`} hint={t('careers.onboarding.pinHint')} error={pinError}>
             <input id={`pin-${runId}`} inputMode="numeric" autoComplete="off" maxLength={6} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} />
           </Field>
-          <button type="submit" className="ox-careers-btn primary" disabled={saving}>{t('careers.onboarding.setPin')}</button>
+          <button type="submit" className="ox-careers-btn primary" disabled={saving} data-track="ui.671ca93b97.2">{t('careers.onboarding.setPin')}</button>
         </form>
       ) : null}
       {run.first_shift?.date ? <Notice>{t('careers.onboarding.firstShift', { date: run.first_shift.date, start: run.first_shift.start, end: run.first_shift.end })}</Notice> : null}

@@ -68,10 +68,10 @@ export default function Pipeline({ ctx, opening, locations, canApprove, onChange
                       type="checkbox"
                       aria-label={t('careers.employer.select', { name: applicantLabel(a, t) })}
                       checked={picked.includes(a.id)}
-                      onChange={(e) => setPicked((p) => (e.target.checked ? [...p, a.id] : p.filter((x) => x !== a.id)))}
+                      onChange={(e) => setPicked((p) => (e.target.checked ? [...p, a.id] : p.filter((x) => x !== a.id)))} data-track="ui.57d21505cf.1"
                     />
                   ) : null}
-                  <button type="button" className="ox-careers-btn" onClick={() => setSelected(a.id)}>{applicantLabel(a, t)}</button>
+                  <button type="button" className="ox-careers-btn" onClick={() => setSelected(a.id)} data-track="ui.57d21505cf.2">{applicantLabel(a, t)}</button>
                   <StageChip stage={a.stage} />
                 </div>
                 <p>{formatDate(a.created_at, i18n.language)}{a.is_guest ? ` · ${t('careers.employer.verified.guest_not_verified')}` : ''}</p>

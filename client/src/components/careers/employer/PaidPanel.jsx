@@ -158,7 +158,7 @@ export default function PaidPanel({ ctx, openings, locations, billing }) {
             </div>
             {e.status === 'active' ? (
               slotsFor === e.id ? <SlotsForm ctx={ctx} event={e} locations={locations} onDone={() => { setSlotsFor(null); paid.reload(); }} /> : (
-                <button type="button" className="ox-careers-btn" onClick={() => setSlotsFor(e.id)}>{t('careers.paid.addSlots')}</button>
+                <button type="button" className="ox-careers-btn" onClick={() => setSlotsFor(e.id)} data-track="ui.f8facc4ebe.1">{t('careers.paid.addSlots')}</button>
               )
             ) : null}
           </div>

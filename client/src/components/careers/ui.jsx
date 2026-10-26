@@ -46,7 +46,7 @@ export function Tabs({ tabs, active, onChange, label }) {
           role="tab"
           aria-selected={active === tab.id}
           className={`ox-careers-tab${active === tab.id ? ' active' : ''}`}
-          onClick={() => onChange(tab.id)}
+          onClick={() => onChange(tab.id)} data-track="ui.effb090bb8.1"
          
         >
           {tab.label}
@@ -71,7 +71,7 @@ export function Field({ label, error, hint, children, htmlFor }) {
 export function Check({ label, checked, onChange, id, disabled }) {
   return (
     <label className="ox-careers-check" htmlFor={id}>
-      <input id={id} type="checkbox" checked={Boolean(checked)} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+      <input id={id} type="checkbox" checked={Boolean(checked)} disabled={disabled} onChange={(e) => onChange(e.target.checked)} data-track="ui.effb090bb8.2" />
       <span>{label}</span>
     </label>
   );
@@ -84,11 +84,11 @@ export function YesNo({ name, label, value, onChange, error }) {
     <fieldset className="ox-careers-yesno">
       <legend>{label}</legend>
       <label className="ox-careers-check">
-        <input type="radio" name={name} checked={value === true} onChange={() => onChange(true)} />
+        <input type="radio" name={name} checked={value === true} onChange={() => onChange(true)} data-track="ui.effb090bb8.3" />
         <span>{t('careers.common.yes')}</span>
       </label>
       <label className="ox-careers-check">
-        <input type="radio" name={name} checked={value === false} onChange={() => onChange(false)} />
+        <input type="radio" name={name} checked={value === false} onChange={() => onChange(false)} data-track="ui.effb090bb8.4" />
         <span>{t('careers.common.no')}</span>
       </label>
       {error ? <p className="ox-careers-error" role="alert">{error}</p> : null}
@@ -112,7 +112,7 @@ export function LoadError({ error, onRetry }) {
   return (
     <Notice tone="error">
       {errorText(error)}{' '}
-      {onRetry ? <button type="button" className="ox-careers-btn" onClick={onRetry}>{t('careers.common.retry')}</button> : null}
+      {onRetry ? <button type="button" className="ox-careers-btn" onClick={onRetry} data-track="ui.effb090bb8.5">{t('careers.common.retry')}</button> : null}
     </Notice>
   );
 }
@@ -135,7 +135,7 @@ export function ActionButton({ onClick, children, primary, danger, disabled, con
         if (confirm && !window.confirm(confirm)) return;
         setBusy(true);
         try { await onClick(); } catch (err) { toast.error(errorText(err)); } finally { setBusy(false); }
-      }}
+      }} data-track="ui.effb090bb8.6"
     >
       {children}
     </button>

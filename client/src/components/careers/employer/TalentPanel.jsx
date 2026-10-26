@@ -45,11 +45,11 @@ function InviteForm({ ctx, person, source, openings, onDone }) {
               toast.success(t('careers.talent.sent', { left: r.usage?.remainingToday ?? '' }));
               onDone(r.usage);
             } catch (err) { setError(err); } finally { setBusy(false); }
-          }}
+          }} data-track="ui.62ffc06a2d.1"
         >
           {t('careers.talent.send')}
         </button>
-        <button type="button" className="ox-careers-btn" onClick={() => onDone(null)}>{t('careers.common.cancel')}</button>
+        <button type="button" className="ox-careers-btn" onClick={() => onDone(null)} data-track="ui.62ffc06a2d.2">{t('careers.common.cancel')}</button>
       </div>
     </div>
   );
@@ -79,7 +79,7 @@ function PersonCard({ ctx, person, source, openings, onUsage }) {
       {inviting ? (
         <InviteForm ctx={ctx} person={person} source={source} openings={openings} onDone={(usage) => { setInviting(false); if (usage) onUsage(usage); }} />
       ) : (
-        <button type="button" className="ox-careers-btn" disabled={!openings.length} onClick={() => setInviting(true)}>{t('careers.talent.invite')}</button>
+        <button type="button" className="ox-careers-btn" disabled={!openings.length} onClick={() => setInviting(true)} data-track="ui.62ffc06a2d.3">{t('careers.talent.invite')}</button>
       )}
     </article>
   );
@@ -122,7 +122,7 @@ export default function TalentPanel({ ctx, openings, locations }) {
       <section className="ox-careers-panel">
         <h2>{t('careers.talent.searchTitle')}</h2>
         <p className="ox-careers-subtle">{t('careers.talent.searchIntro')}</p>
-        <form className="ox-careers-filters" onSubmit={(e) => { e.preventDefault(); runSearch(0); }}>
+        <form className="ox-careers-filters" onSubmit={(e) => { e.preventDefault(); runSearch(0); }} data-track="ui.62ffc06a2d.4">
           <select aria-label={t('careers.talent.nearStore')} value={q.near_location} onChange={(e) => setQ({ ...q, near_location: e.target.value })}>
             {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
@@ -130,7 +130,7 @@ export default function TalentPanel({ ctx, openings, locations }) {
             {[5, 10, 25, 50].map((r) => <option key={r} value={r}>{t('careers.filters.withinKm', { km: r })}</option>)}
           </select>
           <input aria-label={t('careers.talent.skill')} placeholder={t('careers.talent.skill')} value={q.skill} onChange={(e) => setQ({ ...q, skill: e.target.value })} />
-          <button type="submit" className="ox-careers-btn primary" disabled={!q.near_location || search.loading}>{t('careers.filters.search')}</button>
+          <button type="submit" className="ox-careers-btn primary" disabled={!q.near_location || search.loading} data-track="ui.62ffc06a2d.5">{t('careers.filters.search')}</button>
         </form>
         {!locations.length ? <p className="ox-careers-subtle">{t('careers.employer.noStores')}</p> : null}
         <ErrorNotice error={search.error} />
@@ -139,7 +139,7 @@ export default function TalentPanel({ ctx, openings, locations }) {
         <div className="ox-careers-grid">
           {(search.data?.results || []).map((p) => <PersonCard key={p.user_id} ctx={ctx} person={p} source="talent_search" openings={open} onUsage={setUsage} />)}
         </div>
-        {search.data?.hasMore ? <button type="button" className="ox-careers-btn" onClick={() => runSearch(search.page + 1)}>{t('careers.loadMore')}</button> : null}
+        {search.data?.hasMore ? <button type="button" className="ox-careers-btn" onClick={() => runSearch(search.page + 1)} data-track="ui.62ffc06a2d.6">{t('careers.loadMore')}</button> : null}
       </section>
     </div>
   );
