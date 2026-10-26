@@ -215,6 +215,8 @@ ddescribe('careers (real database)', () => {
     const pub = await request(app).get(`/api/careers/openings/${ids.opening}`);
     expect(pub.status).toBe(200);
     expect(pub.body.opening.title).toBe('Line cook');
+    // Public detail lists the opening's open stores for the preferred-store picker.
+    expect(Array.isArray(pub.body.opening.locations)).toBe(true);
     const list = await request(app).get('/api/careers/openings');
     expect(list.body.openings.map((o) => Number(o.id))).toContain(ids.opening);
   });
@@ -230,6 +232,14 @@ ddescribe('careers (real database)', () => {
     const listedIds = listed.body.openings.map((o) => Number(o.id));
     expect(listedIds).toContain(ids.opening);
     expect(listedIds).not.toContain(ids.airportOpening);
+    // Store pickers only offer the manager's own stores (C-03).
+    const storeIds = listed.body.locations.map((l) => Number(l.id));
+    expect(storeIds).toContain(Number(ids.loc1));
+    expect(storeIds).not.toContain(Number(ids.loc2));
+    expect(listed.body.access.is_owner).toBe(false);
+    const ownerList = await as(ids.owner).get(`/api/careers/employer/openings?business_id=${ids.biz}`);
+    expect(ownerList.body.access.is_owner).toBe(true);
+    expect(ownerList.body.locations.map((l) => Number(l.id))).toEqual(expect.arrayContaining([Number(ids.loc1), Number(ids.loc2)]));
     const post = await as(ids.manager).post('/api/careers/employer/openings', openingBody({ location_ids: [ids.loc2] }));
     expect(post.status).toBe(403);
     expect(post.body.code || post.body.error).toBeTruthy();
@@ -270,6 +280,11 @@ ddescribe('careers (real database)', () => {
     ids.application = Number(res.body.application.id);
     const dup = await as(ids.worker).post(`/api/careers/openings/${ids.opening}/apply`, applyBody);
     expect(dup.status).toBe(409);
+    const scopes = await as(ids.owner).get(`/api/careers/employer/scopes?business_id=${ids.biz}`);
+    expect(scopes.status).toBe(200);
+    expect(scopes.body.is_owner).toBe(true);
+    expect(scopes.body.managers.map((m) => String(m.membership_id ?? m.id))).toContain(String(ids.manager2Membership));
+    expect(scopes.body.regions.map((r) => String(r.id))).toContain(String(ids.region));
     const list = await as(ids.manager).get(`/api/careers/employer/openings/${ids.opening}/applications`);
     expect(list.status).toBe(200);
     expect(list.body.applications.map((a) => Number(a.id))).toContain(ids.application);
