@@ -47,6 +47,7 @@ describe('migration ordering (Q11)', () => {
     for (const file of files.slice(tail + 1)) {
       expect(isValidTimestampMigration(file)).toBe(true);
     }
+    expect(files.slice(tail + 1).length).toBeGreaterThan(0);
   });
 
   test('no new low-numbered file may slip in among the frozen historical files', () => {
