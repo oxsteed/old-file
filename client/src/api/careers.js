@@ -74,7 +74,7 @@ export const searchTalent = (businessId, params = {}) => api.get('/careers/emplo
 export const sendCareerInvitation = (businessId, payload) => api.post('/careers/employer/invitations', { business_id: businessId, ...payload }).then(data);
 export const getCareerSettings = (businessId) => api.get('/careers/employer/settings', { params: { business_id: businessId } }).then((r) => r.data?.settings || null);
 export const updateCareerSettings = (businessId, payload) => api.patch('/careers/employer/settings', { business_id: businessId, ...payload }).then((r) => r.data?.settings || null);
-export const listHiringScopes = (businessId) => api.get('/careers/employer/scopes', { params: { business_id: businessId } }).then((r) => r.data?.scopes || []);
+export const listHiringScopes = (businessId) => api.get('/careers/employer/scopes', { params: { business_id: businessId } }).then(data);
 export const grantHiringScope = (businessId, payload) => api.post('/careers/employer/scopes', { business_id: businessId, ...payload }).then(data);
 export const revokeHiringScope = (businessId, scopeId) => api.delete(`/careers/employer/scopes/${enc(scopeId)}`, { params: { business_id: businessId } }).then(data);
 export const listPaidCareerFeatures = (businessId) => api.get('/careers/employer/paid', { params: { business_id: businessId } }).then(data);

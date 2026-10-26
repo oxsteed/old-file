@@ -84,7 +84,7 @@ export const EMPTY_OPENING = Object.freeze({
   team_role: 'employee', job_role_code: '', location_ids: [], employer_model: 'direct', allow_guest_applications: false,
   hide_identity_until_offer: false, ai_ranking_enabled: false, background_check_required: false, background_check_package: '',
   background_check_reason: '', required_credentials: '', preferred_credentials: '', required_languages: '',
-  applications_close_at: '', is_internal: false, status: 'draft',
+  applications_close_at: '', is_internal: false, status: 'draft', min_age: 18, min_age_reason: '',
 });
 
 /** Opening row → editable form values. */
@@ -113,6 +113,8 @@ export function formToOpeningPayload(form, { employerType = 'business' } = {}) {
     job_role_code: form.job_role_code || null,
     postal_code: form.postal_code || null,
     region: form.region || null,
+    min_age: Number(form.min_age) || 18,
+    min_age_reason: Number(form.min_age) > 18 ? form.min_age_reason || null : null,
   };
   if (!payload.background_check_required) {
     payload.background_check_package = null;
@@ -286,4 +288,27 @@ export function factValueText(fact, locale = 'en') {
     default:
       return '';
   }
+}
+
+/**
+ * "2026-11-02T10:00" wall time in `timeZone` → ISO instant. Uses the zone's
+ * offset at that moment (two passes cover DST edges).
+ */
+export function zonedToIso(local, timeZone) {
+  if (!local) return null;
+  const [d, tm = '00:00'] = String(local).split('T');
+  const [y, mo, da] = d.split('-').map(Number);
+  const [h, mi] = tm.split(':').map(Number);
+  const wall = Date.UTC(y, mo - 1, da, h, mi);
+  if (!timeZone) return new Date(y, mo - 1, da, h, mi).toISOString();
+  const offsetAt = (ms) => {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+      timeZone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+    }).formatToParts(new Date(ms)).map((p) => [p.type, p.value]));
+    const asUtc = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute));
+    return asUtc - ms;
+  };
+  let guess = wall - offsetAt(wall);
+  guess = wall - offsetAt(guess);
+  return new Date(guess).toISOString();
 }

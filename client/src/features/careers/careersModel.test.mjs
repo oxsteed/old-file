@@ -125,3 +125,12 @@ test('facts render as short values', () => {
   assert.equal(factValueText({ fact_type: 'avg_rating', value: { average: 4.62, count: 30 } }), '4.6 / 5 (30)');
   assert.match(factValueText({ fact_type: 'certificate', value: { title: 'Food handler', expires_on: '2027-01-15' } }, 'en-US'), /^Food handler → Jan 15, 2027$/);
 });
+
+import { zonedToIso } from './careersModel.js';
+
+test('interview wall time converts in the opening time zone', () => {
+  assert.equal(zonedToIso('2026-11-02T10:00', 'America/New_York'), '2026-11-02T15:00:00.000Z');
+  assert.equal(zonedToIso('2026-07-01T10:00', 'America/New_York'), '2026-07-01T14:00:00.000Z');
+  assert.equal(zonedToIso('2026-07-01T10:00', 'Asia/Tokyo'), '2026-07-01T01:00:00.000Z');
+  assert.equal(zonedToIso('', 'UTC'), null);
+});

@@ -67,8 +67,30 @@ exports.listOpenings = handle(async (req, res) => {
       ORDER BY o.updated_at DESC LIMIT 200`,
     params
   );
-  res.json({ openings: rows, access: { kind: access.kind, role: access.role, scope: access.scope, can_approve_above_range: access.canApproveAboveRange } });
+  res.json({
+    openings: rows,
+    locations: platform ? [] : await storesInScope(access),
+    access: { kind: access.kind, role: access.role, is_owner: Boolean(access.isOwner), scope: access.scope, can_approve_above_range: access.canApproveAboveRange },
+  });
 });
+
+// The business's stores the caller may hire for (store pickers, talent search).
+async function storesInScope(access) {
+  const params = [access.businessId];
+  let filter = '';
+  if (!(access.isOwner || ['business', 'brand'].includes(access.scope?.mode))) {
+    params.push(access.scope?.locationIds || []);
+    filter = ' AND l.id = ANY($2::bigint[])';
+  }
+  const { rows } = await pool.query(
+    `SELECT l.id, l.name, l.address_city AS city, l.region_id, l.timezone
+       FROM restaurant_locations l JOIN food_restaurants fr ON fr.id = l.restaurant_id
+      WHERE fr.business_id = $1 AND l.status <> 'closed'${filter}
+      ORDER BY l.name`,
+    params
+  );
+  return rows;
+}
 
 exports.getOpening = handle(async (req, res) => {
   const { opening, access } = await openingWithAccess(pool, req, req.params.id, { write: false });
@@ -344,7 +366,20 @@ exports.listScopes = handle(async (req, res) => {
       WHERE s.business_id = $1 AND s.revoked_at IS NULL ORDER BY s.created_at`,
     [access.businessId]
   );
-  res.json({ scopes: rows });
+  // Pickers for the owner's grant form: active managers and the regions.
+  const [{ rows: managers }, { rows: regions }] = await Promise.all([
+    pool.query(
+      `SELECT bm.id AS membership_id, u.first_name, u.last_name FROM business_members bm LEFT JOIN users u ON u.id = bm.member_id
+        WHERE bm.business_id = $1 AND bm.status = 'active' AND bm.role = 'manager' ORDER BY u.last_name, u.first_name`,
+      [access.businessId]
+    ),
+    pool.query(
+      `SELECT rr.id, rr.name FROM restaurant_regions rr JOIN food_restaurants fr ON fr.id = rr.restaurant_id
+        WHERE fr.business_id = $1 ORDER BY rr.name`,
+      [access.businessId]
+    ),
+  ]);
+  res.json({ scopes: rows, managers, regions, is_owner: Boolean(access.isOwner) });
 });
 
 // Only the owner grants brand-admin or regional-manager hiring scope (Q17).
