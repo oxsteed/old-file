@@ -59,6 +59,8 @@ const STORE_TABLES = [
   'restaurant_store_menu_overrides',
   'restaurant_tables',
   'restaurant_tax_rules',
+  'restaurant_terminal_offline_leases',
+  'restaurant_terminal_offline_payments',
   'restaurant_terminal_offline_permits',
   'restaurant_waitlist_entries',
   'store_hub_offline_sales',

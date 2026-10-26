@@ -122,7 +122,42 @@ async function designateHubDevice(client, { restaurantId, locationId, name, acto
   return deviceShape(row);
 }
 
+// F-26: the one status writer for legacy entry points. App-device status
+// ('paired' | 'disabled') maps onto the registry and writes through; 'pending'
+// is only reachable by issuing a new pairing code, and a device that never
+// paired cannot be switched on from a config screen.
+async function setAppDeviceStatus(client, { restaurantId, appDeviceId, status, actorUserId = null, allowedLocationIds = null }) {
+  if (status === 'pending') throw new AppError('Issue a new pairing code to re-pair this device', 409, 'device_status_via_pairing');
+  if (!['paired', 'disabled'].includes(status)) throw new AppError('Unsupported device status', 400, 'validation_failed');
+  const { rows: [app] } = await client.query(
+    'SELECT id, status, paired_at, device_token_hash FROM restaurant_app_devices WHERE restaurant_id = $1 AND id = $2 FOR UPDATE',
+    [restaurantId, appDeviceId]
+  );
+  if (!app) throw new AppError('Device not found', 404, 'device_not_found');
+  if (status === 'paired' && (!app.paired_at || !app.device_token_hash)) {
+    throw new AppError('Pair this device before enabling it', 409, 'device_pairing_required');
+  }
+  const { rows: [reg] } = await client.query(
+    'SELECT id FROM restaurant_devices WHERE restaurant_id = $1 AND source_app_device_id = $2',
+    [restaurantId, appDeviceId]
+  );
+  if (!reg) throw new AppError('Device registry entry missing', 409, 'device_registry_missing');
+  return setDeviceStatus(client, { restaurantId, deviceId: reg.id, status: status === 'disabled' ? 'disabled' : 'active', actorUserId, allowedLocationIds });
+}
+
+// Unpairing a display deletes its pairing row; retire the registry row first
+// so the fleet never shows a stale "active" device with no source.
+async function retireDisplayPairing(client, { restaurantId, pairingId }) {
+  await client.query(
+    `UPDATE restaurant_devices SET status = 'disabled', updated_at = NOW()
+      WHERE restaurant_id = $1 AND source_display_pairing_id = $2`,
+    [restaurantId, pairingId]
+  );
+}
+
 module.exports = {
+  setAppDeviceStatus,
+  retireDisplayPairing,
   DEVICE_ROLES: [...DEVICE_ROLES],
   listDevices,
   getDevice,

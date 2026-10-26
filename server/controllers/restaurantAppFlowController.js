@@ -2509,6 +2509,10 @@ exports.updatePrepDeviceConfig = async (req, res, next) => {
           );
           if (!location) throw new AppError('Location not found', 404, 'location_not_found');
         }
+        // F-26: status goes through the canonical device registry writer.
+        if (status) {
+          await require('../services/unifiedDeviceService').setAppDeviceStatus(client, { restaurantId, appDeviceId: deviceId, status, actorUserId: req.user.id });
+        }
         const { rows: [device] } = await client.query(
           `UPDATE restaurant_app_devices
               SET device_name = COALESCE($1, device_name),
@@ -2530,7 +2534,7 @@ exports.updatePrepDeviceConfig = async (req, res, next) => {
             normalizeString(source.deviceName || source.device_name, 160),
             normalizeString(source.mode, 64),
             locationId,
-            status,
+            null,
             deviceConfig ? JSON.stringify(deviceConfig) : null,
             replaceConfig,
             restaurantId,
@@ -3532,6 +3536,13 @@ exports.updateDeviceConfig = async (req, res, next) => {
         WHERE restaurant_id = $1 AND id = $2`,
       [restaurantId, deviceId]
     );
+    // F-26: status goes through the canonical device registry writer.
+    if (status && status !== priorDeviceConfig?.status) {
+      await withTransaction(pool, (client) => require('../services/unifiedDeviceService').setAppDeviceStatus(client, {
+        restaurantId, appDeviceId: deviceId, status, actorUserId: req.user.id,
+        allowedLocationIds: locationScope.mode === 'assigned' ? locationScope.location_ids : null,
+      }));
+    }
     const { rows: [device] } = await pool.query(
       `UPDATE restaurant_app_devices
           SET device_name = COALESCE($1, device_name),
@@ -3552,7 +3563,7 @@ exports.updateDeviceConfig = async (req, res, next) => {
         normalizeString(req.body.deviceName || req.body.device_name, 160),
         normalizeString(req.body.mode, 64),
         locationId,
-        status,
+        null,
         hasConfig ? JSON.stringify(safeJson(req.body.config)) : null,
         replaceConfig,
         restaurantId,
