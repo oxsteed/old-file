@@ -1042,7 +1042,7 @@ if (RESEND_API_KEY && RESEND_API_KEY.startsWith('re_')) {
   logger.warn('Resend API key not set or invalid - email features disabled');
 }
 
-async function sendEmail({ to, subject, text, html, from, fromName, idempotencyKey, headers }) {
+async function sendEmail({ to, subject, text, html, from, fromName, idempotencyKey, headers, attachments }) {
   if (!emailConfigured) {
     // Review P3-844: in production a missing provider is an outage, not noise.
     if (process.env.NODE_ENV === 'production') {
@@ -1079,6 +1079,8 @@ async function sendEmail({ to, subject, text, html, from, fromName, idempotencyK
         text: String(text || ''),
         html: String(html || ''),
         ...(customHeaders ? { headers: customHeaders } : {}),
+        // Careers interview invites attach an .ics file ({ filename, content: base64 }).
+        ...(Array.isArray(attachments) && attachments.length ? { attachments: attachments.slice(0, 5) } : {}),
       }),
     });
 

@@ -85,7 +85,9 @@ async function notifyTrainingAssigned(userId, { assignmentId, moduleId, moduleTi
 // Creates the assignment rows that are missing (idempotent) and returns
 // the newly created ones so the caller can notify outside any
 // transaction.
-async function applyAutoAssignRules(db, { restaurantId, businessId, moduleId = null, assignedBy = null, onlyOnHire = false }) {
+// memberUserId narrows the run to one member: the careers onboarding run
+// assigns on-hire training to the new hire right away (careers spec §4.6).
+async function applyAutoAssignRules(db, { restaurantId, businessId, moduleId = null, assignedBy = null, onlyOnHire = false, memberUserId = null }) {
   const { rows: allRules } = await db.query(
     `SELECT r.*, m.title AS module_title, m.is_active AS module_is_active
        FROM restaurant_training_auto_assign_rules r
@@ -97,11 +99,14 @@ async function applyAutoAssignRules(db, { restaurantId, businessId, moduleId = n
   const rules = onlyOnHire ? allRules.filter((r) => r.on_hire) : allRules;
   const created = [];
   for (const rule of rules) {
+    const memberParams = rule.target_role ? [businessId, rule.target_role] : [businessId];
+    if (memberUserId) memberParams.push(memberUserId);
     const { rows: members } = await db.query(
       `SELECT member_id FROM business_members
         WHERE business_id = $1 AND status = 'active'
-          ${rule.target_role ? 'AND role = $2' : ''}`,
-      rule.target_role ? [businessId, rule.target_role] : [businessId]
+          ${rule.target_role ? 'AND role = $2' : ''}
+          ${memberUserId ? `AND member_id = $${memberParams.length}` : ''}`,
+      memberParams
     );
     for (const member of members) {
       const { rows: [assignment] } = await db.query(

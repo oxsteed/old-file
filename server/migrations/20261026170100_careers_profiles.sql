@@ -76,11 +76,14 @@ CREATE TABLE IF NOT EXISTS career_profile_share_events (
 );
 CREATE INDEX IF NOT EXISTS idx_career_share_events_user ON career_profile_share_events (user_id, created_at DESC);
 
--- Append-only: rows are never updated, and only deleted by erasure (§12.6),
--- which sets careers.erasure = 'on' for its transaction.
+-- Append-only: rows are never updated, and only deleted by erasure (§12.6,
+-- which sets careers.erasure = 'on' for its transaction) or account deletion.
 CREATE OR REPLACE FUNCTION career_share_events_append_only() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-  IF TG_OP = 'DELETE' AND current_setting('careers.erasure', true) = 'on' THEN
+  -- Deletes are allowed for erasure, and when the account itself is gone
+  -- (ON DELETE CASCADE from users), so account deletion never fails here.
+  IF TG_OP = 'DELETE' AND (current_setting('careers.erasure', true) = 'on'
+      OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id = OLD.user_id)) THEN
     RETURN OLD;
   END IF;
   RAISE EXCEPTION 'career_profile_share_events is append-only' USING ERRCODE = '42501';

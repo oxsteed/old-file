@@ -58,6 +58,8 @@ const T = {
   ...require('./campaignReviewNotifications').campaignReviewNotifications,
   // S-19: staff membership notices (invite/removal/resend/withdraw/rehire/hired).
   ...require('./staffNotificationTemplates').staffNotifications,
+  // Careers spec §11: application, interview, offer, check and invitation notices.
+  ...require('./careerNotificationTemplates').careerNotifications,
   // D16: admin operational notices.
   ...require('./adminOperationalNoticeCopy').adminOperationalNotifications,
   work_agreement_signature_requested: {
