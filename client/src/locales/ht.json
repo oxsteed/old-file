@@ -36700,6 +36700,27 @@
       "verify": "Verifye laj mwen",
       "confirmed": "Laj ou konfime.",
       "withdraw": "Retire konfimasyon laj la epi efase done aktivite yo"
+    },
+    "amazon": {
+      "title": "Amazon Associates",
+      "channelsNote": "Òf Amazon yo parèt sèlman nan aplikasyon an ak pa notifikasyon push, janm pa imèl. Amazon resevwa sèlman etikèt swivi kanpay la.",
+      "notConfigured": "API Product Advertising Amazon pa configure sou sèvè a.",
+      "disclosureHint": "Divilgasyon an angle pou chak òf Amazon dwe mansyone Amazon, pa egzanp: {{text}}",
+      "error": "Sa pa t mache ({{code}}).",
+      "search": "Chèche pwodwi Amazon",
+      "searchButton": "Chèche",
+      "draftOffer": "ID òf bouyon Amazon",
+      "pin": "Tache ak òf bouyon an",
+      "pinned": "{{asin}} tache ak òf {{offer}}.",
+      "reportTitle": "Enpòte yon rapò pa ID swivi",
+      "reportRef": "Referans rapò a",
+      "periodStart": "Kòmansman peryòd",
+      "periodEnd": "Fen peryòd",
+      "currency": "Lajan",
+      "reportFile": "Fichye rapò (separe pa tab)",
+      "importReport": "Enpòte rapò",
+      "reportImported": "{{tags}} etikèt enpòte ({{mapped}} konekte ak kanpay).",
+      "reportDuplicate": "Rapò sa a te deja enpòte."
     }
   },
   "adminOperationalNotices": {

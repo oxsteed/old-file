@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../../lib/adminApi';
 import { useHasGrant } from '../../lib/GrantGuard';
+import AmazonAssociatesPanel from './AmazonAssociatesPanel';
 
 // Partner operations for the Demand & Sales Engine (spec 13/15.1): partner
 // creation, feed management and manual runs, reviewed category mapping with
@@ -151,6 +152,8 @@ export default function PartnerManager() {
     <div className="space-y-8 p-6 text-gray-900 dark:text-gray-100">
       <h1 className="text-2xl font-semibold">{label('partners')}</h1>
       {error && <p role="alert">{label('error')}</p>}
+
+      <AmazonAssociatesPanel canPartners={canPartners} />
 
       <section className="space-y-3">
         <h2 className="text-lg font-medium">{label('create')}</h2>

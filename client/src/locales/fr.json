@@ -36700,6 +36700,27 @@
       "verify": "Vérifier mon âge",
       "confirmed": "Votre âge est confirmé.",
       "withdraw": "Retirer la confirmation d’âge et supprimer les données d’activité"
+    },
+    "amazon": {
+      "title": "Amazon Partenaires",
+      "channelsNote": "Les offres Amazon sont affichées uniquement dans l’app et par notification push, jamais par e-mail. Amazon ne reçoit que l’identifiant de suivi de la campagne.",
+      "notConfigured": "L’API Product Advertising d’Amazon n’est pas configurée sur le serveur.",
+      "disclosureHint": "La mention en anglais de chaque offre Amazon doit citer Amazon, par exemple : {{text}}",
+      "error": "Échec ({{code}}).",
+      "search": "Rechercher des produits Amazon",
+      "searchButton": "Rechercher",
+      "draftOffer": "ID de l’offre Amazon en brouillon",
+      "pin": "Associer à l’offre en brouillon",
+      "pinned": "{{asin}} associé à l’offre {{offer}}.",
+      "reportTitle": "Importer un rapport par identifiant de suivi",
+      "reportRef": "Référence du rapport",
+      "periodStart": "Début de période",
+      "periodEnd": "Fin de période",
+      "currency": "Devise",
+      "reportFile": "Fichier du rapport (séparé par tabulations)",
+      "importReport": "Importer le rapport",
+      "reportImported": "{{tags}} identifiants importés ({{mapped}} rattachés à des campagnes).",
+      "reportDuplicate": "Ce rapport a déjà été importé."
     }
   },
   "adminOperationalNotices": {

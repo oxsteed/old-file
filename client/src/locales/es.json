@@ -36700,6 +36700,27 @@
       "verify": "Verificar mi edad",
       "confirmed": "Tu edad está confirmada.",
       "withdraw": "Retirar la confirmación de edad y eliminar los datos de actividad"
+    },
+    "amazon": {
+      "title": "Amazon Associates",
+      "channelsNote": "Las ofertas de Amazon se muestran solo en la app y por notificación push, nunca por correo. Amazon solo recibe la etiqueta de seguimiento de la campaña.",
+      "notConfigured": "La API de publicidad de productos de Amazon no está configurada en el servidor.",
+      "disclosureHint": "La divulgación en inglés de cada oferta de Amazon debe mencionar Amazon, por ejemplo: {{text}}",
+      "error": "No funcionó ({{code}}).",
+      "search": "Buscar productos de Amazon",
+      "searchButton": "Buscar",
+      "draftOffer": "ID de la oferta borrador de Amazon",
+      "pin": "Fijar a la oferta borrador",
+      "pinned": "{{asin}} fijado a la oferta {{offer}}.",
+      "reportTitle": "Importar un informe por ID de seguimiento",
+      "reportRef": "Referencia del informe",
+      "periodStart": "Inicio del período",
+      "periodEnd": "Fin del período",
+      "currency": "Moneda",
+      "reportFile": "Archivo del informe (separado por tabulaciones)",
+      "importReport": "Importar informe",
+      "reportImported": "Se importaron {{tags}} etiquetas ({{mapped}} vinculadas a campañas).",
+      "reportDuplicate": "Este informe ya se importó."
     }
   },
   "adminOperationalNotices": {

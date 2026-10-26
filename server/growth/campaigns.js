@@ -4,6 +4,17 @@ const { logAdminAction } = require("../services/auditService");
 const { evaluate, isPersonalized } = require("./segments/compile");
 const { scope } = require("./access");
 const LOCALES = ["en", "es", "fr", "ht", "ar"];
+// D21: a tracking tag identifies exactly one campaign in Amazon's reports.
+async function assertAmazonTagFree(conn, tag, campaignId = null) {
+  if (!tag) return;
+  const { rows } = await conn.query(
+    "SELECT id FROM offer_campaigns WHERE amazon_tracking_tag=$1 AND ($2::bigint IS NULL OR id<>$2) LIMIT 1",
+    [tag, campaignId],
+  );
+  if (rows.length)
+    throw Object.assign(new Error("amazon_tracking_tag_in_use"), { statusCode: 409, code: "amazon_tracking_tag_in_use" });
+}
+
 function validateCopy(copy, channels, { affiliate = false } = {}) {
   if (!copy || Object.keys(copy).some((k) => !LOCALES.includes(k)))
     throw new Error("invalid_campaign_copy");
@@ -376,6 +387,8 @@ async function editCampaign(conn, campaign, user, patch, { affiliate = false } =
   const forcesReapproval =
     contentChanged && ["approved", "scheduled"].includes(campaign.status);
   const next = { ...campaign, ...patch };
+  if (patch.amazon_tracking_tag)
+    await assertAmazonTagFree(conn, patch.amazon_tracking_tag, campaign.id);
   await conn.query(
     `UPDATE offer_campaigns SET name=$2, offer_id=$3, segment_version_id=$4,
        channels=$5, copy=$6, holdout_pct=$7, is_personalized=$8,
@@ -644,6 +657,7 @@ async function campaignResults(conn, campaign, { finance = false } = {}) {
 }
 
 module.exports = {
+  assertAmazonTagFree,
   assertPersonalizationLabel,
   validateCopy,
   holdout,

@@ -767,11 +767,27 @@ router.post(
             !p.currencies.includes(o.currency)
           )
             throw new Error("partner_rules_conflict");
-          require("../growth/partners/tokens").destination(
-            o.destination_url,
-            p.link_domains_allowlist,
-            "validation",
-          );
+          const amazonWiring = require("../growth/partners/amazonWiring");
+          if (amazonWiring.isAmazon(p.network)) {
+            // D21: an Amazon offer must be pinned to a fresh, buyable ASIN,
+            // carry the Associates disclosure, and resolve to a tagged link.
+            const {
+              rows: [item],
+            } = await conn.query("SELECT * FROM amazon_offer_items WHERE offer_id=$1", [o.id]);
+            if (!amazonWiring.itemFresh(item)) throw new Error("amazon_item_unavailable_or_stale");
+            if (!/amazon/i.test(String(o.copy?.en?.disclosure || "")))
+              throw new Error("amazon_disclosure_required");
+            amazonWiring.amazonDestination(
+              o.destination_url,
+              p.link_domains_allowlist,
+              amazonWiring.trackingTagFor(null) || "validation",
+            );
+          } else
+            require("../growth/partners/tokens").destination(
+              o.destination_url,
+              p.link_domains_allowlist,
+              "validation",
+            );
         } else if (
           !/^\/(?!\/)[a-zA-Z0-9/_-]*$/.test(o.destination_url || "") ||
           /credit|wallet|payment/i.test(o.destination_url)
@@ -791,6 +807,119 @@ router.post(
       "growth_offer_activate",
     );
     res.sendStatus(204);
+  }),
+);
+// ── D21 Amazon Associates ──────────────────────────────────────────────
+router.get(
+  "/amazon/status",
+  requirePermission("manage_marketing"),
+  wrap(async (req, res) => {
+    let configured = false;
+    try {
+      configured = Boolean(require("../growth/partners/amazonProducts").config());
+    } catch {
+      configured = false;
+    }
+    const { rows: partners } = await db.query(
+      "SELECT id, code, name, status FROM affiliate_partners WHERE network=$1 ORDER BY id",
+      [require("../growth/partners/amazonWiring").AMAZON_NETWORK],
+    );
+    res.json({ configured, partners, disclosure: require("../growth/partners/amazonWiring").disclosure() });
+  }),
+);
+router.get(
+  "/amazon/search",
+  requirePermission("manage_marketing"),
+  wrap(async (req, res) => {
+    const q = String(req.query.q || "");
+    if (!q.trim() || q.length > 120) return res.status(400).json({ error: "amazon_keywords_invalid" });
+    const result = await require("../growth/partners/amazonProducts").searchItems(q);
+    if (!result.enabled) return res.status(409).json({ error: "amazon_not_configured" });
+    res.json({ items: result.items });
+  }),
+);
+// Pin a draft Amazon offer to one ASIN. The item is re-read from the API
+// (never trusted from the browser) and becomes the offer's destination.
+router.post(
+  "/amazon/offers/:offerId/item",
+  requirePermission("manage_marketing"),
+  wrap(async (req, res) => {
+    const asin = String(req.body?.asin || "");
+    if (!/^[A-Z0-9]{10}$/.test(asin)) return res.status(400).json({ error: "amazon_asin_invalid" });
+    const amazonProducts = require("../growth/partners/amazonProducts");
+    const amazonWiring = require("../growth/partners/amazonWiring");
+    const looked = await amazonProducts.getItems([asin]);
+    if (!looked.enabled) return res.status(409).json({ error: "amazon_not_configured" });
+    const item = looked.items[0];
+    if (!item || item.available === false) return res.status(409).json({ error: "amazon_item_unavailable" });
+    const result = await withTransaction(
+      db,
+      async (conn) => {
+        const {
+          rows: [o],
+        } = await conn.query(
+          `SELECT o.*, p.network, p.link_domains_allowlist FROM offers o
+             JOIN affiliate_partners p ON p.id=o.partner_id WHERE o.id=$1 FOR UPDATE OF o`,
+          [id(req.params.offerId)],
+        );
+        if (!o || !amazonWiring.isAmazon(o.network))
+          throw Object.assign(new Error("amazon_offer_not_found"), { statusCode: 404, code: "amazon_offer_not_found" });
+        if (o.status !== "draft")
+          throw Object.assign(new Error("offer_not_draft"), { statusCode: 409, code: "offer_not_draft" });
+        const host = new URL(item.url).hostname.toLowerCase();
+        if (!o.link_domains_allowlist.includes(host))
+          throw Object.assign(new Error("partner_destination_denied"), { statusCode: 409, code: "partner_destination_denied" });
+        await amazonWiring.pinItem(conn, { offerId: o.id, item, host, actorId: req.user.id });
+        await conn.query("UPDATE offers SET destination_url=$2 WHERE id=$1", [o.id, item.url]);
+        await logAdminAction({
+          adminId: req.user.id,
+          action: "growth_amazon_item_pinned",
+          targetType: "offer",
+          targetKey: o.id,
+          after: { asin, host },
+          client: conn,
+        });
+        return { offer_id: o.id, asin, title: item.title, price: item.price, currency: item.currency };
+      },
+      "growth_amazon_pin",
+    );
+    res.json(result);
+  }),
+);
+router.post(
+  "/amazon/reports",
+  requirePermission("manage_affiliate_partners"),
+  wrap(async (req, res) => {
+    const b = req.body || {};
+    if (typeof b.csv !== "string" || !b.csv.trim() || b.csv.length > 5_000_000)
+      return res.status(400).json({ error: "amazon_report_invalid" });
+    const dateOk = (v) => v == null || /^\d{4}-\d{2}-\d{2}$/.test(v);
+    if (!dateOk(b.period_start) || !dateOk(b.period_end))
+      return res.status(400).json({ error: "amazon_report_period_invalid" });
+    const result = await withTransaction(
+      db,
+      async (conn) => {
+        const out = await require("../growth/partners/amazonWiring").importReport(conn, {
+          reportRef: b.report_ref,
+          csv: b.csv,
+          periodStart: b.period_start || null,
+          periodEnd: b.period_end || null,
+          currency: b.currency || "USD",
+          actorId: req.user.id,
+        });
+        await logAdminAction({
+          adminId: req.user.id,
+          action: "growth_amazon_report_imported",
+          targetType: "amazon_report",
+          targetKey: out.report_id,
+          after: out,
+          client: conn,
+        });
+        return out;
+      },
+      "growth_amazon_report",
+    );
+    res.status(result.duplicate ? 200 : 201).json(result);
   }),
 );
 router.post(
@@ -1306,6 +1435,7 @@ router.post(
         // trusted from the request. A broad label on an activity-based
         // segment would skip Do-not-sell-or-share, so it is refused.
         campaigns.assertPersonalizationLabel(b.is_personalized, s.definition);
+        await campaigns.assertAmazonTagFree(conn, b.amazon_tracking_tag);
         const {
           rows: [c],
         } = await conn.query(
@@ -1390,7 +1520,11 @@ router.get(
       return res.status(403).json({ error: "campaign_access_denied" });
     const finance = await financeVisible(req.user);
     const results = await campaigns.campaignResults(db, c, { finance });
-    res.json({ campaign: { id: c.id, name: c.name, status: c.status }, ...results });
+    // D21: Amazon reports by tracking tag only (no per-click attribution).
+    const amazon_reports = c.amazon_tracking_tag
+      ? await require("../growth/partners/amazonWiring").campaignResults(db, c.id, { finance })
+      : [];
+    res.json({ campaign: { id: c.id, name: c.name, status: c.status }, ...results, amazon_reports });
   }),
 );
 router.get(

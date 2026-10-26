@@ -41,12 +41,23 @@ router.get("/:token", generalLimiter, async (req, res) => {
       ).allowed
     )
       return res.redirect(303, "/offers/ended");
+    const amazonWiring = require("../growth/partners/amazonWiring");
+    const isAmazon = amazonWiring.isAmazon(offer.partner_network);
+    if (isAmazon) {
+      const {
+        rows: [item],
+      } = await db.query("SELECT available,last_refreshed_at FROM amazon_offer_items WHERE offer_id=$1", [offer.id]);
+      if (!amazonWiring.itemFresh(item)) return res.redirect(303, "/offers/ended");
+    }
     const clickId = offer.is_personalized === false ? null : crypto.randomUUID(),
-      target = destination(
-        offer.destination_url,
-        offer.link_domains_allowlist,
-        clickId,
-      );
+      // D21: Amazon gets only the campaign tracking tag, never a click id.
+      target = isAmazon
+        ? amazonWiring.amazonDestination(
+            offer.destination_url,
+            offer.link_domains_allowlist,
+            amazonWiring.trackingTagFor(offer.amazon_tracking_tag),
+          )
+        : destination(offer.destination_url, offer.link_domains_allowlist, clickId);
     if (clickId)
       await db.query(
         "INSERT INTO offer_clicks(click_id,delivery_id,offer_id) VALUES($1,$2,$3)",

@@ -36700,6 +36700,27 @@
       "verify": "Verify my age",
       "confirmed": "Your age is confirmed.",
       "withdraw": "Withdraw age confirmation and delete activity data"
+    },
+    "amazon": {
+      "title": "Amazon Associates",
+      "channelsNote": "Amazon offers are shown in the app and by push only, never by email. Amazon receives only the campaign tracking tag.",
+      "notConfigured": "Amazon Product Advertising API is not configured on the server.",
+      "disclosureHint": "Every Amazon offer's English disclosure must mention Amazon, for example: {{text}}",
+      "error": "That did not work ({{code}}).",
+      "search": "Search Amazon products",
+      "searchButton": "Search",
+      "draftOffer": "Draft Amazon offer ID to pin",
+      "pin": "Pin to draft offer",
+      "pinned": "Pinned {{asin}} to offer {{offer}}.",
+      "reportTitle": "Import a tracking-ID report",
+      "reportRef": "Report reference",
+      "periodStart": "Period start",
+      "periodEnd": "Period end",
+      "currency": "Currency",
+      "reportFile": "Report file (tab-separated)",
+      "importReport": "Import report",
+      "reportImported": "Imported {{tags}} tracking tags ({{mapped}} matched to campaigns).",
+      "reportDuplicate": "This report was already imported."
     }
   },
   "adminOperationalNotices": {
