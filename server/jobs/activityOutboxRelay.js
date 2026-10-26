@@ -5,6 +5,8 @@ const queue = require("../growth/queue");
 async function run() {
   if (process.env.GROWTH_TRACKING_HARD_OFF !== "false")
     return { skipped: true };
+  const pending = await require('../db').query("SELECT 1 FROM activity_outbox LIMIT 1");
+  if (!pending.rows.length) return { skipped: true };
   return withFencedJobLock(
     "growth-outbox",
     (fence) =>

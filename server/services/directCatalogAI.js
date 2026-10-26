@@ -1,4 +1,5 @@
 'use strict';
+const { guardedFetch } = require('./openRouterSpendGuard');
 
 const { LOCALES, ICONS, LIFECYCLE_STATUSES } = require('./directCatalogService');
 
@@ -22,7 +23,7 @@ async function callProvider(baseUrl, apiKey, model, messages) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
   try {
-    const response = await fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
+    const response = await guardedFetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ model, messages, temperature: 0.1, max_tokens: 1800, response_format: { type: 'json_object' } }),

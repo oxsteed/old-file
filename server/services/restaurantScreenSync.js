@@ -167,6 +167,8 @@ async function snapshot(scope, query = {}) {
 }
 async function publishBatch() {
   const socketService = require("./socketService");
+  const pending = await pool.query("SELECT 1 FROM restaurant_screen_events WHERE published_at IS NULL LIMIT 1");
+  if (!pending.rows.length) return { published: 0 };
   return withTransaction(
     pool,
     async (client) => {

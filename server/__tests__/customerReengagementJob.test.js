@@ -1,0 +1,21 @@
+'use strict';
+const {mockQuery,resetMocks}=require('./setup');
+jest.mock('node-cron',()=>({schedule:jest.fn()}));
+jest.mock('../services/notificationService',()=>({sendNotification:jest.fn(async()=>{})}));
+jest.mock('../growth/marketingLog',()=>({recordMarketingContact:jest.fn(async()=>{})}));
+const cron=require('node-cron');
+const {sendNotification}=require('../services/notificationService');
+const {startCustomerReengagementJob}=require('../jobs/customerReengagementJob');
+test('idle customers continue beyond the first page and business eligibility uses canonical ownership',async()=>{
+ resetMocks();
+ const people=Array.from({length:103},(_,i)=>({id:`user-${String(i).padStart(3,'0')}`,first_name:'Test',last_job_id:`job-${i}`,preferred_language:'en'}));
+ let reads=0;
+ mockQuery.mockImplementation(async sql=>({rows:sql.includes('SELECT DISTINCT ON')?people.slice(reads++*100,reads*100):[]}));
+ startCustomerReengagementJob();await cron.schedule.mock.calls[0][1]();
+ expect(sendNotification).toHaveBeenCalledTimes(103);
+ const pages=mockQuery.mock.calls.filter(([sql])=>sql.includes('SELECT DISTINCT ON'));
+ expect(pages).toHaveLength(3);
+ expect(pages[1][1]).toEqual([people[99].id]);
+ expect(pages[0][0]).toContain('owned.user_id=u.id');
+ expect(pages[0][0]).not.toContain("'business_owner'");
+});

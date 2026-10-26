@@ -53,8 +53,19 @@ async function api(integration,credentials,path,options={}){
   if(!integration.external_company_id)throw error('provider_company_required');
   const c=config(integration.provider);
   const base=integration.provider==='xero'?c.api:`${c.api}/${encodeURIComponent(integration.external_company_id)}`;
-  return json(`${base}${path}`,{...options,headers:{Authorization:`Bearer ${credentials.accessToken}`,
+  const cacheable = !options.method && (path === '/Organisation' || path.startsWith('/query?') || path.startsWith('/account/'));
+  if (!credentials.metadataCache) Object.defineProperty(credentials,'metadataCache',{value:new Map(),enumerable:false});
+  const key = `${integration.provider}:${integration.external_company_id}:${path}`;
+  const prior = credentials.metadataCache.get(key);
+  if (cacheable && prior && prior.expires>Date.now()) return prior.value;
+  const request = () => json(`${base}${path}`,{...options,headers:{Authorization:`Bearer ${credentials.accessToken}`,
     Accept:'application/json','Content-Type':'application/json',...(integration.provider==='xero'?{'Xero-tenant-id':integration.external_company_id}:{}),...options.headers}});
+  const value = await request();
+  if (cacheable) {
+    if (credentials.metadataCache.size>=100) credentials.metadataCache.clear();
+    credentials.metadataCache.set(key,{value,expires:Date.now()+60000});
+  }
+  return value;
 }
 const marker=id=>`OxSteed journal ${id}`;
 function qboLines(lines,accounts){return lines.map(line=>({Amount:Number(line.debit||0)+Number(line.credit||0),Description:line.description,

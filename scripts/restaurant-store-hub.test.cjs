@@ -99,3 +99,29 @@ test('LAN print bridge writes a kitchen ticket to its configured TCP target',asy
     assert.equal(ack,true);assert.ok(bytes.includes(Buffer.from('Synthetic meal')));assert.ok(bytes.includes(Buffer.from('LAN-1')));
   }finally{await new Promise(r=>server.close(r));fs.rmSync(directory,{recursive:true,force:true});}
 });
+
+test('pending balance survives restart and a lost batch acknowledgement; one upload covers several sales',async()=>{
+  const {DatabaseSync}=require('node:sqlite');
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hub-batch-'));
+  const filename=path.join(dir,'hub.sqlite');
+  let lose=true,uploadCalls=0;
+  const config={filename,restaurantId:1,locationId:2,hubId:3,origin:'https://hub.example.test',cloud:async(method,route,body)=>{
+    if(route==='bootstrap')return {restaurantId:1,locationId:2,expiresAt:new Date(Date.now()+300000).toISOString()};
+    uploadCalls++;assert.equal(body.sales.length,2);
+    if(lose){lose=false;throw Error('lost_ack');}
+    return {queued:body.sales.map(s=>({idempotencyKey:s.idempotencyKey}))};
+  }};
+  let hub=createHub(config);hub.close();
+  const db=new DatabaseSync(filename);
+  for(const id of ['one','two'])db.prepare("INSERT INTO sales(id,request_hash,payload,state) VALUES(?,'hash',?,'completed')").run(id,JSON.stringify({idempotencyKey:id,totalCents:100}));
+  try{
+    assert.equal(db.prepare('SELECT cents FROM pending_balance').get().cents,200);
+    hub=createHub(config);
+    await assert.rejects(hub.sync(),/lost_ack/);
+    assert.equal(db.prepare('SELECT cents FROM pending_balance').get().cents,200);
+    hub.close();hub=createHub(config);
+    assert.equal((await hub.sync()).uploaded,2);
+    assert.equal(db.prepare('SELECT cents FROM pending_balance').get().cents,0);
+    assert.equal((await hub.sync()).uploaded,0);assert.equal(uploadCalls,2);
+  }finally{hub.close();db.close();fs.rmSync(dir,{recursive:true,force:true});}
+});

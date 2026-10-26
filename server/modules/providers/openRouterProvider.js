@@ -1,3 +1,4 @@
+const budget = require('../../services/openRouterSpendGuard');
 const https = require('https');
 const logger = require('../../utils/logger');
 const {
@@ -52,8 +53,11 @@ function buildSystemPrompt({ sourceLanguage, targetLanguage, tone }) {
   ].join('\n');
 }
 
-function postJson(path, body) {
-  return new Promise((resolve, reject) => {
+async function postJson(path, body) {
+  body.max_tokens = 4096;
+  const reservation = await budget.reserve(body);
+  if (!reservation) throw new Error('openrouter_spend_cap_exceeded');
+  const result = await new Promise((resolve, reject) => {
     if (!isConfigured()) {
       const err = new Error('OPENROUTER_API_KEY is not configured');
       err.code = 'PROVIDER_NOT_CONFIGURED';
@@ -127,6 +131,8 @@ function postJson(path, body) {
     req.write(payload);
     req.end();
   });
+  await budget.settle(reservation, result?.usage);
+  return result;
 }
 
 function parseModelJsonContent(rawContent) {

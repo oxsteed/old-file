@@ -156,6 +156,16 @@ async function isLiveChatAllowed(helperId) {
 }
 
 async function sendVerificationCode(sessionId, email, name, db = pool, language = 'en') {
+  const reserved = await db.query(`UPDATE guest_profile_chat_inbound
+    SET verification_last_sent_at=NOW(), verification_send_count=verification_send_count+1
+    WHERE id=$1 AND verification_send_count<5
+      AND (verification_last_sent_at IS NULL OR verification_last_sent_at<=NOW()-INTERVAL '60 seconds')
+    RETURNING id`, [sessionId]);
+  if (!reserved.rows.length) {
+    const error = new Error('Verification resend limit reached; wait before trying again');
+    error.status=429; error.code='verification_send_limited'; throw error;
+  }
+
   const code = randomCode();
   const accessCode = randomHistoryAccessCode();
   await db.query(

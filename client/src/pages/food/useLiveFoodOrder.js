@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getTrackedFoodOrder } from '../../api/food';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 
-const POLL_MS = 4000;
+const POLL_MS = 30000;
 const ACTIVE_STATUSES = new Set(['received', 'accepted', 'preparing', 'ready']);
 
 export function useLiveFoodOrder({
@@ -18,7 +18,7 @@ export function useLiveFoodOrder({
 
   useEffect(() => {
     setOrder(initialOrder || null);
-  }, [initialOrder]);
+  }, [initialOrder, trackingToken]);
 
   const refresh = useCallback(() => {
     if (!trackingToken) return Promise.resolve();
@@ -29,18 +29,20 @@ export function useLiveFoodOrder({
       .catch(() => {});
   }, [trackingToken]);
 
-  useAppResume(refresh, enabled);
+  const active = !order || ACTIVE_STATUSES.has(order.status);
+  const automaticRefresh = useCallback(() => { if (document.visibilityState !== 'hidden' && active) return refresh(); }, [refresh, active]);
+  useAppResume(automaticRefresh, enabled && active);
 
   useEffect(() => {
-    if (!enabled || !trackingToken || !restaurantId) return undefined;
-    refresh();
-    timerRef.current = setInterval(refresh, POLL_MS);
-    const unsubscribe = subscribeRestaurantDisplay(restaurantId, refresh);
+    if (!enabled || !trackingToken || !restaurantId || !active) return undefined;
+    automaticRefresh();
+    timerRef.current = setInterval(automaticRefresh, POLL_MS);
+    const unsubscribe = subscribeRestaurantDisplay(restaurantId, automaticRefresh);
     return () => {
       clearInterval(timerRef.current);
       unsubscribe();
     };
-  }, [enabled, restaurantId, trackingToken, refresh]);
+  }, [enabled, restaurantId, trackingToken, automaticRefresh, active]);
 
   return {
     order,

@@ -36,6 +36,7 @@ describe('guest profile verification lifecycle', () => {
           expect(params[4]).toBe('15');
           return { rows: [{ id: 'session-1' }] };
         }
+        if (sql.includes('SET verification_last_sent_at=NOW()')) return { rows: [{ id: 'session-1' }] };
         if (sql.includes('INSERT INTO guest_profile_chat_verifications')) storedHash = params[2];
         if (sql.includes('SELECT id, helper_id')) return { rows: [{ id: 'session-1', helper_id: 'helper-1', business_id: businessId }] };
         if (sql.includes('SELECT id, code_hash')) return { rows: [{ id: 'otp-1', code_hash: storedHash }] };

@@ -65,12 +65,12 @@ function isTwilioConfigured() {
 // Send SMS if user opted in
 async function sendOrderCreatedSMS(userId, orderId, orderAmount) {
   const message = `Order #${orderId} confirmed. Total: $${(orderAmount / 100).toFixed(2)}. View: oxsteed.com/orders/${orderId}`;
-  return sendSMSIfOptedIn(userId, message, 'order_created');
+  return sendSMSIfOptedIn(userId, message, 'order_created', orderId);
 }
 
 async function sendPaymentConfirmedSMS(userId, orderId) {
   const message = `Payment confirmed for order #${orderId}. Your order is being prepared.`;
-  return sendSMSIfOptedIn(userId, message, 'payment_confirmed');
+  return sendSMSIfOptedIn(userId, message, 'payment_confirmed', orderId);
 }
 
 async function sendOrderShippedSMS(userId, orderId, trackingNumber = null) {
@@ -78,12 +78,12 @@ async function sendOrderShippedSMS(userId, orderId, trackingNumber = null) {
   if (trackingNumber) {
     message += ` Tracking: ${trackingNumber}`;
   }
-  return sendSMSIfOptedIn(userId, message, 'order_shipped');
+  return sendSMSIfOptedIn(userId, message, 'order_shipped', orderId);
 }
 
 async function sendOrderCancelledSMS(userId, orderId) {
   const message = `Order #${orderId} has been cancelled. Check your email for more details.`;
-  return sendSMSIfOptedIn(userId, message, 'order_cancelled');
+  return sendSMSIfOptedIn(userId, message, 'order_cancelled', orderId);
 }
 
 async function sendOrderRefundedSMS(userId, orderId, refundAmount = null) {
@@ -92,7 +92,7 @@ async function sendOrderRefundedSMS(userId, orderId, refundAmount = null) {
     message += ` Amount: $${(refundAmount / 100).toFixed(2)}.`;
   }
   message += ` It will appear in your account within 5-7 business days.`;
-  return sendSMSIfOptedIn(userId, message, 'order_refunded');
+  return sendSMSIfOptedIn(userId, message, 'order_refunded', orderId);
 }
 
 // ITEM 9: SMS privacy helpers. Full message bodies never reach sms_logs:
@@ -110,7 +110,7 @@ function buildMessagePreview(messageBody) {
 }
 
 // Core SMS sending function
-async function sendSMSIfOptedIn(userId, messageBody, notificationType) {
+async function sendSMSIfOptedIn(userId, messageBody, notificationType, orderId = null) {
   try {
     // Check if user has SMS enabled
     const userResult = await pool.query(
@@ -187,6 +187,14 @@ async function sendSMSIfOptedIn(userId, messageBody, notificationType) {
       return false;
     }
 
+    if (orderId != null) {
+      const budget = await pool.query(`INSERT INTO order_sms_budgets(user_id,order_key,day,reserved)
+        VALUES($1,$2,CURRENT_DATE,1) ON CONFLICT(user_id,order_key,day)
+        DO UPDATE SET reserved=order_sms_budgets.reserved+1 WHERE order_sms_budgets.reserved<2 RETURNING reserved`,
+        [userId,String(orderId)]);
+      if (!budget.rows.length) return false;
+      // Retain reservations on an uncertain send outcome; never retry past cap.
+    }
     // Send SMS via Twilio
     const result = await sendTwilioSMS(phone_number, messageBody);
 

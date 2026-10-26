@@ -32,6 +32,12 @@ function createHub({ filename, restaurantId, locationId, hubId, cloud, origin,
     CREATE TABLE IF NOT EXISTS actions(key TEXT PRIMARY KEY,request_hash TEXT NOT NULL,result TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS prints(id INTEGER PRIMARY KEY AUTOINCREMENT,sale_id TEXT NOT NULL UNIQUE,
       payload TEXT NOT NULL,state TEXT NOT NULL DEFAULT 'queued',claim TEXT,device_id INTEGER);`);
+  db.exec(`CREATE TABLE IF NOT EXISTS pending_balance(id INTEGER PRIMARY KEY CHECK(id=1), cents INTEGER NOT NULL);
+    INSERT OR IGNORE INTO pending_balance SELECT 1,COALESCE(SUM(CAST(json_extract(payload,'$.totalCents') AS INTEGER)),0) FROM sales WHERE uploaded=0;
+    CREATE TRIGGER IF NOT EXISTS pending_sale_insert AFTER INSERT ON sales WHEN NEW.uploaded=0 BEGIN
+      UPDATE pending_balance SET cents=cents+CAST(json_extract(NEW.payload,'$.totalCents') AS INTEGER) WHERE id=1; END;
+    CREATE TRIGGER IF NOT EXISTS pending_sale_upload AFTER UPDATE OF uploaded ON sales WHEN OLD.uploaded=0 AND NEW.uploaded=1 BEGIN
+      UPDATE pending_balance SET cents=cents-CAST(json_extract(NEW.payload,'$.totalCents') AS INTEGER) WHERE id=1; END;`);
   const scope = JSON.stringify({ restaurantId, locationId, hubId });
   const prior = db.prepare('SELECT value FROM settings WHERE key=?').get('scope');
   if (prior && prior.value !== scope) { db.close(); throw failure('hub_store_mismatch'); }
@@ -112,8 +118,7 @@ function createHub({ filename, restaurantId, locationId, hubId, cloud, origin,
       const tax = computeOrderTax({ lines: items.map(i=>({...i,lineTotalCents:i.quantity*i.unitPriceCents})), policy: cached.taxPolicy });
       const totalCents = orderTotalWithTax({ taxableSubtotalCents: subtotalCents, tipCents, tax });
       integer(totalCents,1,maxSaleCents);
-      const pending = db.prepare('SELECT payload FROM sales WHERE uploaded=0').all()
-        .reduce((s,r)=>s+JSON.parse(r.payload).totalCents,0);
+      const pending = db.prepare('SELECT cents FROM pending_balance WHERE id=1').get().cents;
       if (pending+totalCents > maxPendingCents) throw failure('hub_pending_limit');
       const sale = { hubSaleUuid: crypto.randomUUID(), idempotencyKey: `lan:${hubId}:${key}`,
         shiftId: input.shiftId, items, subtotalCents, taxCents: tax.totalTaxCents,
@@ -154,11 +159,16 @@ function createHub({ filename, restaurantId, locationId, hubId, cloud, origin,
     try {
       setSnapshot(await cloud('GET','bootstrap'));
       let uploaded = 0;
-      for (const row of db.prepare("SELECT * FROM sales WHERE uploaded=0 AND state='completed' ORDER BY seq LIMIT 100").all()) {
-        const result = await cloud('POST','offline-sales',{sales:[JSON.parse(row.payload)]});
-        if (!result.queued?.some(s=>s.idempotencyKey===JSON.parse(row.payload).idempotencyKey)) throw failure('hub_ack_invalid');
-        db.prepare('UPDATE sales SET uploaded=1 WHERE id=?').run(row.id);
-        uploaded++;
+      const rows = db.prepare("SELECT * FROM sales WHERE uploaded=0 AND state='completed' ORDER BY seq LIMIT 100").all();
+      if (rows.length) {
+        const sales = rows.map(row => JSON.parse(row.payload));
+        const result = await cloud('POST','offline-sales',{sales});
+        const acknowledged = new Set((result.queued || []).map(s => s.idempotencyKey));
+        if (sales.some(s => !acknowledged.has(s.idempotencyKey))) throw failure('hub_ack_invalid');
+        transaction(() => {
+          for (const row of rows) db.prepare('UPDATE sales SET uploaded=1 WHERE id=?').run(row.id);
+        });
+        uploaded = rows.length;
       }
       return { uploaded };
     } catch (error) { if ([401,403].includes(error.status)) invalidate(); throw error; }

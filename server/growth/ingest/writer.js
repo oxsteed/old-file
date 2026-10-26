@@ -215,6 +215,19 @@ async function writeBatch(
 async function run() {
   if (process.env.GROWTH_TRACKING_HARD_OFF !== "false")
     return { skipped: true };
+  const queueConn = await queue.ready();
+  // An acknowledged stream may retain entries. XLEN alone is not a pending
+  // guard: use consumer-group lag and pending count before taking a DB fence.
+  if (typeof queueConn.xinfo === 'function') {
+    try {
+      const groups = await queueConn.xinfo('GROUPS', queue.STREAM);
+      const group = groups.map(fields => Object.fromEntries(Array.from({length:fields.length/2},(_,i)=>[fields[i*2],fields[i*2+1]]))).find(row=>row.name===GROUP);
+      if (group && Number(group.pending)===0 && group.lag !== null && Number(group.lag)===0) return { skipped: true };
+    } catch (error) {
+      if (String(error.message).includes('no such key')) return { skipped: true };
+      throw error;
+    }
+  }
   return withFencedJobLock(
     "growth-clickhouse-writer",
     async (fence) => {

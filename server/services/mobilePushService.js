@@ -332,7 +332,7 @@ exports.sendToUser = async (userId, { title, body, data = {}, action_url = null,
   const { rows } = await db.query(
     `SELECT id, token, provider
      FROM mobile_push_tokens
-     WHERE user_id = $1 AND enabled = TRUE`,
+     WHERE user_id = $1 AND enabled = TRUE ORDER BY updated_at DESC, id DESC LIMIT 50`,
     [userId]
   );
 

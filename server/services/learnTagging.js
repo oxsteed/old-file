@@ -1,4 +1,7 @@
 'use strict';
+const crypto = require('crypto');
+const tagCache = require('../utils/singleFlightCache').createSingleFlightCache({ ttlMs: 0 });
+const { guardedFetch } = require('./openRouterSpendGuard');
 
 /**
  * services/learnTagging.js — OpenRouter-assisted marketplace tagging for Learn guides.
@@ -158,6 +161,9 @@ async function insertSuggestion(s) {
  * { skipped: <reason> }.
  */
 async function tagGuideWithAI(guideId) {
+  return tagCache(String(guideId), () => tagGuideOnce(guideId)).catch(() => ({ skipped: 'busy' }));
+}
+async function tagGuideOnce(guideId) {
   try {
     const { key, model } = getConfig();
     if (!key) return { skipped: 'no-key' };
@@ -165,7 +171,7 @@ async function tagGuideWithAI(guideId) {
     let guide;
     try {
       const { rows } = await pool.query(
-        'SELECT id, title, category, intro FROM learn_guides WHERE id = $1',
+        'SELECT id, title, category, intro, ai_tagging_content_hash FROM learn_guides WHERE id = $1',
         [String(guideId)]
       );
       guide = rows[0];
@@ -173,12 +179,14 @@ async function tagGuideWithAI(guideId) {
       return { skipped: 'db-unavailable' };
     }
     if (!guide) return { skipped: 'guide-not-found' };
+    const contentHash = crypto.createHash('sha256').update(JSON.stringify([model, guide.title, guide.category, guide.intro || ''])).digest('hex');
+    if (contentHash === guide.ai_tagging_content_hash) return { skipped: 'unchanged' };
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     let res;
     try {
-      res = await fetch(OPENROUTER_URL, {
+      res = await guardedFetch(OPENROUTER_URL, {
         method: 'POST',
         signal: controller.signal,
         headers: {
@@ -268,6 +276,7 @@ async function tagGuideWithAI(guideId) {
       });
     }
 
+    await pool.query(`UPDATE learn_guides SET ai_tagging_content_hash=$2 WHERE id=$1 AND title=$3 AND COALESCE(intro,'')=$4 AND category=$5`, [guide.id,contentHash,guide.title,guide.intro || '',guide.category]);
     return { ok: true, guide_id: guide.id, created };
   } catch (err) {
     // eslint-disable-next-line no-console

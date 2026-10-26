@@ -117,6 +117,18 @@ async function queueBroadcast(client, { businessId, broadcastId, userId = null }
     return { scheduled: true, broadcast: scheduled };
   }
 
+  const audienceCap = Math.max(1, Math.min(10000, Number(process.env.BROADCAST_MAX_RECIPIENTS) || 1000));
+  const { rows: audienceRows } = await client.query(`SELECT bc.id FROM business_clients bc
+    LEFT JOIN customer_business_profile cbp ON cbp.business_id=bc.business_id AND cbp.customer_id=bc.customer_id
+    WHERE bc.business_id=$1 AND bc.deleted_at IS NULL AND bc.status='active'
+      AND COALESCE(cbp.is_blocked,FALSE)=FALSE
+      AND ($2::text IS NULL OR $2='all' OR $2=ANY(bc.tags))
+    ORDER BY bc.id LIMIT $3`, [businessId,b.audience || b.audience_tag || 'all',audienceCap+1]);
+  if (audienceRows.length > audienceCap) {
+    const error = new Error('Broadcast audience exceeds the configured limit; narrow the audience or request an operator limit review');
+    error.status=409; error.code='broadcast_audience_limit'; throw error;
+  }
+  const audienceIds = audienceRows.map(row=>row.id);
   // Audience: active, non-deleted CRM clients of this business, optionally
   // narrowed to a tag; customers the business has blocked are excluded.
   await client.query(
@@ -129,9 +141,9 @@ async function queueBroadcast(client, { businessId, broadcastId, userId = null }
        LEFT JOIN customer_business_profile cbp ON cbp.business_id = bc.business_id AND cbp.customer_id = bc.customer_id
       WHERE bc.business_id = $2 AND bc.deleted_at IS NULL AND bc.status = 'active'
         AND COALESCE(cbp.is_blocked, FALSE) = FALSE
-        AND ($3::TEXT IS NULL OR $3 = 'all' OR $3 = ANY(bc.tags))
+        AND bc.id = ANY($3::bigint[])
      ON CONFLICT (broadcast_id, client_id) DO NOTHING`,
-    [b.id, businessId, b.audience || b.audience_tag || 'all']);
+    [b.id, businessId, audienceIds]);
   // One delivery per recipient and channel. Recipients a channel cannot reach
   // are recorded as skipped so reach is reported honestly.
   await client.query(
@@ -320,6 +332,7 @@ async function promoteScheduled(pool) {
       if (out.queued) promoted.push(row.id);
     } catch (err) {
       await client.query('ROLLBACK').catch(() => {});
+      if (err.code === 'broadcast_audience_limit') await client.query("UPDATE business_broadcasts SET status='draft', updated_at=NOW() WHERE id=$1 AND business_id=$2 AND status='scheduled'", [row.id,row.business_id]);
       logger.warn('[broadcast] scheduled broadcast could not be queued', { broadcastId: row.id, error: err.message });
     } finally { client.release(); }
   }

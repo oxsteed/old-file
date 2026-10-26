@@ -73,6 +73,8 @@ describe('approval-gated support AI drafts', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [authUserRow()] })
       .mockResolvedValueOnce({ rows: [{ id: CONVERSATION_ID, business_id: BUSINESS_ID, status: 'open' }] })
+      .mockResolvedValueOnce({ rows: [{ status: 'open' }] }) // locked conversation
+      .mockResolvedValueOnce({ rows: [] }) // no cached draft
       .mockResolvedValueOnce({
         rows: [{
           id: 'draft-1',

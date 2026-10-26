@@ -1,3 +1,4 @@
+const { guardedFetch } = require('../services/openRouterSpendGuard');
 // server/controllers/workAgreementController.js
 // Work Agreement Records-Room: OxSteed acts as records keeper (notary),
 // never employer or adjudicator. Bilateral agreements between helper and
@@ -991,7 +992,7 @@ Keep it fair to both helper and customer. OxSteed is the records keeper only, no
 
     let orRes;
     try {
-      orRes = await fetch(OPENROUTER_CHAT_URL, {
+      orRes = await guardedFetch(OPENROUTER_CHAT_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

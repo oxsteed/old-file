@@ -1,3 +1,5 @@
+import useNotifications from '../hooks/useNotifications';
+import { getAccountSnapshot, invalidateAccountSnapshots } from '../api/accountSnapshot';
 import { useLocation } from 'react-router-dom';
 import PrefetchLink from './PrefetchLink';
 import { useAuth } from '../context/AuthContext';
@@ -169,7 +171,7 @@ export default function Navbar() {
   const { socket } = useSocket();
   const { t } = useTranslation();
   const location = useLocation();
-  const [unreadNotifs, setUnreadNotifs] = useState(0);
+  const { unreadCount: unreadNotifs } = useNotifications();
   const [unreadMsgs, setUnreadMsgs] = useState(0);
   const currentMode = navbarMode(user);
   const { open: mobileOpen, setOpen: setMobileOpen, containerRef: mobileRef, triggerRef: mobileTriggerRef, panelId: mobilePanelId } = useNavDisclosure(currentMode);
@@ -184,19 +186,13 @@ export default function Navbar() {
 
   const refreshUnreadCounts = useCallback(async () => {
     if (!user) {
-      setUnreadNotifs(0);
       setUnreadMsgs(0);
       return;
     }
-    const [notifRes, msgRes, guestRes] = await Promise.allSettled([
-      api.get('/notifications'),
-      api.get('/messages/conversations'),
-      api.get('/messages/guest-inquiries'),
+    const [msgRes, guestRes] = await Promise.allSettled([
+      getAccountSnapshot(user.id, '/messages/conversations'),
+      getAccountSnapshot(user.id, '/messages/guest-inquiries'),
     ]);
-    if (notifRes.status === 'fulfilled') {
-      const notifs = notifRes.value.data?.notifications || notifRes.value.data || [];
-      setUnreadNotifs(Array.isArray(notifs) ? notifs.filter(n => !n.is_read && !n.read_at).length : 0);
-    }
     const convos = msgRes.status === 'fulfilled'
       ? (msgRes.value.data?.conversations || msgRes.value.data || [])
       : [];
@@ -210,18 +206,20 @@ export default function Navbar() {
   }, [user]);
 
   useEffect(() => {
-    const refresh = () => { void refreshUnreadCounts(); };
-    refresh();
+    const refresh = () => {
+      if (document.visibilityState === 'hidden') return;
+      invalidateAccountSnapshots(user?.id);
+      void refreshUnreadCounts();
+    };
+    void refreshUnreadCounts();
     if (!user) return undefined;
-    const interval = window.setInterval(refresh, 30_000);
     const onVisibility = () => { if (document.visibilityState === 'visible') refresh(); };
-    const messageEvents = ['message:new', 'profile_chat:new_message', 'business_inbox:conversation', 'messages:read'];
+    const messageEvents = ['message:new', 'profile_chat:new_message', 'business_inbox:conversation', 'messages:read', 'connect'];
     messageEvents.forEach((eventName) => socket?.on(eventName, refresh));
     window.addEventListener('focus', refresh);
     window.addEventListener('oxsteed:messages-read', refresh);
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
-      window.clearInterval(interval);
       messageEvents.forEach((eventName) => socket?.off(eventName, refresh));
       window.removeEventListener('focus', refresh);
       window.removeEventListener('oxsteed:messages-read', refresh);

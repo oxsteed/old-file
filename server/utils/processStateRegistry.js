@@ -19,6 +19,7 @@
 const { registerProcessState } = require('./processState');
 
 const ENTRIES = [
+  { file: 'controllers/oneTruthController.js', name: 'schemaColumns', classification: 'cache', shared: 'none', rationale: 'Public schema metadata only, 60 second TTL and 50 table cap. Authorization is always checked independently.' },
   {
     file: 'services/platformSettingsCache.js', name: 'cache',
     classification: 'cache', shared: 'none',
@@ -236,7 +237,7 @@ const ENTRIES = [
   {
     file: 'services/openRouterSpendGuard.js', name: 'localSpend',
     classification: 'cache', shared: 'redis',
-    rationale: 'Single-process fallback for the OpenRouter daily spend map; Redis is authoritative when configured. Bounded to one entry per UTC date; spend overage only risks a slightly higher bill, never a money movement.',
+    rationale: 'Development-only daily AI budget reservations; production requires atomic Redis reservations and fails closed when unavailable. One current UTC day is retained.',
   },
   {
     file: 'services/openRouterSpendGuard.js', name: 'localAlerts',

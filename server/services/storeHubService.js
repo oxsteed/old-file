@@ -459,7 +459,7 @@ async function replaySales(client, { restaurantId, hubId, actorUserId = null }) 
   const { rows: sales } = await client.query(
     `SELECT * FROM store_hub_offline_sales
       WHERE hub_id = $1 AND restaurant_id = $2 AND status = 'queued'
-      ORDER BY id ASC
+      ORDER BY id ASC LIMIT 50
       FOR UPDATE SKIP LOCKED`,
     [hubId, restaurantId]
   );

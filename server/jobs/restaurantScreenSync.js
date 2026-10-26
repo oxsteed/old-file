@@ -29,7 +29,7 @@ function startRestaurantScreenSync() {
         running = null;
       });
   };
-  const timer = setInterval(run, 500);
+  const timer = setInterval(run, 2000);
   timer.unref?.();
   return {
     stop() {

@@ -9,7 +9,7 @@ const fulfillment = require('./restaurantGiftCardFulfillment');
 // uncertain older attempts require operator evidence, never a blind resend.
 const RETRY_WINDOW_MS = 23 * 60 * 60 * 1000;
 // Retrieval remains available beyond the 24h send-idempotency window.
-const STATUS_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+const STATUS_WINDOW_MS = 24 * 60 * 60 * 1000;
 function statusPollMinutes(polls) { return Math.min(240, 15 * 2 ** Math.min(4, Math.max(0, Number(polls) || 0))); }
 async function processGiftCardDelivery({
   db = pool,
@@ -47,7 +47,7 @@ async function processGiftCardDelivery({
       if (row.status === 'accepted') {
         if (
           Date.now() - new Date(row.first_attempt_at).getTime() >
-          STATUS_WINDOW_MS
+          STATUS_WINDOW_MS || Number(row.status_poll_count) >= 8
         )
           status = 'needs_review';
         else {

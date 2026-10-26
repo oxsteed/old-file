@@ -1,3 +1,4 @@
+import { getAccountSnapshot } from '../api/accountSnapshot';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -880,8 +881,8 @@ export default function Dashboard() {
     try {
       const [jobsRes, notifRes, msgRes, foodOrdersRes, walletsRes, creditRes] = await Promise.allSettled([
         api.get('/jobs/me/list'),
-        api.get('/notifications'),
-        api.get('/messages/conversations'),
+        getAccountSnapshot(user?.id, '/notifications'),
+        getAccountSnapshot(user?.id, '/messages/conversations'),
         listMyFoodOrders(),
         listMyFoodRestaurantWallets(),
         getOxsteedCreditAccount().catch(() => null),
@@ -896,7 +897,7 @@ export default function Dashboard() {
       if (creditRes.status === 'fulfilled') setOxsteedCreditAccount(creditRes.value || null);
     } catch (e) { console.error(e); setError(true); }
     finally { setLoading(false); }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     retryLoad();

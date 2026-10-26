@@ -1,4 +1,6 @@
 'use strict';
+const triageCache = require('../utils/singleFlightCache').createSingleFlightCache();
+const { guardedFetch } = require('./openRouterSpendGuard');
 
 const ALLOWED_CATEGORIES = new Set([
   'account',
@@ -94,7 +96,7 @@ async function callProvider(config, messages) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const response = await fetch(`${config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
+    const response = await guardedFetch(`${config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${config.apiKey}`,
@@ -120,6 +122,10 @@ async function callProvider(config, messages) {
 
 async function analyze({ message, category }) {
   const cleanMessage = String(message || '').trim().slice(0, MAX_MESSAGE_LENGTH);
+  if (ALLOWED_CATEGORIES.has(category) && !['general','support_request'].includes(category)
+      && !/urgent|danger|threat|unsafe|emergency|suicid|violence|urgenc|peligro|amenaz|insegur|violenc|menac|ijans|danje|swisid|خطر|طارئ|طوارئ|انتحار|تهديد|عنف/i.test(cleanMessage)) {
+    return { ...fallback(category, 'explicit_category'), confidence: 1, suggestedSkills: [category] };
+  }
   const config = providerConfig();
   if (!config || !cleanMessage) return fallback(category, config ? 'empty_message' : 'provider_not_configured');
 
@@ -141,7 +147,7 @@ async function analyze({ message, category }) {
     { role: 'user', content: cleanMessage },
   ];
 
-  const result = await callProvider(config, messages);
+  const result = await triageCache([config.provider, config.model, category, cleanMessage], () => callProvider(config, messages));
   return { ...validateResult(result, category), provider: config.provider, model: config.model };
 }
 

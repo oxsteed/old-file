@@ -1,6 +1,8 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
-const { sendEmail } = require('../utils/email');
+const { sendEmail, sendEmailBatch } = require('../utils/email');
+const { mapBounded } = require('../utils/boundedBatch');
+const crypto = require('crypto');
 const { maskEmail } = require('../utils/directQuote');
 
 const FALLBACK_LANGUAGE = 'en';
@@ -69,39 +71,35 @@ async function processEmailDigest(digestType = 'daily') {
   try {
     logger.info(`Starting ${digestType} email digest batch`, { digestType });
 
-    // Get users with pending digest emails
-    const usersResult = await pool.query(`
-      SELECT DISTINCT edq.user_id, np.email_frequency
-      FROM email_digest_queue edq
-      JOIN notification_preferences np ON np.user_id = edq.user_id
-      WHERE edq.sent_at IS NULL
-        AND np.email_frequency = $1
-        AND np.unsubscribe_all = FALSE
-        AND np.email_notifications = TRUE
-      LIMIT 1000
-    `, [digestType === 'daily' ? 'daily' : 'weekly']);
-
-    if (!usersResult.rows.length) {
-      logger.info(`No ${digestType} digest users found`, { digestType });
-      return { processed: 0, failed: 0 };
-    }
-
-    let processed = 0;
-    let failed = 0;
-
-    // Process each user's digest
-    for (const { user_id } of usersResult.rows) {
-      try {
-        const success = await processSingleUserDigest(user_id, digestType);
-        if (success) {
-          processed++;
-        } else {
-          failed++;
-        }
-      } catch (error) {
-        logger.error('Error processing user digest', { error, userId: user_id });
-        failed++;
+    const { rows: [watermark] } = await pool.query('SELECT MAX(id) AS id FROM email_digest_queue');
+    if (!watermark?.id) return { processed: 0, failed: 0 };
+    let cursor = null, processed = 0, failed = 0;
+    while (true) {
+      const { rows: users } = await pool.query(`
+        SELECT DISTINCT edq.user_id FROM email_digest_queue edq
+        JOIN notification_preferences np ON np.user_id=edq.user_id
+        WHERE edq.sent_at IS NULL AND edq.id<=$3
+          AND np.email_frequency=$1 AND np.unsubscribe_all=FALSE AND np.email_notifications=TRUE
+          AND ($2::uuid IS NULL OR edq.user_id>$2)
+        ORDER BY edq.user_id LIMIT 100`, [digestType, cursor, watermark.id]);
+      if (!users.length) break;
+      const prepared = await mapBounded(users, 5, async ({ user_id }) => {
+        const item = await processSingleUserDigest(user_id, digestType, { prepareOnly: true, highWater: watermark.id });
+        if (item === false) failed++;
+        else if (item === true) processed++;
+        return item;
+      });
+      const batch = prepared.filter(item => item && item.message);
+      if (batch.length) {
+        const identity = crypto.createHash('sha256').update(JSON.stringify(batch.map(item=>item.queueIds))).digest('hex');
+        try {
+          await sendEmailBatch(batch.map(item=>item.message), { idempotencyKey: `digest:${digestType}:${identity}` });
+          const ids = batch.flatMap(item=>item.queueIds);
+          await pool.query('UPDATE email_digest_queue SET sent_at=CURRENT_TIMESTAMP WHERE id=ANY($1) AND sent_at IS NULL', [ids]);
+          processed += batch.length;
+        } catch { failed += batch.length; logger.warn('Digest batch outcome unconfirmed', { count: batch.length }); }
       }
+      cursor = users[users.length - 1].user_id;
     }
 
     const duration = Date.now() - startTime;
@@ -119,7 +117,7 @@ async function processEmailDigest(digestType = 'daily') {
   }
 }
 
-async function processSingleUserDigest(userId, digestType) {
+async function processSingleUserDigest(userId, digestType, { prepareOnly = false, highWater = null } = {}) {
   try {
     // Get user email
     const userResult = await pool.query(
@@ -146,10 +144,11 @@ async function processSingleUserDigest(userId, digestType) {
       LEFT JOIN notifications n ON n.id = edq.notification_id
       WHERE edq.user_id = $1
         AND edq.sent_at IS NULL
+        AND ($2::bigint IS NULL OR edq.id <= $2)
         AND (n.id IS NOT NULL OR edq.notification_id IS NULL)
-      ORDER BY 5 DESC
+      ORDER BY edq.id ASC
       LIMIT 50
-    `, [userId]);
+    `, [userId, highWater]);
 
     if (!notificationsResult.rows.length) {
       logger.debug('No pending notifications for user', { userId });
@@ -167,13 +166,18 @@ async function processSingleUserDigest(userId, digestType) {
     const frequencyText = digestType === 'daily' ? DIGEST_COPY[language].daily : DIGEST_COPY[language].weekly;
     const subject = interpolate(DIGEST_COPY[language].title, { frequency: frequencyText });
     const window = getDigestWindowKey(new Date(), digestType);
-    const delivery = await sendEmail({
+    const message = {
       to: email,
       subject,
       text: digestText,
       html: digestHtml,
       idempotencyKey: `email-digest:${digestType}:${userId}:${window}`,
-    });
+    };
+    if (prepareOnly) {
+      const { idempotencyKey, ...batchMessage } = message;
+      return { message: batchMessage, queueIds: notifications.map(n=>n.id) };
+    }
+    const delivery = await sendEmail(message);
     if (!delivery?.success) {
       logger.warn('Email digest delivery failed', { userId, digestType, error: delivery?.error || 'provider unavailable' });
       return false;

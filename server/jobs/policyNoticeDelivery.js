@@ -6,6 +6,8 @@ const { logAdminAction } = require("../services/auditService");
 async function run() {
   if (process.env.GROWTH_POLICY_NOTICE_DELIVERY_ENABLED !== "true")
     return { skipped: true };
+  const pending = await require('../db').query("SELECT 1 FROM policy_notice_campaigns WHERE status='sending' LIMIT 1");
+  if (!pending.rows.length) return { skipped: true };
   return withFencedJobLock(
     "growth-policy-notice",
     async (fence) => {

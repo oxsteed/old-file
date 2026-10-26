@@ -82,123 +82,80 @@ async function run() {
           query_params: { day },
           format: "JSONEachRow",
         });
-        const nodeCache = new Map();
-        for await (const block of result.stream())
-          for (const raw of block) {
+        for await (const block of result.stream()) {
+          // Bound query parameter counts even if ClickHouse emits a large block.
+          for (let offset=0; offset<block.length; offset+=250) {
             fence.assertActive();
-            const row = raw.json();
-            const {
-              rows: [subject],
-            } = await fence.db.query(
-              "SELECT user_id FROM growth_subject_eligibility WHERE subject_key=$1",
-              [row.subject_key],
-            );
-            if (!subject) continue;
-            const permission = await gate.allow(
-              { userId: subject.user_id },
-              "activity_offers",
-            );
-            if (!permission.allowed) continue;
-            const u = permission.context.user;
-            const profilePostal = await require("../growth/geo/resolve").resolve(
-              fence.db,
-              {
-                country: u.country_confirmed ? u.country : null,
-                postal_code: u.zip_code,
-                city: u.city,
-                state: u.state,
-              },
-            );
-            let node = nodeCache.get(row.entity_id);
-            if (node === undefined) {
-              const {
-                rows: [existing],
-              } = await fence.db.query(
-                `SELECT i.node_id,n.sensitive FROM entity_intents i JOIN demand_taxonomy_nodes n ON n.id=i.node_id
-          WHERE i.entity_type='job' AND i.entity_id=$1 AND i.superseded_at IS NULL AND n.status='active' ORDER BY i.id DESC LIMIT 1`,
-                [row.entity_id],
-              );
-              if (existing) node = existing.sensitive ? null : existing.node_id;
-              else {
-                const {
-                  rows: [job],
-                } = await fence.db.query(
-                  "SELECT title,description,category_id,job_type FROM jobs WHERE id=$1",
-                  [row.entity_id],
-                );
-                if (job) {
-                  const classified = await withTransaction(
-                    db,
-                    (conn) =>
-                      require("../growth/classify").classify(conn, {
-                        entity_type: "job",
-                        entity_id: row.entity_id,
-                        text: `${job.title} ${job.description}`,
-                        category_id: job.category_id,
-                        job_type: job.job_type,
-                      }),
-                    "growth_classify",
-                  );
-                  node = classified.review ? null : classified.node_id;
+            const rows = block.slice(offset,offset+250).map(raw=>raw.json());
+            const { rows: subjects } = await fence.db.query(
+              'SELECT subject_key,user_id FROM growth_subject_eligibility WHERE subject_key=ANY($1::char(64)[])',
+              [[...new Set(rows.map(row=>row.subject_key))]]);
+            const bySubject = new Map(subjects.map(row=>[row.subject_key,row]));
+            const ids = [...new Set(subjects.map(row=>row.user_id))];
+            const contexts = await gate.contexts(ids,{db:fence.db});
+            const eligible = [];
+            for (const row of rows) {
+              const subject=bySubject.get(row.subject_key);
+              const ctx=subject && contexts.get(subject.user_id);
+              if (!ctx || !(await gate.allow(ctx,'activity_offers')).allowed) continue;
+              eligible.push({row,subject,ctx});
+            }
+            if (!eligible.length) continue;
+            const postals = await require('../growth/geo/resolve').resolveBatch(fence.db,
+              eligible.map(({ctx:{user:u}})=>({country:u.country_confirmed?u.country:null,postal_code:u.zip_code,city:u.city,state:u.state})));
+            const jobIds=[...new Set(eligible.map(({row})=>row.entity_id))];
+            const {rows:intents}=await fence.db.query(`SELECT DISTINCT ON(i.entity_id) i.entity_id,i.node_id,n.sensitive
+              FROM entity_intents i JOIN demand_taxonomy_nodes n ON n.id=i.node_id
+              WHERE i.entity_type='job' AND i.entity_id=ANY($1::text[]) AND i.superseded_at IS NULL AND n.status='active'
+              ORDER BY i.entity_id,i.id DESC`,[jobIds]);
+            const nodeByJob=new Map(intents.map(i=>[i.entity_id,i.sensitive?null:i.node_id]));
+            const missing=jobIds.filter(id=>!nodeByJob.has(id));
+            if(missing.length){
+              const {rows:jobs}=await fence.db.query('SELECT id,title,description,category_id,job_type FROM jobs WHERE id=ANY($1::uuid[])',[missing]);
+              for(const job of jobs){
+                const classified=await withTransaction(db,conn=>require('../growth/classify').classify(conn,{
+                  entity_type:'job',entity_id:job.id,text:`${job.title} ${job.description}`,category_id:job.category_id,job_type:job.job_type
+                }),'growth_classify');
+                nodeByJob.set(String(job.id),classified.review?null:classified.node_id);
+              }
+            }
+            await fence.fencedTransaction(async conn=>{
+              // Sorted shared locks preserve withdrawal/erasure serialization.
+              const keys=[...new Set(eligible.map(({row})=>require('../growth/identity').consentLock(row.subject_key)))].sort();
+              await conn.query('SELECT pg_advisory_xact_lock_shared(hashtextextended(k,0)) FROM unnest($1::text[]) AS locks(k) ORDER BY k',[keys]);
+              const fresh=await gate.contexts(ids,{db:conn,lockPolicy:true});
+              const writes=new Map();
+              for(let i=0;i<eligible.length;i++){
+                const {row,subject}=eligible[i], node=nodeByJob.get(row.entity_id), ctx=fresh.get(subject.user_id);
+                if(!node || !ctx || !(await gate.allow(ctx,'activity_offers')).allowed) continue;
+                const profilePostal=postals[i]||null;
+                const score=Math.min(1,0.5+Math.log2(Number(row.events)+1)/10);
+                const key=JSON.stringify([subject.user_id,node]);
+                const prior=writes.get(key);
+                if(!prior || score>prior[3]) writes.set(key,[subject.user_id,node,profilePostal,score,day]);
+                if(row.event_name==='job.bid_placed'){
+                  const postal=profilePostal||row.postal_ref;
+                  addSupply(shared,postal,node,'helper',subject.user_id);
+                  const k=key3(postal,node,'helper');
+                  shared.bidCapacity.set(k,(shared.bidCapacity.get(k)||0)+Number(row.events));
+                }else{
+                  addDemand(shared,row.postal_ref,node,row.event_name,subject.user_id);
+                  const k=key3(row.postal_ref,node,row.event_name);
+                  demandEvents.set(k,(demandEvents.get(k)||0)+Number(row.events));
                 }
               }
-              nodeCache.set(row.entity_id, node || null);
-            }
-            if (!node) continue;
-            await fence.fencedTransaction(async (conn) => {
-              await conn.query(
-                "SELECT pg_advisory_xact_lock_shared(hashtextextended($1,0))",
-                [require("../growth/identity").consentLock(row.subject_key)],
-              );
-              if (
-                !(
-                  await gate.allow(
-                    { userId: subject.user_id, db: conn },
-                    "activity_offers",
-                  )
-                ).allowed
-              )
-                return;
-              await conn.query(
-                `INSERT INTO user_interest_profiles(user_id,node_id,postal_ref,score,last_seen)
-          VALUES($1,$2,$3,$4,$5::date+interval '1 day') ON CONFLICT(user_id,node_id) DO UPDATE SET
-          score=EXCLUDED.score,postal_ref=EXCLUDED.postal_ref,last_seen=EXCLUDED.last_seen`,
-                [
-                  subject.user_id,
-                  node,
-                  profilePostal || null,
-                  Math.min(1, 0.5 + Math.log2(Number(row.events) + 1) / 10),
-                  day,
-                ],
-              );
-              profiles++;
+              if(writes.size){
+                const params=[];
+                const values=[...writes.values()].map((row,i)=>{params.push(...row);const b=i*5;return `($${b+1},$${b+2},$${b+3},$${b+4},$${b+5}::date+interval '1 day')`;}).join(',');
+                await conn.query(`INSERT INTO user_interest_profiles(user_id,node_id,postal_ref,score,last_seen) VALUES ${values}
+                  ON CONFLICT(user_id,node_id) DO UPDATE SET score=EXCLUDED.score,postal_ref=EXCLUDED.postal_ref,last_seen=EXCLUDED.last_seen`,params);
+                profiles+=writes.size;
+              }
             });
-            if (row.event_name === "job.bid_placed") {
-              // Supply is attributed to the provider's own postal
-              // reference, not the job's location (spec 10.1 fix).
-              const postal = profilePostal || row.postal_ref;
-              addSupply(shared, postal, node, "helper", subject.user_id);
-              const k = key3(postal, node, "helper");
-              shared.bidCapacity.set(
-                k,
-                (shared.bidCapacity.get(k) || 0) + Number(row.events),
-              );
-            } else {
-              addDemand(
-                shared,
-                row.postal_ref,
-                node,
-                row.event_name,
-                subject.user_id,
-              );
-              const k = key3(row.postal_ref, node, row.event_name);
-              demandEvents.set(
-                k,
-                (demandEvents.get(k) || 0) + Number(row.events),
-              );
-            }
           }
+        }
       }
+
       if (process.env.GROWTH_CLICKHOUSE_URL) jobEventsCollected = true;
       const domain = await collectDomainDay(fence.db, day, shared);
       let propensity = null;

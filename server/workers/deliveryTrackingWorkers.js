@@ -267,7 +267,11 @@ async function refreshEtas({ limit = DEFAULT_LIMIT } = {}) {
              AND p.validation_state = 'valid'
              AND p.recorded_at > NOW() - ($1 * INTERVAL '1 minute')
         )
-      LIMIT $2`,
+        AND NOT EXISTS (SELECT 1 FROM delivery_tracking_events e
+          WHERE e.assignment_id=a.id AND e.event_type='tracking_stale'
+            AND e.created_at>=COALESCE((SELECT MAX(p.recorded_at) FROM delivery_location_points p
+              WHERE p.assignment_id=a.id AND p.validation_state='valid'),a.started_at))
+      ORDER BY a.started_at ASC, a.id ASC LIMIT $2`,
     [STALE_POINT_MINUTES, batch]
   );
   for (const row of silent) {

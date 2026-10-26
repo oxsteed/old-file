@@ -14,7 +14,7 @@ const bookingLifecycle = require('../services/bookingRequestLifecycle');
 const { emitDomainEvent, serviceEventProps } = require('../growth/emit');
 const { buildProfileAiFailurePayload } = require('../services/profileChatRouting');
 const { withTransaction } = require('../utils/transaction');
-const spendGuard = require('../services/openRouterSpendGuard');
+const openRouter = require('../services/openRouterChat');
 const { canEditProfile } = require('../utils/businessOwnership');
 const { getUserFinancialContext, formatFinancialContextForAI } = require('../services/userFinancialContextService');
 const { getSupportAccountSnapshot, formatSnapshotForAI, invalidateSupportSnapshot } = require('../services/supportAccountSnapshot');
@@ -95,39 +95,7 @@ const OPENROUTER_VISION_MODEL = process.env.OPENROUTER_VISION_MODEL
  * Try OpenRouter (OpenAI-compatible chat completions). Requires OPENROUTER_API_KEY.
  */
 async function fetchOpenRouterChat(model, messages, maxTokens = 400) {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    return { ok: false, error: 'OPENROUTER_API_KEY not set' };
-  }
-  const res = await fetch(OPENROUTER_CHAT_URL, {
-    // A hung provider must not hold the request (and the user) open; on
-    // timeout the fallback chain moves on to the next provider.
-    signal: AbortSignal.timeout(providerTimeoutMs()),
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature: 0.65,
-      max_tokens: maxTokens,
-    }),
-  });
-  if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    return { ok: false, error: `HTTP ${res.status}: ${errText.slice(0, 500)}` };
-  }
-  const data = await res.json();
-  let content = data.choices?.[0]?.message?.content;
-  if (content == null) content = '';
-  if (typeof content !== 'string') content = String(content);
-  const reply = content.trim();
-  if (!reply) {
-    return { ok: false, error: 'empty assistant content' };
-  }
-  return { ok: true, reply };
+  return openRouter.fetchOpenRouterChat(model, messages, { maxTokens });
 }
 
 /**
@@ -178,19 +146,6 @@ async function callWithFallback(messages, ollamaOptions, logTag, options = {}) {
       name: `OpenRouter (${openRouterModel})`,
       provider: 'openrouter',
       model: openRouterModel,
-      // Spend guardrail: a paid OpenRouter model behind the public chat is
-      // an open spend vector. When the daily cap is reached the step is
-      // skipped and the chat degrades to the local path — fail-closed on
-      // spend, never a crash.
-      skip: async () => {
-        const allowed = await spendGuard.isOpenRouterAllowed(openRouterModel);
-        if (!allowed) {
-          logger.warn(`${logTag} OpenRouter skipped: daily spend cap reached`, {
-            model: openRouterModel,
-          });
-        }
-        return !allowed;
-      },
       run: () => fetchOpenRouterChat(openRouterModel, messages, options.maxTokens || 400),
     },
     {
@@ -208,11 +163,6 @@ async function callWithFallback(messages, ollamaOptions, logTag, options = {}) {
       const result = await step.run();
       if (result.ok) {
         logger.info(`${logTag} AI provider succeeded`, { provider: step.name });
-        if (step.provider === 'openrouter') {
-          // Best-effort accrual; the guard never throws, so the chat cannot
-          // fail here.
-          await spendGuard.recordOpenRouterCall(openRouterModel);
-        }
         return { ok: true, reply: result.reply, provider: step.provider, model: step.model };
       }
       logger.warn(`${logTag} AI provider failed`, { provider: step.name, error: result.error });

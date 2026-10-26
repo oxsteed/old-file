@@ -1,3 +1,4 @@
+const { mapBounded } = require('../utils/boundedBatch');
 /**
  * customerReengagementJob.js
  *
@@ -27,155 +28,157 @@ async function runCustomerReengagement() {
   try {
     // Find customers idle for IDLE_DAYS–CAP_DAYS since their last completed job,
     // with no new job posted after that completion.
-    const { rows: customers } = await db.query(`
-      SELECT DISTINCT ON (u.id)
-        u.id,
-        u.first_name,
-        u.email,
-        u.preferred_language,
-        j.id        AS last_job_id,
-        j.title     AS last_job_title,
-        j.completed_at
-      FROM users u
-      JOIN jobs j ON j.client_id = u.id
-        AND j.status = 'completed'
-        AND j.completed_at IS NOT NULL
-      -- Audit fix: respect notification preferences. Skip users who have
-      -- unsubscribed from marketing emails or from all emails.
-      LEFT JOIN notification_preferences np ON np.user_id = u.id
-      WHERE u.deleted_at IS NULL
-        AND u.role IN ('customer', 'business_owner')
-        AND (np.marketing_emails IS NULL OR np.marketing_emails = TRUE)
-        AND (np.unsubscribe_all IS NULL OR np.unsubscribe_all = FALSE)
-        -- Last completed job is within our idle window
-        AND j.completed_at > NOW() - INTERVAL '${CAP_DAYS} days'
-        AND j.completed_at < NOW() - INTERVAL '${IDLE_DAYS} days'
-        -- No new job posted after that completion
-        AND NOT EXISTS (
-          SELECT 1 FROM jobs newer
-           WHERE newer.client_id = u.id
-             AND newer.created_at > j.completed_at
-             AND newer.status NOT IN ('cancelled', 'closed')
-        )
-        -- Don't spam the same user more than once per week
-        AND NOT EXISTS (
-          SELECT 1 FROM reengagement_log rl
-           WHERE rl.user_id = u.id
-             AND rl.sent_at > NOW() - INTERVAL '7 days'
-        )
-      ORDER BY u.id, j.completed_at DESC
-    `);
+    let cursor = null, sent = 0, failed = 0, total = 0;
+    while (true) {
+      const { rows: customers } = await db.query(`
+        SELECT DISTINCT ON (u.id)
+          u.id,
+          u.first_name,
+          u.email,
+          u.preferred_language,
+          j.id        AS last_job_id,
+          j.title     AS last_job_title,
+          j.completed_at
+        FROM users u
+        JOIN jobs j ON j.client_id = u.id
+          AND j.status = 'completed'
+          AND j.completed_at IS NOT NULL
+        -- Audit fix: respect notification preferences. Skip users who have
+        -- unsubscribed from marketing emails or from all emails.
+        LEFT JOIN notification_preferences np ON np.user_id = u.id
+        WHERE u.deleted_at IS NULL
+          AND ($1::uuid IS NULL OR u.id > $1)
+          AND (u.role = 'customer' OR EXISTS (
+            SELECT 1 FROM businesses owned WHERE owned.user_id=u.id AND owned.deleted_at IS NULL
+          ))
+          AND (np.marketing_emails IS NULL OR np.marketing_emails = TRUE)
+          AND (np.unsubscribe_all IS NULL OR np.unsubscribe_all = FALSE)
+          -- Last completed job is within our idle window
+          AND j.completed_at > NOW() - INTERVAL '${CAP_DAYS} days'
+          AND j.completed_at < NOW() - INTERVAL '${IDLE_DAYS} days'
+          -- No new job posted after that completion
+          AND NOT EXISTS (
+            SELECT 1 FROM jobs newer
+             WHERE newer.client_id = u.id
+               AND newer.created_at > j.completed_at
+               AND newer.status NOT IN ('cancelled', 'closed')
+          )
+          -- Don't spam the same user more than once per week
+          AND NOT EXISTS (
+            SELECT 1 FROM reengagement_log rl
+             WHERE rl.user_id = u.id
+               AND rl.sent_at > NOW() - INTERVAL '7 days'
+          )
+        ORDER BY u.id, j.completed_at DESC
+        LIMIT 100
+      `, [cursor]);
 
-    if (!customers.length) return;
+      if (!customers.length) break;
+      total += customers.length;
 
-    logger.info(`[reengagement] ${customers.length} idle customer(s) to nudge`);
+      logger.info(`[reengagement] ${customers.length} idle customer(s) to nudge`);
 
-    let sent = 0;
-    let failed = 0;
-
-    for (const c of customers) {
-      const notificationLang = c.preferred_language || 'en';
-      const { title: reengagementTitle, body: reengagementBody } = tNotif('reengagement_nudge', notificationLang);
-      const emailTranslations = tNotifEmail('reengagement_nudge', notificationLang);
-      const emailTranslationsEn = tNotifEmail('reengagement_nudge', 'en');
-      const reengagementBodyWithContext = `${reengagementBody}${c.last_job_title ? ` ("${c.last_job_title}")` : ''}`;
-      const ctaText = emailTranslations.buttonText || emailTranslationsEn.buttonText;
-      const manageNotificationsText = emailTranslations.manageNotificationsText || emailTranslationsEn.manageNotificationsText;
-      const footerPrefixText = emailTranslations.footerPrefix || emailTranslationsEn.footerPrefix;
-      const footerFallbackText = emailTranslations.footerFallbackText || emailTranslationsEn.footerFallbackText;
-      try {
-        // In-app push notification
-        await sendNotification({
-          userId:     c.id,
-          type:       'reengagement_nudge',
-          idempotencyKey: `reengagement-nudge:${c.id}:${c.last_job_id}`,
-          title:      `👋 ${reengagementTitle}`,
-          body:       `${reengagementBody} ${c.last_job_title ? `("${c.last_job_title}")` : ''}`,
-          data:       { last_job_id: c.last_job_id },
-          action_url: '/post-job',
-        });
-
-        // Email nudge (best-effort — don't fail the loop if email is missing)
-        if (c.email) {
-          // RFC 8058 one-click unsubscribe: mint a per-recipient marketing
-          // token and advertise the one-click endpoint in the headers.
-          // Transactional mail elsewhere is untouched.
-          const oneClickToken = await generateUnsubscribeToken(c.id, 'marketing');
-          const oneClickUrl = oneClickToken
-            ? `${APP_URL}/api/notifications/email/unsubscribe-one-click?token=${encodeURIComponent(oneClickToken)}`
-            : null;
-          await sendEmail({
-            to:      c.email,
-            idempotencyKey: `reengagement-nudge-email:${c.id}:${c.last_job_id}`,
-            subject: `${c.first_name}, ${reengagementTitle}`,
-            ...(oneClickUrl ? {
-              headers: {
-                'List-Unsubscribe': `<${oneClickUrl}>`,
-                'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-              },
-            } : {}),
-            html: `
-              <p>Hi ${c.first_name},</p>
-              <p>${reengagementBodyWithContext}.</p>
-              <div style="margin:24px 0;">
-                <a href="${APP_URL}/post-job"
-                   style="display:inline-block;padding:12px 24px;background:#7c3aed;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">
-                  ${ctaText} →
-                </a>
-              </div>
-              <p style="color:#6b7280;font-size:13px;">
-                ${footerPrefixText}
-                <a href="${APP_URL}/helpers" style="color:#7c3aed;">${APP_URL}/helpers</a>
-              </p>
-              <p>${footerFallbackText}</p>
-              <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
-              <p style="color:#9ca3af;font-size:11px;">
-                ${manageNotificationsText}:
-                <a href="${APP_URL}/settings/notifications" style="color:#9ca3af;">${manageNotificationsText}</a>
-              </p>
-            `,
-            text: `${reengagementBodyWithContext} ${ctaText}: ${APP_URL}/post-job`,
+      await mapBounded(customers, 5, async (c) => {
+        const notificationLang = c.preferred_language || 'en';
+        const { title: reengagementTitle, body: reengagementBody } = tNotif('reengagement_nudge', notificationLang);
+        const emailTranslations = tNotifEmail('reengagement_nudge', notificationLang);
+        const emailTranslationsEn = tNotifEmail('reengagement_nudge', 'en');
+        const reengagementBodyWithContext = `${reengagementBody}${c.last_job_title ? ` ("${c.last_job_title}")` : ''}`;
+        const ctaText = emailTranslations.buttonText || emailTranslationsEn.buttonText;
+        const manageNotificationsText = emailTranslations.manageNotificationsText || emailTranslationsEn.manageNotificationsText;
+        const footerPrefixText = emailTranslations.footerPrefix || emailTranslationsEn.footerPrefix;
+        const footerFallbackText = emailTranslations.footerFallbackText || emailTranslationsEn.footerFallbackText;
+        try {
+          // In-app push notification
+          await sendNotification({
+            userId:     c.id,
+            type:       'reengagement_nudge',
+            idempotencyKey: `reengagement-nudge:${c.id}:${c.last_job_id}`,
+            title:      `👋 ${reengagementTitle}`,
+            body:       `${reengagementBody} ${c.last_job_title ? `("${c.last_job_title}")` : ''}`,
+            data:       { last_job_id: c.last_job_id },
+            action_url: '/post-job',
           });
-        }
 
-        // Record that we sent this nudge so we don't double-send
-        await db.query(
-          `INSERT INTO reengagement_log (user_id, sent_at, trigger_job_id)
-           VALUES ($1, NOW(), $2)
-           ON CONFLICT DO NOTHING`,
-          [c.id, c.last_job_id]
-        );
+          // Email nudge (best-effort — don't fail the loop if email is missing)
+          if (c.email) {
+            // RFC 8058 one-click unsubscribe: mint a per-recipient marketing
+            // token and advertise the one-click endpoint in the headers.
+            // Transactional mail elsewhere is untouched.
+            const oneClickToken = await generateUnsubscribeToken(c.id, 'marketing');
+            const oneClickUrl = oneClickToken
+              ? `${APP_URL}/api/notifications/email/unsubscribe-one-click?token=${encodeURIComponent(oneClickToken)}`
+              : null;
+            await sendEmail({
+              to:      c.email,
+              idempotencyKey: `reengagement-nudge-email:${c.id}:${c.last_job_id}`,
+              subject: `${c.first_name}, ${reengagementTitle}`,
+              ...(oneClickUrl ? {
+                headers: {
+                  'List-Unsubscribe': `<${oneClickUrl}>`,
+                  'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+                },
+              } : {}),
+              html: `
+                <p>Hi ${c.first_name},</p>
+                <p>${reengagementBodyWithContext}.</p>
+                <div style="margin:24px 0;">
+                  <a href="${APP_URL}/post-job"
+                     style="display:inline-block;padding:12px 24px;background:#7c3aed;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">
+                    ${ctaText} →
+                  </a>
+                </div>
+                <p style="color:#6b7280;font-size:13px;">
+                  ${footerPrefixText}
+                  <a href="${APP_URL}/helpers" style="color:#7c3aed;">${APP_URL}/helpers</a>
+                </p>
+                <p>${footerFallbackText}</p>
+                <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
+                <p style="color:#9ca3af;font-size:11px;">
+                  ${manageNotificationsText}:
+                  <a href="${APP_URL}/settings/notifications" style="color:#9ca3af;">${manageNotificationsText}</a>
+                </p>
+              `,
+              text: `${reengagementBodyWithContext} ${ctaText}: ${APP_URL}/post-job`,
+            });
+          }
 
-        // Global marketing caps (growth spec 17.2): legacy platform sends
-        // count toward the same per-person caps as offer campaigns.
-        const { recordMarketingContact } = require('../growth/marketingLog');
-        await recordMarketingContact(db, {
-          userId: c.id,
-          source: 'customer_reengagement',
-          channel: 'in_app',
-        });
-        if (c.email)
+          // Record that we sent this nudge so we don't double-send
+          await db.query(
+            `INSERT INTO reengagement_log (user_id, sent_at, trigger_job_id)
+             VALUES ($1, NOW(), $2)
+             ON CONFLICT DO NOTHING`,
+            [c.id, c.last_job_id]
+          );
+
+          // Global marketing caps (growth spec 17.2): legacy platform sends
+          // count toward the same per-person caps as offer campaigns.
+          const { recordMarketingContact } = require('../growth/marketingLog');
           await recordMarketingContact(db, {
             userId: c.id,
             source: 'customer_reengagement',
-            channel: 'email',
+            channel: 'in_app',
           });
+          if (c.email)
+            await recordMarketingContact(db, {
+              userId: c.id,
+              source: 'customer_reengagement',
+              channel: 'email',
+            });
 
-        sent++;
-      } catch (userErr) {
-        failed++;
-        logger.error('[reengagement] Failed to nudge customer', {
-          user_id: c.id,
-          error:   userErr.message,
-        });
-      }
+          sent++;
+        } catch (userErr) {
+          failed++;
+          logger.error('[reengagement] Failed to nudge customer', {
+            user_id: c.id,
+            error:   userErr.message,
+          });
+        }
+      });
+
+      cursor = customers[customers.length - 1].id;
     }
-
-    logger.info('[reengagement] Done', {
-      total:  customers.length,
-      sent,
-      failed,
-    });
+    logger.info('[reengagement] Done', { total, sent, failed });
   } catch (err) {
     logger.error('[reengagement] Job failed', { error: err.message });
   }

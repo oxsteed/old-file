@@ -25,6 +25,8 @@ function retentionDays(env = process.env) {
 }
 
 async function cleanupGuestChatRetention({ db = pool, env = process.env } = {}) {
+  await db.query(`DELETE FROM order_sms_budgets WHERE (user_id,order_key,day) IN
+    (SELECT user_id,order_key,day FROM order_sms_budgets WHERE day<CURRENT_DATE-7 LIMIT 2000)`);
   const days = retentionDays(env);
   let deleted = 0;
   for (let i = 0; i < MAX_BATCHES; i += 1) {

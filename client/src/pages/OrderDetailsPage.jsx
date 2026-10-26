@@ -225,8 +225,9 @@ function OrderDetailsPageContent() {
   })();
 
   useEffect(() => {
-    if (!isFoodOrder || !orderId) return undefined;
+    if (!isFoodOrder || !orderId || ['completed','delivered','cancelled','canceled','refunded','picked_up'].includes(order?.status)) return undefined;
     const interval = setInterval(async () => {
+      if (document.visibilityState === 'hidden') return;
       try {
         const updated = await getFoodOrder(orderId);
         setLiveStatus(updated.status);

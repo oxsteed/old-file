@@ -1,3 +1,4 @@
+const { guardedFetch } = require('../services/openRouterSpendGuard');
 const { supportDraftPrompt } = require('../services/assistantGuide');
 const pool = require('../db');
 const { query } = pool;
@@ -65,8 +66,17 @@ async function sendMessage(req, res) {
     }
 
     try {
+      const draftRow = await withTransaction(pool, async client => {
+        const locked = await client.query('SELECT status FROM support_conversations WHERE id=$1 AND business_id=$2 FOR UPDATE', [conversationId,businessId]);
+        if (!locked.rows.length || ['closed','resolved','merged'].includes(locked.rows[0].status)) throw new Error('conversation_not_open');
+        const cached = await client.query(`SELECT * FROM support_ai_reply_drafts
+          WHERE business_id=$1 AND conversation_id=$2 AND requested_by=$3
+            AND md5(source_content)=md5($4) AND source_content=$4 AND language=$5 AND status='pending'
+            AND created_at>NOW()-INTERVAL '24 hours' ORDER BY created_at DESC LIMIT 1`,
+          [businessId,conversationId,req.user.id,String(content).trim(),selectedLanguage]);
+        if (cached.rows.length) return cached.rows[0];
       const { text: response, model: aiModel } = await callAiSupportDraft(String(content).trim(), selectedLanguage);
-      const draft = await query(
+      const inserted = await client.query(
         `INSERT INTO support_ai_reply_drafts
          (business_id, conversation_id, requested_by, source_content, draft_content, language, ai_model)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -74,6 +84,9 @@ async function sendMessage(req, res) {
                    draft_content, language, ai_model, status, created_at, updated_at`,
         [businessId, conversationId, req.user.id, String(content).trim(), response, selectedLanguage, aiModel]
       );
+        return inserted.rows[0];
+      }, 'support_draft_generate');
+      const draft = { rows: [draftRow] };
       await logAdminAction({
         adminId: req.user.id,
         action: 'support_ai_reply_draft_previewed',
@@ -359,7 +372,7 @@ async function callOpenRouter(content, language) {
   const systemPrompt = supportDraftPrompt(language);
 
   try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const response = await guardedFetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,

@@ -29,15 +29,17 @@ export default function FoodTrackPage() {
     }
   }, [token, t]);
 
-  useAppResume(load);
-
+  const active = !order || ['received','accepted','preparing','ready'].includes(order.status);
+  const refreshActive = useCallback(() => { if (document.visibilityState !== 'hidden' && active) return load(); }, [load, active]);
+  useAppResume(refreshActive, active);
+  useEffect(() => { load(); }, [load]);
   useEffect(() => {
-    load();
-    const interval = setInterval(load, 5000);
+    if (!active) return undefined;
+    const interval = setInterval(refreshActive, 30000);
     return () => clearInterval(interval);
-  }, [load]);
-
-  useEffect(()=>order?.restaurant_id?subscribeRestaurantDisplay(order.restaurant_id,load):undefined,[order?.restaurant_id,load]);
+  }, [refreshActive, active]);
+  useEffect(() => active && order?.restaurant_id ? subscribeRestaurantDisplay(order.restaurant_id, refreshActive) : undefined,
+    [order?.restaurant_id, refreshActive, active]);
 
   const handlePrint = () => window.print();
   const handleRetry = () => {

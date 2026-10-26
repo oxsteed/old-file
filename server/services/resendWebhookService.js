@@ -67,6 +67,15 @@ async function applyEvent(client, event) {
     [String(messageId)]
   );
   if (!delivery) {
+    const gift = await client.query(`UPDATE restaurant_gift_card_fulfillments SET
+      status=CASE WHEN $2='delivered' THEN 'delivered' ELSE 'failed' END,
+      provider_event=$2,provider_event_at=$3,lease_token=NULL,lease_expires_at=NULL,
+      payload_ciphertext=CASE WHEN $2='delivered' THEN NULL ELSE payload_ciphertext END,updated_at=NOW()
+      WHERE kind='e_gift' AND provider_id=$1
+        AND (provider_event_at IS NULL OR provider_event_at<=$3)
+        AND NOT (COALESCE(provider_event,'') IN ('bounced','complained','failed','suppressed','canceled') AND $2='delivered')
+      RETURNING id`,[String(messageId),type.slice(6),at]);
+    if (gift.rows.length) return {outcome:'applied',giftCardDeliveryId:gift.rows[0].id};
     const notice=await require('../growth/policyNotice').applyProviderEvent(client,event);
     return notice||{ outcome: 'unmatched', at };
   }

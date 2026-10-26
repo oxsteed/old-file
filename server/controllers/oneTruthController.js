@@ -34,15 +34,16 @@ function tableExistsQuery(name) {
   ) AS exists`;
 }
 
+const schemaColumns = new Map();
 async function columnExists(client, table, column) {
-  const { rows } = await client.query(
-    `SELECT EXISTS (
-      SELECT 1 FROM information_schema.columns
-      WHERE table_name = $1 AND column_name = $2
-    ) AS exists`,
-    [table, column]
-  );
-  return rows[0]?.exists ?? false;
+  const prior = schemaColumns.get(table);
+  if (prior && prior.expires > Date.now()) return prior.columns.has(column);
+  const { rows } = await client.query(`SELECT column_name FROM information_schema.columns
+    WHERE table_schema='public' AND table_name=$1`, [table]);
+  const columns = new Set(rows.map(row=>row.column_name));
+  if (schemaColumns.size>=50) schemaColumns.clear();
+  schemaColumns.set(table,{columns,expires:Date.now()+60000});
+  return columns.has(column);
 }
 
 async function buildUserSelect(client) {
@@ -834,13 +835,12 @@ exports.listSuspects = async (req, res) => {
       );
     }
 
-    const enrichedUsers = await enrichUsers(client, rows);
-    const userMap = new Map(enrichedUsers.map((user) => [user.id, user]));
-    // Groups come from indexed DB queries; see buildSuspectPairsIndexed for the
-    // within-group pairing bound.
-    const userIds = enrichedUsers.map(u => u.id);
+    const userIds = rows.map(u => u.id);
     const comparison = comparisonMode(req.query.comparison);
     const linked = await buildSuspectPairsIndexed(client, userIds, { mode: comparison, withGroups: true });
+    const linkedIds = new Set(linked.pairs.flatMap(pair=>[pair.userA.id,pair.userB.id]));
+    const enrichedUsers = await enrichUsers(client, rows.filter(row=>linkedIds.has(row.id)));
+    const userMap = new Map(enrichedUsers.map(user=>[user.id,user]));
     const suspectPairs = linked.pairs.map((pair) => ({
       ...pair,
       userA: userMap.get(pair.userA.id) || pair.userA,

@@ -1,3 +1,5 @@
+const { withTransaction } = require('../utils/transaction');
+const { encrypt, decrypt } = require('../utils/encryption');
 // server/controllers/diditController.js
 // Handles Didit identity verification callbacks and deduplication.
 
@@ -16,74 +18,84 @@ const { diditAllowUserSkip, isDiditIdentitySatisfied } = require('../utils/didit
 // Returns a session token and verification URL the SDK needs.
 async function createSession(req, res) {
   try {
-    const userId = req.user.id;
-    const { rows: existingRows } = await pool.query(
-      `SELECT didit_status, didit_verified_at, didit_session_id, identity_verified, id_verified
-         FROM users WHERE id = $1`, [userId]
-    );
-    const existing = existingRows[0];
-    if (existing && (existing.identity_verified || existing.id_verified || isDiditIdentitySatisfied({
-      didit_status: existing.didit_status,
-      didit_verified_at: existing.didit_verified_at,
-      didit_enforcement_required: true,
-    }))) {
-      return res.status(409).json({
-        error: 'identity_already_verified',
-        message: 'Identity verification is already approved. A new session is not required.',
-        status: 'verified',
+    const result = await withTransaction(pool, async (client) => {
+      const userId = req.user.id;
+      const { rows: existingRows } = await client.query(
+        `SELECT didit_status, didit_verified_at, didit_session_id, didit_session_payload_ciphertext, identity_verified, id_verified
+           FROM users WHERE id = $1 FOR UPDATE`, [userId]
+      );
+      const existing = existingRows[0];
+      if (existing && (existing.identity_verified || existing.id_verified || isDiditIdentitySatisfied({
+        didit_status: existing.didit_status,
+        didit_verified_at: existing.didit_verified_at,
+        didit_enforcement_required: true,
+      }))) {
+        return { statusCode: 409, body: {
+          error: 'identity_already_verified',
+          message: 'Identity verification is already approved. A new session is not required.',
+          status: 'verified',
+        } };
+      }
+
+      if (existing?.didit_session_id && !['failed','declined','expired','abandoned','canceled','cancelled','duplicate'].includes(String(existing.didit_status).toLowerCase())) {
+        let saved = {};
+        if (existing.didit_session_payload_ciphertext) saved = JSON.parse(decrypt(existing.didit_session_payload_ciphertext));
+        return { statusCode: 200, body: { ...saved, sessionId: existing.didit_session_id, session_id: existing.didit_session_id, reused: true, status: existing.didit_status } };
+      }
+
+      // Guard: if Didit is not configured, tell the client so it can offer a skip
+      // path instead of showing a generic 502 error.
+      const apiKey = process.env.DIDIT_API_KEY;
+      const workflowId = process.env.DIDIT_WORKFLOW_ID || DEFAULT_DIDIT_WORKFLOW_ID;
+      const callbackUrl = process.env.DIDIT_CALLBACK_URL;
+
+      if (!apiKey) {
+        return { statusCode: 503, body: {
+          error: 'verification_unavailable',
+          message: 'Identity verification is not configured on this server.',
+        } };
+      }
+
+      // Call Didit API to create a verification session
+      const diditResponse = await fetch(DIDIT_API_URL, {
+        method: 'POST',
+        signal: AbortSignal.timeout(15000),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          workflow_id: workflowId,
+          vendor_data: String(userId),
+          ...(callbackUrl ? { callback: callbackUrl } : {}),
+        }),
       });
-    }
 
-    // Guard: if Didit is not configured, tell the client so it can offer a skip
-    // path instead of showing a generic 502 error.
-    const apiKey = process.env.DIDIT_API_KEY;
-    const workflowId = process.env.DIDIT_WORKFLOW_ID || DEFAULT_DIDIT_WORKFLOW_ID;
-    const callbackUrl = process.env.DIDIT_CALLBACK_URL;
+      if (!diditResponse.ok) {
+        logger.error('Didit API error:', { status: diditResponse.status });
+        return { statusCode: 502, body: { error: 'Failed to create Didit session' } };
+      }
 
-    if (!apiKey) {
-      return res.status(503).json({
-        error: 'verification_unavailable',
-        message: 'Identity verification is not configured on this server.',
-      });
-    }
+      const diditData = await diditResponse.json();
+      const sessionId = diditData.session_id;
+      if (typeof sessionId !== 'string' || !sessionId) throw new Error('didit_session_response_invalid');
 
-    // Call Didit API to create a verification session
-    const diditResponse = await fetch(DIDIT_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-      },
-      body: JSON.stringify({
-        workflow_id: workflowId,
-        vendor_data: String(userId),
-        ...(callbackUrl ? { callback: callbackUrl } : {}),
-      }),
-    });
+      await client.query(
+        `UPDATE users SET didit_session_id = $1, didit_status = 'pending', didit_session_payload_ciphertext=$3 WHERE id = $2`,
+        [sessionId, userId, encrypt(JSON.stringify({verificationUrl: diditData.url, verification_url: diditData.url, sessionToken: diditData.session_token, session_token: diditData.session_token}))]
+      );
 
-    if (!diditResponse.ok) {
-      const errBody = await diditResponse.text();
-      logger.error('Didit API error:', { err: diditResponse.status, errBody });
-      return res.status(502).json({ error: 'Failed to create Didit session' });
-    }
+      return { statusCode: 200, body: {
+        sessionId,
+        sessionToken: diditData.session_token,
+        verificationUrl: diditData.url,
+        session_id: sessionId,
+        session_token: diditData.session_token,
+        verification_url: diditData.url,
+      } };
 
-    const diditData = await diditResponse.json();
-    const sessionId = diditData.session_id;
-
-    await pool.query(
-      `UPDATE users SET didit_session_id = $1, didit_status = 'pending' WHERE id = $2`,
-      [sessionId, userId]
-    );
-
-    return res.json({
-      sessionId,
-      sessionToken: diditData.session_token,
-      verificationUrl: diditData.url,
-      session_id: sessionId,
-      session_token: diditData.session_token,
-      verification_url: diditData.url,
-    });
-
+    }, 'didit_session_create');
+    return res.status(result.statusCode).json(result.body);
   } catch (err) {
     logger.error('Didit createSession error:', { err: err });
     return res.status(500).json({ error: 'Failed to create verification session' });

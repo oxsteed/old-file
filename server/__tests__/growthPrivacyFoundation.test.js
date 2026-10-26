@@ -739,6 +739,7 @@ function noticeFixtures({ dailyCap = 100 } = {}) {
 }
 
 function installNoticeStore(store) {
+  require('../db').query.mockImplementation((sql,params)=>store.conn.query(sql,params));
   const fence = {
     fencedTransaction: async (work) => work(store.conn),
     db: store.conn,

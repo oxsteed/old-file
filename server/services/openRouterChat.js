@@ -1,4 +1,5 @@
 'use strict';
+const { guardedFetch } = require('./openRouterSpendGuard');
 
 /**
  * Shared OpenRouter chat-completions client for the AI paths that must not
@@ -60,7 +61,7 @@ async function fetchOpenRouterChat(model, messages, options = {}) {
   }
   const baseUrl = (process.env.OPENROUTER_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, '');
   try {
-    const res = await fetch(`${baseUrl}/chat/completions`, {
+    const res = await guardedFetch(`${baseUrl}/chat/completions`, {
       // A hung provider must not hold the request (and the user) open.
       signal: AbortSignal.timeout(providerTimeoutMs()),
       method: 'POST',

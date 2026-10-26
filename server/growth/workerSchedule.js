@@ -6,13 +6,13 @@ function entries(env = process.env) {
       [
         "growthActivityRelay",
         () => require("../jobs/activityOutboxRelay").run(),
-        5000,
+        15000,
         {},
       ],
       [
         "growthActivityWriter",
         () => require("./ingest/writer").run(),
-        2000,
+        10000,
         {},
       ],
       [
@@ -59,7 +59,7 @@ function entries(env = process.env) {
       [
         "growthPolicyNotice",
         () => require("../jobs/policyNoticeDelivery").run(),
-        1000,
+        30000,
         {},
       ],
       [
