@@ -58,6 +58,9 @@ async function schedule(
     !Number.isFinite(Date.parse(plannedLastSendAt))
   )
     throw new Error("invalid_notice_plan");
+  // D24: refuse while any of the 20 languages is still a machine draft or
+  // changed after its professional review.
+  require("./noticeTranslations").assertReadyToSchedule();
   const digest = contentDigest();
   const {
     rows: [r],

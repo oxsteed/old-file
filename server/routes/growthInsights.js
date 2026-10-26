@@ -1973,7 +1973,9 @@ router.get(
     const { rows: settings } = await db.query(
       "SELECT key,value FROM platform_settings WHERE key LIKE 'growth.%'",
     );
-    res.json({ rollout, rules, settings });
+    // D24: per-language review state of the notice email + banner.
+    const notice_translations = require("../growth/noticeTranslations").report();
+    res.json({ rollout, rules, settings, notice_translations });
   }),
 );
 router.post(
