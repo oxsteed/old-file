@@ -312,3 +312,27 @@ export function zonedToIso(local, timeZone) {
   guess = wall - offsetAt(guess);
   return new Date(guess).toISOString();
 }
+
+/**
+ * Localized "in 3 days" / "in 5 hours" countdown to an offer deadline.
+ * Uses Intl.RelativeTimeFormat so no per-locale strings are needed.
+ * Returns '' when the deadline has passed or is invalid.
+ */
+export function formatCountdown(expiresAt, lang = 'en', now = Date.now()) {
+  const end = new Date(expiresAt).getTime();
+  if (!Number.isFinite(end) || end <= now) return '';
+  const minutes = Math.round((end - now) / 60000);
+  const rtf = new Intl.RelativeTimeFormat(lang || 'en', { numeric: 'auto' });
+  if (minutes < 60) return rtf.format(Math.max(1, minutes), 'minute');
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) return rtf.format(hours, 'hour');
+  return rtf.format(Math.round(hours / 24), 'day');
+}
+
+/** Conditions an offer will carry, mirrored from the server's offer rules. */
+export function offerConditionsFor(opening = {}) {
+  const list = ['identity_verified'];
+  if (opening.background_check_required) list.push('background_check');
+  if (opening.employer_model === 'oxsteed_eor') list.push('eor_enrollment');
+  return list;
+}

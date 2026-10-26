@@ -7,7 +7,7 @@ import {
 } from '../../../api/careers';
 import {
   FACT_TYPES, INTERVIEW_MODES, NEUTRAL_MOVES, PAY_PERIODS, REJECTION_REASONS, TEAM_ROLES,
-  applicantLabel, factValueText, fieldErrorsFrom, formatDate, formatOfferPay, formatWhen, zonedToIso,
+  applicantLabel, factValueText, fieldErrorsFrom, formatDate, formatOfferPay, formatWhen, offerConditionsFor, zonedToIso,
 } from '../../../features/careers/careersModel';
 import { ActionButton, Check, ErrorNotice, Field, Loading, LoadError, Notice, StageChip, useLoad } from '../ui';
 import EmployerOnboarding from './EmployerOnboarding';
@@ -108,7 +108,7 @@ function InterviewForm({ app, timezone, onDone }) {
 }
 
 function OfferForm({ app, opening, locations, onDone }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [f, setF] = useState({
     title: opening?.title || '', pay: opening?.compensation_min ?? '', pay_period: opening?.compensation_period || 'hourly', start_date: '',
     expires_in_days: 7, location_id: (app.preferred_location_ids || [])[0] || (opening?.location_ids || [])[0] || '', team_role: opening?.team_role || 'employee',
@@ -167,6 +167,16 @@ function OfferForm({ app, opening, locations, onDone }) {
           <input id={`of-why-${app.id}`} value={f.outside_posted_range_reason} onChange={(e) => setF({ ...f, outside_posted_range_reason: e.target.value })} />
         </Field>
       ) : null}
+      <section className="ox-careers-letter" aria-labelledby={`of-preview-${app.id}`}>
+        <h4 id={`of-preview-${app.id}`}>{t('careers.offer.preview')}</h4>
+        <p><strong>{t('careers.offer.title', { title: f.title || opening?.title || '' })}</strong></p>
+        {f.pay !== '' ? <p>{t('careers.offer.pay', { pay: formatOfferPay({ compensation: Number(f.pay), currency_code: opening?.currency_code }, i18n.language), period: t(`careers.period.${f.pay_period}`) })}</p> : null}
+        {f.start_date ? <p>{t('careers.offer.start', { date: formatDate(f.start_date, i18n.language) })}</p> : null}
+        {f.location_id ? <p>{t('careers.offer.store')}: {storeChoices.find((l) => String(l.id) === String(f.location_id))?.name || ''}</p> : null}
+        {opening?.employer_model === 'oxsteed_eor' ? <p>{t('careers.offer.eor')}</p> : null}
+        <p>{t('careers.offer.conditions', { list: offerConditionsFor(opening).map((c) => t(`careers.offer.condition.${c}`)).join(', ') })}</p>
+        {outside ? <p className="ox-careers-subtle">{t('careers.offer.aboveRange')}</p> : null}
+      </section>
       <ErrorNotice error={error} />
       <div className="ox-careers-actions">
         <ActionButton

@@ -26946,7 +26946,8 @@
       "aboveRange": "Au-dessus de la fourchette publiée : approbation requise.",
       "approve": "Approuver l'offre",
       "withdraw": "Retirer l'offre",
-      "withdrawConfirm": "Retirer cette offre ? Le candidat sera prévenu."
+      "withdrawConfirm": "Retirer cette offre ? Le candidat sera prévenu.",
+      "preview": "Aperçu de la lettre d'offre"
     },
     "onboarding": {
       "title": "Pour bien démarrer",
@@ -27296,7 +27297,10 @@
       "rejectFactHint": "Si oui, le candidat est informé de laquelle afin de pouvoir la contester.",
       "rejectShown": "Le candidat voit ce motif dans sa langue.",
       "rejectConfirm": "Je confirme cette décision.",
-      "hireByAcceptance": "Le candidat est embauché lorsqu'il accepte l'offre. Il n'y a pas de bouton « Embaucher »."
+      "hireByAcceptance": "Le candidat est embauché lorsqu'il accepte l'offre. Il n'y a pas de bouton « Embaucher ».",
+      "viewLabel": "Affichage des candidats",
+      "viewList": "Liste",
+      "viewBoard": "Tableau"
     },
     "talent": {
       "rules": "N'invitez que pour une offre réelle et uniquement à des fins d'emploi. Limites : 50 invitations par jour par entreprise et 3 par mois par travailleur.",

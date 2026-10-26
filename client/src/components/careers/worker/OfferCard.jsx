@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { decideCareerOffer } from '../../../api/careers';
-import { formatDate, formatOfferPay, formatWhen } from '../../../features/careers/careersModel';
+import { formatCountdown, formatDate, formatOfferPay, formatWhen } from '../../../features/careers/careersModel';
 import { ActionButton, ErrorNotice, Notice } from '../ui';
 
 export default function OfferCard({ offer, timezone, onDecided }) {
@@ -30,7 +30,7 @@ export default function OfferCard({ offer, timezone, onDecided }) {
       {offer.is_conditional && offer.conditions?.length ? (
         <p>{t('careers.offer.conditions', { list: offer.conditions.map((c) => t(`careers.offer.condition.${c}`)).join(', ') })}</p>
       ) : null}
-      {offer.status === 'pending' && offer.expires_at ? <p className="ox-careers-subtle">{t('careers.offer.expires', { when: formatWhen(offer.expires_at, timezone, i18n.language) })}</p> : null}
+      {offer.status === 'pending' && offer.expires_at ? <p className="ox-careers-subtle">{t('careers.offer.expires', { when: formatWhen(offer.expires_at, timezone, i18n.language) })}{formatCountdown(offer.expires_at, i18n.language) ? ` (${formatCountdown(offer.expires_at, i18n.language)})` : ''}</p> : null}
       {pending?.length ? <Notice>{t('careers.offer.pendingConditions', { list: pending.map((c) => t(`careers.offer.condition.${c}`)).join(', ') })}</Notice> : null}
       <ErrorNotice error={error} />
       {offer.status === 'pending' ? (

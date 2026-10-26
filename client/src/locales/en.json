@@ -26946,7 +26946,8 @@
       "aboveRange": "Above the posted range: needs approval.",
       "approve": "Approve offer",
       "withdraw": "Withdraw offer",
-      "withdrawConfirm": "Withdraw this offer? The candidate is told."
+      "withdrawConfirm": "Withdraw this offer? The candidate is told.",
+      "preview": "Offer letter preview"
     },
     "onboarding": {
       "title": "Getting started",
@@ -27296,7 +27297,10 @@
       "rejectFactHint": "If so, the candidate is told which one so they can dispute it.",
       "rejectShown": "The candidate sees this reason in their language.",
       "rejectConfirm": "I confirm this decision.",
-      "hireByAcceptance": "The candidate is hired when they accept the offer. There is no hire button."
+      "hireByAcceptance": "The candidate is hired when they accept the offer. There is no hire button.",
+      "viewLabel": "Applicant view",
+      "viewList": "List",
+      "viewBoard": "Board"
     },
     "talent": {
       "rules": "Invite only for a real opening and only for employment. Limits: 50 invitations a day per business and 3 a month per worker.",

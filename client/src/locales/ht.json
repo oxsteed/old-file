@@ -26946,7 +26946,8 @@
       "aboveRange": "Pi wo pase ranje ki pibliye a: bezwen apwobasyon.",
       "approve": "Apwouve òf la",
       "withdraw": "Retire òf la",
-      "withdrawConfirm": "Retire òf sa a? Y ap avèti kandida a."
+      "withdrawConfirm": "Retire òf sa a? Y ap avèti kandida a.",
+      "preview": "Apèsi lèt òf la"
     },
     "onboarding": {
       "title": "Pou kòmanse",
@@ -27296,7 +27297,10 @@
       "rejectFactHint": "Si wi, y ap di kandida a kilès pou l ka konteste l.",
       "rejectShown": "Kandida a wè rezon sa a nan lang li.",
       "rejectConfirm": "Mwen konfime desizyon sa a.",
-      "hireByAcceptance": "Kandida a anboche lè li aksepte òf la. Pa gen bouton pou anboche."
+      "hireByAcceptance": "Kandida a anboche lè li aksepte òf la. Pa gen bouton pou anboche.",
+      "viewLabel": "Fason pou wè kandida yo",
+      "viewList": "Lis",
+      "viewBoard": "Tablo"
     },
     "talent": {
       "rules": "Envite sèlman pou yon pòs ki egziste vre epi sèlman pou travay. Limit: 50 envitasyon pa jou pou chak biznis ak 3 pa mwa pou chak travayè.",

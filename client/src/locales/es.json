@@ -26946,7 +26946,8 @@
       "aboveRange": "Por encima del rango publicado: requiere aprobación.",
       "approve": "Aprobar oferta",
       "withdraw": "Retirar oferta",
-      "withdrawConfirm": "¿Retirar esta oferta? Se le avisará al candidato."
+      "withdrawConfirm": "¿Retirar esta oferta? Se le avisará al candidato.",
+      "preview": "Vista previa de la carta de oferta"
     },
     "onboarding": {
       "title": "Primeros pasos",
@@ -27296,7 +27297,10 @@
       "rejectFactHint": "Si es así, se le dice al candidato cuál fue para que pueda impugnarlo.",
       "rejectShown": "El candidato ve este motivo en su idioma.",
       "rejectConfirm": "Confirmo esta decisión.",
-      "hireByAcceptance": "El candidato queda contratado cuando acepta la oferta. No hay botón de contratar."
+      "hireByAcceptance": "El candidato queda contratado cuando acepta la oferta. No hay botón de contratar.",
+      "viewLabel": "Vista de candidatos",
+      "viewList": "Lista",
+      "viewBoard": "Tablero"
     },
     "talent": {
       "rules": "Invita solo para una oferta real y solo con fines de empleo. Límites: 50 invitaciones al día por negocio y 3 al mes por trabajador.",

@@ -134,3 +134,18 @@ test('interview wall time converts in the opening time zone', () => {
   assert.equal(zonedToIso('2026-07-01T10:00', 'Asia/Tokyo'), '2026-07-01T01:00:00.000Z');
   assert.equal(zonedToIso('', 'UTC'), null);
 });
+
+test('formatCountdown is localized and empty once past', async () => {
+  const { formatCountdown } = await import('./careersModel.js');
+  const now = Date.parse('2026-10-26T12:00:00Z');
+  assert.equal(formatCountdown('2026-10-26T15:00:00Z', 'en', now), 'in 3 hours');
+  assert.equal(formatCountdown('2026-10-29T12:00:00Z', 'en', now), 'in 3 days');
+  assert.equal(formatCountdown('2026-10-26T11:00:00Z', 'en', now), '');
+  assert.equal(formatCountdown('nope', 'en', now), '');
+});
+
+test('offerConditionsFor mirrors identity, background check and EOR', async () => {
+  const { offerConditionsFor } = await import('./careersModel.js');
+  assert.deepEqual(offerConditionsFor({}), ['identity_verified']);
+  assert.deepEqual(offerConditionsFor({ background_check_required: true, employer_model: 'oxsteed_eor' }), ['identity_verified', 'background_check', 'eor_enrollment']);
+});
