@@ -2255,8 +2255,8 @@
         "body": "{{moduleTitle}} nan {{restaurantName}}"
       },
       "training_recertification_due": {
-        "title": "Resètifikasyon ou dwe fèt",
-        "body": "Sètifikasyon ou pou {{moduleTitle}} nan {{restaurantName}} ekspire. Tanpri fè fòmasyon an ankò."
+        "title": "Resètifikasyon fòmasyon dwe fèt",
+        "body": "Sètifikasyon ou pou {{moduleTitle}} ekspire. Tanpri fè fòmasyon an ankò."
       },
       "crew_shift_published": {
         "title": "Yo pibliye yon nouvo orè",
@@ -2277,10 +2277,6 @@
       "training_completed": {
         "title": "Fòmasyon an fini",
         "body": "{{moduleTitle}} fini"
-      },
-      "training_recertification_due": {
-        "title": "Resètifikasyon fòmasyon dwe fèt",
-        "body": "Sètifikasyon ou pou {{moduleTitle}} ekspire. Tanpri fè fòmasyon an ankò."
       },
       "member_invite": {
         "title": "Yo envite ou pou rantre nan {{businessName}}",
@@ -36651,5 +36647,15 @@
       "restaurant": "Restoran"
     },
     "analyticsStorageDescription": "Nan EEE, Wayòm Ini, Swis ak Kebèk, swivi ak òf ki baze sou aktivite bezwen konsantman separe; ou ka retire yo nan Anviwònman. Eta ameriken ki konsène yo gen kontwòl Pa vann ni pataje ak Global Privacy Control. Lòt kote, bouton analiz la kontwole Google Analytics ak depo pèmanan; avi sa a kouvri aktivite."
+  },
+  "adminOperationalNotices": {
+    "regionLabel": "Avi operasyonèl",
+    "dismiss": "Mwen konprann",
+    "regionGeoSource": {
+      "switchedTitle": "Analiz rejyonal yo itilize sant postal GeoNames kounye a",
+      "switchedBody": "Kèk chif rejyonal chanje: {{usersBefore}} kont te plase nan yon rejyon anvan, {{usersAfter}} kounye a. Diferans lan sove, epi yon operatè ka fè bak an yon sèl etap.",
+      "rolledBackTitle": "Sous jeyografik analiz rejyonal yo retounen",
+      "rolledBackBody": "Analiz rejyonal yo retounen sou sous lokalizasyon anvan an. Chif yo retounen sou ansyen baz la."
+    }
   }
 }

@@ -9948,8 +9948,8 @@
         "body": "{{moduleTitle}} chez {{restaurantName}}"
       },
       "training_recertification_due": {
-        "title": "Recertification à renouveler",
-        "body": "Votre certification {{moduleTitle}} chez {{restaurantName}} a expiré. Veuillez suivre à nouveau la formation."
+        "title": "Recertification de formation due",
+        "body": "Votre certification pour {{moduleTitle}} a expiré. Veuillez refaire la formation."
       },
       "crew_shift_published": {
         "title": "Nouveau poste publié",
@@ -9970,10 +9970,6 @@
       "training_completed": {
         "title": "Formation terminée",
         "body": "{{moduleTitle}} a été terminée"
-      },
-      "training_recertification_due": {
-        "title": "Recertification de formation due",
-        "body": "Votre certification pour {{moduleTitle}} a expiré. Veuillez refaire la formation."
       },
       "member_invite": {
         "title": "Vous avez été invité à rejoindre {{businessName}}",
@@ -36651,5 +36647,15 @@
       "restaurant": "Restaurant"
     },
     "analyticsStorageDescription": "Dans l’EEE, au Royaume-Uni, en Suisse et au Québec, le suivi et les offres fondées sur l’activité exigent des consentements distincts, révocables dans les paramètres. Les États américains concernés proposent le refus de vente ou de partage et Global Privacy Control. Ailleurs, le réglage analytique concerne Google Analytics et le stockage persistant ; l’activité relève de cet avis."
+  },
+  "adminOperationalNotices": {
+    "regionLabel": "Avis opérationnels",
+    "dismiss": "Compris",
+    "regionGeoSource": {
+      "switchedTitle": "Les analyses régionales utilisent désormais les centres postaux GeoNames",
+      "switchedBody": "Certains chiffres régionaux ont changé : {{usersBefore}} comptes étaient rattachés à une région avant, {{usersAfter}} maintenant. L’écart est conservé et un opérateur peut revenir en arrière en une étape.",
+      "rolledBackTitle": "Source géographique des analyses régionales rétablie",
+      "rolledBackBody": "Les analyses régionales utilisent de nouveau la source de localisation précédente. Les chiffres reviennent à l’ancienne base."
+    }
   }
 }

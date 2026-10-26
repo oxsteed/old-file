@@ -9949,7 +9949,7 @@
       },
       "training_recertification_due": {
         "title": "Training recertification due",
-        "body": "Your certification for {{moduleTitle}} at {{restaurantName}} has expired. Please complete the training again."
+        "body": "Your certification for {{moduleTitle}} has expired. Please complete the training again."
       },
       "crew_shift_published": {
         "title": "New shift posted",
@@ -9970,10 +9970,6 @@
       "training_completed": {
         "title": "Training completed",
         "body": "{{moduleTitle}} was completed"
-      },
-      "training_recertification_due": {
-        "title": "Training recertification due",
-        "body": "Your certification for {{moduleTitle}} has expired. Please complete the training again."
       },
       "member_invite": {
         "title": "You have been invited to join {{businessName}}",
@@ -36651,5 +36647,15 @@
       "restaurant": "Restaurant"
     },
     "analyticsStorageDescription": "In the EEA, UK, Switzerland and Québec, activity tracking and activity-based offers each require your consent. You can withdraw it in Settings. Applicable US states have a Do not sell or share control, including Global Privacy Control. Elsewhere the Analytics toggle controls Google Analytics and persistent device storage; activity is covered by this notice."
+  },
+  "adminOperationalNotices": {
+    "regionLabel": "Operational notices",
+    "dismiss": "Got it",
+    "regionGeoSource": {
+      "switchedTitle": "Regional analytics now use GeoNames postal centres",
+      "switchedBody": "Some regional numbers changed: {{usersBefore}} accounts were placed on a region before, {{usersAfter}} now. The before/after diff is kept, and an operator can roll back in one step.",
+      "rolledBackTitle": "Regional analytics geo source rolled back",
+      "rolledBackBody": "Regional analytics are back on the previous location source. Numbers return to the earlier basis."
+    }
   }
 }

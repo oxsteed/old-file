@@ -9948,8 +9948,8 @@
         "body": "{{moduleTitle}} en {{restaurantName}}"
       },
       "training_recertification_due": {
-        "title": "Recertificación vencida",
-        "body": "Tu certificación de {{moduleTitle}} en {{restaurantName}} ha vencido. Completa la capacitación nuevamente."
+        "title": "Recertificación de capacitación vencida",
+        "body": "Tu certificación de {{moduleTitle}} ha vencido. Completa la capacitación de nuevo."
       },
       "crew_shift_published": {
         "title": "Nuevo turno publicado",
@@ -9970,10 +9970,6 @@
       "training_completed": {
         "title": "Capacitación completada",
         "body": "{{moduleTitle}} fue completada"
-      },
-      "training_recertification_due": {
-        "title": "Recertificación de capacitación vencida",
-        "body": "Tu certificación de {{moduleTitle}} ha vencido. Completa la capacitación de nuevo."
       },
       "member_invite": {
         "title": "Te han invitado a unirte a {{businessName}}",
@@ -36651,5 +36647,15 @@
       "restaurant": "Restaurante"
     },
     "analyticsStorageDescription": "En el EEE, Reino Unido, Suiza y Quebec, el seguimiento y las ofertas basadas en la actividad requieren consentimientos separados, revocables en Configuración. Los estados estadounidenses aplicables disponen del control No vender ni compartir y de Global Privacy Control. En otras regiones, el ajuste de analítica controla Google Analytics y el almacenamiento persistente; la actividad está cubierta por este aviso."
+  },
+  "adminOperationalNotices": {
+    "regionLabel": "Avisos operativos",
+    "dismiss": "Entendido",
+    "regionGeoSource": {
+      "switchedTitle": "La analítica regional ahora usa centros postales de GeoNames",
+      "switchedBody": "Algunas cifras regionales cambiaron: antes se ubicaban {{usersBefore}} cuentas en una región, ahora {{usersAfter}}. Se guarda la comparación y un operador puede revertir en un solo paso.",
+      "rolledBackTitle": "Se revirtió la fuente geográfica de la analítica regional",
+      "rolledBackBody": "La analítica regional volvió a la fuente de ubicación anterior. Las cifras vuelven a la base previa."
+    }
   }
 }

@@ -58,6 +58,8 @@ const T = {
   ...require('./campaignReviewNotifications').campaignReviewNotifications,
   // S-19: staff membership notices (invite/removal/resend/withdraw/rehire/hired).
   ...require('./staffNotificationTemplates').staffNotifications,
+  // D16: admin operational notices.
+  ...require('./adminOperationalNoticeCopy').adminOperationalNotifications,
   work_agreement_signature_requested: {
     title: {
       en: 'Work agreement ready to sign',

@@ -567,6 +567,7 @@ app.use('/api/o', require('./routes/offerLinks'));
 app.post('/api/consent/tracking', require('./middleware/rateLimiter').strictLimiter,
   authenticate, require('./routes/activity').sameOrigin, require('./routes/activity').trackingConsent);
 app.use('/api/admin/growth', require('./routes/growthInsights'));
+app.use('/api/admin/operational-notices', require('./routes/adminOperationalNotices'));
 app.use('/api/privacy', privacyRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/price-guidance', priceGuidanceRoutes);
