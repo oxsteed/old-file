@@ -463,9 +463,16 @@ ddescribe('staff identity and cash controls (S-06/S-07)', () => {
         `UPDATE food_restaurants SET settings = settings || '{"posApprovalPolicy":{"comp":{"thresholdCents":500}}}'::jsonb WHERE id = $1`,
         [F.restaurantId]
       );
-      const denied = await request(staffApp(F.cashier))
+      // The reason code is checked first, then the manager PIN.
+      const noReason = await request(staffApp(F.cashier))
         .post(`/api/restaurants/${F.restaurantId}/pos/orders/${bigOrder.body.order.id}/payments`)
         .send({ paymentType: 'comp', amountCents: 1000, shiftId: F.cashierShiftId });
+      expect(noReason.status).toBe(400);
+      expect(noReason.body.fields?.reasonCode).toBeTruthy();
+
+      const denied = await request(staffApp(F.cashier))
+        .post(`/api/restaurants/${F.restaurantId}/pos/orders/${bigOrder.body.order.id}/payments`)
+        .send({ paymentType: 'comp', amountCents: 1000, shiftId: F.cashierShiftId, reasonCode: 'service_recovery' });
       expect(denied.status).toBe(403);
       expect(denied.body.error?.code || denied.body.code).toBe('manager_approval_required');
 

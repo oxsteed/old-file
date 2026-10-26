@@ -13,6 +13,7 @@ const path = require('path');
 // Tables with both restaurant_id and location_id (verified against the
 // migrated schema by the .db companion check below).
 const STORE_TABLES = [
+  'business_staff_schedule_changes',
   'business_staff_shifts',
   'display_pairings',
   'food_orders',
