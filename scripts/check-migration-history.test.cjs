@@ -6,21 +6,32 @@ const base = new Map([['server/migrations/99987_existing.sql', 'original']]);
 test('rejects edits, removals, duplicate numbers and backwards-sorting additions', () => {
   assert.match(violations(base, new Map()).join(), /changed or removed/);
   assert.match(violations(base, new Map([['server/migrations/99987_existing.sql', 'edited']])).join(), /changed or removed/);
-  for (const name of ['99987_other.sql', '100000_backwards.sql']) {
-    assert.ok(violations(base, new Map([...base, [`server/migrations/${name}`, 'new']])).length);
+  for (const name of ['99987_other.sql', '99986_backwards.sql', 'A00001_letter_band.sql']) {
+    assert.ok(violations(base, new Map([...base, [`server/migrations/${name}`, 'new']])).length, name);
   }
 });
-test('allows historical duplicate prefixes unchanged and new monotonically appended files', () => {
+test('allows historical duplicate prefixes unchanged and new timestamp files appended', () => {
   const historical = new Map([...base, ['server/migrations/100_a.sql', 'a'], ['server/migrations/100_b.sql', 'b']]);
-  assert.deepEqual(violations(historical, new Map([...historical, ['server/migrations/99988_new.sql', 'new']])), []);
+  assert.deepEqual(violations(historical, new Map([...historical, ['server/migrations/20261026170000_new.sql', 'new']])), []);
 });
-test('D-ENG-11: after 99999 the next band is a letter prefix that still sorts last', () => {
-  const tail = new Map([['server/migrations/99999_last_numeric.sql', 'x']]);
-  assert.deepEqual(violations(tail, new Map([...tail, ['server/migrations/A00001_first_letter_band.sql', 'n']])), []);
-  const lettered = new Map([...tail, ['server/migrations/A00001_first.sql', 'a']]);
-  assert.deepEqual(violations(lettered, new Map([...lettered, ['server/migrations/A00002_second.sql', 'b']])), []);
-  // A longer numeric prefix sorts BEFORE 99999 lexically and is refused.
-  assert.ok(violations(tail, new Map([...tail, ['server/migrations/100000_wrong.sql', 'w']])).length);
-  // The runner sorts with the same plain string order the guard checks.
-  assert.deepEqual(['A00001_a.sql', '99999_z.sql', '99991_y.sql'].sort(), ['99991_y.sql', '99999_z.sql', 'A00001_a.sql']);
+test('Q11: new server migrations need a real YYYYMMDDHHMMSS_ timestamp prefix', () => {
+  const tail = new Map([['server/migrations/99994_last_numeric.sql', 'x']]);
+  // A plain larger number now sorts correctly but is still refused: new files use timestamps.
+  assert.match(violations(tail, new Map([...tail, ['server/migrations/100000_plain.sql', 'w']])).join(), /YYYYMMDDHHMMSS/);
+  // Not a real date/time.
+  assert.ok(violations(tail, new Map([...tail, ['server/migrations/20261399000000_bad_month.sql', 'w']])).length);
+  assert.deepEqual(violations(tail, new Map([...tail, ['server/migrations/20261026170000_careers.sql', 'n']])), []);
+  const stamped = new Map([...tail, ['server/migrations/20261026170000_careers.sql', 'n']]);
+  // Two new files in one change are each checked in runner order.
+  assert.deepEqual(violations(stamped, new Map([...stamped,
+    ['server/migrations/20261026170200_b.sql', 'b'], ['server/migrations/20261026170100_a.sql', 'a']])), []);
+  // A timestamp older than the newest already on the default branch is out of order.
+  assert.match(violations(stamped, new Map([...stamped, ['server/migrations/20261026160000_older.sql', 'o']])).join(), /must sort after/);
+  // Duplicate timestamp prefix.
+  assert.ok(violations(stamped, new Map([...stamped, ['server/migrations/20261026170000_dup.sql', 'd']])).length);
+});
+test('ClickHouse migrations keep their letter-prefixed text order', () => {
+  const ch = new Map([['server/migrations-clickhouse/C002_activity_events.sql', 'x']]);
+  assert.deepEqual(violations(ch, new Map([...ch, ['server/migrations-clickhouse/C003_next.sql', 'n']])), []);
+  assert.ok(violations(ch, new Map([...ch, ['server/migrations-clickhouse/C001_old.sql', 'n']])).length);
 });

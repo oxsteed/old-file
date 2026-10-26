@@ -2,8 +2,42 @@
 'use strict';
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
-const MIGRATION_DIRS = ['server/migrations/', 'server/migrations-clickhouse/'];
+const path = require('node:path');
+const {
+  compareMigrationFiles,
+  isValidTimestampMigration,
+  migrationPrefix,
+} = require(path.join(__dirname, '..', 'server', 'migrationOrder.js'));
+
+const SERVER_DIR = 'server/migrations/';
+const CLICKHOUSE_DIR = 'server/migrations-clickhouse/';
+const MIGRATION_DIRS = [SERVER_DIR, CLICKHOUSE_DIR];
 const sqlFile = file => MIGRATION_DIRS.some(dir => file.startsWith(dir)) && file.endsWith('.sql');
+
+// server/migrations runs in NUMERIC prefix order (Q11, server/migrationOrder.js)
+// and new files must use a YYYYMMDDHHMMSS_ timestamp prefix. ClickHouse
+// migrations keep their own letter-prefixed text order.
+function orderFor(dir) {
+  if (dir === SERVER_DIR) {
+    // Unprefixed names cannot be ordered; place them last so they are
+    // reported as violations instead of throwing.
+    return (a, b) => {
+      const okA = /^\d/.test(a);
+      const okB = /^\d/.test(b);
+      if (okA && okB) return compareMigrationFiles(a, b);
+      if (okA !== okB) return okA ? -1 : 1;
+      return a < b ? -1 : a > b ? 1 : 0;
+    };
+  }
+  return (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+}
+
+function prefixOf(dir, base) {
+  if (dir === SERVER_DIR) {
+    try { return migrationPrefix(base).toString(); } catch { return null; }
+  }
+  return base.match(/^[A-Z]?\d+/)?.[0] || null;
+}
 
 function violations(before, after) {
   const errors = [];
@@ -11,14 +45,25 @@ function violations(before, after) {
     if (after.get(name) !== contents) errors.push(`Existing migration changed or removed: ${name}`);
   }
   for (const dir of MIGRATION_DIRS) {
-    const existing = [...before.keys()].filter(file => file.startsWith(dir)).sort();
+    const compare = orderFor(dir);
+    const existing = [...before.keys()]
+      .filter(file => file.startsWith(dir))
+      .map(file => file.slice(dir.length))
+      .sort(compare);
     const last = existing.at(-1);
-    const prefixes = new Set(existing.map(file => file.slice(dir.length).match(/^[A-Z]?\d+/)?.[0]));
-    for (const name of after.keys()) {
-      if (!name.startsWith(dir) || before.has(name)) continue;
-      const prefix = name.slice(dir.length).match(/^[A-Z]?\d+/)?.[0];
+    const prefixes = new Set(existing.map(base => prefixOf(dir, base)));
+    const added = [...after.keys()]
+      .filter(name => name.startsWith(dir) && !before.has(name))
+      .map(name => name.slice(dir.length))
+      .sort(compare);
+    for (const base of added) {
+      const name = dir + base;
+      const prefix = prefixOf(dir, base);
       if (!prefix || prefixes.has(prefix)) errors.push(`New migration needs an unused numeric prefix: ${name}`);
-      if (last && name <= last) errors.push(`New migration must sort after ${last}: ${name}`);
+      if (dir === SERVER_DIR && !isValidTimestampMigration(base)) {
+        errors.push(`New migration must be named YYYYMMDDHHMMSS_name.sql (UTC timestamp): ${name}`);
+      }
+      if (last && compare(base, last) <= 0) errors.push(`New migration must sort after ${dir}${last}: ${name}`);
       prefixes.add(prefix);
     }
   }

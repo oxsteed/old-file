@@ -29,10 +29,11 @@ const fs = require('fs');
 const REPO_ROOT = path.join(__dirname, '..');
 const MIGRATIONS_DIR = path.join(REPO_ROOT, 'server', 'migrations');
 
+// Same numeric-prefix order as server/migrate.js (Q11).
+const { sortMigrationFiles } = require(path.join(REPO_ROOT, 'server', 'migrationOrder.js'));
+
 function listMigrations() {
-  return fs.readdirSync(MIGRATIONS_DIR)
-    .filter((f) => f.endsWith('.sql'))
-    .sort();
+  return sortMigrationFiles(fs.readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')));
 }
 
 function parseArgs(argv) {
