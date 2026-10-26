@@ -7,6 +7,7 @@ const { withTransaction } = require("../utils/transaction");
 const gate = require("../growth/gate");
 const { validateEvent } = require("../growth/events/validate");
 const { record } = require("../growth/consents");
+const ageVerification = require("../growth/ageVerification");
 const router = express.Router();
 const handled = (fn) => (req, res, next) =>
   Promise.resolve(fn(req, res)).catch(next);
@@ -116,6 +117,11 @@ router.get(
       policy_version: ctx?.rollout?.policy_version || "growth-v1",
       choices: ctx?.consents || {},
       preferences: prefs[0] || { offer_push: false, offer_in_app: true },
+      // D-ENG-06: what the client may offer for age confirmation. With the
+      // defaults (provider "none", self-attestation off) nothing is offered.
+      age_verification: req.user
+        ? await ageVerification.subjectStatus(db, req.user.id)
+        : ageVerification.status(),
     });
   }),
 );
@@ -410,6 +416,77 @@ router.post(
     res.sendStatus(204);
   }),
 );
+// D-ENG-06: age confirmation. Every write is audited in
+// growth_age_verification_events; a non-adult answer or a withdrawal clears
+// adult_confirmed and erases growth data in the same transaction.
+router.get(
+  "/age-verification",
+  generalLimiter,
+  authenticate,
+  handled(async (req, res) => {
+    res.set("Cache-Control", "no-store").json(await ageVerification.subjectStatus(db, req.user.id));
+  }),
+);
+router.post(
+  "/age-verification/attest",
+  strictLimiter,
+  authenticate,
+  sameOrigin,
+  handled(async (req, res) => {
+    if (typeof req.body?.adult !== "boolean" || typeof req.body?.version !== "string")
+      return res.status(400).json({ error: "age_attestation_invalid" });
+    const result = await withTransaction(
+      db,
+      (conn) => ageVerification.selfAttest(conn, req.user.id, { adult: req.body.adult, version: req.body.version }),
+      "growth_age_attest",
+    );
+    noStore(res).json(result);
+  }),
+);
+router.post(
+  "/age-verification/withdraw",
+  strictLimiter,
+  authenticate,
+  sameOrigin,
+  handled(async (req, res) => {
+    const result = await withTransaction(
+      db,
+      (conn) => ageVerification.revoke(conn, req.user.id, { actorId: req.user.id, reason: "user_withdrawn" }),
+      "growth_age_withdraw",
+    );
+    noStore(res).json(result);
+  }),
+);
+router.post(
+  "/age-verification/start",
+  strictLimiter,
+  authenticate,
+  sameOrigin,
+  handled(async (req, res) => {
+    const provider = ageVerification.providers.active();
+    if (provider.name === "none" || provider.available() !== true)
+      return res.status(404).json({ error: "age_verification_unavailable" });
+    res.json(await provider.startVerification({ id: req.user.id }));
+  }),
+);
+// Provider callbacks authenticate themselves: the provider adapter must
+// verify its signature (req.rawBody is preserved for that) and throws
+// otherwise. With provider "none" this always 404s.
+router.post(
+  "/age-verification/callback/:provider",
+  strictLimiter,
+  handled(async (req, res) => {
+    await withTransaction(
+      db,
+      (conn) => ageVerification.handleProviderCallback(conn, req.params.provider, req),
+      "growth_age_callback",
+    );
+    res.sendStatus(204);
+  }),
+);
+function noStore(res) {
+  return res.set("Cache-Control", "no-store");
+}
 module.exports = router;
 module.exports.trackingConsent = handled(trackingConsent);
 module.exports.sameOrigin = sameOrigin;

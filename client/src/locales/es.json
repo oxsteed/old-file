@@ -36691,7 +36691,16 @@
       "business": "Negocio",
       "restaurant": "Restaurante"
     },
-    "analyticsStorageDescription": "En el EEE, Reino Unido, Suiza y Quebec, el seguimiento y las ofertas basadas en la actividad requieren consentimientos separados, revocables en Configuración. Los estados estadounidenses aplicables disponen del control No vender ni compartir y de Global Privacy Control. En otras regiones, el ajuste de analítica controla Google Analytics y el almacenamiento persistente; la actividad está cubierta por este aviso."
+    "analyticsStorageDescription": "En el EEE, Reino Unido, Suiza y Quebec, el seguimiento y las ofertas basadas en la actividad requieren consentimientos separados, revocables en Configuración. Los estados estadounidenses aplicables disponen del control No vender ni compartir y de Global Privacy Control. En otras regiones, el ajuste de analítica controla Google Analytics y el almacenamiento persistente; la actividad está cubierta por este aviso.",
+    "age": {
+      "title": "Confirmación de edad",
+      "why": "Las estadísticas de actividad y las ofertas personalizadas solo están disponibles para adultos. Confirma tu edad para habilitarlas. No se registra nada hasta que lo hagas.",
+      "attest": "Confirmo que tengo 18 años o más.",
+      "confirm": "Confirmar mi edad",
+      "verify": "Verificar mi edad",
+      "confirmed": "Tu edad está confirmada.",
+      "withdraw": "Retirar la confirmación de edad y eliminar los datos de actividad"
+    }
   },
   "adminOperationalNotices": {
     "regionLabel": "Avisos operativos",

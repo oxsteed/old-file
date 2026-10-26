@@ -36691,7 +36691,16 @@
       "business": "Business",
       "restaurant": "Restaurant"
     },
-    "analyticsStorageDescription": "In the EEA, UK, Switzerland and Québec, activity tracking and activity-based offers each require your consent. You can withdraw it in Settings. Applicable US states have a Do not sell or share control, including Global Privacy Control. Elsewhere the Analytics toggle controls Google Analytics and persistent device storage; activity is covered by this notice."
+    "analyticsStorageDescription": "In the EEA, UK, Switzerland and Québec, activity tracking and activity-based offers each require your consent. You can withdraw it in Settings. Applicable US states have a Do not sell or share control, including Global Privacy Control. Elsewhere the Analytics toggle controls Google Analytics and persistent device storage; activity is covered by this notice.",
+    "age": {
+      "title": "Age confirmation",
+      "why": "Personalized activity insights and offers are only available to adults. Confirm your age to make them available. Nothing is tracked until you do.",
+      "attest": "I confirm that I am 18 years of age or older.",
+      "confirm": "Confirm my age",
+      "verify": "Verify my age",
+      "confirmed": "Your age is confirmed.",
+      "withdraw": "Withdraw age confirmation and delete activity data"
+    }
   },
   "adminOperationalNotices": {
     "regionLabel": "Operational notices",

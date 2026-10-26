@@ -380,6 +380,8 @@ app.use('/api/privacy/export', strictLimiter);
 // below then skips the already-parsed body. Everything else stays at 1 MB.
 require('./middleware/chatMessageBodyParser').mountChatMessageBodyParser(app);
 app.use('/api/partners', express.json({limit:'64kb',verify:(req,res,buffer)=>{req.growthRawBody=buffer;}}));
+// D-ENG-06: age provider callbacks keep the raw body for signature checks.
+app.use('/api/activity/age-verification/callback', express.json({limit:'64kb',verify:(req,res,buffer)=>{req.rawBody=buffer;}}));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 

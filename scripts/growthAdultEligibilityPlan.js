@@ -14,9 +14,13 @@ async function plan(conn = db) {
             COUNT(*) FILTER (WHERE NOT adult_confirmed)::int AS pending
        FROM growth_subject_eligibility`,
   );
+  const age = require("../server/growth/ageVerification").status();
   return {
     mode: "dry_run",
     source_required: "reviewed_age_or_identity_provider",
+    // D-ENG-06: which methods are switched on. Backfill with
+    // server/scripts/growthAgeBackfill.js once a provider is registered.
+    age_verification: age,
     ...rows[0],
   };
 }

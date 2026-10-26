@@ -36691,7 +36691,16 @@
       "business": "Entreprise",
       "restaurant": "Restaurant"
     },
-    "analyticsStorageDescription": "Dans l’EEE, au Royaume-Uni, en Suisse et au Québec, le suivi et les offres fondées sur l’activité exigent des consentements distincts, révocables dans les paramètres. Les États américains concernés proposent le refus de vente ou de partage et Global Privacy Control. Ailleurs, le réglage analytique concerne Google Analytics et le stockage persistant ; l’activité relève de cet avis."
+    "analyticsStorageDescription": "Dans l’EEE, au Royaume-Uni, en Suisse et au Québec, le suivi et les offres fondées sur l’activité exigent des consentements distincts, révocables dans les paramètres. Les États américains concernés proposent le refus de vente ou de partage et Global Privacy Control. Ailleurs, le réglage analytique concerne Google Analytics et le stockage persistant ; l’activité relève de cet avis.",
+    "age": {
+      "title": "Confirmation de l’âge",
+      "why": "Les analyses d’activité et les offres personnalisées sont réservées aux adultes. Confirmez votre âge pour les activer. Rien n’est suivi tant que vous ne l’avez pas fait.",
+      "attest": "Je confirme avoir 18 ans ou plus.",
+      "confirm": "Confirmer mon âge",
+      "verify": "Vérifier mon âge",
+      "confirmed": "Votre âge est confirmé.",
+      "withdraw": "Retirer la confirmation d’âge et supprimer les données d’activité"
+    }
   },
   "adminOperationalNotices": {
     "regionLabel": "Avis opérationnels",
