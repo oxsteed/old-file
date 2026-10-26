@@ -110,21 +110,60 @@ describe("runBackup", () => {
   });
 });
 
+const EVENTS_DDL = "CREATE TABLE growth.activity_events (`day` Date, `received_at` DateTime64(3, 'UTC')) ENGINE = ReplicatedReplacingMergeTree('/clickhouse/{shard}/growth/activity_events', '{replica}', received_at) PARTITION BY toYYYYMM(day) ORDER BY day SETTINGS index_granularity = 8192";
+const MIGRATIONS_DDL = "CREATE TABLE growth.schema_migrations (`name` String) ENGINE = ReplicatedReplacingMergeTree('/clickhouse/{shard}/growth/schema_migrations', '{replica}') ORDER BY name SETTINGS index_granularity = 8192";
+function restoreClient({ tables = [{ name: "activity_events", create_table_query: EVENTS_DDL }, { name: "schema_migrations", create_table_query: MIGRATIONS_DDL }], rows = 5 } = {}) {
+  const commands = [];
+  return {
+    commands,
+    query: jest.fn(async ({ query }) => ({
+      json: async () => (/sum\(total_rows\)/.test(query) ? [{ rows }] : tables),
+    })),
+    command: jest.fn(async ({ query }) => { commands.push(query); }),
+  };
+}
+
+describe("scratchTableDdl", () => {
+  test("turns a replicated table into its non-replicated twin in the scratch database", () => {
+    expect(ops.scratchTableDdl(EVENTS_DDL, "activity_events", "growth_restore_check_1")).toBe(
+      "CREATE TABLE `growth_restore_check_1`.`activity_events` (`day` Date, `received_at` DateTime64(3, 'UTC')) ENGINE = ReplacingMergeTree(received_at) PARTITION BY toYYYYMM(day) ORDER BY day SETTINGS index_granularity = 8192",
+    );
+    expect(ops.scratchTableDdl(MIGRATIONS_DDL, "schema_migrations", "s")).toContain("ENGINE = ReplacingMergeTree() ORDER BY name");
+  });
+  test("leaves plain MergeTree alone and refuses unknown shapes", () => {
+    expect(ops.scratchTableDdl("CREATE TABLE growth.t (`n` UInt32) ENGINE = MergeTree ORDER BY n", "t", "s")).toBe("CREATE TABLE `s`.`t` (`n` UInt32) ENGINE = MergeTree ORDER BY n");
+    expect(ops.scratchTableDdl("CREATE TABLE other.t (`n` UInt32) ENGINE = MergeTree ORDER BY n", "t", "s")).toBeNull();
+    expect(ops.scratchTableDdl("CREATE TABLE growth.t (`n` UInt32) ENGINE = ReplicatedMergeTree(currentDatabase(), '{replica}') ORDER BY n", "t", "s")).toBeNull();
+  });
+});
+
 describe("runRestoreCheck", () => {
-  test("restores into a backtick-quoted database and drops it", async () => {
+  beforeEach(() => incidentStore.recordIncident.mockClear());
+  test("never re-registers a live replica: restores data into non-replicated scratch tables, then drops them", async () => {
     const db = fakeDb([{ backup_ref: "growth-2026-10-25-full", backup_kind: "full", started_at: "2026-10-25T03:05:00Z" }]);
-    const client = fakeClient({ tables: 4 });
+    const client = restoreClient();
     const result = await ops.runRestoreCheck(db, client, { now: 1_700_000_000_000, env: { GROWTH_CLICKHOUSE_BACKUP_DISK: "growth_backups" } });
-    expect(result).toEqual({ complete: true, ref: "growth-2026-10-25-full", tables: 4 });
-    expect(client.commands[0]).toBe("RESTORE DATABASE growth AS `growth_restore_check_1700000000` FROM Disk('growth_backups','growth-2026-10-25-full')");
-    expect(client.commands[1]).toBe("DROP DATABASE IF EXISTS `growth_restore_check_1700000000` SYNC");
-    expect(client.commands.join(" ")).not.toMatch(/AS '/);
+    expect(result).toEqual({ complete: true, ref: "growth-2026-10-25-full", tables: 2, rows: 5 });
+    const scratch = "`growth_restore_check_1700000000`";
+    expect(client.commands[0]).toBe(`CREATE DATABASE ${scratch}`);
+    expect(client.commands[1]).toMatch(/^CREATE TABLE `growth_restore_check_1700000000`\.`activity_events` .* ENGINE = ReplacingMergeTree\(received_at\)/);
+    expect(client.commands[2]).toBe(`RESTORE TABLE growth.\`activity_events\` AS ${scratch}.\`activity_events\` FROM Disk('growth_backups','growth-2026-10-25-full') SETTINGS allow_different_table_def=1`);
+    expect(client.commands.at(-1)).toBe(`DROP DATABASE IF EXISTS ${scratch} SYNC`);
+    expect(client.commands.join(" ")).not.toMatch(/RESTORE DATABASE|Replicated|AS '/);
   });
   test("an empty restore fails and alerts", async () => {
     const db = fakeDb([{ backup_ref: "growth-2026-10-25-full", backup_kind: "full", started_at: "2026-10-25T03:05:00Z" }]);
-    const client = fakeClient({ tables: 0 });
+    const client = restoreClient({ tables: [] });
     const result = await ops.runRestoreCheck(db, client, { env: { GROWTH_CLICKHOUSE_BACKUP_DISK: "growth_backups" } });
     expect(result).toEqual({ complete: false });
     expect(incidentStore.recordIncident).toHaveBeenCalledWith(expect.objectContaining({ type: "growth_clickhouse_restore_check_failed" }));
+  });
+  test("an unsupported table definition fails closed and drops the scratch database", async () => {
+    const db = fakeDb([{ backup_ref: "growth-2026-10-25-full", backup_kind: "full", started_at: "2026-10-25T03:05:00Z" }]);
+    const client = restoreClient({ tables: [{ name: "odd", create_table_query: "CREATE TABLE growth.odd (`n` UInt32) ENGINE = ReplicatedMergeTree(currentDatabase(), 'r') ORDER BY n" }] });
+    const result = await ops.runRestoreCheck(db, client, { now: 1_700_000_000_000, env: { GROWTH_CLICKHOUSE_BACKUP_DISK: "growth_backups" } });
+    expect(result).toEqual({ complete: false });
+    expect(client.commands).not.toContainEqual(expect.stringMatching(/^RESTORE/));
+    expect(client.commands.at(-1)).toBe("DROP DATABASE IF EXISTS `growth_restore_check_1700000000` SYNC");
   });
 });

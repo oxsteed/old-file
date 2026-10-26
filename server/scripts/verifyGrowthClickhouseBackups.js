@@ -80,14 +80,21 @@ async function verify() {
       throw new Error(`incremental_backup_failed:${JSON.stringify(inc)}`);
 
     const check = await ops.runRestoreCheck(db, client, { now: monday, env });
-    if (!check.complete || check.ref !== inc.ref || check.tables < 1)
+    // backup_rehearsal alone holds 3 rows; replicated growth tables restore as
+    // non-replicated scratch copies, so the live replica stays untouched.
+    if (!check.complete || check.ref !== inc.ref || check.tables < 1 || check.rows < 3)
       throw new Error(`restore_check_failed:${JSON.stringify(check)}`);
     const leftovers = await (await client.query({
       query: "SELECT count() AS n FROM system.databases WHERE name LIKE 'growth_restore_check_%'",
       format: "JSONEachRow",
     })).json();
     if (Number(leftovers[0].n) !== 0) throw new Error("restore_check_database_left_behind");
-    process.stdout.write(`${JSON.stringify({ full: full.ref, incremental: inc.ref, restored_tables: check.tables })}\n`);
+    const readonly = await (await client.query({
+      query: "SELECT countIf(is_readonly) AS n FROM system.replicas WHERE database = 'growth'",
+      format: "JSONEachRow",
+    })).json();
+    if (Number(readonly[0].n) !== 0) throw new Error("live_replica_disturbed_by_restore_check");
+    process.stdout.write(`${JSON.stringify({ full: full.ref, incremental: inc.ref, restored_tables: check.tables, restored_rows: check.rows })}\n`);
   } finally {
     await client.command({ query: "DROP TABLE IF EXISTS growth.backup_rehearsal SYNC" }).catch(() => {});
     await client.close();

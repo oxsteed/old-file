@@ -203,6 +203,48 @@ async function runBackup(db, client, { now = Date.now(), env = process.env } = {
 // explicitly configured ref) into a throwaway database named with a
 // backtick-quoted identifier, verifies that tables came back, then drops it.
 // It runs at most once per UTC day.
+// The growth tables are Replicated* with fixed Keeper paths, so restoring
+// them under another database name would try to register a second replica
+// at the live table's Keeper path (REPLICA_ALREADY_EXISTS), or worse, join
+// live replication. The restore check therefore pre-creates each storage
+// table in the scratch database as its non-replicated twin and restores
+// only the data parts into it. Views are skipped: they hold no data.
+function scratchTableDdl(createQuery, name, database) {
+  const header = `CREATE TABLE growth.${name} `;
+  if (!createQuery.startsWith(header)) return null;
+  const body = createQuery.slice(header.length).replace(
+    /ENGINE = Replicated(\w*MergeTree)\('(?:[^'\\]|\\.)*',\s*'(?:[^'\\]|\\.)*'(?:,\s*)?/,
+    "ENGINE = $1(",
+  );
+  if (/ENGINE = Replicated/.test(body)) return null;
+  return `CREATE TABLE \`${database}\`.\`${name}\` ${body}`;
+}
+
+async function restoreIntoScratch(client, disk, ref, database) {
+  const result = await client.query({
+    query: "SELECT name, create_table_query FROM system.tables WHERE database = 'growth' AND engine LIKE '%MergeTree' ORDER BY name",
+    format: "JSONEachRow",
+  });
+  const tables = (await result.json()).filter((t) => /^[A-Za-z0-9_]+$/.test(t.name));
+  await client.command({ query: `CREATE DATABASE \`${database}\`` });
+  let restored = 0;
+  for (const table of tables) {
+    const ddl = scratchTableDdl(table.create_table_query, table.name, database);
+    if (!ddl) throw Object.assign(new Error("restore_table_ddl_unsupported"), { code: "restore_table_ddl_unsupported" });
+    await client.command({ query: ddl });
+    await client.command({
+      query: `RESTORE TABLE growth.\`${table.name}\` AS \`${database}\`.\`${table.name}\` FROM Disk('${disk}','${ref}') SETTINGS allow_different_table_def=1`,
+    });
+    restored += 1;
+  }
+  const counted = await client.query({
+    query: "SELECT sum(total_rows) AS rows FROM system.tables WHERE database = {database:String}",
+    query_params: { database },
+    format: "JSONEachRow",
+  });
+  return { tables: restored, rows: Number((await counted.json())[0]?.rows || 0) };
+}
+
 async function runRestoreCheck(db, client, { now = Date.now(), env = process.env } = {}) {
   const cfg = backupConfig(env);
   if (!cfg.disk) return { skipped: true, reason: "backup_disk_unconfigured" };
@@ -222,20 +264,12 @@ async function runRestoreCheck(db, client, { now = Date.now(), env = process.env
   const database = `growth_restore_check_${Math.floor(now / 1000)}`;
   await record(db, "restore_check", "started", {}, ref);
   try {
-    await client.command({
-      query: `RESTORE DATABASE growth AS \`${database}\` FROM Disk('${cfg.disk}','${ref}')`,
-    });
-    const tables = await client.query({
-      query: "SELECT count() AS tables FROM system.tables WHERE database = {database:String}",
-      query_params: { database },
-      format: "JSONEachRow",
-    });
-    const restoredTables = Number((await tables.json())[0]?.tables || 0);
+    const { tables: restoredTables, rows: restoredRows } = await restoreIntoScratch(client, cfg.disk, ref, database);
     await client.command({ query: `DROP DATABASE IF EXISTS \`${database}\` SYNC` });
     if (restoredTables < 1) throw Object.assign(new Error("restore_empty"), { code: "restore_empty" });
-    await record(db, "restore_check", "complete", { database, tables: restoredTables }, ref);
+    await record(db, "restore_check", "complete", { database, tables: restoredTables, rows: restoredRows }, ref);
     await resolveFailure("restore_check", { ref });
-    return { complete: true, ref, tables: restoredTables };
+    return { complete: true, ref, tables: restoredTables, rows: restoredRows };
   } catch (error) {
     try {
       await client.command({ query: `DROP DATABASE IF EXISTS \`${database}\` SYNC` });
@@ -301,4 +335,5 @@ module.exports = {
   planBackup,
   runBackup,
   runRestoreCheck,
+  scratchTableDdl,
 };
