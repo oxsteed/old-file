@@ -27,6 +27,10 @@ function validate(def) {
     Object.keys(def).some((k) => !allowed.has(k))
   )
     throw new Error("invalid_segment");
+  // D23: prospects are not users; their segments live in
+  // growth/prospects/segment.js and never feed in-app/push campaigns.
+  if (Array.isArray(def?.roles) && def.roles.includes("prospect_business"))
+    throw new Error("prospect_segment_not_user_audience");
   if (
     !Array.isArray(def.roles) ||
     !def.roles.length ||

@@ -809,6 +809,132 @@ router.post(
     res.sendStatus(204);
   }),
 );
+// ── D23 licensed business listings ─────────────────────────────────────
+// Import needs both marketing and settings rights (a licence is a legal
+// commitment); the outreach export additionally needs export_data and is
+// fail-closed audited in the same transaction as the read.
+router.get(
+  "/prospects/imports",
+  requirePermission("manage_marketing"),
+  wrap(async (req, res) => {
+    const { rows } = await db.query(
+      `SELECT id, source, license_ref, license_version, permitted_uses, license_expires_at, acquired_at,
+              imported, suppressed, matched_existing, marked_unusable, rejected, created_at
+         FROM prospect_imports ORDER BY id DESC LIMIT 100`,
+    );
+    res.json({ imports: rows, enabled: process.env.GROWTH_PROSPECTS_ENABLED === "true", outreach_enabled: process.env.GROWTH_PROSPECT_OUTREACH_ENABLED === "true" });
+  }),
+);
+router.post(
+  "/prospects/imports",
+  requirePermission("manage_marketing"),
+  requirePermission("manage_settings"),
+  wrap(async (req, res) => {
+    const b = req.body || {};
+    const result = await withTransaction(
+      db,
+      async (conn) => {
+        const out = await require("../growth/prospects/import").importLicensedBatch(conn, {
+          license: b.license,
+          rows: b.rows,
+          fullSnapshot: b.full_snapshot === true,
+          actorId: req.user.id,
+        });
+        if (out.disabled) return out;
+        await logAdminAction({
+          adminId: req.user.id,
+          action: "growth_prospect_import",
+          targetType: "prospect_import",
+          targetKey: out.import_id,
+          after: { ...out, source: b.license?.source, license_ref: b.license?.license_ref, permitted_uses: b.license?.permitted_uses },
+          client: conn,
+        });
+        return out;
+      },
+      "growth_prospect_import",
+    );
+    if (result.disabled) return res.status(409).json({ error: "prospects_disabled" });
+    res.status(result.duplicate ? 200 : 201).json(result);
+  }),
+);
+router.post(
+  "/prospects/suppressions",
+  requirePermission("manage_marketing"),
+  wrap(async (req, res) => {
+    const b = req.body || {};
+    const out = await withTransaction(
+      db,
+      async (conn) => {
+        const r = await require("../growth/prospects/import").suppress(conn, {
+          source: b.source || null,
+          sourceRecordId: b.source_record_id || null,
+          name: b.name || null,
+          country: b.country || null,
+          email: b.email || null,
+          phone: b.phone || null,
+          reason: b.reason,
+          actorId: req.user.id,
+        });
+        // Only hashes/ids are logged, never the raw contact value.
+        await logAdminAction({
+          adminId: req.user.id,
+          action: "growth_prospect_suppressed",
+          targetType: "prospect_suppression",
+          after: { reason: b.reason, by: Object.keys(b).filter((k) => ["source_record_id", "name", "email", "phone"].includes(k)), closed: r.closed },
+          client: conn,
+        });
+        return r;
+      },
+      "growth_prospect_suppress",
+    );
+    res.status(201).json(out);
+  }),
+);
+router.post(
+  "/prospects/segment/preview",
+  requirePermission("manage_marketing"),
+  wrap(async (req, res) => {
+    const out = await require("../growth/prospects/segment").members(db, req.body?.definition, { purpose: "supply_maps" });
+    res.json({ count: out.count });
+  }),
+);
+router.post(
+  "/prospects/export",
+  requirePermission("manage_marketing"),
+  requirePermission("export_data"),
+  wrap(async (req, res) => {
+    if (process.env.GROWTH_PROSPECT_OUTREACH_ENABLED !== "true")
+      return res.status(409).json({ error: "prospect_outreach_disabled" });
+    const channel = req.body?.channel === "phone" ? "phone" : "email";
+    const out = await withTransaction(
+      db,
+      async (conn) => {
+        const result = await require("../growth/prospects/segment").members(conn, req.body?.definition, { purpose: "outreach", channel, limit: 10000 });
+        await logAdminAction({
+          adminId: req.user.id,
+          action: "growth_prospects_exported",
+          targetType: "prospect_businesses",
+          after: { definition: req.body?.definition, channel, count: result.count, refused: result.refused },
+          client: conn,
+        });
+        return result;
+      },
+      "growth_prospect_export",
+    );
+    const cell = (v) => {
+      const s = v === null || v === undefined ? "" : Array.isArray(v) ? v.join(";") : String(v);
+      return `"${(/^[=+\-@]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
+    };
+    const header = ["id", "business_name", "country", "region", "postal_code", "category_code", "entity_type",
+      channel === "phone" ? "contact_phone" : "contact_email", "website", "source", "license_ref", "license_version",
+      "outreach_law", "outreach_requirements"];
+    const lines = [header.join(","), ...out.rows.map((r) => header.map((h) => cell(r[h])).join(","))];
+    res.set("Content-Type", "text/csv; charset=utf-8");
+    res.set("Content-Disposition", 'attachment; filename="prospects-outreach.csv"');
+    res.set("Cache-Control", "no-store");
+    res.send(lines.join("\n"));
+  }),
+);
 // ── D21 Amazon Associates ──────────────────────────────────────────────
 router.get(
   "/amazon/status",
