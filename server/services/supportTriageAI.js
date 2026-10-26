@@ -124,7 +124,10 @@ async function analyze({ message, category }) {
   const cleanMessage = String(message || '').trim().slice(0, MAX_MESSAGE_LENGTH);
   if (ALLOWED_CATEGORIES.has(category) && !['general','support_request'].includes(category)
       && !/urgent|danger|threat|unsafe|emergency|suicid|violence|urgenc|peligro|amenaz|insegur|violenc|menac|ijans|danje|swisid|خطر|طارئ|طوارئ|انتحار|تهديد|عنف/i.test(cleanMessage)) {
-    return { ...fallback(category, 'explicit_category'), confidence: 1, suggestedSkills: [category] };
+    // Cost control: an explicit, non-urgent category needs no AI call. The
+    // result stays a fallback (confidence 0), so routing still fails closed
+    // to a human agent, now with the chosen category as the skill.
+    return { ...fallback(category, 'explicit_category'), suggestedSkills: [category] };
   }
   const config = providerConfig();
   if (!config || !cleanMessage) return fallback(category, config ? 'empty_message' : 'provider_not_configured');

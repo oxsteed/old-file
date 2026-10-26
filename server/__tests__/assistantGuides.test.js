@@ -20,8 +20,15 @@ const redis = require('../utils/redis');
 
 const resDouble = () => ({ status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() });
 beforeEach(() => {
+  // The OpenRouter spend guard keeps an in-memory daily budget when Redis
+  // is absent; mocked replies carry no usage.cost, so reservations would
+  // accumulate across cases and trip the cap. Each case starts at zero.
+  require('../services/openRouterSpendGuard')._resetLocal();
   resetMocks(); jest.clearAllMocks();
   redis.get.mockResolvedValue(null); redis.setex.mockResolvedValue('OK');
+  // The shared Redis mock is the spend guard's budget store: accept the
+  // reservation (RESERVE/SETTLE scripts return 1) so the provider path runs.
+  redis.eval = jest.fn().mockResolvedValue(1);
   process.env.OPENROUTER_API_KEY = 'test-openrouter-key';
   global.fetch = jest.fn().mockResolvedValue({
     ok: true,
@@ -123,6 +130,8 @@ test('business support provider receives the actionable guide via OpenRouter', a
   global.fetch = jest.fn(async () => ({ ok: true, json: async () => ({ choices: [{ message: { content: 'Synthetic draft' } }] }) }));
   mockQuery.mockImplementation(async sql => {
     if (sql.includes('SELECT * FROM support_conversations')) return { rows: [{ id: 'c1', business_id: '1', status: 'open' }] };
+    // c94983de: the draft is generated under a row lock on the conversation.
+    if (sql.includes('SELECT status FROM support_conversations')) return { rows: [{ status: 'open' }] };
     if (sql.includes('INSERT INTO support_ai_reply_drafts')) return { rows: [{ id: 'draft1' }] };
     return { rows: [] };
   });
