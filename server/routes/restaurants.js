@@ -7,6 +7,8 @@
 
 const express = require('express');
 const router = express.Router();
+// F-20: every successful restaurant write leaves an audit entry.
+router.use(require('../middleware/restaurantRequestAudit').restaurantRequestAudit);
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 // Tenant scope gates (scope report Area 4): every :restaurantId route runs the

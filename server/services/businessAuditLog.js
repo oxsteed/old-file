@@ -87,6 +87,8 @@ async function logBusinessAction(req, entry) {
         req.impersonatedBy || null,
       ]
     );
+    // F-20: a handler-written entry supersedes the baseline request audit.
+    if (req && !entry._baseline) req.auditRecorded = true;
   } catch (err) {
     // Audit must never break the request.
     logger.warn('business_audit_log insert failed', {
