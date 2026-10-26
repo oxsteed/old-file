@@ -59,8 +59,8 @@ function ModifierModal({ item, currency, onConfirm, onClose }) {
   const hasGroups = (item.modifierGroups || []).length > 0;
 
   return (
-    <div className="fd-modal-overlay" onClick={onClose}>
-      <div className="fd-modal fd-pos-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="fd-modal-overlay" role="presentation" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
+      <div className="fd-modal fd-pos-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <h3>{item.name}</h3>
         {item.description && <p className="fd-pos-mod-desc">{item.description}</p>}
 
@@ -85,7 +85,7 @@ function ModifierModal({ item, currency, onConfirm, onClose }) {
 
         <div className="fd-field">
           <label>{t('food.pos.note')}</label>
-          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('food.pos.notePlaceholder')} />
+          <input aria-label={t('food.pos.note')} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('food.pos.notePlaceholder')} />
         </div>
 
         <div className="fd-qty-row">
@@ -170,15 +170,15 @@ function PaymentModal({ total, currency, discounts, serverOrder, onCreateOrder, 
   };
 
   return (
-    <div className="fd-modal-overlay" onClick={onClose}>
-      <div className="fd-modal fd-pos-pay-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="fd-modal-overlay" role="presentation" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
+      <div className="fd-modal fd-pos-pay-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <h3>{t('food.pos.payment')}</h3>
         <div className="fd-pos-pay-total">{formatFoodMoney(serverOrder ? serverTotal : total, currency)}</div>
 
         {!serverOrder && discounts.length > 0 && (
           <div className="fd-field">
             <label>{t('food.pos.discount')}</label>
-            <select value={discountId} onChange={(e) => { setDiscountId(e.target.value); setApprovalNeeded(false); setApprovalPin(''); }}>
+            <select aria-label={t('food.pos.discount')} value={discountId} onChange={(e) => { setDiscountId(e.target.value); setApprovalNeeded(false); setApprovalPin(''); }}>
               <option value="">{t('food.pos.noDiscount')}</option>
               {discounts.map((d) => (
                 <option key={d.id} value={d.id}>{d.name} {d.discount_type === 'percent' ? `(${d.value}%)` : formatFoodMoney(d.value_cents, currency)}</option>
@@ -206,7 +206,7 @@ function PaymentModal({ total, currency, discounts, serverOrder, onCreateOrder, 
         {!serverOrder && (
           <div className="fd-field">
             <label>{t('food.pos.tip')}</label>
-            <input type="number" min="0" step="0.01" value={tip} onChange={(e) => setTip(e.target.value)} placeholder="0.00" />
+            <input aria-label={t('food.pos.tip')} type="number" min="0" step="0.01" value={tip} onChange={(e) => setTip(e.target.value)} placeholder="0.00" />
           </div>
         )}
 
@@ -278,7 +278,7 @@ function PaymentModal({ total, currency, discounts, serverOrder, onCreateOrder, 
         {serverOrder && method === 'cash' && (
           <div className="fd-field">
             <label>{t('food.pos.amountGiven')}</label>
-            <input type="number" min="0" step="0.01" value={amountGiven} onChange={(e) => setAmountGiven(e.target.value)} placeholder="0.00" />
+            <input aria-label={t('food.pos.amountGiven')} type="number" min="0" step="0.01" value={amountGiven} onChange={(e) => setAmountGiven(e.target.value)} placeholder="0.00" />
             {changeCents > 0 && <div className="fd-pos-change">{t('food.pos.change')}: {formatFoodMoney(changeCents, currency)}</div>}
           </div>
         )}
@@ -802,8 +802,8 @@ export default function RestaurantPOSPage() {
                 </button>
               </>
             )}
-            <input className="fd-pos-meta-input" value={tableName} onChange={(e) => setTableName(e.target.value)} placeholder={t('food.pos.table')} />
-            <input className="fd-pos-meta-input" value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder={t('food.pos.guestName')} />
+            <input aria-label={t('food.pos.table')} className="fd-pos-meta-input" value={tableName} onChange={(e) => setTableName(e.target.value)} placeholder={t('food.pos.table')} />
+            <input aria-label={t('food.pos.guestName')} className="fd-pos-meta-input" value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder={t('food.pos.guestName')} />
           </div>
           <Link className="fd-btn-secondary fd-btn-sm" to={`/restaurants/merchant`}>{t('food.common.back')}</Link>
         </header>

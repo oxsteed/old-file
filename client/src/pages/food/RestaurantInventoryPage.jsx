@@ -30,12 +30,12 @@ function AdjustModal({ item, onSave, onClose }) {
   };
 
   return (
-    <div className="fd-modal-overlay" onClick={onClose}>
-      <div className="fd-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="fd-modal-overlay" role="presentation" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
+      <div className="fd-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <h3>{item.name}</h3>
         <div className="fd-field">
           <label>{t('food.inv.adjustType')}</label>
-          <select value={type} onChange={(e) => setType(e.target.value)}>
+          <select aria-label={t('food.inv.adjustType')} value={type} onChange={(e) => setType(e.target.value)}>
             {['restock', 'waste', 'adjustment', 'usage'].map((at) => (
               <option key={at} value={at}>{t(`food.inv.adjType_${at}`)}</option>
             ))}
@@ -43,11 +43,11 @@ function AdjustModal({ item, onSave, onClose }) {
         </div>
         <div className="fd-field">
           <label>{t('food.inv.quantity')} ({item.unit || 'units'})</label>
-          <input type="number" step="0.01" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="0" />
+          <input aria-label={t('food.inv.quantity')} type="number" step="0.01" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="0" />
         </div>
         <div className="fd-field">
           <label>{t('food.inv.note')}</label>
-          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('food.inv.notePlaceholder')} />
+          <input aria-label={t('food.inv.note')} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('food.inv.notePlaceholder')} />
         </div>
         <div className="fd-pos-modal-actions">
           <button className="fd-btn-secondary" onClick={onClose} data-track="ui.a4070f708e.1">{t('food.common.cancel')}</button>
@@ -83,22 +83,22 @@ function RequestModal({ restaurantId, onSaved, onClose }) {
   };
 
   return (
-    <div className="fd-modal-overlay" onClick={onClose}>
-      <div className="fd-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="fd-modal-overlay" role="presentation" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
+      <div className="fd-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <h3>{t('food.inv.newRequest')}</h3>
         {['item_name', 'supplier', 'unit'].map((k) => (
           <div className="fd-field" key={k}>
             <label>{t(`food.inv.req_${k}`)}</label>
-            <input value={form[k]} onChange={(e) => set(k, e.target.value)} />
+            <input aria-label={t(`food.inv.req_${k}`)} value={form[k]} onChange={(e) => set(k, e.target.value)} />
           </div>
         ))}
         <div className="fd-field">
           <label>{t('food.inv.quantity')}</label>
-          <input type="number" step="0.01" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} />
+          <input aria-label={t('food.inv.quantity')} type="number" step="0.01" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} />
         </div>
         <div className="fd-field">
           <label>{t('food.inv.note')}</label>
-          <textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} rows={2} />
+          <textarea aria-label={t('food.inv.note')} value={form.notes} onChange={(e) => set('notes', e.target.value)} rows={2} />
         </div>
         <div className="fd-pos-modal-actions">
           <button className="fd-btn-secondary" onClick={onClose} data-track="ui.a4070f708e.3">{t('food.common.cancel')}</button>
@@ -134,20 +134,20 @@ function IssueModal({ restaurantId, onSaved, onClose }) {
   };
 
   return (
-    <div className="fd-modal-overlay" onClick={onClose}>
-      <div className="fd-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="fd-modal-overlay" role="presentation" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
+      <div className="fd-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <h3>{t('food.inv.newIssue')}</h3>
         <div className="fd-field">
           <label>{t('food.inv.req_supplier')}</label>
-          <input value={form.supplier} onChange={(e) => set('supplier', e.target.value)} />
+          <input aria-label={t('food.inv.req_supplier')} value={form.supplier} onChange={(e) => set('supplier', e.target.value)} />
         </div>
         <div className="fd-field">
           <label>{t('food.inv.description')}</label>
-          <textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={3} required />
+          <textarea aria-label={t('food.inv.description')} value={form.description} onChange={(e) => set('description', e.target.value)} rows={3} required />
         </div>
         <div className="fd-field">
           <label>{t('food.inv.severity')}</label>
-          <select value={form.severity} onChange={(e) => set('severity', e.target.value)}>
+          <select aria-label={t('food.inv.severity')} value={form.severity} onChange={(e) => set('severity', e.target.value)}>
             {['low', 'medium', 'high'].map((s) => (
               <option key={s} value={s}>{t(`food.inv.severity_${s}`)}</option>
             ))}
@@ -285,7 +285,7 @@ export default function RestaurantInventoryPage() {
         {tab === 'items' && (
           <div>
             <div className="fd-inv-bar">
-              <input className="fd-searchbar" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('food.inv.searchItems')} />
+              <input aria-label={t('food.inv.searchItems')} className="fd-searchbar" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('food.inv.searchItems')} />
             </div>
             {lowItems.length > 0 && (
               <div className="fd-inv-alert">

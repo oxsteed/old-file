@@ -85,11 +85,11 @@ export function StaffCreateAppointmentModal({ businessId, services, onClose, onC
   };
 
   return (
-    <div className="scam-overlay" onClick={onClose}>
-      <div className="scam-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="scam-overlay" role="presentation" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
+      <div className="scam-modal" role="dialog" aria-modal="true" aria-label={t('businessAppointments.newAppointment')} onClick={(e) => e.stopPropagation()}>
         <div className="scam-header">
           <h4>{t('businessAppointments.newAppointment')}</h4>
-          <button className="scam-close" onClick={onClose} data-track="ui.1d98805aba.1">×</button>
+          <button type="button" className="scam-close" onClick={onClose} aria-label={t('common.close')} data-track="ui.1d98805aba.1">×</button>
         </div>
         <form onSubmit={handleSubmit} className="scam-form" data-track="ui.1d98805aba.2">
           <label>

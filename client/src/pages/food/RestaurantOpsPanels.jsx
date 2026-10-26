@@ -273,7 +273,7 @@ function ManageTasks({ t, restaurantId, checklist, onChanged }) {
             ))}
           </ul>
           <div className="fd-ops-task-add">
-            <input value={newTask} onChange={(e) => setNewTask(e.target.value)} placeholder={t('restaurants.ops.checklists.taskPlaceholder', 'Add a task…')} />
+            <input aria-label={t('restaurants.ops.checklists.taskPlaceholder', 'Add a task…')} value={newTask} onChange={(e) => setNewTask(e.target.value)} placeholder={t('restaurants.ops.checklists.taskPlaceholder', 'Add a task…')} />
             <button type="button" className="fd-btn fd-btn-sm" onClick={add} disabled={!newTask.trim()} data-track="ui.52793f2559.10">{t('common.add', 'Add')}</button>
           </div>
         </div>
@@ -335,6 +335,7 @@ function RunModal({ t, restaurantId, run: initialRun, onClose }) {
       role="dialog" aria-modal="true"
       className="fd-ops-modal-overlay"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
     >
       <div className="fd-ops-modal">
         <div className="fd-ops-modal-head">
@@ -671,6 +672,7 @@ function AdjustModal({ t, item, onClose, onApply }) {
       role="dialog" aria-modal="true"
       className="fd-ops-modal-overlay"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
     >
       <form onSubmit={submit} className="fd-ops-modal fd-ops-modal--narrow" data-track="ui.52793f2559.26">
         <h3 className="fd-ops-form-title">{t('restaurants.ops.inventory.adjustTitle', 'Adjust stock')}: {item.name}</h3>

@@ -192,7 +192,7 @@ export function StaffSchedulingTab({ businessId }) {
             <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 mt-3 space-y-2">
               <div>
                 <label className="text-xs text-gray-400 block mb-1">{t('businessHub.staffScheduling.staffMember')}</label>
-                <select value={shiftForm.user_id} onChange={e => setShiftForm(f => ({ ...f, user_id: e.target.value }))}
+                <select aria-label={t('businessHub.staffScheduling.staffMember')} value={shiftForm.user_id} onChange={e => setShiftForm(f => ({ ...f, user_id: e.target.value }))}
                   className="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm">
                   <option value="">{t('businessHub.staffScheduling.selectStaff')}</option>
                   {members.map(m => (
@@ -205,25 +205,25 @@ export function StaffSchedulingTab({ businessId }) {
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="text-xs text-gray-400 block mb-1">{t('businessHub.staffScheduling.date')}</label>
-                  <input type="date" value={shiftForm.shift_date}
+                  <input aria-label={t('businessHub.staffScheduling.date')} type="date" value={shiftForm.shift_date}
                     onChange={e => setShiftForm(f => ({ ...f, shift_date: e.target.value }))}
                     className="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm" />
                 </div>
                 <div>
                   <label className="text-xs text-gray-400 block mb-1">{t('businessHub.staffScheduling.start')}</label>
-                  <input type="time" value={shiftForm.start_time}
+                  <input aria-label={t('businessHub.staffScheduling.start')} type="time" value={shiftForm.start_time}
                     onChange={e => setShiftForm(f => ({ ...f, start_time: e.target.value }))}
                     className="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm" />
                 </div>
                 <div>
                   <label className="text-xs text-gray-400 block mb-1">{t('businessHub.staffScheduling.end')}</label>
-                  <input type="time" value={shiftForm.end_time}
+                  <input aria-label={t('businessHub.staffScheduling.end')} type="time" value={shiftForm.end_time}
                     onChange={e => setShiftForm(f => ({ ...f, end_time: e.target.value }))}
                     className="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm" />
                 </div>
               </div>
               <div>
-                <input value={shiftForm.role_label} onChange={e => setShiftForm(f => ({ ...f, role_label: e.target.value }))}
+                <input aria-label={t('businessHub.staffScheduling.roleLabelOptional')} value={shiftForm.role_label} onChange={e => setShiftForm(f => ({ ...f, role_label: e.target.value }))}
                   className="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm" placeholder={t('businessHub.staffScheduling.roleLabelOptional')} />
               </div>
               <div className="flex gap-2">
@@ -263,7 +263,7 @@ export function StaffSchedulingTab({ businessId }) {
             <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 mb-3 space-y-2">
               <div>
                 <label className="text-xs text-gray-400 block mb-1">{t('businessHub.staffScheduling.staffMember')}</label>
-                <select value={hoursForm.user_id} onChange={e => setHoursForm(f => ({ ...f, user_id: e.target.value }))}
+                <select aria-label={t('businessHub.staffScheduling.staffMember')} value={hoursForm.user_id} onChange={e => setHoursForm(f => ({ ...f, user_id: e.target.value }))}
                   className="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm">
                   <option value="">{t('businessHub.staffScheduling.selectStaff')}</option>
                   {members.map(m => (
@@ -276,18 +276,18 @@ export function StaffSchedulingTab({ businessId }) {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs text-gray-400 block mb-1">{t('businessHub.staffScheduling.date')}</label>
-                  <input type="date" value={hoursForm.entry_date}
+                  <input aria-label={t('businessHub.staffScheduling.date')} type="date" value={hoursForm.entry_date}
                     onChange={e => setHoursForm(f => ({ ...f, entry_date: e.target.value }))}
                     className="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm" />
                 </div>
                 <div>
                   <label className="text-xs text-gray-400 block mb-1">{t('businessHub.staffScheduling.hoursWorked')}</label>
-                  <input type="number" value={hoursForm.hours_worked} step="0.5" min="0.5" max="24"
+                  <input aria-label={t('businessHub.staffScheduling.hoursWorked')} type="number" value={hoursForm.hours_worked} step="0.5" min="0.5" max="24"
                     onChange={e => setHoursForm(f => ({ ...f, hours_worked: e.target.value }))}
                   className="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm" placeholder={t('businessHub.staffScheduling.hoursPlaceholder')} />
                 </div>
               </div>
-              <input value={hoursForm.description} onChange={e => setHoursForm(f => ({ ...f, description: e.target.value }))}
+              <input aria-label={t('businessHub.staffScheduling.descriptionOptional')} value={hoursForm.description} onChange={e => setHoursForm(f => ({ ...f, description: e.target.value }))}
                 className="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm" placeholder={t('businessHub.staffScheduling.descriptionOptional')} />
               <div className="flex gap-2">
                 <button onClick={handleLogHours} disabled={saving}

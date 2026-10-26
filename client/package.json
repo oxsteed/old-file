@@ -134,6 +134,7 @@
     "source-map-js": "1.2.2"
   },
   "devDependencies": {
+    "@babel/parser": "^7.29.8",
     "@sentry/vite-plugin": "^5.4.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^22.10.2",

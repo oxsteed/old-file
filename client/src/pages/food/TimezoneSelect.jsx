@@ -24,9 +24,11 @@ export default function TimezoneSelect({ id, value, onChange, disabled }) {
   const current = value || DETECTED_TIMEZONE;
   const options = TIMEZONE_OPTIONS.includes(current) ? TIMEZONE_OPTIONS : [current, ...TIMEZONE_OPTIONS];
   if (!options.length) {
+    // a11y-ok: every caller labels this with <label htmlFor={id}> (guarded by staffAccessibility.test.mjs)
     return <input id={id} value={current} onChange={(event) => onChange(event.target.value)} disabled={disabled} />;
   }
   return (
+    // a11y-ok: every caller labels this with <label htmlFor={id}> (guarded by staffAccessibility.test.mjs)
     <select id={id} value={current} onChange={(event) => onChange(event.target.value)} disabled={disabled}>
       {options.map((zone) => (
         <option key={zone} value={zone}>{zone}</option>
