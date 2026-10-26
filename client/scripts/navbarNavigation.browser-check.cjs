@@ -16,13 +16,21 @@ const longName = 'Springfield Neighborhood Restaurant and Home Service Company W
 const businesses = [{ business_id: 1, business_name: longName, role: 'owner', is_owner: true, status: 'active' },
   { business_id: 2, business_name: 'Second Business', role: 'owner', is_owner: true, status: 'active' }];
 
+const fixtureApi = `export default {get: async path => ({data: path==='/notifications' ? [] : path==='/messages/conversations' ? [{unread_count:window.unreadCount}] : path==='/messages/guest-inquiries' ? [{unread_count:window.unreadCount}] : path==='/me/businesses' ? {data:{items:window.fixtureBusinesses}} : {data:window.fixtureSupport?[{}]:[]}}), put: async () => ({data:{}}), delete: async () => ({data:{}})};`;
+
 test('mode navbar renders responsive priorities, accessible disclosures and workspace selection', { timeout: 120_000 }, async () => {
   const mocks = {
     '../context/AuthContext': `import React from 'react'; export const AuthContext=React.createContext({}); export const useAuth=()=>React.useContext(AuthContext);`,
     '../context/LanguageContext': `import React from 'react'; export const LanguageContext=React.createContext({}); export const useLanguage=()=>React.useContext(LanguageContext);`,
     '../context/ThemeContext': `import React from 'react'; export const ThemeContext=React.createContext({}); export const useTheme=()=>React.useContext(ThemeContext);`,
     '../hooks/useSocket': `export const useSocket=()=>({socket:window.fixtureSocket});`,
-    '../api/axios': `export default {get: async path => ({data: path==='/notifications' ? [] : path==='/messages/conversations' ? [{unread_count:window.unreadCount}] : path==='/messages/guest-inquiries' ? [{unread_count:window.unreadCount}] : path==='/me/businesses' ? {data:{items:window.fixtureBusinesses}} : {data:window.fixtureSupport?[{}]:[]}})};`,
+    // Navbar now reads notifications through hooks/useNotifications and
+    // api/accountSnapshot, which import './useSocket' and './axios'
+    // relative to their own folders; mock those specifiers too so the
+    // fixture never reaches the real axios client.
+    './useSocket': `export const useSocket=()=>({socket:window.fixtureSocket});`,
+    '../api/axios': fixtureApi,
+    './axios': fixtureApi,
     '../api/businesses': `export const listBusinesses=async()=>[]; export const listManagedBusinesses=async()=>[];`,
     '../api/vortex': `export const getMyBusinesses=async()=>({items:window.fixtureBusinesses}); export const setWorkspaceContext=async id=>{window.fixtureWorkspace=id;};`,
     './PrefetchLink': `export {Link as default} from 'react-router-dom';`,
