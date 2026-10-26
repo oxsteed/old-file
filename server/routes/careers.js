@@ -8,6 +8,7 @@ const express = require('express');
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const { requireAdmin, requirePermission, requireAdminTotp } = require('../middleware/adminAuth');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
+const { scopeExempt } = require('../middleware/scopeGates');
 const { verifyCaptcha } = require('../middleware/verifyCaptcha');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
@@ -53,7 +54,8 @@ me.get('/background-checks', worker.backgroundChecks);
 me.get('/invitations', worker.listInvitations);
 me.post('/invitations/:id(\\d+)/decline', worker.declineInvitation);
 me.post('/mutes', worker.mute);
-me.delete('/mutes/:businessId(\\d+)', worker.unmute);
+// Mutes are the worker's own rows (keyed by the caller), not business data.
+me.delete('/mutes/:businessId(\\d+)', scopeExempt('applicant-self-service'), worker.unmute);
 me.get('/offers/:id(\\d+)', worker.getOffer);
 me.post('/offers/:id(\\d+)/decide', worker.decideOffer);
 me.get('/onboarding/:runId(\\d+)', worker.getOnboarding);
