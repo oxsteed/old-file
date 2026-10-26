@@ -13,11 +13,13 @@ async function deliver(conn, d, deps = {}) {
   const {
     rows: [ctx],
   } = await conn.query(
-    `SELECT r.user_id,c.status AS campaign_status,c.approved_by,c.copy,c.channels,c.is_personalized,
+    `SELECT r.user_id,c.status AS campaign_status,c.approved_by,c.copy,c.channels,
+    (c.is_personalized IS NOT FALSE OR COALESCE(sv.is_personalized,TRUE)) AS is_personalized,
     o.type,o.status AS offer_status,o.expires_at,o.partner_id,o.countries,o.channels AS allowed_channels,
     p.offer_push,p.offer_in_app,p.timezone,u.preferred_language,u.created_at,
     np.push_notifications,np.web_push_enabled
     FROM offer_campaign_recipients r JOIN offer_campaigns c ON c.id=r.campaign_id JOIN offers o ON o.id=c.offer_id
+    LEFT JOIN growth_segment_versions sv ON sv.id=c.segment_version_id
     JOIN users u ON u.id=r.user_id LEFT JOIN offer_preferences p ON p.user_id=r.user_id
     LEFT JOIN notification_preferences np ON np.user_id=r.user_id WHERE r.id=$1 FOR UPDATE OF c`,
     [d.recipient_id],
@@ -70,7 +72,7 @@ async function deliver(conn, d, deps = {}) {
     const {
       rows: [partner],
     } = await conn.query(
-      "SELECT status,allowed_channels,countries_allowed FROM affiliate_partners WHERE id=$1",
+      "SELECT status,network,allowed_channels,countries_allowed FROM affiliate_partners WHERE id=$1",
       [ctx.partner_id],
     );
     if (
@@ -80,6 +82,17 @@ async function deliver(conn, d, deps = {}) {
       !partner.countries_allowed.includes(permission.context.user.country)
     )
       return skip("partner_channel_or_country");
+    const amazonWiring = require("../growth/partners/amazonWiring");
+    if (amazonWiring.isAmazon(partner.network)) {
+      // D21: never promote an Amazon item that is gone or >24h old.
+      const {
+        rows: [item],
+      } = await conn.query(
+        "SELECT i.available,i.last_refreshed_at FROM amazon_offer_items i JOIN offer_campaigns c ON c.offer_id=i.offer_id WHERE c.id=$1",
+        [d.campaign_id],
+      );
+      if (!amazonWiring.itemFresh(item)) return skip("amazon_item_unavailable_or_stale");
+    }
   }
   const {
     rows: [suppression],

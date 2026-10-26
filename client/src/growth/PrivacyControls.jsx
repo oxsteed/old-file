@@ -37,6 +37,27 @@ export default function PrivacyControls() {
       setBusy(false);
     }
   };
+  const [ageChecked, setAgeChecked] = useState(false);
+  // D-ENG-06: age confirmation. Only rendered when the server has enabled a
+  // method (self-attestation "on" or a configured provider).
+  const age = config?.age_verification;
+  const ageAction = async (path, body) => {
+    setBusy(true);
+    setError(false);
+    try {
+      const { data } = await api.post(path, body);
+      if (data?.redirect_url) {
+        window.location.assign(data.redirect_url);
+        return;
+      }
+      setConfig((await api.get("/activity/config")).data);
+      window.dispatchEvent(new Event("growth-consent-changed"));
+    } catch {
+      setError(true);
+    } finally {
+      setBusy(false);
+    }
+  };
   const channel = async (value) => {
     setBusy(true);
     try {
@@ -111,6 +132,60 @@ export default function PrivacyControls() {
             />
             {t("growthInsights.inApp")}
           </label>
+        </fieldset>
+      )}
+      {age && (age.self_attestation || age.provider_available || age.adult_confirmed) && "adult_confirmed" in age && (
+        <fieldset disabled={busy} className="space-y-3 rounded border border-gray-200 p-4 dark:border-gray-700">
+          <legend className="px-1 font-medium">{t("growthInsights.age.title")}</legend>
+          {age.adult_confirmed ? (
+            <>
+              <p role="status">{t("growthInsights.age.confirmed")}</p>
+              <button
+                type="button"
+                className="underline"
+                data-track="growth_age_withdraw"
+                onClick={() => ageAction("/activity/age-verification/withdraw", {})}
+              >
+                {t("growthInsights.age.withdraw")}
+              </button>
+            </>
+          ) : (
+            <>
+              <p>{t("growthInsights.age.why")}</p>
+              {age.self_attestation && (
+                <>
+                  <label className="flex gap-3">
+                    <input
+                      type="checkbox"
+                      data-track="growth_age_attest_check"
+                      checked={ageChecked}
+                      onChange={(e) => setAgeChecked(e.target.checked)}
+                    />
+                    {t("growthInsights.age.attest")}
+                  </label>
+                  <button
+                    type="button"
+                    className="rounded bg-gray-900 px-3 py-1 text-white disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900"
+                    data-track="growth_age_attest_submit"
+                    disabled={!ageChecked}
+                    onClick={() => ageAction("/activity/age-verification/attest", { adult: true, version: age.attestation_version })}
+                  >
+                    {t("growthInsights.age.confirm")}
+                  </button>
+                </>
+              )}
+              {age.provider_available && (
+                <button
+                  type="button"
+                  className="underline"
+                  data-track="growth_age_verify_start"
+                  onClick={() => ageAction("/activity/age-verification/start", {})}
+                >
+                  {t("growthInsights.age.verify")}
+                </button>
+              )}
+            </>
+          )}
         </fieldset>
       )}
       <Link className="underline" to="/privacy">

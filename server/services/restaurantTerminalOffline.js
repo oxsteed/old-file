@@ -6,6 +6,17 @@ const {withTransaction}=require('../utils/transaction');
 const terminal=require('./restaurantPosTerminalService');
 const {reconcilePosOrderPayment}=require('./restaurantPosPaymentLedgerService');
 
+// One exposure pool per store/day: online-issued permits plus offline leases
+// (full budget while active, what was actually consumed once closed/expired).
+// Lease-attached permits are already counted through their lease.
+async function dailyExposure(client,{restaurantId,locationId,businessDate}){
+  const {rows:[row]}=await client.query(`SELECT
+      COALESCE((SELECT SUM(amount_cents) FROM restaurant_terminal_offline_permits WHERE restaurant_id=$1 AND location_id=$2 AND business_date=$3 AND status<>'declined' AND lease_id IS NULL),0)
+    + COALESCE((SELECT SUM(CASE WHEN status='active' THEN GREATEST(budget_cents,consumed_cents) ELSE consumed_cents END) FROM restaurant_terminal_offline_leases WHERE restaurant_id=$1 AND location_id=$2 AND business_date=$3),0) AS cents`,
+    [restaurantId,locationId,businessDate]);
+  return Number(row.cents);
+}
+
 async function issuePermit({restaurantId,locationId,deviceId,orderId,shiftId,userId}){
   if(process.env.RESTAURANT_TERMINAL_OFFLINE_ENABLED!=='true')throw new AppError('Offline Terminal is disabled',409,'terminal_offline_disabled');
   const account=await terminal.resolveRestaurantConnectAccount(restaurantId);
@@ -30,7 +41,7 @@ async function issuePermit({restaurantId,locationId,deviceId,orderId,shiftId,use
     if(activity.n)throw new AppError('Resolve existing payments first',409,'terminal_offline_payment_conflict');
     const {rows:[store]}=await client.query('SELECT timezone FROM restaurant_locations WHERE id=$1 AND restaurant_id=$2',[locationId,restaurantId]);
     const {rows:[day]}=await client.query("SELECT (NOW() AT TIME ZONE $1)::date::text AS value",[store.timezone||'UTC']);
-    const {rows:[exposure]}=await client.query("SELECT COALESCE(SUM(amount_cents),0)::bigint AS cents FROM restaurant_terminal_offline_permits WHERE restaurant_id=$1 AND location_id=$2 AND business_date=$3 AND status<>'declined'",[restaurantId,locationId,day.value]);
+    const exposure={cents:await dailyExposure(client,{restaurantId,locationId,businessDate:day.value})};
     if(Number(order.total_cents)>policy.max_transaction_cents||Number(exposure.cents)+Number(order.total_cents)>policy.max_daily_cents)
       throw new AppError('Offline risk limit exceeded',409,'terminal_offline_limit_exceeded');
     if(policy.require_manager_pin_above_cents&&Number(order.total_cents)>policy.require_manager_pin_above_cents)
@@ -91,4 +102,4 @@ async function reconcileForwarded({restaurantId,permitId,intentId}){
     return {payment,...reconciliation,reviewRequired};
   });
 }
-module.exports={issuePermit,reconcileForwarded};
+module.exports={issuePermit,reconcileForwarded,dailyExposure};

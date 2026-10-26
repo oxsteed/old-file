@@ -7,6 +7,8 @@
 
 const express = require('express');
 const router = express.Router();
+// F-20: every successful restaurant write leaves an audit entry.
+router.use(require('../middleware/restaurantRequestAudit').restaurantRequestAudit);
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 // Tenant scope gates (scope report Area 4): every :restaurantId route runs the
@@ -485,6 +487,11 @@ router.post('/:restaurantId/pos/terminal/connection-token', requireRestaurantAcc
 router.put('/:restaurantId/locations/:locationId/terminal/offline-policy',requireRestaurantAccess(),strictLimiter,offlineTerminal.policy);
 router.post('/:restaurantId/pos/orders/:orderId/offline-permit',requireRestaurantAccess(),strictLimiter,offlineTerminal.permit);
 router.post('/:restaurantId/pos/offline-permits/:permitId/reconcile',requireRestaurantAccess(),strictLimiter,offlineTerminal.reconcile);
+router.post('/:restaurantId/pos/offline-leases',requireRestaurantAccess(),strictLimiter,offlineTerminal.lease);
+router.post('/:restaurantId/pos/offline-leases/:leaseId/close',requireRestaurantAccess(),strictLimiter,offlineTerminal.closeLease);
+router.post('/:restaurantId/pos/offline-leases/:leaseId/payments',requireRestaurantAccess(),offlineTerminal.registerPayment);
+router.get('/:restaurantId/pos/offline-card/open',requireRestaurantAccess(),offlineTerminal.openQueue);
+router.post('/:restaurantId/pos/offline-card/:offlineId/resolve',requireRestaurantAccess(),strictLimiter,offlineTerminal.resolve);
 router.post('/:restaurantId/pos/orders/:orderId/card-intents', requireRestaurantAccess(), appFlow.createPosCardIntent);
 router.get('/:restaurantId/pos/payments/:paymentId', requireRestaurantAccess(), appFlow.getPosPaymentStatus);
 router.post('/:restaurantId/pos/payments/:paymentId/capture', requireRestaurantAccess(), appFlow.capturePosCardPayment);

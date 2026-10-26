@@ -48,12 +48,21 @@ function entries(env = process.env) {
       {},
     ]);
   if (env.GROWTH_PARTNER_OFFERS_ENABLED === "true")
-    rows.push([
-      "growthPartnerFeeds",
-      () => require("../jobs/partnerFeedImport").run(),
-      60 * 60 * 1000,
-      {},
-    ]);
+    rows.push(
+      [
+        "growthPartnerFeeds",
+        () => require("../jobs/partnerFeedImport").run(),
+        60 * 60 * 1000,
+        {},
+      ],
+      // D21: keep Amazon item data under Amazon's 24h freshness limit.
+      [
+        "growthAmazonItemRefresh",
+        () => require("../jobs/amazonItemRefresh").run(),
+        60 * 60 * 1000,
+        {},
+      ],
+    );
   if (env.GROWTH_POLICY_NOTICE_DELIVERY_ENABLED === "true")
     rows.push(
       [

@@ -29,6 +29,7 @@
 
 const crypto = require('crypto');
 const pool = require('../db');
+const { withTransaction } = require('../utils/transaction');
 const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
 const { encrypt, decrypt } = require('../utils/encryption');
@@ -675,7 +676,11 @@ async function requestRefresh(req, res, next) {
 async function unpairDisplay(req, res, next) {
   try {
     const { pairing, restaurant } = await requireOwnedPairing(req.user?.id, req.params?.id);
-    await pool.query('DELETE FROM display_pairings WHERE id = $1', [pairing.id]);
+    // F-26: retire the canonical registry row in the same transaction.
+    await withTransaction(pool, async (client) => {
+      await require('../services/unifiedDeviceService').retireDisplayPairing(client, { restaurantId: pairing.restaurant_id, pairingId: pairing.id });
+      await client.query('DELETE FROM display_pairings WHERE id = $1', [pairing.id]);
+    });
     // F-20: display unpairing is audited with the pairing's prior state.
     await logBusinessAction(req, {
       business_id: restaurant.business_id,

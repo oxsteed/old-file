@@ -122,6 +122,13 @@ async function createRefund({ paymentIntentId, amountCents, metadata, idempotenc
 }
 
 module.exports = {
+  // Offline (store-and-forward) intents carry metadata.offlineId; search finds
+  // one the device forwarded but never reported back.
+  searchConnectedIntentByOfflineId: async (offlineId,accountId)=>{
+    if(!/^[0-9a-f-]{36}$/i.test(offlineId||''))throw new Error('invalid offline id');
+    const res=await requireStripe().paymentIntents.search({query:`metadata['offlineId']:'${offlineId}'`,limit:2},{stripeAccount:accountId,timeout:15000,maxNetworkRetries:0});
+    return res.data||[];
+  },
   retrieveConnectedIntent: (id,accountId)=>requireStripe().paymentIntents.retrieve(id,{expand:['latest_charge']},{stripeAccount:accountId,timeout:15000,maxNetworkRetries:0}),
   createConnectionToken,
   createPaymentIntent,

@@ -9,6 +9,8 @@ const PURPOSES = new Set([
 ]);
 const denied = (reason) => ({ allowed: false, reason });
 function rolloutAllows(ctx, now = Date.now(), env = process.env) {
+  // D-ENG-10: fail closed. Only the exact lowercase string "false" lifts the
+  // kill switch; unset, "", "False", "0", "off", " false" etc. keep it on.
   if (env.GROWTH_TRACKING_HARD_OFF !== "false") return denied("hard_off");
   if (!ctx.enabled) return denied("switch_off");
   const r = ctx.rollout,

@@ -51,3 +51,20 @@ heartbeat credential stops working.
 
 Both require the canonical restaurant gate; status changes require
 `settings.manage`.
+
+## One status writer (F-26, closed)
+
+Device on/off state has exactly one writer: `unifiedDeviceService`.
+
+- `PATCH /restaurants/:id/devices/:deviceId` and the bulk prep-device config
+  call `setAppDeviceStatus`, which maps `paired` → registry `active` and
+  `disabled` → `disabled` and writes through. `pending` can only come from a
+  new pairing code (409 `device_status_via_pairing`), and a device that never
+  paired cannot be switched on from a config screen (409
+  `device_pairing_required`).
+- Unpairing a TV display retires its registry row in the same transaction
+  before the pairing row is deleted, so the fleet never shows a stale device.
+- Pairing, token rotation and heartbeats stay in their pairing flows (they
+  are credentials, not fleet state).
+- `__tests__/restaurantDeviceStatusConvergence.db.test.js` fails if any other
+  file starts writing registry status or a config writer bypasses the service.

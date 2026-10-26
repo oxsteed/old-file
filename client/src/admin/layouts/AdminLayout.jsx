@@ -6,6 +6,7 @@ import useAdminSupportAvailability from '../hooks/useAdminSupportAvailability';
 import { useMyScopes } from '../lib/GrantGuard';
 import { adminRoute } from '../adminRouteManifest';
 import { OxSteedIcon } from '../../components/OxSteedIcon';
+import AdminOperationalNotices from '../components/AdminOperationalNotices';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Users, Briefcase,
@@ -552,6 +553,7 @@ export default function AdminLayout() {
         </div>
 
         <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
+          <AdminOperationalNotices />
           <Outlet />
         </main>
       </div>

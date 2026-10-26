@@ -37,25 +37,44 @@ async function requireRestaurantAccess(userId, restaurantId) {
   return { ...restaurant, locationScope: await getLocationScope(restaurant, userId) };
 }
 
-function parseRange(query) {
-  const to = query.to ? new Date(`${query.to}T23:59:59Z`) : new Date();
-  const from = query.from ? new Date(`${query.from}T00:00:00Z`) : new Date(to.getTime() - 29 * 86400000);
-  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to) {
-    throw new AppError('Invalid date range', 400, 'invalid_range');
-  }
-  if ((to - from) / 86400000 > MAX_RANGE_DAYS) {
-    throw new AppError(`Date range capped at ${MAX_RANGE_DAYS} days`, 400, 'range_too_wide');
-  }
-  return { from: from.toISOString(), to: to.toISOString() };
+// N-06: inventory, operations and loyalty ranges are LOCAL calendar days in
+// the restaurant's timezone (as the reports panel sends them), converted to
+// the UTC instants of local midnight. They used to be parsed as UTC days, so
+// an evening in New York fell into the next day's report.
+function zoneOffsetMs(utcMs, timezone) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).formatToParts(new Date(utcMs)).map((p) => [p.type, p.value]));
+  const asUtc = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+    Number(parts.hour) % 24, Number(parts.minute), Number(parts.second));
+  return asUtc - utcMs;
 }
 
-// Same validation as parseRange, but the loyalty section defaults to the
-// documented 90-day repeat-order window instead of 30 days.
-function parseRange90(query) {
-  if (query.from || query.to) return parseRange(query);
-  const to = new Date();
-  const from = new Date(to.getTime() - (REPEAT_ORDER_WINDOW_DAYS - 1) * 86400000);
-  return { from: from.toISOString(), to: to.toISOString() };
+function localMidnightUtcMs(dateStr, timezone) {
+  const wall = Date.parse(`${dateStr}T00:00:00Z`);
+  let guess = wall - zoneOffsetMs(wall, timezone);
+  // Second pass settles DST transitions.
+  guess = wall - zoneOffsetMs(guess, timezone);
+  return guess;
+}
+
+function parseLocalRange(query, timezone, defaultDays = 30) {
+  const tz = timezone || 'UTC';
+  const q = query || {};
+  if ((q.from && !isRealDateString(q.from)) || (q.to && !isRealDateString(q.to))) {
+    throw new AppError('Invalid date range', 400, 'invalid_range');
+  }
+  const toDate = q.to || localDateString(new Date(), tz);
+  const fromDate = q.from || shiftDateString(toDate, -(defaultDays - 1));
+  if (fromDate > toDate) throw new AppError('Invalid date range', 400, 'invalid_range');
+  const days = Math.round((Date.parse(`${toDate}T12:00:00Z`) - Date.parse(`${fromDate}T12:00:00Z`)) / 86400000) + 1;
+  if ((q.from || q.to) && days > MAX_RANGE_DAYS) {
+    throw new AppError(`Date range capped at ${MAX_RANGE_DAYS} days`, 400, 'range_too_wide');
+  }
+  const from = new Date(localMidnightUtcMs(fromDate, tz));
+  const to = new Date(localMidnightUtcMs(shiftDateString(toDate, 1), tz) - 1);
+  return { from: from.toISOString(), to: to.toISOString(), from_date: fromDate, to_date: toDate, timezone: tz };
 }
 
 // ── Sales ────────────────────────────────────────────────────────────────────
@@ -968,6 +987,7 @@ exports.salesBiExportNdjson = async (req, res, next) => {
   }
 };
 
+exports._localRangeTest = { parseLocalRange, localMidnightUtcMs };
 exports._accountingTest = { accountingLines, buildAccountingCsv, ACCOUNTING_ACCOUNT_CODES, loadSalesJournalRows };
 
 // ── Inventory ────────────────────────────────────────────────────────────────
@@ -975,7 +995,8 @@ exports.inventorySummary = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const { from, to } = parseRange(req.query);
+    const range = parseLocalRange(req.query, resolveReportTimezone(restaurant), 30);
+    const { from, to } = range;
     const [byType, topWaste, lowStock] = await Promise.all([
       pool.query(
         `SELECT adjustment_type,
@@ -1009,7 +1030,7 @@ exports.inventorySummary = async (req, res, next) => {
       ),
     ]);
     res.json({
-      from, to,
+      from, to, from_date: range.from_date, to_date: range.to_date, timezone: range.timezone,
       by_type: byType.rows.map((r) => ({
         adjustment_type: r.adjustment_type,
         events: Number(r.events),
@@ -1033,7 +1054,8 @@ exports.operationsSummary = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const { from, to } = parseRange(req.query);
+    const range = parseLocalRange(req.query, resolveReportTimezone(restaurant), 30);
+    const { from, to } = range;
     const [checklists, audits, training] = await Promise.all([
       pool.query(
         `SELECT COUNT(*) AS runs,
@@ -1071,7 +1093,7 @@ exports.operationsSummary = async (req, res, next) => {
     const au = audits.rows[0];
     const tr = training.rows[0];
     res.json({
-      from, to,
+      from, to, from_date: range.from_date, to_date: range.to_date, timezone: range.timezone,
       checklists: {
         runs: Number(cl.runs),
         completed: Number(cl.completed),
@@ -1106,7 +1128,8 @@ exports.loyaltySummary = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const { from, to } = parseRange90(req.query);
+    const range = parseLocalRange(req.query, resolveReportTimezone(restaurant), REPEAT_ORDER_WINDOW_DAYS);
+    const { from, to } = range;
     const [repeat, topItems, retention] = await Promise.all([
       restaurantAnalytics.getRepeatOrderRate(pool, restaurantId, { from, to, locationIds:restaurant.locationScope.mode==='assigned'?restaurant.locationScope.location_ids:null }),
       restaurantAnalytics.getTopItemsByRevenue(pool, restaurantId, { from, to, limit: 10, locationIds:restaurant.locationScope.mode==='assigned'?restaurant.locationScope.location_ids:null }),
@@ -1115,6 +1138,9 @@ exports.loyaltySummary = async (req, res, next) => {
     res.json({
       from,
       to,
+      from_date: range.from_date,
+      to_date: range.to_date,
+      timezone: range.timezone,
       window_days: REPEAT_ORDER_WINDOW_DAYS,
       repeat_order_rate: repeat.repeat_order_rate,
       repeat_orders: repeat.repeat_orders,

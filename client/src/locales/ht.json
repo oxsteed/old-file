@@ -2255,8 +2255,8 @@
         "body": "{{moduleTitle}} nan {{restaurantName}}"
       },
       "training_recertification_due": {
-        "title": "Resètifikasyon ou dwe fèt",
-        "body": "Sètifikasyon ou pou {{moduleTitle}} nan {{restaurantName}} ekspire. Tanpri fè fòmasyon an ankò."
+        "title": "Resètifikasyon fòmasyon dwe fèt",
+        "body": "Sètifikasyon ou pou {{moduleTitle}} ekspire. Tanpri fè fòmasyon an ankò."
       },
       "crew_shift_published": {
         "title": "Yo pibliye yon nouvo orè",
@@ -2277,10 +2277,6 @@
       "training_completed": {
         "title": "Fòmasyon an fini",
         "body": "{{moduleTitle}} fini"
-      },
-      "training_recertification_due": {
-        "title": "Resètifikasyon fòmasyon dwe fèt",
-        "body": "Sètifikasyon ou pou {{moduleTitle}} ekspire. Tanpri fè fòmasyon an ankò."
       },
       "member_invite": {
         "title": "Yo envite ou pou rantre nan {{businessName}}",
@@ -7848,7 +7844,8 @@
       "tabs": {
         "shifts": "Shift",
         "timeEntries": "Antre tan",
-        "timeOff": "Konje"
+        "timeOff": "Konje",
+        "labor": "Règ travay"
       },
       "clockIn": "Kòmanse tan",
       "addShift": "Ajoute shift",
@@ -7922,7 +7919,31 @@
       "toastClockInFail": "Nou pa t kapab kòmanse tan",
       "toastClockedOut": "Tan fini!",
       "toastClockOutFail": "Nou pa t kapab fini tan",
-      "toastStaffRequired": "Tanpri chwazi yon manm ekip"
+      "toastStaffRequired": "Tanpri chwazi yon manm ekip",
+      "labor": {
+        "minorsTitle": "Minè",
+        "minorsHelp": "Make anplwaye ki poko gen 18 an pou nou verifye orè yo dapre limit èdtan ak lè pou minè. Nou anrejistre yon tranch laj ak dat li fini, pa janm yon dat nesans.",
+        "band": "Tranch laj",
+        "adult": "18 an oswa plis",
+        "under16": "Mwens pase 16 an",
+        "age1617": "16 oswa 17 an",
+        "until": "Tranch lan fini",
+        "save": "Anrejistre",
+        "saved": "Anrejistre.",
+        "saveFailed": "Nou pa t kapab anrejistre.",
+        "formerStaff": "Ansyen manm anplwaye",
+        "changesTitle": "Chanjman nan orè ki pibliye",
+        "changesHelp": "Kote règ orè previzib (Fair Workweek) aplike, chanje oswa anile yon orè ki pibliye anndan delè avètisman an mande pou peye anplwaye a yon konpansasyon previzibilite. Lalwa lokal la fikse montan an.",
+        "noChanges": "Poko gen chanjman nan orè ki pibliye.",
+        "change": {
+          "edited": "Chanje",
+          "deleted": "Anile"
+        },
+        "premiumDue": "Yo dwe peye konpansasyon previzibilite ({{code}})",
+        "employeeRequested": "Anplwaye a te mande l: pa gen konpansasyon",
+        "noPremium": "Andeyò delè avètisman an: pa gen konpansasyon",
+        "premiumToast": "Orè sa a te anndan delè avètisman {{code}}: yo dwe peye konpansasyon previzibilite."
+      }
     },
     "integrations": {
       "title": "Entegrasyon ak paramèt",
@@ -23289,7 +23310,8 @@
         "operations": "Operasyon",
         "payouts": "Peman",
         "displays": "Ekran",
-        "myshift": "Orè mwen"
+        "myshift": "Orè mwen",
+        "schedule": "Orè anplwaye yo"
       },
       "liveOrders": "Kòmand an dirèk",
       "noOrders": "Pa gen kòmand aktif kounye a.",
@@ -23676,7 +23698,8 @@
       "refundSuccess": "Ranbousman bay",
       "refundError": "Pa ka bay ranbousman an.",
       "cardPartialRefundUnsupported": "Ranbousman pasyèl pa disponib pou kòmann kat sou entènèt. Ranbouse tout kòmann lan oswa mande sipò èd.",
-      "cardRefundUseCancel": "Kòmann kat yo ranbouse lè ou anile kòmann lan. Ranbousman kat la fèt otomatikman."
+      "cardRefundUseCancel": "Kòmann kat yo ranbouse lè ou anile kòmann lan. Ranbousman kat la fèt otomatikman.",
+      "addAnotherRestaurant": "Ajoute yon lòt restoran"
     },
     "onboarding": {
       "eyebrow": "Sware Ouvèti",
@@ -24070,6 +24093,73 @@
       "todayRevenue": "Revni",
       "viewStore": "Wè paj kliyan an",
       "viewStoreHint": "Wè egzakteman sa kliyan yo wè."
+    },
+    "timeClock": {
+      "title": "Revèy pou pwen",
+      "clockedOut": "Ou pa pwente.",
+      "clockedInSince": "Ou pwente depi {{time}}.",
+      "onBreakSince": "Ou nan poz depi {{time}}.",
+      "clockIn": "Pwente antre",
+      "clockOut": "Pwente soti",
+      "startBreak": "Kòmanse poz",
+      "endBreak": "Fini poz",
+      "clockedInOk": "Antre anrejistre",
+      "clockedOutOk": "Soti anrejistre",
+      "breakStarted": "Poz kòmanse",
+      "breakEnded": "Poz fini",
+      "actionError": "Sa pa t pase. Eseye ankò.",
+      "myShifts": "Pwochen orè travay mwen",
+      "noShifts": "Poko gen orè pibliye.",
+      "recentPunches": "Dènye pwen mwen yo",
+      "noPunches": "Pa gen pwen nan de dènye semèn yo.",
+      "hours": "{{hours}} è",
+      "timeOff": "Konje",
+      "timeOffType": "Kalite",
+      "timeOffTypes": {
+        "vacation": "Vakans",
+        "sick": "Maladi",
+        "personal": "Pèsonèl",
+        "unpaid": "San peye",
+        "other": "Lòt"
+      },
+      "from": "Soti",
+      "to": "Rive",
+      "reason": "Nòt pou manadjè ou (opsyonèl)",
+      "requestTimeOff": "Mande konje",
+      "timeOffSent": "Demann lan voye bay manadjè ou",
+      "timeOffInvalid": "Chwazi yon dat kòmansman ak yon dat fen ki menm oswa apre.",
+      "myRequests": "Demann konje mwen yo",
+      "status": {
+        "pending": "Ap tann",
+        "approved": "Apwouve",
+        "denied": "Refize",
+        "cancelled": "Anile",
+        "withdrawn": "Retire"
+      }
+    },
+    "offlineCard": {
+      "title": "Peman kat san entènèt pou revize",
+      "intro": "Peman kat yo te pran pandan yon pàn ki depase yon limit, ki pa koresponn ak kòmand yo, oswa ki pa janm rapòte. Aksepte kenbe yon peman Stripe konfime. Anile posib sèlman lè Stripe pa gen okenn chaj.",
+      "order": "Kòmand #{{id}}",
+      "reasons": "Poukisa li bezwen revizyon",
+      "note": "Nòt (obligatwa)",
+      "noteRequired": "Ajoute yon ti nòt anvan.",
+      "accept": "Aksepte peman",
+      "void": "Anile (pa gen chaj)",
+      "accepted": "Peman aksepte.",
+      "voided": "Peman anile.",
+      "failed": "Nou pa t kapab rezoud peman sa a.",
+      "reason": {
+        "over_transaction_limit": "Depase limit pa vant san entènèt",
+        "over_lease_budget": "Depase bidjè san entènèt kès sa a",
+        "outside_lease_window": "Pran andeyò peryòd san entènèt la",
+        "amount_differs_from_order": "Montan an pa menm ak total kòmand lan",
+        "order_already_paid": "Kòmand lan te deja peye yon lòt jan (posib doub chaj)",
+        "order_already_has_offline_card": "Kòmand lan deja gen yon peman kat san entènèt",
+        "order_not_found": "Nou pa jwenn kòmand lan pou magazen sa a",
+        "not_reported": "Kès la pa janm rapòte peman sa a",
+        "other": "Bezwen yon manadjè verifye"
+      }
     }
   },
   "network": {
@@ -24332,7 +24422,22 @@
         "regionRoot": "Rejyon rasin",
         "regionCreate": "Ajoute rejyon",
         "regionStores": "{{count}} magazen",
-        "regionChild": "Rejyon andedan"
+        "regionChild": "Rejyon andedan",
+        "labor": {
+          "title": "Travay pa magazen",
+          "overtimeNote": "Lè siplemantè yo konte èdtan chak moun nan tout magazen ou yo, epi yo parèt nan magazen kote yo te travay yo.",
+          "store": "Magazen",
+          "hours": "Èdtan travay",
+          "scheduled": "Pwograme",
+          "overtime": "Èdtan siplemantè",
+          "cost": "Kou travay",
+          "percent": "% travay",
+          "staff": "Anplwaye",
+          "total": "Tout magazen",
+          "missingWages_one": "{{count}} san salè",
+          "missingWages_other": "{{count}} san salè",
+          "mixedCurrency": "Plizyè lajan"
+        }
       },
       "brandHq": {
         "title": "Katye jeneral mak la",
@@ -36650,6 +36755,90 @@
       "business": "Biznis",
       "restaurant": "Restoran"
     },
-    "analyticsStorageDescription": "Nan EEE, Wayòm Ini, Swis ak Kebèk, swivi ak òf ki baze sou aktivite bezwen konsantman separe; ou ka retire yo nan Anviwònman. Eta ameriken ki konsène yo gen kontwòl Pa vann ni pataje ak Global Privacy Control. Lòt kote, bouton analiz la kontwole Google Analytics ak depo pèmanan; avi sa a kouvri aktivite."
+    "analyticsStorageDescription": "Nan EEE, Wayòm Ini, Swis ak Kebèk, swivi ak òf ki baze sou aktivite bezwen konsantman separe; ou ka retire yo nan Anviwònman. Eta ameriken ki konsène yo gen kontwòl Pa vann ni pataje ak Global Privacy Control. Lòt kote, bouton analiz la kontwole Google Analytics ak depo pèmanan; avi sa a kouvri aktivite.",
+    "age": {
+      "title": "Konfimasyon laj",
+      "why": "Analiz aktivite ak òf pèsonalize yo disponib sèlman pou granmoun. Konfime laj ou pou aktive yo. Anyen pa swiv toutotan ou pa fè sa.",
+      "attest": "Mwen konfime mwen gen 18 an oswa plis.",
+      "confirm": "Konfime laj mwen",
+      "verify": "Verifye laj mwen",
+      "confirmed": "Laj ou konfime.",
+      "withdraw": "Retire konfimasyon laj la epi efase done aktivite yo"
+    },
+    "amazon": {
+      "title": "Amazon Associates",
+      "channelsNote": "Òf Amazon yo parèt sèlman nan aplikasyon an ak pa notifikasyon push, janm pa imèl. Amazon resevwa sèlman etikèt swivi kanpay la.",
+      "notConfigured": "API Product Advertising Amazon pa configure sou sèvè a.",
+      "disclosureHint": "Divilgasyon an angle pou chak òf Amazon dwe mansyone Amazon, pa egzanp: {{text}}",
+      "error": "Sa pa t mache ({{code}}).",
+      "search": "Chèche pwodwi Amazon",
+      "searchButton": "Chèche",
+      "draftOffer": "ID òf bouyon Amazon",
+      "pin": "Tache ak òf bouyon an",
+      "pinned": "{{asin}} tache ak òf {{offer}}.",
+      "reportTitle": "Enpòte yon rapò pa ID swivi",
+      "reportRef": "Referans rapò a",
+      "periodStart": "Kòmansman peryòd",
+      "periodEnd": "Fen peryòd",
+      "currency": "Lajan",
+      "reportFile": "Fichye rapò (separe pa tab)",
+      "importReport": "Enpòte rapò",
+      "reportImported": "{{tags}} etikèt enpòte ({{mapped}} konekte ak kanpay).",
+      "reportDuplicate": "Rapò sa a te deja enpòte."
+    }
+  },
+  "adminOperationalNotices": {
+    "regionLabel": "Avi operasyonèl",
+    "dismiss": "Mwen konprann",
+    "regionGeoSource": {
+      "switchedTitle": "Analiz rejyonal yo itilize sant postal GeoNames kounye a",
+      "switchedBody": "Kèk chif rejyonal chanje: {{usersBefore}} kont te plase nan yon rejyon anvan, {{usersAfter}} kounye a. Diferans lan sove, epi yon operatè ka fè bak an yon sèl etap.",
+      "rolledBackTitle": "Sous jeyografik analiz rejyonal yo retounen",
+      "rolledBackBody": "Analiz rejyonal yo retounen sou sous lokalizasyon anvan an. Chif yo retounen sou ansyen baz la."
+    }
+  },
+  "restaurantPermissionDenied": {
+    "pos": "Ou pa gen pèmisyon pou itilize kès la (POS) isit la. Mande yon manadjè ajoute aksè POS nan wòl ou.",
+    "kitchen": "Ou pa gen pèmisyon pou mete ekran kwizin nan ajou isit la. Mande yon manadjè ajoute aksè kwizin nan wòl ou.",
+    "runner": "Ou pa gen pèmisyon pou mete livrezon ak kourè yo ajou isit la. Mande yon manadjè aksè sa a.",
+    "menu": "Ou pa gen pèmisyon pou chanje meni an isit la. Mande yon manadjè aksè meni.",
+    "settings": "Ou pa gen pèmisyon pou chanje paramèt restoran sa a. Mande pwopriyetè a oswa yon manadjè.",
+    "refunds": "Ou pa gen pèmisyon pou bay ranbousman isit la. Mande yon manadjè apwouve ranbousman an.",
+    "display": "Ou pa gen pèmisyon pou jere ekran yo isit la. Mande yon manadjè aksè ekran.",
+    "orders": "Ou pa gen pèmisyon pou jere kòmand yo isit la. Mande yon manadjè ajoute aksè kòmand nan wòl ou."
+  },
+  "restaurantDiscounts": {
+    "title": "Rabè POS",
+    "desc": "Rabè anplwaye ou yo ka aplike nan kès la.",
+    "intro": "Anplwaye yo ka aplike sèlman rabè aktif ki anba yo nan kès la. Manadjè yo ka toujou mete yon rabè espesyal.",
+    "empty": "Poko gen rabè. Ajoute youn anba a.",
+    "listLabel": "Rabè",
+    "percentValue": "{{value}}% rabè",
+    "maxShort": "maksimòm {{amount}}",
+    "minShort": "kòmand plis pase {{amount}}",
+    "needsApproval": "bezwen apwobasyon yon manadjè",
+    "inactive": "pa aktif",
+    "activate": "Aktive",
+    "deactivate": "Dezaktive",
+    "addTitle": "Ajoute yon rabè",
+    "code": "Kòd",
+    "name": "Non ki parèt nan kès la",
+    "kind": "Kalite",
+    "kindPercent": "Pousantaj",
+    "kindFixed": "Montan fiks",
+    "valuePercent": "Pousantaj (1–100)",
+    "valueAmount": "Montan",
+    "maxDiscount": "Rabè maksimòm (opsyonèl)",
+    "minSubtotal": "Kòmand minimòm (opsyonèl)",
+    "requiresApproval": "Toujou mande PIN yon manadjè",
+    "add": "Ajoute rabè a",
+    "saved": "Anrejistre",
+    "saveError": "Nou pa t ka anrejistre rabè a",
+    "invalid": "Verifye kòd la, non an ak montan yo.",
+    "thresholdLabel": "Apwobasyon manadjè pi wo pase montan rabè sa a",
+    "thresholdHint": "Nenpòt rabè ki pi gwo pase montan sa a bezwen PIN yon manadjè. Kite l vid pou pa gen limit.",
+    "thresholdOwnerOnly": "Se sèlman pwopriyetè a ki ka chanje limit apwobasyon an.",
+    "thresholdNone": "Pa gen limit",
+    "saveThreshold": "Anrejistre limit la"
   }
 }

@@ -101,13 +101,13 @@ function ProofModal({ task, restaurantId, onSaved, onClose }) {
   };
 
   return (
-    <div className="fd-modal-overlay" onClick={onClose}>
-      <div className="fd-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="fd-modal-overlay" role="presentation" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
+      <div className="fd-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <h3>{t('food.runner.logProof')}</h3>
         <p className="fd-card-meta">{t('food.runner.proofFor')}: {task.order_number || task.id}</p>
         <div className="fd-field">
           <label>{t('food.runner.proofNote')}</label>
-          <textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('food.runner.proofPlaceholder')} />
+          <textarea aria-label={t('food.runner.proofNote')} rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('food.runner.proofPlaceholder')} />
         </div>
         <div className="fd-pos-modal-actions">
           <button className="fd-btn-secondary" onClick={onClose} data-track="ui.42d5812ef7.2">{t('food.common.cancel')}</button>
@@ -142,12 +142,12 @@ function IssueModal({ task, restaurantId, onSaved, onClose }) {
   };
 
   return (
-    <div className="fd-modal-overlay" onClick={onClose}>
-      <div className="fd-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="fd-modal-overlay" role="presentation" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
+      <div className="fd-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <h3>{t('food.runner.reportIssue')}</h3>
         <div className="fd-field">
           <label>{t('food.runner.issueSeverity')}</label>
-          <select value={severity} onChange={(e) => setSeverity(e.target.value)}>
+          <select aria-label={t('food.runner.issueSeverity')} value={severity} onChange={(e) => setSeverity(e.target.value)}>
             {['low', 'medium', 'high', 'critical'].map((s) => (
               <option key={s} value={s}>{t(`food.runner.severity_${s}`)}</option>
             ))}
@@ -155,7 +155,7 @@ function IssueModal({ task, restaurantId, onSaved, onClose }) {
         </div>
         <div className="fd-field">
           <label>{t('food.runner.issueDesc')}</label>
-          <textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} required />
+          <textarea aria-label={t('food.runner.issueDesc')} rows={3} value={note} onChange={(e) => setNote(e.target.value)} required />
         </div>
         <div className="fd-pos-modal-actions">
           <button className="fd-btn-secondary" onClick={onClose} data-track="ui.42d5812ef7.4">{t('food.common.cancel')}</button>

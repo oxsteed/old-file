@@ -32,8 +32,9 @@ async function collect(business, ctx) {
        LEFT JOIN food_restaurants r ON r.id = o.restaurant_id
       WHERE o.business_id = $1
         AND o.fulfillment_type = 'delivery'
-        AND o.status NOT IN ('completed', 'cancelled', 'refunded')`,
-    [business.id]
+        AND o.status NOT IN ('completed', 'cancelled', 'refunded')
+        AND ($2::bigint[] IS NULL OR o.location_id = ANY($2::bigint[]))`,
+    [business.id, ctx.locationIds || null]
   );
 
   for (const o of rows) {

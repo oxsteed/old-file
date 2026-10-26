@@ -7657,7 +7657,8 @@
       "tabs": {
         "shifts": "Turnos",
         "timeEntries": "Registros de tiempo",
-        "timeOff": "Ausencias"
+        "timeOff": "Ausencias",
+        "labor": "Reglas laborales"
       },
       "clockIn": "Fichar",
       "addShift": "Agregar turno",
@@ -7731,7 +7732,31 @@
       "toastClockInFail": "No se pudo registrar la entrada",
       "toastClockedOut": "¡Salida registrada!",
       "toastClockOutFail": "No se pudo registrar la salida",
-      "toastStaffRequired": "Selecciona un miembro del equipo"
+      "toastStaffRequired": "Selecciona un miembro del equipo",
+      "labor": {
+        "minorsTitle": "Menores",
+        "minorsHelp": "Marca al personal menor de 18 para revisar los horarios según los límites de horas y horario para menores. Guardamos un rango de edad y la fecha en que termina, nunca una fecha de nacimiento.",
+        "band": "Rango de edad",
+        "adult": "18 o más",
+        "under16": "Menor de 16",
+        "age1617": "16 o 17",
+        "until": "El rango termina el",
+        "save": "Guardar",
+        "saved": "Guardado.",
+        "saveFailed": "No se pudo guardar.",
+        "formerStaff": "Exmiembro del personal",
+        "changesTitle": "Cambios en turnos publicados",
+        "changesHelp": "Donde aplican reglas de horarios predecibles (Fair Workweek), cambiar o cancelar un turno publicado dentro del plazo de aviso obliga a pagar una compensación por previsibilidad. El monto lo fija la ley local.",
+        "noChanges": "Aún no hay cambios en turnos publicados.",
+        "change": {
+          "edited": "Cambiado",
+          "deleted": "Cancelado"
+        },
+        "premiumDue": "Se debe pago por previsibilidad ({{code}})",
+        "employeeRequested": "Solicitado por el empleado: sin compensación",
+        "noPremium": "Fuera del plazo de aviso: sin compensación",
+        "premiumToast": "Este turno estaba dentro del plazo de aviso de {{code}}: se debe pago por previsibilidad."
+      }
     },
     "integrations": {
       "title": "Integraciones y configuración",
@@ -9948,8 +9973,8 @@
         "body": "{{moduleTitle}} en {{restaurantName}}"
       },
       "training_recertification_due": {
-        "title": "Recertificación vencida",
-        "body": "Tu certificación de {{moduleTitle}} en {{restaurantName}} ha vencido. Completa la capacitación nuevamente."
+        "title": "Recertificación de capacitación vencida",
+        "body": "Tu certificación de {{moduleTitle}} ha vencido. Completa la capacitación de nuevo."
       },
       "crew_shift_published": {
         "title": "Nuevo turno publicado",
@@ -9970,10 +9995,6 @@
       "training_completed": {
         "title": "Capacitación completada",
         "body": "{{moduleTitle}} fue completada"
-      },
-      "training_recertification_due": {
-        "title": "Recertificación de capacitación vencida",
-        "body": "Tu certificación de {{moduleTitle}} ha vencido. Completa la capacitación de nuevo."
       },
       "member_invite": {
         "title": "Te han invitado a unirte a {{businessName}}",
@@ -23289,7 +23310,8 @@
         "operations": "Operaciones",
         "payouts": "Pagos",
         "displays": "Pantallas",
-        "myshift": "Mi turno"
+        "myshift": "Mi turno",
+        "schedule": "Horario del personal"
       },
       "liveOrders": "Pedidos en vivo",
       "noOrders": "No hay pedidos activos ahora.",
@@ -23676,7 +23698,8 @@
       "refundSuccess": "Reembolso emitido",
       "refundError": "No se pudo emitir el reembolso.",
       "cardPartialRefundUnsupported": "Los reembolsos parciales no están disponibles para pedidos con tarjeta en línea. Reembolsa el pedido completo o pide ayuda a soporte.",
-      "cardRefundUseCancel": "Los pedidos con tarjeta se reembolsan cancelando el pedido. El reembolso a la tarjeta es automático."
+      "cardRefundUseCancel": "Los pedidos con tarjeta se reembolsan cancelando el pedido. El reembolso a la tarjeta es automático.",
+      "addAnotherRestaurant": "Agregar otro restaurante"
     },
     "onboarding": {
       "eyebrow": "Noche de apertura",
@@ -24070,6 +24093,73 @@
       "todayRevenue": "Ingresos",
       "viewStore": "Ver página del cliente",
       "viewStoreHint": "Mira exactamente lo que ven los clientes."
+    },
+    "timeClock": {
+      "title": "Reloj de asistencia",
+      "clockedOut": "No has marcado entrada.",
+      "clockedInSince": "Marcaste entrada a las {{time}}.",
+      "onBreakSince": "En descanso desde las {{time}}.",
+      "clockIn": "Marcar entrada",
+      "clockOut": "Marcar salida",
+      "startBreak": "Iniciar descanso",
+      "endBreak": "Terminar descanso",
+      "clockedInOk": "Entrada registrada",
+      "clockedOutOk": "Salida registrada",
+      "breakStarted": "Descanso iniciado",
+      "breakEnded": "Descanso terminado",
+      "actionError": "No se pudo completar. Inténtalo de nuevo.",
+      "myShifts": "Mis próximos turnos",
+      "noShifts": "Aún no hay turnos publicados.",
+      "recentPunches": "Mis marcas recientes",
+      "noPunches": "No hay marcas en las últimas dos semanas.",
+      "hours": "{{hours}} h",
+      "timeOff": "Tiempo libre",
+      "timeOffType": "Tipo",
+      "timeOffTypes": {
+        "vacation": "Vacaciones",
+        "sick": "Enfermedad",
+        "personal": "Personal",
+        "unpaid": "Sin goce de sueldo",
+        "other": "Otro"
+      },
+      "from": "Desde",
+      "to": "Hasta",
+      "reason": "Nota para tu gerente (opcional)",
+      "requestTimeOff": "Solicitar tiempo libre",
+      "timeOffSent": "Solicitud enviada a tu gerente",
+      "timeOffInvalid": "Elige una fecha de inicio y una fecha de fin igual o posterior.",
+      "myRequests": "Mis solicitudes de tiempo libre",
+      "status": {
+        "pending": "Pendiente",
+        "approved": "Aprobada",
+        "denied": "Rechazada",
+        "cancelled": "Cancelada",
+        "withdrawn": "Retirada"
+      }
+    },
+    "offlineCard": {
+      "title": "Pagos con tarjeta sin conexión por revisar",
+      "intro": "Pagos con tarjeta tomados durante una caída que superaron un límite, no coincidieron con su pedido o nunca se reportaron. Aceptar conserva un pago que Stripe confirma. Anular solo es posible si Stripe no tiene ningún cargo.",
+      "order": "Pedido n.º {{id}}",
+      "reasons": "Por qué necesita revisión",
+      "note": "Nota (obligatoria)",
+      "noteRequired": "Primero agrega una nota breve.",
+      "accept": "Aceptar pago",
+      "void": "Anular (sin cargo)",
+      "accepted": "Pago aceptado.",
+      "voided": "Pago anulado.",
+      "failed": "No se pudo resolver este pago.",
+      "reason": {
+        "over_transaction_limit": "Supera el límite por venta sin conexión",
+        "over_lease_budget": "Supera el presupuesto sin conexión de esta caja",
+        "outside_lease_window": "Tomado fuera del período sin conexión",
+        "amount_differs_from_order": "El monto no coincide con el total del pedido",
+        "order_already_paid": "El pedido ya se pagó de otra forma (posible cobro doble)",
+        "order_already_has_offline_card": "El pedido ya tiene un pago con tarjeta sin conexión",
+        "order_not_found": "No se encontró el pedido en esta tienda",
+        "not_reported": "La caja nunca reportó este pago",
+        "other": "Requiere revisión de un gerente"
+      }
     }
   },
   "network": {
@@ -24332,7 +24422,22 @@
         "regionRoot": "Región raíz",
         "regionCreate": "Añadir región",
         "regionStores": "{{count}} tienda(s)",
-        "regionChild": "Región anidada"
+        "regionChild": "Región anidada",
+        "labor": {
+          "title": "Mano de obra por tienda",
+          "overtimeNote": "Las horas extra cuentan las horas de cada persona en todas tus tiendas y se muestran en la tienda donde se trabajaron.",
+          "store": "Tienda",
+          "hours": "Horas trabajadas",
+          "scheduled": "Programadas",
+          "overtime": "Horas extra",
+          "cost": "Costo de mano de obra",
+          "percent": "% de mano de obra",
+          "staff": "Personal",
+          "total": "Todas las tiendas",
+          "missingWages_one": "{{count}} sin salario",
+          "missingWages_other": "{{count}} sin salario",
+          "mixedCurrency": "Monedas mixtas"
+        }
       },
       "brandHq": {
         "title": "Central de marca",
@@ -36650,6 +36755,90 @@
       "business": "Negocio",
       "restaurant": "Restaurante"
     },
-    "analyticsStorageDescription": "En el EEE, Reino Unido, Suiza y Quebec, el seguimiento y las ofertas basadas en la actividad requieren consentimientos separados, revocables en Configuración. Los estados estadounidenses aplicables disponen del control No vender ni compartir y de Global Privacy Control. En otras regiones, el ajuste de analítica controla Google Analytics y el almacenamiento persistente; la actividad está cubierta por este aviso."
+    "analyticsStorageDescription": "En el EEE, Reino Unido, Suiza y Quebec, el seguimiento y las ofertas basadas en la actividad requieren consentimientos separados, revocables en Configuración. Los estados estadounidenses aplicables disponen del control No vender ni compartir y de Global Privacy Control. En otras regiones, el ajuste de analítica controla Google Analytics y el almacenamiento persistente; la actividad está cubierta por este aviso.",
+    "age": {
+      "title": "Confirmación de edad",
+      "why": "Las estadísticas de actividad y las ofertas personalizadas solo están disponibles para adultos. Confirma tu edad para habilitarlas. No se registra nada hasta que lo hagas.",
+      "attest": "Confirmo que tengo 18 años o más.",
+      "confirm": "Confirmar mi edad",
+      "verify": "Verificar mi edad",
+      "confirmed": "Tu edad está confirmada.",
+      "withdraw": "Retirar la confirmación de edad y eliminar los datos de actividad"
+    },
+    "amazon": {
+      "title": "Amazon Associates",
+      "channelsNote": "Las ofertas de Amazon se muestran solo en la app y por notificación push, nunca por correo. Amazon solo recibe la etiqueta de seguimiento de la campaña.",
+      "notConfigured": "La API de publicidad de productos de Amazon no está configurada en el servidor.",
+      "disclosureHint": "La divulgación en inglés de cada oferta de Amazon debe mencionar Amazon, por ejemplo: {{text}}",
+      "error": "No funcionó ({{code}}).",
+      "search": "Buscar productos de Amazon",
+      "searchButton": "Buscar",
+      "draftOffer": "ID de la oferta borrador de Amazon",
+      "pin": "Fijar a la oferta borrador",
+      "pinned": "{{asin}} fijado a la oferta {{offer}}.",
+      "reportTitle": "Importar un informe por ID de seguimiento",
+      "reportRef": "Referencia del informe",
+      "periodStart": "Inicio del período",
+      "periodEnd": "Fin del período",
+      "currency": "Moneda",
+      "reportFile": "Archivo del informe (separado por tabulaciones)",
+      "importReport": "Importar informe",
+      "reportImported": "Se importaron {{tags}} etiquetas ({{mapped}} vinculadas a campañas).",
+      "reportDuplicate": "Este informe ya se importó."
+    }
+  },
+  "adminOperationalNotices": {
+    "regionLabel": "Avisos operativos",
+    "dismiss": "Entendido",
+    "regionGeoSource": {
+      "switchedTitle": "La analítica regional ahora usa centros postales de GeoNames",
+      "switchedBody": "Algunas cifras regionales cambiaron: antes se ubicaban {{usersBefore}} cuentas en una región, ahora {{usersAfter}}. Se guarda la comparación y un operador puede revertir en un solo paso.",
+      "rolledBackTitle": "Se revirtió la fuente geográfica de la analítica regional",
+      "rolledBackBody": "La analítica regional volvió a la fuente de ubicación anterior. Las cifras vuelven a la base previa."
+    }
+  },
+  "restaurantPermissionDenied": {
+    "pos": "No tienes permiso para usar la caja (POS) aquí. Pide a un gerente que agregue acceso al POS a tu rol.",
+    "kitchen": "No tienes permiso para actualizar la pantalla de cocina aquí. Pide a un gerente que agregue acceso a cocina a tu rol.",
+    "runner": "No tienes permiso para actualizar entregas y repartidores aquí. Pide a un gerente que agregue ese acceso a tu rol.",
+    "menu": "No tienes permiso para cambiar el menú aquí. Pide acceso al menú a un gerente.",
+    "settings": "No tienes permiso para cambiar la configuración de este restaurante. Pregunta al propietario o a un gerente.",
+    "refunds": "No tienes permiso para emitir reembolsos aquí. Pide a un gerente que apruebe el reembolso.",
+    "display": "No tienes permiso para administrar pantallas aquí. Pide acceso a pantallas a un gerente.",
+    "orders": "No tienes permiso para gestionar pedidos aquí. Pide a un gerente que agregue acceso a pedidos a tu rol."
+  },
+  "restaurantDiscounts": {
+    "title": "Descuentos del POS",
+    "desc": "Los descuentos que tu personal puede aplicar en la caja.",
+    "intro": "El personal solo puede aplicar en la caja los descuentos activos de abajo. Los gerentes aún pueden ingresar un descuento puntual.",
+    "empty": "Aún no hay descuentos. Agrega uno abajo.",
+    "listLabel": "Descuentos",
+    "percentValue": "{{value}}% de descuento",
+    "maxShort": "máx. {{amount}}",
+    "minShort": "pedidos de más de {{amount}}",
+    "needsApproval": "requiere aprobación de un gerente",
+    "inactive": "inactivo",
+    "activate": "Activar",
+    "deactivate": "Desactivar",
+    "addTitle": "Agregar un descuento",
+    "code": "Código",
+    "name": "Nombre que se ve en la caja",
+    "kind": "Tipo",
+    "kindPercent": "Porcentaje",
+    "kindFixed": "Monto fijo",
+    "valuePercent": "Porcentaje (1–100)",
+    "valueAmount": "Monto",
+    "maxDiscount": "Descuento máximo (opcional)",
+    "minSubtotal": "Pedido mínimo (opcional)",
+    "requiresApproval": "Siempre requiere el PIN de un gerente",
+    "add": "Agregar descuento",
+    "saved": "Guardado",
+    "saveError": "No se pudo guardar el descuento",
+    "invalid": "Revisa el código, el nombre y los montos.",
+    "thresholdLabel": "Aprobación de gerente por encima de este monto de descuento",
+    "thresholdHint": "Cualquier descuento mayor a este monto requiere el PIN de un gerente. Déjalo vacío para no tener límite.",
+    "thresholdOwnerOnly": "Solo el propietario puede cambiar el límite de aprobación.",
+    "thresholdNone": "Sin límite",
+    "saveThreshold": "Guardar límite"
   }
 }

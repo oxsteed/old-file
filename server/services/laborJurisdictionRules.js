@@ -199,6 +199,72 @@ function weekKey(dateStr) {
   return d.toISOString().slice(0, 10);
 }
 
+// ── Federal under-16 rules (FLSA, 29 CFR 570.35) ─────────────────────
+// 3h on a school day, 18h in a school week, 8h on a non-school day, 40h in a
+// non-school week, only between 07:00 and 19:00 (21:00 from June 1 through
+// Labor Day). The school calendar is not known here, so school-year
+// weekdays (after Labor Day through May 31) are treated as school days and
+// the warning says so. Advisory, like everything in this engine.
+const FLSA_UNDER_16 = {
+  school_day_hours: 3, school_week_hours: 18, non_school_day_hours: 8, non_school_week_hours: 40,
+  earliest_start: '07:00', latest_end: '19:00', summer_latest_end: '21:00',
+};
+function laborDay(year) {
+  const d = new Date(Date.UTC(year, 8, 1));
+  while (d.getUTCDay() !== 1) d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+function isSummer(dateStr) {
+  const year = Number(String(dateStr).slice(0, 4));
+  return dateStr >= `${year}-06-01` && dateStr <= laborDay(year);
+}
+function isSchoolDay(dateStr) {
+  const dow = new Date(`${dateStr}T12:00:00Z`).getUTCDay();
+  return dow >= 1 && dow <= 5 && !isSummer(dateStr);
+}
+function under16Warnings(userId, mine, list) {
+  const out = [];
+  const L = FLSA_UNDER_16;
+  const hoursOn = (day) => list.filter((s) => String(s.shift_date) === day).reduce((a, s) => a + shiftHours(s), 0);
+  for (const s of mine) {
+    const day = String(s.shift_date);
+    const start = String(s.start_time || '').slice(0, 5);
+    const end = String(s.end_time || '').slice(0, 5);
+    const latest = isSummer(day) ? L.summer_latest_end : L.latest_end;
+    if (start && start < L.earliest_start) out.push({ rule: 'minor_u16_window', severity: 'warn', user_id: userId, shift_ids: [Number(s.id)],
+      message: `Under-16 shift on ${day} starts at ${start}; federal law allows work from ${L.earliest_start}.` });
+    if (end && (end > latest || end <= start)) out.push({ rule: 'minor_u16_window', severity: 'warn', user_id: userId, shift_ids: [Number(s.id)],
+      message: `Under-16 shift on ${day} ends at ${end}; federal law allows work until ${latest}.` });
+    const limit = isSchoolDay(day) ? L.school_day_hours : L.non_school_day_hours;
+    if (hoursOn(day) > limit) out.push({ rule: 'minor_u16_daily', severity: 'warn', user_id: userId, shift_ids: [Number(s.id)],
+      message: `Under-16 scheduled ${hoursOn(day).toFixed(1)}h on ${day}; limit ${limit}h${isSchoolDay(day) ? ' on a school day (if school is in session)' : ''}.` });
+  }
+  for (const wk of new Set(mine.map((s) => weekKey(String(s.shift_date))))) {
+    const weekShifts = list.filter((s) => weekKey(String(s.shift_date)) === wk);
+    const hours = weekShifts.reduce((a, s) => a + shiftHours(s), 0);
+    const schoolWeek = weekShifts.some((s) => isSchoolDay(String(s.shift_date))) || isSchoolDay(wk);
+    const limit = schoolWeek ? L.school_week_hours : L.non_school_week_hours;
+    if (hours > limit) out.push({ rule: 'minor_u16_weekly', severity: 'warn', user_id: userId, shift_ids: mine.map((s) => Number(s.id)),
+      message: `Under-16 scheduled ${hours.toFixed(1)}h in week of ${wk}; limit ${limit}h${schoolWeek ? ' in a school week (if school is in session)' : ''}.` });
+  }
+  return out;
+}
+
+// ── Fair Workweek: changes to a published shift ─────────────────────
+// Inside the notice window an employer-initiated edit or cancellation owes
+// predictability pay (amount set by local law; recorded, not computed).
+// Employee-requested changes (swaps, their own request) are recorded with
+// no premium. Pure.
+function evaluateChange({ before, after = null, rules, now = new Date(), employeeRequested = false }) {
+  const r = rules || resolveRules(null);
+  const starts = [before, after].filter(Boolean).map((s) => shiftStartDateTime(s).getTime());
+  const soonest = Math.min(...starts);
+  const hoursBeforeStart = Math.round(((soonest - now.getTime()) / 3600000) * 100) / 100;
+  const notice = r.schedule_notice_hours == null ? null : Number(r.schedule_notice_hours);
+  const premiumDue = !employeeRequested && notice != null && hoursBeforeStart >= 0 && hoursBeforeStart < notice;
+  return { premium_due: premiumDue, hours_before_start: hoursBeforeStart, notice_hours: notice, jurisdiction_code: r.jurisdiction_code };
+}
+
 /**
  * Evaluate a batch of shifts (the ones about to be published) against the
  * location's native rules. existingShifts are already-published shifts in
@@ -303,14 +369,21 @@ function evaluateSchedule(shifts, { rules, existingShifts = [], now = new Date()
     }
 
     // ── Minor hour limits ────────────────────────────────────────────
-    if (mine.some((s) => s.is_minor)) {
+    // State limits come from the jurisdiction row; the federal under-16
+    // rules (FLSA child labor, 29 CFR 570.35) apply everywhere on top.
+    const minorShifts = mine.filter((s) => s.is_minor || s.minor_band);
+    if (minorShifts.length) {
+      const publishDays = new Set(minorShifts.map((s) => String(s.shift_date)));
+      const dayHours = new Map();
+      const weekHours = new Map();
+      for (const s of list) {
+        dayHours.set(String(s.shift_date), (dayHours.get(String(s.shift_date)) || 0) + shiftHours(s));
+        const wk = weekKey(String(s.shift_date));
+        weekHours.set(wk, (weekHours.get(wk) || 0) + shiftHours(s));
+      }
       if (r.minor_max_daily_hours != null) {
-        const byDay = new Map();
-        for (const s of list) {
-          const key = String(s.shift_date);
-          byDay.set(key, (byDay.get(key) || 0) + shiftHours(s));
-        }
-        for (const [day, hours] of byDay) {
+        for (const day of publishDays) {
+          const hours = dayHours.get(day) || 0;
           if (hours > Number(r.minor_max_daily_hours)) {
             warnings.push({
               rule: 'minor_daily_hours', severity: 'warn', user_id: userId, shift_ids: shiftIds,
@@ -319,10 +392,22 @@ function evaluateSchedule(shifts, { rules, existingShifts = [], now = new Date()
           }
         }
       }
+      if (r.minor_max_weekly_hours != null) {
+        for (const wk of new Set([...publishDays].map(weekKey))) {
+          const hours = weekHours.get(wk) || 0;
+          if (hours > Number(r.minor_max_weekly_hours)) {
+            warnings.push({
+              rule: 'minor_weekly_hours', severity: 'warn', user_id: userId, shift_ids: shiftIds,
+              message: `Minor scheduled ${hours.toFixed(1)}h in week of ${wk} (limit ${r.minor_max_weekly_hours}h).`,
+            });
+          }
+        }
+      }
       if (r.minor_latest_end_time) {
-        for (const s of mine) {
+        for (const s of minorShifts) {
           const end = String(s.end_time || '').slice(0, 5);
-          if (end && end > String(r.minor_latest_end_time).slice(0, 5)) {
+          const overnight = shiftHours(s) > 0 && end <= String(s.start_time || '').slice(0, 5);
+          if (end && (overnight || end > String(r.minor_latest_end_time).slice(0, 5))) {
             warnings.push({
               rule: 'minor_latest_end', severity: 'warn', user_id: userId, shift_ids: [Number(s.id)],
               message: `Minor shift on ${s.shift_date} ends at ${end} (limit ${r.minor_latest_end_time}).`,
@@ -330,6 +415,8 @@ function evaluateSchedule(shifts, { rules, existingShifts = [], now = new Date()
           }
         }
       }
+      const under16 = minorShifts.filter((s) => s.minor_band === 'under_16');
+      if (under16.length) warnings.push(...under16Warnings(userId, under16, list));
     }
 
     // ── Predictive-scheduling advance notice ─────────────────────────
@@ -356,4 +443,8 @@ module.exports = {
   resolveRules,
   getJurisdiction,
   evaluateSchedule,
+  evaluateChange,
+  FLSA_UNDER_16,
+  isSchoolDay,
+  isSummer,
 };

@@ -1,0 +1,103 @@
+{
+  "_note": "D24: English is the source. Every other language is a MACHINE DRAFT that needs professional translation review before the notice can be scheduled. Do not change a status to professionally_reviewed without a real reviewer reference; use server/scripts/noticeTranslationStatus.js --mark-reviewed.",
+  "languages": {
+    "en": {
+      "status": "source"
+    },
+    "es": {
+      "status": "machine_draft",
+      "review_ref": null,
+      "reviewed_digest": null
+    },
+    "fr": {
+      "status": "machine_draft",
+      "review_ref": null,
+      "reviewed_digest": null
+    },
+    "ht": {
+      "status": "machine_draft",
+      "review_ref": null,
+      "reviewed_digest": null
+    },
+    "ar": {
+      "status": "machine_draft",
+      "review_ref": null,
+      "reviewed_digest": null
+    },
+    "de": {
+      "status": "machine_draft",
+      "review_ref": null,
+      "reviewed_digest": null
+    },
+    "it": {
+      "status": "machine_draft",
+      "review_ref": null,
+      "reviewed_digest": null
+    },
+    "pt": {
+      "status": "machine_draft",
+      "review_ref": null,
+      "reviewed_digest": null
+    },
+    "zh": {
+      "status": "machine_draft",
+      "review_ref": null,
+      "reviewed_digest": null
+    },
+    "ja": {
+      "status": "machine_draft",
+      "review_ref": null,
+      "reviewed_digest": null
+    },
+    "ko": {
+      "status": "machine_draft",
+      "review_ref": null,
+      "reviewed_digest": null
+    },
+    "ru": {
+      "status": "machine_draft",
+      "review_ref": null,
+      "reviewed_digest": null
+    },
+    "id": {
+      "status": "machine_draft",
+      "review_ref": null,
+      "reviewed_digest": null
+    },
+    "sw": {
+      "status": "machine_draft",
+      "review_ref": null,
+      "reviewed_digest": null
+    },
+    "vi": {
+      "status": "machine_draft",
+      "review_ref": null,
+      "reviewed_digest": null
+    },
+    "hi": {
+      "status": "machine_draft",
+      "review_ref": null,
+      "reviewed_digest": null
+    },
+    "bn": {
+      "status": "machine_draft",
+      "review_ref": null,
+      "reviewed_digest": null
+    },
+    "ur": {
+      "status": "machine_draft",
+      "review_ref": null,
+      "reviewed_digest": null
+    },
+    "tr": {
+      "status": "machine_draft",
+      "review_ref": null,
+      "reviewed_digest": null
+    },
+    "th": {
+      "status": "machine_draft",
+      "review_ref": null,
+      "reviewed_digest": null
+    }
+  }
+}

@@ -235,6 +235,11 @@ const ENTRIES = [
     rationale: 'Display pairing-token verification cache: 5min positive / 60s negative TTL, 5000-entry cap, keyed by token SHA-256 (raw token never a key). Backing store is PostgreSQL display_pairings; revocation/unpairing propagates within the TTL. Cache misses fail closed to the anonymous bucket.',
   },
   {
+    file: 'middleware/restaurantRequestAudit.js', name: 'businessCache',
+    classification: 'cache', shared: 'none',
+    rationale: 'Restaurant-to-business lookup cache for the F-20 baseline audit: 10min freshness, 5000-entry cap with clear. Backing truth is PostgreSQL food_restaurants; staleness only delays a business_id change reaching audit entries.',
+  },
+  {
     file: 'services/openRouterSpendGuard.js', name: 'localSpend',
     classification: 'cache', shared: 'redis',
     rationale: 'Development-only daily AI budget reservations; production requires atomic Redis reservations and fails closed when unavailable. One current UTC day is retained.',

@@ -131,6 +131,43 @@ const staffNotifications = {
       ar: 'تم قبول طلبك لـ {openingTitle} بصفة {role}.',
     },
   },
+  // S-19: schedule publishing and time-off decisions.
+  crew_shift_published: {
+    title: {
+      en: 'New shifts published', es: 'Nuevos turnos publicados', fr: 'Nouveaux quarts publiés',
+      ht: 'Nouvo orè travay pibliye', ar: 'تم نشر نوبات جديدة',
+    },
+    body: {
+      en: '{count} shift(s) at {businessName}. First: {shiftLabel}.',
+      es: '{count} turno(s) en {businessName}. Primero: {shiftLabel}.',
+      fr: '{count} quart(s) chez {businessName}. Premier : {shiftLabel}.',
+      ht: '{count} orè travay nan {businessName}. Premye a: {shiftLabel}.',
+      ar: '{count} نوبة في {businessName}. الأولى: {shiftLabel}.',
+    },
+  },
+  time_off_decided: {
+    title: {
+      en: 'Time-off request {decision}', es: 'Solicitud de tiempo libre {decision}', fr: 'Demande de congé {decision}',
+      ht: 'Demann konje {decision}', ar: 'طلب الإجازة {decision}',
+    },
+    body: {
+      en: 'Your request for {startDate} to {endDate} was {decision}.',
+      es: 'Tu solicitud del {startDate} al {endDate} fue {decision}.',
+      fr: 'Votre demande du {startDate} au {endDate} a été {decision}.',
+      ht: 'Demann ou pou {startDate} rive {endDate} te {decision}.',
+      ar: 'طلبك من {startDate} إلى {endDate} {decision}.',
+    },
+  },
 };
 
-module.exports = { staffNotifications, staffRoleNames, staffRoleName };
+const staffDecisionNames = {
+  approved: { en: 'approved', es: 'aprobada', fr: 'approuvée', ht: 'apwouve', ar: 'تمت الموافقة عليه' },
+  denied: { en: 'declined', es: 'rechazada', fr: 'refusée', ht: 'refize', ar: 'تم رفضه' },
+};
+function staffDecisionName(decision, lang = 'en') {
+  const entry = staffDecisionNames[String(decision || '').toLowerCase()];
+  if (!entry) return String(decision || '');
+  return entry[lang] || entry.en;
+}
+
+module.exports = { staffNotifications, staffRoleNames, staffRoleName, staffDecisionName };

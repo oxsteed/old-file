@@ -148,10 +148,11 @@ export default function PosStaffSessionBar({ restaurantId }) {
         </button>
       )}
       {pinOpen && (
-        <div className="fd-modal-overlay" onClick={() => setPinOpen(false)}>
-          <div className="fd-modal fd-pos-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="fd-modal-overlay" role="presentation" onClick={() => setPinOpen(false)} onKeyDown={(e) => { if (e.key === 'Escape') setPinOpen(false); }}>
+          <div className="fd-modal fd-pos-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
             <h3>{t('food.pos.enterStaffPin')}</h3>
             <input
+              aria-label={t('food.pos.enterStaffPin')}
               className="fd-modal-input"
               type="password"
               inputMode="numeric"

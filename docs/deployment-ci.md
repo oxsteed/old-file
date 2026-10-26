@@ -149,3 +149,48 @@ Local verification on 2026-09-21:
   archived guides' original whitespace. The existing Vite large-chunk warning remains.
 
 No production deployment or live financial activity was performed for this repair.
+
+## Default branch protection (N-05, 2026-10-26)
+
+On Oct 25 seven commits (including the `3466d3a1` runtime feature) were pushed
+straight to `old-files-claude` with no PR, and the branch stayed red for about
+15.5 hours across five CI runs. Process rule from now on:
+
+1. **All changes reach `old-files-claude` through a pull request.** No direct
+   pushes, including "small" fixes and docs. Agents and humans alike.
+2. **Merge only with green CI.** All four CI jobs are required:
+   `Server and Client Verification`, `Disposable Media safety and upload
+   harness`, `PostgreSQL migration rehearsal`, `ClickHouse growth schema
+   rehearsal`. A flake gets a rerun of only the failed job; a Media harness
+   failure caused only by registry 429s gets a rerun of that job. Never merge
+   red.
+3. **Merge commits, not squash or rebase,** so the PR's logical commits stay
+   reviewable in history.
+4. **No force-pushes** to the default branch, ever.
+
+Enforcement is a repository-settings change that only a repository admin
+should make (it is deliberately not automated from this repo). The intended
+settings, for the owner to apply in *Settings → Branches* or with the GitHub
+API:
+
+- Require a pull request before merging (0 required approvals is acceptable
+  for a solo owner; raise it when reviewers exist).
+- Require status checks to pass, strict (branch up to date), with the four
+  job names above.
+- Do not allow force pushes or deletions.
+- Include administrators, so the rule also binds the owner's own tokens.
+
+```bash
+# Owner-run example; review before running. Not executed by automation.
+gh api -X PUT repos/oxsteed/old-file/branches/old-files-claude/protection \
+  -H "Accept: application/vnd.github+json" \
+  -F required_status_checks[strict]=true \
+  -f "required_status_checks[contexts][]=Server and Client Verification" \
+  -f "required_status_checks[contexts][]=Disposable Media safety and upload harness" \
+  -f "required_status_checks[contexts][]=PostgreSQL migration rehearsal" \
+  -f "required_status_checks[contexts][]=ClickHouse growth schema rehearsal" \
+  -F enforce_admins=true \
+  -F required_pull_request_reviews[required_approving_review_count]=0 \
+  -F restrictions= \
+  -F allow_force_pushes=false -F allow_deletions=false
+```

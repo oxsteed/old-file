@@ -1,5 +1,6 @@
 // Shared OxSteed Food UI bits. The logo is the same OxSteed mark used in the
 // main navbar - the Food experience reuses the brand identity by design.
+import i18next from 'i18next';
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -80,7 +81,16 @@ export const FOOD_STATUS_KEYS = {
 };
 
 // Shared API error extractor (was copy-pasted across the food pages).
+// N-07: restaurant permission denials carry fields.permission_area; show the
+// localized "you can't use the register / kitchen / ..." copy instead of the
+// server's English sentence.
+export const RESTAURANT_PERMISSION_AREAS = ['pos', 'kitchen', 'runner', 'menu', 'settings', 'refunds', 'display', 'orders'];
 export function apiErrorMessage(err, fallback) {
+  const area = err?.response?.data?.fields?.permission_area;
+  if (err?.response?.status === 403 && RESTAURANT_PERMISSION_AREAS.includes(area) && i18next.isInitialized) {
+    const key = `restaurantPermissionDenied.${area}`;
+    if (i18next.exists(key)) return i18next.t(key);
+  }
   const message = err?.response?.data?.error?.message
     || err?.response?.data?.message
     || err?.response?.data?.error;

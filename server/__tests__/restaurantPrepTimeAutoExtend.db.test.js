@@ -29,7 +29,9 @@ jest.mock('../services/scopeModel', () => ({
 
 const { resolveRestaurantAccess } = require('../services/scopeModel');
 
-describe('F-33 auto prep-time extension', () => {
+// N-09: without the disposable CI database this suite is skipped like the
+// other *.db suites instead of failing its beforeAll assertion.
+(usingDisposableDb ? describe : describe.skip)('F-33 auto prep-time extension', () => {
   let pool;
   let app;
   let prep;

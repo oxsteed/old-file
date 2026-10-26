@@ -65,3 +65,26 @@ migrations (`934_growth_notice_content_digest.sql` through
 migration is renamed or repurposed. The next growth changes use the first free
 numbers after the current tail: `956_growth_jurisdiction_optout_rules.sql`
 and `957_growth_campaign_personalization.sql`.
+
+## Ordering policy (D-ENG-11, 2026-10-26)
+
+`server/migrate.js` applies files in plain JavaScript string order
+(`Array.prototype.sort()` on file names). It does **not** parse numbers. The
+historical order therefore is lexical, and the `999xx` band runs after `998`
+only because `"999…" > "998…"` as strings. That is intentional and frozen:
+
+1. **Never rename, renumber or edit an applied migration.** The CI guard
+   (`scripts/check-migration-history.cjs`) fails a PR that changes or removes
+   an existing file.
+2. **Every new file must sort after the current last file** and use an
+   unused prefix. The same guard enforces this against the PR base.
+3. **Use the next free number in the current band.** As of this note the tail
+   is `99991_growth_age_verification.sql`; `99992`–`99999` remain.
+4. **After `99999`, switch to a letter band:** `A00001_…`, `A00002_…`, then
+   `B00001_…` when `A99999` is reached. Uppercase ASCII letters sort after
+   digits, so these append correctly without touching history. Do **not** use
+   `100000_…`: it sorts before `99999_…` and the guard rejects it.
+5. Gaps (`938`, `943`, `99915`) stay gaps. They are recorded, not filled.
+6. Two PRs that pick the same next number: the second to merge must rebase
+   and take the next free number before merging (the guard runs on the PR
+   base, so it catches the collision once the first PR lands).

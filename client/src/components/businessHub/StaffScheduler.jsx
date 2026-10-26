@@ -2,8 +2,9 @@ import React, { useState, useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
-import { Plus, Trash2, Clock, Users, LogIn, LogOut, Send, CalendarOff } from 'lucide-react';
+import { Plus, Trash2, Clock, Users, LogIn, LogOut, Send, CalendarOff, Scale } from 'lucide-react';
 import ConfirmDialog from '../../admin/lib/ConfirmDialog';
+import StaffLaborRulesPanel from './StaffLaborRulesPanel';
 
 const TABS = ['shifts', 'time', 'timeOff'];
 
@@ -86,7 +87,13 @@ export function StaffScheduler({ businessId, isManager = false }) {
   // S-24: deletion goes through ConfirmDialog; the actual delete runs here.
   const confirmDeleteShift = async () => {
     if (!deleteTarget) return;
-    try { await api.delete(`/businesses/${businessId}/staff/shifts/${deleteTarget}`); toast.success(t('businessHub.staffScheduler.toastDeleted')); loadShifts(); }
+    try {
+      const res = await api.delete(`/businesses/${businessId}/staff/shifts/${deleteTarget}`);
+      toast.success(t('businessHub.staffScheduler.toastDeleted'));
+      // S-20: cancelling a published shift inside the notice window owes predictability pay.
+      if (res.data?.schedule_change?.premium_due) toast(t('businessHub.staffScheduler.labor.premiumToast', { code: res.data.schedule_change.jurisdiction_code }), { icon: '⚠️' });
+      loadShifts();
+    }
     catch { toast.error(t('common.failed')); }
   };
 
@@ -151,6 +158,7 @@ export function StaffScheduler({ businessId, isManager = false }) {
     ['shifts', t('businessHub.staffScheduler.tabs.shifts'), <Users size={14} />],
     ['time', t('businessHub.staffScheduler.tabs.timeEntries'), <Clock size={14} />],
     ['timeOff', t('businessHub.staffScheduler.tabs.timeOff'), <CalendarOff size={14} />],
+    ...(isManager ? [['labor', t('businessHub.staffScheduler.tabs.labor'), <Scale size={14} />]] : []),
   ];
   const activeTabIndex = Math.max(0, tabDefs.findIndex(([id]) => id === tab));
 
@@ -340,6 +348,9 @@ export function StaffScheduler({ businessId, isManager = false }) {
             </div>
           ))}
         </div>
+      )}
+      {tab === 'labor' && isManager && (
+        <StaffLaborRulesPanel businessId={businessId} staffMembers={staffMembers} staffName={staffName} />
       )}
       </div>
 

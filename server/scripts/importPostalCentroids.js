@@ -238,14 +238,41 @@ async function importAdmin1File(file, version, db = require("../db")) {
   if (batch.length) await flush();
   return { imported, rejected, attribution: ATTRIBUTION };
 }
+// D16: GeoNames load and the regional analytics switch happen together.
+// The load commits first (it is idempotent and keyed by country+postal); the
+// switch then runs in its own transaction so a refused switch (empty or
+// regressed coverage) leaves analytics on the previous source.
+async function importAndSwitch(file, version, { conn = require("../db"), userId = null } = {}) {
+  const loaded = await importFile(file, version);
+  const geoSwitch = require("../analytics/regionGeoSourceSwitch");
+  const client = await conn.connect();
+  let result;
+  try {
+    await client.query("BEGIN");
+    result = await geoSwitch.switchToCentroids(client, { sourceVersion: version, userId });
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+  await geoSwitch.notifyAdminsOfResult(conn, result);
+  return { loaded, switch: { switched: !!result.switched, reason: result.reason || null, id: result.id || null } };
+}
+
 if (require.main === module) {
   // Usage:
   //   node importPostalCentroids.js postal <file> <version>
   //   node importPostalCentroids.js cities <file> <version>
   //   node importPostalCentroids.js admin1 <file> <version>
+  //   node importPostalCentroids.js postal-and-switch <file> <version>
+  //     (D16: load, then flip regional analytics to the centroids in the
+  //      same run, with coverage guard, admin notice and rollback setting)
   //   node importPostalCentroids.js <file> <version>   (legacy: postal mode)
   const modes = {
     postal: importFile,
+    "postal-and-switch": importAndSwitch,
     cities: importCitiesFile,
     admin1: importAdmin1File,
   };
@@ -274,6 +301,7 @@ if (require.main === module) {
     });
 }
 module.exports = {
+  importAndSwitch,
   parse,
   importFile,
   parseCitiesLine,

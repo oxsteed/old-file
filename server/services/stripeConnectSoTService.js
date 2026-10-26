@@ -49,7 +49,7 @@ async function loadPrimaryRestaurantConnect(client, businessId) {
 
 async function businessHasRestaurants(client, businessId) {
   const { rows } = await client.query(
-    `SELECT 1 FROM food_restaurants WHERE business_id = $1 LIMIT 1`,
+    `SELECT 1 FROM food_restaurants WHERE business_id = $1 ORDER BY id ASC LIMIT 1`,
     [businessId],
   );
   return Boolean(rows[0]);

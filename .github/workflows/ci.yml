@@ -76,6 +76,9 @@ jobs:
       - name: Scale harness regression tests (V2-P1-05)
         run: node --test scripts/scale/scale-harness.test.cjs
 
+      - name: Growth load test and replica-kill drill tooling tests (D-ENG-08)
+        run: node --test scripts/growth/loadDrill.test.cjs
+
       - name: Isolated Credit fixture regression tests
         run: node --test scripts/credit-isolated-seed.test.cjs scripts/media-credit-isolated.test.cjs scripts/pull-ci-redis.test.cjs
 
@@ -85,7 +88,13 @@ jobs:
 
       - name: Client src unit tests
         working-directory: client
-        run: node --test src/**/*.test.mjs
+        # N-10: bash without globstar expands src/**/*.test.mjs one level deep
+        # only, silently skipping nested folders. find walks every depth.
+        run: |
+          mapfile -d '' tests < <(find src -name '*.test.mjs' -not -path '*/node_modules/*' -print0 | sort -z)
+          echo "Running ${#tests[@]} client src test files"
+          test "${#tests[@]}" -gt 0
+          node --test "${tests[@]}"
 
       - name: Growth instrumentation coverage check
         working-directory: client
@@ -254,7 +263,31 @@ jobs:
             finally { await db.end(); }
           })().catch(error => { console.error(error.message); process.exitCode = 1; });
           NODE
-          npx jest --runInBand __tests__/restaurantStoreIsolation.db.test.js __tests__/restaurantServiceCycle.db.test.js __tests__/restaurantIntegrationRuntime.db.test.js
+          npx jest --runInBand __tests__/restaurantStoreIsolation.db.test.js __tests__/restaurantServiceCycle.db.test.js __tests__/restaurantIntegrationRuntime.db.test.js __tests__/restaurantTerminalOfflineLeases.db.test.js __tests__/restaurantDeviceStatusConvergence.db.test.js
+
+      - name: Restaurant time clock and POS discount PostgreSQL regressions
+        working-directory: server
+        env:
+          ST_T3_TEST_DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/st_t3?sslmode=disable
+          RESTAURANT_DISCOUNT_TEST_DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/st_f15?sslmode=disable
+        run: |
+          node - <<'NODE'
+          const { Client } = require('pg');
+          const db = new Client({ connectionString: process.env.ST_T3_TEST_DATABASE_URL.replace('/st_t3','/postgres') });
+          (async () => {
+            await db.connect();
+            try {
+              for (const name of ['st_t3', 'st_f15']) {
+                for (let attempt=0;;attempt++) {
+                  try { await db.query(`CREATE DATABASE ${name} TEMPLATE credit_statement_test`); break; }
+                  catch (error) { if (error.code !== '55006' || attempt >= 4) throw error; await new Promise(resolve=>setTimeout(resolve,1000)); }
+                }
+              }
+            }
+            finally { await db.end(); }
+          })().catch(error => { console.error(error.message); process.exitCode = 1; });
+          NODE
+          npx jest --runInBand __tests__/businessTimeClock.db.test.js __tests__/staffFairWorkweek.db.test.js __tests__/restaurantDiscountDefinitions.db.test.js
 
       - name: Restaurant operational evidence PostgreSQL regressions
         working-directory: server
@@ -540,6 +573,31 @@ jobs:
           GROWTH_CLICKHOUSE_ADMIN_USER: default
           GROWTH_CLICKHOUSE_ADMIN_PASSWORD: synthetic-growth-only
         run: node scripts/verifyGrowthClickhouse.js
+
+      - name: Verify encrypted daily/weekly backups and the restore check
+        working-directory: server
+        env:
+          NODE_ENV: test
+          GROWTH_CLICKHOUSE_URL: http://127.0.0.1:8123
+          GROWTH_CLICKHOUSE_ADMIN_USER: default
+          GROWTH_CLICKHOUSE_ADMIN_PASSWORD: synthetic-growth-only
+        run: node scripts/verifyGrowthClickhouseBackups.js
+
+      - name: Growth ingest load smoke (D-ENG-08, synthetic rows, scratch table)
+        working-directory: .
+        env:
+          CLICKHOUSE_USER: default
+          CLICKHOUSE_PASSWORD: synthetic-growth-only
+        run: |
+          set -euo pipefail
+          sed -n '1,13p' server/migrations-clickhouse/C002_activity_events.sql \
+            | sed -e 's/growth.activity_events ON CLUSTER growth/loadtest.activity_events/' \
+                  -e "s/ReplicatedReplacingMergeTree('[^)]*)/ReplacingMergeTree/" > /tmp/loadtest.sql
+          auth=(-H "X-ClickHouse-User: $CLICKHOUSE_USER" -H "X-ClickHouse-Key: $CLICKHOUSE_PASSWORD")
+          curl -fsS "${auth[@]}" -X POST http://127.0.0.1:8123 -d 'CREATE DATABASE IF NOT EXISTS loadtest'
+          curl -fsS "${auth[@]}" -X POST http://127.0.0.1:8123 --data-binary @/tmp/loadtest.sql
+          node scripts/growth/clickhouse-load-test.cjs --url=http://127.0.0.1:8123 \
+            --table=loadtest.activity_events --eps=2000 --seconds=10 --p99-ms=3000
 
       - name: Remove ClickHouse fixture
         if: always()

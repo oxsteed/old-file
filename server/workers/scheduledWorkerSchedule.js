@@ -36,6 +36,9 @@ function buildSchedule() {
     ['safetySOSEscalation', options => require('../services/safetySOSService').escalateUnacknowledgedSOS(options), 60 * 1000, { limit: 50 }],
     ['ccpaErasure', options => require('../services/ccpaErasureService').processErasureJobs(options), 60 * 1000, { limit: 10 }],
     ['restaurantGiftCardDelivery', (options) => require('../services/restaurantGiftCardDelivery').processGiftCardDelivery(options), 60 * 1000, { limit: 20 }],
+    // F-08: expire offline-card leases, attach payments once their offline
+    // ticket is accepted, and chase unreported store-and-forward intents.
+    ['restaurantTerminalOfflineSweep', options => require('../services/restaurantTerminalOfflineLeases').sweep(options), 5 * 60 * 1000, { limit: 200 }],
     ['restaurantAccountingDelivery', options => require('../services/restaurantAccountingDelivery').processExports(options), 60 * 1000, { limit: 5 }],
     // [name, workerFn, intervalMs, options]
     ['normalizeLocations', normalizeLocations, 2 * 60 * 1000, { limit: 200 }],

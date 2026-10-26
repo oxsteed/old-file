@@ -8276,7 +8276,8 @@
       "tabs": {
         "shifts": "Shifts",
         "timeEntries": "Time Entries",
-        "timeOff": "Time Off"
+        "timeOff": "Time Off",
+        "labor": "Labor rules"
       },
       "clockIn": "Clock In",
       "addShift": "Add Shift",
@@ -8350,7 +8351,31 @@
       "toastClockInFail": "Failed to clock in",
       "toastClockedOut": "Clocked out!",
       "toastClockOutFail": "Failed to clock out",
-      "toastStaffRequired": "Please select a staff member"
+      "toastStaffRequired": "Please select a staff member",
+      "labor": {
+        "minorsTitle": "Minors",
+        "minorsHelp": "Mark staff under 18 so schedules are checked against minor hour and time limits. We store an age band and the date it ends, never a birth date.",
+        "band": "Age band",
+        "adult": "18 or older",
+        "under16": "Under 16",
+        "age1617": "16 or 17",
+        "until": "Band ends on",
+        "save": "Save",
+        "saved": "Saved.",
+        "saveFailed": "Couldn't save.",
+        "formerStaff": "Former staff member",
+        "changesTitle": "Changes to published shifts",
+        "changesHelp": "Where predictive-scheduling (Fair Workweek) rules apply, changing or cancelling a published shift inside the notice window owes the employee predictability pay. The amount is set by local law.",
+        "noChanges": "No changes to published shifts yet.",
+        "change": {
+          "edited": "Changed",
+          "deleted": "Cancelled"
+        },
+        "premiumDue": "Predictability pay owed ({{code}})",
+        "employeeRequested": "Requested by the employee: no premium",
+        "noPremium": "Outside the notice window: no premium",
+        "premiumToast": "This shift was inside the {{code}} notice window: predictability pay is owed."
+      }
     },
     "integrations": {
       "title": "Integrations & Settings",
@@ -9949,7 +9974,7 @@
       },
       "training_recertification_due": {
         "title": "Training recertification due",
-        "body": "Your certification for {{moduleTitle}} at {{restaurantName}} has expired. Please complete the training again."
+        "body": "Your certification for {{moduleTitle}} has expired. Please complete the training again."
       },
       "crew_shift_published": {
         "title": "New shift posted",
@@ -9970,10 +9995,6 @@
       "training_completed": {
         "title": "Training completed",
         "body": "{{moduleTitle}} was completed"
-      },
-      "training_recertification_due": {
-        "title": "Training recertification due",
-        "body": "Your certification for {{moduleTitle}} has expired. Please complete the training again."
       },
       "member_invite": {
         "title": "You have been invited to join {{businessName}}",
@@ -23289,7 +23310,8 @@
         "operations": "Operations",
         "payouts": "Payouts",
         "displays": "Displays",
-        "myshift": "My shift"
+        "myshift": "My shift",
+        "schedule": "Staff schedule"
       },
       "liveOrders": "Live orders",
       "noOrders": "No active orders right now.",
@@ -23676,7 +23698,8 @@
       "refundSuccess": "Refund issued",
       "refundError": "Unable to issue refund.",
       "cardPartialRefundUnsupported": "Partial refunds are not available for online card orders. Refund the full order or ask support for help.",
-      "cardRefundUseCancel": "Card orders are refunded by cancelling the order. The card refund happens automatically."
+      "cardRefundUseCancel": "Card orders are refunded by cancelling the order. The card refund happens automatically.",
+      "addAnotherRestaurant": "Add another restaurant"
     },
     "onboarding": {
       "eyebrow": "Opening Night",
@@ -24070,6 +24093,73 @@
       "todayRevenue": "Revenue",
       "viewStore": "View customer page",
       "viewStoreHint": "See exactly what customers see."
+    },
+    "timeClock": {
+      "title": "Time clock",
+      "clockedOut": "You are clocked out.",
+      "clockedInSince": "Clocked in since {{time}}.",
+      "onBreakSince": "On break since {{time}}.",
+      "clockIn": "Clock in",
+      "clockOut": "Clock out",
+      "startBreak": "Start break",
+      "endBreak": "End break",
+      "clockedInOk": "Clocked in",
+      "clockedOutOk": "Clocked out",
+      "breakStarted": "Break started",
+      "breakEnded": "Break ended",
+      "actionError": "That didn't go through. Try again.",
+      "myShifts": "My upcoming shifts",
+      "noShifts": "No published shifts yet.",
+      "recentPunches": "My recent punches",
+      "noPunches": "No punches in the last two weeks.",
+      "hours": "{{hours}} h",
+      "timeOff": "Time off",
+      "timeOffType": "Type",
+      "timeOffTypes": {
+        "vacation": "Vacation",
+        "sick": "Sick",
+        "personal": "Personal",
+        "unpaid": "Unpaid",
+        "other": "Other"
+      },
+      "from": "From",
+      "to": "To",
+      "reason": "Note for your manager (optional)",
+      "requestTimeOff": "Request time off",
+      "timeOffSent": "Request sent to your manager",
+      "timeOffInvalid": "Choose a start date and an end date on or after it.",
+      "myRequests": "My time-off requests",
+      "status": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "denied": "Declined",
+        "cancelled": "Cancelled",
+        "withdrawn": "Withdrawn"
+      }
+    },
+    "offlineCard": {
+      "title": "Offline card payments to review",
+      "intro": "Card payments taken during an outage that broke a limit, didn't match their order, or were never reported back. Accept keeps a payment Stripe confirms. Void is only possible when Stripe has no charge.",
+      "order": "Order #{{id}}",
+      "reasons": "Why it needs review",
+      "note": "Note (required)",
+      "noteRequired": "Add a short note first.",
+      "accept": "Accept payment",
+      "void": "Void (no charge)",
+      "accepted": "Payment accepted.",
+      "voided": "Payment voided.",
+      "failed": "Couldn't resolve this payment.",
+      "reason": {
+        "over_transaction_limit": "Over the per-sale offline limit",
+        "over_lease_budget": "Over this register's offline budget",
+        "outside_lease_window": "Taken outside the offline window",
+        "amount_differs_from_order": "Amount differs from the order total",
+        "order_already_paid": "Order was already paid another way (possible double charge)",
+        "order_already_has_offline_card": "Order already has an offline card payment",
+        "order_not_found": "Order not found for this store",
+        "not_reported": "Register never reported this payment",
+        "other": "Needs a manager check"
+      }
     }
   },
   "network": {
@@ -24782,7 +24872,22 @@
         "regionRoot": "Root region",
         "regionCreate": "Add region",
         "regionStores": "{{count}} store(s)",
-        "regionChild": "Nested region"
+        "regionChild": "Nested region",
+        "labor": {
+          "title": "Labor by store",
+          "overtimeNote": "Overtime counts each person's hours across all your stores, then shows it at the store where it was worked.",
+          "store": "Store",
+          "hours": "Hours worked",
+          "scheduled": "Scheduled",
+          "overtime": "Overtime hours",
+          "cost": "Labor cost",
+          "percent": "Labor %",
+          "staff": "Staff",
+          "total": "All stores",
+          "missingWages_one": "{{count}} without a wage",
+          "missingWages_other": "{{count}} without a wage",
+          "mixedCurrency": "Mixed currencies"
+        }
       },
       "brandHq": {
         "title": "Brand HQ",
@@ -36650,6 +36755,90 @@
       "business": "Business",
       "restaurant": "Restaurant"
     },
-    "analyticsStorageDescription": "In the EEA, UK, Switzerland and Québec, activity tracking and activity-based offers each require your consent. You can withdraw it in Settings. Applicable US states have a Do not sell or share control, including Global Privacy Control. Elsewhere the Analytics toggle controls Google Analytics and persistent device storage; activity is covered by this notice."
+    "analyticsStorageDescription": "In the EEA, UK, Switzerland and Québec, activity tracking and activity-based offers each require your consent. You can withdraw it in Settings. Applicable US states have a Do not sell or share control, including Global Privacy Control. Elsewhere the Analytics toggle controls Google Analytics and persistent device storage; activity is covered by this notice.",
+    "age": {
+      "title": "Age confirmation",
+      "why": "Personalized activity insights and offers are only available to adults. Confirm your age to make them available. Nothing is tracked until you do.",
+      "attest": "I confirm that I am 18 years of age or older.",
+      "confirm": "Confirm my age",
+      "verify": "Verify my age",
+      "confirmed": "Your age is confirmed.",
+      "withdraw": "Withdraw age confirmation and delete activity data"
+    },
+    "amazon": {
+      "title": "Amazon Associates",
+      "channelsNote": "Amazon offers are shown in the app and by push only, never by email. Amazon receives only the campaign tracking tag.",
+      "notConfigured": "Amazon Product Advertising API is not configured on the server.",
+      "disclosureHint": "Every Amazon offer's English disclosure must mention Amazon, for example: {{text}}",
+      "error": "That did not work ({{code}}).",
+      "search": "Search Amazon products",
+      "searchButton": "Search",
+      "draftOffer": "Draft Amazon offer ID to pin",
+      "pin": "Pin to draft offer",
+      "pinned": "Pinned {{asin}} to offer {{offer}}.",
+      "reportTitle": "Import a tracking-ID report",
+      "reportRef": "Report reference",
+      "periodStart": "Period start",
+      "periodEnd": "Period end",
+      "currency": "Currency",
+      "reportFile": "Report file (tab-separated)",
+      "importReport": "Import report",
+      "reportImported": "Imported {{tags}} tracking tags ({{mapped}} matched to campaigns).",
+      "reportDuplicate": "This report was already imported."
+    }
+  },
+  "adminOperationalNotices": {
+    "regionLabel": "Operational notices",
+    "dismiss": "Got it",
+    "regionGeoSource": {
+      "switchedTitle": "Regional analytics now use GeoNames postal centres",
+      "switchedBody": "Some regional numbers changed: {{usersBefore}} accounts were placed on a region before, {{usersAfter}} now. The before/after diff is kept, and an operator can roll back in one step.",
+      "rolledBackTitle": "Regional analytics geo source rolled back",
+      "rolledBackBody": "Regional analytics are back on the previous location source. Numbers return to the earlier basis."
+    }
+  },
+  "restaurantPermissionDenied": {
+    "pos": "You don't have permission to use the register (POS) here. Ask a manager to add POS access to your role.",
+    "kitchen": "You don't have permission to update the kitchen display here. Ask a manager to add kitchen access to your role.",
+    "runner": "You don't have permission to update deliveries and runners here. Ask a manager to add runner access to your role.",
+    "menu": "You don't have permission to change the menu here. Ask a manager for menu access.",
+    "settings": "You don't have permission to change this restaurant's settings. Ask the owner or a manager.",
+    "refunds": "You don't have permission to issue refunds here. Ask a manager to approve the refund.",
+    "display": "You don't have permission to manage displays here. Ask a manager for display access.",
+    "orders": "You don't have permission to manage orders here. Ask a manager to add order access to your role."
+  },
+  "restaurantDiscounts": {
+    "title": "POS discounts",
+    "desc": "The discounts your staff can apply at the register.",
+    "intro": "Only the active discounts below can be applied by staff at the register. Managers can still enter a one-off discount.",
+    "empty": "No discounts yet. Add one below.",
+    "listLabel": "Discounts",
+    "percentValue": "{{value}}% off",
+    "maxShort": "max {{amount}}",
+    "minShort": "orders over {{amount}}",
+    "needsApproval": "needs manager approval",
+    "inactive": "inactive",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "addTitle": "Add a discount",
+    "code": "Code",
+    "name": "Name shown at the register",
+    "kind": "Type",
+    "kindPercent": "Percent off",
+    "kindFixed": "Fixed amount off",
+    "valuePercent": "Percent (1–100)",
+    "valueAmount": "Amount",
+    "maxDiscount": "Maximum discount (optional)",
+    "minSubtotal": "Minimum order (optional)",
+    "requiresApproval": "Always needs a manager PIN",
+    "add": "Add discount",
+    "saved": "Saved",
+    "saveError": "Could not save the discount",
+    "invalid": "Check the code, name and amounts.",
+    "thresholdLabel": "Manager approval above this discount amount",
+    "thresholdHint": "Any discount larger than this amount needs a manager PIN. Leave empty for no threshold.",
+    "thresholdOwnerOnly": "Only the owner can change the approval threshold.",
+    "thresholdNone": "No threshold",
+    "saveThreshold": "Save threshold"
   }
 }

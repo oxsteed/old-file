@@ -906,6 +906,10 @@ describe("policy notice scheduling and provider webhooks", () => {
         return { rows: [] };
       }),
     };
+    // D24: this case is about suppression; translations are treated as
+    // professionally reviewed here (the review gate has its own tests).
+    const translations = require("../growth/noticeTranslations");
+    const ready = jest.spyOn(translations, "assertReadyToSchedule").mockReturnValue([]);
     const campaign = await policyNotice.schedule(conn, {
       user: { id: ADMIN_ID },
       plannedLastSendAt: new Date(Date.now() + 86400000).toISOString(),
@@ -920,6 +924,21 @@ describe("policy notice scheduling and provider webhooks", () => {
     expect(insert).toContain("business_broadcast_suppressions");
     expect(insert).toContain("('hard_bounce','complaint')");
     expect(insert).toContain("'suppressed'");
+    ready.mockRestore();
+  });
+
+  test("D24: schedule refuses while any notice language is a machine draft", async () => {
+    const conn = { query: jest.fn() };
+    await expect(
+      policyNotice.schedule(conn, {
+        user: { id: ADMIN_ID },
+        plannedLastSendAt: new Date(Date.now() + 86400000).toISOString(),
+        legalReviewRef: "legal-review-1",
+        translationReviewRef: "translation-review-1",
+        rightsReviewRef: "rights-review-1",
+      }),
+    ).rejects.toThrow("notice_translations_need_professional_review");
+    expect(conn.query).not.toHaveBeenCalled();
   });
 
   test("schedule refuses to run without all three review references", async () => {

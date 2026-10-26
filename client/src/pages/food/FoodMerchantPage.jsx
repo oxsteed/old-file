@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, Tv, CalendarDays, CreditCard, Building2, Network, WifiOff } from 'lucide-react';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 import api from '../../api/axios';
+import RestaurantOfflineCardQueue from './RestaurantOfflineCardQueue';
 import {
   listMyFoodRestaurants,
   createFoodRestaurant,
@@ -41,6 +42,8 @@ import RestaurantMyShiftPanel from './RestaurantMyShiftPanel';
 import { AuditsPanel } from './RestaurantAuditPanels';
 import { ReportsPanel } from './RestaurantReportsPanel';
 import PrinterSettingsPanel from './PrinterSettingsPanel';
+import RestaurantDiscountsPanel from './RestaurantDiscountsPanel';
+import { StaffScheduler } from '../../components/businessHub/StaffScheduler';
 import GiftCardProductsPanel from './GiftCardProductsPanel';
 import DisplayFleetPanel from './DisplayFleetPanel';
 import RestaurantHostingPanel from './RestaurantHostingPanel';
@@ -1912,6 +1915,17 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
           <PromotionsPanel t={t} restaurant={restaurant} bare />
         </SettingsCard>
 
+        <SettingsCard
+          icon={Tag}
+          title={t('restaurantDiscounts.title')}
+          desc={t('restaurantDiscounts.desc')}
+          cardKey="pos-discounts"
+          registerRef={registerCard}
+          wide
+        >
+          <RestaurantDiscountsPanel t={t} restaurant={restaurant} />
+        </SettingsCard>
+
         <PrinterSettingsPanel t={t} restaurant={restaurant} />
 
         <SettingsCard
@@ -2453,7 +2467,7 @@ function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
 }
 
 // ── Tab icon map ──────────────────────────────────────────────────────────────
-const TAB_ICONS = { home: Home, myshift: UserCheck, orders: Receipt, menu: UtensilsCrossed, payouts: Wallet, settings: Settings, operations: ClipboardList, displays: Tv };
+const TAB_ICONS = { home: Home, myshift: UserCheck, schedule: CalendarDays, orders: Receipt, menu: UtensilsCrossed, payouts: Wallet, settings: Settings, operations: ClipboardList, displays: Tv };
 
 function hasRestaurantPermission(restaurant, requested) {
   if (restaurant?.effective_role === 'owner' || restaurant?.permissions?.includes('*')) return true;
@@ -2515,6 +2529,9 @@ export default function FoodMerchantPage() {
     // S-02: every team member gets the "My shift" staff home, regardless of
     // management permissions.
     tabs.push('myshift');
+    // S-04: managers build and publish the staff schedule, approve time off
+    // and review punches here (same records as Business Hub > Staff).
+    if (canManageRestaurant) tabs.push('schedule');
     if (hasRestaurantPermission(selected, ['orders.view', 'orders.manage', 'kitchen.view', 'kitchen.update'])) tabs.push('orders');
     if (hasRestaurantPermission(selected, ['menu.view', 'menu.manage'])) tabs.push('menu');
     if (canManagePayouts || canManageCredit) tabs.push('payouts');
@@ -2634,6 +2651,17 @@ export default function FoodMerchantPage() {
               >
                 {t('food.merchant.openSetupGuide')}
               </button>
+              {/* F-02: a second restaurant is its own business workspace
+                  (own payouts, tax and staff); stores inside one restaurant
+                  are added under Settings > Locations. */}
+              <button
+                type="button"
+                className="fd-btn fd-btn-secondary fd-btn-sm"
+                onClick={() => navigate('/business-hub?create=restaurant')}
+                data-track="food_merchant_add_another_restaurant"
+              >
+                {t('food.merchant.addAnotherRestaurant')}
+              </button>
             </div>
           )}
         </div>
@@ -2718,7 +2746,10 @@ export default function FoodMerchantPage() {
             {selected && tab === 'orders' && <OrdersTab t={t} restaurant={selected} />}
             {selected && tab === 'menu' && <RestaurantMenuManager t={t} restaurant={selected} />}
             {selected && tab === 'payouts' && (
-              <RestaurantFinanceWorkspace key={selected.id} restaurant={selected} canManagePayouts={canManagePayouts} canManageCredit={canManageCredit} />
+              <>
+                <RestaurantFinanceWorkspace key={selected.id} restaurant={selected} canManagePayouts={canManagePayouts} canManageCredit={canManageCredit} />
+                {canManageRestaurant && <RestaurantOfflineCardQueue key={`offline-${selected.id}`} restaurant={selected} />}
+              </>
             )}
             {selected && tab === 'settings' && canViewSettings && (
               <SettingsTab
@@ -2730,6 +2761,11 @@ export default function FoodMerchantPage() {
                 }
                 onSetupChanged={() => setSetupKey((k) => k + 1)}
               />
+            )}
+            {selected && tab === 'schedule' && canManageRestaurant && selected.business_id && (
+              <div className="fd-section">
+                <StaffScheduler businessId={selected.business_id} isManager={canManageRestaurant} />
+              </div>
             )}
             {selected && tab === 'operations' && (
               <OperationsView

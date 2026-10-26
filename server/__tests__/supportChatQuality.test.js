@@ -44,6 +44,10 @@ function providerMock(replyFor) {
 }
 
 beforeEach(() => {
+  // The OpenRouter spend guard keeps an in-memory daily budget when Redis
+  // is absent; mocked replies carry no usage.cost, so reservations would
+  // accumulate across cases and trip the cap. Each case starts at zero.
+  require('../services/openRouterSpendGuard')._resetLocal();
   resetMocks();
   jest.clearAllMocks();
   snap._resetSnapshotCacheForTests();

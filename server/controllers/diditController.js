@@ -37,9 +37,17 @@ async function createSession(req, res) {
         } };
       }
 
-      if (existing?.didit_session_id && !['failed','declined','expired','abandoned','canceled','cancelled','duplicate'].includes(String(existing.didit_status).toLowerCase())) {
-        let saved = {};
-        if (existing.didit_session_payload_ciphertext) saved = JSON.parse(decrypt(existing.didit_session_payload_ciphertext));
+      // Reuse an open session only when its saved payload (URL/token) is
+      // present. Sessions created before migration 99988, or whose payload
+      // was cleared (e.g. a skipped status), have no URL to hand back; reusing
+      // them returned an empty session the client could never open, so a
+      // fresh session is created instead.
+      let saved = null;
+      if (existing?.didit_session_id && existing.didit_session_payload_ciphertext
+        && !['failed','declined','expired','abandoned','canceled','cancelled','duplicate','skipped'].includes(String(existing.didit_status).toLowerCase())) {
+        try { saved = JSON.parse(decrypt(existing.didit_session_payload_ciphertext)); } catch { saved = null; }
+      }
+      if (saved && (saved.verificationUrl || saved.verification_url)) {
         return { statusCode: 200, body: { ...saved, sessionId: existing.didit_session_id, session_id: existing.didit_session_id, reused: true, status: existing.didit_status } };
       }
 

@@ -2601,7 +2601,7 @@ exports.createRestaurant = async (req, res, next) => {
           throw new AppError('This business is not a restaurant business', 409, 'business_kind_mismatch');
         }
         const { rows: [existingRestaurant] } = await client.query(
-          'SELECT * FROM food_restaurants WHERE business_id = $1 LIMIT 1',
+          'SELECT * FROM food_restaurants WHERE business_id = $1 ORDER BY id ASC LIMIT 1',
           [businessId]
         );
         if (existingRestaurant) return existingRestaurant;

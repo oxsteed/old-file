@@ -1145,7 +1145,13 @@ async function sendBusinessInviteEmail(email, options = {}) {
   if (!safeEmail) return { success: false, error: 'Email is required' };
   const businessName = textSafe(options.businessName) || 'a business';
   const inviterName = textSafe(options.inviterName) || 'Someone';
-  const roleLabel = options.role === 'manager' ? copy.roleManager : copy.roleRepresentative;
+  // S-19: every invitable role gets its localized name (employees and
+  // support agents used to be labelled "representative").
+  const roleLabel = options.role === 'manager'
+    ? copy.roleManager
+    : options.role === 'representative'
+      ? copy.roleRepresentative
+      : require('./staffNotificationTemplates').staffRoleName(options.role, lang);
   const values = { business: businessName, inviter: inviterName, role: roleLabel };
   const subject = templateText(copy.subject, values);
   const rendered = renderOxSteedEmail({

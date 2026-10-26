@@ -99,8 +99,8 @@ export default function MemberPermissionsEditor({ businessId, member, onClose, o
   }
 
   return (
-    <div className="bh-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="bh-modal" style={{ maxWidth: '720px', width: '100%' }}>
+    <div className="bh-modal-overlay" role="presentation" onClick={(e) => e.target === e.currentTarget && onClose()} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
+      <div className="bh-modal" role="dialog" aria-modal="true" aria-label={t('businessHub.permissionsEditor.title')} style={{ maxWidth: '720px', width: '100%' }}>
         <h2>{t('businessHub.permissionsEditor.title')}</h2>
         <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)', marginBottom: '0.25rem' }}>
           {memberName}
@@ -151,7 +151,7 @@ export default function MemberPermissionsEditor({ businessId, member, onClose, o
                       </div>
                       {overridden && (
                         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
-                          <input
+                          <input aria-label={t('businessHub.permissionsEditor.reasonPlaceholder')}
                             type="text"
                             value={d.reason || ''}
                             placeholder={t('businessHub.permissionsEditor.reasonPlaceholder')}

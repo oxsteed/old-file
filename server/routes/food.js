@@ -2,6 +2,8 @@
 
 const express = require('express');
 const router = express.Router();
+// F-20: merchant writes on a restaurant (menu, tax, promotions, stores) are audited.
+router.use(require('../middleware/restaurantRequestAudit').foodMerchantRequestAudit);
 const { requireRestaurantAccess, scopeExempt } = require('../middleware/scopeGates');
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const ctrl = require('../controllers/foodController');

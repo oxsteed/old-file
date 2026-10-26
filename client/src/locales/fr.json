@@ -8276,7 +8276,8 @@
       "tabs": {
         "shifts": "Changements",
         "timeEntries": "Pointages",
-        "timeOff": "Congés"
+        "timeOff": "Congés",
+        "labor": "Règles du travail"
       },
       "clockIn": "Pointer",
       "addShift": "Ajouter un shift",
@@ -8350,7 +8351,31 @@
       "toastClockInFail": "Impossible de pointer",
       "toastClockedOut": "Pointage de sortie effectué !",
       "toastClockOutFail": "Impossible de pointer la sortie",
-      "toastStaffRequired": "Veuillez sélectionner un membre de l’équipe"
+      "toastStaffRequired": "Veuillez sélectionner un membre de l’équipe",
+      "labor": {
+        "minorsTitle": "Mineurs",
+        "minorsHelp": "Indiquez le personnel de moins de 18 ans pour vérifier les plannings selon les limites d'heures et d'horaires des mineurs. Nous enregistrons une tranche d'âge et sa date de fin, jamais une date de naissance.",
+        "band": "Tranche d'âge",
+        "adult": "18 ans ou plus",
+        "under16": "Moins de 16 ans",
+        "age1617": "16 ou 17 ans",
+        "until": "Fin de la tranche le",
+        "save": "Enregistrer",
+        "saved": "Enregistré.",
+        "saveFailed": "Impossible d'enregistrer.",
+        "formerStaff": "Ancien membre du personnel",
+        "changesTitle": "Modifications de créneaux publiés",
+        "changesHelp": "Là où s'appliquent les règles de planification prévisible (Fair Workweek), modifier ou annuler un créneau publié dans le délai de préavis donne droit à une indemnité de prévisibilité. Le montant est fixé par la loi locale.",
+        "noChanges": "Aucune modification de créneau publié pour l'instant.",
+        "change": {
+          "edited": "Modifié",
+          "deleted": "Annulé"
+        },
+        "premiumDue": "Indemnité de prévisibilité due ({{code}})",
+        "employeeRequested": "Demandé par l'employé : pas d'indemnité",
+        "noPremium": "Hors délai de préavis : pas d'indemnité",
+        "premiumToast": "Ce créneau était dans le délai de préavis {{code}} : une indemnité de prévisibilité est due."
+      }
     },
     "integrations": {
       "title": "Intégrations et paramètres",
@@ -9948,8 +9973,8 @@
         "body": "{{moduleTitle}} chez {{restaurantName}}"
       },
       "training_recertification_due": {
-        "title": "Recertification à renouveler",
-        "body": "Votre certification {{moduleTitle}} chez {{restaurantName}} a expiré. Veuillez suivre à nouveau la formation."
+        "title": "Recertification de formation due",
+        "body": "Votre certification pour {{moduleTitle}} a expiré. Veuillez refaire la formation."
       },
       "crew_shift_published": {
         "title": "Nouveau poste publié",
@@ -9970,10 +9995,6 @@
       "training_completed": {
         "title": "Formation terminée",
         "body": "{{moduleTitle}} a été terminée"
-      },
-      "training_recertification_due": {
-        "title": "Recertification de formation due",
-        "body": "Votre certification pour {{moduleTitle}} a expiré. Veuillez refaire la formation."
       },
       "member_invite": {
         "title": "Vous avez été invité à rejoindre {{businessName}}",
@@ -23289,7 +23310,8 @@
         "operations": "Opérations",
         "payouts": "Paiements",
         "displays": "Écrans",
-        "myshift": "Mon poste"
+        "myshift": "Mon poste",
+        "schedule": "Planning de l’équipe"
       },
       "liveOrders": "Commandes en direct",
       "noOrders": "Aucune commande active pour le moment.",
@@ -23676,7 +23698,8 @@
       "refundSuccess": "Remboursement émis",
       "refundError": "Impossible d’émettre le remboursement.",
       "cardPartialRefundUnsupported": "Les remboursements partiels ne sont pas disponibles pour les commandes payées par carte en ligne. Remboursez la commande entière ou demandez de l'aide au support.",
-      "cardRefundUseCancel": "Les commandes par carte sont remboursées en annulant la commande. Le remboursement sur la carte est automatique."
+      "cardRefundUseCancel": "Les commandes par carte sont remboursées en annulant la commande. Le remboursement sur la carte est automatique.",
+      "addAnotherRestaurant": "Ajouter un autre restaurant"
     },
     "onboarding": {
       "eyebrow": "Nuit d'ouverture",
@@ -24070,6 +24093,73 @@
       "todayRevenue": "Revenus",
       "viewStore": "Voir la page client",
       "viewStoreHint": "Voyez exactement ce que voient les clients."
+    },
+    "timeClock": {
+      "title": "Pointeuse",
+      "clockedOut": "Vous n’êtes pas pointé.",
+      "clockedInSince": "Pointé depuis {{time}}.",
+      "onBreakSince": "En pause depuis {{time}}.",
+      "clockIn": "Pointer l’arrivée",
+      "clockOut": "Pointer le départ",
+      "startBreak": "Commencer la pause",
+      "endBreak": "Terminer la pause",
+      "clockedInOk": "Arrivée pointée",
+      "clockedOutOk": "Départ pointé",
+      "breakStarted": "Pause commencée",
+      "breakEnded": "Pause terminée",
+      "actionError": "Échec de l’opération. Réessayez.",
+      "myShifts": "Mes prochains quarts",
+      "noShifts": "Aucun quart publié pour l’instant.",
+      "recentPunches": "Mes pointages récents",
+      "noPunches": "Aucun pointage ces deux dernières semaines.",
+      "hours": "{{hours}} h",
+      "timeOff": "Congés",
+      "timeOffType": "Type",
+      "timeOffTypes": {
+        "vacation": "Vacances",
+        "sick": "Maladie",
+        "personal": "Personnel",
+        "unpaid": "Sans solde",
+        "other": "Autre"
+      },
+      "from": "Du",
+      "to": "Au",
+      "reason": "Note pour votre responsable (facultatif)",
+      "requestTimeOff": "Demander un congé",
+      "timeOffSent": "Demande envoyée à votre responsable",
+      "timeOffInvalid": "Choisissez une date de début et une date de fin identique ou postérieure.",
+      "myRequests": "Mes demandes de congé",
+      "status": {
+        "pending": "En attente",
+        "approved": "Approuvée",
+        "denied": "Refusée",
+        "cancelled": "Annulée",
+        "withdrawn": "Retirée"
+      }
+    },
+    "offlineCard": {
+      "title": "Paiements par carte hors ligne à vérifier",
+      "intro": "Paiements par carte pris pendant une panne qui ont dépassé une limite, ne correspondent pas à leur commande ou n'ont jamais été remontés. Accepter conserve un paiement confirmé par Stripe. Annuler n'est possible que si Stripe n'a aucun débit.",
+      "order": "Commande n° {{id}}",
+      "reasons": "Pourquoi une vérification est nécessaire",
+      "note": "Note (obligatoire)",
+      "noteRequired": "Ajoutez d'abord une courte note.",
+      "accept": "Accepter le paiement",
+      "void": "Annuler (aucun débit)",
+      "accepted": "Paiement accepté.",
+      "voided": "Paiement annulé.",
+      "failed": "Impossible de traiter ce paiement.",
+      "reason": {
+        "over_transaction_limit": "Dépasse la limite hors ligne par vente",
+        "over_lease_budget": "Dépasse le budget hors ligne de cette caisse",
+        "outside_lease_window": "Pris en dehors de la période hors ligne",
+        "amount_differs_from_order": "Le montant diffère du total de la commande",
+        "order_already_paid": "Commande déjà payée autrement (double débit possible)",
+        "order_already_has_offline_card": "La commande a déjà un paiement par carte hors ligne",
+        "order_not_found": "Commande introuvable pour ce magasin",
+        "not_reported": "La caisse n'a jamais remonté ce paiement",
+        "other": "Vérification par un responsable requise"
+      }
     }
   },
   "network": {
@@ -24332,7 +24422,22 @@
         "regionRoot": "Région racine",
         "regionCreate": "Ajouter une région",
         "regionStores": "{{count}} magasin(s)",
-        "regionChild": "Région imbriquée"
+        "regionChild": "Région imbriquée",
+        "labor": {
+          "title": "Main-d'œuvre par magasin",
+          "overtimeNote": "Les heures supplémentaires comptent les heures de chaque personne dans tous vos magasins, puis s'affichent dans le magasin où elles ont été faites.",
+          "store": "Magasin",
+          "hours": "Heures travaillées",
+          "scheduled": "Planifiées",
+          "overtime": "Heures supplémentaires",
+          "cost": "Coût de main-d'œuvre",
+          "percent": "% main-d'œuvre",
+          "staff": "Personnel",
+          "total": "Tous les magasins",
+          "missingWages_one": "{{count}} sans salaire",
+          "missingWages_other": "{{count}} sans salaire",
+          "mixedCurrency": "Devises mixtes"
+        }
       },
       "brandHq": {
         "title": "QG de la marque",
@@ -36650,6 +36755,90 @@
       "business": "Entreprise",
       "restaurant": "Restaurant"
     },
-    "analyticsStorageDescription": "Dans l’EEE, au Royaume-Uni, en Suisse et au Québec, le suivi et les offres fondées sur l’activité exigent des consentements distincts, révocables dans les paramètres. Les États américains concernés proposent le refus de vente ou de partage et Global Privacy Control. Ailleurs, le réglage analytique concerne Google Analytics et le stockage persistant ; l’activité relève de cet avis."
+    "analyticsStorageDescription": "Dans l’EEE, au Royaume-Uni, en Suisse et au Québec, le suivi et les offres fondées sur l’activité exigent des consentements distincts, révocables dans les paramètres. Les États américains concernés proposent le refus de vente ou de partage et Global Privacy Control. Ailleurs, le réglage analytique concerne Google Analytics et le stockage persistant ; l’activité relève de cet avis.",
+    "age": {
+      "title": "Confirmation de l’âge",
+      "why": "Les analyses d’activité et les offres personnalisées sont réservées aux adultes. Confirmez votre âge pour les activer. Rien n’est suivi tant que vous ne l’avez pas fait.",
+      "attest": "Je confirme avoir 18 ans ou plus.",
+      "confirm": "Confirmer mon âge",
+      "verify": "Vérifier mon âge",
+      "confirmed": "Votre âge est confirmé.",
+      "withdraw": "Retirer la confirmation d’âge et supprimer les données d’activité"
+    },
+    "amazon": {
+      "title": "Amazon Partenaires",
+      "channelsNote": "Les offres Amazon sont affichées uniquement dans l’app et par notification push, jamais par e-mail. Amazon ne reçoit que l’identifiant de suivi de la campagne.",
+      "notConfigured": "L’API Product Advertising d’Amazon n’est pas configurée sur le serveur.",
+      "disclosureHint": "La mention en anglais de chaque offre Amazon doit citer Amazon, par exemple : {{text}}",
+      "error": "Échec ({{code}}).",
+      "search": "Rechercher des produits Amazon",
+      "searchButton": "Rechercher",
+      "draftOffer": "ID de l’offre Amazon en brouillon",
+      "pin": "Associer à l’offre en brouillon",
+      "pinned": "{{asin}} associé à l’offre {{offer}}.",
+      "reportTitle": "Importer un rapport par identifiant de suivi",
+      "reportRef": "Référence du rapport",
+      "periodStart": "Début de période",
+      "periodEnd": "Fin de période",
+      "currency": "Devise",
+      "reportFile": "Fichier du rapport (séparé par tabulations)",
+      "importReport": "Importer le rapport",
+      "reportImported": "{{tags}} identifiants importés ({{mapped}} rattachés à des campagnes).",
+      "reportDuplicate": "Ce rapport a déjà été importé."
+    }
+  },
+  "adminOperationalNotices": {
+    "regionLabel": "Avis opérationnels",
+    "dismiss": "Compris",
+    "regionGeoSource": {
+      "switchedTitle": "Les analyses régionales utilisent désormais les centres postaux GeoNames",
+      "switchedBody": "Certains chiffres régionaux ont changé : {{usersBefore}} comptes étaient rattachés à une région avant, {{usersAfter}} maintenant. L’écart est conservé et un opérateur peut revenir en arrière en une étape.",
+      "rolledBackTitle": "Source géographique des analyses régionales rétablie",
+      "rolledBackBody": "Les analyses régionales utilisent de nouveau la source de localisation précédente. Les chiffres reviennent à l’ancienne base."
+    }
+  },
+  "restaurantPermissionDenied": {
+    "pos": "Vous n’avez pas l’autorisation d’utiliser la caisse (POS) ici. Demandez à un responsable d’ajouter l’accès POS à votre rôle.",
+    "kitchen": "Vous n’avez pas l’autorisation de mettre à jour l’écran cuisine ici. Demandez à un responsable d’ajouter l’accès cuisine à votre rôle.",
+    "runner": "Vous n’avez pas l’autorisation de mettre à jour les livraisons et les coursiers ici. Demandez cet accès à un responsable.",
+    "menu": "Vous n’avez pas l’autorisation de modifier le menu ici. Demandez l’accès au menu à un responsable.",
+    "settings": "Vous n’avez pas l’autorisation de modifier les paramètres de ce restaurant. Adressez-vous au propriétaire ou à un responsable.",
+    "refunds": "Vous n’avez pas l’autorisation d’émettre des remboursements ici. Demandez à un responsable d’approuver le remboursement.",
+    "display": "Vous n’avez pas l’autorisation de gérer les écrans ici. Demandez l’accès aux écrans à un responsable.",
+    "orders": "Vous n’avez pas l’autorisation de gérer les commandes ici. Demandez à un responsable d’ajouter l’accès aux commandes à votre rôle."
+  },
+  "restaurantDiscounts": {
+    "title": "Remises du POS",
+    "desc": "Les remises que votre équipe peut appliquer à la caisse.",
+    "intro": "L’équipe ne peut appliquer à la caisse que les remises actives ci-dessous. Les responsables peuvent toujours saisir une remise ponctuelle.",
+    "empty": "Aucune remise pour l’instant. Ajoutez-en une ci-dessous.",
+    "listLabel": "Remises",
+    "percentValue": "{{value}} % de remise",
+    "maxShort": "max {{amount}}",
+    "minShort": "commandes de plus de {{amount}}",
+    "needsApproval": "approbation d’un responsable requise",
+    "inactive": "inactive",
+    "activate": "Activer",
+    "deactivate": "Désactiver",
+    "addTitle": "Ajouter une remise",
+    "code": "Code",
+    "name": "Nom affiché à la caisse",
+    "kind": "Type",
+    "kindPercent": "Pourcentage",
+    "kindFixed": "Montant fixe",
+    "valuePercent": "Pourcentage (1–100)",
+    "valueAmount": "Montant",
+    "maxDiscount": "Remise maximale (facultatif)",
+    "minSubtotal": "Commande minimale (facultatif)",
+    "requiresApproval": "Toujours exiger le code PIN d’un responsable",
+    "add": "Ajouter la remise",
+    "saved": "Enregistré",
+    "saveError": "Impossible d’enregistrer la remise",
+    "invalid": "Vérifiez le code, le nom et les montants.",
+    "thresholdLabel": "Approbation d’un responsable au-delà de ce montant de remise",
+    "thresholdHint": "Toute remise supérieure à ce montant exige le code PIN d’un responsable. Laissez vide pour aucun seuil.",
+    "thresholdOwnerOnly": "Seul le propriétaire peut modifier le seuil d’approbation.",
+    "thresholdNone": "Aucun seuil",
+    "saveThreshold": "Enregistrer le seuil"
   }
 }

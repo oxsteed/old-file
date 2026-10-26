@@ -573,7 +573,6 @@ describe('restaurant app-flow backend', () => {
       .send({
         mode: 'queue_board',
         locationId: 77,
-        status: 'paired',
         config: { idleTimeoutSeconds: 120 },
       });
 

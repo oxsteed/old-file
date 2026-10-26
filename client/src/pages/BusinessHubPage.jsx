@@ -1442,10 +1442,14 @@ function BusinessHubInner() {
   // credit, store settings, and displays. Business Hub retains only the shared
   // business capabilities so restaurant owners do not have to decipher service
   // concepts such as appointments, service packages, or client invoicing.
+  // S-04: restaurants get the Staff tab (schedules, time clock, time off)
+  // without launching it for every service business.
   const candidateTabs = isRestaurantBusiness
-    ? ['messages', 'team', 'hiring']
+    ? ['messages', 'team', 'staff', 'hiring']
     : serviceBusinessTabs;
-  const visibleTabs = candidateTabs.filter((tb) => isBusinessHubTabLaunched(tb)).filter((tb) => {
+  const visibleTabs = candidateTabs
+    .filter((tb) => isBusinessHubTabLaunched(tb) || (isRestaurantBusiness && tb === 'staff'))
+    .filter((tb) => {
     if (tb === 'workflow' && !canEditBizProfile) return false;
     if (tb === 'profile' && !canEditBizProfile) return false;
     if (tb === 'clients' && !canEditBizProfile) return false;
@@ -1467,7 +1471,7 @@ function BusinessHubInner() {
       setTab(aliasedTab);
       return;
     }
-    if (!isBusinessHubTabLaunched(tab)) {
+    if (!isBusinessHubTabLaunched(tab) && !(isRestaurantBusiness && tab === 'staff')) {
       setTab(canViewFinanceHub ? 'overview' : 'team');
       return;
     }

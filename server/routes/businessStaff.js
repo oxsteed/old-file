@@ -13,6 +13,9 @@ router.post  ('/:businessId/staff/shifts/publish',       requireAuth, requireBus
 // S-20: native labor-law jurisdiction rules per location.
 router.get   ('/:businessId/staff/labor-jurisdiction',    requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.getLaborJurisdiction);
 router.put   ('/:businessId/staff/labor-jurisdiction',    requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.setLaborJurisdiction);
+router.get   ('/:businessId/staff/members/:userId/labor-profile', requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.getLaborProfile);
+router.put   ('/:businessId/staff/members/:userId/labor-profile', requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.setLaborProfile);
+router.get   ('/:businessId/staff/schedule-changes',      requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.listScheduleChanges);
 // S-04: time-off / PTO requests.
 router.get   ('/:businessId/staff/time-off',             requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.listTimeOffRequests);
 router.post  ('/:businessId/staff/time-off',             requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.createTimeOffRequest);
@@ -26,6 +29,7 @@ router.post  ('/:businessId/staff/shift-swaps/:requestId/approve', requireAuth, 
 router.post  ('/:businessId/staff/shift-swaps/:requestId/reject', requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.rejectShiftSwapRequest);
 
 router.get   ('/:businessId/staff/time-entries',         requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.listTimeEntries);
+router.get   ('/:businessId/staff/time-entries/mine',    requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.listMyTimeEntries);
 router.post  ('/:businessId/staff/clock-in',             requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.clockIn);
 router.post  ('/:businessId/staff/clock-out/:entryId',   requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.clockOut);
 router.post  ('/:businessId/staff/time-entries/:entryId/break', requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.punchBreak);
