@@ -7657,7 +7657,8 @@
       "tabs": {
         "shifts": "Turnos",
         "timeEntries": "Registros de tiempo",
-        "timeOff": "Ausencias"
+        "timeOff": "Ausencias",
+        "labor": "Reglas laborales"
       },
       "clockIn": "Fichar",
       "addShift": "Agregar turno",
@@ -7731,7 +7732,31 @@
       "toastClockInFail": "No se pudo registrar la entrada",
       "toastClockedOut": "¡Salida registrada!",
       "toastClockOutFail": "No se pudo registrar la salida",
-      "toastStaffRequired": "Selecciona un miembro del equipo"
+      "toastStaffRequired": "Selecciona un miembro del equipo",
+      "labor": {
+        "minorsTitle": "Menores",
+        "minorsHelp": "Marca al personal menor de 18 para revisar los horarios según los límites de horas y horario para menores. Guardamos un rango de edad y la fecha en que termina, nunca una fecha de nacimiento.",
+        "band": "Rango de edad",
+        "adult": "18 o más",
+        "under16": "Menor de 16",
+        "age1617": "16 o 17",
+        "until": "El rango termina el",
+        "save": "Guardar",
+        "saved": "Guardado.",
+        "saveFailed": "No se pudo guardar.",
+        "formerStaff": "Exmiembro del personal",
+        "changesTitle": "Cambios en turnos publicados",
+        "changesHelp": "Donde aplican reglas de horarios predecibles (Fair Workweek), cambiar o cancelar un turno publicado dentro del plazo de aviso obliga a pagar una compensación por previsibilidad. El monto lo fija la ley local.",
+        "noChanges": "Aún no hay cambios en turnos publicados.",
+        "change": {
+          "edited": "Cambiado",
+          "deleted": "Cancelado"
+        },
+        "premiumDue": "Se debe pago por previsibilidad ({{code}})",
+        "employeeRequested": "Solicitado por el empleado: sin compensación",
+        "noPremium": "Fuera del plazo de aviso: sin compensación",
+        "premiumToast": "Este turno estaba dentro del plazo de aviso de {{code}}: se debe pago por previsibilidad."
+      }
     },
     "integrations": {
       "title": "Integraciones y configuración",

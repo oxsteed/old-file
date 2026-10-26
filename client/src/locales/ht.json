@@ -7844,7 +7844,8 @@
       "tabs": {
         "shifts": "Shift",
         "timeEntries": "Antre tan",
-        "timeOff": "Konje"
+        "timeOff": "Konje",
+        "labor": "Règ travay"
       },
       "clockIn": "Kòmanse tan",
       "addShift": "Ajoute shift",
@@ -7918,7 +7919,31 @@
       "toastClockInFail": "Nou pa t kapab kòmanse tan",
       "toastClockedOut": "Tan fini!",
       "toastClockOutFail": "Nou pa t kapab fini tan",
-      "toastStaffRequired": "Tanpri chwazi yon manm ekip"
+      "toastStaffRequired": "Tanpri chwazi yon manm ekip",
+      "labor": {
+        "minorsTitle": "Minè",
+        "minorsHelp": "Make anplwaye ki poko gen 18 an pou nou verifye orè yo dapre limit èdtan ak lè pou minè. Nou anrejistre yon tranch laj ak dat li fini, pa janm yon dat nesans.",
+        "band": "Tranch laj",
+        "adult": "18 an oswa plis",
+        "under16": "Mwens pase 16 an",
+        "age1617": "16 oswa 17 an",
+        "until": "Tranch lan fini",
+        "save": "Anrejistre",
+        "saved": "Anrejistre.",
+        "saveFailed": "Nou pa t kapab anrejistre.",
+        "formerStaff": "Ansyen manm anplwaye",
+        "changesTitle": "Chanjman nan orè ki pibliye",
+        "changesHelp": "Kote règ orè previzib (Fair Workweek) aplike, chanje oswa anile yon orè ki pibliye anndan delè avètisman an mande pou peye anplwaye a yon konpansasyon previzibilite. Lalwa lokal la fikse montan an.",
+        "noChanges": "Poko gen chanjman nan orè ki pibliye.",
+        "change": {
+          "edited": "Chanje",
+          "deleted": "Anile"
+        },
+        "premiumDue": "Yo dwe peye konpansasyon previzibilite ({{code}})",
+        "employeeRequested": "Anplwaye a te mande l: pa gen konpansasyon",
+        "noPremium": "Andeyò delè avètisman an: pa gen konpansasyon",
+        "premiumToast": "Orè sa a te anndan delè avètisman {{code}}: yo dwe peye konpansasyon previzibilite."
+      }
     },
     "integrations": {
       "title": "Entegrasyon ak paramèt",

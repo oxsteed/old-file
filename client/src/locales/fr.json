@@ -8276,7 +8276,8 @@
       "tabs": {
         "shifts": "Changements",
         "timeEntries": "Pointages",
-        "timeOff": "Congés"
+        "timeOff": "Congés",
+        "labor": "Règles du travail"
       },
       "clockIn": "Pointer",
       "addShift": "Ajouter un shift",
@@ -8350,7 +8351,31 @@
       "toastClockInFail": "Impossible de pointer",
       "toastClockedOut": "Pointage de sortie effectué !",
       "toastClockOutFail": "Impossible de pointer la sortie",
-      "toastStaffRequired": "Veuillez sélectionner un membre de l’équipe"
+      "toastStaffRequired": "Veuillez sélectionner un membre de l’équipe",
+      "labor": {
+        "minorsTitle": "Mineurs",
+        "minorsHelp": "Indiquez le personnel de moins de 18 ans pour vérifier les plannings selon les limites d'heures et d'horaires des mineurs. Nous enregistrons une tranche d'âge et sa date de fin, jamais une date de naissance.",
+        "band": "Tranche d'âge",
+        "adult": "18 ans ou plus",
+        "under16": "Moins de 16 ans",
+        "age1617": "16 ou 17 ans",
+        "until": "Fin de la tranche le",
+        "save": "Enregistrer",
+        "saved": "Enregistré.",
+        "saveFailed": "Impossible d'enregistrer.",
+        "formerStaff": "Ancien membre du personnel",
+        "changesTitle": "Modifications de créneaux publiés",
+        "changesHelp": "Là où s'appliquent les règles de planification prévisible (Fair Workweek), modifier ou annuler un créneau publié dans le délai de préavis donne droit à une indemnité de prévisibilité. Le montant est fixé par la loi locale.",
+        "noChanges": "Aucune modification de créneau publié pour l'instant.",
+        "change": {
+          "edited": "Modifié",
+          "deleted": "Annulé"
+        },
+        "premiumDue": "Indemnité de prévisibilité due ({{code}})",
+        "employeeRequested": "Demandé par l'employé : pas d'indemnité",
+        "noPremium": "Hors délai de préavis : pas d'indemnité",
+        "premiumToast": "Ce créneau était dans le délai de préavis {{code}} : une indemnité de prévisibilité est due."
+      }
     },
     "integrations": {
       "title": "Intégrations et paramètres",

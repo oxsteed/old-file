@@ -8276,7 +8276,8 @@
       "tabs": {
         "shifts": "Shifts",
         "timeEntries": "Time Entries",
-        "timeOff": "Time Off"
+        "timeOff": "Time Off",
+        "labor": "Labor rules"
       },
       "clockIn": "Clock In",
       "addShift": "Add Shift",
@@ -8350,7 +8351,31 @@
       "toastClockInFail": "Failed to clock in",
       "toastClockedOut": "Clocked out!",
       "toastClockOutFail": "Failed to clock out",
-      "toastStaffRequired": "Please select a staff member"
+      "toastStaffRequired": "Please select a staff member",
+      "labor": {
+        "minorsTitle": "Minors",
+        "minorsHelp": "Mark staff under 18 so schedules are checked against minor hour and time limits. We store an age band and the date it ends, never a birth date.",
+        "band": "Age band",
+        "adult": "18 or older",
+        "under16": "Under 16",
+        "age1617": "16 or 17",
+        "until": "Band ends on",
+        "save": "Save",
+        "saved": "Saved.",
+        "saveFailed": "Couldn't save.",
+        "formerStaff": "Former staff member",
+        "changesTitle": "Changes to published shifts",
+        "changesHelp": "Where predictive-scheduling (Fair Workweek) rules apply, changing or cancelling a published shift inside the notice window owes the employee predictability pay. The amount is set by local law.",
+        "noChanges": "No changes to published shifts yet.",
+        "change": {
+          "edited": "Changed",
+          "deleted": "Cancelled"
+        },
+        "premiumDue": "Predictability pay owed ({{code}})",
+        "employeeRequested": "Requested by the employee: no premium",
+        "noPremium": "Outside the notice window: no premium",
+        "premiumToast": "This shift was inside the {{code}} notice window: predictability pay is owed."
+      }
     },
     "integrations": {
       "title": "Integrations & Settings",

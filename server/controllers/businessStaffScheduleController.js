@@ -133,14 +133,16 @@ exports.updateShift = async (req, res, next) => {
   try {
     const storeContext = await workforce.context(req);
     await workforce.assertRecord(storeContext,'business_staff_shifts',shiftId);
+    // S-20: the prior row is kept for the Fair Workweek change record.
+    const current = await pool.query(
+      'SELECT * FROM business_staff_shifts WHERE id = $1 AND business_id = $2',
+      [shiftId, businessId]
+    );
+    if (!current.rows.length) return res.status(404).json({ error: 'Not found' });
+    const beforeRow = current.rows[0];
     let shiftDate, startTime, endTime;
     if (shift_start || shift_end) {
-      const current = await pool.query(
-        'SELECT shift_date, start_time, end_time FROM business_staff_shifts WHERE id = $1 AND business_id = $2',
-        [shiftId, businessId]
-      );
-      if (!current.rows.length) return res.status(404).json({ error: 'Not found' });
-      const cur = current.rows[0];
+      const cur = beforeRow;
       const curStart = `${wallDatePart(cur.shift_date)}T${wallTimePart(cur.start_time)}`;
       const curEnd = `${wallDatePart(cur.shift_date)}T${wallTimePart(cur.end_time)}`;
       const parts = toShiftParts(shift_start || curStart, shift_end || curEnd);
@@ -158,7 +160,9 @@ exports.updateShift = async (req, res, next) => {
       [shiftDate || null, startTime || null, endTime || null, role || null, notes || null, shiftId, businessId]
     );
     if (!row.rows.length) return res.status(404).json({ error: 'Not found' });
-    res.json(row.rows[0]);
+    // S-20: a change to a published shift is Fair Workweek evidence.
+    const scheduleChange = await recordScheduleChange(req, { businessId, before: beforeRow, after: row.rows[0], changeType: 'edited' });
+    res.json(scheduleChange ? { ...row.rows[0], schedule_change: scheduleChange } : row.rows[0]);
   } catch (err) { next(err); }
 };
 
@@ -167,8 +171,9 @@ exports.deleteShift = async (req, res, next) => {
   try {
     const storeContext = await workforce.context(req);
     await workforce.assertRecord(storeContext,'business_staff_shifts',shiftId);
-    await pool.query('DELETE FROM business_staff_shifts WHERE id=$1 AND business_id=$2', [shiftId, businessId]);
-    res.json({ success: true });
+    const { rows: [deleted] } = await pool.query('DELETE FROM business_staff_shifts WHERE id=$1 AND business_id=$2 RETURNING *', [shiftId, businessId]);
+    const scheduleChange = deleted ? await recordScheduleChange(req, { businessId, before: deleted, after: null, changeType: 'deleted' }) : null;
+    res.json({ success: true, ...(scheduleChange ? { schedule_change: scheduleChange } : {}) });
   } catch (err) { next(err); }
 };
 
@@ -890,10 +895,17 @@ exports.publishShifts = async (req, res, next) => {
         );
         existingShifts = rows;
       }
-      const evaluated = published.map((s) => ({
-        id: s.id, user_id: s.user_id, shift_date: toDateStr(s.shift_date),
-        start_time: s.start_time, end_time: s.end_time,
-      }));
+      // S-20: minor bands (never a birth date) feed the minor rules.
+      const minors = await minorBands(businessId, published.map((s) => s.user_id));
+      const evaluated = published.map((s) => {
+        const date = toDateStr(s.shift_date);
+        const m = minors.get(String(s.user_id));
+        return {
+          id: s.id, user_id: s.user_id, shift_date: date,
+          start_time: s.start_time, end_time: s.end_time,
+          ...(m && date < m.until ? { is_minor: true, minor_band: m.band } : {}),
+        };
+      });
       ruleWarnings = laborJurisdiction.evaluateSchedule(evaluated, { rules, existingShifts });
       await pool.query(
         `INSERT INTO restaurant_schedule_versions
@@ -921,6 +933,106 @@ exports.publishShifts = async (req, res, next) => {
 // engine's inputs.
 
 const JURISDICTION_CODES = new Set(['US-FED', 'US-CA', 'US-NYC', 'US-SFO', 'US-SEA', 'US-CHI', 'US-OR', 'CUSTOM']);
+
+// ── S-20: minors and Fair Workweek schedule changes ─────────────────────
+async function minorBands(businessId, userIds) {
+  const ids = [...new Set((userIds || []).filter(Boolean).map(String))];
+  const map = new Map();
+  if (!ids.length) return map;
+  const { rows } = await pool.query(
+    `SELECT user_id, minor_band, minor_until::text AS minor_until FROM business_staff_labor_profiles
+      WHERE business_id = $1 AND user_id = ANY($2::uuid[]) AND minor_band IS NOT NULL`,
+    [businessId, ids]
+  );
+  for (const row of rows) map.set(String(row.user_id), { band: row.minor_band, until: row.minor_until });
+  return map;
+}
+
+const shiftSnapshot = (row) => row && ({
+  shift_date: String(row.shift_date instanceof Date ? row.shift_date.toISOString() : row.shift_date).slice(0, 10),
+  start_time: String(row.start_time).slice(0, 5), end_time: String(row.end_time).slice(0, 5),
+  role_label: row.role_label || null, user_id: row.user_id || null,
+});
+
+// A change to a published shift is recorded; inside the notice window an
+// employer-initiated change is flagged for predictability pay.
+async function recordScheduleChange(req, { businessId, before, after, changeType }) {
+  if (!before?.published_at) return null;
+  const rules = await laborJurisdiction.getJurisdiction(pool, Number(before.restaurant_id) || null, Number(before.location_id) || null);
+  const employeeRequested = req.body?.employee_requested === true;
+  const b = shiftSnapshot(before), a = after ? shiftSnapshot(after) : null;
+  if (a && b.shift_date === a.shift_date && b.start_time === a.start_time && b.end_time === a.end_time && b.user_id === a.user_id) return null;
+  const verdict = laborJurisdiction.evaluateChange({ before: b, after: a, rules, employeeRequested });
+  const { rows: [row] } = await pool.query(
+    `INSERT INTO business_staff_schedule_changes
+       (business_id, shift_id, user_id, restaurant_id, location_id, change_type, before_state, after_state,
+        hours_before_start, notice_hours, jurisdiction_code, employee_requested, premium_due, changed_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+    [businessId, before.id, before.user_id || null, before.restaurant_id || null, before.location_id || null, changeType,
+      JSON.stringify(b), a ? JSON.stringify(a) : null, verdict.hours_before_start, verdict.notice_hours, verdict.jurisdiction_code,
+      employeeRequested, verdict.premium_due, req.user.id]
+  );
+  return { id: Number(row.id), premium_due: row.premium_due, notice_hours: row.notice_hours, hours_before_start: Number(row.hours_before_start), jurisdiction_code: row.jurisdiction_code };
+}
+
+exports.getLaborProfile = async (req, res, next) => {
+  try {
+    const { businessId, userId } = req.params;
+    if (!await isBusinessManager(req, businessId, req.user.id)) return res.status(403).json({ error: 'Only a manager can view labor profiles' });
+    if (!/^[0-9a-f-]{36}$/i.test(userId)) return res.status(400).json({ error: 'Invalid user' });
+    const { rows: [row] } = await pool.query(
+      'SELECT minor_band, minor_until::text AS minor_until, updated_at FROM business_staff_labor_profiles WHERE business_id=$1 AND user_id=$2',
+      [businessId, userId]
+    );
+    res.json({ profile: row || { minor_band: null, minor_until: null } });
+  } catch (err) { next(err); }
+};
+
+exports.setLaborProfile = async (req, res, next) => {
+  try {
+    const { businessId, userId } = req.params;
+    if (!await isBusinessManager(req, businessId, req.user.id)) return res.status(403).json({ error: 'Only a manager can set labor profiles' });
+    if (!/^[0-9a-f-]{36}$/i.test(userId)) return res.status(400).json({ error: 'Invalid user' });
+    if (!await assertBusinessMember(businessId, userId)) return res.status(404).json({ error: 'Staff member not found' });
+    const band = req.body?.minor_band ?? null;
+    const until = req.body?.minor_until ?? null;
+    if (band !== null && !['under_16', 'age_16_17'].includes(band)) return res.status(400).json({ error: 'minor_band must be under_16, age_16_17 or null' });
+    if ((band === null) !== (until === null || until === '')) return res.status(400).json({ error: 'minor_until is required with a minor band (and only then)' });
+    if (until && !/^\d{4}-\d{2}-\d{2}$/.test(until)) return res.status(400).json({ error: 'minor_until must be YYYY-MM-DD' });
+    const { rows: [before] } = await pool.query('SELECT minor_band, minor_until::text AS minor_until FROM business_staff_labor_profiles WHERE business_id=$1 AND user_id=$2', [businessId, userId]);
+    await pool.query(
+      `INSERT INTO business_staff_labor_profiles(business_id, user_id, minor_band, minor_until, updated_by)
+       VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (business_id, user_id) DO UPDATE SET minor_band=$3, minor_until=$4, updated_by=$5, updated_at=NOW()`,
+      [businessId, userId, band, until || null, req.user.id]
+    );
+    await logBusinessAction(req, {
+      business_id: Number(businessId), action: 'business.staff.labor_profile_updated', target_type: 'user', target_id: userId,
+      before_state: before || null, after_state: { minor_band: band, minor_until: until || null },
+    });
+    res.json({ profile: { minor_band: band, minor_until: until || null } });
+  } catch (err) { next(err); }
+};
+
+exports.listScheduleChanges = async (req, res, next) => {
+  try {
+    const storeContext = await workforce.context(req);
+    const { businessId } = req.params;
+    if (!await isBusinessManager(req, businessId, req.user.id)) return res.status(403).json({ error: 'Only a manager can view schedule changes' });
+    const params = [businessId];
+    let where = 'business_id = $1';
+    const scope = storeContext?.scope;
+    if (scope?.mode === 'assigned') { params.push(scope.location_ids); where += ` AND location_id = ANY($${params.length}::bigint[])`; }
+    if (req.query.premium === 'true') where += ' AND premium_due';
+    const { rows } = await pool.query(
+      `SELECT id, shift_id, user_id, location_id, change_type, before_state, after_state, hours_before_start, notice_hours,
+              jurisdiction_code, employee_requested, premium_due, changed_by, created_at
+         FROM business_staff_schedule_changes WHERE ${where} ORDER BY created_at DESC LIMIT 200`,
+      params
+    );
+    res.json({ changes: rows });
+  } catch (err) { next(err); }
+};
 
 exports.getLaborJurisdiction = async (req, res, next) => {
   try {
