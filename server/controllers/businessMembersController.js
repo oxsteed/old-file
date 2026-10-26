@@ -57,11 +57,36 @@ async function managedBusiness(req) {
 // (S-01). Always insert through this helper, inside the caller's
 // transaction, so the membership change and its notification commit or
 // roll back together.
+// S-19: when the type has a localized staff template and the caller passed
+// render params, the stored title/body are rendered in the RECIPIENT's
+// language (role codes become localized role names). Push and email
+// readers of this row therefore never see the English fallback text.
+async function localizedNotificationText(client, { userId, type, title, body, data }) {
+  const params = data && typeof data === 'object' ? data.params : null;
+  if (!params) return { title, body };
+  const { staffNotifications, staffRoleName } = require('../utils/staffNotificationTemplates');
+  if (!staffNotifications[type]) return { title, body };
+  let language = 'en';
+  try {
+    const { rows: [recipient] } = await client.query(
+      'SELECT preferred_language FROM users WHERE id = $1',
+      [userId]
+    );
+    language = recipient?.preferred_language || 'en';
+  } catch { /* fall back to English */ }
+  const renderParams = { ...params };
+  if (renderParams.role) renderParams.role = staffRoleName(renderParams.role, language);
+  const { tNotif } = require('../utils/i18n');
+  const rendered = tNotif(type, language, renderParams);
+  return { title: rendered.title || title, body: rendered.body || body };
+}
+
 async function insertNotification(client, { userId, type, title, body, data }) {
+  const text = await localizedNotificationText(client, { userId, type, title, body, data });
   await client.query(
     `INSERT INTO notifications (user_id, type, title, body, data)
      VALUES ($1, $2, $3, $4, $5)`,
-    [userId, type, title, body, JSON.stringify(data || {})]
+    [userId, type, text.title, text.body, JSON.stringify(data || {})]
   );
 }
 

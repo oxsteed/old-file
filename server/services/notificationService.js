@@ -111,19 +111,25 @@ exports.sendNotification = async ({
     // language resolves the localized template with interpolation. A raw
     // role code in params becomes the localized display name.
     let renderParams = (data && typeof data === 'object' && data.params) || null;
-    if (renderParams && renderParams.role) {
+    if (renderParams && (renderParams.role || renderParams.decision)) {
       renderParams = { ...renderParams };
       try {
-        const { staffRoleName } = require('../utils/staffNotificationTemplates');
-        renderParams.role = staffRoleName(renderParams.role, language);
+        const { staffRoleName, staffDecisionName } = require('../utils/staffNotificationTemplates');
+        if (renderParams.role) renderParams.role = staffRoleName(renderParams.role, language);
+        if (renderParams.decision) renderParams.decision = staffDecisionName(renderParams.decision, language);
       } catch { /* keep the raw code */ }
     }
     const notificationText = tNotif(type, language, renderParams);
     const emailTranslations = tNotifEmail(type, language);
     const finalTitle = notificationText.title || title;
     const translationBody = notificationText.body || '';
+    // S-19: a structured (params) notification whose localized template
+    // interpolates those params uses the template alone; appending the caller's English body would
+    // put English text into push and email for every other language.
     const finalBody = translationBody
-      ? [translationBody, body].filter(Boolean).join(' ')
+      ? (renderParams && /\{\w+\}/.test(tNotif(type, language, null).body || '')
+        ? translationBody
+        : [translationBody, body].filter(Boolean).join(' '))
       : (body || translationBody);
     const deliveryKey = idempotencyKey
       ? String(idempotencyKey).trim().slice(0, 255)

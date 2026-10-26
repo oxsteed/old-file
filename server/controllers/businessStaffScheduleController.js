@@ -807,6 +807,8 @@ exports.publishShifts = async (req, res, next) => {
           business_id: biz.id,
           shift_ids: list.map((s) => s.id),
           params: {
+            count: list.length,
+            businessName: biz.business_name,
             restaurantName: biz.business_name,
             shiftLabel: shiftSummaryLabel(list),
             startsAt: shiftStartIso(earliest),
@@ -1104,7 +1106,15 @@ exports.decideTimeOffRequest = async (req, res, next) => {
       type: 'time_off_decided',
       title: `Time-off ${decision}`,
       body: `Your ${request.request_type} request for ${String(request.start_date).slice(0, 10)} to ${String(request.end_date).slice(0, 10)} was ${decision}.`,
-      data: { business_id: Number(businessId), request_id: request.id, decision },
+      data: {
+        business_id: Number(businessId), request_id: request.id, decision,
+        // S-19: rendered per recipient language by sendNotification.
+        params: {
+          decision,
+          startDate: String(request.start_date instanceof Date ? request.start_date.toISOString() : request.start_date).slice(0, 10),
+          endDate: String(request.end_date instanceof Date ? request.end_date.toISOString() : request.end_date).slice(0, 10),
+        },
+      },
     }).catch(() => {});
     return res.json({ request });
   } catch (err) { return next(err); }
