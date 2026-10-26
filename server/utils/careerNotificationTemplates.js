@@ -146,6 +146,10 @@ const careerNotifications = {
     title: L('Onboarding needs your attention', 'La incorporación necesita tu atención', 'L\'intégration demande votre attention', 'Entegrasyon an bezwen atansyon ou', 'تحتاج إجراءات الانضمام إلى انتباهك'),
     body: L('A step for the new hire on {openingTitle} could not finish on its own.', 'Un paso de la nueva contratación para {openingTitle} no pudo completarse solo.', 'Une étape pour la nouvelle recrue de {openingTitle} n\'a pas pu se terminer seule.', 'Yon etap pou nouvo anplwaye {openingTitle} pa t ka fini pou kont li.', 'تعذر إكمال خطوة للموظف الجديد في {openingTitle} تلقائيًا.'),
   },
+  career_opening_removed: {
+    title: L('Your opening {openingTitle} was removed', 'Se retiró tu vacante {openingTitle}', 'Votre offre {openingTitle} a été retirée', 'Yo retire pòs {openingTitle} ou a', 'تمت إزالة وظيفتك {openingTitle}'),
+    body: L('OxSteed removed this opening from Careers: {note}. Contact support if you think this is a mistake.', 'OxSteed retiró esta vacante de Empleos: {note}. Contacta a soporte si crees que es un error.', 'OxSteed a retiré cette offre de Carrières : {note}. Contactez le support si vous pensez qu\'il s\'agit d\'une erreur.', 'OxSteed retire pòs sa a nan Karyè: {note}. Kontakte sipò si ou panse se yon erè.', 'أزالت OxSteed هذه الوظيفة من الوظائف: {note}. تواصل مع الدعم إذا كنت تعتقد أن ذلك خطأ.'),
+  },
   career_fact_dispute_resolved: {
     title: L('Your fact dispute was reviewed', 'Revisamos tu disputa', 'Votre contestation a été examinée', 'Nou revize kontestasyon ou', 'تمت مراجعة اعتراضك'),
     body: L('Open your career profile to see the result.', 'Abre tu perfil profesional para ver el resultado.', 'Ouvrez votre profil carrière pour voir le résultat.', 'Louvri pwofil karyè ou pou wè rezilta a.', 'افتح ملفك المهني لرؤية النتيجة.'),

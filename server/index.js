@@ -327,6 +327,12 @@ app.use('/api/webhooks', webhookRateLimit, webhookRoutes);
 // Must be mounted before express.json() to prevent body-parser from consuming
 // the request stream (same pattern as Stripe above).
 const verificationCtrl = require('./controllers/verificationController');
+// Careers vendor webhooks (Checkr checks, EOR partner, Stripe boosts):
+// raw body for signature checks; each is 503 until configured.
+const careerWebhooks = require('./controllers/careers/webhookController');
+app.post('/api/careers/webhooks/checkr', webhookRateLimit, express.raw({ type: 'application/json', limit: '256kb' }), careerWebhooks.checkr);
+app.post('/api/careers/webhooks/eor', webhookRateLimit, express.raw({ type: 'application/json', limit: '256kb' }), careerWebhooks.eor);
+app.post('/api/careers/webhooks/stripe', webhookRateLimit, express.raw({ type: 'application/json', limit: '256kb' }), careerWebhooks.stripe);
 app.post('/api/verification/webhooks/checkr', webhookRateLimit, express.raw({ type: 'application/json' }), verificationCtrl.checkrWebhook);
 app.post('/api/verification/webhooks/identity', webhookRateLimit, express.raw({ type: 'application/json' }), verificationCtrl.identityWebhook);
 // Backwards-compatible alias. Configure Didit to use /api/webhooks/didit.
