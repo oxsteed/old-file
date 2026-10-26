@@ -256,6 +256,30 @@ jobs:
           NODE
           npx jest --runInBand __tests__/restaurantStoreIsolation.db.test.js __tests__/restaurantServiceCycle.db.test.js __tests__/restaurantIntegrationRuntime.db.test.js
 
+      - name: Restaurant time clock and POS discount PostgreSQL regressions
+        working-directory: server
+        env:
+          ST_T3_TEST_DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/st_t3?sslmode=disable
+          RESTAURANT_DISCOUNT_TEST_DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/st_f15?sslmode=disable
+        run: |
+          node - <<'NODE'
+          const { Client } = require('pg');
+          const db = new Client({ connectionString: process.env.ST_T3_TEST_DATABASE_URL.replace('/st_t3','/postgres') });
+          (async () => {
+            await db.connect();
+            try {
+              for (const name of ['st_t3', 'st_f15']) {
+                for (let attempt=0;;attempt++) {
+                  try { await db.query(`CREATE DATABASE ${name} TEMPLATE credit_statement_test`); break; }
+                  catch (error) { if (error.code !== '55006' || attempt >= 4) throw error; await new Promise(resolve=>setTimeout(resolve,1000)); }
+                }
+              }
+            }
+            finally { await db.end(); }
+          })().catch(error => { console.error(error.message); process.exitCode = 1; });
+          NODE
+          npx jest --runInBand __tests__/businessTimeClock.db.test.js __tests__/restaurantDiscountDefinitions.db.test.js
+
       - name: Restaurant operational evidence PostgreSQL regressions
         working-directory: server
         env:

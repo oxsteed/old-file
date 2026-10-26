@@ -162,7 +162,7 @@ const staffNotifications = {
 
 const staffDecisionNames = {
   approved: { en: 'approved', es: 'aprobada', fr: 'approuvée', ht: 'apwouve', ar: 'تمت الموافقة عليه' },
-  rejected: { en: 'declined', es: 'rechazada', fr: 'refusée', ht: 'refize', ar: 'تم رفضه' },
+  denied: { en: 'declined', es: 'rechazada', fr: 'refusée', ht: 'refize', ar: 'تم رفضه' },
 };
 function staffDecisionName(decision, lang = 'en') {
   const entry = staffDecisionNames[String(decision || '').toLowerCase()];

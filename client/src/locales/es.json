@@ -23285,7 +23285,8 @@
         "operations": "Operaciones",
         "payouts": "Pagos",
         "displays": "Pantallas",
-        "myshift": "Mi turno"
+        "myshift": "Mi turno",
+        "schedule": "Horario del personal"
       },
       "liveOrders": "Pedidos en vivo",
       "noOrders": "No hay pedidos activos ahora.",
@@ -24067,6 +24068,49 @@
       "todayRevenue": "Ingresos",
       "viewStore": "Ver página del cliente",
       "viewStoreHint": "Mira exactamente lo que ven los clientes."
+    },
+    "timeClock": {
+      "title": "Reloj de asistencia",
+      "clockedOut": "No has marcado entrada.",
+      "clockedInSince": "Marcaste entrada a las {{time}}.",
+      "onBreakSince": "En descanso desde las {{time}}.",
+      "clockIn": "Marcar entrada",
+      "clockOut": "Marcar salida",
+      "startBreak": "Iniciar descanso",
+      "endBreak": "Terminar descanso",
+      "clockedInOk": "Entrada registrada",
+      "clockedOutOk": "Salida registrada",
+      "breakStarted": "Descanso iniciado",
+      "breakEnded": "Descanso terminado",
+      "actionError": "No se pudo completar. Inténtalo de nuevo.",
+      "myShifts": "Mis próximos turnos",
+      "noShifts": "Aún no hay turnos publicados.",
+      "recentPunches": "Mis marcas recientes",
+      "noPunches": "No hay marcas en las últimas dos semanas.",
+      "hours": "{{hours}} h",
+      "timeOff": "Tiempo libre",
+      "timeOffType": "Tipo",
+      "timeOffTypes": {
+        "vacation": "Vacaciones",
+        "sick": "Enfermedad",
+        "personal": "Personal",
+        "unpaid": "Sin goce de sueldo",
+        "other": "Otro"
+      },
+      "from": "Desde",
+      "to": "Hasta",
+      "reason": "Nota para tu gerente (opcional)",
+      "requestTimeOff": "Solicitar tiempo libre",
+      "timeOffSent": "Solicitud enviada a tu gerente",
+      "timeOffInvalid": "Elige una fecha de inicio y una fecha de fin igual o posterior.",
+      "myRequests": "Mis solicitudes de tiempo libre",
+      "status": {
+        "pending": "Pendiente",
+        "approved": "Aprobada",
+        "denied": "Rechazada",
+        "cancelled": "Cancelada",
+        "withdrawn": "Retirada"
+      }
     }
   },
   "network": {

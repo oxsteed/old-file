@@ -143,7 +143,7 @@ export default function RestaurantDiscountsPanel({ t, restaurant }) {
         </ul>
       )}
 
-      <form onSubmit={submit} className="fd-discount-form" aria-label={t('restaurantDiscounts.addTitle')}>
+      <form onSubmit={submit} className="fd-discount-form" aria-label={t('restaurantDiscounts.addTitle')} data-track="ui.abb202390b.1">
         <h4>{t('restaurantDiscounts.addTitle')}</h4>
         <div className="fd-row">
           <div className="fd-field" style={{ flex: 1 }}>
@@ -177,7 +177,7 @@ export default function RestaurantDiscountsPanel({ t, restaurant }) {
           </div>
         </div>
         <label className="fd-check" htmlFor="fd-disc-approval">
-          <input id="fd-disc-approval" type="checkbox" checked={form.requiresApproval} onChange={set('requiresApproval')} />
+          <input id="fd-disc-approval" type="checkbox" checked={form.requiresApproval} onChange={set('requiresApproval')} data-track="ui.abb202390b.2" />
           {' '}{t('restaurantDiscounts.requiresApproval')}
         </label>
         <button type="submit" className="fd-btn" disabled={saving} data-track="restaurant_discount_create">

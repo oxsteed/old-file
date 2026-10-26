@@ -23285,7 +23285,8 @@
         "operations": "Operasyon",
         "payouts": "Peman",
         "displays": "Ekran",
-        "myshift": "Orè mwen"
+        "myshift": "Orè mwen",
+        "schedule": "Orè anplwaye yo"
       },
       "liveOrders": "Kòmand an dirèk",
       "noOrders": "Pa gen kòmand aktif kounye a.",
@@ -24067,6 +24068,49 @@
       "todayRevenue": "Revni",
       "viewStore": "Wè paj kliyan an",
       "viewStoreHint": "Wè egzakteman sa kliyan yo wè."
+    },
+    "timeClock": {
+      "title": "Revèy pou pwen",
+      "clockedOut": "Ou pa pwente.",
+      "clockedInSince": "Ou pwente depi {{time}}.",
+      "onBreakSince": "Ou nan poz depi {{time}}.",
+      "clockIn": "Pwente antre",
+      "clockOut": "Pwente soti",
+      "startBreak": "Kòmanse poz",
+      "endBreak": "Fini poz",
+      "clockedInOk": "Antre anrejistre",
+      "clockedOutOk": "Soti anrejistre",
+      "breakStarted": "Poz kòmanse",
+      "breakEnded": "Poz fini",
+      "actionError": "Sa pa t pase. Eseye ankò.",
+      "myShifts": "Pwochen orè travay mwen",
+      "noShifts": "Poko gen orè pibliye.",
+      "recentPunches": "Dènye pwen mwen yo",
+      "noPunches": "Pa gen pwen nan de dènye semèn yo.",
+      "hours": "{{hours}} è",
+      "timeOff": "Konje",
+      "timeOffType": "Kalite",
+      "timeOffTypes": {
+        "vacation": "Vakans",
+        "sick": "Maladi",
+        "personal": "Pèsonèl",
+        "unpaid": "San peye",
+        "other": "Lòt"
+      },
+      "from": "Soti",
+      "to": "Rive",
+      "reason": "Nòt pou manadjè ou (opsyonèl)",
+      "requestTimeOff": "Mande konje",
+      "timeOffSent": "Demann lan voye bay manadjè ou",
+      "timeOffInvalid": "Chwazi yon dat kòmansman ak yon dat fen ki menm oswa apre.",
+      "myRequests": "Demann konje mwen yo",
+      "status": {
+        "pending": "Ap tann",
+        "approved": "Apwouve",
+        "denied": "Refize",
+        "cancelled": "Anile",
+        "withdrawn": "Retire"
+      }
     }
   },
   "network": {

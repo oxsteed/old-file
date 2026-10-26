@@ -69,6 +69,7 @@ function appFor(userId, businessRole) {
     next();
   });
   app.get('/api/businesses/:businessId/staff/time-entries', scheduleCtrl.listTimeEntries);
+  app.get('/api/businesses/:businessId/staff/time-entries/mine', scheduleCtrl.listMyTimeEntries);
   app.post('/api/businesses/:businessId/staff/clock-in', scheduleCtrl.clockIn);
   app.post('/api/businesses/:businessId/staff/clock-out/:entryId', scheduleCtrl.clockOut);
   app.post('/api/businesses/:businessId/staff/time-entries/:entryId/break', scheduleCtrl.punchBreak);
@@ -262,5 +263,89 @@ ddescribe('time clock punch model (S-05)', () => {
       .get(`/api/businesses/${F.businessId}/time-entries`);
     expect(list.status).toBe(200);
     expect(list.body.entries.some((e) => e.id === entryId)).toBe(false);
+  });
+});
+
+// S-04 / N-02 / F-22: the restaurant "My time" card and business-local dates.
+ddescribe('own time entries and business-local work dates (S-04, F-22)', () => {
+  let G = {};
+
+  beforeAll(async () => {
+    const owner = await newUser('tz-owner');
+    const employee = await newUser('tz-employee');
+    const coworker = await newUser('tz-coworker');
+    const { rows: [biz] } = await pool.query(
+      `INSERT INTO businesses (user_id, business_name, timezone) VALUES ($1, $2, 'Pacific/Kiritimati') RETURNING id`,
+      [owner, `TZ Clock ${crypto.randomUUID().slice(0, 8)}`]
+    );
+    for (const memberId of [employee, coworker]) {
+      const { rows: [u] } = await pool.query('SELECT email FROM users WHERE id = $1', [memberId]);
+      await pool.query(
+        `INSERT INTO business_members (business_id, owner_id, member_id, invite_email, role, status)
+         VALUES ($1, $2, $3, $4, 'employee', 'active')`,
+        [biz.id, owner, memberId, u.email]
+      );
+    }
+    G = { owner, employee, coworker, businessId: biz.id };
+  });
+
+  test('clock-in stamps entry_date with the business-local calendar day', async () => {
+    const res = await request(appFor(G.employee, 'employee'))
+      .post(`/api/businesses/${G.businessId}/staff/clock-in`).send({});
+    expect(res.status).toBe(201);
+    const { rows: [row] } = await pool.query(
+      `SELECT te.entry_date::text AS entry_date,
+              (NOW() AT TIME ZONE 'Pacific/Kiritimati')::date::text AS local_day
+         FROM business_time_entries te WHERE te.id = $1`,
+      [res.body.id]
+    );
+    expect(row.entry_date).toBe(row.local_day);
+    G.openId = res.body.id;
+  });
+
+  test('an invalid business timezone falls back to the database date instead of failing', async () => {
+    await pool.query("UPDATE businesses SET timezone = 'Not/AZone' WHERE id = $1", [G.businessId]);
+    try {
+      const res = await request(appFor(G.coworker, 'employee'))
+        .post(`/api/businesses/${G.businessId}/staff/clock-in`).send({});
+      expect(res.status).toBe(201);
+      const { rows: [row] } = await pool.query(
+        'SELECT entry_date::text AS d, CURRENT_DATE::text AS today FROM business_time_entries WHERE id = $1',
+        [res.body.id]
+      );
+      expect(row.d).toBe(row.today);
+    } finally {
+      await pool.query("UPDATE businesses SET timezone = 'Pacific/Kiritimati' WHERE id = $1", [G.businessId]);
+    }
+  });
+
+  test('/time-entries/mine returns only the caller\'s entries and the open punch', async () => {
+    const mine = await request(appFor(G.employee, 'employee'))
+      .get(`/api/businesses/${G.businessId}/staff/time-entries/mine`);
+    expect(mine.status).toBe(200);
+    expect(mine.body.open_entry && mine.body.open_entry.id).toBe(G.openId);
+    expect(mine.body.entries.length).toBeGreaterThan(0);
+    expect(mine.body.entries.every((e) => e.user_id === G.employee)).toBe(true);
+
+    const theirs = await request(appFor(G.coworker, 'employee'))
+      .get(`/api/businesses/${G.businessId}/staff/time-entries/mine`);
+    expect(theirs.status).toBe(200);
+    expect(theirs.body.entries.some((e) => e.id === G.openId)).toBe(false);
+  });
+
+  test('/time-entries/mine refuses non-members', async () => {
+    const stranger = await newUser('tz-stranger');
+    const res = await request(appFor(stranger, 'employee'))
+      .get(`/api/businesses/${G.businessId}/staff/time-entries/mine`);
+    expect(res.status).toBe(403);
+  });
+
+  test('voided punches are hidden from /time-entries/mine', async () => {
+    await pool.query('UPDATE business_time_entries SET clock_out_at = NOW(), voided_at = NOW() WHERE id = $1', [G.openId]);
+    const mine = await request(appFor(G.employee, 'employee'))
+      .get(`/api/businesses/${G.businessId}/staff/time-entries/mine`);
+    expect(mine.status).toBe(200);
+    expect(mine.body.entries.some((e) => e.id === G.openId)).toBe(false);
+    expect(mine.body.open_entry).toBeNull();
   });
 });

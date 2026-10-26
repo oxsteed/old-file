@@ -23285,7 +23285,8 @@
         "operations": "Opérations",
         "payouts": "Paiements",
         "displays": "Écrans",
-        "myshift": "Mon poste"
+        "myshift": "Mon poste",
+        "schedule": "Planning de l’équipe"
       },
       "liveOrders": "Commandes en direct",
       "noOrders": "Aucune commande active pour le moment.",
@@ -24067,6 +24068,49 @@
       "todayRevenue": "Revenus",
       "viewStore": "Voir la page client",
       "viewStoreHint": "Voyez exactement ce que voient les clients."
+    },
+    "timeClock": {
+      "title": "Pointeuse",
+      "clockedOut": "Vous n’êtes pas pointé.",
+      "clockedInSince": "Pointé depuis {{time}}.",
+      "onBreakSince": "En pause depuis {{time}}.",
+      "clockIn": "Pointer l’arrivée",
+      "clockOut": "Pointer le départ",
+      "startBreak": "Commencer la pause",
+      "endBreak": "Terminer la pause",
+      "clockedInOk": "Arrivée pointée",
+      "clockedOutOk": "Départ pointé",
+      "breakStarted": "Pause commencée",
+      "breakEnded": "Pause terminée",
+      "actionError": "Échec de l’opération. Réessayez.",
+      "myShifts": "Mes prochains quarts",
+      "noShifts": "Aucun quart publié pour l’instant.",
+      "recentPunches": "Mes pointages récents",
+      "noPunches": "Aucun pointage ces deux dernières semaines.",
+      "hours": "{{hours}} h",
+      "timeOff": "Congés",
+      "timeOffType": "Type",
+      "timeOffTypes": {
+        "vacation": "Vacances",
+        "sick": "Maladie",
+        "personal": "Personnel",
+        "unpaid": "Sans solde",
+        "other": "Autre"
+      },
+      "from": "Du",
+      "to": "Au",
+      "reason": "Note pour votre responsable (facultatif)",
+      "requestTimeOff": "Demander un congé",
+      "timeOffSent": "Demande envoyée à votre responsable",
+      "timeOffInvalid": "Choisissez une date de début et une date de fin identique ou postérieure.",
+      "myRequests": "Mes demandes de congé",
+      "status": {
+        "pending": "En attente",
+        "approved": "Approuvée",
+        "denied": "Refusée",
+        "cancelled": "Annulée",
+        "withdrawn": "Retirée"
+      }
     }
   },
   "network": {

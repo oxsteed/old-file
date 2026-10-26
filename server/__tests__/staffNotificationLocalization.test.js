@@ -42,7 +42,7 @@ test('role codes and time-off decisions are localized', () => {
   expect(staffRoleName('support_agent', 'es')).toBe('agente de soporte');
   expect(staffRoleName('manager', 'ht')).toBe('manadjè');
   expect(staffDecisionName('approved', 'fr')).toBe('approuvée');
-  expect(staffDecisionName('rejected', 'en')).toBe('declined');
+  expect(staffDecisionName('denied', 'en')).toBe('declined');
 });
 
 test('a Spanish employee gets a Spanish invite body with no English appended', async () => {
@@ -65,7 +65,7 @@ test('a Spanish employee gets a Spanish invite body with no English appended', a
 });
 
 test('time-off decision renders per language from params', () => {
-  const fr = tNotif('time_off_decided', 'fr', { decision: staffDecisionName('rejected', 'fr'), startDate: '2026-11-01', endDate: '2026-11-03' });
+  const fr = tNotif('time_off_decided', 'fr', { decision: staffDecisionName('denied', 'fr'), startDate: '2026-11-01', endDate: '2026-11-03' });
   expect(fr.body).toBe('Votre demande du 2026-11-01 au 2026-11-03 a été refusée.');
   const ar = tNotif('crew_shift_published', 'ar', { count: 2, businessName: 'X', shiftLabel: 'Mon' });
   expect(ar.body).toContain('X');

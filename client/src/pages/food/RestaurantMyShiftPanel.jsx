@@ -18,6 +18,7 @@ import api from '../../api/axios';
 import { apiErrorMessage } from './foodShared';
 import { ChecklistsPanel, SopsPanel } from './RestaurantOpsPanels';
 import { TrainingPanel } from './RestaurantTrainingPanels';
+import RestaurantTimeClockCard from './RestaurantTimeClockCard';
 
 export default function RestaurantMyShiftPanel({ restaurant, canManageRestaurant }) {
   const { t, i18n } = useTranslation();
@@ -266,6 +267,9 @@ export default function RestaurantMyShiftPanel({ restaurant, canManageRestaurant
       </section>
 
       {/* My schedule */}
+      {/* S-04: time clock, my published shifts and time off */}
+      <RestaurantTimeClockCard restaurant={restaurant} />
+
       <section className="fd-card fd-myshift-section" aria-label={t('food.myShift.schedule')}>
         <h3>{t('food.myShift.schedule')}</h3>
         {shifts.length === 0 ? (

@@ -469,8 +469,9 @@ exports.listTimeEntries = async (req, res, next) => {
     const params = [businessId];
     let p = 2;
     if (user_id) { where += ` AND te.user_id = $${p++}`; params.push(user_id); }
-    if (from) { where += ` AND COALESCE(te.clock_in_at::date, te.entry_date) >= $${p++}::date`; params.push(from); }
-    if (to)   { where += ` AND COALESCE(te.clock_in_at::date, te.entry_date) <= $${p++}::date`; params.push(to); }
+    // F-22: filter on the stored business-local work date.
+    if (from) { where += ` AND COALESCE(te.entry_date, te.clock_in_at::date) >= $${p++}::date`; params.push(from); }
+    if (to)   { where += ` AND COALESCE(te.entry_date, te.clock_in_at::date) <= $${p++}::date`; params.push(to); }
     where += workforce.clause(storeContext,'te',params);
     const rows = await pool.query(
       `SELECT te.*,
@@ -481,6 +482,35 @@ exports.listTimeEntries = async (req, res, next) => {
       params
     );
     res.json(rows.rows.map(presentTimeEntry));
+  } catch (err) { next(err); }
+};
+
+// S-04 / N-02: an employee's own punches (the restaurant "My time" card).
+// Any active member may read only their own entries; managers keep the
+// store-scoped listTimeEntries above. Default window: the last 14 local days.
+exports.listMyTimeEntries = async (req, res, next) => {
+  const { businessId } = req.params;
+  try {
+    if (!await assertShiftMember(businessId, req.user.id)) {
+      return res.status(403).json({ error: 'Not a member of this business' });
+    }
+    const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+    const from = dateRe.test(String(req.query.from || '')) ? req.query.from : null;
+    const to = dateRe.test(String(req.query.to || '')) ? req.query.to : null;
+    const { rows } = await pool.query(
+      `SELECT te.*
+         FROM business_time_entries te
+        WHERE te.business_id = $1 AND te.user_id = $2 AND te.voided_at IS NULL
+          AND (te.clock_out_at IS NULL AND te.clock_in_at IS NOT NULL
+               OR te.entry_date >= COALESCE($3::date, CURRENT_DATE - 14))
+          AND ($4::date IS NULL OR te.entry_date <= $4::date)
+        ORDER BY te.entry_date DESC, te.id DESC
+        LIMIT 100`,
+      [businessId, req.user.id, from, to]
+    );
+    const entries = rows.map(presentTimeEntry);
+    const open = entries.find((e) => e.clock_in_at && !e.clock_out_at) || null;
+    res.json({ entries, open_entry: open });
   } catch (err) { next(err); }
 };
 
@@ -506,7 +536,15 @@ exports.clockIn = async (req, res, next) => {
     };
     const row = await pool.query(
       `INSERT INTO business_time_entries (business_id, user_id, entry_date, clock_in_at, source, punch_meta, location_id)
-       VALUES ($1,$2, CURRENT_DATE, NOW(), $3, $4::jsonb, $5) RETURNING *`,
+       VALUES ($1,$2,
+               -- F-22: the work date is the business-local calendar day,
+               -- not the database server's date.
+               COALESCE((SELECT (NOW() AT TIME ZONE NULLIF(b.timezone, ''))::date
+                           FROM businesses b
+                          WHERE b.id = $1
+                            AND NULLIF(b.timezone, '') IN (SELECT name FROM pg_timezone_names)),
+                        CURRENT_DATE),
+               NOW(), $3, $4::jsonb, $5) RETURNING *`,
       [businessId, req.user.id, source, JSON.stringify(punchMeta), await payrollLocation(businessId, req.user?.id, req.body?.locationId ?? req.body?.location_id ?? null)]
     );
     res.status(201).json(presentTimeEntry(row.rows[0]));

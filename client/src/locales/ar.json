@@ -23304,7 +23304,8 @@
         "operations": "العمليات",
         "payouts": "المدفوعات",
         "displays": "الشاشات",
-        "myshift": "ورديتي"
+        "myshift": "ورديتي",
+        "schedule": "جدول الموظفين"
       },
       "liveOrders": "الطلبات المباشرة",
       "noOrders": "لا توجد طلبات نشطة حاليًا.",
@@ -24078,6 +24079,49 @@
       "todayRevenue": "الإيرادات",
       "viewStore": "عرض صفحة العميل",
       "viewStoreHint": "شاهد بالضبط ما يراه العملاء."
+    },
+    "timeClock": {
+      "title": "ساعة الحضور",
+      "clockedOut": "لم تسجّل حضورك.",
+      "clockedInSince": "مسجّل الحضور منذ {{time}}.",
+      "onBreakSince": "في استراحة منذ {{time}}.",
+      "clockIn": "تسجيل الحضور",
+      "clockOut": "تسجيل الانصراف",
+      "startBreak": "بدء الاستراحة",
+      "endBreak": "إنهاء الاستراحة",
+      "clockedInOk": "تم تسجيل الحضور",
+      "clockedOutOk": "تم تسجيل الانصراف",
+      "breakStarted": "بدأت الاستراحة",
+      "breakEnded": "انتهت الاستراحة",
+      "actionError": "لم تتم العملية. حاول مرة أخرى.",
+      "myShifts": "نوباتي القادمة",
+      "noShifts": "لا توجد نوبات منشورة بعد.",
+      "recentPunches": "تسجيلاتي الأخيرة",
+      "noPunches": "لا توجد تسجيلات في الأسبوعين الماضيين.",
+      "hours": "{{hours}} ساعة",
+      "timeOff": "الإجازات",
+      "timeOffType": "النوع",
+      "timeOffTypes": {
+        "vacation": "إجازة",
+        "sick": "مرضية",
+        "personal": "شخصية",
+        "unpaid": "بدون أجر",
+        "other": "أخرى"
+      },
+      "from": "من",
+      "to": "إلى",
+      "reason": "ملاحظة لمديرك (اختياري)",
+      "requestTimeOff": "طلب إجازة",
+      "timeOffSent": "تم إرسال الطلب إلى مديرك",
+      "timeOffInvalid": "اختر تاريخ بداية وتاريخ نهاية مساويًا له أو بعده.",
+      "myRequests": "طلبات إجازتي",
+      "status": {
+        "pending": "قيد الانتظار",
+        "approved": "تمت الموافقة",
+        "denied": "مرفوضة",
+        "cancelled": "ملغاة",
+        "withdrawn": "مسحوبة"
+      }
     }
   },
   "network": {

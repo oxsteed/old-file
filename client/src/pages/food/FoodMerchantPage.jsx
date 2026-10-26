@@ -42,6 +42,7 @@ import { AuditsPanel } from './RestaurantAuditPanels';
 import { ReportsPanel } from './RestaurantReportsPanel';
 import PrinterSettingsPanel from './PrinterSettingsPanel';
 import RestaurantDiscountsPanel from './RestaurantDiscountsPanel';
+import { StaffScheduler } from '../../components/businessHub/StaffScheduler';
 import GiftCardProductsPanel from './GiftCardProductsPanel';
 import DisplayFleetPanel from './DisplayFleetPanel';
 import RestaurantHostingPanel from './RestaurantHostingPanel';
@@ -2465,7 +2466,7 @@ function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
 }
 
 // ── Tab icon map ──────────────────────────────────────────────────────────────
-const TAB_ICONS = { home: Home, myshift: UserCheck, orders: Receipt, menu: UtensilsCrossed, payouts: Wallet, settings: Settings, operations: ClipboardList, displays: Tv };
+const TAB_ICONS = { home: Home, myshift: UserCheck, schedule: CalendarDays, orders: Receipt, menu: UtensilsCrossed, payouts: Wallet, settings: Settings, operations: ClipboardList, displays: Tv };
 
 function hasRestaurantPermission(restaurant, requested) {
   if (restaurant?.effective_role === 'owner' || restaurant?.permissions?.includes('*')) return true;
@@ -2527,6 +2528,9 @@ export default function FoodMerchantPage() {
     // S-02: every team member gets the "My shift" staff home, regardless of
     // management permissions.
     tabs.push('myshift');
+    // S-04: managers build and publish the staff schedule, approve time off
+    // and review punches here (same records as Business Hub > Staff).
+    if (canManageRestaurant) tabs.push('schedule');
     if (hasRestaurantPermission(selected, ['orders.view', 'orders.manage', 'kitchen.view', 'kitchen.update'])) tabs.push('orders');
     if (hasRestaurantPermission(selected, ['menu.view', 'menu.manage'])) tabs.push('menu');
     if (canManagePayouts || canManageCredit) tabs.push('payouts');
@@ -2753,6 +2757,11 @@ export default function FoodMerchantPage() {
                 }
                 onSetupChanged={() => setSetupKey((k) => k + 1)}
               />
+            )}
+            {selected && tab === 'schedule' && canManageRestaurant && selected.business_id && (
+              <div className="fd-section">
+                <StaffScheduler businessId={selected.business_id} isManager={canManageRestaurant} />
+              </div>
             )}
             {selected && tab === 'operations' && (
               <OperationsView

@@ -23285,7 +23285,8 @@
         "operations": "Operations",
         "payouts": "Payouts",
         "displays": "Displays",
-        "myshift": "My shift"
+        "myshift": "My shift",
+        "schedule": "Staff schedule"
       },
       "liveOrders": "Live orders",
       "noOrders": "No active orders right now.",
@@ -24067,6 +24068,49 @@
       "todayRevenue": "Revenue",
       "viewStore": "View customer page",
       "viewStoreHint": "See exactly what customers see."
+    },
+    "timeClock": {
+      "title": "Time clock",
+      "clockedOut": "You are clocked out.",
+      "clockedInSince": "Clocked in since {{time}}.",
+      "onBreakSince": "On break since {{time}}.",
+      "clockIn": "Clock in",
+      "clockOut": "Clock out",
+      "startBreak": "Start break",
+      "endBreak": "End break",
+      "clockedInOk": "Clocked in",
+      "clockedOutOk": "Clocked out",
+      "breakStarted": "Break started",
+      "breakEnded": "Break ended",
+      "actionError": "That didn't go through. Try again.",
+      "myShifts": "My upcoming shifts",
+      "noShifts": "No published shifts yet.",
+      "recentPunches": "My recent punches",
+      "noPunches": "No punches in the last two weeks.",
+      "hours": "{{hours}} h",
+      "timeOff": "Time off",
+      "timeOffType": "Type",
+      "timeOffTypes": {
+        "vacation": "Vacation",
+        "sick": "Sick",
+        "personal": "Personal",
+        "unpaid": "Unpaid",
+        "other": "Other"
+      },
+      "from": "From",
+      "to": "To",
+      "reason": "Note for your manager (optional)",
+      "requestTimeOff": "Request time off",
+      "timeOffSent": "Request sent to your manager",
+      "timeOffInvalid": "Choose a start date and an end date on or after it.",
+      "myRequests": "My time-off requests",
+      "status": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "denied": "Declined",
+        "cancelled": "Cancelled",
+        "withdrawn": "Withdrawn"
+      }
     }
   },
   "network": {
