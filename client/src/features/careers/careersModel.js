@@ -15,11 +15,16 @@ export const PAY_PERIODS = ['hourly', 'daily', 'per_shift', 'monthly', 'yearly']
 export const PATH_STAGES = ['shift', 'part_time', 'full_time', 'seasonal', 'temporary', 'contract', 'intern'];
 export const EOR_PATH_STAGES = ['shift', 'seasonal', 'temporary'];
 export const WORKPLACE_TYPES = ['onsite', 'hybrid', 'remote'];
+export const DEPARTMENTS = ['restaurant', 'operations', 'logistics', 'support', 'engineering', 'product', 'sales', 'marketing', 'finance', 'people', 'legal', 'other'];
+export const TEAM_ROLES = ['employee', 'manager', 'representative', 'support_agent'];
+export const EMPLOYMENT_TYPES = ['full_time', 'part_time', 'contract', 'intern', 'seasonal', 'temporary'];
+export const INTERVIEW_MODES = ['onsite', 'phone', 'video'];
 export const VISIBILITY_LEVELS = ['private', 'apply_only', 'known_businesses', 'searchable'];
 export const FACT_TYPES = ['completed_jobs', 'avg_rating', 'on_time_rate', 'response_rate', 'training_completed', 'certificate', 'badge', 'shifts_worked', 'tenure', 'id_verified'];
 export const INVITATION_REASONS = ['worked_with_us', 'great_reviews', 'certified', 'skills_match', 'nearby'];
 export const ONBOARDING_STEPS = ['membership', 'location', 'pin', 'training', 'documents', 'age_confirmed', 'eor_enrollment', 'first_shift', 'payroll_handoff', 'notify'];
-export const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+// Index = server day number (0 = Sunday, as in Date#getUTCDay).
+export const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
 /** Localized money; falls back to "USD 15.00" if Intl rejects the currency. */
 export function formatMoney(amount, currency = 'USD', locale = 'en') {
@@ -144,15 +149,18 @@ export function errorMessage(err, fallback) {
   return err?.response?.data?.error || fallback;
 }
 
-/** Availability rows [{ day, start, end }] ↔ simple per-day form. */
+/** Availability rows [{ day: 0-6, start, end }] ↔ simple per-day form. */
 export function availabilityToForm(rows = []) {
   const out = Object.fromEntries(WEEKDAYS.map((d) => [d, { on: false, start: '09:00', end: '17:00' }]));
-  for (const r of rows || []) if (out[r.day]) out[r.day] = { on: true, start: r.start || '09:00', end: r.end || '17:00' };
+  for (const r of rows || []) {
+    const key = WEEKDAYS[Number(r.day)];
+    if (key) out[key] = { on: true, start: r.start || '09:00', end: r.end || '17:00' };
+  }
   return out;
 }
 
 export function formToAvailability(form) {
-  return WEEKDAYS.filter((d) => form[d]?.on).map((d) => ({ day: d, start: form[d].start, end: form[d].end }));
+  return WEEKDAYS.map((d, day) => ({ d, day })).filter(({ d }) => form[d]?.on).map(({ d, day }) => ({ day, start: form[d].start, end: form[d].end }));
 }
 
 /** What the worker must still do before an offer can be accepted. */
@@ -173,6 +181,7 @@ export function groupByStage(applications = []) {
 
 /** Applicant label: number until identity shows (hidden until offer, guest). */
 export function applicantLabel(app, t) {
+  if (app?.display_name) return app.display_name;
   if (app?.name) return app.name;
   if (app?.first_name || app?.last_name) return [app.first_name, app.last_name].filter(Boolean).join(' ');
   return t('careers.employer.applicantNumber', { number: app?.applicant_number ?? app?.id });
@@ -192,4 +201,89 @@ export function isEorAllowed(pathStage) {
 export function idempotencyKey(prefix = 'careers') {
   const rand = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   return `${prefix}-${rand}`;
+}
+
+/** Use a stored translation of the posting when one exists for the UI language. */
+export function localizedOpening(opening, language) {
+  if (!opening) return opening;
+  const lang = String(language || '').slice(0, 2);
+  const tr = opening.translations && typeof opening.translations === 'object' ? opening.translations[lang] : null;
+  if (!tr || lang === opening.content_locale) return { ...opening, is_translated: false };
+  const pick = (k) => (typeof tr[k] === 'string' && tr[k].trim() ? tr[k] : opening[k]);
+  return { ...opening, title: pick('title'), description: pick('description'), requirements: pick('requirements'), benefits_summary: pick('benefits_summary'), is_translated: true };
+}
+
+/** Clean list filters before they hit the query string. */
+export function cleanFilters(filters) {
+  const out = {};
+  for (const [k, v] of Object.entries(filters || {})) if (v !== '' && v !== null && v !== undefined) out[k] = v;
+  if (!out.near) delete out.radius_km;
+  return out;
+}
+
+export const OPENING_STATUSES = ['draft', 'open', 'paused', 'closed', 'filled'];
+export const EEO_OPTIONS = {
+  sex: ['female', 'male', 'nonbinary', 'decline'],
+  race_ethnicity: ['hispanic_latino', 'white', 'black', 'asian', 'native_american_alaska', 'native_hawaiian_pacific', 'two_or_more', 'decline'],
+  disability: ['yes', 'no', 'decline'],
+  veteran: ['protected_veteran', 'not_veteran', 'decline'],
+};
+
+/** Only answered EEO questions are sent; the form is voluntary and US-only. */
+export function eeoPayload(form) {
+  const out = {};
+  for (const k of Object.keys(EEO_OPTIONS)) if (form?.[k] && EEO_OPTIONS[k].includes(form[k])) out[k] = form[k];
+  return Object.keys(out).length ? out : null;
+}
+
+/** Signed-in application body (C-15: lawful questions only). */
+export function applicationPayload(form, opening) {
+  const body = {
+    authorized_to_work: form.authorized_to_work,
+    needs_sponsorship: form.needs_sponsorship,
+    preferred_location_ids: (form.preferred_location_ids || []).map(Number),
+    languages: (form.languages || '').split(',').map((s) => s.trim()).filter(Boolean),
+    cover_letter: form.cover_letter || null,
+    resume_url: form.resume_url || null,
+    accommodation_requested: Boolean(form.accommodation_requested),
+    ai_notice_shown: Boolean(opening?.ai_ranking_enabled),
+  };
+  if (Array.isArray(form.share_fact_types)) body.share_fact_types = form.share_fact_types;
+  if (opening?.country_code === 'US') {
+    const eeo = eeoPayload(form.eeo);
+    if (eeo) body.eeo = eeo;
+  }
+  return body;
+}
+
+/**
+ * One verified fact as short text, e.g. "42" or "96%". The label comes
+ * from careers.facts.<type>; this returns the value part only.
+ */
+export function factValueText(fact, locale = 'en') {
+  const v = fact?.value || {};
+  const pct = (r) => `${Math.round(Number(r) * 100)}%`;
+  switch (fact?.fact_type) {
+    case 'completed_jobs':
+    case 'shifts_worked':
+      return String(v.count ?? fact.sample_size ?? '');
+    case 'avg_rating':
+      return v.average != null ? `${Number(v.average).toFixed(1)} / 5 (${v.count})` : '';
+    case 'on_time_rate':
+    case 'response_rate':
+      return v.rate != null ? pct(v.rate) : '';
+    case 'tenure':
+      return v.months != null ? String(v.months) : '';
+    case 'training_completed':
+    case 'certificate': {
+      const until = v.expires_at || v.expires_on;
+      return [v.title || v.doc_type || fact.category, until ? `→ ${formatDate(String(until).slice(0, 10), locale)}` : ''].filter(Boolean).join(' ');
+    }
+    case 'badge':
+      return [v.title || v.code, v.level].filter(Boolean).join(' · ');
+    case 'id_verified':
+      return '✓';
+    default:
+      return '';
+  }
 }

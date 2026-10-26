@@ -45,10 +45,10 @@ test('opening round-trips through the form', () => {
 });
 
 test('availability converts both ways', () => {
-  const form = availabilityToForm([{ day: 'sat', start: '08:00', end: '14:00' }]);
+  const form = availabilityToForm([{ day: 6, start: '08:00', end: '14:00' }]);
   assert.equal(form.sat.on, true);
   assert.equal(form.mon.on, false);
-  assert.deepEqual(formToAvailability(form), [{ day: 'sat', start: '08:00', end: '14:00' }]);
+  assert.deepEqual(formToAvailability(form), [{ day: 6, start: '08:00', end: '14:00' }]);
 });
 
 test('pipeline grouping and moves never include hired or offer', () => {
@@ -85,4 +85,43 @@ test('server field errors are read from the response', () => {
 
 test('times show their zone', () => {
   assert.match(formatWhen('2026-11-02T15:00:00Z', 'America/New_York', 'en-US'), /EST|GMT-5/);
+});
+
+import { localizedOpening, cleanFilters } from './careersModel.js';
+
+test('postings use a stored translation for the UI language', () => {
+  const o = { title: 'Cook', description: 'Cook food', content_locale: 'en', translations: { es: { title: 'Cocinero', description: '' } } };
+  assert.equal(localizedOpening(o, 'es').title, 'Cocinero');
+  assert.equal(localizedOpening(o, 'es').description, 'Cook food');
+  assert.equal(localizedOpening(o, 'es').is_translated, true);
+  assert.equal(localizedOpening(o, 'en').is_translated, false);
+  assert.equal(localizedOpening(o, 'fr').title, 'Cook');
+});
+
+test('empty filters are dropped and radius needs a postal code', () => {
+  assert.deepEqual(cleanFilters({ q: '', country: 'US', radius_km: 25 }), { country: 'US' });
+  assert.deepEqual(cleanFilters({ near: '10001', radius_km: 25 }), { near: '10001', radius_km: 25 });
+});
+
+import { applicationPayload, eeoPayload } from './careersModel.js';
+
+test('EEO answers are sent only on US openings and only when answered', () => {
+  const form = { authorized_to_work: true, needs_sponsorship: false, eeo: { sex: 'female', veteran: '' } };
+  assert.deepEqual(applicationPayload(form, { country_code: 'US' }).eeo, { sex: 'female' });
+  assert.equal('eeo' in applicationPayload(form, { country_code: 'FR' }), false);
+  assert.equal(eeoPayload({ sex: 'bogus' }), null);
+});
+
+test('application payload records the AI notice when ranking is on', () => {
+  assert.equal(applicationPayload({}, { ai_ranking_enabled: true }).ai_notice_shown, true);
+  assert.equal(applicationPayload({}, { ai_ranking_enabled: false }).ai_notice_shown, false);
+});
+
+import { factValueText } from './careersModel.js';
+
+test('facts render as short values', () => {
+  assert.equal(factValueText({ fact_type: 'completed_jobs', value: { count: 12 } }), '12');
+  assert.equal(factValueText({ fact_type: 'on_time_rate', value: { rate: 0.955 } }), '96%');
+  assert.equal(factValueText({ fact_type: 'avg_rating', value: { average: 4.62, count: 30 } }), '4.6 / 5 (30)');
+  assert.match(factValueText({ fact_type: 'certificate', value: { title: 'Food handler', expires_on: '2027-01-15' } }, 'en-US'), /^Food handler → Jan 15, 2027$/);
 });

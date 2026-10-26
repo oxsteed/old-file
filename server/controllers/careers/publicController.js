@@ -25,16 +25,29 @@ exports.listOpenings = handle(async (req, res) => {
   res.json({ ...result, openings: result.openings.map(publicOpening), promoted: result.promoted.map(publicOpening) });
 });
 
+// Store names and cities only (public storefront facts) so applicants can
+// pick preferred stores (§4.3 step 2).
+async function withLocations(opening) {
+  const ids = (opening.location_ids || []).map(Number).filter(Number.isInteger);
+  if (!ids.length) return { ...opening, locations: [] };
+  const { rows } = await pool.query(
+    `SELECT id, name, address_city AS city, address_state AS region FROM restaurant_locations
+      WHERE id = ANY($1::bigint[]) AND status IS DISTINCT FROM 'closed' ORDER BY name`,
+    [ids]
+  );
+  return { ...opening, locations: rows };
+}
+
 exports.getOpening = handle(async (req, res) => {
   const opening = await openings.getPublic(pool, { id: req.params.id });
   if (!opening) throw new AppError('Opening not found', 404, 'not_found');
-  res.json({ opening: publicOpening(opening) });
+  res.json({ opening: await withLocations(publicOpening(opening)) });
 });
 
 exports.getOpeningBySlug = handle(async (req, res) => {
   const opening = await openings.getPublic(pool, { employerSlug: req.params.employerSlug, slug: req.params.slug });
   if (!opening) throw new AppError('Opening not found', 404, 'not_found');
-  res.json({ opening: publicOpening(opening) });
+  res.json({ opening: await withLocations(publicOpening(opening)) });
 });
 
 /**

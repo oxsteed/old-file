@@ -1,71 +1,54 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import toast from 'react-hot-toast';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
-import { decideCareerOffer, listMyCareerApplications, withdrawCareerApplication } from '../api/careers';
+import { listMyCareerApplications } from '../api/careers';
+import { Tabs, useLoad } from '../components/careers/ui';
+import ApplicationsTab from '../components/careers/worker/ApplicationsTab';
+import InvitationsTab from '../components/careers/worker/InvitationsTab';
+import ProfileTab from '../components/careers/worker/ProfileTab';
+import PrivacyTab from '../components/careers/worker/PrivacyTab';
+import GrowthTab from '../components/careers/worker/GrowthTab';
 import '../styles/CareerSystem.css';
 
+const TABS = ['applications', 'jobs', 'invitations', 'profile', 'privacy'];
+
+/** "My careers": applications, offers, invitations, profile and privacy. */
 export default function MyCareerApplicationsPage() {
   const { t } = useTranslation();
-  const [rows, setRows] = useState([]);
-
-  async function load() {
-    try {
-      setRows(await listMyCareerApplications());
-    } catch (err) {
-      toast.error(err?.response?.data?.error || t('careers.loadError'));
-    }
-  }
-
-  useEffect(() => { load(); }, []);
+  const [params, setParams] = useSearchParams();
+  const tab = TABS.includes(params.get('tab')) ? params.get('tab') : 'applications';
+  const setTab = (next) => setParams((p) => { const n = new URLSearchParams(p); n.set('tab', next); return n; }, { replace: true });
+  const apps = useLoad(() => listMyCareerApplications().catch(() => []), []);
+  const businesses = useMemo(() => {
+    const seen = new Map();
+    for (const a of apps.data || []) if (a.business_id && !seen.has(a.business_id)) seen.set(a.business_id, { id: a.business_id, name: a.employer_name });
+    return [...seen.values()];
+  }, [apps.data]);
+  const pendingOffers = (apps.data || []).reduce((n, a) => n + (a.offers || []).filter((o) => o.status === 'pending').length, 0);
 
   return (
     <PageShell>
-      <PageMeta title={t('careers.myApplications')} description={t('careers.metaDesc')} />
+      <PageMeta title={t('careers.my.metaTitle')} description={t('careers.metaDesc')} />
       <div className="ox-careers">
-        <Link to="/careers">{t('careers.back')}</Link>
-        <h1>{t('careers.myApplications')}</h1>
-        {rows.length === 0 ? (
-          <p>{t('careers.noApplications')}</p>
-        ) : (
-        <div className="ox-careers-grid">
-          {rows.map((row) => (
-            <div key={row.id} className="ox-careers-panel">
-              <p className="ox-careers-kicker">{row.employer_name}</p>
-              <h2 style={{ fontSize: '1.1rem' }}>{row.title}</h2>
-              <p>{t(`careers.stage.${row.stage}`)}</p>
-              <div className="ox-careers-actions">
-                <Link className="ox-careers-btn" to={`/careers/${row.opening_id}`}>{t('careers.viewRole')}</Link>
-                {row.stage === 'offer' && (
-                  <>
-                    <button type="button" className="ox-careers-btn primary" onClick={async () => {
-                      const offerId = row.offers?.[0]?.id;
-                      if (!offerId) return toast.error(t('careers.apply.error'));
-                      await decideCareerOffer(offerId, 'accepted');
-                      toast.success(t('careers.apply.offerAccepted'));
-                      load();
-                    }} data-track="ui.250c3edd29.1">{t('careers.apply.acceptOffer')}</button>
-                    <button type="button" className="ox-careers-btn" onClick={async () => {
-                      const offerId = row.offers?.[0]?.id;
-                      if (!offerId) return;
-                      await decideCareerOffer(offerId, 'declined');
-                      load();
-                    }} data-track="ui.250c3edd29.2">{t('careers.apply.declineOffer')}</button>
-                  </>
-                )}
-                {!['hired', 'withdrawn', 'rejected'].includes(row.stage) && (
-                  <button type="button" className="ox-careers-btn" onClick={async () => {
-                    await withdrawCareerApplication(row.id);
-                    load();
-                  }} data-track="ui.250c3edd29.3">{t('careers.apply.withdraw')}</button>
-                )}
-              </div>
-            </div>
-          ))}
+        <p className="ox-careers-kicker">{t('careers.kicker')}</p>
+        <h1>{t('careers.my.title')}</h1>
+        <p className="ox-careers-lead">{t('careers.my.subtitle')}</p>
+        <div className="ox-careers-actions">
+          <Link className="ox-careers-btn" to="/careers">{t('careers.browseRoles')}</Link>
         </div>
-        )}
+        <Tabs
+          label={t('careers.my.title')}
+          active={tab}
+          onChange={setTab}
+          tabs={TABS.map((id) => ({ id, label: t(`careers.my.tabs.${id}`), badge: id === 'applications' && pendingOffers ? pendingOffers : null }))}
+        />
+        {tab === 'applications' ? <ApplicationsTab /> : null}
+        {tab === 'jobs' ? <GrowthTab onEditProfile={() => setTab('profile')} /> : null}
+        {tab === 'invitations' ? <InvitationsTab /> : null}
+        {tab === 'profile' ? <ProfileTab previewBusinesses={businesses} /> : null}
+        {tab === 'privacy' ? <PrivacyTab /> : null}
       </div>
     </PageShell>
   );

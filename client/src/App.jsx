@@ -456,6 +456,7 @@ export default function App() {
                     <Route path="/careers"                 element={<Guarded><CareersPage /></Guarded>} />
                     <Route path="/careers/me"              element={<Guarded><ProtectedRoute><RouteErrorBoundary><MyCareerApplicationsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/careers/:id"             element={<Guarded><CareerOpeningPage /></Guarded>} />
+                    <Route path="/careers/:id/confirm"     element={<Guarded><CareerOpeningPage /></Guarded>} />
                     <Route path="/business/:businessId/careers" element={<Guarded><CareersPage /></Guarded>} />
                     <Route path="/jobs"                    element={<Guarded><JobListPage /></Guarded>} />
                     <Route path="/saved-searches"         element={<Guarded><ProtectedRoute><SavedSearchesPage /></ProtectedRoute></Guarded>} />
