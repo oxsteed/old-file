@@ -68,7 +68,7 @@ async function recordEvent(db, { applicationId, actorId, from, to, note = null, 
   await db.query(
     `INSERT INTO career_application_events (application_id, actor_user_id, from_stage, to_stage, note, reason_code, metadata)
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [applicationId, actorId, from, to, note, reasonCode, metadata ? JSON.stringify(metadata) : null]
+    [applicationId, actorId, from, to, note, reasonCode, metadata ? JSON.stringify(metadata) : '{}']
   );
 }
 

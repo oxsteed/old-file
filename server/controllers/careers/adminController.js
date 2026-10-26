@@ -37,7 +37,7 @@ exports.listOpenings = handle(async (req, res) => {
   if (req.query.q) { params.push(`%${String(req.query.q).slice(0, 80)}%`); where += ` AND (o.title ILIKE $${params.length} OR b.business_name ILIKE $${params.length})`; }
   const { rows } = await pool.query(
     `SELECT o.id, o.title, o.status, o.moderation_status, o.employer_type, o.business_id, b.business_name,
-            o.country_code, o.region_code, o.city, o.pay_min_cents, o.pay_max_cents, o.pay_period, o.currency,
+            o.country_code, o.region, o.city, o.compensation_min, o.compensation_max, o.compensation_period, o.currency_code, o.removed_reason,
             o.published_at, o.updated_at,
             (SELECT COUNT(*)::int FROM career_applications a WHERE a.opening_id = o.id) AS applications
        FROM career_openings o LEFT JOIN businesses b ON b.id = o.business_id
@@ -56,7 +56,15 @@ exports.moderateOpening = handle(async (req, res) => {
   const opening = await tx(async (c) => {
     const { rows: [before] } = await c.query('SELECT id, moderation_status, business_id, title, created_by FROM career_openings WHERE id = $1 FOR UPDATE', [Number(req.params.id)]);
     if (!before) throw new AppError('Opening not found', 404, 'not_found');
-    const { rows: [row] } = await c.query('UPDATE career_openings SET moderation_status = $2, updated_at = NOW() WHERE id = $1 RETURNING id, moderation_status', [before.id, status]);
+    const { rows: [row] } = await c.query(
+      `UPDATE career_openings
+          SET moderation_status = $2, updated_at = NOW(),
+              removed_reason = CASE WHEN $2 = 'removed' THEN $3 ELSE NULL END,
+              removed_by = CASE WHEN $2 = 'removed' THEN $4::uuid ELSE NULL END,
+              removed_at = CASE WHEN $2 = 'removed' THEN NOW() ELSE NULL END
+        WHERE id = $1 RETURNING id, moderation_status, removed_reason`,
+      [before.id, status, note || null, req.user.id]
+    );
     await adminAudit(req, c, { action: 'careers.opening.moderated', targetType: 'career_opening', targetId: before.id, before: { moderation_status: before.moderation_status }, after: { moderation_status: status, note } });
     if (status === 'removed' && before.created_by) {
       await notifyUser(c, {
