@@ -76,6 +76,9 @@ jobs:
       - name: Scale harness regression tests (V2-P1-05)
         run: node --test scripts/scale/scale-harness.test.cjs
 
+      - name: Growth load test and replica-kill drill tooling tests (D-ENG-08)
+        run: node --test scripts/growth/loadDrill.test.cjs
+
       - name: Isolated Credit fixture regression tests
         run: node --test scripts/credit-isolated-seed.test.cjs scripts/media-credit-isolated.test.cjs scripts/pull-ci-redis.test.cjs
 
@@ -579,6 +582,22 @@ jobs:
           GROWTH_CLICKHOUSE_ADMIN_USER: default
           GROWTH_CLICKHOUSE_ADMIN_PASSWORD: synthetic-growth-only
         run: node scripts/verifyGrowthClickhouseBackups.js
+
+      - name: Growth ingest load smoke (D-ENG-08, synthetic rows, scratch table)
+        working-directory: .
+        env:
+          CLICKHOUSE_USER: default
+          CLICKHOUSE_PASSWORD: synthetic-growth-only
+        run: |
+          set -euo pipefail
+          sed -n '1,13p' server/migrations-clickhouse/C002_activity_events.sql \
+            | sed -e 's/growth.activity_events ON CLUSTER growth/loadtest.activity_events/' \
+                  -e "s/ReplicatedReplacingMergeTree('[^)]*)/ReplacingMergeTree/" > /tmp/loadtest.sql
+          auth=(-H "X-ClickHouse-User: $CLICKHOUSE_USER" -H "X-ClickHouse-Key: $CLICKHOUSE_PASSWORD")
+          curl -fsS "${auth[@]}" -X POST http://127.0.0.1:8123 -d 'CREATE DATABASE IF NOT EXISTS loadtest'
+          curl -fsS "${auth[@]}" -X POST http://127.0.0.1:8123 --data-binary @/tmp/loadtest.sql
+          node scripts/growth/clickhouse-load-test.cjs --url=http://127.0.0.1:8123 \
+            --table=loadtest.activity_events --eps=2000 --seconds=10 --p99-ms=3000
 
       - name: Remove ClickHouse fixture
         if: always()
