@@ -544,14 +544,17 @@ function formatWhen(date, timezone, locale) {
   }
 }
 
-async function scheduleInterview(db, { app, actor, body }) {
+async function scheduleInterview(db, { app, actor, body, slot = null }) {
   if (!ACTIVE_STAGES.includes(app.stage) || app.stage === 'offer') throw new AppError('Interviews can only be booked for active applications', 409, 'invalid_transition');
-  const v = parseInterview(body, app);
+  // A group slot from a hiring event fixes the time, length and zone.
+  const v = parseInterview(slot ? {
+    ...body, scheduled_at: slot.starts_at, timezone: slot.timezone, duration_minutes: slot.duration_minutes, mode: body.mode || 'onsite',
+  } : body, app);
   const uid = `career-interview-${crypto.randomUUID()}@oxsteed.com`;
   const { rows: [interview] } = await db.query(
-    `INSERT INTO career_interviews (application_id, scheduled_at, timezone, mode, location, notes, created_by, duration_minutes, ics_uid)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-    [app.id, v.when.toISOString(), v.timezone, v.mode, v.location, v.notes, actor.id, v.duration, uid]
+    `INSERT INTO career_interviews (application_id, scheduled_at, timezone, mode, location, notes, created_by, duration_minutes, ics_uid, group_slot_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+    [app.id, v.when.toISOString(), v.timezone, v.mode, v.location, v.notes, actor.id, v.duration, uid, slot ? slot.id : null]
   );
   if (['received', 'screening'].includes(app.stage)) {
     await db.query(`UPDATE career_applications SET stage = 'interview', updated_at = NOW() WHERE id = $1`, [app.id]);
