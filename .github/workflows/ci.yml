@@ -85,7 +85,13 @@ jobs:
 
       - name: Client src unit tests
         working-directory: client
-        run: node --test src/**/*.test.mjs
+        # N-10: bash without globstar expands src/**/*.test.mjs one level deep
+        # only, silently skipping nested folders. find walks every depth.
+        run: |
+          mapfile -d '' tests < <(find src -name '*.test.mjs' -not -path '*/node_modules/*' -print0 | sort -z)
+          echo "Running ${#tests[@]} client src test files"
+          test "${#tests[@]}" -gt 0
+          node --test "${tests[@]}"
 
       - name: Growth instrumentation coverage check
         working-directory: client
